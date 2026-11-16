@@ -530,3 +530,78 @@ component, not the tidal model.
   3. B edges A only through its partial seasonal term; its tide is the poorer, so the tie rule naming A is right.
 - **Next (registered; nothing re-tuned on this now-seen window):** a separately gated seasonal component AND a
   non-tidal level, on a new unseen window, each pre-registered first.
+
+## 15:59 EST 2026-11-16 (`date`) - G3 PRE-REGISTRATION DRAFT: seasonal + non-tidal water level (written before any G3 code or data)
+Owner, typed in this session 15:58 EST: "Yes, register it." This is a DRAFT for the advisor's and the research lead's
+review. Thresholds and sources are proposed, not final, until their reads are recorded here. Nothing is built or run
+before that, and any G3 run is the owner's word in this session.
+
+**Why:** G2 FAILED with the controls behaving. The astronomical tide is right in shape (timing 7.7 min, MLLW 0.014 m,
+tidal band 0.024 m) but it has (a) no seasonal sea level (FES2022b SA ~0.0003 m vs NOAA's 0.05-0.12) and (b) no
+non-tidal water. Against OBSERVED water it reads 0.31 m vs today's served 0.35 and the held #926 datum's 0.19. The
+owner's rule (22:01 EST): the served system must come from free GRIB / CMEMS-type sources, not Open-Meteo.
+
+**What G3 measures:** served water level = FES2022b tide (arm A of G2, unchanged) + a SEASONAL term + a NON-TIDAL term,
+each from a free, non-Open-Meteo source, scored first against OBSERVED water (what a surfer stands in).
+
+**Candidate sources** (availability for the window and the license to be confirmed BEFORE code; a source that cannot
+be confirmed is dropped from G3 before any run, and the drop is recorded here):
+- **N1 - CMEMS global analysis-forecast sea surface height** (`zos`, GLOBAL_ANALYSISFORECAST_PHY_001_024, 1/12 deg,
+  hourly, 10 days). Free with the project's Copernicus Marine account; Copernicus is already in the ingest. It
+  carries steric/seasonal and mesoscale level; whether it also carries tides must be checked. If it does, the tidal
+  part is removed or not double-counted.
+- **N2 - NOAA STOFS-2D-Global non-tidal water level** (surge, from the free operational ADCIRC runs on NOMADS/AWS,
+  ~7 days).
+- **S1 - seasonal climatology** from satellite altimetry (CMEMS/AVISO gridded SLA, a monthly or day-of-year mean over
+  a multi-year base), at the gauge's cell. Used only where N1 does not already carry the seasonal level.
+
+**Arms:**
+- A (tide only, G2's arm A).
+- A+S1.
+- A+N1.
+- A+S1+N2.
+- Reference arms, TEST-ONLY and never served: C (Open-Meteo de-meaned 72 h) and D (the held #926 datum).
+- Arm B (EOT20) is not carried forward: it failed on coverage, and its tide was the poorer of the two.
+
+**Forecast, not hindcast:** each served value is a FORECAST, so every non-tidal arm is scored at the leads served, from
+the run issued before the valid hour. Strata are reported at lead 0-24, 24-48 and 48-72 h; the gate reads 0-72 h pooled.
+
+**Window:** a new, frozen, already-observed 14-day window, clear of every seen date (listed at 06:41 EST, plus G2's
+2026-09-29 .. 10-12, plus calendar 2025 for P and arm B). Proposed: **2026-08-25 00Z .. 2026-09-07 23Z** (clear of the
+held-out week from 2026-09-15). It is confirmed once the sources are confirmed to hold that window at the needed leads.
+
+**Truth:** T2 CO-OPS OBSERVED water (MSL, on the hour) GATES. T1 CO-OPS predictions are reported (the seasonal check).
+
+**PROPOSED pass lines (for the chosen non-tidal arm, all must hold):**
+1. Median RMSE vs OBSERVED water below D's by >= 0.02 m, AND below C's.
+2. No gauge worse than D by more than 0.05 m.
+3. On surge hours (|observed non-tidal| > 0.15 m, 25 h low-pass of observed - predicted): median RMSE below A's
+   (the non-tidal term must earn its place where it matters).
+4. The tide's shape items stay as in G2: High/Low time <= 20 min, |MLLW err| <= 0.05 m.
+5. Seasonal check (reported, and it decides whether S1 is kept): A+S1 vs CO-OPS PREDICTIONS has median RMSE <= 0.08 m.
+
+**Controls (any misbehaving makes the run VOID):**
+- Positive, as in G2: NOAA's constants against NOAA's predictions, <= 0.01 m.
+- An ORACLE yardstick: CO-OPS predictions + the observed non-tidal residual held from the previous day (the best a
+  station-bound method can do). Reported, and it bounds what "good" means.
+- Negative 1: label swap (200 derangements); the median must be > 0.3 m vs observed.
+- Negative 2: the non-tidal term shifted +24 h must LOSE item 3 to the unshifted term (if it does not, the term is
+  not carrying information).
+
+**Reported, not gating:**
+- The six estuary / bay / inlet gauges where the tide itself is off (Fernandina, Pensacola, South Beach, Duck, Sandy
+  Hook, Virginia Key), stratified. The non-tidal terms are not expected to fix them.
+- Strata by region and by lead.
+
+**Scope:** a PASS certifies the water level at the 26 GAUGES against observed water. It does not certify the level at
+a surf spot away from a gauge, which needs its own gate.
+
+**Sequence:**
+1. This draft is pushed alone.
+2. The advisor and the research lead read it.
+3. Sources are confirmed (availability, license, whether N1 carries tides), and the final registration is recorded
+   with any changes.
+4. Code.
+5. The owner's word for the run.
+
+#926 and #931 stay held.
