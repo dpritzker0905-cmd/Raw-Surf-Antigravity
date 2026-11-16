@@ -439,3 +439,50 @@ that happens to close the gap, would be fitting to n = 1. The gate in
 2. **The owner's definition:** whether the product should name the largest breaker on the outside, which is the
    published forecasting convention and what it names today, or what reaches the inside where people ride. It is
    his to say.
+
+## 2026-11-16 10:57Z The advisor's review of the spread arm: three checks run, and the oblique case is less settled than I wrote
+
+The advisor passed the spread arm at cec2e0913 with no open condition and made six points. The module is unchanged
+by this section; the checks below were run in a scratch session against it (on a 1 in 250 planar bed, the slope ETOPO
+gives at the owner's point).
+
+- **Why my prediction had to fail, in the advisor's words.** On straight parallel contours a direction's energy at
+  the break goes as the cosine of its offshore angle. Cosine is concave over the whole shoreward half, so the mean of
+  the cosine over a spread is below the cosine of the mean (Jensen), head-on or oblique. Spreading can only lower it
+  under this geometry.
+- **(a) The s = 5 row is a SENSITIVITY, not a bound.** I called it "a rough upper bound on its size"; that was a
+  hand-wave. Withdrawn.
+- **(b) The offshore-heading share is being removed twice, and it matters at a steep angle.** The spreading function
+  is normalised over the full circle, so at a 60 degree mean with s = 10, 13% of the energy is assigned to
+  directions heading offshore and dropped. But a model's height at a point near a coast already holds little energy
+  coming from the land. Run both ways, surf with spread over surf without:
+
+  | sea state | angle | shoreward share | offshore share dropped (as reported above) | shares renormalised to the shoreward half |
+  |---|---|---|---|---|
+  | wind sea | 0 | 1.000 | 0.975 | 0.975 |
+  | wind sea | 30 | 0.990 | 0.981 | 0.986 |
+  | wind sea | 60 | 0.867 | 0.902 | 0.969 |
+  | report | 0 | 1.000 | 0.968 | 0.968 |
+  | report | 30 | 0.990 | 0.962 | 0.966 |
+  | report | 60 | 0.867 | 0.970 | 1.030 |
+
+  **Near the normal nothing changes: about 3% lower either way. At 60 degrees the answer depends on the convention:
+  3 to 10% lower if the offshore share is counted as lost, between 3% lower and 3% HIGHER if it is not.** The truth
+  for a coast lies between the two. So "always downward" in the 10:49Z heading is true of the arm as built and is NOT
+  established for a steeply oblique sea. Renormalising moves the mean direction toward the normal, which is why it
+  can rise; that is the effect I predicted, appearing only under one of the two conventions. The Jensen argument and
+  this do not conflict: it holds for a fixed total energy spread symmetrically, and the renormalised sea is not
+  symmetric about its nominal mean.
+- **(d) Straight parallel contours do not describe the inlets and the points.** Of the 20 beds in the 10:49Z table,
+  the inlet_jetty spots (New Smyrna Beach Inlet, Ponce Inlet North Jetty, Sebastian Inlet First Peak, Manasquan
+  Inlet, South Padre Jetties) and the point_reef spots (Lower Trestles, Pipeline) are ones this geometry cannot
+  describe. The table's means include them; the open_beach and pier spots alone give the same figures to two
+  decimals, because the arm depends on the bed only weakly. Marked here, not re-run.
+- **(e) Bin size.** At 1 degree in place of 2: the result changes by 0.001% at s = 10 and 0.000% at s = 75.
+- **(f) The three together, run once, in place of a product.** Period 4.8 s, spread s = 10, head-on, and the largest
+  significant height on the line with no highest-tenth factor: **1.08 m, 0.96 of the offshore height, 3.5 ft.** The
+  product of the three measured separately was 0.94. So the 10:49Z sentence ("about 0.95, 3.5 ft") stands as a
+  single run, and the closing note's table should be read with this as its combined figure.
+
+**The advisor's caution, kept:** this arm says a spread sea reads 0 to 8% lower under these assumptions, model only.
+It is not evidence about the chain's error at the owner's point.
