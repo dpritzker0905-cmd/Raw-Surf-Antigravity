@@ -111,3 +111,40 @@ NEXT (needs a new registration and NEW labels; nothing here is re-scored on thes
 (a) structure tier: breakwater / groyne / jetty only (no pier), within 300 m, and only with a coastline or inlet signal;
 (b) a null that compares against each class's base rate (precision minus the class share);
 (c) a fresh seeded sample of >= 120 spots, labelled blind, with >= 25 per gated class (oversampling point and reef).
+
+## 2. B2 v2: PRE-REGISTRATION (2026-11-16 18:22 EST by the clock; before any v2 spot is drawn, labelled or fetched)
+Asked for by the director (18:19 EST). v1 stays a FAIL (section 1); nothing from v1 feeds B3, and none of v1's 109 spots or labels is
+used here. HONESTY NOTE: the rule changes below were chosen AFTER seeing v1's confusion matrix, which is exactly why v2 is scored
+only on new spots, labelled blind.
+### Sample (seed 20261117; ordered by md5(id || '20261117') within each frame; v1's 109 ids excluded)
+Frames as in v1 (catalogue tag or keyword; a SAMPLING frame, never a label), except that "pier" no longer puts a spot in the
+inlet/jetty frame. Frame sizes (whole catalogue, measured now): beach 620, inlet_jetty 39, point_headland 146, reef 163,
+river_mouth 4, untagged 801. First draw: inlet_jetty all remaining; point_headland 70; reef 45; beach 40; untagged 25.
+TOP-UP, fixed now: after labelling, any gated class with fewer than 25 labels gets the next 20 spots of its own frame in seed order,
+repeated until it has 25 labels or the frame is exhausted. A class that cannot reach 25 is reported as UNDERPOWERED, with its
+interval, and decided only by rule 2 below. River_mouth is reported, not gated (4 in the whole catalogue).
+### Labels
+Blind, by readers who see no classifier output and no OSM evidence, from public spot guides and imagery, with sources. Where
+sources disagree: unknown, excluded from precision. Committed before any evidence for these spots is fetched.
+### Classifier v2 (uild_spot_class.py, rules fixed now; the first matching tier wins)
+| tier | evidence | class | confidence |
+|---|---|---|---|
+| 1a | OSM breakwater / groyne / jetty (NOT pier) within 300 m AND an inlet signal: an OSM river mouth within 1 km, OR the name matches inlet / jetty / groyne / groin / breakwater, OR the catalogue tag is jetty | inlet_jetty | 0.80 |
+| 1b | else an OSM river mouth within 500 m | river_mouth | 0.75 |
+| 2 | catalogue wave_type (as v1) | that class | 0.70 |
+| 3 | keyword classes as v1, except that inlet_jetty counts only when the NAME matches inlet / jetty / groyne / groin / breakwater (a pier alone gives no class) | that class | 0.60 / 0.55 |
+| 4 | OSM natural=reef within 500 m -> reef; else natural=cape / peninsula within 1 km -> point_headland | | 0.55 |
+| 5 | shore_normal_spread_deg >= 60 -> point_headland | | 0.50 |
+| - | none | unknown | 0 |
+### Gate (per gated class: the beach group, inlet_jetty, point_headland, reef)
+1. Precision >= 0.75, AND
+2. the Wilson 95 % LOWER bound of precision is above the class's BASE RATE (its share of the known labels in v2): the classifier
+   beats choosing that class by chance. This base-rate-relative rule replaces v1's "null < 0.5", which a large class could never pass.
+3. At most 30 % of the labelled spots left unknown by the classifier.
+B2 PASSES only if every gated class passes 1-2 (an UNDERPOWERED class: rule 2 only, and flagged) and rule 3 holds.
+Reported, not gated:
+- the within-country shuffle null as a sanity check (its mean precision minus the base rate, expected ~0);
+- recall and the confusion matrix;
+- the catalogue tag alone as comparator;
+- river_mouth.
+Nothing reads B2 for a served number unless it passes; B3 and any class factor carry their own gates.
