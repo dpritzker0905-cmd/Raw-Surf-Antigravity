@@ -458,3 +458,14 @@ changed.
   3. Then item 1, the tidal-band line and the per-arm SA/SSA constants.
   4. Then B twice.
   5. The output goes to the advisor before the owner.
+
+## 15:35 EST 2026-11-16 (`date`) - G2 THIRD START on the owner's word (recorded before any output is opened)
+- **Owner, typed in this session, 15:30 EST: "Yes, start G2".** Advisor (20:19Z): acceptable to start at 8b5149149.
+- **Previous starts produced nothing:**
+  - 43879148124: the download failed.
+  - 43891805830: the runner died in the gate step. No artifact and no log lines, so no score was seen.
+- `tide-gate-G2` was deleted on the remote and re-created on **8b5149149c0a6cd39475fbd1c6c81b89ef2a4033** (pushed
+  20:32:27Z). That commit's trigger is the tag only (checked).
+- Run **43950822962** (ref tide-gate-G2, head 8b5149149), created 20:32:25Z.
+- Reading order, as recorded at 15:19 EST: controls first (VOID means nothing else is quoted); item 1; the tidal-band
+  line; the per-arm SA/SSA constants; arm B twice; then the advisor, before the owner.
