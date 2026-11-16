@@ -91,10 +91,10 @@ def coops_msl_minus_mllw(sid):
 
 
 def coops_harcon(sid):
-    """[(number, name, amplitude_m, phase_GMT_deg)] - the station's published harmonic constants."""
+    """[(number, name, amplitude_m, phase_GMT_deg, speed_deg_per_h)] - the station's published harmonic constants."""
     rows = get_json(f"{COOPS}/mdapi/prod/webapi/stations/{sid}/harcon.json?units=metric").get("HarmonicConstituents", [])
-    return [(r["number"], r["name"], float(r["amplitude"]), float(r["phase_GMT"])) for r in rows
-            if r.get("amplitude") not in (None, "") and r.get("phase_GMT") not in (None, "")]
+    return [(r["number"], r["name"], float(r["amplitude"]), float(r["phase_GMT"]), float(r["speed"])) for r in rows
+            if r.get("amplitude") not in (None, "") and r.get("phase_GMT") not in (None, "") and r.get("speed") not in (None, "")]
 
 
 # ---------------------------------------------------------------- Open-Meteo (TEST-ONLY arms C and D)
@@ -136,7 +136,22 @@ def _aviso_sftp():
     return t, paramiko.SFTPClient.from_transport(t)
 
 
-def download_fes(names, cache, workers=4):
+def _aviso_sftp_retry(tries=3, wait_s=90):
+    """_aviso_sftp with backoff on AuthenticationException. G2 run 43879148124 (2026-11-16) failed when AVISO refused
+    one of 4 parallel logins after the first file; the host-key check still runs before every attempt."""
+    import time
+    import paramiko
+    for k in range(tries):
+        try:
+            return _aviso_sftp()
+        except paramiko.ssh_exception.AuthenticationException:
+            if k == tries - 1:
+                raise
+            log(f"AVISO login refused (attempt {k + 1}/{tries}); retrying in {wait_s * (k + 1)} s")
+            time.sleep(wait_s * (k + 1))
+
+
+def download_fes(names, cache, workers=2):
     """Fetch each constituent's .nc.xz into `cache` unless already there, `workers` connections in parallel.
     Each file lands as .part and is renamed only when complete, so a timed-out run still leaves its finished files
     for the cache step (the workflow saves the cache even when this step fails). Returns {name: path}."""
@@ -146,7 +161,7 @@ def download_fes(names, cache, workers=4):
     missing = [n for n, p in have.items() if p is None]
     if not missing:
         return have
-    t, sftp = _aviso_sftp()
+    t, sftp = _aviso_sftp_retry()
     listing = sftp.listdir(AVISO_DIR)
     sftp.close()
     t.close()
@@ -160,7 +175,7 @@ def download_fes(names, cache, workers=4):
 
     def fetch(item):
         n, fname = item
-        tt, sf = _aviso_sftp()
+        tt, sf = _aviso_sftp_retry()
         try:
             part = cache / (fname + ".part")
             sf.get(f"{AVISO_DIR}/{fname}", str(part))
@@ -220,6 +235,12 @@ def eot20_member_ok(member):
             and "load" not in member.lower())
 
 
+def eot20_outer_ok(member):
+    """PURE: the nested ocean-tide zip inside the SEANOE archive (never the load-tide one)."""
+    p = PurePosixPath(member)
+    return p.name == "ocean_tides.zip" and not p.is_absolute() and ".." not in p.parts and "\\" not in member
+
+
 def download_eot20(root):
     """Ensure root/EOT20/ocean_tides/<C>_ocean_eot20.nc (the layout pyTMD's database expects). Returns the root."""
     dest = root / "EOT20" / "ocean_tides"
@@ -231,11 +252,21 @@ def download_eot20(root):
     with urllib.request.urlopen(req, timeout=600) as r, open(zpath, "wb") as fh:
         shutil.copyfileobj(r, fh, 1 << 24)
     log(f"EOT20 archive {zpath.stat().st_size / 1e9:.2f} GB")
+    # The SEANOE archive nests the atlases: <...>/ocean_tides.zip and <...>/load_tides.zip (seen 2026-11-16 from the
+    # archive's central directory; run 43836918731 extracted nothing because it looked for the .nc files at the top).
+    inner = root / "ocean_tides.zip"
     with zipfile.ZipFile(zpath) as z:
+        outer = [m for m in z.namelist() if eot20_outer_ok(m)]
+        if not outer:
+            raise SystemExit(f"EOT20: no ocean_tides.zip in the archive: {z.namelist()[:20]}")
+        with z.open(outer[0]) as src, open(inner, "wb") as dst:
+            shutil.copyfileobj(src, dst, 1 << 24)
+    zpath.unlink()
+    with zipfile.ZipFile(inner) as z:
         for m in z.namelist():
             if eot20_member_ok(m):
-                with z.open(m) as src, open(dest / Path(m).name, "wb") as dst:   # flat: by file name only
+                with z.open(m) as src, open(dest / PurePosixPath(m).name, "wb") as dst:   # flat: by file name only
                     shutil.copyfileobj(src, dst, 1 << 24)
-    zpath.unlink()
+    inner.unlink()
     log(f"EOT20 ocean tides: {sorted(p.name for p in dest.glob('*.nc'))}")
     return root

@@ -244,3 +244,151 @@ If an arm fails item 1 on the seasonal term, the fix is a separately gated seaso
 
 Sequence (director): this registration is pushed ALONE. The advisor reads it before anything is dispatched. The code
 (EOT20 nested-zip fix, P's SA/SSA, the window) is committed after it and pushed only after the advisor's read.
+
+## 07:54 EST 2026-11-16 (`date`) - G2 ADDENDUM: control calibrated, reported tidal-band score, EOT20 convention (before any G2 number)
+The advisor's read of 2a1434b83 (11:46Z / 11:50Z): acceptable on integrity, but not to dispatch until (1) the control
+is calibrated so it isn't expected to fail, (2) a reported tidal-band score is registered, and (3) EOT20's seasonal
+convention is checked. The director (06:49 EST) and the research lead agreed. None of this touches the G2 window.
+Evidence is in the notes folder `tide-overlay-2026-11-15/` (`g2-control-calibration-2025-26stations.txt`,
+`cal_*.py`, `noaa_m1m3.py`, `eot20-convention-2025-4gauges.json`).
+
+**(1) Control calibration** (calendar 2025, P only - NOAA's constants against NOAA's own predictions, no arm, all 26
+stations; iterated freely, as instrument calibration). After the SA/SSA fix, P read median 0.0096 m, max 0.021 m,
+with 12 stations over 0.01. A least-squares fit of the residual on NOAA's constituent speeds put almost all of it in
+**M1** (up to 0.027 m, West Coast) and **M3** (up to 0.027 m, East Coast), then S1. pyTMD defines all three
+differently from NOAA's predictor. These five terms are now computed in NOAA's convention, from Schureman (SP 98)
+and with nothing fitted to the data:
+- V0 at 00:00 UTC Jan 1; f and u at mid-year.
+- M1: V + u = T - s + h - 90 + xi - nu + Q, f = f(O1)/Ra. My first form also added p, which Q already accounts for;
+  the standard variants were compared on four gauges and the textbook form was best.
+- M3: 3(T - s + h), u = 3(xi - nu), f = cos^6(I/2)/0.8840.
+- S1: V = T.
+- SA / SSA: h / 2h.
+
+Result through the gate's own code (`arms.harcon_eval` + `metrics.noaa_terms`), by station (m):
+1611400 0.0022, 1612340 0.0022, 1615680 0.0026, 1617760 0.0025, 8443970 0.0092, 8452660 0.0025, 8531680 0.0033,
+8534720 0.0031, 8651370 0.0025, 8658163 0.0031, 8665530 0.0055, 8720030 0.0066, 8722670 0.0019, 8723214 0.0017,
+8726724 0.0030, 8729840 0.0025, 8771510 0.0030, 9410230 0.0052, 9410660 0.0053, 9413450 0.0055, 9415020 0.0057,
+9419750 0.0062, 9435380 0.0072, 9443090 0.0075, 9751639 0.0013, 9755371 0.0016.
+**Median 0.0030, max 0.0092 (Boston: L2/LAM2 left), 0 stations over 0.01.** The control's line stays at <= 0.01 m
+median raw RMSE with no de-meaning, unchanged. Note: M1's node factor is 1.81 in 2025 and 1.065 in 2026; it is
+computed per year.
+
+**(2) REPORTED, NOT GATING: the tidal-band score.** Beside item 1, each arm (A and B) is also scored against CO-OPS
+predictions MINUS NOAA's own SA + SSA (NOAA convention) at each hour. The arms are not altered. The JSON carries
+`rmse_tidal_band` per station and `median_rmse_tidal_band_reported` per arm; the summary prints it beside the gating
+score. Reading: if item 1 fails but the tidal band is well below 0.08 m, the failure is the seasonal cycle, not the
+tidal model. The next registration (a seasonal component, e.g. NOAA monthly MSL or a CMEMS / AVISO altimetry
+climatology) starts from that number. It changes no rule.
+
+**(3) Seasonal conventions of the arms.**
+- **B (EOT20 through pyTMD), measured** on calendar 2025 at the four check gauges. Run 43867649888 on branch
+  `claude/tide-m1-eot20-check`, which cannot start the gate; public data, no credentials.
+  - **Convention matches.** EOT20's SA as pyTMD evaluates it, refit as A cos(h - G), sits **+15 deg (Galveston) and
+    +14 deg (Honolulu)** from NOAA's SA phase, not the ~-77 deg a convention mismatch would show. pyTMD's h - p1
+    default is the convention EOT20's phases assume.
+  - **The seasonal amplitude is short:** EOT20 SA 0.044 vs NOAA 0.077 m (Galveston) and 0.014 vs 0.048 m
+    (Honolulu). So CO-OPS - B carries a yearly wave (+-0.10 m Galveston, +-0.035 m Honolulu; RMSE 0.072 / 0.040 m).
+    The tidal-band score above is what separates it.
+  - **Boston 8443970 and La Jolla 9410230: EOT20 is UNDEFINED** within the registered 10 km extrapolation cutoff (NaN
+    at the gauge). Under item 2, arm B counts every such station as worse than C. B may therefore fail G2 on coverage
+    alone. That is recorded here BEFORE the run as a known limit of the registered cutoff; the cutoff is not changed.
+  - Arm B on calendar 2025 at these four gauges joins the seen list.
+- **A (FES2022b through PyFES), by documentation only.** PyFES's Darwin engine uses Darwin/Schureman notation with
+  Schureman's nodal corrections (the PyFES docs, "Darwin versus Doodson notation"), the convention NOAA uses for SA
+  (h). An empirical check needs the licensed FES files, which live only in the Actions cache, and running it there
+  would start the gate. G2's tidal-band line will show A's seasonal shortfall either way.
+
+Nothing else changes. Order: this addendum is pushed ALONE; the code follows (45c360654 EOT20 extraction,
+96736a72e window, a5580b290 calibration + tidal band), pushed only after the advisor's read. The G2 dispatch itself
+waits for the owner's word typed in this session (director 06:49 EST: relayed authority withdrawn for the credentialed
+run).
+
+## 08:08 EST 2026-11-16 (`date`) - G2 ADDENDUM 2: one-shot start, reported seasonal constants (before any G2 number)
+The advisor read 19195e449 (13:00Z): "That is the registration I would want." It set ONE condition before the code is
+pushed and asked for ONE reported addition.
+
+**Condition - a branch push never starts the gate.** Until now `tide-fes-gate.yml` ran on any push to `claude/tide-m1`
+touching `backend/scripts/tide_fes/**` or the workflow. So pushing the code WAS the run, and so would be any later
+fix, re-running the credentialed gate on the same window and letting the result be read twice.
+- The advisor asked for workflow_dispatch only. That cannot work here: GitHub dispatches only workflows that exist on
+  the default branch (`dev`), and this one does not.
+- So the trigger is now **only a push of the tag `tide-gate-G2`** (plus workflow_dispatch, inert until the file
+  reaches `dev`). That is one named run, pushed on the owner's word typed in this session.
+- No branch push and no schedule can start it. A second run needs that tag deleted and pushed again, on purpose.
+- Pinned by `test_the_credentialed_gate_starts_only_from_its_one_shot_tag`; adding a branch trigger back fails it.
+- The code is pushed with this trigger already in place, so the push starts nothing (GitHub reads the trigger from
+  the workflow file at the pushed commit).
+
+**Addition - REPORTED, NOT GATING: each arm's seasonal constants at every gauge.** A 14-day window cannot show a
+seasonal phase error; the constants can.
+- Inside the gated run, each arm's own SA and SSA are isolated at every gauge over calendar 2025 (not a test
+  window): FES2022b as the full PyFES series minus the series without that file; EOT20 as pyTMD restricted to
+  that constituent, without inferred minors.
+- Each is refit as A cos(k h - G) in NOAA's convention and printed beside NOAA's published SA / SSA (A, G), with
+  `{arm}_SA_phase_minus_NOAA_deg` and its median.
+- Reading: near 0 (EOT20 measured +14 / +15 deg) means the convention is right and any shortfall is amplitude.
+  About -77 deg means the evaluator. This is the first EMPIRICAL check of FES2022b's convention; until now it came
+  from documentation.
+- It changes no rule.
+
+**For the PR text (advisor; not conditions):**
+- The control is now partly a hand-built emulator of NOAA's predictor, calibrated on 2025 and tested on the 2026
+  window, where M1's node factor is 1.065 against 2025's 1.81. That difference is what makes it a real control.
+- Arm B is expected to fail item 2 on coverage at Boston 8443970 and La Jolla 9410230 (EOT20 undefined within
+  10 km). A B fail there says nothing about EOT20 where it is defined.
+
+Order: this addendum is pushed ALONE; then the code (dfe35107f, e6670491f, 0322983b5, 7d53ae2ff) in one push, which
+starts nothing. The run is the `tide-gate-G2` tag, pushed only on the owner's word typed in this session.
+
+## 08:49 EST 2026-11-16 (`date`) - G2 STARTED on the owner's word (recorded before any output is opened)
+- **Owner, typed in this session, 08:46 EST: "Yes, start G2".** Advisor (13:13Z): acceptable to dispatch as designed at
+  7f20c12c9. That was design advice; the start is the owner's word.
+- Tag **`tide-gate-G2`** -> commit **7f20c12c99b3455a612a9fd7ca6558d51aa6bb3c**. The tag was absent on the remote
+  before the push and was pushed at 13:47:22Z.
+- Run **43879148124** (workflow "Tide M1 gate", ref tide-gate-G2, head 7f20c12c99b3), created 13:47:17Z.
+- Reading order (advisor 13:13Z):
+  - Controls first. If any of the positive, label-swap or +6 h controls misbehaves, the run is VOID and nothing else
+    is quoted.
+  - If the arms fail item 1, the tidal-band line and the per-arm SA/SSA constants are reported first, before any
+    interpretation.
+  - The advisor reads the output before it goes to the owner as a result.
+
+## 09:14 EST 2026-11-16 (`date`) - G2 run 43879148124: FAILED IN THE DOWNLOAD, the gate never ran, no G2 number exists
+- The "Run the gate" step was **skipped**; no artifact. **No arm was computed on the G2 window**, so it remains unseen.
+- **Fault 1, cache scope.** GitHub caches are scoped to the ref that saved them. A run on the tag
+  `refs/tags/tide-gate-G2` sees only that tag's caches and the default branch's, so the full FES cache saved by branch
+  run 43836918731 was invisible and every file was downloaded again.
+- **Fault 2, cache prune.** The `if: always()` prune then deleted that branch cache.
+- **Fault 3, login refused.** After K1 (159 MB, 22 min), AVISO refused one of the 4 parallel logins
+  (`paramiko AuthenticationException`). The pinned host key had matched; no credential appears in the log.
+- **Fix (plumbing only, no rule changed):**
+  - Each AVISO login retries with backoff (5 tries, 60/120/... s), still checking the host key before every attempt.
+  - 3 connections instead of 4.
+  - Pruning runs only after a complete download.
+  - A re-run on the same tag restores this tag's cache (K1 so far) and resumes.
+- **A re-run needs the tag deleted and pushed again on the fixed commit, which is the owner's call.** The
+  "start G2" word was used for this run; it produced no number.
+
+## 09:21 EST 2026-11-16 (`date`) - login load cut to 2 connections, at most 3 tries each
+The advisor (14:21Z) asked for the retry load against a licensed service to be stated in the log. I cannot confirm
+AVISO's terms on concurrent sessions or lockout, so I took the conservative option: **2 parallel connections**, each
+at most **3 login attempts** (waits 90 s, then 180 s). The worst case is 6 attempts in about 5 minutes. The previous
+setting was 3 x 5, and the first G2 run used 4 connections. A download that still fails stops; it does not keep
+retrying. The advisor's acceptance of the design carries to this commit, since no rule, arm, metric or window file
+changed.
+
+## 10:02 EST 2026-11-16 (`date`) - G2 RE-RUN started on the owner's word (recorded before any output is opened)
+- **Owner, typed in this session, 09:59 EST: "Yes, re-run G2".** This is a second start on purpose.
+- **The first run produced nothing:** run 43879148124 (tag on 7f20c12c9) failed in the download step, the gate step
+  was skipped and there was no artifact. The advisor checked this itself (14:21Z), so no G2 number existed before
+  this run.
+- **The tag was moved on purpose:** `tide-gate-G2` was deleted on the remote, re-created on
+  **bd41572d821b108578a8d62dd294ee2389dc01ab**, and pushed at 15:00:36Z.
+  - The commits since 7f20c12c9 are plumbing only (advisor 14:21Z: "the same test with working plumbing"): AVISO login
+    retry with 2 connections, at most 3 tries each; prune only after a complete download.
+  - The workflow at bd41572d8 triggers only on that tag (checked before the push).
+- Run **43891805830** (ref tide-gate-G2, head bd41572d8), created 15:00:36Z. It restores the tag's own cache
+  `fes2022b-v2-43879148124` (K1, 159 MB) and downloads the other 15 files.
+- Reading order is unchanged: controls first; VOID means nothing else is quoted; then item 1, the tidal-band line and
+  the per-arm SA/SSA constants. The advisor reads the output before it goes to the owner.

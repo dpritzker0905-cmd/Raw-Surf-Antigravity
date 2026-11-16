@@ -7,13 +7,15 @@ name: Tide M1 gate (FES2022b via PyFES vs NOAA CO-OPS)
 # PyFES is GPL: it runs ONLY here, never in the served backend. Measurement only: no bucket write, no live backend call.
 # AVISO credentials come from the AVISO_USERNAME / AVISO_PASSWORD secrets, read by the script from the environment and
 # never printed. Public CO-OPS GETs only.
+# ONE-SHOT START (advisor 2026-11-16 13:00Z): no branch push starts this credentialed gate, so a later fix on the branch
+# can never re-run it on the same window. It runs only when the tag `tide-gate-G2` is pushed: one named run, pushed on
+# the owner's word typed in the session that runs it. (workflow_dispatch alone cannot work here: GitHub dispatches only
+# workflows that exist on the default branch, `dev`.) A second run needs that tag deleted and pushed again, on purpose.
+# tests/test_tide_fes_offline_guard.py pins this: no branch push, no schedule.
 on:
   workflow_dispatch:
   push:
-    branches: [claude/tide-m1]
-    paths:
-      - backend/scripts/tide_fes/**
-      - .github/workflows/tide-fes-gate.yml
+    tags: [tide-gate-G2]
 permissions:
   contents: read
   actions: write        # only to prune superseded tide-data caches (repo cache limit is 10 GB, shared)
@@ -57,7 +59,7 @@ jobs:
         if: always()
         run: |
           mkdir -p fes_cache eot20_cache
-          rm -f fes_cache/*.part eot20_cache/eot20.zip
+          rm -f fes_cache/*.part eot20_cache/eot20.zip eot20_cache/ocean_tides.zip
           ls -la fes_cache eot20_cache/EOT20/ocean_tides 2>/dev/null | tail -40 || true
       - name: Save FES2022b downloads
         if: always()
@@ -71,8 +73,11 @@ jobs:
         with:
           path: eot20_cache
           key: eot20-ocean-v2-${{ github.run_id }}
+      # Prune ONLY after a complete download: G2 run 43879148124 failed mid-download and the old if: always() deleted
+      # the full branch cache. (Caches are scoped to the ref that saved them: a tag run sees only its own tag's caches
+      # and the default branch's, so a re-run on the same tag resumes from what this tag saved.)
       - name: Prune superseded tide-data caches
-        if: always()
+        if: steps.dl.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
