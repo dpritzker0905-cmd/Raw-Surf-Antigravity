@@ -74,3 +74,12 @@ Scoring (`backend/scripts/score_spot_class.py`): precision and recall per class 
 label is not `unknown`; a classifier `unknown` counts toward the unknown share (gate: <= 30 %) and as a miss for recall, never for
 precision. NULL: the classifier's outputs shuffled within country, 1,000 seeded shuffles, mean precision per gated class (gate: < 0.5).
 POSITIVE comparator: the catalogue tag alone (tier 2 only), scored the same way on the spots it covers.
+
+## 0c. Input from the repair lead (2026-11-16 ~06:00 EST; PR #969, log `2026-11-16-fable-surf-transect-a1.md`; model only)
+- A Battjes-Janssen transect on a shore-normal ETOPO 2022 bed, with a CONSTANT gamma, gives almost today's breaker height (1.41 x
+  offshore against 1.52) and is barely spot-aware: the breaker height sits where the wave first saturates, set by the wave, not the
+  beach. So a class gets its effect only if gamma (or the input) depends on the class: a design input for B3, not a B2 change.
+- The surf-zone INTERIOR differs by spot (Hs in 1 m of water 0.46-1.13 x offshore across the panel).
+- The beach-subtype slope step can reuse `surf_transect.bed_from_grid`. On the six no-break-depth spots it found a usable ETOPO bed at
+  five (slopes about 1:170 to 1:250); Rodanthe Pier had no fittable slope. A 463 m grid gives large-scale slopes: a tier below CUDEM,
+  and recorded as such when the subtype step runs. Nothing in section 0b changes.
