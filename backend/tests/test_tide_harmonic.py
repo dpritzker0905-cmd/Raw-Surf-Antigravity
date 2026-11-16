@@ -267,10 +267,19 @@ def test_g4_registered_no_noaa_host_on_the_real_http_path(monkeypatch):
     assert not any("tidesandcurrents" in u or "noaa.gov" in u for u in seen), seen
 
 
-def test_residual_is_held_past_the_horizon_and_zero_before_it():
+def test_residual_hold_rule_as_registered():
     t0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    resid = {t0 + timedelta(hours=h): 0.1 * h for h in range(5)}
-    assert H.residual_at(resid, t0 + timedelta(hours=2)) == pytest.approx(0.2)
-    assert H.residual_at(resid, t0 + timedelta(days=9)) == pytest.approx(0.4)      # held
-    assert H.residual_at(resid, t0 - timedelta(hours=3)) == 0.0
+    hrs = lambda vals: {t0 + timedelta(hours=h): v for h, v in enumerate(vals)}   # noqa: E731
+    after = t0 + timedelta(days=9)
+    # (1) seasonal: a steady +0.4 m is held whole
+    assert H.residual_at(hrs([0.4] * 60), after) == pytest.approx(0.4)
+    # (2) storm at the edge: 0.1 m all span, 0.8 m in the last hours -> hold ~0.1, not 0.8
+    assert H.residual_at(hrs([0.1] * 55 + [0.8] * 5), after) == pytest.approx(0.1)
+    # (3) a gap hour inside the span takes its nearest valid neighbour, not 0
+    gappy = hrs([0.2] * 30)
+    gappy.pop(t0 + timedelta(hours=10))
+    assert H.residual_at(gappy, t0 + timedelta(hours=10)) == pytest.approx(0.2)
+    # (4) opposite signs hold 0; before the span 0; empty 0
+    assert H.residual_at(hrs([-0.3] * 50 + [0.2] * 5), after) == 0.0
+    assert H.residual_at(hrs([0.4] * 10), t0 - timedelta(hours=3)) == 0.0
     assert H.residual_at({}, t0) == 0.0

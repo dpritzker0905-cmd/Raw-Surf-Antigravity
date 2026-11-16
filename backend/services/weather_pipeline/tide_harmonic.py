@@ -150,18 +150,38 @@ def covers(times, now: datetime, ahead_h: int = STALE_AHEAD_H) -> bool:
     return bool(parsed) and parsed[0] <= now and parsed[-1] >= now + timedelta(hours=ahead_h)
 
 
+def held_residual(resid: Dict[datetime, float]) -> float:
+    """PURE: the value held past the model's horizon. The smaller in magnitude of (the last valid residual, the median
+    over the span), keeping its sign; 0 when they disagree in sign. A season-long anomaly (steady) is held whole; a
+    storm peaking at the edge is not carried to day 14 (advisor, registered before the change, log
+    2026-11-15-claude-tide-harmonic.md)."""
+    if not resid:
+        return 0.0
+    vals = [resid[k] for k in sorted(resid)]
+    last = vals[-1]
+    srt = sorted(vals)
+    n = len(srt)
+    med = srt[n // 2] if n % 2 else (srt[n // 2 - 1] + srt[n // 2]) / 2
+    if last == 0 or med == 0 or (last > 0) != (med > 0):
+        return 0.0
+    return last if abs(last) <= abs(med) else med
+
+
 def residual_at(resid: Dict[datetime, float], t: Optional[datetime]) -> float:
-    """PURE: the surge residual at t. Inside the model's span, its low-passed value; AFTER the span (the model's ~72 h
-    horizon) the LAST residual is HELD constant, so eta does not step at +72 h (advisor, #931: with this season's +0.4 m
-    on the US West Coast, dropping to the bare tide would cut the breaking-depth cap by ~0.4 m between +72 and +73 h).
-    Holding (not decaying) because most of what it carries past a few days is the slow seasonal anomaly. Before the
-    span (the past day): 0."""
+    """PURE: the surge residual at t. Inside the model's span: its low-passed value, or for an hour whose window was
+    dropped (a gap) the NEAREST valid residual inside the span (never a dip to the bare tide). After the span (the
+    model's ~72 h horizon): held_residual, so eta does not step at +72 h (advisor, #931). Before the span: 0."""
     if not resid or t is None:
         return 0.0
     if t in resid:
         return resid[t]
-    last = max(resid)
-    return resid[last] if t > last else 0.0
+    first, last = min(resid), max(resid)
+    if t > last:
+        return held_residual(resid)
+    if t < first:
+        return 0.0
+    nearest = min(resid, key=lambda k: abs((k - t).total_seconds()))
+    return resid[nearest]
 
 
 def combine(model: Optional[dict], doc: dict, station: dict, now: Optional[datetime] = None) -> Optional[dict]:
