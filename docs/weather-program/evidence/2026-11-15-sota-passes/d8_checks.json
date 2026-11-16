@@ -1,0 +1,139 @@
+{
+ "land_probe_inland_jan2025": {
+  "cell": "Denver (inland, no sea)",
+  "lat": 39.74,
+  "lon": -104.99,
+  "counts": {
+   "h_null": 744,
+   "p_null": 744
+  }
+ },
+ "reverse_holdout": {
+  "definition": "fit 2025 full year, test 2024 hours the archive has (Jun 19 - Dec 31); model >= 0.5 m; stations with >= 200 rows in both years",
+  "stations": [
+   "41043",
+   "44008",
+   "44014",
+   "46011",
+   "46014",
+   "46025",
+   "46026",
+   "46029",
+   "46041",
+   "46053",
+   "46086",
+   "51002",
+   "51003",
+   "51004"
+  ],
+  "n_fit_2025": 105839,
+  "n_test_2024": 56558,
+  "station_bias_r_2025_vs_2024": 0.917,
+  "methods": {
+   "M0_raw": {
+    "n": 56558,
+    "mae_raw_m": 0.2366,
+    "mae_corrected_m": 0.2366,
+    "gain_m": 0.0,
+    "gain_ci95_day_block_m": [
+     0.0,
+     0.0
+    ],
+    "bias_raw_m_by_forecast_bin": {
+     "0.5-1": -0.166,
+     "1-2": -0.114,
+     "2-3": -0.191,
+     ">3": -0.224
+    },
+    "bias_after_m_by_forecast_bin": {
+     "0.5-1": -0.166,
+     "1-2": -0.114,
+     "2-3": -0.191,
+     ">3": -0.224
+    }
+   },
+   "M1_station_const": {
+    "n": 56558,
+    "mae_raw_m": 0.2366,
+    "mae_corrected_m": 0.1956,
+    "gain_m": 0.041,
+    "gain_ci95_day_block_m": [
+     0.0334,
+     0.0486
+    ],
+    "bias_raw_m_by_forecast_bin": {
+     "0.5-1": -0.166,
+     "1-2": -0.114,
+     "2-3": -0.191,
+     ">3": -0.224
+    },
+    "bias_after_m_by_forecast_bin": {
+     "0.5-1": 0.075,
+     "1-2": 0.018,
+     "2-3": -0.069,
+     ">3": -0.113
+    }
+   },
+   "M2_pooled_const": {
+    "n": 56558,
+    "mae_raw_m": 0.2366,
+    "mae_corrected_m": 0.2165,
+    "gain_m": 0.0201,
+    "gain_ci95_day_block_m": [
+     0.0139,
+     0.0266
+    ],
+    "bias_raw_m_by_forecast_bin": {
+     "0.5-1": -0.166,
+     "1-2": -0.114,
+     "2-3": -0.191,
+     ">3": -0.224
+    },
+    "bias_after_m_by_forecast_bin": {
+     "0.5-1": -0.009,
+     "1-2": 0.043,
+     "2-3": -0.034,
+     ">3": -0.067
+    }
+   },
+   "M3_station_x_forecast_bin": {
+    "n": 56558,
+    "mae_raw_m": 0.2366,
+    "mae_corrected_m": 0.1879,
+    "gain_m": 0.0488,
+    "gain_ci95_day_block_m": [
+     0.0417,
+     0.0563
+    ],
+    "bias_raw_m_by_forecast_bin": {
+     "0.5-1": -0.166,
+     "1-2": -0.114,
+     "2-3": -0.191,
+     ">3": -0.224
+    },
+    "bias_after_m_by_forecast_bin": {
+     "0.5-1": 0.022,
+     "1-2": -0.001,
+     "2-3": -0.021,
+     ">3": -0.014
+    }
+   }
+  },
+  "paired_gain_differences_m": {
+   "M1_minus_M2_station_vs_pooled": {
+    "mean_m": 0.0209,
+    "ci95_day_block_m": [
+     0.0181,
+     0.0239
+    ]
+   },
+   "M3_minus_M1_forecast_bin_conditioning": {
+    "mean_m": 0.0078,
+    "ci95_day_block_m": [
+     0.0061,
+     0.0095
+    ]
+   }
+  }
+ }
+}

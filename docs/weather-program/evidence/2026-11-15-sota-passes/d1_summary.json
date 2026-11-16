@@ -1,0 +1,306 @@
+{
+ "method": "GFS-Wave ncep_gfswave025 previous_day1 (lead 24-47h) vs NDBC realtime2 MWD/WVHT, offshore buoys, WVHT>=0.5 m",
+ "window_utc": [
+  "2026-10-16T00:00:00+00:00",
+  "2026-11-15T18:00:00+00:00"
+ ],
+ "stations": {
+  "46025": {
+   "name": "Santa Monica Basin",
+   "region": "CA",
+   "pairs": 715,
+   "obs_hours": 1075,
+   "model_hours": 744
+  },
+  "46086": {
+   "name": "San Clemente Basin",
+   "region": "CA",
+   "pairs": 211,
+   "obs_hours": 375,
+   "model_hours": 744
+  },
+  "46042": {
+   "name": "Monterey",
+   "region": "CA",
+   "pairs": 717,
+   "obs_hours": 1077,
+   "model_hours": 744
+  },
+  "46026": {
+   "name": "San Francisco",
+   "region": "CA",
+   "pairs": 619,
+   "obs_hours": 967,
+   "model_hours": 744
+  },
+  "46014": {
+   "name": "Point Arena",
+   "region": "CA",
+   "pairs": 717,
+   "obs_hours": 1077,
+   "model_hours": 744
+  },
+  "46011": {
+   "name": "Santa Maria",
+   "region": "CA",
+   "pairs": 714,
+   "obs_hours": 1074,
+   "model_hours": 744
+  },
+  "46053": {
+   "name": "East Santa Barbara",
+   "region": "CA",
+   "pairs": 694,
+   "obs_hours": 789,
+   "model_hours": 744
+  },
+  "46029": {
+   "name": "Columbia River Bar",
+   "region": "PNW",
+   "pairs": 717,
+   "obs_hours": 1077,
+   "model_hours": 744
+  },
+  "46005": {
+   "name": "West Washington",
+   "region": "PNW",
+   "pairs": 715,
+   "obs_hours": 1075,
+   "model_hours": 744
+  },
+  "46041": {
+   "name": "Cape Elizabeth",
+   "region": "PNW",
+   "pairs": 715,
+   "obs_hours": 1074,
+   "model_hours": 744
+  },
+  "46002": {
+   "name": "West Oregon",
+   "region": "PNW",
+   "pairs": 717,
+   "obs_hours": 1077,
+   "model_hours": 744
+  },
+  "51002": {
+   "name": "SW Hawaii",
+   "region": "HI",
+   "pairs": 718,
+   "obs_hours": 1078,
+   "model_hours": 744
+  },
+  "51003": {
+   "name": "W Hawaii",
+   "region": "HI",
+   "pairs": 703,
+   "obs_hours": 1063,
+   "model_hours": 744
+  },
+  "51004": {
+   "name": "SE Hawaii",
+   "region": "HI",
+   "pairs": 717,
+   "obs_hours": 1074,
+   "model_hours": 744
+  },
+  "44011": {
+   "name": "Georges Bank",
+   "region": "NE",
+   "pairs": 714,
+   "obs_hours": 1074,
+   "model_hours": 744
+  },
+  "44008": {
+   "name": "Nantucket",
+   "region": "NE",
+   "pairs": 715,
+   "obs_hours": 1075,
+   "model_hours": 744
+  },
+  "44014": {
+   "name": "Virginia Beach",
+   "region": "SE",
+   "pairs": 719,
+   "obs_hours": 1082,
+   "model_hours": 744
+  },
+  "41043": {
+   "name": "NE Puerto Rico",
+   "region": "PR",
+   "pairs": 716,
+   "obs_hours": 1076,
+   "model_hours": 744
+  }
+ },
+ "all": {
+  "n": 12253,
+  "dir": {
+   "mae_all_deg": 23.99,
+   "mae_after_station_bias_removed_insample_deg": 23.2,
+   "station_bias_deg": {
+    "41043": -4.4,
+    "44008": 5.7,
+    "44011": 9.0,
+    "44014": -1.7,
+    "46002": -2.2,
+    "46005": 4.7,
+    "46011": 2.1,
+    "46014": -2.2,
+    "46025": 1.2,
+    "46026": -17.0,
+    "46029": 0.9,
+    "46041": 1.6,
+    "46042": -6.5,
+    "46053": -14.2,
+    "46086": 7.9,
+    "51002": -3.1,
+    "51003": -29.7,
+    "51004": -27.9
+   },
+   "share_of_mse_from_station_bias": 0.083,
+   "time_split_oos_mae_raw_deg": 23.27,
+   "time_split_oos_mae_with_bias_from_first_half_deg": 24.66,
+   "mae_persistence24_deg": 36.44,
+   "mae_model_on_same_rows_deg": 24.02
+  },
+  "hs": {
+   "mae_m": 0.299,
+   "bias_m": -0.173,
+   "share_of_mse_from_station_bias": 0.339
+  }
+ },
+ "by_region": {
+  "CA": {
+   "n": 4387,
+   "dir": {
+    "mae_all_deg": 21.65,
+    "mae_after_station_bias_removed_insample_deg": 20.13,
+    "station_bias_deg": {
+     "46011": 2.1,
+     "46014": -2.2,
+     "46025": 1.2,
+     "46026": -17.0,
+     "46042": -6.5,
+     "46053": -14.2,
+     "46086": 7.9
+    },
+    "share_of_mse_from_station_bias": 0.078,
+    "time_split_oos_mae_raw_deg": 16.14,
+    "time_split_oos_mae_with_bias_from_first_half_deg": 20.12,
+    "mae_persistence24_deg": 27.76,
+    "mae_model_on_same_rows_deg": 22.0
+   },
+   "hs": {
+    "mae_m": 0.377,
+    "bias_m": -0.319,
+    "share_of_mse_from_station_bias": 0.453
+   }
+  },
+  "HI": {
+   "n": 2138,
+   "dir": {
+    "mae_all_deg": 43.11,
+    "mae_after_station_bias_removed_insample_deg": 41.89,
+    "station_bias_deg": {
+     "51002": -3.1,
+     "51003": -29.7,
+     "51004": -27.9
+    },
+    "share_of_mse_from_station_bias": 0.13,
+    "time_split_oos_mae_raw_deg": 46.21,
+    "time_split_oos_mae_with_bias_from_first_half_deg": 43.93,
+    "mae_persistence24_deg": 47.15,
+    "mae_model_on_same_rows_deg": 43.04
+   },
+   "hs": {
+    "mae_m": 0.305,
+    "bias_m": -0.285,
+    "share_of_mse_from_station_bias": 0.591
+   }
+  },
+  "NE": {
+   "n": 1429,
+   "dir": {
+    "mae_all_deg": 25.54,
+    "mae_after_station_bias_removed_insample_deg": 25.33,
+    "station_bias_deg": {
+     "44008": 5.7,
+     "44011": 9.0
+    },
+    "share_of_mse_from_station_bias": 0.029,
+    "time_split_oos_mae_raw_deg": 33.34,
+    "time_split_oos_mae_with_bias_from_first_half_deg": 32.73,
+    "mae_persistence24_deg": 61.57,
+    "mae_model_on_same_rows_deg": 24.73
+   },
+   "hs": {
+    "mae_m": 0.215,
+    "bias_m": -0.035,
+    "share_of_mse_from_station_bias": 0.012
+   }
+  },
+  "PNW": {
+   "n": 2864,
+   "dir": {
+    "mae_all_deg": 15.45,
+    "mae_after_station_bias_removed_insample_deg": 15.44,
+    "station_bias_deg": {
+     "46002": -2.2,
+     "46005": 4.7,
+     "46029": 0.9,
+     "46041": 1.6
+    },
+    "share_of_mse_from_station_bias": 0.011,
+    "time_split_oos_mae_raw_deg": 14.03,
+    "time_split_oos_mae_with_bias_from_first_half_deg": 15.25,
+    "mae_persistence24_deg": 28.72,
+    "mae_model_on_same_rows_deg": 15.53
+   },
+   "hs": {
+    "mae_m": 0.28,
+    "bias_m": -0.026,
+    "share_of_mse_from_station_bias": 0.025
+   }
+  },
+  "PR": {
+   "n": 716,
+   "dir": {
+    "mae_all_deg": 19.38,
+    "mae_after_station_bias_removed_insample_deg": 19.38,
+    "station_bias_deg": {
+     "41043": -4.4
+    },
+    "share_of_mse_from_station_bias": 0.018,
+    "time_split_oos_mae_raw_deg": 17.77,
+    "time_split_oos_mae_with_bias_from_first_half_deg": 19.63,
+    "mae_persistence24_deg": 31.27,
+    "mae_model_on_same_rows_deg": 19.31
+   },
+   "hs": {
+    "mae_m": 0.11,
+    "bias_m": -0.025,
+    "share_of_mse_from_station_bias": 0.031
+   }
+  },
+  "SE": {
+   "n": 719,
+   "dir": {
+    "mae_all_deg": 16.97,
+    "mae_after_station_bias_removed_insample_deg": 16.8,
+    "station_bias_deg": {
+     "44014": -1.7
+    },
+    "share_of_mse_from_station_bias": 0.003,
+    "time_split_oos_mae_raw_deg": 21.46,
+    "time_split_oos_mae_with_bias_from_first_half_deg": 21.89,
+    "mae_persistence24_deg": 41.95,
+    "mae_model_on_same_rows_deg": 16.76
+   },
+   "hs": {
+    "mae_m": 0.233,
+    "bias_m": 0.041,
+    "share_of_mse_from_station_bias": 0.014
+   }
+  }
+ }
+}

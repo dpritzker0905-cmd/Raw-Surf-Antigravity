@@ -1,0 +1,473 @@
+{
+ "method": "GFS-Wave ncep_gfswave025 previous_day1 (lead 24-47 h) vs NDBC stdmet 2025 WVHT/MWD, offshore buoys, WVHT>=0.5 m, model Hs>=0.3 m, land marks excluded",
+ "stations": {
+  "46025": {
+   "name": "Santa Monica Basin",
+   "region": "CA",
+   "obs_hours": 8748,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 8722
+  },
+  "46086": {
+   "name": "San Clemente Basin",
+   "region": "CA",
+   "obs_hours": 7918,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 7907
+  },
+  "46042": {
+   "name": "Monterey",
+   "region": "CA",
+   "error": "GET failed https://www.ndbc.noaa.gov/data/historical/stdmet/46042h2025.txt.gz: HTTP Error 404: Not Found"
+  },
+  "46026": {
+   "name": "San Francisco",
+   "region": "CA",
+   "obs_hours": 6253,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 6252
+  },
+  "46014": {
+   "name": "Point Arena",
+   "region": "CA",
+   "obs_hours": 8749,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 8748
+  },
+  "46011": {
+   "name": "Santa Maria",
+   "region": "CA",
+   "obs_hours": 8743,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 8742
+  },
+  "46053": {
+   "name": "East Santa Barbara",
+   "region": "CA",
+   "obs_hours": 7652,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 7570
+  },
+  "46029": {
+   "name": "Columbia River Bar",
+   "region": "PNW",
+   "obs_hours": 8743,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 8731
+  },
+  "46005": {
+   "name": "West Washington",
+   "region": "PNW",
+   "error": "GET failed https://www.ndbc.noaa.gov/data/historical/stdmet/46005h2025.txt.gz: HTTP Error 404: Not Found"
+  },
+  "46041": {
+   "name": "Cape Elizabeth",
+   "region": "PNW",
+   "obs_hours": 8751,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 8730
+  },
+  "46002": {
+   "name": "West Oregon",
+   "region": "PNW",
+   "obs_hours": 1512,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 1511
+  },
+  "51002": {
+   "name": "SW Hawaii",
+   "region": "HI",
+   "obs_hours": 8750,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 8749
+  },
+  "51003": {
+   "name": "W Hawaii",
+   "region": "HI",
+   "obs_hours": 996,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 996
+  },
+  "51004": {
+   "name": "SE Hawaii",
+   "region": "HI",
+   "obs_hours": 8740,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 8739
+  },
+  "44011": {
+   "name": "Georges Bank",
+   "region": "NE",
+   "obs_hours": 5632,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 5507
+  },
+  "44008": {
+   "name": "Nantucket",
+   "region": "NE",
+   "obs_hours": 5660,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 5499
+  },
+  "44014": {
+   "name": "Virginia Beach",
+   "region": "SE",
+   "obs_hours": 8747,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 8586
+  },
+  "41043": {
+   "name": "NE Puerto Rico",
+   "region": "PR",
+   "obs_hours": 8740,
+   "model_hours": 8760,
+   "land_mark_fraction": 0.0,
+   "status": "water",
+   "pairs_used": 8739
+  }
+ },
+ "source_counts": {
+  "analysis_best_estimate": 98225,
+  "lead24_previous_day1": 15503
+ },
+ "pooled": {
+  "n": 113728,
+  "dir_mae_deg": 22.03,
+  "dir_station_bias_share_of_mse": 0.05,
+  "dir_persistence24_mae_deg": 31.21,
+  "dir_model_mae_same_rows_deg": 21.99,
+  "hs_mae_m": 0.239,
+  "hs_bias_m": -0.147,
+  "hs_station_bias_share_of_mse": 0.335,
+  "oos_H1_to_H2": {
+   "dir_mae_raw": 22.43,
+   "dir_mae_bias_corrected": 22.05,
+   "hs_mae_raw": 0.236,
+   "hs_mae_bias_corrected": 0.197
+  },
+  "oos_H2_to_H1": {
+   "dir_mae_raw": 21.55,
+   "dir_mae_bias_corrected": 20.69,
+   "hs_mae_raw": 0.243,
+   "hs_mae_bias_corrected": 0.188
+  },
+  "seasons": {
+   "DJF": {
+    "n": 27967,
+    "dir_mae": 21.52,
+    "dir_station_bias_share": 0.105
+   },
+   "MAM": {
+    "n": 24618,
+    "dir_mae": 21.49,
+    "dir_station_bias_share": 0.083
+   },
+   "JJA": {
+    "n": 30604,
+    "dir_mae": 22.6,
+    "dir_station_bias_share": 0.062
+   },
+   "SON": {
+    "n": 30539,
+    "dir_mae": 22.36,
+    "dir_station_bias_share": 0.06
+   }
+  }
+ },
+ "by_region": {
+  "CA": {
+   "n": 47941,
+   "dir_mae_deg": 22.07,
+   "dir_station_bias_share_of_mse": 0.08,
+   "dir_persistence24_mae_deg": 25.67,
+   "dir_model_mae_same_rows_deg": 22.13,
+   "hs_mae_m": 0.291,
+   "hs_bias_m": -0.244,
+   "hs_station_bias_share_of_mse": 0.495,
+   "oos_H1_to_H2": {
+    "dir_mae_raw": 22.64,
+    "dir_mae_bias_corrected": 21.83,
+    "hs_mae_raw": 0.278,
+    "hs_mae_bias_corrected": 0.2
+   },
+   "oos_H2_to_H1": {
+    "dir_mae_raw": 21.43,
+    "dir_mae_bias_corrected": 20.58,
+    "hs_mae_raw": 0.305,
+    "hs_mae_bias_corrected": 0.202
+   },
+   "seasons": {
+    "DJF": {
+     "n": 11862,
+     "dir_mae": 17.77,
+     "dir_station_bias_share": 0.051
+    },
+    "MAM": {
+     "n": 10541,
+     "dir_mae": 23.68,
+     "dir_station_bias_share": 0.146
+    },
+    "JJA": {
+     "n": 13218,
+     "dir_mae": 26.42,
+     "dir_station_bias_share": 0.098
+    },
+    "SON": {
+     "n": 12320,
+     "dir_mae": 20.18,
+     "dir_station_bias_share": 0.083
+    }
+   }
+  },
+  "HI": {
+   "n": 18484,
+   "dir_mae_deg": 32.75,
+   "dir_station_bias_share_of_mse": 0.054,
+   "dir_persistence24_mae_deg": 34.49,
+   "dir_model_mae_same_rows_deg": 32.77,
+   "hs_mae_m": 0.212,
+   "hs_bias_m": -0.174,
+   "hs_station_bias_share_of_mse": 0.438,
+   "oos_H1_to_H2": {
+    "dir_mae_raw": 33.61,
+    "dir_mae_bias_corrected": 33.5,
+    "hs_mae_raw": 0.207,
+    "hs_mae_bias_corrected": 0.134
+   },
+   "oos_H2_to_H1": {
+    "dir_mae_raw": 31.97,
+    "dir_mae_bias_corrected": 30.11,
+    "hs_mae_raw": 0.217,
+    "hs_mae_bias_corrected": 0.161
+   },
+   "seasons": {
+    "DJF": {
+     "n": 5304,
+     "dir_mae": 38.65,
+     "dir_station_bias_share": 0.184
+    },
+    "MAM": {
+     "n": 4410,
+     "dir_mae": 28.09,
+     "dir_station_bias_share": 0.039
+    },
+    "JJA": {
+     "n": 4415,
+     "dir_mae": 20.81,
+     "dir_station_bias_share": 0.001
+    },
+    "SON": {
+     "n": 4355,
+     "dir_mae": 42.4,
+     "dir_station_bias_share": 0.082
+    }
+   }
+  },
+  "NE": {
+   "n": 11006,
+   "dir_mae_deg": 21.45,
+   "dir_station_bias_share_of_mse": 0.004,
+   "dir_persistence24_mae_deg": 48.4,
+   "dir_model_mae_same_rows_deg": 21.06,
+   "hs_mae_m": 0.2,
+   "hs_bias_m": 0.006,
+   "hs_station_bias_share_of_mse": 0.001,
+   "oos_H1_to_H2": {
+    "dir_mae_raw": 21.6,
+    "dir_mae_bias_corrected": 21.62,
+    "hs_mae_raw": 0.209,
+    "hs_mae_bias_corrected": 0.218
+   },
+   "oos_H2_to_H1": {
+    "dir_mae_raw": 20.9,
+    "dir_mae_bias_corrected": 21.02,
+    "hs_mae_raw": 0.166,
+    "hs_mae_bias_corrected": 0.172
+   },
+   "seasons": {
+    "DJF": {
+     "n": 1488,
+     "dir_mae": 23.11,
+     "dir_station_bias_share": 0.009
+    },
+    "MAM": {
+     "n": 909,
+     "dir_mae": 22.96,
+     "dir_station_bias_share": 0.01
+    },
+    "JJA": {
+     "n": 4243,
+     "dir_mae": 21.11,
+     "dir_station_bias_share": 0.001
+    },
+    "SON": {
+     "n": 4366,
+     "dir_mae": 20.9,
+     "dir_station_bias_share": 0.016
+    }
+   }
+  },
+  "PNW": {
+   "n": 18972,
+   "dir_mae_deg": 15.03,
+   "dir_station_bias_share_of_mse": 0.007,
+   "dir_persistence24_mae_deg": 26.2,
+   "dir_model_mae_same_rows_deg": 14.96,
+   "hs_mae_m": 0.23,
+   "hs_bias_m": -0.061,
+   "hs_station_bias_share_of_mse": 0.042,
+   "oos_H1_to_H2": {
+    "dir_mae_raw": 15.48,
+    "dir_mae_bias_corrected": 15.36,
+    "hs_mae_raw": 0.237,
+    "hs_mae_bias_corrected": 0.239
+   },
+   "oos_H2_to_H1": {
+    "dir_mae_raw": 14.48,
+    "dir_mae_bias_corrected": 14.02,
+    "hs_mae_raw": 0.221,
+    "hs_mae_bias_corrected": 0.223
+   },
+   "seasons": {
+    "DJF": {
+     "n": 5050,
+     "dir_mae": 14.3,
+     "dir_station_bias_share": 0.016
+    },
+    "MAM": {
+     "n": 4404,
+     "dir_mae": 13.57,
+     "dir_station_bias_share": 0.025
+    },
+    "JJA": {
+     "n": 4385,
+     "dir_mae": 19.65,
+     "dir_station_bias_share": 0.073
+    },
+    "SON": {
+     "n": 5133,
+     "dir_mae": 13.04,
+     "dir_station_bias_share": 0.003
+    }
+   }
+  },
+  "PR": {
+   "n": 8739,
+   "dir_mae_deg": 14.28,
+   "dir_station_bias_share_of_mse": 0.022,
+   "dir_persistence24_mae_deg": 24.38,
+   "dir_model_mae_same_rows_deg": 14.32,
+   "hs_mae_m": 0.152,
+   "hs_bias_m": -0.05,
+   "hs_station_bias_share_of_mse": 0.051,
+   "oos_H1_to_H2": {
+    "dir_mae_raw": 15.94,
+    "dir_mae_bias_corrected": 15.87,
+    "hs_mae_raw": 0.159,
+    "hs_mae_bias_corrected": 0.183
+   },
+   "oos_H2_to_H1": {
+    "dir_mae_raw": 12.59,
+    "dir_mae_bias_corrected": 11.88,
+    "hs_mae_raw": 0.146,
+    "hs_mae_bias_corrected": 0.141
+   },
+   "seasons": {
+    "DJF": {
+     "n": 2153,
+     "dir_mae": 12.66,
+     "dir_station_bias_share": 0.01
+    },
+    "MAM": {
+     "n": 2194,
+     "dir_mae": 13.61,
+     "dir_station_bias_share": 0.038
+    },
+    "JJA": {
+     "n": 2208,
+     "dir_mae": 12.47,
+     "dir_station_bias_share": 0.024
+    },
+    "SON": {
+     "n": 2184,
+     "dir_mae": 18.39,
+     "dir_station_bias_share": 0.024
+    }
+   }
+  },
+  "SE": {
+   "n": 8586,
+   "dir_mae_deg": 22.8,
+   "dir_station_bias_share_of_mse": 0.005,
+   "dir_persistence24_mae_deg": 51.5,
+   "dir_model_mae_same_rows_deg": 22.73,
+   "hs_mae_m": 0.169,
+   "hs_bias_m": -0.033,
+   "hs_station_bias_share_of_mse": 0.019,
+   "oos_H1_to_H2": {
+    "dir_mae_raw": 23.25,
+    "dir_mae_bias_corrected": 23.07,
+    "hs_mae_raw": 0.179,
+    "hs_mae_bias_corrected": 0.178
+   },
+   "oos_H2_to_H1": {
+    "dir_mae_raw": 22.33,
+    "dir_mae_bias_corrected": 22.23,
+    "hs_mae_raw": 0.158,
+    "hs_mae_bias_corrected": 0.164
+   },
+   "seasons": {
+    "DJF": {
+     "n": 2110,
+     "dir_mae": 24.76,
+     "dir_station_bias_share": 0.0
+    },
+    "MAM": {
+     "n": 2160,
+     "dir_mae": 20.88,
+     "dir_station_bias_share": 0.003
+    },
+    "JJA": {
+     "n": 2135,
+     "dir_mae": 22.09,
+     "dir_station_bias_share": 0.038
+    },
+    "SON": {
+     "n": 2181,
+     "dir_mae": 23.48,
+     "dir_station_bias_share": 0.003
+    }
+   }
+  }
+ }
+}
