@@ -269,3 +269,15 @@ The director called a quiet window, 22:00-00:30 EST (03:00-05:30Z), with the hea
 The chain started at 22:00Z under ~80% load was stopped about 12 minutes in, inside #921 re-run B's first sessions, before any of
 its output was read; its partial files (`scratchpad/m3/g3c/`) are not used. The same chain, unchanged, starts at 03:00Z, and the
 registered void rule still decides every session.
+
+## 2026-11-16 05:45Z: quiet-window results (the window was NOT quiet: 75% busy at 03:00Z, 55-96% during)
+
+Void rule per driver run (all arms; bar 1.25x the run's lowest calibration). Raw: `scratchpad/m3/abq-1..3`, `abq-aa`.
+- **abq-1 (render run 3 = Brief 3 run 1):** kill #1 VOID (157.2 vs bar 149.0); the kill arm runs short: **INCOMPLETE**.
+- **abq-2 (Brief 3 run 2): complete, scored as registered.** Own render p50 ON 100.9 vs KILL 101.7 ms (0.99x): gate 1 **FAIL**.
+  Input-to-paint p95 240 vs 240 ms: gate 2 **FAIL**. Key-to-shown p50/p95 660/954 vs 862/1023 ms, blank 0/0, labels 30/30:
+  gate 3 PASS (mislabel excluded by the director's 19:10Z word; KILL had 4, ON 0). Components per step 53 vs 67.
+- **abq-3 (Brief 3 run 3):** lowest calibration 59.3 ms (bar 74.1) makes 5 of 6 VOID: **INCOMPLETE**.
+- **A/A pair:** kill #1 VOID (154.7 vs bar 148.6): **INCOMPLETE**.
+- **Verdict:** the old gate's run 3 INCOMPLETE; Brief 3 INCOMPLETE (needs 3 complete runs + A/A). The one complete run shows no
+  render or input gain under this load. Nothing ships ON.

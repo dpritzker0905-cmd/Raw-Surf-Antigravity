@@ -99,3 +99,27 @@ On top of F1-F4 (unchanged), the change also has to pass:
   (the backend answers 404 for it); the probe must count that step as never-shown. If it does not, the instrument is broken and
   the run is void.
 - The load-void rule (census log 20:20Z) applies.
+
+## 2026-11-16 05:45Z: the A/B (none / R / PR), as registered: P passes F1 and FAILS F2 and F3; R fails F1, F2, F3
+
+Raw `scratchpad/m3/fineq/` (90 sessions + summary). No void rule was registered for this gate; the machine was 55-96% busy.
+Mock `/grid` latency p50 735-1101 ms, p95 5.7-12.2 s (the mock's, single process, under load; not production).
+
+| view | arm | time-to-fine p50 / p95 (slow steps 2-6) | fine shown | `/grid` slow / back / drag / slow1 / browse |
+|---|---|---|---|---|
+| desktop | none | 1014 / 1014 | 2 / 15 | 9 / 11 / 3 / 3 / 42 |
+| desktop | R | 1381 / 1381 | 2 / 15 | 9 / 9 / 3 / 4 / 42 |
+| desktop | PR | 41 / 1265 | 13 / 15 | 37 / 51 / 6 / 9 / 41 |
+| phone | none | 2229 / 2860 | 8 / 15 | 18 / 7 / 3 / 2 / 41 |
+| phone | R | 1687 / 1687 | 1 / 15 | 10 / 10 / 8 / 3 / 43 |
+| phone | PR | 295 / 432 | 13 / 15 | 22 / 29 / 9 / 4 / 40 |
+
+- **P (PR vs R): F1 PASS** (fine shown 13/15 vs 2/15 desktop and 1/15 phone; p50 41 vs 1381 and 295 vs 1687 ms). **F2 FAIL:** `/grid`
+  far above R + 1 per session (desktop slow 37 vs 9, back 51 vs 9; drag 6 vs 3; slow1 9 vs 4). **F3 FAIL:** first-draw p95 305 vs 98 ms
+  desktop; blank 24 in EVERY arm (equal across arms; an instrument artifact to check, but the gate counts it).
+- **R (R vs none): F1 FAIL** (fine shown not higher: 2 vs 2 desktop, 1 vs 8 phone), F2 FAIL (phone drag 8 vs 3), F3 FAIL (blank 24).
+  The regional upgrade did not deliver the fine grid in this lab.
+- Reading, not a re-judgement: the KILL baseline here almost never fetches a fine grid after step 1 (the regional gap), so every fine
+  grid PR delivers is an added request; the registered F2 bound assumed a baseline that fetches one per settled hour. As written,
+  P costs about 3-5x the `/grid` requests of R in step scenarios: on the 1-CPU box that is the load the director ruled out.
+  **Neither P nor R ships ON.** Both stay behind their kills; the PR is not opened until the director decides.
