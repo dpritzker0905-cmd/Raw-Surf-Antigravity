@@ -29,6 +29,7 @@ from services.surf_truth_anchors import AnchorError
 @pytest_asyncio.fixture
 async def world(monkeypatch):
     monkeypatch.setattr(security, "SECRET_KEY", secrets.token_urlsafe(48))
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
         for model in (Profile, SurfSpot, CheckIn, ConditionReport, SurfReport, SurfObservation, ObservationMedia,
@@ -121,12 +122,21 @@ async def test_the_environment_variable_no_longer_makes_anyone_an_anchor(world, 
     assert not hasattr(observations, "ANCHOR_ENV")
 
 
+def _ddl(table):
+    return [str(getattr(getattr(fn, "__self__", None), "statement", "") or getattr(fn, "statement", ""))
+            for fn in table.dispatch.after_create]
+
+
 def test_the_log_is_append_only_on_postgres():
     assert "BEFORE UPDATE OR DELETE" in anchor_models.APPEND_ONLY_TRIGGER
+    assert "BEFORE TRUNCATE" in anchor_models.NO_TRUNCATE_TRIGGER and "FOR EACH STATEMENT" in         anchor_models.NO_TRUNCATE_TRIGGER
     assert "RAISE EXCEPTION" in anchor_models.APPEND_ONLY_FUNCTION
-    listeners = [str(getattr(fn, "statement", "")) for fn in
-                 SurfTruthAnchorEvent.__table__.dispatch.after_create]
-    attached = " ".join(str(getattr(getattr(fn, "__self__", None), "statement", "")) for fn in
-                        SurfTruthAnchorEvent.__table__.dispatch.after_create)
-    assert "surf_truth_anchor_events_no_rewrite" in attached + " ".join(listeners)
-    assert "ENABLE ROW LEVEL SECURITY" in attached + " ".join(listeners)
+    log = " | ".join(_ddl(SurfTruthAnchorEvent.__table__))
+    for needed in ("surf_truth_anchor_events_no_rewrite", "surf_truth_anchor_events_no_truncate",
+                   "ENABLE ROW LEVEL SECURITY", "FROM anon, authenticated, service_role",
+                   "GRANT SELECT, INSERT ON TABLE"):
+        assert needed in log, needed
+    # the backend's role can read and append the log, nothing else
+    assert "UPDATE, DELETE" not in log.split("GRANT", 1)[1]
+    anchors = " | ".join(_ddl(SurfTruthAnchor.__table__))
+    assert "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE" in anchors

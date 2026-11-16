@@ -133,3 +133,15 @@ them; the director split it into small PRs. A = `surf_truth_anchors` (active / p
 required reason. `observer_role` now reads the table: 'anchor' only while ACTIVE, 'anchor_probation' while on
 probation, the ordinary role when suspended. The `SURF_TRUTH_ANCHOR_IDS` env var is gone (it was never set, so no
 row was ever recorded as an anchor). 9 tests; P1 + P2 suites updated; 63 pass. Next: API, admin UI, model.
+
+## 18:50Z Advisor conditions on #980 (three) and #981 (one) closed
+
+#980: the audit list returns no height, unit, range, scale or typical/sets (test); kill switch `SURF_OBS_XP` via
+runtime_flags (default on; '0' marks new rows 'paused', never paid later, no corroboration; tests); what XP is worth
+stated on the PR: levels, badges, leaderboards and profile/roster display only, not redeemable, not in dispatch
+priority (`dispatch/schemas.py`), so the client-claim gate risks leaderboard fairness only; tighten to
+server-verified photo evidence before XP ever becomes redeemable.
+#981: the log is now really append-only: service_role gets SELECT, INSERT only; row-level UPDATE/DELETE trigger plus a
+statement-level BEFORE TRUNCATE trigger; the docstring says exactly what remains (an owner acting outside the app
+could drop the triggers). Owed after deploy: UPDATE, DELETE and TRUNCATE each attempted in a rolled-back
+transaction must raise. Pushed as a merge of #980's branch (no history rewrite).
