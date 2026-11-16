@@ -1,7 +1,7 @@
 {
   "lane": "guards",
-  "tests": 4,
-  "files": 1,
+  "tests": 8,
+  "files": 2,
   "branch": "claude/wind-emos-collect",
   "date": "2026-11-16",
   "note": ""

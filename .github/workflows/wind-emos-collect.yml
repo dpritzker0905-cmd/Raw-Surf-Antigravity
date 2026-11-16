@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'stations | backfill | daily'
+        description: 'stations | backfill | daily | coverage | score'
         default: 'backfill'
       start:
         description: 'backfill start YYYY-MM-DD'
@@ -55,7 +55,10 @@ jobs:
         working-directory: backend
         run: |
           MODE="${{ github.event.inputs.mode || 'daily' }}"
-          if [ "$MODE" = "stations" ] || [ "$MODE" = "daily" ]; then
+          if [ "$MODE" = "coverage" ] || [ "$MODE" = "score" ]; then
+            if [ "${{ matrix.shard }}" != "0" ]; then echo "mode $MODE runs on shard 0 only"; exit 0; fi
+            python scripts/wind_emos_fit.py "$MODE" --cache "$RUNNER_TEMP/emos" --runs "$RUNNER_TEMP/emos/runs"               --from-bucket --out "$RUNNER_TEMP/emos/collect_report_emos_$MODE.json"
+          elif [ "$MODE" = "stations" ] || [ "$MODE" = "daily" ]; then
             if [ "${{ matrix.shard }}" != "0" ]; then echo "mode $MODE runs on shard 0 only"; exit 0; fi
             python scripts/wind_emos_collect.py "$MODE" --cache "$RUNNER_TEMP/emos" --upload
           else
