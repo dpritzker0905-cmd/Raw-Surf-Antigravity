@@ -261,3 +261,23 @@ world set, inside the 600 s budget. +2 tests (the tiers; paint-first beats a nev
 = the plain fair order). GATE after merge: on the public index, every GFS regional rated waves bundle on the same run as its plain
 sibling (lag 0) in at least 3 of the next 4 pilot runs; the other rated sets reported, not gated (they still compete for the rest
 of the budget).
+Advisor's read (15:46Z): two conditions, both fixed. (1) The ledger fragment had a UTF-8 byte-order mark (the Windows trap in
+LESSONS); rewritten without it. (2) The kill switch now reaches the scheduled step as a repository variable,
+`FRAME_RATING_PAINT_FIRST: ${{ vars.FRAME_RATING_PAINT_FIRST || '1' }}`, with a test that the rated step passes it (+1, estate).
+Limits, said plainly:
+- BUDGET. Bundles took 7.5-33 s each in run 43803432374. Typical: ~250-300 s for the 20, plus 105 s for the world set. Worst case
+  20 x 33 s = 660 s is over the 600 s budget before the world set even starts, and then nothing in tier 2 builds that run. No cap is
+  coded. The lever is the step's own budget: the repository variable `FRAME_RATING_BUDGET_S` (the step's timeout of 14 min allows
+  up to ~780 s). The gate records how many seconds tiers 0-1 took in each run, so a filled budget shows before it starves the rest.
+- STARVATION BY DESIGN. The other ~64 rated sets (swell_1 / swell_2 / wind_waves regional bundles, and the EURO / ICON / GFS world
+  rated sets) shared 21 builds a run; they now share what is left after tiers 0-1 (perhaps ~10 a run). They are read when a user
+  picks that layer with Surf Rating on, and at zoom-out (the world crop). Under #933's bound, any of them more than one cycle behind
+  is refused, and its asks go to /grid too. Their lag is reported in the gate, not gated.
+- STOPGAP, for the director: until #975 has merged AND run, every pilot-area band ask goes to /grid, because #933 refuses bundles
+  more than one cycle behind and they are three behind. The only relief today is the per-window client kill
+  (`__RAW_DISABLE_RATED_RUN_AGE__`), which is not a fleet lever. A wider default client bound (say 24 h, still labelled) is possible
+  as a separate client PR. It is the director's call; it is not in this PR.
+GATE (revised): in at least 3 of the next 4 pilot runs, on the public index: (a) all 20 GFS regional rated WAVES bundles at lag 0
+against their plain siblings; (b) the GFS world rated waves set at lag 0; (c) reported, not gated: the seconds tiers 0-1 took per
+run, and the lag of every other rated set. Plus, offline (not the live box): surf asks reaching /grid from a pilot-area view with
+the bundles 18 h behind against 0 h behind (below).
