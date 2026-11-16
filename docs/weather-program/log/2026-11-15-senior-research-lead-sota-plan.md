@@ -1241,3 +1241,15 @@ inside; how face height is judged on a short-period wind sea) or a process none 
   answer on which height the product names.
 - The Weggel slope arm is held for the owner's word on USACE-published formulas. Its prediction at this point
   (gamma ≈ 0.79) means it would not close the gap either.
+
+## 14:08Z Slope arm (#971): predictions held; the slope is not the NE-Florida gap; finer bathymetry is the steep-spot unlock
+
+- Predictions written before the run (Weggel index via the USACE CEM II-4-5..7): gamma ≈ 0.79 at the owner's point,
+  ≈ 1.08 at tanβ 0.05 / 10 s / 2 m.
+- Measured: 0.795 and 1.078. On 20 panel beds the arm reads +1-2% over a constant gamma (owner's point 1.49 vs 1.47).
+- ETOPO's 463 m grid makes every panel bed gentle (1:82 .. 1:1,084), so the slope term cannot act in the product today.
+  On real steep beds it does: +6% at 1:20, +12% for groundswell at 1:10, with the index reaching 1.30.
+- **Plan consequence:** for steep, reef and point spots, finer bathymetry (B3: CUDEM, Sentinel-2 SDB, S2Shores)
+  unlocks more than further breaker physics. Re-score the slope arm once a finer bed exists there.
+- NE Florida: period, H1/10, spread and slope are all measured; about 1.8 remains. Next inputs: the owner's answer on
+  which wave the product names, and T1/T2 breaking truth.
