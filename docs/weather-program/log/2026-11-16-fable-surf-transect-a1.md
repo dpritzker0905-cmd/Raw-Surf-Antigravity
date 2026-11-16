@@ -486,3 +486,11 @@ gives at the owner's point).
 
 **The advisor's caution, kept:** this arm says a spread sea reads 0 to 8% lower under these assumptions, model only.
 It is not evidence about the chain's error at the owner's point.
+
+## 2026-11-16 10:59Z A correction to the section above (mine): a sentence I had not computed
+
+Under (d) I wrote that the open_beach and pier spots alone "give the same figures to two decimals". I wrote it before
+computing it. Computed now from the saved per-spot results: on the 13 open_beach and pier beds the figures differ
+from the 20-bed means by at most 0.004 across all 18 rows (for example the wind sea at 60 degrees is 0.913 on the 13
+against 0.915 on the 20, which rounds to 0.91 against 0.92). So the claim holds to within 0.004, not "to two
+decimals" in every row. The conclusion is unchanged: leaving out the inlets and points does not move the result.
