@@ -132,10 +132,14 @@ def point_url(base: str, lat: float, lng: float, valid_time: str) -> str:
     return base.rstrip("/") + "/api/weather/point?" + q
 
 
-def panel_row(spot, payload, buoy) -> dict:
-    """One printed row. `offshore_hs_m` is the model's offshore height; `ratio` is served surf over it."""
+def panel_row(spot, payload, buoy, read_s=None) -> dict:
+    """One printed row. `offshore_hs_m` is the model's offshore height; `ratio` is served surf over it. `cell` is the
+    model cell the backend sampled (its `sampled_lat` / `sampled_lng`): two spots with the same cell were handed the
+    SAME sea, so any difference between their surf is the spot's geometry and nothing else."""
     name, lat, lng, coast, kind = spot
     pt = (payload or {}).get("point") or {}
+    slat, slng = pt.get("sampled_lat"), pt.get("sampled_lng")
+    cell = (round(slat, 4), round(slng, 4)) if isinstance(slat, (int, float)) and isinstance(slng, (int, float)) else None
     off, surf = pt.get("speed"), (payload or {}).get("surf_height_m")
     ratio = round(surf / off, 2) if isinstance(off, (int, float)) and isinstance(surf, (int, float)) and off > 0 else None
     b = buoy or {}
@@ -147,7 +151,30 @@ def panel_row(spot, payload, buoy) -> dict:
             "geometry_missing": (payload or {}).get("geometry_missing") or [],
             "served_valid_time": (payload or {}).get("served_valid_time"),
             "buoy": b.get("id"), "buoy_km": b.get("km"), "buoy_hs_m": b.get("hs_m"),
-            "buoy_dpd_s": b.get("dpd_s"), "buoy_apd_s": b.get("apd_s")}
+            "buoy_dpd_s": b.get("dpd_s"), "buoy_apd_s": b.get("apd_s"), "cell": cell, "read_s": read_s}
+
+
+def shared_cells(rows) -> list:
+    """Groups of two or more spots the backend sampled from the SAME model cell, with each spot's ratio. The sea is
+    held equal inside a group, so the spread of ratios is the spot-only effect (asked for by the spot-class lane)."""
+    groups = {}
+    for r in rows:
+        if r.get("cell") is not None:
+            groups.setdefault(r["cell"], []).append(r)
+    out = []
+    for cell in sorted(groups):
+        rs = groups[cell]
+        if len(rs) < 2:
+            continue
+        ratios = [r["ratio"] for r in rs if r.get("ratio") is not None]
+        out.append({"cell": cell, "spots": [(r["spot"], r["class"], r.get("ratio")) for r in rs],
+                    "spread": round(max(ratios) / min(ratios), 2) if len(ratios) >= 2 and min(ratios) > 0 else None})
+    return out
+
+
+def no_break_depth(rows) -> list:
+    """The spots whose geometry has no break depth this run (printed every run, for the class fallback)."""
+    return sorted(r["spot"] for r in rows if r.get("break_depth_m") is None)
 
 
 def _cell(v):
@@ -172,6 +199,7 @@ def render(rows, meta) -> str:
            "- read at %s, valid time asked %s" % (meta.get("read_at"), meta.get("valid_time")),
            "- backend health before: %s; after: %s" % (meta.get("health_before"), meta.get("health_after")),
            "- spots read %d of %d; stopped early: %s" % (len(rows), meta.get("panel_size"), meta.get("stopped") or "no"),
+           "- slowest read: %s (the run stops above %.0f s)" % (meta.get("slowest_read") or "not recorded", SLOW_S),
            "- `offshore Hs` is the model's OFFSHORE height; `surf` is the served breaking height; the class is a name-based label",
            ""]
     out.append("| " + " | ".join(h for _, h in COLUMNS) + " |")
@@ -188,6 +216,19 @@ def render(rows, meta) -> str:
         mid = v[len(v) // 2] if len(v) % 2 else (v[len(v) // 2 - 1] + v[len(v) // 2]) / 2
         out.append("| %s | %d | %s |" % (kind, len(v), _cell(float(mid))))
     out += ["", "One reading is one sea state. A class median here is a description, not a factor."]
+    groups = shared_cells(rows)
+    out += ["", "### Spots sharing a model cell (same model, same hour, same cell: the same sea in, so the difference is the spot alone)", ""]
+    if groups:
+        out += ["| model cell | spots | spots (class, surf / offshore) | largest over smallest |", "|---|---|---|---|"]
+        for g in groups:
+            spots = "; ".join("%s (%s, %s)" % (n, k, _cell(float(r)) if r is not None else "no ratio") for n, k, r in g["spots"])
+            out.append("| %.3f, %.3f | %d | %s | %s |" % (g["cell"][0], g["cell"][1], len(g["spots"]), spots.replace("|", "/"),
+                                                      _cell(float(g["spread"])) if g["spread"] is not None else ""))
+    else:
+        out.append("none this run")
+    missing = no_break_depth(rows)
+    out += ["", "### No break depth this run (%d of %d read)" % (len(missing), len(rows)), "",
+            ", ".join(missing) if missing else "none"]
     return "\n".join(out) + "\n"
 
 
@@ -199,8 +240,12 @@ def health_ok(base, get) -> str:
         return "failed %s" % type(e).__name__
 
 
-def run(base: str, now: datetime, get=None, sleep=time.sleep, panel=PANEL) -> dict:
-    """Read the panel. `get(url)` returns (status, text, seconds); injected in tests so nothing is sent."""
+def run(base: str, now: datetime, get=None, sleep=time.sleep, panel=PANEL, clock=time.monotonic) -> dict:
+    """Read the panel. `get(url)` returns (status, text, seconds); injected in tests so nothing is sent.
+
+    EVERY read is timed by the wall clock around the call, so a read that raises (a timeout is the slowest read there
+    is) or answers non-200 still has a time. That time counts toward "slowest read" and toward the SLOW_S stop BEFORE
+    the payload is looked at: one slow failure stops the run instead of waiting 10 s and asking the box again."""
     get = get or (lambda url: fetch(url, base))
     valid_time = now.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
     meta = {"read_at": now.strftime("%Y-%m-%dT%H:%MZ"), "valid_time": valid_time, "panel_size": len(panel),
@@ -215,25 +260,34 @@ def run(base: str, now: datetime, get=None, sleep=time.sleep, panel=PANEL) -> di
         stations = []
     meta["buoys_in_feed"] = len(stations)
     failures = 0
+    slowest = (0.0, None)
     for i, spot in enumerate(panel):
         if i:
             sleep(SPACING_S)
+        t0 = clock()
         try:
             status, text, secs = get(point_url(base, spot[1], spot[2], valid_time))
             payload = json.loads(text) if status == 200 else None
         except Exception:
             status, payload, secs = None, None, 0.0
-        if payload is None:
+        secs = max(float(secs or 0.0), clock() - t0)          # the wall clock holds even when the read raised
+        failed = payload is None
+        if secs >= slowest[0]:
+            slowest = (secs, spot[0])
+            meta["slowest_read"] = "%.1f s at '%s'%s" % (secs, spot[0], " (that read FAILED)" if failed else "")
+        if not failed:
+            rows.append(panel_row(spot, payload, nearest_buoy(spot[1], spot[2], stations), read_s=round(secs, 1)))
+        if secs > SLOW_S:                                     # before the payload check: a slow failure stops the run too
+            meta["stopped"] = "a read took %.0fs at '%s'%s; the backend is busy" % (
+                secs, spot[0], " and failed" if failed else "")
+            break
+        if failed:
             failures += 1
             if failures >= 2:
                 meta["stopped"] = "two failed reads in a row at '%s'" % spot[0]
                 break
             continue
         failures = 0
-        rows.append(panel_row(spot, payload, nearest_buoy(spot[1], spot[2], stations)))
-        if secs > SLOW_S:
-            meta["stopped"] = "a read took %.0fs at '%s'; the backend is busy" % (secs, spot[0])
-            break
     meta["health_after"] = health_ok(base, get)
     return {"meta": meta, "rows": rows}
 
