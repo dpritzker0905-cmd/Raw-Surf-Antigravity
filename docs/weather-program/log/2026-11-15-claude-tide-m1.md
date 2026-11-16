@@ -190,3 +190,57 @@ Sequence (director): this registration is committed and pushed ALONE. The adviso
 and the advisor's OK comes before any G2 code is pushed or dispatched.
 Product consequence, noted for after G2: near US stations, the served tide carries the station offset to agree with
 NOAA's MSL / MLLW.
+
+## 06:41 EST 2026-11-16 (`date`) - G2 as registered at af9e5e44b is WITHDRAWN (never run); the M1 diagnosis was wrong
+Director, advisor and research lead (06:31-06:34 EST) asked for a check that uses no test-window data: one year of
+CO-OPS MSL predictions minus our synthesis, as a monthly mean. Run on **calendar 2025** at Boston 8443970, Galveston
+8771510, La Jolla 9410230 and Honolulu 1612340; the positive-control recipe (P) only. Script and output are in the notes
+folder `tide-overlay-2026-11-15/sa-ssa-check-2025-*`.
+- **A yearly wave, not a constant.** The monthly mean of (CO-OPS - P) swings +-0.06 (Boston), +-0.09 (Galveston),
+  +-0.10 (La Jolla) and +-0.06 m (Honolulu), and its YEAR mean is 0.000 at all four. So the M1 offset idea was wrong:
+  a 365-day mean would have left it in.
+- **Cause: the SA/SSA phase convention.** SA/SSA were in P, but pyTMD's argument for SA is Doodson's h - p1 (the solar
+  perigee p1 ~ 283 deg, about 77 days), while NOAA publishes SA/SSA phases for the arguments h / 2h (Schureman).
+- **Confirmed by the fix:** P with SA = A cos(h - G) and SSA = A cos(2h - G) (h = the sun's mean longitude,
+  Schureman; f = 1, u = 0), and pyTMD for everything else, gives a monthly-mean residual of 0.000 at all four stations.
+  Raw RMSE over 2025 is 0.0112 / 0.0097 / 0.0143 / 0.0063 m, with **no offset**.
+- **Consequence for M1 (VOID stands):** the M1 control failed on our harmonic code, not on a datum. FES2022b's
+  M1 raw error carries the same seasonal term at the gauges (the meteorological/steric seasonal cycle is in NOAA's
+  SA/SSA, mostly not in an ocean-tide atlas), so no level correction is derived from M1.
+
+## G2 PRE-REGISTRATION (replaces the withdrawn one; written before any G2 code is pushed or any G2 number exists)
+**Window:** **2026-09-29 00Z .. 2026-10-12 23Z**, hourly, frozen and already observed. It is clear of every date
+below.
+
+**Dates and stations already scored by any arm (so "unseen" is checkable):**
+- At the 26 stations:
+  - M1: 2026-10-15 .. 10-28 (arms A, C, D, P vs predictions and observed).
+  - #926 `tide_datum_vs_coops.py`: 2026-11-08 .. 11-22 (vs predictions).
+  - #926 P1-P3: 2026-11-08 .. 11-15 (vs observed).
+  - #926 owner gate (a)-(d): 2026-11-01 .. 11-15 (vs predictions and observed).
+  - #926 and #931 held-out: 7 days from each of 2025-12-15, 2026-03-15, 2026-06-15 and 2026-09-15 (103
+    station-weeks, vs observed).
+  - #931 harmonic gates and dry runs: the 14 days around 2026-11-15.
+- At four stations (8443970, 8771510, 9410230, 1612340): calendar 2025, the P recipe only (the check above).
+- Also used: Open-Meteo's 365-day mean before each window (arm D), and the archive from 2022-12-01 (climAll). Those
+  are an arm's inputs, not truth comparisons.
+
+**Rules, as registered at 22:25 / 22:41 EST, with exactly these changes:**
+1. **No offset of any kind.** Arms A, B, C, D and P are scored as computed against unchanged truth.
+2. **P's SA and SSA use NOAA's convention:** cos(h - G) and cos(2h - G), with h the sun's mean longitude per
+   Schureman. All other constituents are as before (pyTMD, GOT nodal corrections, no inferred minors). The control's
+   line is unchanged: **median raw RMSE <= 0.01 m, with no de-meaning**. On 2025 the four stations gave 0.006-0.014 m,
+   so the control may well fail. If it does, G2 is VOID again, and that is the answer.
+3. The model arms keep their own long-period conventions (PyFES for FES2022b; pyTMD for EOT20, whose atlas is
+   distributed for it), unchanged.
+
+Unchanged: the 26 stations; T1 gating and T2 informative; items 1-4 (RMSE <= 0.08 m AND below C; no station worse
+than C by > 0.05 m; High/Low <= 20 min; |MLLW err| <= 0.05 m); thresholds; the arm choice; the label-swap and +6 h
+controls; VOID on any misbehaving control.
+
+**What a G2 PASS certifies:** the tide (level, timing, range) AT THE 26 GAUGES against NOAA's predictions, which
+include NOAA's seasonal cycle. It does NOT certify the level at a surf spot away from a gauge; that needs its own gate.
+If an arm fails item 1 on the seasonal term, the fix is a separately gated seasonal component, not a re-tune here.
+
+Sequence (director): this registration is pushed ALONE. The advisor reads it before anything is dispatched. The code
+(EOT20 nested-zip fix, P's SA/SSA, the window) is committed after it and pushed only after the advisor's read.
