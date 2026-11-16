@@ -293,3 +293,26 @@ are dropped.
 Model only. Scored on breaking truth later, by the gate's rules, when a truth source has data. Neither is fitted to
 the owner's one expectation at one hour. Offline modules the serving path does not import. No wind input. Each gets
 the guardrails of the second addendum to the gate: monotone in the offshore height, coverage printed, a range.
+
+## 2026-11-16 10:35Z A named arm for the gate, from the advisor: wave by wave (NOT built)
+
+The advisor re-read this PR at d9904cee3 and has no open condition. It derived the truncated highest-tenth
+independently and it matches, and it checked the balance point by hand: on a 1 in 50 bed at the report's state the
+dissipation removes about 0.07% of the flux per metre at 3 m of water against 0.33% gained by shoaling, and 1.9%
+against 0.5% at 2 m, so the maximum falls between, as the march has it.
+
+**Its answer to my question (is the onset too gentle) names what this arm cannot see.** Battjes and Janssen is a
+bulk-energy model, calibrated on profiles of H_rms across the surf zone. It says where the SEA STATE starts to lose
+energy. It was not calibrated on the height of the largest individual breakers. The 1.58 m highest-tenth wave it
+reports in about 3 m of water has a height of 0.53 of the depth, which by any single-wave criterion (0.78 and up) has
+not broken yet; that wave keeps shoaling until about 2 m. So the largest breaker a surfer sees is probably a little
+higher and further in than this arm's maximum.
+
+**Arm `wave_by_wave`, named here for the gate, NOT built and NOT run:** draw individual wave heights from the
+offshore Rayleigh distribution, shoal each one, break each at its own height-to-depth limit, and read the highest
+tenth of the BREAKER heights. It needs a single-wave breaker index from a source that can be read, which is the same
+source question as the slope arm above, so it waits with it.
+- **Prediction, written before it exists:** it will read HIGHER than both this arm and today's chain at the owner's
+  point, not lower, because each large wave is carried further in before it breaks. If so, it moves the model's
+  outer breaker further from the owner's expectation, and strengthens the reading that his number is about a
+  different wave from the one the product names.
