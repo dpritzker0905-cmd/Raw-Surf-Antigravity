@@ -206,6 +206,20 @@ number was an artefact of how it was measured, not because the harness differs. 
 
 Mutants: 7 of 8 red. The survivor (the pad fill) is equivalent: a pad can only ever stand for a cell that a real candidate beats.
 
+## 06:27Z: ICON cloud at 0.125 degree pre-registered: `cloud_cover_icon_0p125` (written before any measurement)
+
+The director, 2026-11-16 01:18 EST: ICON `clct` by area mean on the same 0.125 module, own dark PR (stacked on #956).
+Source: DWD `clct` (total cloud cover, %), confirmed published for 2026-11-16 00Z at f000, f078, f081 and f180. Hours 0-78
+hourly, then 81-180 by 3 (the research lead's), clipped to 0-100 %. Regrid: G2's 3 x 3 sub-point area mean, since cloud is an
+area fraction. Gate (the research lead's section 3, made exact), on 2026-11-16 00Z at f000, f072 and f180:
+1. Domain mean (exact cell areas, grid 0026) of our decoded frame within +/-2 pp of the native field's.
+2. 20 random nodes (seed 16): the decoded node equals the sub-point area mean recomputed independently from the native cells
+   within 0.5 pp, the frame's quantisation.
+3. Registration against GFS cloud at the same valid time: the correlation over column shifts -2..+2 peaks at 0 at f000 and f072.
+   Also reported: correlation against .om `dwd_icon` `cloud_cover` if that variable is in the file, at our nodes.
+4. Budget: at most 4.5 x the bytes of GFS cloud at 0.25 degree, and at most 120 s added wall time per run; time confirmed at the
+   first publish.
+
 ## 06:59Z: G2 corrections after the advisor's review (#956, PASS WITH LIMITS), a pick-map defect found and fixed, re-measured
 
 **Corrections to the G2 section above** (the log is append-only, so they are written here):
@@ -266,6 +280,36 @@ index stays as it was, and the pilots step (continue-on-error) shows the error i
 packs CLAT / CLON beyond the 0.01-degree check. Neither is alerted today. Caching the 50 MB file (or the derived 37 M-entry pick
 map) between runs is a follow-up.
 
+## 07:05Z: ICON cloud at 0.125 degree (`cloud_cover_icon_0p125`, dark): built and gated, PASS (time open)
+
+The pre-registration above was committed as 35f1c8944 at 06:27Z, before any measurement. Rebasing onto #956's fix rewrote it as
+3bfb82d38, with the same author time.
+**Built:** `IconArea0p125Source` reuses the precipitation set's pick map (and its refusals) and takes DWD `clct` straight from
+its hour's file, with no differencing, by the area mean; clipped to 0-100 %. Spec, one gated pilots step
+(`FRAME_RASTER_CLOUD_ICON_0P125`), and +2 tests (estate; the key / area-mean source / hours / dark / one step; a frame is the area
+mean of the hour's own field).
+**Gate** (`g3_icon.py` scratch, run 2026-11-16 00Z, with #956's fixed float64 map; the first two runs, on the defective map,
+failed item 2 at f048/f072/f180 with 1.3-2.7 pp, which is how the defect was found):
+
+| hour | domain mean native / ours (pp) | 20 nodes vs a brute-force sub-point mean, max abs | corr vs GFS cloud by column shift -2 / -1 / 0 / +1 / +2 | gz bytes | gate |
+|---|---|---|---|---|---|
+| f000 | 69.606 / 69.609 (+0.002) | 0.499 | 0.589 / 0.595 / **0.595** / 0.591 / 0.582 | 1,934,394 | PASS |
+| f048 | 69.665 / 69.667 (+0.002) | 0.490 | (GFS f048 not built; .om dwd_icon cloud_cover: corr 0.993, mean abs 1.83 pp) | 1,930,416 | PASS |
+| f072 | 69.535 / 69.537 (+0.002) | 0.469 | 0.449 / 0.454 / **0.457** / 0.457 / 0.455 | 1,975,093 | PASS |
+| f180 | 70.054 / 70.056 (+0.002) | 0.488 | 0.317 / 0.319 / **0.321** / 0.321 / 0.319 | 1,936,370 | PASS |
+
+Item 3 (registration vs GFS) is weak in the way the advisor described for #955: the peak at no shift is flat by f072. The stronger
+registration evidence is against .om's own `dwd_icon` cloud at f048: correlation 0.993, mean |difference| 1.83 pp (an area mean
+against Open-Meteo's nearest cell).
+**Budget:**
+- about 1.93-1.98 MB a frame, 4.8-5.3 x GFS cloud 0.25 (375-407 KB). That is OVER the registered 4.5 x by about 10-15 %.
+  Per run: 112 frames, about 218 MB.
+- Time: the map build is 72 s (the same map as G2; separate steps each pay it), then about 1-3 s fetch and about 1 s encode a
+  frame. Open until the first publish.
+**Verdict as registered:** items 1 and 2 pass at all four hours. Item 3 passes at f000 and is flat after. Item 4 storage FAILS (5.0
+x against 4.5 x); time is open. The director decides whether 218 MB a run is acceptable, or whether cloud should be stored at a
+coarser quantisation (1 % instead of 0.5 % halves the information).
+
 ## 07:17Z: #955 (EURO cloud) after the advisor's review (PASS WITH LIMITS): negative controls, and how the nodes were placed
 
 - **How the comparison placed our nodes:** by the frame's own DECLARED grid. `g3_euro.py` reads the bounds from the decoded frame
@@ -325,6 +369,21 @@ map) between runs is a follow-up.
 - Still open, unchanged: time is measured at the first publish; the client flip needs time, a throttled phone step, the texture
   checks (with Move 3), a legend note and the owner's word.
 
+## 08:20Z: #958 (ICON cloud 0.125) record corrected, per the advisor (PASS WITH LIMITS, one wording condition)
+
+The 07:05Z section's heading ("built and gated, PASS (time open)") overstated it. As registered, the gate for
+`cloud_cover_icon_0p125` reads:
+- **FAIL on item 4, storage:** 4.8-5.3 x GFS cloud at 0.25 against the registered 4.5 x. The time half of item 4 is also open.
+- **Items 1 and 2 PASS:** domain mean +0.002 pp; 20 nodes within 0.5 pp of a brute-force mean at all four hours.
+- **Item 3 NOT MET as written:** the correlation with GFS cloud is a TIE, not a peak (f000: 0.595 at shifts -1 and 0; f072: 0.457
+  at 0 and +1). The registration evidence is the correlation with .om's own dwd_icon cloud at f048: 0.993, mean |difference|
+  1.83 pp.
+
+Whether about 218 MB a run is acceptable, or cloud is stored at 1 % steps, is the director's and the owner's call. A different
+quantisation would be a NEW registration with its own item-2 tolerance, not an amendment of this one.
+**A cost line for the owner:** the three ICON 0.125 sets together add about 510 MB a run to the store (precipitation 132,
+temperature 162, cloud 218).
+
 ## 08:25Z: #956, the advisor's condition at d949afcd7 (a public-log leak) fixed, and the monitor's first live read
 
 - **Condition (fixed):** the monitor step passed every repo variable (the whole vars context). A step's env is printed in its log,
@@ -336,3 +395,43 @@ map) between runs is a follow-up.
 - **Read-only against the LIVE public latest.json, with today's switch values** (2026-11-16 ~08:25Z): the 10 raster sets switched
   on today (cloud 0.25, fog, precipitation GFS / EURO, pressure GFS / EURO / ICON, temperature GFS, EURO temperature 0.25, EURO
   water temperature) are all ok, each run 2026-11-16 00Z, 8.4 h old; exit 0. Merging this does not turn the monitor red.
+
+## 08:30Z: ICON cloud storage arms, pre-registered (the director: give the owner both numbers), written before any measurement
+
+**A correction first.** Cloud frames are ALREADY stored in 1 % steps: field 8 `cloud_pct` is one byte a node, scale 1.0
+(`frame_binary.FIELD_SPECS[CLOUD_PCT] = (1, 0, 0, 1.0, -1.0)`, codes 1-101). The "0.5 pp" in item 2 is HALF a step, the
+comparison tolerance, not the step. The spec's credit wrongly said "quantised to 0.5 %"; it now says 1 %. So "1 % instead of 0.5
+%" is not an option. The coarser arms are:
+- **Q2:** the plane rounded to 2 % steps before encoding (the same field and descriptor, so the client is unchanged).
+- **Q5:** the plane rounded to 5 % steps.
+
+**Gate per arm** (a NEW registration, its own tolerances), on the same run (2026-11-16 00Z, f000 / f048 / f072 / f180):
+1. Domain mean within +/-2 pp of native.
+2. 20 random nodes within HALF the arm's step of a brute-force sub-point mean: Q2 1.0 pp, Q5 2.5 pp.
+3. Storage at most 4.5 x GFS cloud 0.25 (the same line #958 failed at 1 %).
+4. Reported, not gated: the share of nodes whose value changes by more than 1 pp against the 1 % set, and how visible a 5 %
+   step is (a contour count along a cloud edge).
+
+Owner's decision: 1 % at about 218 MB a run (fails 4.5 x), or Q2 / Q5 if one passes item 3.
+
+## 08:47Z: ICON cloud storage arms Q1 / Q2 / Q5, measured against the 07:30Z registration
+
+`g3_q.py` (scratch), run 2026-11-16 00Z, the publisher's own source and pick map; the plane rounded to the arm's step, then
+encoded and decoded; 20 seeded nodes per hour against a brute-force sub-point mean. Bytes are compared with GFS cloud 0.25 of the
+same run (GFS has no f048 frame in that set).
+
+| arm | gz bytes a frame | x GFS cloud 0.25 (line: 4.5 x) | domain mean diff | 20 nodes, max abs (line: half a step) | nodes moved > 1 pp vs Q1 | gate |
+|---|---|---|---|---|---|---|
+| Q1 (1 %, today) | 1.93-1.98 MB | 4.85-5.16 x: FAIL | +0.002 pp | 0.47-0.49; **0.84 at f180** | 0 | FAIL (storage) |
+| Q2 (2 %) | 1.52-1.55 MB | 3.81-4.05 x: pass | +0.006-0.007 pp | 0.87-0.96 (line 1.0) | 0 % | PASS (4 hours) |
+| Q5 (5 %) | 1.02-1.04 MB | 2.56-2.72 x: pass | +0.027-0.030 pp | 2.34-2.48 (line 2.5) | 26-27 % | PASS (4 hours) |
+
+- **Per run (112 frames):** Q1 about 218 MB, Q2 about 171 MB, Q5 about 115 MB. With precipitation (132 MB) and temperature (162
+  MB), the three ICON 0.125 sets are about 510 MB a run at Q1, about 465 MB at Q2, about 410 MB at Q5.
+- **Q1's 0.84 at f180 is an exact TIE, not an error.** Node 48.625N 36.750E, sub-point 1: cells 21946 and 21947 are equally near
+  (dot-product difference exactly 0.0). Brute force takes the lower index; the pick map takes the first in candidate order. Both
+  are a nearest cell; their values differ (85.2 against 81.4 %).
+- **Visible change (item 4, reported):** Q2 moves no node by more than 1 pp from today's 1 % set. Q5 moves about 26 % of nodes, in
+  5 % bands along every cloud edge: visible as contouring at a close zoom.
+- **The owner's choice:** Q1 (fails the storage line), Q2 (passes, no visible change, -22 % bytes) or Q5 (passes, visible banding,
+  -47 % bytes). The measurement favours Q2.

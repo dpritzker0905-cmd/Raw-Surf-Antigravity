@@ -125,6 +125,7 @@ jobs:
           FRAME_RASTER_TEMPERATURE_ICON: ${{ vars.FRAME_RASTER_TEMPERATURE_ICON }}
           FRAME_RASTER_WATER_TEMP: ${{ vars.FRAME_RASTER_WATER_TEMP }}
           FRAME_RASTER_WATER_TEMP_EURO: ${{ vars.FRAME_RASTER_WATER_TEMP_EURO }}
+          FRAME_RASTER_CLOUD_ICON_0P125: ${{ vars.FRAME_RASTER_CLOUD_ICON_0P125 }}
           RASTER_STALE_HOURS: ${{ vars.RASTER_STALE_HOURS || '30' }}
         working-directory: backend
         run: |

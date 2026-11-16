@@ -253,3 +253,29 @@ def test_a_real_near_tie_is_decided_in_float64():
     assert int(i125.nearest_among(sub, cells, cands)[0]) == 0
     rounded = cells.astype(np.float32).astype(np.float64)          # the defect: cell positions held in float32
     assert int(i125.nearest_among(sub, rounded, cands)[0]) == 1     # ... flips the pick to the farther cell
+
+
+# ── ICON cloud cover at 0.125 deg: cloud_cover_icon_0p125 (dark) ──────────────────────────────────────────────────────────
+
+CSPEC = fsr.SPECS["cloud_cover_icon_0p125"]
+
+
+def test_the_cloud_set_is_icon_clct_on_the_0p125_lattice_by_area_mean(monkeypatch):
+    assert fs.set_key(CSPEC["target"]) == "ICON/weather/cloud_cover/global_0p125"
+    assert (CSPEC["grid"], CSPEC["source"], CSPEC["idx"], CSPEC["clip"]) == ("0p125", "icon_area_0p125", ("clct", ("CLCT",)), (0.0, 100.0))
+    assert tuple(CSPEC["hours"]) == tuple(range(0, 79)) + tuple(range(81, 181, 3))
+    assert srcs.SOURCES["icon_area_0p125"] is srcs.IconArea0p125Source
+    monkeypatch.delenv("FRAME_RASTER_CLOUD_ICON_0P125", raising=False)
+    assert CSPEC["default_on"] is False and not fsr.enabled("cloud_cover_icon_0p125")
+    yml = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
+    steps = [s for s in yml.split("\n      - name: ")[1:] if "--set cloud_cover_icon_0p125\n" in s + "\n"]
+    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD_ICON_0P125 == '1'" in steps[0]
+
+
+def test_a_cloud_frame_is_the_area_mean_of_the_hours_own_field_with_no_differencing(monkeypatch):
+    src = srcs.IconArea0p125Source(CSPEC, session=object())
+    asked = []
+    monkeypatch.setattr(src, "_native", lambda cycle, f, n: asked.append(f) or np.array([100.0, 0.0, 50.0, np.nan]))
+    monkeypatch.setattr(srcs.IconArea0p125Source, "grid", lambda self, cycle: (np.array([[[0, 1, 2, 2], [3, 3, 3, 3]]], np.int32), 4))
+    plane = src.fetch("run", 7)
+    assert plane[0, 0] == pytest.approx(50.0) and np.isnan(plane[0, 1]) and asked == [7]
