@@ -127,3 +127,23 @@ def test_partitions_take_the_partitioned_path_of_the_same_chain():
     # H1/10 and the constant refraction factor apply to every train, wind sea included
     assert a["contribution"]["h110"] == pytest.approx(1.27, abs=0.01) and a["contribution"]["refraction"] == pytest.approx(0.873, abs=0.001)
     assert a["contribution"]["komar"] > 1.1 and a["all_off_m"] < a["served_m"]
+
+
+def test_the_monotonicity_guardrail_catches_a_surf_that_drops_as_the_sea_rises():
+    class G:
+        shore_normal_deg, swell_normal_deg = 90.0, None
+
+    def seam(lat, lng, hs, tp, direction, geometry, partitions=None):
+        return (1.27 * hs if hs < 2.0 else 2.0), "x"            # the MC-01 shape: climbs to 1.27 x cap, then falls onto it
+    out = ab.monotone_violations([("p", 1.0, 2.0)], chain=seam, hs_grid=(1.8, 1.9, 2.0, 2.1), periods=(10.0,),
+                                 configs={"served": {}}, resolve=lambda lat, lng: G())
+    assert out["calls"] == 4 and out["violations"] == [("served", "p", 10.0, 2.0, pytest.approx(1.27 * 1.9), 2.0)]
+    ok = ab.monotone_violations([("p", 1.0, 2.0)], chain=fake_chain, hs_grid=(0.5, 1.0, 1.5), periods=(8.0, 12.0),
+                                resolve=lambda lat, lng: G())
+    assert ok["violations"] == [] and ok["calls"] == 3 * 2 * 8          # served, six single-off, all-off
+
+
+def test_the_served_chain_and_every_switched_variant_are_monotone_at_the_owners_point():
+    out = ab.monotone_violations([("owner", OWNER[0], OWNER[1])])
+    assert out["violations"] == [] and out["calls"] == len(ab.MONO_HS) * len(ab.MONO_PERIODS) * 8
+    assert ab.MONO_HS[0] == 0.1 and ab.MONO_HS[-1] == 12.0

@@ -151,6 +151,37 @@ def summarize(rows, by=("class", "sea_state")) -> list:
     return out
 
 
+MONO_HS = tuple(round(0.1 * i, 1) for i in range(1, 121))        # 0.1 .. 12.0 m
+MONO_PERIODS = (5.0, 7.28, 10.0, 12.0, 16.0, 20.0)
+
+
+def monotone_violations(points, chain=_chain, hs_grid=MONO_HS, periods=MONO_PERIODS, configs=None, resolve=None) -> dict:
+    """MC-01 guardrail for every arm: a bigger offshore height must never give smaller surf. For each (name, lat, lng)
+    point, period and configuration, walk the height grid and list every step where the surf DROPS. Head-on.
+    Returns {"calls": n, "violations": [(config, point, tp, hs, before, after), ...]}; an empty list is a pass."""
+    if resolve is None:
+        from services.weather_pipeline.surf_point import resolve_surf_geometry as resolve
+    if configs is None:
+        configs = {"served": {}, **{k + "_off": v for k, v in FACTORS.items()}, "all_off": ALL_OFF}
+    calls, bad = 0, []
+    for name, lat, lng in points:
+        g = resolve(lat, lng)
+        normal = getattr(g, "swell_normal_deg", None)
+        normal = normal if normal is not None else getattr(g, "shore_normal_deg", None)
+        for cname, env in configs.items():
+            with switched(env):
+                for tp in periods:
+                    prev = None
+                    for hs in hs_grid:
+                        h, _reg = chain(lat, lng, hs, tp, normal, g, None)
+                        calls += 1
+                        if prev is not None and h is not None and h < prev - 1e-9:
+                            bad.append((cname, name, tp, hs, prev, h))
+                        if h is not None:
+                            prev = h
+    return {"calls": calls, "violations": bad}
+
+
 def _fmt(g) -> str:
     if not g or not g.get("n"):
         return ""

@@ -236,3 +236,59 @@ field at the nearest water cell, not our stored tile through our sampler. The li
 before the chain (`point_surf_augment`); raw partitions were used here, so a live reading can differ. Several spots
 share a model cell (four St. Augustine spots have the same input). No truth was read: this says what the path does,
 not whether it is right.
+
+## 2026-11-16 01:20Z Second addendum (before the window): a breaker-index arm, and guardrails every arm must pass
+
+The director relayed amendments from the research lead's deeper surf pass (2026-11-15 20:16 EST; a peer message).
+
+### (A) One more arm: `breaker_steepness_kh`
+
+**What it is.** In place of the universal Komar and Gaughan breaker height, a breaker index that depends on the
+offshore wave steepness and on kh, chosen per spot PER HOUR from beach state: the bed slope and that hour's wave
+steepness. The research lead cites Zhang 2021 (reported: 19% lower error) for the index and Power 2013 for the
+slope and steepness similarity parameter.
+
+**NOT RUNNABLE today, for two stated reasons. It stays an empty row until both are met.**
+1. **I do not have the equation.** The research lead's log gives the citations and the 19% figure, not the formula or
+   its coefficients, and I have not read either paper. I will not reconstruct a published formula from its abstract
+   or from memory. The arm needs the equation transcribed from the paper, with its equation number, its coefficient
+   values and its stated range of validity, written into this log by someone who has the full text.
+2. **It needs a bed slope per spot.** The chain's slope is depth over shelf width, a shelf-scale proxy the code's own
+   comments call contaminated at islands and deep-water spots. Six panel spots have no break depth at all. The slope
+   source must be named and its coverage printed before the arm is scored.
+
+**How it must be built when it can be.** As an offline function with the same inputs as the chain, in a module the
+serving path does not import, with a test pinning that. It is a candidate, not a second forecast path: ONE FORECAST
+COMPOSITION means it replaces the Komar step inside the one chain behind a kill switch if a gate passes, never beside
+it. It takes NO wind input: wind stays in the rating and is never a height multiplier.
+
+**Note for whoever builds it.** The chain already has a period- and slope-dependent breaker index
+(`surf_transform.breaker_index`), but it feeds only the depth cap, which bound in 7 of 240 rows in Part 1 and in none
+in Part 1b. The amplification comes from Komar, which takes height and period and nothing about the beach.
+
+### Guardrails for EVERY arm, this one and the eight configurations already listed
+
+An arm that fails any of these is DISQUALIFIED whatever its score.
+
+1. **Its own ablation arm.** On and off, scored against `served` on the same rows, with the shuffled null of the
+   first addendum.
+2. **Monotone in the offshore height (MC-01).** For every panel spot, each of six periods (5, 7.28, 10, 12, 16, 20 s)
+   and heights 0.1 to 12.0 m in 0.1 m steps, head-on, the surf must never drop as the offshore height rises.
+   Instrument: `surf_ablation.monotone_violations`. **Measured today on the served chain and its seven switched
+   variants: 172,800 calls over the 30 spots, zero violations.** So monotonicity is a property today's chain has and
+   a new arm must keep. Limit: bulk inputs only; the partitioned path was not walked.
+3. **Uncertainty carried to a served range.** An arm must give a low and a high beside its value (a stated 80%
+   range). Its coverage is scored: the truth must fall inside between 70% and 90% of the time, per region. An arm
+   whose range is not calibrated may still be scored on its central value, but is not eligible to be served.
+4. **Validated by region, by season and at the extremes.**
+   - Region: the five coasts, each with its own row; no region worse by more than 0.02.
+   - Extremes: the top tenth of truth heights, and rows with offshore height of 3 m or more, each reported
+     separately; an arm may not be worse there by more than 0.02. A cell under 30 rows prints its n and no number.
+   - Season: this window (2026-11-17 to 12-07) is one season. Season is therefore UNTESTABLE in this window, and no
+     arm is eligible to be served on this window alone; a second window in a different season is required first.
+5. **No wind in the height.** No arm may take wind speed or direction as an input to the height.
+
+### What I have seen that could bend these (disclosed)
+
+Parts 1 and 1b, and the zero-violation monotonicity run above. Nothing about how a steepness-and-kh index performs:
+it has never been run here. The 19% figure is the research lead's citation, not a measurement of mine.
