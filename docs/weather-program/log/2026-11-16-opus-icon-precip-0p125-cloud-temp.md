@@ -264,3 +264,15 @@ map) between runs is a follow-up.
   - +4 tests (`test_raster_set_freshness.py`).
 - Still open, unchanged: time is measured at the first publish; the client flip needs time, a throttled phone step, the texture
   checks (with Move 3), a legend note and the owner's word.
+
+## 08:25Z: #956, the advisor's condition at d949afcd7 (a public-log leak) fixed, and the monitor's first live read
+
+- **Condition (fixed):** the monitor step passed every repo variable (the whole vars context). A step's env is printed in its log,
+  repo variables are not masked, and this repository's Actions logs are public, so every repo variable would have been published
+  on every run. Now each raster switch is passed BY NAME, one env line each (16 lines). The test refuses the whole-vars form
+  anywhere in the workflow, and requires every raster set's switch to be passed, so a new set must add its line.
+- **Grace for a new set:** a set switched on but not yet published is now a WARNING annotation, not a failure (its first publish
+  is a few hours away). A STALE set (listed, run older than the bound) fails the monitor. One 30 h bound for every set, for now.
+- **Read-only against the LIVE public latest.json, with today's switch values** (2026-11-16 ~08:25Z): the 10 raster sets switched
+  on today (cloud 0.25, fog, precipitation GFS / EURO, pressure GFS / EURO / ICON, temperature GFS, EURO temperature 0.25, EURO
+  water temperature) are all ok, each run 2026-11-16 00Z, 8.4 h old; exit 0. Merging this does not turn the monitor red.

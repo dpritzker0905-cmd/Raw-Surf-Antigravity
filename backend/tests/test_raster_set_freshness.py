@@ -45,4 +45,31 @@ def test_a_failed_raster_publish_is_an_error_annotation_and_a_non_zero_exit(monk
 def test_the_monitor_runs_the_check_and_pages_on_stale():
     wf = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "data-health-monitor.yml").read_text(encoding="utf-8")
     step = wf[wf.index("- name: Raster frame-set freshness"):wf.index("- name: Regional product run-age census")]
-    assert "RASTER_VARS_JSON: ${{ toJSON(vars) }}" in step and "raster_set_freshness.py" in step and "--fail-on-stale" in step
+    assert "raster_set_freshness.py" in step and "--fail-on-stale" in step
+    assert "toJSON(vars)" not in wf                           # never every repo variable into a public log
+    for env in sorted({sp["env"] for sp in fsr.SPECS.values()}):   # every raster switch passed by name, so none is unseen
+        assert f"{env}: ${{{{ vars.{env} }}}}" in step, env
+
+
+def test_the_check_reads_each_switch_by_name_and_a_missing_set_only_warns(monkeypatch, capsys):
+    monkeypatch.setenv(ENV, "1")
+    monkeypatch.setattr(rsf.urllib.request, "urlopen", lambda url, timeout: _Resp({"sets": {}}))
+    assert rsf.main(["--base", "https://cdn.test/weather-frames", "--fail-on-stale"]) == 0
+    assert "::warning title=Raster set precipitation_icon_0p125 not published yet::" in capsys.readouterr().out
+    monkeypatch.setattr(rsf.urllib.request, "urlopen", lambda url, timeout: _Resp({"sets": {KEY: {"run": "2026-01-01T00:00:00Z"}}}))
+    assert rsf.main(["--base", "https://cdn.test/weather-frames", "--fail-on-stale"]) == 1
+
+
+class _Resp:
+    def __init__(self, obj):
+        import json
+        self.body = json.dumps(obj).encode()
+
+    def read(self):
+        return self.body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False

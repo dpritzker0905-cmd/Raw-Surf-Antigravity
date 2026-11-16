@@ -6,8 +6,9 @@ A raster publish step runs with continue-on-error, and every failure keeps the p
 the last good run and nothing pages. This reads the PUBLIC latest.json (the same object the client reads; no key) and, for every
 raster set whose repo variable is '1', checks that the set is listed and that its run is younger than the set's stale bound.
 
-Usage (data-health-monitor.yml): RASTER_VARS_JSON='${{ toJSON(vars) }}' python scripts/raster_set_freshness.py --base <public frames
-URL> [--fail-on-stale]. The public URL is built from SUPABASE_URL in the workflow (by name; never written here).
+Usage (data-health-monitor.yml): each raster switch passed BY NAME as its own env var (never the whole vars context: step env is printed
+in the public log), then python scripts/raster_set_freshness.py --base <public frames URL> [--fail-on-stale]. The public URL is
+built from SUPABASE_URL in the workflow (by name; never written here). A set switched on but never published only warns.
 """
 from __future__ import annotations
 
@@ -71,19 +72,22 @@ def main(argv=None):
     ap.add_argument("--base", required=True, help="the public weather-frames URL (…/storage/v1/object/public/weather-frames)")
     ap.add_argument("--fail-on-stale", action="store_true")
     args = ap.parse_args(argv)
-    repo_vars = json.loads(os.environ.get("RASTER_VARS_JSON") or "{}")
+    # one env var per raster switch (the workflow passes each by name; an unset repo variable arrives as "")
+    repo_vars = {sp["env"]: os.environ[sp["env"]] for sp in fsr.SPECS.values() if os.environ.get(sp["env"])}
     stale_h = float(os.environ.get("RASTER_STALE_HOURS", DEFAULT_STALE_H))
     with urllib.request.urlopen(args.base.rstrip("/") + "/" + fs.LATEST, timeout=60) as r:
         latest = json.loads(r.read())
     rows = check(latest, repo_vars, datetime.now(timezone.utc), stale_h)
     for name, key, verdict, detail in rows:
         print(f"  {verdict:7s} {name:28s} {key:45s} {detail}")
-        if verdict != "ok":
+        if verdict == "missing":       # just switched on: its first publish is a few hours away (the advisor: grace, not red)
+            print(f"::warning title=Raster set {name} not published yet::{key}: {detail}.")
+        elif verdict != "ok":
             print(f"::error title=Raster set {name} not refreshed::{key}: {detail}. A failed publish keeps the old index; "
                   f"read that set's pilots step log.")
     if not rows:
         print("  (no raster set is switched on)")
-    bad = [r for r in rows if r[2] != "ok"]
+    bad = [r for r in rows if r[2] == "stale"]
     return 1 if (bad and args.fail_on_stale) else 0
 
 
