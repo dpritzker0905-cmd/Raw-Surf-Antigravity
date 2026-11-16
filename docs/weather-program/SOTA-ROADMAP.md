@@ -44,6 +44,14 @@ sleep".
 | 14 | Gusts + currents layers on own frames | gusts lane | every hour drawn equals its label, 0 skipped, phone scrub ≤ 150 ms | #928 open; phone scrub FAILS (decode to the #921 worker) | Yes (new) |
 | 15 | Height-scale display (face default; Hawaiian in Hawaii; toggle; scale always labelled) | client lane | **gate not yet registered** (a checklist so far: 3 themes x devices, label always present, rating uses the physical height only) | decided by research (D-078) | Display |
 
+## Dated updates (append only)
+
+- **2026-11-16 08:35Z, rank 10 (D-072 v2): FAIL.**
+  - Scored by the advisor (relayed by the director): FAIL on P3, the hole-buoy rule 2 fired on 0 of 5 required days.
+  - Recorded as a FAIL with NO tuning on the November data.
+  - A new rule 2 means a new pre-registration scored on unseen days (LESSONS L-S27). Rule 1 v2's status is as #949
+    records it.
+
 ## Watch list (not ranked)
 
 - ICON precip at 0.125 deg conservative remap (decided by research): frame-carry, gate mass ±1%, peaks ≥ 90%.
