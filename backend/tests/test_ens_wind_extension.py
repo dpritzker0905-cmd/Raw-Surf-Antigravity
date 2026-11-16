@@ -56,11 +56,21 @@ def test_points_interpolate_within_the_ens_run_and_clip_gust_to_wind():
     assert h["wind_gusts_p90_10m"][0] == pytest.approx(39.0, abs=1e-3)              # p90 = 2 x speed, interpolated
 
 
-def test_stale_or_short_ens_run_is_never_served_partially():
+def test_lagged_run_serves_up_to_its_own_last_step_and_never_past_48h():
+    """Amendment 3 (director 2026-11-16): an ENS run <= 48 h old serves, but only the valid times it reaches (its
+    +360 h); later hours get no tail. Over 48 h old: nothing."""
+    assert ex.build_points(*_packed(run=RUN - timedelta(hours=49)), RUN, RUN + timedelta(hours=180), [0.0], [0.0]) is None
     meta, arrays = _packed(run=RUN - timedelta(hours=48))
-    assert ex.build_points(meta, arrays, RUN, RUN + timedelta(hours=180), [0.0], [0.0]) is None
+    pts = ex.build_points(meta, arrays, RUN, RUN + timedelta(hours=180), [0.0], [0.0])
+    times = pts[0]["hourly"]["time"]
+    assert times[0] == (RUN + timedelta(hours=183)).strftime("%Y-%m-%dT%H:%M")
+    assert times[-1] == (RUN + timedelta(hours=312)).strftime("%Y-%m-%dT%H:%M")   # = the lagged run's +360 h
+    b = ex.estimate_basis(meta, 180, RUN)
+    assert b["older_run"] is True and b["ens_run_age_h"] == 48 and "older run, 48 h" in b["label"]
+    fresh = ex.estimate_basis(_packed()[0], 180, RUN)
+    assert fresh["older_run"] is False and fresh["label"] == ec.LABEL
     meta2, arrays2 = _packed()
-    meta2["steps"] = [s for s in STEPS if s <= 300]
+    meta2["steps"] = [s for s in STEPS if s >= 204]           # cannot reach the first tail hour: no tail
     assert ex.build_points(meta2, arrays2, RUN, RUN + timedelta(hours=180), [0.0], [0.0]) is None
 
 
@@ -115,3 +125,32 @@ def test_sample_step_matches_build_points_at_a_native_step():
     assert f["gust_p90"][0] == pytest.approx(h["wind_gusts_p90_10m"][i], abs=1e-3)
     wrap = ex.sample_step(meta, arrays, 198, [0.0, 0.0], [359.5, -0.5])
     assert wrap["speed"][0] == pytest.approx(wrap["speed"][1])
+
+
+
+@pytest.mark.asyncio
+async def test_icon_ingest_writes_no_loop_when_ens_is_on_but_absent(monkeypatch):
+    """Amendment 3: with ENS on and no usable run, ICON's ingest writes NO tail (never the loop, never GFS)."""
+    from services.weather_pipeline.wind_ingestion import ingest_icon_wind_global_impl
+    monkeypatch.delenv("ENS_WIND_EXTENSION", raising=False)
+    monkeypatch.delenv("ICON_WIND_EXTEND", raising=False)
+    monkeypatch.setenv("ICON_WIND_DWD_DIRECT", "1")
+    times = [(RUN + timedelta(hours=h)).strftime("%Y-%m-%dT%H:%M") for h in range(181)]
+    raw = [{"latitude": 0.0, "longitude": 0.0, "hourly": {"time": times, "wind_speed_10m": [5.0] * 181,
+                                                         "wind_direction_10m": [90.0] * 181, "wind_gusts_10m": [7.0] * 181}}]
+    sched = MagicMock()
+    sched._cleanup_and_pause = AsyncMock()
+    sched._fetch_or_mock = AsyncMock(return_value=None)
+    saves = []
+
+    async def record(normalizer, store, results, **kw):
+        saves.append(kw)
+        return len(results)
+    loop = MagicMock()
+    with patch("services.dwd_wind_service.fetch_icon_wind_global_coarse", new=AsyncMock(return_value=raw)), \
+         patch("services.weather_pipeline.wind_ingestion.normalize_and_save_loop", new=record), \
+         patch.object(ex, "load_latest", return_value=None), \
+         patch("services.weather_pipeline.viewport_helper.extend_icon_wind_to_14d", new=loop):
+        assert await ingest_icon_wind_global_impl(sched) is True
+    assert len(saves) == 1 and saves[0]["estimated_after_index"] is None   # natives only
+    loop.assert_not_called()

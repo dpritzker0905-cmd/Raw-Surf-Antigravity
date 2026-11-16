@@ -1,6 +1,6 @@
 {
   "lane": "chain",
-  "tests": 16,
+  "tests": 17,
   "files": 2,
   "branch": "claude/wind-ens-extension",
   "date": "2026-11-16",

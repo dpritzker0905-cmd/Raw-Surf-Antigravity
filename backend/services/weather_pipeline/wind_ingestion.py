@@ -599,8 +599,15 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
                 ext_count = tail
                 logger.info(f"[Pipeline Scheduler] Ingested {ext_count} ICON wind tail files (ENS member mean, beyond {native_max}).")
             else:
-                from services.weather_pipeline.viewport_helper import extend_icon_wind_to_14d
-                extend_icon_wind_to_14d(results)  # mutates: day-looped hourly arrays out to 336h
+                from services.weather_pipeline.ens_wind_extension import ens_extension_on
+                if ens_extension_on():
+                    # no usable ENS run: NO new ICON tail (amendment 3: never the loop, never GFS); the last ENS
+                    # generation keeps serving until its hours pass
+                    standin = True
+                    logger.info(f"[Pipeline Scheduler] ICON wind: no usable ENS run, no tail written beyond {native_max}.")
+                else:  # ENS_WIND_EXTENSION=0: today's behaviour exactly (the legacy loop)
+                    from services.weather_pipeline.viewport_helper import extend_icon_wind_to_14d
+                    extend_icon_wind_to_14d(results)  # mutates: day-looped hourly arrays out to 336h
             # align_step_h=3: tail entries snap to the 3-hourly UTC lattice (00/03/06...), so the
             # slice below is already 3-hourly → save with step=1. The old blind step=3 from the
             # slice start produced native_max+1h/+4h/+7h — permanently off the scrub lattice.

@@ -333,3 +333,13 @@ The weights are equal and fixed now; none is fitted on any data. Each arm is rep
 
 **EMOS record (c-4):** the hindcast's `rows.csv` (paired forecast/observation rows per arm) starts the matched-data
 record. Its own gate will be pre-registered before any fit.
+
+## 2026-11-16 01:20Z Amendment 3 implemented; hindcast relaunched
+
+- Hindcast: IFS ENS steps collected to 360 h; reported arms `grand_ifs_gefs`, `grand_ifs_gefs_aifs`, `ens_lag24`,
+  `ens_lag48` (equal weights, nothing fitted); `reported_arms` in the report carries each vs loop / GFS stand-in /
+  member mean / climatology per bin. End-to-end test covers all four.
+- Served (#939): ENS runs up to 48 h old serve (label "older run, N h" past 24 h, basis `older_run`, `ens_run_age_h`),
+  truncated at the run's own +360 h. With ENS on and no usable run, ICON writes NO tail and the dynamic path no longer
+  loops; the loop survives only under `ENS_WIND_EXTENSION=0`. Tests pin the lagged truncation, the label, the
+  over-48 h refusal and "no loop when ENS is on but absent". 86 passed locally.

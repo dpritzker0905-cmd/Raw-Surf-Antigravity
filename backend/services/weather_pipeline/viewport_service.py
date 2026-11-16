@@ -424,7 +424,10 @@ class ViewportService:
 
             raw_list = raw_data if isinstance(raw_data, list) else [raw_data]
 
-            if model.upper() == "ICON" and domain.lower() == "wind":
+            from services.weather_pipeline.ens_wind_extension import ens_extension_on
+            if model.upper() == "ICON" and domain.lower() == "wind" and not ens_extension_on():
+                # kill switch only (ENS_WIND_EXTENSION=0): the legacy loop. With ENS on, past ICON's native times this
+                # path has no data (never a loop, never GFS: amendment 3); the stored ENS tail serves those hours.
                 logger.info("[Dynamic Viewport] Dynamically extending ICON wind raw results to 14 days (336 hours) via loop extrapolation.")
                 extend_icon_wind_to_14d(raw_list)
 

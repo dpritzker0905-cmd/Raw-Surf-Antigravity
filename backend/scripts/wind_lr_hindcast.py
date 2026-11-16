@@ -29,7 +29,7 @@ import wind_lr_obs as obs  # noqa: E402
 # Amendment 2 (2026-11-16 00:10Z): the current ECMWF cycle; the last run's 336 h lead verifies 2026-11-14
 WINDOW = (datetime(2026, 9, 1, tzinfo=timezone.utc), datetime(2026, 10, 31, 12, tzinfo=timezone.utc))
 OBS_END = WINDOW[1] + timedelta(days=15)
-ENS_STEPS = list(range(180, 337, 6))                       # 180 and 240 bracket the seams; 186..336 are scored
+ENS_STEPS = list(range(180, 361, 6))                       # 180/240 bracket the seams; 186..336 scored; to 360 for the lag arms
 SCORED_LEADS = list(range(186, 337, 6))
 LOOP_DAYS_H = 168                                           # extend_icon_wind_to_14d: whole native days of ~180 h
 HRES_LEADS = sorted({L % LOOP_DAYS_H for L in SCORED_LEADS} | {180} | set(range(216, 241, 6)))

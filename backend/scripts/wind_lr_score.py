@@ -25,7 +25,10 @@ BINS = {"B1_180_216": (180, 216), "B2_216_264": (216, 264), "B3_264_336": (264, 
 SEED = 20261115
 REPS = 2000
 ARMS = ["loop", "gfs_standin", "ens_mean_raw", "ens_mean_debias", "ens_cf", "gefs_mean", "climatology", "persist180",
-        "aifs_ens_mean"]
+        "aifs_ens_mean", "grand_ifs_gefs", "grand_ifs_gefs_aifs", "ens_lag24", "ens_lag48"]
+# Amendment 3: reported-only arms (no PASS line); compared per bin against these
+REPORTED_ARMS = ["aifs_ens_mean", "grand_ifs_gefs", "grand_ifs_gefs_aifs", "ens_lag24", "ens_lag48", "gefs_mean", "ens_cf"]
+REPORTED_VS = ["loop", "gfs_standin", "ens_mean_raw", "climatology"]
 GUST_EVENT = 15.0         # m/s, the gust-peak line P5 (amendment 2)
 EVENTS_MIN = 30
 TOTAL_RUNS = 122
@@ -148,7 +151,18 @@ def verdict(rows: dict, chosen: str, seam: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------------------------- assembly
-def _arm_fields(z, L, k_by_bin, gf_gefs, gf_aifs=1.0):
+def _grand(parts, gust):
+    """Equal-weight grand ensemble (amendment 3): speed = mean of the systems' speeds, direction from the mean of their
+    mean vectors. parts = [(u, v, speed), ...]."""
+    sp = np.mean([p[2] for p in parts], axis=0)
+    u = np.mean([p[0] for p in parts], axis=0)
+    v = np.mean([p[1] for p in parts], axis=0)
+    mag = np.hypot(u, v)
+    scale = np.where(mag > 1e-6, sp / np.where(mag > 1e-6, mag, 1.0), 0.0)
+    return (u * scale, v * scale, sp, gust)
+
+
+def _arm_fields(z, L, k_by_bin, gf_gefs, gf_aifs=1.0, lags=None):
     """{arm: (u, v, speed, gust)} at lead L for every station from one run's npz."""
     out = {}
     U, V, G = z[f"ens_10u_{L}"], z[f"ens_10v_{L}"], z[f"ens_10fg_{L}"]
@@ -172,6 +186,17 @@ def _arm_fields(z, L, k_by_bin, gf_gefs, gf_aifs=1.0):
     if f"aifs_10u_{L}" in z:
         ra = ec.reduce_members(z[f"aifs_10u_{L}"], z[f"aifs_10v_{L}"])
         out["aifs_ens_mean"] = (ra["u"], ra["v"], ra["speed"], np.maximum(ra["speed"] * gf_aifs, ra["speed"]))
+    ifs = (r["u"], r["v"], r["speed"])
+    if "gefs_mean" in out:
+        g = out["gefs_mean"][:3]
+        out["grand_ifs_gefs"] = _grand([ifs, g], r["gust"])
+        if "aifs_ens_mean" in out:
+            out["grand_ifs_gefs_aifs"] = _grand([ifs, g, out["aifs_ens_mean"][:3]], r["gust"])
+    for lag, zl in (lags or {}).items():          # the run `lag` h earlier, at lead L + lag (<= 360 h)
+        Ll = L + lag
+        if zl is not None and f"ens_10u_{Ll}" in zl:
+            rl = ec.reduce_members(zl[f"ens_10u_{Ll}"], zl[f"ens_10v_{Ll}"], zl[f"ens_10fg_{Ll}"])
+            out[f"ens_lag{lag}"] = (rl["u"], rl["v"], rl["speed"], rl["gust"])
     return out
 
 
@@ -270,11 +295,15 @@ def main_score(session, cache, stations, out_dir) -> int:
     # it always read the raw arm)
     shift = {arm: {b: {"shift": [], "clim": []} for b in BINS} for arm in ("ens_mean_raw", "ens_mean_debias")}
     seam_raw, seam_deb, within_d = [], [], []
+    def _lagged(run_dt, lag):
+        fn_l = f"{run_dt - timedelta(hours=lag):%Y%m%d%H}.npz"
+        return np.load(os.path.join(run_dir, fn_l)) if fn_l in runs else None
     for fn in test_runs:
         z = np.load(os.path.join(run_dir, fn))
         run_dt = datetime.strptime(fn[:10], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+        lags = {24: _lagged(run_dt, 24), 48: _lagged(run_dt, 48)}
         for L in SCORED_LEADS:
-            af = _arm_fields(z, L, k_by_bin, gf_gefs, gf_aifs)
+            af = _arm_fields(z, L, k_by_bin, gf_gefs, gf_aifs, lags)
             for i, st in enumerate(stations):
                 V, w, g = obs_rows(run_dt, L, i)
                 if not w:
@@ -351,6 +380,8 @@ def main_score(session, cache, stations, out_dir) -> int:
                 "retries_by_shard": {f: json.load(open(os.path.join(run_dir, f))) for f in sorted(os.listdir(run_dir))
                                      if f.endswith(".retries.json")},
                 "debias_by_network": _debias_by_network(E, meta, days, bins),
+                "reported_arms": {a: {f"vs_{c}_{b}": dict(zip(("diff_mae", "lo", "hi"), paired(E[a], E[c], "ae", bins == b, days)))
+                                      for c in REPORTED_VS for b in BINS} for a in REPORTED_ARMS},
                 "csi_ge15": {a: csi(np.array(cols[a]["g"], dtype=float), og) for a in ARMS if a != "climatology"},
                 "test_days": len(test_days), "stations": {"ndbc": n_ndbc, "asos": n_asos}})
     strata = {"pooled": np.ones(len(days), bool), "ndbc": np.array(meta["kind"]) == "ndbc",

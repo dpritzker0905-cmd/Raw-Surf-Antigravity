@@ -13,7 +13,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 import wind_lr_hindcast as H  # noqa: E402
 import wind_lr_score as S  # noqa: E402
 
-RUNS = [datetime(2026, m, 15, h, tzinfo=timezone.utc) for m in (9, 10) for h in (0, 12)]
+RUNS = [datetime(2026, m, 15, h, tzinfo=timezone.utc) for m in (9, 10) for h in (0, 12)] + [
+    datetime(2026, 10, 14, 0, tzinfo=timezone.utc), datetime(2026, 10, 13, 0, tzinfo=timezone.utc)]   # lag 24 h / 48 h
 
 
 def _ndbc_text(start, hours, speed, gust, wdir):
@@ -73,11 +74,14 @@ def test_main_score_runs_end_to_end(tmp_path):
     out = os.path.join(cache, "report")
     assert S.main_score(None, cache, stations, out) == 0
     rep = json.load(open(os.path.join(out, "report.json")))
-    assert rep["fit_runs"] == 2 and rep["test_runs"] == 2
+    assert rep["fit_runs"] == 2 and rep["test_runs"] == 4
     assert rep["verdict"] == "VOID" and rep["void_reasons"]          # 2 stations / 2 test runs: VOID, never PASS
     assert set(rep["metrics"]["pooled"]["B1_180_216"]) == set(S.ARMS)
     assert rep["metrics"]["pooled"]["B2_216_264"]["ens_mean_raw"]["n"] > 0
-    assert rep["lines"]["P4_seam_euro"]["n_seam"] == 4                  # 2 test runs x 2 stations
+    assert rep["lines"]["P4_seam_euro"]["n_seam"] == 8                  # 4 test runs x 2 stations
+    for arm in ("grand_ifs_gefs", "grand_ifs_gefs_aifs", "ens_lag24", "ens_lag48"):
+        assert rep["metrics"]["pooled"]["B1_180_216"][arm]["n"] > 0, arm
+        assert "vs_loop_B2_216_264" in rep["reported_arms"][arm]
     assert "P5_gust_peak" in rep["lines"] and "aifs_ens_mean" in rep["csi_ge15"]
     assert set(rep["debias_by_network"]) == {f"{n}_{b}" for n in ("asos", "ndbc") for b in S.BINS}
     assert rep["metrics"]["pooled"]["B3_264_336"]["aifs_ens_mean"]["n"] > 0

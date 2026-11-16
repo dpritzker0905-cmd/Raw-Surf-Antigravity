@@ -31,7 +31,8 @@ KEY_META = "ens_wind/latest.json"
 FIELDS = ("u", "v", "speed", "gust", "gust_p90", "spread")     # m/s; gust = member median of 10fg, p90 = risk cue
 GUST_LABEL = "max gust in the 6 h to this time"
 GRID_1DEG = {"ni": 360, "nj": 181, "lat_south": -90.0, "lat_north": 90.0, "lon_west": 0.0, "dlat": 1.0, "dlon": 1.0}
-MAX_ENS_AGE_H = 36          # an ENS run older than this vs the deterministic run is not served
+MAX_ENS_AGE_H = 48          # amendment 3 (director 2026-11-16): a lagged ENS run up to 48 h old still serves
+OLDER_RUN_AFTER_H = 24      # older than this, the label says so
 CEILING_H = 336
 STEP_H = 3
 
@@ -95,8 +96,9 @@ def tail_valid_times(run_time: datetime, native_max: datetime) -> List[datetime]
 
 def build_points(meta: dict, arrays: dict, run_time: datetime, native_max: datetime, lats: List[float],
                  lons: List[float]) -> Optional[list]:
-    """Open-Meteo-shaped points (lat outer, lon inner) for the tail, or None when the ENS run is stale or does not
-    cover the whole tail (a partial tail is never served: the caller falls back to the GFS stand-in for all of it)."""
+    """Open-Meteo-shaped points (lat outer, lon inner) for the tail, or None when the ENS run is more than 48 h old
+    or does not reach the first tail hour. A LAGGED run (amendment 3) covers valid times only up to its own last step
+    (+360 h): later hours get no tail, never filled. Never the loop, never GFS for ICON."""
     ens_run = datetime.fromisoformat(meta["run"])
     if ens_run.tzinfo is None:
         ens_run = ens_run.replace(tzinfo=timezone.utc)
@@ -108,8 +110,15 @@ def build_points(meta: dict, arrays: dict, run_time: datetime, native_max: datet
     if not vts:
         return None
     leads = [(vt - ens_run).total_seconds() / 3600.0 for vt in vts]
-    if leads[0] < steps[0] or leads[-1] > steps[-1]:
-        logger.info(f"[ENS wind] ENS steps {steps[0]}..{steps[-1]} do not cover leads {leads[0]:.0f}..{leads[-1]:.0f}")
+    if leads[0] < steps[0]:
+        logger.info(f"[ENS wind] ENS steps start at {steps[0]} h, after the first tail lead {leads[0]:.0f} h")
+        return None
+    keep = [n for n, ld in enumerate(leads) if ld <= steps[-1]]
+    if len(keep) < len(leads):
+        logger.info(f"[ENS wind] lagged ENS run {ens_run.isoformat()}: tail ends at its +{steps[-1]} h "
+                    f"({len(leads) - len(keep)} later hours get no tail)")
+    vts, leads = [vts[n] for n in keep], [leads[n] for n in keep]
+    if not vts:
         return None
     k_by_bin = meta.get("speed_factor_by_bin") or {}
     grid_lat = np.repeat(np.asarray(lats, dtype=float), len(lons))
@@ -183,10 +192,19 @@ def _factor_for(lead_h: int, k_by_bin: dict) -> float:
     return 1.0
 
 
-def estimate_basis(meta: dict, native_h: Optional[int]) -> dict:
+def estimate_basis(meta: dict, native_h: Optional[int], run_time: Optional[datetime] = None) -> dict:
+    age_h = None
+    if run_time is not None:
+        ens_run = datetime.fromisoformat(meta["run"])
+        if ens_run.tzinfo is None:
+            ens_run = ens_run.replace(tzinfo=timezone.utc)
+        age_h = int(round((run_time - ens_run).total_seconds() / 3600.0))
+    older = age_h is not None and age_h > OLDER_RUN_AFTER_H
+    label = ec.LABEL if not older else ec.LABEL.replace("(estimate)", f"(estimate, older run, {age_h} h)")
     return {"type": ec.BASIS_TYPE, "method": "ecmwf_ens_member_mean_hard_handoff", "source_model": "ecmwf_ens",
             "members": int(meta.get("members", ec.MEMBERS_EXPECTED)), "ens_run": meta.get("run"),
-            "label": ec.LABEL, "gust_label": GUST_LABEL, "native_horizon_hours": native_h}
+            "ens_run_age_h": age_h, "older_run": bool(older),
+            "label": label, "gust_label": GUST_LABEL, "native_horizon_hours": native_h}
 
 
 async def extend_wind_tail(scheduler, model: str, run_time: datetime, native_max: datetime, bbox: dict,
@@ -213,7 +231,7 @@ async def extend_wind_tail(scheduler, model: str, run_time: datetime, native_max
                         region_id="global_coarse", coverage_mode="global_tile",
                         is_test_env=is_test_env, step=1,
                         log_prefix=f"[Pipeline Scheduler] {model} wind (ENS member-mean tail) global_coarse",
-                        estimated_after_index=0, estimate_basis=estimate_basis(meta, native_h))
+                        estimated_after_index=0, estimate_basis=estimate_basis(meta, native_h, run_time))
                     if n:
                         logger.info(f"[ENS wind] {model}: {n} tail products from ENS run {meta.get('run')}")
                         return n
