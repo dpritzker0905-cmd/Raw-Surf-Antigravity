@@ -233,3 +233,12 @@ times below. The order of registrations and results is unchanged (each registrat
 - '2026-11-15 ~22:50Z: decisions after the observed-water results + the SOTA research' -> written 2026-11-15T22:36:24Z
 - 'Built (2026-11-15 ~23:10Z): the 1-year model mean replaces the 72 h de-mean in this PR, ON' -> written 2026-11-15T23:00:30Z
 
+
+## Rollout order (advisor's last open condition on #926) - OWNER DECISION 2026-11-15 20:46 EST
+The table is empty at deploy and fills <= 300 cells a run; with the 72 h fallback that would have served EVERY spot the
+72 h de-mean for days (La Jolla 0.452 vs fixed 0.173 m vs observed). Asked in session with three options, the owner
+chose **"Raw until first fill"**: `tide_datum.table_ready` - the 72 h fallback applies only once the table holds cells;
+before the first build, or when the table cannot be read, every spot keeps today's raw level (`model_msl`). After the
+fill the owner's fallback rule applies as decided. Test: empty table -> raw; built table, uncovered cell -> window_72h;
+storage down -> raw. OWED after the fill: how many spots stay on the window fallback for good (cells without 330 days
+of archive) and where (the ingest's `spots_on_window_72h_fallback`).

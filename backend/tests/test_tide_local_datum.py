@@ -112,7 +112,7 @@ def test_storage_failure_serves_the_model_level(monkeypatch):
         return _series()
     monkeypatch.setattr(T, "_fetch_point", fake_fetch_point)
     got = asyncio.run(T.fetch_tide_hourly(21.31, -157.87))
-    assert got["datum"] == "window_72h"                                      # storage down: the 72 h fallback
+    assert got["datum"] == "model_msl" and got["level"] == _series()["level"]   # storage down: raw, never the window
 
 
 def test_point_tide_reports_the_datum_basis(monkeypatch):
@@ -124,6 +124,28 @@ def test_point_tide_reports_the_datum_basis(monkeypatch):
     monkeypatch.setattr(T, "_fetch_point", fake_fetch_point)
     out = asyncio.run(get_point_tide(Response(), lat=21.31, lng=-157.87))
     assert out["datum_basis"] == "model_mean_365d" and out["datum_offset_m"] == OFFSET
+
+
+def test_raw_until_the_table_is_first_built_then_the_window_fallback(monkeypatch):
+    """Owner 2026-11-15 20:46 EST, 'Raw until first fill': an EMPTY table (the deploy) never puts every spot on the
+    72 h de-mean; once the table holds cells, a cell without one takes the window fallback as decided."""
+    async def fake_fetch_point(key, client, forecast_days):
+        return _series()
+    monkeypatch.setattr(T, "_fetch_point", fake_fetch_point)
+
+    async def empty():
+        return {"cells": {}}
+    D._reset_for_tests(empty)
+    got = asyncio.run(T.fetch_tide_hourly(30.0, -150.0))
+    assert got["datum"] == "model_msl" and got["level"] == _series()["level"]
+    D._reset_for_tests(lambda: _async(TABLE))
+    got = asyncio.run(T.fetch_tide_hourly(30.0, -150.0))                  # a cell the built table lacks
+    assert got["datum"] == "window_72h"
+    assert D.table_ready(TABLE) and not D.table_ready({"cells": {}}) and not D.table_ready(None)
+
+
+async def _async(v):
+    return v
 
 
 def test_ingest_refreshes_missing_cells_first_then_the_oldest():

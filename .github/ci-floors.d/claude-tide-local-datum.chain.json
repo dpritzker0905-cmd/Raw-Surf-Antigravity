@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 9,
+  "tests": 10,
   "files": 0,
   "branch": "claude/tide-local-datum",
-  "date": "2026-11-15",
-  "note": "TIDE_LOCAL_DATUM (1-year model mean): lookup, shift, fallbacks, invariance, eta reach, kill, storage failure, ingest plan"
+  "date": "2026-11-16",
+  "note": "TIDE_LOCAL_DATUM fixed datum: lookup, shift, window fallback, raw until first fill, invariance, eta reach, kill, storage failure, point-tide basis, ingest plan"
 }

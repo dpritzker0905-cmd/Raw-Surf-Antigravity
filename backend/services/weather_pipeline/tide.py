@@ -387,7 +387,8 @@ def window_mean(times, levels, window_h: int = WINDOW_FALLBACK_H) -> Optional[fl
     return sum(vals) / len(vals) if len(vals) >= _WINDOW_MIN_SAMPLES else None
 
 
-def to_local_datum(series: Optional[dict], offset_m: Optional[float] = None) -> Optional[dict]:
+def to_local_datum(series: Optional[dict], offset_m: Optional[float] = None,
+                   allow_window: bool = True) -> Optional[dict]:
     """PURE: the series with every level relative to the LOCAL mean sea level. ``offset_m`` = the FIXED per-cell datum,
     the model's own mean over the 365 days before the table build (tide_datum.py) -> datum 'model_mean_365d'. A cell
     with no fixed datum falls back to the mean of its own 72 h series -> 'window_72h' (owner decision 2026-11-15; known
@@ -400,6 +401,8 @@ def to_local_datum(series: Optional[dict], offset_m: Optional[float] = None) -> 
         return out
     basis = "model_mean_365d"
     if offset_m is None or not isinstance(offset_m, (int, float)) or not math.isfinite(offset_m):
+        if not allow_window:
+            return out                                # table not built yet: raw level (owner, "Raw until first fill")
         offset_m, basis = window_mean(out["time"], out["level"]), "window_72h"
         if offset_m is None:
             return out
@@ -424,8 +427,8 @@ async def fetch_tide_hourly(lat, lng, client=None, forecast_days: int = 3) -> Op
         from services.weather_pipeline import tide_datum as _datum
     except ImportError:                                   # pragma: no cover - fetcher subprocess context
         import tide_datum as _datum
-    offset = await _datum.datum_offset(lat, lng) if local_datum_on() else None
-    return to_local_datum(series, offset)
+    offset, ready = await _datum.datum_state(lat, lng) if local_datum_on() else (None, False)
+    return to_local_datum(series, offset, allow_window=ready)
 
 
 async def _within_budget(operation, keys, seconds, unavailable):
