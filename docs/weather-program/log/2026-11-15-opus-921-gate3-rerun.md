@@ -89,3 +89,9 @@ Raw: `scratchpad/m3/g3b2/runs.jsonl`; summary script `scratchpad/m3/g3b_summary.
 The window was not quiet: the machine read 75% busy at 03:00Z and 55-96% through the run. Lowest calibration 87.6 ms, void bar 109.5;
 35 of 36 sessions VOID (raw `scratchpad/m3/g3q/runs.jsonl`). The single valid session (noric z6) is reported, not scored: p50 1.2,
 p95 22.8 ms. #921 gate 3 under the new scheduler has no scored result; per the director, keep-or-kill of the worker goes to David.
+
+## 2026-11-16 05:54Z: re-run B moves to a hosted GitHub runner (the director's ruling: the worker stays ON with its kill)
+
+Registered before the run: the same instrument, arms (worker, kill, noric), zooms, 6 sessions per arm per zoom, both wordings, the
+bootstrap and arrival-cost reporting, and the void rule, executed by a `workflow_dispatch` job on `ubuntu-latest` (offline synthetic
+backend + a production build of `dev` in the job; no live backend; no secrets). The job is added in a PR; the one dispatch is David's.
