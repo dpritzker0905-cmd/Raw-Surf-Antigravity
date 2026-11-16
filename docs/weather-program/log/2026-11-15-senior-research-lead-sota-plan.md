@@ -539,3 +539,19 @@ pooling last).
 
 **Pending.** The helper's ASK 4 (Surfline LOTUS, Stormglass, MOP, NWPS and global methods): to be added when it
 returns.
+
+## 00:34Z The helper's ASK 4 (how the leaders do per-spot surf): thin, and the ranking is unchanged
+
+Most primary pages were blocked; details are in `researcher-legwork-2026-11-15.md` §ASK 4, with snippet-only facts
+marked.
+- Surfline LOTUS: method unconfirmed (403). Snippets say it is calibrated against forecaster and camera observations
+  at 100+ spots.
+- Stormglass and Magicseaweed: no method published.
+- CDIP MOP (snippet): linear spectral refraction to the 10-15 m contour at 100 m alongshore spacing. It does NOT output
+  breaking height.
+- NOAA NWPS (opened): SWAN at 1.8 km to 500 m, no surf-zone output stated. NWS breaker heights are approximated from
+  Hs and Tp (snippet).
+
+**Reading.** Nothing contradicts the plan. MOP confirms S2's split: a spectral transfer to a depth contour, then a
+separate breaking step. Surfline's reported calibration to observed spots matches S3. No open global per-spot method
+exists to copy.
