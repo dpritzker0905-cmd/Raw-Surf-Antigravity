@@ -469,3 +469,11 @@ No `-enfo-cf` file exists beside the `ef` file after the switch (2026-09-13 +180
 4. Amending the member rule is still "before any result" in the sense that matters: a VOID with zero rows says
    nothing about any arm. The docs commit (8ff2cdfc5, 18:18Z) precedes the code (29c1f2282, 18:22Z).
 5. The rerun is a NEW dispatch and needs the owner's word, in the session that dispatches it, for one run.
+
+## 2026-11-16 19:58Z Two records (director)
+
+- The exact words authorizing run 43920372184, typed by David in the director's session at 2026-11-15 23:04 EST: "Yes on
+  first bullet" (the first bullet was the ~700 GB long-range wind hindcast). They replace the shortened "Yes" in §18:28Z item 2.
+- The rerun's authority, typed by David in THIS session (`local_0d0d332f`) at 2026-11-16 13:30 EST, answering "Rerun the
+  long-range wind hindcast for #939, once, from dev, after the 50/51-member fix (#982) merges and the Actions queue is
+  quiet?": "Yes, rerun once".
