@@ -1166,3 +1166,46 @@ FRF is DROPPED (this supersedes the owner's 22:12 "use it").
 - **T5** shallow buoys: forcing truth only.
 - **Independent validation runs alongside T3, not after** (Reflection).
 - **Missing coverage, stated plainly:** night and stormy, cloudy days rely on T1 and physics alone.
+
+## 03:28Z T1 redesigned on the existing photographer check-ins (David 22:21 EST: "We do have the feature where photographers check in at a surf spot and post a surf report photo ... integrate that into this gamification system ... Bounce it off reflection and longcat too")
+
+**What exists (read on origin/dev).**
+- `condition_reports` (`backend/models/sessions.py`): photographer, spot, media, GPS, live session, 24 h expiry,
+  `wave_height_ft` (nullable).
+- The check-in (`routes/photographer/sessions.py:259-266`) stores media and caption, and NO height.
+- `surf_reports` (`models/surf_alerts.py`): user reports with a string height ("2-3ft") and a photo.
+- `posts.conditions_source` defaults to 'manual'.
+- `CreatePostModal.js:94-115` auto-fills height from `/surf-conditions` (our own forecast). It is labelled only when
+  `REACT_APP_COMPOSER_CONDITIONS` is on. With the flag off it fills SILENTLY and the backend default records
+  'manual': a provenance bug.
+- A server-side `grant_xp` exists.
+
+**Design after Reflection and LongCat (one paid call, owner-requested; both red-teams adopted).**
+1. **Blind observation step** at check-in and in reports, before any forecast is shown:
+   - fields: raw height, chosen scale (region default: Hawaiian in Hawaii, face elsewhere), and typical vs sets;
+   - the server stores `observed_height_raw`, `height_scale`, a server-normalized `observed_face_m`,
+     `set_or_avg`, `forecast_shown_before=false`, and server-set `source='observed'` (never client-supplied);
+   - the model treats the scale as a latent category; a scale override without a photo is flagged.
+2. **No legacy composer data is truth** (LongCat): at most a weak prior.
+   - Fix now, no served number: the backend must not default `conditions_source` to 'manual'. The server records
+     auto vs manual itself.
+3. **Provenance:** server-received time; GPS checked against the spot coordinates and the photo's EXIF; duplicate
+   media hashed; mismatches rejected or flagged.
+4. **XP** only for reports that pass the quality gates.
+   - Caps per device, account and spot-day; random audits.
+   - First-of-day and under-reported bonuses pay only after independent corroboration (another observer or a
+     satellite scene).
+   - Never value- or agreement-dependent.
+5. **Calibration anchors:**
+   - an optional in-frame scale reference (a surfer or a known structure);
+   - "anchor observers" (the owner and trusted photographers);
+   - a standard photo protocol.
+6. **Privacy, enforced in the schema:**
+   - `consent_training` (versioned, timestamped) and `faces_blurred`;
+   - blurring before storage;
+   - training copies in PRIVATE storage (the `conditions` bucket is public delivery);
+   - deletion on request;
+   - legal review before any training.
+7. **Aggregation:** hierarchical latent truth (per-observer bias and noise, spot-day effect) with uncertainty.
+   - An untouched independent test set with metrics registered before any fit.
+   - Model outputs never feed the truth (Reflection).
