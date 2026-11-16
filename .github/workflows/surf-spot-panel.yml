@@ -1,0 +1,53 @@
+# Surf spot panel: 30 fixed surf spots read ONCE from the deployed backend's /api/weather/point.
+#
+# WHY (owner field report 2026-11-15, 29.77 N 81.25 W, "we need to test live dev as we work our science"): every
+# surf-science PR shows this panel before and after on deployed dev, so a change is seen where the owner sees it.
+# Rule and panel: docs/weather-program/log/2026-11-16-fable-surf-spot-panel-prereg.md.
+#
+# WHAT IT DOES: backend/scripts/surf_spot_panel.py reads /api/health, then NDBC's public latest-observations feed (one
+# request), then the 30 spots one at a time, 10 s apart, then /api/health again. It prints one table to the job log and
+# the step summary. About five minutes.
+#
+# WHAT IT CANNOT DO: GET only, and only to the backend's host and www.ndbc.noaa.gov (enforced in code). No key, no
+# secret, no write, no artifact. permissions: contents: read. It stops before reading a spot if the backend is not
+# healthy, and stops early if a read is slow or two fail in a row: ONE 1-CPU box serves production and dev, and this
+# must never become a load test.
+#
+# WHEN IT RUNS: every 6 hours (17 minutes past 00, 06, 12 and 18 UTC, off the hour so it does not land on the
+# ingest and monitor jobs), and on workflow_dispatch. The schedule is the OWNER'S word (2026-11-15 19:49 EST, relayed
+# by the director: continuous live verification), added in a PR of its own after the first dispatch. Four runs a day,
+# about 30 spaced reads each. To stop it, delete the `schedule:` block; nothing else depends on it.
+name: Surf Spot Panel
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Backend base URL to read (default: the deployed dev/production box).'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: surf-spot-panel
+  cancel-in-progress: false
+
+jobs:
+  panel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Read the panel (GET only, spaced, health before and after)
+        env:
+          PANEL_BASE: ${{ inputs.base }}
+        run: python backend/scripts/surf_spot_panel.py

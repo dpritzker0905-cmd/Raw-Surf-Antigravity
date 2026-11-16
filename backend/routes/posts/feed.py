@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from database import get_db
 from models import Profile, Post, PostLike, Comment, PostReaction, PostCollaboration, SurfSpot, RoleEnum, Follow
 from core.security import get_current_user_id, get_optional_user_id
+from services.conditions_provenance import has_condition_values, server_conditions_source
 from services.blocks import assert_visible_to, excluded_user_ids, not_in_ids
 from services.grom_media_policy import approval_status_for_grom_post, is_verified_guardian, normalize_controls
 from services.private_media import parse_private_media_ref
@@ -106,7 +107,8 @@ async def create_post(
         wind_direction=data.wind_direction,
         tide_status=data.tide_status,
         tide_height_ft=data.tide_height_ft,
-        conditions_source=data.conditions_source or 'manual',
+        # The server's word on provenance, never the client's (services/conditions_provenance, P0 2026-11-16).
+        conditions_source=server_conditions_source(data.conditions_source, has_condition_values(data)),
         visibility=visibility,
         requested_visibility=data.visibility if profile.role == RoleEnum.GROM else None,
         guardian_approval_status=guardian_approval_status,

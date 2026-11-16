@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
+import BlindHeightInput, { observationLabel } from './observations/BlindHeightInput';
+import postObservation from './observations/postObservation';
 import { getThemeTokens } from '../utils/themeTokens';
 import SpotQualityBadge from './SpotQualityBadge';
 import { hubSourceLabel, formatWaveDirection } from './spotConditionsFormat';
@@ -126,6 +128,23 @@ export const SpotConditions = ({ spotId, spotName, compact = false, timeOffsetHo
   const [expanded, setExpanded] = useState(false);
   const [forecastExpanded, setForecastExpanded] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [reportObservation, setReportObservation] = useState(null);
+  const [reportScaleDefault, setReportScaleDefault] = useState('face');
+  // The server's default scale for this spot (Hawaiian in Hawaii, face elsewhere), fetched when the report opens.
+  useEffect(() => {
+    if (!showReportModal || !spotId) return undefined;
+    let live = true;
+    apiClient.get(`/surf-observations/scale-default/${spotId}`)
+      .then((res) => {
+        const scale = res.data?.scale_default;
+        if (!live || !scale) return;
+        setReportScaleDefault(scale);
+        setReportObservation((prev) => (prev ? prev : { mode: 'value', height_value: '', height_unit: 'ft',
+          height_bucket: '', height_scale: scale, set_or_avg: '' }));
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [showReportModal, spotId]);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportData, setReportData] = useState({
     wave_height: '',
@@ -210,13 +229,16 @@ export const SpotConditions = ({ spotId, spotName, compact = false, timeOffsetHo
 
     setReportLoading(true);
     try {
-      await apiClient.post(`/surf-reports`, {
+      const res = await apiClient.post(`/surf-reports`, {
         spot_id: spotId,
-        ...reportData
+        ...reportData,
+        wave_height: observationLabel(reportObservation) || reportData.wave_height || null,
       });
+      await postObservation({ obs: reportObservation, entryScreen: 'spot_report_modal', refId: res?.data?.id });
       toast.success('Report submitted! Thanks for sharing');
       setShowReportModal(false);
       setReportData({ wave_height: '', conditions: '', wind_direction: '', crowd_level: '', rating: 0, notes: '' });
+      setReportObservation(null);
       fetchTodaysReports();
     } catch (error) {
       toast.error('Failed to submit report');
@@ -567,25 +589,10 @@ export const SpotConditions = ({ spotId, spotName, compact = false, timeOffsetHo
           <div className="space-y-4 pt-4">
             <p className="text-sm text-gray-400">Share current conditions at {spotName}</p>
 
-            {/* Wave Height */}
-            <div>
-              <label className="text-sm text-gray-400 mb-2 block">Wave Height</label>
-              <Select value={reportData.wave_height} onValueChange={(v) => setReportData(prev => ({ ...prev, wave_height: v }))}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                  <SelectValue placeholder="Select wave height" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="Flat" className="text-white">Flat</SelectItem>
-                  <SelectItem value="1-2ft" className="text-white">1-2ft (Ankle-Knee)</SelectItem>
-                  <SelectItem value="2-3ft" className="text-white">2-3ft (Knee-Waist)</SelectItem>
-                  <SelectItem value="3-4ft" className="text-white">3-4ft (Waist-Chest)</SelectItem>
-                  <SelectItem value="4-5ft" className="text-white">4-5ft (Chest-Head)</SelectItem>
-                  <SelectItem value="5-6ft" className="text-white">5-6ft (Head High)</SelectItem>
-                  <SelectItem value="6-8ft" className="text-white">6-8ft (Overhead)</SelectItem>
-                  <SelectItem value="8ft+" className="text-white">8ft+ (Double OH+)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Wave height: the blind observation. NOTE: this page shows our forecast above the report button, so the
+                server records these reports as forecast_shown_before=true (not blind). */}
+            <BlindHeightInput idPrefix="report-obs" value={reportObservation} onChange={setReportObservation}
+              defaultScale={reportScaleDefault} />
 
             {/* Conditions */}
             <div>

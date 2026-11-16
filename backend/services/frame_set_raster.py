@@ -58,6 +58,8 @@ BOUNDS = (-180.0, -90.0, 179.5, 90.0)          # west, south, east, north: the o
 GRIDS = {
     "0p5": {"cols": 720, "rows": 361, "bounds": BOUNDS, "stride": 2},
     "0p25": {"cols": 1440, "rows": 721, "bounds": (-180.0, -90.0, 179.75, 90.0), "stride": 1},
+    # 0.125 deg (G2, 2026-11-16): ICON's own resolution (frame_set_raster_icon125); only sets whose source builds the plane.
+    "0p125": {"cols": 2880, "rows": 1441, "bounds": (-180.0, -90.0, 179.875, 90.0), "stride": 1},
 }
 
 
@@ -188,6 +190,23 @@ SPECS = {
         "license": "DWD open data, free use with source attribution (GeoNutzV)",
         "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
     },
+    # ICON PRECIPITATION AT 0.125 DEG (G2, 2026-11-16; the owner, 22:13 EST 11-15, "answered by researching the SOTA path
+    # forward"): the same rates as `precipitation_icon`, onto ICON's own resolution by a supersampled AREA MEAN
+    # (frame_set_raster_sources.IconPrecip0p125Source): coarse regridding distorts high quantiles most (Rajulapati et
+    # al. 2021), and the 0.25-degree box mean drew cell peaks 19-26 % low. The 0.25-degree set stays publishable.
+    "precipitation_icon_0p125": {
+        "target": {"model": "ICON", "domain": "weather", "layer": "precipitation", "region_id": "global_0p125"},
+        "field": fb.PRECIP_MM_H, "idx": ("tot_prec", ("TOT_PREC",)), "convert": lambda a: a, "grid": "0p125",
+        "valid": VALID_MM_H, "clip": None, "env": "FRAME_RASTER_PRECIP_ICON_0P125", "default_on": False, "frame_plane": True,
+        "value_kind": "precipitation_rate", "value_unit": "mm/h",
+        "source_dataset": "DWD ICON global (icosahedral R3B7) TOT_PREC, totals differenced to the preceding step, "
+                          "area mean (sampled) onto 0.125 deg: 3 x 3 sub-points per box, nearest cell each; not conservative per cell",
+        "hours": tuple(range(1, 79)) + tuple(range(81, 181, 3)), "source": "icon_precip_0p125", "upstream_provider": "dwd",
+        "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (totals differenced to a rate, "
+                  "area-averaged (sampled) to 0.125 deg, quantised to 0.01 mm/h)",
+        "license": "DWD open data, free use with source attribution (GeoNutzV)",
+        "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
+    },
     # FOG, WATER TEMPERATURE, PER-MODEL AIR TEMPERATURE (2026-11-14; the owner, 23:35 EST 11-13: "make fog, air temp and water
     # temp instant", relayed by the director to the move-3 lane). Each set is DARK until its own repo variable is '1'.
     # FOG: NCEP's own surface visibility (VIS, m; the field the layer drew from Open-Meteo ncep_gfs025), every point of the
@@ -237,6 +256,20 @@ SPECS = {
         "source_dataset": "ECMWF IFS open data, oper fc 0p25 2t, every point",
         "hours": tuple(range(0, 145, 3)) + tuple(range(150, 241, 6)), "source": "ecmwf", "upstream_provider": "ecmwf",
         "credit": "Copyright ECMWF; ECMWF open data, CC BY 4.0; modified (quantised to 0.05 degC)",
+        "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
+        "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
+    },
+    # EURO TOTAL CLOUD COVER (2026-11-16, G3 of the research lead's EURO/ICON source audit; the owner, 21:16 EST 11-15: EURO/ICON
+    # layers come from free government sources): ECMWF open data `tcc` (a 0-1 fraction in the GRIB, read 2026-11-16; x 100 = %),
+    # every point of its 0.25-degree grid, the same resolution as today's .om ecmwf_ifs025 cloud. Instantaneous, as GFS TCDC.
+    "cloud_cover_euro": {
+        "target": {"model": "EURO", "domain": "weather", "layer": "cloud_cover", "region_id": "global_0p25"},
+        "field": fb.CLOUD_PCT, "idx": ("tcc", "sfc"), "convert": lambda a: a * 100.0, "grid": "0p25",
+        "valid": (-0.5, 100.5), "clip": (0.0, 100.0), "env": "FRAME_RASTER_CLOUD_EURO", "default_on": False,
+        "value_kind": "cloud_cover", "value_unit": "%",
+        "source_dataset": "ECMWF IFS open data, oper fc 0p25 tcc (total cloud cover, x 100), every point",
+        "hours": tuple(range(0, 145, 3)) + tuple(range(150, 241, 6)), "source": "ecmwf", "upstream_provider": "ecmwf",
+        "credit": "Copyright ECMWF; ECMWF open data, CC BY 4.0; modified (fraction to %, quantised to 1 %)",
         "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
         "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
     },

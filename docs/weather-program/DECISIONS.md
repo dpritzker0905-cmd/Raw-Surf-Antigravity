@@ -2109,3 +2109,79 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   is found that moved served MAE without moving the same-model delta.
 - **Rollback:** the current behaviour is the repo variables as they are today (`ACCURACY_PAIRED_REFERENCE_MARGIN_M`
   0.10, `ACCURACY_PAIRED_GATE` 1); the change would ship behind its own kill switch.
+
+### D-074 · Open-Meteo is test-only; served data comes from free primary sources (GRIB, CMEMS) (2026-11-15, decided)
+- **Owner, verbatim:**
+  - 20:14 EST (relayed by the director): "We shouldn't be having anything depending on open-meteo, all should be from
+    GFS and EWMCF grib etc".
+  - 21:09 EST (research-lead session): "We can use open-meteo in our tests, but not for our users to use on a basis
+    that would require us to pay for its use".
+  - 21:16 EST: "making sure EURO and ICON come from EWMCF or other free govt sources grib or raw cmem or something like
+    that, just like we have been for a while previously".
+- **Rule:**
+  - Open-Meteo may serve tests, research scripts and grading benchmarks only.
+  - Everything a user sees comes from NOAA, ECMWF open data, DWD open data or Copernicus.
+  - Migration M1-M6 and the EURO/ICON gaps G1-G8 are in `SOTA-ROADMAP.md` rank 5; inventory in
+    `log/2026-11-15-senior-research-lead-sota-plan.md`.
+  - A CI guard is to fail any served route or browser bundle that references an Open-Meteo host (tests, scripts and
+    grading modules allow-listed).
+- **Rollback:** none needed for the rule. Each migration step carries its own kill switch.
+
+### D-075 · Long-range wind and gusts: ECMWF ensemble members past the native end, hard hand-off, no loop (2026-11-15, decided)
+- **Owner, verbatim:**
+  - 15:19 EST: "research the best way to improve the ICON wind and ICON wind gusts forecast lanes long range data.
+    Looping is unacceptable. We need real science."
+  - 16:14 EST (relayed by the director): "Yes to all, hard hand-off".
+- **Rule:**
+  - Past ICON 180 h and EURO 240 h, serve the mean of the 51 ECMWF ENS members (open data).
+    - Speed is the mean of member speeds.
+    - Gust is the median member 10fg, with p90 as the risk cue.
+    - The seam is a hard hand-off with a label; no taper.
+  - The ICON loop is retired.
+  - Not verbatim (the director's summary of the same evening): no GFS stand-in for ICON (#935 withdrawn), and a
+    lagged-ENS fallback when the current run is missing.
+- **Gate:** the #946 hindcast (2026-09-01..10-31). Ships ON with a kill switch only after it passes.
+
+### D-076 · Hour blend: across hours only, never across models; OFF until the owner's blind look (2026-11-15)
+- **Owner, verbatim:**
+  - 11:30 EST (#912 §16): "ON with a short decay on each hour step, not a full-hour smooth tween."
+- **Director's summary, not verbatim** (board, 15:07Z): blending ACROSS HOURS is allowed; blending ACROSS MODELS stays
+  BANNED.
+- **Status:** #930 ships the blend OFF by default (opt-in flag). The coastal hidden-hour test failed, and the repeat
+  visits passed. The default stays OFF until David's blind look (the director's summary, not verbatim).
+- Physics advection between a model's own hours is a cross-hour method, not a cross-model blend (SubQ 0.002 that it
+  is cross-model).
+
+### D-077 · FRF (USACE Duck) data dropped; breaking truth from free, licence-clean sources (2026-11-15, decided)
+- **Owner, verbatim:** 22:15 EST: "Skip using USACE and innovate free ways to figure it out in the SOTA methodology,
+  innovate dig deeper". This supersedes his 22:12 EST "yes usace use it, research on".
+- **Why:** the FRF metadata says "Use or reproduction of these data for commercial purposes is prohibited."
+- **Instead (roadmap ranks 4 and 6):**
+  - T1 blind crowd reports on the existing photographer check-ins, with a latent-truth aggregator;
+  - T2 Sentinel-2 surf-zone analysis;
+  - T3 an on-device optical gauge (later);
+  - T4 the Oahu lifeguard record, if NCEI access works.
+
+### D-078 · Surf-height display scale: face by default, Hawaiian in Hawaii, user toggle, always labelled (2026-11-15, decided by research on the owner's instruction)
+- **Owner, verbatim:**
+  - 20:01 EST: "in FL Face height. In a lot of places in the Pacific Ocean Hawaiian scale, or more. We need to research
+    this deeper as well. Its both answers depending on location".
+  - 22:13 EST: "the other two questions need to be answered by researching the SOTA path forward".
+- **Rule:**
+  - The chain computes one physical quantity (face H1/10, metres).
+  - Display converts it per region: face everywhere except Hawaii (Hawaiian = face/2; Caldwell 2007, within 10-20%).
+  - A user toggle; the label always names the scale.
+  - The rating and size labels use the physical height only.
+  - A region's default changes only when labelled local observations show its convention.
+- SubQ: 0.971 and 0.993.
+
+### D-079 · Merge authority for lanes (2026-11-15)
+- **Owner, verbatim (relayed by the director):**
+  - 20:33 EST: "Make sure the subs are pushing merging, rechaining, communicating".
+  - 23:24 EST: "merge and push to dev when logical toward SOTA. Goal is SOTA."
+- **Rule (the director's policy, written down here):**
+  - A lane merges its own PR only on David's word typed in its own session, or under the director's standing
+    delegation.
+  - Every merge needs: green checks, a pinned head, no admin override, and no open advisor condition.
+  - The merger writes a `pr_merge` ledger line naming whose word it acted on.
+  - Never `main`.
