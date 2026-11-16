@@ -239,3 +239,60 @@ def test_the_spread_arm_takes_no_wind_and_stays_monotone():
         assert surf >= prev - 1e-9
         prev = surf
 
+
+# ── the slope arm (2026-11-16): Weggel's breaker depth index, CEM EM 1110-2-1100 Part II Ch. 4, eq. II-4-5 to II-4-7 ──
+def test_the_breaker_index_coefficients_match_the_manuals_limits_and_the_values_predicted_before_the_run():
+    a, b = st.weggel_coefficients(0.0)
+    assert a == 0.0 and b == pytest.approx(0.78)                             # "bounded by the theoretical value of 0.78"
+    a, b = st.weggel_coefficients(50.0)
+    assert a == pytest.approx(43.8) and b == pytest.approx(1.56)             # "1.56, as the beach slope approaches infinity"
+    assert st.weggel_coefficients(-0.01) == st.weggel_coefficients(0.0)
+    # the research lead's predictions, written before the arm was built: the stop condition was 0.79 +/- 0.03
+    a, b = st.weggel_coefficients(1 / 250)
+    assert a == pytest.approx(3.2, abs=0.05) and b == pytest.approx(0.81, abs=0.005)
+    assert b - a * 1.1 / (st.G * 4.8 ** 2) == pytest.approx(0.79, abs=0.03)
+    a, b = st.weggel_coefficients(0.05)
+    assert b - a * 2.0 / (st.G * 10.0 ** 2) == pytest.approx(1.08, abs=0.01)
+
+
+def test_the_closed_form_limit_satisfies_equation_ii_4_5_and_the_slope_is_capped():
+    for d, tp, m in ((3.0, 7.28, 0.004), (2.0, 5.0, 0.02), (6.0, 16.0, 0.08)):
+        h = st.weggel_h_max(d, tp, m)
+        a, b = st.weggel_coefficients(m)
+        assert h / d == pytest.approx(b - a * h / (st.G * tp * tp), rel=1e-12)   # gamma_b = H_b / d_b = b - a H_b / (g T^2)
+    assert st.weggel_h_max(3.0, 8.0, 0.5) == st.weggel_h_max(3.0, 8.0, st.WEGGEL_MAX_SLOPE)   # outside validity: capped
+    assert st.weggel_h_max(3.0, 8.0, 0.05) > st.weggel_h_max(3.0, 8.0, 0.005)   # a steeper bed holds a taller wave
+    assert st.weggel_h_max(0.0, 8.0, 0.02) == 0.0 and st.weggel_h_max(3.0, 0.0, 0.02) == 0.0
+    assert st.WEGGEL_MAX_SLOPE == 0.1 and st.WEGGEL_MAX_STEEPNESS == 0.06
+
+
+def test_on_a_flat_bed_the_slope_arm_is_the_constant_limit_of_0_78():
+    # slope 0 gives a = 0 and b = 0.78, so H_max = 0.78 d exactly: the arm must equal the constant-gamma march at 0.78
+    bed = planar(0.01)
+    const = st.march(1.5, 12.0, 0.0, 20.0, bed, gamma=0.78)
+    flat = st.march(1.5, 12.0, 0.0, 20.0, bed, weggel_slope=0.0)
+    assert flat["surf_truncated_m"] == pytest.approx(const["surf_truncated_m"], rel=1e-9)
+    assert flat["weggel_slope_capped"] is False and flat["weggel_steepness_outside"] is False
+    assert "weggel_slope_capped" not in st.march(1.5, 12.0, 0.0, 20.0, bed)   # the constant arm is untouched
+
+
+def test_a_steeper_bed_gives_a_taller_breaker_and_validity_is_flagged():
+    gentle = st.march(2.0, 16.0, 0.0, 20.0, planar(0.004), weggel_slope=0.004)
+    steep = st.march(2.0, 16.0, 0.0, 20.0, planar(0.05), weggel_slope=0.05)
+    const = st.march(2.0, 16.0, 0.0, 20.0, planar(0.05))
+    assert steep["surf_truncated_m"] > const["surf_truncated_m"] * 1.03       # the slope raises the breaker on a steep bed
+    assert gentle["surf_truncated_m"] < st.march(2.0, 16.0, 0.0, 20.0, planar(0.004))["surf_truncated_m"] * 1.03   # and barely on a gentle one
+    assert st.march(1.0, 8.0, 0.0, 20.0, planar(0.05), weggel_slope=0.3)["weggel_slope_capped"] is True
+    assert st.march(3.0, 5.0, 0.0, 20.0, planar(0.02), weggel_slope=0.02)["weggel_steepness_outside"] is True    # 3 m at 5 s
+    assert st.march(1.0, 8.0, 0.0, 20.0, planar(0.02), weggel_slope=0.02)["weggel_steepness_outside"] is False
+
+
+def test_the_slope_arm_stays_monotone_and_takes_no_wind():
+    assert "wind" not in " ".join(inspect.signature(st.weggel_h_max).parameters)
+    for m in (0.004, 0.05):
+        prev = 0.0
+        for i in range(1, 21):
+            surf = st.march(0.3 * i, 10.0, 0.0, 20.0, planar(m), weggel_slope=m)["surf_truncated_m"]
+            assert surf >= prev - 1e-9, (m, 0.3 * i, prev, surf)
+            prev = surf
+

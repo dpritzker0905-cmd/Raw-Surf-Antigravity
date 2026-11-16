@@ -56,3 +56,53 @@ the ETOPO transect, capped at the formula's limit of 0.1 and flagged where cappe
 lead's: at the owner's point (slope about 1 in 250, 4.8 s, breaker about 1.1 m) a about 3.2, b about 0.81, gamma
 about 0.79; if mine is more than 0.03 away, stop and check the form before reporting anything. And about 1.08 at
 slope 0.05, 10 s, 2 m. My prediction: gentle beds nearly unchanged, steep beds somewhat higher.
+
+## 2026-11-16 14:01Z The slope arm, run model-only: it RAISES the breaker by 1 to 3%, and does not lower the owner's number
+
+**The stop condition passed before anything else was looked at.** At the owner's point (slope 1 in 250, 4.8 s,
+breaker 1.1 m): a = 3.21 (predicted about 3.2), b = 0.810 (about 0.81), gamma = 0.795 (about 0.79, tolerance 0.03).
+At slope 0.05, 10 s, 2 m: gamma = 1.078 (predicted about 1.08). The research lead and I have the same form.
+
+**On the 20 panel beds that resolve a surf zone and have a fitted slope** (head-on; surf over offshore, the model's
+own highest-tenth; geometric mean over spots with the 95% interval over spots):
+
+| sea state | constant gamma 0.73 | slope arm | slope arm over constant | today's chain |
+|---|---|---|---|---|
+| wind sea, 1.0 m at 5 s | 1.26 | 1.27 | 1.01 (1.000 to 1.014) | 1.36 |
+| the report's state, 1.12 m at 7.28 s | 1.44 | 1.47 | 1.02 (1.012 to 1.024) | 1.54 |
+| swell, 1.5 m at 12 s | 1.64 | 1.67 | 1.02 (1.015 to 1.030) | 1.76 |
+| groundswell, 2.0 m at 16 s | 1.65 | 1.68 | 1.02 (1.007 to 1.032) | 1.80 |
+
+At the owner's point, the report's state: 1.49 with the slope arm, 1.47 with the constant, 1.47 from today's chain.
+The breaker index at the point where the maximum is taken is 0.80 there, and 0.78 to 0.84 across the 20 beds.
+
+- **The slope arm does not close the north-east Florida gap. It moves the number 1.5% the wrong way.** That is what
+  the research lead predicted: on a gentle bed the index is essentially the classic 0.78, slightly above the 0.73 the
+  constant arm uses, so the wave is allowed a little more height before it breaks.
+- **On the panel it barely separates spots,** because every slope fitted from the 463 m grid is gentle: 1 in 82
+  (Pipeline) to 1 in 1,084. The largest effect is at Pipeline, plus 2.4%. A reef that is steep at the scale of the
+  break is not steep at the scale of this grid.
+- **On planar beds, where the slope is what it says it is, the effect is real and grows with slope.** At the
+  report's state: plus 1.4% at 1 in 250, plus 3% at 1 in 50, plus 6% at 1 in 20, plus 5% at 1 in 10. For
+  groundswell (2.0 m at 16 s): plus 2% at 1 in 250, plus 4% at 1 in 50, plus 8% at 1 in 20, plus 12% at 1 in 10,
+  with the index at the maximum rising from 0.80 to 1.30.
+- **Inside the formula's stated validity everywhere it was run:** no bed's slope was capped, and no sea state
+  exceeded the steepness limit. The saturation clip set the energy in 0 of 6,212 steps at the report's state.
+
+**The predictions against the result.**
+- The research lead's: gamma about 0.79 at the owner's point, so the arm "should NOT close the NE-Florida gap".
+  Right, on both counts.
+- Mine: "gentle beds nearly unchanged, steep beds somewhat higher". Right on planar beds. I also expected "the
+  panel's spread to widen ... mainly at the reef and point spots": it widened from 1.38 to 1.47 to 1.41 to 1.50,
+  which is a shift, not a widening, and the reef spots moved about as much as the beaches. That part was wrong, for
+  the reason above: the grid's slopes do not know which spots are reefs.
+
+**What this adds to the closing note of the A1 log.** One more arm measured, not fitted: the slope-dependent
+breaker index is worth plus 1.5% at the owner's point. The combined figure there is unchanged in substance: about
+3.5 ft against his under 2 ft, a factor of about 1.8, which is now also not the slope.
+
+**Limits.** Model only, no truth. The index is an individual-wave, regular-wave relation used as a random-wave
+limit by substitution. The slope is a large-scale fit on a 463 m grid; the manual asks for the average slope from
+the break point to one wavelength offshore, which this grid cannot resolve. The operators in the equations were
+read from font-substituted glyphs in the page's text layer, as recorded above; the stop condition and the manual's
+stated limits (0.78 flat, 1.56 very steep) are what confirm the form.

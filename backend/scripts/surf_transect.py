@@ -125,11 +125,37 @@ def h110_truncated(e_tot: float, h_max: float) -> float:
     return min(h_max, scale * _SQRT_LN10 + 5.0 * math.sqrt(math.pi) * scale * (math.erf(h_max / scale) - math.erf(_SQRT_LN10)))
 
 
-def dissipation(e_tot: float, depth_m: float, period_s: float, gamma: float = GAMMA_BS, alpha: float = ALPHA_BJ) -> float:
-    """D_tot from (2.65), in m^2/s of variance (negative or zero)."""
-    h_max = gamma * depth_m
+def dissipation(e_tot: float, depth_m: float, period_s: float, gamma: float = GAMMA_BS, alpha: float = ALPHA_BJ,
+                h_max=None) -> float:
+    """D_tot from (2.65), in m^2/s of variance (negative or zero). `h_max` overrides gamma d (the slope arm)."""
+    h_max = gamma * depth_m if h_max is None else h_max
     qb = breaking_fraction(e_tot, h_max)
     return -alpha * qb * (2.0 * math.pi / period_s) * h_max * h_max / (8.0 * math.pi)
+
+
+WEGGEL_MAX_SLOPE = 0.1        # the manual's stated validity: tan(beta) <= 0.1
+WEGGEL_MAX_STEEPNESS = 0.06   # and deep-water steepness H'o / Lo <= 0.06
+
+
+def weggel_coefficients(slope: float):
+    """(a, b) of the breaker depth index, Coastal Engineering Manual EM 1110-2-1100 Part II Ch. 4 (2003), equations
+    II-4-6 and II-4-7 (after Weggel 1972): a = 43.8 (1 - e^(-19 m)), b = 1.56 / (1 + e^(-19.5 m)), m the bed slope.
+    A flat bed gives a = 0, b = 0.78; a very steep one tends to a = 43.8, b = 1.56. Negative slopes are treated as 0."""
+    m = max(0.0, float(slope))
+    return 43.8 * (1.0 - math.exp(-19.0 * m)), 1.56 / (1.0 + math.exp(-19.5 * m))
+
+
+def weggel_h_max(depth_m: float, period_s: float, slope: float) -> float:
+    """The largest wave the depth can hold under equation II-4-5, gamma_b = H_b / d_b = b - a H_b / (g T^2).
+
+    With H_b on both sides the manual says to iterate; taken as the limit H_max at depth d the equation is linear in
+    H_max and has the closed form H_max = b d / (1 + a d / (g T^2)), which is what this returns. The slope is capped at
+    the formula's stated limit. It is an individual-wave, regular-wave index used here as the random-wave model's
+    limit by substitution, not derivation."""
+    if depth_m <= 0.0 or period_s <= 0.0:
+        return 0.0
+    a, b = weggel_coefficients(min(float(slope), WEGGEL_MAX_SLOPE))
+    return b * depth_m / (1.0 + a * depth_m / (G * period_s * period_s))
 
 
 SPREAD_WIND_SEA = 10.0        # Goda 2008 (after Goda and Suzuki 1975): s_max for wind waves
@@ -156,7 +182,7 @@ def spread_components(mean_deg_off_normal: float, spread_s: float) -> list:
 
 
 def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth_m: float, bed, gamma: float = GAMMA_BS,
-          alpha: float = ALPHA_BJ, step_m: float = STEP_M, mean_period_s=None, spread_s=None) -> dict:
+          alpha: float = ALPHA_BJ, step_m: float = STEP_M, mean_period_s=None, spread_s=None, weggel_slope=None) -> dict:
     """March the flux balance shoreward over `bed`, a list of (distance_from_shore_m, depth_m) with depth positive down.
 
     Returns the profile and TWO surf numbers, each the largest value on the line:
@@ -172,7 +198,11 @@ def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth
     among directions by Goda's (2008, eq. 5) spreading function G ~ cos^(2s)(half the angle from the mean direction);
     each direction refracts by Snell's law and conserves its own flux, the directions are summed by energy, and breaking
     removes energy from each in proportion to what it holds (SWAN eq. 2.69). Directions heading away from the shore
-    are dropped and `shoreward_share` says how much energy that was. A derivation from linear superposition."""
+    are dropped and `shoreward_share` says how much energy that was. A derivation from linear superposition.
+
+    `weggel_slope` (the slope arm, rule in log 2026-11-16-fable-surf-slope-arm.md): None keeps H_max = gamma d. A bed
+    slope replaces it with `weggel_h_max(d, period_s, slope)`, so a steeper bed holds a taller wave; `gamma` is then
+    unused. `weggel_slope_capped` and `weggel_steepness_outside` report when the formula's stated validity is left."""
     wet = sorted(((float(x), float(d)) for x, d in (bed or []) if d is not None and d > MIN_DEPTH_M), reverse=True)
     out = {"surf_m": None, "surf_at_m": None, "surf_depth_m": None, "surf_truncated_m": None, "surf_truncated_at_m": None,
            "surf_truncated_depth_m": None, "profile": [], "hs_at_start_m": None, "broke": False, "wet_samples": len(wet),
@@ -181,6 +211,10 @@ def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth
         return out
     d0 = max(float(model_depth_m or 0.0), wet[0][1])
     c0, cg0 = celerities(period_s, d0)
+    if weggel_slope is not None:
+        out["weggel_slope_capped"] = bool(weggel_slope > WEGGEL_MAX_SLOPE)
+        deep_length = G * period_s * period_s / (2.0 * math.pi)
+        out["weggel_steepness_outside"] = bool(hs_m / deep_length > WEGGEL_MAX_STEEPNESS)
     e0 = hs_m * hs_m / 16.0                                                  # E = Hs^2 / 16 in variance units
     mean_deg = float(angle_off_normal_deg or 0.0)
     if spread_s is None:
@@ -212,7 +246,7 @@ def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth
         coss = [math.sqrt(max(1e-6, 1.0 - min(0.999999, (sn * c) ** 2))) for sn in snells]
         parts = [f / (cg * ct) for f, ct in zip(fluxes, coss)]               # each direction's energy here
         e = sum(parts)
-        h_max = gamma * d
+        h_max = gamma * d if weggel_slope is None else weggel_h_max(d, period_s, weggel_slope)
         out["steps"] += 1
         if 8.0 * e > h_max * h_max:                                          # saturation: no more wave than the water holds
             scale = (h_max * h_max / 8.0) / e
@@ -230,7 +264,7 @@ def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth
         h110 = h110_truncated(e, h_max)
         if h110 > best_t[0]:
             best_t = (h110, x, d)
-        dis = dissipation(e, d, sigma_period, gamma, alpha)
+        dis = dissipation(e, d, sigma_period, gamma, alpha, h_max=h_max)
         if dis < 0.0:
             out["broke"] = True
         # Adaptive step: never more than `step_m`, and never more than MAX_DEPTH_CHANGE_M of depth per step, so a steep
