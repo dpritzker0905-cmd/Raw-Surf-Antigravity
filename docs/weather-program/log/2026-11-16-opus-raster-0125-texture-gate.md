@@ -44,3 +44,29 @@ expects two (the link status, and `MAX_TEXTURE_SIZE` once per layer, as the regi
 evicted (shown and wanted) could exceed the 48 MiB cap on their own. Each frame is now also kept within `FRAME_BYTES_MAX` = 48 MiB / 3,
 so shown + wanted + a running blend's source always fit; a 0.125-deg frame (15.8 MiB) still fits whole. The blend give-way written
 first could then never trigger and was removed (dead code).
+
+## 08:00Z: results. T1 and T2 in a REAL page (the advisor's condition), T4 in Jest; T3 owed
+
+`frontend/scripts/offline-backend/scn_raster_texfit.js`: the app's own `ownRasterLayer.js` (no imports) loaded as an ES module into
+headless Chromium with a REAL WebGL2 context (ANGLE SwiftShader: software GL, device limit 8192), driven as MapLibre does (onAdd,
+prerender, render). Every GL call the layer makes is followed by a real `gl.getError()`; only the limit READ is forced.
+Raw `scratchpad/m3/texfit.json`.
+
+| arm | limit the code reads | GL calls | GL errors | context lost | drawn | peak resident | over 48 MiB |
+|---|---|---|---|---|---|---|---|
+| T1 (fit ON) | 2048 (forced) | 101 | **0** | no | 1440 x 721 (factor 2) | 3.96 MiB | 0 of 2 samples |
+| T2 (fit ON, 30-step scrub, 2 frames a step) | 8192 (device) | 1,694 | **0** | no | full (factor 1) | **47.49 MiB** | **0 of 60** |
+| kill | 2048 (forced) | 101 | 0 | no | 2880 x 1441 (full) | 15.83 MiB | 0 of 2 |
+
+- **T1 PASS, T2 PASS** as registered, on a real context. T4 PASS (Jest; mutants fail). T3 (phone) owed before any 0.125 client flip.
+- The kill arm shows what the forced read cannot: the real device's limit is 8192, so the full upload succeeds here; on a real 2048
+  device that upload is the error this change prevents. A real low-limit device was not available.
+- SwiftShader is software GL; a phone GPU was not measured.
+
+**Limits (the advisor's red-team), stated:**
+1. Downsampling only (the registration preferred tiling): on a 2048-limit device every 0.125-deg set is drawn at 0.25 deg, with words.
+2. The downsample is a POINT sample (every k-th node): for rain it can miss a shower the full field shows; a k x k mean would match the
+   set's area-mean meaning (a follow-up; the point sample is what T1's byte-equal check verifies today).
+3. With the fit ON, today's sets also read `MAX_TEXTURE_SIZE` once per layer per context: one synchronous `getParameter`, at the
+   first upload, never per frame; not separately timed on a phone.
+4. T3 stays owed before any 0.125-deg client flip.
