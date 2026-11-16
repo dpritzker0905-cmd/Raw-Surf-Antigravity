@@ -407,3 +407,35 @@ equation 6 makes a real sea broader away from the peak, so the true effect is so
 are assumed, which a real coast with a bar, a point or an inlet is not. Head-on and two fixed angles, not a
 climatology. A wind sea is given the same spread everywhere, with no dependence on how developed it is, because
 that dependence is on the wind and wind is not an input here.
+
+## 2026-11-16 10:54Z Where this stands: the arms are MEASURED, NOT FITTED, and two inputs are open
+
+So that nobody tunes a factor to close the gap in the meantime (the research lead's suggestion).
+
+**Measured, model only, at the owner's point (1.12 m offshore at the model's 7.28 s peak; served 1.47 times offshore):**
+
+| arm | what it changes | effect on the outer breaker | status |
+|---|---|---|---|
+| period | the buoy's 4.8 s mean in place of the model's 7.28 s peak | x 0.85 | measured, not fitted |
+| H1/10 conversion | no 1.27 on a wind sea | x 0.79 | measured, not fitted |
+| directional spread | s = 10 (Goda 2008) | x 0.97 | measured, not fitted |
+| breaking model | Battjes and Janssen transect, gamma 0.73, in place of Komar | x 1.00 (1.47 against 1.47) | measured, not fitted |
+| highest-tenth metric | the model's own truncated distribution | x 1.00 | measured, not fitted |
+| slope-dependent gamma | Weggel's index | not run | HELD: its only open source so far is a USACE manual |
+| wave by wave | each wave to its own breaking point | not built | named; predicted to read HIGHER |
+
+Taken together the three that move it give about 0.95 of the offshore height, 3.5 ft. They were measured one at a
+time and need not multiply exactly. The owner expected under 2 ft. **A factor of about 1.8 remains, and it is not
+spread, not gamma, and not the highest-tenth metric.**
+
+**None of these is a fix, and none is to be applied to the served number.** Each is one model run at one point for
+one hour's sea, compared with one expectation that is not a timed observation. Applying any of them, or any constant
+that happens to close the gap, would be fitting to n = 1. The gate in
+`log/2026-11-16-fable-surf-ablation-s0-prereg.md` is the only route to a served change.
+
+**The two open inputs. More model arms cannot settle either.**
+1. **Breaking truth:** timed, scale-stated observations of the surf (the in-app observations, the Sentinel-2
+   surf-zone detection, the owner's labelled looks). None has data yet.
+2. **The owner's definition:** whether the product should name the largest breaker on the outside, which is the
+   published forecasting convention and what it names today, or what reaches the inside where people ride. It is
+   his to say.
