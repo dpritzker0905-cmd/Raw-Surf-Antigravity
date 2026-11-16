@@ -555,3 +555,37 @@ marked.
 **Reading.** Nothing contradicts the plan. MOP confirms S2's split: a spectral transfer to a depth contour, then a
 separate breaking step. Surfline's reported calibration to observed spots matches S3. No open global per-spot method
 exists to copy.
+
+## 00:41Z Innovation layer (David 19:39 EST: "research the best path toward SOTA with science and tech innovation")
+
+**Evidence.**
+- ML wave post-processing: deep-learning correction of ECMWF wave height cuts MAE 13-46% to 240 h
+  ([Zhang 2023](https://consensus.app/papers/details/w:3f30d067-5e5f-4b4f-bbed-cdaeb748ca54/?utm_source=claude_code)).
+  Gradient-boosted trees beat neural nets at a site by about 20% RMSE
+  ([Callens 2020](https://consensus.app/papers/details/w:27e89522-8818-4d6f-8316-22875ee03644/?utm_source=claude_code)).
+  Ours, so far: only a global LINEAR form was tested, and it lost at 48/72 h. The rolling per-region bias gains
+  +0.031 m. Buoy offsets are spatially smooth (76% kept leave-one-out).
+- ML wave models: OceanCastNet beats ECWAM at 24 of 34 NDBC stations
+  ([Zhang 2025](https://consensus.app/papers/details/w:f837c9d4-0191-49af-8897-77e60c913511/?utm_source=claude_code)).
+  No open operational feed exists, and it needs a GPU.
+- Rendering: MapLibre requires WebGL2 and has no WebGPU path (Context7, v6 migration guide). We run maplibre-gl
+  ^5.24.0.
+
+**Ranked** (Reflection: "physics-first, ML-second", adopted; SubQ: original order 0.88; revisiting ML justified
+0.997; advection beats a cross-fade 0.99; advection is not a cross-model blend 0.002; defer self-run ML wave models
+0.999; drop WebGPU 0.998):
+1. **Per-spot spectral surf transform**, physics first: briefs B1-B4 above.
+2. **Physics-based motion between forecast hours.** Advect each model's field along its own propagation (wave
+   direction x group velocity; wind vector) instead of a cross-fade. Judged on the animation lane's hidden-middle-frame
+   test with ghosting count, against the cross-fade and the hard swap. It is the likely fix for the failed coastal
+   H8c. Display-only, same model.
+3. **Nonlinear ML residual correction** of the offshore input: gradient-boosted trees on lead, Hs, Tp, direction,
+   wind, season, region and model spread.
+   - Constrained: it corrects only what the physics leaves.
+   - Validated leave-buoy-out plus time blocks, with the shuffled-label null and a seeded positive control.
+   - Must beat the rolling per-region bias at every lead, with no region worse. Move 4's lane. A served number.
+4. **Calibrated confidence cue**: spread turned into a reliability-checked range, not raw spread.
+5. **Camera ML breaker truth** for validation, once a feed exists.
+6. **Watch list**: open operational ML wave feeds, which would become a consensus member and a gate arm.
+
+**Dropped:** WebGPU.
