@@ -1015,3 +1015,42 @@ number for any arm has been seen by me. The advection arm is added to the same s
   identity; a uniform field carried along itself is unchanged; a ramp moves the right way). Run with `--controls-only` on
   the one run in hand: for the advection arm, in all five sets, N1 holds in 20 of 20, N2 fails as it must, and P with no
   motion is exactly zero. A1-A3 and R1-R3 remain unread until the second run is in.
+
+## 38. THE REAL-FRAME RESULT, two runs, three arms (21:22 EST). Read once, as it came out.
+Second fetch 21:14-21:18 EST (291 requests, 15.6 MB): GFS 2026-11-15 **18Z**, listed on the CDN at 02:14Z. With the 12Z run
+that is two model runs, 20 triples each, 40 per set. Scorer at commit `68719d80b`, one command, output kept
+(`real-frames-result.json` in the session scratch folder). Marine sets below; wind is in the wind log.
+
+| Set | R1 height: cross-fade / hard swap | of the swap | cross-fade <= swap | R2 gradient error | R3 direction, period | Controls |
+|---|---|---|---|---|---|---|
+| waves | 0.028 m / 0.097 m | **29.2%** | 40 of 40 | 38.7% of the swap | 3.2 vs 5.4 deg; 0.17 vs 0.35 s | N1 40/40, N2 fails as it must, P zero |
+| swell_1 | 0.086 / 0.157 | **55.0%** | 40 of 40 | 64.0% | 6.9 vs 9.2 deg; 0.27 vs 0.44 s | same |
+| swell_2 | 0.051 / 0.085 | **59.8%** | 40 of 40 | 63.6% | 13.2 vs 17.3 deg; 0.52 vs 0.76 s | same |
+| wind_waves | 0.072 / 0.154 | **46.8%** | 40 of 40 | 56.3% | 3.6 vs 6.1 deg; 0.23 vs 0.38 s | same |
+
+- **R1 passes in all four sets** (the owner's line: at most 100% of the hard swap, and in at least 80% of triples). On the
+  tenth of nodes where the sea moves most the ratios are 20.9%, 59.0%, 56.1%, 40.5%. **R2 passes** in all four. **R3 passes** in
+  all four. No control failed. Verdict as registered: PASS for waves, swell_1, swell_2, wind_waves.
+- **Ghost nodes (A2's count, more than 0.3 m off the real middle), cross-fade against hard swap:** waves 2,430 against 27,844 of
+  407,867; swell_1 24,564 against 43,610 of 365,665; swell_2 9,288 against 18,539 of 324,437; wind_waves 15,668 against 45,364
+  of 322,477. The cross-fade has fewer in every set.
+- **THE ADVECTION ARM IS WORSE THAN THE CROSS-FADE, in every set, in 0 of 40 triples each.** A1, error as a share of the
+  cross-fade's: waves 194.9%, swell_1 122.3%, swell_2 124.1%, wind_waves 118.6% (all above the 105% "WORSE" line). It still
+  beats the hard swap (57.0%, 67.2%, 74.3%, 55.6% of it; 40 of 40), so it passes the owner's line, and A3 passes. **A2 FAILS**
+  for it: more ghost nodes than the cross-fade in every set (10,011; 30,775; 10,651; 19,254). Its controls held. My expectation
+  that it would help the swell sets most was wrong: it helped none.
+- **Exploratory, NOT registered, run after seeing the result to rule out an error of mine in the arm** (a scratch copy of
+  the scorer, the motion scaled): reversed (-1) it is worse still (290%, 174%, 159%, 159% of the cross-fade); at half speed
+  135%, 105%, 106%, 104%; at a quarter 112%, 100%, 101%, 100%. The error grows with the amount of motion in either direction
+  and is smallest at none. So the sign was right, and no speed of this kind of motion helps on this grid. Read as a
+  diagnostic only. What it does not separate: whether the patterns simply do not travel at group velocity between 3-hourly
+  frames (they move with the weather that makes them), or whether bilinear reads at half a cell smear the field (the arm costs
+  0.046-0.085 m on a field that did not move at all).
+- **What this result is, and is not.** It is value space on the 2-degree world grid, the mix arithmetic only; that the shader
+  draws that mix rests on the synthetic grey-view bracket (section 30). The two runs are 6 hours apart and cover mostly the
+  same weather: 40 triples are not 40 independent samples, and it is one day in November. It says nothing about regional
+  grids, the first-visit coarse stand-in (still a recorded failure, section 31), a real phone, or how it LOOKS: that is the
+  owner's blinded look, not yet run. The blend stays off.
+- For the director: on this evidence an advection shader is not worth building for the world grid. A fair test of the idea
+  would need a finer grid (where 100 km is several cells) or motion taken from the fields themselves (optical flow), and
+  neither is registered or started.
