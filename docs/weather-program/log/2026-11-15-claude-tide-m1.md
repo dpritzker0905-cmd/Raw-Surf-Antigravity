@@ -605,3 +605,124 @@ a surf spot away from a gauge, which needs its own gate.
 5. The owner's word for the run.
 
 #926 and #931 stay held.
+
+## 16:25 EST 2026-11-16 (`date`) - G3 PRE-REGISTRATION, FINAL (supersedes the 15:59 draft; written before any G3 code or number)
+The advisor read the draft at 21:05Z and asked for eight changes, all adopted below. The research lead's read, if it
+arrives before the code, is recorded as an addendum. Any G3 run is the owner's word typed in this session.
+
+### Source confirmations (done 16:08-16:25 EST; nothing scored)
+- **N2 - NOAA STOFS-2D-Global, CONFIRMED as issued.** Bucket `noaa-gestofs-pds`, cycles `stofs_2d_glo.YYYYMMDD/` for
+  every day 2026-08-20 .. 09-11 (listed). Each cycle carries POINT output (`points.swl.nc` surge, `points.htp.nc`
+  STOFS's own tide, `points.cwl.nc` total = tide + surge + a sea-level anomaly term, plus `cwl.noanomaly`): 1,687
+  points, 6-min steps, a -6 h nowcast plus a +180 h forecast. **All 26 gate gauges are among the points** (checked
+  in the 2026-08-25 00Z file). Forced by GFS wind and pressure, so it includes inverse barometer and wind setup.
+  Free and public.
+- **N1 - CMEMS GLO12 (`GLOBAL_ANALYSISFORECAST_PHY_001_024`), CONFIRMED as ANALYSIS ONLY for a past window.** The
+  product is a sliding two-year best-estimate series; forecasts as issued are not kept. Its user manual (Issue 2.4,
+  07/2026): `zos` = "Sea surface height computed without tides and surface pressure force", i.e. wind-driven, steric
+  and mesoscale level, with NO tide and NO inverse barometer. A separate `merged-sl_PT1H-i` dataset gives
+  `invert_barometer` and `ocean_tide`. Access is the project's existing Copernicus Marine account
+  (`COPERNICUSMARINE_SERVICE_*`, already used for waves).
+- **S1 - altimetry seasonal climatology:** CMEMS gridded sea level anomaly (`SEALEVEL_GLO_PHY_L4_MY_008_047`, daily,
+  relative to the 1993-2012 mean), same account. **Not confirmed from here without the credentials.** Rule: an
+  automated PREFLIGHT step in the run confirms access BEFORE any truth is fetched. If it fails, S1 is dropped, the
+  primary arm falls back as written in "Choice", and the drop is logged in the run's output.
+- **C and D on equal footing, CONFIRMED.** Open-Meteo's marine API serves previous runs
+  (`sea_level_height_msl_previous_day1..3`, checked for 2026-08-25). C and D are therefore scored as forecasts at
+  the same leads as the arms (lead 24-48 h = previous_day1, etc.), not as a hindcast. They remain TEST-ONLY.
+
+### What is measured
+Served water level = FES2022b tide (G2's arm A, unchanged) + seasonal + non-tidal, against OBSERVED water at the 26
+gauges, scored as forecasts at the served leads.
+
+**Arms:**
+- **PRIMARY (named in advance): P1 = A + S1 + N2_swl.** FES tide + altimetry seasonal + STOFS surge, all forecasts
+  as issued (S1 is a climatology, so it has no lead).
+- Reported, not chosen:
+  - A (tide only).
+  - A + S1.
+  - **N3 = STOFS `cwl`** (NOAA's own operational total water level: its tide + surge + anomaly), a full alternative
+    product.
+  - **A + N1 (`zos` + `invert_barometer`), ANALYSIS - UPPER BOUND ONLY**: labelled as such, never gating, never
+    chosen.
+- A + N1 + N2 is NOT an arm: zos already carries wind-driven level, so adding STOFS surge would double-count the wind
+  setup.
+- TEST-ONLY references C (Open-Meteo, 72 h de-mean) and D (#926 datum), at the same leads.
+
+**Forecasts as issued.** Each value at valid hour t and lead L comes from the latest cycle issued at or before
+t - L. Leads are 0-24, 24-48 and 48-72 h, reported separately; the gate reads them pooled. An arm or reference with no
+as-issued value at a lead is not scored there and cannot fill from a later run.
+
+**Datum rule (fixed before any number; it is the PRODUCT's rule too):**
+- FES2022b is zero-mean by construction.
+- S1 = the day-of-year mean of the altimetry SLA over a fixed base 2016-01-01 .. 2025-12-31, at the gauge's cell. It
+  carries the seasonal cycle AND the present mean level against the 1993-2012 reference.
+- N2_swl and N3 are each referenced to their OWN mean over the 30 days before the window (2026-07-26 .. 08-24, from
+  the 00Z nowcasts), so a model's mean offset is not mistaken for skill. N1 likewise over the 365 days before the
+  window (analysis).
+- Observed water is CO-OPS `water_level` on the station MSL (1983-2001 epoch).
+- **Both the raw score and the mean-removed score are printed for every arm and gauge.** The RAW score gates, because
+  the level a surfer stands in includes the mean.
+
+**Window:** **2026-08-25 00Z .. 2026-09-07 23Z**, hourly, frozen and already observed. It is clear of every seen date
+(06:41 EST list; G2 2026-09-29 .. 10-12; calendar 2025 for P and arm B). STOFS cycles exist from 2026-08-20, so the
+72 h leads are covered. It falls in hurricane season (see item 3).
+
+**Truth:** T2 CO-OPS OBSERVED water gates. T1 predictions are reported.
+The non-tidal residual is the 25 h low-pass of (observed - CO-OPS predictions).
+
+### Pass lines (P1, all must hold)
+Statistics:
+- Every comparison is a PAIRED per-gauge difference (arm minus reference), with a 95% interval from a block
+  bootstrap: 2000 draws, seed 20260825, resampling gauges and 2-day blocks.
+- **A line is met only by the interval's END, not the point.**
+
+Items:
+1. **Level:**
+   - Median paired RMSE difference vs observed: P1 - D has its interval's UPPER end <= -0.02 m.
+   - AND P1 - C has its interval's upper end < 0.
+2. **No gauge much worse:** at every gauge, P1 - D <= +0.05 m (point, per gauge).
+3. **Surge hours** (|observed non-tidal| > 0.15 m):
+   - The P1 - A paired difference has its interval's upper end < 0, resampled BY EVENT.
+   - **RUNNABLE only with >= 3 separate events (>= 12 h each, at least 24 h apart) in >= 2 regions.** Below that,
+     item 3 is NOT RUNNABLE and G3 is INCONCLUSIVE (it cannot PASS); a new unseen window follows.
+   - In hurricane season one event can dominate, so the per-event results are printed.
+4. **Calm hours** (|observed non-tidal| < 0.05 m): the P1 - A paired difference has its interval's upper end
+   <= +0.01 m. A noisy field fails here, and that is what a surfer sees most days.
+5. **Tide shape** (unchanged from G2): median High/Low time error <= 20 min; median |MLLW err| <= 0.05 m.
+
+**Choice:** P1 is the only arm that can PASS. No multiple-arm correction is needed, since only one arm is tested. If
+the S1 preflight fails, the primary becomes **P1' = A + N2_swl** by this rule, written now; nothing else moves.
+
+**Controls (any misbehaving means VOID):**
+- **Positive:** NOAA's constants vs NOAA's predictions <= 0.01 m (G2's).
+- **Negative 1:** label swap (200 derangements); median vs observed > 0.3 m.
+- **Negative 2 (constant):** the non-tidal term replaced by its own pre-window mean must LOSE item 1 to the real term
+  (the interval of constant - real has its lower end > 0).
+- **Negative 3 (shift):** the non-tidal term shifted +24 h must LOSE item 3 (the interval of shifted - real has its
+  lower end > 0). If item 3 is not runnable, this control is reported as not runnable and does not VOID.
+- **Oracle yardstick (reported):** CO-OPS predictions + the observed non-tidal residual held from the day before.
+  It uses only NOAA's own free data. **Within the gauge radius it is a candidate for serving in its own right**, to
+  be registered separately. G3's field arms matter away from gauges.
+
+### Reported, not gating
+- **Second score on the 20 open-coast-like gauges**: the 26 minus Fernandina 8720030, Pensacola 8729840, South Beach
+  9435380, Duck 8651370, Sandy Hook 8531680 and Virginia Key 8723214, the estuary / bay / inlet gauges where the tide
+  itself is off (G2).
+- Strata by region and by lead; per-event surge table; raw and mean-removed scores.
+
+### Scope and disclosures
+- **Scope:** a PASS certifies the water level at the 26 GAUGES against observed water. The gauges sit in harbours
+  and bays, where a 1/12-degree ocean model and a global surge model are weakest and where surf is not. So a PASS
+  says little about the open coast, and a FAIL may be about harbours. Level at surf spots away from gauges needs its
+  own gate.
+- **Disclosure:** these thresholds were written AFTER seeing G2's observed-water numbers (A 0.31, C 0.35, D 0.19 on
+  2026-09-29 .. 10-12). They reference D and C measured anew on the G3 window, not those numbers.
+
+Sequence:
+1. This registration is pushed alone.
+2. The advisor reads it (and the research lead, if before code).
+3. Code, with the S1 preflight.
+4. The owner's word for the run, through the same one-shot tag mechanism under a new tag `tide-gate-G3`.
+
+#926 and #931 stay held.
