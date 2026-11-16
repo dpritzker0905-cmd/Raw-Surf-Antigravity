@@ -634,3 +634,26 @@ exists to copy.
 - Bathymetry-seam checks.
 - Hierarchical fitting with spot-level holdout, so no spot error leaks into the class factors.
 - Validation by region, season and extremes.
+
+## 00:55Z The helper's ASK 5: height scales and open nearshore truth outside the US
+
+**Scale.** The Hawaiian scale is about half the face height (opened source). The exact factor (1/2 vs 2/3) is snippet
+only. NWS defines surf height as breaking-wave height without a derivation. Surfline's convention is unconfirmed.
+- So an observation without a scale label is ambiguous by about a factor of 2.
+- The scale field is MANDATORY in the owner-observation log.
+
+**Open nearshore truth outside the US is scarce.**
+- Only Richards Bay (South Africa, 22 m) meets the "< 30 m and within 5 km" limits, and it has no public download.
+- Larger open networks, depth-unconfirmed or mostly offshore:
+  - Japan NOWPHAS: 78 stations, open archive (opened);
+  - France CANDHIS: about 67 stations (snippet);
+  - Spain REDCOS / PORTUS: hourly data (snippet);
+  - UK Cefas WaveNet: archive download (opened);
+  - NSW MHL: 7 sites at 6-12 km offshore.
+- CoastSnap has shoreline position only, no wave data.
+
+**Consequence for the plan.**
+- Worldwide FORCING truth: NDBC/CDIP plus NOWPHAS, CANDHIS, PORTUS and Cefas, after a depth check.
+- Worldwide BREAKING truth stays the bottleneck: FRF Duck, video estimators where a feed exists, and labelled owner
+  and crowd observations.
+- That makes B4's spot-level holdout and uncertainty ranges essential, not optional.
