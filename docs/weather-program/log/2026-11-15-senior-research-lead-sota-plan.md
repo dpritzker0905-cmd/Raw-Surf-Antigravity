@@ -1120,3 +1120,49 @@ user toggle, and the scale always labelled.**
 - Evidence: Caldwell 2007 (x2, 10-20%); Vasconcellos 2007 (two scales confuse the public).
 
 **FES timing:** now. The secrets exist, and M1 runs FES2022 and EOT20 together in its gate.
+
+## 03:17Z Free, licence-clean breaking truth (David 22:15 EST: "Skip using USACE and innovate free ways to figure it out in the SOTA methodology, innovate dig deeper")
+
+FRF is DROPPED (this supersedes the owner's 22:12 "use it").
+
+**Evidence.**
+- Satellite surf zones:
+  - [Frugier 2026](https://consensus.app/papers/details/w:3630d619-e023-4a71-8d66-cc0743508789/?utm_source=claude_code):
+    10 years of Sentinel-2 over 30 beaches. The distance from the breaking line to the shoreline classifies beach
+    state and carries slope and grain-size information.
+  - [Zhang 2024](https://consensus.app/papers/details/w:673e8bc0-9fe2-4bcc-97ef-1b9f3932f776/?utm_source=claude_code):
+    breakers in 4,232 satellite images correlate strongly with incident wave height, enough to estimate the breaker
+    index.
+- Image wave gauges:
+  - [Buscombe 2019](https://consensus.app/papers/details/w:d215ec85-96b2-4145-ac60-7ad79612d9a5/?utm_source=claude_code):
+    RMSE 0.08-0.14 m, under 100 ms on a CPU.
+  - [Xu 2024](https://consensus.app/papers/details/w:656a814a-1b08-4d43-9619-d7acf41ef70f/?utm_source=claude_code):
+    MAE 0.04 m.
+  - [Stringari 2021](https://consensus.app/papers/details/w:3827c7a2-310e-42a4-b5f5-b25242dafa84/?utm_source=claude_code):
+    an open breaking classifier, about 90% accurate.
+- Surfers as sensors
+  ([Brewin 2015](https://consensus.app/papers/details/w:341b7967-cf27-4f0a-8d1b-5166166693d8/?utm_source=claude_code)).
+  Lifeguard observations hold 10-15% (Caldwell 2005).
+
+**Plan** (SubQ: order 0.998; T2 viable 0.98; latent-truth aggregation needed 0.998; on-device gauge 0.997; overall
+2.62 of 3. Reflection's guards adopted):
+- **T2 Sentinel-2 surf-zone pipeline** (Actions; Copernicus data allows commercial use).
+  - Per spot, over 10 years of cloud-free scenes: the breaking line, the shoreline, and their distance. That gives
+    beach state and slope, which feed B2's classes and B3's slope, replacing ETOPO where valid.
+  - Each scene is paired with hindcast offshore waves and tide at its timestamp, giving (offshore, breaking-zone)
+    pairs per class worldwide.
+  - Limits: daytime, cloud-free and visible-foam cases only, so the sample is biased toward bigger days. That bias is
+    reported.
+- **T1 in-app reports** (owned data).
+  - A scale-labelled face height plus an optional photo, reported BLIND (no forecast shown until submitted).
+  - XP rewards reporting, never a particular height.
+  - Latent-truth aggregation (per-user bias and reliability) with spam and gaming checks. Opt-in, with privacy
+    review.
+- **T3 optical wave gauge on user photos**, on-device.
+  - Starts from the open Stringari classifier and a Buscombe-style CNN.
+  - Trained on T1/T2 labels, but validated ONLY on independent truth (T4, shallow CDIP stations near breaks, the
+    owner's labelled sessions), never on its own training labels.
+- **T4** the Oahu lifeguard record (CC0 if NCEI access works) for the reef class.
+- **T5** shallow buoys: forcing truth only.
+- **Independent validation runs alongside T3, not after** (Reflection).
+- **Missing coverage, stated plainly:** night and stormy, cloudy days rely on T1 and physics alone.
