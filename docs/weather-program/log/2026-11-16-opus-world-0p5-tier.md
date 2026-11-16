@@ -60,3 +60,24 @@ mean and a 0.5-degree block mean differ by construction. That was my error in wr
   pilot boxes against the 0.25-degree frames: bias and RMS per field (height, period, direction as a circular difference). They
   differ by construction (block width), so a number is reported, not a pass line.
 Gates (2)-(4) stand as written.
+
+## 07:43Z: registration addendum (the advisor; still before any code; the corrected (1) was approved by the director, 2026-11-16 02:29 EST)
+
+- **What (1a) can and cannot decide.** (1a) is a PLUMBING IDENTITY. It fails on a wrong publish, a wrong reduction, a wrong tile cut
+  or a bad quantisation. It CANNOT fail on "0.5 degree is too coarse to show"; that question lives only in (1b) and in the
+  owner's decision.
+  **Seeded negatives, added to (1a):**
+  - one node altered by one quantum must fail the parity check;
+  - a tile whose nodes are shifted one node must fail;
+  - a tile labelled with the wrong hour must fail.
+- **The tier's role, written down before any result.** The 0.5-degree tier FILLS THE GAP outside the pilot boxes until a finer
+  frame arrives (today the 2-degree world frame is all a first visit outside a box sees). It never replaces a 0.25-degree pilot
+  frame: inside a box the client keeps the pilot frame. If it were ever proposed as a replacement for a finer grid, that is a new
+  decision for the owner, on (1b).
+- **How (1b) will be shown (fixed now, before any number exists):** for each of the 4 layers, at a few hours (f000, f048, f120),
+  against the 2-degree world frame at shared nodes and against the 0.25-degree pilot frames inside the boxes:
+  - bias and RMS for height (m), period (s) and direction (circular, deg);
+  - by latitude band (0-30, 30-60, 60-80 degrees);
+  - split near the coast (within 1 degree of land in GFS-Wave's own mask) and open ocean;
+  - plus the 20 worst nodes per layer with their positions.
+  This is the table the owner decides on when the tier is published.
