@@ -1477,3 +1477,63 @@ A stored estimate can be estimated again in a browser branch with different sour
   (`backend/scripts/ci_floor_fragments.py`) that the ci.yml steps, the staleness check and the tests all call. A malformed
   fragment reddens CI. `rederive_floor.py --compact` folds the fragments into the base, on dev only, in a PR of its own.
   The hosted "collected N tests" must still equal `_FLOOR_SET_FROM[lane]` + the lane's fragment tests. Rules in `.github/ci-floors.d/README.md`.
+
+### 2026-11-15 — L-P44 · Actions congestion: cancel superseded runs, batch pushes
+- What happened: on 2026-11-15 a dozen lanes pushed docs and code in the evening. A docs PR (#929) sat with 13-14
+  checks pending for over an hour, and the director paused pushes for about an hour.
+- Rule: before pushing, ask whether the push is needed now.
+  - Batch log updates locally and push them together.
+  - Cancel the superseded run of your own PR when you push a new head.
+  - Docs-only commits still trigger the full CI matrix.
+
+### 2026-11-15 — L-P45 · The +1 chain-file floor trap: a PR based on an older dev fails `backend-floor-staleness`
+- What happened: #929 (docs only) failed `backend-floor-staleness` with "chain MIN_FILES is 1 below what CI last
+  observed (231 vs 232)". Another lane had added a chain test file and its floor fragment after #929 branched. Dev's own
+  CI passed the same check.
+- Rule: when the staleness check names a floor below "observed" on a PR that touched no tests, merge the latest dev into
+  the branch. Do not add a fragment for a test you did not write.
+- **Update 2026-11-16 10:35Z:**
+  - #929 went red this way three times in one night, because each chain test file that landed on dev during its CI run
+    re-broke it.
+  - The director's merge loop now runs every 20 minutes over its queue. When a PR's ONLY failing check is
+    `backend-floor-staleness`, it runs update-branch itself.
+  - Docs PRs: the director's loop does update-branch on floor-only red; authors don't chase dev.
+  - If dev's OWN floor job fails, a lane added a chain test file without its fragment, and that lane fixes it.
+
+### 2026-11-15 — L-P46 · A test that imports chain modules can move between CI lanes
+- Reported by the director (2026-11-15, overnight brief). Not reproduced here.
+- A test file's lane follows what it imports, so adding an import to a chain module can move its file count from one
+  lane to another and break both lanes' floors.
+- Rule: when a PR changes a test's imports, re-derive the floors of every lane the file could land in
+  (`scripts/ci_test_lanes.py --lane <x>`), not only the lane it started in.
+
+### 2026-11-15 — L-S26 · A gate must be able to fail: check it before the run, with a control that bites
+- Cases from one day:
+  - #912's crest-blend gate (any cross-fade halves the luminance step);
+  - #915's first bias control (seeding every key moves the mean by exactly the seed: an identity);
+  - the EURO scalar read (#925/#927, VOID by its own C1 control);
+  - D-072 v1 P2 (#945: an ABSOLUTE bound beside a drifting baseline; the seeded +0.08 m read about 0.06 m);
+  - D-072 v2's first draft (a 28-day trailing median absorbs about half of a step by day 14; fixed by a guard gap in
+    #949 amend 1c);
+  - synthetic-only gates used to turn features ON.
+- Rule: before registering a gate, write down what result would make it FAIL and why that result is reachable.
+  - Include a negative control that must not fire and a positive control that must.
+  - For detectors, a seeded effect checked on the exact days and geometry the gate judges.
+  - A gate passed only on synthetic data is a measurement, not a reason to ship.
+
+### 2026-11-15 — L-S27 · Pre-register before reading the data; amend only before any result exists
+- What held: #949's amendments 1a-1d (2026-11-15/16) all landed before any v2 row was read, and each says so.
+- What failed earlier: gates were amended after failing (the advisor's SOTA warnings, director board 2026-11-15 17:40Z).
+- Rule: commit the rule (data window, metrics, thresholds, controls) before the first read.
+  - A change after a result is a NEW registration on NEW data, never an amendment.
+  - Say in the log, with clock times, which came first.
+
+### 2026-11-15 — L-O9 · Relay timing: an owner reversal can arrive after the brief it reverses
+- What happened:
+  - David said "yes usace use it, research on" at 22:12 EST and "Skip using USACE ..." at 22:15 EST. The first was
+    relayed to the director before the second.
+  - His "Yes, before merge" for #926's fixed datum (18:14 EST) was overtaken 2 hours later by the Open-Meteo removal
+    (D-074), which replaces the datum altogether.
+- Rule: every relayed owner decision carries its clock time and verbatim words. A lane acting on a relay re-reads the
+  board (and the relaying session's latest message) for a newer word on the same topic before it builds. When two
+  differ, the later one governs.

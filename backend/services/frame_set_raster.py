@@ -239,6 +239,20 @@ SPECS = {
         "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
         "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
     },
+    # EURO TOTAL CLOUD COVER (2026-11-16, G3 of the research lead's EURO/ICON source audit; the owner, 21:16 EST 11-15: EURO/ICON
+    # layers come from free government sources): ECMWF open data `tcc` (a 0-1 fraction in the GRIB, read 2026-11-16; x 100 = %),
+    # every point of its 0.25-degree grid, the same resolution as today's .om ecmwf_ifs025 cloud. Instantaneous, as GFS TCDC.
+    "cloud_cover_euro": {
+        "target": {"model": "EURO", "domain": "weather", "layer": "cloud_cover", "region_id": "global_0p25"},
+        "field": fb.CLOUD_PCT, "idx": ("tcc", "sfc"), "convert": lambda a: a * 100.0, "grid": "0p25",
+        "valid": (-0.5, 100.5), "clip": (0.0, 100.0), "env": "FRAME_RASTER_CLOUD_EURO", "default_on": False,
+        "value_kind": "cloud_cover", "value_unit": "%",
+        "source_dataset": "ECMWF IFS open data, oper fc 0p25 tcc (total cloud cover, x 100), every point",
+        "hours": tuple(range(0, 145, 3)) + tuple(range(150, 241, 6)), "source": "ecmwf", "upstream_provider": "ecmwf",
+        "credit": "Copyright ECMWF; ECMWF open data, CC BY 4.0; modified (fraction to %, quantised to 1 %)",
+        "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
+        "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
+    },
     # ICON 2 m temperature: DWD ICON global T_2M, regridded as pressure_icon is (frame_set_raster_sources.IconOpenDataSource).
     "temperature_icon": {
         "target": {"model": "ICON", "domain": "weather", "layer": "temperature", "region_id": "global_0p5"},

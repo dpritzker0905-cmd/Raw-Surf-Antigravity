@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 9,
+  "files": 0,
+  "branch": "claude/d072-red-split",
+  "date": "2026-11-15",
+  "note": "D-072 three-rule replay (2026-11-15): +9 test_accuracy_red_split"
+}

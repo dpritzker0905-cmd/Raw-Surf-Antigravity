@@ -165,12 +165,12 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
           onDownscaleFail: (why) => { noteMiss(`dz_${why}`); st.dzVariant = 'lo'; setGen((g) => g + 1); },
           onFail: (why) => { noteMiss(`gl_${why}`); setFailed(true); },
         });
-        st.layerObj.onShown((path, field) => {
+        st.layerObj.onShown((path, field, drawnFactor) => {
           tel().shown = { path, at: Date.now(), validMs: field ? field.validMs : null };
           // Called from MapLibre's render: publish after it (subscribers re-render React).
           const e = st.byPath.get(path);
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
-            nearestMaxHours: st.nearestMaxHours || 1 };
+            nearestMaxHours: st.nearestMaxHours || 1, drawnFactor: drawnFactor || 1 };
           emitOwnShown(layer, path);                     // synchronous: the isobars cut with the field, in the same frame
           Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : M); if (path) setShown(true); });
         });

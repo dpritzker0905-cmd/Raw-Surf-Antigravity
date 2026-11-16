@@ -43,6 +43,15 @@ const EXTRA_FILES = ['../lib/weatherAuthFetch.js', '../lib/weatherSession.js', '
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // components/map/staticRatedMosaic.test.js and marineRatingBandRes.test.js (the rating band SOTA lane, 2026-11-15): the rated
+  // mosaic, its neighbour prefetch, overscan and in-memory fast lane, and the coarse-rated cache skip
+  '__RAW_DISABLE_RATED_MOSAIC__',
+  '__RAW_DISABLE_RATED_PREFETCH__',
+  '__RAW_DISABLE_RATED_OVERSCAN__',
+  '__RAW_DISABLE_RATED_READY_FAST__',
+  '__RAW_DISABLE_COARSE_RATED_CACHE_SKIP__',
+  '__RAW_DISABLE_RATED_RUN_AGE__',
+  '__RAW_DISABLE_RATED_RUN_LABEL__',
   // components/map/marineLateWash.test.js (the late wash, 2026-11-15): a seed that repairs a refused wash waits 150 ms, not 1 s
   '__RAW_DISABLE_URGENT_WASH_SEED__',
   // tests/weatherAuthFetch.test.js ("kill switch: never a token, never a retry") and tests/sessionExpiredPrompt.test.js
@@ -76,6 +85,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RESPONSIVE_WEATHER__',
   // components/map/ownRasterFrames.test.js (pressure from own frames, ON 2026-11-12; the kill is the .om path)
   '__RAW_DISABLE_RASTER_OWN_PRESSURE__',
+  // components/map/ownRasterLayer.test.js ("OFF PATH: __RAW_DISABLE_RASTER_TEX_FIT__ uploads the full field"; 2026-11-16)
+  '__RAW_DISABLE_RASTER_TEX_FIT__',
   // components/map/ownRasterFrames.test.js ("OFF PATH: its own kill wins over the lever and touches no other layer"; 2026-11-12)
   '__RAW_DISABLE_RASTER_OWN_RAIN__',
   // ownRasterFrames.test.js ("OFF PATH: __RAW_DISABLE_RASTER_OWN_FOG__ puts fog back on the .om path" / "...WATER_TEMP__ puts water temp back"; 2026-11-14)
