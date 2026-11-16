@@ -28,7 +28,9 @@ DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 NDBC_HOST = "www.ndbc.noaa.gov"
 NDBC_LATEST = "https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt"
 SPACING_S = 10.0
-SLOW_S = 20.0
+# A healthy /point read answers in about a second. 8 s means the one shared box is already struggling, so the run
+# stops there (advisor's condition for the standing schedule, 2026-11-16; it was 20 s).
+SLOW_S = 8.0
 BUOY_REACH_KM = 100.0
 FT_PER_M = 3.28084
 
