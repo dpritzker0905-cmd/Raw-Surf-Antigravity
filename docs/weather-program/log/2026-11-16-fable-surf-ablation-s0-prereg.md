@@ -340,3 +340,45 @@ partitions exist". It is not on in production: `SURF_PARTITIONS` defaults to off
 (`point_resolution.py`: `os.environ.get("SURF_PARTITIONS", "0") != "1"`), so the live readout uses the bulk path.
 Part 1b's numbers stand; they describe what the served number WOULD do with that flag on, not what it does today.
 The bulk tables in Part 1 are the ones that describe today's readout.
+
+## 2026-11-16 01:39Z The pre-breaking half, read from the validation's own report (one run, medians only)
+
+The rating-band lane found that each graded `nearshore_report.json` carries `factors_median`. I downloaded the
+latest successful run's public artifact and read it: run 43758031631, generated 2026-11-15 20:28Z, quantity
+"transform_hs_at_station_depth_vs_cdip_hs (Hs statistic; no cap, no H1/10)", 163 matched spot-hours, 85
+station-hours, 11 stations. **This is data dated before the gate's window. It is read here to locate the factors,
+and it is excluded from the gate like every other row before 2026-11-17.**
+
+| | value |
+|---|---|
+| median factors | friction 1.00, shoaling 0.958, exposure 0.812, refraction 0.873, total 0.700 |
+| observed over model, median | 1.59 (10th percentile 1.16, 90th 2.45) |
+| stations reading low | 11 of 11 (bias -0.08 to -0.95 m) |
+| legacy friction arm | never closer (share 0.0); bulk MAE 0.281 m, arm 0.317 m |
+
+- **The model at the buoy is the offshore height times about 0.70 at the median.** Two factors do it: the exposure
+  factor (0.81, the angle to the shore normal) and the refraction constant (0.873). Shoaling is near 1 and friction
+  is exactly 1.
+- **Undoing both would raise the model by 1 / (0.812 x 0.873) = 1.41. The gap is 1.59.** So exposure and refraction
+  together are the size of most of the low reading, and about 13% would remain (1.59 / 1.41), which would have to
+  come from the offshore input or from the shoaling leg. In the run the rating-band lane quoted (11:14Z) the two
+  numbers were 1.41 and 1.54.
+- **The exposure factor is as large as the refraction constant here.** Part 1 fed every spot a head-on sea, so its
+  exposure column read 1.00; at the validation's stations the median sea arrives well off the normal. Part 1's
+  "refraction lowers, exposure is 1 head-on" understates exposure for real seas.
+
+**What this is not.** Medians of one run, not rows. A median total and a median ratio do not multiply or divide the
+way rows do, so "1.41 of 1.59" is a size comparison, not an attribution. Every station reading low in one run is one
+weather pattern at eleven mostly-California stations.
+
+**What the gate needs that the artifact lacks.** The per-row factors are computed
+(`run_nearshore_validation.py`, on every matched row) but only their median is uploaded. The forcing-truth half of
+the gate needs the rows: per station-hour, the truth, the model, and the four factors. That is a one-line change to
+the runner, which is not this lane's file; asked of the director. Without it the per-factor verdict for refraction,
+exposure and shoaling is NOT RUNNABLE, and that is recorded here before the window so it cannot be discovered later
+as an excuse.
+
+**Added to the gate, before the window:** one more single configuration, already implied by the factor list but
+stated for the forcing-truth half: `exposure_off` and `refraction_off` are each judged at the stations on their own
+and together (`exposure_off_and_refraction_off`). That makes three paired configurations in all, with the two from
+01:24Z. The list is closed.
