@@ -281,8 +281,15 @@ export function windowRadius() { return isHandheldDevice() ? 1 : 2; }
  *  behind). Scoped to them, so the live lanes keep their measured behaviour. Kill: __RAW_DISABLE_OWN_ONLY_PREFETCH2__. */
 export function ownWindowRadius(layer) {
   const base = windowRadius();
-  if (!OWN_ONLY_LAYERS.includes(layer) || W().__RAW_DISABLE_OWN_ONLY_PREFETCH2__ === true) return base;
+  if (!OWN_ONLY_LAYERS.includes(layer) || W().__RAW_DISABLE_OWN_ONLY_PREFETCH2__ === true || meteredLink()) return base;
   return Math.max(2, base);
+}
+/** A link the user or the browser marks as costly or slow (Save-Data, or an effective type below 4G): the own-only layers' frames
+ *  are 0.9-1.8 MB, so they keep the device's own prefetch radius there (the advisor's red-team of #928, condition 3). */
+export function meteredLink(nav = (typeof navigator !== 'undefined' ? navigator : null)) {
+  const c = nav && (nav.connection || nav.mozConnection || nav.webkitConnection);
+  if (!c) return false;
+  return c.saveData === true || ['slow-2g', '2g', '3g'].includes(c.effectiveType);
 }
 
 /**

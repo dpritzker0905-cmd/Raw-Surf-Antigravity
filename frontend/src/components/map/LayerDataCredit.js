@@ -37,6 +37,9 @@ const OWN_NOTE = {
   satellite: { text: ' · instantaneous', label: 'Cloud cover at the valid time, instantaneous (not an hourly mean).' },
   // Gusts (2026-11-15): each model publishes its own definition, said on screen per model.
   // Every model's gust misses thunderstorm downbursts (NWS states it for its own gust grids): said in the accessible label.
+  // Currents (2026-11-15, the advisor's red-team of #928): what the field is NOT, on screen. Copernicus' global model at -0.5 m
+  // on 1/12 deg, 6-hourly, mapped to 0.25 deg; no tide, no surf-zone or rip current (the HF-radar check: direction off ~39 deg).
+  currents: { text: ' · large-scale; no tides', label: 'Large-scale ocean currents (Copernicus global model, half a metre down, every 6 hours, about 28 km cells); tides and nearshore currents are not included.' },
   gusts: (model) => withStormCaveat(model === 'GFS'
     ? { text: ' · instantaneous', label: 'GFS surface wind gust at the valid time (instantaneous).' }
     : { text: ' · peak since last step', label: model === 'EURO'
@@ -56,8 +59,11 @@ export function creditFor(layer, engaged = getEngaged(), downscaled = getDownsca
     const n = own || (downscaled && downscaled[layer] ? DOWNSCALE_NOTE[layer] : null);
     return n ? { ...s, text: s.text + n.text, label: `${n.label} ${s.label}`, title: n.label } : s;
   }
-  return SOURCES[LAYER_CREDITS[layer]] || null;
+  const base = SOURCES[LAYER_CREDITS[layer]] || null;
+  const always = base && ALWAYS_NOTE[layer];   // a caveat that holds whether or not a frame is drawn yet
+  return always ? { ...base, text: base.text + always.text, label: `${always.label} ${base.label}`, title: always.label } : base;
 }
+const ALWAYS_NOTE = { currents: OWN_NOTE.currents };
 
 export default function LayerDataCredit({ layer }) {
   const engaged = useSyncExternalStore(subscribeEngaged, getEngaged, getEngaged);

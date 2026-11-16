@@ -88,6 +88,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_DECODE_WORKER__',
   // gustsLayer.test.js ("its kill restores the half-gap rule"; 2026-11-15, the edge nearest note)
   '__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__',
+  // ownLayerAvailability.test.js ("its kill offers the layers unconditionally"; 2026-11-15, no empty layers)
+  '__RAW_DISABLE_OWN_LAYER_AVAILABILITY__',
   '__RAW_DISABLE_RASTER_OWN_WATER_TEMP__',
   '__RAW_DISABLE_RASTER_OWN_HANDOVER__',
   '__RAW_DISABLE_RASTER_OWN_SAME_FRAME__',

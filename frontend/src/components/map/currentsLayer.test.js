@@ -2,7 +2,7 @@
 // legend in the user's unit, the Copernicus credit, and the frame's direction field in the wind layout.
 import { CURRENTS_LUT, MS_PER_KN, currentsColor, currentsLegend, currentsScale } from './currentsPalette';
 import { toOklch } from './WindColorRamp';
-import { DEFAULT_ON_LAYERS, OWN_ONLY_LAYERS, OWN_RASTER_SETS, SPEED_FIELD, ownFramesOn, ownWindowRadius, setKey, sourceModel, windowRadius } from './ownRasterFrames';
+import { DEFAULT_ON_LAYERS, OWN_ONLY_LAYERS, OWN_RASTER_SETS, SPEED_FIELD, meteredLink, ownFramesOn, ownWindowRadius, setKey, sourceModel, windowRadius } from './ownRasterFrames';
 import { RASTER_SET_KEYS } from './staticRasterSets';
 import { buildStepLut, colorAtValue } from './ownRasterLayer';
 import { RASTER_STATUS_LAYERS, describeRasterFrame } from './rasterDrawnFrame';
@@ -28,7 +28,8 @@ describe('currents set and switches', () => {
   test('credits Copernicus Marine with the product DOI (its licence asks for it)', () => {
     for (const engaged of [{ currents: 'CMEMS' }, {}]) {
       const c = creditFor('currents', engaged, {});
-      expect(c.text).toBe('© Copernicus Marine');
+      expect(c.text).toBe('© Copernicus Marine · large-scale; no tides');   // the advisor's condition 2: what the field is NOT
+      expect(c.label).toMatch(/tides and nearshore currents are not included/);
       expect(c.href).toBe('https://doi.org/10.48670/moi-00016');
       expect(c.label).toMatch(/Copernicus Marine Service Information/);
     }
@@ -93,4 +94,12 @@ describe('phone prefetch for the own-only layers', () => {
     window.__RAW_DISABLE_OWN_ONLY_PREFETCH2__ = true;
     expect(ownWindowRadius('gusts')).toBe(1);
   });
+});
+
+test('a metered or slow link keeps the device radius (Save-Data, 2G / 3G); 4G and unknown links prefetch two ahead', () => {
+  expect(meteredLink({ connection: { saveData: true, effectiveType: '4g' } })).toBe(true);
+  expect(meteredLink({ connection: { effectiveType: '3g' } })).toBe(true);
+  expect(meteredLink({ connection: { effectiveType: '4g' } })).toBe(false);
+  expect(meteredLink({})).toBe(false);
+  expect(meteredLink(null)).toBe(false);
 });
