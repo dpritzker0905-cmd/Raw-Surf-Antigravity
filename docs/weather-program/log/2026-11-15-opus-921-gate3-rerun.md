@@ -83,3 +83,9 @@ Raw: `scratchpad/m3/g3b2/runs.jsonl`; summary script `scratchpad/m3/g3b_summary.
   its pages decoding before the steps, as asked, but it is not a scored result.
 - What it needs: a machine that is actually quiet (no other session's builds, tests or browsers). That is a coordination call above
   this lane.
+
+## 2026-11-16 05:45Z: re-run B in the quiet window: INCOMPLETE again (35 of 36 VOID); not scored
+
+The window was not quiet: the machine read 75% busy at 03:00Z and 55-96% through the run. Lowest calibration 87.6 ms, void bar 109.5;
+35 of 36 sessions VOID (raw `scratchpad/m3/g3q/runs.jsonl`). The single valid session (noric z6) is reported, not scored: p50 1.2,
+p95 22.8 ms. #921 gate 3 under the new scheduler has no scored result; per the director, keep-or-kill of the worker goes to David.
