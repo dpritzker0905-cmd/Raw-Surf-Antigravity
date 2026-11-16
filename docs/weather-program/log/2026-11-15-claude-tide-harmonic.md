@@ -116,3 +116,12 @@ never used). Kill '0'. Tests: `test_tide_harmonic.py` 20.
   worse than the tide alone's by more than 0.02 m in ANY lead band (0-24, 24-48, 48-72, 72-96 h held).
 - The surge term now requires `datum == "model_mean_365d"` (#926's fixed datum); on the `window_72h` fallback eta is
   the NOAA tide (test).
+
+## REGISTERED (before the change): the held value past the model horizon (advisor, at 838858f0b)
+Holding the LAST low-passed residual holds the least reliable value (an edge window of >= 13 samples) and can hold a
+storm peak to day 14. Rule, chosen before changing code: past the model span, hold **the smaller in magnitude of (the
+last valid residual, the median residual over the span)**, keeping its sign; if they disagree in sign, hold 0.
+Inside the span, an hour whose window was dropped (a gap) takes the **nearest valid residual inside the span** (not 0).
+Before the span: 0. Tests: (1) seasonal case: a steady +0.4 m stays +0.4 past the horizon (the fixed case stays fixed);
+(2) storm at the edge: 0.1 m all span with a 0.8 m peak in the last hours holds ~0.1, not 0.8; (3) a gap hour inside the
+span equals its nearest neighbour; (4) opposite signs hold 0.
