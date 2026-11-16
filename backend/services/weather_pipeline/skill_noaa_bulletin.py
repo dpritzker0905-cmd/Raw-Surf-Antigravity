@@ -141,7 +141,7 @@ def fetch_bulletin_rows(stations: Iterable[str], now: datetime, leads_h=(24, 48,
     fetched_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     cycles = candidate_cycles(now)
     out: List[dict] = []
-    st = {"stations": 0, "missing": 0, "errors": 0, "fallback_cycle": 0}
+    st = {"stations": 0, "with_bulletin": 0, "missing": 0, "errors": 0, "fallback_cycle": 0}
     for station in stations:
         st["stations"] += 1
         parsed, url = None, None
@@ -157,6 +157,7 @@ def fetch_bulletin_rows(stations: Iterable[str], now: datetime, leads_h=(24, 48,
             parsed = parse_bulletin(body) if body else None
             if parsed is not None:
                 st["fallback_cycle"] += i > 0
+                st["with_bulletin"] += 1
                 break
         if parsed is None:
             st["missing"] += 1
@@ -171,11 +172,18 @@ def fetch_bulletin_rows(stations: Iterable[str], now: datetime, leads_h=(24, 48,
             # a lane that kept zeros would be scored on rows its peers refuse.
             if r is None or r["hst"] == 0.0:
                 continue
+            # tp_s is the period of the LARGEST partition: a proxy for the peak period, not the spectral Tp. Anything
+            # that ever scores period from this lane must say so (advisor, 2026-11-16).
             peak = max(r["parts"], key=lambda p: p["hs"]) if r["parts"] else None
             out.append({"source": SOURCE_NOAA_BULL, "buoy_id": station,
                         "target_time": target.strftime("%Y-%m-%dT%H:00:00Z"), "lead_h": float(lead),
                         "hs_m": r["hst"], "tp_s": peak["tp"] if peak else None,
                         "cycle": parsed["cycle"].strftime("%Y-%m-%dT%H:00Z"), "cycle_lead_h": r["lead_h"],
+                        # the same key and meaning as our rows' (skill_attribution.serving_provenance): ledger time minus
+                        # the cycle that answered, so rule 1's delta can be split by cycle offset before this lane is a
+                        # reference (advisor, 2026-11-16)
+                        "cycle_age_h": round((target - timedelta(hours=float(lead)) - parsed["cycle"]).total_seconds() / 3600.0, 1),
+                        "tp_kind": "largest_partition",
                         "parts": [[p["hs"], p["tp"], p["dir"], int(p["wind_sea"])] for p in r["parts"]],
                         "source_url": url, "fetched_at": fetched_at})
     if stats is not None:

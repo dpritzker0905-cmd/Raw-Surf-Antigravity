@@ -155,3 +155,14 @@ def test_ledger_rows_key_on_the_report_buoys_and_have_a_kill_switch(monkeypatch)
     assert len(rows) == 3 and len(seen) == 1                     # one fetch per distinct buoy
     monkeypatch.setenv("FORECAST_SKILL_NOAA_BULL", "0")
     assert B.ledger_rows(report, datetime(2026, 11, 15, 5, tzinfo=timezone.utc), (24,)) == []
+
+
+def test_coverage_and_cycle_age_are_reported():
+    """Advisor (2026-11-16): stations with a bulletin against stations asked, per run; and the cycle age in the same
+    meaning as our rows', so rule 1's delta can be split by cycle offset."""
+    stats = {}
+    now = datetime(2026, 11, 15, 5, 17, tzinfo=timezone.utc)
+    out = B.fetch_bulletin_rows(["41117", "LJPC1"], now, get=lambda url: TEXT if "41117" in url else None, stats=stats)
+    assert stats["stations"] == 2 and stats["with_bulletin"] == 1 and stats["missing"] == 1
+    assert {r["cycle_age_h"] for r in out} == {5.0}               # ledger time 05:00Z minus cycle 00Z, every lead
+    assert all(r["tp_kind"] == "largest_partition" for r in out)
