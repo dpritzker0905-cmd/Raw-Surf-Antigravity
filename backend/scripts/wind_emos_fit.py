@@ -371,6 +371,13 @@ def score(R) -> dict:
     out["verdict"] = "VOID" if not controls else ("PASS" if ok_all else "FAIL")
     if out["verdict"] == "PASS" and any(v.get("fragile") for v in out["lines"].values() if isinstance(v, dict)):
         out["verdict_label"] = "PASS (FRAGILE)"
+    # amendment 5: CRPS(EMOS) - CRPS(raw) for TEST runs before vs after the control left the ef files (reported)
+    switch = datetime(2026, 5, 13, tzinfo=timezone.utc)
+    for b in BINS:
+        for name, sel in (("before", run_dt < switch), ("after", run_dt >= switch)):
+            m = test & sel & (bins == b) & np.isfinite(emos_crps)
+            d = _ci2(np.where(m, emos_crps - R["raw_crps"], np.nan), days)
+            out["lines"][f"R_members_{name}_2026-05-13_{b}"] = dict(d, reported_only=True)
     out["test_rows"] = int(tm.sum())
     return out
 
