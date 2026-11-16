@@ -282,3 +282,9 @@ BEYOND strategy already matches):
 
 No frame from another model is drawn past a model's range (no stand-in entries: "estimated" 0). GFS gusts and currents are
 unchanged from §7d.
+
+### 9. Phone gate: accepted with an owed re-test (the director, 2026-11-15 21:10 EST)
+
+Accepted as "no worse than the live raster lanes in the same harness" (phone step p50 182-324 ms vs fog / EURO air temp
+269-281 ms). OWED: re-run the pre-registered 150 ms phone step target after Move 3's app-wide re-render fix lands, record
+it here and in SCOREBOARD (ledger commitment, this PR's fragment).
