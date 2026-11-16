@@ -176,3 +176,28 @@ data) is the known fine-grid delay, Move 3's, not #937's. Added to section 6:
 3. **Keys whose nearest stored frame is the one already drawn** ("no change" is the right answer there) are counted and reported
    apart. They are not in the step-time statistics.
 4. A/A first, as before. A step overtaken by a later key's frame inside W is flagged `superseded` and reported apart.
+
+### 6b. Amendment (2026-11-16 06:28 EST by the clock, 11:27Z; written AFTER the A/A run started at 06:24 EST and BEFORE any of its rows were read: its output file did not exist yet)
+Correction to 6a's header: it says "~06:25 EST", but its commit is 06:23:17 EST, so the header was ahead of the clock (L-P10). It should
+read "06:2x EST, before the commit at 06:23:17". The advisor's five gaps (read of 732763288), fixed here:
+1. **Overall verdict.** Per cell:
+   - **WORSE** when the LOWER end of the paired-median interval is above 5 ms, OR the lower end of the p95-difference interval is
+     above 15 ms, OR the lower end of the long-task p95-difference interval is above 15 ms, OR the fix arm's censored share is
+     significantly higher (the lower end of its paired-difference interval is above 0).
+   - **NOT WORSE** when the A/A resolves the cell (R <= 5 ms median, <= 15 ms p95) AND the upper ends of the median, p95 and
+     long-task intervals are <= 5 / 15 / 15 ms AND the censored-share interval's upper end is <= 2 percentage points.
+   - **UNRESOLVED** otherwise.
+   The test: any WORSE cell = **FAIL**. No WORSE cell and at least 5 of the 6 cells NOT WORSE = **PASS**. Otherwise **UNRESOLVED**,
+   and the R values go to the director and David. Whether a PASS ships ON stays theirs.
+2. **Intervals for every half of the line.** The p95 difference and the long-task p95 difference each get the same bootstrap over
+   ABBA groups (2,000, seed 20261116). The line applies to the interval's upper end (not worse) or lower end (worse), never to a
+   point estimate.
+3. **Censoring has its own line.** Report the censored share per arm and the paired difference per pair, with a bootstrap interval.
+   p95 (and its half of the line) is evaluated only where both arms are under 5 % censored. Otherwise that cell's p95 half reads
+   "not evaluable (censored)", and the cell cannot be NOT WORSE on it.
+4. **Discard rule, decidable blind.** The CPU load is read (5 samples over 10 s) before and after each run. A run where either reading
+   is above **60 %** is discarded and repeated. The decision is taken and written here from those two numbers alone, BEFORE the run's
+   rows are opened, and applied the same way to the A/A and the A/B. (45.4 % was read at 06:10 EST, with other sessions active.)
+5. This header is from the clock (above); a ledger line records the amendment.
+Caution, reported once: the first frame-changing step of each block (after Home and the 6 s settle) is also reported apart, to see
+whether it carries the difference. It stays in the statistics.
