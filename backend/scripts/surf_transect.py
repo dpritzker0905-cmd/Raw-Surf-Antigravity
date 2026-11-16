@@ -132,8 +132,31 @@ def dissipation(e_tot: float, depth_m: float, period_s: float, gamma: float = GA
     return -alpha * qb * (2.0 * math.pi / period_s) * h_max * h_max / (8.0 * math.pi)
 
 
+SPREAD_WIND_SEA = 10.0        # Goda 2008 (after Goda and Suzuki 1975): s_max for wind waves
+SPREAD_SWELL_SHORT = 25.0     # swell with a short decay distance
+SPREAD_SWELL_LONG = 75.0      # swell with a long decay distance
+SPREAD_BIN_DEG = 2.0
+
+
+def spread_components(mean_deg_off_normal: float, spread_s: float) -> list:
+    """The sea's directions as [(angle off the shore normal in radians, share of the energy)], from the spreading function
+    G ~ cos^(2s)((theta - theta_mean) / 2) normalised over the full circle. Only directions heading shoreward (within
+    89 degrees of the normal) are returned, so the shares add up to the shoreward share, not to 1."""
+    n = int(round(360.0 / SPREAD_BIN_DEG))
+    offsets = [-180.0 + (i + 0.5) * SPREAD_BIN_DEG for i in range(n)]
+    raw = [max(0.0, math.cos(math.radians(o) / 2.0)) ** (2.0 * spread_s) for o in offsets]
+    total = sum(raw)
+    out = []
+    for o, r in zip(offsets, raw):
+        angle = mean_deg_off_normal + o
+        angle = (angle + 180.0) % 360.0 - 180.0
+        if abs(angle) < 89.0 and r > 0.0:
+            out.append((math.radians(angle), r / total))
+    return out
+
+
 def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth_m: float, bed, gamma: float = GAMMA_BS,
-          alpha: float = ALPHA_BJ, step_m: float = STEP_M, mean_period_s=None) -> dict:
+          alpha: float = ALPHA_BJ, step_m: float = STEP_M, mean_period_s=None, spread_s=None) -> dict:
     """March the flux balance shoreward over `bed`, a list of (distance_from_shore_m, depth_m) with depth positive down.
 
     Returns the profile and TWO surf numbers, each the largest value on the line:
@@ -143,18 +166,32 @@ def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth
                           where the sea is breaking it exceeds the model's own largest wave.
     Also "steps" and "clipped_steps" (how often the saturation limit, not the dissipation term, set the energy), so a
     reader can tell which one did the physics. `mean_period_s` sets the mean frequency in the dissipation only; the
-    wave still shoals on `period_s`. A number is None when the bed has too few wet samples or the inputs are unusable."""
+    wave still shoals on `period_s`. A number is None when the bed has too few wet samples or the inputs are unusable.
+
+    `spread_s` (the spread arm, rule in the A1 log, 10:42Z): None is a single direction. A number divides the energy
+    among directions by Goda's (2008, eq. 5) spreading function G ~ cos^(2s)(half the angle from the mean direction);
+    each direction refracts by Snell's law and conserves its own flux, the directions are summed by energy, and breaking
+    removes energy from each in proportion to what it holds (SWAN eq. 2.69). Directions heading away from the shore
+    are dropped and `shoreward_share` says how much energy that was. A derivation from linear superposition."""
     wet = sorted(((float(x), float(d)) for x, d in (bed or []) if d is not None and d > MIN_DEPTH_M), reverse=True)
     out = {"surf_m": None, "surf_at_m": None, "surf_depth_m": None, "surf_truncated_m": None, "surf_truncated_at_m": None,
            "surf_truncated_depth_m": None, "profile": [], "hs_at_start_m": None, "broke": False, "wet_samples": len(wet),
-           "steps": 0, "clipped_steps": 0}
+           "steps": 0, "clipped_steps": 0, "shoreward_share": None}
     if hs_m is None or period_s is None or not hs_m > 0 or not period_s > 0 or len(wet) < MIN_WET_SAMPLES:
         return out
-    theta0 = math.radians(min(abs(angle_off_normal_deg or 0.0), 89.0))
     d0 = max(float(model_depth_m or 0.0), wet[0][1])
     c0, cg0 = celerities(period_s, d0)
-    snell = math.sin(theta0) / c0
-    flux = (hs_m * hs_m / 16.0) * cg0 * math.cos(theta0)                     # E = Hs^2 / 16 in variance units
+    e0 = hs_m * hs_m / 16.0                                                  # E = Hs^2 / 16 in variance units
+    mean_deg = float(angle_off_normal_deg or 0.0)
+    if spread_s is None:
+        comps = [(math.radians(min(abs(mean_deg), 89.0)), 1.0)]
+    else:
+        comps = spread_components(mean_deg, float(spread_s))
+    out["shoreward_share"] = sum(w for _t, w in comps)
+    if not comps:
+        return out
+    snells = [math.sin(t) / c0 for t, _w in comps]
+    fluxes = [e0 * w * cg0 * math.cos(t) for t, w in comps]
 
     def at(x):
         """Depth at distance x from shore by linear interpolation of the wet samples (seaward first)."""
@@ -172,13 +209,16 @@ def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth
         if d <= MIN_DEPTH_M:
             break
         c, cg = celerities(period_s, d)
-        cos_t = math.sqrt(max(1e-6, 1.0 - min(0.999999, (snell * c) ** 2)))
-        e = flux / (cg * cos_t)
+        coss = [math.sqrt(max(1e-6, 1.0 - min(0.999999, (sn * c) ** 2))) for sn in snells]
+        parts = [f / (cg * ct) for f, ct in zip(fluxes, coss)]               # each direction's energy here
+        e = sum(parts)
         h_max = gamma * d
         out["steps"] += 1
         if 8.0 * e > h_max * h_max:                                          # saturation: no more wave than the water holds
+            scale = (h_max * h_max / 8.0) / e
+            fluxes = [f * scale for f in fluxes]
+            parts = [q * scale for q in parts]
             e = h_max * h_max / 8.0
-            flux = e * cg * cos_t
             out["broke"] = True
             out["clipped_steps"] += 1
         hs = 4.0 * math.sqrt(e)
@@ -197,7 +237,8 @@ def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth
         # bed is not crossed in one stride (a 1:10 beach at 10 m steps would jump a metre of depth at a time).
         fall = abs(d - at(x - 1.0))                                          # depth change over the next metre
         dx = max(MIN_STEP_M, min(step_m, MAX_DEPTH_CHANGE_M / fall)) if fall > 1e-9 else step_m
-        flux = max(0.0, flux + dis * dx)                                     # shoreward step: D removes flux
+        if e > 0.0:                                                          # shoreward step: D removes flux, from each
+            fluxes = [max(0.0, f + dis * (q / e) * dx) for f, q in zip(fluxes, parts)]   # direction in proportion
         x -= dx
     if best[1] is not None:
         out.update({"surf_m": H110_OVER_HS * best[0], "surf_at_m": round(best[1], 1), "surf_depth_m": round(best[2], 2)})

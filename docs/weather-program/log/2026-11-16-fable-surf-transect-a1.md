@@ -357,3 +357,53 @@ states at 25 and at 75.
 normal I expect spreading to LOWER the surf, by at most ten to fifteen percent for s = 10; at a large mean angle I
 expect it to RAISE the surf relative to a single direction. Nowhere near the factor of 1.8 still unexplained at the
 owner's point. If it comes out near 1.8, I will suspect the arm.
+
+## 2026-11-16 10:49Z The spread arm, run model-only: worth one to eight percent, always downward; one prediction of mine was wrong
+
+Run under the rule amended at 10:42Z (Goda 2008; s = 10 for a wind sea, 25 and 75 for swell; no wind). The march now
+carries the sea as about 89 directions weighted by the spreading function; with a single direction it reproduces
+the earlier march exactly (all 15 earlier tests pass unchanged, and a very narrow spread matches a single direction
+to within 0.5%).
+
+**On the 20 panel beds that resolve a surf zone** (a bed sample in 2 m of water or less). Surf with spread over
+surf without, geometric mean over spots, with the range; the surf is the model's own highest-tenth:
+
+| sea state | spread | head-on | 30 degrees off the normal | 60 degrees off |
+|---|---|---|---|---|
+| wind sea, 1.0 m at 5 s | s = 10 | 0.99 (0.97 to 1.00) | 0.99 (0.96 to 1.00) | 0.92 (0.90 to 0.93) |
+| the report's state, 1.12 m at 7.28 s | s = 10 | 0.97 (0.97 to 0.97) | 0.96 (0.96 to 0.96) | 0.95 (0.91 to 0.97) |
+| swell, 1.5 m at 12 s | s = 25 | 0.99 | 0.98 | 0.98 |
+| swell, 1.5 m at 12 s | s = 75 | 1.00 | 0.99 | 0.99 |
+| groundswell, 2.0 m at 16 s | s = 25 | 0.99 | 0.98 | 0.98 |
+| groundswell, 2.0 m at 16 s | s = 75 | 1.00 | 0.99 | 0.99 |
+
+At the owner's point, the report's state: 0.967 head-on (1.42 times offshore with spread against 1.47 without),
+0.962 at 30 degrees, 0.948 at 60 degrees.
+
+- **Directional spread lowers the surf by about 3% for a wind sea near the shore normal, by up to 8 to 10% at a
+  steep angle, and by 2% or less for swell.** Sensitivity for the wind sea, head-on, on a 1 in 250 bed: 0.937 at
+  s = 5, 0.968 at s = 10, 0.987 at s = 25.
+- **At 60 degrees most of the effect is energy that never arrives.** A wind sea with its mean direction 60 degrees
+  off the normal has 13% of its energy heading away from the shore (the shoreward share is 0.867); that energy is
+  dropped, and it is most of the 8%.
+- **It does not explain the gap.** The research lead read the remaining factor of about 1.8 at the owner's point as
+  either spread or the observation-convention question. Spread is worth 0.97. With the period (about 0.85) and the
+  H1/10 conversion (about 0.79) it brings the outer breaker to about 0.95 of the offshore height, 3.5 ft, against
+  his under 2 ft. The convention question is what is left.
+
+**My predictions against the result.**
+- "Near the normal I expect spreading to LOWER the surf, by at most ten to fifteen percent for s = 10": it lowers
+  it, by 3%. Right in sign, and the size was within the bound.
+- "At a large mean angle I expect it to RAISE the surf relative to a single direction": **WRONG.** At 60 degrees it
+  lowers it, by 5 to 8%. My argument (components nearer the normal refract less) is true of each component and
+  missed two things that outweigh it: the components on the far side refract more or never arrive, and the height
+  that reaches the break point is dominated by energy flux toward the shore, which a spread sea at a steep angle
+  has less of. I registered the sign as unknown and then guessed it in the same paragraph; the guess was wrong.
+- "Nowhere near the factor of 1.8": right.
+
+**Limits.** Model only, no truth. The spread parameter is held at s_max for every frequency, and the paper's
+equation 6 makes a real sea broader away from the peak, so the true effect is somewhat larger than these numbers
+(the s = 5 row, 0.94, is a rough upper bound on its size for a wind sea near the normal). Straight parallel contours
+are assumed, which a real coast with a bar, a point or an inlet is not. Head-on and two fixed angles, not a
+climatology. A wind sea is given the same spread everywhere, with no dependence on how developed it is, because
+that dependence is on the wind and wind is not an input here.

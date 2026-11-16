@@ -196,3 +196,46 @@ def test_water_behind_the_chosen_shore_is_counted():
     plain = st.bed_from_grid(29.999, -81.0, 0.0, lambda lat, lng: 2.0 if lat <= 30.0 else -(lat - 30.0) * 111_195.0 / 50.0)
     assert plain["water_landward_of_shore"] == 0
 
+
+# ── the spread arm (2026-11-16; Goda 2008 eq. 5 and s_max = 10 / 25 / 75; a derivation from linear superposition) ──
+def test_the_spreading_function_is_normalised_and_drops_only_what_heads_offshore():
+    assert (st.SPREAD_WIND_SEA, st.SPREAD_SWELL_SHORT, st.SPREAD_SWELL_LONG) == (10.0, 25.0, 75.0)
+    head_on = st.spread_components(0.0, 10.0)
+    assert sum(w for _t, w in head_on) == pytest.approx(1.0, abs=2e-3)       # nearly all of a head-on sea heads shoreward
+    assert all(abs(math.degrees(t)) < 89.0 for t, _w in head_on)
+    weights = {round(math.degrees(t), 1): w for t, w in head_on}
+    assert all(weights[a] == pytest.approx(weights[-a], rel=1e-9) for a in (1.0, 21.0, 45.0))   # symmetric about the mean
+    assert weights[1.0] > weights[21.0] > weights[45.0]                       # and peaked on it
+    oblique = sum(w for _t, w in st.spread_components(60.0, 10.0))
+    assert 0.80 < oblique < 0.95                                              # a broad sea at 60 degrees loses its far side
+    assert sum(w for _t, w in st.spread_components(60.0, 75.0)) > 0.99        # a narrow swell does not
+    assert st.spread_components(170.0, 10.0) == [] or sum(w for _t, w in st.spread_components(170.0, 10.0)) < 0.01
+
+
+def test_a_single_direction_is_the_limit_of_a_very_narrow_spread():
+    for ang in (0.0, 30.0):
+        one = st.march(1.5, 12.0, ang, 20.0, planar(0.01))
+        narrow = st.march(1.5, 12.0, ang, 20.0, planar(0.01), spread_s=20000.0)
+        assert narrow["surf_truncated_m"] == pytest.approx(one["surf_truncated_m"], rel=0.005)
+        assert narrow["shoreward_share"] == pytest.approx(1.0, abs=1e-6) and one["shoreward_share"] == 1.0
+
+
+def test_a_broader_sea_arrives_smaller_and_the_effect_is_small():
+    base = st.march(1.12, 7.28, 0.0, 20.0, planar(0.004))["surf_truncated_m"]
+    ratios = [st.march(1.12, 7.28, 0.0, 20.0, planar(0.004), spread_s=s)["surf_truncated_m"] / base for s in (5.0, 10.0, 25.0, 75.0)]
+    assert ratios == sorted(ratios) and all(r < 1.0 for r in ratios)          # broader (smaller s) is lower; never higher
+    assert 0.95 < ratios[1] < 0.98                                            # wind sea, s = 10: about three percent
+    assert ratios[3] > 0.99                                                   # long-travelled swell: under one percent
+    steep_angle = st.march(1.0, 5.0, 60.0, 20.0, planar(0.004))["surf_truncated_m"]
+    spread = st.march(1.0, 5.0, 60.0, 20.0, planar(0.004), spread_s=10.0)
+    assert 0.88 < spread["surf_truncated_m"] / steep_angle < 0.95 and spread["shoreward_share"] < 0.9
+
+
+def test_the_spread_arm_takes_no_wind_and_stays_monotone():
+    assert "wind" not in " ".join(inspect.signature(st.march).parameters) and "wind" not in " ".join(inspect.signature(st.spread_components).parameters)
+    prev = 0.0
+    for i in range(1, 21):
+        surf = st.march(0.3 * i, 7.28, 30.0, 20.0, planar(0.01), spread_s=10.0)["surf_truncated_m"]
+        assert surf >= prev - 1e-9
+        prev = surf
+
