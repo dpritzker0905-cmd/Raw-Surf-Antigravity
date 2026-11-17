@@ -776,6 +776,7 @@ export var MapWeatherControls = ({
       <div ref={timelineDrawerRef} {...visibilityProps} data-weather-timeline="mobile" data-timeline-collapsed={String(collapsedState)} className="weather-mobile-timeline absolute left-0 right-0 z-[900] md:hidden px-4 pointer-events-none transition-all duration-300" style={{ bottom: isImmersiveMode ? '16px' : '72px' }}>
         <div className={`pointer-events-auto rounded-xl backdrop-blur-xl border shadow-2xl ${bgClass} ${collapsedState ? 'pt-2 pb-2' : 'p-3'} transition-all duration-300`}>
           <TimelineDrawerHeader expanded={isCompactTimelineOpen} timeLabel={formatTime()} textClass={textMuted}
+            stale={{ model: activeModel, layer: activeLayer, hour: currentTimeOffset, windOn: !isRadar && (activeLayers || []).includes('wind') }}
             onToggle={() => { if (!isCompactTimelineOpen) setCollapsedState(false); onCompactTimelineToggle?.(); }} />
           <div className="weather-mobile-timeline-handle flex justify-center gap-24 items-center pb-2 -mt-2">
             <button type="button" className={`weather-legend-toggle text-[11px] px-3 rounded-full border ${chipBg} ${textMuted}`} aria-expanded={compactLegendOpen} onClick={() => setCompactLegendOpen(value => !value)}>
