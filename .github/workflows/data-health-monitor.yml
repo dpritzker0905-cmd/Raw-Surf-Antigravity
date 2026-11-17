@@ -97,6 +97,42 @@ jobs:
       # Thresholds are per-TIER (global 4h cadence / flagship 8h / worldwide ~32h) because one fixed
       # bound either cry-wolfs on the rotation or goes blind on the globals.
       # Set repo Actions variable REGION_HEALTH_PAGING=0 to downgrade this to a warning annotation.
+      # RASTER FRAME SETS (2026-11-16, the director): a raster publish that fails keeps its old index, so the map silently draws
+      # the last good run (e.g. DWD's 0.125-degree weights file unreachable). For every raster set whose repo variable is '1',
+      # the PUBLIC latest.json must list it with a run younger than RASTER_STALE_HOURS (default 30 h; one bound for every set).
+      # A set switched on but not yet published is a WARNING (its first publish is a few hours away), not a failure.
+      - name: Raster frame-set freshness
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          # ONE LINE PER RASTER SWITCH, never the whole vars context: a step's env is printed in its log and this repo's Actions logs
+          # are public, so passing every repo variable would publish them all (the advisor, 2026-11-16). A new raster set
+          # adds its line here (tests/test_raster_set_freshness.py refuses a set whose switch is missing).
+          FRAME_RASTER_CLOUD: ${{ vars.FRAME_RASTER_CLOUD }}
+          FRAME_RASTER_CLOUD_0P25: ${{ vars.FRAME_RASTER_CLOUD_0P25 }}
+          FRAME_RASTER_CLOUD_EURO: ${{ vars.FRAME_RASTER_CLOUD_EURO }}
+          FRAME_RASTER_FOG: ${{ vars.FRAME_RASTER_FOG }}
+          FRAME_RASTER_PRECIP: ${{ vars.FRAME_RASTER_PRECIP }}
+          FRAME_RASTER_PRECIP_EURO: ${{ vars.FRAME_RASTER_PRECIP_EURO }}
+          FRAME_RASTER_PRECIP_ICON: ${{ vars.FRAME_RASTER_PRECIP_ICON }}
+          FRAME_RASTER_PRECIP_ICON_0P125: ${{ vars.FRAME_RASTER_PRECIP_ICON_0P125 }}
+          FRAME_RASTER_PRESSURE: ${{ vars.FRAME_RASTER_PRESSURE }}
+          FRAME_RASTER_PRESSURE_EURO: ${{ vars.FRAME_RASTER_PRESSURE_EURO }}
+          FRAME_RASTER_PRESSURE_ICON: ${{ vars.FRAME_RASTER_PRESSURE_ICON }}
+          FRAME_RASTER_TEMPERATURE: ${{ vars.FRAME_RASTER_TEMPERATURE }}
+          FRAME_RASTER_TEMPERATURE_EURO: ${{ vars.FRAME_RASTER_TEMPERATURE_EURO }}
+          FRAME_RASTER_TEMPERATURE_EURO_0P25: ${{ vars.FRAME_RASTER_TEMPERATURE_EURO_0P25 }}
+          FRAME_RASTER_TEMPERATURE_ICON: ${{ vars.FRAME_RASTER_TEMPERATURE_ICON }}
+          FRAME_RASTER_WATER_TEMP: ${{ vars.FRAME_RASTER_WATER_TEMP }}
+          FRAME_RASTER_WATER_TEMP_EURO: ${{ vars.FRAME_RASTER_WATER_TEMP_EURO }}
+          FRAME_RASTER_TEMPERATURE_ICON_0P125: ${{ vars.FRAME_RASTER_TEMPERATURE_ICON_0P125 }}
+          RASTER_STALE_HOURS: ${{ vars.RASTER_STALE_HOURS || '30' }}
+        working-directory: backend
+        run: |
+          set -o pipefail
+          if [ -z "$SUPABASE_URL" ]; then echo "::warning::SUPABASE_URL unset: raster freshness not checked"; exit 0; fi
+          python3 scripts/raster_set_freshness.py --base "${SUPABASE_URL%/}/storage/v1/object/public/weather-frames" --fail-on-stale
+
       - name: Regional product run-age census
         # Global paging must not hide the finer regional diagnosis (run 34849338600).
         if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}

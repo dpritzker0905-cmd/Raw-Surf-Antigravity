@@ -59,7 +59,7 @@ class Post(Base):
     wind_direction = Column(String(10), nullable=True)      # "N", "NE", "E", "SE", "S", "SW", "W", "NW"
     tide_height_ft = Column(Float, nullable=True)           # e.g., 2.3
     tide_status = Column(String(20), nullable=True)         # "Rising", "Falling", "High", "Low"
-    conditions_source = Column(String(20), default='manual')  # 'auto', 'manual', 'edited'
+    conditions_source = Column(String(20), default=None)  # auto | auto_current | edited | unverified | observed (server)
     
     # Booking/Gallery link (for photographer posts)
     booking_id = Column(String(36), ForeignKey('bookings.id', ondelete='SET NULL'), nullable=True)

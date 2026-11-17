@@ -57,8 +57,8 @@ def shard(items, spec: str):
     return [x for k, x in enumerate(items) if k % n == i]
 
 
-def pack_run(fields_by_lead: dict) -> bytes:
-    arrays = {}
+def pack_run(fields_by_lead: dict, has_cf: bool = True) -> bytes:
+    arrays = {"has_cf": np.array(1 if has_cf else 0, dtype=np.int8)}     # 51 members if 1, else 50 (amendment 5)
     for L, f in fields_by_lead.items():
         arrays[f"u_{L}"] = f["10u"].astype(np.float32)
         arrays[f"v_{L}"] = f["10v"].astype(np.float32)
@@ -72,11 +72,12 @@ def collect_run(session, run: datetime, lats, lons, leads=LEADS) -> bytes:
     """All six leads of one run, or raise (a run with a missing lead is dropped, never filled)."""
     def at_stations(arr, meta):
         return ec.bilinear(arr, meta, lats, lons)
-    out = {}
+    out, has_cf = {}, []
     for L in leads:
-        f, _m = ef.fetch_step(session, run, L, at_stations)
+        f, fmeta = ef.fetch_step(session, run, L, at_stations)
         out[L] = f
-    return pack_run(out)
+        has_cf.append(bool(fmeta.get("has_cf")))
+    return pack_run(out, has_cf=all(has_cf))
 
 
 def existing_runs(cache: str) -> set:

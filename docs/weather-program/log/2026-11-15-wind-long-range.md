@@ -405,3 +405,75 @@ Director 21:22 EST asks for the top DECILE of observed wind as well. Added: `bia
 observed speed on rows whose observed speed is in the top 10%, per arm and bin), reported beside the top-third
 bias and the sd ratio. Labelled in the report as how light each arm reads on windy days. Reported only; no PASS line.
 Items (1) and (2) of the same message were already in amendment 4 (C1 replaced by C3/C4; 5-day blocks + FRAGILE).
+
+## 2026-11-16 09:37Z Merge authority for #946, #951 and #950 (director request)
+
+All three were merged by this lane on David's words typed in THIS session (`local_0d0d332f`) at 2026-11-15 20:32 EST:
+"push and merge what logically can be". Each was merged under the standing rules the director relayed at 20:33 EST:
+own PR, non-draft, every check green, the advisor passed, not held, `--squash --match-head-commit`.
+- #946: squash 2db995629.
+- #951: squash e28cec79a.
+- #950: squash ae4fe47e1.
+Their pr_merge lines: #946 and #951 in `ledger.d/claude--wind-emos-prereg.jsonl` (landed with #950); #950 in
+`ledger.d/claude--wind-merge-ledger.jsonl` (this docs-only PR). #939 (served) stays HELD on its hindcast gate.
+
+
+## 2026-11-16 18:17Z AMENDMENT 5: the ENS control member left the open-data `ef` files on 2026-05-13 (BEFORE any result)
+
+**What happened.** Hindcast run 43920372184 dropped every run. The fetcher required 51 members (`cf` + 50 `pf`), and
+the 2026 `ef` files carry only the 50 perturbed members. The run was cancelled; no report was opened, and the score had
+no rows. This is an instrument bug, not a data gap: my smoke test had used a 2025 file, which still carried the control.
+**Nothing from that run is read into #939** (director 2026-11-16).
+
+**Measured** on the AWS mirror, `-300h-enfo-ef.index`, 00Z runs, by bisection:
+- the control is present (`10u` type `cf` x 1, `pf` 1..50) through **2026-05-12 00Z** (8007-8211 records per file);
+- it is absent (`pf` 1..50 only, 8500 records per file) from **2026-05-13 00Z** on;
+- also checked: 2025-06-01, 2025-10-15, 2026-01-15, 2026-03-31 and 2026-05-08 have the control; 2026-05-14, 05-17,
+  05-27, 06-15, 08-01 and 09-01 do not;
+- the 2026-05-12 12Z run was not probed; it is treated by what its own index says.
+No `-enfo-cf` file exists beside the `ef` file after the switch (2026-09-13 +180 h: 404).
+
+**Rules (both the hindcast and the EMOS backfill):**
+1. **Member set = whatever the run's own index carries:** `pf` 1..50 are REQUIRED (any missing -> the run is dropped,
+   never filled); `cf` is included when present. Before 2026-05-13 that is 51 members, from 2026-05-13 on 50. The count
+   is recorded per run.
+2. **The scored arm is the mean over the run's members** (51 or 50). The hindcast window (runs 2026-09-01..10-31) is
+   entirely 50-member, so its primary arm, `ens_mean_raw`, is the 50-perturbed-member mean. A mean over 50 vs 51
+   exchangeable members differs by sampling only: the control is unperturbed, not a better member.
+3. **`ens_cf` (control only) is UNAVAILABLE after 2026-05-13.** In the hindcast it is reported as unavailable (no rows)
+   and drops out of every comparison. It was never a PASS line.
+4. **EMOS:** the predictors (member mean, member variance of speed, member gust quantiles) are computed over the run's
+   members (51 before the switch, 50 after). The training windows straddle the switch for TEST runs from 2026-05-13 to
+   about 2026-07-11. The fitted variance term absorbs the small change in sampling variance. The report adds one line
+   per bin: CRPS(EMOS) - CRPS(raw), for TEST runs before vs after 2026-05-13 (reported, not gating).
+5. The served extension (#939) uses the same rule (`pf` 1..50 required, `cf` if present). The label stays "ECMWF
+   ensemble mean (estimate)"; `members` in the basis carries 50 or 51.
+
+## 2026-11-16 18:28Z CORRECTION to amendment 5 (advisor read of #982)
+
+1. **Corrected:** amendment 5 said of run 43920372184: "The run was cancelled; no report was opened, and the score had
+   no rows." That is wrong. Its score job (133492806819) ran to completion, 17:49-18:24Z, and printed the
+   registered verdict in its public log:
+   `{"verdict": "VOID", "chosen": "ens_mean_raw", "void_reasons": ["test half 0 runs over 0 days", "122 of 122 runs dropped (> 10%)"]}`.
+   A `wind-lr-report` artifact (3.4 KB) exists. My cancel landed after that. The true record: the instrument returned
+   VOID by its own rule, as designed, with zero scored rows, so nothing about any arm's skill was in it. The
+   dropped-run VOID rule worked. I have not downloaded the artifact.
+2. **Dispatch authority for 43920372184:** David, 2026-11-15 23:04 EST, typed in the director's session and relayed
+   verbatim: "Yes", to running the back-test once the Actions queue was quiet. Ledger:
+   `ledger.d/claude--wind-merge-ledger-2.jsonl:1` (PR #979).
+3. **Rule 2's reason, restated (advisor):** the control is NOT exchangeable with a perturbed member. It starts from the
+   unperturbed analysis and is usually a little more skilful than any single perturbed member. What makes 50 vs 51
+   immaterial is arithmetic: the control's weight in the mean is 1/51, so dropping it moves the mean by about 2% of
+   the control's distance from the mean. And the hindcast window is 50-member throughout, which is exactly what
+   #939 would serve today, so the tested population matches the product.
+4. Amending the member rule is still "before any result" in the sense that matters: a VOID with zero rows says
+   nothing about any arm. The docs commit (8ff2cdfc5, 18:18Z) precedes the code (29c1f2282, 18:22Z).
+5. The rerun is a NEW dispatch and needs the owner's word, in the session that dispatches it, for one run.
+
+## 2026-11-16 19:58Z Two records (director)
+
+- The exact words authorizing run 43920372184, typed by David in the director's session at 2026-11-15 23:04 EST: "Yes on
+  first bullet" (the first bullet was the ~700 GB long-range wind hindcast). They replace the shortened "Yes" in §18:28Z item 2.
+- The rerun's authority, typed by David in THIS session (`local_0d0d332f`) at 2026-11-16 13:30 EST, answering "Rerun the
+  long-range wind hindcast for #939, once, from dev, after the 50/51-member fix (#982) merges and the Actions queue is
+  quiet?": "Yes, rerun once".

@@ -63,11 +63,13 @@ def run_available(session, run: datetime, last_step: int = 336, base: str = AWS_
 
 def fetch_step(session, run: datetime, step: int, reduce_fn: Callable[[np.ndarray, dict], np.ndarray],
                params: Sequence[str] = PARAMS, base: str = AWS_BASE, prefer: str = "auto",
-               members_expected: int = ec.MEMBERS_EXPECTED, max_gap: int = 0, model: str = "ifs",
+               perturbed: int = ec.PERTURBED, max_gap: int = 0, model: str = "ifs",
                file_types: Sequence[str] = ("ef",)) -> Tuple[Dict[str, np.ndarray], dict]:
-    """{param: array[members, ...reduced]} for one step of one run, member 0 = control. Raises when any member of
-    any wanted param is missing (a partial ensemble is never averaged). IFS ENS ships all members in one `ef` file;
-    AIFS-ENS (model="aifs-ens") ships `cf` and `pf` files: pass file_types=("cf", "pf")."""
+    """{param: array[members, ...reduced]} for one step of one run. `pf` 1..`perturbed` are REQUIRED (any missing ->
+    raise: a partial ensemble is never averaged). The control (`cf`, member 0) is included, FIRST, only when the run's
+    index carries it for every wanted param (amendment 5: it left the open-data ef files on 2026-05-13 00Z). The
+    returned meta says `has_cf` and `n_members`. IFS ENS ships all members in one `ef` file; AIFS-ENS
+    (model="aifs-ens") ships `cf` and `pf` files: pass file_types=("cf", "pf")."""
     sel_by_file = {}
     for typ in file_types:
         iurl = ef_url(base, run, step, "index", typ=typ, model=model)
@@ -75,22 +77,26 @@ def fetch_step(session, run: datetime, step: int, reduce_fn: Callable[[np.ndarra
         if idx.status_code != 200:
             raise FileNotFoundError(iurl)
         sel_by_file[typ] = ec.select_members(ec.parse_ecmwf_index(idx.text), params, step)
-    want = [(p, m) for p in params for m in range(members_expected)]
     owner = {k: typ for typ, sel in sel_by_file.items() for k in sel}
-    missing = [k for k in want if k not in owner]
+    required = [(p, m) for p in params for m in range(1, perturbed + 1)]
+    missing = [k for k in required if k not in owner]
     if missing:
         raise ValueError(f"{model} run {run:%Y%m%d%H} step {step}: {len(missing)} member fields missing, e.g. {missing[:3]}")
-    out: Dict[str, list] = {p: [None] * members_expected for p in params}
+    has_cf = all((p, 0) in owner for p in params)
+    members = ([0] if has_cf else []) + list(range(1, perturbed + 1))
+    want = [(p, m) for p in params for m in members]
+    pos = {m: i for i, m in enumerate(members)}
+    out: Dict[str, list] = {p: [None] * len(members) for p in params}
     meta_seen: dict = {}
     for typ in file_types:
         keys = [k for k in want if owner[k] == typ]
         if keys:
             meta_seen = _read_file(session, ef_url(base, run, step, "grib2", typ=typ, model=model), keys,
-                                   [sel_by_file[typ][k] for k in keys], out, reduce_fn, prefer, max_gap) or meta_seen
-    return {p: np.stack(v) for p, v in out.items()}, meta_seen
+                                   [sel_by_file[typ][k] for k in keys], out, reduce_fn, prefer, max_gap, pos) or meta_seen
+    return {p: np.stack(v) for p, v in out.items()}, dict(meta_seen, has_cf=has_cf, n_members=len(members))
 
 
-def _read_file(session, url, keys, ranges, out, reduce_fn, prefer, max_gap) -> dict:
+def _read_file(session, url, keys, ranges, out, reduce_fn, prefer, max_gap, pos=None) -> dict:
     meta_seen: dict = {}
     for start, end, ids in ec.coalesce(ranges, max_gap=max_gap):
         r = _get(session, url, headers={"Range": f"bytes={start}-{end - 1}"})
@@ -111,7 +117,7 @@ def _read_file(session, url, keys, ranges, out, reduce_fn, prefer, max_gap) -> d
             arr, meta = dec[sk]
             meta_seen = meta
             p, m = keys[i]
-            out[p][m] = reduce_fn(arr, meta)
+            out[p][pos[m] if pos is not None else m] = reduce_fn(arr, meta)
     return meta_seen
 
 
