@@ -1630,3 +1630,24 @@ in this program under its open licence (re-confirm the terms in the PR).
   - storm-block bootstrap, with the paired per-gauge CI against D.
 - Serving rests on G3b.
 - STOFS-2D daily folders exist from 2025-01-01. The tide lane confirms the point files before registering.
+
+## 2026-11-16 22:15 -0500 Owner: served changes SHIP ON with a kill switch, plus kill-switch tests
+
+David, 22:09 EST, verbatim: "It needs to ship on, not off. With kill switch. I get confused and forget to turn things on
+once they are merged. Make special tests to test and kill switch it. Pass that up to the director"
+
+**Applies to:** SURF_FACE_RANGE (#973), tide M1 (on G3b), L1 wave ensembles, and every later served item. Each one
+merges with its code default ON; the gate passes first.
+
+**Proposed kill-switch contract suite** (a required CI test per served flag; the director assigns an owner):
+1. OFF parity: with the flag off (env > manifest > code default), the served payload is byte-identical to a golden copy
+   from the pre-change path, on a fixed fixture set (spots, hours, models).
+2. ON scope: with the flag on, only the intended fields differ. Every other field stays byte-identical.
+3. Runtime kill: writing the flag false to the runtime manifest (control/flags.json, read through
+   services/runtime_flags.flag()) turns it off with no deploy, within the manifest TTL.
+4. Guardrail: a simulated "significantly worse" result makes flag-guardrail.yml auto-disable it with a written reason,
+   and only a new FIX_VERSION re-enables it.
+5. Registry: the flag is in _RATING_FLAGS and in parity (tests/test_flag_lane_parity.py).
+6. Client: for a client flag, window.__RAW_DISABLE_<NAME>__ = true restores the old render, in all 3 themes and on
+   mobile.
+7. A PR with a served-change label that adds a flag without the suite fails CI.
