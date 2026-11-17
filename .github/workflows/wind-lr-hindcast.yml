@@ -19,12 +19,11 @@ permissions:
 
 env:
   REUSE: ${{ github.event.inputs.reuse_run_id }}
+  PYTHONUNBUFFERED: '1'
 
 concurrency:
   group: wind-lr-hindcast
   cancel-in-progress: true
-
-  PYTHONUNBUFFERED: '1'
 
 jobs:
   stations:
