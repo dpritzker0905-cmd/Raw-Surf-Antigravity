@@ -68,7 +68,7 @@ jobs:
       # The gate: S1 preflight FIRST (before any truth is fetched), then sources, then truth, then scoring.
       - name: Run the G3 gate
         if: steps.dl.outcome == 'success'
-        timeout-minutes: 120
+        timeout-minutes: 180     # S1 / N1 now serial (run 44011150843); ~45 min estimated, headroom for a slow Copernicus
         env:
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
           COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}

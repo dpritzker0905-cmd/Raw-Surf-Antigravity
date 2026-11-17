@@ -1154,3 +1154,30 @@ the advisor is raising the merge-before-verdict with the director.
   - test `test_netcdf_reads_are_serialised_across_fetch_threads`; 21 pass.
 - A re-run needs the tag moved (deleted and pushed again) on the owner's word. The tag's FES cache makes the download
   step quick.
+
+## 03:38 EST 2026-11-17 (`date`) - run 44011150843 recorded as NO VERDICT; advisor's clearance carries to the fix (08:39Z); time check
+- **Name: NO VERDICT (not VOID).** Run 44011150843 is never counted as a look. The advisor read the job log through
+  the API, and so did I (nothing downloaded beyond the empty artifact).
+  - **The stage lines read by both:** "stage start" (42 MB); "s1 preflight ok -> primary P1" (318 MB); "fes subset"
+    (382 MB); "arm A" (564 MB); then "double free or corruption (out)", exit 134.
+  - No STOFS, reference, truth or "scored" stage. No score-shaped text; only the two masked credential env lines.
+  - **No truth and no reference was fetched: the window is unseen.**
+- **Advisor (08:39Z):** "YES, MY CLEARANCE CARRIES" to 323b3b36f (one lock around every station-file read, the two
+  Copernicus loops serial, one test, the floor; no rule, arm, threshold or trigger changed).
+- **(a) Lock coverage, checked in the code:**
+  - The STOFS-2D fetch (6 threads) and the STOFS-3D fetch (4 threads) both read through `g3_sources._nc_points`,
+    which holds `_NC_LOCK`.
+  - The only other netCDF opens in the gate are `xr.open_dataset` in S1 and N1, now serial (1 worker).
+  - The one other thread pool is the FES AVISO SFTP download (`tide_fes.sources.download_fes`), which opens no netCDF.
+  - FES subsetting is serial.
+- **(b) The FES cache:** saved under the tag's ref (`fes2022b-g3-44011150843`). A moved tag keeps the same ref name,
+  so the restore should hit and the download step should be quick. If the restore misses, the step downloads again
+  (~2 h 16 m), which is not a reason to stop.
+- **Time check (advisor):** measured on the Honolulu smoke run (43985791566): S1 ~10 s/gauge (two altimetry subsets,
+  ~3-4 s each, plus overhead); N1 ~10 s over 2 days, allowing 10-30 s for G3's full year.
+  - S1 + N1 serial x 26 gauges ~ 10-20 min.
+  - STOFS ~300 files of ~25 MB with locked reads ~ 10 min.
+  - STOFS-3D, references and truth (with retries) ~ 10 min.
+  - Bootstraps a few minutes.
+  - **Estimate ~45 min.** The gate step's timeout is raised from 120 to **180 min** in the same commit (plumbing; the
+    trigger block is untouched). A cache miss (2 h 16 m) + 180 min still fits the 355 min job limit.
