@@ -1900,3 +1900,25 @@ amendment 1, THIS governs.
   on the map's open-ocean swell layer and the buoy/offshore readout. It is NOT surf height at a spot.
 - Under D-080 it merges ON with a kill switch, contract tests 1-8 and the post-deploy dev check.
 - **ONE scored look at TEST.** Any change after it is a new registration on new data.
+
+## 2026-11-17 00:24 -0500 Serving: the packing replay REFUTES the RSWF v2 gain; publish is already pointer-atomic (helper, offline, public CDN only)
+
+- **Corpus:** 72 frames (GFS, EURO, ICON; 2 runs each, because the bucket keeps only the latest and previous run).
+  The sha256 of every frame matches the index.
+- **Size:** v1 (byte-shuffle + gzip) is already 0.504 of raw. A MED predictor plus zlib is bit-identical on 72/72 but
+  comes out at **1.008x v1**, so there is NO gain over the real baseline. The earlier "-23..-34%" was measured against
+  raw, not against v1.
+  - **RSWF v2 does not ship on this claim.** Untested options: ocean-only masking, a context/Golomb coder, and an
+    unshuffled baseline.
+- **Decode p95:** still open. It needs a JS (browser) harness.
+- **Atomicity (read from the code):** frames and the per-set index are written first, then `latest.json`, then
+  retention. Readers use one pointer and immutable run-keyed paths, so a view cannot mix runs. This is atomic by
+  design (pointer flip), though not a formal transaction.
+- **Revised serving order:**
+  1. cold-start timing plus the boot waterfall;
+  2. stored z7-9 tiles;
+  3. packing re-research only if a coder beats v1 by >= 10%;
+  4. a coarse fallback last, with the owner's sign-off.
+  Atomic publish drops to "verify only".
+- **Lesson:** measure against the SHIPPED baseline, not raw (an L-S28 relative: check what the comparison already
+  includes).
