@@ -1603,3 +1603,24 @@ Meanwhile the served path (FES + S1 behind a flag, ON by default, kill switch) i
     judges the ~64 GB not worth it.
   - The G3t draft therefore carries no v2.1 arms. If the owner wants them, they must be added to G3t BEFORE FINAL; they
     can never be a second run on the window.
+
+## 11:07 EST 2026-11-17 (`date`) - G3t DRAFT addendum 1: the research lead's read; a beach-gauge NO-HARM GUARD (before any read)
+- **The research lead read 755115a37:** CO-OPS truth is fine for G3t, since FES2022b + S1 is not corrected with CO-OPS
+  data and nothing leaks. The design and the 6-month seasonal phase control are accepted.
+- **ADDED to G3t as pass item 5, a NO-HARM GUARD on the independent beach gauges** (registered now, before any beach-gauge
+  value is read):
+  - **Qualifying gauges:** IOOS non-CO-OPS water-level gauges with >= 80% hourly coverage in the window after QC. QC
+    applies the provider's flags, excludes spikes and flat lines (exact rule fixed in the code review, before truth), and
+    excludes decommissioned gauges.
+  - **Score:** each series (observed, P, C) is mean-removed per gauge over the window. Local datums are then irrelevant:
+    the guard scores shape and seasonal variation, not level.
+  - **Line:** the median over qualifying gauges of RMSE(P) - RMSE(C) must be <= +0.02 m (point).
+  - **Fewer than 5 qualifying gauges:** the guard is NOT RUNNABLE and does not block. That status is printed.
+  - It can only FAIL G3t; it can never make it PASS. Every other beach-gauge row stays reported.
+  - C is the Open-Meteo reference (test only), as everywhere in this gate.
+- **For the SURGE registration (the research lead, on the director's approved interim look):**
+  - Any interim look is pre-registered with an alpha-spending rule, e.g. O'Brien-Fleming boundaries for one interim and
+    one final.
+  - Its timing is fixed in advance (e.g. 6 months, or N pooled storm events).
+  - The interim may stop for FUTILITY or REPORT only. It can NEVER declare a PASS on a lenient boundary.
+  - The advisor's no-early-stop condition must be reconciled with "stop for futility" in that registration.
