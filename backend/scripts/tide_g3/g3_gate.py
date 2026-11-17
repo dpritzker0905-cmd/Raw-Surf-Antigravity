@@ -27,6 +27,8 @@ import sources as S                                             # noqa: E402  (t
 from fes_gate import FES_CONSTITUENTS, IDS, NTDE_STEP_MIN, ntde_dates, rss_mb   # noqa: E402
 
 REGISTRATION = "G3"
+LEAD_NOTE = ("Leads are counted from the forecast's CYCLE time, not its publication time: STOFS appears some hours after "
+             "its cycle, so the '0-24 h' bin includes forecasts 0-6 h old that a live product could not yet have had.")
 W0, W1 = datetime(2026, 8, 25, tzinfo=timezone.utc), datetime(2026, 9, 7, 23, tzinfo=timezone.utc)
 PRE0 = datetime(2026, 7, 26, tzinfo=timezone.utc)                 # the 30 days BEFORE the window
 YEAR0 = W0 - timedelta(days=365)
@@ -346,6 +348,9 @@ def score(x):
     return {"registration": REGISTRATION, "window": [W0.isoformat(), W1.isoformat()], "primary": prim,
             "s1_preflight": {"ok": x["s1_ok"], "why": x["s1_why"]}, "s1_cells": x["s1_cells"], "seen": SEEN,
             "verdict": verdict, "datum_label": G.datum_label(item1, item1_dm), "items": items,
+            "lead_note": LEAD_NOTE,
+            "s1_unavailable_gauges": sorted(g for g, v in x["s1_cells"].items() if "unavailable" in v),
+            "item2_p1_undefined_count": sum(1 for v in item2_g.values() if v == "P1 undefined"),
             "item1": {"P1_minus_D": i1d[:3], "P1_minus_C": i1c[:3], "demeaned_P1_minus_D": i1d_dm[:3],
                       "demeaned_P1_minus_C": i1c_dm[:3], "per_gauge_P1_minus_D": i1d[3]},
             "item2_gauges_worse": item2_g,
@@ -369,10 +374,11 @@ def markdown(r):
              f"Item 1 (P1 - D, P1 - C; point, 95% CI): {r['item1']['P1_minus_D']}, {r['item1']['P1_minus_C']}. "
              f"Items: {r['items']}. Controls: {r['controls']}. Item 3 ({r['item3']['label']}): runnable "
              f"{r['item3']['runnable']}, {r['item3']['P1_minus_A']}. Datum label: {r['datum_label']}.", "",
+             f"S1 unavailable at: {r['s1_unavailable_gauges']} (each counts against P1 in item 2: {r['item2_p1_undefined_count']}).", "",
              "| arm | gauges | median RMSE raw | open-20 | by lead | bias / sd |", "|---|---|---|---|---|---|"]
     for k, v in r["reported"]["arms"].items():
         lines.append(f"| {k} | {v['n_gauges']} | {v['median_rmse_raw']} | {v['median_rmse_open20']} | {v['by_lead']} | {v['bias_sd_median']} |")
-    lines += ["", f"Seen before the run: {r['seen']}", "",
+    lines += ["", r["lead_note"], "", f"Seen before the run: {r['seen']}", "",
               "Credits: FES2022 - \"The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made "
               "freely available by AVISO\" (DOI 10.24400/527896/A01-2024.004). NOAA STOFS-2D-Global, STOFS-3D-Atlantic and "
               "CO-OPS. E.U. Copernicus Marine Service (altimetry SLA, GLO12). Open-Meteo (test-only references)."]

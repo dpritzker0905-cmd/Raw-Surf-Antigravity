@@ -850,3 +850,32 @@ advisor first. Its checklist:
   item-1 median) is strict. If STOFS's surge adds skill at only a few gauges, the run can come out VOID on it. That is
   the registered rule; it is written here so it is not a surprise.
 - **Not done:** no run of the gate. The advisor reads the code head first; then the owner's word.
+
+## 21:31 EST 2026-11-16 (`date`) - advisor read the G3 code (02:22Z): ACCEPTABLE against the registration; B done, A open
+**Advisor:** "THE SIX CHECKLIST ITEMS HOLD ... ACCEPTABLE AGAINST THE REGISTRATION" at 7b454153c. Review only; nothing run.
+
+**B - the armed smoke workflow (done).**
+- Run 43985791566 (`tide-g3-cm-smoke.yml`, Copernicus credentials, ONE gauge, dates outside the window, no truth) was
+  started by MY push to `claude/tide-m1-eot20-check` at 00:12Z, as part of building, under the owner's "Yes, build it"
+  (18:23 EST). There was no separate word for that credentialed run. Recorded as such.
+- Both check-branch workflows (`tide-g3-cm-smoke.yml`, `tide-eot20-convention.yml`) were then DELETED from that branch
+  in a commit that starts nothing; the listing shows 0, and no new run started. No stray push can run them again.
+
+**Labels for the result (added to the code; no rule changed):**
+- The lead table carries: leads are by CYCLE time, not publication time, so the "0-24 h" bin includes forecasts 0-6 h
+  old that a live product could not yet have had.
+- `pip freeze --all` goes into the artifact (numpy, scipy, xarray, pandas and netCDF4 are unpinned).
+- The result prints the gauges where S1 failed and how many count against P1 in item 2.
+- The summary and artifact are public the moment the run ends: I read the verdict line first and tell the owner in
+  this session; the advisor reads the log and the JSON before anything goes into a decision.
+
+**A - two controls that can VOID for lack of power (OPEN; the owner's / director's decision, written BEFORE the run):**
+- "Constant non-tidal loses item 1" reads the MEDIAN-gauge difference. With surge at about 9 of 26 gauges, the median
+  can tie.
+- "+24 h shift loses item 3" needs a lower bound above 0 from a bootstrap over 3 storms (27 resamples).
+- **Option 1 - amend** (comes after the truth-only look; stated as such):
+  - the constant control is read on POOLED squared error over all gauge-hours (gauge x 2-day blocks);
+  - a failed shift control makes ITEM 3 inconclusive, not the run VOID;
+  - the positive and label-swap controls stay VOID controls.
+- **Option 2 - run as registered:** a VOID from either control is recorded as "no measurable effect of the non-tidal
+  term on this window", with no re-run on it.
