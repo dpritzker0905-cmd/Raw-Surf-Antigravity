@@ -331,7 +331,9 @@ def test_scrub_swap_finds_the_current_object_of_the_other_hour():
 @pytest.mark.parametrize("workflow", ["forecast-ingest.yml", "forecast-ingest-pilots.yml", "precompute.yml"])
 def test_every_manifest_writer_reads_the_one_repo_variable(workflow):
     text = (REPO / ".github" / "workflows" / workflow).read_text(encoding="utf-8")
-    assert re.search(r"^\s+PRODUCT_RUN_KEYED_NAMES: \$\{\{ vars\.PRODUCT_RUN_KEYED_NAMES \|\| '0' \}\}\s*$", text, re.M)
+    # ON by default since 2026-11-17 (the owner's ship-on rule); the repo variable '0' is the kill switch, and
+    # test_only_the_canonical_on_value_enables_it proves '0' writes the legacy names (the pre-flip output).
+    assert re.search(r"^\s+PRODUCT_RUN_KEYED_NAMES: \$\{\{ vars\.PRODUCT_RUN_KEYED_NAMES \|\| '1' \}\}\s*$", text, re.M)
 
 
 def test_the_registry_lists_it_dark():
