@@ -11,7 +11,7 @@ import random
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build_spot_class import DATA, EVIDENCE, SNAPSHOT, classify  # noqa: E402
+from build_spot_class import DATA, EVIDENCE, SNAPSHOT, classify, classify_v2  # noqa: E402
 
 LABELS = os.path.join(DATA, "spot_class_labels.json")
 GATED = ("beach", "inlet_jetty", "point_headland", "reef")
@@ -64,14 +64,14 @@ def null_precision(pairs, countries):
     return {c: round(s / n, 3) if n else None for c, (s, n) in sums.items()}
 
 
-def score(labels, spots, ev, **switches):
+def score(labels, spots, ev, classifier=classify, **switches):
     rows, missing = [], []
     for lab in labels:
         s = spots.get(lab["id"])
         if s is None:
             missing.append(lab["id"])
             continue
-        rows.append((lab["label"], classify(s, ev.get(lab["id"]), **switches)[0], s.get("country") or ""))
+        rows.append((lab["label"], classifier(s, ev.get(lab["id"]), **switches)[0], s.get("country") or ""))
     known = [(l, p, c) for l, p, c in rows if l != "unknown"]
     pairs = [(l, p) for l, p, _c in known]
     conf = {}
@@ -90,6 +90,63 @@ def verdict(m):
         fails.append("unknown_share")
     null_bad = [c for c in GATED if (m["null_precision"][c] or 0) >= NULL_MAX]
     return fails, null_bad
+
+
+MIN_PREDICTED = 25
+V2_SEED, V2_BOOT = 20261117, 2000
+
+
+def _weighted(rows):
+    """rows: [(label, prediction, weight)]. Weighted precision and base rate per gated class over known labels, and the weighted
+    unknown share over all rows (B2 v2 amendment 2a)."""
+    known = [(l, p, w) for l, p, w in rows if l != "unknown"]
+    wk = sum(w for _l, _p, w in known) or 1.0
+    wall = sum(w for _l, _p, w in rows) or 1.0
+    out = {"unknown_share": sum(w for _l, p, w in rows if p == "unknown") / wall, "classes": {}}
+    for c in GATED:
+        wp = sum(w for _l, p, w in known if p == c)
+        tp = sum(w for l, p, w in known if p == c and l == c)
+        out["classes"][c] = {"precision": tp / wp if wp else None, "base": sum(w for l, _p, w in known if l == c) / wk,
+                             "predicted_raw": sum(1 for _l, p, _w in known if p == c)}
+    return out
+
+
+def score_v2(rows_by_frame):
+    """rows_by_frame: {frame: (frame_size, [(label, prediction), ...])}. Weight = frame size / frame sample. Gate (log 2 + 2a): per
+    gated class, >= MIN_PREDICTED raw predictions (else UNDETERMINED), weighted precision >= 0.75, and the stratified-bootstrap
+    lower bound of weighted precision above the weighted base rate; weighted unknown share <= 0.30."""
+    flat = []
+    for frame, (size, rows) in rows_by_frame.items():
+        w = size / len(rows) if rows else 0.0
+        flat += [(l, p, w, frame) for l, p in rows]
+    point = _weighted([(l, p, w) for l, p, w, _f in flat])
+    rng = random.Random(V2_SEED)
+    boots = {c: [] for c in GATED}
+    groups = {}
+    for r in flat:
+        groups.setdefault(r[3], []).append(r)
+    for _ in range(V2_BOOT):
+        sample = [g[rng.randrange(len(g))] for g in groups.values() for _k in range(len(g))]
+        b = _weighted([(l, p, w) for l, p, w, _f in sample])
+        for c in GATED:
+            if b["classes"][c]["precision"] is not None:
+                boots[c].append(b["classes"][c]["precision"])
+    verdicts = {}
+    for c in GATED:
+        pc = point["classes"][c]
+        v = sorted(boots[c])
+        lo = v[int(0.025 * len(v))] if v else None
+        pc["ci"] = [round(lo, 3) if lo is not None else None, round(v[int(0.975 * len(v)) - 1], 3) if v else None]
+        if pc["predicted_raw"] < MIN_PREDICTED:
+            verdicts[c] = "UNDETERMINED"
+        else:
+            ok = (pc["precision"] or 0) >= PRECISION_MIN and lo is not None and lo > pc["base"]
+            verdicts[c] = "PASS" if ok else "FAIL"
+    unknown_ok = point["unknown_share"] <= UNKNOWN_MAX
+    determined = [v for v in verdicts.values() if v != "UNDETERMINED"]
+    overall = "PASS" if unknown_ok and determined and all(v == "PASS" for v in determined) else "FAIL"
+    return {"weighted": point, "verdicts": verdicts, "unknown_ok": unknown_ok, "overall": overall,
+            "undetermined": [c for c, v in verdicts.items() if v == "UNDETERMINED"]}
 
 
 def main():
