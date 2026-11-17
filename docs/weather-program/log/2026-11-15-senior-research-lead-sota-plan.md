@@ -2133,3 +2133,15 @@ USGS coastal tidal water level in Florida is nearly absent (1 active site at par
   - The 64 GB v2.1 retrospective is skipped.
   - The helper/LongCat decode_frame hardening findings (header/descriptor bounds, gzip size cap) went to the
     director for a writer lane.
+
+- 2026-11-17 10:48 -0500: **Director assignments.**
+  - Tide: G3 VOID. G3t (tide + seasonal, no surge) gets a retrospective gate on Jan-Jul 2026 and ships ON on a PASS.
+    Surge gets a prospective v3.1 gate on independent IOOS/Hohonu beach gauges, >= 12 months, with an interim look.
+    G3b is dropped.
+  - The inf-Tp guard goes to the repair lead.
+  - Learning loop A+B: the helper is the writer.
+  - Flywheel F2 (scorecards) and gap 1 (wave reforecast archive): the next free lane (the verifier is first). F1 waits
+    for F2.
+  - Cold start: the animation lane (offline, seeded).
+  - **Research-lead note for the surge interim look:** pre-register it with an alpha-spending rule (e.g.
+    O'Brien-Fleming), so the interim cannot inflate the false-pass rate.
