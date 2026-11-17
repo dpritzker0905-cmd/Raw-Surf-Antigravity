@@ -218,8 +218,9 @@ def _arm_fields(z, L, k_by_bin, gf_gefs, gf_aifs=1.0, lags=None):
     out["ens_mean_raw"] = (r["u"], r["v"], r["speed"], r["gust"])
     k = k_by_bin.get(bin_of(L), 1.0)
     out["ens_mean_debias"] = (r["u"] * k, r["v"] * k, r["speed"] * k, r["gust"])
-    c = ec.control_only(U, V, G)
-    out["ens_cf"] = (c["u"], c["v"], c["speed"], c["gust"])
+    if int(z["ens_has_cf"]) if "ens_has_cf" in z else True:   # amendment 5: no control after 2026-05-13 00Z
+        c = ec.control_only(U, V, G)
+        out["ens_cf"] = (c["u"], c["v"], c["speed"], c["gust"])
     for arm, lead in (("loop", L % LOOP_DAYS_H), ("persist180", 180)):
         if f"hres_10u_{lead}" in z:
             u, v, g = z[f"hres_10u_{lead}"], z[f"hres_10v_{lead}"], z[f"hres_10fg_{lead}"]

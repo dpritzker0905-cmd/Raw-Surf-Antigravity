@@ -158,3 +158,13 @@ height field; tested). 14 tests; all surf-truth suites 80 pass; route-identity c
 ## 21:40Z Decision: no second-admin rule for anchor promotion
 
 David, 2026-11-16 16:34 EST (typed in the director's session): "I dont think its an issue for any admin to promote someone to an anchor. We can always change the admin rights levels later." Any admin may make anyone an active anchor; self-appointment stays logged with self:true.
+
+## 2026-11-17 02:29Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '18:50Z Advisor conditions on #980 (three) and #981 (one) closed' ran AHEAD of the clock: it was committed at 2026-11-16T18:30:13Z, 20 minutes before the time it
+states. It was an estimate, not a clock reading (LESSONS L-P10). Every earlier "HH:MMZ" header in this lane's logs was
+estimated; their authoritative times are their git commit times. Since 2026-11-16 ~22:56Z the lane reads `date -u`.
+
+## 2026-11-17 02:46Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '19:10Z Anchors B built locally (stacked on anchors A): admin API + append-only admin action log' ran AHEAD of the clock: it was committed at 2026-11-16T18:36:17Z, 34 minutes before the time it states (an estimate; LESSONS L-P10).

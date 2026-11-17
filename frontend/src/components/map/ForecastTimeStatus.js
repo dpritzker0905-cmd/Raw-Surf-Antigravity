@@ -6,7 +6,8 @@ import { describeDrawnFrame, describeCoarseGrid, describeNothingDrawn, latticeNe
 import { getSeriesAnchorMs, getSharedValidTime } from './backendWeatherServiceClient';
 import { HOLD_INDICATOR_MS, holdNoDimKilled } from './marineStaleHour';
 import { useRasterDrawnFrame, describeRasterFrame, RASTER_STATUS_LAYERS, PENDING_QUIET_MS } from './rasterDrawnFrame';
-import { ratingBandHeldText, ratedRunText } from './marineRatingBandRes';
+import { ratingBandHeldText } from './marineRatingBandRes';
+import { readRatedRunState } from './staleLayerState';
 import { ratingBandLoadingText } from './marineFlavorToggle';
 import { useColdVeilState, describeColdVeil } from './marineColdVeil';
 
@@ -81,12 +82,9 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
     return ratingBandLoadingText(rb && rb.forcedOff, window.__RAW_BAND_TOGGLE_AT__) ? 'loading' : null;   // just switched ON, the rating grid still on its way
   };
   const [heldBy, setHeldBy] = useState(readHeldBy);
-  // The band's RUN AGE (marineRatingBandRes.ratedRunText): read off the grid the engine is painting, only while the band is painted.
-  const readRatedRun = () => {
-    if (typeof window === 'undefined' || !window.__RAW_GPU__ || !window.__RAW_GPU__.ratingBand || !window.__RAW_GPU__.ratingBand.active) return null;
-    const e = window.__MARINE_ENGINE__; const g = e && e._waveData && e._waveData.waveGrid;
-    return g && g.ratingMode && g.ratedRun ? ratedRunText(g.ratedRun) : null;
-  };
+  // The band's RUN AGE: the ONE shared reader (staleLayerState.readRatedRunState: the painted grid, only while the band is painted and
+  // not held), so a header chip reading the same function can never disagree with this line.
+  const readRatedRun = () => { const st = readRatedRunState(); return st ? st.text : null; };
   const [ratedRunLine, setRatedRunLine] = useState(readRatedRun);
   const pendingKey = readout && readout.state === 'pending' ? readout.text : null;
   const [longPending, setLongPending] = useState(false);
