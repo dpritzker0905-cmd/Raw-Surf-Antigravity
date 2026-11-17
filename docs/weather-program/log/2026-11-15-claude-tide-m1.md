@@ -1884,3 +1884,44 @@ Where an addendum changed the draft, the addendum governs.
 1. The code (G3 parameterised), to the advisor before any fetch: the trigger, credentials on single steps, no score in
    the log, the S1 preflight and NO VERDICT rule, the three arms, truth last, the parity test skeleton.
 2. The owner's word, typed in this session, under the one-shot tag `tide-gate-G3t`.
+
+## 14:09 EST 2026-11-17 (`date`) - FINDING (metadata and maps only; NO water value read): the Hohonu "beach" gauges are BACK-BARRIER, not surf beaches
+**What was read:**
+- The IOOS ERDDAP `allDatasets` listing: id, title, position and time range.
+- The info page of 3 datasets.
+- Mapbox street maps at 8 gauge positions.
+
+**What was not read:** no water-level value. The only value-like field seen is Duck's `actual_range` attribute (-8.1 ..
+1.88 m over its whole record), a metadata min/max that is not window-specific. Recorded as seen.
+
+**The finding:**
+- 52 Hohonu datasets are listed (some are SECOORA duplicates; 7 are marked decommissioned). The variable is
+  `water_surface_above_navd88` (vertical_datum NAVD88), with QARTOD qc_agg / qc_tests.
+- **Every one of the 8 named "beach" gauges sits on the SHELTERED side of its barrier island, not the ocean:**
+  - Duck (Currituck Sound side);
+  - Surf City (ICW / Topsail Sound, at the bridge);
+  - Sanibel (San Carlos Bay, at the causeway);
+  - Isle of Palms (back-barrier marsh creek);
+  - Ocean Isle (ICW / canal side);
+  - Kiawah (Kiawah River marsh);
+  - Edisto (Big Bay Creek, back side);
+  - Captiva (Pine Island Sound side).
+- Many other titles name bridges, boat ramps, rivers, docks or estuaries. These are dock and bridge air-gap sensors.
+
+**Consequences:**
+1. **G3t (FINAL, unchanged):** item 5's registered sheltered-water exclusion will remove most or all of these. With
+   fewer than 5 qualifying gauges, item 5 is NOT RUNNABLE and does not block, as registered. The beach rows are reported
+   as "back-barrier" rows.
+2. **Surge gate:** the research lead's premise (independent truth ON surf beaches) does not hold for Hohonu.
+   - They are independent of CO-OPS, but back-barrier: inlet friction damps and lags tide and surge there.
+   - They are a Tier-3 "inland attenuation" set, not open-coast truth.
+   - Open-coast independent truth must be found BEFORE the surge registration.
+
+**Second opinion (Reflection Beam, asked per the owner's instruction; SubQ chat refused: the key lacks subq-preview).**
+Advisory only; its specifics are to be verified:
+- The candidates are USACE FRF Duck's own sensors (NOT CO-OPS 8651370 on the same pier), CDIP / nearshore bottom-pressure
+  records (wave-contaminated; mean water level must be derived), USGS STN (event-based only), GNSS-IR coastal sites
+  (independent but sparse), and SWOT KaRIn (independent spatial snapshots on a ~21-day repeat, degraded within a few km of
+  the coast; not hourly truth).
+- Its suggestion is a tiered truth set: Tier 1 open-coast (FRF, QC'd pressure records, GNSS-IR, SWOT snapshots, STN
+  peaks); Tier 2 inlets; Tier 3 back-barrier (Hohonu) for attenuation. Results stratified by exposure and distance.
