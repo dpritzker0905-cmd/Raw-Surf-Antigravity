@@ -247,7 +247,7 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
     expect(ownFramesOn('satellite', 'GFS')).toBe(false);
   });
   test('ON by default (D-052; pressure 2026-11-12): no lever needed; rain stays dark; fog / EURO air + water temp OFF pending the owner', () => {
-    expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure']);
+    expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure', 'gusts', 'currents']);   // gusts, currents: new own-only layers, ON (2026-11-15)
     expect(DEFAULT_ON_MODELS).toEqual({});
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
