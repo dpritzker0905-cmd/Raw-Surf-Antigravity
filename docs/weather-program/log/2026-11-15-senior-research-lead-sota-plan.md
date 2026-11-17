@@ -2065,3 +2065,9 @@ Targeted reports improve discrimination, not bias estimation.
    scores.
 
 **Bottom line (all three agree):** the bottleneck is TRUTH and VERIFICATION ARCHIVES, not search.
+
+- 2026-11-17 10:01 -0500: **Helper learning-loop proposal folded into the flywheel (F5 plus the registry).** 64 of 168 lessons have an
+  executable check. Backfill order: science lessons first, sorted by served-number impact and recurrence.
+  - Judgement lessons get a stated-reason exemption (the exemption share is tracked).
+  - Every new check must fail on a seeded violation (mutation-tested).
+  - The director assigns the build.
