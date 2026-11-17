@@ -2149,3 +2149,8 @@ USGS coastal tidal water level in Florida is nearly absent (1 active site at par
 - 2026-11-17 11:09 -0500: The G3t no-harm guard was added as pass item 5 (9d56192d1). The surge interim is reconciled with the advisor's
   no-early-stop rule: REPORT-ONLY, so no alpha is spent. It cannot end the window, change a threshold or serve; any
   later amendment is a new registration; its timing is fixed in advance.
+
+- 2026-11-17 11:48 -0500: **G3t addendum 2 read: READY FOR FINAL** from the research lead (no conditions); recommend no v2.1 arms.
+  - Non-blocking: scope says "seasonal term verified for the months tested" (Jan-Jul is half a cycle); the F2
+    scorecard watches Aug-Dec after shipping.
+  - The licence record-keeping (AVISO 7.3, CMEMS 2.6) goes on the build checklist.
