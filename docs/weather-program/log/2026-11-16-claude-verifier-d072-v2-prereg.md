@@ -189,17 +189,20 @@ verdict, and nothing pages on the three-rule split.
 
 ## 3. The owner's answer on rule 1 alone, recorded 2026-11-16 13:52Z
 
-**The question.** After section 2's FAIL, the advisor asked David whether rule 1 v2 should be adopted alone as a pager.
+**The question.** After section 2's FAIL, the advisor asked David (13:04Z, in the advisor's session) whether rule 1 v2
+should be adopted alone as a pager under its own short registration, leaning "not yet".
 
-**His answer, verbatim,** typed in the ADVISOR's session (local_b2fa8830) at 08:45 EST on 2026-11-16 (13:45Z), as relayed
-by the advisor: "If "not yet" is the SOTA way, than okay".
+**His answer, verbatim:** the third bullet of his message, typed in the ADVISOR's session (local_b2fa8830) at 08:45 EST
+on 2026-11-16 (13:45:31Z), as relayed by the advisor and checked against that session's transcript: "If "not yet" is
+the SOTA way, than okay". The quote is that bullet only, not the whole message.
 
 **What it means.** The answer is conditional on "not yet" being best practice. The advisor told David why it is: a new
 alerting rule runs in SHADOW, logging what it would have paged and paging no one, until its false-page rate is known on
-live data, because a pager that fires on non-faults gets ignored. This replay could not measure that rate:
-- unseeded CHANGE drifted about -0.04 m in a fortnight, twice B1;
-- the sign-swap null cannot produce such a drift;
-- rule 1's design is in-sample for November after 1a-1d.
+live data, because a pager that fires on non-faults gets ignored (the advisor's reply, 13:52:33Z). This replay could not
+measure that rate:
+- unseeded CHANGE drifted about -0.04 m in a fortnight, twice B1 (told to David in that reply);
+- the sign-swap null cannot produce such a drift (from the advisor's score note; not in the reply to David);
+- rule 1's design is in-sample for November after 1a-1d (from the advisor's score note; not in the reply to David).
 
 **Decision: rule 1 does NOT page.** Nothing pages on the D-072 split.
 
