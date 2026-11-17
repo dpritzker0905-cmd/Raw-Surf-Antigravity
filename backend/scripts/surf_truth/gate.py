@@ -12,7 +12,7 @@ from typing import Optional
 
 import numpy as np
 
-from .prep import FT, entry_interval_m, entry_point_m, independent
+from .prep import FT, entry_interval_m, entry_point_m, independent, row_seed
 
 SEED = 20261116
 SCALE_TO_FACE = {"face": 1.0, "hawaiian": 2.0}
@@ -71,7 +71,6 @@ def bootstrap_ratio_ci(model_err, base_err, groups, n_boot: int = 2000, seed: in
 def score(targets: list[dict], predictive: dict, others_by_target: dict, spot_class: dict) -> dict:
     """Score every target. `predictive[row_key]` = posterior-predictive draws (metres, target's declared scale);
     `others_by_target[row_key]` = the cell's non-target rows (inputs at scoring, amendment 2 B)."""
-    rng = np.random.default_rng(SEED)
     recs = []
     for t in targets:
         # amendment 3.5: ONLY reports independent of the target, for the baseline as for the model's update
@@ -83,9 +82,35 @@ def score(targets: list[dict], predictive: dict, others_by_target: dict, spot_cl
         recs.append({
             "class": spot_class[t["spot_id"]], "anchor": t["observer_key"], "day": t["received_at"][:10],
             "err_model": abs_log_error(float(np.median(draws)), t), "err_base": abs_log_error(base, t),
-            "covered": covered(randomized_pit(draws, t, rng)),
+            "covered": covered(randomized_pit(draws, t, np.random.default_rng(row_seed(t["row_key"])))),
+            "row_key": t["row_key"],
         })
-    return summarize(recs)
+    out = summarize(recs)
+    out["records"] = recs          # for the paired negative control; dropped from the written run record
+    return out
+
+
+def shuffled_significantly_better(real_recs: list, shuffled_recs: list, n_boot: int = 2000, seed: int = SEED) -> dict:
+    """Amendment 4.1: VOID only if the shuffled fit's improvement exceeds the real one with a paired day-block
+    bootstrap 95% interval of the difference entirely above 0 (same targets in both)."""
+    real = {r["row_key"]: r for r in real_recs}
+    pairs = [(real[s["row_key"]], s) for s in shuffled_recs if s["row_key"] in real]
+    if not pairs:
+        return {"pairs": 0, "significantly_better": False, "ci95": None}
+    days = np.array([p[0]["day"] for p in pairs])
+    rb = np.array([p[0]["err_base"] for p in pairs])
+    rm = np.array([p[0]["err_model"] for p in pairs])
+    sm = np.array([p[1]["err_model"] for p in pairs])
+    rng = np.random.default_rng(seed)
+    uniq = np.unique(days)
+    idx = {d: np.flatnonzero(days == d) for d in uniq}
+    diffs = []
+    for _ in range(n_boot):
+        pick = np.concatenate([idx[d] for d in rng.choice(uniq, size=uniq.size, replace=True)])
+        base = max(rb[pick].mean(), 1e-12)
+        diffs.append((1 - sm[pick].mean() / base) - (1 - rm[pick].mean() / base))
+    lo, hi = float(np.percentile(diffs, 2.5)), float(np.percentile(diffs, 97.5))
+    return {"pairs": len(pairs), "ci95": [lo, hi], "significantly_better": lo > 0.0}
 
 
 def improvement_with_ci(recs: list[dict]) -> dict:

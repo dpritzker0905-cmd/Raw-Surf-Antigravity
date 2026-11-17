@@ -48,3 +48,15 @@ synthetic world) is running and is owed BEFORE the first real run; its result is
 fraction 0.000 (<= 0.001): CONVERGED by amendment 2 D. Wall time 445 s on this laptop (CPU). LIMIT: 8 observers; a
 real stream has many more per-observer parameters (b_j, sigma_j), which costs sampling time and may lower ESS, so the
 first real run's own diagnostics decide (VOID if they fail), and run time should be re-measured then.
+
+## 2026-11-17 00:10Z (from `date -u`) Advisor red-team of the fit code: amendment 4 registered first, then the code
+
+The advisor read dd10ee260 (before the research lead's fixes; items 2, 3 and two smaller ones were already fixed at
+aa0505456). Amendment 4 on #989 (83d09b81f, 00:00:32Z) registers the rest before any data. Code: the floor counts EVERY
+registered class (one with no data blocks the run); all three fits must converge or the run is VOID; the run takes its
+model version from a CLEAN git tree, requires the review to name that exact commit, runs the model tests first and
+records the result, and scores only targets received after its commit when an earlier version has been scored; the
+newest export copy of a row wins; the negative control voids only when the shuffled fit is significantly better
+(paired day-block bootstrap); typed values under 0.5 ft are Flat; each target has its own random stream.
+Tests: 37 pass in the fit environment (34 numpy rule tests, also in CI; 3 model tests). The research lead's review at
+aa0505456/cfdaa4907 does NOT cover this code: a new review is requested.

@@ -116,14 +116,18 @@ def test_shuffle_keeps_entries_and_roles():
 
 def test_cli_refusals_and_not_runnable_without_jax(tmp_path, monkeypatch):
     out = tmp_path / "run.json"
-    common = ["--export", str(tmp_path), "--classes", str(tmp_path / "c.json"), "--model-version", "x",
-              "--out", str(out)]
-    assert run.main(common + ["--review-ref", "  "]) == 2
-    assert run.main(common + ["--review-ref", "ok", "--chains", "2"]) == 2
+    common = ["--export", str(tmp_path), "--classes", str(tmp_path / "c.json"), "--out", str(out)]
+    monkeypatch.setattr(run, "code_version", lambda: {"commit": "abc1234def", "committed_at": "2026-11-17T00:00:00+00:00"})
+    monkeypatch.setattr(run, "model_tests", lambda: {"ok": True, "summary": "30 passed"})
+    assert run.main(common + ["--review-ref", "  "]) == 2                                  # no review
+    assert run.main(common + ["--review-ref", "#992 reviewed at 9999999"]) == 2            # review of other code
+    assert run.main(common + ["--review-ref", "#992 reviewed at abc1234", "--chains", "2"]) == 2
     (tmp_path / "c.json").write_text("{}")
     monkeypatch.setitem(sys.modules, "scripts.surf_truth.model", None)   # importing the model would raise
-    assert run.main(common + ["--review-ref", "research lead review link"]) == 0
+    assert run.main(common + ["--review-ref", "#992 reviewed at abc1234"]) == 0
     assert json.loads(out.read_text())["verdict"] == "NOT RUNNABLE"
+    monkeypatch.setattr(run, "model_tests", lambda: {"ok": False, "summary": "1 failed"})
+    assert run.main(common + ["--review-ref", "#992 reviewed at abc1234"]) == 2              # failing model tests
 
 
 # ── amendment 3 / research lead review R1-R6 ──────────────────────────────────────────────────────────────────────
@@ -179,3 +183,57 @@ def test_leak_check_covers_every_row_of_held_out_spots():
     cell = prep.Cell(spot, "x", "d", rows=[row])
     assert controls.leak_check([row], [cell])["ok"] is False
     assert controls.leak_check([], [cell])["ok"] is True
+
+
+
+# ── amendment 4 (advisor red-team of the fit code) ────────────────────────────────────────────────────────────────
+
+def test_floor_counts_every_registered_class_even_one_without_data():
+    rows = synthetic.world(spots=2, days=2)
+    p = prep.prepare(rows, {"spot0": "beach", "spot1": "beach", "elsewhere": "reef"})
+    assert p.floor["per_class"]["reef"] == {"fit": 0, "holdout": 0} and p.floor["runnable"] is False
+
+
+def test_near_zero_typed_value_becomes_flat():
+    flat = prep.normalize_entry(_row(height_value=0.2, height_unit="ft"))
+    assert flat["height_bucket"] == "Flat" and flat["height_value"] is None
+    assert prep.normalize_entry(_row(height_value=0.6, height_unit="ft"))["height_bucket"] is None
+    assert prep.normalize_entry(_row(height_value=0.1, height_unit="m"))["height_bucket"] == "Flat"
+
+
+def test_per_target_random_stream_is_order_free():
+    assert prep.row_seed("a") == prep.row_seed("a") != prep.row_seed("b")
+
+
+def test_newest_export_copy_wins(tmp_path):
+    def write(name, cut, status):
+        row = {**_row(row_key="r1"), "xp_status": status}
+        (tmp_path / f"{name}.jsonl").write_text(json.dumps(row) + "\n")
+        (tmp_path / f"{name}.manifest.json").write_text(json.dumps(
+            {"schema": prep.SCHEMA, "rows": 1, "cut_at": cut, "key_fingerprint": "k"}))
+    write("b_old", "2026-12-01T00:00:00+00:00", "granted")
+    write("a_new", "2026-12-05T00:00:00+00:00", "audit_failed")   # name sorts first, cut is newer
+    rows, _ = run._exports([str(tmp_path)])
+    assert [r["xp_status"] for r in rows] == ["audit_failed"]
+
+
+def test_prior_scored_run_with_another_version_restricts_scoring():
+    version = {"commit": "new", "committed_at": "2026-12-10T00:00:00-05:00"}
+    assert run.scored_after([], version) == ""
+    assert run.scored_after([{"model_version": "new", "gate": {"n": 3}}], version) == ""
+    assert run.scored_after([{"model_version": "old", "gate": {"n": 3}}], version) == version["committed_at"]
+    assert run.scored_after([{"model_version": "old", "verdict": "NOT RUNNABLE"}], version) == ""
+
+
+def test_negative_control_voids_only_when_shuffled_is_significantly_better():
+    real = [{"row_key": f"t{i}", "day": f"d{i % 25}", "err_base": 0.3, "err_model": 0.20} for i in range(100)]
+    same = [{**r, "err_model": r["err_model"] + (0.01 if i % 2 else -0.01)} for i, r in enumerate(real)]
+    assert gate.shuffled_significantly_better(real, same)["significantly_better"] is False
+    much_better = [{**r, "err_model": 0.05} for r in real]
+    assert gate.shuffled_significantly_better(real, much_better)["significantly_better"] is True
+
+
+def test_review_ref_must_name_the_running_commit():
+    assert run.check_review("#992 reviewed at abc1234", "abc1234def") == ""
+    assert "names" in run.check_review("#992 reviewed at fff0000", "abc1234def")
+    assert "no research-lead review" in run.check_review("looks fine", "abc1234def")

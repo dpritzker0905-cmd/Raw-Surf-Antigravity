@@ -232,11 +232,12 @@ def _range_variance(o: dict):
     return (math.log(hi) - math.log(lo)) ** 2 / 12.0
 
 
-def predict_target(f: Fit, target: dict, others: list[dict], *, n_draws: int = 400, seed: int = 20261116) -> np.ndarray:
+def predict_target(f: Fit, target: dict, others: list[dict], *, n_draws: int = 400, seed: int = None) -> np.ndarray:
     """Posterior-predictive draws of the target's report (metres, the target's declared scale). `others` must be
     the cell's reports INDEPENDENT of the target (amendment 3.5); the cell's u is updated from them alone, with no
     borrowing from neighbouring cells through the random walk (conservative)."""
-    rng = np.random.default_rng(seed)
+    from .prep import row_seed
+    rng = np.random.default_rng(row_seed(target["row_key"]) if seed is None else seed)   # amendment 4.8
     total = f.samples["tau"].shape[0]
     picks = rng.choice(total, size=min(n_draws, total), replace=False)
     m_all = f.samples["m_extra"]

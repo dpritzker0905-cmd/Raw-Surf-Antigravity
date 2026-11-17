@@ -205,7 +205,7 @@ def prepare(rows: list[dict], spot_class: dict) -> Prepared:
                           "(amendment 3.1)")
     excluded: dict = defaultdict(int)
     kept = []
-    for r in rows:
+    for r in map(normalize_entry, rows):
         reason = exclusion_reason(r)
         if reason:
             excluded[reason] += 1
@@ -241,7 +241,8 @@ def floor_counts(all_cells, holdout_cells, spot_class: dict) -> dict:
     """#989 floor + amendment 2 A and G: >= 30 SCOREABLE cells per class in BOTH fit and holdout, and >= 3 active
     anchors contributing held-out scoreable reports."""
     held = {id(c) for c in holdout_cells}
-    per_class: dict = defaultdict(lambda: {"fit": 0, "holdout": 0})
+    # amendment 4.4: EVERY registered class counts, including one with no scoreable cell at all
+    per_class: dict = {cls: {"fit": 0, "holdout": 0} for cls in set(spot_class.values())}
     anchors = set()
     for c in all_cells:
         targets = scoreable_targets(c)
@@ -253,4 +254,22 @@ def floor_counts(all_cells, holdout_cells, spot_class: dict) -> dict:
             anchors.update(t["observer_key"] for t in targets)
     runnable = bool(per_class) and all(v["fit"] >= 30 and v["holdout"] >= 30 for v in per_class.values()) \
         and len(anchors) >= 3
-    return {"per_class": dict(per_class), "holdout_anchors": len(anchors), "runnable": runnable}
+    return {"per_class": per_class, "holdout_anchors": len(anchors), "runnable": runnable}
+
+
+NEAR_ZERO_M = 0.5 * FT
+
+
+def normalize_entry(row: dict) -> dict:
+    """Amendment 4.7: a typed value below 0.5 ft (0.15 m) is treated as "Flat" in the likelihood and in scoring."""
+    if row.get("height_bucket") or row.get("height_value") is None:
+        return row
+    metres = float(row["height_value"]) * (FT if row.get("height_unit") == "ft" else 1.0)
+    if metres < NEAR_ZERO_M:
+        return {**row, "height_bucket": "Flat", "height_value": None, "height_unit": None}
+    return row
+
+
+def row_seed(row_key: str, base: int = 20261116) -> int:
+    """Amendment 4.8: one random stream per target, so its result never depends on scoring order."""
+    return int(hashlib.sha256(f"{base}:{row_key}".encode()).hexdigest()[:12], 16)
