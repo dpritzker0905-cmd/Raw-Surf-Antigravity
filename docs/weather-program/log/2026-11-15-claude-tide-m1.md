@@ -1424,3 +1424,26 @@ is not a look at the prospective window. The research lead to say whether it is 
   - The tide + seasonal gate can be scored at CO-OPS gauges: no surge arm, so no leakage. It can also be scored at the
     beach gauges where they have pre-window data.
   - Both uses can't take the same unseen window cleanly; the choice is the owner's.
+
+## 10:41 EST 2026-11-17 (`date`) - Research lead AGREES with the advisor's split: the reviewers converge (owner's word pending)
+The research lead's later message supersedes their earlier path (it now drops the G3b v2.1 run):
+1. **Tide + seasonal (A + S1): a RETROSPECTIVE gate now** on the untouched 2026-01-01 .. 07-24 window (minus the held-out
+   weeks), labelled "chosen post-pilot". It ships ON under D-080 if it passes.
+2. **Surge: PROSPECTIVE on v3.1, after independence is settled.**
+   - Truth: the ~60 non-CO-OPS IOOS beach gauges (mostly Hohonu). Because v3.1 diffuses the correction across the grid, the
+     gauges are STRATIFIED by distance to the nearest CO-OPS station, and the FAR stratum is primary.
+   - Each gauge is de-meaned on a pre-window period, with QC and coverage rules (several are decommissioned).
+   - The end is >= 12 months from the start, not 2027-03-31. Storm claims need pooled-event power; otherwise INCONCLUSIVE.
+3. **The G3b v2.1 retrospective (~64 GB): SKIP.** CO-OPS scoring is contaminated, and v2.1 is not what would be served.
+4. **The level-free primary stays withdrawn**, as the advisor said; the surge primary will be re-chosen when the surge gate is
+   registered. My 10:34 reconciliation (cwl - htp fair at non-feeding gauges) stands as a question for that registration,
+   not as a choice.
+
+**Status:**
+- The advisor and the research lead both recommend the split; the owner's word is pending.
+- Order (the advisor's):
+  1. tide + seasonal registration DRAFT, then both reads, then FINAL;
+  2. the bucket-listing job (owner's word: a scheduled workflow);
+  3. confirm from documents that only CO-OPS feeds the correction, and draw up the surge truth set;
+  4. surge registration.
+- No data has been fetched.
