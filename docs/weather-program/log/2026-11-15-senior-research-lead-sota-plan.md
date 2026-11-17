@@ -1456,3 +1456,14 @@ is appended to the fit log and passes. A review of code at any other head needs 
   - version by the TREE of scripts/surf_truth, with check_review by tree diff, so a merge commit does not force a re-review;
   - prior runs read from the run store, not an optional flag.
 - No review reference is given for 700b748e0.
+
+## 2026-11-16 19:22 -0500 #992 reviewed at d0a77071a (research lead)
+
+- R7 verified: already_scored() refuses a second scored run of the same version, read from the required --run-store.
+- R8 verified: cuts are ordered by parsed instant, and a missing cut_at refuses.
+- Amendment 5 (fda3f7c0d, before any data) verified:
+  - the version is the tree of scripts/surf_truth;
+  - check_review uses git diff --quiet against HEAD (an unknown sha refuses), so any commit whose surf_truth code is
+    identical to d0a77071a is covered, including the merge commit.
+- A VOID run counts as scored (its result was seen); a NOT RUNNABLE record does not.
+- The first real run's own diagnostics still decide convergence.
