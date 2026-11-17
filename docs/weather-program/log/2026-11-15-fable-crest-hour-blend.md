@@ -1089,3 +1089,40 @@ blend with its one-weight-per-frame fix), loaded with the opt-in; offline backen
 - One thing section 35 did not say and he should know before looking: the clips show the WHOLE app (side panel, layer
   controls, scrubber), not the map alone, so the map is the middle of each clip.
 - The look is the owner's. Nothing is turned on by it; whatever he prefers is recorded with the count by layer and theme.
+
+## 41. THE OWNER'S BLINDED LOOK: NO CLEAR PREFERENCE (2026-11-17, 08:54 EST). The blend stays OFF.
+His answers, as he sent them: `p03:y p01:y p07:x p04:x p09:x p10:y p06:x p05:n p08:n p02:y`. The key was opened only after
+they arrived, by `blend_look_score.js`, once.
+
+| Pair | Layer | Theme | Layout | Zoom | He chose |
+|---|---|---|---|---|---|
+| p01 | waves | dark | desktop | 3 | hard cut |
+| p02 | waves | dark | desktop | 5 | cross-fade |
+| p03 | waves | light | desktop | 5 | hard cut |
+| p04 | waves | beach | phone | 5 | hard cut |
+| p05 | swell_1 | dark | desktop | 2.5 | no difference |
+| p06 | swell_1 | beach | desktop | 5 | cross-fade |
+| p07 | wind | dark | desktop | 3 | hard cut |
+| p08 | wind | light | desktop | 4.5 | no difference |
+| p09 | wind | dark | phone | 4 | hard cut |
+| p10 | wind | beach | desktop | 3 | cross-fade |
+
+- **Count: hard cut 5, cross-fade 3, no difference 2.** As registered in section 35 (8 or more of 10 for one side is a
+  preference): **NO CLEAR PREFERENCE.** And as registered: "a hard-cut preference or no clear preference means the blend stays
+  off."
+- Reported without a line, as registered. By layer: waves, hard cut 3, cross-fade 1; swell_1, cross-fade 1, no difference 1;
+  wind, hard cut 2, cross-fade 1, no difference 1. By theme: dark, hard cut 3, cross-fade 1, no difference 1; light, hard cut
+  1, no difference 1; beach, cross-fade 2, hard cut 1. By layout: both phone pairs, hard cut. Ten answers cannot carry a
+  claim about any of these splits; they are listed, not read.
+- **What this means, said plainly.** Every instrument line said the cross-fade is smoother and nearer the truth (step 23% of a
+  hard swap; real-frame error 29-62% of a hard swap's). The person the product is for, not knowing which was which, did not
+  prefer it, and chose the hard cut more often. The measurements were of things an instrument can see; they did not predict
+  what he liked. The count leans to the hard cut but is far from the registered threshold, so it is not read as a preference
+  for the hard cut either.
+- What the look could not tell: WHY (a fade may read as soft or laggy where a cut reads as crisp; or the two are simply hard
+  to tell apart at this size: he called two pairs no different); whether real weather, the live app or his own phone would
+  change it; whether a shorter fade would. None of that is tested. I do not propose tuning the fade to chase a preference
+  after seeing his answers without a new registration and his word.
+- **Standing of #930:** the blend is opt-in and off; merging it turns nothing on. With no preference for it there is no case
+  to make it the default. My recommendation to the director and the owner: leave the hour blend off, keep #930 as the record
+  (draft, or closed unmerged: their call), and spend the effort on the first-visit delay, which is about speed, not style.
