@@ -2043,3 +2043,30 @@ coverage line, the item 3 split, the item 5 status, the UHSLC rows and the markd
 - (b) STOFS-2D has no wave setup. Either truth is still water OUTSIDE the surf zone, or setup is a separate named arm.
   This is decided in the registration.
 - The tiered set (open coast, inlets, back-barrier) is the right shape; back-barrier is reported for attenuation only.
+
+## 14:46 EST 2026-11-17 (`date`) - Measured, MODEL FILES ONLY (no observation read): STOFS v3.1's station correction is a near-constant OFFSET carried in swl, and an UNCORRECTED total is published
+**Question (the research lead):** is the v3.1 correction an offset, or does it vary within a cycle? A NOAA technical note
+was not found (web search; only the portal text). It was checked directly instead.
+
+**Data:** one cycle, 2026-11-16 00Z, files `points.cwl.nc`, `points.cwl.noanomaly.nc`, `points.htp.nc` and
+`points.swl.nc` (1,687 points, 6-min, -6 h .. +180 h). These are model outputs only; no truth was fetched. The scripts
+are in the scratchpad (`stofs_offset*.py`).
+
+**Findings:**
+- **cwl = htp + swl exactly at every point** (median |cwl - htp - swl| = 0.0000 m). Whatever correction exists is
+  INSIDE swl.
+- **`cwl - cwl.noanomaly` (the "anomaly" term) is non-zero at 208 of 1,687 points, all of them NOAA stations** (the
+  SOUS41 CO-OPS ids: Eastport, Bar Harbor, Portland, Boston, Woods Hole, Nantucket ...).
+  - Its size: median |mean| 0.278 m.
+  - **It is NEAR-CONSTANT through the forecast:** within-cycle SD median 0.0065 m after the 6 h nowcast (max 0.066 m),
+    following a short ramp in the nowcast.
+  - Example values (first / mid / last): Boston 0.258 / 0.280 / 0.280; Fall River 0.532 / 0.280 / 0.280.
+- **Consequence 1:** at a CO-OPS station the correction behaves as an offset. A causal trailing-mean high-pass (the
+  research lead's storm band) removes almost all of it. The leak is about 0.0065 m median and up to about 0.07 m at the
+  worst station, which must be reported.
+- **Consequence 2, a new candidate arm:** `cwl.noanomaly - htp` is STOFS's surge WITHOUT the station correction, issued
+  operationally. At CO-OPS stations it is not pulled toward the gauge's last 5 days.
+  - Caveat: the v3.1 GRIDDED correction is described as applied through the open boundary conditions. If so, it lives
+    inside the model run, and noanomaly cannot remove it. Its station-level independence is therefore partial, to be
+    stated.
+- These numbers are from ONE cycle. A registration would fix a multi-cycle check (no truth) before relying on them.
