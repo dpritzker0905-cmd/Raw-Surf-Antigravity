@@ -895,3 +895,11 @@ any arm has been computed on the window; no G3 gate run exists. It changes no th
 
 Advisor (02:22Z) found either choice acceptable "provided it says it comes after the truth-only look". The code follows
 this entry, then goes to the advisor; then the owner's word for the run.
+
+## 22:00 EST 2026-11-16 (`date`) - advisor: G3 ACCEPTABLE TO START at c26af8597 (02:56Z); no open point
+- Possible results, fixed now: PASS, FAIL, INCONCLUSIVE (item 3 not runnable, or its shift check failed; the other
+  items still report) or VOID (positive control, label swap, or the pooled constant control). Whatever it is stays
+  recorded, and the window is spent either way.
+- After the run: the verdict line goes first to the owner in this session. The advisor then reads the job log and the
+  JSON and recomputes the medians from the per-gauge rows before any decision.
+- The start is the owner's word typed in this session (tag `tide-gate-G3` on c26af8597).
