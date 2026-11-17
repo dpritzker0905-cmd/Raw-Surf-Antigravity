@@ -1517,3 +1517,10 @@ There are three different questions, and each needs its own tool. Fake users can
 
 **Never:** LLM- or script-generated heights in the real stream. Fabricated observations are not truth, and they would
 contaminate the gate.
+
+## 2026-11-16 19:37 -0500 #992 reviewed at 755b4263f (research lead)
+
+Diff since d0a77071a: run.py only, plus tests.
+- Amendment 6.1: the version is the surf_truth tree plus the requirements blob, and the dirty check and code_differs cover both paths.
+- 6.2: version_since walks the commits that touch either path, oldest first; a missing path is skipped; no match refuses.
+- The store fields (run_store, earlier_records_read) are recorded. "0 exactly once" is a procedure in the fit log, not code.
