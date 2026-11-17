@@ -209,6 +209,16 @@ def s1_preflight(out_dir):
 def s1_climatology(lat, lng, work, base=(datetime(2016, 1, 1), datetime(2025, 12, 31)), min_km=10.0):
     """Day-of-year mean SLA (m, relative to 1993-2012) at the nearest cell >= min_km from the gauge with a complete daily
     record over the base. MY first, NRT for any months MY does not reach. Returns ({doy: m}, cell info) or (None, why)."""
+    s, info = s1_cell_series(lat, lng, work, base, min_km)
+    if s is None:
+        return None, info
+    clim = s.groupby(s.index.dayofyear).mean()
+    return {int(k): float(v) for k, v in clim.items()}, info
+
+
+def s1_cell_series(lat, lng, work, base=(datetime(2016, 1, 1), datetime(2025, 12, 31)), min_km=10.0):
+    """The daily SLA series (pandas, m) at the cell s1_climatology uses, and its cell info; (None, why) if none. G3t
+    splits it into a mean level M and a seasonal anomaly S (docs/weather-program/log/2026-11-15-claude-tide-m1.md)."""
     import xarray as xr
     parts = []
     for ds in (SLA_MY, SLA_NRT):
@@ -239,9 +249,7 @@ def s1_climatology(lat, lng, work, base=(datetime(2016, 1, 1), datetime(2025, 12
                 best = (dkm, la, lo, s)
     if best is None:
         return None, "no complete offshore cell within 0.6 deg"
-    s = best[3]
-    clim = s.groupby(s.index.dayofyear).mean()
-    return {int(k): float(v) for k, v in clim.items()}, {"cell_lat": float(best[1]), "cell_lon": float(best[2]), "km": round(best[0], 1)}
+    return best[3], {"cell_lat": float(best[1]), "cell_lon": float(best[2]), "km": round(best[0], 1)}
 
 
 def n1_series(lat, lng, start, end, work):

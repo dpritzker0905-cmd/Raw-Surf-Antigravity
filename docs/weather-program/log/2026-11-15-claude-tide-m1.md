@@ -1925,3 +1925,56 @@ Advisory only; its specifics are to be verified:
   the coast; not hourly truth).
 - Its suggestion is a tiered truth set: Tier 1 open-coast (FRF, QC'd pressure records, GNSS-IR, SWOT snapshots, STN
   peaks); Tier 2 inlets; Tier 3 back-barrier (Hohonu) for attenuation. Results stratified by exposure and distance.
+
+## 14:35 EST 2026-11-17 (`date`) - G3t CODE built (nothing run; no window value read); goes to the advisor before any fetch
+Owner, 13:56 EST: "Move forward on the best path toward SOTA". The code is built on the G3 code, with no rule changed
+from FINAL b6eb66fa6.
+
+**Files:**
+- `backend/scripts/tide_g3t/g3t_rules.py`: pure and tested.
+- `g3t_gate.py`: the pipeline.
+- `g3t_stations.json`: lists fixed before truth.
+- `.github/workflows/tide-g3t-gate.yml`.
+- `backend/tests/test_tide_g3t_rules.py`: 12 tests.
+- `g3_sources.s1_climatology` is refactored over a new `s1_cell_series` with identical output. G3's 11 tests and the
+  G2 guard's 10 tests still pass.
+- The estate floor fragment is now +33.
+
+**Order in the code:**
+1. The S1 preflight. A failure prints NO VERDICT and returns before any truth.
+2. FES at every point.
+3. S1 = M + S per point (serial).
+4. C and D from Open-Meteo previous_day1/2 (gate bins), plus the latest run (reported).
+5. TRUTH LAST: CO-OPS, UHSLC, any open-coast IOOS gauge.
+6. Score.
+
+The log carries stage names only (pinned by a test). The held-out weeks are cut from every truth REQUEST
+(`R.segments()`), so no held-out hour is ever fetched.
+
+**Code-review decisions (fixed before any truth; for the advisor's read):**
+- **Item 5 QC rule:**
+  - provider flag `qc_agg == 1`;
+  - spikes: |x - the centred 5 h median| > 0.5 m (centred windows only, so a 3 m-range tide is never flagged);
+  - flat lines: >= 6 identical consecutive hours.
+
+  The first draft used a 25 h median, which flagged good tidal peaks; it was caught by a test and changed before any read.
+- **Item 5 qualifying list:** **NONE.**
+  - All 43 unique Hohonu stations are classified in `g3t_stations.json`: 21 map-checked as sheltered, 15 sheltered by
+    the name rule or as an inlet pass, 7 decommissioned.
+  - **Item 5 is therefore NOT RUNNABLE by construction**, as registered.
+- **UHSLC non-US reported rows:** 19 stations, the lowest uhslc_id in each of 19 listed surf countries (deterministic,
+  metadata only). One per country keeps the run inside the job limit. They are scored mean-removed only (station zero).
+- **Workflow:**
+  - Two jobs: `download` (FES, AVISO credentials only there) and `gate` (needs download; restores THIS run's cache with
+    fail-on-cache-miss; Copernicus credentials only on the gate step).
+  - Each job has 340 min.
+  - A timeout before scoring is NO VERDICT (no score is ever printed before the end).
+- **Trend variant (reported):** M plus the base-period linear SLA slope times the days from 2021-01-01 to the window
+  mid-date.
+
+**Smoke check (synthetic arrays only, no network):** `score()` runs end to end and prints every item, control,
+coverage line, the item 3 split, the item 5 status, the UHSLC rows and the markdown.
+
+**Next:**
+1. The advisor reads the code.
+2. The owner's word, typed in this session, for the tag `tide-gate-G3t`.
