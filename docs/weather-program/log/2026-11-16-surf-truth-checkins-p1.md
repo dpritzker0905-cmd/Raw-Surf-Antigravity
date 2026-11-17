@@ -170,3 +170,17 @@ Coverage (`routes/surf_data/surf_truth_monitor.py`). No view or response shows a
 Shared ui primitives + semantic tokens only. Rendered at 375 px in light, dark and beach mode (notes:
 `t1-p1-blind-observation/admin-surf-truth-3-themes-375px.jpg`); the audit card's phone stacking was adjusted after
 that render and not re-rendered. Tests: backend 6, frontend 4 (90 admin Jest pass); lint ratchet passes.
+
+## 2026-11-17 02:29Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '18:50Z Advisor conditions on #980 (three) and #981 (one) closed' ran AHEAD of the clock: it was committed at 2026-11-16T18:30:13Z, 20 minutes before the time it
+states. It was an estimate, not a clock reading (LESSONS L-P10). Every earlier "HH:MMZ" header in this lane's logs was
+estimated; their authoritative times are their git commit times. Since 2026-11-16 ~22:56Z the lane reads `date -u`.
+
+## 2026-11-17 02:46Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '19:10Z Anchors B built locally (stacked on anchors A): admin API + append-only admin action log' ran AHEAD of the clock: it was committed at 2026-11-16T18:36:17Z, 34 minutes before the time it states (an estimate; LESSONS L-P10).
+
+## 2026-11-17 02:51Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '22:30Z Anchors C: the admin "Surf truth" area' ran AHEAD of the clock: it was committed at 2026-11-16T22:09:00Z, 21 minutes before the time it states (an estimate; LESSONS L-P10).
