@@ -2243,3 +2243,50 @@ Code and record, read on origin/dev:
 - Expected gain (D-006 held-out): about 6-10% all-sea MAE, and 7-26% in big swell. That is most of the 6-10 cm paired
   gap to the test reference.
 - The ASK 16 aggregates (per member including GFS, bias/SD, strata) can ride the same scored-rows job.
+
+## 2026-11-17 14:25 EST scored-rows-gate run 44155289880 (owner's dispatch): the #870 fallback rule reads REFUTED (control SUSPECT); the defect tracks EURO "unknown" member rows
+
+Source: the job log's table "Built CONSENSUS shadow vs the computed equal mean". Aggregates only. The rule is the one
+pre-registered in `log/2026-11-14-fable-shadow-interp-grouping.md`.
+
+**Applying the rule** (mixed cells on recorded paths with n >= 100; "reads" = shadow MAE - equal MAE):
+- **The refutation clause:** "a mixed cell on a PLAIN path with n >= 100 reads >= +0.050 m at both leads".
+  `bilinear x mixed`: +48 h n = 456, MAE 0.435 vs 0.371, **+0.064**; +72 h n = 260, 0.456 vs 0.378, **+0.078**.
+  Met, so **REFUTED: fallback sampling is not the cause.**
+- The fallback-path mixed cells (`nearest_ocean_coarse_masked`) have n = 12-13, below 100, so they do not count.
+- **The control** (stored members on plain paths must be within 0.020 m of zero):
+  `bilinear x stored` reads -0.030 (+48 h) and -0.027 (+72 h). It FAILS, so per the rule **"the comparison is
+  suspect"**.
+  - Note: all stored-member rows read shadow - equal about -0.04 m (signed) at every lead, including the +24 h
+    control. That is a separate small systematic difference whose cause is not established.
+- **Most rows (about 26k per lead) read `not recorded`.** The path field is still missing for most rows, so the test
+  rests on the minority that record it.
+
+**What the data DOES show** (the member-tier grouping):
+
+| lead | EURO / ICON tier | n | shadow - equal (signed) | shadow bias | equal bias |
+|---|---|---|---|---|---|
+| +48 | global_mid / global_mid | 12,945 | -0.044 | +0.003 | +0.047 |
+| +48 | **unknown** / global_mid | **10,138** | **+0.138** | +0.247 | +0.109 |
+| +48 | **unknown / unknown** | 4,627 | **+0.336** | +0.323 | -0.014 |
+| +72 | **unknown** / global_mid | 9,176 | **+0.138** | +0.242 | +0.104 |
+| +72 | **unknown / unknown** | 4,343 | **+0.333** | +0.318 | -0.015 |
+| +24 | unknown / unknown | 1,039 | +0.648 | +0.647 | -0.001 |
+
+- The defect follows rows where the scored EURO (and/or ICON) lane has NO stored tier, i.e. the ledger could not
+  answer that member at the point.
+- The built shadow nonetheless carried a value for it, and that value reads HIGH (+0.14 to +0.34 m, up to +0.65 m at
+  +24 h).
+- At +48/+72 h about HALF the rows are EURO = unknown.
+- It is not staleness (stale and fresh cycles read alike) and not frame snapping (snapped and on-frame read alike).
+
+**Working hypothesis (for the repair lead to test in code):** at points where the EURO lane has no stored product, the
+shadow's chooser answers EURO from a different source (an extension/estimated product or another tier), which reads
+high.
+- Check: `consensus_ingest` / `build_equal_mean_from_choosers`, the EURO chooser's source at those cells.
+- Fix candidates, each a served change with its own test:
+  - the blend refuses a member the serving and point lanes cannot answer from a stored product, or
+  - it keeps GFS / uses the mean of the stored members there.
+  Then re-read construction fidelity within 0.02 m at every lead, including the tier groups.
+
+**Not established:** the -0.04 m stored-row offset; whether the "unknown" EURO source is the extension blend.
