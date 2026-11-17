@@ -2369,3 +2369,9 @@ surf-beach truth.
   - Lead hypothesis now: the stored EURO the chooser picks at +48/72 h (another tier, an older run, or an
     _estimated/extension frame) reads high.
   - D-074 check: can the served point path reach an Open-Meteo upstream through PATH 2c?
+
+- 2026-11-17 15:20 -0500: **Confirmed (repair lead, in code):** served /point can reach PATH 2c upstream (EURO marine: MFWAM, then Open-Meteo
+  ecmwf_wam025). That is D-074 items G5/G6 (M4), now confirmed live; the director was asked to raise priority (a served
+  guard plus a CI test).
+  - No workflow sets POINT_SKIP_NATIVE_COPERNICUS, so the no-tier EURO ledger rows were most likely MFWAM-answered
+    (to be confirmed per row).
