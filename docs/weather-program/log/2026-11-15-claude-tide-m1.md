@@ -1831,3 +1831,56 @@ Sources:
 - TWL&CC: pubs.usgs.gov/publication/70259350; usgs.gov spcmsc news
 - CORA: doi 10.3389/fmars.2024.1381228
 - Hohonu QC: hohonu.notion.site/quality-control-procedures
+
+## 13:55 EST 2026-11-17 (`date`) - G3t PRE-REGISTRATION, FINAL (written before any G3t data; supersedes nothing, consolidates the draft and its addenda)
+**Basis:**
+- The draft 755115a37.
+- Addendum 1, 9d56192d1 (beach no-harm guard, item 5).
+- Addendum 2, 24eee6b51, with the header corrected in f1e48bc50 (licences; the M/S split; phase line; named datum outcome;
+  parity; scope label; non-US reported rows; smaller points).
+- The research lead's notes, 08bf79992 (scope "seasonal term verified for the months tested (Jan-Jul)"; records of use on
+  the build checklist).
+- The point-value tightening of 3b's folded condition, f1e48bc50.
+
+Where an addendum changed the draft, the addendum governs.
+
+**Reviews:** the advisor, READY FOR FINAL (16:42Z); the research lead, READY FOR FINAL with no conditions (11:46 EST).
+
+**v2.1 arms: NONE.**
+- The owner's word, typed in the research lead's session at 13:52 EST and RELAYED here by the research lead: "Ok , no
+  old-version runs it is..... keep researching toward SOTA".
+- This is also the registered default (the director, the research lead and the advisor).
+- It is recorded as relayed. Any different word the owner types in this session governs until the code is read.
+
+**The rules, in one place:**
+- **Primary:** P = A + M + S (FES2022b + mean SLA 2016-2025 + day-of-year seasonal anomaly). If the S1 preflight
+  fails, the result is NO VERDICT.
+- **Window:** 2026-01-01 00Z .. 2026-07-24 23Z, minus 03-15..03-21 and 06-15..06-21.
+- **Truth:** CO-OPS observed water at the 26 gauges, fetched last.
+- **Items (all must hold):**
+  1. P - D upper end <= -0.02 m AND P - C upper end < 0.
+  2. Per gauge, P - D <= +0.05 m.
+  3. 3a: (A + M) - A upper end < 0. 3b: P - (A + M) upper end < 0, AND the shifted arm's point must not beat P.
+  4. Tide shape: High/Low median <= 20 min; |MLLW err| median <= 0.05 m.
+  5. Beach no-harm guard (point; NOT RUNNABLE below 5 qualifying gauges).
+- **VOID controls:** the positive control (<= 0.01 m) and the label swap (> 0.3 m); coverage (more than 20% of gauges
+  excluded).
+- **Named outcome:** a raw FAIL with a mean-removed PASS is "a datum finding: the level needs a per-place reference",
+  and the verdict stays raw.
+- **Reported:** A, A + M, the shifted arm, the trend-carried M, C/D at the latest run, the 20 open-coast gauges, strata,
+  IOOS beach rows, UHSLC non-US rows.
+- **On PASS:** the owner's word to merge; ships ON with a kill switch, plus:
+  - the SCOREBOARD row;
+  - the kill-switch contract tests;
+  - the served-vs-gated parity CI (max <= 0.010 m, RMS <= 0.003 m, High/Low within 6 min);
+  - a test that no route or bucket exposes FES constants or atlas files;
+  - the FES and CMEMS credit lines wherever a prediction shows (3 themes, desktop and phone);
+  - records of use;
+  - the screen label "Tide + seasonal level (no storm surge). Checked against NOAA gauges on US coasts; unverified
+    elsewhere".
+- **Seed:** 20260101, 2000 draws, gauge x 2-day blocks.
+
+**Next:**
+1. The code (G3 parameterised), to the advisor before any fetch: the trigger, credentials on single steps, no score in
+   the log, the S1 preflight and NO VERDICT rule, the three arms, truth last, the parity test skeleton.
+2. The owner's word, typed in this session, under the one-shot tag `tide-gate-G3t`.
