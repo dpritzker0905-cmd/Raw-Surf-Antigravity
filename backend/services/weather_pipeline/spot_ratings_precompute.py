@@ -520,7 +520,7 @@ def run_spot_ratings_precompute() -> tuple:
     models = [m.strip().upper() for m in os.environ.get("SPOT_RATINGS_PRECOMPUTE_MODELS", "GFS").split(",") if m.strip()]
     hours = [int(h) for h in os.environ.get("SPOT_RATINGS_PRECOMPUTE_HOURS", "0").split(",") if h.strip()]
     resolver = _make_point_resolver()
-    # WHERE each marine point comes from (stored product, or the resolver's live upstream branch), counted on the way
+    # WHERE each marine and wind point comes from (stored product, or the live upstream branch), counted on the way
     # back and printed at the end. A pass-through: answers, rated rows and frames are unchanged (marine_source_tally).
     from services.weather_pipeline import marine_source_tally as _tally
     if _tally.enabled():
@@ -636,12 +636,12 @@ def run_spot_ratings_precompute() -> tuple:
     _counts = getattr(resolver, "counts", None)
     if _counts is not None:
         try:
-            logger.info("[spot-ratings] marine point source (waves): %s", _tally.one_line(_counts))
+            logger.info("[spot-ratings] point source, %s", _tally.one_line(_counts))
             for _line in _tally.summary_lines(_counts):
                 logger.info("[spot-ratings] %s", _line)
             _tally.write_step_summary(_counts)
         except Exception as _se:      # a report must never fail the run it reports on
-            logger.warning("[spot-ratings] marine point source report skipped: %s", _se)
+            logger.warning("[spot-ratings] point source report skipped: %s", _se)
     logger.info("[spot-ratings] precompute complete: %d spots, %d frames live (%s × hours %s, %d models fresh).",
                 len(spots), n_frames_uploaded, models, hours, len(replaced))
     return len(spots), n_frames_uploaded

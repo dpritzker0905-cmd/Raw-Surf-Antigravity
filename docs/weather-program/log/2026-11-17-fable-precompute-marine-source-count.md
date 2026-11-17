@@ -87,3 +87,29 @@ that returned zero and were dropped. The count this PR adds is the number that i
 
 **Authority.** David typed "Count in precompute" in this session. The director records that he also typed "Measure
 first" in the advisor's session (15:16 EST); I did not see that typed and cite it as the director's relay.
+
+## 2026-11-17 21:42Z Wind is counted too, in its own table
+
+**Asked for by David**, typed in the ADVISOR's session at 16:09 EST ("Count wind too") and relayed to me by the
+advisor; I did not see it typed. It stays logging only.
+
+- `rate_one_spot` asks the same resolver for wind (`spot_ratings.py`, the `domain="wind", layer="wind"` call), so the
+  wrapper already saw those calls and passed them through uncounted. They are now counted.
+- **Two tables, never pooled:** WAVES and WIND, each by model and lead band. The counter's key is
+  (table, model, lead band, source). Any other layer (swell partitions, pressure, gusts) passes through uncounted.
+- **The classifying rule for wind, read from code:** the same as for waves. The sampler stamps `product_id` on every
+  answer it samples from a stored product, whatever the domain (`sampler.py`, both response constructions). The
+  live wind branch (`point_direct_fallbacks.build_wind_direct_point_response`) sets no product id and names
+  `provider="open-meteo"`, `upstream_provider="open-meteo"` and an upstream model. A test builds a wind answer with
+  that real function and asserts it lands on `upstream:open-meteo:<model>`.
+- The byte-identical test now gives the real `rate_one_spot` a stored and a live answer for wind as well, asserts
+  the wind counts, and first proves the wind answer reaches the rated row (the frames differ with and without it).
+- 47 tests in the new file; the guards lane must read 4053 passed.
+
+**Post-deploy check (D-080), the advisor's.** The first scheduled precompute run after merge must print both
+tables. At hours 0 and +3 the WAVES table should land near the advisor's manual count from the log of run
+44132744032: ICON about 8% not stored, EURO about 4% through Open-Meteo plus the masked-MFWAM points, GFS 7 to 12%.
+A table far from that means the counter or that reading of the log is wrong. There is no prior count for wind.
+
+**Not done.** The kill switch is not registered in `_RATING_FLAGS`: it moves no number, and
+`test_flag_lane_parity` passes without it.

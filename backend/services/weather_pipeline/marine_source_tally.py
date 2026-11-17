@@ -1,4 +1,4 @@
-"""marine_source_tally.py: count, for the precomputed spot ratings, WHERE each marine point came from.
+"""marine_source_tally.py: count, for the precomputed spot ratings, WHERE each marine and wind point came from.
 
 WHY (owner, 2026-11-17: "Count in precompute"). When no stored product answers a marine point the point
 resolver takes its "2c" branch, a LIVE upstream: Open-Meteo's marine API for GFS and ICON, and for EURO first
@@ -11,9 +11,15 @@ Nobody could say how many SERVED spot-frames that is, by model and lead. This pr
 WHAT IT COVERS. The served ratings stage only: the one `precompute_spot_ratings` call per model in
 `run_spot_ratings_precompute`. The buoy-scoring stage builds its own resolver and is not counted here.
 
+WIND TOO (owner, 2026-11-17, typed in the advisor's session and relayed: "Count wind too"). `rate_one_spot` asks the
+same resolver for wind, and the wind branch has the same live fallback (`build_wind_direct_point_response`, Open-Meteo).
+Wind is counted in its OWN table and never pooled with waves: the sources and the stored-product rules differ. The
+classifying rule is the same for both and was read from code: the sampler stamps `product_id` on every answer it
+samples from a stored product, whatever the domain, and neither live branch sets one.
+
 WHAT IT IS. A pass-through around the resolver the precompute already builds for itself. Every call goes to the real
-resolver unchanged and its answer is returned unchanged, the same object. On the way back a marine `waves` answer is
-classified and one counter is incremented. Nothing else: no field is added to a rated row, no frame byte changes, no
+resolver unchanged and its answer is returned unchanged, the same object. On the way back a marine `waves` or a wind
+`wind` answer is classified and one counter is incremented. Nothing else: no field is added to a rated row, no frame byte changes, no
 extra request is made. `rate_one_spot` is not touched.
 
 WHAT IT PRINTS. Counts and shares by model and by lead band. No spot, no coordinate, no value.
@@ -27,6 +33,8 @@ FLAG = "SPOT_RATINGS_SOURCE_TALLY"
 STORED, NO_ANSWER, ERROR = "stored", "no_answer", "error"
 LEAD_BANDS = ((24, "0-24h"), (48, "24-48h"), (72, "48-72h"))
 LAST_BAND = "72h+"
+COUNTED = {("marine", "waves"): "waves", ("wind", "wind"): "wind"}        # (domain, layer) -> the table it lands in
+TABLES = ("waves", "wind")
 _ARG_NAMES = ("model", "domain", "layer", "lat", "lng", "valid_time_str")   # resolve_point's positional order
 
 
@@ -35,7 +43,7 @@ def enabled() -> bool:
 
 
 def classify(resp) -> str:
-    """Where a marine point answer came from. PURE.
+    """Where a point answer (waves or wind) came from. PURE.
 
     `stored`               a stored product answered (the response carries a product_id)
     `upstream:<provider>[:<model>]`  no stored product: the resolver's live branch answered. The labels are the
@@ -73,7 +81,8 @@ def lead_band(valid_time_str, base: Optional[datetime]) -> str:
 
 
 class CountingResolver:
-    """Pass-through around the precompute's resolver; counts marine `waves` answers by (model, lead band, source).
+    """Pass-through around the precompute's resolver; counts marine `waves` and wind `wind` answers by
+    (table, model, lead band, source). Any other layer passes through uncounted.
 
     Every attribute and every call goes to the inner resolver unchanged. An exception from the inner resolver is
     counted as `error` and re-raised as it was. A fault in the counting itself is swallowed: it must never cost a
@@ -87,9 +96,9 @@ class CountingResolver:
     def __getattr__(self, name):
         return getattr(self._inner, name)
 
-    def _count(self, seen, source: str) -> None:
+    def _count(self, table, seen, source: str) -> None:
         try:
-            key = (str(seen.get("model") or "?").upper(), lead_band(seen.get("valid_time_str"), self._base), source)
+            key = (table, str(seen.get("model") or "?").upper(), lead_band(seen.get("valid_time_str"), self._base), source)
             self.counts[key] += 1
         except Exception:
             pass
@@ -98,55 +107,69 @@ class CountingResolver:
         try:
             seen = dict(zip(_ARG_NAMES, args))
             seen.update(kwargs)
-            waves = seen.get("domain") == "marine" and seen.get("layer") == "waves"
+            table = COUNTED.get((str(seen.get("domain")).lower(), str(seen.get("layer")).lower()))
         except Exception:
-            seen, waves = {}, False
+            seen, table = {}, None
         try:
             resp = await self._inner.resolve_point(*args, **kwargs)
         except BaseException:
-            if waves:
-                self._count(seen, ERROR)
+            if table:
+                self._count(table, seen, ERROR)
             raise
-        if waves:
+        if table:
             try:
                 source = classify(resp)
             except Exception:
                 source = "unclassified"
-            self._count(seen, source)
+            self._count(table, seen, source)
         return resp
 
 
+def _table(counts, table) -> dict:
+    return {k[1:]: n for k, n in counts.items() if k[0] == table}
+
+
 def summary_lines(counts) -> list:
-    """Markdown lines for the job log and step summary: per model and lead band, the count from each source and the
-    share NOT from a stored product. PURE. Aggregates only."""
-    if not counts:
-        return ["Marine point source (spot ratings, waves): nothing counted."]
-    sources = sorted({k[2] for k in counts}, key=lambda s: (s != STORED, s))
-    bands = [name for _l, name in LEAD_BANDS] + [LAST_BAND, "unknown"]
-    lines = ["Marine point source for the precomputed spot ratings (waves; counts of spot-frames):", "",
-             "| model | lead | " + " | ".join(sources) + " | not stored |", "|---|---|" + "---|" * (len(sources) + 1)]
-    for model in sorted({k[0] for k in counts}):
-        for band in bands + ["all"]:
-            row = [sum(n for (m, b, s), n in counts.items() if m == model and s == src and (band == "all" or b == band))
-                   for src in sources]
-            total = sum(row)
-            if not total:
-                continue
-            stored = row[sources.index(STORED)] if STORED in sources else 0
-            lines.append("| %s | %s | %s | %.1f%% |" % (model, band, " | ".join(str(n) for n in row),
-                                                       100.0 * (total - stored) / total))
+    """Markdown lines for the job log and step summary: one table for waves and one for wind; per model and lead band,
+    the count from each source and the share NOT from a stored product. PURE. Aggregates only."""
+    lines = []
+    for table in TABLES:
+        sub = _table(counts or {}, table)
+        if lines:
+            lines.append("")
+        if not sub:
+            lines.append("Point source (spot ratings, %s): nothing counted." % table)
+            continue
+        sources = sorted({k[2] for k in sub}, key=lambda src: (src != STORED, src))
+        bands = [name for _l, name in LEAD_BANDS] + [LAST_BAND, "unknown"]
+        lines += ["Point source for the precomputed spot ratings: %s (counts of spot-frames, served ratings stage):" % table.upper(),
+                  "", "| model | lead | " + " | ".join(sources) + " | not stored |", "|---|---|" + "---|" * (len(sources) + 1)]
+        for model in sorted({k[0] for k in sub}):
+            for band in bands + ["all"]:
+                row = [sum(n for (m, b, src), n in sub.items() if m == model and src == want and (band == "all" or b == band))
+                       for want in sources]
+                total = sum(row)
+                if not total:
+                    continue
+                stored = row[sources.index(STORED)] if STORED in sources else 0
+                lines.append("| %s | %s | %s | %.1f%% |" % (model, band, " | ".join(str(n) for n in row),
+                                                           100.0 * (total - stored) / total))
     return lines
 
 
 def one_line(counts) -> str:
-    """One log line: per model, the share of marine answers that did not come from a stored product. PURE."""
-    out = []
-    for model in sorted({k[0] for k in counts}):
-        total = sum(n for (m, _b, _s), n in counts.items() if m == model)
-        stored = sum(n for (m, _b, s), n in counts.items() if m == model and s == STORED)
-        out.append("%s %d of %d not stored (%.1f%%)" % (model, total - stored, total,
-                                                        100.0 * (total - stored) / total if total else 0.0))
-    return "; ".join(out) or "nothing counted"
+    """One log line: per table and model, the share of answers that did not come from a stored product. PURE."""
+    parts = []
+    for table in TABLES:
+        sub = _table(counts or {}, table)
+        out = []
+        for model in sorted({k[0] for k in sub}):
+            total = sum(n for (m, _b, _s), n in sub.items() if m == model)
+            stored = sum(n for (m, _b, src), n in sub.items() if m == model and src == STORED)
+            out.append("%s %d of %d not stored (%.1f%%)" % (model, total - stored, total,
+                                                            100.0 * (total - stored) / total if total else 0.0))
+        parts.append("%s: %s" % (table, "; ".join(out) or "nothing counted"))
+    return " | ".join(parts)
 
 
 def write_step_summary(counts, env=None) -> bool:
