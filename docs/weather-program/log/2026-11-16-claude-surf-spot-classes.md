@@ -285,3 +285,5 @@ as JSON by a script, not by the ledger tool. It failed `verify and the estate pa
 action_ledger.py append)". Both lines were regenerated with `backend/scripts/action_ledger.py append (the v1 line with
 --reconstructed and its original action time). Before pushing, run `action_ledger.py check-pr --base origin/dev; it reads the
 COMMITTED tree, so commit first. The same holds for every lane: lines through the tool, never by hand.
+Both ledger lines are now marked reconstructed and carry their ORIGINAL action times: v1 at 2026-11-16T22:53Z, v2 at
+2026-11-17T07:05Z (the time of the SCOREBOARD row). The regeneration date is not a second finding (the advisor's note, 15:32Z).
