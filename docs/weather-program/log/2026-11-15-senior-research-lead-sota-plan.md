@@ -1582,3 +1582,30 @@ throughout. Literature from Consensus. Items marked [verify] are from memory.
 
 **Order:** L1 first. It needs no truth stream, only buoys, so its gate can run now offline. L2 waits on truth and
 bathymetry.
+
+## 2026-11-16 21:05 EST Sources VERIFIED for L1 (wave ensembles) and tide G3 (read live from the public buckets, not from memory)
+
+**ECMWF open-data wave ensemble, stream `waef`** (data.ecmwf.int and the AWS mirror `ecmwf-forecasts`):
+- 0.25 deg, 3-hourly to **360 h**. The 240 h index holds **50 members**.
+- Parameters: swh, mwp, mwd, pp1d, mp2, wmb, cdww, and **period-band heights h1012, h1214, h1417, h1721, h2125,
+  h2530**. That gives an ensemble groundswell cue per period band.
+- There is also a `waef-ep` probabilities product.
+- Archive: present on 2024-03-01, 2025-09-15 and 2026-09-01. Hindcasts at lead are possible now.
+
+**NOAA GEFS-Wave** (AWS `noaa-gefs-pds`, `gefs.YYYYMMDD/HH/wave/gridded/`):
+- **31 members** (c00, p01-p30) plus a mean, global 0.25 deg, to **f384**.
+- Fields include HTSGW, PERPW, DIRPW, WVHGT/WVPER/WVDIR (wind sea), **SWELL/SWPER/SWDIR partitions 1-3**, and wind.
+- Every member therefore carries swell partitions and can go through the partition-based surf chain as is.
+- Station bulletins (`station/…bull_tar`). Archive present on 2025-01-01.
+
+**Consequence for L1:** both sources are free primaries with archives. The CRPS gate can be scored on PAST forecasts
+at lead now; no waiting for a prospective window. Licence: GEFS is NOAA public domain; ECMWF open data is already used
+in this program under its open licence (re-confirm the terms in the PR).
+
+**Tide G3 window (2026-08-25..09-07):**
+- STOFS-2D-Global exists at `noaa-gestofs-pds/stofs_2d_glo.20260826/` with `cwl`, `htp` and **`swl`** (surge-only)
+  gridded regions.
+- STOFS-3D-Atlantic exists at `noaa-nos-stofs3d-pds/STOFS-3D-Atl/stofs_3d_atl.20260826/` with `points.cwl.nc` and
+  station profiles.
+- Both cover the proposed window.
+- Still [verify]: whether CMEMS GLO12 keeps past forecast runs.
