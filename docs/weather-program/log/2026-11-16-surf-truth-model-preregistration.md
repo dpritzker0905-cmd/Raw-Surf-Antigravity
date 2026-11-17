@@ -276,3 +276,15 @@ From the research lead's re-review of the fit code (#992 at 700b748e0). No blind
    model version, the run refuses. If an earlier scored record has another version, only targets received after this
    version's first commit time are scored (4.5). The store is not optional: omitting earlier records cannot bypass 2 E.
 4. Export cut order (4.6) is by the parsed instant of `cut_at`; an export manifest without `cut_at` is refused.
+
+## 2026-11-17 00:21Z AMENDMENT 6: what the model version covers, and when a version begins (from `date -u`; BEFORE any data or run)
+
+From the advisor's re-read of the fit code. No blind observation exists. This refines amendment 5.1 and 5.3.
+
+1. The MODEL VERSION covers everything that can change the numbers: the git tree of `backend/scripts/surf_truth` AND
+   the git blob of the pinned `backend/requirements-surf-truth-fit.txt`, joined as "<tree>+<blob>". A dirty working
+   copy of either refuses; the review check (5.2) diffs both paths.
+2. A version BEGINS at the EARLIEST commit in the running commit's history whose tree at that path and blob at that
+   file both equal the running ones (walking the commits that touched either, oldest first). That commit's committer
+   time is the cut-off of amendment 4.5 / 5.3. This is computable from git alone and is the same whether the code
+   reached its current state once or was reverted back to it later.
