@@ -142,12 +142,14 @@ async def test_global_mid_ingest_asks_hourly_only_with_the_flag(tmp_path, monkey
     monkeypatch.setattr(noaa_svc, "fetch_gfs_wind_global_coarse", fake_fetch)
     scheduler = WeatherPipelineScheduler(store=ProductStore(cache_dir=tmp_path))
 
+    # ON by default since 2026-11-17 (the owner's yes): unset = hourly to f120; '0' is the kill switch and restores the
+    # pre-flip fetch (3-hourly, hourly_until None), which the second ingest proves.
     monkeypatch.delenv("FRAME_WIND_GFS_HOURLY", raising=False)
-    assert mid.gfs_wind_hourly_until() is None
-    await mid.ingest_gfs_wind_global_mid_impl(scheduler)
-    monkeypatch.setenv("FRAME_WIND_GFS_HOURLY", "1")
     assert mid.gfs_wind_hourly_until() == 120
     await mid.ingest_gfs_wind_global_mid_impl(scheduler)
     monkeypatch.setenv("FRAME_WIND_GFS_HOURLY", "0")
     assert mid.gfs_wind_hourly_until() is None
-    assert asked == [None, 120]
+    await mid.ingest_gfs_wind_global_mid_impl(scheduler)
+    monkeypatch.setenv("FRAME_WIND_GFS_HOURLY", "1")
+    assert mid.gfs_wind_hourly_until() == 120
+    assert asked == [120, None]

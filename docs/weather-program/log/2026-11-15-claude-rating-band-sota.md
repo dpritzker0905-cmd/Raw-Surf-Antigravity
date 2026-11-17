@@ -301,3 +301,117 @@ Florida pilot view: load, zoom out, zoom in, three pans; ONE run per arm; lab, n
 Lab server times are not live times (each live `/grid?surf=1` is 4-22 s of box CPU), so the ratio, not the seconds, is the reading:
 with the bundles three cycles behind, this view sends the box ~1.8x the surf `/grid` asks and ~3x their server time, and loses
 most of the band. Raw rows: shared notes `rating-band-sota-2026-11-15/asks-cdn*.json`.
+
+## 12. The stale-layer chip on the collapsed phone header: GATE, registered before any chip code (2026-11-16 10:48 EST by the clock)
+David approved the chip (08:54 EST via the advisor: "Yes, build it") and gave it to this lane (10:31 EST via the director: "Rating-band
+lane builds it"). Scope: the collapsed phone timeline header only (TimelineDrawerHeader.js plus one prop at its call site in
+MapWeatherControls.js; checked against the open PRs touching that file, #755 (Codex draft), #923 and #928: no hunk within 50 lines of
+the call site). What it is: a small text chip, a clock icon plus "Ratings 6 h old" (or wind's "Wind: nearest stored time"), shown only
+while the painted layer lags. It reads staleLayerState.js. Informational colours, not a warning colour, and never colour alone. A tap opens
+the drawer, where the status line says it in full. Ships ON; kill switch window.__RAW_DISABLE_STALE_CHIP__ = true.
+GATE (the advisor's six points, now this lane's; all must hold, measured offline before the PR leaves draft):
+1. Contrast >= 4.5:1 in light, dark and beach, worst case over any map behind the translucent panel.
+2. Absent in every control case: zero lag, unknown lag, band not painted, band held, not a rating grid, the drawer open, and the
+   kill switch. Wind: absent when the drawn wind is the exact selected hour or nothing is drawn.
+3. A real button: the accessible name is the full sentence (the status line's), it is reachable by keyboard with a visible focus ring,
+   and activating it opens the drawer (aria-expanded and aria-controls like the header's own buttons).
+4. The same source as the status line: both read staleLayerState.readRatedRunState / readWindStaleState, with a unit test that asserts
+   the chip's accessible name equals the status line's text for the same painted grid.
+5. No overlap or clipping at 360, 390 and 430 px phone widths, in all three themes, with before and after screenshots (the lab CDN
+   with the rated bundles one run behind).
+6. Desktop and the expanded drawer are unchanged: no chip there, and a screenshot comparison of both before and after.
+GATE RESULTS (2026-11-16 ~11:30 EST; offline, `scn_stale_chip.js`, serve_synthetic, the lab CDN with the rated bundles one run
+behind; the chip build against the #933 build as "before"; screenshots and JSON in the shared notes `rating-band-sota-2026-11-15/chip-*`):
+1. Contrast: the chip's text is the header's own muted colour, measured in the page as rgb(75,85,99) on light and rgb(156,163,175)
+   on dark and beach. Worst case over any map behind the translucent panel: light 6.8:1, dark 6.1:1, beach 6.9:1. PASS.
+2. Absent in every control case: unit tests cover zero and unknown lag, band not painted, band held, not a rating grid, the chip
+   kill, the label kill, nothing painted, wind off, wind exact, and both lagging (one chip). In the browser, 15 cells were checked
+   against one rule: a chip exactly when the painted grid lags (band painted, not held, ratedRun.lagH > 0). All 15 consistent, including the
+   cells where the lab served the current run (no lag, no chip) and every open-drawer and desktop cell (lag present, no chip). NOT
+   exercised in the browser: the kill switch WITH a lag present. In three tries the lab served the current run in those cells; that
+   case is unit-tested only.
+3. A real button: named with the status line's sentence, focusable, with aria-controls and aria-expanded, and a click opens the
+   drawer (unit tests). PASS.
+4. One source: a unit test renders ForecastTimeStatus and the chip over the same painted grid and asserts the chip's accessible name
+   equals the line's text. PASS.
+5. No overlap or clipping at 360 / 390 / 430 px, in all three themes: in every cell where the chip showed (all 9 width x theme cells
+   across the two passes), never clipped, and no intersection with any other visible control in the drawer. PASS.
+6. Desktop and the open drawer unchanged: no chip in any of the 6 cells, with a lag present. The "before" build shows no chip anywhere
+   (15/15). PASS.
+Lab note, not a chip defect: the first pass missed one chip (beach 390). Re-probing showed a probe race (the grid committed less than
+the chip's 500 ms poll before the read) and lab runs served from /grid (no lag, so no chip due). The probe now waits 1.2 s and checks
+the rule above.
+ADVISOR ROUND 1 on #978 (16:38Z), two conditions, both fixed:
+1. Label in name (WCAG 2.5.3): aria-label = "<visible words>. <the status line's sentence>" ("Ratings 6 h old. Surf ratings from
+   the ... run, ..."). The tests assert the name STARTS WITH the visible text and CONTAINS the line's sentence.
+2. Flicker while scrubbing. A cleared state is held HOLD_MS = 1500 ms before the chip goes. The FIRST appearance is not delayed: a
+   non-null read shows at once. The kill switch removes it at once, and opening the drawer unmounts it with the header. A
+   fake-timer test covers a brief clear (kept), a long clear (gone), the return, and the kill (gone at once).
+   In the page (`scn_stale_chip.js SCRUB=1`: collapsed drawer at 390 px, light / dark / beach, a lag present at the start, 20 steps
+   of +3 h at 400 ms, a MutationObserver on the chip and a ResizeObserver on the collapsed panel), the same result with and without
+   the hold, in all three themes: 0 mounts, 1 unmount, 1 height change (103 -> 77 px). The one change is the honest one: on the
+   first step the painted grid moves from the lagging rated bundle to the scrub's series frames, which carry the CURRENT run
+   (lag 0 in 20 of 20 samples), so the chip leaves once and never comes back. Not exercised in the page: a lag that stays present
+   while scrubbing (this lab's series frames never lag), which is where the hold matters. That case is the unit test only.
+
+## 13. #975 after its merge: the first pilots run, reported in full (2026-11-16 18:16 EST by the clock, 23:14Z)
+Run 43950205417 (20:28Z -> 23:11Z, dev 2adc374a1, the first pilots run with #975). From its rated step's own report (full log):
+| tier | sets | built | skipped by the budget | seconds |
+|---|---|---|---|---|
+| 0: GFS regional waves bundles | 19 | 19 | 0 | 290.4 |
+| 1: GFS world waves | 1 | 1 | 0 | 96.3 |
+| 2: every other rated set | 64 | 5 | 59 | 202.0 |
+Public index (`v1/latest.json, read 23:14Z, each record's own 
+un field, rated against its plain sibling):
+| tier | rated equal to plain | rated NEWER than plain | rated BEHIND plain |
+|---|---|---|---|
+| 0 | 5 / 19 | 14 / 19 (by 6 h) | 0 / 19 |
+| 1 | 1 / 1 | 0 | 0 |
+| 2 | 8 / 64 | 0 | 56 / 64 (6 h: 34, 12 h: 13, 18 h: 9) |
+Reading:
+- The band is current. Every rated waves bundle the band paints from is on its plain sibling's run or one run NEWER. The 14 "newer"
+  are boxes whose PLAIN bundle the plain step's own budget skipped this run. The client takes max(0, plain - rated), so none is refused.
+- The gate as worded asks for "lag 0", and only 5 of 19 are exactly equal. What it is FOR (no rated waves bundle behind its plain
+  sibling, so no band ask refused to /grid) holds for 19 of 19. Both readings are reported here; this is 1 of the 4 runs the gate needs.
+- Tier 2 starved, as the limit predicted: 5 of 64 sets built, 56 behind. They are read only when a user picks swell / wind-wave
+  layers with Surf Rating on, or at zoom-out. Under #933's bound, those more than one cycle behind send their asks to /grid. Not gated;
+  for the director: raising FRAME_RATING_BUDGET_S (the step allows ~780 s) would give tier 2 about 180 s more per run.
+CORRECTION to section 11 (my error, found while writing this). The lag numbers there ("all 84 rated sets behind; the 20 waves
+bundles 18 h behind", read 15:30Z) came from a script that took each record's previous_index, not its current index, because
+both contain "/index/" and the later one overwrote the earlier. Those numbers compared PREVIOUS runs and are withdrawn. What stands
+from independent evidence: in run 43803432374 the rated step built 0 of the waves bundles and skipped them all by its budget (its
+own log), so they were not current. The cause and the fix (#975) stand; the exact lag at 15:30Z is not known. Also: tier 0 is 19
+bundles, not 20. The offline ask table in section 11 is unaffected (lab CDN, its own lag).
+GATE AMENDMENT (2026-11-16 18:35 EST by the clock, 23:35Z; written AFTER run 1 and BEFORE run 2). The advisor (23:24Z) restated the
+gate's wording: what it protects is that no rated waves bundle is BEHIND its plain sibling (the client refuses only an older
+bundle, max(0, plain - rated)). So the counted quantity for runs 2-4 is "none of the 19 behind". Because this clarification
+came after a first result, BOTH readings are reported for all four runs: as worded, "lag 0" (run 1: 5 of 19); as amended,
+"none behind" (run 1: 19 of 19). The gate passes on the amended reading in at least 3 of 4 runs. The director (18:34 EST)
+accepted the amended reading only if written here before run 2, and it is.
+FLAG 1 (advisor): the PLAIN bundles are now the ones behind. In run 43950205417 the plain step's own 960 s budget skipped 14 of
+the 19 plain GFS regional waves bundles: azores, brazil_east, canaries_madeira_morocco, caribbean_pr_dr, centralamerica_caribbean,
+east_australia, france_biscay, indonesia, mexico_centralamerica_pac, south_africa, srilanka_maldives, us_northeast,
+us_pacific_northwest, us_southeast_midatlantic. In those boxes the band is drawn from a run one cycle NEWER than the wave layer
+under it. What the user is told:
+- The stale-layer chip covers the rated band and wind only; it does NOT cover the plain wave layer.
+- The status line's held-frame reason (drawnFrameReadout.holdReason) names "the older <run> run" when the manifest lists a newer
+  verified cycle than the drawn frame. Whether it fires for this case has NOT been checked in a browser.
+It is the same starvation, moved one step up: the plain frames budget belongs to the frame-carry lane's budget plan (below).
+FLAG 2 (advisor; the director 18:34 EST): tier 2 has 22 of 64 sets more than one cycle behind, so those layers' rated asks go to
+/grid. FRAME_RATING_BUDGET_S is NOT raised. The director sends the rated tier-2 numbers to the frame-carry lane, which is measuring
+the whole pilots / frames budget (77-143 regional sets skipped per run), to fold into one pre-registered, advisor-read budget plan.
+
+## 14. #975's gate: runs 2-4 and the verdict (2026-11-17 10:39 EST by the clock)
+Each run's own rated-step report (full job log) and the public index read when it finished (each record's own `run` field).
+#996 (frames 960 -> 1500 s, rated 600 -> 1800 s) merged at 2026-11-17 06:18Z (merge commit 4ef180897).
+| run | id | started -> finished | dev commit | #996 in it? | tier 0 built / s | tier 1 | tier 2 built (skipped) / s | tier 0: lag 0 / none behind | tier 2 not behind |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 43950205417 | 11-16 20:28Z -> 23:11Z | 2adc374a1 | no | 19 / 290 | built, lag 0 | 5 (59) / 202 | 5/19 / 19/19 | 8/64 |
+| 2 | 44004377746 | 11-17 02:37Z -> 08:08Z | bd8e4c8cd | no (started before 06:18Z) | 19 / 301 | built, lag 0 | 11 (53) / 244 | 19/19 / 19/19 | 12/64 |
+| 3 | 44046081974 | 11-17 08:21Z -> 12:26Z | c6e1c1c96 | YES (contains 4ef180897) | 19 / 291 | built, lag 0 | 64 (0) / 1,097 | 19/19 / 19/19 | 62/64 |
+| 4 | 44083737083 | 11-17 12:30Z -> 15:33Z | 2fcbd8153 | YES (contains 4ef180897) | 19 / 295 | built, lag 0 | 64 (0) / 1,203 | 19/19 / 19/19 | 64/64 |
+VERDICT: the #975 gate PASSES on the amended reading ("none of the 19 behind", written before run 2): 4 of 4 runs. As worded
+("lag 0"), 3 of 4 (run 1: 5 of 19, the other 14 rated one run NEWER than plain). Both readings are reported, as the amendment says.
+Tier 2 recovered only once #996 was in the run (runs 3-4). Its recovery belongs to #996, not to #975. In run 3 the two sets still
+behind were the ICON swell_1 and wind_waves world rated sets (24 h). They are world sets, which #933's run-age refusal does not
+cover; both were current in run 4. Rated step totals: run 3 ~1,487 s, run 4 ~1,596 s, against #996's 1,800 s budget.

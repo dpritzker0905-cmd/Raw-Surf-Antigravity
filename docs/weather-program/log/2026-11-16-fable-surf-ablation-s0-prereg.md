@@ -670,3 +670,226 @@ saved rows and which are NOT RUNNABLE, the station-day median as the unit of ana
 The 01:44Z section was written before that amendment and still says "same held-out spots"; where the two differ, the
 02:31Z amendment is the rule for both windows. When the first breaking-truth source gets its dated section, that
 section goes to the advisor before any of its values is read.
+
+## 2026-11-17 03:12Z The scoring job is built. Its reductions, written before any row was read, and after the window opened
+
+**Disclosure first.** The window opened at 2026-11-17 00:00Z and this section is written after that. I have read no
+private row, no stored object and no aggregate of them: the scorer has only ever run on synthetic rows in its tests
+and once with no credentials (it printed `fetch=not_configured`). So the choices below were made without sight of
+data, but they were made late, and a reader should weigh them as that.
+
+**What was built.** `backend/scripts/score_nearshore_rows.py` and `.github/workflows/nearshore-rows-score.yml`
+(dispatch only; a dispatch needs the owner's typed word). It reads the private rows that `nearshore-validation.yml`
+stores and prints pooled and per-region aggregates. It makes no request to the live backend.
+
+**The choices the 02:31Z amendment left open, fixed now.**
+- **Station-day value:** the median over a station-day's rows of log(model / observed), signed. The score is the
+  median over station-days of its absolute value. The amendment said "station-day medians" without saying median of
+  what; this is the reading that keeps a station-day's over- and under-reads from cancelling across days.
+- **Duplicate rows:** one row per (station, spot, target time); where several runs graded the same target time, the
+  row from the LATEST run is kept. Rows of a run that refused to grade are never read.
+- **Day:** the UTC date of the target time.
+- **Region:** boxes on the station's coordinates (`REGIONS` in the script), first match wins: hawaii, california,
+  gulf, florida_east, mid_atlantic. All 22 stations on file fall in one (a test pins it): none is in Hawaii, so
+  Hawaii is UNTESTABLE on forcing truth in this window.
+- **Paired difference:** score(factor off) minus score(served) on the same station-days. Positive: the factor helps.
+- **Interval:** the days are resampled with replacement, whole days at a time, 2,000 draws, seed 20261207.
+- **Null:** within each station-day the two labels are swapped with probability one half, 200 shuffles. A difference
+  inside the 2.5 to 97.5 band is NOT SHOWN.
+- **Verdict words, forcing truth:** KEEP if the interval is wholly above 0 and no region with a number is better
+  without the factor by more than 0.02. REMOVE CANDIDATE if wholly below 0 and no region with a number is worse by
+  more than 0.02. Otherwise UNDECIDED. UNTESTABLE where the pooled cell is under 30 station-days, 7 days or 3
+  stations. Regions with no number are listed beside the verdict, which says nothing about them.
+- **Held out by station:** NOT BUILT in this version. The amendment asks for it where a configuration is CHOSEN.
+  This version chooses nothing: it reports each registered configuration against served. If a later step picks a
+  best configuration, leave-one-station-out is owed before that pick is reported.
+- **Positive control:** every model height in the region with the most station-days times 1.3; the served analysis
+  must read that region 1.25 to 1.35 over the unseeded run, or the report prints INVALID and no verdict.
+- **Extremes:** the top tenth of observed heights, and rows with offshore height of 3 m or more, each reported
+  separately under the same cell minimum.
+- **Stored against graded:** a separate workflow step, with no Storage key, counts the validation runs in the window
+  that were asked to grade and finished green; the report prints the gap against the stored graded runs.
+
+**NOT BUILT, and printed as that in every report:** the sea-state split by the buoy's own periods (it needs the
+buoy's public record joined by hour).
+
+**NOT RUNNABLE on this truth, unchanged:** the period arms, Komar, H1/10, the cap, the magnets, spot classes.
+
+**Privacy.** The report carries no row, no station id, no station-hour and no per-station number; a cell under 10
+station-days prints no count. The script imports the standard library only and runs as `python3 -I -S`, because it
+is the one process in its job that holds the Storage key. It only reads: one list call per day and one GET per
+object. Tests pin the imports, the read-only calls, and that no station or hour reaches the text.
+
+**Tests.** 14 in `backend/tests/test_score_nearshore_rows.py` (estate lane), on synthetic rows where the answer is
+known: a factor that makes the chain 20% low comes out REMOVE CANDIDATE, one that helps comes out KEEP, a factor of
+1.00 comes out NOT SHOWN, and one region getting worse turns REMOVE CANDIDATE into UNDECIDED. By hand: disabling the
+null, mixing in refused runs, dropping the region condition, and skipping the division each fail at least one test.
+
+**What I expect, written now.** From the one run's medians read on 2026-11-16 (observed over model 1.59 at 11 of 11
+stations; exposure 0.812, refraction 0.873): `exposure_and_refraction_off` moves toward truth pooled, and
+`shoaling_off` changes little. I do not know whether "no region worse by more than 0.02" will hold, and with about
+three weeks of 6-hourly runs the Gulf and the mid-Atlantic may not reach 30 station-days.
+
+## 2026-11-17 03:44Z The advisor's review of the scorer: items A to F, built before any dispatch. Where this and 03:13Z differ, this is the rule
+
+The advisor read the scorer at `108702f20` and passed it to merge, with one open condition before the first SCORED
+dispatch: six items. All six are built in this commit. Still no private row, object or aggregate has been read; the
+scorer has run only on synthetic rows. Full note: shared notes, `redteam-997-nearshore-rows-scorer-2026-11-17.md`.
+
+**A. One look.** The dates were free inputs, so the scorer could have printed verdicts mid-window or on any
+sub-window. Now verdicts are printed only when the dates are a REGISTERED window, whole (window 1, or window 2 with
+its own seed 20270201), the window has CLOSED, and the read was complete. Anything else is a COUNTS-ONLY run: how
+many runs, rows and station-days per region, and which cells have reached the minimum. No score, no difference, no
+verdict. One scored dispatch per window; a second one needs a dated reason here first. The code cannot count
+dispatches, so that part is a rule and a ledger line, not a lock.
+
+**B. Level is not pattern.** This is the item that decides what a result means, and my 03:13Z expectation paragraph
+predicted exactly the result it would have mislabelled. The chain already reads low (about 1.59 observed over model
+at 11 of 11 stations in the one run seen). Switching a factor off divides the model by a number below 1, so removing
+ANY attenuating factor moves toward truth; for refraction, 0.873 on every row, "off" is exactly a constant
+multiplier. A REMOVE CANDIDATE would then say the chain is low, not that this physics is wrong.
+- Added: for each factor, a level-matched comparator: the served chain divided by that factor's pooled median.
+  Factor-off is compared with it on the same station-days, same bootstrap.
+- The verdict line carries the result: "the factor's pattern hurts" (factor-off beats its own constant), "level
+  only" (it does not), or "level only: the pattern helps, the level is off" (the constant beats factor-off).
+- A REMOVE CANDIDATE marked "level only" is evidence that the chain's LEVEL is off somewhere. It is not evidence for
+  removing that factor.
+
+**C. The extremes guardrail is applied.** It was printed and never read. Now a REMOVE CANDIDATE that is worse than
+served by more than 0.02 at the top tenth of observed heights, or at offshore 3 m and above, is DISQUALIFIED. An
+extreme cell under the minimum has no number and is printed as that. KEEP is not affected: the guardrail is on arms.
+
+**D. A partial read prints no verdict.** A failed list call or a failed GET, or a list page that came back full
+(1,000 names, so it may hide objects), makes the run counts-only.
+
+**E. Held out by station and by region, as stability.** I had read the amendment as owing this only where a
+configuration is chosen. The advisor did not accept that, and is right: a REMOVE CANDIDATE is a choice, and in a
+three-station region one buoy can carry it. Now the pooled comparison is re-scored with each station left out and
+with each region left out, and the report prints how many re-scores keep the same side of zero. A verdict that loses
+its side with any ONE station left out is UNDECIDED. No station is named.
+
+**F. Every report says how it was made.** Four lines at the top of every report, scored or counts-only: the
+reductions were fixed at 03:13Z after window 1 opened and before any row was read, with one earlier run's medians
+seen; the latest run's row is the shortest lead, so this scores near-analysis forcing and not a forecast; a region
+cell rests on as few as three stations; the null is a sanity check and the positive control a plumbing check.
+
+**Smaller points taken.**
+- The stored-against-graded gap is printed as approximate: runs are counted by creation time, objects by run day,
+  rows by target time.
+- Each verdict line states its scope: the regions tested and not tested, and that a served change resting on it is
+  limited to the tested regions. No station is in Hawaii, so nothing here can change Hawaii.
+- The null is valid as a within-unit sign-flip test and nearly vacuous for a constant factor on a biased chain; it
+  is labelled a sanity check. The positive control returns 1.3 by construction; it is labelled a plumbing check.
+
+**Standing item, not mine to close.** The step that holds the Storage key runs the checked-out ref's script, so a
+dispatch from any branch runs that branch's code with the service-role key. The fix is the owner-only set-up already
+on his list (a GitHub Environment restricted to `dev` for that key).
+
+**Tests.** 19 now (estate lane must read 3837). Added: a constant factor on a low chain comes out "level only"; a
+factor truth ignores comes out "the factor's pattern hurts"; one whose pattern truth follows comes out "the pattern
+helps, the level is off"; a verdict carried by two of four stations is UNDECIDED; the extremes guardrail
+disqualifies; verdicts print only for a registered window, whole, closed and completely read. Six more mutations by
+hand each fail a test. On a realistic-size synthetic set (22 stations, 20 days, 440 station-days) the scored run
+takes 40 seconds at the real 2,000 draws.
+
+## 2026-11-17 03:57Z The advisor closed the condition; four small asks built, and the wait after close fixed now
+
+The advisor re-read the scorer at `88e1cefed` and closed the open condition: items A to F are built before any
+dispatch. It left four asks that are not conditions. All four are in this commit.
+
+- **The scored run waits 24 hours after the window closes.** Runs made after the close still grade its last target
+  times. The wait is `SETTLE_HOURS = 24` in the script and is enforced: before the window end plus 24 h the run is
+  counts-only. It is fixed here, before any counts-only report has been seen, so the timing cannot be chosen with
+  one in hand. Window 1 can therefore be scored from 2026-12-08 00:00Z; window 2 from 2027-02-02 00:00Z. The runs
+  made on the settling day are read too.
+- **One look, made visible.** The scored report opens with "Scored dispatch 1 of 1 for this window". The run id is
+  written in this log BEFORE the report is opened. A second scored dispatch needs a dated reason here first.
+- **KEEP says where factor-off is better at an extreme** (by more than 0.02). The word stays KEEP: the extremes
+  guardrail disqualifies arms, and KEEP is the status quo. It is printed because that is the case a next arm would
+  be built to fix.
+- **Leave-one-region-out is on the verdict line** ("holds in k of n leave-one-region-out re-scores"). It is
+  reported and does not change the word: dropping the largest region mostly removes power, and the regional rule is
+  already carried by "no region the opposite way by more than 0.02" and "a served change is limited to the tested
+  regions".
+
+Still no private row read. Nothing dispatched. 19 tests.
+
+## 2026-11-17 05:59Z Registered before any report exists: a day-boundary check, and what the station count allows
+
+No dispatch of the scorer has been made, scored or counts-only, and no private row has been read. This section is
+written before either can happen (the workflow is not on `dev` yet).
+
+**Why.** A read-only trace of the nearshore gate (`log/2026-11-17-fable-nearshore-gate-trace.md`) found the gate's
+pooled ratio reading about a quarter lower on runs that fire just after 00Z. About two thirds of that is the gate's
+pooling (one six-spot station supplies a quarter of its rows); 0.09 remains on nine runs, and one run
+(2026-10-28 00:35Z) is low on three coasts at once. The scorer keeps the LATEST run's row for each target time, so a
+true pairing fault after midnight UTC would sit inside the scored data. It has to be tested before the scored look.
+
+**The statistic (the advisor's, not my first proposal).** MODEL-FREE: it reads only the stored OBSERVATION.
+- For one station and one target time the buoy's value is the same whichever run graded it. For every
+  (station, target time) graded by two consecutive GRADED runs, compare the observation each run stored: its value
+  (tolerance 0.005 m) and its time.
+- **Midnight group:** pairs whose later run fired in the hour after 00Z. **Control group:** pairs where both runs
+  fired between 02Z and 22Z. Pairs in neither group are not counted.
+- Buoy records get small late corrections, and a later run can match a nearer reading, so some differing pairs are
+  normal in both groups.
+- **A FAULT is:** the share of differing pairs in the midnight group above 1% AND more than twice the control's.
+- A group under 10 pairs prints no count and the check reads NOT TESTABLE.
+- My first proposal (compare the stored MODEL height between the two runs) was rejected, rightly: the later run
+  reads a newer forecast cycle, so the model height is expected to differ and a large share would mean nothing.
+- The direct check (target time equals forecast cycle plus forecast hour) is NOT RUNNABLE: the rows do not store
+  the cycle.
+
+**Where it lives.** In the counts-only report: two pair counts, two shares and one word. No station, no row, no
+model-against-observed number. It is not printed in the scored report.
+
+**What follows from a FAULT.** Rows from the faulty runs are excluded by a dated amendment here BEFORE the scored
+dispatch. Nothing else in the rule changes.
+
+**What it costs.** A counts-only dispatch holds the service-role key, so it needs the owner's typed word and a
+ledger line. It does NOT count as the scored look.
+
+**What it cannot test.** The suspect run of 2026-10-28 predates the window and its stored rows; it stays "not
+disproven".
+
+**The station count, written now, before any counts exist.** Eleven of the 22 stations on file return 404 on every
+run in the last month, so the live stations are: California 4, Florida east 3, Gulf 2, mid-Atlantic 2, Hawaii 0.
+The cell minimum is 3 stations. Expectation: testable pooled, in California and in Florida east; UNTESTABLE in the
+Gulf, the mid-Atlantic and Hawaii. A served change resting on a verdict would be limited to California and Florida
+east.
+
+**Two smaller changes in the same commit.**
+- The workflow counted only validation runs that finished GREEN as graded. A run whose own surf-zone gate goes red
+  still grades and stores its rows (all three runs of 2026-11-16 did), so the gap would have been under-counted. It
+  now counts runs that were asked to grade and completed, and compares them with all stored run objects.
+- One more caveat line on every report: the model is the GFS member's offshore height, which inside the Southern
+  California Bight has been a GFS and EURO mean since 2026-11-04, constant inside both windows.
+
+**Tests.** 23 (estate lane must read 3841). The boundary check passes a clean set, catches a seeded one-day shift
+in the midnight runs, does not call ordinary corrections in both groups a fault, hides small groups, and never
+reads a refused run. Five hand mutations each fail a test.
+
+## 2026-11-17 06:05Z The scored run does the day-boundary check itself (advisor, before the scored dispatch)
+
+The advisor confirmed the check at `1bf6c240b` and named one gap: as built it ran only if someone dispatched a
+counts-only run, so a scored report could go out unchecked. Closed in this commit, before any dispatch.
+
+- The scored path now computes the check on the same rows and prints its one word.
+- If the word is FAULT, the run prints NO verdict, like a partial read: counts only, with the reason.
+- The way out of a FAULT is a dated amendment here that names the faulty runs, and the same stamps in
+  `EXCLUDED_RUNS` in the script (empty today; a test pins that it is empty in the source). Their rows are then
+  dropped before both the check and the scoring, and the report prints how many runs were excluded.
+- Adding a stamp to `EXCLUDED_RUNS` without that dated amendment is a change to the rule after results.
+- The group definition is printed beside the counts: a run is placed by the time its REPORT was built
+  (`generated_at`), the nearest thing to the job reading the clock that the rows store.
+
+24 tests (estate lane must read 3842). No private row read; nothing dispatched.
+
+## 2026-11-17 15:27Z Correction: the Bight caveat on every report said "since 2026-11-04"
+
+The 06:0xZ section above registered a fifth caveat line saying the GFS offshore height in the Bight has been a
+two-model mean "since 2026-11-04, constant inside both windows". That date could not be shown. The line now reads:
+"live from about 2026-11-05 01:05Z (Render deploy of c05085215), before both windows; its effect on model=GFS point
+reads is not verified". The deploy time is the director reading of the Render history; the git half I checked.
+Reworded before any dispatch, counts-only included, as the advisor required. Detail:
+`log/2026-11-17-fable-nearshore-gate-trace.md`.
