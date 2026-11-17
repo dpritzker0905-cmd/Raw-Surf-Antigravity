@@ -2418,3 +2418,16 @@ before the read. Then construction fidelity within 0.02 m at every lead, then th
   - gate: construction within 0.02 m at +48/72 h, the global_mid/unknown share under 10%, no-harm 0.25 vs 2 deg at
     buoys over 48-240 h, ops headroom;
   - ships ON, then the CONSENSUS_SERVE flip.
+
+- 2026-11-17 16:50 -0500: **Helper knowledge pass received** (state-of-the-art researcher, Haiku 5.5):
+  - Packing stays closed: waves 0.918 of v1, pressure 0.736 (lzma) or 0.817 (zlib). Reopen only with a native codec
+    at or below 0.80 that is no slower than v1.
+  - Cold start: blocked on the seeded-session route; the offline critical path is about 305 ms.
+  - Learning-loop PR #1012: fixed in c6aaa9552; waiting on hosted CI.
+  - ASK 16: the paired gaps reproduce (+0.061/+0.084/+0.098 m). The rest needs the 7-day paired archive, which is a
+    private read: it needs a sanctioned read-only CI job with David's dispatch.
+  - Big swell: served MAE is worse than the equal mean at every lead (0.657 vs 0.576 m at +24 h).
+  - **Lead's read:** +24 h is the regional/regional zone where the built consensus is already faithful
+    (n 24,798). So the equal-mean gain at +24 h does NOT depend on the 48 h tier gap. A +24 h-only
+    CONSENSUS_SERVE flip could be gated now, with the longer leads following the EURO/ICON full-horizon brief.
+    This is a hypothesis for the director, not a decision.
