@@ -178,7 +178,7 @@ def main():
                 return sid, GS.s1_climatology(la, lo, work / "cm" / sid)
             except Exception as e:                                               # noqa: BLE001 - recorded per gauge
                 return sid, (None, str(e)[:160])
-        with ThreadPoolExecutor(max_workers=4) as ex:
+        with ThreadPoolExecutor(max_workers=1) as ex:   # serial: netCDF4/HDF5 is not thread-safe (run 44011150843)
             for sid, (clim, info) in ex.map(s1_one, pts.items()):
                 if clim:
                     S1[sid] = np.tile(np.array([clim.get(t.timetuple().tm_yday, np.nan) for t in hours]), (len(LEADS), 1))
@@ -196,7 +196,7 @@ def main():
             return sid, GS.n1_series(la, lo, YEAR0, W1, work / "cm1" / sid), None
         except Exception as e:                                                   # noqa: BLE001 - reported arm
             return sid, None, str(e)[:120]
-    with ThreadPoolExecutor(max_workers=4) as ex:
+    with ThreadPoolExecutor(max_workers=1) as ex:   # serial: netCDF4/HDF5 is not thread-safe (run 44011150843)
         for sid, ser, err in ex.map(n1_one, pts.items()):
             if err:
                 log(f"N1 {sid} unavailable: {err}")

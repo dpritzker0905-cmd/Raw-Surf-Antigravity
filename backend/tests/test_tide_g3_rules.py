@@ -120,3 +120,12 @@ def test_amendment_a_shift_is_not_a_void_control_and_constant_is_pooled():
     assert "shift" not in block and "positive_noaa_constants" in block and "negative_label_swap" in block
     assert "G.pooled_diff(const, P1, obs, all_pairs" in src and "G.verdict(items, controls, item3_effective)" in src
     assert G.verdict({"1": True}, {"pos": True, "swap": True, "const": True}, False) == "INCONCLUSIVE"
+
+
+def test_netcdf_reads_are_serialised_across_fetch_threads():
+    """G3 run 44011150843 aborted with "double free or corruption" from concurrent netCDF4/HDF5 reads in the fetch
+    threads. Every station-file read goes through one lock; downloads may stay parallel."""
+    import threading
+    assert isinstance(GS._NC_LOCK, type(threading.Lock()))
+    src = (BACKEND / "scripts" / "tide_g3" / "g3_sources.py").read_text(encoding="utf-8")
+    assert "with _NC_LOCK:" in src and "return _nc_points_locked(" in src

@@ -13,6 +13,7 @@ import re
 import shutil
 import sys
 import tempfile
+import threading
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -63,7 +64,17 @@ def _station_names(raw):
     return out
 
 
+# netCDF4 / HDF5 is NOT thread-safe in the Linux wheel: G3 run 44011150843 aborted ("double free or corruption") when
+# the 6-thread STOFS fetch read files concurrently. Downloads stay parallel; every netCDF read holds this lock.
+_NC_LOCK = threading.Lock()
+
+
 def _nc_points(path, ids, latlon=None, km=3.0):
+    with _NC_LOCK:
+        return _nc_points_locked(path, ids, latlon, km)
+
+
+def _nc_points_locked(path, ids, latlon=None, km=3.0):
     """Read a STOFS station file, netCDF-3 OR netCDF-4/HDF5: {sid: (times[aware], values)}. Match by id in
     station_name, else (3D) by nearest station within `km` of latlon[sid].
     STOFS-2D point files were HDF5 through 2026-08-15 and netCDF-3 from 2026-08-16 (checked 2026-11-16), so a

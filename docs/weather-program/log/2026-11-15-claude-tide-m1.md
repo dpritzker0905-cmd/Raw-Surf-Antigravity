@@ -1138,3 +1138,19 @@ the on-screen words), not only the manual kill.
 
 **#987** merged at 00:57Z (director's sweep), ~3 h BEFORE the advisor's pass at 03:46Z. The pass found nothing wrong;
 the advisor is raising the merge-before-verdict with the director.
+
+## 03:33 EST 2026-11-17 (`date`) - G3 pilot run 44011150843: CRASHED in the gate step - NO verdict, window still unseen
+- **Job 06:10-08:29Z.** The FES download succeeded (2 h 16 m) and its cache is saved under the tag.
+- **The gate step aborted at 08:29:06Z** with exit 134 and **"double free or corruption (out)"**. Last stage lines:
+  "s1 preflight ok -> primary P1", "fes subset", "arm A". The crash came in the STOFS fetch that follows.
+- The artifact holds an EMPTY `g3_gate.json` and `pip_freeze.txt`. **No score and no truth were fetched** (truth is
+  fetched last), so the window is NOT seen. The S1 preflight passed (primary P1), and that choice is mechanical.
+- **Cause:** my reader fix (32788fa95) moved STOFS reads to netCDF4/HDF5, which is not thread-safe in the Linux wheel.
+  The fetch reads files in 6 threads, and the pre-window cycles are HDF5. Windows did not reproduce it (12/12 HDF5
+  cycles read in 6 threads), because thread safety is build-dependent.
+- **Fix (plumbing; no rule, arm, threshold or trigger changed):**
+  - every station-file read now holds one lock (`g3_sources._NC_LOCK`); downloads stay parallel;
+  - the S1 and N1 Copernicus loops, which also open netCDF through xarray, now run serially (1 worker);
+  - test `test_netcdf_reads_are_serialised_across_fetch_threads`; 21 pass.
+- A re-run needs the tag moved (deleted and pushed again) on the owner's word. The tag's FES cache makes the download
+  step quick.
