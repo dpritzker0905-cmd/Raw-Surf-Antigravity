@@ -306,7 +306,9 @@ def main_score(session, cache, stations, out_dir) -> int:
     # amendment 2: contiguous blocks, FIT = runs started in September, TEST = October
     fit_runs = [r for r in runs if r[4:6] == "09" and int(r[6:8]) <= 24]   # amendment 4: no shared observations
     test_runs = [r for r in runs if r[4:6] == "10"]
-    dropped = sorted(f.split(".")[0] for f in os.listdir(run_dir) if f.endswith((".failed.json", ".missing.json")))
+    # a drop marker counts only while its run file is still missing (FILL mode re-collects a reused run's drops)
+    dropped = sorted({f.split(".")[0] for f in os.listdir(run_dir) if f.endswith((".failed.json", ".missing.json"))
+                      and not os.path.exists(os.path.join(run_dir, f.split(".")[0] + ".npz"))})
 
     def obs_rows(run_dt, L, i):
         V = run_dt + timedelta(hours=L)
