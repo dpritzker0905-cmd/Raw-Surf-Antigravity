@@ -1756,3 +1756,21 @@ Both must hold. The 2-day block bootstrap is unchanged.
 - Ship-ON on PASS plus the owner's merge (D-080).
 - The sequence: FINAL, then the code to the advisor, then the owner's word under the one-shot tag `tide-gate-G3t`.
 - No v2.1 arms unless the owner adds them before FINAL.
+
+## 11:41 EST 2026-11-17 (`date`) - Correction to the G3t addendum 2 header (L-P10); the advisor: design READY FOR FINAL
+- **Correction:** the addendum 2 header reads "11:40 EST", but its commit 24eee6b51 is 11:29:00 -0500. The header was
+  written ahead of the clock. The true time is the commit's, 11:29 EST. The header is left as written.
+- **The advisor (16:42Z) read addendum 2:** all six changes and the smaller points are adopted as asked. The DESIGN is
+  ready for FINAL from the advisor's side.
+- **The advisor has not read the licences.** The licence reading is mine, quoted from the texts, and goes to the owner
+  with the text.
+- **Hard build rules (from the licences):**
+  - a test asserts that NO route or public bucket returns FES constants or atlas files;
+  - the FES and Copernicus credit lines appear wherever a prediction is shown, in all three themes, on desktop and
+    phone.
+- **Tightening, adopted:** 3b's folded condition (the shifted arm must not beat P) is a POINT value BY CHOICE, as item 5
+  is.
+- **Still needed for FINAL:** the research lead's read of addendum 2, and the owner's word on the v2.1 arms (default:
+  none). FINAL will be its own commit, its header read from the clock.
+- **After FINAL, the code goes to the advisor before any fetch:** the trigger, credentials on single steps, no score in
+  the log, the S1 preflight and NO VERDICT rule, the three arms, truth last, and the parity test's skeleton.
