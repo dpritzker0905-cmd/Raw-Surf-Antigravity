@@ -1947,3 +1947,6 @@ amendment 1, THIS governs.
 - Thresholds are FIXED. The code goes to the advisor before any fetch.
 - The advisor agrees with the member-wise design note (members go through the chain, then are summarised). It belongs
   in the L1b registration on breaking truth.
+
+- 2026-11-17 08:39 -0500: LongCat retry (owner: "Retry LongCat once") FAILED again with a network failure (same payload, sha256 ff38bd71...ecbb).
+  Billing is uncertain. No further retries. The Reflection + SubQ findings stand without it.
