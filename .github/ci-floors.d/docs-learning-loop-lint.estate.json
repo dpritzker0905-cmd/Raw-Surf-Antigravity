@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 23,
+  "tests": 16,
   "branch": "docs/learning-loop-lint",
   "date": "2026-11-17",
-  "note": "learning-loop lint: lesson check-path lint, gate-order check, control-char guard"
+  "note": "learning-loop lint and gate-order tests (estate lane)"
 }
