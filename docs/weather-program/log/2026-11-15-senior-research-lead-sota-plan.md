@@ -1694,3 +1694,26 @@ merges with its code default ON; the gate passes first.
   - So the L1 waef source and the D-075 ENS winds are commercial-use OK with attribution.
 - **NWSI 10-320 (helper, printed pages 3, 4, 6, 10, A-2, A-4):** no H1/3, H1/10 or breaker-height wording anywhere,
   and surf height is not defined. This confirms the 22:55 provenance note.
+
+## 2026-11-16 23:22 -0500 NDBC panel coverage 2025-01-01..2026-07-31, and an archive-URL bug in eval_reference
+
+Read-only count of the 32-buoy partition-truth panel (`backend/scripts/partition_truth/run_partition_truth.py`) over the
+QC'd archive. A day counts if it has >= 20 distinct hours of valid WVHT; there are 577 days.
+- **19 of 32 buoys have >= 80%:** 46025 46014 46041 46029 46027 41004 41025 41043 41049 51001 51002 51004 51202 41008
+  46087 46054 46086 51201 46026.
+- **Weak:**
+  - 51003 6%, 46005 15%, 46042 19%, 46006 20%;
+  - 41047 42%, 41010 47%, 46002 48%;
+  - 51101 67%, 46013 71%, 46050 75%, 46059 76%, 46022 79%, 41002 80%.
+- **Use for the L1 CRPS gate:** the 19 buoys with >= 80% as the scored panel, registered by name before any score; the
+  rest are reported only.
+
+**BUG FOUND (not fixed here; routed to the director):**
+- `services/weather_pipeline/eval_reference.py:44` builds this year's finished months as
+  `data/stdmet/{Mon}/{id}.txt`.
+- That path exists only for the latest one or two months still being QC'd. On 2026-11-16, Sep and Oct gave 200, but
+  Jan gave 404.
+- Older finished months live at `data/stdmet/{Mon}/{id}{month_number}{year}.txt.gz` (Jan and Jul 2026 gave 200).
+- `fetch_ndbc_archive` therefore records every earlier 2026 month as "missing". The truth window shrinks without any
+  error, though the miss is counted.
+- Fix: try the .gz name first, then fall back to .txt. Add a test for both.
