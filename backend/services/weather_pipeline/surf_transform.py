@@ -269,8 +269,8 @@ def komar_breaker_height(Hs_m, Tp_s):
     parameters alone (no local depth) — the dominant surf-zone predictor in the literature (deep-water
     height + period dominate Hb). Long-period / low-steepness groundswell amplifies more (jacks up bigger)
     than short-period wind chop. Returns None for non-physical inputs."""
-    if Hs_m is None or Tp_s is None or Hs_m <= 0 or Tp_s <= 0:
-        return None
+    if Hs_m is None or Tp_s is None or not (math.isfinite(Hs_m) and math.isfinite(Tp_s)) or Hs_m <= 0 or Tp_s <= 0:
+        return None                                # non-finite: Tp = inf raised here, Hs = inf returned NaN
     L0 = G * Tp_s * Tp_s / (2.0 * math.pi)
     if L0 <= 0:
         return None
@@ -405,8 +405,11 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     (depth-capped). ESTIMATE from bulk params — callers MUST tag is_estimated."""
     if Hs_m is None or Tp_s is None:
         return None, 'unknown'
-    if Hs_m != Hs_m or Tp_s != Tp_s:
-        return None, 'unknown'   # NaN passes every <=/>= guard and would propagate to the display
+    if not (math.isfinite(Hs_m) and math.isfinite(Tp_s)):
+        # NaN passes every <=/>= guard and would propagate to the display. +inf did worse (2026-11-17): Tp = inf
+        # raised ZeroDivisionError in the Komar step (L0 = inf, 0.0 ** -0.2), and Hs = inf came back as a FINITE
+        # height (the depth cap), a made-up number from a fill value. Neither is a sea state: no estimate.
+        return None, 'unknown'
     if Hs_m <= 0:
         return 0.0, 'calm'
     if Tp_s <= 0:
