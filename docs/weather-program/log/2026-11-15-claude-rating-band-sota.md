@@ -301,3 +301,55 @@ Florida pilot view: load, zoom out, zoom in, three pans; ONE run per arm; lab, n
 Lab server times are not live times (each live `/grid?surf=1` is 4-22 s of box CPU), so the ratio, not the seconds, is the reading:
 with the bundles three cycles behind, this view sends the box ~1.8x the surf `/grid` asks and ~3x their server time, and loses
 most of the band. Raw rows: shared notes `rating-band-sota-2026-11-15/asks-cdn*.json`.
+
+## 12. The stale-layer chip on the collapsed phone header: GATE, registered before any chip code (2026-11-16 10:48 EST by the clock)
+David approved the chip (08:54 EST via the advisor: "Yes, build it") and gave it to this lane (10:31 EST via the director: "Rating-band
+lane builds it"). Scope: the collapsed phone timeline header only (TimelineDrawerHeader.js plus one prop at its call site in
+MapWeatherControls.js; checked against the open PRs touching that file, #755 (Codex draft), #923 and #928: no hunk within 50 lines of
+the call site). What it is: a small text chip, a clock icon plus "Ratings 6 h old" (or wind's "Wind: nearest stored time"), shown only
+while the painted layer lags. It reads staleLayerState.js. Informational colours, not a warning colour, and never colour alone. A tap opens
+the drawer, where the status line says it in full. Ships ON; kill switch window.__RAW_DISABLE_STALE_CHIP__ = true.
+GATE (the advisor's six points, now this lane's; all must hold, measured offline before the PR leaves draft):
+1. Contrast >= 4.5:1 in light, dark and beach, worst case over any map behind the translucent panel.
+2. Absent in every control case: zero lag, unknown lag, band not painted, band held, not a rating grid, the drawer open, and the
+   kill switch. Wind: absent when the drawn wind is the exact selected hour or nothing is drawn.
+3. A real button: the accessible name is the full sentence (the status line's), it is reachable by keyboard with a visible focus ring,
+   and activating it opens the drawer (aria-expanded and aria-controls like the header's own buttons).
+4. The same source as the status line: both read staleLayerState.readRatedRunState / readWindStaleState, with a unit test that asserts
+   the chip's accessible name equals the status line's text for the same painted grid.
+5. No overlap or clipping at 360, 390 and 430 px phone widths, in all three themes, with before and after screenshots (the lab CDN
+   with the rated bundles one run behind).
+6. Desktop and the expanded drawer are unchanged: no chip there, and a screenshot comparison of both before and after.
+GATE RESULTS (2026-11-16 ~11:30 EST; offline, `scn_stale_chip.js`, serve_synthetic, the lab CDN with the rated bundles one run
+behind; the chip build against the #933 build as "before"; screenshots and JSON in the shared notes `rating-band-sota-2026-11-15/chip-*`):
+1. Contrast: the chip's text is the header's own muted colour, measured in the page as rgb(75,85,99) on light and rgb(156,163,175)
+   on dark and beach. Worst case over any map behind the translucent panel: light 6.8:1, dark 6.1:1, beach 6.9:1. PASS.
+2. Absent in every control case: unit tests cover zero and unknown lag, band not painted, band held, not a rating grid, the chip
+   kill, the label kill, nothing painted, wind off, wind exact, and both lagging (one chip). In the browser, 15 cells were checked
+   against one rule: a chip exactly when the painted grid lags (band painted, not held, ratedRun.lagH > 0). All 15 consistent, including the
+   cells where the lab served the current run (no lag, no chip) and every open-drawer and desktop cell (lag present, no chip). NOT
+   exercised in the browser: the kill switch WITH a lag present. In three tries the lab served the current run in those cells; that
+   case is unit-tested only.
+3. A real button: named with the status line's sentence, focusable, with aria-controls and aria-expanded, and a click opens the
+   drawer (unit tests). PASS.
+4. One source: a unit test renders ForecastTimeStatus and the chip over the same painted grid and asserts the chip's accessible name
+   equals the line's text. PASS.
+5. No overlap or clipping at 360 / 390 / 430 px, in all three themes: in every cell where the chip showed (all 9 width x theme cells
+   across the two passes), never clipped, and no intersection with any other visible control in the drawer. PASS.
+6. Desktop and the open drawer unchanged: no chip in any of the 6 cells, with a lag present. The "before" build shows no chip anywhere
+   (15/15). PASS.
+Lab note, not a chip defect: the first pass missed one chip (beach 390). Re-probing showed a probe race (the grid committed less than
+the chip's 500 ms poll before the read) and lab runs served from /grid (no lag, so no chip due). The probe now waits 1.2 s and checks
+the rule above.
+ADVISOR ROUND 1 on #978 (16:38Z), two conditions, both fixed:
+1. Label in name (WCAG 2.5.3): aria-label = "<visible words>. <the status line's sentence>" ("Ratings 6 h old. Surf ratings from
+   the ... run, ..."). The tests assert the name STARTS WITH the visible text and CONTAINS the line's sentence.
+2. Flicker while scrubbing. A cleared state is held HOLD_MS = 1500 ms before the chip goes. The FIRST appearance is not delayed: a
+   non-null read shows at once. The kill switch removes it at once, and opening the drawer unmounts it with the header. A
+   fake-timer test covers a brief clear (kept), a long clear (gone), the return, and the kill (gone at once).
+   In the page (`scn_stale_chip.js SCRUB=1`: collapsed drawer at 390 px, light / dark / beach, a lag present at the start, 20 steps
+   of +3 h at 400 ms, a MutationObserver on the chip and a ResizeObserver on the collapsed panel), the same result with and without
+   the hold, in all three themes: 0 mounts, 1 unmount, 1 height change (103 -> 77 px). The one change is the honest one: on the
+   first step the painted grid moves from the lagging rated bundle to the scrub's series frames, which carry the CURRENT run
+   (lag 0 in 20 of 20 samples), so the chip leaves once and never comes back. Not exercised in the page: a lag that stays present
+   while scrubbing (this lab's series frames never lag), which is where the hold matters. That case is the unit test only.
