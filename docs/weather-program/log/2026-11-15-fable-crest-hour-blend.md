@@ -1072,3 +1072,20 @@ copy of the current field as the earlier one, the picture held at 0 and at 0.5 e
   apply to the self-mix mode (no hidden hour is taken and "held against fine" is zero by construction). Not a result.
 - So: the shader text is the gate build's (the hash pin, section 33) and the engine reads the earlier field at exactly its
   own place on this build. Still not done: light and beach themes, the phone layout, the whole test trees on this commit.
+
+## 40. The ten blinded pairs are RECORDED and ready for the owner (2026-11-16, 23:26-23:40 EST). Not yet looked at by him.
+Protocol: section 35, unchanged. Recorder `scn_blend_look.js` on the local combined build `7339d1d3f` (both blends, the wind
+blend with its one-weight-per-frame fix), loaded with the opt-in; offline backend with `--moving-swell 0.9 --moving-wind 8`.
+- **All ten pairs usable** by the recorder's own check (the hard-cut clip started 0 blends; the cross-fade clip started at
+  least one per step): 415 to 430 frames a clip, about 8 s each, the same 8-step scrub at 700 ms a step in both clips.
+- **Blinding, as done:** the draws (which clip is "x", which side "x" is shown on, the order of the pairs) were made by the
+  recorder with the system's random source. The folder the page is opened from holds only x / y and frames; its data file
+  names no treatment (checked: no "cut" or "fade" in it). The key and the labelled raw clips were MOVED out of that folder
+  into the session scratch folder straight after recording. I have not opened the key and will not until his answers are in.
+  I did see one pair's first frames on screen while checking that the page loads; I cannot tell from that which is which,
+  and I do not answer the questions.
+- **The page was checked end to end** (served locally): ten pairs load and play side by side; a click-through with "No
+  difference" ten times gave a well-formed answer code. That test's code is discarded.
+- One thing section 35 did not say and he should know before looking: the clips show the WHOLE app (side panel, layer
+  controls, scrubber), not the map alone, so the map is the middle of each clip.
+- The look is the owner's. Nothing is turned on by it; whatever he prefers is recorded with the count by layer and theme.
