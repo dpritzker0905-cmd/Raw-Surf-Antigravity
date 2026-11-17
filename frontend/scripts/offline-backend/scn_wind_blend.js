@@ -14,13 +14,20 @@
 //   marks  : the colour field NOT drawn; the mean luminance of the particle picture in the 200 ms after each step, and the
 //            particle vertices drawn per frame                                                                         -> W8b
 //   PORT=4203 AB_BASE=http://127.0.0.1:3198 RR_DIR=<cache> OUT=<dir> [THEME=dark] [VP=desktop|phone] [VIEWS=0,1,..] node scn_wind_blend.js
+// MODE=more (log section 5, the advisor's lines): per view and arm, the colour field AND the particles drawn                -> W8c
+//          and per drawn frame the particle state texture read back: particles respawned since the frame before, and the
+//          mean step of the rest                                                                                       -> W8d
+//          and per drawn frame the base's and the fine overlay's valid time beside the mix weight (two CONUS views added) -> W14
+// MODE=plain (W2b): the page is loaded WITHOUT the opt-in (the plain shaders every user gets); the timing phase only.
 if (process.env.AB_LIVE === '1') throw Error('scn_wind_blend is offline only');
 const fs = require('fs'); const path = require('path');
 const L = require('./ab_lib.js'); const { RR } = require('../raster-lab/rr.js');
 const OUT = process.env.OUT; const THEME = process.env.THEME || 'dark'; const PHONE = process.env.VP === 'phone';
 const STEP_MS = +(process.env.STEP_MS || 600); const STEPS = +(process.env.STEPS || 8); const PROBE = process.env.PROBE === '1'; const WATCH_MS = +(process.env.WATCH_MS || 8000);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const MODE = process.env.MODE || 'gate';
 const VIEWS = [[-40, 35, 2.5], [-140, 20, 3.0], [20, -40, 3.5], [150, -20, 3.0], [-106, 14, 4.0], [-158, 21.6, 5.0], [-9.5, 39, 5.0], [150, -34, 5.0], [-123, 37.5, 5.0], [-5, 50, 4.5]];
+if (MODE === 'more') VIEWS.push([-98, 39, 4.5], [-122, 37, 5.5]);   // W14's two CONUS views
 const PICK = process.env.VIEWS ? process.env.VIEWS.split(',').map(Number) : VIEWS.map((_, i) => i);
 
 const SPY = () => {
@@ -67,6 +74,21 @@ const SPY = () => {
     for (let y = 0; y < ch; y++) { let i = (y * stride * w) * 4; const o = y * cw; for (let x = 0; x < cw; x++, i += 4 * stride) out[o + x] = 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]; }
     return out;
   };
+  // W8d: the particle state texture (positions in [0,1)), read back; respawned = moved more than 5% of the domain in one frame
+  H.particles = () => {
+    const e = window.__WIND_ENGINE__; const gl = map().painter.context.gl; const n = e && e.particleRes; if (!n || !e.particleStateA) return null;
+    const fb0 = gl.getParameter(gl.FRAMEBUFFER_BINDING); const fb = H.pfb || (H.pfb = gl.createFramebuffer());
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, e.particleStateA, 0);
+    const type = gl.getParameter(gl.IMPLEMENTATION_COLOR_READ_TYPE); const isFloat = type === gl.FLOAT || type === gl.HALF_FLOAT;
+    const pos = new Float32Array(n * n * 2);
+    if (isFloat) { const b = H.pbf && H.pbf.length === n * n * 4 ? H.pbf : (H.pbf = new Float32Array(n * n * 4)); gl.readPixels(0, 0, n, n, gl.RGBA, gl.FLOAT, b); for (let i = 0; i < n * n; i++) { pos[2 * i] = b[4 * i]; pos[2 * i + 1] = b[4 * i + 1]; } }
+    else { const b = H.pbb && H.pbb.length === n * n * 4 ? H.pbb : (H.pbb = new Uint8Array(n * n * 4)); gl.readPixels(0, 0, n, n, gl.RGBA, gl.UNSIGNED_BYTE, b); for (let i = 0; i < n * n; i++) { pos[2 * i] = b[4 * i] / 255 + b[4 * i + 1] / 65025; pos[2 * i + 1] = b[4 * i + 2] / 255 + b[4 * i + 3] / 65025; } }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb0);
+    const prev = H.ppos; H.ppos = pos; if (!prev || prev.length !== pos.length) return { float: isFloat, respawn: null, step: null };
+    let respawn = 0; let sum = 0; let k = 0;
+    for (let i = 0; i < n * n; i++) { const d = Math.hypot(pos[2 * i] - prev[2 * i], pos[2 * i + 1] - prev[2 * i + 1]); if (d > 0.05) respawn += 1; else { sum += d; k += 1; } }
+    return { float: isFloat, respawn, step: k ? sum / k : null, n: n * n };
+  };
   H.hook = () => {
     const m = map(); if (H.hooked || !m) return !!H.hooked; H.hooked = true;
     m.on('render', () => {
@@ -75,7 +97,9 @@ const SPY = () => {
       for (let i = 0; i < lum.length; i++) mean += lum[i]; mean /= lum.length;
       if (prev && prev.length === lum.length) { let s = 0; for (let i = 0; i < prev.length; i++) s += Math.abs(lum[i] - prev[i]); d = s / prev.length; }
       H.lum = lum; const t = window.__RAW_WIND_HOUR_BLEND__;
-      H.frames.push({ t: performance.now(), d, mean, mix: t ? t.mix : 0 });
+      const fr = { t: performance.now(), d, mean, mix: t ? t.mix : 0 };
+      if (H.more) { const b = H.base(); fr.baseValid = b.valid; fr.fine = b.fine; const p = H.particles(); if (p) { fr.respawn = p.respawn; fr.pstep = p.step; fr.pfloat = p.float; } }
+      H.frames.push(fr);
     });
     return true;
   };
@@ -116,6 +140,7 @@ const SPY = () => {
 const med = (a) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
 const r3 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(3));
+const r3n = (x) => (x == null || !Number.isFinite(x) ? null : +x.toPrecision(5));   // particle steps are small numbers
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -123,7 +148,8 @@ const r3 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(3));
   const { browser, page } = await L.launch(PHONE ? { port: +(process.env.PORT || 4203), width: 390, height: 844, dpr: 2, contextOptions: { isMobile: true, hasTouch: true } } : { port: +(process.env.PORT || 4203), width: 1280, height: 800, dpr: 1 });
   await rr.install(page);
   await page.addInitScript(SPY);
-  await page.addInitScript((theme) => { try { localStorage.setItem('raw-surf-theme', theme); } catch (e) { /* private mode */ } window.__RAW_ENABLE_HOUR_BLEND__ = true; /* the blend is opt-in: both arms load the blended shaders, arm A sets the kill */ window.__RAW_STATIC_FRAMES_BASE__ = 'http://127.0.0.1:4293/'; }, THEME);
+  if (MODE === 'plain') await page.addInitScript(() => { window.__WB_PLAIN__ = true; });
+  await page.addInitScript((theme) => { try { localStorage.setItem('raw-surf-theme', theme); } catch (e) { /* private mode */ } if (!window.__WB_PLAIN__) window.__RAW_ENABLE_HOUR_BLEND__ = true; /* the blend is opt-in: both arms load the blended shaders, arm A sets the kill; MODE=plain leaves it unset */ window.__RAW_STATIC_FRAMES_BASE__ = 'http://127.0.0.1:4293/'; }, THEME);
   const errs = []; page.on('pageerror', (e) => errs.push(String(e).slice(0, 160).replace(/access_token=[^&\s"']+/g, 'access_token=REDACTED')));
   const reqs = []; const t0 = Date.now();
   page.on('request', (r) => { if (/\/api\/weather\/(grid|grid_series)/.test(r.url())) r.__t = Date.now(); });
@@ -164,6 +190,48 @@ const r3 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(3));
     await home();
     const order = vi % 2 === 0 ? ['A', 'B'] : ['B', 'A'];
     const outs = { A: { arm: 'A', theme: THEME, vp: PHONE ? 'phone' : 'desktop', view: vi, lng, lat, z, order: order.join(''), settles }, B: { arm: 'B', theme: THEME, vp: PHONE ? 'phone' : 'desktop', view: vi, lng, lat, z, order: order.join(''), settles } };
+    if (MODE === 'plain') {   // W2b: the plain shaders (no opt-in), the timing phase only, one scrub
+      const loaded = await ev(() => { const e = window.__WIND_ENGINE__; return { blendShaders: !!(e && e._windBlendShaders), optIn: window.__RAW_ENABLE_HOUR_BLEND__ === true }; });
+      await ev(() => { const H = window.__WB__; H.gpu = []; H.timing = true; });
+      await scrub(STEP_MS, false);
+      const T = await ev(() => { const H = window.__WB__; H.timing = false; return { gpu: H.gpu, ext: H.hasExt }; });
+      const o = { mode: 'plain', theme: THEME, view: vi, lng, lat, z, loaded, ext: T.ext, gpuN: T.gpu.length, gpuMedian: r3(med(T.gpu.map((g) => g.ms))), errors: errs.slice(0, 4) };
+      fs.appendFileSync(path.join(OUT, `wb-plain-${THEME}-${PHONE ? 'phone' : 'desktop'}.jsonl`), JSON.stringify(o) + '\n');
+      console.log(`view ${vi} z${z} PLAIN shaders (blendShaders ${loaded.blendShaders}, optIn ${loaded.optIn}): gpu ${o.gpuMedian} over ${o.gpuN}`);
+      await home(); continue;
+    }
+    if (MODE === 'more') {   // W8c, W8d, W14: the colour field AND the particles drawn; the particle state and the overlay's hour per frame
+      await ev(() => { const H = window.__WB__; H.hideMarks = false; H.hideField = false; H.more = true; }); await sleep(2500);
+      for (const arm of order) {
+        await setArm(arm);
+        await ev(() => { const H = window.__WB__; H.frames = []; H.lum = null; H.ppos = null; H.capture = true; }); await sleep(600);
+        const cm = await scrub(STEP_MS, false);
+        const F = await ev(() => { const H = window.__WB__; H.capture = false; return H.frames; });
+        await home();
+        const win = (a, b, get) => { const v = F.filter((x) => x.t >= a && x.t < b).map(get).filter((x) => x != null); return v.length ? { n: v.length, mean: r3n(mean(v)), max: r3n(Math.max(...v)) } : null; };
+        outs[arm].more = cm.map((m, i) => {
+          const end = i + 1 < cm.length ? cm[i + 1].t : m.t + 800;
+          const before = F.filter((x) => x.d != null && x.t >= m.t - 400 && x.t < m.t).map((x) => x.d); const after = F.filter((x) => x.d != null && x.t >= m.t && x.t < Math.min(end, m.t + 800));
+          const floor = med(before); const peak = after.length ? Math.max(...after.map((x) => x.d)) : null;
+          // W14: a frame that mixes (mix > 0) while a fine overlay of ANOTHER hour than the base is held
+          const bad = F.filter((x) => x.t >= m.t && x.t < end && x.mix > 0 && x.fine && String(x.baseValid).slice(11, 16) !== String(x.fine).split('@')[1]).length;
+          const anyFine = F.filter((x) => x.t >= m.t && x.t < end && x.fine).length;
+          return { step: r3(peak != null && floor != null ? peak - floor : null), floor: r3(floor),
+            respawn: { rest0: win(m.t - 300, m.t, (x) => x.respawn), blend: win(m.t, m.t + 160, (x) => x.respawn), rest1: win(m.t + 300, m.t + 560, (x) => x.respawn) },
+            pstep: { rest0: win(m.t - 300, m.t, (x) => x.pstep), blend: win(m.t, m.t + 160, (x) => x.pstep), rest1: win(m.t + 300, m.t + 560, (x) => x.pstep) },
+            mixFrames: F.filter((x) => x.t >= m.t && x.t < end && x.mix > 0).length, fineFrames: anyFine, overlayOtherHourWhileMixing: bad };
+        });
+        outs[arm].pfloat = F.some((x) => x.pfloat);
+      }
+      await ev(() => { window.__WB__.more = false; });
+      for (const arm of ['A', 'B']) {
+        const o = outs[arm]; o.errors = errs.slice(0, 4);
+        fs.appendFileSync(path.join(OUT, `wbmore-${arm}-${THEME}-${PHONE ? 'phone' : 'desktop'}.jsonl`), JSON.stringify(o) + '\n');
+        const st = o.more.map((x) => x.step).filter((x) => x != null);
+        console.log(`view ${vi} z${z} arm ${arm} (${o.order}) MORE: step mean ${r3(mean(st))}; mix frames ${o.more.reduce((t, x) => t + x.mixFrames, 0)}; fine-overlay frames ${o.more.reduce((t, x) => t + x.fineFrames, 0)}; overlay of another hour while mixing ${o.more.reduce((t, x) => t + x.overlayOtherHourWhileMixing, 0)}`);
+      }
+      continue;
+    }
     for (const arm of order) {   // timing
       await setArm(arm); await ev(() => { const H = window.__WB__; H.gpu = []; H.timing = true; });
       const tm = await scrub(STEP_MS, false);
