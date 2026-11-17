@@ -1260,3 +1260,52 @@ Job 13:39-14:26Z; gate step 45 min; peak RSS 7907 MB; the FES cache restored. Th
     - (i) G3b on v2.1 as registered, plus a v3.1 confirmation later;
     - (ii) a PROSPECTIVE G3b on v3.1 from now on (truly unseen, live as issued, months for storms);
     - (iii) re-register the primary level-free (cwl - htp), the advisor's path (b).
+
+## 10:01 EST 2026-11-17 (`date`) - OWNER DECISION: G3b becomes a PROSPECTIVE test on STOFS v3.1 (DRAFT amendment, no data fetched)
+**Owner, typed in this session at 09:59 EST: "Prospective v3.1 test".** This supersedes the 2026-11-16 G3b window
+(2026-01-01 .. 07-24, STOFS v2.1). The reason is in the entry above: serving would run v3.1, and a pass on v2.1 would
+certify a retired version. The thresholds, pass lines and controls of the G3b draft are unchanged except as listed here.
+This is a DRAFT for the research lead's and the advisor's read; it becomes FINAL only on their read, and the run is the
+owner's word typed in this session.
+
+### What changes
+- **Window: prospective.** It starts at the first 00Z cycle at least 24 h after the commit that makes this FINAL. It ends at
+  **2027-03-31 23Z**, which covers the US winter storm season on every coast. No forecast or truth inside the window is read
+  before the end, except under the truth-only counting rule below.
+  - The STOFS point files stay on noaa-gestofs-pds, so "as issued" is fetched after the end from the archive. Each cycle is
+    used at the availability time it had (S3 LastModified, ~6.5 h after the cycle), not at the cycle time.
+- **Primary: level-free (stated plainly as post-pilot).** P1 = A + S1 + N2' with N2' = (cwl - htp), the STOFS non-tidal
+  part. Its own level is removed causally: the mean over the 30 days ending 24 h before the forecast's availability time.
+  - N2 (swl, the v3.1 LMSL level) is REPORTED and never gates. P1' = A + N2' if the S1 preflight fails.
+  - The constant non-tidal control, the label swap, the positive control and the +24 h shift control keep the G3b form.
+- **Version guard:** the window is defined by STOFS-2D-Global v3.1. Any later NOAA notice (SCN) that changes STOFS-2D
+  station output, its datum or its bias correction ENDS the window at that change's first cycle. If the storm minimum is
+  then unmet, the result is INCONCLUSIVE; a new window needs a new registration.
+- **Truth-only storm count (allowed, with limits).** At most once a month, observed water and CO-OPS predictions alone may
+  be fetched to count storms, under the G3b rules: rolling reference, events >= 12 h, storms ending at the first 24 h with
+  no surge hour in the region.
+  - No arm, forecast or reference value is fetched or scored in a count, and the count is logged.
+  - **It cannot end the window early**: the end date is fixed.
+  - If >= 20 storms in >= 3 regions are not met by 2027-03-31, the gate is INCONCLUSIVE, and an extension needs a
+    registered amendment written before any arm data.
+- **Independence caveat (reported, not gated):** STOFS bias-corrects against observed CO-OPS water over the last 5 days
+  (station correction, plus the v3.1 gridded correction on the open boundaries). That is the same network we score
+  against, so the gate measures skill AT gauges.
+  - The spot-level gate (UHSLC and other non-CO-OPS gauges) is the independent check before any claim away from gauges.
+  - Leads are counted from availability time, so the correction uses only data a live product would have had.
+- **References C and D** (Open-Meteo previous runs, test only) as in G3b, at the same availability-based leads.
+- **Seen list:** every date up to the FINAL commit is seen, so the window is wholly unseen by construction.
+
+### Retrospective v2.1 run (Jan .. Jul 2026): supporting evidence only
+It may run under the G3b draft as registered. It is labelled "v2.1 retrospective", it cannot PASS or FAIL serving, and it
+is not a look at the prospective window. The research lead to say whether it is worth its ~64 GB of downloads.
+
+### What a PASS decides (unchanged from the owner's "Yes, ship ON")
+- On the owner's word to merge, the served tide ships ON by default behind a kill switch, with a SCOREBOARD row.
+- Contract tests come with it, plus an auto-trip when STOFS is more than 18 h old.
+- FAIL or INCONCLUSIVE keeps today's tide. VOID is recorded, with no re-run on the window.
+
+### Meanwhile (no gate data)
+- The code (G3 parameterised: availability leads, a causal rolling reference, the version guard, the 18 h auto-trip test)
+  can be built and reviewed now.
+- The served path can be built DARK, behind its flag, so a PASS turns into a merge without new code.
