@@ -2322,3 +2322,27 @@ surf-beach truth.
   - a negative control: shuffled storm timing must lose.
 - **To verify first:** that v3.1's gridded or station correction is constant through a forecast cycle (an offset),
   not time-varying within the cycle. If it varies, the high-pass leaks.
+
+## 2026-11-17 14:50 EST Advisor rulings on my 14:25 reading (relayed by the repair lead, PR #1013), and the repair lead's code-based hypothesis
+
+**Corrections to my 14:25 EST section** (append-only; the advisor's rulings):
+1. "The defect follows rows where EURO/ICON has no stored tier" is NOT tested by the #870 rule. Mixed and stored cells
+   differ in place and time as well as in membership. It is **"consistent with"** a missing member, and needs its own
+   rule, written before its read, on the same station-hours.
+2. The SIZES in the tier table (+0.14 / +0.34 m) may NOT be used until the stored-member control (about -0.03 m) is
+   explained. The table is descriptive only.
+
+**Repair lead's code read** (consensus_product.py, consensus_ingest.py; nothing measured):
+- Each member is answered per GFS node by a chooser built on manifest_point_selection.
+- Where a member has no answer, or its path is unavailable / out_of_bounds_fallback, the node is MASKED (the shadow uses
+  unblended="mask").
+- A CONSENSUS point reads only stored products. The EURO/ICON LANES can answer from a live upstream, which is
+  presumably what a no-stored-tier row is.
+- **Revised hypothesis:** with nodes masked near the coast, the shadow's value at a buoy is taken from the remaining
+  nodes, i.e. another place, likely further offshore, and so reads high.
+  - This fits nothing for stored/stored, +0.14 with one member missing and +0.34 with both (descriptively).
+- **Test without buoys or private rows:** the stored CONSENSUS products' grid.diagnostics["consensus"] carry
+  member_missing, masked, member_sources and member_frame_offset_cells.
+- The read needs the private store. Route: a one-shot, read-only, aggregates-only CI job (like scored-rows-gate) that
+  prints those counts, plus the masked-node fraction within N km of each buoy, on the latest runs.
+- Pre-register its rule first. The owner dispatches it.
