@@ -1215,3 +1215,48 @@ Job 13:39-14:26Z; gate step 45 min; peak RSS 7907 MB; the FES cache restored. Th
 - Not interpreted further before the advisor's read; the window is spent.
 - Any G3b change it prompts is a POST-PILOT amendment, labelled with this fact, made before any G3b data, with
   thresholds and the primary unmoved.
+
+## 09:48 EST 2026-11-17 (`date`) - G3 pilot: advisor read (14:44Z); a DATUM FINDING ON THE SURGE REFERENCE, confirmed by NOAA's own notice
+- **Advisor (14:44Z) read and recomputed** from my JSON copy:
+  - median of the 24 per-gauge P1 - D differences = -0.0756 m;
+  - one gauge over the item-2 limit (8722670, +0.070 m);
+  - "VERDICT AS REGISTERED: VOID".
+- **Named outcome (written before the run executed, 37763ad0e): "a datum finding on the surge reference".**
+  - The STOFS swl reference stepped at 2026-08-16: median -0.03 m before, +0.16 m after (median step +0.21 m, range
+    -0.12 .. +0.36).
+  - The window lies wholly after the step; the 30-day reference lies mostly before it.
+  - The primary's median bias is +0.080 m, against -0.013 m for tide + seasonal alone.
+  - The level-free variant (cwl - htp) has bias -0.003 m and the lowest error of any model arm (0.090 vs 0.104 for
+    A+S1 and 0.114 for P1).
+  - Not shown: that surge adds skill in time (median error SD 0.064 m with and without it).
+- **NOAA's own record** (SCN 26-51 Updated, issued 2026-07-08):
+  - "Upgrade of the Surge and Tide Operational Forecast System (STOFS) to Version 3.1 Effective Aug 11, 2026",
+    beginning with the 12Z cycle. The archive's format switch on 2026-08-16 is the deployment.
+  - For STOFS-2D-Global: "Station netCDF output will now be referenced to local mean sea level (LMSL) (no longer
+    NAVD88)". The point files the gate reads CHANGED VERTICAL DATUM, which accounts for the step.
+  - Also: "a gridded bias correction" that extends the existing station bias correction, which "removes the bias
+    between the observed water levels at NOS/CO-OPS stations and most recent 5 days of" model nowcast. So STOFS
+    station output is partly corrected with the same gauges we score against. Its skill at gauges likely overstates
+    its skill away from them.
+- **Discrepancy 1, storm count (4 in the result vs 3 in the truth-only count):**
+  - Both run the same rule (overlap OR start within 48 h). The truth series differed slightly between the two fetches.
+  - At 8723214 the count saw two events (09-02T02 26 h, 09-03T11 20 h) and the gate one run (66 surge hours).
+  - The count's second start was 47 h before the next Atlantic event (linked); the gate's single start was 80 h before
+    it (not linked).
+  - Start-to-start linking is fragile when events merge. G3b's added rule (a storm ends at the first 24 h with no
+    surge hour in the region) removes the sensitivity.
+- **Discrepancy 2, 24 paired gauges, not 26:**
+  - Boston 8443970: its served 0.1 deg Open-Meteo cell is land, so D and C are undefined (as in G2).
+  - Galveston 8771510: its cell HAS data (checked 2026-09-01: 24 values), so it dropped through the run's Open-Meteo
+    timeouts (8 logged).
+  - Neither counted against P1 in item 2, since D was undefined at both.
+- **G3b - an open decision for the research lead, the director and the owner (no G3b data fetched):**
+  - G3b's window (2026-01-01 .. 07-24) is entirely STOFS **v2.1**, so there is no step inside it (path (a) is safe in
+    that narrow sense).
+  - But the product that would be SERVED runs **v3.1** (new station datum, gridded bias correction). A G3b PASS would
+    certify a retired version.
+  - Unseen v3.1 dates are fragments of ~2 weeks (since 08-16, outside the seen list), far below >= 20 storms.
+  - Options:
+    - (i) G3b on v2.1 as registered, plus a v3.1 confirmation later;
+    - (ii) a PROSPECTIVE G3b on v3.1 from now on (truly unseen, live as issued, months for storms);
+    - (iii) re-register the primary level-free (cwl - htp), the advisor's path (b).
