@@ -160,12 +160,14 @@
   "frame": "beach",
   "frame_size": 568,
   "rn": 10,
-  "label": "unknown",
-  "source_type": null,
+  "label": "beach",
+  "source_type": "guide_description",
   "sources": [
-   "https://www.discoverireland.ie/galway/silverstrand-beach"
+   "https://windy.app/forecast2/spot/73705/Silverstrand/statistics",
+   "https://www.thebeachguide.co.uk/republic-of-ireland/county-galway/silverstrand.htm"
   ],
-  "note": "NO_SOURCE: sheltered sandy swimming beach in Galway Bay; one guide rates it no surf; no break description"
+  "note": "Windy spot profile lists a beach break with sandy seabed; beach guides describe a short sandy beach (some say no regular surf).",
+  "completion_pass": true
  },
  {
   "id": "c22caf3a-4329-470b-9082-e0d760751f3f",
@@ -591,10 +593,14 @@
   "frame": "beach",
   "frame_size": 568,
   "rn": 36,
-  "label": "unknown",
-  "source_type": null,
-  "sources": [],
-  "note": "NO_SOURCE: no reachable guide page without search (no surf-forecast SC page; Wikipedia Kiawah article does not describe the surf)."
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/North_America/USA/South_East/South_Carolina/kiawah_island",
+   "https://surfnerd.com/surf-forecast/kiawah-island-seabrook-island/NdNdJjQxsLxJKqSLG"
+  ],
+  "note": "Wannasurf: beach break, rights and lefts, sandy bottom; Surfnerd also gives a sand bottom.",
+  "completion_pass": true
  },
  {
   "id": "33025083-0f8d-482f-9e59-225053daac31",
@@ -1148,10 +1154,14 @@
   "frame": "inlet_jetty",
   "frame_size": 31,
   "rn": 30,
-  "label": "unknown",
-  "source_type": null,
-  "sources": [],
-  "note": "NO_SOURCE: no description specific to the south side of Sebastian Inlet found."
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://americansurfmagazine.com/article/sebastian-inlet-surf-guide",
+   "https://www.palmbeachillustrated.com/sebastian-inlet-floridas-in-state-surf-pilgrimage/"
+  ],
+  "note": "Guides say the south-side waves are pushed by the jetty and the Monster Hole sandbar sits at the inlet mouth just south of the channel.",
+  "completion_pass": true
  },
  {
   "id": "ce1567c7-24f0-4877-bbbd-6abab27d4bcf",
@@ -1754,10 +1764,14 @@
   "frame": "point_headland",
   "frame_size": 131,
   "rn": 36,
-  "label": "unknown",
-  "source_type": null,
-  "sources": [],
-  "note": "NO_SOURCE: no reachable guide page without search (no Panama Point in the surf-forecast Sri Lanka list)."
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://abrotherabroad.com/?p=6326",
+   "https://srilankatravelpages.com/?p=35532"
+  ],
+  "note": "Guides describe a right-hand point break over sand and reef with long rides; one also notes it sits at a river mouth.",
+  "completion_pass": true
  },
  {
   "id": "1c97d807-9e46-4de1-8592-bb03a3205d30",
@@ -2674,10 +2688,14 @@
   "frame": "reef",
   "frame_size": 148,
   "rn": 22,
-  "label": "unknown",
-  "source_type": null,
-  "sources": [],
-  "note": "NO_SOURCE: no reachable guide page without search (surf-forecast Chile list has no Arica region; its La Isla is in Atacama, a different spot)."
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "http://wannasurf.com/spot/South_America/Chile/Tarapaca/la_isla/",
+   "https://www.surf-forecast.com/breaks/La-Isla_1"
+  ],
+  "note": "Wannasurf and Surf-Forecast call La Isla (north side of ex-Alacran island) a left point break over reef/rock; Surfnerd lists it as reef break; pin sits ~5 km west of the peninsula.",
+  "completion_pass": true
  },
  {
   "id": "afb6e932-11d3-441d-886a-f8e148f94ce4",
@@ -2737,10 +2755,14 @@
   "frame": "reef",
   "frame_size": 148,
   "rn": 26,
-  "label": "unknown",
-  "source_type": null,
-  "sources": [],
-  "note": "NO_SOURCE: no reachable guide page without search (no Daku break in surf-forecast Siargao list; Wikipedia Daku Island 404)."
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://thesurfatlas.com/surfing-in-philippines/siargao-surfing/",
+   "https://islaguru.com/articles/surfing-siargao-island"
+  ],
+  "note": "Guides describe Daku as a right-hand reef break (split peak over coral) off Daku Island, Siargao.",
+  "completion_pass": true
  },
  {
   "id": "d40070d3-c020-4538-910c-b4041981b7a2",
@@ -3407,10 +3429,14 @@
   "frame": "untagged",
   "frame_size": 786,
   "rn": 23,
-  "label": "unknown",
-  "source_type": null,
-  "sources": [],
-  "note": "NO_SOURCE: no reachable guide page without search; surf-forecast China list has no Houhai break (Riyue Bay is a different spot)"
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Asia/China/South_China_Sea/Houhai",
+   "https://surfnerd.com/surf-forecast/houhai"
+  ],
+  "note": "Wannasurf lists Houhai (Sanya) as a left-and-right beach break in a sheltered bay.",
+  "completion_pass": true
  },
  {
   "id": "558f9a90-383e-4c56-b615-03a190116d06",
@@ -3483,12 +3509,14 @@
   "frame": "untagged",
   "frame_size": 786,
   "rn": 28,
-  "label": "unknown",
-  "source_type": null,
+  "label": "reef",
+  "source_type": "guide_description",
   "sources": [
-   "https://surfnerd.com/surf-forecast/yin-yang"
+   "https://www.surf-forecast.com/breaks/Yin-Yang",
+   "https://fr.wannasurf.com/spot/Asia/Maldives/yin_yang"
   ],
-  "note": "NO_SOURCE: the described Yin Yang (right reef over dead coral) is in Laamu atoll ~2N; the pin is at ~3.97N (South Male), so identity unconfirmed."
+  "note": "All Yin Yang sources describe a right-hand reef break in a channel pass; listed coordinates/atoll differ from this pin, break type agreed.",
+  "completion_pass": true
  },
  {
   "id": "5ffb87e0-ec7b-42eb-812b-7537ee7ee571",
