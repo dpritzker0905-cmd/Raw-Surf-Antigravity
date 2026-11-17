@@ -1956,3 +1956,33 @@ amendment 1, THIS governs.
   - None reaches the 0.80 gate, nor the 10% bar set at 00:25.
   - Lzma would also need a JS decoder in the browser (decode cost unmeasured), so an 8% gain does not justify it.
   - **Packing is CLOSED for now.** Reopen only with a new coder idea that clears 0.90 of v1 on every layer.
+
+## 2026-11-17 09:28 -0500 LongCat review RECEIVED (via David's logged-in LongCat chat in Chrome) and checked
+
+The MCP route failed 3 times (network). Same question, compact excerpt, pasted into longcat.ai/chat (Think mode). Billing:
+the API token pack shows 103.91K of 50M used, so the failed calls were immaterial.
+
+**Accepted (checked):**
+- **Joint concavity fails.** Komar Hb goes as Hs^0.8 Tp^0.4 (exponents sum to 1.2 > 1). It is concave in each variable
+  alone, but with correlated Hs and Tp the sign of f(mean) - E f(member) is NOT guaranteed. This refines Reflection's
+  "positive bias". Conclusion unchanged and stronger: propagate members, never the mean.
+- **Non-finite inputs crash.** Tp = inf gives L0 = inf, Hs/L0 = 0, and 0.0**-0.2 raises ZeroDivisionError (verified in
+  Python). The guard at :408 catches NaN, not inf.
+  - For ensemble ingestion: reject non-finite values and GRIB fill values before the chain. A small robustness fix,
+    for the lane.
+- **Censoring:** report the fraction of members at the cap, at 0, at the exposure floor, and dropped. When the
+  at-cap share is large, serve ">= cap" (matches the "depth-limited" label).
+- **Per-model weighting:** do not pool 31 + 50 raw members (L1 already says equal weight per model).
+- **Cost:** about 243 estimate_surf calls per spot-hour. Precompute slope_proxy, cap_depth and other per-spot
+  constants once per spot-hour.
+- **Missing direction fails open:** exposure is 1.0, which over-reads. Pseudo-partitions must carry mwd.
+
+**Rejected (checked):**
+- "Regime label at :530 is almost always 'shelf'." Numerically, H/Hs before exposure is 1.06-1.40 for typical seas
+  (only 2 m at 8 s gives 0.98), so 'shoaling' is common.
+- "Partitioned double-cap is inconsistent." The per-partition caps plus the combined cap at max Tp are the documented
+  intent (estimate_surf_partitioned docstring); x1.27 is linear, so quadrature is unaffected.
+
+**Packing note (helper):** EURO pressure gets MED+lzma 0.736 vs v1 (smooth fields compress well); waves stay at 0.918.
+Many GFS layer sets are not publicly readable (HTTP 400). Packing stays CLOSED. A future per-layer codec for smooth
+fields is a candidate only with a measured browser decode cost.
