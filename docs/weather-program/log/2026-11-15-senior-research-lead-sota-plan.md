@@ -2346,3 +2346,13 @@ surf-beach truth.
 - The read needs the private store. Route: a one-shot, read-only, aggregates-only CI job (like scored-rows-gate) that
   prints those counts, plus the masked-node fraction within N km of each buoy, on the latest runs.
 - Pre-register its rule first. The owner dispatches it.
+
+- 2026-11-17 14:48 -0500: **Storm-band design checked by the tide lane** (model files, one cycle, 2026-11-16 00Z):
+  - cwl = htp + swl; the STOFS station anomaly (cwl - cwl.noanomaly) is non-zero only at 208 CO-OPS points, median
+    0.278 m;
+  - it is near-constant within a cycle (SD median 6.5 mm after the nowcast, max 66 mm).
+  - Recommended:
+    - PRIMARY arm (cwl.noanomaly - htp), storm-band filtered, at the open-coast CO-OPS pier ends;
+    - the served form reported, with the leak shown;
+    - a registered multi-cycle constancy precondition (>= 30 cycles; median SD <= 0.01 m, p95 <= 0.03 m);
+    - the advisor's place-independence strata and still-water truth (setup as its own arm).
