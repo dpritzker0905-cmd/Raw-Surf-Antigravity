@@ -316,7 +316,9 @@ def test_the_day_boundary_check_lives_in_the_counts_only_report_and_names_nothin
     scored = sn.report([_obj(_rows())], "ok", W1_START, W1_END, AFTER_W1, REGION)
     assert "Day-boundary check on these rows: **NOT TESTABLE" in scored    # the scored report carries its one word
     assert "pairs," not in scored                                     # and not the counts: those live in the health run
-    assert "GFS and EURO mean since 2026-11-04" in scored and "GFS and EURO mean since 2026-11-04" in health
+    for text in (scored, health):                                     # the date that can be shown, and what cannot
+        assert "live from about 2026-11-05 01:05Z (Render deploy of c05085215)" in text
+        assert "effect on model=GFS point reads is not verified" in text and "since 2026-11-04" not in text
 
 
 def test_a_scored_run_with_a_boundary_fault_prints_no_verdict_until_the_runs_are_excluded(monkeypatch):

@@ -74,7 +74,8 @@ CAVEATS = (
     "A region cell rests on as few as 3 stations, which is close to station level.",
     "The null is a sanity check and the positive control a plumbing check; neither measures power.",
     "The model is the GFS member's offshore height through the chain. Inside the Southern California Bight that "
-    "height has been a GFS and EURO mean since 2026-11-04 (SURF_BIGHT_HS_CONSENSUS), constant inside both windows.")
+    "height is a GFS and EURO mean (SURF_BIGHT_HS_CONSENSUS), live from about 2026-11-05 01:05Z (Render deploy of "
+    "c05085215), before both windows; its effect on model=GFS point reads is not verified.")
 # The day-boundary check (registered 2026-11-17, advisor's statistic). A fault is an EXCESS of differing observations
 # in the midnight group: more than BOUNDARY_FAULT_SHARE of its pairs AND more than BOUNDARY_FAULT_RATIO x the control's.
 BOUNDARY_FAULT_SHARE, BOUNDARY_FAULT_RATIO = 0.01, 2.0

@@ -884,3 +884,12 @@ counts-only run, so a scored report could go out unchecked. Closed in this commi
   (`generated_at`), the nearest thing to the job reading the clock that the rows store.
 
 24 tests (estate lane must read 3842). No private row read; nothing dispatched.
+
+## 2026-11-17 15:27Z Correction: the Bight caveat on every report said "since 2026-11-04"
+
+The 06:0xZ section above registered a fifth caveat line saying the GFS offshore height in the Bight has been a
+two-model mean "since 2026-11-04, constant inside both windows". That date could not be shown. The line now reads:
+"live from about 2026-11-05 01:05Z (Render deploy of c05085215), before both windows; its effect on model=GFS point
+reads is not verified". The deploy time is the director reading of the Render history; the git half I checked.
+Reworded before any dispatch, counts-only included, as the advisor required. Detail:
+`log/2026-11-17-fable-nearshore-gate-trace.md`.

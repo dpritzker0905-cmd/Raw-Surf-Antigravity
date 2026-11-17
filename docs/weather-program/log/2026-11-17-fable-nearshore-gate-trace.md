@@ -243,3 +243,60 @@ affected.
 
 **For the scored report's caveats** (advisor): the Bight consensus flag has been on since 11-04, before the S0 window
 opened, so it is constant inside the window; "GFS" at the Bight stations is a GFS and EURO mean there.
+
+## 2026-11-17 15:27Z Correction: three header times in this file were estimates, not clock readings (LESSONS L-P10)
+
+This file was copied into the repo from a shared note. I carried over the times I had written in the note's headers
+instead of reading the clock. Its commit (`1bf6c240b`) was made at 2026-11-17 06:00:05Z, so:
+
+- The header "2026-11-17 06:20Z The 00Z dip, checked: mostly the pooling, not a pairing fault. One run left
+  unexplained" names a time twenty minutes AFTER the commit that contains it. That is an estimate. The section was
+  written between the advisor's message at about 05:45Z and the commit at 06:00:05Z; I did not record the minute.
+- The headers "2026-11-17 05:20Z The answer in four lines" and "2026-11-17 05:55Z Corrections after the advisor's
+  read" were estimates too. They happen to fall before the commit, so the check did not flag them, but I did not read
+  the clock for them either. Treat all three as "before 06:00:05Z on 2026-11-17, in that order".
+
+The log is append-only, so the headers stay as written. A `correction` line in the ledger
+(`ledger.d/fable--nearshore-rows-scorer.jsonl`) names this file and the flagged header. This is the third time in
+this session a header of mine ran ahead of its commit; the cause each time was writing a time from memory.
+
+## 2026-11-17 15:27Z The "flip on 11-04" in `mop_ab`: not a flip, and one date of mine corrected
+
+First written in the shared note at about 06:30Z, after the director asked for it. Public reports and code only.
+
+**What `mop_ab` is.** The same California rows scored twice: the bulk chain, and CDIP's MOP validation-point forecast
+at the buoy (`<site>_forecast.nc`, described in the report as WW3-driven). It exists at 103p1, 153p1 and 262p1;
+142p1 answers HTTP 400 on every run.
+
+**Run by run, there is no step.** I called it a flip because my period boundary fell on 11-04.
+- The MOP forecast's low bias grows every period at each station (153p1: -0.13, -0.18, -0.27, -0.41, -0.55, -0.99 m;
+  262p1: -0.14 to -0.96; 103p1: -0.09 to -0.37). It degrades steadily as the seas grow.
+- Around 11-04 the two arms cross: at 11-04 11:13Z they tie (bulk 0.306, arm 0.297 m); from 11-04 21:38Z the arm is
+  worse on almost every run. At 103p1 the arm stays the better one throughout.
+- The bulk arm was briefly BETTER at 153p1 and 262p1 on 11-04 21:38Z and 11-05 11:12Z (0.16 to 0.22 m against 0.25
+  to 0.43 before), then rose again. That dip is what made the period medians cross.
+- The advisor withdrew its own reading (that the baseline changed) alongside mine.
+
+**What this arm adds.** Two CDIP products disagree at the same buoys in the same swell: the ECMWF-driven MOP GRID
+stays two to three times closer than the bulk chain, while the WW3-driven MOP validation forecast degrades faster
+than the bulk chain at two of three stations. So "MOP is better" depends on which MOP product and what drives it.
+That one of them reads badly is weak evidence against that forecast being fitted to the buoys, and says nothing
+about the grid. Independence of the grid from the CDIP buoys is still not checked.
+
+## 2026-11-17 15:27Z The Bight consensus flag's live date: withdrawn as "11-04", settled by the director
+
+In the corrections above I wrote that the forcing "changed on 2026-11-04 at the Bight stations". I could not show
+that date, and said so to the director and advisor.
+
+- #707 (`519532cba`) merged at 2026-11-04 22:15Z with `[skip render]` in its title, so the merge did not deploy.
+- The bulk arm's dip on 11-04 21:38Z is 37 minutes before the merge. It is not that change.
+- **The director read Render's deploy history** (I did not): #707 first went live in the deploy of `c05085215` at
+  2026-11-05 01:01Z; the deploy before it (`29c01f71f`, 2026-11-04 03:44Z) does not contain it. I checked the git
+  half: `c05085215` contains `519532cba` and `29c01f71f` does not.
+- So the backend served it from about 2026-11-05 01:05Z, ASSUMING the flag reads ON by its code default with no
+  environment override; the Render environment was not read. That is before the S0 window opened on 11-17.
+- Still not verified: that the flag alters what `/api/weather/point?model=GFS` returns.
+
+The scorer's caveat line said "since 2026-11-04". It is reworded in this commit, before any dispatch, as the advisor
+required: "live from about 2026-11-05 01:05Z (Render deploy of c05085215), before both windows; its effect on
+model=GFS point reads is not verified".
