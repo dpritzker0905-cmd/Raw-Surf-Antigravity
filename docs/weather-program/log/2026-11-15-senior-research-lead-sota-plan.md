@@ -1537,3 +1537,48 @@ Reading:
   "not shown", not "absent".
 - For roadmap rank 11 (the ocf_idw arm): distance weighting is not supported as a basis for spot-level correction.
   Prefer per-station or per-regime terms, and score them on held-out stations.
+
+## 2026-11-16 20:05 EST Technical SOTA levers not yet on the roadmap (owner: "research on how we can technically make the weather surf simulation system feature SOTA")
+
+Checked against origin/dev by code search: no GEFS-Wave and no wave-ensemble code (GEFS appears only in the wind
+long-range scripts); SWAN appears 9 times and XBeach once, in docs and comments only; spectral partitions already exist
+throughout. Literature from Consensus. Items marked [verify] are from memory.
+
+**L1. Probabilistic surf from two free wave ensembles: the biggest missing lever.**
+- Sources:
+  - NOAA GEFS-Wave (31 members, global 0.25 deg, 16 days, AWS noaa-gefs-pds) [verify layout].
+  - ECMWF open-data wave ensemble, stream "waef" (51 members: swh, mwp, mwd, pp1d) [verify which parameters and leads
+    are open].
+  - Both are free primary sources (D-074 compliant).
+- Method: calibrate per lead with non-homogeneous Gaussian regression / EMOS (Murphy et al. 2025: ensemble spread is
+  "strikingly" skilful for Hs error), then push the members through the surf chain, so the breaking-height range and a
+  confidence come from the physics, not from a fixed +/-.
+- Week 2: pooled-window tail probabilities (Campos et al. 2025, GEFS week-2 Hs) give an honest 14-day horizon (the
+  LOCKED contract) without pretending a deterministic day-12 number.
+- Proposed gate (NOT registered):
+  - CRPS of the calibrated ensemble at the NDBC panel, leads 48-240 h, better than deterministic GFS-Wave by >= 5% with
+    a block-bootstrap CI excluding 0, and no lead worse;
+  - PIT / rank-histogram reliability inside its band;
+  - negative control: members shuffled across times must lose.
+- Served: YES (a new range or confidence field), so D-065, a SCOREBOARD row, and David's word.
+
+**L2. Per-spot nearshore transform: a physics library plus an ML surrogate (completes roadmap B3).**
+- Run SWAN offline per spot region over a library of boundary spectra and winds (on the bathymetry stack), then train a
+  surrogate:
+  - DeepONet: 4 orders of magnitude faster, Hs relative L2 error <= 1.9% at Duck (Cai et al. 2026);
+  - random forest with buoy assimilation: beats SWAN at the test point (Chen et al. 2021);
+  - DELWAVE: point emulator, MAE 5-10 cm (Mlakar et al. 2024).
+- The surrogate makes per-spot spectral K cheap at serve time (arithmetic, no I/O), which keeps the one-chain rule:
+  it replaces the generic refraction/shoaling terms inside estimate_surf. It is not a second path.
+- Gate:
+  - surrogate vs SWAN on held-out boundary cases (error line to register);
+  - then vs breaking truth through #942 by class once T1 exists. Truth-limited, like B3.
+
+**L3. Watch only (no open operational feed):**
+- ML global wave forecasters: OceanCastNet matches or beats ECWAM at more NDBC stations (24 vs 10) out to 228 h (Zhang
+  et al. 2025).
+- ML source terms in WW3: NLML, about 2x the accuracy of DIA (Ikuyajolu et al. 2026).
+- Adopt only if an open feed appears.
+
+**Order:** L1 first. It needs no truth stream, only buoys, so its gate can run now offline. L2 waits on truth and
+bathymetry.
