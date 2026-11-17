@@ -257,3 +257,12 @@ FACTS FOR ANY v3 (the advisor):
   again on new labels unless the catalogue grows or untagged spots are searched for inlets. A v3 must not quietly reuse them.
 - A v3 designed on v2's errors is designed on v2's labels, exactly as v2 was on v1's. It needs the same honesty note and only spots
   in neither v1 nor v2. Remaining unseen: point frame 61, reef frame 103, untagged 706.
+3b. Recomputed independently (the advisor, 06:42Z, own stdlib code from the committed predictions): every figure matches to the digit,
+intervals included; both file hashes match. Two lines added on the advisor's read (01:42 EST by the clock):
+- RULE 3 HAS TWO READINGS of "at most 30 % of the labelled spots left unknown by the classifier", and they are not settled after
+  the result. Over all 266 DRAWN spots: 0.244 raw, 0.384 weighted (my reading when scoring). Over the 179 spots with a KNOWN label:
+  0.173 raw, 0.305 weighted (bootstrap 0.232-0.375; the advisor's reading). Both exceed 0.30 weighted, so rule 3 FAILS on either
+  reading, and point_headland fails regardless. The near miss (0.305) is printed beside the clear miss (0.384).
+- WHERE THE UNKNOWNS ARE: all 65 classifier-unknown spots are in the untagged frame (65 of its 80 sampled; 0 in any other frame).
+  Outside that frame the classifier adds nothing a tag does not already give. Inside it, it classifies 15 of 80. That is the size of
+  the problem any v3 has to solve.
