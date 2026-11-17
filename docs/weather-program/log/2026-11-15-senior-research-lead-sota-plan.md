@@ -2145,3 +2145,7 @@ USGS coastal tidal water level in Florida is nearly absent (1 active site at par
   - Cold start: the animation lane (offline, seeded).
   - **Research-lead note for the surge interim look:** pre-register it with an alpha-spending rule (e.g.
     O'Brien-Fleming), so the interim cannot inflate the false-pass rate.
+
+- 2026-11-17 11:09 -0500: The G3t no-harm guard was added as pass item 5 (9d56192d1). The surge interim is reconciled with the advisor's
+  no-early-stop rule: REPORT-ONLY, so no alpha is spent. It cannot end the window, change a threshold or serve; any
+  later amendment is a new registration; its timing is fixed in advance.
