@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       start:
-        description: "First target time, UTC, inclusive (the registered window opens 2026-11-17T00:00:00)"
+        description: "First target time, UTC. Verdicts print ONLY for a registered window, whole, after it closes; any other dates give a counts-only health run"
         required: false
         default: "2026-11-17T00:00:00"
       end:

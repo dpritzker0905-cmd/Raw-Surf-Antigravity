@@ -729,3 +729,65 @@ null, mixing in refused runs, dropping the region condition, and skipping the di
 stations; exposure 0.812, refraction 0.873): `exposure_and_refraction_off` moves toward truth pooled, and
 `shoaling_off` changes little. I do not know whether "no region worse by more than 0.02" will hold, and with about
 three weeks of 6-hourly runs the Gulf and the mid-Atlantic may not reach 30 station-days.
+
+## 2026-11-17 03:44Z The advisor's review of the scorer: items A to F, built before any dispatch. Where this and 03:13Z differ, this is the rule
+
+The advisor read the scorer at `108702f20` and passed it to merge, with one open condition before the first SCORED
+dispatch: six items. All six are built in this commit. Still no private row, object or aggregate has been read; the
+scorer has run only on synthetic rows. Full note: shared notes, `redteam-997-nearshore-rows-scorer-2026-11-17.md`.
+
+**A. One look.** The dates were free inputs, so the scorer could have printed verdicts mid-window or on any
+sub-window. Now verdicts are printed only when the dates are a REGISTERED window, whole (window 1, or window 2 with
+its own seed 20270201), the window has CLOSED, and the read was complete. Anything else is a COUNTS-ONLY run: how
+many runs, rows and station-days per region, and which cells have reached the minimum. No score, no difference, no
+verdict. One scored dispatch per window; a second one needs a dated reason here first. The code cannot count
+dispatches, so that part is a rule and a ledger line, not a lock.
+
+**B. Level is not pattern.** This is the item that decides what a result means, and my 03:13Z expectation paragraph
+predicted exactly the result it would have mislabelled. The chain already reads low (about 1.59 observed over model
+at 11 of 11 stations in the one run seen). Switching a factor off divides the model by a number below 1, so removing
+ANY attenuating factor moves toward truth; for refraction, 0.873 on every row, "off" is exactly a constant
+multiplier. A REMOVE CANDIDATE would then say the chain is low, not that this physics is wrong.
+- Added: for each factor, a level-matched comparator: the served chain divided by that factor's pooled median.
+  Factor-off is compared with it on the same station-days, same bootstrap.
+- The verdict line carries the result: "the factor's pattern hurts" (factor-off beats its own constant), "level
+  only" (it does not), or "level only: the pattern helps, the level is off" (the constant beats factor-off).
+- A REMOVE CANDIDATE marked "level only" is evidence that the chain's LEVEL is off somewhere. It is not evidence for
+  removing that factor.
+
+**C. The extremes guardrail is applied.** It was printed and never read. Now a REMOVE CANDIDATE that is worse than
+served by more than 0.02 at the top tenth of observed heights, or at offshore 3 m and above, is DISQUALIFIED. An
+extreme cell under the minimum has no number and is printed as that. KEEP is not affected: the guardrail is on arms.
+
+**D. A partial read prints no verdict.** A failed list call or a failed GET, or a list page that came back full
+(1,000 names, so it may hide objects), makes the run counts-only.
+
+**E. Held out by station and by region, as stability.** I had read the amendment as owing this only where a
+configuration is chosen. The advisor did not accept that, and is right: a REMOVE CANDIDATE is a choice, and in a
+three-station region one buoy can carry it. Now the pooled comparison is re-scored with each station left out and
+with each region left out, and the report prints how many re-scores keep the same side of zero. A verdict that loses
+its side with any ONE station left out is UNDECIDED. No station is named.
+
+**F. Every report says how it was made.** Four lines at the top of every report, scored or counts-only: the
+reductions were fixed at 03:13Z after window 1 opened and before any row was read, with one earlier run's medians
+seen; the latest run's row is the shortest lead, so this scores near-analysis forcing and not a forecast; a region
+cell rests on as few as three stations; the null is a sanity check and the positive control a plumbing check.
+
+**Smaller points taken.**
+- The stored-against-graded gap is printed as approximate: runs are counted by creation time, objects by run day,
+  rows by target time.
+- Each verdict line states its scope: the regions tested and not tested, and that a served change resting on it is
+  limited to the tested regions. No station is in Hawaii, so nothing here can change Hawaii.
+- The null is valid as a within-unit sign-flip test and nearly vacuous for a constant factor on a biased chain; it
+  is labelled a sanity check. The positive control returns 1.3 by construction; it is labelled a plumbing check.
+
+**Standing item, not mine to close.** The step that holds the Storage key runs the checked-out ref's script, so a
+dispatch from any branch runs that branch's code with the service-role key. The fix is the owner-only set-up already
+on his list (a GitHub Environment restricted to `dev` for that key).
+
+**Tests.** 19 now (estate lane must read 3837). Added: a constant factor on a low chain comes out "level only"; a
+factor truth ignores comes out "the factor's pattern hurts"; one whose pattern truth follows comes out "the pattern
+helps, the level is off"; a verdict carried by two of four stations is UNDECIDED; the extremes guardrail
+disqualifies; verdicts print only for a registered window, whole, closed and completely read. Six more mutations by
+hand each fail a test. On a realistic-size synthetic set (22 stations, 20 days, 440 station-days) the scored run
+takes 40 seconds at the real 2,000 draws.
