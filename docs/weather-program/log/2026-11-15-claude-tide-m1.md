@@ -2102,3 +2102,15 @@ position.**
 - (e) **The step summary is PUBLIC the moment the run ends (public repo): the run publishes its own verdict.**
 
 **Tests:** 33 tide tests pass; flake8 is clean.
+
+## 15:09 EST 2026-11-17 (`date`) - Advisor: G3t code CLEARED BY DIFF at 92f31a70c (20:08Z); waiting on the owner's word
+- **Cleared by diff:** fix 1, fix 2 (all three cache keys carry run_attempt), workflow_dispatch removed, nearest-hour
+  labels and the once-per-day 72 h mean. The advisor finds them equivalent to what it read.
+- **Operational note (not blocking):** after a gate-only failure, "re-run failed jobs" misses the exact-attempt cache and
+  fails at once (safe). Use "re-run all jobs" instead: the download job finds the files by prefix and saves them under the
+  new attempt.
+- **Put before the owner with the request:**
+  - item 5 cannot run, so a PASS covers 26 harbour and pier gauges and says nothing about surf beaches;
+  - the run summary publishes the verdict on GitHub (public) when the run ends;
+  - a run that writes a score is FINAL, whatever it says.
+- **The tag `tide-gate-G3t`** is pushed only on the owner's word typed in this session.
