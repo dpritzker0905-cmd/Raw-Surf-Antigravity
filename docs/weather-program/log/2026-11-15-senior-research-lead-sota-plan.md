@@ -1936,3 +1936,14 @@ amendment 1, THIS governs.
 - **Next:** OFFLINE e2e timing (frontend/e2e offlineWeather.js and requestRecorder.js mocks, a local production
   build, 3 cold runs, desktop plus 4x CPU throttle).
 - **No live map load:** a fresh load can request heavy world-series pages from the shared box (CLAUDE.md).
+
+## 2026-11-17 00:33 -0500 L1 registration FIXED (advisor 05:35Z, read at 4c7f95ab5): no open point; #985 PASS
+
+- Amendments 1 and 2, read together:
+  - 1a's spread-term interval is a REPORT that decides the shipped form (constant vs fitted spread);
+  - the VOID controls are the null, the buoy derangement and the halved-spread positive control;
+  - 1b is absorbed by the rolling fit, refit from an upgrade date;
+  - 1c is reported.
+- Thresholds are FIXED. The code goes to the advisor before any fetch.
+- The advisor agrees with the member-wise design note (members go through the chain, then are summarised). It belongs
+  in the L1b registration on breaking truth.
