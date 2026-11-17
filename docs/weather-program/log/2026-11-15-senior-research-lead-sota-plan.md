@@ -1775,3 +1775,60 @@ estimate_surf) needs a second gate on breaking truth (T1) and is not certified h
 and the kill-switch contract tests.
 
 **Compute:** offline in GitHub Actions only, by byte-range GRIB reads (.idx / .index), never on Render.
+
+## 2026-11-16 23:58 -0500 Research run: Reflection + SubQ on L1 and the member-wise surf range (LongCat failed)
+
+Owner, 23:33 EST: "start a new run of research using subq, longcat, and reflection".
+
+**LongCat:**
+- Bundle: `estimate_surf` and `estimate_surf_partitioned` from dev, about 8.7 KB; preview sha256 ff38bd71…ecbb.
+- **Network failure on submit; billing outcome uncertain.** Not retried (the tool says check usage first). Nothing was
+  received.
+
+**Reflection** (Beam-1.0, medium). What held after checking:
+1. The shuffle-SD negative control can misfire when the gain is mostly a mean correction. Accepted.
+2. Transforming the ensemble MEAN instead of each member gives a POSITIVE bias:
+   - Komar Hb goes as Hs^0.8 Tp^0.4 (concave);
+   - min(., cap) is concave;
+   - cos near head-on is concave.
+   By Jensen, f(mean) >= E f(member). This needs a sign check at the max(0, cos) kink near 90 deg, which is convex.
+3. The spread collapses where the depth cap binds (members pile up at gamma*break_depth), with a secondary pile-up at
+   the 2*Hs jack ceiling and the exposure floor.
+
+What I REJECTED:
+- Reflection's (5), "aggregate GEFS partitions to a total sea before transforming". It contradicts our own measured
+  evidence (Mavericks 6.95 -> 3.88 ft, Ocean Beach 7.25 -> 3.53 ft, `estimate_surf_partitioned` docstring).
+- Its point that date blocks ignore spatial correlation is already handled: each 3-day init block resamples ALL buoys
+  together, so cross-buoy correlation within a block is kept. Per-buoy CIs are added as a report.
+
+**SubQ** (snap-1.1):
+- Partitioned GEFS plus ECMWF band pseudo-partitions: 0.905, vs aggregate-to-total 0.001.
+- Hybrid range method: 0.967.
+- Spread-term negative control: 0.999.
+
+**AMENDMENT 1 to the L1 draft** (before any fetch or score):
+- 1a. The negative control becomes the spread-term test: CRPS(NGR with a fitted spread term) must beat CRPS(NGR with
+  constant variance), with a block-bootstrap CI excluding 0. The SD shuffle is kept as a reported diagnostic. A PASS
+  with no spread value is reported as "mean correction only".
+- 1b. Model-upgrade check: list the GEFS and IFS (ECMWF) version changes between TRAIN and TEST. If one falls inside,
+  refit on post-upgrade data only (or move the window) BEFORE any TEST read.
+- 1c. Per-buoy CRPSS with CIs is reported (not gating).
+
+**Design note for L1b, the served surf RANGE.** Not registered yet; it needs a breaking-truth gate.
+- **Never serve f(ensemble mean):** by Jensen it over-reads. The central value is the median of the transformed
+  members.
+- **Range method (hybrid):**
+  - NGR-calibrate offshore Hs;
+  - adjust each member's Hs to its calibrated quantile, keeping that member's own Tp and direction (preserving the
+    joint structure);
+  - transform each member through the one chain;
+  - take quantiles;
+  - recalibrate on T1 breaking truth once it exists.
+- **Partitions:**
+  - GEFS members run partitioned, as today's chain does.
+  - ECMWF members get band PSEUDO-PARTITIONS from waef h1012..h2530: band height, band-centre period, the member's mwd.
+  - The remainder energy, sqrt(swh^2 - sum of band^2), becomes a wind-sea train at the member's mp2 (or mwp).
+  - Gate the pseudo-partition step on its own: at GEFS grid points, the pseudo-partitioned ECMWF transform must not
+    differ more than X from the GEFS partitioned transform on matched cases (X to register).
+- **Cap pile-up:** when the upper quantile equals the depth cap, label the range "depth-limited" rather than implying
+  certainty.
