@@ -1009,3 +1009,17 @@ re-run on the window.
   formats.
 - Reading order: verdict line first, to the owner in this session; then the run id, log and JSON to the advisor
   before any decision. Possible results: PASS / FAIL / INCONCLUSIVE / VOID, as fixed at 22:00 EST.
+
+## 22:40 EST 2026-11-16 (`date`) - advisor (03:36Z) accepts 32788fa95; clearance carries; one outcome named (run in progress, NO output opened)
+- **Advisor:** "ACCEPTABLE; my 02:56Z clearance to start on David's word CARRIES to this code". The tag sits on
+  9f01ca7eb, whose `backend/scripts/tide_g3` and workflow are identical to 32788fa95 (checked before the push: no
+  code diff). The messages crossed: run 44011150843 started at 03:34Z, two minutes before this read.
+- **Named before any output is opened:** a large difference between the swl reference before and after 2026-08-16 (the
+  reported per-gauge line) is called **"a datum finding on the surge reference: the STOFS format switch may mark a
+  model change, so the registered 30-day reference straddles two models"**. It belongs to the same family as the named
+  raw-FAIL-beside-mean-removed-PASS outcome and is NOT read as a failure of the non-tidal term. The reference is NOT
+  switched after seeing it.
+- **Cycle count:** the running code's stage line `stofs2d <kind>: N cycles` prints the total cycles read per kind
+  (window + pre-window; ~70 window cycles + ~30 pre-window 00Z cycles expected, about 100). A count near 70 would mean
+  the pre-window was not read. An explicit pre-window count per kind is added to G3b's code (it cannot go into a run
+  already started).
