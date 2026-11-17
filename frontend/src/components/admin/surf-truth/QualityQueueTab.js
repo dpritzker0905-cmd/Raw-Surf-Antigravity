@@ -3,6 +3,8 @@ import { toast } from 'sonner';
 import apiClient from '../../../lib/apiClient';
 import { Button } from '../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog';
+import { Textarea } from '../../ui/textarea';
 import { ViewState, formatWhen, useAdminGet } from './shared';
 
 const FLAG_TEXT = {
@@ -16,6 +18,33 @@ function km(m) {
   return m == null ? '—' : `${(m / 1000).toFixed(m < 10000 ? 2 : 0)} km`;
 }
 
+/** The themed fail dialog: a fail withholds XP, so it needs a reason (the server refuses one without). */
+function FailReasonDialog({ target, onClose, onSubmit }) {
+  const [reason, setReason] = useState('');
+  if (!target) return null;
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="bg-background text-foreground border-border sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Fail this report</DialogTitle>
+          <DialogDescription>
+            Why is this report not genuine? It earns no XP but stays recorded. Your name and reason are logged.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-1">
+          <label htmlFor="audit-fail-reason" className="text-sm text-muted-foreground">Reason (required)</label>
+          <Textarea id="audit-fail-reason" aria-label="Reason" value={reason} maxLength={500} autoFocus
+            onChange={(e) => setReason(e.target.value)} className="bg-card text-foreground border-border" />
+        </div>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => onSubmit(reason.trim())} disabled={!reason.trim()}>Fail report</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /**
  * Quality queue: the random audit sample. The auditor judges whether a report is GENUINE (a real, current look at
  * that spot) from the photo, place, time and flags. The reported height is deliberately not shown (the API does not
@@ -24,14 +53,10 @@ function km(m) {
 export default function QualityQueueTab() {
   const queue = useAdminGet('/admin/surf-observations/audits');
   const [busy, setBusy] = useState(null);
-  const decide = async (id, verdict) => {
-    let body = { verdict };
-    if (verdict === 'fail') {
-      // A fail withholds XP, so it needs a reason (the server refuses one without); the report stays in the record.
-      const reason = window.prompt('Why is this report not genuine? (required; it earns no XP but stays recorded)');
-      if (!reason || !reason.trim()) return;
-      body = { verdict, reason: reason.trim().slice(0, 500) };
-    }
+  const [failing, setFailing] = useState(null);
+  const decide = async (id, verdict, reason) => {
+    const body = verdict === 'fail' ? { verdict, reason: reason.slice(0, 500) } : { verdict };
+    setFailing(null);
     setBusy(id);
     try {
       await apiClient.post(`/admin/surf-observations/${encodeURIComponent(id)}/audit`, body);
@@ -76,7 +101,7 @@ export default function QualityQueueTab() {
                     <Button size="sm" disabled={busy === item.id} onClick={() => decide(item.id, 'pass')}
                       aria-label={`Pass report received ${formatWhen(item.received_at)}`}>Pass</Button>
                     <Button size="sm" variant="outline" disabled={busy === item.id}
-                      onClick={() => decide(item.id, 'fail')}
+                      onClick={() => setFailing(item.id)}
                       aria-label={`Fail report received ${formatWhen(item.received_at)}`}>Fail</Button>
                   </div>
                 </div>
@@ -84,6 +109,8 @@ export default function QualityQueueTab() {
             ))}
           </ul>
         </ViewState>
+        <FailReasonDialog key={failing || 'none'} target={failing} onClose={() => setFailing(null)}
+          onSubmit={(reason) => decide(failing, 'fail', reason)} />
       </CardContent>
     </Card>
   );
