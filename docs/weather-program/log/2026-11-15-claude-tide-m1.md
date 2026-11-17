@@ -1978,3 +1978,68 @@ coverage line, the item 3 split, the item 5 status, the UHSLC rows and the markd
 **Next:**
 1. The advisor reads the code.
 2. The owner's word, typed in this session, for the tag `tide-gate-G3t`.
+
+## 14:37 EST 2026-11-17 (`date`) - G3t item-5 classification, FIXED before any value (advisor 19:14Z); item 5 WILL BE NOT RUNNABLE
+- The advisor (19:14Z) has NO OBJECTION to G3t FINAL b6eb66fa6. The run still needs the owner's word typed in this session.
+- The list below is the one in `backend/scripts/tide_g3t/g3t_stations.json` (committed at 97208d9b4). It is the FIXED item-5
+  classification, decided from maps and metadata only. No value has been read.
+- **Not runnable:** no gauge is ocean-facing, so fewer than 5 gauges qualify and **item 5 will be NOT RUNNABLE**.
+- **For the owner, with the verdict:** the beach no-harm guard is EMPTY, and the result will carry NO evidence at surf
+  beaches. A PASS is a PASS at the 26 CO-OPS harbour, pier and bay gauges only (plus reported UHSLC rows abroad). The
+  screen label "Checked against NOAA gauges on US coasts; unverified elsewhere" stays as written.
+- **Duck's `actual_range` minimum of -8.1 m is not water;** expect QC work on that feed if it is ever used.
+
+| dataset id | title | exposure | evidence |
+|---|---|---|---|
+| `hohonu_10057_bald_head_island` | Bald Head Island | sheltered | map-checked: Cape Fear River side marina |
+| `hohonu_10048_cape_lookout_nation` | Cape Lookout National Seashore (decommissioned) | excluded | decommissioned |
+| `hohonu_10036_captiva_island_fl` | Captiva Island, FL | sheltered | map-checked: Pine Island Sound side |
+| `hohonu_10047_city_of_beaufort_sc` | City of Beaufort SC | sheltered | name rule: Beaufort |
+| `coastal-studies-institute-wanche` | Coastal Studies Institute, Wanchese, NC (decommissioned) | excluded | decommissioned |
+| `collington-creek-inn-dock-kill-d` | Collington Creek Inn Dock, Kill Devil Hills, NC (decommissioned) | excluded | decommissioned |
+| `hohonu-93_currituck_co` | Currituck Co | sheltered | name rule: Currituck |
+| `hohonu_174_debordieu_colony_sc` | DeBordieu Colony, SC | sheltered | map-checked: back-barrier creek |
+| `hohonu_10015_duck_nc` | Duck, NC | sheltered | map-checked: Currituck Sound (back-barrier) |
+| `hohonu_199_edisto_beach_sc` | Edisto Beach, SC | sheltered | map-checked: Big Bay Creek, back side |
+| `hohonu-187_emerald_isle` | Emerald Isle | sheltered | map-checked: Bogue Sound side |
+| `fernandina-beach-1-fl` | Fernandina Beach 1, FL | sheltered | map-checked: Amelia River |
+| `fernandina-beach-2-fl` | Fernandina Beach 2, FL | sheltered | map-checked: Amelia River |
+| `hohonu_10008_folly_river_bridge_` | Folly River Bridge, SC | sheltered | name rule: River |
+| `hohonu_10120_fort_raleigh_nation` | Fort Raleigh National Historic Site | sheltered | name rule: Historic |
+| `hohonu_10046_fripp_island` | Fripp Island, SC | sheltered | map-checked: back-barrier inlet creek |
+| `hohonu_10007_georgetown_county_h` | Georgetown County Hwy 701 Bridge, SC | sheltered | name rule: Georgetown |
+| `hohonu_10153_georgetown_south_ca` | Georgetown, South Carolina | sheltered | name rule: Georgetown |
+| `hohonu_10116_hammocks_beach_stat` | Hammocks Beach State Park, NC | sheltered | name rule: Hammocks |
+| `hohonu_10040_hilton_head` | Hilton Head, SC | sheltered | map-checked: back-island creek (Broad Creek area) |
+| `hohonu_10021_holden_beach_brunsw` | Holden Beach, Brunswick County, NC | sheltered | map-checked: ICW at the bridge |
+| `hwy-64-little-bridge-dare-county` | Hwy 64, Little Bridge, Dare County, NC (decommissioned) | excluded | decommissioned |
+| `hohonu_069_isle_of_palms-_sc` | Isle of Palms, SC | sheltered | map-checked: back-barrier marsh creek |
+| `hohonu_10041_john-s_pass` | John's Pass | sheltered | inside an inlet pass (map not checked; name rule: pass) |
+| `hohonu_138_kiawah_island_sc` | Kiawah Island, SC | sheltered | map-checked: Kiawah River marsh |
+| `hohonu-141_marine_corp_recruit_d` | Marine Corp Recruit Depot Parris Island | sheltered | name rule: Depot |
+| `hohonu-85_mexico_beach` | Mexico Beach | sheltered | map-checked: canal behind the beach |
+| `hohonu_10126_new_bern_nc` | New Bern, NC | sheltered | name rule: New Bern |
+| `hohonu_10059_north_myrtle_beach_` | North Myrtle Beach, Cherry Grove | sheltered | map-checked: Cherry Grove marsh channel |
+| `hohonu-152_north_topsail_beach` | North Topsail Beach | sheltered | map-checked: sound side (New River Inlet Rd) |
+| `hohonu_10060_ocean_isle_beach` | Ocean Isle Beach | sheltered | map-checked: ICW / canal side |
+| `hohonu_10069_oyster_landing_n_in` | Oyster Landing (N Inlet Estuary), SC | sheltered | name rule: Landing |
+| `hohonu_10033_pawleys_island_sc` | Pawleys Island, SC (decommissioned) | excluded | decommissioned |
+| `hohonu_10044_port_royal_sound_fo` | Port Royal Sound Foundation SC | sheltered | name rule: Sound |
+| `hohonu_10043_sanibel` | Sanibel | sheltered | map-checked: San Carlos Bay at the causeway |
+| `hohonu_173_seabrook_island_sc` | Seabrook Island, SC | sheltered | map-checked: back-island creek |
+| `hohonu_10125_snow-s_cut_bridge` | Snow's Cut Bridge, NC (decommissioned) | excluded | decommissioned |
+| `hohonu_10020_southern_shores_nc` | Southern Shores, NC (decommissioned) | excluded | decommissioned |
+| `hohonu_10027_sullivan-s_island_s` | Sullivan's Island, SC | sheltered | map-checked: harbour / Cove side |
+| `hohonu_10037_surf_city` | Surf City | sheltered | map-checked: ICW / Topsail Sound at the bridge |
+| `hohonu-104_the_citadel_ashley_ri` | The Citadel, Ashley River, SC | sheltered | name rule: Citadel |
+| `hohonu_10032_topsail_beach_nc` | Topsail Beach, NC | sheltered | map-checked: sound side |
+| `hohonu-124_washington_acres_boat` | Washington Acres Boat Ramp | sheltered | name rule: Ramp |
+
+**For the surge registration (the advisor):** independence is about PLACE, not only the instrument.
+- USACE FRF's own Duck sensors sit in the same water as CO-OPS 8651370, which feeds the correction. They are the
+  corrected station seen twice, so they are not independent truth.
+- (a) Every truth site's distance to the nearest CO-OPS station used by the correction is fixed in advance. Results are
+  stratified by it, with a stated minimum distance for the gating set.
+- (b) STOFS-2D has no wave setup. Either truth is still water OUTSIDE the surf zone, or setup is a separate named arm.
+  This is decided in the registration.
+- The tiered set (open coast, inlets, back-barrier) is the right shape; back-barrier is reported for attenuation only.
