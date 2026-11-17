@@ -1659,3 +1659,16 @@ merges with its code default ON; the gate passes first.
   `pgrb2bp5/gepNN...pgrb2b.0p50` (0.5 deg) files, at f024 on 2026-11-16 and at f240 on 2025-11-01, so it is archived.
 - Consequence: a GEFS gust arm is possible as a per-member gust median (D-075's rule), read from the s-files by
   byte range. It is not available from the mean.
+
+## 2026-11-16 22:36 -0500 Tide G3b draft review (9f01ca7eb), and the surf-height source provenance
+
+- G3b: five edits sent to the tide lane:
+  - a PASS means ship ON with a kill switch plus the contract tests (owner 22:09 EST);
+  - ONE primary arm named before the run (A+S1+N2);
+  - a causal (trailing) 30-day surge reference;
+  - a coverage assertion: a gauge under 95% of hours is excluded and counted, and more than 20% excluded is VOID;
+  - a storm bootstrap stratified by region.
+- Provenance limit on the surf-height definition: the helper finds the NWS "peak face, H1/3-H1/10" wording as quoted on
+  UHSLC, and has no NWS primary text yet. Directive 10-320 downloads from weather.gov (pd01003020curr.pdf, 870 KB) but
+  was not text-extracted here; the helper is asked to quote it. Until then, the definition's source is "the NOAA table
+  as quoted on UHSLC".
