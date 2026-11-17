@@ -35,6 +35,11 @@ def test_window_removes_the_held_out_weeks_and_truth_requests_skip_them():
     assert len(segs) == 3 and segs[0][0] == R.W0 and segs[-1][1] == R.W1
     for a, b in segs:
         assert not any(h0 <= a < h1 or h0 <= b < h1 for h0, h1 in R.HELD_OUT)
+        assert not any(h0 <= b + timedelta(minutes=30) - timedelta(seconds=1) < h1 for h0, h1 in R.HELD_OUT)
+    # the truth REQUESTS: UHSLC (hourly, inclusive) gets the segment end itself; IOOS (sub-hourly) a STRICT bound at +30 min
+    assert "uhslc_hourly(int(sid[5:]), a, b))" in GATE and "ioos_hourly(sid, a, b + timedelta(minutes=30))" in GATE
+    assert "&time%3C{b:%Y-%m-%dT%H:%M:%SZ}" in GATE                               # IOOS: strict "<"
+    assert segs[0][1] == R.HELD_OUT[0][0] - timedelta(hours=1)
 
 
 def test_s1_split_into_mean_level_and_zero_mean_seasonal_anomaly_and_the_shift():
@@ -121,7 +126,7 @@ def test_gate_order_preflight_first_truth_last_and_no_scores_in_the_log():
 def test_g3t_workflow_is_one_shot_with_scoped_credentials_and_pins():
     block = re.search(r"(?ms)^on:\n(.*?)^\S", WF).group(1)
     lines = [ln.strip() for ln in block.splitlines() if ln.strip() and not ln.strip().startswith("#")]
-    assert lines == ["workflow_dispatch:", "push:", "tags: [tide-gate-G3t]"], lines
+    assert lines == ["push:", "tags: [tide-gate-G3t]"], lines                # no workflow_dispatch: one-shot even on dev
     steps = re.split(r"\n      - ", WF)
     aviso = [s for s in steps if "AVISO_PASSWORD" in s]
     cm = [s for s in steps if "COPERNICUSMARINE_SERVICE_PASSWORD" in s]
@@ -131,6 +136,7 @@ def test_g3t_workflow_is_one_shot_with_scoped_credentials_and_pins():
         assert pin in WF, pin
     assert "echo" not in WF.lower().replace("# ", "")
     assert "fail-on-cache-miss: true" in WF and "needs: download" in WF
+    assert WF.count("${{ github.run_id }}-${{ github.run_attempt }}") >= 3      # a re-run never restores a partial cache
 
 
 def test_station_lists_are_fixed_before_truth():

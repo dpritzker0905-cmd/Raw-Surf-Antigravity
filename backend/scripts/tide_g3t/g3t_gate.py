@@ -83,7 +83,8 @@ def coops_hilo_window(sid):
 
 
 def uhslc_hourly(uid, a, b):
-    """UHSLC fast-delivery hourly sea level (m, station zero) {aware hour: m}."""
+    """UHSLC fast-delivery hourly sea level (m, station zero) {aware hour: m}, over [a, b] inclusive (hourly data: b is
+    the segment's last hour, so no held-out hour is requested)."""
     url = (f"{UHSLC_ERDDAP}?time,sea_level&uhslc_id={uid}&time%3E={a:%Y-%m-%dT%H:%M:%SZ}"
            f"&time%3C={b:%Y-%m-%dT%H:%M:%SZ}")
     rows = (S.get_json(url).get("table") or {}).get("rows") or []
@@ -95,15 +96,18 @@ def uhslc_hourly(uid, a, b):
 
 
 def ioos_hourly(did, a, b):
-    """IOOS (Hohonu) water level above NAVD88, provider QC pass only (qc_agg == 1), hourly means {aware hour: m}."""
+    """IOOS (Hohonu) water level above NAVD88, provider QC pass only (qc_agg == 1), hourly means {aware hour: m}.
+    Sub-hourly data: requested over [a, b) with a STRICT upper bound (b = the segment end + 30 min, never a held-out
+    hour); each value is labelled with its NEAREST hour, so the mean of h-30 .. h+30 min sits on hour h."""
     url = (IOOS_ERDDAP.format(did=did) + "?time,water_surface_above_navd88,water_surface_above_navd88_qc_agg"
-           f"&time%3E={a:%Y-%m-%dT%H:%M:%SZ}&time%3C={b:%Y-%m-%dT%H:%M:%SZ}")
+           f"&time%3E={a:%Y-%m-%dT%H:%M:%SZ}&time%3C{b:%Y-%m-%dT%H:%M:%SZ}")
     rows = (S.get_json(url).get("table") or {}).get("rows") or []
     acc = {}
     for t, v, q in rows:
         if v is None or q != 1:
             continue
-        h = datetime.fromisoformat(t.replace("Z", "+00:00")).replace(minute=0, second=0)
+        h = (datetime.fromisoformat(t.replace("Z", "+00:00")) + timedelta(minutes=30)).replace(minute=0, second=0,
+                                                                                                microsecond=0)
         acc.setdefault(h, []).append(float(v))
     return {h: float(np.mean(v)) for h, v in acc.items()}
 
@@ -119,12 +123,19 @@ def references(pts, hours):
         for b in (R.LATEST_BIN, *R.GATE_BINS):
             r = runs.get(b, {})
             c, d = np.full(len(hours), np.nan), np.full(len(hours), np.nan)
+            by_day = {}
+            for u, v in r.items():
+                by_day.setdefault(u.date(), []).append(v)
+            day72 = {}                                       # the 72 h mean from each day's 00Z, computed once per day
+            for t in hours:
+                day = t.date()
+                if day not in day72:
+                    win = [v for k in range(3) for v in by_day.get(day + timedelta(days=k), [])]
+                    day72[day] = float(np.mean(win)) if len(win) >= 60 else float("nan")
             for i, t in enumerate(hours):
                 if t in r:
-                    w0 = t.replace(hour=0)
-                    win = [r[u] for u in r if w0 <= u < w0 + timedelta(hours=72)]
-                    if len(win) >= 60:
-                        c[i] = r[t] - float(np.mean(win))
+                    if math.isfinite(day72[t.date()]):
+                        c[i] = r[t] - day72[t.date()]
                     if math.isfinite(mean365):
                         d[i] = r[t] - mean365
             rows_c.append(c)
@@ -236,12 +247,12 @@ def main():
     for sid in uh:
         o = {}
         for a, b in R.segments():
-            o.update(uhslc_hourly(int(sid[5:]), a, b + timedelta(hours=1)))
+            o.update(uhslc_hourly(int(sid[5:]), a, b))
         obs[sid] = np.array([o.get(t, np.nan) for t in hours])
     for sid in beach:
         o = {}
         for a, b in R.segments():
-            o.update(ioos_hourly(sid, a, b + timedelta(hours=1)))
+            o.update(ioos_hourly(sid, a, b + timedelta(minutes=30)))
         obs[sid] = R.qc_series(np.array([o.get(t, np.nan) for t in hours]))
     stage("truth other")
 

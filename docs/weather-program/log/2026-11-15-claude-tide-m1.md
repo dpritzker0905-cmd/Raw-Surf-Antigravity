@@ -2070,3 +2070,35 @@ are in the scratchpad (`stofs_offset*.py`).
     inside the model run, and noanomaly cannot remove it. Its station-level independence is therefore partial, to be
     stated.
 - These numbers are from ONE cycle. A registration would fix a multi-cycle check (no truth) before relying on them.
+
+## 14:52 EST 2026-11-17 (`date`) - Advisor's G3t code read (19:45Z): implements FINAL; two fixes made; the FAILURE RULE written before the tag
+The advisor read 97208d9b4 in full: "the code implements FINAL as registered". It found the 15 name-rule gauges acceptable
+(their keys are weak, but each one's position is in a river, sound or estuary). **The name rule is recorded as backed by
+position.**
+
+**Fix 1 (a registered claim was false by one hour), now true:**
+- UHSLC is hourly and requested with `time<=` the segment's last hour (no +1 h).
+- IOOS is sub-hourly and requested with a STRICT `time<` the segment end + 30 min.
+- Neither ever requests 03-15 00:00 or 06-15 00:00. The case is pinned in the segments test.
+
+**FAILURE RULE (fix 2), written BEFORE the tag:**
+- A run that ends with NO SCORE WRITTEN is **NO VERDICT**: a download failure, an S1 timeout or failure, a crash, or the
+  320-min step / 340-min job limit before `report = score(` returns and is printed.
+- Nobody has seen a number in that case. The tag may be pushed again ONLY once the cause is fixed AND recorded here, and
+  only on the owner's word typed again in this session.
+- **A run that wrote a score is FINAL.** No re-run, whatever it says.
+
+**Also fixed:**
+- The FES cache key is now `fes2022b-g3t-<run_id>-<run_attempt>` (restore-keys: the run prefix, then the gate prefix),
+  so "re-run failed jobs" never restores a partial cache.
+- Non-blocking (a): `workflow_dispatch` is REMOVED. The tag is the only trigger, even if the file ever reaches dev.
+- Non-blocking (c): IOOS values are labelled with their NEAREST hour (the mean of h-30 .. h+30 min sits on h). This is
+  unused today, since the open list is empty.
+- Non-blocking (d): the C reference's 72 h means are computed once per day (identical values, checked against the old
+  definition at 3 hours on synthetic runs).
+
+**Recorded, not changed:**
+- (b) Item 3b's "shifted minus P > 0": an exact tie fails. This is stricter than "must not beat", and deliberate.
+- (e) **The step summary is PUBLIC the moment the run ends (public repo): the run publishes its own verdict.**
+
+**Tests:** 33 tide tests pass; flake8 is clean.

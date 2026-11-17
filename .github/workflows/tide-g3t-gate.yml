@@ -4,12 +4,11 @@ name: Tide M1 gate G3t (tide + mean level + seasonal vs observed; no surge)
 # test-only Open-Meteo references, on 2026-01-01 .. 07-24 minus the held-out weeks; UHSLC non-US and any open-coast IOOS
 # gauge reported. Measurement only: no bucket write, nothing served, no live backend. PyFES is GPL and runs only here.
 # ONE-SHOT START: only a push of the tag `tide-gate-G3t` (on the owner's word typed in the session that runs it) starts
-# it; no branch push and no schedule can. workflow_dispatch is inert until the file reaches the default branch (dev).
+# it; no branch push, schedule or manual dispatch can (no workflow_dispatch: the file must stay one-shot even on dev).
 # Credentials: AVISO only on the FES download step, Copernicus Marine only on the gate step; read from the environment
 # by the scripts and never printed. The log carries stage names and memory only; scores reach the summary and artifact.
 # Pinned by tests/test_tide_g3t_rules.py.
 on:
-  workflow_dispatch:
   push:
     tags: [tide-gate-G3t]
 permissions:
@@ -35,8 +34,10 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: fes_cache
-          key: fes2022b-g3t-${{ github.run_id }}
-          restore-keys: fes2022b-g3t-
+          key: fes2022b-g3t-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            fes2022b-g3t-${{ github.run_id }}-
+            fes2022b-g3t-
       - name: Download FES2022b (AVISO, pinned host key)
         timeout-minutes: 320
         env:
@@ -53,7 +54,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: fes_cache
-          key: fes2022b-g3t-${{ github.run_id }}
+          key: fes2022b-g3t-${{ github.run_id }}-${{ github.run_attempt }}
   gate:
     needs: download
     runs-on: ubuntu-latest
@@ -71,7 +72,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: fes_cache
-          key: fes2022b-g3t-${{ github.run_id }}
+          key: fes2022b-g3t-${{ github.run_id }}-${{ github.run_attempt }}
           fail-on-cache-miss: true
       # The gate: S1 preflight FIRST (a failure is NO VERDICT, before any truth), then FES, S1, references, truth LAST.
       - name: Run the G3t gate
@@ -96,4 +97,4 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           gh cache list --key fes2022b-g3t- --limit 50 --json key -q '.[].key' \
-            | grep -v -- "-${{ github.run_id }}$" | xargs -r -n1 gh cache delete || true
+            | grep -v -- "-${{ github.run_id }}-${{ github.run_attempt }}$" | xargs -r -n1 gh cache delete || true
