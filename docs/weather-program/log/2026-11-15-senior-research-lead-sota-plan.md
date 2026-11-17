@@ -1992,3 +1992,76 @@ fields is a candidate only with a measured browser decode cost.
     on V8 (about 2x slower).
   - lzma needs a wasm decoder (unmeasured).
   - Packing stays CLOSED. Reopen only for a native-decode candidate <= 0.80 of v1, no slower on V8, then a device run.
+
+## 2026-11-17 09:55 EST "Science flywheel": how the agents keep improving the surf sim (owner: "innovate how we can leverage your intelligence to always improve"; LongCat + SubQ + Reflection)
+
+**Literature (Consensus):**
+- FunSearch (Romera-Paredes et al. 2023, Nature) and AlphaEvolve (Novikov et al. 2025): an LLM paired with a
+  systematic EVALUATOR, evolving programs.
+- Adaptive conformal inference (Gibbs & Candes 2021; Gibbs et al. 2022; Bhatnagar et al. 2023, strongly adaptive):
+  online coverage under shift.
+- Active statistical inference (Zrnic et al. 2024): spend the label budget where the model is uncertain, while keeping
+  inference valid.
+
+**The five components:**
+- F1: LLM program search on small chain components against a frozen evaluator.
+- F2: daily CRPS scorecards plus drift alarms.
+- F3: adaptive conformal intervals.
+- F4: active truth targeting.
+- F5: a weekly agent science sprint.
+
+**What each reviewer said:**
+- Reflection: F5 > F2 > F4 > F3 > F1, by value per unit of risk.
+- SubQ: F2 first (0.92); F1 is safe now for BUOY-scored components (0.98); F4's bias is moderate and fixable (0.98).
+- LongCat: the rankings differ only in axis (risk vs readiness). F1 is low-risk when scoped to buoys and premature for
+  surf truth.
+
+**Agreed 8-week order (recommendation):**
+- W1-2, F2: scorecards (CRPS by lead, region and model), multi-window drift alarms, a frozen baseline, and baselines
+  for climatology, persistence and the deterministic models. Every later gate and evaluator is an F2 metric.
+- Start pilot-anchor recruitment in parallel from W1; it is the long pole.
+- W3, F1 narrow pilot on BUOY-scored components only. First target: the offshore Hs bias factor.
+  - Evaluator: frozen TRAIN CRPS at the 19 buoys.
+  - Constraints: factor in [0.75, 1.35], monotone in Hs.
+- W4-5, F5 sprint 1: residuals, then Jacobian x input-error ranking, then pre-registration, offline test, and ship ON
+  under D-080.
+- W6-7, F3: conformal WRAPS the calibrated quantiles (it never replaces them):
+  - a calibration window disjoint from the F1 and L1 fits, on out-of-fold residuals;
+  - coverage checked by region x lead;
+  - CRPS must not degrade (coverage won only by widening is not a gain);
+  - paired with changepoint or group-conditional handling.
+- W7-8, F4 analysis loop. It needs the F2/F3 uncertainty maps.
+
+**F1 anti-overfit protocol (LongCat, adopted as the template; pre-register it before any search):**
+- Evaluator identity: hash the code commit, TRAIN manifest, metric and constraints, and ledger it before candidate 1.
+  Any change resets the round.
+- A fixed candidate budget (e.g. 300) and a compute cap. Extending either needs a new registration.
+- Splits: TRAIN is for search, VAL for finalist selection, and TEST scores the single VAL winner ONCE.
+- Multiple-comparison control: an equal-budget NULL search on shuffled targets. The winner must beat the 95th
+  percentile of the null max-statistic.
+- Fitness = VAL metric - lambda x complexity (lambda pre-registered). Physical constraints are hard filters.
+- No TEST data on disk in the search environment.
+- Candidates are restricted to physically interpretable forms.
+
+**F4 minimal unbiased design:**
+- a fixed random 10-15% of prompts (uniform in space and time, stratified), independent of model uncertainty;
+- a propensity log on every report;
+- the latent-truth model fit design-based on the random share, or with inverse-propensity weighting;
+- anchors and buoy-coincident reports to pin perception;
+- blind entry (already in place);
+- design effect and effective sample size reported.
+Targeted reports improve discrimination, not bias estimation.
+
+**Gaps a world-leading system has, ranked by LongCat; I checked each against our state:**
+1. A hindcast/reforecast archive over the buoy record (partly: the wind long-range hindcast scripts exist; there is no
+   wave reforecast archive).
+2. Independent truth beyond buoys (withheld buoys, altimetry, SAR, instrumented spots). Jason-3 was checked earlier.
+3. A chain regression suite with analytic/golden physics tests. "OFF restores bytes" does not prove the new output is
+   physically right.
+4. An experiment registry with immutable code + data + parameter hashes (extends the ledger; the surf-truth run store
+   is a model for it).
+5. Operational cadence and rehearsed rollback drills.
+6. Benchmarked scorecards against climatology, persistence, ECMWF deterministic and the consensus, plus value-based
+   scores.
+
+**Bottom line (all three agree):** the bottleneck is TRUTH and VERIFICATION ARCHIVES, not search.
