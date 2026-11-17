@@ -199,3 +199,35 @@ first reader's labels (ackend/data/spot_class_labels_v2_second_reader.json):
   Makapuu beach -> unknown; Jetty East inlet_jetty -> beach (the one direct contradiction: no source says the jetty shapes it).
 - As registered, the first reader's labels stand.
 Evidence for the v2 spots is being fetched only now, after these labels were committed.
+
+## 3. B2 v2 RESULT (2026-11-17 01:30 EST by the clock): FAIL under the registered gate
+Inputs: the final labels (56905fdef, 266 rows, 179 labelled) and OSM evidence for all 266 v2 spots (complete, 0 failed tiles; fetched
+only after the labels were committed). The classifier is classify_v2 (section 2 rules), scored by score_v2 (2a: frame weights,
+stratified bootstrap, seed 20261117). Rules and gate unchanged since registration.
+| class | predicted | weighted precision (bootstrap 95 %) | weighted base | raw precision | raw recall | verdict |
+|---|---|---|---|---|---|---|
+| beach group | 38 | 0.901 (0.791-0.983) | 0.584 | 0.763 (29/38) | 29/60 | PASS |
+| reef | 38 | 0.834 (0.684-0.960) | 0.254 | 0.868 (33/38) | 33/57 | PASS |
+| point_headland | 49 | 0.549 (0.384-0.741) | 0.098 | 0.653 (32/49) | 32/38 | FAIL (< 0.75) |
+| inlet_jetty | 20 | 0.800 (0.611-0.955) | 0.054 | 0.800 (16/20) | 16/23 | UNDETERMINED (< 25 predicted) |
+Unknown share: weighted 0.384, raw 0.244. FAILS the 30 % limit on the weighted figure, which decides.
+OVERALL: FAIL. Nothing reads B2; B3 and any class factor stay without classes.
+Precision by frame (raw; inside a tagged frame the classifier is mostly the tag):
+- beach frame: beach 25/27.
+- inlet frame: inlet_jetty 16/20, beach 2/6.
+- point frame: point_headland 31/45, beach 2/4.
+- reef frame: reef 32/36.
+- untagged frame (786 spots, 80 sampled): point_headland 1/4, reef 1/2; everything else unknown.
+Confusion, main errors: reef -> point_headland 13; beach -> unknown 17; reef -> unknown 9; inlet_jetty -> beach 5; beach -> inlet_jetty 4.
+Comparator, the catalogue tag alone: beach 0.920, point 0.767, reef 0.886 (all PASS weighted), inlet UNDETERMINED (9 predicted),
+unknown share 0.591 weighted: FAIL. So the classifier beats the tag on coverage (0.384 against 0.591 unknown) but loses point
+precision (0.549 against 0.767): its OSM cape / spread tiers call reefs points.
+Second reader (2c): agreement 0.80, kappa 0.75.
+Null sanity, within-country shuffle, raw (reported, not gated): mean precision minus base rate is beach +0.14, inlet +0.22,
+point +0.21, reef +0.21. That is not about 0, because the shuffle keeps each country's class mix. As found in v1, this null is not
+a chance baseline here; the base-rate rule in the gate is.
+Reading (not a re-test):
+(1) Removing piers fixed inlet_jetty (v1 0.33, now 0.80), but there are too few to judge.
+(2) The point failure comes from tiers 4-5 (OSM cape within 1 km, shore-normal spread >= 60 deg) firing on reefs.
+(3) The unknown share fails because the untagged half of the catalogue is mostly unknown, and weighting counts it at its true size.
+Any v3 needs a new registration and new labels again.
