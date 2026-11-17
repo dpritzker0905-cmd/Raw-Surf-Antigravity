@@ -175,3 +175,13 @@ No `-enfo-cf` file exists beside the `ef` file after the switch (2026-09-13 +180
    per bin: CRPS(EMOS) - CRPS(raw), for TEST runs before vs after 2026-05-13 (reported, not gating).
 5. The served extension (#939) uses the same rule (`pf` 1..50 required, `cf` if present). The label stays "ECMWF
    ensemble mean (estimate)"; `members` in the basis carries 50 or 51.
+
+## 2026-11-17 15:29Z How a skipped EMOS day is noticed (advisor read of #1002)
+
+- The daily job (#1002, merged e51622b96) exits cleanly with "no run today" when neither data.ecmwf.int nor the AWS
+  mirror answers. That day is not lost: re-dispatching `wind-emos-collect.yml` backfill over a date range collects only
+  the runs not already stored (it skips stored runs), so a range re-dispatch fills the gaps.
+- Gaps are visible: `wind_emos_fit.py coverage` lists `runs_missing` (every expected 00Z run in 2025-06-01..2026-10-31
+  absent from `calibration/emos/runs/`). I run that coverage read after each backfill month and weekly once the
+  backfill is complete, and report any gap of more than 2 consecutive days to the director.
+- So a run of throttled mornings cannot quietly thin the calibration set.
