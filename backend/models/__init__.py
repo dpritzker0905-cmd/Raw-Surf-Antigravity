@@ -27,6 +27,7 @@ from .grom_privacy import GromGuardian  # noqa: F401
 from .guardian_links import GuardianLinkCode  # noqa: F401
 from .strava_oauth import StravaOAuthState  # noqa: F401
 from .surf_observations import SurfObservation, ObservationMedia  # noqa: F401
+from .surf_truth_anchors import SurfTruthAnchor, SurfTruthAnchorEvent  # noqa: F401
 from .mfa import UserMfa, MfaRecoveryCode, MfaChallenge  # noqa: F401
 from .passkeys import WebauthnCredential, WebauthnCeremony  # noqa: F401
 
