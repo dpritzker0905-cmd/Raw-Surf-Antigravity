@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 2,
+  "files": 0,
+  "branch": "claude/ndbc-monthly-gz",
+  "date": "2026-11-17",
+  "note": "NDBC monthly gz archive reader: 2 tests in test_eval_truth_archive.py"
+}

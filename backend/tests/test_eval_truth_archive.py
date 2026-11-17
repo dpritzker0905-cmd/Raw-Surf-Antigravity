@@ -91,3 +91,21 @@ def test_ndbc_archive_yearly_gz_and_unpublished_months_counted(tmp_path):
     obs, _, files, missing = rf.fetch_ndbc_archive(cache, "46025", (T(2025, 10, 1), T(2026, 1, 31)), now=T(2026, 3, 1))
     assert files == ["truth/ndbc/46025/h2025.txt.gz"] and len(obs) == 3
     assert len(missing) == 1 and "/Jan/46025.txt" in missing[0]
+
+
+def test_ndbc_older_months_read_from_the_gz_name_then_txt(tmp_path):
+    # Jan 2026 lives only at data/stdmet/Jan/4602512026.txt.gz (the .txt is 404); Feb is only at the plain .txt.
+    def get(url, rng=None, max_bytes=None):
+        if url.endswith("/Jan/4602512026.txt.gz"):
+            return gzip.compress(ARCHIVE.replace("2026 09", "2026 01").encode()), 200
+        if url.endswith("/Feb/46025.txt"):
+            return ARCHIVE.replace("2026 09", "2026 02").encode(), 200
+        raise OSError("404")
+    cache = pv.Cache(str(tmp_path), get=get, pause_s=0.0)
+    obs, _, files, missing = rf.fetch_ndbc_archive(cache, "46025", (T(2026, 1, 1), T(2026, 2, 28)), now=T(2026, 3, 15))
+    assert files == ["truth/ndbc/46025/202601.txt.gz", "truth/ndbc/46025/202602.txt"]
+    assert missing == [] and len(obs) == 6
+
+
+def test_ndbc_month_code_uses_a_b_c_for_october_to_december():
+    assert rf._NDBC_MONTH_CODE[9:] == "abc"
