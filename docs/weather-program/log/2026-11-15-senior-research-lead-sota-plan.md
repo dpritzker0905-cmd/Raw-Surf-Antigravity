@@ -2125,3 +2125,11 @@ USGS coastal tidal water level in Florida is nearly absent (1 active site at par
    "fresh" is defined by observation latency; tidal and non-tidal parts are fitted separately. Hohonu's real-time
    beach data makes a true at-spot nowcast possible: a product feature in its own right.
 5. Shipping under D-080: ON at merge with a kill switch, after the gate.
+
+- 2026-11-17 10:42 -0500: **Tide split adopted** (David 09:59 "Prospective v3.1 test"; advisor split; tide lane and research lead agree).
+  - (a) A tide + seasonal gate now on Jan-Jul 2026 (no surge, post-pilot label).
+  - (b) Surge prospective on v3.1, scored on independent IOOS beach gauges, stratified by distance from CO-OPS
+    (v3.1 diffuses the correction across the grid), >= 12 months.
+  - The 64 GB v2.1 retrospective is skipped.
+  - The helper/LongCat decode_frame hardening findings (header/descriptor bounds, gzip size cap) went to the
+    director for a writer lane.
