@@ -139,7 +139,7 @@ interval, and decided only by rule 2 below. River_mouth is reported, not gated (
 ### Labels
 Blind, by readers who see no classifier output and no OSM evidence, from public spot guides and imagery, with sources. Where
 sources disagree: unknown, excluded from precision. Committed before any evidence for these spots is fetched.
-### Classifier v2 (uild_spot_class.py, rules fixed now; the first matching tier wins)
+### Classifier v2 (`build_spot_class.py, rules fixed now; the first matching tier wins)
 | tier | evidence | class | confidence |
 |---|---|---|---|
 | 1a | OSM breakwater / groyne / jetty (NOT pier) within 300 m AND an inlet signal: an OSM river mouth within 1 km, OR the name matches inlet / jetty / groyne / groin / breakwater, OR the catalogue tag is jetty | inlet_jetty | 0.80 |
@@ -205,7 +205,7 @@ Final labels (56905fdef): 266 rows, 179 labelled. Beach 60, reef 57, point_headl
 The completion pass (2b) found a description for 8 of the 67 NO_SOURCE rows; most of the other 59 look like bathing sites rather
 than surf breaks. inlet_jetty: 23 labels, and its frame (31) is exhausted.
 Second blind reader (2a point 5), on the 30 labelled spots first by md5(id || '20261117-agree'); it saw identities only, never the
-first reader's labels (ackend/data/spot_class_labels_v2_second_reader.json):
+first reader's labels (`backend/data/spot_class_labels_v2_second_reader.json):
 - Raw agreement 24 / 30 = 0.80; Cohen's kappa 0.75.
 - Where the second reader gave a label (25 spots): 24 / 25 agree.
 - Disagreements: Mughsail beach -> unknown; Cape San Blas point -> unknown; Buchupureo point -> unknown; Nuqui river_mouth -> unknown;
@@ -246,7 +246,7 @@ Reading (not a re-test):
 Any v3 needs a new registration and new labels again.
 
 ### 3a. Additions after the advisor's read (2026-11-17 01:38 EST by the clock; the advisor 06:39Z; the verdict is unchanged: FAIL)
-1. RECOMPUTABLE FROM THE REPO. Committed: ackend/data/spot_class_v2_predictions.json (per spot: frame, frame size, label, predicted
+1. RECOMPUTABLE FROM THE REPO. Committed: `backend/data/spot_class_v2_predictions.json (per spot: frame, frame size, label, predicted
    class, confidence, the tier that fired, and the tag-only prediction), spot_class_v2_osm_evidence.json (the OSM distances, ODbL)
    and spot_class_v2_snapshot.json (the 266 spots' catalogue rows). sha256: snapshot c5d2dcbe3946c1f5..., evidence
    c41c262072479c29..., predictions 460182a47f0b8536... (the predictions file carries the full hashes of the other two).
@@ -281,7 +281,7 @@ intervals included; both file hashes match. Two lines added on the advisor's rea
   the problem any v3 has to solve.
 
 LESSON (2026-11-17 10:27 EST, on the director's word): NEVER hand-write ledger lines. The first version of this PR's fragment was written
-as JSON by a script, not by the ledger tool. It failed erify and the estate partition check: "not canonical (written by hand? use
-action_ledger.py append)". Both lines were regenerated with ackend/scripts/action_ledger.py append (the v1 line with
---reconstructed and its original action time). Before pushing, run ction_ledger.py check-pr --base origin/dev; it reads the
+as JSON by a script, not by the ledger tool. It failed `verify and the estate partition check: "not canonical (written by hand? use
+action_ledger.py append)". Both lines were regenerated with `backend/scripts/action_ledger.py append (the v1 line with
+--reconstructed and its original action time). Before pushing, run `action_ledger.py check-pr --base origin/dev; it reads the
 COMMITTED tree, so commit first. The same holds for every lane: lines through the tool, never by hand.
