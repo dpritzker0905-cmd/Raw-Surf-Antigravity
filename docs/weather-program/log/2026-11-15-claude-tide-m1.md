@@ -1057,3 +1057,50 @@ re-run on the window.
 Unchanged: the window (2026-01-01 .. 07-24 minus the held-out weeks), thresholds, the original strict controls,
 >= 20 storms in >= 3 regions tested blind, and Open-Meteo previous runs for C and D. The draft goes to the advisor
 with these edits; then code; then the owner's word.
+
+## 22:52 EST 2026-11-16 (`date`) - G3b DRAFT addendum 2: the advisor's seven changes (03:46Z); #987 already merged
+**#987** passed by the advisor (03:46Z, no open condition). It was already MERGED at 00:57Z (merge commit `ee0041370`)
+by the director's sweep, so there was nothing for this lane to merge.
+
+**G3b changes (before any G3b code; G3's output not opened):**
+1. **Score only what could have been served.**
+   - A cycle is AVAILABLE at the `LastModified` time of its `points.swl.nc` in the archive.
+   - Measured on 10 cycles across the window (2026-01-10, 02-15, 04-01, 05-20, 07-10; 00Z and 12Z): published
+     **6 h 29 m - 6 h 32 m** after the nominal cycle time, every time.
+   - The value at valid hour t, lead L, comes from the latest cycle AVAILABLE at or before t - L; a missing timestamp
+     falls back to a fixed 7 h delay.
+   - C and D: Open-Meteo's previous_dayN runs have no archive timestamp, so they are scored with the same leads,
+     reading previous_day1 as at least 24 h old; that this treats the references generously is stated.
+   - The real age (hours since availability) of every value is printed per lead bin. With 00Z / 12Z cycles only, the
+     bins are 12 h wide.
+2. **What a PASS decides (restated under the owner's ship-ON rule; relayed via the research lead, 22:09 EST, and the
+   director, 22:23 EST; CONFIRMED in this session below):**
+   - A PASS means the owner's word to MERGE.
+   - The change ships **ON by default** with a kill switch, plus CI tests that the kill restores the old behaviour
+     byte for byte, plus the contract tests of addendum 1.
+   - **Automatic trip:** if the newest STOFS cycle is missing or older than 18 h, the served level falls back to the
+     tide alone (FES + S1) and the screen says so.
+3. **Scope:**
+   - A PASS licenses the water level on **US coasts as tested** (26 CO-OPS gauges).
+   - Everywhere else it is UNVERIFIED and labelled so in the product until its own gate passes. Non-US
+     fast-delivery gauges (UHSLC) are the planned rows of that later gate (with the spot-level gate).
+4. **Storms cannot chain:**
+   - Regions are the strata already used: Hawaii, Pacific, Atlantic, Gulf, PR, by station id.
+   - A storm ENDS at the first 24 h with no surge hour at any gauge in the region, even when the 48 h single-linkage
+     would link further.
+5. **Constant control:** stays POOLED (gauge x 2-day blocks) as the VOID control; the median-gauge reading is
+   REPORTED. This replaces the draft's "original" median-gauge control: "does the instrument see the non-tidal term at
+   all" is a pooled question, and "does it help the typical gauge" is item 1's.
+6. **N2's reference is ROLLING and causal:**
+   - Primary: the mean of STOFS swl nowcasts over the 30 days ending at the cycle used (needs no truth; it is what a
+     served product can compute).
+   - The fixed 2025-12-02 .. 12-31 reference is reported.
+7. **What the pilot may change:** G3b may be amended after G3, each amendment labelled **POST-PILOT** with the G3 fact
+   that prompted it, and only before any G3b data (truth or arm) is fetched. **The thresholds and the primary arm do
+   not move.**
+
+**Smaller points:**
+- D may be in-sample on parts of this window if #926 was tuned on observed water there; that only makes the gate
+  harder, and it is stated.
+- Truth is fetched last, as in G3.
+- Real lead ages are printed.
