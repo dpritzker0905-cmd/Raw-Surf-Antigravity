@@ -72,7 +72,13 @@ CAVEATS = (
     "Where several runs graded one target time the LATEST run's row is used, which is the shortest lead: this scores "
     "near-analysis forcing, not a forecast.",
     "A region cell rests on as few as 3 stations, which is close to station level.",
-    "The null is a sanity check and the positive control a plumbing check; neither measures power.")
+    "The null is a sanity check and the positive control a plumbing check; neither measures power.",
+    "The model is the GFS member's offshore height through the chain. Inside the Southern California Bight that "
+    "height has been a GFS and EURO mean since 2026-11-04 (SURF_BIGHT_HS_CONSENSUS), constant inside both windows.")
+# The day-boundary check (registered 2026-11-17, advisor's statistic). A fault is an EXCESS of differing observations
+# in the midnight group: more than BOUNDARY_FAULT_SHARE of its pairs AND more than BOUNDARY_FAULT_RATIO x the control's.
+BOUNDARY_FAULT_SHARE, BOUNDARY_FAULT_RATIO = 0.01, 2.0
+OBS_TOLERANCE_M = 0.005
 
 # The rule's five coasts as boxes (south, north, west, east), fixed before any row was read. Order matters: the
 # first box that contains the station wins. A station in none is "other": reported, never counted toward a minimum.
@@ -373,6 +379,71 @@ def analyse(rows, regions_by_station, seed: int) -> dict:
     return out
 
 
+def _run_hour(obj):
+    stamp = str(obj.get("generated_at") or "")
+    try:
+        return int(stamp[11:13])
+    except ValueError:
+        return None
+
+
+def boundary_check(objects, start: str, end: str) -> dict:
+    """Is a pairing fault hiding at the UTC day boundary? MODEL-FREE: it reads only the stored OBSERVATION.
+
+    For one station and one target time the buoy's value is the same whichever run graded it. So for every
+    (station, target time) graded by two consecutive GRADED runs, compare the observation each stored (its value and
+    its time). Two groups: MIDNIGHT, where the later run fired in the hour after 00Z; CONTROL, where both runs fired
+    between 02Z and 22Z. Buoy records get small late corrections and a later run can match a nearer reading, so some
+    differing pairs are normal in both; a FAULT is an excess in the midnight group. Counts and shares only."""
+    seen_by_key = {}
+    for obj in sorted((o for o in objects if isinstance(o, dict) and o.get("graded")), key=lambda o: str(o.get("generated_at"))):
+        hour = _run_hour(obj)
+        if hour is None:
+            continue
+        mine = {}
+        for r in obj.get("rows") or []:
+            t, o = str(r.get("valid_time") or ""), _pos(r.get("obs_hs_m"))
+            if o and r.get("station") is not None and start <= t < end:
+                mine.setdefault((str(r["station"]), t), (hour, o, str(r.get("obs_time"))))   # linked spots share one reading
+        for key, v in mine.items():
+            seen_by_key.setdefault(key, []).append(v)
+    groups = {"midnight": [0, 0], "control": [0, 0]}
+    for v in seen_by_key.values():
+        for a, b in zip(v, v[1:]):
+            g = "midnight" if b[0] == 0 else "control" if (2 <= a[0] <= 22 and 2 <= b[0] <= 22) else None
+            if g is None:
+                continue
+            groups[g][0] += 1
+            groups[g][1] += int(abs(a[1] - b[1]) > OBS_TOLERANCE_M or a[2] != b[2])
+    out = {}
+    for g, (pairs, differ) in groups.items():
+        shown = pairs >= HIDE_BELOW
+        out[g] = {"pairs": pairs if shown else None, "share": (differ / pairs) if shown else None}
+    mid, ctl = out["midnight"]["share"], out["control"]["share"]
+    if mid is None or ctl is None:
+        out["status"] = "NOT TESTABLE (a group has fewer than %d pairs)" % HIDE_BELOW
+    elif mid > BOUNDARY_FAULT_SHARE and mid > BOUNDARY_FAULT_RATIO * ctl:
+        out["status"] = "FAULT"
+    else:
+        out["status"] = "no fault found"
+    return out
+
+
+def _boundary_block(b: dict):
+    def cell(g):
+        v = b[g]
+        return "n/a" if v["pairs"] is None else "%d pairs, %.1f%% with a different observation" % (v["pairs"], 100.0 * v["share"])
+    L = ["", "Day-boundary check (the OBSERVATION two runs stored for one station and target time; no model value): "
+             "later run fired just after 00Z: %s. Both runs away from midnight: %s. **%s.**" % (
+                 cell("midnight"), cell("control"), b["status"]),
+         "A fault is more than %.0f%% in the midnight group AND more than %.0f times the control's share. The direct "
+         "check (target time = forecast cycle + forecast hour) is NOT RUNNABLE: the rows do not store the cycle." % (
+             100.0 * BOUNDARY_FAULT_SHARE, BOUNDARY_FAULT_RATIO)]
+    if b["status"] == "FAULT":
+        L.append("**Rows from the faulty runs must be excluded by a dated amendment BEFORE the scored dispatch.**")
+    return L
+
+
 def _f(x, nd=3):
     return "n/a" if x is None else ("%+." + str(nd) + "f") % x if isinstance(x, float) else str(x)
 
@@ -384,11 +455,11 @@ def _header(counts: dict, start: str, end: str, graded_runs, fetch_status: str):
     L += ["", "Read: %s. Stored runs read: %d (graded %d, refused %d). Rows seen %d, unusable %d." % (
         fetch_status, counts["objects"], counts["graded"], counts["refused"], counts["rows_seen"], counts["rows_unusable"])]
     if graded_runs is not None:
-        L.append("Graded workflow runs created in the window: %d. Gap against stored graded runs: about %d (APPROXIMATE: "
-                 "runs are counted by creation time, stored objects by run day, rows by target time)." % (
-                     graded_runs, max(0, graded_runs - counts["graded"])))
+        L.append("Validation runs that were asked to grade and completed, created in the window: %d. Gap against the "
+                 "stored run objects (graded or refused): about %d (APPROXIMATE: runs are counted by creation time, "
+                 "stored objects by run day, rows by target time)." % (graded_runs, max(0, graded_runs - counts["objects"])))
     else:
-        L.append("Graded workflow runs in the window: not supplied, so the stored-against-graded gap is NOT CHECKED.")
+        L.append("Requested validation runs in the window: not supplied, so the stored-against-requested gap is NOT CHECKED.")
     return L
 
 
@@ -400,9 +471,12 @@ def _counts_block(c: dict):
             MIN_UNITS, MIN_DAYS, MIN_STATIONS, ", ".join(c["cells_at_minimum"]) or "none")]
 
 
-def render_counts(c: dict, counts: dict, start: str, end: str, reason: str, graded_runs=None, fetch_status="ok") -> str:
-    """A health run: how much is stored. No score, no difference, no verdict (items A and D)."""
+def render_counts(c: dict, counts: dict, start: str, end: str, reason: str, graded_runs=None, fetch_status="ok",
+                  boundary=None) -> str:
+    """A health run: how much is stored, and the day-boundary check. No score, no difference, no verdict."""
     L = _header(counts, start, end, graded_runs, fetch_status) + _counts_block(c)
+    if boundary is not None:
+        L += _boundary_block(boundary)
     L += ["", "**COUNTS ONLY: %s. No score, difference or verdict is printed.**" % reason,
           "Verdicts are printed once per registered window, whole, after it closes, from a complete read."]
     return "\n".join(L) + "\n"
@@ -518,7 +592,8 @@ def report(objects, fetch_status: str, start: str, end: str, now: str, regions_b
     rows, counts = usable_rows(objects, start, end)
     mode, detail = run_mode(start, end, now, fetch_status)
     if mode != "scored":
-        return render_counts(counts_only(rows, regions_by_station), counts, start, end, detail, graded_runs, fetch_status)
+        return render_counts(counts_only(rows, regions_by_station), counts, start, end, detail, graded_runs, fetch_status,
+                             boundary=boundary_check(objects, start, end))
     return render(analyse(rows, regions_by_station, detail), counts, start, end, graded_runs, fetch_status)
 
 
@@ -527,7 +602,7 @@ def main(argv=None) -> int:
     ap.add_argument("--start", default=REGISTERED_WINDOWS[0][0], help="first target time (UTC, inclusive)")
     ap.add_argument("--end", default=REGISTERED_WINDOWS[0][1], help="last target time (UTC, exclusive)")
     ap.add_argument("--pairs", action="append", default=[], help="a pairs JSON file (station coordinates); repeatable")
-    ap.add_argument("--graded-runs", type=int, default=None, help="graded workflow runs in the window, counted elsewhere")
+    ap.add_argument("--graded-runs", type=int, default=None, help="validation runs asked to grade and completed in the window, counted elsewhere")
     ap.add_argument("--out", default="", help="also write the report here")
     args = ap.parse_args(sys.argv[1:] if argv is None else argv)
     docs = []

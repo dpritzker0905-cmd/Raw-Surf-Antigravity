@@ -813,3 +813,58 @@ dispatch. It left four asks that are not conditions. All four are in this commit
   regions".
 
 Still no private row read. Nothing dispatched. 19 tests.
+
+## 2026-11-17 05:59Z Registered before any report exists: a day-boundary check, and what the station count allows
+
+No dispatch of the scorer has been made, scored or counts-only, and no private row has been read. This section is
+written before either can happen (the workflow is not on `dev` yet).
+
+**Why.** A read-only trace of the nearshore gate (`log/2026-11-17-fable-nearshore-gate-trace.md`) found the gate's
+pooled ratio reading about a quarter lower on runs that fire just after 00Z. About two thirds of that is the gate's
+pooling (one six-spot station supplies a quarter of its rows); 0.09 remains on nine runs, and one run
+(2026-10-28 00:35Z) is low on three coasts at once. The scorer keeps the LATEST run's row for each target time, so a
+true pairing fault after midnight UTC would sit inside the scored data. It has to be tested before the scored look.
+
+**The statistic (the advisor's, not my first proposal).** MODEL-FREE: it reads only the stored OBSERVATION.
+- For one station and one target time the buoy's value is the same whichever run graded it. For every
+  (station, target time) graded by two consecutive GRADED runs, compare the observation each run stored: its value
+  (tolerance 0.005 m) and its time.
+- **Midnight group:** pairs whose later run fired in the hour after 00Z. **Control group:** pairs where both runs
+  fired between 02Z and 22Z. Pairs in neither group are not counted.
+- Buoy records get small late corrections, and a later run can match a nearer reading, so some differing pairs are
+  normal in both groups.
+- **A FAULT is:** the share of differing pairs in the midnight group above 1% AND more than twice the control's.
+- A group under 10 pairs prints no count and the check reads NOT TESTABLE.
+- My first proposal (compare the stored MODEL height between the two runs) was rejected, rightly: the later run
+  reads a newer forecast cycle, so the model height is expected to differ and a large share would mean nothing.
+- The direct check (target time equals forecast cycle plus forecast hour) is NOT RUNNABLE: the rows do not store
+  the cycle.
+
+**Where it lives.** In the counts-only report: two pair counts, two shares and one word. No station, no row, no
+model-against-observed number. It is not printed in the scored report.
+
+**What follows from a FAULT.** Rows from the faulty runs are excluded by a dated amendment here BEFORE the scored
+dispatch. Nothing else in the rule changes.
+
+**What it costs.** A counts-only dispatch holds the service-role key, so it needs the owner's typed word and a
+ledger line. It does NOT count as the scored look.
+
+**What it cannot test.** The suspect run of 2026-10-28 predates the window and its stored rows; it stays "not
+disproven".
+
+**The station count, written now, before any counts exist.** Eleven of the 22 stations on file return 404 on every
+run in the last month, so the live stations are: California 4, Florida east 3, Gulf 2, mid-Atlantic 2, Hawaii 0.
+The cell minimum is 3 stations. Expectation: testable pooled, in California and in Florida east; UNTESTABLE in the
+Gulf, the mid-Atlantic and Hawaii. A served change resting on a verdict would be limited to California and Florida
+east.
+
+**Two smaller changes in the same commit.**
+- The workflow counted only validation runs that finished GREEN as graded. A run whose own surf-zone gate goes red
+  still grades and stores its rows (all three runs of 2026-11-16 did), so the gap would have been under-counted. It
+  now counts runs that were asked to grade and completed, and compares them with all stored run objects.
+- One more caveat line on every report: the model is the GFS member's offshore height, which inside the Southern
+  California Bight has been a GFS and EURO mean since 2026-11-04, constant inside both windows.
+
+**Tests.** 23 (estate lane must read 3841). The boundary check passes a clean set, catches a seeded one-day shift
+in the midnight runs, does not call ordinary corrections in both groups a fault, hides small groups, and never
+reads a refused run. Five hand mutations each fail a test.

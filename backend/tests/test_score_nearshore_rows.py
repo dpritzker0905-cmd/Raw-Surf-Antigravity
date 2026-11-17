@@ -234,7 +234,8 @@ def test_the_report_carries_no_station_no_hour_and_no_row_and_says_what_it_canno
         for s in STATIONS:
             assert s not in text and ("sp-" + s) not in text
         assert "T03:00" not in text and "valid_time" not in text and "obs_hs_m" not in text
-    assert "about 2 (APPROXIMATE" in scored and "NOT CHECKED" in health
+    assert "about 1 (APPROXIMATE" in scored and "NOT CHECKED" in health      # 5 requested runs, 4 stored objects
+    assert "asked to grade and completed" in scored
     assert "NOT RUNNABLE: komar_off" in scored and "NOT BUILT: sea-state split" in scored
     assert "Season is UNTESTABLE" in scored and "limited to the tested regions" in scored
     assert "With one station left out: 9 of 9 re-scores keep the same side of zero" in scored
@@ -252,6 +253,69 @@ def test_the_configurations_windows_and_thresholds_are_the_rules():
                                      ("2027-01-11T00:00:00", "2027-02-01T00:00:00", 20270201))
     assert (sn.SHUFFLES, sn.MIN_UNITS, sn.MIN_DAYS, sn.MIN_STATIONS, sn.REGION_MARGIN) == (200, 30, 7, 3, 0.02)
     assert "DRAWS = 2000" in io.open(SRC, encoding="utf-8").read()
+
+
+def _boundary_objects(midnight_differs=0.0, control_differs=0.0, days=12, refused_midnight=False):
+    """Four runs a day (19Z, 21Z, then 00Z and 09Z the next day), each grading the same two target times at three
+    stations. Consecutive pairs: (19Z, 21Z) is CONTROL, (21Z, 00Z) is MIDNIGHT, (00Z, 09Z) is neither.
+    `*_differs` is the share of the later run's rows that stored a DIFFERENT observation for the same target time."""
+    rng, objs = random.Random(7), []
+    for d in range(days):
+        day, nxt = 17 + d, 18 + d
+        truth = {(s, h): 1.0 + rng.random() for s in ("ca1", "fe1", "ma1") for h in (12, 18)}
+
+        def run(stamp, differ, graded=True):
+            rows = []
+            for (s, h), obs in truth.items():
+                wrong = rng.random() < differ
+                for spot in ("a", "b"):                              # two linked spots share one reading
+                    rows.append({"station": s, "spot": spot, "valid_time": "2026-11-%02dT%02d:00:00Z" % (day, h),
+                                 "model_hs_m": 1.0, "obs_hs_m": obs * (1.4 if wrong else 1.0),
+                                 "obs_time": "2026-11-%02dT%02d:00:00Z" % (day - 1 if wrong else day, h),
+                                 "factors": dict(FACTORS, total=0.77)})
+            return _obj(rows, stamp, graded)
+        objs += [run("2026-11-%02dT19:10:00+00:00" % day, 0.0), run("2026-11-%02dT21:10:00+00:00" % day, control_differs),
+                 run("2026-11-%02dT00:20:00+00:00" % nxt, midnight_differs, graded=not refused_midnight),
+                 run("2026-11-%02dT09:30:00+00:00" % nxt, 0.0)]
+    return objs
+
+
+def test_the_day_boundary_check_passes_a_clean_set_and_catches_a_seeded_shift():
+    clean = sn.boundary_check(_boundary_objects(), W1_START, W1_END)
+    assert clean["status"] == "no fault found"
+    assert clean["midnight"] == {"pairs": 72, "share": 0.0} and clean["control"] == {"pairs": 72, "share": 0.0}
+    shifted = sn.boundary_check(_boundary_objects(midnight_differs=1.0), W1_START, W1_END)
+    assert shifted["status"] == "FAULT" and shifted["midnight"]["share"] == 1.0 and shifted["control"]["share"] == 0.0
+
+
+def test_ordinary_late_corrections_in_both_groups_are_not_a_fault_and_an_excess_at_midnight_is():
+    same = sn.boundary_check(_boundary_objects(midnight_differs=0.2, control_differs=0.2), W1_START, W1_END)
+    assert same["status"] == "no fault found" and same["control"]["share"] > 0.05      # normal in both: not a fault
+    excess = sn.boundary_check(_boundary_objects(midnight_differs=0.6, control_differs=0.1), W1_START, W1_END)
+    assert excess["status"] == "FAULT"
+    assert (sn.BOUNDARY_FAULT_SHARE, sn.BOUNDARY_FAULT_RATIO, sn.OBS_TOLERANCE_M) == (0.01, 2.0, 0.005)
+
+
+def test_the_day_boundary_check_hides_small_groups_and_never_reads_a_refused_run():
+    small = sn.boundary_check(_boundary_objects(midnight_differs=1.0, days=1), W1_START, W1_END)
+    assert small["status"].startswith("NOT TESTABLE") and small["midnight"] == {"pairs": None, "share": None}
+    refused = sn.boundary_check(_boundary_objects(midnight_differs=1.0, refused_midnight=True), W1_START, W1_END)
+    assert refused["midnight"]["pairs"] is None                       # the midnight runs refused: their rows are not read
+    assert sn.boundary_check([], W1_START, W1_END)["status"].startswith("NOT TESTABLE")
+
+
+def test_the_day_boundary_check_lives_in_the_counts_only_report_and_names_nothing():
+    objects = _boundary_objects(midnight_differs=1.0)
+    health = sn.report(objects, "ok", W1_START, W1_END, "2026-11-27T00:00:00", REGION)
+    assert "Day-boundary check" in health and "**FAULT.**" in health
+    assert "72 pairs, 100.0% with a different observation" in health
+    assert "excluded by a dated amendment BEFORE the scored dispatch" in health
+    assert "NOT RUNNABLE: the rows do not store the cycle" in health
+    for word in ("ca1", "fe1", "ma1", "T12:00", "T18:00", "REMOVE CANDIDATE", "KEEP"):
+        assert word not in health
+    scored = sn.report([_obj(_rows())], "ok", W1_START, W1_END, AFTER_W1, REGION)
+    assert "Day-boundary check" not in scored                         # the scored report is not where this lives
+    assert "GFS and EURO mean since 2026-11-04" in scored and "GFS and EURO mean since 2026-11-04" in health
 
 
 class _Resp:
