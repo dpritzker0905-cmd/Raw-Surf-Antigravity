@@ -1922,3 +1922,17 @@ amendment 1, THIS governs.
   Atomic publish drops to "verify only".
 - **Lesson:** measure against the SHIPPED baseline, not raw (an L-S28 relative: check what the comparison already
   includes).
+
+## 2026-11-17 00:31 -0500 Cold start: network model (helper) and the next measurement
+
+- **Network path** (model; RTT 80 ms, 10 Mbps): latest.json (13.8 KB gz) -> GFS index (11.6 KB gz) -> frame
+  (55.6 KB), about 305 ms, plus 25-60 ms parse and decode.
+- **Already in place:** the boot warm-up in staticFrames.js and the Supabase preconnect.
+- **Candidate savings (~100-130 ms combined):**
+  - inline the frame path in the boot pointer;
+  - a one-set boot read;
+  - a speculative frame fetch.
+- **Not yet measured:** the JS bundle and the MapLibre style load, which likely dominate.
+- **Next:** OFFLINE e2e timing (frontend/e2e offlineWeather.js and requestRecorder.js mocks, a local production
+  build, 3 cold runs, desktop plus 4x CPU throttle).
+- **No live map load:** a fresh load can request heavy world-series pages from the shared box (CLAUDE.md).
