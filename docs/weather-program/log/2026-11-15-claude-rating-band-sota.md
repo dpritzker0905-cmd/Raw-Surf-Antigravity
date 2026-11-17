@@ -361,7 +361,7 @@ Run 43950205417 (20:28Z -> 23:11Z, dev 2adc374a1, the first pilots run with #975
 | 0: GFS regional waves bundles | 19 | 19 | 0 | 290.4 |
 | 1: GFS world waves | 1 | 1 | 0 | 96.3 |
 | 2: every other rated set | 64 | 5 | 59 | 202.0 |
-Public index (1/latest.json, read 23:14Z, each record's own 
+Public index (`v1/latest.json, read 23:14Z, each record's own 
 un field, rated against its plain sibling):
 | tier | rated equal to plain | rated NEWER than plain | rated BEHIND plain |
 |---|---|---|---|
