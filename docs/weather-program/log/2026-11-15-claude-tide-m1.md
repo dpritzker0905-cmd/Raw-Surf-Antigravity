@@ -1447,3 +1447,134 @@ The research lead's later message supersedes their earlier path (it now drops th
   3. confirm from documents that only CO-OPS feeds the correction, and draw up the surge truth set;
   4. surge registration.
 - No data has been fetched.
+
+## 10:52 EST 2026-11-17 (`date`) - DIRECTOR DECISION on the tide path; G3t PRE-REGISTRATION DRAFT (tide + seasonal, no surge; written before any G3t data)
+**The director's decision (message, 10:46 EST), combining the advisor's and the research lead's advice:**
+1. G3 is closed as VOID.
+2. A new RETROSPECTIVE gate, **G3t**: tide + seasonal climatology, NO surge model, on the untouched Jan .. Jul 2026
+   window, with its primary stated as chosen after the pilot. If it passes, it ships ON under D-080.
+3. Surge becomes a SEPARATE prospective gate on v3.1, scored on the independent IOOS/Hohonu beach gauges, not CO-OPS, with
+   a version guard and a run of >= 12 months.
+4. The near-gauge persistence nowcast gets its own gate, later.
+5. G3b on v2.1 is dropped.
+
+Also: fetch no data until the advisor has read each registration; build the G3t served path meanwhile.
+
+**Two points held for the owner and the reviewers, not settled by me:**
+- **Surge items:**
+  - The director names the level-free primary and a "registered interim look".
+  - The advisor (15:16Z) and the research lead (10:40 EST) keep the level-free primary WITHDRAWN until the surge
+    registration re-chooses it.
+  - The advisor's condition is that nothing can end the window early. An interim look must therefore be registered as
+    a truth-only count, or as a look that cannot stop or change the gate.
+  - These are settled in the surge registration, not here.
+- **"Build the dark served path":** under D-080 nothing merges dark (the advisor, 15:25Z). The served path is built on
+  a branch and merged ON with its kill switch only after a G3t PASS and the owner's word.
+
+The owner's own word on the split is asked for in this session; this draft fetches nothing and runs nothing without it.
+
+### G3t - what is measured
+Served water level = **FES2022b tide (arm A, unchanged from G2/G3) + S1 (altimetry seasonal climatology)** against
+OBSERVED water at the 26 CO-OPS gauges.
+- With no surge arm, there is no STOFS input. The CO-OPS bias-correction question does not arise, and CO-OPS observed
+  water is fair truth.
+- **Disclosure (post-pilot):** this primary was chosen after the G3 pilot, where A + S1 had median RMSE 0.104 m against
+  0.195 m for D on 2026-08-25 .. 09-07. The thresholds below are G3's/G3b's, unchanged, and reference C and D measured
+  anew on the G3t window, not those numbers.
+
+**Arms:**
+- **PRIMARY (one, named now): P = A + S1.** If the S1 preflight fails, the gate is NO VERDICT (the S1 term is the
+  hypothesis; A alone already FAILED G2). That is decided before any truth is fetched.
+- Reported: A (tide only); A + S1 at the 20 open-coast-like gauges; S1 by region.
+- TEST-ONLY references C (Open-Meteo, 72 h de-mean) and D (#926 datum), from Open-Meteo PREVIOUS runs
+  (`sea_level_height_msl_previous_day1/2`).
+  - P is a forecast with no issue time: tide and climatology are known in advance. So P has the same value at every
+    lead.
+  - C and D are scored at leads 24-48 h (previous_day1) and 48-72 h (previous_day2). The gate reads those leads pooled;
+    each is printed.
+  - Open-Meteo has no archive timestamps, so previous_day1 is read as at least 24 h old. This treats the references
+    generously, and that is stated.
+
+**Window:** 2026-01-01 00Z .. 2026-07-24 23Z, hourly, MINUS 2026-03-15 .. 03-21 and 2026-06-15 .. 06-21 (the #926/#931
+held-out weeks).
+- Unseen: calendar 2025 and Nov 19 .. Dec 31 2025 are seen or excluded; 2026-07-25 onward is seen (G3's truth-only count
+  and window, G2, M1, #926).
+- No G3b data was ever fetched on it.
+- C and D previous runs exist from 2025-11-19.
+
+**Datum rule (carried from G3; it is the product's rule):**
+- FES2022b is zero-mean.
+- S1 = the day-of-year mean of CMEMS SLA (`SEALEVEL_GLO_PHY_L4_MY_008_047`, relative to 1993-2012) over the fixed base
+  2016-01-01 .. 2025-12-31, at the nearest offshore cell at least 10 km from the gauge. It carries the seasonal cycle
+  AND the present mean level.
+- Observed water is CO-OPS `water_level` on station MSL (1983-2001 epoch). That station MSL datum is OLDER than S1's
+  reference, so the difference (sea-level rise since the epoch) is part of what S1 must supply. It is not removed.
+- D is referenced as #926 does; C is de-meaned over 72 h as registered.
+- Raw scores GATE; mean-removed scores and bias / SD are printed for every arm and gauge.
+
+**Truth:**
+- T2 CO-OPS OBSERVED water gates; T1 (CO-OPS predictions) is reported.
+- Truth is fetched LAST, after the S1 preflight, FES, and C/D.
+
+### Pass lines (P; all must hold)
+**Statistics:**
+- Every comparison is a PAIRED per-gauge difference with a 95% interval from a block bootstrap: 2000 draws, seed
+  20260101, resampling gauges and 2-day blocks.
+- A line is met only by the interval's END.
+
+**Items:**
+1. **Level:** median paired RMSE difference vs observed. P - D has its upper end <= -0.02 m, AND P - C has its upper end
+   < 0.
+2. **No gauge much worse:** at every gauge, P - D <= +0.05 m (point). A gauge where P cannot score (S1 unavailable)
+   counts AGAINST P. A gauge where D is undefined (Boston 8443970, a land cell) is not paired and is listed.
+3. **The seasonal term must earn its place:** P - A has its upper end < 0 (paired, median over gauges).
+4. **Tide shape (unchanged from G2):** median High/Low time error <= 20 min; median |MLLW err| <= 0.05 m.
+
+G3's surge items (3: surge hours; 4: calm hours) do not apply: there is no non-tidal arm.
+
+**Coverage (G3b addendum 1, item 4):**
+- Hours read vs expected are printed per gauge and arm.
+- A gauge below 95% on P, D or observed water is EXCLUDED and counted.
+- More than 20% of gauges excluded makes the run VOID.
+
+**Controls (any misbehaving means VOID):**
+- **Positive:** NOAA's constants vs NOAA's predictions <= 0.01 m (G2's).
+- **Label swap:** 200 derangements of gauges; median vs observed > 0.3 m.
+- **Seasonal phase control (new; replaces the surge controls):** S1 shifted by six months (day-of-year + 182, wrapped)
+  must LOSE item 3 to the real S1: the interval of (A + S1_shifted) - P has its lower end > 0.
+  - If the instrument cannot tell a seasonal cycle from its opposite, the result is VOID.
+  - Over ~6.5 months spanning the seasonal swing, this has power.
+- **Oracle yardstick (reported, never gating):** CO-OPS predictions + the observed residual held from the day before.
+
+### Reported, not gating
+- The 20 open-coast-like gauges (the 26 minus Fernandina, Pensacola, South Beach, Duck, Sandy Hook, Virginia Key).
+- Region and month strata.
+- **Independent beach gauges (IOOS / Hohonu, erddap.sensors.ioos.us), if they have the window:**
+  - The same arms, de-meaned on each gauge's own pre-window month.
+  - A gauge-local datum differs, so only the mean-removed score is meaningful there.
+  - Reported as the first look at surf-beach water level.
+  - Their list and QC rule are fixed in the code review, BEFORE any truth is fetched.
+
+### What a PASS decides (owner's ship-ON rule, 22:57 EST 2026-11-16, carried)
+- A PASS means the owner's word to MERGE.
+- The served tide becomes FES2022b (offline output only; PyFES is GPL and never imported into the served backend) + S1.
+- It ships ON by default with a kill switch, a SCOREBOARD row, and the kill-switch contract tests (G3b addendum 1,
+  item 1: OFF byte-identical, ON changes only tide fields, manifest kill, guardrail auto-disable, registry parity).
+- No staleness trip is needed, since S1 is a static climatology. S1 is refreshed yearly only by a new registration.
+- FAIL or INCONCLUSIVE keeps today's tide. VOID is recorded, with no re-run on the window.
+
+### Scope
+- A PASS licenses the water level (tide + seasonal mean level, no weather surge) at the 26 US gauges as tested.
+- It certifies NOTHING about storm surge. Away from gauges it is UNVERIFIED and labelled so, except as the reported
+  beach-gauge rows show.
+- The served product must say "tide + seasonal level, no storm surge" until the surge gate passes.
+
+### Sequence
+1. This draft is pushed alone.
+2. The advisor and the research lead read it.
+3. FINAL.
+4. Code (G3 code parameterised: no STOFS stages, the seasonal phase control, the S1 NO VERDICT rule), then the advisor's
+   read of the code.
+5. The owner's word for the run under a new one-shot tag `tide-gate-G3t`.
+
+Meanwhile the served path (FES + S1 behind a flag, ON by default, kill switch) is built on a branch and not merged.
