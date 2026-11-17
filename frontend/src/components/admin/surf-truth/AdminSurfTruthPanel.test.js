@@ -65,16 +65,18 @@ test('audit queue hides the height and records a verdict', async () => {
     { verdict: 'pass' }));
 });
 
-test('failing an audit asks for a reason and sends it; no reason, no request', async () => {
+test('failing an audit asks for a reason in a dialog and sends it; no reason, no request', async () => {
   render(<QualityQueueTab />);
-  const fail = await screen.findByRole('button', { name: /fail report/i });
-  const prompt = jest.spyOn(window, 'prompt');
-  prompt.mockReturnValueOnce('');
-  fireEvent.click(fail);
+  fireEvent.click(await screen.findByRole('button', { name: /fail report received/i }));
+  const dialog = await screen.findByRole('dialog');
+  const submit = screen.getByRole('button', { name: /^fail report$/i });
+  expect(submit).toBeDisabled();                                    // no reason, no request
+  fireEvent.change(screen.getByLabelText('Reason'), { target: { value: '   ' } });
+  expect(submit).toBeDisabled();
   expect(apiClient.post).not.toHaveBeenCalled();
-  prompt.mockReturnValueOnce('photo of another beach');
-  fireEvent.click(fail);
+  fireEvent.change(screen.getByLabelText('Reason'), { target: { value: ' photo of another beach ' } });
+  fireEvent.click(submit);
   await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/admin/surf-observations/o9/audit',
     { verdict: 'fail', reason: 'photo of another beach' }));
-  prompt.mockRestore();
+  await waitFor(() => expect(dialog).not.toBeInTheDocument());
 });
