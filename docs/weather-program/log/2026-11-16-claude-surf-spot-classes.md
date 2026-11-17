@@ -279,3 +279,9 @@ intervals included; both file hashes match. Two lines added on the advisor's rea
 - WHERE THE UNKNOWNS ARE: all 65 classifier-unknown spots are in the untagged frame (65 of its 80 sampled; 0 in any other frame).
   Outside that frame the classifier adds nothing a tag does not already give. Inside it, it classifies 15 of 80. That is the size of
   the problem any v3 has to solve.
+
+LESSON (2026-11-17 10:27 EST, on the director's word): NEVER hand-write ledger lines. The first version of this PR's fragment was written
+as JSON by a script, not by the ledger tool. It failed erify and the estate partition check: "not canonical (written by hand? use
+action_ledger.py append)". Both lines were regenerated with ackend/scripts/action_ledger.py append (the v1 line with
+--reconstructed and its original action time). Before pushing, run ction_ledger.py check-pr --base origin/dev; it reads the
+COMMITTED tree, so commit first. The same holds for every lane: lines through the tool, never by hand.
