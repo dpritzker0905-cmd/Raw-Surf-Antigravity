@@ -1023,3 +1023,37 @@ re-run on the window.
   (window + pre-window; ~70 window cycles + ~30 pre-window 00Z cycles expected, about 100). A count near 70 would mean
   the pre-window was not read. An explicit pre-window count per kind is added to G3b's code (it cannot go into a run
   already started).
+
+## 22:42 EST 2026-11-16 (`date`) - G3b DRAFT addendum: the research lead's five edits (before any G3b code; G3 output not opened)
+1. **What a G3b PASS decides (owner rule, 22:09 EST, relayed verbatim by the research lead and recorded as relayed:**
+   "It needs to ship on, not off. With kill switch. I get confused and forget to turn things on once they are merged.
+   Make special tests to test and kill switch it."; this matches D-065, "fixes ship ON, with guardrails"). A PASS means
+   **the owner's word to MERGE, and the change ships ON by default with a kill switch**, plus kill-switch contract
+   tests:
+   - (a) switch OFF is byte-identical to the current tide path;
+   - (b) switch ON changes only the tide fields;
+   - (c) a runtime-manifest kill (`control/flags.json`) works with no deploy;
+   - (d) the flag guardrail can auto-disable it;
+   - (e) registry parity (`_RATING_FLAGS` / `test_flag_lane_parity`).
+
+   This replaces "dark + kill switch".
+2. **ONE primary arm, named now:** P1 = A + S1 + N2_swl (FES tide + altimetry seasonal + STOFS-2D surge). The fallback
+   P1' = A + N2_swl applies ONLY by S1 preflight availability, decided before any truth is fetched. Every other arm is
+   reported. No best-of-arms choice after scoring.
+3. **The surge reference is CAUSAL:**
+   - For each valid hour t, the reference is the mean of the residual over the trailing 30 days ending at t - 24 h,
+     never centred and never containing t.
+   - The residual is the 25 h low-pass of (CO-OPS observed - CO-OPS predictions) AT THE GAUGE.
+   - No arm sees it: it is used only to classify surge and calm hours for items 3 and 4.
+4. **Coverage assertion (so a silent reader failure cannot recur):**
+   - Per gauge and per arm, the result prints hours read vs hours expected over the window, and for STOFS the
+     pre-window cycles read per kind.
+   - A gauge below **95%** coverage on P1, D or observed water is EXCLUDED from scoring and counted in the result.
+   - **If more than 20% of gauges are excluded, the run is VOID.**
+5. **Item 3 bootstrap is STRATIFIED BY REGION:** storms are resampled within each region (the region counts are kept),
+   so one large Atlantic event cannot dominate. Shift control likewise. The 48 h single-linkage storm rule is
+   unchanged.
+
+Unchanged: the window (2026-01-01 .. 07-24 minus the held-out weeks), thresholds, the original strict controls,
+>= 20 storms in >= 3 regions tested blind, and Open-Meteo previous runs for C and D. The draft goes to the advisor
+with these edits; then code; then the owner's word.
