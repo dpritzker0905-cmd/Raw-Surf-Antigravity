@@ -2375,3 +2375,39 @@ surf-beach truth.
   guard plus a CI test).
   - No workflow sets POINT_SKIP_NATIVE_COPERNICUS, so the no-tier EURO ledger rows were most likely MFWAM-answered
     (to be confirmed per row).
+
+## 2026-11-17 16:25 EST LEADING EXPLANATION of the consensus defect: EURO and ICON drop from 0.25 deg to 2 deg after 48 h (code plus the existing table; a hypothesis until the member-source job reads it)
+
+**Code (origin/dev, marine_mid_res_ingestion.py):**
+- EURO regional 0.25 deg pilot: `EURO_MARINE_PILOT_FORECAST_DAYS` default **2** ("far hours fall through to mid/global
+  via the resolver ladder").
+- ICON regional 0.25 deg pilot: `ICON_MARINE_PILOT_FORECAST_DAYS` default **2**.
+- No workflow overrides either (git grep of .github/workflows).
+- Beyond 48 h, EURO/ICON come from the global_mid tier at **2 deg** (`EURO_MID_RES` / `ICON_MID_RES` = 2.0; cells about
+  220 km).
+- GFS's regional tiles have run the FULL horizon since 2026-11-01 (`GFS_PILOT_FULL_HORIZON`).
+- The EURO mid lane already downloads ECMWF's 0.25 deg wave GRIB and SAMPLES it at 2 deg, so the fine data is already
+  in hand.
+
+**The existing scored-rows table agrees (run 44155289880, member-tier grouping):**
+- +24 h: the dominant cell is EURO=regional / ICON=regional (n 24,798), shadow - equal -0.029. Fine.
+- +48 / +72 h: NO regional rows exist. Only global_mid / global_mid (n about 12-13k, -0.044) and the "unknown" rows
+  (lanes answered by upstream; +0.14 to +0.34).
+- So the defect appears exactly where EURO and ICON become 2 deg.
+- The consistent mechanism: near the coast a 2 deg cell is a far-offshore value or is masked.
+  - The lane at the buoy cannot use it, so it goes upstream and the row is "unknown".
+  - The shadow, built per GFS 0.25 deg node, still blends the coarse 2 deg member, which reads like offshore seas,
+    i.e. high.
+
+**SOTA fix candidates (each a served change; D-080 ON with a kill switch plus a gate):**
+1. Extend the EURO and ICON regional 0.25 deg products to their FULL horizons, as GFS did on 11-01:
+   - EURO from ECMWF open data to 240 h on 00/12 Z (144 h on 06/18 Z);
+   - ICON gwam to its horizon.
+   - It fixes the blend AND improves the served EURO/ICON layers at days 3-10. Cost: pilots-lane processing and
+     storage (the GRIB is already downloaded).
+2. Interim: the blend refuses a member whose tier is coarser than the primary's at that node (no mixing GFS 0.25 deg
+   with EURO/ICON 2 deg near the coast). The cell keeps the mean of the same-resolution members, or GFS.
+
+**Verification:** the repair lead's member-source job (record the chooser's tier per member at the nodes around each
+buoy) should read EURO/ICON = global_mid at +48/72 h wherever the defect appears. Its reading rule must be registered
+before the read. Then construction fidelity within 0.02 m at every lead, then the CONSENSUS_SERVE flip.
