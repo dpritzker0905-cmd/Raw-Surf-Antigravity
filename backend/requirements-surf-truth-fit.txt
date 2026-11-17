@@ -1,0 +1,8 @@
+# OPTIONAL, for the OFFLINE surf-truth fit ONLY (backend/scripts/surf_truth/model.py and run.py) - 2026-11-16.
+#
+# NOT a production dependency and NOT installed by Render or any CI lane: JAX is large, and the fit never runs on the
+# shared box. prep.py, gate.py and controls.py need numpy only, so their tests run in CI without these.
+# Install AFTER requirements.txt, in its own environment:   pip install -r requirements-surf-truth-fit.txt
+# Verified 2026-11-16 on Windows / Python 3.12 (CPU).
+numpyro==0.15.3
+jax[cpu]==0.4.30

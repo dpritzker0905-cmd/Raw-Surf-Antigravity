@@ -1,7 +1,9 @@
 import React from 'react';
+import StaleLayerChip from './StaleLayerChip';
 
 /** Retain the original paired surfboard handles with equal left/right inset. */
-export default function TimelineDrawerHeader({ expanded, onToggle, timeLabel, textClass = '' }) {
+/** `stale` ({ model, layer, hour, windOn }): the selection the stale-layer chip reads (StaleLayerChip.js); shown only while collapsed. */
+export default function TimelineDrawerHeader({ expanded, onToggle, timeLabel, textClass = '', stale = null }) {
   const handle = side => <button type="button" className={`weather-surfboard-handle group rounded-lg ${textClass}`}
     aria-label={`${expanded ? 'Close' : 'Open'} timeline, ${side} surfboard handle`} aria-expanded={expanded}
     aria-controls="weather-mobile-timeline-body" onClick={onToggle}>
@@ -11,10 +13,12 @@ export default function TimelineDrawerHeader({ expanded, onToggle, timeLabel, te
       <path d="M 10 26 C 30 17, 90 17, 110 26" className="stroke-zinc-800 group-hover:stroke-amber-600" strokeWidth="0.5" />
     </svg>
   </button>;
-  return <div className="weather-compact-timeline-header">
+  const header = <div className="weather-compact-timeline-header">
     {handle('left')}
     <button type="button" className={`weather-drawer-time text-[11px] rounded-lg ${textClass}`} aria-expanded={expanded}
       aria-controls="weather-mobile-timeline-body" onClick={onToggle}>{`${expanded ? 'Close timeline' : 'Timeline'} \u00b7 ${timeLabel}`}</button>
     {handle('right')}
   </div>;
+  if (expanded || !stale) return header;
+  return <>{header}<StaleLayerChip stale={stale} onOpen={onToggle} textClass={textClass} /></>;
 }
