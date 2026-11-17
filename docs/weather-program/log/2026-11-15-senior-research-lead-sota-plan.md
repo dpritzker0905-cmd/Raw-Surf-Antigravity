@@ -1683,3 +1683,14 @@ merges with its code default ON; the gate passes first.
 - The recommendation is unchanged (a physical face range is still the best-founded choice), but cite it as "the NOAA
   Honolulu / UHSLC convention", never as "the NWS standard". The research lead's 14:23Z wording ("published standard")
   overstates it.
+
+## 2026-11-16 23:10 -0500 ECMWF licence VERIFIED verbatim; NWS directive pages (helper ASKs 13-14)
+
+- **ECMWF open data, read from the raw HTML of https://www.ecmwf.int/en/forecasts/datasets/open-data (fetched 2026-11-17T04:11Z):**
+  "Their use is governed by the Creative Commons CC-BY-4.0 licence and the ECMWF Terms of Use. This means that the
+  data may be redistributed and used commercially, subject to appropriate attribution."
+  - The page metadata also links http://apps.ecmwf.int/datasets/licences/general.
+  - No exact attribution string is given. Recommended credit wording (ours): "Contains ECMWF open data, CC BY 4.0".
+  - So the L1 waef source and the D-075 ENS winds are commercial-use OK with attribution.
+- **NWSI 10-320 (helper, printed pages 3, 4, 6, 10, A-2, A-4):** no H1/3, H1/10 or breaker-height wording anywhere,
+  and surf height is not defined. This confirms the 22:55 provenance note.
