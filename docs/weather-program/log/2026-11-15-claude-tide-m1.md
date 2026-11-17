@@ -997,3 +997,15 @@ re-run on the window.
 3. G3 runs as a pilot (owner's word).
 4. G3b code (G3 code parameterised by window, rolling surge reference, original controls), then the advisor, then the
    owner's word.
+
+## 22:36 EST 2026-11-16 (`date`) - G3 PILOT STARTED on the owner's word (recorded before any output is opened)
+- **Owner, typed in this session, 22:33 EST: "Yes, start G3".** G3 is a PILOT: 3 storms is low power, and serving is
+  decided by G3b (registered as a draft at 9f01ca7eb BEFORE this start).
+- Tag **`tide-gate-G3`** -> **9f01ca7eba3f26a21f7912131be05dbc1414fe53** (absent before; pushed 03:34:23Z). Its trigger
+  is the tag only (checked). It carries the code of 32788fa95; only docs changed after it.
+- Run **44011150843**, created 03:34:21Z.
+- **Pending at start:** the advisor accepted c26af8597 (02:56Z); its re-check of the reader fix 32788fa95 (STOFS
+  HDF5/netCDF-3) had not arrived. The owner chose to start; the fix is plumbing only, verified on real files of both
+  formats.
+- Reading order: verdict line first, to the owner in this session; then the run id, log and JSON to the advisor
+  before any decision. Possible results: PASS / FAIL / INCONCLUSIVE / VOID, as fixed at 22:00 EST.
