@@ -23,9 +23,14 @@ export function useOwnRasterLayers({ mapInstance, activeModel, activeLayers, tim
   const ownRain = useOwnRasterFrames({ ...base, layer: 'rain', active: on('rain') });
   const ownFog = useOwnRasterFrames({ ...base, layer: 'fog', active: on('fog') });
   const ownWaterTemp = useOwnRasterFrames({ ...base, layer: 'water_temp', active: on('water_temp'), beforeId: marineBeforeId || omSlotsBeforeId });
+  // Gusts (2026-11-15): own frames only (no .om path), drawn where the .om slots anchor (under the wind particles and labels).
+  const ownGusts = useOwnRasterFrames({ ...base, layer: 'gusts', active: on('gusts') });
+  // Currents (2026-11-15): own frames only; anchored where water temp's slots are (below the ocean mask's land fill), so a
+  // coastal node's 3 x 3 mean never paints over land.
+  const ownCurrents = useOwnRasterFrames({ ...base, layer: 'currents', active: on('currents'), beforeId: marineBeforeId || omSlotsBeforeId });
   return useMemo(() => {
-    const own = { pressure: ownPressure, temperature: ownTemperature, satellite: ownSatellite, rain: ownRain, fog: ownFog, water_temp: ownWaterTemp };
+    const own = { pressure: ownPressure, temperature: ownTemperature, satellite: ownSatellite, rain: ownRain, fog: ownFog, water_temp: ownWaterTemp, gusts: ownGusts, currents: ownCurrents };
     if (!Object.values(own).some(Boolean)) return activeLayers;
     return (activeLayers || []).filter((l) => !own[l]);
-  }, [ownPressure, ownTemperature, ownSatellite, ownRain, ownFog, ownWaterTemp, activeLayers]);
+  }, [ownPressure, ownTemperature, ownSatellite, ownRain, ownFog, ownWaterTemp, ownGusts, ownCurrents, activeLayers]);
 }
