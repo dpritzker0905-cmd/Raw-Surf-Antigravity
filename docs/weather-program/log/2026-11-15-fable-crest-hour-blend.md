@@ -1054,3 +1054,21 @@ that is two model runs, 20 triples each, 40 per set. Scorer at commit `68719d80b
 - For the director: on this evidence an advection shader is not worth building for the world grid. A fair test of the idea
   would need a finer grid (where 100 km is several cells) or motion taken from the fields themselves (optical flow), and
   neither is registered or started.
+
+## 39. The self-mix re-check on the opt-in build (2026-11-16, 21:34-21:44 EST): PASS
+The line owed since section 32 (the engine-side edits made after the gate runs). Standing line (section 25, item 3): with an exact
+copy of the current field as the earlier one, the picture held at 0 and at 0.5 equals the picture at rest, difference at most
+0.01 in every case.
+- **Build:** a LOCAL build of this branch merged with `fable/wind-hour-blend` (`a641e2db3`, never pushed; one conflict in the
+  offline backend's options, both kept). The marine blend code in it is this branch's at `baf9ed963`. Loaded with the opt-in.
+  Offline harness, one backend with the four marine layers and wind, `--moving-swell 0.9 --moving-wind 8`.
+- **Run:** `SELF=1 ONLY_SWAPS=1 MODE=h8c scn_hour_blend_mid.js`, dark, desktop. The settings were reconstructed from the script,
+  not from a saved command line; the output has the shape of the earlier check (three numbers per case: held at 0, held at
+  0.5, moved one cell) over the ten coastal and world views.
+- **Result:** 40 cases, **37 scored** (3 left out because the engine changed its grid during the case). Held at 0: **0** in
+  37 of 37. Held at 0.5: **0** in 37 of 37. Moved one cell: 0.81 to 16.07 (so the check can see a misplacement; the smallest,
+  0.81, is one swell_2 case at world zoom, where one cell of a smooth field changes little). 0 page errors.
+- The report script's H8, H5 and H9 lines print as void or failed for this run: they are the normal mode's lines and do not
+  apply to the self-mix mode (no hidden hour is taken and "held against fine" is zero by construction). Not a result.
+- So: the shader text is the gate build's (the hash pin, section 33) and the engine reads the earlier field at exactly its
+  own place on this build. Still not done: light and beach themes, the phone layout, the whole test trees on this commit.
