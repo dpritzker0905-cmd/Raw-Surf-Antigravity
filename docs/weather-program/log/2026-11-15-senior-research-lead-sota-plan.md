@@ -2290,3 +2290,35 @@ high.
   Then re-read construction fidelity within 0.02 m at every lead, including the tier groups.
 
 **Not established:** the -0.04 m stored-row offset; whether the "unknown" EURO source is the extension blend.
+
+## 2026-11-17 14:40 EST CORRECTION: the IOOS "beach" gauges are SHELTERED (tide lane, from maps); open-coast surge truth, and a design that makes CO-OPS usable
+
+**Correction (mine, 10:40 EST section).** I called the Hohonu/IOOS gauges "ON SURF BEACHES" from their DATASET TITLES
+only. The tide lane checked 8 on maps (metadata only, no water values): all are on the sheltered side. Examples: Duck
+on Currituck Sound, Surf City at an ICW bridge, Sanibel on the causeway bay side, Kiawah on the river marsh, Captiva on
+Pine Island Sound. They are dock and bridge air-gap sensors: independent of CO-OPS, but an inland-attenuation set, not
+surf-beach truth.
+- Lesson (an L-S28 relative): a title is not a location. Check the map before calling a station "open coast".
+
+**Open-coast independent search (IOOS sensors ERDDAP, titles only, to be map-checked):**
+- GNSS-IR on IOOS: only Alaska (Gambell, Utqiagvik, Wainwright). None in the lower 48 there.
+- Non-CO-OPS candidates with open-coast titles:
+  - USGS 275839082495101 "Gulf of Mexico at Clearwater Beach, midpier";
+  - "JWS Balboa Pier" and "JWS Malibu Pier" (provider unknown; check).
+- Many open-coast PIERS exist but are CO-OPS: Jennette's, Cape Hatteras, Ocean City MD/NC, Lake Worth, Haulover,
+  Pensacola Beach, Gulf State Park, Galveston Pleasure Pier, Balboa, Port Aransas.
+
+**A design that removes most of the contamination** (research lead's proposal; verify the correction's form first):
+- NWS SCN 26-51 describes the STOFS correction as "removing the bias between the observed water levels at NOS/CO-OPS
+  stations and most recent 5 days of nowcast water levels", i.e. a slowly varying OFFSET (a 5-day mean).
+- Storm surge lives at periods of hours to about 2 days.
+- So score the surge on the STORM BAND: subtract from both forecast and observation their own trailing 5-day mean
+  (computed causally, ending at issue time). The correction's offset then cancels, while surge events remain.
+- That makes the open-coast CO-OPS piers usable for the SURGE question.
+- Low-frequency level (mean and seasonal) is G3t's job.
+- Controls:
+  - verify against the independent open-coast candidates above;
+  - verify against the sheltered IOOS set as an "attenuated" stratum (tiered: open coast > inlet > back-barrier);
+  - a negative control: shuffled storm timing must lose.
+- **To verify first:** that v3.1's gridded or station correction is constant through a forecast cycle (an offset),
+  not time-varying within the cycle. If it varies, the high-pass leaks.
