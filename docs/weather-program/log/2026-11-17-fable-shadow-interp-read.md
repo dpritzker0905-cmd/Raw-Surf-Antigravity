@@ -115,3 +115,33 @@ verdict's name, adds SUSPECT, and nothing is decided on the magnitudes until the
   and what do they read there? If one does, that is a served-number question for the director.
 - Brief 1 (the blend's missing-member behaviour) and its own pre-registered rule.
 - The second owed dispatch, `accuracy-per-buoy-split.yml`.
+
+## 2026-11-17 20:03Z Correction: the masking sentence above is withdrawn, and three smaller fixes
+
+**The masking mechanism does not fit this log's own numbers.** In the control section I wrote that items 3 and 4
+(masked nodes, and a blend that can only read stored products) "would also produce" the pattern where the shadow
+reads high at buoys whose member lane has no stored tier, and I told the research lead, the advisor and the director
+that this was the likely mechanism. It is contradicted by the table in the first section:
+
+- The sampler labels a read `bilinear` only when all four surrounding nodes are valid. With a masked node it labels
+  it `bilinear_ocean_masked` (`sampler.py` lines 469 and 523 on `dev`).
+- Of the mixed pairs with a recorded path, 456 of 469 at +48 h and 260 of 272 at +72 h are plain `bilinear`. None is
+  `bilinear_ocean_masked`.
+- So at those buoys every node was BLENDED, which means the builder's chooser found a stored EURO and ICON product
+  at each of them. Masking did not happen there.
+
+What that leaves: at those buoys the blend holds a stored member value while that member's own scored lane row has
+no stored tier. Two sources for one member at the same place and hour. Which stored product the builder picks there
+(another tier, an older run, a frame offset in time) is open. Masking is ruled out only for the 6% of rows that carry
+a path; it stays possible in the other 94%. The list of four code differences stands as code fact.
+
+**Three smaller fixes** (the advisor's notes):
+- The job log's signed-mean column reads the same way as the MAE differences I quoted: mixed +0.137 and +0.143,
+  stored -0.040 and -0.041. So neither REFUTED nor the failed control depends on which statistic "reads" means in
+  the rule.
+- Where I wrote "the advisor's ruling", read "the advisor's advice". The advisor reviews; it does not authorize.
+- "About 0.03 to 0.04 m" for the control mixed two groupings: -0.030 and -0.027 are `interp x members`
+  (bilinear x stored); -0.044 is `member tiers` (global_mid / global_mid).
+
+**Not done, and now a precondition:** I have not found where a scored row's tier is written, so "no stored tier
+means the lane answered from a live upstream" is still my reconstruction.
