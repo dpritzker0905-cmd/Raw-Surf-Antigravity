@@ -206,6 +206,19 @@ SPECS = {
         "license": "DWD open data, free use with source attribution (GeoNutzV)",
         "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
     },
+    # ICON TOTAL CLOUD COVER AT 0.125 DEG (G3, 2026-11-16; the director: ICON clct by area mean on the 0.125 module): DWD `clct`
+    # (%), the 3 x 3 sub-point area mean (frame_set_raster_sources.IconArea0p125Source), the resolution of today's .om dwd_icon.
+    "cloud_cover_icon_0p125": {
+        "target": {"model": "ICON", "domain": "weather", "layer": "cloud_cover", "region_id": "global_0p125"},
+        "field": fb.CLOUD_PCT, "idx": ("clct", ("CLCT",)), "convert": lambda a: a, "grid": "0p125",
+        "valid": (-0.5, 100.5), "clip": (0.0, 100.0), "env": "FRAME_RASTER_CLOUD_ICON_0P125", "default_on": False,
+        "frame_plane": True, "value_kind": "cloud_cover", "value_unit": "%",
+        "source_dataset": "DWD ICON global (icosahedral R3B7) CLCT, area mean onto 0.125 deg (3 x 3 sub-points, nearest cell each)",
+        "hours": tuple(range(0, 79)) + tuple(range(81, 181, 3)), "source": "icon_area_0p125", "upstream_provider": "dwd",
+        "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (area-averaged (sampled) to 0.125 deg, quantised to 1 %)",
+        "license": "DWD open data, free use with source attribution (GeoNutzV)",
+        "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
+    },
     # FOG, WATER TEMPERATURE, PER-MODEL AIR TEMPERATURE (2026-11-14; the owner, 23:35 EST 11-13: "make fog, air temp and water
     # temp instant", relayed by the director to the move-3 lane). Each set is DARK until its own repo variable is '1'.
     # FOG: NCEP's own surface visibility (VIS, m; the field the layer drew from Open-Meteo ncep_gfs025), every point of the
@@ -281,6 +294,20 @@ SPECS = {
         "source_dataset": "DWD ICON global (icosahedral R3B7) T_2M, onto 0.5 deg as pressure_icon",
         "hours": tuple(range(0, 181, 3)), "source": "icon", "upstream_provider": "dwd",
         "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (regridded to 0.5 deg, quantised to 0.05 degC)",
+        "license": "DWD open data, free use with source attribution (GeoNutzV)",
+        "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
+    },
+    # ICON 2 m temperature at 0.125 deg (G1 option (a), the director 2026-11-16 01:18 EST): T_2M by NEAREST cell on DWD's own
+    # 0.125-degree map, the resolution and the values of today's .om dwd_icon (G1: 93 % of 0.5-degree nodes already equal).
+    # The 0.5-degree set above stays publishable under its own switch.
+    "temperature_icon_0p125": {
+        "target": {"model": "ICON", "domain": "weather", "layer": "temperature", "region_id": "global_0p125"},
+        "field": fb.TEMP_C, "idx": ("t_2m", ("T_2M",)), "convert": lambda a: a - 273.15, "grid": "0p125",
+        "valid": (-95.0, 65.0), "clip": None, "env": "FRAME_RASTER_TEMPERATURE_ICON_0P125", "default_on": False,
+        "frame_plane": True, "value_kind": "temperature_2m", "value_unit": "degC",
+        "source_dataset": "DWD ICON global (icosahedral R3B7) T_2M, nearest cell onto 0.125 deg (DWD's own 0.125 map)",
+        "hours": tuple(range(0, 181, 3)), "source": "icon_0p125", "upstream_provider": "dwd",
+        "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (nearest cell to 0.125 deg, quantised to 0.05 degC)",
         "license": "DWD open data, free use with source attribution (GeoNutzV)",
         "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
     },
