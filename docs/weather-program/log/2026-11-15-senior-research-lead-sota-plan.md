@@ -2190,3 +2190,29 @@ The threshold's basis is "n=37 runs 08-05..08-08, p50 0.198 max 0.269": AUGUST, 
 - The offshore Hs bias term (the F1 pilot target; roadmap rank 11) moves up.
 - F2 must be built with paired and scale-free metrics, so it isn't re-confounded.
 - L1 (ensembles) is unaffected but should use the same paired reference as a reported row.
+
+## 2026-11-17 12:10 EST Paired-gap decomposition, partial (helper ASK 16, from monitor run 44052389611's log; no row data)
+
+Leads are +24 / +48 / +72 h; n is 4,623 / 4,394 / 4,670.
+
+| arm | MAE (m) | bias (m) |
+|---|---|---|
+| served (raw_surf) | 0.336 / 0.377 / 0.390 | -0.081 / 0.000 / +0.007 |
+| EURO alone | 0.311 / 0.414 / 0.421 | +0.105 / +0.181 / +0.188 |
+| ICON alone | 0.495 / 0.526 / 0.519 | +0.171 / +0.217 / +0.190 |
+| reference (test-only) | 0.28-0.30 | -0.03 to -0.04 |
+
+- Paired win rate vs the reference: 40-43%. GFS is absent from the log.
+- **Finding 1:** at +48/+72 h the served bias is about 0 while the MAE gap is about 0.08-0.09 m, so the gap is mostly
+  SPREAD, not bias. (Inferred; it needs rows to confirm.) A bias term alone cannot close it.
+- **Finding 2 (important):** in big swell (forecast >= 3 m), the SERVED value is worse than the EQUAL three-model mean
+  at every lead: 0.657 vs 0.576 at +24 h, 0.761 vs 0.646 at +72 h. The settled consensus is the equal mean, so the
+  served construction diverges exactly where it matters.
+  - Suspect: the missing-member path (roadmap rank 9).
+  - Verify with rows before any fix.
+- **Finding 3:** at +24 h, EURO alone beats the served value (0.311 vs 0.336). The served -0.08 m bias while the
+  members read high suggests a low GFS.
+- **To finish:** a CI job (Actions already holds the service role) emits ONLY aggregates: per member including GFS;
+  bias/SD; lead x basin x Hs tercile; per-buoy top 5; served vs equal mean with the member count present. No agent
+  handles the key. The director assigns it.
+- **Ranking:** rank 9 (missing-member blend fix) moves UP. Skill and spread levers outrank the bias term.
