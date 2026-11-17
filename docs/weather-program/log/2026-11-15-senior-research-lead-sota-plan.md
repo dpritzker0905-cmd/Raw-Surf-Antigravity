@@ -1524,3 +1524,16 @@ Diff since d0a77071a: run.py only, plus tests.
 - Amendment 6.1: the version is the surf_truth tree plus the requirements blob, and the dirty check and code_differs cover both paths.
 - 6.2: version_since walks the commits that touch either path, oldest first; a missing path is skipped; no match refuses.
 - The store fields (run_store, earlier_records_read) are recorded. "0 exactly once" is a procedure in the fit log, not code.
+
+## 2026-11-16 19:49 -0500 Helper result d13: leave-one-out bias-correction gain against distance to the nearest buoy (descriptive)
+
+Helper (sota-r2/d13_summary.json, not in git), WVHT only, n = 15 buoys, 88-1978 km:
+- Pearson r = -0.25; the 95% CI is about (-0.67, +0.30) for n = 15 (my computation).
+- Station-specific gains at similar distances range from +0.17 m (46053) to -0.03 m (46011).
+- A few Pacific buoys carry the pooled +0.036 m.
+
+Reading:
+- There is NO evidence for a distance-based transfer rule. The sample also cannot rule out moderate decay, so this is
+  "not shown", not "absent".
+- For roadmap rank 11 (the ocf_idw arm): distance weighting is not supported as a basis for spot-level correction.
+  Prefer per-station or per-regime terms, and score them on held-out stations.
