@@ -1193,3 +1193,25 @@ the advisor is raising the merge-before-verdict with the director.
 - Reading order as fixed: verdict line to the owner first, then the run id to the advisor, who reads the log and the
   JSON and recomputes before any decision. If it aborts before the truth stage, it is NO VERDICT again, with the stage
   lines.
+
+## 09:33 EST 2026-11-17 (`date`) - G3 PILOT RESULT, run 44094955892 at 4815f4eee: **VOID** (the pooled constant-non-tidal control)
+Job 13:39-14:26Z; gate step 45 min; peak RSS 7907 MB; the FES cache restored. The artifact copy is in notes
+`tide-overlay-2026-11-15/g3-result-run-44094955892.json`. Primary P1 (the S1 preflight passed).
+**Read in the fixed order: controls first. VOID means nothing else in the output is quoted.**
+- Positive control (NOAA's constants): **0.0015 m**, behaved.
+- Label swap: **0.540 m**, behaved.
+- **Pooled constant-non-tidal control: FAILED.**
+  - Constant minus real = **-0.0369 m** (95% interval -0.0481 .. -0.0258).
+  - The arm with the STOFS non-tidal term REPLACED by its pre-window mean (zero) was BETTER pooled over all gauge-hours
+    than P1 with the term. The control needs the real term to win (lower end > 0); the interval lies wholly the other
+    way.
+- Item 3 status: "inconclusive: shift check failed". The shift-minus-real interval spans zero (-0.0257 .. +0.0089).
+  4 storms.
+
+**The record:**
+- G3 (pilot) is VOID.
+- On this window, the STOFS-2D swl term, as the registration defines and references it, degraded P1 against observed
+  water instead of adding information.
+- Not interpreted further before the advisor's read; the window is spent.
+- Any G3b change it prompts is a POST-PILOT amendment, labelled with this fact, made before any G3b data, with
+  thresholds and the primary unmoved.
