@@ -2411,3 +2411,10 @@ surf-beach truth.
 **Verification:** the repair lead's member-source job (record the chooser's tier per member at the nodes around each
 buoy) should read EURO/ICON = global_mid at +48/72 h wherever the defect appears. Its reading rule must be registered
 before the read. Then construction fidelity within 0.02 m at every lead, then the CONSENSUS_SERVE flip.
+
+- 2026-11-17 16:37 -0500: **Ready brief sent to the director** (shared notes `brief-euro-icon-full-horizon-2026-11-17.md`):
+  - EURO (Phase 1) and ICON (Phase 2) 0.25 deg pilot tiles to their native horizons (mirrors GFS item 13);
+  - cost about 2.4k products per fire (EURO ~670, ICON ~1,760);
+  - gate: construction within 0.02 m at +48/72 h, the global_mid/unknown share under 10%, no-harm 0.25 vs 2 deg at
+    buoys over 48-240 h, ops headroom;
+  - ships ON, then the CONSENSUS_SERVE flip.
