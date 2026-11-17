@@ -47,3 +47,19 @@ def test_a_missing_lead_drops_the_run_never_fills():
     with patch.object(C.ef, "fetch_step", side_effect=fake_fetch), pytest.raises(ValueError):
         C.collect_run(None, datetime(2025, 7, 1, tzinfo=timezone.utc), np.zeros(2), np.zeros(2))
     assert calls == [192, 210, 228, 252, 288]
+
+
+def test_daily_target_survives_throttling_and_falls_back():
+    now = datetime(2026, 11, 16, 10, 7, tzinfo=timezone.utc)
+    calls = []
+
+    def avail(session, run, last, base=None):
+        calls.append((run.day, "ecmwf" if base == C.ef.ECMWF_BASE else "aws"))
+        if base == C.ef.ECMWF_BASE:
+            raise RuntimeError("HTTP 503")                 # throttled: the next source is tried
+        return run.day == 16
+    with patch.object(C.ef, "run_available", side_effect=avail):
+        run, base = C.daily_target(None, now)
+    assert run == datetime(2026, 11, 16, tzinfo=timezone.utc) and base == C.ef.AWS_BASE
+    with patch.object(C.ef, "run_available", side_effect=RuntimeError("HTTP 503")):
+        assert C.daily_target(None, now) == (None, None)   # never a crash
