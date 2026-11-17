@@ -127,3 +127,10 @@ The advisor checks one of the four counted runs against its job log.
 **The tripwire.** The job goes from about 165 to about 190-200 min. Gusts, currents and the 0.5-degree tier are still to come.
 If any run passes 240 min, no new set or step is added to the pilots job until this budget plan is redone and re-read by the
 advisor.
+
+## 00:41Z: named exclusion, from the #928 gusts/currents lane
+
+The first pilots run after #928 merges is excluded under item 3, if the gust or currents FRAME_RASTER_* variables are on by then
+(today they are off). #928 moves gusts and current speed to one-byte band fields 12 and 13, so every frame's content hash changes
+and that run rebuilds those sets in full, once. Those sets publish in their own raster steps, not in the frames or rated budgets.
+So the exclusion is about gate line 2 (job time). If the variables are still off when #928 merges, that run is ordinary.
