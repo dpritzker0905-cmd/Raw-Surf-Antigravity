@@ -1354,3 +1354,35 @@ is not a look at the prospective window. The research lead to say whether it is 
 - **The advisor accepts both discrepancy answers** (storm count; Boston and Galveston).
 - **Standing:** no G3b data, truth or arm, is fetched until this is decided and written. The decision belongs to the
   research lead, the director and David.
+
+## 10:25 EST 2026-11-17 (`date`) - Advisor read (15:25Z) of 79ef6f014 + 95c2c5409: the surge draft is NOT ready for FINAL; conditions for its replacement
+- The advisor confirms both entries are accurate. The owner's 09:59 choice was typed in this session and recorded here (the
+  advisor did not witness it).
+- **The 10:01 draft does not go FINAL:** its primary is withdrawn, and the truth set is undecided.
+- **Conditions for whichever surge registration replaces it:**
+  1. **Monthly truth-only storm count: acceptable**, with four limits:
+     - it prints a storm count per region and nothing else, and its script is committed with its hash before the first
+       count;
+     - no rule (thresholds, storm definition, minimum, gauge list) changes after ANY count; a change is a new registration;
+     - the session that runs a count fetches no forecast, arm or reference, and says so in the log;
+     - an extension past 2027-03-31 is decided from the count alone and registered before any arm data.
+  2. **S3 LastModified as the lead clock: sound only if recorded AS IT HAPPENS.** A re-upload would move LastModified and may
+     change the content.
+     - Fix: a scheduled job that only LISTS the bucket (no file read, no truth) and logs, per cycle's point files, the first
+       time seen, LastModified, size and ETag.
+     - At the end, a cycle whose ETag or size changed is excluded and counted.
+     - This is collection, not a look. It needs a scheduled workflow, so it needs the owner's word.
+  3. **Truth set:** with the grid corrected too, a CO-OPS gauge is never independent truth for a v3.1 surge arm. Either:
+     - the GATING truth is non-CO-OPS gauges, with CO-OPS reported only; or
+     - the PASS line says in words that it certifies skill at corrected stations only and licenses nothing away from them.
+  4. A version-guard trip is decided from a NOAA notice's date, never from looking at data.
+  5. Open-Meteo references have no issue timestamps; keep that stated.
+  6. **Correction to my 10:01 entry:** under D-080 nothing MERGES dark. The served path is built on a branch and merged only
+     after a PASS.
+- **The advisor's proposed order** (for the research lead, the director and the owner):
+  1. register the tide + seasonal gate first, which needs none of this;
+  2. start the listing job;
+  3. settle the surge truth set from documents;
+  4. register the surge gate.
+
+  Nothing in Jan .. Jul 2026 is fetched until the first registration is FINAL.
