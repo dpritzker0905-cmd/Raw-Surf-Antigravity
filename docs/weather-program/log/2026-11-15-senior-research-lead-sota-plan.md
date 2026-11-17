@@ -1651,3 +1651,11 @@ merges with its code default ON; the gate passes first.
 6. Client: for a client flag, window.__RAW_DISABLE_<NAME>__ = true restores the old render, in all 3 themes and on
    mobile.
 7. A PR with a served-change label that adds a flag without the suite fails CI.
+
+## 2026-11-16 22:27 -0500 GEFS surface gust: present in the per-MEMBER files, absent from the mean (checks the helper's ASK 3)
+
+- Helper: GUST is absent from geavg pgrb2a 0.5 deg (the ensemble MEAN). Confirmed here.
+- Checked live: `GUST:surface` IS in each member's `pgrb2sp25/gepNN.t00z.pgrb2s.0p25.fFFF` (0.25 deg) and
+  `pgrb2bp5/gepNN...pgrb2b.0p50` (0.5 deg) files, at f024 on 2026-11-16 and at f240 on 2025-11-01, so it is archived.
+- Consequence: a GEFS gust arm is possible as a per-member gust median (D-075's rule), read from the s-files by
+  byte range. It is not available from the mean.
