@@ -78,6 +78,9 @@ CAVEATS = (
 # The day-boundary check (registered 2026-11-17, advisor's statistic). A fault is an EXCESS of differing observations
 # in the midnight group: more than BOUNDARY_FAULT_SHARE of its pairs AND more than BOUNDARY_FAULT_RATIO x the control's.
 BOUNDARY_FAULT_SHARE, BOUNDARY_FAULT_RATIO = 0.01, 2.0
+# Runs excluded by a DATED AMENDMENT in the registration log (their `generated_at`, first 19 characters). Empty until
+# such an amendment exists. Adding a stamp here without that log entry is a change to the rule after results.
+EXCLUDED_RUNS = ()
 OBS_TOLERANCE_M = 0.005
 
 # The rule's five coasts as boxes (south, north, west, east), fixed before any row was read. Order matters: the
@@ -394,7 +397,11 @@ def boundary_check(objects, start: str, end: str) -> dict:
     (station, target time) graded by two consecutive GRADED runs, compare the observation each stored (its value and
     its time). Two groups: MIDNIGHT, where the later run fired in the hour after 00Z; CONTROL, where both runs fired
     between 02Z and 22Z. Buoy records get small late corrections and a later run can match a nearer reading, so some
-    differing pairs are normal in both; a FAULT is an excess in the midnight group. Counts and shares only."""
+    differing pairs are normal in both; a FAULT is an excess in the midnight group. Counts and shares only.
+
+    "Fired" means the run's `generated_at`, the time its report was built: a fault of this kind comes from the job
+    reading the clock, and that is the nearest thing to it the rows store. A run that starts at 23:58Z and reports at
+    00:03Z is in the midnight group, which is where a day-boundary fault would put it."""
     seen_by_key = {}
     for obj in sorted((o for o in objects if isinstance(o, dict) and o.get("graded")), key=lambda o: str(o.get("generated_at"))):
         hour = _run_hour(obj)
@@ -434,8 +441,8 @@ def _boundary_block(b: dict):
         v = b[g]
         return "n/a" if v["pairs"] is None else "%d pairs, %.1f%% with a different observation" % (v["pairs"], 100.0 * v["share"])
     L = ["", "Day-boundary check (the OBSERVATION two runs stored for one station and target time; no model value): "
-             "later run fired just after 00Z: %s. Both runs away from midnight: %s. **%s.**" % (
-                 cell("midnight"), cell("control"), b["status"]),
+             "later run's report built in the hour after 00Z: %s. Both runs' reports built between 02Z and 22Z: %s. "
+             "**%s.**" % (cell("midnight"), cell("control"), b["status"]),
          "A fault is more than %.0f%% in the midnight group AND more than %.0f times the control's share. The direct "
          "check (target time = forecast cycle + forecast hour) is NOT RUNNABLE: the rows do not store the cycle." % (
              100.0 * BOUNDARY_FAULT_SHARE, BOUNDARY_FAULT_RATIO)]
@@ -454,6 +461,8 @@ def _header(counts: dict, start: str, end: str, graded_runs, fetch_status: str):
     L += ["- %s" % c for c in CAVEATS]
     L += ["", "Read: %s. Stored runs read: %d (graded %d, refused %d). Rows seen %d, unusable %d." % (
         fetch_status, counts["objects"], counts["graded"], counts["refused"], counts["rows_seen"], counts["rows_unusable"])]
+    if counts.get("excluded_by_amendment"):
+        L.append("Runs excluded by a dated amendment: %d." % counts["excluded_by_amendment"])
     if graded_runs is not None:
         L.append("Validation runs that were asked to grade and completed, created in the window: %d. Gap against the "
                  "stored run objects (graded or refused): about %d (APPROXIMATE: runs are counted by creation time, "
@@ -482,9 +491,11 @@ def render_counts(c: dict, counts: dict, start: str, end: str, reason: str, grad
     return "\n".join(L) + "\n"
 
 
-def render(result: dict, counts: dict, start: str, end: str, graded_runs=None, fetch_status="ok") -> str:
+def render(result: dict, counts: dict, start: str, end: str, graded_runs=None, fetch_status="ok", boundary=None) -> str:
     """The scored report: markdown, aggregates only."""
     L = _header(counts, start, end, graded_runs, fetch_status)
+    if boundary is not None:
+        L += ["", "Day-boundary check on these rows: **%s**." % boundary["status"]]
     L.insert(1, "")
     L.insert(2, "**Scored dispatch 1 of 1 for this window.** Its run id is recorded in the log BEFORE this report is "
                 "opened; a second scored dispatch needs a dated reason there first.")
@@ -588,13 +599,23 @@ def _days(start: str, end: str):
 
 
 def report(objects, fetch_status: str, start: str, end: str, now: str, regions_by_station: dict, graded_runs=None) -> str:
-    """PURE: the text a run prints, scored or counts-only, decided by `run_mode`."""
-    rows, counts = usable_rows(objects, start, end)
+    """PURE: the text a run prints, scored or counts-only, decided by `run_mode` and then by the day-boundary check.
+
+    The scored path runs the check ITSELF, so the protection does not depend on someone having dispatched a
+    counts-only run first. A FAULT prints no verdict, like a partial read: the faulty runs must first be excluded by
+    a dated amendment (`EXCLUDED_RUNS`), after which the check is re-run on what is left."""
+    kept = [o for o in objects if not (isinstance(o, dict) and str(o.get("generated_at"))[:19] in EXCLUDED_RUNS)]
+    rows, counts = usable_rows(kept, start, end)
+    counts["excluded_by_amendment"] = len(objects) - len(kept)
+    boundary = boundary_check(kept, start, end)
     mode, detail = run_mode(start, end, now, fetch_status)
+    if mode == "scored" and boundary["status"] == "FAULT":
+        mode, detail = "counts", "the day-boundary check found a FAULT and no exclusion is registered for it"
     if mode != "scored":
         return render_counts(counts_only(rows, regions_by_station), counts, start, end, detail, graded_runs, fetch_status,
-                             boundary=boundary_check(objects, start, end))
-    return render(analyse(rows, regions_by_station, detail), counts, start, end, graded_runs, fetch_status)
+                             boundary=boundary)
+    return render(analyse(rows, regions_by_station, detail), counts, start, end, graded_runs, fetch_status,
+                  boundary=boundary)
 
 
 def main(argv=None) -> int:

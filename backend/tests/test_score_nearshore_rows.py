@@ -314,8 +314,24 @@ def test_the_day_boundary_check_lives_in_the_counts_only_report_and_names_nothin
     for word in ("ca1", "fe1", "ma1", "T12:00", "T18:00", "REMOVE CANDIDATE", "KEEP"):
         assert word not in health
     scored = sn.report([_obj(_rows())], "ok", W1_START, W1_END, AFTER_W1, REGION)
-    assert "Day-boundary check" not in scored                         # the scored report is not where this lives
+    assert "Day-boundary check on these rows: **NOT TESTABLE" in scored    # the scored report carries its one word
+    assert "pairs," not in scored                                     # and not the counts: those live in the health run
     assert "GFS and EURO mean since 2026-11-04" in scored and "GFS and EURO mean since 2026-11-04" in health
+
+
+def test_a_scored_run_with_a_boundary_fault_prints_no_verdict_until_the_runs_are_excluded(monkeypatch):
+    """The protection must not depend on someone dispatching a counts-only run first."""
+    faulty = _boundary_objects(midnight_differs=1.0)
+    blocked = sn.report(faulty, "ok", W1_START, W1_END, AFTER_W1, REGION)
+    assert "COUNTS ONLY: the day-boundary check found a FAULT and no exclusion is registered for it" in blocked
+    assert "Scored dispatch" not in blocked and "REMOVE CANDIDATE" not in blocked and "KEEP" not in blocked
+    clean = sn.report(_boundary_objects(), "ok", W1_START, W1_END, AFTER_W1, REGION)
+    assert "COUNTS ONLY" not in clean and "Day-boundary check on these rows: **no fault found**" in clean
+    stamps = tuple(str(o["generated_at"])[:19] for o in faulty if str(o["generated_at"])[11:13] == "00")
+    monkeypatch.setattr(sn, "EXCLUDED_RUNS", stamps)                 # what a dated amendment would register
+    after = sn.report(faulty, "ok", W1_START, W1_END, AFTER_W1, REGION)
+    assert "COUNTS ONLY" not in after and "Runs excluded by a dated amendment: 12." in after
+    assert sn.EXCLUDED_RUNS == stamps and "EXCLUDED_RUNS = ()" in io.open(SRC, encoding="utf-8").read()
 
 
 class _Resp:

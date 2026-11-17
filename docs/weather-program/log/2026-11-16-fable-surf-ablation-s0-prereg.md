@@ -868,3 +868,19 @@ east.
 **Tests.** 23 (estate lane must read 3841). The boundary check passes a clean set, catches a seeded one-day shift
 in the midnight runs, does not call ordinary corrections in both groups a fault, hides small groups, and never
 reads a refused run. Five hand mutations each fail a test.
+
+## 2026-11-17 06:05Z The scored run does the day-boundary check itself (advisor, before the scored dispatch)
+
+The advisor confirmed the check at `1bf6c240b` and named one gap: as built it ran only if someone dispatched a
+counts-only run, so a scored report could go out unchecked. Closed in this commit, before any dispatch.
+
+- The scored path now computes the check on the same rows and prints its one word.
+- If the word is FAULT, the run prints NO verdict, like a partial read: counts only, with the reason.
+- The way out of a FAULT is a dated amendment here that names the faulty runs, and the same stamps in
+  `EXCLUDED_RUNS` in the script (empty today; a test pins that it is empty in the source). Their rows are then
+  dropped before both the check and the scoring, and the report prints how many runs were excluded.
+- Adding a stamp to `EXCLUDED_RUNS` without that dated amendment is a change to the rule after results.
+- The group definition is printed beside the counts: a run is placed by the time its REPORT was built
+  (`generated_at`), the nearest thing to the job reading the clock that the rows store.
+
+24 tests (estate lane must read 3842). No private row read; nothing dispatched.
