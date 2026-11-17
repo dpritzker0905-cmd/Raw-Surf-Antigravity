@@ -1832,3 +1832,15 @@ What I REJECTED:
     differ more than X from the GEFS partitioned transform on matched cases (X to register).
 - **Cap pile-up:** when the upper quantile equals the depth cap, label the range "depth-limited" rather than implying
   certainty.
+
+## 2026-11-17 00:03 -0500 D-080 addendum: kill-switch contract suite item 8 (owner 23:03 EST, relayed by the director)
+
+David, verbatim: "yes but it also has to pass a test after its turned on and live on dev".
+
+8. **Post-deploy live check on dev.** After the merge (ON) deploys to dev, run ONE short, low-load read of the
+   feature's served field on the live dev site, with `/api/health` read before and after (CLAUDE.md: never load-test the
+   shared box).
+   - Pass: the field is present, inside its expected range or shape, and health is unchanged.
+   - Fail: flip the kill switch through the runtime manifest (no deploy), confirm the old behaviour returns with one
+     more read, and log the failure.
+   - Ideally automated as a post-deploy workflow step, using the same one-read budget.

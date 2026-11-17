@@ -2210,3 +2210,9 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Why:** a default-off flag gets forgotten after the merge, so a passed fix never reaches users.
 - The test-suite spec is in `log/2026-11-15-senior-research-lead-sota-plan.md` (22:15 EST). The builder is assigned
   by the director.
+- **Addendum (owner, 23:03 EST, typed in the director's session, relayed by the director):** "yes but it also has to pass
+  a test after its turned on and live on dev".
+  - Each feature, once merged ON and deployed to dev, must pass a POST-DEPLOY check on the live dev site: one short,
+    low-load read (never a load test), with `/api/health` read before and after.
+  - If the check fails, the kill switch is used (runtime manifest, no deploy) and the failure is written to the log.
+  - This is item 8 of the contract suite.
