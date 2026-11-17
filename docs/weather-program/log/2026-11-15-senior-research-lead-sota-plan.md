@@ -1672,3 +1672,14 @@ merges with its code default ON; the gate passes first.
   UHSLC, and has no NWS primary text yet. Directive 10-320 downloads from weather.gov (pd01003020curr.pdf, 870 KB) but
   was not text-extracted here; the helper is asked to quote it. Until then, the definition's source is "the NOAA table
   as quoted on UHSLC".
+
+## 2026-11-16 22:54 -0500 Surf-height definition: the NWS DIRECTIVE does not define it (helper ASK 12)
+
+- NWSI 10-320 (5 June 2025, pd01003020curr.pdf) has no numeric surf-height convention: no statistic, and no face or
+  trough-to-crest rule. It requires only "wave/surf height" in the SRF, with ranges in its examples. Figure 1 is unread
+  (it may be an image).
+- So the "peak face, H1/3 to H1/10" convention rests on the NOAA table as quoted on UHSLC (NWS Honolulu context), plus
+  Caldwell 2007 for the face vs Hawaiian factor. It is a REGIONAL NOAA practice, not a national NWS directive.
+- The recommendation is unchanged (a physical face range is still the best-founded choice), but cite it as "the NOAA
+  Honolulu / UHSLC convention", never as "the NWS standard". The research lead's 14:23Z wording ("published standard")
+  overstates it.
