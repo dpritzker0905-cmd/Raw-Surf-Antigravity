@@ -284,6 +284,20 @@ SPECS = {
         "license": "DWD open data, free use with source attribution (GeoNutzV)",
         "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
     },
+    # ICON 2 m temperature at 0.125 deg (G1 option (a), the director 2026-11-16 01:18 EST): T_2M by NEAREST cell on DWD's own
+    # 0.125-degree map, the resolution and the values of today's .om dwd_icon (G1: 93 % of 0.5-degree nodes already equal).
+    # The 0.5-degree set above stays publishable under its own switch.
+    "temperature_icon_0p125": {
+        "target": {"model": "ICON", "domain": "weather", "layer": "temperature", "region_id": "global_0p125"},
+        "field": fb.TEMP_C, "idx": ("t_2m", ("T_2M",)), "convert": lambda a: a - 273.15, "grid": "0p125",
+        "valid": (-95.0, 65.0), "clip": None, "env": "FRAME_RASTER_TEMPERATURE_ICON_0P125", "default_on": False,
+        "frame_plane": True, "value_kind": "temperature_2m", "value_unit": "degC",
+        "source_dataset": "DWD ICON global (icosahedral R3B7) T_2M, nearest cell onto 0.125 deg (DWD's own 0.125 map)",
+        "hours": tuple(range(0, 181, 3)), "source": "icon_0p125", "upstream_provider": "dwd",
+        "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (nearest cell to 0.125 deg, quantised to 0.05 degC)",
+        "license": "DWD open data, free use with source attribution (GeoNutzV)",
+        "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
+    },
     # EURO water temperature: ECMWF open data skt (skin temperature; SST over the ocean), every point of its 0.25-degree grid.
     "water_temp_euro": {
         "target": {"model": "EURO", "domain": "weather", "layer": "water_temp", "region_id": "global_0p25"},
