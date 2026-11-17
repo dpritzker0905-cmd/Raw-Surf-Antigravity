@@ -151,3 +151,31 @@ The advisor re-read the plan at 1d3c6cf75 and found no open point. It may be bui
 - **An exclusion** (catch-up, a forced rebuild, a frames step that did not run) is written here with the run id and its reason
   BEFORE that run's gate lines are read.
 - The advisor checks one of the four counted runs against its own job log.
+
+## 16:55Z (2026-11-17): the counted runs. Exclusions first, as registered
+
+**Exclusions**, written in the shared notes at 16:5xZ, before any gate line below was read:
+- **Catch-up, not counted:** pilots run 44046081974 (08:21Z), the first after #996 merged (06:18:48Z, 4ef180897).
+- **Excluded, a forced rebuild:** the first pilots run started after #1006 (FRAME_WIND_GFS_HOURLY ON by default) merged at
+  15:52:16Z (a63cb92ad). It builds about 80 new hourly wind frames once. It is named here by that rule, and by run id when
+  it runs.
+- **#998** (five raster sets ON) adds work only in its own raster steps. Its first run is not excluded on that ground; its job
+  time counts toward line 2.
+
+### Counted run 1 of 4: pilots 44083737083 (12:30Z start, ended 15:33:44Z, head 2fcbd8153)
+
+`frames_budget_gate.py --run 44083737083`; the public latest.json was last written 15:33Z, by this run.
+
+| line | measured | verdict |
+|---|---|---|
+| 1. skips per step <= 2 (log lines and report agree) | frames 0 / 0, rated 0 / 0 | PASS |
+| 2. no step timeout, job < 240 min | frames step 1,213 s (success), rated step 1,789 s (success), job 183 min | PASS |
+| 3. no rated set behind its plain sibling | 0 behind (84 rated sets) | PASS |
+| 4. no plain GFS regional waves bundle skipped | 0 skipped (was 14 of 19 on 43950205417) | PASS |
+| 5. #975 order: rated GFS waves bundles first | read by this session from the rated step's `frame_sets` report, whose key order is the publish order: positions 1-19 are the 19 `GFS/marine/waves/<region>_rated` bundles (florida_east_coast first, us_pacific_northwest 19th), position 20 `GFS/marine/waves/global_mid_rated` (97.7 s), then ICON swell_1 / wind_waves world rated | PASS |
+
+- **Against the null control (run 43950205417, before the change):** frames 38 skips, rated 59, 14 waves bundles skipped, 56 rated
+  sets behind, job 162 min.
+- **The cost is as sized:** +21 min of job time.
+- **Rated step:** 1,789 s against its 1,800 s budget and 2,100 s timeout. It built all 84 sets inside the budget, so the
+  timeout margin was about 311 s. Watch it: one heavy run could push skips to 1-2, still inside line 1.
