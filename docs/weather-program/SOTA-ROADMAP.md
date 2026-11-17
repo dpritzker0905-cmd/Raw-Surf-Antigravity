@@ -51,6 +51,12 @@ sleep".
   - Recorded as a FAIL with NO tuning on the November data.
   - A new rule 2 means a new pre-registration scored on unseen days (LESSONS L-S27). Rule 1 v2's status is as #949
     records it.
+- **2026-11-16 22:15 EST, ALL served items: SHIP ON (owner).** David, 22:09 EST: "It needs to ship on, not off. With kill
+  switch. I get confused and forget to turn things on once they are merged. Make special tests to test and kill switch it."
+  - Every served item ships with its code default ON at merge (D-065), with a kill switch and the kill-switch test suite
+    (research log, 22:15 EST).
+  - Its gate must still pass before the merge. Where this roadmap says "dark" or "David's word to flip", read: David's
+    word to MERGE, with the item ON.
 
 ## Watch list (not ranked)
 
