@@ -294,3 +294,66 @@ every hour settled first (median 1.6 s). 0 page errors. Nothing asked of the liv
    offline backend serves an HRRR lane only from a real lane file, which this harness does not have. The same assertion
    (no frame mixes while holding an overlay of another hour than the base) is run on the synthetic fine overlay instead and
    reported as a lesser check; the HRRR line stays owed.
+
+## 11. GATE RUN 2 on the fixed build, and the new lines (2026-11-16, 22:18-23:10 EST). Recorded as it came out.
+**Build:** local merge `7339d1d3f` (this branch at `856fb9d5f`, with the one-weight-per-frame fix, plus the marine branch),
+never pushed. Same harness and settings as section 10. Four runs in one chain: the scrub lines again; `MODE=more`;
+`MODE=plain`; the truth instrument. 0 page errors in all four; nothing asked of the live backend.
+
+**Scrub lines, run 2 (run 1 is section 10; both are kept):**
+- W1 PASS 6.847 to 1.663, **24.3%** (run 1: 25.5%); 80 of 80 blended. W2 PASS **-1.1%** over the scrub, **+4.5%** in blend
+  windows (run 1: +4.0%, +3.9%). W3 PASS 80 of 80. W8b PASS (0.993 to 1.025). W9 PASS 38.9% (run 1: 40.8%).
+- **W4: 80 of 80 this run; 74 of 80 in run 1.** The line is timing-dependent on views where a regional grid of the same hour
+  arrives after the world grid (section 10); in this run no step was still blending at 420 ms. Standing: FAILED once, passed
+  once; not claimed as passed.
+- **W4c PASS:** 1,500 ms after every step no blend, no kept texture, weight 0 in all three programs: 80 of 80 in both arms.
+- **W4b has NO SIGNAL in this run:** the three weights are equal in 80 of 80, but all are 0, because no blend was running at
+  420 ms. The fix is covered by its unit test only; the gate has not yet seen it during a running blend. Owed: a read-back
+  inside the blend window.
+
+**The advisor's lines:**
+- **W8c PASS.** The step with the colour field AND the particles drawn, 12 views (the ten plus two in CONUS): pooled 4.292
+  (hard swap) to 1.374 (blend), 32.0%; no view worse.
+- **W8d FAILS as registered.** Particles respawned per frame and the mean particle step, in the 160 ms after each step, against
+  the range of the same at rest in the two end hours (widened 10%), arm B, 96 steps: outside in **55** (respawned) and **53**
+  (step) of 96; the line allows 4. Context, measured in the same run and not a rescue of the line: the HARD SWAP arm shows the
+  same excursion, larger (the window against the mean of the two rests: respawned 1.078 in arm A, 1.039 in arm B; step 1.084
+  in arm A, 1.049 in arm B). So the 160 ms after a step differs from rest with or without the blend, and the blend's is the
+  smaller. The line compared the blend with rest and never with the hard swap, and the range of two rest means is narrower
+  than the frame-to-frame noise (a rest window is 11-13 frames). It cannot pass as written; it stays FAILED, and a line that
+  compares the two arms is owed as a new registration.
+- **W14: VOID for the HRRR lane** (section 10, item 3). Lesser check on the synthetic fine overlay: of 710 frames that mixed,
+  0 held an overlay of another hour than the base; but only 33 frames in the whole run held a fine overlay at all, so this is
+  weak evidence. The HRRR line stays owed.
+- **W2b does NOT meet its line as written, in the harmless direction.** GPU ms per frame, median over ten views: the plain
+  shaders (a page loaded without the opt-in; confirmed plain in all ten) 4.105; the blended text with the kill 3.662. That is
+  10.8% LOWER, outside "within 5%". There is no sign that the added text costs anything at rest, but two separate page loads
+  differ per view by far more than 5% (2.3 to 4.9 ms across views), so this instrument cannot resolve the line. Not passed.
+
+**Truth lines (the report script printed "every line scored here passes"; that summary is wrong for W7 and W8a, see below):**
+- **W5 PASS.** 20 cases, 181 x 83: an exact copy as the earlier field, drawn alone and mixed half and half: difference
+  0.0000 from the picture at rest; moved one cell: 5.99 to 7.05; the rest picture read again: 0.0000. World grid only: no
+  regional case was scored, so "world and regional grids" in the line is NOT met.
+- **W6 PASS.** 31 held pictures in the value view: outside the rounding bracket at most 1.0% (line 1%), mean 0.1%; without the
+  allowance at most 1.6%. Bytes the shader mixed against the stored hours: 36 of 36 identical.
+- **W7 does NOT pass as registered.** Value space: mix 2.477 kn against nearest hour 6.290 kn, **39.4%** (line 60%, expected
+  about 40%), 31 of 40 triples. But (i) the value-space figure is the WORLD grid's, the same field in every view, so the "31
+  triples" are about four independent ones seen ten times; and (ii) **PICTURE space contradicts it**: mix 5.736 against
+  nearest hour 6.536 luminance units, **87.8%**, and section 3 says the picture result "must not contradict". Per triple the
+  picture ratios are two-humped: about 0.37 (as the values say) or about 1.0 and above (for example 2.97 / 8.14 beside
+  8.23 / 8.16 in one view), while the same triples' value-view bracket is exact and the bytes mixed are right. So in about
+  half the triples the COLOUR picture taken as "held at 0.5" was not a half-way mix when it was read. Cause NOT established.
+  Candidates, none verified: the hold is cancelled before the picture is read (a re-commit of the same hour on the same
+  grid ends a blend: `same_hour` in `keepOutgoingWindBase` sets the blend to null); the colour picture and the value picture
+  are read at different moments; the colour of a vector mix (speed) differs from the mix of colours more than assumed. If the
+  first is true it is also a defect in the app: a same-hour re-commit during a running 160 ms blend would cut it short.
+  Diagnosis owed before W7 is run again.
+- **W8a was NOT run as amended.** Section 5, item 3 fixed the pair to (h, h+3) with a mask where the wave dominates; the
+  instrument still scores (h, h+6) over all nodes. For that old definition: 0.880 (line 0.85); the 12 h control 0.168 (must be
+  below 0.85: it can fail); the moving part alone 0.594. Recorded as the OLD line's result; the amended W8a is owed.
+- The clean-truth check (section 5, item 7) is not implemented beyond "the truth picture read twice: 0.000".
+
+**Where the wind gate stands.** Passed: W1, W2, W3, W4c, W5 (world only), W6, W8b, W8c, W9, W13 (real frames, value space).
+Failed or not met: W4 (once of twice), W8d, W2b (unresolvable), W7 (picture contradicts value). Void: W14 (HRRR). No signal:
+W4b. Not run: W8a as amended, W12 (light, beach, phone), W11's whole-tree run. The blend stays off; no PR is opened as
+anything but a draft with these lines in it.
