@@ -76,3 +76,14 @@ Amendment 6 on #989 (0e252bc98, 00:21:38Z). The model version is now "<tree of s
 requirements-surf-truth-fit.txt>"; the dirty check and the review diff cover both; a version begins at the EARLIEST
 commit whose version equals the running one (tested with a revert back to an earlier state). Tests: 38 numpy rule
 tests pass (also in CI).
+
+## 2026-11-17 00:31Z (from `date -u`) Advisor: no open condition at 16d368ad2; the run-store procedure
+
+The advisor cleared #992 at 16d368ad2 and #989 at 0e252bc98. Its stated limit: the run store is a directory the
+operator names, so a run pointed at a new empty directory would pass. Offline code cannot close that, so it is closed
+by PROCEDURE, recorded here:
+- There is ONE run store: the private `weather-products` bucket under `surf-truth/runs/` (beside the exports), synced
+  to a local directory before a run and back after it. No other location is ever used.
+- Every run record now carries `run_store` (the absolute path it read) and `earlier_records_read` (how many records
+  it found). A count of 0 is legitimate EXACTLY ONCE: on the first real run. Any later record with 0 means a run used
+  the wrong store, and that run and every later one are disregarded until the store is reconciled.

@@ -140,9 +140,14 @@ def model_tests() -> dict:
 
 
 def run(args, version: dict, tests: dict) -> dict:
+    earlier = read_store(args.run_store)
+    # The store is a directory the operator names; offline code cannot prove it is THE store. So every record says
+    # which store it read and how many earlier records were there: a count of 0 must appear exactly once, on the first
+    # real run (procedure in the fit log; advisor 2026-11-17).
     record = {"schema": "raw-surf/surf-truth-run/3", "model_version": version["tree"], "commit": version["commit"],
               "model_since": version["since"], "review_ref": args.review_ref, "seed": gate.SEED,
               "model_tests": tests, "started_at": datetime.now(timezone.utc).isoformat(),
+              "run_store": os.path.abspath(args.run_store), "earlier_records_read": len(earlier),
               "registration": "#989 + amendments 1-6"}
     try:
         rows, manifests = _exports(args.export)
@@ -155,7 +160,7 @@ def run(args, version: dict, tests: dict) -> dict:
                    "floor": prepared.floor})
     if not prepared.floor["runnable"]:
         return {**record, "verdict": "NOT RUNNABLE", "reason": "registered floor not met"}
-    after = scored_after(read_store(args.run_store), version)
+    after = scored_after(earlier, version)
     record["scored_only_after"] = after or None
 
     from . import model                                     # NumPyro/JAX only past this point

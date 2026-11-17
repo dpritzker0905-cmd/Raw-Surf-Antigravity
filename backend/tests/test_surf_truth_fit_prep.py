@@ -128,6 +128,7 @@ def test_cli_refusals_and_not_runnable_without_jax(tmp_path, monkeypatch):
     assert run.main(common + ["--review-ref", "#992 reviewed at abc1234"]) == 0
     (record,) = [json.loads(f.read_text()) for f in store.glob("*.json")]
     assert record["verdict"] == "NOT RUNNABLE" and record["model_version"] == "tree123"
+    assert record["earlier_records_read"] == 0 and record["run_store"].endswith("runs")
     monkeypatch.setattr(run, "model_tests", lambda: {"ok": False, "summary": "1 failed"})
     assert run.main(common + ["--review-ref", "#992 reviewed at abc1234"]) == 2              # failing model tests
 
