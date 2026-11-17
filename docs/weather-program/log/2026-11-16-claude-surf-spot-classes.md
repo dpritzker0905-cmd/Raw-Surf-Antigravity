@@ -175,3 +175,15 @@ Also reported: precision BY FRAME, because inside a tagged frame the classifier 
   reach.
 - The labels are made by a FRESH reader (a new agent with no access to the stopped agent's context). It draws again from the amended
   query (untagged 80).
+2b. Label completion pass (2026-11-16 21:07 EST by the clock; registered before it runs, and still before any v2 evidence exists)
+The first reader committed 266 labelled rows (9195fbccd): 171 labels, all guide descriptions, none from a name alone; 95 unknown
+(27 CONFLICT, 67 NO_SOURCE, 1 NAME_ONLY). It reported that its web-search budget ran out with 27 spots never properly researched.
+Those cannot be told apart from the 40 searched without a result: all 67 carry NO_SOURCE. RULE: a FRESH reader (same 2a source
+rules, blind to the classifier and to any evidence, and not shown the first reader's other labels) re-researches all 67 NO_SOURCE
+rows. A row changes only where it finds a guide description or imagery of the break; otherwise it stays unknown. CONFLICT and
+NAME_ONLY rows are not touched. Changed rows are marked "completion_pass": true. The second blind reader (2a point 5) runs AFTER this
+pass, on the 30 spots first by md5(id || '20261117-agree') among the rows with a non-unknown label.
+Also noted from the first reader:
+- inlet_jetty has 22 labels and no reserve (frame size 31), so it is below 25 labels. Its verdict needs 25 PREDICTED and will be
+  UNDETERMINED unless the classifier predicts it 25 times.
+- The river_mouth frame is empty after the v1 exclusion.
