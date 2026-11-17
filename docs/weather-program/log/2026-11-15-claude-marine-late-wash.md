@@ -204,12 +204,12 @@ whether it carries the difference. It stays in the statistics.
 
 ### 6c. A/A run 1 DISCARDED (2026-11-16 08:19 EST by the clock), decided from the two load numbers alone, before its rows were opened
 CPU before 62.5 % (06:24 EST), after 41.5 % (08:19 EST). The before reading is above the registered 60 % line (6b, point 4), so the
-run is discarded and repeated. Its output file was renamed unread (2-AA-DISCARDED-cpu62.json) and is not used for anything. The
+run is discarded and repeated. Its output file was renamed unread (`v2-AA-DISCARDED-cpu62.json) and is not used for anything. The
 repeat starts only after a load reading under 60 %.
 
 ### 6d. A/A run 2 DISCARDED (2026-11-16 10:16 EST by the clock), from the two load numbers alone, before its rows were opened
 CPU before 45.6 % (08:20 EST), after 64.2 % (10:15 EST): the after reading is above 60 %, so the run is discarded (renamed unread,
-2-AA2-DISCARDED-cpu64.json). Two of two runs are lost to load from other sessions sharing this machine, which cannot be stopped
+`v2-AA2-DISCARDED-cpu64.json). Two of two runs are lost to load from other sessions sharing this machine, which cannot be stopped
 from here. Next: the advisor is asked whether to move the A/A and the A/B to a GitHub-hosted runner (6 b point 4 allows a hosted
 runner, but it changes the registered machine). Nothing runs until the advisor answers.
 
