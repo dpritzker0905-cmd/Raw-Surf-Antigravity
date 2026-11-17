@@ -259,3 +259,20 @@ differs from the text above, this governs.
    ("#992 reviewed at <sha>"), and the run refuses if that sha is not the running commit.
 10. The model code's tests do not run in CI (JAX is not installed there); the lane runs them in its fit environment
     before every review and before every run, and each run record carries that test result.
+
+## 2026-11-17 00:14Z AMENDMENT 5: model version by code tree; one scored run per version; required run store (from `date -u`; BEFORE any data or run)
+
+From the research lead's re-review of the fit code (#992 at 700b748e0). No blind observation exists.
+
+1. MODEL VERSION = the git TREE of `backend/scripts/surf_truth` at the commit that runs (`git rev-parse
+   HEAD:backend/scripts/surf_truth`), not the commit itself: identical code is the same version, so merging #992 (a new
+   commit, the same code) neither demands a re-review nor counts as a new version under 2 E / 4.5. The run still records
+   the commit and refuses a dirty tree under that path.
+2. REVIEW CHECK (replaces 4.9's "names the running commit"): `--review-ref` must name a reviewed sha, and the run
+   refuses unless the code under `backend/scripts/surf_truth` is IDENTICAL at that sha and at the running commit
+   (`git diff --quiet <sha> HEAD -- backend/scripts/surf_truth`).
+3. ONE SCORED RUN PER VERSION (2 E, now enforced): every run record is written to a REQUIRED private run store (a
+   directory; `--run-store`), and every earlier record in it is read. If any earlier SCORED record has this run's
+   model version, the run refuses. If an earlier scored record has another version, only targets received after this
+   version's first commit time are scored (4.5). The store is not optional: omitting earlier records cannot bypass 2 E.
+4. Export cut order (4.6) is by the parsed instant of `cut_at`; an export manifest without `cut_at` is refused.
