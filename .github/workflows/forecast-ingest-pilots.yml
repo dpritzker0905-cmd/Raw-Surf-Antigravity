@@ -191,7 +191,7 @@ jobs:
         continue-on-error: true
         # 22 (was 15, 2026-10-26): the tails add ~464 frames (232 plain + 232 filled at 0.24-0.38 s each, measured offline) and
         # 232 downloads to a step that already runs ~600 s (run 40322134819: 603 s). Today's runs end where they did.
-        timeout-minutes: 22
+        timeout-minutes: 32
         working-directory: backend
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -199,7 +199,7 @@ jobs:
           # The stagger budget follows the tail download (2026-10-26). The budget is read before each set and the regional bundle
           # sets run last, so ~5 more minutes of tails at 600 s would skip ALL of them EVERY run (published once, never refreshed).
           # Off: 600 s, as before.
-          FRAME_PUBLISH_BUDGET_S: ${{ vars.FRAME_TAIL_DOWNLOAD == '1' && '960' || '600' }}
+          FRAME_PUBLISH_BUDGET_S: ${{ vars.FRAME_TAIL_DOWNLOAD == '1' && '1500' || '600' }}
           # DARK (2026-10-24): '1' downloads the ICON/EURO world estimated tails the core lane bakes (not on this disk) so they
           # become frames too, parity-gated like every frame; changed ones only, at most FRAME_TAIL_DOWNLOAD_MAX per run, wire
           # bytes in the step summary (__tail_downloads__). Off: /grid serves those hours, as before. No served number moves.
@@ -272,13 +272,13 @@ jobs:
         # against D-057's "ON by default"; the band then scrubbed from /grid?surf=1 on the box. The env line below already used `|| '1'`.
         if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RATING_SETS || '1') != '0' }}
         continue-on-error: true
-        timeout-minutes: 14
+        timeout-minutes: 35
         working-directory: backend
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RATING_SETS: ${{ vars.FRAME_RATING_SETS || '1' }}
-          FRAME_RATING_BUDGET_S: ${{ vars.FRAME_RATING_BUDGET_S || '600' }}
+          FRAME_RATING_BUDGET_S: ${{ vars.FRAME_RATING_BUDGET_S || '1800' }}
           FRAME_RATING_PAINT_FIRST: ${{ vars.FRAME_RATING_PAINT_FIRST || '1' }}   # band first (frame_set_rating.paint_tier); KILL: repo variable '0'
           RATING_LOCAL_SIZE: '1'                 # = precompute.yml / forecast-ingest.yml / Render (ONE FORECAST COMPOSITION)
           RATING_OBS_GATE: '1'                   # = precompute.yml / Render

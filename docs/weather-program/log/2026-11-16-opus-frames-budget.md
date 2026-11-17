@@ -134,3 +134,20 @@ The first pilots run after #928 merges is excluded under item 3, if the gust or 
 (today they are off). #928 moves gusts and current speed to one-byte band fields 12 and 13, so every frame's content hash changes
 and that run rebuilds those sets in full, once. Those sets publish in their own raster steps, not in the frames or rated budgets.
 So the exclusion is about gate line 2 (job time). If the variables are still off when #928 merges, that run is ordinary.
+
+## 01:55Z: the advisor's re-read (01:10Z): no open point; the change built as a draft PR
+
+The advisor re-read the plan at 1d3c6cf75 and found no open point. It may be built; the go to merge is the director's. The change:
+- **The workflow** (`.github/workflows/forecast-ingest-pilots.yml`): exactly four literals, frames budget '960' -> '1500',
+  frames timeout 22 -> 32, rated default '600' -> '1800', rated timeout 14 -> 35. Nothing else in the file.
+- **One pinned test** follows: `backend/tests/test_day14_end.py` asserted the frames expression with '960' and timeout*60 >= budget
+  + 300; it now asserts '1500' (1,920 >= 1,800). No test added, so no floor fragment.
+- **FRAME_RATING_BUDGET_S** reads `vars.FRAME_RATING_BUDGET_S || '1800'`. The variable is unset today; setting it later silently
+  overrides the file, and that is David's word.
+
+**Process, recorded now (the advisor's two points):**
+- **Gate line 5 (#975's order)** is read by this session. For each counted run, I paste the rated step's first log lines into this
+  log, so the reading is on record, not a judgement.
+- **An exclusion** (catch-up, a forced rebuild, a frames step that did not run) is written here with the run id and its reason
+  BEFORE that run's gate lines are read.
+- The advisor checks one of the four counted runs against its own job log.
