@@ -1443,3 +1443,6 @@ Amendment 3 is on #989 (23:27Z, before any data).
 
 **Condition, standing before the FIRST real run:** M3 (a synthetic world of realistic size at 4x1000 reaching R-hat < 1.01 and ESS > 400)
 is appended to the fit log and passes. A review of code at any other head needs a new review.
+
+- 2026-11-16 19:06 -0500: M3 condition MET. The fit log at cfdaa4907 shows 4x1000 on a synthetic world of 3,200 rows: R-hat max 1.006, ESS min 799,
+  divergences 0. Between aa0505456 and cfdaa4907 only that log changed (git diff --stat), so the review covers cfdaa4907.
