@@ -245,6 +245,17 @@ in the Actions logs. Then either raise its budget or move the rated regional set
 bundle lands in the SAME run as its plain sibling. Gate: on the public index, rated and plain runs equal for every pilot box over
 4 consecutive cycles. Until then this label is what keeps the band honest.
 
+## 10. Follow-ups after the merge (2026-11-16, branch `claude/run-label-local-time`; the director's (a))
+- Run times in the READER'S local time (`readoutDateFormat.formatRunLocal`: "Saturday 8 PM"): the band label ("Surf ratings from the
+  Saturday 8 PM run, 6 h older...") and the held-frame reason that marine and wind share ("from the older Saturday 8 PM EURO run",
+  which before named no time at all). Kill `__RAW_DISABLE_LOCAL_RUN_TIME__` (the previous UTC / unnamed words).
+- One shared reader, `staleLayerState.js`: `readRatedRunState()` (the painted band's run age, its full sentence and a chip's
+  "Ratings 6 h old") and `readWindStaleState()` (wind's "nearest stored forecast" / held state in WindTimeStatus's own words).
+  ForecastTimeStatus now reads through it, so the collapsed-phone chip David approved (2026-11-16 08:54 EST, via the advisor) cannot
+  disagree with the status line, whoever builds it. The chip itself lives in a reserved header file: not built here.
+- Contrast (the advisor's limit on #933), WCAG 2.1 ratio, worst case over ANY map showing through the translucent panel (black or white):
+  light 6.8:1 (slate-600 on white/95), dark 10.5:1 (slate-300 on zinc-900/95), beach 11.8:1 (slate-300 on black/90). All >= 4.5:1.
+
 ## 11. The rated publisher was not publishing the band (2026-11-16, branch `claude/rated-publish-paint-first`; the director's (b))
 Measured on the public index (`v1/latest.json`, a static file) at 15:30Z: all 84 rated sets trailed their plain siblings (6 h: 6,
 12 h: 55, 18 h: 23); the 20 GFS regional WAVES bundles, the only rating grids the band paints from, were all 18 h behind (rated

@@ -203,3 +203,21 @@ PROPOSED retention and deletion rule, for David with the consent question (P3 bu
 his answer): keep at most the 3 newest exports; any account deletion triggers, within 7 days, a fresh export and the
 removal of every older export and every orphan; a key rotation removes all exports made under the old key. Standing
 item, also David's: the service-role key the fit will use in Actions should be restricted to a GitHub Environment.
+
+## 2026-11-17 02:29Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '18:50Z Advisor conditions on #980 (three) and #981 (one) closed' ran AHEAD of the clock: it was committed at 2026-11-16T18:30:13Z, 20 minutes before the time it
+states. It was an estimate, not a clock reading (LESSONS L-P10). Every earlier "HH:MMZ" header in this lane's logs was
+estimated; their authoritative times are their git commit times. Since 2026-11-16 ~22:56Z the lane reads `date -u`.
+
+## 2026-11-17 02:46Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '19:10Z Anchors B built locally (stacked on anchors A): admin API + append-only admin action log' ran AHEAD of the clock: it was committed at 2026-11-16T18:36:17Z, 34 minutes before the time it states (an estimate; LESSONS L-P10).
+
+## 2026-11-17 02:51Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '22:30Z Anchors C: the admin "Surf truth" area' ran AHEAD of the clock: it was committed at 2026-11-16T22:09:00Z, 21 minutes before the time it states (an estimate; LESSONS L-P10).
+
+## 2026-11-17 02:57Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '23:20Z T1 P4 export built (stacked on anchors C): private, pseudonymized rows for the offline fit' ran AHEAD of the clock: it was committed at 2026-11-16T22:46:20Z, 34 minutes before the time it states (an estimate; LESSONS L-P10).

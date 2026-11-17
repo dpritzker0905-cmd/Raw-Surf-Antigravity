@@ -16,6 +16,7 @@
 // Unknown inputs FAIL OPEN (the leg is inert: the 2026-07-03 unknown-input lesson). Kills: __RAW_DISABLE_BAND_RES_FADE__,
 // __RAW_DISABLE_BAND_EDGE_FADE__. The words for it (not colour alone): ForecastTimeStatus reads heldBy and says so.
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { formatRunLocal, localRunTimeOn } from './readoutDateFormat';
 
 const smooth = (t) => { const c = Math.max(0, Math.min(1, t)); return c * c * (3 - 2 * c); };
 const num = (w, k, d) => (typeof w[k] === 'number' ? w[k] : d);
@@ -103,7 +104,9 @@ export function ratedRunText(ratedRun) {
   const lag = ratedRun && Number(ratedRun.lagH);
   if (!(lag > 0)) return null;
   const t = ratedRun.runTime ? new Date(ratedRun.runTime) : null;
-  const run = t && Number.isFinite(t.getTime()) ? `the ${DAYS[t.getUTCDay()]} ${String(t.getUTCHours()).padStart(2, '0')}Z run` : 'an earlier run';
+  const ok = t && Number.isFinite(t.getTime());
+  const run = !ok ? 'an earlier run' : (localRunTimeOn() ? `the ${formatRunLocal(t.getTime())} run`   // the reader's time (readoutDateFormat)
+    : `the ${DAYS[t.getUTCDay()]} ${String(t.getUTCHours()).padStart(2, '0')}Z run`);
   return `Surf ratings from ${run}, ${Math.round(lag)} h older than the wave heights (a newer rating run is not published yet).`;
 }
 
