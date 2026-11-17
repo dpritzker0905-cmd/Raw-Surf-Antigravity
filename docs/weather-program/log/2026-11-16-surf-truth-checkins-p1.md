@@ -145,3 +145,9 @@ server-verified photo evidence before XP ever becomes redeemable.
 statement-level BEFORE TRUNCATE trigger; the docstring says exactly what remains (an owner acting outside the app
 could drop the triggers). Owed after deploy: UPDATE, DELETE and TRUNCATE each attempted in a rolled-back
 transaction must raise. Pushed as a merge of #980's branch (no history rewrite).
+
+## 2026-11-17 02:29Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '18:50Z Advisor conditions on #980 (three) and #981 (one) closed' ran AHEAD of the clock: it was committed at 2026-11-16T18:30:13Z, 20 minutes before the time it
+states. It was an estimate, not a clock reading (LESSONS L-P10). Every earlier "HH:MMZ" header in this lane's logs was
+estimated; their authoritative times are their git commit times. Since 2026-11-16 ~22:56Z the lane reads `date -u`.
