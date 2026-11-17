@@ -6,7 +6,7 @@ and then watches storage cleanup. Written 13:55Z.
 
 ## PRODUCT_RUN_KEYED_NAMES, in the order of its own rollout (log 2026-11-01-claude-run-keyed-products.md, "Migration")
 
-1. **Render env first (done).** `PRODUCT_RUN_KEYED_NAMES=1` was set on srv-d7fhiu7lk1mc73debje0 at 13:47Z.
+1. **Render env first (done).** `PRODUCT_RUN_KEYED_NAMES=1` was set on the Render web service raw-surf-backend at 13:47Z.
    - It triggered deploy dep-dbu5lurm8hqs73e6s6dg, live 13:50:10Z, at 2fcbd8153 (#1003).
    - The previous live deploy was 38c9060fc (#1000). The only server change carried along is 5 lines in the offline
      wind-hindcast `ens_wind_fetch.py`.
@@ -112,3 +112,46 @@ David, typed in this session 2026-11-17 16:23 EST: "We need to fix and rechain a
 - the top-level object count against 21,803 and the bucket against 60.55 GB;
 - 0 "Stored product path not found".
 The trip rule above stands. A kill is the repository variable PRODUCT_RUN_KEYED_NAMES = '0' or a revert.
+
+## 23:22Z: the advisor's HOLD at e4bd07228 (22:46Z): four fixes, and the verify check
+
+1. **FUSE B was inert at today's size.** It compared the deletes left after the 25,000 cap with 0.6 x listed; at ~58,000 listed it
+   could never fire. It now counts everything DUE before the cap. Tests at real scale:
+   - 40,000 due of 58,000: refused;
+   - 18,000 due of 57,800 (steady state): runs, 18,000 deleted;
+   - 30,000 due of 58,000: runs, clipped to 25,000.
+2. **FUSE A's refusal is permanent.** It fails closed: the stored count is not updated on a refusal. The docstring now says so,
+   and names the release. **Release:** the owner (David) sets the repository variable `PRODUCT_GC_MIN_REFERENCED_RATIO = '0'` for
+   ONE ingest run, which records the new count, then unsets it. Both GC lanes (forecast-ingest, forecast-ingest-pilots) now pass
+   that variable, default '0.8'.
+3. **The per-object fallback is capped** at `PRODUCT_GC_MAX_SINGLE_DELETE` (500) a sweep. Names not attempted keep their marks for
+   the next sweep (tested end to end through `run_object_gc`: 12 due, bulk failing, cap 5, so 5 deleted, 7 kept marked at their
+   original times, the count recorded).
+   - **Why:** Supabase documents a limit of 1,000 objects per `remove` call (guide "Delete Objects",
+     supabase.com/docs/guides/storage/management/delete-objects), and the batches are 1,000. The REST body `{"prefixes": [...]}`
+     on `DELETE /storage/v1/object/{bucket}` is the call the client library makes; it is not in those docs, so the first live
+     bulk call is unproven, which is exactly the case the capped fallback covers.
+4. **A refusal or a capped fallback is now visible:** a `::warning::` annotation and a step-summary line ("Product GC sweep
+   refused" / "Product GC bulk delete failed"), besides the log line.
+
+**Mutants**, each red: FUSE B on the capped list; the fallback cap removed; the re-mark of what was left dropped; the
+annotation dropped. Tests: chain lane +7 (fragment). 104 pass locally.
+
+**The red `verify` check** was the memory audit. This log and ledger line 1 carried the Render service's `srv-...` identifier,
+which the audit's identifier pattern refuses in this public repo. Both now name the service as "the Render web service
+raw-surf-backend" instead. The ledger fragment had not merged; its lines carry no hash, so the edit breaks nothing.
+
+### Before the first DELETING sweep (written now)
+
+- **The first sweep after merge deletes nothing:** no mark is two hours old yet. It should log `referenced` ~21,800,
+  `deleted` 0, `marked` = the objects this cycle superseded, and no FUSE line.
+- **The first deleting sweep is the next core cycle, about 4 h later.** Expected:
+  - `deleted` about 18,000;
+  - `bulk_batches` about 18, `left` 0;
+  - no FUSE refusal;
+  - 0 "Stored product path not found" in that run and on the box afterwards;
+  - the top-level object count back near 21,800 within two cycles;
+  - the bucket within 60.55 GB + one cycle (~8.3 GB).
+- **What I check:** the `[Product GC]` line and any `::warning::` in both runs' logs, and the counts by read-only SQL after each
+  run.
+- **Any miss is a kill** (repository variable `PRODUCT_RUN_KEYED_NAMES = '0'`, David's word, or a revert).

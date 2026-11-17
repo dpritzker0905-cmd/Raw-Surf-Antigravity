@@ -82,6 +82,8 @@ jobs:
           LATTICE_FILL_REFRESH_STALE: ${{ vars.LATTICE_FILL_REFRESH_STALE || '1' }}
           # ON by default, kill switch '0' (owner 2026-11-17 08:36 EST; Render env set first, 13:50Z): product objects are named by run + content hash (product_run_keys.py), so a cache can never serve an older run under a reused key (Render served the 10-30T18Z Cocoa Beach GFS tile for 51 h after storage held 11-01T18Z). Prunes defer storage deletes to product_object_gc (two sweeps a grace apart). ONE repo variable read by the three manifest writers; Render env set together (scrub swap needs nothing, the disk sweep reads it). Owner's word.
           PRODUCT_RUN_KEYED_NAMES: ${{ vars.PRODUCT_RUN_KEYED_NAMES || '1' }}
+          # The product GC's FUSE A release (product_object_gc.py): the owner sets '0' for ONE run after a real shrink, then unsets it.
+          PRODUCT_GC_MIN_REFERENCED_RATIO: ${{ vars.PRODUCT_GC_MIN_REFERENCED_RATIO || '0.8' }}
           NODE_ENV: production
           RENDER: 'true'
           MANIFEST_IMMUTABLE_PUBLICATION: '0' # Dark: same publication contract as core writer
