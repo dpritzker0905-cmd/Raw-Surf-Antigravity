@@ -917,3 +917,83 @@ this entry, then goes to the advisor; then the owner's word for the run.
 - **Reported (not gating):** the swl reference before and after 2026-08-16, per gauge, because a format change may
   mark a model upgrade. The registered reference stays the full 30 days.
 - Tests: 20 pass; synthetic `score()` runs end to end.
+
+## 22:24 EST 2026-11-16 (`date`) - G3b PRE-REGISTRATION DRAFT: the POWERED gate that decides serving (before G3's result exists)
+Owner, 21:58 EST (relayed by the research lead and the director; to be confirmed in this session): "as long as its the
+SOTA path". G3 runs as a PILOT only: 3 storms is low power, and its surge result does not decide serving. **G3b is
+registered BEFORE G3 has run**, so no G3 number can shape it. It is a draft for the advisor's and the research lead's
+read. Nothing is built or run before that, and the run is the owner's word typed in this session.
+
+### Archive checks (done 22:0x EST; nothing scored, no truth fetched)
+- **STOFS-2D point files** (\`points.swl/htp/cwl.nc\`) are present on every day checked: 2025-06-01, 09-01, 12-01 and
+  2026-03-01.
+  - **Format: HDF5 / netCDF-4 through 2026-08-15, netCDF-3 from 2026-08-16.** The G3 reader now handles both
+    (32788fa95).
+  - A 2025-06-01 file holds all 5 test gauges; all 26 are to be confirmed by the code's first stage.
+- **Open-Meteo previous runs** (\`sea_level_height_msl_previous_day1/2\`) **begin 2025-11-19** (none on 2025-11-18, by
+  bisection). The references C and D cannot be scored as forecasts before that date, which bounds the window's start.
+- **CMEMS GLO12** keeps a sliding two-year analysis, so N1 stays an ANALYSIS upper bound, as in G3.
+
+### Window (the director's frame 2025-06..2026-03, adjusted for the archives and the seen dates)
+**2026-01-01 00Z .. 2026-07-24 23Z, hourly, MINUS 2026-03-15 .. 03-21 and 2026-06-15 .. 06-21.**
+- **Start 2026-01-01, not 2025-06-01:**
+  - C and D need Open-Meteo previous runs, which begin 2025-11-19.
+  - Calendar 2025 is excluded as SEEN (P against CO-OPS predictions at all 26 gauges; arm B's evaluator identity at
+    all 26).
+  - Nov 19 .. Dec 31 2025 is also excluded with it, to keep the rule simple. That costs ~6 weeks.
+- **End 2026-07-24:**
+  - 2026-07-25 .. 09-08 is SEEN: G3's truth-only count read observed water from 07-25.
+  - G3's window is 08-25 .. 09-07.
+  - Later dates (G2, M1, #926's November windows) are seen too.
+- **Holes:** the #926/#931 held-out weeks (7 days from 2026-03-15 and from 2026-06-15) are removed. The 2025-12-15 week
+  is already outside the window.
+- **Length:** about 7 months (~190 days after the holes), across winter and spring storm seasons on all coasts.
+
+### Same as G3 (unchanged)
+- Arms and leads as issued: P1 = A + S1 + N2_swl (primary; P1' = A + N2 by the S1 preflight); the same reported arms.
+- **Cycles:** 00Z and 12Z only (halves a ~64 GB download), still "the latest cycle at or before t - L".
+- **References:** C and D from Open-Meteo previous runs at the same leads.
+- **Truth:** T2 OBSERVED water gates; T1 is reported.
+- **Datum rule:**
+  - S1 base 2016-01-01 .. 2025-12-31 (it ends before the window);
+  - N2 / N3 referenced to their own mean over the 30 days before the window (2025-12-02 .. 12-31, from the 00Z
+    nowcasts; HDF5 files);
+  - N1 over the 365 days before;
+  - D's mean over the 365 days before the window.
+- Raw gates; mean-removed and bias/SD are reported; the datum label as in G3.
+- **Pass lines (THRESHOLDS UNCHANGED from G3):**
+  1. P1 - D upper end <= -0.02 m AND P1 - C upper end < 0 (paired per gauge).
+  2. No gauge worse than D by > 0.05 m (point; a gauge P1 cannot score counts against it).
+  3. Surge hours: P1 - A upper end < 0, resampled by STORM.
+  4. Calm hours: P1 - A upper end <= +0.01 m.
+  5. Tide shape: median High/Low time <= 20 min, median |MLLW err| <= 0.05 m.
+
+### What differs from G3 (power, and the ORIGINAL strict controls)
+- **Surge hours on a ROLLING reference.** Over 7 months a single pre-window mean would drift with the season and
+  register seasonal level as surge. A surge hour is |residual - its own mean over the 30 days ending 24 h before that
+  hour| > 0.15 m (residual = 25 h low-pass of observed - CO-OPS predictions). Calm hours: < 0.05 m on the same basis.
+  Event = >= 12 consecutive hours; storm = same-region events that overlap or start within 48 h (single-linkage).
+- **Minimum for item 3: >= 20 storms in >= 3 regions** (director and research lead), AND >= 48 surge hours on >= 5
+  gauges. Below it, item 3 is NOT RUNNABLE and G3b is INCONCLUSIVE (it cannot PASS). **No truth-only count is taken
+  before the run** (unlike G3), so the minimum is tested blind.
+- **Bootstrap:** item 1 and the per-gauge CI vs D use gauge x 2-day blocks; items 3 and the shift control use a
+  storm-block bootstrap (resampling storms). 2000 draws, seed 20260101.
+- **Controls: the ORIGINAL strict set, all VOID-capable:**
+  - positive (NOAA's constants <= 0.01 m);
+  - label swap (> 0.3 m);
+  - constant non-tidal must lose item 1 on the MEDIAN-gauge paired difference (lower end > 0);
+  - +24 h shift must lose item 3 (lower end > 0, by storm).
+
+  With ~7 months and >= 20 storms these have power; a VOID here means the instrument shows nothing.
+
+### What a G3b PASS decides
+The served tide for M1 (FES + S1 + STOFS surge, or P1' by availability) goes **DARK behind a kill switch** with a
+SCOREBOARD row, and ships only on the owner's word. A FAIL or INCONCLUSIVE keeps today's tide. VOID is recorded; no
+re-run on the window.
+
+### Order relative to G3
+1. This draft is pushed alone, BEFORE the G3 tag. G3's result cannot change it.
+2. The advisor and the research lead read it.
+3. G3 runs as a pilot (owner's word).
+4. G3b code (G3 code parameterised by window, rolling surge reference, original controls), then the advisor, then the
+   owner's word.
