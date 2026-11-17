@@ -71,6 +71,7 @@ import gzip
 import hashlib
 import math
 import struct
+import zlib
 from datetime import datetime, timezone
 
 MAGIC = b"RSWF"
@@ -80,6 +81,11 @@ HEADER_FIXED = 72
 DESCRIPTOR = struct.Struct("<BBBBIdd")  # 24 bytes
 NO_MISSING = 0xFFFFFFFF
 GZIP_MAGIC = b"\x1f\x8b"
+# The most bytes a frame may decompress to. The largest frame written today is the 0.25-degree world lattice
+# (1440 x 721 nodes) with five fields, about 8.3 MB raw; this is roughly eight times that. A gzip of zeros expands
+# about a thousandfold, so without a cap 200 kB of input allocated 200 MB before the magic was even read.
+MAX_FRAME_BYTES = 64 * 1024 * 1024
+_HEADER_STRUCT = struct.Struct("<HHHHIBBBBI")
 
 HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED, LANE_WEIGHT, PRESSURE_HPA = 0, 1, 2, 3, 4, 5, 6
 TEMP_C, CLOUD_PCT, RATING, PRECIP_MM_H, VISIBILITY_M = 7, 8, 9, 10, 11
@@ -355,10 +361,58 @@ def encode_frame(product, fields=DEFAULT_FIELDS):
     return head + b"".join(planes)
 
 
+def gunzip_capped(data, limit: int = MAX_FRAME_BYTES):
+    """`data` un-gzipped, refusing anything that expands past `limit` bytes. Raises ValueError, never a zlib error,
+    and never holds more than `limit` + 1 bytes of output: the cap is applied WHILE decompressing, not after."""
+    d = zlib.decompressobj(wbits=31)                  # 31: a gzip wrapper, as GZIP_MAGIC promises
+    try:
+        out = d.decompress(data, limit + 1)
+    except zlib.error as e:
+        raise ValueError(f"not a frame: bad gzip ({e})") from None
+    if len(out) > limit or d.unconsumed_tail:
+        raise ValueError(f"frame too large: it decompresses past the {limit}-byte cap")
+    if not d.eof:
+        raise ValueError("truncated frame: the gzip stream ends early")
+    return out
+
+
+def checked_header(data):
+    """The fixed header and the descriptor table of an uncompressed frame, VALIDATED against the buffer. PURE.
+
+    Returns (enc, tfm, cols, rows, mask, row_order, col_order, nfields, uv_conv, header_bytes, descriptors). Every
+    fault is a ValueError that says what is wrong; before 2026-11-17 a short buffer raised struct.error, a
+    zero-width field IndexError, and a `header_bytes` that disagreed with the descriptor table raised NOTHING: the
+    planes were read from inside the header and came back as numbers."""
+    if len(data) < 4 or data[:4] != MAGIC:
+        raise ValueError("not a frame: bad magic")
+    if len(data) < HEADER_FIXED:
+        raise ValueError(f"truncated frame: {len(data)} bytes, the fixed header needs {HEADER_FIXED}")
+    enc, tfm, cols, rows, mask, row_order, col_order, nfields, uv_conv, header_bytes = _HEADER_STRUCT.unpack_from(data, 4)
+    if enc != ENCODING_VERSION:
+        raise ValueError(f"unsupported encoding_version {enc}")
+    expected = HEADER_FIXED + nfields * DESCRIPTOR.size
+    if header_bytes != expected:
+        raise ValueError(f"bad frame header: header_bytes is {header_bytes}, but {nfields} descriptor(s) end at {expected}")
+    if len(data) < header_bytes:
+        raise ValueError(f"truncated frame: {len(data)} bytes, the descriptor table ends at {header_bytes}")
+    descriptors = []
+    for i in range(nfields):
+        d = DESCRIPTOR.unpack_from(data, HEADER_FIXED + i * DESCRIPTOR.size)
+        fid, nb, layout = d[0], d[1], d[2]
+        if nb not in (1, 2, 4):
+            raise ValueError(f"bad frame descriptor: field {fid} is {nb} byte(s) wide; a frame holds 1, 2 or 4")
+        if layout not in (0, 1):
+            raise ValueError(f"bad frame descriptor: field {fid} has layout {layout}; a frame knows 0 and 1")
+        descriptors.append(d)
+    return enc, tfm, cols, rows, mask, row_order, col_order, nfields, uv_conv, header_bytes, descriptors
+
+
 def read_header(data):
     """The fixed header fields of an uncompressed frame: shape, field mask, uv convention, header length. PURE."""
     if data[:4] != MAGIC:
         raise ValueError("not a frame: bad magic")
+    if len(data) < HEADER_FIXED:
+        raise ValueError(f"truncated frame: {len(data)} bytes, the fixed header needs {HEADER_FIXED}")
     enc, tfm, cols, rows, mask, _ro, _co, nfields, uv_conv, header_bytes = struct.unpack_from("<HHHHIBBBBI", data, 4)
     return {"encoding_version": enc, "transform_version": tfm, "cols": cols, "rows": rows, "mask": mask, "nfields": nfields,
             "uv_convention": uv_conv, "header_bytes": header_bytes}
@@ -415,20 +469,15 @@ def decode_plane(data):
     """(header dict, {field id: (rows, cols) float array, NaN = no data}) for a frame; vectorised twin of decode_frame."""
     import numpy as np
     if data[:2] == GZIP_MAGIC:
-        data = gzip.decompress(data)
-    if data[:4] != MAGIC:
-        raise ValueError("not a frame: bad magic")
-    enc, _tfm, cols, rows, _mask, _ro, _co, nfields, _uv, header_bytes = struct.unpack_from("<HHHHIBBBBI", data, 4)
-    if enc != ENCODING_VERSION:
-        raise ValueError(f"unsupported encoding_version {enc}")
+        data = gunzip_capped(data)
+    _enc, _tfm, cols, rows, _mask, _ro, _co, _nfields, _uv, header_bytes, descriptors = checked_header(data)
     head = {"cols": cols, "rows": rows, "bounds": struct.unpack_from("<4d", data, 24),
             "valid_epoch": struct.unpack_from("<d", data, 56)[0], "run_epoch": struct.unpack_from("<d", data, 64)[0]}
     out, pos, n = {}, header_bytes, cols * rows
-    for i in range(nfields):
-        fid, nb, layout, _rsv, missing, scale, offset = DESCRIPTOR.unpack_from(data, HEADER_FIXED + i * DESCRIPTOR.size)
+    for fid, nb, layout, _rsv, missing, scale, offset in descriptors:
+        if len(data) - pos < n * nb:
+            raise ValueError(f"truncated frame: field {fid} needs {n * nb} bytes, has {max(0, len(data) - pos)}")
         plane = np.frombuffer(data, dtype=np.uint8, count=n * nb, offset=pos)
-        if len(plane) != n * nb:
-            raise ValueError(f"truncated frame: field {fid}")
         pos += n * nb
         if nb == 1:
             codes = plane.astype(np.int64)
@@ -455,12 +504,8 @@ def sha256_hex(data):
 def decode_frame(data):
     """Inverse of encode_frame (gzip accepted). Returns {header..., 'fields': {id: [value or None, ...]}}."""
     if data[:2] == GZIP_MAGIC:
-        data = gzip.decompress(data)
-    if data[:4] != MAGIC:
-        raise ValueError("not a frame: bad magic")
-    enc, tfm, cols, rows, mask, row_order, col_order, nfields, uv_conv, header_bytes = struct.unpack_from("<HHHHIBBBBI", data, 4)
-    if enc != ENCODING_VERSION:
-        raise ValueError(f"unsupported encoding_version {enc}")
+        data = gunzip_capped(data)
+    enc, tfm, cols, rows, mask, row_order, col_order, _nfields, uv_conv, header_bytes, descriptors = checked_header(data)
     west, south, east, north = struct.unpack_from("<4d", data, 24)
     valid_epoch, run_epoch = struct.unpack_from("<2d", data, 56)
     n = cols * rows
@@ -468,8 +513,7 @@ def decode_frame(data):
            "row_order": row_order, "col_order": col_order, "uv_convention": uv_conv, "bounds": (west, south, east, north),
            "valid_epoch": valid_epoch, "run_epoch": run_epoch, "fields": {}}
     pos = header_bytes
-    for i in range(nfields):
-        fid, nb, layout, _rsv, missing, scale, offset = DESCRIPTOR.unpack_from(data, HEADER_FIXED + i * DESCRIPTOR.size)
+    for fid, nb, layout, _rsv, missing, scale, offset in descriptors:
         size = n * nb
         plane = data[pos:pos + size]
         if len(plane) != size:
