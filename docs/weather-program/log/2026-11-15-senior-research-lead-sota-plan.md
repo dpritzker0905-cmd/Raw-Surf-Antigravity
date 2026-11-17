@@ -1619,3 +1619,14 @@ in this program under its open licence (re-confirm the terms in the PR).
   INCONCLUSIVE, never PASS. That way the amendment cannot make passing easier.
 - CMEMS GLO12 is settled by the tide lane (PUM 2.4): a sliding best-estimate, no past forecasts, zos without tides or
   pressure. N1 is an analysis-only upper bound.
+
+## 2026-11-16 22:02 -0500 Tide: a powered G3b decides serving; G3 is a pilot (David 21:58 EST: "as long as its the SOTA path")
+
+- G3 runs as amended (Option 1) as a pilot, labelled low power (3 storms).
+- G3b is registered BEFORE G3 is read:
+  - a long past window (e.g. 2025-06..2026-03, excluding seen dates);
+  - the original strict controls;
+  - >= 20 storms in >= 3 regions;
+  - storm-block bootstrap, with the paired per-gauge CI against D.
+- Serving rests on G3b.
+- STOFS-2D daily folders exist from 2025-01-01. The tide lane confirms the point files before registering.
