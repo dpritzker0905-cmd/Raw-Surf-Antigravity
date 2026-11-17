@@ -670,3 +670,62 @@ saved rows and which are NOT RUNNABLE, the station-day median as the unit of ana
 The 01:44Z section was written before that amendment and still says "same held-out spots"; where the two differ, the
 02:31Z amendment is the rule for both windows. When the first breaking-truth source gets its dated section, that
 section goes to the advisor before any of its values is read.
+
+## 2026-11-17 03:12Z The scoring job is built. Its reductions, written before any row was read, and after the window opened
+
+**Disclosure first.** The window opened at 2026-11-17 00:00Z and this section is written after that. I have read no
+private row, no stored object and no aggregate of them: the scorer has only ever run on synthetic rows in its tests
+and once with no credentials (it printed `fetch=not_configured`). So the choices below were made without sight of
+data, but they were made late, and a reader should weigh them as that.
+
+**What was built.** `backend/scripts/score_nearshore_rows.py` and `.github/workflows/nearshore-rows-score.yml`
+(dispatch only; a dispatch needs the owner's typed word). It reads the private rows that `nearshore-validation.yml`
+stores and prints pooled and per-region aggregates. It makes no request to the live backend.
+
+**The choices the 02:31Z amendment left open, fixed now.**
+- **Station-day value:** the median over a station-day's rows of log(model / observed), signed. The score is the
+  median over station-days of its absolute value. The amendment said "station-day medians" without saying median of
+  what; this is the reading that keeps a station-day's over- and under-reads from cancelling across days.
+- **Duplicate rows:** one row per (station, spot, target time); where several runs graded the same target time, the
+  row from the LATEST run is kept. Rows of a run that refused to grade are never read.
+- **Day:** the UTC date of the target time.
+- **Region:** boxes on the station's coordinates (`REGIONS` in the script), first match wins: hawaii, california,
+  gulf, florida_east, mid_atlantic. All 22 stations on file fall in one (a test pins it): none is in Hawaii, so
+  Hawaii is UNTESTABLE on forcing truth in this window.
+- **Paired difference:** score(factor off) minus score(served) on the same station-days. Positive: the factor helps.
+- **Interval:** the days are resampled with replacement, whole days at a time, 2,000 draws, seed 20261207.
+- **Null:** within each station-day the two labels are swapped with probability one half, 200 shuffles. A difference
+  inside the 2.5 to 97.5 band is NOT SHOWN.
+- **Verdict words, forcing truth:** KEEP if the interval is wholly above 0 and no region with a number is better
+  without the factor by more than 0.02. REMOVE CANDIDATE if wholly below 0 and no region with a number is worse by
+  more than 0.02. Otherwise UNDECIDED. UNTESTABLE where the pooled cell is under 30 station-days, 7 days or 3
+  stations. Regions with no number are listed beside the verdict, which says nothing about them.
+- **Held out by station:** NOT BUILT in this version. The amendment asks for it where a configuration is CHOSEN.
+  This version chooses nothing: it reports each registered configuration against served. If a later step picks a
+  best configuration, leave-one-station-out is owed before that pick is reported.
+- **Positive control:** every model height in the region with the most station-days times 1.3; the served analysis
+  must read that region 1.25 to 1.35 over the unseeded run, or the report prints INVALID and no verdict.
+- **Extremes:** the top tenth of observed heights, and rows with offshore height of 3 m or more, each reported
+  separately under the same cell minimum.
+- **Stored against graded:** a separate workflow step, with no Storage key, counts the validation runs in the window
+  that were asked to grade and finished green; the report prints the gap against the stored graded runs.
+
+**NOT BUILT, and printed as that in every report:** the sea-state split by the buoy's own periods (it needs the
+buoy's public record joined by hour).
+
+**NOT RUNNABLE on this truth, unchanged:** the period arms, Komar, H1/10, the cap, the magnets, spot classes.
+
+**Privacy.** The report carries no row, no station id, no station-hour and no per-station number; a cell under 10
+station-days prints no count. The script imports the standard library only and runs as `python3 -I -S`, because it
+is the one process in its job that holds the Storage key. It only reads: one list call per day and one GET per
+object. Tests pin the imports, the read-only calls, and that no station or hour reaches the text.
+
+**Tests.** 14 in `backend/tests/test_score_nearshore_rows.py` (estate lane), on synthetic rows where the answer is
+known: a factor that makes the chain 20% low comes out REMOVE CANDIDATE, one that helps comes out KEEP, a factor of
+1.00 comes out NOT SHOWN, and one region getting worse turns REMOVE CANDIDATE into UNDECIDED. By hand: disabling the
+null, mixing in refused runs, dropping the region condition, and skipping the division each fail at least one test.
+
+**What I expect, written now.** From the one run's medians read on 2026-11-16 (observed over model 1.59 at 11 of 11
+stations; exposure 0.812, refraction 0.873): `exposure_and_refraction_off` moves toward truth pooled, and
+`shoaling_off` changes little. I do not know whether "no region worse by more than 0.02" will hold, and with about
+three weeks of 6-hourly runs the Gulf and the mid-Atlantic may not reach 30 station-days.

@@ -1,0 +1,69 @@
+name: Nearshore rows score (S0 gate, forcing truth)
+
+# DISPATCH ONLY. No schedule, no push trigger. A dispatch needs the owner's word, typed, and a `workflow_dispatch`
+# line in the action ledger (BRAIN_RULES 23). It READS the private nearshore rows written by nearshore-validation.yml
+# (calibration/nearshore/rows/<day>/<stamp>.json) and prints pooled and per-region AGGREGATES: never a row, a station
+# or a station-hour. It makes NO request to the live backend. Rule and reductions:
+# docs/weather-program/log/2026-11-16-fable-surf-ablation-s0-prereg.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "First target time, UTC, inclusive (the registered window opens 2026-11-17T00:00:00)"
+        required: false
+        default: "2026-11-17T00:00:00"
+      end:
+        description: "Last target time, UTC, exclusive (the registered window closes 2026-12-07T00:00:00)"
+        required: false
+        default: "2026-12-07T00:00:00"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: nearshore-rows-score
+  cancel-in-progress: false
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Counted in its OWN step, with the repository token and no Storage credential: how many validation runs in the
+      # window were asked to grade and finished green. The scorer prints the gap against the runs it found stored.
+      - name: Count the graded validation runs in the window
+        id: graded
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WINDOW_START: ${{ inputs.start }}
+          WINDOW_END: ${{ inputs.end }}
+        run: |
+          gh run list --workflow nearshore-validation.yml --limit 1000 \
+            --json displayTitle,conclusion,createdAt > runs.json
+          n=$(python3 -I -S -c "
+          import json, os
+          s, e = os.environ['WINDOW_START'][:19], os.environ['WINDOW_END'][:19]
+          runs = json.load(open('runs.json'))
+          print(sum(1 for r in runs if s <= str(r.get('createdAt'))[:19] < e and r.get('conclusion') == 'success'
+                    and 'requested' in str(r.get('displayTitle'))))")
+          echo "n=$n" >> "$GITHUB_OUTPUT"
+          rm -f runs.json
+
+      # The ONLY step that holds the Storage key. -I -S: no user site, no site-packages, no PYTHON* variables, so the
+      # process can import the standard library and nothing else. It reads; it never writes to Storage.
+      - name: Score the private rows (aggregates only)
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WINDOW_START: ${{ inputs.start }}
+          WINDOW_END: ${{ inputs.end }}
+          GRADED_RUNS: ${{ steps.graded.outputs.n }}
+        run: |
+          python3 -I -S scripts/score_nearshore_rows.py --start "$WINDOW_START" --end "$WINDOW_END" \
+            --pairs data/nearshore_validation_pairs.json --pairs data/nearshore_ndbc_pairs.json \
+            --graded-runs "${GRADED_RUNS:-0}"
