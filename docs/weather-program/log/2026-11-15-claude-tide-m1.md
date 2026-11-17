@@ -1309,3 +1309,48 @@ is not a look at the prospective window. The research lead to say whether it is 
 - The code (G3 parameterised: availability leads, a causal rolling reference, the version guard, the 18 h auto-trip test)
   can be built and reviewed now.
 - The served path can be built DARK, behind its flag, so a PASS turns into a merge without new code.
+
+## 10:20 EST 2026-11-17 (`date`) - Advisor read of the prospective draft (15:16Z): the level-free primary is WITHDRAWN; an independence question; a proposed SPLIT
+- **Option (b), the level-free primary, is WITHDRAWN by the advisor, and the 10:01 draft's primary is therefore NOT
+  proposed for FINAL.**
+  - Reason: STOFS station output is bias-corrected against OBSERVED CO-OPS water over the last 5 nowcast days, so at a
+    CO-OPS gauge the combined level partly contains the truth.
+  - cwl - htp would carry that correction. Its pilot result (bias -0.003 m, lowest error) is what truth leaking in looks
+    like, close in kind to the "yesterday's residual" yardstick (0.039 m). It is not evidence of surge skill.
+  - The station correction already existed in v2.1, so the same doubt applies to the pilot and to any v2.1 retrospective.
+- **Independence.** A surge gate scored at CO-OPS gauges, on output corrected with CO-OPS gauges, measures skill at
+  CORRECTED STATIONS. The served value is at surf spots, away from gauges.
+  - Before any surge gate is registered again, settle from documents (no data) which products carry the correction and
+    which stations feed it.
+  - Then take truth from gauges OUTSIDE that set (other agencies, island networks such as UHSLC), or score the gridded
+    field and say plainly what the gate cannot certify.
+- **Documentary check, done now (no data):** the NCEP STOFS-2D-Global portal (polar.ncep.noaa.gov/estofs/glo.htm) says:
+  - The station correction "corrects the station water level forecast guidance biases by removing the bias between the
+    observed water levels at NOS/CO-OPS stations and most recent 5 days of nowcast water levels".
+  - In v3.1 it is "propagated across the entire global grid using a graph diffusion approach. The result is that both
+    station and gridded output is bias corrected." Feeding stations named: NOS/CO-OPS only.
+  - **Operational date: the 12 UTC cycle on 2026-08-17** (the notice planned Aug 11; the archive's file format switched
+    08-16).
+  - NOT stated anywhere found: WHICH variable carries the correction (swl, cwl or both; htp is harmonic prediction only),
+    and whether any non-CO-OPS gauge feeds it.
+  - The noaa-gestofs-pds README defines cwl = tides + surge, htp = harmonic tides, swl = surge only. Point/GRIB2 water
+    levels are in "m, MSL" and SHEF files in MLLW, with no word on bias correction.
+  - Consequence: since v3.1, the GRIDDED field is corrected too, so scoring the grid near a CO-OPS gauge is not
+    independent either. Independence needs gauges far from (or outside) the CO-OPS network.
+- **The advisor's proposal, for the research lead, the director and the owner:** SPLIT THE QUESTION.
+  1. **Tide + seasonal (A + S1), NO surge, its own RETROSPECTIVE gate now** on the untouched 2026-01-01 .. 07-24 window
+     (minus the held-out weeks).
+     - It is a new registration with A + S1 as primary, chosen after the pilot and saying so; the datum and per-gauge
+       rules are carried over.
+     - It needs no surge archive and depends on nothing NOAA can re-version. In the pilot it halved the error and beat
+       both references.
+     - A PASS ships ON under D-080 in weeks.
+  2. **Surge: its own PROSPECTIVE gate on v3.1**, registered before any truth, with the independence question settled
+     first (truth gauges outside the CO-OPS set, or the gridded field with its limits stated).
+     - Archiving as-issued cycles now (no truth, no scoring) is collection, not a look.
+     - Note: noaa-gestofs-pds held files back to at least 2025-06-01 on checks, so the archive may already persist. A
+       mirror is insurance, not a need.
+  - Using Jan .. Jul 2026 for gate 1 spends that window for surge, which is fine if surge goes prospective.
+- **The advisor accepts both discrepancy answers** (storm count; Boston and Galveston).
+- **Standing:** no G3b data, truth or arm, is fetched until this is decided and written. The decision belongs to the
+  research lead, the director and David.
