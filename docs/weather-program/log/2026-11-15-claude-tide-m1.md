@@ -879,3 +879,19 @@ advisor first. Its checklist:
   - the positive and label-swap controls stay VOID controls.
 - **Option 2 - run as registered:** a VOID from either control is recorded as "no measurable effect of the non-tidal
   term on this window", with no re-run on it.
+
+## 21:38 EST 2026-11-16 (`date`) - G3 AMENDMENT A: the two low-power controls (owner: "Amend them", 21:37 EST)
+**This amendment comes AFTER the truth-only look at the window** (the surge-hour count, 16:2x-16:5x EST). It comes BEFORE
+any arm has been computed on the window; no G3 gate run exists. It changes no threshold and no arm.
+1. **"Constant non-tidal loses item 1"** is read on POOLED squared error over ALL gauge-hours (the arm minus its
+   non-tidal term vs the real arm). Bootstrap units are gauge x 2-day blocks; 2000 draws, seed 20260825. It must lose:
+   the interval of (constant - real) has its LOWER end > 0. A VOID from it still means the instrument shows no
+   information in the non-tidal term. Before this amendment it read the median-gauge difference, which surge at only
+   ~9 of 26 gauges could tie.
+2. **"+24 h shift loses item 3"** is no longer a VOID control. If it fails (lower end not > 0, by storm), **ITEM 3 is
+   INCONCLUSIVE**, treated exactly as "item 3 not runnable": G3 cannot PASS, and its verdict is INCONCLUSIVE. Items 1,
+   2, 4 and 5 still report.
+3. The positive control (NOAA's constants <= 0.01 m) and the label swap (> 0.3 m) STAY VOID controls, unchanged.
+
+Advisor (02:22Z) found either choice acceptable "provided it says it comes after the truth-only look". The code follows
+this entry, then goes to the advisor; then the owner's word for the run.
