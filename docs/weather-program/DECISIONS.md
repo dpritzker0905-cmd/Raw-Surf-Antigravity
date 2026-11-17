@@ -2185,3 +2185,34 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - Every merge needs: green checks, a pinned head, no admin override, and no open advisor condition.
   - The merger writes a `pr_merge` ledger line naming whose word it acted on.
   - Never `main`.
+
+### D-080 · Everything merged ships ON, with a kill switch and an automatic kill-switch test (2026-11-16, decided by the owner)
+- **Owner, verbatim:**
+  - 22:09 EST, typed in the research lead's session: "It needs to ship on, not off. With kill switch. I get confused and
+    forget to turn things on once they are merged. Make special tests to test and kill switch it. Pass that up to the
+    director".
+  - 22:23 EST, typed in the director's session (relayed by the director): "everything we merge needs to ship on, with a
+    auto test to kill switch".
+- **Rule:**
+  - Every merged feature, served numbers included, ships with its code default ON. This supersedes "served numbers ship
+    dark until David flips them" (D-065's guardrails stay).
+  - The pre-registered gate (or the D-065 history filter) still decides what is mergeable. David's word, where needed,
+    is the word to MERGE.
+  - Every flag has a kill switch: env > runtime manifest `control/flags.json` > code default, or
+    `window.__RAW_DISABLE_<NAME>__` for a client flag.
+  - Every flag has a CI kill-switch contract test:
+    - OFF is byte-identical to a golden copy of the pre-change path;
+    - ON changes only the intended fields;
+    - a runtime-manifest kill works with no deploy;
+    - registry parity in `_RATING_FLAGS`;
+    - for a client flag, the old render returns in all 3 themes and on mobile.
+  - Where feasible, an automatic check (`flag-guardrail.yml`) trips the switch on failure, with a written reason.
+- **Why:** a default-off flag gets forgotten after the merge, so a passed fix never reaches users.
+- The test-suite spec is in `log/2026-11-15-senior-research-lead-sota-plan.md` (22:15 EST). The builder is assigned
+  by the director.
+- **Addendum (owner, 23:03 EST, typed in the director's session, relayed by the director):** "yes but it also has to pass
+  a test after its turned on and live on dev".
+  - Each feature, once merged ON and deployed to dev, must pass a POST-DEPLOY check on the live dev site: one short,
+    low-load read (never a load test), with `/api/health` read before and after.
+  - If the check fails, the kill switch is used (runtime manifest, no deploy) and the failure is written to the log.
+  - This is item 8 of the contract suite.
