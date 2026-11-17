@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from deps.admin_auth import get_current_admin
 from models import Profile, SurfObservation
-from services import observation_rewards
+from services import observation_rewards, surf_truth_admin
 
 router = APIRouter()
 
@@ -53,5 +53,7 @@ async def resolve_audit(observation_id: str, body: AuditVerdict, db: AsyncSessio
     if obs.user_id == admin.id:
         raise HTTPException(status_code=403, detail="Cannot audit your own observation")
     await observation_rewards.resolve_audit(db, obs, body.verdict, admin.id)
+    surf_truth_admin.log_action(db, admin.id, "audit_verdict", "surf_observation", obs.id,
+                                detail={"verdict": body.verdict, "xp_status": obs.xp_status})
     await db.commit()
     return {"id": obs.id, "xp_status": obs.xp_status}
