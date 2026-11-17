@@ -163,6 +163,7 @@ const r3n = (x) => (x == null || !Number.isFinite(x) ? null : +x.toPrecision(5))
     for (let i = 0; i < STEPS; i++) {
       const t = await ev(() => window.__WB__.key('ArrowRight', 3));
       if (after) { await sleep(Math.min(420, stepMs - 60)); marks.push({ t, st: await ev(() => window.__WB__.state()) }); await sleep(Math.max(0, stepMs - 420)); } else { marks.push({ t }); await sleep(stepMs); }
+      if (after === 'late') { await sleep(Math.max(0, 1500 - stepMs)); marks[marks.length - 1].late = await ev(() => { const s = window.__WB__.state(); return { blend: s.blend, prev: s.prev, uni: s.uni }; }); }   // W4c: 1,500 ms after the step
     }
     await sleep(900);
     return marks;
@@ -249,14 +250,14 @@ const r3n = (x) => (x == null || !Number.isFinite(x) ? null : +x.toPrecision(5))
     };
     await ev(() => { window.__WB__.hideMarks = true; });
     for (const arm of order) {   // capture: the colour field alone
-      await setArm(arm); const { cm, F } = await captured(STEP_MS, true);
+      await setArm(arm); const { cm, F } = await captured(STEP_MS, 'late');
       outs[arm].steps = cm.map((m, i) => {
         const end = i + 1 < cm.length ? cm[i + 1].t : m.t + 800;
         const before = F.filter((f) => f.d != null && f.t >= m.t - 400 && f.t < m.t).map((f) => f.d);
         const after = F.filter((f) => f.d != null && f.t >= m.t && f.t < Math.min(end, m.t + 800));
         const floor = med(before); const peak = after.length ? Math.max(...after.map((f) => f.d)) : null;
         return { floor: r3(floor), peak: r3(peak), step: r3(peak != null && floor != null ? peak - floor : null), mixSeen: r3(Math.max(0, ...after.map((f) => f.mix || 0))),
-          hash: m.st.hash, dims: m.st.dims, valid: m.st.valid, fine: m.st.fine, endBlend: m.st.blend, endPrev: m.st.prev, endUni: m.st.uni, endMix: m.st.tel ? m.st.tel.mix : 0 };
+          hash: m.st.hash, dims: m.st.dims, valid: m.st.valid, fine: m.st.fine, endBlend: m.st.blend, endPrev: m.st.prev, endUni: m.st.uni, endMix: m.st.tel ? m.st.tel.mix : 0, late: m.late || null };
       });
       outs[arm].tel = cm.length ? cm[cm.length - 1].st.tel : null;
     }

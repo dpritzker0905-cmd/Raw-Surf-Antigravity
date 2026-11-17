@@ -28,6 +28,7 @@ import { gridPointReg } from './gridPointRegistration';
 import { windHourBlendEnabled } from './windHourBlendGLSL';
 
 export const WIND_BLEND_MS = 160;      // the rasters' and the marine blend's: every layer steps alike
+export const FRAME_MS = 8;             // calls closer than this belong to one drawn frame (half a 60 Hz frame)
 export const WIND_PREV_UNIT = 7;       // the earlier field's texture unit in all three programs (0-3 are in use there)
 
 const W = () => (typeof window !== 'undefined' ? window : {});
@@ -139,9 +140,14 @@ export function windPrevMix(engine, at = nowMs()) {
   const hold = W().__RAW_WIND_BLEND_HOLD__;
   if (hold != null && Number.isFinite(Number(hold))) { t.mix = 1 - Math.min(1, Math.max(0, Number(hold))); return t.mix; }
   if (!b.t0) b.t0 = at;
+  // ONE weight per frame (2026-11-16, the gate's read-back): the three passes of a frame each call this, a fraction of a
+  // millisecond apart, and each got its own weight, so the particles moved through a field a hair different from the one
+  // coloured. A call within FRAME_MS of the last computed weight reuses it.
+  if (b.at != null && at >= b.at && at - b.at < FRAME_MS) return b.mix;
   const p = (at - b.t0) / b.ms;
   if (!(p < 1)) { engine._windBlend = null; t.ends += 1; t.mix = 0; return 0; }
-  t.mix = 1 - windBlendEase(p);
+  b.at = at; b.mix = 1 - windBlendEase(p);
+  t.mix = b.mix;
   return t.mix;
 }
 

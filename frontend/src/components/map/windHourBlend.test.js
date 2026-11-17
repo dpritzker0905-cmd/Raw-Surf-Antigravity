@@ -183,6 +183,15 @@ describe('the mix over time', () => {
     expect(windPrevMix(e, 5000)).toBe(1); expect(windPrevMix(e, 5080)).toBeCloseTo(0.5, 10);
     expect(windPrevMix(e, 5160)).toBe(0); expect(e._windBlend).toBeNull(); expect(window.__RAW_WIND_HOUR_BLEND__.ends).toBe(1);
   });
+  it('ONE weight per frame: the passes of one frame (calls under 8 ms apart) get the same weight; the next frame a new one', () => {
+    const { e } = started();
+    windPrevMix(e, 5000);                                   // the first drawn frame starts the clock: 1
+    const a = windPrevMix(e, 5040); const b = windPrevMix(e, 5040.4); const c = windPrevMix(e, 5041.2);
+    expect(a).toBeLessThan(1); expect(b).toBe(a); expect(c).toBe(a);
+    const next = windPrevMix(e, 5056.7); expect(next).toBeLessThan(a);
+    expect(windPrevMix(e, 5057)).toBe(next);
+    expect(windPrevMix(e, 5160)).toBe(0); expect(e._windBlend).toBeNull();   // the end is never held back by the reuse
+  });
   it('is 0 with no blend, and the kill set mid-blend ends it', () => {
     expect(windPrevMix({}, 1)).toBe(0);
     const { e } = started(); windPrevMix(e, 100); window.__RAW_DISABLE_WIND_HOUR_BLEND__ = true;

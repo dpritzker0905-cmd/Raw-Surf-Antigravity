@@ -253,3 +253,44 @@ before any truth line was read: the marine log, section 37, which covers wind (t
 - **Limits:** value space on the world grid only; the shaders drawing this mix is W5/W6, NOT yet measured for wind (no wind
   gate line has run in a browser); two runs 6 hours apart on one day are not independent samples; nothing here covers the
   particles, the HRRR lane, regional grids or a phone. The blend stays off.
+
+## 10. THE SCRUB LINES, first gate run (2026-11-16, 21:50-22:06 EST): W1, W2, W3, W8b, W9 pass; **W4 FAILS**
+The director's hold on browser jobs ended 00:30 EST on the 16th; run that evening, the director told beforehand.
+**Build:** local, this branch merged with the marine branch (`a641e2db3`, never pushed); the wind code is this branch's at
+`2b99e8793`. Loaded with the opt-in; arm A is the kill at run time. Offline backend, `--moving-wind 8`. Instrument
+`scn_wind_blend.js` as committed in `a8d8c8f85` plus the opt-in line. Dark, desktop, ten views, 80 boundaries an arm,
+every hour settled first (median 1.6 s). 0 page errors. Nothing asked of the live backend (host audit ok).
+- **W1 PASS.** Pooled step 6.709 (hard swap) to 1.712 (blend): **25.5%** (line 50%). Per view 20-38%; no view worse; no view
+  left out. Blended 79 of 80 steps in arm B. Smoothness only.
+- **W2 PASS.** GPU ms per frame, median over views: 3.746 to 3.895 over the scrub (**+4.0%**), 3.814 to 3.963 inside the blend
+  windows (**+3.9%**); line +10%. A desktop GPU; a phone is unmeasured. This compares blend against kill on the SAME shader
+  text; W2b (the plain shaders) is separate and not yet run.
+- **W3 PASS.** 72 of 72 (grid, valid time) pairs: identical bytes and u/v range in both arms.
+- **W4 FAIL: 74 of 80.** All six failures are one view, (150, -34, z5), arm B, steps 0 and 3-7: 420 ms after the step a
+  blend is still running (mix 0.00002 to 0.91) and a texture is kept. What happens there: the step first brings the new
+  hour's world grid (blend one); a few hundred ms later a REGIONAL grid of the same hour (27 x 22) replaces the base, which is
+  a grid swap, and the design blends a grid swap (blend two). So on that view the picture is in transition for longer than
+  one 160 ms blend and is not at rest at 420 ms. The other nine views, and steps 1-2 of this one, are at rest. Recorded as a
+  FAIL of the line as written. Not yet measured: that the second blend ends and frees its texture (it is counted:
+  starts 338, ends 277, restarts 61, errors 0 over the run, which balances: 277 + 61 = 338).
+- **W8b PASS.** Particle vertices per frame constant in every view and arm (147,456 and 294,912); the particle picture's mean
+  luminance in the 200 ms after a step, B / A: 0.955 to 1.004 (line: not below 0.95; the lowest, 0.955, is view 6).
+- **W9 PASS.** One step per 100 ms: 6.694 to 2.734 (40.8% of the hard swap).
+- **A second finding in the same read-back, not a gate line:** inside ONE frame the three programs got slightly different mix
+  weights (for example 0.1749 colour field, 0.1735 advection, 0.1720 particle draw), because each pass asks the clock again.
+  The particles are advected through a field a hair different from the one coloured. Small (under 0.003), but wrong by
+  design: one frame should have one weight.
+**Registered now, before any further line is run:**
+1. **The fix for the second finding:** the weight is computed once per frame (a call within 8 ms of the last reuses it). Unit
+   test. Because the code changes, the scrub lines above are RE-RUN on the fixed build and both runs are kept; the lines and
+   thresholds do not change. A new standing check **W4b**: at 420 ms the three programs' weights are EQUAL in every step
+   (including steps where a blend is still running).
+2. **W4 is not redefined.** It stays as written and is re-measured. Added beside it, **W4c**: 1,500 ms after each step, no
+   blend, no kept texture, weight 0 in all three programs, 80 of 80 (this is the leak check W4 was meant to be; a view
+   whose second blend starts later than 420 ms cannot pass W4 as written, and that is said, not hidden).
+3. **Instrument for the advisor's lines, built, not run:** `MODE=more` (W8c the step with particles drawn; W8d particles
+   respawned per frame and the mean particle step, read from the particle state texture; W14's log of the base's and the
+   overlay's valid time beside the weight) and `MODE=plain` (W2b). **W14 for the HRRR lane is VOID as registered:** the
+   offline backend serves an HRRR lane only from a real lane file, which this harness does not have. The same assertion
+   (no frame mixes while holding an overlay of another hour than the base) is run on the synthetic fine overlay instead and
+   reported as a lesser check; the HRRR line stays owed.
