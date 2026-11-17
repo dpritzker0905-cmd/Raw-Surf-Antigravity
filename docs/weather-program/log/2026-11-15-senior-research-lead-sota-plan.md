@@ -1467,3 +1467,53 @@ is appended to the fit log and passes. A review of code at any other head needs 
     identical to d0a77071a is covered, including the merge commit.
 - A VOID run counts as scored (its result was seen); a NOT RUNNABLE record does not.
 - The first real run's own diagnostics still decide convergence.
+
+## 2026-11-16 19:29 -0500 How to get "test users" for the surf-truth model (owner, 19:25 EST: "Research how we can make test users to run these tests? SOTA")
+
+There are three different questions, and each needs its own tool. Fake users can answer the first two; ONLY real people answer the third.
+
+**1. Is the fit computing correctly? Simulation-based calibration (SBC). No users needed.**
+- Method: Talts et al. 2018; Modrák et al. 2023 (add the joint log-likelihood as a test quantity, otherwise "posterior =
+  prior" passes); posterior SBC, Säilynoja et al. 2026.
+- Procedure: draw parameters (b_j, sigma_j, T, scale and set factors) from the priors and simulate observers, then fit.
+  The rank of each true value within its posterior must be uniform.
+- Also run named stress worlds:
+  - one biased anchor;
+  - a +50% liar;
+  - Hawaiian-scale mislabels;
+  - flat days and storms (censoring);
+  - a friend group reporting together.
+- Cost: about 445 s per 4x1000 fit. Use smaller worlds and an Actions matrix (for example 200 fits of about 2 min).
+  Offline, never on Render.
+- Gate (to pre-register): rank-ECDF inside its 95% band for every monitored quantity; each stress world recovers its
+  planted effect.
+
+**2. Does the whole path work: form -> server provenance -> export -> fit? Scripted synthetic users on LOCAL/staging only.**
+- FINDING: nothing marks a test account today.
+  -  is server-set to 'observed' for everyone ().
+  - The fit's exclusions () do not look at it.
+  - So a test account using the real form on the production database would enter the truth stream.
+- Fix, before any test user exists:
+  - a server allowlist (env NAME, e.g. SURF_TRUTH_TEST_IDS, like SURF_TRUTH_ANCHOR_IDS) sets source='synthetic';
+  - the export and prep refuse or exclude any source != 'observed';
+  - a guard test.
+- Then: Playwright and API scripts drive synthetic observers with planted biases, driven by real buoy conditions,
+  through the blind form on a local backend, then export, then fit. A synthetic report must never be shown to users,
+  never earn XP, and never reach a production export.
+
+**3. Does it produce TRUTH? Only real people: a structured pilot cohort.**
+- The registered floor (>= 30 scoreable cells per class in fit AND holdout; holdout is 20% by hash) means roughly 150+
+  scoreable cells per class. Each needs an active-anchor report plus an independent second report in the same 3-hour
+  window, and there must be >= 3 active anchors.
+- Protocol (citizen-science quality assurance, Parrish et al. 2018; aggregation validated against an expert set,
+  Swanson et al. 2016):
+  - David plus 3-4 trusted photographers as anchors;
+  - 10-30 local surfers;
+  - 2-3 Florida spots per class (open beach; inlet/jetty) and, later, one Hawaii spot;
+  - agreed report windows (dawn and midday) so cells pair up;
+  - anchors add a photo with a surfer standing in frame (a physical reference: the only route to P).
+- Expected time to the floor: about 2-3 months at 4 anchors x 1 report/day plus partners. That is an estimate, not
+  measured.
+
+**Never:** LLM- or script-generated heights in the real stream. Fabricated observations are not truth, and they would
+contaminate the gate.
