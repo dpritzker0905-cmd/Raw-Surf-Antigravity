@@ -79,3 +79,36 @@ Any one of:
 
 A pilot tile's `run_time` on the box. The Cocoa Beach GFS tile served the 10-30T18Z run for 51 h while storage and the manifest
 had moved on (log 2026-11-01-claude-run-keyed-products.md). After the change: it follows the manifest within one restore.
+
+## 22:13Z: the blocker fixed: a 25,000 cap with two fuses, and batched deletes (David: "fix and rechain and merge and push #1005")
+
+David, typed in this session 2026-11-17 16:23 EST: "We need to fix and rechain and merge and push #1005 and more". Then:
+"Also others that have conflicts too".
+
+**The fix** (`product_object_gc.py`, per the advisor's 16:39Z condition that a higher cap needs a second fuse in the same change):
+- **The cap:** `PRODUCT_GC_MAX_DELETE` default 500 -> 25,000, just above the ~21,800 live top-level product objects.
+- **FUSE A, the head shrank:** the whole sweep is refused when this sweep's referenced set is under
+  `PRODUCT_GC_MIN_REFERENCED_RATIO` (0.8) of the previous sweep's. The previous count is now kept in the marks blob. This catches
+  a manifest read empty, truncated or partial.
+- **FUSE B, too much at once:** the whole sweep is refused when the planned deletes exceed `PRODUCT_GC_MAX_DELETE_SHARE` (0.6) of
+  the listed product objects. In steady state a core sweep deletes the previous cycle's ~18k superseded objects of ~58k listed,
+  about 31 %.
+- **Both refusals** log "[Product GC] sweep refused: FUSE A/B: ..." and leave the marks unchanged. A refused sweep only delays
+  deletes.
+- **A stale but complete published head** cannot delete current objects: the sweep unions it with the writer's own manifest. That
+  is unchanged.
+- **Deletes are batched,** 1,000 names per Storage bulk-delete REST call, behind the designated-writer gate. A failed batch falls
+  back to one DELETE per object. This was added because 18,000 sequential DELETEs would add many minutes per cycle.
+- **Tests:** +5 in `test_product_run_keys.py` (chain lane, fragment +5):
+  - FUSE A trips at 79/100 and passes at 80/100, unarmed with no previous count;
+  - FUSE B trips at 7/11 and the cap clips first at 6/11;
+  - bulk batches of 1000/1000/500, the per-object fallback, and no bulk call without the writer gate;
+  - the previous count is read back;
+  - the defaults.
+- **Mutants**, each 1 red: Fuse A removed, Fuse B loosened to 0.99, the gate dropped from the bulk path.
+
+**Still owed, at the first forecast-ingest cycle after merge** (David is reachable; this session watches it):
+- the `[Product GC]` summary: listed, referenced, marked, deleted, bulk_batches, or a FUSE refusal;
+- the top-level object count against 21,803 and the bucket against 60.55 GB;
+- 0 "Stored product path not found".
+The trip rule above stands. A kill is the repository variable PRODUCT_RUN_KEYED_NAMES = '0' or a revert.
