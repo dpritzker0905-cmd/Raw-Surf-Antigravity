@@ -2431,3 +2431,12 @@ before the read. Then construction fidelity within 0.02 m at every lead, then th
     (n 24,798). So the equal-mean gain at +24 h does NOT depend on the 48 h tier gap. A +24 h-only
     CONSENSUS_SERVE flip could be gated now, with the longer leads following the EURO/ICON full-horizon brief.
     This is a hypothesis for the director, not a decision.
+
+- 2026-11-17 18:15 -0500: **Horizon facts checked against upstream listings** (the EURO/ICON full-horizon brief):
+  - ECMWF wave stream (AWS listing of 2026-11-16): 00/12 Z has 85 steps to 360 h; 06/18 Z has 49 steps to 144 h.
+  - DWD GWAM 00 Z: 0-174 h, 3-hourly, 59 steps.
+  - **Correction to the brief:** 240 h is our own cap (`ecmwf_wave_service.py:21`, forecast_days=10;
+    `capabilities.py` native_horizon_hours=240), not ECMWF's. Phase 1 stays at 240 h, so the LOCKED extension contract
+    is unchanged.
+  - Real EURO output to 360 h is the existing unbuilt lever L6(b) (`docs/research/instant-marine-sota-2026-10-26.md`).
+    It is owner-gated because it replaces the blended tail.
