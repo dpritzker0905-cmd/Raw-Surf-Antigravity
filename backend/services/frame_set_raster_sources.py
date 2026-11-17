@@ -412,6 +412,32 @@ class IconPrecipSource(IconOpenDataSource):
         return box_mean(self.rate(cycle, f, ncells), node, counts, self.lattice())
 
 
+class IconOpenData0p125Source(IconOpenDataSource):
+    """An ICON field on the 0.125-degree lattice by NEAREST cell (G1 option (a), 2026-11-16): DWD's own 0.125-degree map
+    (frame_set_raster_icon125; the regrid DWD's regular products and Open-Meteo's dwd_icon use), its 2880th column filled from
+    the nearer neighbour, refused unless DWD's cells are this run's GRIB cells in the same order. For INTENSIVE fields (air
+    temperature): a point value, not an area mean (rain is G2's area mean)."""
+
+    def grid(self, cycle):
+        import numpy as np
+        try:
+            from services import frame_set_raster_icon125 as i125
+        except ImportError:  # pragma: no cover
+            import frame_set_raster_icon125 as i125
+        if "nn" not in self._grid:                           # the grid (R3B7, 0026) does not change between runs
+            clat = self._decode_bz2(self._invar(cycle, "CLAT"))
+            clon = self._decode_bz2(self._invar(cycle, "CLON"))
+            nn, slat, slon = i125.fetch_dwd_nn(self.http)
+            if not i125.same_grid(slat, slon, clat, clon):
+                raise RuntimeError("DWD's 0.125-degree map is not this run's ICON grid (cells or their order differ)")
+            self._grid["nn"] = (i125.extend_nn(nn, i125._unit(clat, clon)), clat.size)   # float64, as the pick map
+        return self._grid["nn"]
+
+    def fetch(self, cycle, f):
+        nn, ncells = self.grid(cycle)
+        return self.spec["convert"](self._native(cycle, f, ncells))[nn]
+
+
 class IconPrecip0p125Source(IconPrecipSource):
     """The same rates on the 0.125-degree lattice by the supersampled area mean (frame_set_raster_icon125, G2 2026-11-16): each
     box is the mean over k x k sub-points of the cell nearest each, so no box is empty and a shower filling a box keeps its
@@ -453,4 +479,5 @@ class IconArea0p125Source(IconPrecip0p125Source):
 
 SOURCES = {"ecmwf": EcmwfOpenDataSource, "ecmwf_precip": EcmwfPrecipSource, "icon": IconOpenDataSource,
            "icon_precip": IconPrecipSource, "icon_precip_0p125": IconPrecip0p125Source,
+           "icon_0p125": IconOpenData0p125Source,
            "icon_area_0p125": IconArea0p125Source}

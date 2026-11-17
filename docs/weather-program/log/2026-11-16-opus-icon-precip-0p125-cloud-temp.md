@@ -206,6 +206,53 @@ number was an artefact of how it was measured, not because the harness differs. 
 
 Mutants: 7 of 8 red. The survivor (the pad fill) is equivalent: a pad can only ever stand for a cell that a real candidate beats.
 
+## 06:20Z: G1 option (a) pre-registered: `temperature_icon_0p125` (written before any measurement)
+
+The director chose (a), 2026-11-16 01:18 EST: ICON air temperature at 0.125 degree by NEAREST cell, sharing G2's module, in its
+own dark PR (stacked on #956), inside the measured pilots budget. Source: `IconOpenData0p125Source`, which reads DWD's own 0.125
+map (refused unless its cells are this run's), adds the 2880th column from the nearer neighbour, and does a plain gather.
+Intensive field, so no area mean. Gate, on one real 00Z cycle at f006, f048 and f120:
+1. **Parity with .om `dwd_icon`** at all 2879 x 1441 shared nodes, our encoded-then-decoded frame:
+   - exactly equal on at least 95 % of nodes;
+   - median |difference| 0.00 degC and p99 at most 0.10 degC;
+   - max reported.
+   Positive control: .om of another hour must fail all three.
+2. **Resolution:** frame grid 2880 x 1441 at 0.125 degree, at least as fine as .om's; 179.875E must be filled (no NaN column).
+3. **Budget:**
+   - gzipped bytes per frame reported, and per run (61 frames);
+   - per-hour CPU (gather + encode + parity) and the one-off map build (shared with G2 if both sets run in one step; separate
+     steps each pay it);
+   - pass if the run adds at most 120 s wall time to its own pilots step and at most 250 MB per run. Time is measured offline
+     here and confirmed at the first publish.
+
+## 06:24Z: G1 option (a) result: `temperature_icon_0p125` PASSES parity, resolution and budget
+
+Instrument: `g1a_gate.py` (scratch). The publisher's own source (`IconOpenData0p125Source`) is given the same DWD map file it
+downloads, then frames are built, encoded and decoded. Comparison with .om `dwd_icon` `temperature_2m` at all 2879 x 1441 shared
+nodes, run 2026-11-16 00Z:
+
+| hour | grid | equal to .om | median / p99 / max abs (degC) | control: .om of another hour (equal / median / p99) | gz bytes | gate |
+|---|---|---|---|---|---|---|
+| f006 | 2880 x 1441, last column filled | 97.7 % | 0.00 / 0.00 / 6.95 | 1.5 % / 1.15 / 11.5 | 2,651,684 | PASS |
+| f048 | 2880 x 1441, last column filled | 97.8 % | 0.00 / 0.00 / 6.65 | 1.5 % / 1.15 / 11.5 | 2,661,506 | PASS |
+| f120 | 2880 x 1441, last column filled | 97.5 % | 0.00 / 0.00 / 5.95 | 1.5 % / 1.20 / 10.6 | 2,662,212 | PASS |
+
+About 2.3 % of nodes differ. Their maximum of 6-7 degC says that where they differ, the two pick a different cell (Open-Meteo's
+own nearest-cell rule against DWD's map), not a value error. Not traced further.
+**Budget.**
+- The map build takes 3.6 s with the file local; live it also downloads about 50 MB from DWD.
+- Each hour costs about 0.8-1.0 s for the fetch with its download, and 1.3-1.45 s to encode and check parity.
+- Per run (61 frames): about 162 MB, and about 140 s of CPU, about 25-50 s wall on the step's workers, estimated.
+- Inside the pre-registered 120 s and 250 MB. Time is to be confirmed at the first publish.
+
+**Tests:** +3 in `test_frame_set_raster_icon125.py` (estate, +3 floor fragment):
+- the key, nearest-cell source, hours, dark switch and one gated step;
+- a frame is the nearest cell's value in degC, and the map is read once;
+- the map is refused when DWD's cells are not this run's.
+
+Mutants 3 of 3 red: the order check dropped, the K-to-C conversion dropped, the map cache dropped.
+**Not done here:** the client key `ICON: 'ICON/weather/temperature/global_0p125'` (ownRasterFrames), which follows one publish and
+the director's flip, and the visual pairs.
 ## 06:27Z: ICON cloud at 0.125 degree pre-registered: `cloud_cover_icon_0p125` (written before any measurement)
 
 The director, 2026-11-16 01:18 EST: ICON `clct` by area mean on the same 0.125 module, own dark PR (stacked on #956).
@@ -396,6 +443,32 @@ temperature 162, cloud 218).
   on today (cloud 0.25, fog, precipitation GFS / EURO, pressure GFS / EURO / ICON, temperature GFS, EURO temperature 0.25, EURO
   water temperature) are all ok, each run 2026-11-16 00Z, 8.4 h old; exit 0. Merging this does not turn the monitor red.
 
+## 08:29Z: #957 (ICON temperature 0.125), the advisor's two questions: the table reconciled, the differing nodes located
+
+Instrument: `g1a_where.py` (scratch), the same run (2026-11-16 00Z), all 4,148,639 shared nodes, our quantised plane against .om
+`temperature_2m`.
+- **Reconciled.** The "97.5-97.8 % equal" in the 06:24Z table used |d| < 1e-6. That is stricter than the data: .om stores
+  float32, so most "differing" nodes differ by float32 representation alone (median of those, 0.0000015 degC). The table's p99 of
+  0.00 was right; its "equal" share was the wrong instrument. With a sensible threshold:
+
+| hour | > 1e-6 (the old "differ") | > 0.025 (half a quantum) | > 0.5 degC | > 2 degC | p99.9 | max |
+|---|---|---|---|---|---|---|
+| f006 | 2.27 % | 0.04 % | 0.008 % (348 nodes) | 0.0011 % | 0.00 | 6.95 |
+| f048 | 2.17 % | 0.04 % | 0.009 % (372) | 0.0013 % | 0.00 | 6.65 |
+| f120 | 2.48 % | 0.04 % | 0.010 % (397) | 0.0014 % | 0.00 | 5.95 |
+
+- **Where the > 0.5 degC nodes are.** Comparing their share of these nodes with their share of the map:
+  - on land: 89-92 % of them;
+  - in rough terrain (a > 300 m height step to a neighbour, from ICON HSURF): 28-30 %, against 4.6 % of the map (about 6 x
+    over-represented);
+  - on coasts (land fraction crossing 0.5 within the 3 x 3): 12-13 %, against 3.3 % (about 4 x);
+  - by latitude: mostly 30-80 degrees;
+  - none in the 179.875E column or the last 10 columns.
+
+  They are single scattered nodes in steep terrain and on coasts, where DWD's nearest-cell map and Open-Meteo's own nearest-cell
+  rule pick neighbouring cells of different height. Not a band, not a seam, and not clustered. About 1 node in 10,000 is
+  visibly different from today's map, by up to 7 degC on a mountain node.
+- Still before the client flip: a throttled phone step (2.65 MB a frame), #959 merged, and the publish time.
 ## 08:30Z: ICON cloud storage arms, pre-registered (the director: give the owner both numbers), written before any measurement
 
 **A correction first.** Cloud frames are ALREADY stored in 1 % steps: field 8 `cloud_pct` is one byte a node, scale 1.0
