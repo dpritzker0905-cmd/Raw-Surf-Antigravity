@@ -357,3 +357,10 @@ never pushed. Same harness and settings as section 10. Four runs in one chain: t
 Failed or not met: W4 (once of twice), W8d, W2b (unresolvable), W7 (picture contradicts value). Void: W14 (HRRR). No signal:
 W4b. Not run: W8a as amended, W12 (light, beach, phone), W11's whole-tree run. The blend stays off; no PR is opened as
 anything but a draft with these lines in it.
+
+## 12. The owner's blinded look (2026-11-17, 08:54 EST): NO CLEAR PREFERENCE. The wind blend stays OFF.
+Ten randomized pairs of hard cut against cross-fade, four of them wind; protocol and full table in the marine log
+(`2026-11-15-fable-crest-hour-blend.md` on `fable/crest-hour-blend`, sections 35, 40, 41). All ten: hard cut 5, cross-fade 3,
+no difference 2. The four wind pairs: hard cut 2 (dark desktop z3; dark phone z4), cross-fade 1 (beach desktop z3), no
+difference 1 (light desktop z4.5). As registered, anything short of 8 of 10 for the cross-fade means the blend stays off.
+With no preference for it and a gate that is not through (section 11), no wind PR is opened; this branch is the record.
