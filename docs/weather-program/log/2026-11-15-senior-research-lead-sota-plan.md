@@ -1844,3 +1844,59 @@ David, verbatim: "yes but it also has to pass a test after its turned on and liv
    - Fail: flip the kill switch through the runtime manifest (no deploy), confirm the old behaviour returns with one
      more read, and log the failure.
    - Ideally automated as a post-deploy workflow step, using the same one-read budget.
+
+## 2026-11-17 00:08 -0500 L1 AMENDMENT 2: the advisor's nine changes (red-team at fc0955e61, 04:41Z), adopted before any fetch or score
+
+Source: shared notes `redteam-985-L1-wave-ensemble-prereg-2026-11-17.md`. Where this conflicts with the draft or with
+amendment 1, THIS governs.
+
+**Baselines:**
+- **R2 made fair:** EMOS on the deterministic. The mean is linear in log R1; the spread is fitted per lead bin. Same fit
+  rule as E2 (rolling, below) and frozen the same way.
+- **R1 rebuild check FIRST:** DWD ICON wave open data is a rolling ~1-day archive, so the served three-model consensus
+  likely CANNOT be rebuilt for past periods.
+  - If not, R1 is a NAMED PROXY: the mean of the GFS-Wave deterministic and the ECMWF deterministic wave (open "wave"
+    stream), both archived. It is labelled "proxy, ICON absent" in every result.
+- **Climatology arm C** (the buoy's TRAIN day-of-year distribution) is REPORTED at every lead, so better shrinkage at
+  240 h is visible.
+
+**Fit:**
+- **PRIMARY is a ROLLING fit:** trailing 90 days, refit weekly, using only data published before each refit. This is
+  also what would be served. The frozen TRAIN fit is reported.
+- The window must include a winter: fitting starts on 2025-10-01 so TEST January already has a winter trailing
+  window.
+- **Versions:** list every GEFS-Wave and ECMWF IFS/wave version change in the fit and test periods. A rolling window
+  that spans an upgrade is refit from the upgrade date.
+- **Timing:** "issued before the valid time" becomes "PUBLISHED by then". Measure each product's publication delay and
+  apply it. The tide lane measured STOFS at 6.5 h.
+
+**Statistics:**
+- CRPS and coverage are computed in METRES, never in log space.
+- **Blocks:**
+  - Bootstrap by VALID date in ~10-day blocks; every buoy and every lead in a block go together, and basins are
+    resampled TOGETHER.
+  - About 170 test days gives about 17 blocks; this is stated.
+  - The 3-day blocks are reported beside them. A line that passes one and fails the other is FRAGILE.
+- **Pooling:**
+  - The registered statistic is the RAW pooled CRPSS (metres).
+  - Also reported: the mean of the per-buoy skill scores.
+  - Gate addition: NO basin's CRPSS may be negative.
+  - Why 5%: it is the smallest gain a surfer would notice as better-calibrated ranges, and above the order of the
+    model-to-model spread we see in deterministic skill. It is a judgement, stated as one.
+- **Coverage:** the 80% central-interval coverage uses the block bootstrap, not Wilson, since the samples are
+  autocorrelated. The pooled point must be in [0.75, 0.85], and per basin the block-bootstrap CI must include 0.80.
+
+**Controls:**
+- **Shuffled spread moves to REPORTED.** The exact procedure: shuffle within buoy and within lead bin.
+- **Registered consequence:** if E2's gain survives the shuffle, the PASS ships the simpler constant-spread form, not
+  a spread-driven one. Amendment 1a's spread-term CI is kept, as a report that decides that same form.
+- **VOID controls:**
+  - the null (R2 vs itself);
+  - the buoy derangement;
+  - NEW positive control: E2 with its spread HALVED must fail the reliability line AND score worse than E2.
+
+**Scope:**
+- **What a PASS ships (named):** an OPEN-OCEAN swell-height probability band, the 10th-90th percentile of offshore Hs
+  on the map's open-ocean swell layer and the buoy/offshore readout. It is NOT surf height at a spot.
+- Under D-080 it merges ON with a kill switch, contract tests 1-8 and the post-deploy dev check.
+- **ONE scored look at TEST.** Any change after it is a new registration on new data.
