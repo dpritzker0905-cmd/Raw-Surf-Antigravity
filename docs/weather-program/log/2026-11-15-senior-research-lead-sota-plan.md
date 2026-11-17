@@ -1609,3 +1609,13 @@ in this program under its open licence (re-confirm the terms in the PR).
   station profiles.
 - Both cover the proposed window.
 - Still [verify]: whether CMEMS GLO12 keeps past forecast runs.
+
+## 2026-11-16 21:40 -0500 Tide G3 control choice A (open for David): research lead recommends Option 1 (amend), with conditions
+
+- Amending is legitimate: no arm is scored yet, and the truth-only look revealed POWER, not a winner. A control that
+  VOIDs from low power tests nothing (L-S26).
+- Condition 1: the pooled constant-non-tidal control reports its paired block-bootstrap CI, and stays VOID-capable.
+- Condition 2: a failed shift control makes item 3 INCONCLUSIVE, and an inconclusive gating item makes the run
+  INCONCLUSIVE, never PASS. That way the amendment cannot make passing easier.
+- CMEMS GLO12 is settled by the tide lane (PUM 2.4): a sliding best-estimate, no past forecasts, zos without tides or
+  pressure. N1 is an analysis-only upper bound.
