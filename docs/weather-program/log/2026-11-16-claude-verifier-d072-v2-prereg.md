@@ -186,3 +186,30 @@ verdict, and nothing pages on the three-rule split.
     in-sample for the design;
   - the reference is an Open-Meteo product, allowed for a monitor under David's rule; the NOAA bulletin lane (#952) is
     not yet a reference.
+
+## 3. The owner's answer on rule 1 alone, recorded 2026-11-16 13:52Z
+
+**The question.** After section 2's FAIL, the advisor asked David whether rule 1 v2 should be adopted alone as a pager.
+
+**His answer, verbatim,** typed in the ADVISOR's session (local_b2fa8830) at 08:45 EST on 2026-11-16 (13:45Z), as relayed
+by the advisor: "If "not yet" is the SOTA way, than okay".
+
+**What it means.** The answer is conditional on "not yet" being best practice. The advisor told David why it is: a new
+alerting rule runs in SHADOW, logging what it would have paged and paging no one, until its false-page rate is known on
+live data, because a pager that fires on non-faults gets ignored. This replay could not measure that rate:
+- unseeded CHANGE drifted about -0.04 m in a fortnight, twice B1;
+- the sign-swap null cannot produce such a drift;
+- rule 1's design is in-sample for November after 1a-1d.
+
+**Decision: rule 1 does NOT page.** Nothing pages on the D-072 split.
+
+**Not decided here.** The next step is a short registration for a SHADOW run of rule 1:
+- what it would page on;
+- the +0.04 to +0.08 m detection floor, stated;
+- the reference, and whether the NOAA bulletin lane (`noaa:gfswave_station`, #952) replaces Open-Meteo once it has
+  history;
+- a fixed number of live days not yet seen;
+- the false-page line;
+- a volume cap for when it does page.
+
+That is a proposal for the director and David to accept. David's words above do not approve it.
