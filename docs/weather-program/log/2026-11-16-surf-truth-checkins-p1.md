@@ -171,6 +171,39 @@ Shared ui primitives + semantic tokens only. Rendered at 375 px in light, dark a
 `t1-p1-blind-observation/admin-surf-truth-3-themes-375px.jpg`); the audit card's phone stacking was adjusted after
 that render and not re-rendered. Tests: backend 6, frontend 4 (90 admin Jest pass); lint ratchet passes.
 
+## 23:20Z T1 P4 export built (stacked on anchors C): private, pseudonymized rows for the offline fit
+
+The research lead recommended I build both the export and the fit, with the research lead reviewing the fit before
+any run (builder and checker kept apart); the director assigns. The export is the safe next step either way.
+`POST /api/admin/surf-truth/export` (admin, logged) writes `surf-truth/exports/<date>/<run>.jsonl` + manifest to the
+PRIVATE `weather-products` bucket (create-only), the bucket #948's private rows use. Rows carry the raw entry, scale,
+typical/sets, flags, distances/ages, quality and XP status, role, anchor status AT received_at (event log), the spot
+(public id, coordinates, region) and received_at. Identities only as HMAC-SHA256 pseudonyms under the env var
+`SURF_TRUTH_EXPORT_KEY` (fails closed without it, 503). Never exported: names, profile ids, device or photo positions,
+photo URLs, face_m. Only flow='blind_v1'. Correction to my own pre-registration wording: the export is ROW-LEVEL
+(pseudonymized, private), not aggregate; "aggregate-only" applies to anything shown outside private storage.
+7 tests (one mutation: a pseudonym returning the raw id fails the no-identity test); surf-truth suites 96 pass.
+Owed by David: set SURF_TRUTH_EXPORT_KEY (>= 32 random bytes) on the Render service before the first export.
+
+## 2026-11-16 22:59Z Clock correction, and the advisor's limits on #990 (header read from `date -u`)
+
+CLOCK CORRECTION (append-only). Every earlier "HH:MMZ" header in this file was ESTIMATED, not read from a clock; at
+least one ran ahead ("23:20Z": the export commit 06a1c1a70 is 2026-11-16 22:44Z). The authoritative time of every
+section is its git commit time. From here on, header times are read from `date -u`.
+
+#990 limits taken (advisor 22:52Z by the advisor's clock):
+- received_at is exported rounded down to the minute; the module header now says the export is PERSONAL DATA:
+  pseudonymous, not anonymous (spot + minute + stable key re-identifies against the database).
+- Key rotation re-keys every observer; the manifest records a key fingerprint so a fit never mixes two keys, and a
+  rotation means a full re-export.
+- `since` is exposed on the route; anchor status is looked up per profile (events indexed by profile).
+- Orphans: data object, then manifest, then log line. The fit reads only manifested exports; an orphan is ignored.
+
+PROPOSED retention and deletion rule, for David with the consent question (P3 builds it; no real export runs before
+his answer): keep at most the 3 newest exports; any account deletion triggers, within 7 days, a fresh export and the
+removal of every older export and every orphan; a key rotation removes all exports made under the old key. Standing
+item, also David's: the service-role key the fit will use in Actions should be restricted to a GitHub Environment.
+
 ## 2026-11-17 02:29Z CLOCK CORRECTION (from `date -u`; append-only)
 
 The header '18:50Z Advisor conditions on #980 (three) and #981 (one) closed' ran AHEAD of the clock: it was committed at 2026-11-16T18:30:13Z, 20 minutes before the time it
@@ -184,3 +217,7 @@ The header '19:10Z Anchors B built locally (stacked on anchors A): admin API + a
 ## 2026-11-17 02:51Z CLOCK CORRECTION (from `date -u`; append-only)
 
 The header '22:30Z Anchors C: the admin "Surf truth" area' ran AHEAD of the clock: it was committed at 2026-11-16T22:09:00Z, 21 minutes before the time it states (an estimate; LESSONS L-P10).
+
+## 2026-11-17 02:57Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '23:20Z T1 P4 export built (stacked on anchors C): private, pseudonymized rows for the offline fit' ran AHEAD of the clock: it was committed at 2026-11-16T22:46:20Z, 34 minutes before the time it states (an estimate; LESSONS L-P10).
