@@ -1111,3 +1111,30 @@ by the director's sweep, so there was nothing for this lane to merge.
 - **G3b addendum 2, item 2, is confirmed (no longer only relayed):** a PASS means the owner's word to MERGE, and the
   change ships ON by default with a kill switch, CI kill-switch contract tests, and the automatic fall-back to the tide
   alone when STOFS is missing or stale.
+
+## 23:13 EST 2026-11-16 (`date`) - the TRUE ORDER around the G3 start (advisor 04:13Z); G3b draft has no open point from the advisor
+**What happened, in order (UTC):**
+- ~03:31Z: I asked the advisor to read the reader fix (32788fa95) "before the G3 start".
+- 03:33Z (22:33 EST): the owner said "Yes, start G3".
+- 03:34:23Z: I pushed the tag; run 44011150843 was created at 03:34:21Z.
+- 03:36Z: the advisor accepted the fix; its clearance carries.
+
+**So the start came two minutes BEFORE the read it was waiting for.** The code is byte-identical to the accepted code
+(the advisor verified it), and the advisor's earlier clearance (c26af8597) predated the fix. The log line "advisor
+accepts the reader fix (clearance carries)" (37763ad0e) sits AFTER the start.
+
+**Consequences:**
+- **The pre-window-cycles stage line is not in the running code.** The count is taken instead from the result's own
+  fields: `stofs2d <kind>: N cycles` in the stage log (~100 expected per kind; ~70 would mean the pre-window was not
+  read), and the before/after-08-16 reference line (a missing "before" value means those cycles were not read).
+- **The naming of the swl before/after difference** (37763ad0e, 03:40Z) came AFTER the start but BEFORE any execution:
+  the advisor saw the run still QUEUED at 04:13Z (Actions backlog). It therefore stands as written "before any result".
+
+**G3b DRAFT (64772904a + owner confirmation 316e3e8e7):** the advisor reports NO OPEN POINT. It becomes FINAL with the
+research lead's read, and then the code goes to the advisor before any G3b data is fetched. One addition for the final
+text: the **18 h trip is intended as "one missed cycle"**. With a 6.5 h publication delay and 6-hourly cycles, the
+normal age tops out near 12.5 h. The CI test covers the trip itself (stale STOFS input gives the tide-only level and
+the on-screen words), not only the manual kill.
+
+**#987** merged at 00:57Z (director's sweep), ~3 h BEFORE the advisor's pass at 03:46Z. The pass found nothing wrong;
+the advisor is raising the merge-before-verdict with the director.
