@@ -110,3 +110,13 @@ def test_g3_gate_preflights_before_truth_and_logs_no_scores():
         t = line.strip()
         if t.startswith("log(") or t.startswith("stage(") or " log(f" in line:
             assert not re.search(r"rmse|score\[|items\[|verdict|\bi1d\b|P1_minus", t), t
+
+
+def test_amendment_a_shift_is_not_a_void_control_and_constant_is_pooled():
+    """Owner 21:37 EST ("Amend them"): the +24 h shift check can only make item 3 inconclusive; the constant check
+    reads pooled gauge-hours; positive and label swap stay VOID controls."""
+    src = (BACKEND / "scripts" / "tide_g3" / "g3_gate.py").read_text(encoding="utf-8")
+    block = src[src.index("    controls = {"): src.index("    # AMENDMENT A: a failed")]
+    assert "shift" not in block and "positive_noaa_constants" in block and "negative_label_swap" in block
+    assert "G.pooled_diff(const, P1, obs, all_pairs" in src and "G.verdict(items, controls, item3_effective)" in src
+    assert G.verdict({"1": True}, {"pos": True, "swap": True, "const": True}, False) == "INCONCLUSIVE"

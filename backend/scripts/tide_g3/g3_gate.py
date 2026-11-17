@@ -323,14 +323,20 @@ def score(x):
     # The non-tidal term replaced by its own pre-window mean: N2 is referenced to that mean, so the constant is 0 and
     # the constant arm is P1 - N2.
     const = {g: P1[g] - nt[g] for g in gauges if g in nt}
-    c_vs_r = G.paired_median_diff(const, P1, obs, gauges)
+    # AMENDMENT A (owner 21:37 EST; log 30f2baea2): the constant control reads POOLED squared error over all gauge-hours
+    # (units gauge x 2-day blocks), which the surge gauges can move, not the median gauge.
+    all_pairs = [(g, h) for g in gauges for h in range(H)]
+    c_vs_r = G.pooled_diff(const, P1, obs, all_pairs, G.calm_units(all_pairs, H))
     shifted = {g: P1[g] - nt[g] + G.shift_hours(x["N2x"][g], 24)[:, 24:] for g in gauges if g in x["N2x"]}
     sh = G.pooled_diff(shifted, P1, obs, storm_pairs, storm_units) if item3_ok else (None, None, None)
+    shift_ok = bool(item3_ok and sh[1] is not None and math.isfinite(sh[1]) and sh[1] > 0)
     controls = {"positive_noaa_constants": bool(math.isfinite(pos_med) and pos_med <= G.POSITIVE_MAX_M),
                 "negative_label_swap": bool(math.isfinite(swap) and swap > G.SWAP_MIN_M),
-                "negative_constant_nontidal_loses_item1": bool(math.isfinite(c_vs_r[1]) and c_vs_r[1] > 0),
-                "negative_shift24h_loses_item3": (bool(sh[1] is not None and math.isfinite(sh[1]) and sh[1] > 0) if item3_ok else None)}
-    verdict = G.verdict(items, controls, item3_ok)
+                "negative_constant_nontidal_loses_item1_pooled": bool(math.isfinite(c_vs_r[1]) and c_vs_r[1] > 0)}
+    # AMENDMENT A: a failed +24 h shift check makes ITEM 3 inconclusive (exactly as "not runnable"), never the run VOID.
+    item3_effective = bool(item3_ok and shift_ok)
+    item3_status = "runnable" if item3_effective else ("inconclusive: shift check failed" if item3_ok else "not runnable")
+    verdict = G.verdict(items, controls, item3_effective)
     # reported
     oracle = {g: np.tile(x["pred"][g] + G.shift_hours(resid[g] + x["pre_mean"][g], 24), (3, 1)) for g in gauges}
     open20 = [g for g in gauges if g not in G.ESTUARY]
@@ -354,13 +360,13 @@ def score(x):
             "item1": {"P1_minus_D": i1d[:3], "P1_minus_C": i1c[:3], "demeaned_P1_minus_D": i1d_dm[:3],
                       "demeaned_P1_minus_C": i1c_dm[:3], "per_gauge_P1_minus_D": i1d[3]},
             "item2_gauges_worse": item2_g,
-            "item3": {"runnable": item3_ok, "label": G.LOW_POWER, "storms": [{"region": s["region"], "gauges": sorted({m[0] for m in s["members"]}),
+            "item3": {"runnable": item3_ok, "status": item3_status, "shift_check_passed": shift_ok, "label": G.LOW_POWER, "storms": [{"region": s["region"], "gauges": sorted({m[0] for m in s["members"]}),
                       "start": hours[s["members"][0][1]].isoformat()} for s in storm_list], "surge_hours": surge_h,
                       "P1_minus_A": i3},
             "item4_calm": {"P1_minus_A": i4, "n_pairs": len(calm)},
             "item5": {"median_hilo_min": _med(hilo_meds), "median_abs_mllw_err_m": _med(mllw)},
             "controls": controls, "control_values": {"positive_median_m": pos_med, "label_swap_m": swap,
-                                                     "constant_minus_real_item1": c_vs_r[:3], "shift_minus_real_item3": sh},
+                                                     "constant_minus_real_pooled": c_vs_r[:3], "shift_minus_real_item3": sh},
             "reported": {"open20_P1_minus_D": open_i1[:3], "arms": per_arm}}
 
 
@@ -373,7 +379,7 @@ def markdown(r):
     lines = [f"## Tide M1 gate {r['registration']}: **{r['verdict']}** (primary {r['primary']})", "",
              f"Item 1 (P1 - D, P1 - C; point, 95% CI): {r['item1']['P1_minus_D']}, {r['item1']['P1_minus_C']}. "
              f"Items: {r['items']}. Controls: {r['controls']}. Item 3 ({r['item3']['label']}): runnable "
-             f"{r['item3']['runnable']}, {r['item3']['P1_minus_A']}. Datum label: {r['datum_label']}.", "",
+             f"{r['item3']['runnable']} / {r['item3']['status']}, {r['item3']['P1_minus_A']}. Datum label: {r['datum_label']}.", "",
              f"S1 unavailable at: {r['s1_unavailable_gauges']} (each counts against P1 in item 2: {r['item2_p1_undefined_count']}).", "",
              "| arm | gauges | median RMSE raw | open-20 | by lead | bias / sd |", "|---|---|---|---|---|---|"]
     for k, v in r["reported"]["arms"].items():
