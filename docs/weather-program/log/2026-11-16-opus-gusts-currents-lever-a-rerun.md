@@ -21,3 +21,15 @@ The registered line: Fast 4G step p50 <= 1.5x the same set's unthrottled step p5
 - The unthrottled step p50 moved 188 -> 238 ms (GFS) between runs on the same machine; the ratio is the registered measure,
   and the Fast 4G absolute steps also fell (GFS 328 -> 234, ICON 873 -> 220 ms).
 - Result: lever A passes the registered gate for every set. B (the 0.5-degree tier) stays parked.
+
+## Advisor review (appended 2026-11-17 ~00:40Z; the advisor's read of d5fd2fb83, condition 3 closed, review only)
+- STRONGER EVIDENCE, against the OLD §10b unthrottled baselines: Fast 4G step GFS 234 / 188 = 1.24, EURO 224 / 178 = 1.26,
+  ICON 220 / 179 = 1.23, currents 175 / 176 = 0.99. All under 1.5 whichever baseline is used, so the pass does not depend on
+  the baseline drift (ratios below 1 in the table above are that drift, not a link faster than none).
+- PREDICTION MISSED: §12 predicted ICON ~490 ms (fail); it measured 220. Scaling the excess delay by the byte ratio was the
+  wrong model: once a frame arrives inside the prefetch window the step stops waiting on the wire at all.
+- Limits that stay: (1) the instrument drifts ~25 % between sessions on one machine, so a line closer than that needs an A/A
+  first; (2) EURO is n = 3 steps; (3) lab only (synthetic backend, local CDN): a look on the dev site is owed after merge;
+  (4) the first pilots run after merge rebuilds every content-carried set once (the frame-carry budget gate should not count
+  it); (5) Slow 4G p95 steps 7-9 s remain a product question for David; (6) #928 edits MapWeatherControls.js (Codex-reserved):
+  merge order is the director's.
