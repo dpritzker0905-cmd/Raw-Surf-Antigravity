@@ -35,3 +35,47 @@ read wind at those hours move too. So it ships with its code default ON, a kill 
 SCOREBOARD row, and the default-on history filter before merge. It also adds about 80 hourly wind frames to the FRAMES
 step, inside #996's 1,500 s. The first pilots run after it merges rebuilds the wind set with new hours, so under the
 frames-budget plan's item 3 it is excluded and named before its gate lines are read.
+
+## 16:20Z: step 3 written before merge (the advisor's condition, 16:17Z), and a blocker found while sizing it
+
+### Peak storage: measured, and it does not fit the GC as configured
+
+Read-only SQL over `storage.objects` (bucket weather-products, production project), ~16:30Z:
+
+| weather-products | objects | GB | rewritten in the last 4 h | new names created in 24 h |
+|---|---|---|---|---|
+| top-level product objects (the GC's domain) | 21,803 | 9.04 | 18,262 (8.30 GB) | 1,961 |
+| nested (snapshots, manifests, calibration, ...) | 3,327 | 51.56 | 242 | 289 |
+
+- **Today**, each 4-hour cycle overwrites about 18,000 product objects IN PLACE under the same legacy name. Storage stays flat.
+- **With run-keyed names**, every such write whose run or content changed is a NEW object. The old one waits for the GC.
+- **The GC deletes at most `PRODUCT_GC_MAX_DELETE` = 500 objects a sweep.** It sweeps only in `ingest_forecast_ci.py` (core every
+  4 h, pilots every 8 h), so about 750 deletes per 4 hours. No workflow raises the cap.
+- **Projected growth**, if 25-100 % of the 18,262 writes per cycle carry a new run or content:
+  - +4,600 to +18,000 objects and about +2 to +8 GB per 4 hours, against 750 deletes;
+  - so about **+12 to +50 GB a day**, from 62.6 GB of the Pro plan's 100 GB included;
+  - the allowance is passed in about 1 to 3 days.
+- The design log's own reopen line, "storage growth exceeds one extra run of objects", would trip within the first day.
+- **The expected peak with a GC that keeps up:** each superseded object lives two sweeps a grace apart, so legacy + current +
+  marked coexist, about 9.0 + 2 x 8.3, so about **26 GB of top-level products (+17 GB), about 79 GB in all**. That is only
+  reachable if the cap is at least the number of objects superseded per sweep.
+
+**So #1005 must NOT merge as it stands.** The fix is a decision for the advisor and David, not made here:
+- raise `PRODUCT_GC_MAX_DELETE` in the env of the GC-running lanes (forecast-ingest, forecast-ingest-pilots) to at least twice the
+  objects superseded per cycle (about 40,000), with the head-size, 95 % and grace guards unchanged;
+- or sweep in batches.
+Either way, the change deletes up to tens of thousands of production objects per sweep (only unreferenced and already marked
+ones). First measure the real new-object rate: one cycle with the flag on in ONE writer, counting `created_at` per cycle.
+
+### The trip rule (a kill = the repository variable PRODUCT_RUN_KEYED_NAMES = '0', David's word, or a revert)
+
+Any one of:
+- one "Stored product path not found" for a run-keyed name in an ingest or box log;
+- the top-level product object count not back within one run's worth (about +18,000) of its pre-flip 21,803 after two sweeps;
+- the bucket total rising more than 10 GB above 60.55 GB;
+- a GC summary showing `deleted` pinned at the cap two sweeps running.
+
+### The served fact this fixes (SCOREBOARD row added)
+
+A pilot tile's `run_time` on the box. The Cocoa Beach GFS tile served the 10-30T18Z run for 51 h while storage and the manifest
+had moved on (log 2026-11-01-claude-run-keyed-products.md). After the change: it follows the manifest within one restore.
