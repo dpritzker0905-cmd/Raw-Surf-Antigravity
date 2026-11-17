@@ -30,3 +30,15 @@ GFS global_mid wind (/grid and the static wind frames) at the 2 of every 3 hours
 - **Frames step:** the wind set was 29-38 s a run; hourly adds about 80 frames, so roughly +25 s inside #996's 1,500 s.
 - **Under the frames-budget plan's item 3:** the first pilots run after this merges builds the new hours once. It is excluded,
   and named before that run's gate lines are read.
+
+## 16:18Z: what the evidence is, and what checks it (the advisor's condition, 16:17Z)
+
+- **The default-on history filter did not evaluate this flag.** The PR's check "filter" is green, but its log reads "SKIPPED the
+  history replay: no cache", and its row is `FRAME_WIND_GFS_HOURLY | SKIPPED | no | no cached history window`. The filter is
+  also blind to it by design: its primary is wave height at stations, which hourly wind does not move.
+- **The live guardrail (flag-guardrail.yml) is BLIND to wind.** Nothing will auto-disable it. The registry tag now says
+  "guardrail BLIND, filter SKIPPED".
+- **The evidence is an offline hold-out of 3 GFS runs, model against model:** 0.89 m/s vector RMSE between our best interpolation
+  and NOAA's own hourly field. It is NOT a skill test against observations. The reason to ship is that it replaces our
+  interpolation with NOAA's published field at those hours, not a measured gain at the buoys.
+- **The kill switch:** the repository variable FRAME_WIND_GFS_HOURLY = '0' (David's word), or a revert PR.
