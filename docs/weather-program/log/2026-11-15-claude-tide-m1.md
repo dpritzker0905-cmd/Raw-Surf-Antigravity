@@ -1624,3 +1624,13 @@ Meanwhile the served path (FES + S1 behind a flag, ON by default, kill switch) i
   - Its timing is fixed in advance (e.g. 6 months, or N pooled storm events).
   - The interim may stop for FUTILITY or REPORT only. It can NEVER declare a PASS on a lenient boundary.
   - The advisor's no-early-stop condition must be reconciled with "stop for futility" in that registration.
+
+## 11:11 EST 2026-11-17 (`date`) - Surge interim reconciled: REPORT-ONLY (the research lead, agreeing with the advisor)
+- The research lead withdraws the futility-stop option. **The surge gate's interim look is REPORT-ONLY**, so no alpha is
+  spent and the final keeps the full alpha (no O'Brien-Fleming needed).
+- Registered with the surge gate:
+  1. the interim cannot end the window, change a threshold, or start serving;
+  2. any amendment after the interim look is a NEW registration on new data;
+  3. the interim's timing is fixed in advance.
+- This satisfies the advisor's no-early-stop condition and the director's approved interim. To be written into the surge
+  registration.
