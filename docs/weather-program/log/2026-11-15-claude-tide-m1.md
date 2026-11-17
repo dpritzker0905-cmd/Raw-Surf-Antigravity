@@ -1634,3 +1634,125 @@ Meanwhile the served path (FES + S1 behind a flag, ON by default, kill switch) i
   3. the interim's timing is fixed in advance.
 - This satisfies the advisor's no-early-stop condition and the director's approved interim. To be written into the surge
   registration.
+
+## 11:40 EST 2026-11-17 (`date`) - G3t DRAFT addendum 2: the advisor's read (16:26Z), six changes ADOPTED; the licence texts, read
+The advisor read 755115a37, 9d56192d1 and 3352b895c: the split is right and the draft is close. The report-only surge
+interim satisfies the advisor's condition. All six changes are adopted below, none needs data, and nothing has been
+fetched.
+
+### 1. Licence: the FES and altimetry products may be served commercially (texts read in full, not summarised)
+**FES2022b heights: SERVABLE.** The AVISO License Agreement, Issue 20, "ACCEPTED - August 2026", effective 2026-08-10
+(https://www.aviso.altimetry.fr/fileadmin/documents/data/License_Aviso.pdf), read in full on 2026-11-17:
+- **The grant (2.1):** the license allows "produce, reproduce, and Share Adapted Material (Value-Added Products or
+  Derivative Works), for any purpose, including commercial purposes".
+- **The exception (3.3, Annex A):** the only FES restriction is on "Currents from the latest released version of the
+  FES ocean tide model (currently FES2022)", which are "Non-commercial use only". Tidal HEIGHTS are not listed. Annex A:
+  "All other AVISO Data Products ... are licensed under the full terms of Section 2.1(A)-(B), including for Commercial
+  Use".
+- **Agreeing source:** the FES2022 release page says "The heights products can be used for any purpose (scientific,
+  commercial,...)".
+- **Distribution (3.2):** it forbids Sharing the ORIGINAL, unmodified product "through any operational platform intended
+  for onward mass distribution" without CNES's written authorisation. It "does not restrict Sharing Adapted Material"
+  or internal use.
+  - **Consequence for the build:** the served backend may hold the constants internally and serve PREDICTIONS (a
+    derivative work).
+  - It must NEVER expose the FES constants or atlas files through an API or a public bucket.
+- **Attribution (3.1), required wherever predictions are shown:**
+  - the creators and CNES as Licensor;
+  - the citation "CNES, 2024. FES2022 (Finite Element Solution) Tidal model (Version 2024). CNES.
+    https://doi.org/10.24400/527896/A01-2024.004" (the release page also asks for "The FES2022 Tide product was funded by
+    CNES, produced by LEGOS, NOVELTIS and CLS and made freely available by AVISO");
+  - a link to the License;
+  - a note that the material was modified (we compute predictions at spots).
+- **Records (7.3):** keep "reasonable records of AVISO Data Product usage where distribution is at scale".
+- **Code:** PyFES is GPL, so it stays offline (gate and constant extraction only). The served path evaluates the stored
+  constants with non-GPL code. Change 5 below makes that path match the gate.
+
+**Altimetry climatology (S1, CMEMS `SEALEVEL_GLO_PHY_L4_MY_008_047`): SERVABLE.** The "Licence to use the Copernicus
+Marine Service products" (https://marine.copernicus.eu/user-corner/service-commitments-and-licence; no version or date
+stated; read 2026-11-17):
+- **The grant (2.1-2.2):** free of charge, worldwide, perpetual. It covers to "modify, adapt, develop, create and
+  distribute Value Added Products or Derivative Work" "for any purpose".
+- **Credit (2.3-2.4):** the credit must be "clearly visible" on the home page or the product access page, worded
+  "Generated using E.U. Copernicus Marine Service Information;" plus the product DOI.
+- **Records (2.6):** keep records of use.
+
+**The owner's call:** the licence texts are above, and the PDF's extracted text is in the shared notes folder
+(`tide-overlay-2026-11-15/aviso-license-issue20.txt`).
+- On these texts, P = FES2022b + S1 can ship, so the primary does not change.
+- EOT20 (CC BY 4.0) is NOT needed as a licence fallback and stays out of G3t.
+
+### 2. Item 3 split: the mean level and the seasonal cycle are tested separately
+S1 = M + S:
+- **M** = the gauge cell's mean SLA over the base 2016-01-01 .. 2025-12-31 (one constant per gauge: the present mean
+  level against 1993-2012).
+- **S** = the day-of-year mean minus M (the seasonal anomaly, zero-mean over the year).
+
+Arms (all reported; one primary):
+- A;
+- A + M;
+- **P = A + M + S (primary, unchanged in substance)**.
+
+Item 3 becomes:
+- **3a:** (A + M) - A has its upper end < 0 (the mean level helps).
+- **3b:** P - (A + M) has its upper end < 0 (the seasonal cycle earns its place).
+
+Both must hold. The 2-day block bootstrap is unchanged.
+
+### 3. The phase control can no longer VOID
+- **A + M + S_shifted** (S shifted 182 days, wrapped) is a REPORTED line beside 3b. It is also folded into 3b as a
+  condition: the shifted arm must not beat P (the point of (A + M + S_shifted) - P must be > 0).
+- A seasonal term that adds little is a FAIL of 3b, a finding about the term, not a broken instrument.
+- The VOID controls are the positive control (NOAA's constants vs NOAA's predictions <= 0.01 m) and the label swap
+  (> 0.3 m).
+
+### 4. Named datum outcome (as in G3)
+- Observed water is on the 1983-2001 station datum, and gauges move with the land; altimetry does not see subsidence
+  (Gulf: centimetres per decade).
+- **If item 1 or 2 FAILS on the raw score while PASSING mean-removed, the outcome is named "a datum finding: the level
+  needs a per-place reference".**
+- The VERDICT STAYS THE RAW ONE (FAIL). Per-gauge raw and mean-removed bias is printed so the gauges responsible are
+  named.
+
+### 5. Parity: the served path must equal the gated arm (a merge condition, registered now)
+- Before any merge after a PASS, the served code (stored FES constants evaluated without PyFES, plus M + S) is evaluated
+  at the 26 gauge positions for every hour of the window. It is compared with the gate's arm P.
+- **The line:**
+  - max |served - gated| <= 0.010 m;
+  - RMS <= 0.003 m;
+  - every High/Low time within 6 min.
+- It needs no truth. It is a CI test that ships with the served path.
+- A miss blocks the merge until the served path is fixed. The gate is not re-run.
+
+### 6. Scope against what ships
+**The on-screen label, until a gate covers the place:**
+- "Tide + seasonal level (no storm surge). Checked against NOAA gauges on US coasts; unverified elsewhere."
+- The credit line (change 1) sits with it.
+- On spots outside the US, "unverified elsewhere" is shown.
+
+**Non-US gauges, REPORTED in this same run** (one fetch, one look):
+- The UHSLC fast-delivery network's hourly gauges outside the US, with >= 80% coverage in the window.
+- Mean-removed and raw printed; no gating.
+- The station list is fixed in the code review before any truth.
+
+### Smaller (adopted)
+- **Item 5 (the beach-gauge no-harm guard)** is a POINT value on as few as 5 gauges, with no interval. This is
+  DELIBERATE (the research lead's and mine): it protects the served surface, and the strictness is accepted.
+- **Sheltered-water exclusion for item 5, fixed from metadata before any value is read:**
+  - a gauge is excluded if its station name or provider metadata places it in a harbour, marina, canal, river, sound or
+    back-bay;
+  - or if it lies more than 1 km inside an inlet mouth, measured on the coastline used for the land mask.
+  - The excluded list is printed with reasons in the code review.
+- **C and D at the latest run** (Open-Meteo's current forecast) are printed as REPORTED rows beside 24-48 h and 48-72 h
+  ("what a user sees today").
+- **Trend variant (reported only):** M carried forward by the base period's linear SLA trend at the cell, to the window's
+  mid-date.
+
+### Unchanged
+- The window and the truth.
+- Items 1, 2 and 4.
+- Item 5 (now with its exclusion rule).
+- Coverage and VOID rules; seed and bootstrap.
+- Ship-ON on PASS plus the owner's merge (D-080).
+- The sequence: FINAL, then the code to the advisor, then the owner's word under the one-shot tag `tide-gate-G3t`.
+- No v2.1 arms unless the owner adds them before FINAL.
