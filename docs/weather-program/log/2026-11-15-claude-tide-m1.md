@@ -1578,3 +1578,28 @@ G3's surge items (3: surge hours; 4: calm hours) do not apply: there is no non-t
 5. The owner's word for the run under a new one-shot tag `tide-gate-G3t`.
 
 Meanwhile the served path (FES + S1 behind a flag, ON by default, kill switch) is built on a branch and not merged.
+
+## 11:04 EST 2026-11-17 (`date`) - Advisor (15:50Z, written before the G3t draft at 755115a37 was pushed): reconciliation CONFIRMED; six conditions for the SURGE registration; one note on Jan .. Jul
+- **Confirmed:** cwl - htp is a fair arm at gauges that do not feed NOAA's correction. The right shape is non-CO-OPS gauges
+  as the gating truth, with CO-OPS reported as a near-gauge upper bound.
+- **Six conditions before the SURGE registration (none needs data):**
+  1. **Feed:** confirm in writing, from NOAA or the provider, that only NOS/CO-OPS stations feed the correction, and that
+     no truth gauge is ingested by CO-OPS or co-located with a CO-OPS station (same pier = not independent).
+  2. **Distance:** fix now the distance from every truth gauge to the nearest CO-OPS station, and report the score by
+     distance band. That curve, registered before any result, is the answer for surf spots.
+  3. **Datum, per gauge, from its metadata:** either a surveyed datum (raw level gates), or "level unknown, scored after
+     a causal mean removal", stated as not certifying absolute level there.
+  4. **Quality rule before any value:**
+     - provider flags, minimum completeness, and spike and flat-line exclusion;
+     - a positive control fitted to these gauges (e.g. a nearby CO-OPS station's predicted tide, shifted).
+  5. **Scope and power:** NC/SC/FL is one coast. Restate the storm minimum for this truth set, and say a PASS licenses that
+     coast only (nor'easters and fronts).
+  6. **Seen:** list any values anyone has read from these gauges, with their dates. Nothing may come from the prospective
+     window.
+- **Jan .. Jul:** the advisor offers a single-registration option: G3t's tide + seasonal primary, with the v2.1 surge
+  arms REPORTED in the same run on the same truth, labelled "retired version, CO-OPS truth, near-gauge upper bound".
+  - That is one fetch of truth and one look. What must NOT happen is two runs on that window one after the other.
+  - Status: the research lead (10:40 EST) and the director (10:46 EST) both DROP the v2.1 run, and the research lead
+    judges the ~64 GB not worth it.
+  - The G3t draft therefore carries no v2.1 arms. If the owner wants them, they must be added to G3t BEFORE FINAL; they
+    can never be a second run on the window.
