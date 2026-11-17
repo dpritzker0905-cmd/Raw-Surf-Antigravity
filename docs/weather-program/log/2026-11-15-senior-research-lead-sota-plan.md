@@ -2216,3 +2216,30 @@ Leads are +24 / +48 / +72 h; n is 4,623 / 4,394 / 4,670.
   bias/SD; lead x basin x Hs tercile; per-buoy top 5; served vs equal mean with the member count present. No agent
   handles the key. The director assigns it.
 - **Ranking:** rank 9 (missing-member blend fix) moves UP. Skill and spread levers outrank the bias term.
+
+## 2026-11-17 14:05 EST ROOT CAUSE of the big-swell loss, from the record: the equal-mean consensus is NOT SERVED (it is blocked by a build defect)
+
+Code and record, read on origin/dev:
+- `CONSENSUS_SERVE` is '0' in forecast-ingest.yml and precompute.yml (and spot-series). Users get GFS marine waves,
+  with the scalar-height fix (flipped 2026-10-17) and the Southern California Bight GFS+EURO composition.
+- D-006 (owner, 2026-09-29) chose the EQUAL mean. Held-out, big swell: GFS 0.464 / 0.580 / 0.872 vs equal
+  0.432 / 0.432 / 0.645 m at 24 / 48 / 72 h. That matches today's monitor reading (served 0.657 vs equal 0.576 at +24 h,
+  0.761 vs 0.646 at +72 h).
+- **Why it is not flipped (STATE, 2026-11-14):** "DO NOT ... flip CONSENSUS_SERVE until the built product is fixed".
+  The BUILT shadow loses to the plain mean of its own members by about 0.07 m at +48/+72 h, and by 0.10-0.20 m where
+  EURO or ICON had no stored product at the point. It matches where both had one.
+- The suspected cause is FAR-WATER FALLBACK sampling (log `2026-11-14-fable-shadow-interp-grouping.md`, #870 merged).
+  - Its pre-registered reading rule: FALLBACK IS THE CAUSE / REFUTED / UNDECIDED / UNTESTABLE.
+  - It is due "no earlier than 2026-11-16", via the dispatch-only, read-only, aggregates-only `scored-rows-gate.yml`,
+    on the owner's dispatch. It is DUE NOW.
+
+**This is the single biggest SOTA lever in the offshore chain:**
+1. Dispatch scored-rows-gate (owner's word). It is read-only CI, aggregates only, with no live load.
+2. If "FALLBACK IS THE CAUSE": fix the blend so a member answered by a fallback path is refused (the cell keeps the
+   equal mean of the stored members, or GFS). That is a served change with its own test.
+3. Re-read construction fidelity: shadow vs the equal mean within 0.02 m at every lead.
+4. Flip `CONSENSUS_SERVE` '1' with `CONSENSUS_SERVE_KEEP_GFS` 'hawaii' (D-006 caveat; ledger seq 215), ON under D-080,
+   with the kill switch (all three places plus Render), the contract tests and the post-deploy check.
+- Expected gain (D-006 held-out): about 6-10% all-sea MAE, and 7-26% in big swell. That is most of the 6-10 cm paired
+  gap to the test reference.
+- The ASK 16 aggregates (per member including GFS, bias/SD, strata) can ride the same scored-rows job.
