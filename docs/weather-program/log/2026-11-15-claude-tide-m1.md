@@ -1181,3 +1181,15 @@ the advisor is raising the merge-before-verdict with the director.
   - Bootstraps a few minutes.
   - **Estimate ~45 min.** The gate step's timeout is raised from 120 to **180 min** in the same commit (plumbing; the
     trigger block is untouched). A cache miss (2 h 16 m) + 180 min still fits the 355 min job limit.
+
+## 08:43 EST 2026-11-17 (`date`) - G3 PILOT RE-RUN on the owner's word (recorded before any output is opened)
+- **Owner, typed in this session, 08:36 EST: "Yes, re-run G3".** Advisor (08:41Z): clearance carries to 4815f4eee.
+- **The previous run produced nothing:** 44011150843 was NO VERDICT (aborted before any STOFS, reference or truth
+  stage; the window is unseen).
+- `tide-gate-G3` was deleted on the remote and re-created on **4815f4eee4472818c207c90537f21d93e3746f7f** (pushed
+  13:39:55Z). Checked before the push: the branch head IS that commit, its trigger is the tag only, and the gate step
+  has 180 min.
+- Run **44094955892**, created 13:39:43Z.
+- Reading order as fixed: verdict line to the owner first, then the run id to the advisor, who reads the log and the
+  JSON and recomputes before any decision. If it aborts before the truth stage, it is NO VERDICT again, with the stage
+  lines.
