@@ -276,3 +276,41 @@ def test_export_cut_order_is_by_instant_and_needs_cut_at(tmp_path):
     write("c", None, "granted")
     with pytest.raises(prep.NotRunnable, match="cut_at"):
         run._exports([str(tmp_path)])
+
+
+# ── amendment 6 (advisor re-read) ─────────────────────────────────────────────────────────────────────────────────
+
+def _fake_git(history, versions):
+    """history: [(sha, iso)] oldest first; versions: {(sha, path): object id} (missing = path absent then)."""
+    import subprocess
+
+    def git(*args):
+        if args[0] == "log":
+            return "\n".join(f"{sha} {when}" for sha, when in history)
+        if args[0] == "rev-parse":
+            rev, path = args[1].split(":", 1)
+            if (rev, path) not in versions:
+                raise subprocess.CalledProcessError(128, "git")
+            return versions[(rev, path)]
+        raise AssertionError(args)
+    return git
+
+
+def test_version_covers_the_code_tree_and_the_pinned_requirements():
+    v = {("c1", "./scripts/surf_truth"): "T1", ("c1", "./requirements-surf-truth-fit.txt"): "R1",
+         ("c2", "./scripts/surf_truth"): "T1", ("c2", "./requirements-surf-truth-fit.txt"): "R2"}
+    git = _fake_git([("c1", "t1"), ("c2", "t2")], v)
+    assert run.version_at("c1", git) == "T1+R1" and run.version_at("c2", git) == "T1+R2"   # pins change the version
+
+
+def test_a_version_begins_at_its_earliest_matching_commit_even_after_a_revert():
+    v = {}
+    for sha, tree in (("c1", "A"), ("c2", "B"), ("c3", "A")):      # code A, then B, then reverted back to A
+        v[(sha, "./scripts/surf_truth")] = tree
+        v[(sha, "./requirements-surf-truth-fit.txt")] = "R"
+    v[("c0", "./requirements-surf-truth-fit.txt")] = "R"            # requirements existed before the code did
+    git = _fake_git([("c0", "t0"), ("c1", "t1"), ("c2", "t2"), ("c3", "t3")], v)
+    assert run.version_since("A+R", git) == "t1"                    # the earliest commit carrying A+R, not c3
+    assert run.version_since("B+R", git) == "t2"
+    with pytest.raises(SystemExit):
+        run.version_since("Z+R", git)

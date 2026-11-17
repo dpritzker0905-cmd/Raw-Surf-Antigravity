@@ -69,3 +69,10 @@ surf_truth code is identical to the running code (git diff --quiet <sha> HEAD); 
 private --run-store and every earlier record there is read; a second SCORED run of the same version refuses (R7);
 export cuts are ordered by parsed instant and a manifest without cut_at is refused (R8). Checked against real git in
 this worktree: a dirty tree refuses; an unknown reviewed sha refuses. Tests: 36 numpy rule tests pass (also in CI).
+
+## 2026-11-17 00:22Z (from `date -u`) Amendment 6 in code: the version covers the pinned requirements; when a version begins
+
+Amendment 6 on #989 (0e252bc98, 00:21:38Z). The model version is now "<tree of scripts/surf_truth>+<blob of
+requirements-surf-truth-fit.txt>"; the dirty check and the review diff cover both; a version begins at the EARLIEST
+commit whose version equals the running one (tested with a revert back to an earlier state). Tests: 38 numpy rule
+tests pass (also in CI).

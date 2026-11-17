@@ -37,18 +37,41 @@ def _git(*args) -> str:
     return subprocess.run(["git", *args], cwd=BACKEND, capture_output=True, text=True, check=True).stdout.strip()
 
 
+VERSION_PATHS = ("scripts/surf_truth", "requirements-surf-truth-fit.txt")
+
+
+def version_at(rev: str, git=None) -> str:
+    """Amendment 6.1: "<tree of scripts/surf_truth>+<blob of the pinned requirements>" at `rev`."""
+    git = git or _git
+    return f"{git('rev-parse', f'{rev}:./scripts/surf_truth')}+{git('rev-parse', f'{rev}:./requirements-surf-truth-fit.txt')}"
+
+
+def version_since(current: str, git=None) -> str:
+    """Amendment 6.2: the committer time of the EARLIEST commit (oldest first, among commits touching either path)
+    whose version equals `current`."""
+    git = git or _git
+    for line in git("log", "--reverse", "--format=%H %cI", "--", *VERSION_PATHS).splitlines():
+        sha, when = line.split(" ", 1)
+        try:
+            if version_at(sha, git) == current:
+                return when
+        except subprocess.CalledProcessError:
+            continue                                      # a path did not exist yet at that commit
+    raise SystemExit("refused: no commit carries the running version (is the code committed?)")
+
+
 def code_version() -> dict:
-    """Amendment 5.1: the model version is the git TREE of scripts/surf_truth (identical code = the same version);
-    the commit is recorded beside it, and `since` is when this code last changed. A dirty tree refuses."""
-    if _git("status", "--porcelain", "--", "scripts/surf_truth"):
-        raise SystemExit("refused: the surf_truth code has uncommitted changes; the model version must be committed")
-    return {"tree": _git("rev-parse", "HEAD:./scripts/surf_truth"), "commit": _git("rev-parse", "HEAD"),
-            "since": _git("log", "-1", "--format=%cI", "--", "scripts/surf_truth")}
+    """Amendments 5.1 / 6: the model version covers the surf_truth code AND its pinned requirements (identical =
+    the same version); the commit is recorded beside it; `since` is when this version first existed. Dirty refuses."""
+    if _git("status", "--porcelain", "--", *VERSION_PATHS):
+        raise SystemExit("refused: the surf_truth code or its requirements have uncommitted changes")
+    current = version_at("HEAD")
+    return {"tree": current, "commit": _git("rev-parse", "HEAD"), "since": version_since(current)}
 
 
 def code_differs(sha: str):
-    """True if scripts/surf_truth differs between `sha` and HEAD, False if identical, None if `sha` is unknown."""
-    proc = subprocess.run(["git", "diff", "--quiet", sha, "HEAD", "--", "scripts/surf_truth"], cwd=BACKEND)
+    """True if the versioned paths differ between `sha` and HEAD, False if identical, None if `sha` is unknown."""
+    proc = subprocess.run(["git", "diff", "--quiet", sha, "HEAD", "--", *VERSION_PATHS], cwd=BACKEND)
     return {0: False, 1: True}.get(proc.returncode)
 
 
@@ -120,7 +143,7 @@ def run(args, version: dict, tests: dict) -> dict:
     record = {"schema": "raw-surf/surf-truth-run/3", "model_version": version["tree"], "commit": version["commit"],
               "model_since": version["since"], "review_ref": args.review_ref, "seed": gate.SEED,
               "model_tests": tests, "started_at": datetime.now(timezone.utc).isoformat(),
-              "registration": "#989 + amendments 1-5"}
+              "registration": "#989 + amendments 1-6"}
     try:
         rows, manifests = _exports(args.export)
         with open(args.classes, encoding="utf-8") as fh:
