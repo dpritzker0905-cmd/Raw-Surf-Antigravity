@@ -3,8 +3,13 @@
 WHY (owner, 2026-11-17: "Count in precompute"). When no stored product answers a marine point the point
 resolver takes its "2c" branch, a LIVE upstream: Open-Meteo's marine API for GFS and ICON, and for EURO first
 Copernicus Marine (Meteo-France MFWAM, not ECMWF's own wave model) and then Open-Meteo. D-074's inventory lists that
-as G5 and G6. It is live: one precompute run on 2026-11-17 made 503 requests to Open-Meteo's marine API. Nobody could
-say how many SERVED spot-hours that is, by model and lead. This prints that number on every run.
+as G5 and G6. It is live: the job log of precompute run 44132744032 (2026-11-17) has 579 lines "[Open-Meteo Provider]
+Fetching single point forecast for <MODEL> marine/waves" (GFS 339, ICON 156, EURO 84), sent through the Netlify
+weather-proxy, 433 of them before the "precompute complete" line. Those are FETCH lines, not served spot-frames.
+Nobody could say how many SERVED spot-frames that is, by model and lead. This prints that number on every run.
+
+WHAT IT COVERS. The served ratings stage only: the one `precompute_spot_ratings` call per model in
+`run_spot_ratings_precompute`. The buoy-scoring stage builds its own resolver and is not counted here.
 
 WHAT IT IS. A pass-through around the resolver the precompute already builds for itself. Every call goes to the real
 resolver unchanged and its answer is returned unchanged, the same object. On the way back a marine `waves` answer is
@@ -33,14 +38,19 @@ def classify(resp) -> str:
     """Where a marine point answer came from. PURE.
 
     `stored`               a stored product answered (the response carries a product_id)
-    `upstream:<provider>`  no stored product: the resolver's live branch answered, from that provider
+    `upstream:<provider>[:<model>]`  no stored product: the resolver's live branch answered. The labels are the
+                           response's own: `copernicus:cmems_mod_glo_wav...` is Meteo-France MFWAM, `open-meteo:...`
+                           is Open-Meteo (reached through the weather-proxy), `gfs_estimated_fallback:...` is the
+                           GFS-based estimate served under another model's name
     `no_answer`            nothing usable came back (None, a non-point object, or a response with no point)"""
     if resp is None or getattr(resp, "point", None) is None:
         return NO_ANSWER
     if getattr(resp, "product_id", None):
         return STORED
     provider = getattr(resp, "upstream_provider", None) or getattr(resp, "provider", None) or "unknown"
-    return "upstream:%s" % str(provider).strip().lower()
+    label = "upstream:%s" % str(provider).strip().lower()
+    model = getattr(resp, "upstream_model", None)
+    return "%s:%s" % (label, str(model).strip().lower()) if model else label
 
 
 def lead_band(valid_time_str, base: Optional[datetime]) -> str:

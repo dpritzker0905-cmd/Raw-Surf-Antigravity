@@ -52,3 +52,38 @@ field would change the served frames.
 
 - Whether a served point may come from Open-Meteo or MFWAM under the EURO name is David's question (D-074 G5, G6).
   This change only makes the size of it visible.
+
+## 2026-11-17 21:11Z CORRECTION: the 503 requests were tide requests, not wave requests
+
+Where this section differs from the text above it, this section wins.
+
+**What was wrong.** The section above says the job log of precompute run 44132744032 "shows 503 requests to
+Open-Meteo's marine API" as evidence that the wave fallback is live. The advisor read the same public log and found
+that all 503 are TIDE requests. I recounted from the log myself:
+
+| line in the job log of run 44132744032 | count |
+|---|---|
+| GET to `marine-api.open-meteo.com` | 503 |
+| ...asking for `sea_level_height_msl` (tide) | 503 |
+| ...asking for a wave height | 0 |
+| "[Open-Meteo Provider] Fetching single point forecast for <MODEL> marine/waves" | 579 (GFS 339, ICON 156, EURO 84) |
+| POST to the Netlify weather-proxy | 579 |
+| of the 579, before the line "precompute complete" (the served ratings stage) | 433 (GFS 221, ICON 138, EURO 74) |
+| of the 579, after it (the buoy-scoring stage) | 146 (GFS 118, ICON 18, EURO 10) |
+
+So the wave fallback IS live, and reaches Open-Meteo through the weather-proxy, which is why no wave request shows
+under Open-Meteo's own host. The split at "precompute complete" is the advisor's; my recount gives the same numbers.
+These are FETCH lines. They are not served spot-frames: the resolver caches, and the advisor notes 19 GFS points
+that returned zero and were dropped. The count this PR adds is the number that is still missing.
+
+**Also changed in this push** (the advisor's two conditions, relayed by the director):
+- each live answer has its own row, named by the response's own provider and upstream model:
+  `upstream:copernicus:cmems_mod_glo_wav...` (Meteo-France MFWAM), `upstream:open-meteo:<model>` (Open-Meteo,
+  through the weather-proxy), `upstream:gfs_estimated_fallback:<model>` (the GFS-based estimate under another
+  model's name);
+- the count covers the SERVED RATINGS stage only. The wrapped resolver feeds one call, the frame builder; the
+  buoy-scoring stage builds its own resolver. A test pins that.
+- Guards lane must now read 4046 passed (40 tests in the new file).
+
+**Authority.** David typed "Count in precompute" in this session. The director records that he also typed "Measure
+first" in the advisor's session (15:16 EST); I did not see that typed and cite it as the director's relay.

@@ -35,6 +35,13 @@ BASE = datetime(2026, 11, 17, 12, 0, 0, tzinfo=timezone.utc)
     (NS(point=NS(speed=1.0), product_id=None, upstream_provider=None, provider="copernicus"), "upstream:copernicus"),
     (NS(point=NS(speed=1.0), product_id="", upstream_provider=" MFWAM ", provider=None), "upstream:mfwam"),
     (NS(point=NS(speed=1.0)), "upstream:unknown"),
+    # the three live answers the resolver's 2c branch can give, each on its own row
+    (NS(point=NS(speed=1.0), product_id=None, provider="copernicus", upstream_provider="copernicus",
+        upstream_model="cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"), "upstream:copernicus:cmems_mod_glo_wav_anfc_0.083deg_pt3h-i"),
+    (NS(point=NS(speed=1.0), product_id=None, provider="open-meteo", upstream_provider="open-meteo",
+        upstream_model="ncep_gfswave025"), "upstream:open-meteo:ncep_gfswave025"),
+    (NS(point=NS(speed=1.0), product_id=None, provider="gfs_estimated_fallback", upstream_provider="gfs_estimated_fallback",
+        upstream_model="ncep_gfswave025"), "upstream:gfs_estimated_fallback:ncep_gfswave025"),
 ])
 def test_classify(resp, expected):
     assert T.classify(resp) == expected
@@ -256,3 +263,8 @@ def test_the_precompute_wraps_its_own_resolver_behind_the_switch_and_reports_onc
     assert src.count("_tally.write_step_summary(") == 1 and src.count("CountingResolver(") == 1
     assert "marine_source_tally" not in inspect.getsource(pc.precompute_spot_ratings), \
         "the counter belongs to the CI entry point, not to the function that builds frames"
+    # the count is the SERVED RATINGS stage only: the wrapped resolver feeds exactly one call, the frame builder
+    after = src[wrapped:]
+    # (the three uses from the wrap on: the wrap itself, the frame builder, and reading the counts back)
+    assert after.count("(resolver") == 3 and "precompute_spot_ratings(resolver, spots, [model], hours)" in after
+    assert 'getattr(resolver, "counts", None)' in after

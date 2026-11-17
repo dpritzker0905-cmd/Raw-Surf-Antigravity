@@ -1,6 +1,6 @@
 {
   "lane": "guards",
-  "tests": 37,
+  "tests": 40,
   "files": 1,
   "branch": "fable/precompute-marine-source-count",
   "date": "2026-11-17",
