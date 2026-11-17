@@ -93,6 +93,20 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_OWN_RAIN__',
   // ownRasterFrames.test.js ("OFF PATH: __RAW_DISABLE_RASTER_OWN_FOG__ puts fog back on the .om path" / "...WATER_TEMP__ puts water temp back"; 2026-11-14)
   '__RAW_DISABLE_RASTER_OWN_FOG__',
+  // gustsLayer.test.js ("ships ON, and its kill turns it off"; 2026-11-15, the new Gusts layer)
+  '__RAW_DISABLE_RASTER_OWN_GUSTS__',
+  // currentsLayer.test.js ("ships ON, and its kill turns it off"; 2026-11-15, the new Currents layer)
+  '__RAW_DISABLE_RASTER_OWN_CURRENTS__',
+  // currentsLayer.test.js ("its kill restores the handheld radius"; 2026-11-15, own-only phone prefetch)
+  '__RAW_DISABLE_OWN_ONLY_PREFETCH2__',
+  // ownRasterDecode.test.js ("without a Worker (and under its kill) the same function runs on the main thread"; 2026-11-15)
+  '__RAW_DISABLE_RASTER_DECODE_WORKER__',
+  // gustsLayer.test.js ("its kill restores the half-gap rule"; 2026-11-15, the edge nearest note)
+  '__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__',
+  // ownLayerAvailability.test.js ("its kill offers the layers unconditionally"; 2026-11-15, no empty layers)
+  '__RAW_DISABLE_OWN_LAYER_AVAILABILITY__',
+  // gustsLayer.test.js ("first frame first ... its kill restores the whole window at once"; 2026-11-16)
+  '__RAW_DISABLE_OWN_FIRST_FRAME_FIRST__',
   '__RAW_DISABLE_RASTER_OWN_WATER_TEMP__',
   '__RAW_DISABLE_RASTER_OWN_HANDOVER__',
   '__RAW_DISABLE_RASTER_OWN_SAME_FRAME__',

@@ -83,10 +83,23 @@ GZIP_MAGIC = b"\x1f\x8b"
 
 HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED, LANE_WEIGHT, PRESSURE_HPA = 0, 1, 2, 3, 4, 5, 6
 TEMP_C, CLOUD_PCT, RATING, PRECIP_MM_H, VISIBILITY_M = 7, 8, 9, 10, 11
+# ONE-BYTE BAND fields (2026-11-16, lever A of #928's 4G gate, log §12/§12b): a speed stored as the BAND of its layer's palette,
+# k = floor(v / step) + 1 for 0 <= v < 254 x step, 255 = SATURATED (v >= 254 x step), 0 = no data. The descriptor carries
+# scale = step and offset = -step / 2, so every existing generic decoder (decode_plane, staticFrameCodec.parseFrame, the client's
+# raster decode worker) already reads code k as the band CENTRE (k - 1) x step + step / 2: error <= half a step, and a cell's
+# decoded value always sits in the same palette band as its source value (every LUT breakpoint is a multiple of the step).
+# 12 = gusts, 0.5 kn (the gust LUT step; tops at 127 kn); 13 = ocean current speed, 0.02 kn (the currents LUT step; 5.08 kn).
+GUST_KN_BAND, CURRENT_KN_BAND = 12, 13
+BAND_FIELDS = (GUST_KN_BAND, CURRENT_KN_BAND)
+BAND_SATURATED = 255
+# The client's LUT index is floor((v - min) / step + 1e-3) (ownRasterLayer's shader): the encoder takes the band by the SAME rule,
+# so a cell's palette entry is identical before and after (a value within 0.001 step under an edge already drew the next band).
+# The cost: the decode error bound is half a step + 0.001 step (TOLERANCE below).
+BAND_INDEX_EPS = 1e-3
 FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s", DIR_CONFIDENCE: "dir_confidence",
                SPEED: "speed", LANE_WEIGHT: "lane_weight", PRESSURE_HPA: "pressure_hpa", TEMP_C: "temp_c",
                CLOUD_PCT: "cloud_pct", RATING: "rating", PRECIP_MM_H: "precip_mm_h",
-               VISIBILITY_M: "visibility_m"}
+               VISIBILITY_M: "visibility_m", GUST_KN_BAND: "gust_kn_band", CURRENT_KN_BAND: "current_kn_band"}
 
 # (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data;
 # speed (knots, the wind products' unit; the index meta carries value_unit) does the same at 0.01.
@@ -103,6 +116,8 @@ FIELD_SPECS = {
     RATING: (4, 1, NO_MISSING, 1.0, 0.0),     # rated frames: the raw code (above), compared exactly
     PRECIP_MM_H: (2, 1, 0, 0.01, -0.01),      # raster: code 1 = 0.00 mm/h, 0 = no data; top code 655.34 mm/h
     VISIBILITY_M: (2, 1, 0, 1.0, -1.0),       # raster (fog): code 1 = 0 m, 0 = no data; top code 65534 m
+    GUST_KN_BAND: (1, 0, 0, 0.5, -0.25),      # band (above): code k -> (k - 1) x 0.5 + 0.25 kn; 255 = saturated (>= 127 kn)
+    CURRENT_KN_BAND: (1, 0, 0, 0.02, -0.01),  # band: code k -> (k - 1) x 0.02 + 0.01 kn; 255 = saturated (>= 5.08 kn)
 }
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
 WIND_FIELDS = (DIRECTION, SPEED)
@@ -132,6 +147,8 @@ TOLERANCE = {
     RATING: _half_step(RATING),                  # integer codes   -> any difference fails
     PRECIP_MM_H: _half_step(PRECIP_MM_H),        # 0.01 mm/h step  -> 0.005 mm/h
     VISIBILITY_M: _half_step(VISIBILITY_M),      # 1 m step        -> 0.5 m
+    GUST_KN_BAND: _half_step(GUST_KN_BAND) + 0.5 * 1e-3,       # 0.5 kn band -> 0.25 kn + the index eps (unsaturated cells)
+    CURRENT_KN_BAND: _half_step(CURRENT_KN_BAND) + 0.02 * 1e-3,  # 0.02 kn band -> 0.01 kn + the index eps
 }
 POSITION_TOL_DEG = 1e-6
 # Marine u, v rebuilt from the decoded height and direction, against the stored u, v the normalizer computed from the
@@ -388,27 +405,59 @@ def encode_plane(values, bounds, valid_time, model_run_time, fid):
     """Raw frame bytes for ONE scalar field from a (rows, cols) float array, row 0 = SOUTH, column 0 = WEST, NaN = no data;
     `bounds` = (west, south, east, north), the outer cell centres. The same layout encode_frame writes (header, one
     descriptor, one plane), vectorised: a 720 x 361 raster encodes in milliseconds instead of a per-node loop."""
-    import numpy as np
-    arr = np.asarray(values, dtype=float)
-    rows, cols = arr.shape
-    nb, layout, missing, scale, offset = FIELD_SPECS[fid]
-    if nb not in (1, 2) or missing != 0:
+    if FIELD_SPECS[fid][2] != 0:
         raise ValueError(f"encode_plane handles u8/u16 fields with code 0 = no data, not field {fid}")
-    top = 0xFF if nb == 1 else 0xFFFF
-    ok = np.isfinite(arr)
-    codes = np.zeros(arr.shape, dtype=np.int64)
-    codes[ok] = np.rint((arr[ok] - offset) / scale).astype(np.int64)
-    if ok.any() and (codes[ok].min() < 1 or codes[ok].max() > top):
-        raise ValueError(f"field {fid}: values outside the u{8 * nb} range of its quantisation")
-    header_bytes = HEADER_FIXED + DESCRIPTOR.size
+    return encode_planes({fid: values}, bounds, valid_time, model_run_time)
+
+
+def encode_planes(planes, bounds, valid_time, model_run_time, uv_convention=0):
+    """Raw frame bytes for SEVERAL fields ({field id: (rows, cols) float array}, one grid) in field-id order; encode_plane is
+    the one-field case (byte for byte). A field with code 0 = no data takes NaN as no data; a field with no missing code
+    (direction, 2026-11-15: the currents set's flow direction) is written 0 where NaN, its validity carried by the frame's
+    speed field. `uv_convention` (header byte 19): 1 = u = +s sin d, v = +s cos d (direction is where the flow goes TO)."""
+    import numpy as np
+    fids = sorted(planes)
+    arrs = [np.asarray(planes[f], dtype=float) for f in fids]
+    rows, cols = arrs[0].shape
+    if any(a.shape != (rows, cols) for a in arrs):
+        raise ValueError("encode_planes: every field must share one grid")
+    header_bytes = HEADER_FIXED + DESCRIPTOR.size * len(fids)
     head = bytearray(MAGIC)
-    head += struct.pack("<HHHHIBBBBI", ENCODING_VERSION, TRANSFORM_VERSION, cols, rows, 1 << fid, 0, 0, 1, 0, header_bytes)
+    mask = sum(1 << f for f in fids)
+    head += struct.pack("<HHHHIBBBBI", ENCODING_VERSION, TRANSFORM_VERSION, cols, rows, mask, 0, 0, len(fids), uv_convention,
+                        header_bytes)
     head += struct.pack("<4d", *bounds)
     head += struct.pack("<2d", _epoch(valid_time), _epoch(model_run_time))
-    head += DESCRIPTOR.pack(fid, nb, layout, 0, missing, scale, offset)
-    raw = codes.astype("<u2" if nb == 2 else "u1").tobytes()
-    plane = raw[0::2] + raw[1::2] if (layout == 1 and nb == 2) else raw
-    return bytes(head) + plane
+    body = []
+    for fid, arr in zip(fids, arrs):
+        nb, layout, missing, scale, offset = FIELD_SPECS[fid]
+        if nb not in (1, 2) or missing not in (0, NO_MISSING):
+            raise ValueError(f"encode_planes handles u8/u16 fields, not field {fid}")
+        top = 0xFF if nb == 1 else 0xFFFF
+        lowest = 1 if missing == 0 else 0
+        ok = np.isfinite(arr)
+        codes = np.zeros(arr.shape, dtype=np.int64)
+        if fid in BAND_FIELDS:   # floor to the palette band, saturate at the top code (never an error)
+            if ok.any() and arr[ok].min() < 0:
+                raise ValueError(f"field {fid}: a band field holds non-negative values only")
+            codes[ok] = np.minimum(np.floor(arr[ok] / scale + BAND_INDEX_EPS).astype(np.int64) + 1, BAND_SATURATED)
+        else:
+            codes[ok] = np.rint((arr[ok] - offset) / scale).astype(np.int64)
+        if ok.any() and (codes[ok].min() < lowest or codes[ok].max() > top):
+            raise ValueError(f"field {fid}: values outside the u{8 * nb} range of its quantisation")
+        head += DESCRIPTOR.pack(fid, nb, layout, 0, missing, scale, offset)
+        raw = codes.astype("<u2" if nb == 2 else "u1").tobytes()
+        body.append(raw[0::2] + raw[1::2] if (layout == 1 and nb == 2) else raw)
+    return bytes(head) + b"".join(body)
+
+
+def band_saturated(fid, values):
+    """How many finite cells of `values` a band field stores as SATURATED (>= 254 x step); 0 for any other field."""
+    import numpy as np
+    if fid not in BAND_FIELDS:
+        return 0
+    a = np.asarray(values, dtype=float)
+    return int(np.sum(np.isfinite(a) & (np.floor(np.nan_to_num(a, nan=-1.0) / FIELD_SPECS[fid][3] + BAND_INDEX_EPS) >= BAND_SATURATED - 1)))
 
 
 def decode_plane(data):
