@@ -1,6 +1,6 @@
 {
   "lane": "estate",
-  "tests": 48,
+  "tests": 50,
   "branch": "fable/surf-nonfinite-guard",
   "date": "2026-11-17",
   "note": ""

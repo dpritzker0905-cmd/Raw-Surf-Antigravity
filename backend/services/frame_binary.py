@@ -373,6 +373,9 @@ def gunzip_capped(data, limit: int = MAX_FRAME_BYTES):
         raise ValueError(f"frame too large: it decompresses past the {limit}-byte cap")
     if not d.eof:
         raise ValueError("truncated frame: the gzip stream ends early")
+    if d.unused_data:
+        # gzip.decompress refused trailing garbage and joined a second member; one frame is one member (gzip_frame)
+        raise ValueError(f"not a frame: {len(d.unused_data)} byte(s) after the end of the gzip stream")
     return out
 
 

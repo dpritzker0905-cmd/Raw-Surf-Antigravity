@@ -132,3 +132,25 @@ numbers, not infinities, and they pass `isfinite`:
 A plausibility bound at the same place would close it, but it changes the result for finite inputs, so it is its
 own change with its own line in the record, after checking what the normalizer already masks so the bound is set
 once and in the right layer. Not done.
+
+## 2026-11-17 17:07Z Two things from the advisor on the frame decoder: a rebuild at merge that I had not said, and a loosening closed
+
+The advisor passed the PR at `f77aa0703` (PASS WITH LIMITS, no open condition) and raised two points.
+
+**PLAN AT MERGE: every content-keyed frame set rebuilds once.** I wrote above that this change alters nothing a user
+could see. That is true of the frames, and it left out an operational consequence. `frame_binary.py` is one of the
+files in `frame_set_content.CODE_FILES`, whose hash is the code fingerprint in every frame set content key. Editing
+the file changes the fingerprint, so on the first pilots run after this merges NO frame set is carried over and every
+one is rebuilt, once. The rebuilt frames have the same bytes (the encode side is untouched), but the run does the
+full work. So: do not merge this just before a pilots run that is tight on time, and expect one long run.
+- I did not measure how long a full rebuild takes.
+- The alternative, moving the decoder checks to a file outside `CODE_FILES`, would avoid the rebuild but would put
+  half of one decoder in another module; I did not do it.
+
+**A loosening I introduced, now closed.** `gzip.decompress` refused trailing garbage after the gzip stream and joined
+a second gzip member. My capped version read the first member and ignored whatever followed, silently. It now raises
+a ValueError that names the number of bytes after the stream. One frame is one gzip member (`gzip_frame` writes
+one). The advisor ran both cases against the earlier commit; a test now covers trailing bytes and a second member,
+for both decoders, and fails with the check switched off.
+
+Codec tests: 50 in the new file (estate lane must read 3870); the 297 across every file that touches the codec pass.

@@ -112,6 +112,18 @@ def test_the_gzip_cap_is_applied_while_decompressing():
 
 
 @pytest.mark.parametrize("decode", DECODERS, ids=IDS)
+def test_anything_after_the_gzip_stream_is_refused_not_ignored(decode):
+    """gzip.decompress refused trailing garbage and joined a second member; reading one member and ignoring the rest
+    would have been a quiet loosening. One frame is one gzip member."""
+    z = fb.gzip_frame(RAW)
+    decode(z)
+    with pytest.raises(ValueError, match=r"5 byte\(s\) after the end of the gzip stream"):
+        decode(z + b"extra")
+    with pytest.raises(ValueError, match="after the end of the gzip stream"):
+        decode(z + z)                                                            # a second member
+
+
+@pytest.mark.parametrize("decode", DECODERS, ids=IDS)
 def test_a_gzip_bomb_is_refused_by_both_decoders(decode):
     bomb = gzip.compress(b"\x00" * (fb.MAX_FRAME_BYTES + 4096), compresslevel=1)
     assert len(bomb) < fb.MAX_FRAME_BYTES // 100                                 # a small input, a huge output
