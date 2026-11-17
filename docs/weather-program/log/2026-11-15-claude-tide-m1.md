@@ -1774,3 +1774,15 @@ Both must hold. The 2-day block bootstrap is unchanged.
   none). FINAL will be its own commit, its header read from the clock.
 - **After FINAL, the code goes to the advisor before any fetch:** the trigger, credentials on single steps, no score in
   the log, the S1 preflight and NO VERDICT rule, the three arms, truth last, and the parity test's skeleton.
+
+## 11:47 EST 2026-11-17 (`date`) - Research lead: G3t READY FOR FINAL, no conditions; both reviewers clear
+- **The research lead read addendum 2** (24eee6b51 + f1e48bc50): ready for FINAL with no conditions.
+- **v2.1 arms:** the research lead recommends NONE (the default), since they are contaminated and not what would be served.
+- **Two non-blocking notes, adopted into FINAL:**
+  1. **Scope:** the window is Jan .. Jul, so the seasonal term is checked over about half a cycle. The scope says
+     "seasonal term verified for the months tested (Jan-Jul)". After shipping, the approved daily scorecard (F2) watches
+     Aug .. Dec at the gauges, and the flag guardrail can trip if that half misbehaves.
+  2. **Records of use** (AVISO 7.3, CMEMS 2.6) join the served-path checklist beside the credit lines and the
+     no-constants-exposed test.
+- **Status:** the advisor (16:42Z) and the research lead are both clear. FINAL waits only on the owner's word on the v2.1
+  arms (default none). FINAL will be its own commit.
