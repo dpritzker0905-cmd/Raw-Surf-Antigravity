@@ -229,3 +229,33 @@ observation exists. Where this differs from the text above, this governs.
    shuffled and synthetic fits.
 8. Before the FIRST real run (not before the code merges): a synthetic world of realistic size must reach R-hat
    < 1.01 and bulk ESS > 400 at the registered 4 x 1000, recorded in the fit log.
+
+## 2026-11-17 00:00Z AMENDMENT 4: the advisor's red-team of the fit code (from `date -u`; BEFORE any data or run)
+
+Advisor note `redteam-992-surf-truth-fit-code-2026-11-16.md` (shared notes). No blind observation exists. Where this
+differs from the text above, this governs.
+
+1. Negative control, corrected (it replaces amendment 2 I's negative rule): the run is VOID only if the shuffled-
+   identity fit is SIGNIFICANTLY better than the real fit: a paired bootstrap over the SAME scored targets (day blocks,
+   seed 20261116) of (shuffled improvement - real improvement) has a 95% interval entirely above 0. "Must not score
+   better" alone would void a sound run about half the time when observers are nearly unbiased.
+2. Positive control: "P's posterior unchanged" is VACUOUS while P is not sampled (amendment 3.1); it binds once a model
+   that samples P is registered. The b-recovery part stands.
+3. Convergence applies to ALL THREE fits (real, shuffled, synthetic): if any fails amendment 2 D's rule, the run is
+   VOID (a non-converged control fit can pass or void a control by accident).
+4. Floor over EVERY registered class: a class in the registered B2 scheme with fewer than 30 + 30 scoreable cells
+   makes the run NOT RUNNABLE, including a class with none. Item 1 is per class (amendment 3.6), as is item 2's
+   Wilson check; the pooled figures are reported.
+5. Amendment 2 E, operational: the model version is the git commit of the code that runs, from a CLEAN working tree
+   (a dirty tree refuses). Every scored run record is kept. A run is given the earlier scored records; if any earlier
+   scored run used a different model version, only held-out targets RECEIVED AFTER this version's commit time are
+   scored. The first scored run is the first daily cut that meets the floor.
+6. Overlapping exports: when a row appears in several exports, the copy from the NEWEST cut is used (a later status,
+   such as a failed audit, wins).
+7. Near-zero entries: a typed value below 0.5 ft (0.15 m) is treated as "Flat" in both the likelihood and scoring.
+8. Randomness: each target's predictive draws and its PIT draw use a stream seeded from (20261116, row_key), so one
+   target's result never depends on how many targets were scored before it.
+9. The review reference: `--review-ref` must name a research-lead review of the exact code commit being run
+   ("#992 reviewed at <sha>"), and the run refuses if that sha is not the running commit.
+10. The model code's tests do not run in CI (JAX is not installed there); the lane runs them in its fit environment
+    before every review and before every run, and each run record carries that test result.
