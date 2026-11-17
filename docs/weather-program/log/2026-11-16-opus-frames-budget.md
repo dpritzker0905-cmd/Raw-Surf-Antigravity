@@ -71,3 +71,59 @@ The rating-band session (PR #991, its log section 13) read the rated step of run
    timeout.
 4. The gate gains one line: **5. no rated set more than one cycle behind its plain sibling at the end of the run** (so #933's
    bound sends nothing to /grid on the box).
+
+## 00:26Z: the advisor's read (00:14Z, ACCEPTABLE TO BUILD with five changes), written in before any code
+
+**1. Frames budget re-sized: 960 -> 1,500 s, step timeout 22 -> 32 min.** The advisor's sum holds. Worst cases together: world 466 +
+filled 288 + wind 38 = 792 s. Built plus skipped regional is about 132 sets a run, at 2.3-3.4 s each (146 s / 43, 272 s / 118), so
+about 450 s. Total about 1,240 s, which left 18 s under 1,260. At 1,500 s the margin is about 260 s (about 76 sets at 3.4 s).
+**The timeout tail was also wrong.** The step runs past its budget by the time the budget does not count (setup, tail downloads,
+the set in flight when the budget passes). Measured from the jobs API: frames step 1,124 / 1,053 / 1,127 s against 960, so 93-167 s
+over. Rated step 648 / 645 / 649 s against 600, so 45-49 s over. My "360 s tail" assumed no overrun; the real margin under 22 min
+was 193 s. Worst frames step at 1,500 s is about 1,500 + 167 = 1,667 s. A 32-min timeout (1,920 s) keeps about 250 s, a little
+more than today's 193 s, for a world set (about 42 s) ending the run under the fair order. **Rated: FRAME_RATING_BUDGET_S 600 ->
+1,800 s, step timeout 14 -> 35 min**, as the addendum said: worst about 1,800 + 49 + a 105 s set = 1,954 s against 2,100 s.
+**Job time:** +540 s frames, +1,200 s rated, at most +29 min, so 162-171 -> about 191-200 min against the 300-min timeout.
+
+**2. The gate, restated (final; it replaces both lists above).** In at least 3 of the 4 counted runs:
+1. The frames step skips at most 2 sets, and the rated step at most 2. Counted from the step's own log lines AND its frame_sets
+   report; the two must agree.
+2. No step times out (both steps conclude success), and the job finishes under 240 min.
+3. **No rated set BEHIND its plain sibling** at the end of the run, from each set's OWN latest.json entry (`run`). A rated set one
+   run NEWER than its plain sibling is not a failure. (This is the "lag 0" wording the advisor restated on #975. It also covers
+   the addendum's line 5, now dropped as a weaker duplicate.)
+4. **No plain GFS regional waves bundle skipped** by the frames step (the mirror gap: run 43950205417 skipped 14 of 19).
+5. #975's order holds: the rated GFS waves bundles are built first (read by hand from the rated step's log).
+Fail = a timeout in any counted run, or lines 1, 3 or 4 failed in 2 of the 4: revert the PR. Rollback is the PR's revert (the
+numbers live in the file, item 4).
+
+**3. Which runs count (decided now, before any run).**
+- The first pilots run after the change is live is a catch-up run: reported, not counted.
+- A run in which a format change forces every content-carried set to rebuild is not ordinary. One example is the gusts lane's
+  one-byte field, which does that once. Such a run is excluded and named, and counts as neither pass nor fail.
+- So is a run whose frames step does not run (the ingest failed upstream, or the run was cancelled).
+- The counted runs are the next 4 ordinary runs after those.
+
+**4. Where the four numbers live (checked 00:20Z with `gh variable list`).** All four change by PR, in
+`.github/workflows/forecast-ingest-pilots.yml`; no repository variable changes.
+- FRAME_PUBLISH_BUDGET_S: a file expression, `vars.FRAME_TAIL_DOWNLOAD == '1' && '960' || '600'`; FRAME_TAIL_DOWNLOAD is '1'.
+  The PR changes the literal '960' to '1500'.
+- The frames step timeout (22) is a file literal.
+- FRAME_RATING_BUDGET_S: `vars.FRAME_RATING_BUDGET_S || '600'`. **The variable is NOT set**, so the file default governs, and
+  the PR changes '600' to '1800'. If that variable is ever set, it overrides the file. Setting it is the owner's word, typed by
+  David.
+- The rated step timeout (14) is a file literal.
+
+**5. The reader is committed with the plan:** `backend/scripts/frames_budget_gate.py --run <id> --base <public URL>`. It reads the
+run's step times and job log from the GitHub API and the PUBLIC latest.json; it never calls the box. It prints skips from the log
+lines and from the frame_sets report (they must agree), one line per rated set (rated run, plain run, difference in hours), and
+PASS/FAIL for lines 1-4. **Null control:** on run 43950205417 (before the change), with the latest.json read at ~23:25Z, it prints:
+- frames 38 skips (log and report agree), rated 59 (agree);
+- 14 plain GFS waves bundles skipped;
+- 56 rated sets behind their plain sibling;
+- lines 1, 3 and 4 FAIL, line 2 PASS (162 min).
+The advisor checks one of the four counted runs against its job log.
+
+**The tripwire.** The job goes from about 165 to about 190-200 min. Gusts, currents and the 0.5-degree tier are still to come.
+If any run passes 240 min, no new set or step is added to the pilots job until this budget plan is redone and re-read by the
+advisor.
