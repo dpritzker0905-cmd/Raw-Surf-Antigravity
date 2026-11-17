@@ -32,6 +32,7 @@ LEAD_NOTE = ("Leads are counted from the forecast's CYCLE time, not its publicat
 W0, W1 = datetime(2026, 8, 25, tzinfo=timezone.utc), datetime(2026, 9, 7, 23, tzinfo=timezone.utc)
 PRE0 = datetime(2026, 7, 26, tzinfo=timezone.utc)                 # the 30 days BEFORE the window
 YEAR0 = W0 - timedelta(days=365)
+STOFS_FORMAT_SWITCH = datetime(2026, 8, 16, tzinfo=timezone.utc)
 LEADS = (0, 24, 48)
 SEEN = ("The window's OBSERVED water and CO-OPS predictions were read for a truth-only count before the run (no arm "
         "scored); item 3's surge-hour definition was changed after that look and the window was kept because the counts "
@@ -129,10 +130,15 @@ def main():
         stofs[kind] = GS.fetch_stofs_cycles(sorted(set(win_cycles + pre_cycles)), kind, list(pts), work / "stofs")
         stage(f"stofs2d {kind}: {len(stofs[kind])} cycles")
     hours_x = G.window_hours(W0 - timedelta(hours=24), W1)                     # +24 h for the shift control
-    N2, N2x, N2p, N3 = {}, {}, {}, {}
+    N2, N2x, N2p, N3, swl_switch = {}, {}, {}, {}, {}
     for sid in pts:
         swl_x = GS.as_issued(stofs["swl"], sid, hours_x, LEADS)
         m = GS.nowcast_mean(stofs["swl"], sid, PRE0, W0)
+        # REPORTED: STOFS-2D point files changed format (HDF5 -> netCDF-3) on 2026-08-16, inside the registered pre-window;
+        # the swl reference before and after the switch is printed so a model change there is visible. The registered
+        # reference (the full 30 days) is unchanged.
+        swl_switch[sid] = [GS.nowcast_mean(stofs["swl"], sid, PRE0, STOFS_FORMAT_SWITCH),
+                           GS.nowcast_mean(stofs["swl"], sid, STOFS_FORMAT_SWITCH, W0)]
         if math.isfinite(m):
             N2x[sid] = swl_x - m
             N2[sid] = N2x[sid][:, 24:]
@@ -242,7 +248,8 @@ def main():
         stage(f"truth {sid}")
 
     report = score(locals_for_score(A, S1, N2, N2x, N2p, N3, N4, N1, C, D, obs, pred, resid, pre_mean, datum,
-                                    events_hilo, P, A_fine, A_ntde, fine, hours, primary, s1_ok, s1_why, s1_cells))
+                                    events_hilo, P, A_fine, A_ntde, fine, hours, primary, s1_ok, s1_why, s1_cells,
+                                    swl_switch))
     stage("scored")
     print(json.dumps(report, indent=1, default=str))
     if args.summary:
@@ -253,7 +260,7 @@ def main():
 
 def locals_for_score(*a):
     keys = ("A", "S1", "N2", "N2x", "N2p", "N3", "N4", "N1", "C", "D", "obs", "pred", "resid", "pre_mean", "datum",
-            "hilo", "P", "A_fine", "A_ntde", "fine", "hours", "primary", "s1_ok", "s1_why", "s1_cells")
+            "hilo", "P", "A_fine", "A_ntde", "fine", "hours", "primary", "s1_ok", "s1_why", "s1_cells", "swl_switch")
     return dict(zip(keys, a))
 
 
@@ -355,6 +362,8 @@ def score(x):
             "s1_preflight": {"ok": x["s1_ok"], "why": x["s1_why"]}, "s1_cells": x["s1_cells"], "seen": SEEN,
             "verdict": verdict, "datum_label": G.datum_label(item1, item1_dm), "items": items,
             "lead_note": LEAD_NOTE,
+            "stofs_swl_reference_before_after_2026_08_16": {g: [round(v, 4) if v == v else None for v in x["swl_switch"].get(g, [])]
+                                                            for g in gauges},
             "s1_unavailable_gauges": sorted(g for g, v in x["s1_cells"].items() if "unavailable" in v),
             "item2_p1_undefined_count": sum(1 for v in item2_g.values() if v == "P1 undefined"),
             "item1": {"P1_minus_D": i1d[:3], "P1_minus_C": i1c[:3], "demeaned_P1_minus_D": i1d_dm[:3],

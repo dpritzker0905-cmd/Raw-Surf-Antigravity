@@ -903,3 +903,17 @@ this entry, then goes to the advisor; then the owner's word for the run.
 - After the run: the verdict line goes first to the owner in this session. The advisor then reads the job log and the
   JSON and recomputes the medians from the per-gauge rows before any decision.
 - The start is the owner's word typed in this session (tag `tide-gate-G3` on c26af8597).
+
+## 22:16 EST 2026-11-16 (`date`) - G3 fix BEFORE any run: STOFS changed file format inside the pre-window
+- **Found** (by reading only the first 4 bytes of each file, while checking the archive for G3b): STOFS-2D point files
+  are **HDF5 / netCDF-4 through 2026-08-15** and **netCDF-3 from 2026-08-16** (all four cycles each side checked).
+- **Effect on the code accepted at c26af8597:** its reader was netCDF-3 only. It would have silently dropped every
+  pre-window cycle from 07-26 to 08-15 and built the registered 30-day swl reference from 9 days (08-16..08-24). That
+  still clears the 60-hour minimum, so it would not have failed loudly.
+- **Fix (plumbing; no rule, arm or threshold changed):** `g3_sources._nc_points` reads through the `netCDF4` library
+  (already installed in the workflow), which reads both formats. Checked: a 2025-06-01 HDF5 file and a 2026-08-25
+  netCDF-3 file each give all 5 test gauges, 1860 values each; the STOFS-3D file gives 3 of 3 gauges matched by
+  lat/lon.
+- **Reported (not gating):** the swl reference before and after 2026-08-16, per gauge, because a format change may
+  mark a model upgrade. The registered reference stays the full 30 days.
+- Tests: 20 pass; synthetic `score()` runs end to end.

@@ -50,18 +50,34 @@ def _get(url, dest, tries=4):
     return False
 
 
+def _station_names(raw):
+    """station_name as a char matrix (netCDF-3) or a string array (netCDF-4) -> list of str."""
+    out = []
+    for r in np.asarray(raw):
+        if isinstance(r, (str, bytes)):
+            s = r.decode("latin1") if isinstance(r, bytes) else r
+        else:
+            s = b"".join(x if isinstance(x, bytes) else bytes(str(x), "latin1") for x in np.ravel(r)
+                         if not (isinstance(x, np.ma.core.MaskedConstant))).decode("latin1")
+        out.append(s.replace("\x00", "").strip())
+    return out
+
+
 def _nc_points(path, ids, latlon=None, km=3.0):
-    """Read a netCDF-3 station file: {sid: (times[aware], values)}. Match by id in station_name, else (3D) by
-    nearest station within `km` of latlon[sid]."""
-    from scipy.io import netcdf_file
-    f = netcdf_file(str(path), "r", mmap=False)
+    """Read a STOFS station file, netCDF-3 OR netCDF-4/HDF5: {sid: (times[aware], values)}. Match by id in
+    station_name, else (3D) by nearest station within `km` of latlon[sid].
+    STOFS-2D point files were HDF5 through 2026-08-15 and netCDF-3 from 2026-08-16 (checked 2026-11-16), so a
+    netCDF-3-only reader would silently drop every pre-window cycle before 08-16."""
+    import netCDF4
+    f = netCDF4.Dataset(str(path), "r")
+    f.set_auto_mask(False)
     try:
         v = f.variables
-        tunits = v["time"].units.decode() if isinstance(v["time"].units, bytes) else v["time"].units
+        tunits = v["time"].units
         m = re.search(r"since\s+(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})", tunits)
         base = datetime.strptime(m.group(1).replace("T", " "), "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
         times = [base + timedelta(seconds=float(s)) for s in v["time"][:]]
-        names = [b"".join(r).decode("latin1").strip() for r in v["station_name"][:]]
+        names = _station_names(v["station_name"][:])
         z = np.array(v["zeta"][:], dtype=float)
         z[(np.abs(z) > FILL_ABS)] = np.nan
         out = {}
