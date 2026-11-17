@@ -1104,3 +1104,10 @@ by the director's sweep, so there was nothing for this lane to merge.
   harder, and it is stated.
 - Truth is fetched last, as in G3.
 - Real lead ages are printed.
+
+## 22:58 EST 2026-11-16 (`date`) - OWNER CONFIRMS the ship-ON rule for a G3b PASS, in this session
+- **Owner, typed in this session, 22:57 EST: "Yes, ship ON"**, answering: "if G3b passes, the new tide ships ON by default
+  with a kill switch once you approve the merge?"
+- **G3b addendum 2, item 2, is confirmed (no longer only relayed):** a PASS means the owner's word to MERGE, and the
+  change ships ON by default with a kill switch, CI kill-switch contract tests, and the automatic fall-back to the tide
+  alone when STOFS is missing or stale.
