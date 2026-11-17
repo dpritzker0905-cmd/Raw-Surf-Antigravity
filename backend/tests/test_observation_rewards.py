@@ -198,7 +198,7 @@ async def test_audit_holds_xp_until_an_admin_passes_it(world, monkeypatch):
     ok = await world.client.post(f"/api/admin/surf-observations/{held}/audit", json={"verdict": "pass"},
                                  headers=_token("admin"))
     assert ok.status_code == 200 and await world.xp("ana") == [("surf_observation", 5)]
-    bad = await world.client.post(f"/api/admin/surf-observations/{failed}/audit", json={"verdict": "fail"},
+    bad = await world.client.post(f"/api/admin/surf-observations/{failed}/audit", json={"verdict": "fail", "reason": "stock photo"},
                                   headers=_token("admin"))
     assert bad.json()["xp_status"] == "audit_failed" and await world.xp("ben") == []
     again = await world.client.post(f"/api/admin/surf-observations/{held}/audit", json={"verdict": "pass"},

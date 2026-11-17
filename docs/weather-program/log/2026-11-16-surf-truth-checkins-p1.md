@@ -159,6 +159,18 @@ height field; tested). 14 tests; all surf-truth suites 80 pass; route-identity c
 
 David, 2026-11-16 16:34 EST (typed in the director's session): "I dont think its an issue for any admin to promote someone to an anchor. We can always change the admin rights levels later." Any admin may make anyone an active anchor; self-appointment stays logged with self:true.
 
+## 22:30Z Anchors C: the admin "Surf truth" area
+
+New top-level admin tab "Surf Truth" (`UnifiedAdminConsole`) with six Radix tabs (role=tablist, arrow keys; scrolls
+sideways on a phone): Anchors (list, status changes through one dialog with a required reason, the admin action log),
+Observers (per-observer counts; "Make anchor" uses the same audited dialog), Coverage (per-spot counts and totals),
+Quality queue (the audit sample: photo, place, time, flags; pass/fail), Model and Consent/privacy (state what is TRUE
+today and which part builds the rest; no placeholder numbers). Two read-only admin endpoints back Observers and
+Coverage (`routes/surf_data/surf_truth_monitor.py`). No view or response shows a reported height (tested both ends).
+Shared ui primitives + semantic tokens only. Rendered at 375 px in light, dark and beach mode (notes:
+`t1-p1-blind-observation/admin-surf-truth-3-themes-375px.jpg`); the audit card's phone stacking was adjusted after
+that render and not re-rendered. Tests: backend 6, frontend 4 (90 admin Jest pass); lint ratchet passes.
+
 ## 2026-11-17 02:29Z CLOCK CORRECTION (from `date -u`; append-only)
 
 The header '18:50Z Advisor conditions on #980 (three) and #981 (one) closed' ran AHEAD of the clock: it was committed at 2026-11-16T18:30:13Z, 20 minutes before the time it
@@ -168,3 +180,7 @@ estimated; their authoritative times are their git commit times. Since 2026-11-1
 ## 2026-11-17 02:46Z CLOCK CORRECTION (from `date -u`; append-only)
 
 The header '19:10Z Anchors B built locally (stacked on anchors A): admin API + append-only admin action log' ran AHEAD of the clock: it was committed at 2026-11-16T18:36:17Z, 34 minutes before the time it states (an estimate; LESSONS L-P10).
+
+## 2026-11-17 02:51Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '22:30Z Anchors C: the admin "Surf truth" area' ran AHEAD of the clock: it was committed at 2026-11-16T22:09:00Z, 21 minutes before the time it states (an estimate; LESSONS L-P10).
