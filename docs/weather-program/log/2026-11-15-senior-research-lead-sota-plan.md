@@ -1446,3 +1446,13 @@ is appended to the fit log and passes. A review of code at any other head needs 
 
 - 2026-11-16 19:06 -0500: M3 condition MET. The fit log at cfdaa4907 shows 4x1000 on a synthetic world of 3,200 rows: R-hat max 1.006, ESS min 799,
   divergences 0. Between aa0505456 and cfdaa4907 only that log changed (git diff --stat), so the review covers cfdaa4907.
+
+## 2026-11-16 19:16 -0500 Re-review of #992 at 700b748e0 (amendment 4 code): two small fixes required
+
+- Verified 4.1, 4.3, 4.4, 4.7, 4.8, 4.9, 4.10, the dirty-tree refusal, and that the cut-off compares instants.
+- R7: a second scored run of the SAME version must refuse (2 E, one scored run per version).
+- R8: sort exports by the parsed cut_at instant, and refuse a manifest with no cut_at.
+- Recommended (would need amendment 5):
+  - version by the TREE of scripts/surf_truth, with check_review by tree diff, so a merge commit does not force a re-review;
+  - prior runs read from the run store, not an optional flag.
+- No review reference is given for 700b748e0.
