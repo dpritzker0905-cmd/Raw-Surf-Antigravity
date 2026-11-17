@@ -168,3 +168,10 @@ labels it held are discarded and none is used. Changes to section 2:
    labelled spots first by md5(id || '20261117-agree'), without seeing the first reader's labels. Raw agreement and Cohen's kappa are
    reported; disagreements stay with the first reader's label and are listed.
 Also reported: precision BY FRAME, because inside a tagged frame the classifier is mostly the catalogue tag.
+2a, the advisor's two conditions (2026-11-16 19:29 EST by the clock; the advisor confirmed 2a at 00:27Z):
+- The stopped agent fetched NO classifier evidence. Its transcript has no Overpass, no spot_class_osm, no openstreetmap.org and no
+  SQL-tool call. It left one scratch file outside the repo: its draw output (291 rows of frame / id / name / position; no label, no
+  source). That file is DELETED, unread, before the fresh reader starts. No partial label of that agent exists anywhere a reader can
+  reach.
+- The labels are made by a FRESH reader (a new agent with no access to the stopped agent's context). It draws again from the amended
+  query (untagged 80).
