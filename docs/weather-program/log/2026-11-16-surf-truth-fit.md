@@ -60,3 +60,12 @@ newest export copy of a row wins; the negative control voids only when the shuff
 (paired day-block bootstrap); typed values under 0.5 ft are Flat; each target has its own random stream.
 Tests: 37 pass in the fit environment (34 numpy rule tests, also in CI; 3 model tests). The research lead's review at
 aa0505456/cfdaa4907 does NOT cover this code: a new review is requested.
+
+## 2026-11-17 00:18Z (from `date -u`) Research lead re-review: R7, R8 and both recommendations; amendment 5 registered first
+
+Amendment 5 on #989 (fda3f7c0d, 00:14:08Z). Code: the model version is the git TREE of scripts/surf_truth (identical
+code = same version, so merging #992 needs no re-review and is not a new version); --review-ref must name a sha whose
+surf_truth code is identical to the running code (git diff --quiet <sha> HEAD); every run record goes to a REQUIRED
+private --run-store and every earlier record there is read; a second SCORED run of the same version refuses (R7);
+export cuts are ordered by parsed instant and a manifest without cut_at is refused (R8). Checked against real git in
+this worktree: a dirty tree refuses; an unknown reviewed sha refuses. Tests: 36 numpy rule tests pass (also in CI).

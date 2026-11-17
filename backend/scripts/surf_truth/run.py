@@ -1,11 +1,12 @@
 """Run the pre-registered surf-truth fit (#989) on manifested private exports. OFFLINE ONLY.
 
     python -m scripts.surf_truth.run --export DIR [--export DIR ...] --classes classes.json \\
-        --review-ref "#992 reviewed at <sha>" [--prior-run run_earlier.json ...] --out run.json
+        --review-ref "#992 reviewed at <sha>" --run-store PRIVATE_RUN_DIR
 
 Refuses (exit 2):
-- unless --review-ref names a research-lead review of EXACTLY the commit being run ("... reviewed at <sha>"),
-- from a dirty working tree (the model version IS the git commit that runs; amendment 4.5),
+- unless --review-ref names a reviewed sha whose surf_truth code is IDENTICAL to the code that runs (amendment 5.2),
+- from a dirty working tree under scripts/surf_truth (the model version is that code's git TREE; amendment 5.1),
+- if the run store already holds a SCORED run of this version (one scored run per version; amendment 5.3),
 - with any sampler size other than the registered 4 chains x 1000 warmup x 1000 samples,
 - if the model's own tests fail in this environment (they do not run in CI; amendment 4.10).
 Below the floor, without a class scheme, or with physical-reference rows: a NOT RUNNABLE record, nothing fitted.
@@ -37,10 +38,18 @@ def _git(*args) -> str:
 
 
 def code_version() -> dict:
-    """The commit that runs and its time; refuses a dirty tree (amendment 4.5)."""
+    """Amendment 5.1: the model version is the git TREE of scripts/surf_truth (identical code = the same version);
+    the commit is recorded beside it, and `since` is when this code last changed. A dirty tree refuses."""
     if _git("status", "--porcelain", "--", "scripts/surf_truth"):
-        raise SystemExit("refused: the surf_truth code has uncommitted changes; the model version must be a commit")
-    return {"commit": _git("rev-parse", "HEAD"), "committed_at": _git("show", "-s", "--format=%cI", "HEAD")}
+        raise SystemExit("refused: the surf_truth code has uncommitted changes; the model version must be committed")
+    return {"tree": _git("rev-parse", "HEAD:./scripts/surf_truth"), "commit": _git("rev-parse", "HEAD"),
+            "since": _git("log", "-1", "--format=%cI", "--", "scripts/surf_truth")}
+
+
+def code_differs(sha: str):
+    """True if scripts/surf_truth differs between `sha` and HEAD, False if identical, None if `sha` is unknown."""
+    proc = subprocess.run(["git", "diff", "--quiet", sha, "HEAD", "--", "scripts/surf_truth"], cwd=BACKEND)
+    return {0: False, 1: True}.get(proc.returncode)
 
 
 def _exports(dirs: list[str]):
@@ -55,18 +64,33 @@ def _exports(dirs: list[str]):
         raise prep.NotRunnable("no manifested export found")
     manifests = [m for _, m in loaded]
     prep.same_key(manifests)
+    if any(not m.get("cut_at") for m in manifests):
+        raise prep.NotRunnable("an export manifest has no cut_at; cut order cannot be established (amendment 5.4)")
     newest: dict = {}
-    for rows, _m in sorted(loaded, key=lambda rm: rm[1].get("cut_at") or ""):
+    for rows, _m in sorted(loaded, key=lambda rm: datetime.fromisoformat(rm[1]["cut_at"])):   # instants
         for r in rows:
             newest[r["row_key"]] = r                     # later cuts overwrite earlier copies
     return list(newest.values()), manifests
 
 
+def read_store(store: str) -> list[dict]:
+    records = []
+    for path in sorted(glob.glob(os.path.join(store, "*.json"))):
+        with open(path, encoding="utf-8") as fh:
+            records.append(json.load(fh))
+    return records
+
+
+def already_scored(prior_runs: list[dict], version: dict) -> bool:
+    """Amendment 5.3 (2 E): ONE scored run per model version."""
+    return any(r.get("gate") and r.get("model_version") == version["tree"] for r in prior_runs)
+
+
 def scored_after(prior_runs: list[dict], version: dict) -> str:
-    """Amendment 4.5 (2 E): if any earlier SCORED run used another model version, only targets received after this
-    version's commit are scored. Returns the cut-off (ISO), or "" for none."""
-    scored = [r for r in prior_runs if r.get("gate") and r.get("model_version") != version["commit"]]
-    return version["committed_at"] if scored else ""
+    """Amendment 4.5 / 5.3: if any earlier SCORED run used another model version, only targets received after this
+    version came into being are scored. Returns the cut-off (ISO), or "" for none."""
+    scored = [r for r in prior_runs if r.get("gate") and r.get("model_version") != version["tree"]]
+    return version["since"] if scored else ""
 
 
 def _score(fit, prepared, spot_class, model, after: str = ""):
@@ -93,10 +117,10 @@ def model_tests() -> dict:
 
 
 def run(args, version: dict, tests: dict) -> dict:
-    record = {"schema": "raw-surf/surf-truth-run/2", "model_version": version["commit"],
-              "model_committed_at": version["committed_at"], "review_ref": args.review_ref, "seed": gate.SEED,
+    record = {"schema": "raw-surf/surf-truth-run/3", "model_version": version["tree"], "commit": version["commit"],
+              "model_since": version["since"], "review_ref": args.review_ref, "seed": gate.SEED,
               "model_tests": tests, "started_at": datetime.now(timezone.utc).isoformat(),
-              "registration": "#989 + amendments 1-4"}
+              "registration": "#989 + amendments 1-5"}
     try:
         rows, manifests = _exports(args.export)
         with open(args.classes, encoding="utf-8") as fh:
@@ -108,11 +132,7 @@ def run(args, version: dict, tests: dict) -> dict:
                    "floor": prepared.floor})
     if not prepared.floor["runnable"]:
         return {**record, "verdict": "NOT RUNNABLE", "reason": "registered floor not met"}
-    prior = []
-    for path in args.prior_run or []:
-        with open(path, encoding="utf-8") as fh:
-            prior.append(json.load(fh))
-    after = scored_after(prior, version)
+    after = scored_after(read_store(args.run_store), version)
     record["scored_only_after"] = after or None
 
     from . import model                                     # NumPyro/JAX only past this point
@@ -154,13 +174,18 @@ def _session_sensitivity(rows, spot_class, model, sizes, after) -> dict:
     return {"gate": out, "diagnostics": cfit.diagnostics}
 
 
-def check_review(review_ref: str, commit: str) -> str:
-    """Amendment 4.9: the review must name EXACTLY the commit that runs. Returns '' when it does, else the reason."""
+def check_review(review_ref: str, differs=None) -> str:
+    """Amendment 5.2: the review must name a sha whose surf_truth code is IDENTICAL to the code that runs.
+    Returns '' when it is, else the reason. `differs(sha)` -> True / False / None (unknown sha)."""
+    differs = differs or code_differs
     m = REVIEW_RE.search(review_ref or "")
     if not m:
         return "no research-lead review recorded (expected '... reviewed at <sha>')"
-    if not commit.startswith(m.group(1)):
-        return f"the review names {m.group(1)} but the code that would run is {commit[:12]}"
+    verdict = differs(m.group(1))
+    if verdict is None:
+        return f"the reviewed sha {m.group(1)} is not in this repository"
+    if verdict:
+        return f"the surf_truth code differs from the reviewed {m.group(1)}: a new review is needed"
     return ""
 
 
@@ -169,8 +194,7 @@ def main(argv=None) -> int:
     ap.add_argument("--export", action="append", required=True, help="a directory of manifested exports")
     ap.add_argument("--classes", required=True, help="JSON spot_id -> class, from the REGISTERED B2 scheme")
     ap.add_argument("--review-ref", required=True, help="the research lead's review: '#992 reviewed at <sha>'")
-    ap.add_argument("--prior-run", action="append", help="an earlier scored run record (amendment 4.5)")
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--run-store", required=True, help="the PRIVATE directory of every run record (amendment 5.3)")
     ap.add_argument("--chains", type=int, default=4)
     ap.add_argument("--warmup", type=int, default=1000)
     ap.add_argument("--samples", type=int, default=1000)
@@ -183,16 +207,21 @@ def main(argv=None) -> int:
     except SystemExit as exc:
         print(exc, file=sys.stderr)
         return 2
-    reason = check_review(args.review_ref, version["commit"])
+    reason = check_review(args.review_ref)
     if reason:
         print("refused: " + reason, file=sys.stderr)
+        return 2
+    os.makedirs(args.run_store, exist_ok=True)
+    if already_scored(read_store(args.run_store), version):
+        print("refused: this model version already has a scored run (one per version; amendment 5.3)", file=sys.stderr)
         return 2
     tests = model_tests()
     if not tests["ok"]:
         print("refused: the model's tests fail in this environment: " + tests["summary"], file=sys.stderr)
         return 2
     rec = run(args, version, tests)
-    with open(args.out, "w", encoding="utf-8") as fh:
+    name = f"{rec['started_at'].replace(':', '').replace('-', '')[:15]}-{version['tree'][:12]}.json"
+    with open(os.path.join(args.run_store, name), "w", encoding="utf-8") as fh:
         json.dump(rec, fh, indent=1, default=str)
     print(rec["verdict"])
     return 0

@@ -115,17 +115,19 @@ def test_shuffle_keeps_entries_and_roles():
 
 
 def test_cli_refusals_and_not_runnable_without_jax(tmp_path, monkeypatch):
-    out = tmp_path / "run.json"
-    common = ["--export", str(tmp_path), "--classes", str(tmp_path / "c.json"), "--out", str(out)]
-    monkeypatch.setattr(run, "code_version", lambda: {"commit": "abc1234def", "committed_at": "2026-11-17T00:00:00+00:00"})
-    monkeypatch.setattr(run, "model_tests", lambda: {"ok": True, "summary": "30 passed"})
+    store = tmp_path / "runs"
+    common = ["--export", str(tmp_path), "--classes", str(tmp_path / "c.json"), "--run-store", str(store)]
+    monkeypatch.setattr(run, "code_version", lambda: {"tree": "tree123", "commit": "abc1234def", "since": "2026-11-17T00:00:00+00:00"})
+    monkeypatch.setattr(run, "code_differs", lambda sha: {"abc1234": False, "fff0000": True}.get(sha))
+    monkeypatch.setattr(run, "model_tests", lambda: {"ok": True, "summary": "37 passed"})
     assert run.main(common + ["--review-ref", "  "]) == 2                                  # no review
-    assert run.main(common + ["--review-ref", "#992 reviewed at 9999999"]) == 2            # review of other code
+    assert run.main(common + ["--review-ref", "#992 reviewed at fff0000"]) == 2            # reviewed code differs
     assert run.main(common + ["--review-ref", "#992 reviewed at abc1234", "--chains", "2"]) == 2
     (tmp_path / "c.json").write_text("{}")
     monkeypatch.setitem(sys.modules, "scripts.surf_truth.model", None)   # importing the model would raise
     assert run.main(common + ["--review-ref", "#992 reviewed at abc1234"]) == 0
-    assert json.loads(out.read_text())["verdict"] == "NOT RUNNABLE"
+    (record,) = [json.loads(f.read_text()) for f in store.glob("*.json")]
+    assert record["verdict"] == "NOT RUNNABLE" and record["model_version"] == "tree123"
     monkeypatch.setattr(run, "model_tests", lambda: {"ok": False, "summary": "1 failed"})
     assert run.main(common + ["--review-ref", "#992 reviewed at abc1234"]) == 2              # failing model tests
 
@@ -218,11 +220,26 @@ def test_newest_export_copy_wins(tmp_path):
 
 
 def test_prior_scored_run_with_another_version_restricts_scoring():
-    version = {"commit": "new", "committed_at": "2026-12-10T00:00:00-05:00"}
+    version = {"tree": "new", "commit": "c", "since": "2026-12-10T00:00:00-05:00"}
     assert run.scored_after([], version) == ""
     assert run.scored_after([{"model_version": "new", "gate": {"n": 3}}], version) == ""
-    assert run.scored_after([{"model_version": "old", "gate": {"n": 3}}], version) == version["committed_at"]
+    assert run.scored_after([{"model_version": "old", "gate": {"n": 3}}], version) == version["since"]
     assert run.scored_after([{"model_version": "old", "verdict": "NOT RUNNABLE"}], version) == ""
+
+
+def test_one_scored_run_per_version(tmp_path, monkeypatch):
+    version = {"tree": "tree123", "commit": "abc1234def", "since": "2026-11-17T00:00:00+00:00"}
+    assert run.already_scored([{"model_version": "tree123", "verdict": "NOT RUNNABLE"}], version) is False
+    assert run.already_scored([{"model_version": "tree123", "gate": {"n": 40}}], version) is True
+    store = tmp_path / "runs"
+    store.mkdir()
+    (store / "earlier.json").write_text(json.dumps({"model_version": "tree123", "gate": {"n": 40}}))
+    monkeypatch.setattr(run, "code_version", lambda: version)
+    monkeypatch.setattr(run, "code_differs", lambda sha: False)
+    monkeypatch.setattr(run, "model_tests", lambda: {"ok": True, "summary": "ok"})
+    args = ["--export", str(tmp_path), "--classes", "c.json", "--run-store", str(store),
+            "--review-ref", "#992 reviewed at abc1234"]
+    assert run.main(args) == 2                          # a second scored run of the same version is refused (R7)
 
 
 def test_negative_control_voids_only_when_shuffled_is_significantly_better():
@@ -233,7 +250,29 @@ def test_negative_control_voids_only_when_shuffled_is_significantly_better():
     assert gate.shuffled_significantly_better(real, much_better)["significantly_better"] is True
 
 
-def test_review_ref_must_name_the_running_commit():
-    assert run.check_review("#992 reviewed at abc1234", "abc1234def") == ""
-    assert "names" in run.check_review("#992 reviewed at fff0000", "abc1234def")
-    assert "no research-lead review" in run.check_review("looks fine", "abc1234def")
+def test_review_ref_must_name_reviewed_code_identical_to_the_running_code():
+    same = lambda sha: False      # noqa: E731
+    changed = lambda sha: True    # noqa: E731
+    unknown = lambda sha: None    # noqa: E731
+    assert run.check_review("#992 reviewed at abc1234", same) == ""
+    assert "differs" in run.check_review("#992 reviewed at abc1234", changed)
+    assert "not in this repository" in run.check_review("#992 reviewed at abc1234", unknown)
+    assert "no research-lead review" in run.check_review("looks fine", same)
+
+
+def test_export_cut_order_is_by_instant_and_needs_cut_at(tmp_path):
+    def write(name, cut, status):
+        row = {**_row(row_key="r1"), "xp_status": status}
+        (tmp_path / f"{name}.jsonl").write_text(json.dumps(row) + "\n")
+        manifest = {"schema": prep.SCHEMA, "rows": 1, "key_fingerprint": "k"}
+        if cut is not None:
+            manifest["cut_at"] = cut
+        (tmp_path / f"{name}.manifest.json").write_text(json.dumps(manifest))
+    # 23:00 at -05:00 is 04:00Z the NEXT day: later than 2026-12-05T01:00Z although its string sorts earlier
+    write("a", "2026-12-04T23:00:00-05:00", "audit_failed")
+    write("b", "2026-12-05T01:00:00+00:00", "granted")
+    rows, _ = run._exports([str(tmp_path)])
+    assert [r["xp_status"] for r in rows] == ["audit_failed"]
+    write("c", None, "granted")
+    with pytest.raises(prep.NotRunnable, match="cut_at"):
+        run._exports([str(tmp_path)])
