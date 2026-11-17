@@ -2114,3 +2114,9 @@ position.**
   - the run summary publishes the verdict on GitHub (public) when the run ends;
   - a run that writes a score is FINAL, whatever it says.
 - **The tag `tide-gate-G3t`** is pushed only on the owner's word typed in this session.
+
+## 15:11 EST 2026-11-17 (`date`) - G3t STARTED on the owner's word (recorded before any output is opened)
+- **Owner, typed in this session at 15:11 EST: "Yes, start G3t".** It answers the request that set out the three
+  points (a PASS says nothing about surf beaches; the verdict is published publicly; a scored run is final).
+- The tag `tide-gate-G3t` is pushed at 55080566d (code cleared at 92f31a70c; later commits are log-only).
+- The failure rule (written 14:53 EST) applies.
