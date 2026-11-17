@@ -42,6 +42,10 @@ CDIP_ARCH_ASCII = ("https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/archive/{id
                    "?waveTime,waveHs,waveTp,waveDp,waveFlagPrimary")
 NDBC_HIST_YEAR = "https://www.ndbc.noaa.gov/data/historical/stdmet/{id}h{year}.txt.gz"
 NDBC_HIST_MONTH = "https://www.ndbc.noaa.gov/data/stdmet/{mon}/{id}.txt"
+# Older finished months of this year move to a gzipped name: data/stdmet/{Mon}/{id}{code}{year}.txt.gz, code 1-9 then
+# a/b/c for Oct-Dec. Checked 2026-11-17 on 46025: Jan/Aug/Sep 2026 .gz -> 200 and Jan .txt -> 404; Sep/Oct .txt -> 200.
+NDBC_HIST_MONTH_GZ = "https://www.ndbc.noaa.gov/data/stdmet/{mon}/{id}{code}{year}.txt.gz"
+_NDBC_MONTH_CODE = "123456789abc"
 # NDBC's QC'd archive stamps a wave record 10 min BEFORE realtime2 stamps the same record. Measured 2026-11-04 on
 # 46025 / 46086, Sep 2026 (archive vs realtime2): +10 min matched 523 / 276 records, all within 0.05 m (archive is
 # 0.01 m, realtime 0.1 m); 0 min matched 264 / 159. Archive times are moved +10 min onto the realtime standard.
@@ -295,25 +299,38 @@ def fetch_ndbc_archive(cache, sid: str, window: Tuple[datetime, datetime], now: 
     recs, obs, files, missing = [], [], [], []
     for year in range(window[0].year, window[1].year + 1):
         if year < now.year:
-            parts = [(f"truth/ndbc/{sid}/h{year}.txt.gz", NDBC_HIST_YEAR.format(id=sid, year=year), True)]
+            parts = [[(f"truth/ndbc/{sid}/h{year}.txt.gz", NDBC_HIST_YEAR.format(id=sid, year=year), True)]]
         else:
             m0 = window[0].month if window[0].year == year else 1
             m1 = window[1].month if window[1].year == year else 12
-            parts = [(f"truth/ndbc/{sid}/{year}{m:02d}.txt",
-                      NDBC_HIST_MONTH.format(id=sid, mon=datetime(year, m, 1).strftime("%b")), False)
-                     for m in range(m0, m1 + 1) if m < now.month]
-        for key, url, gz in parts:
-            try:
-                body, r = cache.fetch(key, url, source="ndbc_historical_stdmet",
-                                      parser="eval_reference.parse_ndbc_historical", time_standard=NDBC_HIST_TIME,
-                                      qc_policy="NDBC QC'd archive; 99 / 999 = missing, kept")
-                got = parse_ndbc_historical((gzip.decompress(body) if gz else body).decode("utf-8", "replace"))
-            except Exception as e:                                      # noqa: BLE001 - counted, never silent
-                missing.append(f"{url}: {type(e).__name__}")
-                continue
-            recs.append(r)
-            obs += got
-            files.append(key)
+            parts = []
+            for m in range(m0, m1 + 1):
+                if m >= now.month:
+                    continue
+                mon = datetime(year, m, 1).strftime("%b")
+                # Try the gzipped archive name first (older months), then the plain current-month name.
+                parts.append([(f"truth/ndbc/{sid}/{year}{m:02d}.txt.gz",
+                               NDBC_HIST_MONTH_GZ.format(id=sid, mon=mon, code=_NDBC_MONTH_CODE[m - 1], year=year),
+                               True),
+                              (f"truth/ndbc/{sid}/{year}{m:02d}.txt", NDBC_HIST_MONTH.format(id=sid, mon=mon), False)])
+        for options in parts:
+            errors = []
+            for key, url, gz in options:
+                try:
+                    body, r = cache.fetch(key, url, source="ndbc_historical_stdmet",
+                                          parser="eval_reference.parse_ndbc_historical", time_standard=NDBC_HIST_TIME,
+                                          qc_policy="NDBC QC'd archive; 99 / 999 = missing, kept")
+                    got = parse_ndbc_historical((gzip.decompress(body) if gz else body).decode("utf-8", "replace"))
+                except Exception as e:                                  # noqa: BLE001 - counted, never silent
+                    errors.append(f"{url}: {type(e).__name__}")
+                    continue
+                recs.append(r)
+                obs += got
+                files.append(key)
+                errors = []
+                break
+            if errors:
+                missing.append(" | ".join(errors))
     return obs, recs, files, missing
 
 
