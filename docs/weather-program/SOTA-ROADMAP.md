@@ -57,6 +57,8 @@ sleep".
     (research log, 22:15 EST).
   - Its gate must still pass before the merge. Where this roadmap says "dark" or "David's word to flip", read: David's
     word to MERGE, with the item ON.
+  - Recorded as **D-080** (22:46 EST), with the owner's second wording (22:23 EST, in the director's session):
+    "everything we merge needs to ship on, with a auto test to kill switch".
 
 ## Watch list (not ranked)
 
