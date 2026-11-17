@@ -231,3 +231,29 @@ Reading (not a re-test):
 (2) The point failure comes from tiers 4-5 (OSM cape within 1 km, shore-normal spread >= 60 deg) firing on reefs.
 (3) The unknown share fails because the untagged half of the catalogue is mostly unknown, and weighting counts it at its true size.
 Any v3 needs a new registration and new labels again.
+
+### 3a. Additions after the advisor's read (2026-11-17 01:38 EST by the clock; the advisor 06:39Z; the verdict is unchanged: FAIL)
+1. RECOMPUTABLE FROM THE REPO. Committed: ackend/data/spot_class_v2_predictions.json (per spot: frame, frame size, label, predicted
+   class, confidence, the tier that fired, and the tag-only prediction), spot_class_v2_osm_evidence.json (the OSM distances, ODbL)
+   and spot_class_v2_snapshot.json (the 266 spots' catalogue rows). sha256: snapshot c5d2dcbe3946c1f5..., evidence
+   c41c262072479c29..., predictions 460182a47f0b8536... (the predictions file carries the full hashes of the other two).
+   Tiers fired: catalogue_tag 135, none 65, keyword 36, osm_cape 9, osm_river_mouth 8, osm_structure_inlet 8, osm_reef 3, keywords 2,
+   spread 0.
+2. HOW MUCH HAS NO TRUTH. 87 of 266 drawn spots carry no label, because no guide describes the break: 0.327 raw, 0.400 WEIGHTED.
+   Every precision here is measured on DOCUMENTED spots. The undocumented ones, most of the untagged half of the catalogue, are where
+   a classifier is most needed and least tested. Even a future PASS could claim nothing about them. This is a different number from
+   the classifier's own unknown share (0.384 weighted).
+3. WHAT THE SECOND READER SAYS. Five of the six disagreements are label against unknown, where the second reader found no source and
+   the first gave a class. Only one is class against class (Jetty East: inlet_jetty / beach). So where both readers found a source,
+   they agree almost always (24 of 25), but WHETHER a source exists is soft, about one spot in six. The five, with the first reader's
+   source type (each guide_description, 2 sources): Makapuu (beach), Cape San Blas (point), Buchupureo (point), Nuqui (river_mouth),
+   Mughsail (beach).
+CORRECTION to section 3's reading (2), my error: the point failure does NOT come mainly from tiers 4-5. Of the 13 reef ->
+point_headland errors, 12 sit in the point FRAME and come from the catalogue tag (6) or a "point" keyword (6); only 1 is the OSM cape
+tier, and the spread tier fired nowhere. These are spots tagged or named "point" that guides describe as reef breaks. The cause is
+the catalogue's own tag and keywords, not the OSM tiers. (All wrong point calls: tag 7, keyword 7, cape 3.)
+FACTS FOR ANY v3 (the advisor):
+- The inlet frame is USED UP: 31 spots, all 31 drawn in v2, so there are none left to label fresh. inlet_jetty cannot be tested
+  again on new labels unless the catalogue grows or untagged spots are searched for inlets. A v3 must not quietly reuse them.
+- A v3 designed on v2's errors is designed on v2's labels, exactly as v2 was on v1's. It needs the same honesty note and only spots
+  in neither v1 nor v2. Remaining unseen: point frame 61, reef frame 103, untagged 706.
