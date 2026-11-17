@@ -1786,3 +1786,48 @@ Both must hold. The 2-day block bootstrap is unchanged.
      no-constants-exposed test.
 - **Status:** the advisor (16:42Z) and the research lead are both clear. FINAL waits only on the owner's word on the v2.1
   arms (default none). FINAL will be its own commit.
+
+## 13:52 EST 2026-11-17 (`date`) - Research note (owner asked: "What is the best path toward SOTA here?"); no data fetched
+A web literature pass, all public sources. The surfer's water level has four parts.
+
+**1. Tide.**
+- Global atlases sit near 11 cm RSS for 8 constituents at coastal gauges: FES2022 11.26 cm, EOT20 11.68 cm (Fu et al.
+  2025, 164 gauges). EOT20 ranked best in Wang & He 2025 (East China seas).
+- A station's own harmonic constants are millimetre-good AT the station (our G2 positive control: 0.0015 m).
+- SOTA practice is therefore a HYBRID: station harmonics (NOAA CO-OPS, public domain) near a harmonic station, with
+  subordinate-station adjustments; the atlas elsewhere.
+- This is the #931 harmonics line. Its gate should be the distance-decay at INDEPENDENT beach gauges.
+
+**2. Mean + seasonal level.**
+- Altimetry climatology is G3t.
+- NOAA's Coastal Ocean Reanalysis (CORA, ADCIRC+SWAN, 1979-2021, ~400 m coastal mesh) beats GLORYS12 on monthly and
+  seasonal variability at NWLON gauges (Rose et al. 2024). Its public release was not confirmed.
+
+**3. Surge.**
+- Operational physics: STOFS-2D/3D; GTSM/GLOSSIS 10-day forecasts, 4 a day, whose validation reports accuracy
+  "comparable to data-assimilated global tide models". GLOSSIS's free access is not confirmed.
+- Hybrid ML residual correction, gauge + model: a North Sea 2026 preprint reports RMSE 0.055 m vs 0.164 m for the physics
+  model at 2 h, but a reviewer notes the tide cancels in that metric and the model uses no wind forecast. Gauge-only got
+  0.061 m.
+- This matches our pilot's oracle: yesterday's residual 0.039 m beat every model near gauges.
+- Away from gauges, physics is needed. The ML literature mostly benchmarks against weak baselines (preprints).
+
+**4. Wave setup and runup.**
+- The USGS/NOAA Total Water Level & Coastal Change forecast (operational, >4,700 km of sandy US coast, via NWPS) adds
+  Stockdon setup + swash to tide + surge.
+- In Hurricane Isaias, wave-driven level was 52% of forecast TWL at the peak; earlier validation shows under-prediction.
+- **Consequence for our surge gate:** the Hohonu beach gauges sit in the surf zone and measure SETUP. Without a setup arm
+  or a wave-height stratum, setup will be scored as surge error. This must be registered in the surge gate.
+
+**Truth.**
+- Hohonu publishes QARTOD-based QC (vendor document, Aug 2025) and NAVD88-labelled ERDDAP series.
+- No independent accuracy or benchmark-tie evaluation was found. Datum stability is unverified (the advisor's
+  condition 3).
+
+Sources:
+- tide models: mdpi.com/2077-1312/13/3/395; frontiersin.org 10.3389/fmars.2025.1592765
+- GTSM: os.copernicus.org/preprints/os-2018-63
+- ML: egusphere-2026-4129 + RC2; Tiggeloven et al. 2021, Sci. Rep.
+- TWL&CC: pubs.usgs.gov/publication/70259350; usgs.gov spcmsc news
+- CORA: doi 10.3389/fmars.2024.1381228
+- Hohonu QC: hohonu.notion.site/quality-control-procedures
