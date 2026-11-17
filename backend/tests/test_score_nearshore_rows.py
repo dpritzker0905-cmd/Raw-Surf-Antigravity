@@ -23,7 +23,7 @@ import score_nearshore_rows as sn  # noqa: E402
 DATA = os.path.join(os.path.dirname(SCRIPTS), "data")
 SRC = os.path.join(SCRIPTS, "score_nearshore_rows.py")
 W1_START, W1_END, W1_SEED = sn.REGISTERED_WINDOWS[0]
-AFTER_W1 = "2026-12-08T00:00:00"
+AFTER_W1 = "2026-12-08T00:00:00"          # the window's end plus the 24 h it must settle
 # synthetic stations: three per region, coordinates inside the rule's boxes
 STATIONS = {"ca1": (33.0, -117.3), "ca2": (34.0, -118.6), "ca3": (36.9, -122.0),
             "fe1": (27.5, -80.2), "fe2": (28.4, -80.5), "fe3": (26.0, -80.1),
@@ -128,7 +128,7 @@ def test_a_constant_factor_on_a_low_chain_is_level_only_not_wrong_physics():
     assert f["level"] == "level only" and f["level_constant"] == pytest.approx(0.8)
     assert f["pattern"]["diff"] == pytest.approx(0.0, abs=1e-12)
     text = sn.render(out, COUNTS, W1_START, W1_END)
-    assert "exposure_off: **REMOVE CANDIDATE (level only)**" in text
+    assert "exposure_off: **REMOVE CANDIDATE (level only)**. holds in 3 of 3 leave-one-region-out re-scores" in text
     assert "It does NOT say this factor's physics is wrong" in text
 
 
@@ -167,7 +167,9 @@ def test_a_remove_candidate_that_is_worse_at_the_extremes_is_disqualified_and_ke
     ok = {"kept": 3, "scored": 3}
     assert sn.verdict(better, {}, {"top_tenth_of_truth": 0.05, "offshore_3m_or_more": None}, ok)[0] == "DISQUALIFIED"
     assert sn.verdict(better, {}, {"top_tenth_of_truth": 0.02, "offshore_3m_or_more": None}, ok)[0] == "REMOVE CANDIDATE"
-    assert sn.verdict(worse, {}, {"top_tenth_of_truth": 0.05}, ok)[0] == "KEEP"
+    assert sn.verdict(worse, {}, {"top_tenth_of_truth": 0.05}, ok) == ("KEEP", "")
+    assert sn.verdict(worse, {}, {"top_tenth_of_truth": -0.05, "offshore_3m_or_more": None}, ok) == (
+        "KEEP", "factor-off is better at the extremes: top_tenth_of_truth by 0.050")
     assert sn.verdict({"diff": 0.0, "ci": (-0.1, 0.1), "shown": True}, {}, {}, None)[0] == "UNDECIDED"
     assert sn.verdict(dict(better, shown=False), {}, {}, ok)[0] == "NOT SHOWN"
     assert sn.verdict(None, {}, {}, None)[0] == "UNTESTABLE"
@@ -175,8 +177,10 @@ def test_a_remove_candidate_that_is_worse_at_the_extremes_is_disqualified_and_ke
 
 def test_verdicts_print_only_for_a_registered_window_whole_closed_and_completely_read():
     assert sn.run_mode(W1_START, W1_END, AFTER_W1, "ok") == ("scored", 20261207)
-    assert sn.run_mode("2027-01-11T00:00:00", "2027-02-01T00:00:00", "2027-02-01T00:00:01", "ok") == ("scored", 20270201)
+    assert sn.run_mode("2027-01-11T00:00:00", "2027-02-01T00:00:00", "2027-02-02T00:00:00", "ok") == ("scored", 20270201)
     assert sn.run_mode(W1_START, W1_END, "2026-12-06T23:59:59", "ok")[0] == "counts"          # not closed
+    assert sn.run_mode(W1_START, W1_END, "2026-12-07T23:59:59", "ok")[0] == "counts"          # closed, not settled
+    assert sn.SETTLE_HOURS == 24 and sn._days(W1_START, W1_END)[-1] == "2026-12-08"           # the settling day is read
     assert sn.run_mode(W1_START, "2026-11-27T00:00:00", AFTER_W1, "ok")[0] == "counts"        # a sub-window
     assert sn.run_mode("2026-11-18T00:00:00", W1_END, AFTER_W1, "ok")[0] == "counts"
     assert sn.run_mode(W1_START, W1_END, AFTER_W1, "partial_1_failed")[0] == "counts"         # item D
@@ -189,7 +193,8 @@ def test_verdicts_print_only_for_a_registered_window_whole_closed_and_completely
             assert word not in text
     assert "the read was not complete (partial_2_failed)" in partial
     scored = sn.report(objects, "ok", W1_START, W1_END, AFTER_W1, regions)
-    assert "COUNTS ONLY" not in scored and "exposure_off: **REMOVE CANDIDATE (level only)**" in scored
+    assert "COUNTS ONLY" not in scored and "exposure_off: **REMOVE CANDIDATE (level only)**. holds in 3 of 3" in scored
+    assert "**Scored dispatch 1 of 1 for this window.**" in scored and "Scored dispatch" not in mid
 
 
 def test_every_report_carries_the_timing_and_lead_caveats():

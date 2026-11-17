@@ -48,6 +48,8 @@ PREFIX = "calibration/nearshore/rows/"
 # (first target time, last target time exclusive, seed). The registration's two windows; nothing else is scored.
 REGISTERED_WINDOWS = (("2026-11-17T00:00:00", "2026-12-07T00:00:00", 20261207),
                       ("2027-01-11T00:00:00", "2027-02-01T00:00:00", 20270201))
+SETTLE_HOURS = 24                    # a scored run waits this long after the window closes: runs made after the
+#                                      close still grade its last target times. Fixed before any counts were seen.
 DRAWS = 2000
 SHUFFLES = 200
 MIN_UNITS, MIN_DAYS, MIN_STATIONS = 30, 7, 3
@@ -104,8 +106,9 @@ def run_mode(start: str, end: str, now: str, fetch_status: str):
     seed = next((sd for s, e, sd in REGISTERED_WINDOWS if (s, e) == (start[:19], end[:19])), None)
     if seed is None:
         return "counts", "the dates are not a registered window, whole"
-    if now[:19] < end[:19]:
-        return "counts", "the window has not closed"
+    settled = (datetime.datetime.fromisoformat(end[:19]) + datetime.timedelta(hours=SETTLE_HOURS)).isoformat()
+    if now[:19] < settled:
+        return "counts", "the window has not closed and settled (%d h after its end)" % SETTLE_HOURS
     if fetch_status != "ok":
         return "counts", "the read was not complete (%s)" % fetch_status
     return "scored", seed
@@ -264,7 +267,8 @@ def verdict(pooled, regions: dict, extremes: dict, loso):
         if worse:
             return "DISQUALIFIED", "worse by more than %.2f at the extremes: %s" % (REGION_MARGIN, ", ".join(sorted(worse)))
         return "REMOVE CANDIDATE", ""
-    return "KEEP", ""
+    better = ["%s by %.3f" % (k, -v) for k, v in sorted(extremes.items()) if v is not None and v < -REGION_MARGIN]
+    return "KEEP", ("factor-off is better at the extremes: " + ", ".join(better)) if better else ""
 
 
 def positive_control(rows, regions_by_station) -> dict:
@@ -407,6 +411,9 @@ def render_counts(c: dict, counts: dict, start: str, end: str, reason: str, grad
 def render(result: dict, counts: dict, start: str, end: str, graded_runs=None, fetch_status="ok") -> str:
     """The scored report: markdown, aggregates only."""
     L = _header(counts, start, end, graded_runs, fetch_status)
+    L.insert(1, "")
+    L.insert(2, "**Scored dispatch 1 of 1 for this window.** Its run id is recorded in the log BEFORE this report is "
+                "opened; a second scored dispatch needs a dated reason there first.")
     pc = result["positive_control"]
     L += ["", "Positive control (plumbing; x%.1f seeded in one region): **%s**%s." % (
         CONTROL_FACTOR, pc["status"], "" if "recovered" not in pc else ", recovered x%.3f in %s" % (pc["recovered"], pc["region"]))]
@@ -422,7 +429,11 @@ def render(result: dict, counts: dict, start: str, end: str, graded_runs=None, f
           "'level only' says the chain is low. It does NOT say this factor's physics is wrong."]
     for name, f in result["factors"].items():
         word = f["verdict"] + (" (%s)" % f["level"] if f["verdict"] == "REMOVE CANDIDATE" else "")
-        L += ["", "### %s: **%s**%s" % (name, word, "" if not f["reason"] else ". " + f["reason"]), "",
+        notes = [f["reason"]] if f["reason"] else []
+        if f["leave_one_region_out"] is not None:
+            notes.append("holds in %d of %d leave-one-region-out re-scores" % (
+                f["leave_one_region_out"]["kept"], f["leave_one_region_out"]["scored"]))
+        L += ["", "### %s: **%s**%s" % (name, word, "".join(". " + n for n in notes)), "",
               "| cell | station-days | difference | 95% interval | null band | shown | switching it off moves |",
               "|---|---|---|---|---|---|---|"]
         for cell, c in f["cells"].items():
@@ -493,7 +504,8 @@ def fetch_objects(days, env=None, opener=urllib.request.urlopen):
 
 
 def _days(start: str, end: str):
-    d0, d1 = datetime.date.fromisoformat(start[:10]), datetime.date.fromisoformat(end[:10])
+    d0 = datetime.date.fromisoformat(start[:10])
+    d1 = datetime.date.fromisoformat(end[:10]) + datetime.timedelta(hours=SETTLE_HOURS)
     out = []
     while d0 <= d1:
         out.append(d0.isoformat())

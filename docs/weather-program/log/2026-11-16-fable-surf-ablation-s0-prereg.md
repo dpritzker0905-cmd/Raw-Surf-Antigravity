@@ -791,3 +791,25 @@ helps, the level is off"; a verdict carried by two of four stations is UNDECIDED
 disqualifies; verdicts print only for a registered window, whole, closed and completely read. Six more mutations by
 hand each fail a test. On a realistic-size synthetic set (22 stations, 20 days, 440 station-days) the scored run
 takes 40 seconds at the real 2,000 draws.
+
+## 2026-11-17 03:57Z The advisor closed the condition; four small asks built, and the wait after close fixed now
+
+The advisor re-read the scorer at `88e1cefed` and closed the open condition: items A to F are built before any
+dispatch. It left four asks that are not conditions. All four are in this commit.
+
+- **The scored run waits 24 hours after the window closes.** Runs made after the close still grade its last target
+  times. The wait is `SETTLE_HOURS = 24` in the script and is enforced: before the window end plus 24 h the run is
+  counts-only. It is fixed here, before any counts-only report has been seen, so the timing cannot be chosen with
+  one in hand. Window 1 can therefore be scored from 2026-12-08 00:00Z; window 2 from 2027-02-02 00:00Z. The runs
+  made on the settling day are read too.
+- **One look, made visible.** The scored report opens with "Scored dispatch 1 of 1 for this window". The run id is
+  written in this log BEFORE the report is opened. A second scored dispatch needs a dated reason here first.
+- **KEEP says where factor-off is better at an extreme** (by more than 0.02). The word stays KEEP: the extremes
+  guardrail disqualifies arms, and KEEP is the status quo. It is printed because that is the case a next arm would
+  be built to fix.
+- **Leave-one-region-out is on the verdict line** ("holds in k of n leave-one-region-out re-scores"). It is
+  reported and does not change the word: dropping the largest region mostly removes power, and the regional rule is
+  already carried by "no region the opposite way by more than 0.02" and "a served change is limited to the tested
+  regions".
+
+Still no private row read. Nothing dispatched. 19 tests.
