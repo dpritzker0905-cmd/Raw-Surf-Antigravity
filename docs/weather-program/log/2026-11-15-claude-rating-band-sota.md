@@ -400,3 +400,18 @@ It is the same starvation, moved one step up: the plain frames budget belongs to
 FLAG 2 (advisor; the director 18:34 EST): tier 2 has 22 of 64 sets more than one cycle behind, so those layers' rated asks go to
 /grid. FRAME_RATING_BUDGET_S is NOT raised. The director sends the rated tier-2 numbers to the frame-carry lane, which is measuring
 the whole pilots / frames budget (77-143 regional sets skipped per run), to fold into one pre-registered, advisor-read budget plan.
+
+## 14. #975's gate: runs 2-4 and the verdict (2026-11-17 10:39 EST by the clock)
+Each run's own rated-step report (full job log) and the public index read when it finished (each record's own `run` field).
+#996 (frames 960 -> 1500 s, rated 600 -> 1800 s) merged at 2026-11-17 06:18Z (merge commit 4ef180897).
+| run | id | started -> finished | dev commit | #996 in it? | tier 0 built / s | tier 1 | tier 2 built (skipped) / s | tier 0: lag 0 / none behind | tier 2 not behind |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 43950205417 | 11-16 20:28Z -> 23:11Z | 2adc374a1 | no | 19 / 290 | built, lag 0 | 5 (59) / 202 | 5/19 / 19/19 | 8/64 |
+| 2 | 44004377746 | 11-17 02:37Z -> 08:08Z | bd8e4c8cd | no (started before 06:18Z) | 19 / 301 | built, lag 0 | 11 (53) / 244 | 19/19 / 19/19 | 12/64 |
+| 3 | 44046081974 | 11-17 08:21Z -> 12:26Z | c6e1c1c96 | YES (contains 4ef180897) | 19 / 291 | built, lag 0 | 64 (0) / 1,097 | 19/19 / 19/19 | 62/64 |
+| 4 | 44083737083 | 11-17 12:30Z -> 15:33Z | 2fcbd8153 | YES (contains 4ef180897) | 19 / 295 | built, lag 0 | 64 (0) / 1,203 | 19/19 / 19/19 | 64/64 |
+VERDICT: the #975 gate PASSES on the amended reading ("none of the 19 behind", written before run 2): 4 of 4 runs. As worded
+("lag 0"), 3 of 4 (run 1: 5 of 19, the other 14 rated one run NEWER than plain). Both readings are reported, as the amendment says.
+Tier 2 recovered only once #996 was in the run (runs 3-4). Its recovery belongs to #996, not to #975. In run 3 the two sets still
+behind were the ICON swell_1 and wind_waves world rated sets (24 h). They are world sets, which #933's run-age refusal does not
+cover; both were current in run 4. Rated step totals: run 3 ~1,487 s, run 4 ~1,596 s, against #996's 1,800 s budget.
