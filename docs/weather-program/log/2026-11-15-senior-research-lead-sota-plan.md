@@ -2356,3 +2356,16 @@ surf-beach truth.
     - the served form reported, with the leak shown;
     - a registered multi-cycle constancy precondition (>= 30 cycles; median SD <= 0.01 m, p95 <= 0.03 m);
     - the advisor's place-independence strata and still-water truth (setup as its own arm).
+
+- 2026-11-17 15:14 -0500: **What a member tier of "unknown" means** (traced in code on dev):
+  - The tier comes from skill_attribution.serving_provenance -> tier_of(product_id); product_id comes from the
+    lane's resolve_point (buoy_calibration.py ~453).
+  - "unknown" = no product_id, i.e. the lane answered through PATH 2c, the direct UPSTREAM point-API fallback
+    (point_direct_fallbacks, product_id=None), or a fall-through that ended there.
+  - So on those rows shadow - equal compares a STORED member value (shadow) with an UPSTREAM member value (equal).
+    It is not purely a construction error.
+  - The repair lead retracted the masked-node hypothesis: those buoys read plain bilinear, so all four nodes were
+    blended.
+  - Lead hypothesis now: the stored EURO the chooser picks at +48/72 h (another tier, an older run, or an
+    _estimated/extension frame) reads high.
+  - D-074 check: can the served point path reach an Open-Meteo upstream through PATH 2c?
