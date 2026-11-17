@@ -148,3 +148,23 @@ Reported, not gated:
 - the catalogue tag alone as comparator;
 - river_mouth.
 Nothing reads B2 for a served number unless it passes; B3 and any class factor carry their own gates.
+
+### 2a. Amendment (2026-11-16 19:08 EST by the clock; the advisor's read at 23:37Z; before any v2 label exists)
+Disclosure: a labelling agent started at ~18:25 EST under section 2 and was STOPPED at ~19:08 EST on the advisor's hold. It wrote no
+label file and committed nothing. It may have run the read-only draw query, which is deterministic and changes nothing. Any partial
+labels it held are discarded and none is used. Changes to section 2:
+1. WEIGHTED GATE. Each spot carries weight = (its frame's size) / (that frame's sample size). Frame size = active catalogue spots in
+   that frame, v1's 109 excluded, counted at draw time. Precision, the base rate and the unknown share are computed WEIGHTED, and
+   those decide the gate; the raw values are reported beside them. Intervals: a stratified bootstrap (resampling within each frame,
+   2,000 resamples, seed 20261117), not Wilson. Gate rule 2 becomes: the bootstrap lower bound of weighted precision is above the
+   weighted base rate.
+2. UNTAGGED DRAW raised from 25 to 80 (seed order), so the half of the catalogue where the classifier adds most is not starved.
+3. WHAT 25 COUNTS. The top-up still counts LABELS (it never depends on classifier output). The evidence for a batch is fetched only
+   after that batch's labels are committed. The minimum for a gated verdict is 25 spots PREDICTED in that class (raw count).
+4. An UNDERPOWERED class (fewer than 25 predicted) is UNDETERMINED: it cannot pass. B2 can pass for the other gated classes with that
+   class named as undetermined, and nothing reads an undetermined class.
+5. LABELS NOT FROM THE NAME. A label needs a guide's description of the break and/or imagery. The source type is recorded per label
+   (guide_description / imagery / both). A name alone gives unknown. A SECOND blind reader labels a fixed seeded subset: the 30
+   labelled spots first by md5(id || '20261117-agree'), without seeing the first reader's labels. Raw agreement and Cohen's kappa are
+   reported; disagreements stay with the first reader's label and are listed.
+Also reported: precision BY FRAME, because inside a tagged frame the classifier is mostly the catalogue tag.
