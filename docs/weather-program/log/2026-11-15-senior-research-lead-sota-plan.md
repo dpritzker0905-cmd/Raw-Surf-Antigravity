@@ -2154,3 +2154,39 @@ USGS coastal tidal water level in Florida is nearly absent (1 active site at par
   - Non-blocking: scope says "seasonal term verified for the months tested" (Jan-Jul is half a cycle); the F2
     scorecard watches Aug-Dec after shipping.
   - The licence record-keeping (AVISO 7.3, CMEMS 2.6) goes on the build checklist.
+
+## 2026-11-17 11:58 EST Accuracy monitor RED: read across runs (director's input), and what it means for F2 and the bias term
+
+Recent Forecast Accuracy Monitor runs (from `gh run view --log`; height MAE over 59 buoys; bias; red 0.40, warn 0.30):
+
+| run | MAE (m) | bias (m) | verdict |
+|---|---|---|---|
+| 11-15 19Z, 43751829641 | 0.362 | -0.048 | WARN |
+| 11-16 08Z, 43826990245 | 0.476 | -0.095 | RED |
+| 11-16 23Z, 43973830230 | 0.445 | -0.070 | RED |
+| 11-17 09Z, 44052389611 | 0.431 | -0.140 | RED |
+
+The threshold's basis is "n=37 runs 08-05..08-08, p50 0.198 max 0.269": AUGUST, i.e. summer seas.
+
+**Reading:**
+1. **The absolute MAE alarm is SEASONALLY CONFOUNDED.** Hs error scales with Hs, and November seas are larger than
+   August's, so a fixed 0.40 m bound fires on season, not only on skill. Bias (-0.05..-0.14 m) explains only part of
+   the rise; most of it is error spread.
+   - Fix for F2: gate on SCALE-FREE or PAIRED metrics (MAE / mean observed Hs; skill vs persistence and climatology;
+     paired differences against a reference on the same buoy-times), with a seasonal basis.
+2. **The REAL gap is the PAIRED one** (director's 7-day archive): Raw Surf trails the Open-Meteo marine reference by
+   +0.061 / +0.084 / +0.098 m MAE at +24 / +48 / +72 h, on the same buoy-times, while beating persistence. Open-Meteo
+   stays test-only (D-074). This is the number to close.
+3. **The shadow consensus bias is +0.17 m at +48 h** (shadow minus equal, consistent across runs). That is worth its
+   own look, but it is a shadow, not served.
+
+**Next research (offline, existing archives only):**
+- DECOMPOSE the paired gap: per member (GFS, EURO, ICON) vs the reference on the same buoy-times; bias vs error-SD
+  split; by lead, basin and Hs tercile; nearest-cell distance (coastal "hole" buoys).
+- That tells us whether the gap comes from one member, the equal-weight consensus, interpolation or land contamination,
+  or a global bias.
+
+**Ranking consequence:**
+- The offshore Hs bias term (the F1 pilot target; roadmap rank 11) moves up.
+- F2 must be built with paired and scale-free metrics, so it isn't re-confounded.
+- L1 (ensembles) is unaffected but should use the same paired reference as a reported row.
