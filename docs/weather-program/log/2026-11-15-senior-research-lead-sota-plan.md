@@ -1986,3 +1986,9 @@ the API token pack shows 103.91K of 50M used, so the failed calls were immateria
 **Packing note (helper):** EURO pressure gets MED+lzma 0.736 vs v1 (smooth fields compress well); waves stay at 0.918.
 Many GFS layer sets are not publicly readable (HTTP 400). Packing stays CLOSED. A future per-layer codec for smooth
 fields is a candidate only with a measured browser decode cost.
+
+- 2026-11-17 09:37 -0500: **Per-layer codec (EURO pressure): FAILS both bars.**
+  - MED + native zlib is 0.817 of v1 (18% smaller, misses 20%), exact, and decodes at 3.68 ms vs 1.90 ms for v1
+    on V8 (about 2x slower).
+  - lzma needs a wasm decoder (unmeasured).
+  - Packing stays CLOSED. Reopen only for a native-decode candidate <= 0.80 of v1, no slower on V8, then a device run.
