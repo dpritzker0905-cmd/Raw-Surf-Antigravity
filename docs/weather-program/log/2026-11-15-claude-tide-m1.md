@@ -808,3 +808,45 @@ advisor first. Its checklist:
   the scoreboard row, and is never cited alone as evidence about surge skill.
 - Remaining before the owner's word: build the code (the owner's call), then send its head to the advisor with the
   21:30Z checklist.
+
+## 20:58 EST 2026-11-16 (`date`) - G3 code built (owner, 18:23 EST: "Yes, build it"); nothing run on the window
+- **Code:** `backend/scripts/tide_g3/`
+  - `g3_metrics.py`: the pure rules (surge/calm hours on the pre-window-demeaned residual, storm grouping, paired
+    block bootstrap on precomputed sums, items, controls, verdict, the datum label, the low-power label).
+  - `g3_sources.py`: STOFS-2D and STOFS-3D as issued by lead; altimetry S1 with its preflight; GLO12 analysis;
+    Open-Meteo previous runs.
+  - `g3_gate.py`: runs the registered order (S1 preflight -> sources -> truth -> score) and reuses `tide_fes` for
+    FES, CO-OPS and the NOAA-constants control.
+- **Workflow:** `.github/workflows/tide-g3-gate.yml`.
+  - The one-shot tag `tide-gate-G3` is the only start.
+  - AVISO credentials are on the FES download step only; Copernicus credentials on the gate step only.
+  - Pins: pyfes 2026.5.2, pyTMD 3.1.0, timescale 0.1.3, copernicusmarine 2.4.1.
+  - FES caches are saved even on failure and pruned only after success.
+  - The log carries stages and memory only.
+- **Tests:** `tests/test_tide_g3_rules.py` (9; 19 with the G2 file), pinning:
+  - storm linking;
+  - the minimums;
+  - bootstrap direction and identity;
+  - verdict precedence;
+  - the datum label;
+  - the 24 h shift;
+  - "a value at t for lead L never comes from a cycle issued after t - L";
+  - the one-shot trigger, credential scoping and pins;
+  - preflight before truth;
+  - no score in the log;
+  - the served backend never imports `tide_g3`.
+
+  flake8 clean, sizes within cap.
+- **Smoke tests: public data or credentials only, dates OUTSIDE the window, no truth, nothing scored:**
+  - STOFS-2D swl as issued at 2 gauges for 2026-11-10: 13 of 13 cycles, all lead bins filled.
+  - STOFS-3D-Atl: 4 of 4 Atlantic/Gulf test gauges matched within 3 km.
+  - Open-Meteo previous runs: 72 h per lead bin at Honolulu. Boston's served 0.1 deg cell is land, as in G2.
+  - Copernicus (run 43985791566 on the check branch, one gauge, Honolulu):
+    - S1 preflight ok;
+    - altimetry climatology from an offshore cell 14 km away, 366 day-of-year values;
+    - GLO12 zos + inverse barometer analysis, 48 h read.
+  - `score()` on SYNTHETIC data: runs end to end (its VOID there is an artefact of identical synthetic tides).
+- **Known before any run:** the constant-non-tidal control (VOID if a constant non-tidal term ties the real one on the
+  item-1 median) is strict. If STOFS's surge adds skill at only a few gauges, the run can come out VOID on it. That is
+  the registered rule; it is written here so it is not a surprise.
+- **Not done:** no run of the gate. The advisor reads the code head first; then the owner's word.
