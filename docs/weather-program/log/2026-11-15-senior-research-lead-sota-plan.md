@@ -2071,3 +2071,57 @@ Targeted reports improve discrimination, not bias estimation.
   - Judgement lessons get a stated-reason exemption (the exemption share is tracked).
   - Every new check must fail on a seeded violation (mutation-tested).
   - The director assigns the build.
+
+## 2026-11-17 10:40 EST Tide after the VOID G3 pilot: the version change, gauge contamination, and an INDEPENDENT truth network found (Consensus web, NWS SCN, Reflection, SubQ, LongCat, ERDDAP)
+
+**Facts verified:**
+- NWS SCN 26-51 (Updated), extracted from the PDF: STOFS v3.1 is "Effective on or about Aug 11, 2026, beginning with
+  the 1200 ... UTC cycle".
+- STOFS-2D-Global adds "a gridded bias correction" that uses "the current station bias correction approach ... (v2.1),
+  which corrects ... by removing the bias between the observed water levels at NOS/CO-OPS stations and most recent 5
+  days of nowcast water levels".
+- So **scoring STOFS at CO-OPS gauges is contaminated by the same observations.**
+- The LMSL/NAVD88 datum sentence did not come out of my extraction. It rests on the tide lane's and the advisor's
+  reading.
+
+**Literature (Consensus Pro, web):**
+- Standard practice when a system assimilates or corrects at gauges: withhold or independent gauges, plus lead-time
+  decay analysis (Byrne 2021; Zijl 2015; Asher 2019).
+- Persistence of the observed non-tidal residual is a "formidable" short-range baseline; DA and correction gains are
+  largest at 6-24 h and converge by 24-48 h (Tedesco 2024; Dinapoli 2023; Khalid 2020).
+
+**Second opinions:**
+- Reflection: option (i) (run G3b on v2.1 as registered) plus a locked prospective v3.1 test; independent gauges
+  primary; a decaying persistence blend.
+- SubQ: (ii) a prospective v3.1 level-free test (0.99); independent gauges as the leakage fix (0.83); persistence
+  blend yes (0.99).
+- LongCat (critical): IOC/UHSLC island gauges are the WRONG population for US shelf surf. Fit the persistence
+  e-foldings on TRAIN rather than asserting them. Bulk RMSE needs >= 12 months; storm-conditional needs 2-3 seasons or
+  pooled events. Close the VOID pilot first.
+
+**NEW (ERDDAP, checked live):** the IOOS sensors ERDDAP (erddap.sensors.ioos.us) lists ~60 non-CO-OPS water-level
+datasets, mostly Hohonu low-cost gauges ON SURF BEACHES:
+- North Carolina: Duck, Surf City, Topsail Beach, Emerald Isle, Ocean Isle, Holden Beach, Bald Head Island.
+- South Carolina: Kiawah, Isle of Palms, Folly, Edisto, Fripp, Hilton Head, Pawleys Island, Sullivan's Island.
+- Florida: Fernandina Beach, Sanibel, Captiva, John's Pass, Mexico Beach, Dania Beach.
+- Several are marked decommissioned.
+USGS coastal tidal water level in Florida is nearly absent (1 active site at parameter 72279).
+
+**Recommendation (one path):**
+1. Close G3 as VOID, with the datum cause recorded.
+2. Run G3b on v2.1 EXACTLY as registered: historical and supporting only.
+3. Register NOW a prospective **G3c on v3.1**:
+   - level-free primary: tide + seasonal + (cwl - htp);
+   - **PRIMARY truth = independent IOOS beach gauges (Hohonu etc.)**, each de-meaned on a pre-window period (so the
+     datum does not matter), with a QC and coverage rule;
+   - CO-OPS gauges reported only as a near-gauge upper bound, by distance and lead;
+   - the start timestamp strictly after registration;
+   - duration >= 12 months for bulk;
+   - storm-conditional claims by a pre-registered event-based power calculation (pooled events), using v2.1 G3b
+     errors as the surrogate.
+   - Independence check first: confirm the STOFS correction uses only NOS/CO-OPS stations, and that no Hohonu gauge
+     feeds it.
+4. **The persistence blend is a separate gate.** Its e-foldings are fitted on a TRAIN window at independent gauges;
+   "fresh" is defined by observation latency; tidal and non-tidal parts are fitted separately. Hohonu's real-time
+   beach data makes a true at-spot nowcast possible: a product feature in its own right.
+5. Shipping under D-080: ON at merge with a kill switch, after the gate.
