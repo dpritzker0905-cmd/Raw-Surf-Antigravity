@@ -71,10 +71,14 @@ def test_main_score_runs_end_to_end(tmp_path):
             for k, v in (("gfs_u", -5.0), ("gfs_v", 1.0), ("gfs_g", 8.0), ("gefs_u", -5.5), ("gefs_v", 0.5)):
                 arr[f"{k}_{L}"] = np.array([v, v], np.float32)
         np.savez_compressed(os.path.join(run_dir, f"{run:%Y%m%d%H}.npz"), **arr)
+    # FILL mode: a reused run's stale drop marker for a run that now exists is NOT a drop; a real one still is
+    open(os.path.join(run_dir, f"{RUNS[0]:%Y%m%d%H}.npz.failed.json"), "w").write("{}")
+    open(os.path.join(run_dir, "2026102000.npz.failed.json"), "w").write("{}")     # no file: a real drop
     out = os.path.join(cache, "report")
     assert S.main_score(None, cache, stations, out) == 0
     rep = json.load(open(os.path.join(out, "report.json")))
     assert rep["fit_runs"] == 2 and rep["test_runs"] == 4          # 09-15 runs are inside the 09-01..09-24 fit block
+    assert rep["dropped_runs"] == ["2026102000"]        # the stale marker of an existing run is not a drop
     assert rep["verdict"] == "VOID" and rep["void_reasons"]          # 2 stations / 2 test runs: VOID, never PASS
     assert set(rep["metrics"]["pooled"]["B1_180_216"]) == set(S.ARMS)
     assert rep["metrics"]["pooled"]["B2_216_264"]["ens_mean_raw"]["n"] > 0
@@ -90,3 +94,13 @@ def test_main_score_runs_end_to_end(tmp_path):
     assert rep["metrics"]["pooled"]["B1_180_216"]["climatology"]["n"] > 0
     rows = open(os.path.join(out, "rows.csv")).read().splitlines()
     assert len(rows) > 1 and rows[0].startswith("run,station")
+
+
+def test_fill_mode_skips_runs_the_reused_run_already_has(tmp_path, monkeypatch):
+    prior = tmp_path / "prior"
+    prior.mkdir()
+    (prior / "2026100100.npz").write_bytes(b"x")
+    monkeypatch.setattr(H.ef, "run_available", lambda *a, **k: (_ for _ in ()).throw(AssertionError("fetched")))
+    got = H.collect_run(None, datetime(2026, 10, 1, tzinfo=timezone.utc), np.zeros(1), np.zeros(1),
+                        str(tmp_path), prior_dir=str(prior))
+    assert got == "prior"
