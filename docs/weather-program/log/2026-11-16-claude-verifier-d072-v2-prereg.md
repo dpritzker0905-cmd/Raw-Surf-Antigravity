@@ -130,3 +130,89 @@ registration. One is now a code change; two are reported lines and stated limits
    here, by people who had seen v1's November output. Each change predates any v2 result and each is reasoned, but a
    PASS is in-sample for the design. The SCOREBOARD row written with the result must say so; the next real month is
    the test.
+
+## 2. Result, recorded 2026-11-16 08:00Z: FAIL as registered (P3); SCORED BY THE ADVISOR
+
+The advisor (local_b2fa8830) dispatched the replay once, on David's word typed in the advisor's session ("Yes, dispatch
+then", 2026-11-15 22:11 EST): Actions run 43824674201, from dev `3e3cea6a2` (#949), version=v2. It ran 07:52-07:53Z. The
+advisor read and scored it; the full score is in the shared notes as `advisor-d072-v2-replay-score-2026-11-16.md`. **I,
+the builder, did not read the run's output before the advisor reported.** This section records the advisor's score.
+
+| check | registered line | result | |
+|---|---|---|---|
+| P1 | rule 1 v2 fires on none of the unseeded episode days 11-10..11-14 | fired on none | PASS |
+| P2' | +0.08 m seeded from 11-01: >= 6 of the 7 fully seeded days 11-08..11-14 (1b) | 7 of 7 | PASS |
+| timeliness | first fire <= 11-10 (1c) | 11-04 | PASS |
+| P3 | rule 2 v2 at the named hole buoys fires on >= 3 of the 5 episode days | **0 of 5** | **FAIL** |
+| Null | <= 1.0 false page per 30 days, independent draws (1d) | rule 1 0.03; rules 2, 3 0.00 | PASS |
+
+**Bounds:**
+- B1 +0.020 m: the basis CHANGE p99 over 170 day-leads. The key-consistent null's p99 was +0.010, so the basis set B1.
+- B2 +0.16, B3 +0.11.
+
+**Reported lines, as registered:**
+- The original 12-of-14 line would have failed: 11 of 14.
+- At +0.04 m, rule 1 fires on 2 of the 7 fully seeded days, first on 11-06.
+- On the unseeded days 11-01..11-09 it fired on none.
+- Rule 1's false pages per 30 days: 0.01 on the draws that set B1, 0.03 on independent draws.
+
+**Verdict: FAIL.** The registration scores the three rules together. Rule 1 passing its own lines is not a registered
+verdict, and nothing pages on the three-rule split.
+
+**Reading (the advisor's, kept to the numbers).**
+- **Rule 1 v2 works at +0.08 m:** it sees the seed within 3 days and does not fire on unseeded days. Its detectable size
+  in this window lies between +0.04 and +0.08 m.
+- **CHANGE is not stationary on a two-week scale.** Unseeded, it drifted from -0.008 to about -0.04 m over 11-01..11-14.
+  - That drift is why +0.04 m is seen on only 2 of 7 days.
+  - A swing of the same size toward worse would page with nothing broken.
+  - The sign-swap null cannot produce such a drift, so its 0.03 understates false pages from real regime changes. The
+    basis p99, which includes them, set B1.
+- **The P3 signal is in the table but cannot page as registered.**
+  - At the named holes the delta rose from about -0.02 m (11-01) to +0.09 / +0.13 m at +48 / +72 h, and the win rate
+    fell from 55-58% to 23-33%.
+  - B2 = 1.24 x the basis max = +0.16 m, and the August-October basis held hole-buoy days as bad as this episode.
+  - +24 h barely moved (+0.02 m): the episode is a 48-72 h event.
+- **The advisor's own pre-run estimate was wrong**, and the advisor recorded it: 0.5-0.9 null pages per 30 days were
+  expected; the run gave 0.03, because the basis, not the null, set B1.
+
+**What follows.**
+- **B2 is NOT lowered to fit November.** That month has now been read twice (v1, v2). A different rule 2 (a quantile
+  bound, a win-rate or trend trigger) is a new registration, scored on days not yet seen.
+- **Adopting rule 1 alone needs the owner's word and its own short registration:** what it pages on, the +0.04 to
+  +0.08 m floor stated, and a volume cap.
+- **Limits:**
+  - one episode, one seeded size judged, one November;
+  - rule 1's design was restated four times (1a-1d) by people who had seen v1's November output, so its pass is
+    in-sample for the design;
+  - the reference is an Open-Meteo product, allowed for a monitor under David's rule; the NOAA bulletin lane (#952) is
+    not yet a reference.
+
+## 3. The owner's answer on rule 1 alone, recorded 2026-11-16 13:52Z
+
+**The question.** After section 2's FAIL, the advisor asked David (13:04Z, in the advisor's session) whether rule 1 v2
+should be adopted alone as a pager under its own short registration, leaning "not yet".
+
+**His answer, verbatim:** the third bullet of his message, typed in the ADVISOR's session (local_b2fa8830) at 08:45 EST
+on 2026-11-16 (13:45:31Z), as relayed by the advisor and checked against that session's transcript: "If "not yet" is
+the SOTA way, than okay". The quote is that bullet only, not the whole message.
+
+**What it means.** The answer is conditional on "not yet" being best practice. The advisor told David why it is: a new
+alerting rule runs in SHADOW, logging what it would have paged and paging no one, until its false-page rate is known on
+live data, because a pager that fires on non-faults gets ignored (the advisor's reply, 13:52:33Z). This replay could not
+measure that rate:
+- unseeded CHANGE drifted about -0.04 m in a fortnight, twice B1 (told to David in that reply);
+- the sign-swap null cannot produce such a drift (from the advisor's score note; not in the reply to David);
+- rule 1's design is in-sample for November after 1a-1d (from the advisor's score note; not in the reply to David).
+
+**Decision: rule 1 does NOT page.** Nothing pages on the D-072 split.
+
+**Not decided here.** The next step is a short registration for a SHADOW run of rule 1:
+- what it would page on;
+- the +0.04 to +0.08 m detection floor, stated;
+- the reference, and whether the NOAA bulletin lane (`noaa:gfswave_station`, #952) replaces Open-Meteo once it has
+  history;
+- a fixed number of live days not yet seen;
+- the false-page line;
+- a volume cap for when it does page.
+
+That is a proposal for the director and David to accept. David's words above do not approve it.

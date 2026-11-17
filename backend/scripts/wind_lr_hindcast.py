@@ -118,10 +118,12 @@ def _noaa(session, url, wanted, lats, lons):
     return out
 
 
-def collect_run(session, run, lats, lons, out_dir):
+def collect_run(session, run, lats, lons, out_dir, prior_dir=None):
     path = os.path.join(out_dir, f"{run:%Y%m%d%H}.npz")
     if os.path.exists(path):
         return "cached"
+    if prior_dir and os.path.exists(os.path.join(prior_dir, f"{run:%Y%m%d%H}.npz")):
+        return "prior"          # FILL mode: collected by the reused run; not re-read and not re-uploaded
     if not ef.run_available(session, run, 336):
         json.dump({"run": run.isoformat(), "missing": "enfo 336 h index"}, open(path + ".missing.json", "w"))
         return "missing"
@@ -178,6 +180,7 @@ def main(argv=None):
     ap.add_argument("--shard", default="0/1")
     ap.add_argument("--out", default=None)
     ap.add_argument("--stations", default=None, help="frozen station JSON (default <cache>/wind_lr_stations.json)")
+    ap.add_argument("--prior", default=None, help="FILL mode: a reused run's run files; those runs are skipped")
     a = ap.parse_args(argv)
     os.makedirs(a.cache, exist_ok=True)
     s = requests.Session()
@@ -203,7 +206,7 @@ def main(argv=None):
         for attempt in (1, 2):                  # a run that fails is retried once at the end, never filled
             for r in (runs if attempt == 1 else failed[:]):
                 try:
-                    print(r.isoformat(), collect_run(s, r, lats, lons, out_dir), flush=True)
+                    print(r.isoformat(), collect_run(s, r, lats, lons, out_dir, a.prior), flush=True)
                     if r in failed:
                         failed.remove(r)
                 except Exception as e:  # noqa: BLE001 - recorded per run; the shard goes on
