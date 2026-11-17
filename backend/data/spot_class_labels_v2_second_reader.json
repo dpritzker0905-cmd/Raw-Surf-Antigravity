@@ -1,0 +1,297 @@
+[
+ {
+  "id": "03b70850-c8ea-437c-ba6b-9baf9b95a809",
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "No guide describes a surf break at Mughsail (Salalah). The Wannasurf 'Mugshayl Point' is listed as north of Al Ashkharah, a different place. Travel sources only mention a sandy beach and blowholes."
+ },
+ {
+  "id": "de43d26a-dbe9-4239-ba03-db6fb45c402a",
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Sebastian-Inlet_First-Peak",
+   "https://coastalcare.org/2011/04/sebastian-inlet-florida/"
+  ],
+  "note": "Surf-forecast calls it a beach/jetty break. Guides say swell bounces off the north jetty at First Peak."
+ },
+ {
+  "id": "e31b71ef-951f-472c-9b77-101f48622934",
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Asia/Philippines/Siargao_Islands/cloud_nine",
+   "https://www.surf-forecast.com/breaks/Cloud-Nine"
+  ],
+  "note": "A hollow right over a shallow coral reef."
+ },
+ {
+  "id": "bb5b8fab-1157-4f38-a00d-1a2ebebe3a57",
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Alexandra-Headland",
+   "https://surfnerd.com/surf-forecast/the-bluff"
+  ],
+  "note": "The Bluff is a right-hand point off a rock shelf at the headland. Surf-forecast also mentions beach peaks. The coordinate sits about 4 km east of the headland."
+ },
+ {
+  "id": "d1d5cdb4-78bb-49e9-b485-8fa6daab7bc5",
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Bells-Beach-Bowl",
+   "https://www.surfertoday.com/travel/surfing-waves-of-history-at-bells-beach"
+  ],
+  "note": "A right-hander over a sandstone/limestone reef. Surf-forecast lists the Bowl as a reef and point break."
+ },
+ {
+  "id": "9536bf06-9cc4-4e12-b773-034a80ab2ab9",
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/shidashita",
+   "https://sites.google.com/a/surfinginjapan.com/www/chiba-north/taito-area"
+  ],
+  "note": "A sand-bottom beach break with lefts and rights. One guide says T-shaped breakwaters along the Ichinomiya coast shape the beach breaks, so inlet_jetty is a possible alternative."
+ },
+ {
+  "id": "325372b9-564c-4dd1-9f37-f6a307ef569b",
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://pt.wannasurf.com/spot/North_America/USA/South_East/North_Carolina/ockracoke_island",
+   "https://www.yeeew.com/listing/north-america/north-carolina/north-carolina-outer-banks-south/ocracoke/"
+  ],
+  "note": "A shifting sandbar beach break."
+ },
+ {
+  "id": "ce1567c7-24f0-4877-bbbd-6abab27d4bcf",
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://kiteboardingflorida.com/spot-guide/northeast-florida/ponce-inlet-new-smyrna-kiteboarding/",
+   "https://www.surf-forecast.com/breaks/PonceInlet"
+  ],
+  "note": "An inlet sandbar (Shark Shallows) just east of the south jetty. Surf-forecast says New Smyrna Inlet is a jetty break."
+ },
+ {
+  "id": "c47a9302-857d-42b8-8344-e1186d8c6c14",
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://surfnerd.com/surf-forecast/cape-san-blas/inax4Do6zdgPnuCiZ"
+  ],
+  "note": "The one guide is self-contradictory: a right-hand point at the tip of a sand spit, and also that it behaves like an average beach break. It lists both beach and point."
+ },
+ {
+  "id": "03237204-3268-484e-a13a-5e9d27c9202a",
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.wannasurf.com/spot/North_America/USA/South_East/South_Florida/haulover_inlet_north_side/index.html",
+   "https://www.surf-forecast.com/breaks/Haulover"
+  ],
+  "note": "Wannasurf lists it as a breakwater/jetty break."
+ },
+ {
+  "id": "c8fc2295-6314-4005-8706-dce11397aaab",
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "http://en.wannasurf.com/spot/South_America/Chile/Sur/Buchupureo/",
+   "https://www.surf-forecast.com/breaks/Buchupureo"
+  ],
+  "note": "Wannasurf and Surfnerd call it a river mouth (La Boca); surf-forecast calls it a point break. The Wannasurf GPS (-36.077, -72.799) is about 11 km from this coordinate."
+ },
+ {
+  "id": "d76f545a-c474-4a14-bf80-35fe99ad7068",
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://thesurfatlas.com/surfing-in-chile/arica-surf/",
+   "https://www.surf-forecast.com/breaks/El-Gringo"
+  ],
+  "note": "A heavy slab over shallow volcanic rock reef."
+ },
+ {
+  "id": "fa78256a-d281-4d08-878c-8c53f538e1b4",
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/South_America/Peru/Lima/la_herradura",
+   "https://www.wikiwand.com/en/articles/La_Herradura,_Lima"
+  ],
+  "note": "A left point that breaks off the cliffs at the south end of the bay, in three sections."
+ },
+ {
+  "id": "5f54fee4-61ff-40bc-9fe8-bb179cd30963",
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Nuqui"
+  ],
+  "note": "Surf-forecast's spot table says river break, but its text calls it a left-hand point. Its own two descriptions disagree."
+ },
+ {
+  "id": "9bccefe8-3b1c-462c-bd95-2676c9be63be",
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Riyue-Bay",
+   "https://www.theinertia.com/?p=47344"
+  ],
+  "note": "Surf-forecast lists Riyue Bay as a point break. Other sources describe a beach break in front of the surf club and a left point; the right point itself is not described in detail."
+ },
+ {
+  "id": "33025083-0f8d-482f-9e59-225053daac31",
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Sunset-Beach",
+   "https://opalcollection.com/blog/florida-surfing"
+  ],
+  "note": "Surf-forecast calls it an exposed sandbar break."
+ },
+ {
+  "id": "ce101f62-ad23-4b1b-8b2e-7f10ea5acba5",
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/jetty-east",
+   "https://www.surfline.com/travel/united-states/florida/okaloosa-county/destin-surfing-and-beaches/4153188"
+  ],
+  "note": "Breaks over sand, left and right. Surfers paddle out from the East Pass jetty, but no source says the jetty shapes the wave, so inlet_jetty is a possible alternative."
+ },
+ {
+  "id": "2907de61-b965-403a-9beb-5eb7959de49a",
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://windy.app/forecast2/spot/73705/Silverstrand/statistics",
+   "https://www.thebeachguide.co.uk/republic-of-ireland/county-galway/silverstrand.htm"
+  ],
+  "note": "Weak evidence: only a generic Windy profile calls it a sand beach break, and one beach guide says there is no surf. It is a sheltered Galway Bay beach."
+ },
+ {
+  "id": "4c4d6741-3540-44c5-8245-59330ff95bab",
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Wategos",
+   "https://surfnerd.com/surf-forecast/wategoes-byron-bay"
+  ],
+  "note": "A soft right point break inside Cape Byron, over rock ledge and sand."
+ },
+ {
+  "id": "4cd52360-36b5-4028-b434-1c666f33a783",
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Mirissa",
+   "https://thesurfatlas.com/sri-lanka-surf/mirissa-surf/"
+  ],
+  "note": "A right-hand reef at the west end of the bay; some guides call it a point. Surf-forecast says reef break."
+ },
+ {
+  "id": "d78c2f36-1c23-4e32-afe8-2bc3e51288fc",
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Fort-Pierce-North-Jetty",
+   "https://surfnerd.com/surf-forecast/fort-pierce-north-jetty/NACxpou3KAwDPbR3f"
+  ],
+  "note": "A right that wraps against the inlet's north jetty. Surf-forecast says beach, reef and jetty break."
+ },
+ {
+  "id": "6dc27542-f1c2-469d-b988-4024205c79bc",
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://tongapocketguide.com/10-surf-breaks-in-vavau",
+   "https://www.surf-forecast.com/regions/Tonga-Vavau/breaks"
+  ],
+  "note": "A region-level pin near Neiafu, not a single break. Guides say all Vava'u breaks (Taula, Ovaka passes) are reef breaks."
+ },
+ {
+  "id": "3672071d-318f-4c9b-ab32-334e48d6db53",
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Ponce-Inlet",
+   "https://www.floridasmart.com/?p=2484"
+  ],
+  "note": "A beach/jetty break. Guides say swell reflects off the jetty on the north side and a right peels off it."
+ },
+ {
+  "id": "1e4f2087-5ac1-446f-a47d-921393f38e0e",
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Lori-Wilson-Park",
+   "https://surfnerd.com/surf-forecast/lori-wilson-park"
+  ],
+  "note": "An exposed sandbar beach break."
+ },
+ {
+  "id": "02006643-7ec4-4f27-8da3-36c3e9cef65c",
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Nusadua",
+   "https://www.surfindonesia.com/bali-surf-spots/nusa-dua-surf/"
+  ],
+  "note": "A right-hand coral reef break offshore."
+ },
+ {
+  "id": "2ff65312-69d5-4e75-9cee-23a46616f40d",
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wikipedia.org/wiki/Snapper_Rocks",
+   "https://www.worldsurfleague.com/posts/240651/secrets-of-snapper-rocks"
+  ],
+  "note": "A sand-bottom right point refracting around a rock spine at Point Danger."
+ },
+ {
+  "id": "c6173625-bb02-4592-a4a3-7b04a745f469",
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Australia_Pacific/French_Polynesia/Tahiti/Sapinus",
+   "https://surfnerd.com/surf-forecast/sapinus"
+  ],
+  "note": "A left reef break over live coral off Punaauia. A separate 'Sapinus Beach Break' (river mouth) exists nearby."
+ },
+ {
+  "id": "69e17066-3f15-41b9-9ff6-3220e3767b49",
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://en.wannasurf.com/spot/North_America/USA/Hawaii/Oahu/Makapuu_Beach",
+   "https://www.yeeew.com/?p=9232"
+  ],
+  "note": "Wannasurf describes a sand shorebreak plus a left point. Yeeew and one Surfnerd page call it a reef over lava. The coordinate is about 2.5 km west of Makapuu Beach."
+ },
+ {
+  "id": "18bd33c7-1213-44e2-9c6b-8d8c610566f1",
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://socalforecast.blogspot.com/2008/04/surf-break-maps-malibu-point-malibu-los.html",
+   "https://thesurfatlas.com/surfing-in-the-usa/surfing-in-malibu/"
+  ],
+  "note": "A section of the Malibu right point break."
+ },
+ {
+  "id": "a388d01f-a3ca-436e-b033-6509d2b320c2",
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Fanore",
+   "https://www.thebeachguide.co.uk/republic-of-ireland/county-clare/fanore.htm"
+  ],
+  "note": "Surf-forecast calls it an exposed beach break with lefts and rights."
+ }
+]

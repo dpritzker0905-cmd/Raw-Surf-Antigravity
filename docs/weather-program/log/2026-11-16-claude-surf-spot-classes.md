@@ -187,3 +187,15 @@ Also noted from the first reader:
 - inlet_jetty has 22 labels and no reserve (frame size 31), so it is below 25 labels. Its verdict needs 25 PREDICTED and will be
   UNDETERMINED unless the classifier predicts it 25 times.
 - The river_mouth frame is empty after the v1 exclusion.
+2c. Labels final, and the second reader (2026-11-16 21:52 EST by the clock; before any v2 score)
+Final labels (56905fdef): 266 rows, 179 labelled. Beach 60, reef 57, point_headland 38, inlet_jetty 23, river_mouth 1, unknown 87.
+The completion pass (2b) found a description for 8 of the 67 NO_SOURCE rows; most of the other 59 look like bathing sites rather
+than surf breaks. inlet_jetty: 23 labels, and its frame (31) is exhausted.
+Second blind reader (2a point 5), on the 30 labelled spots first by md5(id || '20261117-agree'); it saw identities only, never the
+first reader's labels (ackend/data/spot_class_labels_v2_second_reader.json):
+- Raw agreement 24 / 30 = 0.80; Cohen's kappa 0.75.
+- Where the second reader gave a label (25 spots): 24 / 25 agree.
+- Disagreements: Mughsail beach -> unknown; Cape San Blas point -> unknown; Buchupureo point -> unknown; Nuqui river_mouth -> unknown;
+  Makapuu beach -> unknown; Jetty East inlet_jetty -> beach (the one direct contradiction: no source says the jetty shapes it).
+- As registered, the first reader's labels stand.
+Evidence for the v2 spots is being fetched only now, after these labels were committed.
