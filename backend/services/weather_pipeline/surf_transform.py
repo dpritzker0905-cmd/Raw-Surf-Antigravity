@@ -607,7 +607,10 @@ def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_w
     # The combined sea is still bounded by what the local depth can hold — recombining in quadrature
     # can otherwise push the sum back above a cap each individual train respected.
     if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
-        tp_ref = max((p.get("tp") or 0.0) for p in partitions if isinstance(p, dict))
+        # A non-finite period is not a period: it must not set the cap (2026-11-17: an inf-period train, dropped above,
+        # still raised the cap to its ceiling; a NaN made the max order-dependent). Finite values are read as before.
+        tp_ref = max(((p.get("tp") or 0.0) for p in partitions
+                      if isinstance(p, dict) and math.isfinite(p.get("tp") or 0.0)), default=0.0)
         _slope = (depth_m / (shelf_width_km * 1000.0)) if (shelf_width_km and shelf_width_km > 0) else None
         cap = breaker_index(tp_ref, slope=_slope) * effective_cap_depth(depth_m, break_depth_m, water_level_m)
         if h_total >= cap:

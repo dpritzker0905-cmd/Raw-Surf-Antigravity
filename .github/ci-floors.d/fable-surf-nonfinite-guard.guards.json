@@ -1,6 +1,6 @@
 {
   "lane": "guards",
-  "tests": 42,
+  "tests": 50,
   "files": 1,
   "branch": "fable/surf-nonfinite-guard",
   "date": "2026-11-17",

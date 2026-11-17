@@ -93,3 +93,42 @@ hand, switching off each of the six checks in turn fails between 2 and 14 tests.
   browser decoder (`staticFrameCodec.js`) is a separate implementation and was not touched or checked.
 - The publisher's parity gate compares a decoded frame with its source, so a silently mis-decoded frame would most
   likely have been refused there. That is a reason the first row had not bitten, not a reason to leave it.
+
+## 2026-11-17 16:45Z After the advisor's read of the first item: one sentence owed, one behaviour pinned, and two faults found and NOT fixed here
+
+The advisor passed the non-finite guard at `449e811cf` (PASS, no open condition) and asked for two small things.
+
+**The sentence it asked for.** For a non-finite height the value this chain returns changes from the depth cap to no
+estimate. Whether any such value ever reached a user is not known. The guard is the last line of defence; it is not
+evidence that nothing upstream produces these.
+
+**Pinned: what the partitioned path does with one bad train.** It drops that train and keeps the others, wherever
+the bad one sits in the list; with nothing usable it returns no estimate so the caller falls back to the total
+field. That was already the behaviour for the HEIGHT. Tested for six kinds of bad train in three positions.
+
+**A third fault found while pinning it, and fixed, because it is the same fault.** A dropped train's period still set
+the period used for the depth cap: the cap takes the longest period in the list, including trains that contributed
+nothing. With an infinite-period train the cap rose to its ceiling (2.345 to 2.430 m in the test case, a 3 m break
+depth); a NaN period made the maximum depend on the order of the list. Now a non-finite period is not counted.
+Finite periods are read exactly as before.
+
+**Found, and NOT fixed here: the same cap fault with FINITE inputs.** A train with a height of zero and a period of
+25 s is dropped from the sum and still raises the cap by the same amount (2.345 to 2.430 m). That is an ordinary
+input, not a fill value. Fixing it means taking the cap's period from the trains that were actually used, which
+changes served heights wherever the cap binds and an unused train has the longest period. That is a served change:
+it needs a flag, a kill switch and a SCOREBOARD row under D-065, and a measurement of how often it happens. It is
+relevant in production: the bulk partition lane is off by default, but the ECMWF period-band lane feeds this
+function when bands are present. Reported to the director and the advisor; not touched.
+
+**Found, and NOT fixed here: large FINITE fill values** (the advisor's point, reproduced). GRIB and netCDF fills are
+numbers, not infinities, and they pass `isfinite`:
+
+| input | returned today |
+|---|---|
+| height 9.97e36, 1e20 or 9999 m | the depth cap, regime `breaking` |
+| height 35 m | the depth cap |
+| period 9999 s or 9.97e36 s | a finite `shoaling` height |
+
+A plausibility bound at the same place would close it, but it changes the result for finite inputs, so it is its
+own change with its own line in the record, after checking what the normalizer already masks so the bound is set
+once and in the right layer. Not done.

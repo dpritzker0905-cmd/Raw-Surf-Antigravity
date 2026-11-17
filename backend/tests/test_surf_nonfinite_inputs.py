@@ -48,15 +48,32 @@ def test_the_komar_step_returns_none_for_non_finite_inputs():
     assert komar_breaker_height(1.0, 10.0) == pytest.approx(0.56 * (1.0 / (9.81 * 100.0 / (2.0 * math.pi))) ** -0.2, rel=1e-3)
 
 
-def test_a_partition_with_a_non_finite_period_does_not_take_the_estimate_down_with_it():
-    good = {"h": 1.0, "tp": 10.0, "dir": 280.0, "kind": "swell"}
-    bad = {"h": 0.5, "tp": INF, "dir": 280.0, "kind": "swell"}
-    alone = estimate_surf_partitioned([good], 20.0, coastal=True, shelf_width_km=10.0, shore_normal_deg=270.0)
-    mixed = estimate_surf_partitioned([good, bad], 20.0, coastal=True, shelf_width_km=10.0, shore_normal_deg=270.0)
-    only_bad = estimate_surf_partitioned([bad], 20.0, coastal=True, shelf_width_km=10.0, shore_normal_deg=270.0)
-    assert alone[0] is not None and math.isfinite(alone[0])
-    assert mixed[0] is None or math.isfinite(mixed[0])                               # never NaN, never inf, never a raise
-    assert only_bad[0] is None or math.isfinite(only_bad[0])
+BAD_TRAINS = [{"h": 0.5, "tp": INF, "dir": 280.0, "kind": "swell"}, {"h": INF, "tp": 9.0, "dir": 280.0, "kind": "swell"},
+              {"h": NAN, "tp": 9.0, "dir": 280.0, "kind": "swell"}, {"h": 0.5, "tp": NAN, "dir": 280.0, "kind": "swell"},
+              {"h": -INF, "tp": 9.0, "dir": 280.0, "kind": "swell"}, {"h": 0.5, "tp": -INF, "dir": 280.0, "kind": "swell"}]
+PART_KW = {"coastal": True, "shelf_width_km": 10.0, "shore_normal_deg": 270.0}
+
+
+@pytest.mark.parametrize("bad", BAD_TRAINS, ids=["tp_inf", "h_inf", "h_nan", "tp_nan", "h_neg_inf", "tp_neg_inf"])
+def test_a_non_finite_train_is_dropped_and_the_other_trains_are_kept(bad):
+    """Decided and pinned: one bad train costs that train and nothing else, wherever it sits in the list."""
+    a = {"h": 1.0, "tp": 10.0, "dir": 280.0, "kind": "swell"}
+    b = {"h": 0.6, "tp": 14.0, "dir": 275.0, "kind": "swell"}
+    want = estimate_surf_partitioned([a, b], 20.0, **PART_KW)
+    assert want[0] is not None and math.isfinite(want[0])
+    for parts in ([a, b, bad], [bad, a, b], [a, bad, b]):
+        assert estimate_surf_partitioned(parts, 20.0, **PART_KW) == want
+    assert estimate_surf_partitioned([bad], 20.0, **PART_KW) == (None, "unknown")    # nothing usable: the caller falls back
+
+
+@pytest.mark.parametrize("bad", [t for t in BAD_TRAINS if not math.isfinite(t["tp"])], ids=["tp_inf", "tp_nan", "tp_neg_inf"])
+def test_a_non_finite_period_does_not_set_the_depth_cap(bad):
+    """Before 2026-11-17 a dropped inf-period train still raised the cap to its ceiling (2.345 -> 2.430 m here)."""
+    big = [{"h": 4.0, "tp": 10.0, "dir": 280.0, "kind": "swell"}, {"h": 3.0, "tp": 8.0, "dir": 275.0, "kind": "swell"}]
+    want = estimate_surf_partitioned(big, 20.0, break_depth_m=3.0, **PART_KW)
+    assert want[1] == "breaking"                                                     # the cap binds, or this tests nothing
+    for parts in (big + [bad], [bad] + big):
+        assert estimate_surf_partitioned(parts, 20.0, break_depth_m=3.0, **PART_KW) == want
 
 
 def test_the_point_composition_gives_no_estimate_at_a_real_coordinate():
