@@ -179,3 +179,12 @@ The advisor re-read the plan at 1d3c6cf75 and found no open point. It may be bui
 - **The cost is as sized:** +21 min of job time.
 - **Rated step:** 1,789 s against its 1,800 s budget and 2,100 s timeout. It built all 84 sets inside the budget, so the
   timeout margin was about 311 s. Watch it: one heavy run could push skips to 1-2, still inside line 1.
+
+## 17:07Z: one more exclusion, recorded before it happens
+
+**#1009** ("non-finite surf inputs give no estimate; the frame decoder refuses a bad buffer and caps gzip", head f77aa0703, OPEN
+at writing) changes `backend/services/frame_binary.py`, so the code fingerprint changes. Every content-keyed set rebuilds once
+on the next pilots run.
+- **EXCLUDED:** the first pilots run that starts after #1009 merges. It is named by run id when it runs, before its gate lines
+  are read.
+- **If one run follows both #1006 and #1009,** it is one excluded run, named once with both reasons.
