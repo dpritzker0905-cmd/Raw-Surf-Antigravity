@@ -1950,3 +1950,9 @@ amendment 1, THIS governs.
 
 - 2026-11-17 08:39 -0500: LongCat retry (owner: "Retry LongCat once") FAILED again with a network failure (same payload, sha256 ff38bd71...ecbb).
   Billing is uncertain. No further retries. The Reflection + SubQ findings stand without it.
+
+- 2026-11-17 09:14 -0500: **RSWF v2 replay against stored v1 gzip (waves layer only): FAIL.**
+  - Results: MED+lzma 0.944; ocean-only MED+zlib 0.992; byte-shuffle+lzma 0.918. All are exact.
+  - None reaches the 0.80 gate, nor the 10% bar set at 00:25.
+  - Lzma would also need a JS decoder in the browser (decode cost unmeasured), so an 8% gain does not justify it.
+  - **Packing is CLOSED for now.** Reopen only with a new coder idea that clears 0.90 of v1 on every layer.
