@@ -1717,3 +1717,61 @@ QC'd archive. A day counts if it has >= 20 distinct hours of valid WVHT; there a
 - `fetch_ndbc_archive` therefore records every earlier 2026 month as "missing". The truth window shrinks without any
   error, though the miss is counted.
 - Fix: try the .gz name first, then fall back to .txt. Add a test for both.
+
+## 2026-11-16 23:31 -0500 L1 PRE-REGISTRATION DRAFT: probabilistic offshore Hs from free wave ensembles (written before any L1 code or score)
+
+DRAFT for the advisor's red-team and the director's lane assignment. Nothing has been fetched or scored. Thresholds are
+fixed only when the advisor's read is recorded.
+
+**Question:** does a calibrated two-model wave ensemble beat our best FAIR probabilistic baseline for significant wave
+height at NDBC buoys, at 24-240 h lead?
+
+**Data (sources verified 2026-11-16 21:05 EST):**
+- ECMWF open `waef`: 50 members, swh, 0.25 deg, CC BY 4.0.
+- GEFS-Wave: c00 + p01-p30, HTSGW, 0.25 deg, public domain.
+- Both from cycles ISSUED before the valid time. Point value: the nearest wet cell to each buoy.
+
+**Truth:**
+- NDBC QC'd archive WVHT, hourly, scored at 00/06/12/18 UTC valid times.
+- The panel is the 19 buoys with >= 80% coverage (named in the 23:22 EST section). The other 13 are reported only.
+
+**Periods:**
+- TRAIN (calibration only): 2025-03-01..2025-12-31.
+- TEST: 2026-01-01..2026-06-30, minus the program's held-out weeks (2026-03-15 and 2026-06-15).
+- The lane lists every date already seen by earlier skill work. Any overlap moves the window BEFORE fetching.
+
+**Arms:**
+- R1, the served deterministic (the equal GFS/EURO/ICON consensus), as a point forecast (its CRPS = MAE). Reported.
+- **R2, the FAIR baseline: R1 dressed with a lead-dependent log-normal error distribution fitted on TRAIN.** Beating a
+  point forecast on CRPS is trivial; beating a dressed deterministic is not.
+- E1, the raw pooled ensemble (81 members, equal weight per model). Reported.
+- **E2 (PRIMARY): NGR/EMOS on log Hs.** The mean is linear in the two ensemble means; the SD is linear in the pooled
+  ensemble SD. Fitted per 24-h lead bin on TRAIN only and frozen before TEST.
+
+**Gate (all must hold):**
+1. The CRPS skill score of E2 vs R2, pooled over 48-240 h at the 19 buoys, is **>= 5%**, with the 95% CI lower bound
+   > 0. Bootstrap by initialisation date in 3-day blocks, stratified by basin (Pacific / Atlantic+Gulf / Hawaii).
+2. No 24-h lead bin is significantly worse than R2 (its CI upper bound must be >= 0).
+3. Reliability: the 80% central-interval coverage of E2 is in [0.75, 0.85] pooled; per basin, the Wilson 95% interval
+   includes 0.80.
+4. Coverage: a buoy-lead cell with < 90% of its expected valid times is excluded and counted; > 20% excluded is VOID.
+
+**Controls (VOID if any misbehaves):**
+- Null: R2 scored against itself gives skill 0 (a pipeline sanity check).
+- Negative: E2 refitted with ensemble SDs SHUFFLED across initialisation dates must lose >= half of its gain over R2.
+  If it does not, the spread carries no information and the gain is a mean correction only. Report that; it is not a
+  PASS.
+- Label swap: buoys deranged against forecasts. The CRPS skill must collapse below 0.
+
+**Reported, not gating:**
+- Week 2 (240-360 h), pooled tail probabilities of Hs > the buoy's TRAIN 90th percentile (Brier skill score).
+- Per-model members alone (GEFS-only, ECMWF-only).
+- The period-band (h1012..h2530) groundswell cue: the ECMWF probability of energy > 0.3 m in the 14 s+ bands.
+
+**Scope:** a PASS certifies probabilistic OFFSHORE Hs at the buoys. The surf-height range (members through
+estimate_surf) needs a second gate on breaking truth (T1) and is not certified here.
+
+**Shipping (D-080):** on PASS, David's word to MERGE. It ships ON (a probability or range field), with a kill switch
+and the kill-switch contract tests.
+
+**Compute:** offline in GitHub Actions only, by byte-range GRIB reads (.idx / .index), never on Render.
