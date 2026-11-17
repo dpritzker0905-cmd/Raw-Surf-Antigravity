@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from core import security
 from database import get_db
 from models import (CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
-                    SurfSpot, UserStreak)
+                    SurfSpot, SurfTruthAnchor, SurfTruthAnchorEvent, UserStreak)
 from routes.surf_data import checkins, observations, surf_reports
 from services import observation_media
 from services.surf_observation_scale import (FT_TO_M, ObservationError, normalise, region_default_scale)
@@ -122,7 +122,7 @@ async def world(monkeypatch):
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
         for model in (Profile, SurfSpot, CheckIn, UserStreak, ConditionReport, SurfReport, SurfObservation,
-                      ObservationMedia):
+                      ObservationMedia, SurfTruthAnchor, SurfTruthAnchorEvent):
             await connection.run_sync(lambda conn, table=model.__table__: table.create(conn))
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as db:
@@ -317,7 +317,10 @@ async def test_scale_default_endpoint_is_the_servers(world):
 
 
 async def test_server_sets_flow_role_and_keeps_device_time_as_a_claim(world, monkeypatch):
-    monkeypatch.setenv(observations.ANCHOR_ENV, "photog")
+    from services import surf_truth_anchors
+    async with world.maker() as db:  # an ACTIVE anchor in the anchors table (no longer an env var)
+        await surf_truth_anchors.set_status(db, "photog", "active", "admin-x", "trusted photographer")
+        await db.commit()
     skewed = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
     r = await world.client.post(URL, json=_checkin(observed_at_device=skewed), headers=_token("surfer"))
     assert r.status_code == 200

@@ -123,3 +123,31 @@ XP for blind observations rewards quality, never agreement (`services/observatio
   only its sha256.
 Evidence: 15 reward tests + P1's 40 + the XP single-path guard = 64 pass. Mutations: a gate that reads the height
 fails the value-blind test; corroboration that requires agreement fails the corroboration test. Frontend 10 pass.
+
+## 10:30Z Anchors A built locally (stacked on P2): table + append-only log
+
+David's yes (09:16 EST, research lead's session) to anchor observers, with an admin area to control and monitor
+them; the director split it into small PRs. A = `surf_truth_anchors` (active / probation / suspended) and
+`surf_truth_anchor_events` (append-only: a Postgres trigger refuses UPDATE/DELETE), both RLS-locked. One service,
+`services/surf_truth_anchors.set_status`, writes the row and the log line together with the acting admin and a
+required reason. `observer_role` now reads the table: 'anchor' only while ACTIVE, 'anchor_probation' while on
+probation, the ordinary role when suspended. The `SURF_TRUTH_ANCHOR_IDS` env var is gone (it was never set, so no
+row was ever recorded as an anchor). 9 tests; P1 + P2 suites updated; 63 pass. Next: API, admin UI, model.
+
+## 18:50Z Advisor conditions on #980 (three) and #981 (one) closed
+
+#980: the audit list returns no height, unit, range, scale or typical/sets (test); kill switch `SURF_OBS_XP` via
+runtime_flags (default on; '0' marks new rows 'paused', never paid later, no corroboration; tests); what XP is worth
+stated on the PR: levels, badges, leaderboards and profile/roster display only, not redeemable, not in dispatch
+priority (`dispatch/schemas.py`), so the client-claim gate risks leaderboard fairness only; tighten to
+server-verified photo evidence before XP ever becomes redeemable.
+#981: the log is now really append-only: service_role gets SELECT, INSERT only; row-level UPDATE/DELETE trigger plus a
+statement-level BEFORE TRUNCATE trigger; the docstring says exactly what remains (an owner acting outside the app
+could drop the triggers). Owed after deploy: UPDATE, DELETE and TRUNCATE each attempted in a rolled-back
+transaction must raise. Pushed as a merge of #980's branch (no history rewrite).
+
+## 2026-11-17 02:29Z CLOCK CORRECTION (from `date -u`; append-only)
+
+The header '18:50Z Advisor conditions on #980 (three) and #981 (one) closed' ran AHEAD of the clock: it was committed at 2026-11-16T18:30:13Z, 20 minutes before the time it
+states. It was an estimate, not a clock reading (LESSONS L-P10). Every earlier "HH:MMZ" header in this lane's logs was
+estimated; their authoritative times are their git commit times. Since 2026-11-16 ~22:56Z the lane reads `date -u`.
