@@ -1386,3 +1386,41 @@ is not a look at the prospective window. The research lead to say whether it is 
   4. register the surge gate.
 
   Nothing in Jan .. Jul 2026 is fetched until the first registration is FINAL.
+
+## 10:34 EST 2026-11-17 (`date`) - Research lead's read (10:40 EST log on #985): independent truth exists on surf beaches
+- **The research lead verified SCN 26-51 from its PDF:** effective 2026-08-11 12Z; the bias correction uses observed water at
+  NOS/CO-OPS stations over the last 5 days, so CO-OPS scoring is contaminated.
+  - Their extraction did not surface the LMSL sentence; they rely on this log and the advisor for it.
+  - The NCEP portal gives the operational date as 2026-08-17 12Z. Both dates are recorded; the window logic does not depend
+    on which is right.
+- **New finding: about 60 non-CO-OPS water-level gauges on erddap.sensors.ioos.us, mostly Hohonu, ON SURF BEACHES.**
+  - NC: Duck, Surf City, Topsail, Emerald Isle, Ocean Isle, Holden, Bald Head.
+  - SC: Kiawah, Isle of Palms, Folly, Edisto, Hilton Head.
+  - FL: Fernandina, Sanibel, Captiva, John's Pass, Mexico Beach, Dania.
+  - IOC/UHSLC island gauges are the wrong population; these are the right one.
+- **The research lead's recommended path (the decision is the director's and David's):**
+  1. Close G3 as VOID.
+  2. Run G3b on v2.1 as registered, as supporting evidence only.
+  3. Register a prospective G3c on v3.1 now:
+     - level-free primary (A + S1 + cwl - htp);
+     - PRIMARY truth = the independent IOOS beach gauges, de-meaned over a pre-window period, with QC and coverage rules
+       (watch for decommissioned ones);
+     - CO-OPS gauges as a near-gauge upper bound, by distance and lead;
+     - the window starts strictly after registration and runs >= 12 months for bulk skill;
+     - storm claims rest on a pre-registered, event-based power calculation, with G3b errors as the surrogate;
+     - FIRST confirm that the STOFS correction uses only CO-OPS stations.
+  4. The persistence blend is a separate gate: e-foldings fitted on TRAIN at independent gauges, freshness defined by
+     latency. Real-time Hohonu data makes an at-spot nowcast possible.
+- **Reconciling this with the advisor (my reading, for them to confirm):**
+  - The advisor withdrew the level-free primary because CO-OPS TRUTH leaks into it, not because the arm is invalid.
+  - Scored on gauges that do NOT feed the correction, cwl - htp is a fair as-issued arm: the CO-OPS-based correction is
+    information a live product would have, so it is skill, not leakage. The withdrawal and the research lead's primary are
+    compatible once the truth set is independent.
+  - The remaining difference is how to use Jan .. Jul 2026:
+    - the advisor proposes a tide + seasonal gate (no STOFS) that can ship in weeks;
+    - the research lead proposes G3b v2.1 as supporting evidence.
+  - A G3b v2.1 scored at CO-OPS gauges carries the same station-correction doubt, so its value as evidence for surge is
+    small.
+  - The tide + seasonal gate can be scored at CO-OPS gauges: no surge arm, so no leakage. It can also be scored at the
+    beach gauges where they have pre-window data.
+  - Both uses can't take the same unseen window cleanly; the choice is the owner's.
