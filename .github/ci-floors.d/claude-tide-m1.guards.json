@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 0,
+  "files": 1,
+  "branch": "claude/tide-m1",
+  "date": "2026-11-18",
+  "note": "dev's guards MIN_FILES was 1 below dev CI's observed 256 (run 44207940043); staleness fix, no test added here"
+}
