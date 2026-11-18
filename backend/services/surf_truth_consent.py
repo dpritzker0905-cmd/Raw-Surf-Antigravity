@@ -37,8 +37,11 @@ CONSENT_TITLE = "Use my wave reports to improve Raw Surf's forecasts"
 
 # COMPANY DETAILS (owner, 2026-11-18): "{company}" and "{privacy_url}" are filled from Compliance > Legal documents >
 # Company details (services/legal_identity; defaults "Raw Surf Adventures Inc." and the app's /privacy page) when the
-# wording is served. The VERSION people agree to names the FILLED text: when a token is in the wording, the served
-# version is "<version>+<8 hex of the filled text>", so renaming the company is a new version and asks everyone again.
+# wording is served. When a token is in the wording, the served version is "<version>+<8 hex of the company-details
+# REVISION>". A Company details CHANGE (a different company or privacy notice) starts a new revision, so it is a new
+# version and asks everyone again; a CORRECTION (a typo, same meaning) keeps the revision, so consents stand (owner,
+# 2026-11-18: "Yes, correction option", "Only real name changes"). company_details_changes records the filled words
+# before and after every publish, so the record still shows exactly what each person saw.
 #
 # DRAFT MARKERS: an admin-published text may still carry "[COMPANY]" or "[PRIVACY NOTICE LINK]" (or a token whose
 # company detail is empty). Such a wording is NOT FINAL: a grant is refused (WordingNotFinal; the route answers 409),
@@ -84,27 +87,30 @@ def unfilled(text: Optional[str], details: Optional[dict] = None) -> list:
     return left
 
 
-def _served(version: str, title: str, text: str, details: dict) -> tuple[str, str, str]:
-    """Fill the tokens; a wording that used any token is served under '<version>+<8 hex of the filled words>'."""
+def _served(version: str, title: str, text: str, details: dict, revision: str) -> tuple[str, str, str]:
+    """Fill the tokens; a wording that used any token is served under '<version>+<8 hex of the revision>'."""
     filled_title, filled_text = legal_identity.fill(title, details), legal_identity.fill(text, details)
-    if (filled_title, filled_text) == (title, text):
-        return version, title, text
-    digest = hashlib.sha256(f"{filled_title}\n{filled_text}".encode()).hexdigest()[:8]
+    if not any(token in title + "\n" + text for token in legal_identity.TOKENS):
+        return version, filled_title, filled_text
+    digest = hashlib.sha256(f"company-details:{revision}".encode()).hexdigest()[:8]
     return f"{version}+{digest}", filled_title, filled_text
 
 
 def default_served_version() -> str:
-    """The version the built-in default is served under with the default company details (no admin edits)."""
-    return _served(CONSENT_VERSION, CONSENT_TITLE, CONSENT_TEXT, legal_identity.DEFAULTS)[0]
+    """The version the built-in default is served under before any Company details change is published."""
+    return _served(CONSENT_VERSION, CONSENT_TITLE, CONSENT_TEXT, legal_identity.DEFAULTS,
+                   legal_identity.DEFAULT_REVISION)[0]
 
 
-async def wording(db: AsyncSession) -> dict:
+async def wording(db: AsyncSession, details: Optional[dict] = None, revision: Optional[str] = None) -> dict:
     """The wording in force, FILLED from the company details: {version, title, text, effective_date, published,
     final, privacy_url}. The active admin-published `forecast_consent` document if there is one, else the built-in
-    default. `version` names the filled words (see _served)."""
+    default. `version` names the company-details revision (see _served). `details` / `revision` override what is in
+    force (the Company details save uses them to compute the words AFTER a publish before writing its record)."""
     doc = (await db.execute(select(TosContent).where(TosContent.doc_type == DOC_TYPE, TosContent.is_active.is_(True))
                             .limit(1))).scalar_one_or_none()
-    details = await legal_identity.current(db)
+    details = details if details is not None else await legal_identity.current(db)
+    revision = revision if revision is not None else await legal_identity.current_revision(db)
     if doc is not None and doc.sections:
         first = doc.sections[0]
         base, title, text, effective, published = (doc.version, first.get("title") or CONSENT_TITLE,
@@ -112,7 +118,7 @@ async def wording(db: AsyncSession) -> dict:
     else:
         base, title, text, effective, published = CONSENT_VERSION, CONSENT_TITLE, CONSENT_TEXT, None, False
     final = not unfilled(title + "\n" + text, details)
-    version, title, text = _served(base, title, text, details)
+    version, title, text = _served(base, title, text, details, revision)
     return {"version": version, "title": title, "text": text, "effective_date": effective, "published": published,
             "final": final, "privacy_url": details.get("privacy_url") or None}
 

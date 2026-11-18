@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from core import security
 from database import get_db
 from models import (TosContent, Profile, RoleEnum, SurfObservation, SurfSpot, SurfTruthAdminAction, SurfTruthAnchor,
-                    SurfTruthAnchorEvent, SurfTruthConsentEvent)
+                    SurfTruthAnchorEvent, SurfTruthConsentEvent, CompanyDetailsChange)
 from routes.surf_data import surf_truth_admin
 from services import surf_truth_consent as stc
 from services import surf_truth_export as ste
@@ -56,7 +56,7 @@ async def world(monkeypatch):
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
         for model in (Profile, TosContent, SurfSpot, SurfObservation, SurfTruthAnchor, SurfTruthAnchorEvent, SurfTruthAdminAction,
-                      SurfTruthConsentEvent):
+                      SurfTruthConsentEvent, CompanyDetailsChange):
             await connection.run_sync(lambda conn, table=model.__table__: table.create(conn))
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as db:

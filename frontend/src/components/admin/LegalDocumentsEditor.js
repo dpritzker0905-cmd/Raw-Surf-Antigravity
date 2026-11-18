@@ -25,7 +25,7 @@ export const LEGAL_DOCS = [
   { id: 'tos', label: 'Terms of Service', short: 'ToS',
     help: 'Shown at sign-up and in Settings > Legal. To make everyone accept again, also update the version in constants/tos.js.' },
   { id: 'company_details', label: 'Company details', short: 'company details',
-    help: 'Who runs Raw Surf, as named in the legal documents. Write {company}, {privacy_url} or {privacy_contact} in the Terms, the Privacy Policy or the forecast data consent and people see these values. Changing the legal name changes the consent\'s words, so everyone who opted in is asked again.' },
+    help: 'Who runs Raw Surf, as named in the legal documents. Write {company}, {privacy_url} or {privacy_contact} in the Terms, the Privacy Policy or the forecast data consent and people see these values. When you publish, say whether it is a change (a different company or privacy notice: everyone who opted in to forecast data is asked again) or a correction (a typo: everyone stays opted in). Every publish is recorded.' },
   { id: 'privacy', label: 'Privacy Policy', short: 'Privacy Policy',
     help: 'Shown in Settings > Legal.' },
   { id: 'forecast_consent', label: 'Forecast data consent', short: 'consent',
@@ -113,6 +113,9 @@ export default function LegalDocumentsEditor() {
   const [loadedSections, setLoadedSections] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Company details only: 'change' (a different company or privacy notice: everyone who opted in is asked again) or
+  // 'correction' (a typo, same meaning: every consent and export stands). Chosen explicitly each time, never defaulted.
+  const [publishKind, setPublishKind] = useState('');
   const tabRefs = useRef({});
   const theme = useThemeName();
   const field = `w-full rounded-md border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground
@@ -128,6 +131,7 @@ export default function LegalDocumentsEditor() {
       setEffectiveDate(res.data.effective_date || '');
       setSections(res.data.sections || []);
       setLoadedSections(res.data.sections || []);
+      setPublishKind('');
     } catch {
       toast.error('Could not load the document');
     } finally {
@@ -173,14 +177,19 @@ export default function LegalDocumentsEditor() {
     if (company && (!companyValue(sections, 'legal_name').trim() || !companyValue(sections, 'privacy_url').trim())) {
       return toast.error('The legal entity name and the privacy notice link are required');
     }
+    if (company && !publishKind) return toast.error('Say whether this is a change or a correction');
     const outgoing = consent ? sections.slice(0, 1)
       : company ? COMPANY_FIELDS.map((f) => ({ title: f.key, body: companyValue(sections, f.key).trim() }))
         : sections;
     setSaving(true);
     try {
-      await apiClient.put('/compliance/tos-content', { doc_type: docType, version: version.trim(),
-        sections: outgoing, effective_date: effectiveDate, set_active: true });
-      toast.success(`${doc.label} ${version.trim()} published`);
+      const res = await apiClient.put('/compliance/tos-content', { doc_type: docType, version: version.trim(),
+        sections: outgoing, effective_date: effectiveDate, set_active: true,
+        ...(company ? { correction: publishKind === 'correction' } : {}) });
+      toast.success(company && res?.data?.consent_version_changed
+        ? `${doc.label} ${version.trim()} published: everyone who opted in will be asked again`
+        : `${doc.label} ${version.trim()} published`);
+      setPublishKind('');
       setLoadedVersion(version.trim());
       setLoadedSections(outgoing);
     } catch (err) {
@@ -274,6 +283,22 @@ export default function LegalDocumentsEditor() {
                     Shown to people as: <span className="font-medium text-foreground">{companyValue(sections, 'legal_name') || '—'}</span>
                     {' · '}privacy notice at <span className="font-medium text-foreground">{companyValue(sections, 'privacy_url') || '—'}</span>
                   </p>
+                  <fieldset className="space-y-2">
+                    <legend className="mb-1 text-xs text-muted-foreground">What kind of edit is this? (required)</legend>
+                    {[['change', 'A change', 'A different company or privacy notice. Everyone who opted in to forecast data is asked again.'],
+                      ['correction', 'A correction', 'A typo or similar fix that does not change the meaning. Everyone stays opted in; the old and new wording are both recorded.'],
+                    ].map(([value, label, help]) => (
+                      <label key={value} htmlFor={`company-kind-${value}`}
+                        className={`flex cursor-pointer items-start gap-2 rounded-lg border p-2 ${publishKind === value ? 'border-primary bg-primary/10' : 'border-border'}`}>
+                        <input id={`company-kind-${value}`} type="radio" name="company-kind" value={value}
+                          checked={publishKind === value} onChange={() => setPublishKind(value)} className="mt-1" />
+                        <span>
+                          <span className="block text-sm font-medium text-foreground">{label}</span>
+                          <span className="block text-xs text-muted-foreground">{help}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </fieldset>
                 </div>
               ) : consent ? (
                 <div className="space-y-3 rounded-lg border border-border p-3">
@@ -334,7 +359,8 @@ export default function LegalDocumentsEditor() {
                     <Upload className="h-3.5 w-3.5" aria-hidden="true" /> Import
                   </label>
                 )}
-                <Button onClick={publish} disabled={saving || loading || textLocked} className="min-w-[200px] flex-1">
+                <Button onClick={publish} disabled={saving || loading || textLocked || (company && !publishKind)}
+                  className="min-w-[200px] flex-1">
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                     : <Save className="mr-2 h-4 w-4" aria-hidden="true" />}
                   {saving ? 'Publishing...' : `Publish ${doc.short} ${version.trim() || ''}${consent && newVersion ? ' (asks everyone again)' : ''}`}

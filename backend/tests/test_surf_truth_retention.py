@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from models import SurfTruthAdminAction, SurfTruthConsentEvent, TosContent
+from models import CompanyDetailsChange, SurfTruthAdminAction, SurfTruthConsentEvent, TosContent
 from services import surf_truth_export as ste
 from services import surf_truth_retention as ret
 
@@ -93,7 +93,7 @@ def maker():
     async def build():
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         async with engine.begin() as conn:
-            for model in (SurfTruthAdminAction, SurfTruthConsentEvent, TosContent):
+            for model in (SurfTruthAdminAction, SurfTruthConsentEvent, TosContent, CompanyDetailsChange):
                 await conn.run_sync(lambda c, t=model.__table__: t.create(c))
         return async_sessionmaker(engine, expire_on_commit=False)
     return asyncio.run(build())
@@ -214,14 +214,37 @@ def test_a_withdrawal_or_a_new_consent_version_replaces_older_exports(maker, mon
             if event == "withdrawal":
                 db.add(SurfTruthConsentEvent(profile_id="ana", granted=False, version="v", source="settings",
                                              at=NOW - timedelta(minutes=30)))
+            elif event == "company_details":
+                db.add(_company_change(changed=True))
             else:
-                db.add(TosContent(doc_type=event if event == "company_details" else "forecast_consent",
+                db.add(TosContent(doc_type="forecast_consent",
                                   version="2.0", is_active=True,
                                   sections=[{"title": "t", "body": "b"}], created_at=NOW - timedelta(minutes=30),
                                   updated_at=NOW - timedelta(minutes=30)))
             await db.commit()
             summary = await ret.enforce(db, store=store, now=NOW)
             assert summary["fresh_export"] == "ffffff" and summary["deleted_runs"] == 2 and not summary["overdue"]
+    asyncio.run(go())
+
+
+def _company_change(changed, kind="change"):
+    return CompanyDetailsChange(doc_version="2.0", kind=kind, revision="r", legal_name_after="X Inc.",
+                                privacy_url_after="/privacy", consent_version_after="v+1", consent_text_after="t",
+                                consent_version_changed=changed, actor_id="admin", at=NOW - timedelta(minutes=30))
+
+
+@pytest.mark.parametrize("kind", ["correction", "change"])
+def test_a_company_details_publish_that_keeps_the_consent_version_is_not_a_revocation(maker, kind):
+    """Owner, 2026-11-18: a correction (or a publish that leaves the consent's words alone) keeps every consent, so
+    it must not replace the exports."""
+    async def go():
+        async with maker() as db:
+            db.add(_company_change(changed=False, kind=kind))
+            await db.commit()
+            assert await ret.last_revocation_at(db) is None
+            db.add(_company_change(changed=True))
+            await db.commit()
+            assert await ret.last_revocation_at(db) == NOW - timedelta(minutes=30)
     asyncio.run(go())
 
 

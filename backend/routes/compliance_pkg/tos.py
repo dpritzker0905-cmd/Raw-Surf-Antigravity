@@ -41,6 +41,9 @@ class TosContentRequest(BaseModel):
     sections: list  # [{title, body}]
     effective_date: Optional[str] = None
     set_active: bool = True
+    # Company details only: True = a CORRECTION (a typo, same meaning): every consent and export stands. False = a
+    # CHANGE (a different company or privacy notice): a new consent revision, everyone is asked again.
+    correction: bool = False
 
 
 # ============ DEFAULT FALLBACK CONTENT ============
@@ -280,10 +283,15 @@ async def save_tos_content(
         if data.set_active and left:
             raise HTTPException(status_code=400, detail=(
                 "Fill in " + " and ".join(left) + " before making this consent text active."))
+    company_before = None
     if data.doc_type == legal_identity.DOC_TYPE:
         problem = legal_identity.validate(data.sections)
         if problem:
             raise HTTPException(status_code=400, detail=problem)
+        if data.set_active:
+            # What people see now, before this publish (for the append-only company_details_changes record)
+            company_before = (await legal_identity.current(db), await surf_truth_consent.wording(db),
+                              await legal_identity.current_revision(db))
 
     # Check if this version already exists
     existing = await db.execute(
@@ -332,12 +340,44 @@ async def save_tos_content(
         )
         for v in all_versions.scalars().all():
             v.is_active = False
-    
+
+    company = None
+    if company_before is not None:
+        company = await _record_company_publish(db, data, admin, *company_before)
+
     await db.commit()
     
-    return {
+    out = {
         "message": f"{data.doc_type.upper()} content saved",
         "version": data.version,
         "is_active": data.set_active,
         "section_count": len(data.sections)
     }
+    if company is not None:
+        out.update(company)
+    return out
+
+
+async def _record_company_publish(db, data, admin, details_before, consent_before, revision_before) -> dict:
+    """A Company details publish: decide the consent revision and append the record (owner, 2026-11-18: "Yes,
+    correction option"; "Only real name changes").
+    - The consent's FILLED words unchanged (e.g. only the privacy contact, which the default consent does not use):
+      the revision stays, so no one is asked again and retention sees no revocation, whatever the admin chose.
+    - A CORRECTION: the revision stays; the new words are served under the same version, and the record keeps both.
+    - A CHANGE: a new revision, so a new consent version: everyone is asked again, and retention replaces exports."""
+    import uuid
+    details_after = legal_identity.from_sections(data.sections)
+    same_rev_after = await surf_truth_consent.wording(db, details=details_after, revision=revision_before)
+    words_changed = (same_rev_after["title"], same_rev_after["text"]) != (consent_before["title"],
+                                                                         consent_before["text"])
+    kind = "correction" if data.correction else "change"
+    revision = revision_before
+    if words_changed and kind == "change":
+        revision = f"{data.version.strip()[:20]}-{uuid.uuid4().hex[:8]}"
+    consent_after = (same_rev_after if revision == revision_before
+                     else await surf_truth_consent.wording(db, details=details_after, revision=revision))
+    row = await legal_identity.record_publish(
+        db, doc_version=data.version.strip(), kind=kind, before=details_before, after=details_after,
+        consent_before=consent_before, consent_after=consent_after, revision=revision, actor_id=admin.id)
+    return {"kind": kind, "consent_version_changed": row.consent_version_changed,
+            "consent_version": consent_after["version"]}

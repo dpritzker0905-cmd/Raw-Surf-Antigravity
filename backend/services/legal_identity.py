@@ -9,8 +9,12 @@ The Terms of Service, the Privacy Policy and the forecast-data consent may use T
 details when the text is served: `{company}` -> the legal entity name, `{privacy_url}` -> the privacy-notice link,
 `{privacy_contact}` -> the privacy contact (an email address, optional). Admins see and edit the unfilled template;
 people see the filled text. Changing the legal name therefore changes the words of every document that uses the
-token, and for the consent that means a NEW consent version (services/surf_truth_consent.wording), so everyone who
-opted in is asked again.
+token. For the consent, a CHANGE (a different company or privacy notice) starts a new consent REVISION and so a NEW
+consent version (services/surf_truth_consent.wording): everyone who opted in is asked again. A CORRECTION (a fix that
+does not change the meaning, e.g. a typo) keeps the revision, so consents and exports are untouched (owner,
+2026-11-18: "Yes, correction option"; "Only real name changes"). Every publish, either kind, appends a row to
+`company_details_changes` (models/company_details_changes.py) with the old and new details and filled consent words,
+so the record still shows exactly what each person saw.
 
 Owner, 2026-11-18: the legal entity is "Raw Surf Adventures Inc."; the privacy notice is the app's own /privacy page.
 """
@@ -67,6 +71,39 @@ def validate(sections: list) -> Optional[str]:
     if len(values["legal_name"]) > 200:
         return "The legal entity name is limited to 200 characters"
     return None
+
+
+DEFAULT_REVISION = "default"
+KINDS = ("change", "correction")
+
+
+async def current_revision(db) -> str:
+    """The consent revision in force: set by the newest Company details CHANGE (a correction keeps the one before);
+    'default' before anyone publishes. The consent's served version is derived from it, not from the filled words,
+    so a correction keeps every consent (owner, 2026-11-18: "Yes, correction option")."""
+    from models import CompanyDetailsChange
+    row = (await db.execute(select(CompanyDetailsChange).order_by(CompanyDetailsChange.at.desc(),
+                                                                  CompanyDetailsChange.id.desc()).limit(1))
+           ).scalar_one_or_none()
+    return row.revision if row is not None else DEFAULT_REVISION
+
+
+async def record_publish(db, *, doc_version: str, kind: str, before: dict, after: dict, consent_before: dict,
+                         consent_after: dict, revision: str, actor_id: str):
+    """Append one row to the company_details_changes record (append-only). Does not commit."""
+    from models import CompanyDetailsChange
+    if kind not in KINDS:
+        raise ValueError(f"kind must be one of {KINDS}")
+    row = CompanyDetailsChange(
+        doc_version=doc_version, kind=kind, revision=revision,
+        legal_name_before=before.get("legal_name"), legal_name_after=after["legal_name"],
+        privacy_url_before=before.get("privacy_url"), privacy_url_after=after["privacy_url"],
+        privacy_contact_before=before.get("privacy_contact"), privacy_contact_after=after.get("privacy_contact"),
+        consent_version_before=consent_before.get("version"), consent_version_after=consent_after["version"],
+        consent_text_before=consent_before.get("text"), consent_text_after=consent_after["text"],
+        consent_version_changed=consent_before.get("version") != consent_after["version"], actor_id=actor_id)
+    db.add(row)
+    return row
 
 
 async def current(db) -> dict:

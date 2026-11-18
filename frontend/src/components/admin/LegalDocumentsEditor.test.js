@@ -89,12 +89,26 @@ describe('LegalDocumentsEditor (Compliance > Legal documents)', () => {
     expect(screen.queryByRole('button', { name: /add section/i })).toBeNull();
     fireEvent.change(name, { target: { value: 'Raw Surf Holdings LLC' } });
     fireEvent.change(screen.getByLabelText('Version'), { target: { value: '1.1' } });
-    fireEvent.click(screen.getByRole('button', { name: /publish company details 1\.1/i }));
+    const publish = screen.getByRole('button', { name: /publish company details 1\.1/i });
+    expect(publish).toBeDisabled();                                   // change or correction must be chosen first
+    fireEvent.click(screen.getByRole('radio', { name: /a change/i }));
+    fireEvent.click(publish);
     await waitFor(() => expect(apiClient.put).toHaveBeenCalledWith('/compliance/tos-content', {
-      doc_type: 'company_details', version: '1.1', effective_date: '', set_active: true,
+      doc_type: 'company_details', version: '1.1', effective_date: '', set_active: true, correction: false,
       sections: [{ title: 'legal_name', body: 'Raw Surf Holdings LLC' }, { title: 'privacy_url', body: '/privacy' },
         { title: 'privacy_contact', body: '' }],
     }));
+  });
+
+  test('a correction is said explicitly and sent as one (owner: only real name changes ask again)', async () => {
+    await openEditor();
+    fireEvent.click(screen.getByRole('tab', { name: 'Company details' }));
+    fireEvent.change(await screen.findByLabelText('Legal entity name'), { target: { value: 'Raw Surf Adventures, Inc.' } });
+    fireEvent.change(screen.getByLabelText('Version'), { target: { value: '1.0.1' } });
+    fireEvent.click(screen.getByRole('radio', { name: /a correction/i }));
+    fireEvent.click(screen.getByRole('button', { name: /publish company details 1\.0\.1/i }));
+    await waitFor(() => expect(apiClient.put).toHaveBeenCalledWith('/compliance/tos-content',
+      expect.objectContaining({ doc_type: 'company_details', correction: true })));
   });
 
   test('the Terms keep their multi-section editor with labelled fields', async () => {

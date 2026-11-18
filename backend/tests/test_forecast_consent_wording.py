@@ -8,7 +8,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from models import Profile, SurfTruthConsentEvent, TosContent
+from models import CompanyDetailsChange, Profile, SurfTruthConsentEvent, TosContent
 from models.enums import RoleEnum
 from routes.compliance_pkg.tos import TosContentRequest, get_current_tos_content, save_tos_content
 from services import surf_truth_consent as stc
@@ -22,7 +22,7 @@ def maker():
     async def build():
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         async with engine.begin() as conn:
-            for model in (Profile, TosContent, SurfTruthConsentEvent):
+            for model in (Profile, TosContent, SurfTruthConsentEvent, CompanyDetailsChange):
                 await conn.run_sync(lambda c, t=model.__table__: t.create(c))
         mk = async_sessionmaker(engine, expire_on_commit=False)
         async with mk() as db:
@@ -152,12 +152,64 @@ def test_a_draft_marker_blocks_every_grant_but_never_a_withdrawal(maker):
     asyncio.run(go())
 
 
-def _publish_company(db, version, **values):
+def _publish_company(db, version, correction=False, **values):
     from services import legal_identity
     fields = {**legal_identity.DEFAULTS, **values}
-    return save_tos_content(TosContentRequest(doc_type="company_details", version=version,
+    return save_tos_content(TosContentRequest(doc_type="company_details", version=version, correction=correction,
                                               sections=[{"title": k, "body": v} for k, v in fields.items()]),
                             admin=ADMIN, db=db)
+
+
+def test_a_correction_keeps_every_consent_and_records_what_people_saw(maker):
+    """Owner, 2026-11-18: "Yes, correction option" / "Only real name changes". A typo fix keeps the consent version;
+    the append-only record keeps the old and new words and who published, so what each person saw is still known."""
+    from sqlalchemy import select
+    from models import CompanyDetailsChange
+
+    async def go():
+        async with maker() as db:
+            await _publish_company(db, "1.1", legal_name="Raw Surf Adventurs Inc.")       # a CHANGE (the typo)
+            typo = await stc.wording(db)
+            await stc.record(db, "ana", True, "settings", now=T0)
+            await db.commit()
+            out = await _publish_company(db, "1.2", correction=True, legal_name="Raw Surf Adventures Inc.")
+            fixed = await stc.wording(db)
+            assert out["kind"] == "correction" and out["consent_version_changed"] is False
+            assert fixed["version"] == typo["version"]                                     # same version ...
+            assert "Raw Surf Adventures Inc. uses" in fixed["text"]                        # ... corrected words
+            assert (await stc.current(db, "ana"))["granted"] is True                       # ana's consent stands
+            assert await stc.granted_now(db, {"ana"}) == {"ana"}
+            rows = (await db.execute(select(CompanyDetailsChange).order_by(CompanyDetailsChange.at))).scalars().all()
+            assert [(r.kind, r.consent_version_changed) for r in rows] == [("change", True), ("correction", False)]
+            last = rows[-1]
+            assert (last.legal_name_before, last.legal_name_after) == ("Raw Surf Adventurs Inc.", "Raw Surf Adventures Inc.")
+            assert "Raw Surf Adventurs Inc. uses" in last.consent_text_before
+            assert "Raw Surf Adventures Inc. uses" in last.consent_text_after
+            assert last.consent_version_before == last.consent_version_after == typo["version"]
+            assert last.actor_id == "admin" and last.revision == rows[0].revision
+    asyncio.run(go())
+
+
+def test_the_company_details_record_is_append_only_on_postgres():
+    ddl = " | ".join(str(getattr(getattr(fn, "__self__", None), "statement", "") or getattr(fn, "statement", ""))
+                     for fn in CompanyDetailsChange.__table__.dispatch.after_create)
+    for needed in ("company_details_changes_no_rewrite", "company_details_changes_no_truncate", "BEFORE TRUNCATE",
+                   "ENABLE ROW LEVEL SECURITY", "GRANT SELECT, INSERT ON TABLE"):
+        assert needed in ddl, needed
+
+
+def test_a_publish_that_leaves_the_consent_words_alone_changes_nothing(maker):
+    """The default consent does not use {privacy_contact}: setting one, even as a CHANGE, keeps every consent."""
+    async def go():
+        async with maker() as db:
+            before = (await stc.wording(db))["version"]
+            await stc.record(db, "ana", True, "settings", now=T0)
+            await db.commit()
+            out = await _publish_company(db, "1.1", privacy_contact="privacy@example.invalid")
+            assert out["kind"] == "change" and out["consent_version_changed"] is False
+            assert (await stc.wording(db))["version"] == before
+            assert await stc.granted_now(db, {"ana"}) == {"ana"}
+    asyncio.run(go())
 
 
 def test_the_default_consent_names_raw_surf_adventures_and_links_the_privacy_page(maker):
