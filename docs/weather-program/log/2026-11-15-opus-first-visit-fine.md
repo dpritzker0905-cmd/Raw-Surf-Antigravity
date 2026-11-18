@@ -209,3 +209,21 @@ questions; both answers are advisory and recorded here as received in substance.
 - **My reading:** both converge on the same next step (a real phone trace, split by phase). One correction to Reflection's second step:
   "first paint from a downsampled CDN regional frame inside boxes" is redundant: inside boxes the exact frame is already drawn in
   0-17 ms on desktop; the open gap is outside the boxes. Recorded, not acted on.
+
+## 2026-11-18 21:09Z: LongCat's review of the same digest (paid; sent at David's word "Yes, send it", hash ae5c05ae...a56832)
+
+Five findings, advisory, recorded in substance:
+1. HIGH: #921's gate 3 relative pass is invalid (the kill arm's early decode made it a non-comparable control); re-measure with the
+   kill arm's decode forced inside the window, or gate on absolute ms; stop citing that pass.
+2. HIGH: #921 is ON with no valid gate 3 under the current scheduler; either complete gate 3 on a hosted runner or write why gates 1+2
+   suffice. It also doubts gate 1's baseline. **Correction to that part:** gate 1 counts ALL decode-path ms over the session, arrival
+   decodes included, so the kill arm's early decode is inside gate 1's measure; the arrival-timing problem applies to gate 3's per-step
+   window only.
+3. MEDIUM: dropping the CDN prefetch on one desktop Florida run is premature: measure phone, a non-Florida box, a non-GFS model, and
+   bundle freshness first.
+4. MEDIUM: option B's zero-load claim is sizing, not measurement; prototype and measure bytes, client cost, and whether it avoids or
+   only precedes /grid.
+5. MEDIUM: the re-render root cause is asserted, not apportioned: measure MapPageContent's share of the 80-165 ms before moving the
+   hour into a store.
+**All three reviewers converge:** worker frame time is unmeasured (keep ON as load-shedding; write the rationale), the CDN-prefetch drop
+is n=1 and needs a phone + second-box check, and the next real measurement is a phone trace split by phase before any re-render refactor.
