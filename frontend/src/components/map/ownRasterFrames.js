@@ -96,9 +96,14 @@ export const OWN_RASTER_SETS = {
   // 3-hour step to 144 h and 6-hour step to 240 h (set `precipitation_euro`), on the same grid. Past EURO's last frame the GFS
   // frame stands in, labelled as an estimate, as pressure does (the 14-day scrubber is never cut to a model's own range).
   // ICON has no set: with ICON picked the layer stays on the .om path.
+  // ICON (2026-11-18, the owner: "cut Open-Meteo out of all user data"): DWD TOT_PREC differenced to a rate (mm/h in the step
+  // before the hour: hourly to 78 h, 3-hourly to 180 h), area-averaged with 3 x 3 sampled sub-points onto 0.125 deg (#956's set
+  // `precipitation_icon_0p125`; G2: global mass within 0.1 %, median cell peak kept 92-96 %). ON for ICON with NO .om fallback
+  // (`ownOnlyModels`): a miss says "unavailable". Past ICON's 180 h the GFS frame stands in, labelled as an estimate (this
+  // layer's rule since 2026-11-12). GFS and EURO rain are unchanged (behind the lever, .om by default).
   rain: {
-    models: { GFS: 'GFS/weather/precipitation/global_0p25', EURO: 'EURO/weather/precipitation/global_0p25' },
-    fallback: 'GFS', field: PRECIP_FIELD, unit: 'mm/h',
+    models: { GFS: 'GFS/weather/precipitation/global_0p25', EURO: 'EURO/weather/precipitation/global_0p25', ICON: 'ICON/weather/precipitation/global_0p125' },
+    fallback: 'GFS', field: PRECIP_FIELD, unit: 'mm/h', workerDecode: true, ownOnlyModels: ['ICON'],
   },
   // GUSTS (2026-11-15, the owner approved Gusts as a new picker layer; "these lanes need to serve instantly from real GFS, EURO,
   // and ICON lanes from GRIB"): EACH MODEL'S OWN gust, in KNOTS (the wind layer's unit), 0.25 deg (frame_set_raster.py sets
@@ -201,7 +206,8 @@ export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'gusts'
 // Kills for the models still on .om by default (GFS / EURO temperature, every water_temp): __RAW_DISABLE_RASTER_OWN_TEMPERATURE__,
 // __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ return them to the .om path, as before.
 // Turning them on: { temperature: ['EURO'], water_temp: ['EURO'] } here. The lever reaches every model meanwhile.
-export const DEFAULT_ON_MODELS = Object.freeze({ temperature: Object.freeze(['ICON']) });
+// rain ICON (2026-11-18): the 0.125 deg set above, ON with no .om fallback; kill __RAW_DISABLE_RASTER_OWN_RAIN__ (shows unavailable).
+export const DEFAULT_ON_MODELS = Object.freeze({ temperature: Object.freeze(['ICON']), rain: Object.freeze(['ICON']) });
 
 /** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
  *  stays on the .om path, which draws that model as before (never another model's frames under its label). */

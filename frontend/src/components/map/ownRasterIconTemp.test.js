@@ -69,7 +69,7 @@ describe('ICON air temperature at 0.125 deg (2026-11-18)', () => {
   });
 
   test('ON by default for ICON only, with no lever', () => {
-    expect(DEFAULT_ON_MODELS).toEqual({ temperature: ['ICON'] });
+    expect(DEFAULT_ON_MODELS).toEqual({ temperature: ['ICON'], rain: ['ICON'] });   // + ICON rain (ownRasterIconRain.test.js)
     expect(ownFramesOn('temperature', 'ICON')).toBe(true);
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);    // the .om gfs013 is finer than the 0.5-degree set
     expect(ownFramesOn('temperature', 'EURO')).toBe(false);   // pending the owner (vote split 2026-11-14)
