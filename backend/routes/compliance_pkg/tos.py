@@ -16,12 +16,14 @@ from database import get_db
 from deps.admin_auth import get_current_admin
 from models import Profile, TosAcknowledgement, TosContent
 from core.security import get_user_id_from_jwt_or_query, get_current_user_id
-from services import surf_truth_consent
+from services import legal_identity, surf_truth_consent
 
 # The legal documents an admin edits (Compliance > Legal documents). 'forecast_consent' is the opt-in wording for using
 # a person's wave reports to improve forecasts: ONE section whose title is the checkbox label and whose body is its
-# description (services/surf_truth_consent.py reads it).
-DOC_TYPES = ('tos', 'privacy', 'forecast_consent')
+# description (services/surf_truth_consent.py reads it). 'company_details' holds the legal entity name and the
+# privacy-notice link (services/legal_identity.py); the other documents may use its tokens ({company}, {privacy_url},
+# {privacy_contact}), which are filled when a document is served to people and left as written for the admin editor.
+DOC_TYPES = ('tos', 'company_details', 'privacy', 'forecast_consent')
 
 router = APIRouter(prefix="/compliance", tags=["compliance"])
 
@@ -34,7 +36,7 @@ class AcknowledgeTosRequest(BaseModel):
 
 
 class TosContentRequest(BaseModel):
-    doc_type: str  # 'tos' or 'privacy'
+    doc_type: str  # one of DOC_TYPES
     version: str
     sections: list  # [{title, body}]
     effective_date: Optional[str] = None
@@ -66,6 +68,10 @@ DEFAULT_PRIVACY_SECTIONS = [
     {"title": "7. Your Rights", "body": "You have the right to: access your data, correct inaccuracies, request deletion, export your data, and withdraw consent."},
     {"title": "8. Cookies & Tracking", "body": "We use essential cookies for authentication and session management. We do not use third-party advertising trackers."},
     {"title": "9. Changes to This Policy", "body": "We may update this Privacy Policy from time to time. Material changes will be communicated via in-app notification."},
+    # Appended 2026-11-18 (T1 legal research): who the controller is, and the forecast-data opt-in. The sections above
+    # are unchanged. DRAFT: counsel has not reviewed this wording.
+    {"title": "10. Who We Are", "body": "Raw Surf is operated by {company}, which is responsible for your personal data. Questions about your data: use Settings > Legal or Support in the app."},
+    {"title": "11. Forecast Data From Your Wave Reports", "body": "If you turn on \"Use my wave reports to improve Raw Surf's forecasts\" (off unless you turn it on), {company} uses the wave heights you report to measure how far off our surf forecasts are and to correct them, on the basis of your consent. Each report is used with its spot, its time to the minute, roughly how far you and your photo were from the spot (in wide bands, never closer than 1 km), your app version and how we rated the report, under a code instead of your name. That code is pseudonymous, not anonymous: we can trace it back to your account. You can turn it off any time with the same switch; checks and corrections already made stay, new checks leave out all your reports, and copies made before you turned it off are deleted within 7 days."},
 ]
 
 
@@ -175,38 +181,50 @@ async def get_acceptance_history(
 @router.get("/tos-content/current")
 async def get_current_tos_content(
     doc_type: str = Query("tos"),
+    raw: bool = Query(False),
     db: AsyncSession = Depends(get_db)
 ):
     """Public endpoint: fetch the active ToS or Privacy content.
-    Falls back to hardcoded defaults if nothing in DB."""
+    Falls back to hardcoded defaults if nothing in DB.
+    Company tokens ({company}, {privacy_url}, {privacy_contact}) are filled from Company details, except with raw=true
+    (the admin editor, which must edit the template, not the filled words). Company details are public facts."""
     result = await db.execute(
         select(TosContent)
         .where(TosContent.doc_type == doc_type, TosContent.is_active == True)
         .limit(1)
     )
     content = result.scalar_one_or_none()
-    
+
     if content:
-        return {
+        out = {
             "doc_type": content.doc_type,
             "version": content.version,
             "sections": content.sections,
             "effective_date": content.effective_date,
             "updated_at": content.updated_at.isoformat() if content.updated_at else None
         }
-    
-    # Fallback defaults
-    if doc_type == surf_truth_consent.DOC_TYPE:
-        return {"doc_type": doc_type, "version": surf_truth_consent.CONSENT_VERSION,
-                "sections": surf_truth_consent.DEFAULT_SECTIONS, "effective_date": None, "updated_at": None}
-    defaults = DEFAULT_TOS_SECTIONS if doc_type == 'tos' else DEFAULT_PRIVACY_SECTIONS
-    return {
-        "doc_type": doc_type,
-        "version": "1.0",
-        "sections": defaults,
-        "effective_date": "May 2026",
-        "updated_at": None
-    }
+    elif doc_type == surf_truth_consent.DOC_TYPE:
+        out = {"doc_type": doc_type, "version": surf_truth_consent.CONSENT_VERSION,
+               "sections": surf_truth_consent.DEFAULT_SECTIONS, "effective_date": None, "updated_at": None}
+    elif doc_type == legal_identity.DOC_TYPE:
+        out = {"doc_type": doc_type, "version": legal_identity.DEFAULT_VERSION,
+               "sections": legal_identity.default_sections(), "effective_date": None, "updated_at": None}
+    else:
+        defaults = DEFAULT_TOS_SECTIONS if doc_type == 'tos' else DEFAULT_PRIVACY_SECTIONS
+        out = {
+            "doc_type": doc_type,
+            "version": "1.0",
+            "sections": defaults,
+            "effective_date": "May 2026",
+            "updated_at": None
+        }
+    if not raw and doc_type != legal_identity.DOC_TYPE:
+        details = await legal_identity.current(db)
+        out["sections"] = legal_identity.fill_sections(out["sections"], details)
+        out["company"] = details["legal_name"]
+        if doc_type == surf_truth_consent.DOC_TYPE:
+            out["version"] = (await surf_truth_consent.wording(db))["version"]   # the version names the FILLED words
+    return out
 
 
 @router.get("/tos-content/versions")
@@ -262,6 +280,10 @@ async def save_tos_content(
         if data.set_active and left:
             raise HTTPException(status_code=400, detail=(
                 "Fill in " + " and ".join(left) + " before making this consent text active."))
+    if data.doc_type == legal_identity.DOC_TYPE:
+        problem = legal_identity.validate(data.sections)
+        if problem:
+            raise HTTPException(status_code=400, detail=problem)
 
     # Check if this version already exists
     existing = await db.execute(

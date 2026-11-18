@@ -24,6 +24,8 @@ import { Textarea } from '../ui/textarea';
 export const LEGAL_DOCS = [
   { id: 'tos', label: 'Terms of Service', short: 'ToS',
     help: 'Shown at sign-up and in Settings > Legal. To make everyone accept again, also update the version in constants/tos.js.' },
+  { id: 'company_details', label: 'Company details', short: 'company details',
+    help: 'Who runs Raw Surf, as named in the legal documents. Write {company}, {privacy_url} or {privacy_contact} in the Terms, the Privacy Policy or the forecast data consent and people see these values. Changing the legal name changes the consent\'s words, so everyone who opted in is asked again.' },
   { id: 'privacy', label: 'Privacy Policy', short: 'Privacy Policy',
     help: 'Shown in Settings > Legal.' },
   { id: 'forecast_consent', label: 'Forecast data consent', short: 'consent',
@@ -31,6 +33,15 @@ export const LEGAL_DOCS = [
 ];
 
 const isConsent = (id) => id === 'forecast_consent';
+const isCompany = (id) => id === 'company_details';
+
+// Company details are fixed fields (backend services/legal_identity.py FIELDS): one section per field, title = key.
+export const COMPANY_FIELDS = [
+  { key: 'legal_name', label: 'Legal entity name', placeholder: 'for example Raw Surf Adventures Inc.', type: 'text' },
+  { key: 'privacy_url', label: 'Privacy notice link', placeholder: '/privacy or https://…', type: 'text' },
+  { key: 'privacy_contact', label: 'Privacy contact email (optional)', placeholder: 'privacy@…', type: 'email' },
+];
+const companyValue = (sections, key) => (sections.find((s) => s.title === key)?.body ?? '');
 
 function download(name, type, content) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -110,7 +121,8 @@ export default function LegalDocumentsEditor() {
   const load = useCallback(async (dt) => {
     setLoading(true);
     try {
-      const res = await apiClient.get(`/compliance/tos-content/current?doc_type=${dt}`);
+      // raw=true: the template as written ({company} etc. unfilled), so publishing never bakes in today's values
+      const res = await apiClient.get(`/compliance/tos-content/current?doc_type=${dt}&raw=true`);
       setVersion(res.data.version || '1.0');
       setLoadedVersion(res.data.version || '1.0');
       setEffectiveDate(res.data.effective_date || '');
@@ -127,6 +139,9 @@ export default function LegalDocumentsEditor() {
 
   const doc = LEGAL_DOCS.find((d) => d.id === docType);
   const consent = isConsent(docType);
+  const company = isCompany(docType);
+  const setCompany = (key, value) => setSections(COMPANY_FIELDS.map((f) => ({
+    title: f.key, body: f.key === key ? value : companyValue(sections, f.key) })));
   const newVersion = version.trim() !== '' && version.trim() !== loadedVersion;
   const words = (secs) => JSON.stringify((secs || []).slice(0, 1).map((s) => [(s.title || '').trim(), (s.body || '').trim()]));
   // The consent's text under a published version is what people agreed to: changing it needs a new version.
@@ -155,13 +170,19 @@ export default function LegalDocumentsEditor() {
     if (consent && (!sections[0]?.title?.trim() || !sections[0]?.body?.trim())) {
       return toast.error('The consent needs both a checkbox label and its text');
     }
+    if (company && (!companyValue(sections, 'legal_name').trim() || !companyValue(sections, 'privacy_url').trim())) {
+      return toast.error('The legal entity name and the privacy notice link are required');
+    }
+    const outgoing = consent ? sections.slice(0, 1)
+      : company ? COMPANY_FIELDS.map((f) => ({ title: f.key, body: companyValue(sections, f.key).trim() }))
+        : sections;
     setSaving(true);
     try {
       await apiClient.put('/compliance/tos-content', { doc_type: docType, version: version.trim(),
-        sections: consent ? sections.slice(0, 1) : sections, effective_date: effectiveDate, set_active: true });
+        sections: outgoing, effective_date: effectiveDate, set_active: true });
       toast.success(`${doc.label} ${version.trim()} published`);
       setLoadedVersion(version.trim());
-      setLoadedSections(consent ? sections.slice(0, 1) : sections);
+      setLoadedSections(outgoing);
     } catch (err) {
       toast.error(err?.response?.data?.detail?.toString?.() || 'Could not publish');
     } finally {
@@ -240,6 +261,20 @@ export default function LegalDocumentsEditor() {
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Loading" />
                 </div>
+              ) : company ? (
+                <div className="space-y-3 rounded-lg border border-border p-3" data-testid="company-details">
+                  {COMPANY_FIELDS.map((f) => (
+                    <div key={f.key}>
+                      <label htmlFor={`company-${f.key}`} className="mb-1 block text-xs text-muted-foreground">{f.label}</label>
+                      <input id={`company-${f.key}`} type={f.type} value={companyValue(sections, f.key)} maxLength={200}
+                        placeholder={f.placeholder} className={field} onChange={(e) => setCompany(f.key, e.target.value)} />
+                    </div>
+                  ))}
+                  <p className="text-xs text-muted-foreground">
+                    Shown to people as: <span className="font-medium text-foreground">{companyValue(sections, 'legal_name') || '—'}</span>
+                    {' · '}privacy notice at <span className="font-medium text-foreground">{companyValue(sections, 'privacy_url') || '—'}</span>
+                  </p>
+                </div>
               ) : consent ? (
                 <div className="space-y-3 rounded-lg border border-border p-3">
                   <div>
@@ -276,7 +311,7 @@ export default function LegalDocumentsEditor() {
               )}
 
               <div className="flex flex-wrap items-center gap-2">
-                {!consent && (
+                {!consent && !company && (
                   <Button variant="outline" size="sm" className="flex items-center gap-1.5"
                     onClick={() => setSections((prev) => [...prev, { title: `${prev.length + 1}. New section`, body: '' }])}>
                     <Plus className="h-4 w-4" aria-hidden="true" /> Add section
@@ -288,7 +323,7 @@ export default function LegalDocumentsEditor() {
                 <Button variant="outline" size="sm" onClick={exportCsv} aria-label="Export as CSV">
                   <Download className="mr-1 h-3.5 w-3.5" aria-hidden="true" /> CSV
                 </Button>
-                {!consent && (
+                {!consent && !company && (
                   <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-muted focus-within:ring-2 focus-within:ring-ring">
                     <input type="file" accept=".json,.csv" className="sr-only" aria-label="Import JSON or CSV"
                       onChange={(e) => {

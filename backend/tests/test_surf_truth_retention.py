@@ -202,8 +202,9 @@ def test_a_manifest_that_is_not_json_is_an_orphan(maker, monkeypatch):
     asyncio.run(go())
 
 
-@pytest.mark.parametrize("event", ["withdrawal", "new_version"])
+@pytest.mark.parametrize("event", ["withdrawal", "new_version", "company_details"])
 def test_a_withdrawal_or_a_new_consent_version_replaces_older_exports(maker, monkeypatch, event):
+    # company_details: a new legal name fills the consent's {company}, so it is a new consent version too
     monkeypatch.setenv(ste.KEY_ENV, "k" * 40)
     store, _o, _m = _store((("aaaaaa", 1), ("bbbbbb", 30)), ste.key_fingerprint(b"k" * 40))
     _fakes(monkeypatch)
@@ -214,7 +215,8 @@ def test_a_withdrawal_or_a_new_consent_version_replaces_older_exports(maker, mon
                 db.add(SurfTruthConsentEvent(profile_id="ana", granted=False, version="v", source="settings",
                                              at=NOW - timedelta(minutes=30)))
             else:
-                db.add(TosContent(doc_type="forecast_consent", version="2.0", is_active=True,
+                db.add(TosContent(doc_type=event if event == "company_details" else "forecast_consent",
+                                  version="2.0", is_active=True,
                                   sections=[{"title": "t", "body": "b"}], created_at=NOW - timedelta(minutes=30),
                                   updated_at=NOW - timedelta(minutes=30)))
             await db.commit()

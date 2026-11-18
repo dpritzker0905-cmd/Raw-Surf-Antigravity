@@ -190,17 +190,22 @@ class StorageStore:
 
 
 async def last_revocation_at(db) -> Optional[datetime]:
-    """The newest of: an account deletion, a withdrawn consent, the moment the active consent wording was published.
-    Any of them can take reports out of what may be exported, so exports cut before it are replaced."""
+    """The newest of: an account deletion, a withdrawn consent, the moment the active consent wording was published,
+    the moment the active company details were published (they fill the consent's tokens, so a new legal name is a
+    new consent version). Any of them can take reports out of what may be exported, so exports cut before it are
+    replaced."""
     erasure = (await db.execute(select(func.max(SurfTruthAdminAction.at))
                                 .where(SurfTruthAdminAction.action == "account_erasure"))).scalar_one_or_none()
     withdrawn = (await db.execute(select(func.max(SurfTruthConsentEvent.at))
                                   .where(SurfTruthConsentEvent.granted.is_(False)))).scalar_one_or_none()
+    from services.legal_identity import DOC_TYPE as COMPANY_DOC
     from services.surf_truth_consent import DOC_TYPE
-    doc = (await db.execute(select(TosContent).where(TosContent.doc_type == DOC_TYPE, TosContent.is_active.is_(True))
-                            .limit(1))).scalar_one_or_none()
-    published = (doc.updated_at or doc.created_at) if doc is not None else None
-    times = [_aware(t) for t in (erasure, withdrawn, published) if t]
+    times = [_aware(t) for t in (erasure, withdrawn) if t]
+    for doc_type in (DOC_TYPE, COMPANY_DOC):
+        doc = (await db.execute(select(TosContent).where(TosContent.doc_type == doc_type,
+                                                         TosContent.is_active.is_(True)).limit(1))).scalar_one_or_none()
+        if doc is not None and (doc.updated_at or doc.created_at):
+            times.append(_aware(doc.updated_at or doc.created_at))
     return max(times) if times else None
 
 

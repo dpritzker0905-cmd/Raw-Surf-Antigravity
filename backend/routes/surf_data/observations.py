@@ -262,7 +262,7 @@ async def _consent_reply(db: AsyncSession, user_id: str) -> dict:
     words = await surf_truth_consent.wording(db)
     state = await surf_truth_consent.current(db, user_id, version=words["version"])
     return {**state, "current_version": words["version"], "title": words["title"], "text": words["text"],
-            "final": words["final"]}
+            "final": words["final"], "privacy_url": words["privacy_url"]}
 
 
 @router.get("/surf-observations/consent")

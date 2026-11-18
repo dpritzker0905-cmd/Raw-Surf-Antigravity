@@ -371,18 +371,11 @@ async def test_client_build_is_stored_and_shape_checked(world):
 CONSENT_URL = "/api/surf-observations/consent"
 
 
-@pytest.fixture
-def final_wording(monkeypatch):
-    """Treat the built-in draft wording as final (its [COMPANY] / [PRIVACY NOTICE LINK] markers would otherwise
-    refuse every grant): for tests of the consent MECHANICS, not of the placeholders."""
-    from services import surf_truth_consent as stc
-    monkeypatch.setattr(stc, "PLACEHOLDERS", ())
-
-
-async def test_a_grant_under_draft_placeholders_is_409_and_a_withdrawal_still_works(world):
-    from services import surf_truth_consent as stc
+async def test_a_grant_under_a_wording_that_is_not_final_is_409_and_a_withdrawal_still_works(world, monkeypatch):
+    from services import legal_identity
+    monkeypatch.setattr(legal_identity, "DEFAULTS", {**legal_identity.DEFAULTS, "legal_name": ""})   # no controller
     body = (await world.client.get(CONSENT_URL, headers=_token("surfer"))).json()
-    assert body["final"] is False and stc.COMPANY_PLACEHOLDER in body["text"]
+    assert body["final"] is False
     on = await world.client.put(CONSENT_URL, json={"granted": True}, headers=_token("surfer"))
     assert on.status_code == 409
     off = await world.client.put(CONSENT_URL, json={"granted": False, "source": "settings"}, headers=_token("surfer"))
@@ -392,16 +385,18 @@ async def test_a_grant_under_draft_placeholders_is_409_and_a_withdrawal_still_wo
     assert [(e.granted, e.source) for e in history] == [(False, "settings")]
 
 
-async def test_consent_is_off_by_default_and_each_choice_is_appended(world, final_wording):
+async def test_consent_is_off_by_default_and_each_choice_is_appended(world):
     from services import surf_truth_consent as stc
     assert (await world.client.get(CONSENT_URL)).status_code == 401
     r = await world.client.get(CONSENT_URL, headers=_token("surfer"))
     assert r.status_code == 200
     body = r.json()
     assert body["granted"] is False and body["version"] is None                      # opt-in: no choice is no
-    assert body["current_version"] == stc.CONSENT_VERSION and body["text"] == stc.CONSENT_TEXT
+    served = stc.default_served_version()
+    assert body["current_version"] == served and body["final"] is True and body["privacy_url"] == "/privacy"
+    assert "Raw Surf Adventures Inc. uses" in body["text"] and "{" not in body["text"]
     on = await world.client.put(CONSENT_URL, json={"granted": True}, headers=_token("surfer"))
-    assert on.json()["granted"] is True and on.json()["version"] == stc.CONSENT_VERSION
+    assert on.json()["granted"] is True and on.json()["version"] == served
     off = await world.client.put(CONSENT_URL, json={"granted": False, "source": "settings"}, headers=_token("surfer"))
     assert off.json()["granted"] is False
     async with world.maker() as db:
@@ -421,7 +416,7 @@ async def test_consent_body_cannot_set_version_owner_or_unknown_source(world, ba
         assert (await db.execute(select(SurfTruthConsentEvent))).scalars().all() == []
 
 
-async def test_observation_records_the_consent_in_force_when_received(world, final_wording):
+async def test_observation_records_the_consent_in_force_when_received(world):
     from services import surf_truth_consent as stc
     assert (await world.client.post(URL, json=_checkin(), headers=_token("surfer"))).status_code == 200
     await world.client.put(CONSENT_URL, json={"granted": True}, headers=_token("surfer"))
@@ -429,7 +424,7 @@ async def test_observation_records_the_consent_in_force_when_received(world, fin
     assert (await world.client.post(URL, json=second, headers=_token("surfer"))).status_code == 200
     first_row, second_row = await world.rows()
     assert (first_row.consent_training, first_row.consent_version) == (False, None)
-    assert (second_row.consent_training, second_row.consent_version) == (True, stc.CONSENT_VERSION)
+    assert (second_row.consent_training, second_row.consent_version) == (True, stc.default_served_version())
 
 def test_the_consent_text_promises_only_what_the_code_does():
     """Advisor 11-18: the first draft said 'never your name' and that withdrawal reached earlier reports everywhere.
@@ -455,6 +450,6 @@ def test_the_consent_text_promises_only_what_the_code_does():
     assert not {"gps_distance_m", "exif_distance_m", "gps_check"} & set(FIELDS)
     assert "never closer than 1 km" in text and ste.DISTANCE_BANDS[0] == (1000.0, "<1 km")
     # 2026-11-18 legal research: Art. 7(3) (earlier use stays lawful), withdrawal as easy as consent, the controller
-    # named and the privacy notice linked (still DRAFT placeholders until David supplies them)
+    # named and the privacy notice linked, both from Company details (owner 2026-11-18: Raw Surf Adventures Inc., /privacy)
     assert "already made stay" in text and "this same switch" in text
-    assert stc.COMPANY_PLACEHOLDER.lower() in text and stc.PRIVACY_NOTICE_PLACEHOLDER.lower() in text
+    assert "{company} uses" in text and text.endswith("privacy notice: {privacy_url}")

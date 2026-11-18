@@ -57,6 +57,16 @@ describe('TrainingConsent (T1 P3 opt-in)', () => {
       expect(screen.queryByText(/wording changed/i)).toBeNull();
     });
 
+  test('the privacy notice named in the wording is a real link to /privacy, in a new tab', async () => {
+    const text = 'Off unless you turn it on. Raw Surf Adventures Inc. uses them. Privacy notice: /privacy';
+    apiClient.get.mockResolvedValue({ data: { ...SERVER, final: true, privacy_url: '/privacy', text } });
+    render(<TrainingConsent idPrefix="t" />);
+    const link = await screen.findByRole('link', { name: 'Privacy Policy' });
+    expect(link).toHaveAttribute('href', '/privacy');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(screen.getByRole('checkbox')).toHaveAccessibleDescription(/Raw Surf Adventures Inc\. uses them\. Privacy notice: Privacy Policy/);
+  });
+
   test('renders nothing while the server wording is a draft with placeholders (no one can agree to it)', async () => {
     apiClient.get.mockResolvedValue({ data: { ...SERVER, final: false, text: 'When on, [COMPANY] uses ...' } });
     const { container } = render(<TrainingConsent idPrefix="t" />);

@@ -10,6 +10,8 @@ const DOCS = {
   tos: { version: '2.0', effective_date: 'May 2026', sections: [{ title: '1. Terms', body: 'Be nice.' }] },
   privacy: { version: '1.0', effective_date: '', sections: [{ title: '1. Data', body: 'We keep little.' }] },
   forecast_consent: { version: '1.0', effective_date: '', sections: [{ title: 'Use my reports', body: 'Off unless on.' }] },
+  company_details: { version: '1.0', effective_date: '', sections: [{ title: 'legal_name', body: 'Raw Surf Adventures Inc.' },
+    { title: 'privacy_url', body: '/privacy' }, { title: 'privacy_contact', body: '' }] },
 };
 
 beforeEach(() => {
@@ -35,10 +37,13 @@ async function openEditor() {
 }
 
 describe('LegalDocumentsEditor (Compliance > Legal documents)', () => {
-  test('three sub-sections in a keyboard tablist', async () => {
+  test('four sub-sections in a keyboard tablist, company details next to the Terms', async () => {
     await openEditor();
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual(['Terms of Service', 'Privacy Policy', 'Forecast data consent']);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Terms of Service', 'Company details', 'Privacy Policy',
+      'Forecast data consent']);
+    // the editor reads the template as written, never the filled text
+    expect(apiClient.get).toHaveBeenCalledWith('/compliance/tos-content/current?doc_type=tos&raw=true');
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     fireEvent.keyDown(tabs[0], { key: 'End' });
     await screen.findByLabelText('Checkbox label');
@@ -72,6 +77,23 @@ describe('LegalDocumentsEditor (Compliance > Legal documents)', () => {
     await waitFor(() => expect(apiClient.put).toHaveBeenCalledWith('/compliance/tos-content', {
       doc_type: 'forecast_consent', version: '1.1', sections: [{ title: 'Use my reports', body: 'Clearer words.' }],
       effective_date: '', set_active: true,
+    }));
+  });
+
+  test('company details are three labelled fields, published in a fixed order', async () => {
+    await openEditor();
+    fireEvent.click(screen.getByRole('tab', { name: 'Company details' }));
+    const name = await screen.findByLabelText('Legal entity name');
+    expect(name).toHaveValue('Raw Surf Adventures Inc.');
+    expect(screen.getByLabelText('Privacy notice link')).toHaveValue('/privacy');
+    expect(screen.queryByRole('button', { name: /add section/i })).toBeNull();
+    fireEvent.change(name, { target: { value: 'Raw Surf Holdings LLC' } });
+    fireEvent.change(screen.getByLabelText('Version'), { target: { value: '1.1' } });
+    fireEvent.click(screen.getByRole('button', { name: /publish company details 1\.1/i }));
+    await waitFor(() => expect(apiClient.put).toHaveBeenCalledWith('/compliance/tos-content', {
+      doc_type: 'company_details', version: '1.1', effective_date: '', set_active: true,
+      sections: [{ title: 'legal_name', body: 'Raw Surf Holdings LLC' }, { title: 'privacy_url', body: '/privacy' },
+        { title: 'privacy_contact', body: '' }],
     }));
   });
 
