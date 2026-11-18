@@ -2545,3 +2545,13 @@ finding):**
    far longer than the 10-month window, which tests whether training length, not the method, limits L1.
    - It must use the operational-equivalent configuration (Campos), and it is never mixed into the joint ECMWF+GEFS fit:
      ECMWF has no open reforecast.
+
+- 2026-11-17 23:10 -0500: **RETRACTION: the "+24 h-only CONSENSUS_SERVE flip" idea (16:50 entry) has no evidence behind it.**
+  - The helper's source: monitor run 44052389611, grade lines 197-210. "Big swell" there selected each arm on its OWN
+    forecast ≥ 3.0 m: served GFS n=580 (MAE 0.657, bias −0.153) vs equal n=649 (MAE 0.576, bias −0.110).
+  - Different cohorts, so 0.657 vs 0.576 is NOT a paired comparison. Self-selection on each arm's own forecast also
+    puts different false alarms in each bin.
+  - A valid read fixes ONE cohort (equal-mean forecast ≥ 3.0 m) and scores both arms on the same rows, with a
+    valid-date block bootstrap. That needs the per-row archive through the director's sanctioned job.
+  - LESSON (generalises L-S28): a "same bin" comparison must use the same rows. Check the cohort definition before
+    reading two MAEs side by side.
