@@ -246,7 +246,6 @@ Tests: backend +9 (kinds, guardrail entry, lane marking, every registered flag h
 Jest +5 (the panel had none). 131 related backend and 438 admin Jest tests pass; lint ratchet passes (debt down).
 NOT checked in a browser: the admin needs an admin login.
 Next, from the same survey (each its own PR): data and ingest health (/api/health/data), a per-spot geometry and
-<<<<<<< HEAD
 rating inspector, guardrail run history and the owner's re-enable, the surf-truth export button and anchor history.
 ## 2026-11-18 03:15Z Admin: data and ingest health in the Surf Forecast panel (header from the UTC clock)
 
@@ -262,6 +261,3 @@ the view states what "stale" means without re-deriving environment overrides.
 Tests: backend +1 (thresholds, including an override), Jest +4 (words not colours, the 503 path, unreachable, the
 limits). 150 data-health backend and 100 admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin
 login). Stacked on #1029.
-=======
-rating inspector, guardrail run history and the owner's re-enable, the surf-truth export button and anchor history.
->>>>>>> origin/dev
