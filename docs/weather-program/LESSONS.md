@@ -1545,3 +1545,30 @@ A stored estimate can be estimated again in a browser branch with different sour
 - Rule: every relayed owner decision carries its clock time and verbatim words. A lane acting on a relay re-reads the
   board (and the relaying session's latest message) for a newer word on the same topic before it builds. When two
   differ, the later one governs.
+
+### 2026-11-17 — L-O10 · A merge gate that a process cannot check is advice, not a gate
+- What happened: in one day, ten merges reached `dev` without the advisor's line on the head they merged, in six ways:
+  1. a leftover pre-gate merge loop that `TaskStop` had not killed: #987, #995, #958, #1006, #1007;
+  2. a lane's hand merge: #928;
+  3. lane-set GitHub auto-merge on heads that had moved after review: #988, which carried an unreviewed commit, and #990;
+  4. auto-merge set on a HELD PR: #1005, caught before it fired;
+  5. a batch of three: #1012, whose line was open, #1009, and #1016, which had no line;
+  6. #1001, at a head with no line.
+  #958 failed its storage gate and had to be reverted (#1014). Each merge looked reasonable to whoever made it. Several
+  had the owner's "merge when green" typed in a lane, and none of the people who merged checked the gate file.
+- Rule (BRAIN_RULES §24):
+  - the owner's word sets timing, and the gate line on the exact current head is still required;
+  - auto-merge only when pinned to a head the advisor's line already names;
+  - exactly one merge loop runs, with a lock file and a heartbeat;
+  - verify any stop of a background loop against the process list.
+- Next mechanical step: a required commit status that only the gated loop posts, so GitHub itself refuses any other
+  merge. This changes repository settings, so it waits on the owner's word.
+
+### 2026-11-17 — L-P47 · Rechain checklist: the four things that turned a clean rechain red
+- `SCOREBOARD.md`: keep both sides' rows and place each by timestamp. The audit carries a lower bound across rows, so
+  one early row below a later one fails `backend-estate-coverage` (#928 failed twice).
+- A floor-staleness "N below what CI last observed" message means the branch lacks `dev`'s newer floor fragments:
+  merge `dev` in, and do not add a fragment. Only a PR that removes tests writes one (`rederive_floor.py --add`).
+- A new raster set's env switch must also be listed in `data-health-monitor.yml` (`test_raster_set_freshness`).
+- `backend-sim-composition-guards` CANCELLED at its 25-minute timeout is not a test failure: read the log, then rerun
+  only the failed job.
