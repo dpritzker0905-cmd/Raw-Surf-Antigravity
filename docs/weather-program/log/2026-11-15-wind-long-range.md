@@ -506,3 +506,77 @@ and they stay unread.**
 - Then score ONCE on the complete set. Split, arms and thresholds are unchanged.
 - A run still missing after the fill stays dropped and is never filled. If the sizes are then still short, the gate is
   VOID again and is reported as such.
+
+## 2026-11-17 17:51 -0500 L1 instrument written OFFLINE for the advisor's read (no fetch, no score)
+
+The fill run 44107750669 finished (conclusion: success). Its verdict has NOT been opened here: the advisor reads it
+first. Meanwhile, the L1 registration (senior-research-lead log, FIXED 2026-11-17 00:33) said "the code goes to the
+advisor before any fetch". Branch `claude/l1-wave-emos`:
+
+- `backend/scripts/wave_emos_core.py`: log-normal laws with closed-form CRPS in METRES (Baran & Lerch 2015). E2 is
+  NGR on log Hs; R2 is EMOS on log R1 (with the "proxy, ICON absent" label). The rolling fit uses 90 days, refits
+  weekly, takes only rows published and valid before the refit, starts 2025-10-01, and restarts at an upgrade date.
+  The frozen fit and climatology arm C are also here.
+- `backend/scripts/wave_l1_score.py`: gate lines G1-G4 on 10-day valid-date blocks (3-day blocks for FRAGILE). It has
+  the cell-exclusion VOID, plus the null, derangement and halved-spread VOID controls. Reported: E1, R1, C, per-buoy
+  CRPSS, the per-model arms, the shuffled spread, the spread term, the shipped form, and the week-2 Brier score.
+- `backend/tests/test_wave_l1.py`, 8 tests. On synthetic data, an informative ensemble passes and an uninformative
+  one does not.
+
+**Three points for the advisor before any fetch:**
+1. **Derangement reference.** The instrument scores deranged E2 against arm C at the true buoy, and requires
+   CRPSS < 0. The draft's line "the CRPS skill must collapse below 0" does not name a reference.
+2. **Shipped-form rule.** The two spread reports can disagree. On synthetic data the spread term was real
+   (CRPSS +0.021, CI [0.017, 0.024]), yet the shuffled-spread E2 kept 83% of the gain over R2, because the gain was
+   mostly a mean correction. The code ships constant spread if EITHER report says so, and labels a PASS
+   "mean correction only". "Survives the shuffle" is read as keeping at least half the gain (the draft's
+   negative-control wording).
+3. **E2 spread law.** It is read literally: "the SD is linear in the pooled ensemble SD" gives
+   sigma = |c| + |d| * SD(pooled log members). The wind EMOS uses a variance-linear law instead.
+
+Still owed before any fetch:
+- the collector (GEFS-Wave and `waef` byte-range reads, the nearest wet cell, the R1 proxy);
+- the measured publication delays;
+- the version list for GEFS-Wave and IFS/wave in 2025-10..2026-06.
+
+## 2026-11-17 18:16 -0500 Fill run 44107750669: VOID (second row); missing runs are throttling, not absence
+
+**Verdict record** (the advisor read the score job's public log at 22:18Z; nobody here has opened the report):
+- VOID, `test half 53 runs over 31 days`. The rule needs >= 60 runs AND >= 30 days.
+- This is the SECOND VOID row; the first was 48 runs over 29 days. No threshold moves.
+- This session has NOT opened the report artifact or the run-page summary. Only the collect jobs' public logs were
+  read, for the run lists below.
+
+**Which runs are missing, from the collect logs:**
+- The test half is October 00Z/12Z: 62 scheduled runs.
+- 48 came from the reused run and 5 were collected by this fill, giving 53.
+- The 9 still missing:
+  - 10-01 00Z;
+  - 10-11 12Z;
+  - 10-13 00Z;
+  - 10-14 12Z;
+  - 10-17 12Z;
+  - 10-19 00Z;
+  - 10-23 12Z;
+  - 10-25 00Z;
+  - 10-31 00Z.
+- Each failed both attempts with HTTP 503 from the `ecmwf-forecasts` S3 mirror (SlowDown throttling), mostly on the
+  336 h `.index`.
+- None is absent at the source (S3 returns 403/404 for a missing key, not 503), and none was outside the fill's list.
+- This fill tried 14 test-half runs and recovered 5. The fit half still lacks 09-03, 09-15 and 09-21, all 503s.
+
+**What the registration allows:** the 09:57Z fill plan says a run still missing after the fill "stays dropped and is
+never filled". A third collection of these 9 runs is therefore not a completion under the current registration. It
+would need a registered amendment made WITHOUT any result read, and David's word to dispatch.
+
+**The honest options, for the advisor:**
+1. **A new month** (e.g. November 2026, once it has its 14-day truth), under the same registration.
+2. **A transport amendment** before any read: ECMWF open data is also mirrored outside AWS. Fetch only the 9 named runs
+   from a second mirror, serially, at off-peak hours.
+   - Cost: about 9 runs x ~20 min ≈ 3 h collect plus ~1.5 h score.
+   - Expected recovery: most of the 9, if the second mirror does not throttle. 7 are needed.
+   - At this fill's 5-of-14 rate on the same mirror, a repeat would recover about 3 and stay VOID.
+3. **A split amendment** before any read: the 12 already-collected runs of 09-25..09-30 sit between the fit half (day
+   <= 24) and October.
+   - Moving them into the test half gives 65 runs.
+   - But it shortens the fit/test separation that the gap may exist to keep. The advisor's call.
