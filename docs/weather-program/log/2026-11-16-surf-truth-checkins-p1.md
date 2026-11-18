@@ -247,3 +247,15 @@ Jest +5 (the panel had none). 131 related backend and 438 admin Jest tests pass;
 NOT checked in a browser: the admin needs an admin login.
 Next, from the same survey (each its own PR): data and ingest health (/api/health/data), a per-spot geometry and
 rating inspector, guardrail run history and the owner's re-enable, the surf-truth export button and anchor history.
+## 2026-11-18 14:50Z Supabase service-role key moves into the `supabase-service` GitHub Environment (dev/main only)
+
+The key was a repository secret, readable by any workflow run from any branch in this public repo, a pull request
+from a branch pushed here included. David created the environment `supabase-service` (deployment branches dev and
+main, no reviewers so the 4-hourly ingest is not held) and put the key in it (step 1, his action). This change gives
+every job that reads `SUPABASE_SERVICE_ROLE_KEY` that environment: 22 workflow files, 24 jobs. It also drops the
+`pull_request` trigger of `consensus-flip-sweep.yml`, the only key-reading workflow that ran on PRs (it could no
+longer get the key; it stays dispatchable on dev). Nothing breaks before step 3, because the repository copy still
+exists. STEP 3 (David, after merge): delete the REPOSITORY secret `SUPABASE_SERVICE_ROLE_KEY`, then dispatch one
+workflow on dev to confirm. After that, dispatching these workflows from a lane branch is refused by design.
+Checks: all workflow YAML parses; 242 workflow-shape tests pass (4 failures in `test_audit_e2e_trace_override` are a
+Windows bash timeout on the untouched `e2e-tests.yml`).
