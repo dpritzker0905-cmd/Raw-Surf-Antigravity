@@ -1,7 +1,7 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
   combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, PRECIP_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
-  _resetOwnRasterFramesForTest, FAIL_BACKOFF_MS, FOG_FIELD, landFill, tel, DEFAULT_ON_MODELS,
+  _resetOwnRasterFramesForTest, FAIL_BACKOFF_MS, FOG_FIELD, landFill, tel, DEFAULT_ON_MODELS, sourceModel,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 
@@ -425,9 +425,10 @@ describe('fog and water temperature (2026-11-14)', () => {
     expect(OWN_RASTER_SETS.fog.unit).toBe('m');
   });
 
-  test('water temp: GFS skin temperature for GFS and ICON (ICON has none; the .om cross-fall), EURO its own; land filled', () => {
+  test('water temp: GFS skin temperature for GFS, EURO its own, ICON the Copernicus ocean model (G4; ICON has none); land filled', () => {
     expect(setKey('water_temp', 'GFS')).toBe('GFS/weather/water_temp/global_0p25');
-    expect(setKey('water_temp', 'ICON')).toBe('GFS/weather/water_temp/global_0p25');
+    expect(setKey('water_temp', 'ICON')).toBe('CMEMS/marine/water_temp/global_1p6');
+    expect(sourceModel('water_temp', 'ICON')).toBe('CMEMS');   // the credit says Copernicus, never DWD or NOAA
     expect(setKey('water_temp', 'EURO')).toBe('EURO/weather/water_temp/global_0p25');
     expect(OWN_RASTER_SETS.water_temp.field).toBe(TEMP_FIELD);
     expect(OWN_RASTER_SETS.water_temp.landFill).toBe(true);
