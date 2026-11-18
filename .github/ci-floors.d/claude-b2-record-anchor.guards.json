@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 0,
+  "files": 1,
+  "branch": "claude/b2-record-anchor",
+  "date": "2026-11-18",
+  "note": "the guards file #1012 added (backend/tests/test_weather_program_control_chars.py) was fragmented as files 0; dev CI then read 256 files against a floor of 255 (run 44207940043). Owner request 2026-11-18."
+}
