@@ -2372,3 +2372,34 @@ job now?"): "Yes, move forward on the path toward SOTA". It covers building BOTH
    first; I do not open the JSON before the advisor does.
 3. G4 FINAL commits LEN_DAYS, the 26 per-gauge M values and the START timestamp (at least 24 h after the commit, at
    00Z), and sets `START`/`LEN_DAYS` in `g4_rules.py`, which arms the archive.
+
+## 18:45 EST 2026-11-18 (`date`) - Tide table BUILDER split out as PR A (branch `claude/tide-table-builder`): no served change; the served switch follows as PR B
+**Why the split.**
+- The advisor HELD #1061 and #1066 (23:23Z). Merging either would switch every served tide before a CMEMS table
+  existed (point 1).
+- The service-role key now lives only in the dev/main `supabase-service` environment (#1043), so the first table cannot
+  be built from a tag before merge (point 2).
+
+**PR A carries only:**
+- the builder: `scripts/tide_own/`, and `tide-own-series.yml` with `environment: supabase-service`;
+- the loader module `services/weather_pipeline/tide_own.py`, which NO served module imports yet (a test pins that);
+- the builder and loader tests.
+
+**What happens after merge:**
+- One dispatch, on David's word with the advisor reading first, builds the first table. It includes CMEMS if M1-0
+  passes, with the load tide taken out if TOTAL carries it.
+- PR B, the served switch, then merges against a real table:
+  - it replaces #1061 and #1066 (tide.py's dispatch, the flags and the dispatch tests);
+  - it carries the coverage counts, the before/after, and the days-10-14 options with numbers.
+
+**Measured (point 4).** The loader holds int16 arrays decoded from the builder's base64 form. On a synthetic full-size
+table (1,800 keys x 1,152 h x 2 series), tracemalloc showed:
+- 9.3 MB retained;
+- a 28.1 MB peak while loading (lists of ints: 103 MB retained, a 122 MB peak);
+- gzip size 2.9 MB.
+
+**Tests:**
+- `tests/test_tide_own.py` has 14 tests in PR A: the builder rules, the loader, the compact round trip, the CMEMS fill
+  helpers, "nothing served reads it yet", and the credential scoping.
+- 100 tests pass with the tide, flag and acquisition suites.
+- Lint is clean.
