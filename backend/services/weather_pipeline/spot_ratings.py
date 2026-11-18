@@ -102,6 +102,15 @@ def _persist_inputs(spot_id: str, surf_height_m=None) -> bool:
     return (int(hashlib.md5(spot_id.encode("utf-8")).hexdigest()[:8], 16) % 100) < pct
 
 
+def _face_range(marine):
+    """(low, high) of the face range read off the marine response (produced beside the height in
+    `point_surf_augment`), or None. Never re-derived here: one composition. The score and level do not read it."""
+    low, high = getattr(marine, "surf_face_low_m", None), getattr(marine, "surf_face_high_m", None)
+    if low is None or high is None:
+        return None
+    return round(low, 3), round(high, 3)
+
+
 async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None) -> dict:
     """Resolve a single spot's marine + wind point and compute its rating. `spot` is a dict with
     id/name/latitude/longitude/accuracy_flag/is_verified_peak (from the DB or Supabase REST). `resolver`
@@ -307,6 +316,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
             _conflict = wave_physics.directional_conflict(swell_from, shore_normal)
         except Exception as e:  # a caveat must never break the rating it qualifies
             logger.debug(f"[spot-ratings] directional conflict failed for {spot.get('id')}: {e}")
+    _face = _face_range(marine)         # SURF_FACE_RANGE (ON, kill '0'): no key where there is no range
     return {
         "spot_id": str(spot["id"]),
         "name": spot.get("name"),
@@ -316,6 +326,8 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         "level": level,
         "confidence": spot_confidence(spot.get("accuracy_flag"), spot.get("is_verified_peak")),
         "surf_height_m": round(surf_h, 3) if surf_h is not None else None,
+        # two dict literals, so the wire-contract guard reads both keys and checks they are declared on the model
+        **({"surf_face_low_m": _face[0], "surf_face_high_m": _face[1]} if _face else {}),
         "period_s": round(period, 1) if period is not None else None,
         # ★ THE TWO BATCH FIELDS (WS-CAN-0064): /conditions/batch now serves from these frames,
         # and its frozen per-spot shape needs the swell bearing and the OFFSHORE height beside
