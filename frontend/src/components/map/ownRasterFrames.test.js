@@ -236,13 +236,15 @@ describe('air temperature (2026-10-24)', () => {
 
 describe('cloud cover, the satellite layer (2026-10-24)', () => {
   afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_SATELLITE__; });
-  test('the cloud set is GFS only, field 8; its own kill', () => {
+  test('the cloud sets are GFS and EURO (2026-11-18), field 8; ICON has none; its own kill', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = 'satellite';
     expect(setKey('satellite', 'GFS')).toBe('GFS/weather/cloud_cover/global_0p25');
+    expect(setKey('satellite', 'EURO')).toBe('EURO/weather/cloud_cover/global_0p25');
+    expect(setKey('satellite', 'ICON')).toBeNull();
     expect(OWN_RASTER_SETS.satellite.field).toBe(CLOUD_FIELD);
     expect(CLOUD_FIELD).toBe(8);
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
-    expect(ownFramesOn('satellite', 'EURO')).toBe(false);
+    expect(ownFramesOn('satellite', 'EURO')).toBe(true);
     expect(ownFramesOn('rain', 'GFS')).toBe(false);
     window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;
     expect(ownFramesOn('satellite', 'GFS')).toBe(false);
@@ -251,7 +253,8 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
     expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure', 'gusts', 'currents']);   // gusts, currents: new own-only layers, ON (2026-11-15)
     expect(DEFAULT_ON_MODELS).toEqual({ temperature: ['ICON'], rain: ['ICON'] });   // ICON air temp + rain, 0.125 deg (2026-11-18)
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
-    expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
+    expect(ownFramesOn('satellite', 'EURO')).toBe(true);  // EURO cloud set since 2026-11-18 (ownRasterEuroCloud.test.js)
+    expect(ownFramesOn('satellite', 'ICON')).toBe(false); // no ICON cloud set: the .om path draws ICON as before
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
     expect(ownFramesOn('rain', 'GFS')).toBe(false);
   });

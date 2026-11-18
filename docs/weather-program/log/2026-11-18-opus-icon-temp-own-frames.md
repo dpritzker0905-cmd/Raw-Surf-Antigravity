@@ -111,6 +111,40 @@ director and the advisor to accept or refuse.
 **Kill:** `window.__RAW_DISABLE_RASTER_OWN_RAIN__`, plus the own-frames, per-set and static-frames global kills. Each shows
 "unavailable", and none requests `.om`. Pinned: under each, the `.om` layer list drops ICON rain and keeps GFS rain.
 
+## EURO cloud: ON, own frames only (branch `opus/euro-cloud-client`, stacked on the rain branch, #1075)
+The owner's word: "start the EURO cloud flip" (2026-11-18).
+
+**Set.** `EURO/weather/cloud_cover/global_0p25` (#955's `cloud_cover_euro`):
+- ECMWF open data `tcc` x 100, every point of its 0.25-degree grid (the `.om` `ecmwf_ifs025` grid);
+- hours 0-144 by 3, then 150-240 by 6;
+- live index, 2026-11-18 12Z run: 65 frames.
+
+**Gate:** the director's cloud row, MAD ≤ 10 %. Evidence: G3, run 2026-11-15 12Z, in this lane's 2026-11-16 log, §05:51Z and
+§07:17Z:
+- All 1,038,240 nodes are within 0.5 pp of ECMWF's own field, decoded by its own lat/lon keys. That is the frame's
+  quantisation, so the MAD is under 0.5 pp. **PASS.**
+- The domain-mean difference is 0.015 pp.
+- Placement: by the frame's declared grid, which is how the client draws it. Seeded negative controls (rolled 180 deg, flipped
+  N-S) fail as they should.
+- **OWED:** the registered visual pairs against GFS cloud (coast, the 0/180 seam, three themes, desktop and phone) were never
+  made.
+
+**Change.**
+- `satellite.models.EURO` and `ownOnlyModels: ['EURO']`. `satellite` is already a default-on layer, so EURO is ON with no
+  lever.
+- The static store lists the set.
+- Past EURO's 240 h there is no stand-in (this layer has no fallback model), so those hours say "unavailable".
+- GFS cloud keeps today's behaviour: its kill still releases it to `.om`. ICON has no cloud set (#1014 reverted the 0.125 one)
+  and keeps `.om`.
+
+**Kill:** `window.__RAW_DISABLE_RASTER_OWN_SATELLITE__`, plus the own-frames, per-set and static-frames global kills. With
+EURO picked, each shows "unavailable" and none requests `.om`. Pinned on the `.om` layer list.
+
+**Under the owner's rule, still `.om` for cloud:**
+- GFS cloud on a kill or a miss;
+- ICON cloud everywhere.
+Both are named for the director: GFS needs `ownOnlyModels` (one word); ICON needs a published set.
+
 ## 2026-11-19 ~01:40Z: the advisor's HOLD fixes on #1071, and NEXT WORK recorded at the owner's wind-down
 **HOLD fixes on this PR** (the advisor, 00:57Z):
 - **Credit.** An own-only model claimed with nothing drawn (killed, unpublished or pre-index) reports `'<MODEL>:idle'` to the

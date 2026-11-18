@@ -11,6 +11,7 @@ export const RASTER_SET_KEYS = Object.freeze([
   'EURO/weather/pressure/global_0p5', 'ICON/weather/pressure/global_0p5',
   'GFS/weather/temperature/global_0p5',   // GFS 2 m air temperature (2026-10-24, #515's set)
   'GFS/weather/cloud_cover/global_0p25',   // GFS total cloud cover (2026-10-24, the 'satellite' layer; #515's set)
+  'EURO/weather/cloud_cover/global_0p25',   // 2026-11-18: ECMWF tcc (#955's set), ON for EURO, no .om fallback
   'GFS/weather/precipitation/global_0p25', 'EURO/weather/precipitation/global_0p25',   // 2026-11-12: mm/h, the 'rain' layer
   'ICON/weather/precipitation/global_0p125',   // 2026-11-18: ICON rain at 0.125 deg (#956's set), ON for ICON
   // 2026-11-14 (the fog / air temp / water temp instant lane, #888's sets): per-model air temperature, GFS surface visibility
