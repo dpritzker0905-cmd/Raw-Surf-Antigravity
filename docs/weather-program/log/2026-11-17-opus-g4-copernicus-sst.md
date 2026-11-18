@@ -36,3 +36,8 @@ regional tiles hourly + 1/6 deg world 3-hourly). Started on David's word "start 
   The desktop panel truncates the credit text at its width, as it already does for currents (the full text is the aria-label).
 - NOT done yet: the observation check (needs the 14-day forward collection, one bulletin a day, started below); GFS / EURO
   stay on their skin temperature until its PASS line; the 1/12-degree regional tiles (step 2).
+
+### 3b. Correction to §3 (appended; §3 is not edited)
+§3's last bullet says the 14-day forward collection "started below". It has NOT started: no collector exists yet. It is a
+ledger commitment (ledger.d/claude--gusts-currents-layers-172ef8.jsonl) and starts when built, as the next step of G4.
+Draft PR #1025 carries this world set.
