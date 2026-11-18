@@ -2244,3 +2244,53 @@ unchanged.
 - (b) whether to add the 3 uncorrected-but-active CO-OPS gauges as reported rows;
 - (c) whether M should be the base mean or the base trend carried to the window mid-date. G3t reported both, and the
   trend variant was not opened as a selection criterion.
+
+## 23:41 EST 2026-11-17 (`date`) - G4 DRAFT addendum 1: the advisor's read (04:30Z) ADOPTED; a limit on "one shot" once the gates are on dev
+**The limit (advisor 04:12Z, recorded as asked):**
+- The three gate workflows (G2, G3, G3t) are tag-triggered. Once on dev, deleting and re-pushing a tag would start a
+  scored gate again.
+- "One shot" therefore rests on nobody doing that. No session may delete or re-push `tide-gate-G2`, `-G3` or `-G3t`.
+
+**G4 changes, all adopted (nothing fetched):**
+1. **Length by a power check, not by feel** (advisor (a)).
+   - On G3t's seen window, used for DESIGN only (declared): take every 56-day stretch, score A+M against D with item 1's
+     statistic and bootstrap, and count how often the upper end is <= -0.02.
+   - If the share is below 0.8, the window is 84 days.
+   - The check needs G3t's hourly series, which the artifact does not hold. It runs as a CI design job on the owner's
+     word.
+   - The length is fixed in FINAL and does not move after.
+2. **Reported rows, fixed by id now, entering no item** (advisor (b)): the 3 uncorrected-but-active CO-OPS gauges:
+   8679598 Kings Bay, 8760922 Pilots Station East, 8770822 Texas Point.
+3. **M = the base mean (2016-2025), ONE choice** (advisor (c)).
+   - The trend-carried M is a reported arm.
+   - The 26 per-gauge M values (or their sha256) are committed in FINAL before the start. They are computed from model
+     files only.
+4. **The two moments** (advisor 1):
+   - The START is a committed UTC timestamp in FINAL, not a tag push.
+   - SCORING starts with the one-shot tag `tide-gate-G4`, pushed after window end + 3 days and only on the owner's word.
+   - Nothing is fetched between the two, except item 6's reference archive if it is needed.
+5. **The embargo** (advisor 2).
+   - From the window start until the scored run, no session reads OBSERVED water at the 26 gauges for any part of the
+     window, for any purpose: not the surge lane (which uses CO-OPS gauges), not a monitor, not a quick look.
+   - A read is a recorded contamination. If it touches one gauge, that gauge leaves the gating set. If it touches the
+     panel (more than 1 gauge), the gate is VOID.
+6. **References** (advisor 4).
+   - G3t itself fetched Open-Meteo previous_day1/2 for January 2026 in November, so a retention of at least 10 months is
+     demonstrated.
+   - FINAL will cite Open-Meteo's documented retention as well. If the documentation is silent, D and C are archived
+     daily from the start (a reference fetch, not truth).
+7. **Scope sentence** (advisor 3).
+   - A late-November window tests the mean level in winter only.
+   - On a PASS the label reads "mean level verified November to January".
+   - Dropping S at the seasonal high (Sep-Oct) stays OPEN for a later window. S stays reported, with an interval, in no
+     item.
+
+**Unchanged:**
+- the 26 gauges;
+- item 3 = (A+M) - A only;
+- the failure rule; no dispatch;
+- the parity line;
+- the "no surge" label;
+- item 5 NOT RUNNABLE unless an open-coast gauge is found before the start.
+
+**Owner's word:** the tag and the run each need it again.
