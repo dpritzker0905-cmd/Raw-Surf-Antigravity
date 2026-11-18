@@ -261,7 +261,7 @@ go through write_public_copy (lossless strip); a photo the lossless walk refuses
 re-encoded without metadata and upright (public_image_bytes), so an odd phone file is cleaned rather than rejected;
 an undecodable one is refused (400). Videos are transcoded by ffmpeg where available, and ffmpeg copies global
 metadata by default, so the FINAL file (transcoded or kept raw) is patched in place with strip_stored_video before
-upload; a malformed MP4/MOV is removed and refused. The route wrappers live in outes/uploads/public_copy.py
+upload; a malformed MP4/MOV is removed and refused. The route wrappers live in `routes/uploads/public_copy.py`
 (core.py stays at 789 lines). Not in this part: photographer commercial originals (/upload/gallery,
 /upload/photographer-gallery, /photos/upload): buyers may expect camera EXIF, so GPS-only stripping there is a
 decision for David; avatars are already re-encoded by Pillow without EXIF. HEIC on feed/comment and WebM stay
