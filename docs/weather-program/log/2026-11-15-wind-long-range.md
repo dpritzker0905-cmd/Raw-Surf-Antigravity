@@ -580,3 +580,38 @@ would need a registered amendment made WITHOUT any result read, and David's word
    <= 24) and October.
    - Moving them into the test half gives 65 runs.
    - But it shortens the fit/test separation that the gap may exist to keep. The advisor's call.
+
+## 2026-11-17 19:07 -0500 AMENDMENT (no result read): fetch the 9 named October runs from a second mirror, option (b)
+
+**Owner, 18:31 EST, verbatim:** "Go with option b, fetch the 9 from the second mirror".
+
+This amendment is made WITHOUT any per-line result read. The report artifact of run 44107750669 is unopened by this
+session; only the verdict line and the collect logs' run lists were read.
+
+**Mirror check** (one HEAD request per file, no data read, 18:35 EST):
+- `storage.googleapis.com/ecmwf-open-data` (ECMWF's Google Cloud copy, same layout) holds all 9 runs:
+  - the `enfo` `ef` index at 180, 336 and 360 h;
+  - the `aifs-ens` and `oper` files for the same runs.
+- The Azure copy refuses access (409). `data.ecmwf.int` no longer keeps October.
+
+**What changes:**
+- The 9 runs are 2026-10-01 00Z, 10-11 12Z, 10-13 00Z, 10-14 12Z, 10-17 12Z, 10-19 00Z, 10-23 12Z, 10-25 00Z and
+  10-31 00Z.
+- ONLY these runs are collected, one shard at a time.
+- The ENS, HRES and AIFS reads use the Google Cloud copy. NOAA reads are unchanged.
+- The run files of BOTH earlier runs are reused: 43952101715 and the fill 44107750669.
+- Then the gate is scored ONCE on the union.
+
+**What does not change:** the split, the arms, the thresholds and the VOID rules. The 3 missing fit-half runs (09-03,
+09-15, 09-21) stay dropped.
+
+**If it is still VOID:** a run that fails again stays dropped. If the test half is then still under 60 runs, the gate
+is VOID a third time, and the next step is a new month under this registration, not another fill.
+
+**Cost:** about 9 runs x ~20 min serially, so ~3 h collect plus ~1.5 h score.
+
+**Dispatch:** from dev after the advisor's GATE line and the director's merge, with these inputs:
+- `reuse_run_id=43952101715`
+- `reuse_run_id_2=44107750669`
+- `runs=2026100100,2026101112,2026101300,2026101412,2026101712,2026101900,2026102312,2026102500,2026103100`
+- `ens_mirror=gcs`

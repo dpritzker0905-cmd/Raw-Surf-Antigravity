@@ -104,3 +104,39 @@ def test_fill_mode_skips_runs_the_reused_run_already_has(tmp_path, monkeypatch):
     got = H.collect_run(None, datetime(2026, 10, 1, tzinfo=timezone.utc), np.zeros(1), np.zeros(1),
                         str(tmp_path), prior_dir=str(prior))
     assert got == "prior"
+
+
+def test_named_run_mode_takes_only_the_listed_runs_and_refuses_outside_ones():
+    pool = H.runs_in_window()
+    got = H.named_runs("2026101300, 2026100112,2026103100", pool)
+    assert [f"{r:%Y%m%d%H}" for r in got] == ["2026100112", "2026101300", "2026103100"]
+    import pytest
+    with pytest.raises(SystemExit):
+        H.named_runs("2026110100", pool)
+
+
+def test_mirror_is_s3_by_default_and_only_known_mirrors_are_allowed(monkeypatch):
+    import importlib
+    import pytest
+    monkeypatch.delenv("WLR_ENS_BASE", raising=False)
+    assert importlib.reload(H).ENS_BASE == H.ef.AWS_BASE
+    monkeypatch.setenv("WLR_ENS_BASE", "https://storage.googleapis.com/ecmwf-open-data")
+    assert importlib.reload(H).ENS_BASE.startswith("https://storage.googleapis.com/")
+    monkeypatch.setenv("WLR_ENS_BASE", "https://example.com/x")
+    with pytest.raises(SystemExit):
+        importlib.reload(H)
+    monkeypatch.delenv("WLR_ENS_BASE")
+    importlib.reload(H)
+
+
+def test_collect_reads_the_chosen_mirror(tmp_path, monkeypatch):
+    monkeypatch.setattr(H, "ENS_BASE", "https://storage.googleapis.com/ecmwf-open-data")
+    seen = {}
+
+    def fake_available(session, run, step, base=None):
+        seen["base"] = base
+        return False
+    monkeypatch.setattr(H.ef, "run_available", fake_available)
+    assert H.collect_run(None, datetime(2026, 10, 13, tzinfo=timezone.utc), np.zeros(1), np.zeros(1),
+                         str(tmp_path)) == "missing"
+    assert seen["base"] == "https://storage.googleapis.com/ecmwf-open-data"
