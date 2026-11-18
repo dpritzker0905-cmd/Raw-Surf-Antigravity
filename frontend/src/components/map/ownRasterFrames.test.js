@@ -187,14 +187,15 @@ describe('air temperature (2026-10-24)', () => {
   test('per model since 2026-11-14: GFS, EURO and ICON each read their own set (no stand-in); an unpublished set stays on .om', () => {
     expect(setKey('temperature', 'GFS')).toBe('GFS/weather/temperature/global_0p5');
     expect(setKey('temperature', 'EURO')).toBe('EURO/weather/temperature/global_0p25');
-    expect(setKey('temperature', 'ICON')).toBe('ICON/weather/temperature/global_0p5');
+    expect(setKey('temperature', 'ICON')).toBe('ICON/weather/temperature/global_0p125');   // 2026-11-18 (ownRasterIconTemp.test.js)
     expect(OWN_RASTER_SETS.temperature.field).toBe(TEMP_FIELD);
     expect(TEMP_FIELD).toBe(7);
     expect(OWN_RASTER_SETS.temperature.fallback).toBeNull();
-    // default: OFF for every model (EURO pending the owner, vote split 08:31Z; GFS and ICON: finer .om grids); the lever reaches all
+    // default: OFF for GFS and EURO (EURO pending the owner, vote split 08:31Z; GFS: a finer .om grid); ICON ON since 2026-11-18
+    // (its 0.125-degree set matches the .om dwd_icon grid); the lever reaches all
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
     expect(ownFramesOn('temperature', 'EURO')).toBe(false);
-    expect(ownFramesOn('temperature', 'ICON')).toBe(false);
+    expect(ownFramesOn('temperature', 'ICON')).toBe(true);
     window.__RAW_RASTER_OWN_FRAMES__ = 'temperature';
     for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('temperature', m)).toBe(true);
     staticSetEnabled.mockImplementation((key) => key !== 'EURO/weather/temperature/global_0p25');
@@ -248,7 +249,7 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
   });
   test('ON by default (D-052; pressure 2026-11-12): no lever needed; rain stays dark; fog / EURO air + water temp OFF pending the owner', () => {
     expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure', 'gusts', 'currents']);   // gusts, currents: new own-only layers, ON (2026-11-15)
-    expect(DEFAULT_ON_MODELS).toEqual({});
+    expect(DEFAULT_ON_MODELS).toEqual({ temperature: ['ICON'] });   // ICON air temperature, 0.125 deg (2026-11-18)
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);

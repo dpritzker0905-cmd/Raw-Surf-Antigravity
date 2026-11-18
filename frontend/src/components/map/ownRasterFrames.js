@@ -52,9 +52,14 @@ export const OWN_RASTER_SETS = {
   // PER MODEL since 2026-11-14 (the overnight instant lane): ECMWF 2t and DWD ICON T_2M sets, as pressure. A model whose set is
   // not published yet misses (no index) and stays on the .om path, which draws that model as before.
   temperature: {
-    // EURO at 0.25 deg (ECMWF 2t, every point: the .om ifs025 grid, #888); GFS and ICON at 0.5 deg.
-    models: { GFS: 'GFS/weather/temperature/global_0p5', EURO: 'EURO/weather/temperature/global_0p25', ICON: 'ICON/weather/temperature/global_0p5' },
-    fallback: null, field: TEMP_FIELD, unit: '°C',
+    // EURO at 0.25 deg (ECMWF 2t, every point: the .om ifs025 grid, #888); GFS at 0.5 deg.
+    // ICON at 0.125 deg since 2026-11-18 (#957's set `temperature_icon_0p125`: DWD ICON T_2M, nearest icosahedral cell onto DWD's
+    // own 0.125-degree map, 2880 x 1441, f000-f180 every 3 h): as fine as the .om dwd_icon grid it replaces, so ICON air temperature
+    // leaves Open-Meteo (the owner, 2026-11-18: "No user data should be open-meteo"; the director assigned this flip).
+    models: { GFS: 'GFS/weather/temperature/global_0p5', EURO: 'EURO/weather/temperature/global_0p25', ICON: 'ICON/weather/temperature/global_0p125' },
+    // `workerDecode`: decode the one drawn field off the main thread (ownRasterDecode), as the own-only layers do. A 0.125-degree
+    // frame is 4.15 M nodes, four times a 0.25-degree one; the shared path would parse every field to Float64 on the main thread.
+    fallback: null, field: TEMP_FIELD, unit: '°C', workerDecode: true,
   },
   // FOG (2026-11-14): GFS surface visibility, the field the .om path draws for EVERY model (it pins ncep_gfs025 for fog,
   // openMeteoEndpoints.js), so every model reads the GFS set here too: the same field under the same label as before.
@@ -176,10 +181,13 @@ export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'gusts'
 //  - water_temp GFS: OFF (the .om gfs013, 0.117 deg, is finer than the 0.25 deg set).
 //  - temperature EURO: ECMWF 2t at 0.25 deg = the .om ifs025 (#888): built, DEFAULT-OFF pending the owner (as fog).
 //  - temperature GFS: OFF until a pre-registered visual-parity comparison at z5 / z7 / z9 (desktop + phone) shows the 0.5 deg set +
-//    ETOPO downscale no coarser than the .om gfs013. ICON: OFF (0.5 deg vs dwd_icon ~0.125 deg; a 0.125 deg set is not built).
+//    ETOPO downscale no coarser than the .om gfs013.
+//  - temperature ICON: ON since 2026-11-18. The 0.125 deg set (#957) matches the .om dwd_icon grid, so the no-regression rule holds;
+//    the owner's "No user data should be open-meteo" (2026-11-18) and the director's assignment. Kill:
+//    window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true (the .om path, as before).
 // Kills: __RAW_DISABLE_RASTER_OWN_TEMPERATURE__, __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ (each the .om path, as before).
 // Turning them on: { temperature: ['EURO'], water_temp: ['EURO'] } here. The lever reaches every model meanwhile.
-export const DEFAULT_ON_MODELS = Object.freeze({});
+export const DEFAULT_ON_MODELS = Object.freeze({ temperature: Object.freeze(['ICON']) });
 
 /** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
  *  stays on the .om path, which draws that model as before (never another model's frames under its label). */
@@ -379,9 +387,23 @@ export function getField(path) {
   return f || null;
 }
 
+// PHONE MEMORY (2026-11-18, the 0.125-degree ICON air temperature): the LRU counts frames, and six 0.125-degree Float32 fields are
+// ~100 MB. On a handheld it also keeps the held nodes under HANDHELD_NODE_BUDGET (four 0.125-degree frames, ~66 MB): the +-1 window
+// (3 frames) always fits, and 0.25-degree sets (1.04 M nodes) never reach it, so their behaviour is unchanged.
+export const HANDHELD_NODE_BUDGET = 4 * 2880 * 1441;
+const nodesOf = (f) => (f && f.values ? f.values.length : 0);
+
 function keep(path, field) {
   _fields.set(path, field);
   while (_fields.size > LRU_MAX) _fields.delete(_fields.keys().next().value);
+  if (!isHandheldDevice()) return;
+  let held = 0;
+  for (const f of _fields.values()) held += nodesOf(f);
+  while (_fields.size > 1 && held > HANDHELD_NODE_BUDGET) {
+    const oldest = _fields.keys().next().value;
+    held -= nodesOf(_fields.get(oldest));
+    _fields.delete(oldest);
+  }
 }
 
 /** Load (fetch + inflate + parse + field) one frame; null on any failure. Shared per path; never aborted once started (a
@@ -400,7 +422,7 @@ export function loadField(layer, frame, priority) {
       t.loads += 1;
       // OWN-ONLY LAYERS (gusts, currents; 2026-11-15): fetch + inflate in staticFrames' worker, then decode ONLY the drawn field
       // to Float32 in ownRasterDecode's worker (no main-thread parse of every field). The live lanes keep the shared path.
-      if (set.ownOnly && !decodeWorkerKilled()) return loadOwnOnly(key, frame, priority, set, t);
+      if ((set.ownOnly || set.workerDecode) && !decodeWorkerKilled()) return loadOwnOnly(key, frame, priority, set, t);
       // Fetch priority (staticFrames, #479): 'high' for the frame the step wants, 'low' for the rest of the window.
       const got = await loadFrameParsed(key, frame, undefined, priority ? { priority } : undefined);
       if (!got) { t.loadErrors += 1; noteMiss('load_failed'); noteFailed(frame.path); return null; }
