@@ -42,7 +42,7 @@ from .identity import uploader_id
 from core.security import get_current_user_id
 from models import Profile, GalleryItem, ObservationMedia
 from services.observation_media import inspect_media
-from services.media_metadata import MetadataError, write_public_copy
+from services.media_metadata import MetadataError, check_decode_size, write_public_copy
 from .public_copy import store_public
 from utils.video_processor import (
     get_video_info, 
@@ -674,9 +674,10 @@ async def upload_avatar(
     
     file_path = avatars_dir / filename
     
-    # Resize avatar to reasonable size
+    # Resize avatar to reasonable size (the re-save drops EXIF/GPS; the pixel cap comes before any decode)
     try:
         img = Image.open(io.BytesIO(content))
+        check_decode_size(img)
         img.thumbnail((500, 500), Image.LANCZOS)
         
         if img.mode in ('RGBA', 'P'):
@@ -684,9 +685,8 @@ async def upload_avatar(
         
         img.save(file_path, "JPEG", quality=85)
     except Exception as e:
-        logging.warning(f"Could not process image, saving as raw: {e}")
-        with open(file_path, "wb") as f:
-            f.write(content)
+        logging.warning(f"Could not process avatar ({type(e).__name__}); storing it stripped instead of raw")
+        await store_public(content, file.content_type, False, file_path)   # T1 P3: never the raw bytes publicly
     
     # Persist to Supabase Storage (Render disk is ephemeral)
     local_url = f"/api/uploads/avatars/{filename}"

@@ -288,3 +288,17 @@ now a MetadataError (400). `strip_stored_video` removes the file on ANY exceptio
 local copy is also served by `/api/uploads/...`. Tests +1 (estate fragment now +11). The other #1035 limits stay
 open: bytes after the JPEG image data (Android motion-photo video, secondary images) are copied as is, APP2 is kept
 without checking it is an ICC profile, HEIC keeps its GPS.
+## 2026-11-18 14:53Z T1 P3 (part 7, advisor HOLD fixed): no unbounded decode in the re-encode fallback; avatars covered
+
+The advisor held #1042 at 32d097793: `_reencode_image` fully decoded any JPEG/PNG/WebP the lossless walk refused, with no
+dimension limit, so a small file claiming 13,000 x 13,000 pixels (~500 MB decoded) could take down the shared server.
+Now `check_decode_size` reads the size from the header after `Image.open` and BEFORE any decode, and refuses more than
+`MAX_DECODE_PIXELS` = 50 MP: the largest common phone photo is a 50 MP full-resolution mode (8,160 x 6,120 = 49.9 MP),
+so one decode stays near 150 MB; Pillow's own guard only warns below ~179 MP. The lossy fallback is counted
+(`REENCODE_COUNT` plus a warning log line) so its rate is visible. The AVATAR route (public bucket) gets the same cap
+before its resize, and its error path now stores a STRIPPED copy instead of the raw bytes. Tests +2 (a bomb header is
+refused before any decode and not counted, while a normal odd file is counted; an avatar bomb is refused and a normal
+avatar has no GPS); estate fragment +13.
+Recorded for #1038 (advisor, PASS-WITH-LIMITS at b6afb3920): a very long fragmented MP4 (more than ~2,000 fragments,
+each a `moof` + `mdat` pair at the top level) now exceeds the 4,096-box budget and is refused with a 400. Accepted: phone
+recordings are not fragmented, and a refused upload is never published unchecked.

@@ -314,3 +314,41 @@ def test_a_truncated_jpeg_is_a_metadata_error_not_a_crash():
         strip_image_metadata(b"\xff\xd8\xff", "image/jpeg")
     with pytest.raises(MetadataError):
         strip_image_metadata(_jpeg()[:2] + b"\xff", "image/jpeg")
+
+def _huge_header_jpeg(side=13_000):
+    """A tiny JPEG whose SOF header CLAIMS side x side pixels: Image.open reports that size without decoding, which
+    is exactly the case the cap must stop (a decompression bomb small on disk)."""
+    data = bytearray(_jpeg(comment=False))
+    sof = data.index(b"\xff\xc0")
+    struct.pack_into(">HH", data, sof + 5, side, side)
+    seg = struct.unpack(">H", data[4:6])[0]
+    return bytes(data[:4 + seg]) + b"\x00\x00" + bytes(data[4 + seg:])   # stray bytes: the lossless walk refuses it
+
+
+def test_the_re_encode_fallback_refuses_a_decompression_bomb_before_decoding():
+    from services import media_metadata as mm
+    bomb = _huge_header_jpeg()
+    with Image.open(io.BytesIO(bomb)) as im:
+        assert im.size == (13_000, 13_000) and 13_000 * 13_000 > mm.MAX_DECODE_PIXELS
+    before = mm.REENCODE_COUNT
+    with pytest.raises(MetadataError, match="too large"):
+        mm.public_image_bytes(bomb, "image/jpeg")
+    assert mm.REENCODE_COUNT == before                     # refused, not counted as a re-encode
+    mm.public_image_bytes(_odd_ok(), "image/jpeg")
+    assert mm.REENCODE_COUNT == before + 1                 # a normal odd file is re-encoded and counted
+
+
+def _odd_ok():
+    good = _jpeg(comment=False)
+    seg = struct.unpack(">H", good[4:6])[0]
+    return good[:4 + seg] + b"\x00\x00" + good[4 + seg:]
+
+
+async def test_an_avatar_bomb_is_refused_and_a_normal_avatar_has_no_gps(social):
+    client, stored = social
+    r = await client.post("/api/upload/avatar", files={"file": ("me.jpg", _huge_header_jpeg(), "image/jpeg")})
+    assert r.status_code == 400 and not stored
+    r = await client.post("/api/upload/avatar", files={"file": ("me.jpg", _jpeg(), "image/jpeg")})
+    assert r.status_code == 200, r.text
+    (public_bytes,) = stored.values()
+    assert b"GPS" not in public_bytes and piexif.load(public_bytes)["GPS"] == {}
