@@ -232,6 +232,28 @@ Owed since anchors A/B. Production Supabase (the Antigravity project), read-only
   "<table> is append-only"; the inserts succeeded. The block then raised, which rolled back everything; a follow-up
   query found 0 probe rows in either table.
 - Positive control: the inserts in the same block succeeded, so the refusals are the triggers, not a broken table.
+## 2026-11-18 01:37Z T1 P3 (part 1): a deletion request now reaches the surf-truth tables, and the GDPR routes run at all (header from the UTC clock)
+
+Found while starting P3: `/compliance/delete-my-data` anonymizes the profile instead of deleting it, so the CASCADE
+foreign keys on `surf_observations` / `observation_media` / `surf_truth_anchors` never fire. A deleted account's
+observations (device GPS, photo EXIF positions, install-id hash) survived. Worse, BOTH GDPR routes raised before
+finishing: the deletion on `Follow.followed_id` (the column is `following_id`), the admin export on that, on
+`Review.reviewed_id` (`reviewee_id`) and on `Booking.surfer_id` (no such column; `creator_id`). And six of the
+profile fields the deletion "cleared" are not columns (phone, instagram_handle, website, board_description,
+is_active, is_deleted): those assignments silently did nothing, and the real home/on-demand positions were never
+cleared.
+
+Fixed (`services/surf_truth_erasure.py` + `routes/compliance_pkg/gdpr.py`): the deletion erases the user's
+observations, photo-fact rows and anchor row in the same transaction, un-attributes their audits of others (the
+verdict stays), and clears the real social-URL and location columns (a rename now raises instead of silently
+skipping). The admin export includes the user's surf-truth rows. 4 tests run the real handlers on SQLite; mutation:
+dropping the erasure call fails the route test.
+
+NOT done, for David: (1) the append-only anchor-event and admin-action logs keep the profile id and admin reasons
+after a deletion: legal call; (2) exports already in private storage (pseudonymous) wait on the retention rule;
+(3) Profile has no deleted flag and the auth account is not removed, so `is_deleted` never existed: a design
+question for the account owners, not this lane; (4) the report photo stays in the `conditions` bucket with its
+report (owned by those features).
 ## 2026-11-18 03:03Z Admin: the Surf Forecast panel tells the truth about flags (header from the UTC clock)
 
 David asked for a comprehensive, working admin for the surf sim's logic. A read-only survey of the admin found the
@@ -284,6 +306,16 @@ exists. STEP 3 (David, after merge): delete the REPOSITORY secret `SUPABASE_SERV
 workflow on dev to confirm. After that, dispatching these workflows from a lane branch is refused by design.
 Checks: all workflow YAML parses; 242 workflow-shape tests pass (4 failures in `test_audit_e2e_trace_override` are a
 Windows bash timeout on the untouched `e2e-tests.yml`).
+## 2026-11-18 15:21Z T1 P4: the export needs the OWNER'S server switch, not just an admin's tick box
+
+The advisor recorded on #1033 that its approval check box is client-side only. Worse, the export route itself is already
+on dev (`POST /api/admin/surf-truth/export`) and `SURF_TRUTH_EXPORT_KEY` is set on Render, while the consent filter (#1024),
+retention (#1034) and counsel's wording are not merged: any admin could have written an unfiltered export. Now the route
+refuses (403) unless the server's environment has `SURF_TRUTH_EXPORTS_ENABLED` exactly `1`, which only David can set
+(Render env); default OFF. This is a privacy gate, not a served number, so it does not follow D-065's ship-on rule.
+The retention job's fresh export (#1034) is left as is: it only REPLACES exports, and none can exist unless the switch
+allowed the first one. Tests +5 (unset, empty, 0, true, yes all refused with nothing written or logged); removing the
+gate fails 5. Guards fragment +5.
 ## 2026-11-18 16:40Z #1043 advisor HOLD fixed: a guard that every key-reading job carries the environment
 
 The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull_request` trigger and so failed `test_consensus_flip_sweep` (fixed at bbd7c8fac: the guard now pins the NEW rule, no PR trigger, dispatchable, environment declared, script run); (2) nothing asserted that every job naming the key declares the environment, so the next workflow
