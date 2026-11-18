@@ -2310,3 +2310,76 @@ unchanged.
   - It needs the owner's word, because it is a scheduled workflow.
   - Scoring uses the archive. If the archive misses a day and the API still serves it at scoring time, the API value is
     used, and that substitution is recorded.
+
+## 14:09 EST 2026-11-18 (`date`) - OWN-DATA SERVED TIDE built (branch `claude/tide-own-data`): A + M replaces Open-Meteo in every served tide; nothing run, nothing on until the advisor and the owner
+**Why.**
+- The owner, 13:13Z, via the director: "No user data should be open-meteo".
+- The owner's word for this build, typed here: "Yes, build it". It answered whether to build the own-data served tide
+  (FES2022b + mean level) now, off until the advisor reads it.
+- Plan: shared notes `tide-overlay-2026-11-15/own-data-tide-plan-2026-11-18.md`.
+
+**The served change.**
+- `services/weather_pipeline/tide.py`: `fetch_tide_hourly` and `prewarm_tide_cache` dispatch on `tide_source()`:
+  - **`own`** (the code default, GUARDED flag `SURF_TIDE_OWN` = "1"): our table, through `tide_own.py`.
+  - **`off`** (the kill switch `SURF_TIDE_OWN=0`): tide UNAVAILABLE. It NEVER falls back to Open-Meteo.
+  - **`legacy`** (the old Open-Meteo acquisition): reachable ONLY through the raw env `TIDE_LEGACY_OPEN_METEO=1`.
+    - It is never read from the manifest.
+    - It exists so the existing tide suites (about 120 references in 19 files) keep running, under the shrink-only test
+      floors.
+    - `tests/conftest.py` sets it for the test process.
+    - `tests/test_tide_own.py` pins that no workflow, render file or env example sets it.
+    - Deleting that code and its tests is a follow-up.
+- **The arm is exactly G3t's "A+M" and G4's primary:**
+  - A = FES2022b + long-period equilibrium (`arms.fes_eval`, PyFES, CI only);
+  - M = the 2016-2025 mean altimetry SLA at the G3t cell rule.
+- **The table** is `weather-products/tide_own/series.json.gz`:
+  - per 0.1-degree spot key (`tide._round_key`), hourly, integer mm;
+  - from 00Z three days back to 45 days ahead;
+  - refused when older than 7 days, so at least 38 days ahead are always served (the 14-day contract needs 16).
+- **A key with no M is null.** A alone is a different arm (about 0.1 m low) and is never served.
+- **Predictions only leave CI.** The FES constants never do, and PyFES never enters the served backend (pinned).
+
+**What moves:** the rating's tide_fit, the `SURF_TIDE_DEPTH` breaking cap, `/point` tide, the hub, `/conditions` tide
+and `sea_inputs`. These are the consumers of `fetch_tide_hourly`. It is a D-080 served change: default ON, kill switch,
+SCOREBOARD row, the default-on history filter and the 6 h guardrail. It merges only on the owner's word after the
+advisor reads it.
+
+**The builder** (`scripts/tide_own/`, `.github/workflows/tide-own-series.yml`):
+- **Schedule:** every 3 days at 08:41 UTC. Also a workflow_dispatch, and a one-shot tag `tide-own-build` for the FIRST
+  build before the served code merges. The tag writes only `tide_own/*`, which nothing reads until `SURF_TIDE_OWN`
+  ships.
+- **M by 4-degree altimetry tile:** one download per tile, the same MY+NRT merge, and the same "cells within 0.6 deg,
+  >= 98% complete, nearest >= 10 km" rule.
+  - **PRECONDITION:** before any new M is computed, the tile method must reproduce G3t's 26 per-gauge M values (run
+    44166851340) within 0.0001 m. Otherwise the job stops and nothing is published.
+  - M is cached in `tide_own/m.json` and computed only for missing keys, within a 200-minute budget.
+- **FES boxes wrap across the 0/360 seam.** The gate's subset skipped those boxes. Away from the seam the box is the
+  gate's own, unchanged (a test pins this).
+  - Keys AT the seam (near Greenwich) depend on PyFES accepting a box whose longitudes cross 0 or 360. That is
+    UNVERIFIED until the first build. The build log counts the keys that get A; a seam key without A is served as
+    unavailable, never wrong.
+- **Credentials, each on its own steps:**
+  - AVISO: the download only.
+  - Copernicus: the build only.
+  - Supabase service role: only the stdlib `storage_io.py` steps (`python3 -I -S`). They write two names under
+    `tide_own/`, upsert.
+
+**Tests:**
+- `tests/test_tide_own.py`: 14 tests. With the existing tide, flag and caller suites, 158 pass locally.
+- Lint gate clean.
+- Chain floor fragment +14 tests, +1 file.
+
+**User-visible:**
+- Every open coast, including where no NOAA station is near, gets the same tide curve from our model, labelled "Tide:
+  astronomical prediction + average sea level (no storm surge)", with credits to FES2022 (AVISO) and Copernicus
+  Marine.
+- High/Low times move by minutes and heights by centimetres.
+- Where FES has no water: "tide unavailable".
+- G3t's SEEN rows: A+M median RMSE 0.121 m against served C at 0.178 m. Not a verdict.
+
+**Open before merge:**
+1. The advisor's read of this head.
+2. The first build: tag `tide-own-build`. It needs the advisor's line too, because it is a credentialed run that
+   writes to the production bucket.
+3. The default-on history filter.
+4. The owner's merge.

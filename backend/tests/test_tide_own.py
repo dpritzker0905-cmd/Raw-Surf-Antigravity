@@ -1,0 +1,199 @@
+"""The own-data served tide (owner 2026-11-18: "No user data should be open-meteo").
+
+Pins: the table builder's pure rules (keys equal the served cache keys, seam-wrapped FES boxes, the window, A+M in mm,
+never A alone, the M tile covers every key's cells, G3t's M values for the parity precondition); the served loader
+(shape check, slicing from 00Z today, truncation, staleness, absent key = unavailable, a failed read keeps the last
+good table); the dispatch (own by default, the kill switch gives NO tide and NO Open-Meteo request, the legacy path only
+through the raw test env, which no deploy or workflow sets); the workflow's credential scoping; and that PyFES and the
+builder never enter the served backend."""
+import asyncio
+import json
+import re
+import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+BACKEND = Path(__file__).resolve().parents[1]
+REPO = BACKEND.parent
+sys.path.insert(0, str(BACKEND / "scripts" / "tide_own"))
+import own_rules as OR                                   # noqa: E402
+from services.weather_pipeline import tide, tide_own     # noqa: E402
+
+UTC = timezone.utc
+WF = (REPO / ".github" / "workflows" / "tide-own-series.yml").read_text(encoding="utf-8")
+
+
+def _table(now, keys, back_days=3, hours=48 * 24, generated=None):
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=back_days)
+    return {"schema": tide_own.SCHEMA, "generated_at": (generated or now).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "start": start.strftime("%Y-%m-%dT%H:%M:%S"), "hours": hours, "keys": keys}
+
+
+# ---------------------------------------------------------------- builder rules
+def test_schema_and_keys_match_the_served_side():
+    assert OR.SCHEMA == tide_own.SCHEMA
+    for lat, lng in ((21.6650, -158.0538), (33.25, -118.35), (-33.95, 151.26), (43.48, -1.56), (0.04, 0.06)):
+        k = tide._round_key(lat, lng)
+        assert OR.key_str(OR.round_key(lat, lng)) == tide_own.key_str(k)
+    ks = OR.keys_from_spots([[21.66, -158.04], [21.64, -158.04], [21.66, -158.03], [None, 1], ["x", 2], [95, 0],
+                             [10.0, 190.0]])
+    assert set(ks) == {"21.7,-158.0", "21.6,-158.0", "10.0,-170.0"}
+
+
+def test_fes_box_wraps_across_the_seam_and_stays_monotonic():
+    lon = np.arange(0, 360, 1 / 30.0)
+    for x in (0.2, 359.8, 180.0):
+        ix, lo = OR.wrapped_lon_index(lon, x, 0.5)
+        assert len(ix) == 31 and np.all(np.diff(lo) > 0) and lo.min() <= x <= lo.max()
+    ix, lo = OR.wrapped_lon_index(lon, 180.0, 0.5)
+    assert np.allclose(lo, lon[ix])                      # away from the seam: the gate's own box, unchanged
+
+
+def test_window_and_levels_never_serve_tide_alone():
+    start, hours = OR.window(datetime(2026, 11, 18, 15, tzinfo=UTC))
+    assert start == datetime(2026, 11, 15, tzinfo=UTC) and hours == 48 * 24
+    a = np.array([0.5, np.nan, -0.25])
+    assert OR.levels_mm(a, 0.1) == [600, None, -150]
+    assert OR.levels_mm(a, None) == [None, None, None]
+    assert OR.levels_mm(a, float("nan")) == [None, None, None]
+    assert OR.levels_mm(None, 0.1) is None
+    doc = OR.table(datetime(2026, 11, 18, tzinfo=UTC), start, 3, {"1.0,2.0": [1, None, 2], "3.0,4.0": [None] * 3,
+                                                                  "5.0,6.0": None}, {"1.0,2.0": {"m": 0.1}})
+    assert list(doc["keys"]) == ["1.0,2.0"] and doc["m"] == {"1.0,2.0": 0.1}
+    assert tide_own.validate(doc) is not None
+
+
+def test_every_keys_altimetry_cells_are_inside_its_tile_download():
+    for lat, lng in ((21.7, -158.0), (0.0, 0.0), (-33.9, 151.2), (47.9, -124.7), (3.99, 7.99)):
+        clat, clng, half = OR.tile_request(OR.tile_of(lat, lng))
+        assert clat - half <= lat - OR.CELL_HALF and lat + OR.CELL_HALF <= clat + half
+        assert clng - half <= lng - OR.CELL_HALF and lng + OR.CELL_HALF <= clng + half
+
+
+def test_parity_precondition_holds_g3ts_26_values():
+    sys.path.insert(0, str(BACKEND / "scripts" / "tide_fes"))
+    from fes_gate import IDS
+    assert set(OR.G3T_M) == set(IDS) and OR.M_PARITY_MAX_M == 0.0001
+    build = (BACKEND / "scripts" / "tide_own" / "build_series.py").read_text(encoding="utf-8")
+    assert build.index("ok, worst, n = m_parity(work)") < build.index("n_new = compute_m(keys_pts")   # parity first
+
+
+# ---------------------------------------------------------------- served loader
+def test_series_slices_from_00z_today_in_metres_and_truncates():
+    now = datetime(2026, 11, 18, 15, tzinfo=UTC)
+    vals = list(range(48 * 24))
+    t = tide_own.validate(_table(now, {"21.7,-158.0": vals}))
+    s = tide_own.series_from_table(t, (21.7, -158.0), 3, now)
+    assert s["time"][0] == "2026-11-18T00:00" and len(s["time"]) == 72
+    assert s["level"][0] == round(72 / 1000.0, 3)
+    s16 = tide_own.series_from_table(t, (21.7, -158.0), 60, now)
+    assert len(s16["time"]) == 48 * 24 - 72              # truncated to the table's end
+    assert tide_own.series_from_table(t, (1.0, 1.0), 3, now) is None
+    old = tide_own.validate(_table(now, {"21.7,-158.0": vals}, generated=now - timedelta(days=8)))
+    assert tide_own.series_from_table(old, (21.7, -158.0), 3, now) is None
+    assert tide_own.series_from_table(None, (21.7, -158.0), 3, now) is None
+    nulls = tide_own.validate(_table(now, {"21.7,-158.0": [None] * (48 * 24)}))
+    assert tide_own.series_from_table(nulls, (21.7, -158.0), 3, now) is None
+
+
+def test_validate_rejects_bad_shapes():
+    now = datetime(2026, 11, 18, tzinfo=UTC)
+    assert tide_own.validate(None) is None and tide_own.validate({"schema": "x"}) is None
+    assert tide_own.validate(_table(now, {"1.0,1.0": [1, 2]})) is None          # wrong length
+    assert tide_own.validate(_table(now, {}, hours=0)) is None
+
+
+def test_a_failed_read_keeps_the_last_good_table():
+    now = datetime.now(UTC)
+    good = _table(now, {"21.7,-158.0": [500] * (48 * 24)})
+    calls = {"n": 0}
+
+    def fetcher():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return good
+        raise OSError("storage down")
+    tide_own._reset_for_tests(fetcher)
+    try:
+        assert tide_own._load_sync(1000.0) is not None
+        assert tide_own._load_sync(1000.0 + 10 * tide_own._TTL_S) is not None    # failed refresh: last good kept
+    finally:
+        tide_own._reset_for_tests()
+
+
+# ---------------------------------------------------------------- dispatch
+class _NoClient:
+    async def get(self, url):                            # any Open-Meteo request is a failure of the owner's rule
+        raise AssertionError(f"Open-Meteo requested: {url}")
+
+
+def test_served_default_is_our_own_table_and_never_open_meteo(monkeypatch):
+    monkeypatch.delenv("TIDE_LEGACY_OPEN_METEO", raising=False)
+    monkeypatch.delenv("SURF_TIDE_OWN", raising=False)
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    now = datetime.now(UTC)
+    tide_own._reset_for_tests(lambda: _table(now, {"21.7,-158.0": [250] * (48 * 24)}))
+    try:
+        assert tide.tide_source() == "own"
+        s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient()))
+        assert s and s["level"][0] == 0.25 and len(s["time"]) == 72
+        assert asyncio.run(tide.fetch_tide_hourly(10.0, 10.0, client=_NoClient())) is None       # absent = none
+        assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04), (10.0, 10.0)], client=_NoClient())) == 1
+    finally:
+        tide_own._reset_for_tests()
+
+
+def test_kill_switch_gives_no_tide_and_no_request(monkeypatch):
+    monkeypatch.delenv("TIDE_LEGACY_OPEN_METEO", raising=False)
+    monkeypatch.setenv("SURF_TIDE_OWN", "0")
+    tide_own._reset_for_tests(lambda: pytest.fail("the table must not be read when killed"))
+    try:
+        assert tide.tide_source() == "off"
+        assert asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient())) is None
+        assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04)], client=_NoClient())) == 0
+    finally:
+        tide_own._reset_for_tests()
+
+
+def test_no_deploy_or_workflow_sets_the_legacy_open_meteo_path():
+    files = [*(REPO / ".github" / "workflows").glob("*.yml"), *REPO.glob("render*.y*ml"), *REPO.glob("netlify.toml"),
+             *(BACKEND).glob("*.env.example"), *REPO.glob("*.env.example")]
+    hits = [p.name for p in files if "TIDE_LEGACY_OPEN_METEO" in p.read_text(encoding="utf-8", errors="ignore")]
+    assert hits == []
+    src = (BACKEND / "services" / "weather_pipeline" / "tide.py").read_text(encoding="utf-8")
+    assert 'os.environ.get("TIDE_LEGACY_OPEN_METEO") == "1"' in src         # raw env only: never the manifest
+    from services.runtime_flags import GUARDED
+    assert GUARDED["SURF_TIDE_OWN"] == "1" and "TIDE_LEGACY_OPEN_METEO" not in GUARDED
+
+
+def test_served_backend_never_imports_pyfes_or_the_builder():
+    pat = re.compile(r"^\s*(from|import)\s+.*\b(pyfes|tide_own\.build_series|own_rules|build_series|storage_io)\b", re.M)
+    served = [BACKEND / "server.py", *(BACKEND / "services").rglob("*.py"), *(BACKEND / "routes").rglob("*.py")]
+    assert [p.name for p in served if p.is_file() and pat.search(p.read_text(encoding="utf-8", errors="ignore"))] == []
+
+
+# ---------------------------------------------------------------- workflow
+def test_workflow_scopes_each_credential_to_its_steps():
+    steps = re.split(r"\n      - ", WF)
+    for s in steps:
+        if "AVISO_PASSWORD" in s:
+            assert "--download-fes-only" in s
+        if "COPERNICUSMARINE_SERVICE_PASSWORD" in s:
+            assert "build_series.py --spots spots.json" in s and "SUPABASE" not in s
+        if "SUPABASE_SERVICE_ROLE_KEY" in s:
+            runs = re.findall(r"python3? [^\n]*", s)
+            assert runs and all(r.startswith("python3 -I -S backend/scripts/tide_own/storage_io.py") for r in runs)
+    assert WF.count("secrets.SUPABASE_SERVICE_ROLE_KEY") == 3 and WF.count("secrets.AVISO_PASSWORD") == 1
+    assert "tags: [tide-own-build]" in WF and "contents: read" in WF and "contents: write" not in WF
+    cron = re.search(r"cron: '(\d+) (\d+) ", WF)
+    assert cron and not (3 <= int(cron.group(2)) <= 5)
+
+
+def test_storage_io_writes_only_two_names_under_tide_own():
+    src = (BACKEND / "scripts" / "tide_own" / "storage_io.py").read_text(encoding="utf-8")
+    assert 'ALLOWED = {"series.json.gz", "m.json"}' in src and 'PREFIX = "tide_own/"' in src
+    assert re.findall(r"^\s*(?:import|from)\s+(\w+)", src, re.M) == ["json", "os", "sys", "urllib", "urllib"]
+    assert "print(key" not in src and "print(base" not in src

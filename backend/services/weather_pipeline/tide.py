@@ -15,6 +15,7 @@ import asyncio
 from contextlib import asynccontextmanager
 import logging
 import math
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -348,11 +349,30 @@ def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dic
     return {"height_m": round(height, 3), "norm": round(norm, 3), "trend": trend}
 
 
+def tide_source() -> str:
+    """'own' (served default: our FES2022b + altimetry mean-level table, `tide_own`), 'off' (the kill switch
+    SURF_TIDE_OWN=0: tide unavailable everywhere) or 'legacy' (the old Open-Meteo acquisition below).
+
+    The owner, 2026-11-18 13:13Z: "No user data should be open-meteo". 'legacy' is reachable ONLY through the raw
+    environment variable TIDE_LEGACY_OPEN_METEO=1, never the runtime manifest; it exists so the acquisition's unit
+    tests keep running until that code is deleted, and tests/test_tide_own.py pins that no deploy or workflow sets it.
+    """
+    if os.environ.get("TIDE_LEGACY_OPEN_METEO") == "1":
+        return "legacy"
+    from services.runtime_flags import on
+    return "own" if on("SURF_TIDE_OWN") else "off"
+
+
 async def fetch_tide_hourly(lat, lng, client=None, forecast_days: int = 3) -> Optional[dict]:
-    """Fetch the hourly tide series (sea_level_height_msl) for (lat,lng) from Open-Meteo Marine, TTL-cached by
-    rounded coords. Returns {"time":[...], "level":[...]} or None. Uses an injected async client when given
-    (tests). Unavailable data returns None; caller cancellation propagates."""
+    """The hourly tide series for (lat,lng): {"time":[...], "level":[m...]} or None (tide unavailable).
+    Served source: our own A + M table (`tide_own`), per rounded key. Caller cancellation propagates."""
     key = _round_key(lat, lng)
+    source = tide_source()
+    if source == "own":
+        from services.weather_pipeline import tide_own
+        return await tide_own.fetch_series(key, forecast_days)
+    if source == "off":
+        return None
     return await _within_budget(_fetch_point(key, client, forecast_days), [key],
                                 _TIDE_POINT_TIMEOUT_S, None)
 
@@ -411,7 +431,18 @@ async def prewarm_tide_cache(latlngs, client=None, forecast_days: int = 3, chunk
     cold-fetch ~900 spot-cells one request at a time inside rate_one_spot (quota + tail latency); batched
     it's ~10 requests for ~1500 spots. Requests use the ROUNDED key coords, exactly what fetch_tide_hourly
     would request, so the seeded entries have the same values as the per-spot path. Failures cool down
-    without seeding data; cancellation propagates. Returns the number of cells seeded."""
+    without seeding data; cancellation propagates. Returns the number of cells seeded.
+    With the own source (served default) one table read covers every key: it is loaded once and the number of keys
+    it holds a series for is returned; with the kill switch nothing is fetched."""
+    source = tide_source()
+    if source != "legacy":
+        if source == "off":
+            return 0
+        from services.weather_pipeline import tide_own
+        n = 0
+        for k in _prewarm_keys(latlngs, forecast_days=forecast_days):
+            n += int(await tide_own.fetch_series(k, forecast_days) is not None)
+        return n
     keys = _prewarm_keys(latlngs, forecast_days=forecast_days)
     seeded = 0
     for i in range(0, len(keys), chunk_size):
