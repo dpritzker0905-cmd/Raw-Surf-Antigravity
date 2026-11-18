@@ -7,7 +7,7 @@ bodies have no such field and refuse unknown ones.
 """
 import json
 from datetime import datetime, timedelta, timezone
-from typing import Literal
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -76,6 +76,29 @@ async def admin_actions(limit: int = 100, db: AsyncSession = Depends(get_db),
                         admin: Profile = Depends(get_current_admin)):
     rows = (await db.execute(select(SurfTruthAdminAction).order_by(SurfTruthAdminAction.at.desc())
                              .limit(max(1, min(limit, 500))))).scalars().all()
-    return [{"id": r.id, "admin_id": r.admin_id, "action": r.action, "target_type": r.target_type,
-             "target_id": r.target_id, "reason": r.reason, "detail": json.loads(r.detail) if r.detail else None,
-             "at": r.at.isoformat()} for r in rows]
+    # Names for display (admins and anchor targets are profiles); ids stay in the payload as the record.
+    ids = {r.admin_id for r in rows} | {r.target_id for r in rows if r.target_type == "anchor"}
+    names = dict((await db.execute(select(Profile.id, Profile.full_name).where(Profile.id.in_(ids)))).all())         if ids else {}
+    return [{"id": r.id, "admin_id": r.admin_id, "admin_name": names.get(r.admin_id), "action": r.action,
+             "target_type": r.target_type, "target_id": r.target_id,
+             "target_name": names.get(r.target_id) if r.target_type == "anchor" else None, "reason": r.reason,
+             "detail": json.loads(r.detail) if r.detail else None, "at": r.at.isoformat()} for r in rows]
+
+
+@router.post("/admin/surf-truth/export")
+async def export_observations(since: Optional[datetime] = None, db: AsyncSession = Depends(get_db),
+                              admin: Profile = Depends(get_current_admin)):
+    """Write the pseudonymized blind-observation export to PRIVATE storage for the offline truth model (T1 P4).
+    Fails closed (503) without the pseudonym key or private storage; every export is logged."""
+    from services import surf_truth_export as ste
+    try:
+        key = ste.export_key()
+        rows, manifest = await ste.build_export(db, key, since=since)
+        written = await ste.write_export(rows, manifest)
+    except ste.ExportUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    surf_truth_admin.log_action(db, admin.id, "export", "surf_truth_export", written["run_id"],
+                                detail={"rows": written["rows"], "object": written["data_object"]})
+    await db.commit()
+    return written
+

@@ -507,6 +507,38 @@ and they stay unread.**
 - A run still missing after the fill stays dropped and is never filled. If the sizes are then still short, the gate is
   VOID again and is reported as such.
 
+## 2026-11-17 17:51 -0500 L1 instrument written OFFLINE for the advisor's read (no fetch, no score)
+
+The fill run 44107750669 finished (conclusion: success). Its verdict has NOT been opened here: the advisor reads it
+first. Meanwhile, the L1 registration (senior-research-lead log, FIXED 2026-11-17 00:33) said "the code goes to the
+advisor before any fetch". Branch `claude/l1-wave-emos`:
+
+- `backend/scripts/wave_emos_core.py`: log-normal laws with closed-form CRPS in METRES (Baran & Lerch 2015). E2 is
+  NGR on log Hs; R2 is EMOS on log R1 (with the "proxy, ICON absent" label). The rolling fit uses 90 days, refits
+  weekly, takes only rows published and valid before the refit, starts 2025-10-01, and restarts at an upgrade date.
+  The frozen fit and climatology arm C are also here.
+- `backend/scripts/wave_l1_score.py`: gate lines G1-G4 on 10-day valid-date blocks (3-day blocks for FRAGILE). It has
+  the cell-exclusion VOID, plus the null, derangement and halved-spread VOID controls. Reported: E1, R1, C, per-buoy
+  CRPSS, the per-model arms, the shuffled spread, the spread term, the shipped form, and the week-2 Brier score.
+- `backend/tests/test_wave_l1.py`, 8 tests. On synthetic data, an informative ensemble passes and an uninformative
+  one does not.
+
+**Three points for the advisor before any fetch:**
+1. **Derangement reference.** The instrument scores deranged E2 against arm C at the true buoy, and requires
+   CRPSS < 0. The draft's line "the CRPS skill must collapse below 0" does not name a reference.
+2. **Shipped-form rule.** The two spread reports can disagree. On synthetic data the spread term was real
+   (CRPSS +0.021, CI [0.017, 0.024]), yet the shuffled-spread E2 kept 83% of the gain over R2, because the gain was
+   mostly a mean correction. The code ships constant spread if EITHER report says so, and labels a PASS
+   "mean correction only". "Survives the shuffle" is read as keeping at least half the gain (the draft's
+   negative-control wording).
+3. **E2 spread law.** It is read literally: "the SD is linear in the pooled ensemble SD" gives
+   sigma = |c| + |d| * SD(pooled log members). The wind EMOS uses a variance-linear law instead.
+
+Still owed before any fetch:
+- the collector (GEFS-Wave and `waef` byte-range reads, the nearest wet cell, the R1 proxy);
+- the measured publication delays;
+- the version list for GEFS-Wave and IFS/wave in 2025-10..2026-06.
+
 ## 2026-11-17 18:16 -0500 Fill run 44107750669: VOID (second row); missing runs are throttling, not absence
 
 **Verdict record** (the advisor read the score job's public log at 22:18Z; nobody here has opened the report):
