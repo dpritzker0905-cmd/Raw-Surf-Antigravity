@@ -2126,6 +2126,9 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - A CI guard is to fail any served route or browser bundle that references an Open-Meteo host (tests, scripts and
     grading modules allow-listed).
 - **Rollback:** none needed for the rule. Each migration step carries its own kill switch.
+- **Update 2026-11-18: the "test-only" line is SUPERSEDED by D-082** (the owner's typed word). Open-Meteo may also
+  serve a user as a FALLBACK where no better alternative is available and removing it would downgrade the service.
+  The primary-source rule and the migrations stand. Read D-082 before acting on this entry.
 
 ### D-075 · Long-range wind and gusts: ECMWF ensemble members past the native end, hard hand-off, no loop (2026-11-15, decided)
 - **Owner, verbatim:**
@@ -2232,3 +2235,43 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   PR as its gate.
 - **Owner:** "Yes, after #1009" (the pin), then "Start the cap period rule pin", typed in the repair lead's session.
 - Record: `log/2026-11-18-fable-cap-period-rule-pin.md`.
+
+### D-082 · Open-Meteo may serve a user as a FALLBACK where nothing better is available; supersedes D-074's "test-only" (2026-11-18, decided by the owner)
+- **Owner, verbatim, typed in the repair lead's session:**
+  - 14:09 EST (19:09Z, the session's stamp), to the question "keep Open-Meteo until agency data covers them, or
+    blank them now?": "Keep until
+    covered. But we need to modify my rules from only using Open-Meteo for test only, to we can use it as a fallback
+    if no better alternative is available/causing a downgrade of our services."
+  - Earlier the same day: "We have a rule to use open-meteo only where if we didn't have another better path, so
+    check if this is the case".
+- **Rule:**
+  - The first choice for everything a user sees is still an agency source: NOAA, ECMWF open data, DWD open data or
+    Copernicus (D-074, unchanged).
+  - Open-Meteo may answer a user ONLY as a fallback, when both hold: no agency source that is stored or reachable
+    covers that point and hour at comparable quality, AND leaving Open-Meteo out would downgrade the service (no data,
+    or a coarser or land-smeared number).
+  - It is never the first choice, and it never replaces an agency answer that exists.
+  - **Keep until covered.** Each fallback is temporary. It is removed when agency data covers its case, not before.
+    D-074's migrations (M1-M6, G1-G8) continue and are how the fallbacks shrink.
+  - A fallback answer says what it is: the response names the real provider and upstream model, and is not presented
+    as the agency's own feed.
+  - A NEW Open-Meteo call site on a served route needs a line in this file saying which case it covers and why
+    nothing better exists.
+- **What this changes in D-074:** the line "Open-Meteo may serve tests, research scripts and grading benchmarks only"
+  and the CI guard as written there (fail ANY served route that references an Open-Meteo host). The guard, when it is
+  built, allow-lists the named fallback sites and fails a new, unlisted one.
+- **What it supersedes from today:** the instruction relayed by the director earlier that afternoon, quoting the
+  owner at 13:13Z ("No user data should be open-meteo"), under which the point path was to answer "no data" in place of the
+  fallback. That build is NOT started. The later typed word above governs.
+- **Unchanged condition from D-074** (the owner, 2026-11-15 21:09 EST): not "on a basis that would require us to pay
+  for its use". Whether today's served use fits Open-Meteo's terms is NOT checked in this entry.
+- **Where the point path stands against this rule** (read of `services/weather_pipeline/point_resolution.py` on dev
+  `c66d8c055`, 2026-11-18): the marine branch reaches Open-Meteo only after the stored lookups miss, or return a
+  land-masked or nearest-ocean sample from a world grid, and it keeps that stored sample as the last resort. So it is a
+  fallback in this rule's sense. A better SOURCE exists and is not wired in: the agencies' 0.25 degree wave fields are
+  stored at that resolution only inside the 14 regional tiles. NOT checked: the wind and pressure/precipitation
+  branches, and whether the 2 degree world grid counts as a world grid in the degraded test.
+- **Size, one run only:** in precompute run 44132744032 (2026-11-17) about 4 to 12 percent of rated spots per model
+  took waves this way, at the two rated hours. The #1015 count is the instrument; the direction is down.
+- **No served number moves with this entry.**
+- Record: `log/2026-11-18-fable-open-meteo-fallback-rule.md`.
