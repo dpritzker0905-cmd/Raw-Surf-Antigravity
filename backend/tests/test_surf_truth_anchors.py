@@ -59,7 +59,7 @@ async def world(monkeypatch):
         await engine.dispose()
 
 
-async def _set(world, status, reason="reason"):
+async def _set(world, status, reason="reliable_record"):
     async with world.maker() as db:
         await surf_truth_anchors.set_status(db, "ana", status, "admin-1", reason)
         await db.commit()
@@ -76,20 +76,22 @@ async def _observe(world, n):
 
 
 async def test_status_changes_write_the_row_and_an_append_only_log_line(world):
-    await _set(world, "probation", "new trusted photographer, two weeks of checks")
-    await _set(world, "active", "passed probation")
-    await _set(world, "suspended", "drifted 30% high on the photo audit")
+    await _set(world, "probation", "new_anchor_watch")
+    await _set(world, "active", "probation_passed")
+    await _set(world, "suspended", "quality_concern")
     async with world.maker() as db:
         row = await db.get(SurfTruthAnchor, "ana")
         log = (await db.execute(select(SurfTruthAnchorEvent).order_by(SurfTruthAnchorEvent.at))).scalars().all()
     assert row.status == "suspended" and row.appointed_by == "admin-1"
     assert [(e.from_status, e.to_status, e.actor_id) for e in log] == [
         (None, "probation", "admin-1"), ("probation", "active", "admin-1"), ("active", "suspended", "admin-1")]
-    assert log[-1].reason == "drifted 30% high on the photo audit"
+    assert log[-1].reason == "quality_concern"
 
 
 @pytest.mark.parametrize("status,reason,message", [
-    ("trusted", "x", "status must be"), ("active", "   ", "reason is required"), ("active", "x" * 501, "limited"),
+    ("trusted", "reliable_record", "status must be"), ("active", "   ", "reason is required"),
+    # free text is refused: the log is append-only and outlives an erasure (T1 log retention design 2026-11-18)
+    ("active", "drifted 30% high on the photo audit", "reason must be one of the codes"),
 ])
 async def test_bad_changes_are_refused_and_write_nothing(world, status, reason, message):
     async with world.maker() as db:
@@ -103,7 +105,7 @@ async def test_a_no_op_change_is_refused(world):
     await _set(world, "active")
     async with world.maker() as db:
         with pytest.raises(AnchorError, match="already active"):
-            await surf_truth_anchors.set_status(db, "ana", "active", "admin-1", "again")
+            await surf_truth_anchors.set_status(db, "ana", "active", "admin-1", "admin_correction")
 
 
 async def test_only_an_active_anchor_is_recorded_as_anchor(world):

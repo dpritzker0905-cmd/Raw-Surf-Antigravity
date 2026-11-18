@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 29,
+  "files": 1,
+  "branch": "claude/surf-truth-legal-b9a3a1",
+  "date": "2026-11-18",
+  "note": "T1 legal: distance bands, consent placeholders, reason codes, log minimal"
+}

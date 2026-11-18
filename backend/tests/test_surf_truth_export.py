@@ -72,7 +72,7 @@ async def world(monkeypatch):
                                      source="blind_height_input", at=NOW - timedelta(hours=5)))
         # appointed BETWEEN o1 and o2: o1 was filed by an ordinary observer, o2 by an active anchor
         db.add(SurfTruthAnchorEvent(profile_id="ana-profile-id", from_status=None, to_status="active",
-                                    actor_id="boss", reason="r", at=NOW - timedelta(hours=2)))
+                                    actor_id="boss", reason="reliable_record", at=NOW - timedelta(hours=2)))
         await db.commit()
     app = FastAPI()
     app.include_router(surf_truth_admin.router, prefix="/api")

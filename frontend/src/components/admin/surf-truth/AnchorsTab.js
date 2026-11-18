@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table';
-import { AnchorStatusDialog, StatusBadge, ViewState, formatWhen, useAdminGet } from './shared';
+import { AnchorStatusDialog, StatusBadge, ViewState, formatWhen, reasonLabel, useAdminGet } from './shared';
 
 /** Anchors: who sets the scale, their status history, and the admin action log for the whole area. */
 export default function AnchorsTab() {
@@ -72,7 +72,7 @@ export default function AnchorsTab() {
                       {Object.entries(a.detail).map(([k, v]) => `${k}: ${v ?? '—'}`).join(' · ')}
                     </span>
                   )}
-                  {a.reason && <span className="block text-xs text-foreground">“{a.reason}”</span>}
+                  {a.reason && <span className="block text-xs text-foreground">Reason: {reasonLabel(a.reason)}</span>}
                 </li>
               ))}
             </ul>

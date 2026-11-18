@@ -2216,3 +2216,24 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
     low-load read (never a load test), with `/api/health` read before and after.
   - If the check fails, the kill switch is used (runtime manifest, no deploy) and the failure is written to the log.
   - This is item 8 of the contract suite.
+
+### D-082 · T1 append-only logs: minimal content now, retention by per-subject keys + monthly partitions (2026-11-18, PROPOSED; periods await counsel)
+- **Asked by:** David, 2026-11-18, routed the legal follow-ups (consent wording, California precise geolocation, and
+  whether erasure must reach the append-only logs) to their own lane. Research by the director's session, which is
+  not legal advice; counsel has reviewed nothing.
+- **Decided by engineering (reversible, no served number):**
+  - The anchor and admin logs hold REASON CODES only, never free text.
+  - The admin log's `detail` takes allow-listed keys only.
+  - The export sends distances only as bands of 1 km or wider (schema 2), and no longer sends the 500 m `gps_check`.
+  - The consent default is draft `draft-2026-11-18d`, with `[COMPANY]` / `[PRIVACY NOTICE LINK]` placeholders that
+    refuse every grant until they are filled in.
+- **Proposed, NOT decided:** crypto-shredding with per-subject keys plus monthly partitions dropped at the end of
+  each period. Design: `T1-LOG-RETENTION-DESIGN-2026-11-18.md`.
+- **Open (named constants in `services/surf_truth_log_retention.py`, all None):**
+  - the claims period for consent records after erasure (counsel);
+  - anchor events, 6-12 months, and whether they are shredded at erasure (David);
+  - admin actions, 6-12 months (David or counsel);
+  - whether to build the mechanism before those answers (David).
+- **Reopen if:** counsel's review changes a per-table basis, or the EDPB pinpoints (05/2020 ¶107) read differently
+  in the English text.
+- If D-082 is already taken when this merges, renumber it in the merge commit and in the design doc.

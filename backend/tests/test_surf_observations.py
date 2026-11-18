@@ -319,7 +319,7 @@ async def test_scale_default_endpoint_is_the_servers(world):
 async def test_server_sets_flow_role_and_keeps_device_time_as_a_claim(world, monkeypatch):
     from services import surf_truth_anchors
     async with world.maker() as db:  # an ACTIVE anchor in the anchors table (no longer an env var)
-        await surf_truth_anchors.set_status(db, "photog", "active", "admin-x", "trusted photographer")
+        await surf_truth_anchors.set_status(db, "photog", "active", "admin-x", "reliable_record")
         await db.commit()
     skewed = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
     r = await world.client.post(URL, json=_checkin(observed_at_device=skewed), headers=_token("surfer"))
