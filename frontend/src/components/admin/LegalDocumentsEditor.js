@@ -25,7 +25,7 @@ export const LEGAL_DOCS = [
   { id: 'tos', label: 'Terms of Service', short: 'ToS',
     help: 'Shown at sign-up and in Settings > Legal. To make everyone accept again, also update the version in constants/tos.js.' },
   { id: 'company_details', label: 'Company details', short: 'company details',
-    help: 'Who runs Raw Surf, as named in the legal documents. Write {company}, {privacy_url} or {privacy_contact} in the Terms, the Privacy Policy or the forecast data consent and people see these values. When you publish, say whether it is a change (a different company or privacy notice: everyone who opted in to forecast data is asked again) or a correction (a typo: everyone stays opted in). Every publish is recorded.' },
+    help: 'Who runs Raw Surf, as named in the legal documents. Write {company}, {privacy_url} or {privacy_contact} in the Terms, the Privacy Policy or the forecast data consent and people see these values. When you publish, say whether it is a change (a different company or privacy notice: everyone who opted in to forecast data is asked again, and their reports leave the exports until they agree again) or a correction (a typo: everyone stays opted in, exports untouched). A publish that leaves the consent\'s words unchanged never re-asks anyone. Every publish is recorded.' },
   { id: 'privacy', label: 'Privacy Policy', short: 'Privacy Policy',
     help: 'Shown in Settings > Legal.' },
   { id: 'forecast_consent', label: 'Forecast data consent', short: 'consent',
@@ -285,8 +285,8 @@ export default function LegalDocumentsEditor() {
                   </p>
                   <fieldset className="space-y-2">
                     <legend className="mb-1 text-xs text-muted-foreground">What kind of edit is this? (required)</legend>
-                    {[['change', 'A change', 'A different company or privacy notice. Everyone who opted in to forecast data is asked again.'],
-                      ['correction', 'A correction', 'A typo or similar fix that does not change the meaning. Everyone stays opted in; the old and new wording are both recorded.'],
+                    {[['change', 'A change', 'A different company or privacy notice. Everyone who opted in to forecast data is asked again, and their reports leave the forecast-data exports (replaced within 7 days) until they agree again.'],
+                      ['correction', 'A correction', 'A typo or similar fix that does not change the meaning. Everyone stays opted in and the exports are untouched; the old and new wording are both recorded.'],
                     ].map(([value, label, help]) => (
                       <label key={value} htmlFor={`company-kind-${value}`}
                         className={`flex cursor-pointer items-start gap-2 rounded-lg border p-2 ${publishKind === value ? 'border-primary bg-primary/10' : 'border-border'}`}>
