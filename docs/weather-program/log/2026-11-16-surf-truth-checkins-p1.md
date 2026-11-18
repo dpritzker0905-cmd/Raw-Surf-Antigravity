@@ -302,3 +302,16 @@ avatar has no GPS); estate fragment +13.
 Recorded for #1038 (advisor, PASS-WITH-LIMITS at b6afb3920): a very long fragmented MP4 (more than ~2,000 fragments,
 each a `moof` + `mdat` pair at the top level) now exceeds the 4,096-box budget and is refused with a 400. Accepted: phone
 recordings are not fragmented, and a refused upload is never published unchecked.
+## 2026-11-18 16:17Z T1 P3 (part 8): iPhone HEIC photos lose their GPS too, without a decoder
+
+The server has no HEIC decoder (pillow-heif is not installed), so feed, comment, story and general HEIC photos were
+stored exactly as uploaded, GPS included. HEIC is an ISO base media file like MP4: the iPhone keeps position, time and
+serial in an `Exif` item (and sometimes an XMP `mime` item) whose bytes `iloc` locates in `mdat` or `idat`. New `services/heic_metadata.py` walks `meta` / `iinf` / `iloc` (bounded: 4,096 boxes, 4,096 items) and overwrites those bytes IN
+PLACE: the Exif item becomes a valid EMPTY Exif block padded with zeros, XMP becomes zeros. Length and offsets are
+unchanged, the image bytes are untouched, and the rotation (`irot`/`imir` item properties, not EXIF) is kept. A
+malformed HEIC (an item outside the file, an open-length extent, a truncated box) is refused (400), never published
+unchecked. The go-live private record now reads a HEIC's GPS from its Exif item too (`observation_media` falls back to it
+when Pillow cannot open the file). Tests +3 (GPS read privately then blanked, length and image bytes unchanged,
+idempotent; a malformed HEIC refused; a HEIC feed upload published without GPS); the old test that expected HEIC to be
+stored unstripped now expects a refusal for bogus bytes. Estate fragment +3. NOT verified on a real iPhone file with a
+real decoder (none here): the synthetic file follows ISO/IEC 23008-12's `iinf`/`iloc` layout.
