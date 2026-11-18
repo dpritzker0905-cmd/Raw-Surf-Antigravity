@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 0,
+  "files": 1,
+  "branch": "claude/wind-lr-fill-void-record",
+  "date": "2026-11-18",
+  "note": "catch-up: dev run 44207940043 observed 256 guards files vs effective floor 255 (backend-floor-staleness, budget 0); no test file added here"
+}
