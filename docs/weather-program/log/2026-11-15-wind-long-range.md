@@ -581,11 +581,12 @@ would need a registered amendment made WITHOUT any result read, and David's word
    - Moving them into the test half gives 65 runs.
    - But it shortens the fit/test separation that the gap may exist to keep. The advisor's call.
 
-## 2026-11-18 02:27 -0500 AMENDMENT (no result read): a one-time second-mirror collection of 12 named runs (option b)
+## 2026-11-17 21:27 -0500 AMENDMENT (no result read): a one-time second-mirror collection of 12 named runs (option b)
 
 This section replaces an earlier nine-run draft (19:07 EST) that existed only on this unmerged branch. The draft
 collected the nine test-half runs and left the three fit-half runs dropped. It was changed at the advisor's condition 2,
-before any result was read. A 20:51 addendum on the same branch is folded in here.
+before any result was read. A 20:51 EST addendum on the same branch is folded in here (its header wrongly read 01:51 -0500, a UTC clock
+labelled EST; corrected under L-P10).
 
 Owner, 18:31 EST, verbatim: "Go with option b, fetch the 9 from the second mirror". After being told the revised cost
 (12 runs, about 5.5 h), the owner wrote: "Yes, dispatch then". Advisor conditions, 2026-11-18 00:00Z; this text was
