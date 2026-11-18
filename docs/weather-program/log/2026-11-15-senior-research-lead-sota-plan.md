@@ -2563,3 +2563,12 @@ finding):**
     - A REPORTED leave-one-D-066-block-out (100 km) check inside TEST. It never selects anything.
   - (2) A "frozen baseline" means stored forecasts of a fixed configuration, scored forward. It never means re-running a
     pinned version. F2's baseline is the current tree with learned terms off, in the same run (the adviser's baseline A).
+
+- 2026-11-17 23:50 -0500: **F2 amendment: the conditional-calibration diagnostic** (the helper's literature pass;
+  abstracts only, not wave-specific).
+  - F2 scorecards and L1 reporting add CORP/T-reliability diagrams (Gneiting et al. 2023) and the score decomposition
+    MCB/DSC/UNC (Allen et al. 2023), per lead and basin.
+  - Diagnostic only: it selects nothing. It triages a loss into calibration (post-processing can fix it) vs
+    discrimination (it needs better inputs).
+  - An isotonic calibration MAP as a served arm is deferred. It overlaps L1 EMOS and F3 conformal and is unstable in
+    the tail. Revisit if L1's MCB stays large after EMOS.
