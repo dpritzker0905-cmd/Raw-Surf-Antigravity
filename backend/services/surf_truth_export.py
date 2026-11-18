@@ -46,6 +46,14 @@ from models import SurfObservation, SurfSpot, SurfTruthAnchorEvent
 
 SCHEMA = "raw-surf/surf-truth-export/1"
 KEY_ENV = "SURF_TRUTH_EXPORT_KEY"
+# The OWNER'S switch (server-side; the admin screen's approval tick box is only a reminder). Exports are personal data
+# and need the consent filter, retention and counsel's wording in place first, so they are OFF unless the server's
+# environment says exactly "1". Set on Render by David only; an admin cannot turn it on from the app.
+ENABLE_ENV = "SURF_TRUTH_EXPORTS_ENABLED"
+
+
+def exports_enabled() -> bool:
+    return os.environ.get(ENABLE_ENV, "").strip() == "1"
 BUCKET = "weather-products"
 PREFIX = "surf-truth/exports"
 MIN_KEY_BYTES = 32
