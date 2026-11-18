@@ -77,3 +77,41 @@ Conditions, all done:
 Rollout condition, the director's call: run the first live pilots run with repo variable `FRAME_FILLED_PATCH_VERIFY=1`, read
 `patched > 0` and `patch_mismatch == 0` in the frames report, then clear it. The advisor also noted that the live saving will be below
 46-51%: the ~118 plain-frame GETs per filled set are not in the offline benchmark (local sink).
+
+## 2026-11-16 23:23Z: the live result, three pilots runs with FRAME_FILLED_PATCH on and VERIFY off
+
+Two verified runs came first (VERIFY=1): 43758884390 (774 patched, 0 mismatches) and 43775249410 (819 patched, 0 mismatches). The
+director then cleared VERIFY. Per-set `frame_sets` reports from the full job logs (the jobs API; `gh run view --log` truncates):
+
+| run | filled frames patched | patch_mismatch | fallbacks | filled-set seconds | seconds a frame |
+|---|---|---|---|---|---|
+| 43803432374 | 827 / 827 | 0 | none | 240.6 | 0.29 |
+| 43863453856 | 832 / 834 | 0 | 2 content (rebuilt in full) | 288.3 | 0.35 |
+| 43950205417 | 828 / 828 | 0 | none | 256.5 | 0.31 |
+
+Before the merge, runs 43709308169, 43744161553, 43676991030 and 43653114830 built 782-829 filled frames at 0.40-0.58 s a frame
+(median about 0.42). 43720568506 built only 393 frames and is left out.
+**Result: 2,487 of 2,489 frames patched live, ZERO mismatches; the filled sets about 25 % cheaper a frame, about 80-100 s a run.**
+That is below the lab's 46-51 %, as recorded at merge time: the live path pays the plain-frame storage GETs the lab did not.
+**Not fixed by it:** the frames step still skipped 77, 143 and 97 regional sets for its 960 s budget in these runs (run 3: 152 sets,
+888 s of set time). The filled sets now take about 250 s of that. The director asked for that budget to be chased separately.
+
+## 2026-11-18 06:31Z: correction, "ZERO mismatches" in the live result measured nothing (the advisor's after-the-fact read of #993)
+
+The headline above says "2,487 of 2,489 frames patched live, ZERO mismatches". It is true but empty. Those three live runs had
+`FRAME_FILLED_PATCH_VERIFY` OFF, and `patch_mismatch` is counted only when VERIFY rebuilds the frame in full and compares the
+bytes (`frame_set.py`, the `if fsfp.verify_mode():` branch). With VERIFY off, zero is zero by construction. A reader would take it
+as 2,487 frames compared and found identical; they were not.
+
+**What the record supports:**
+- **COMPARED and byte-identical:** the two VERIFY runs, 43758884390 (774 patched, 0 mismatches) and 43775249410 (819 patched,
+  0 mismatches), so **1,593 frames compared, 0 mismatches**. This is the evidence that the patch writes the same bytes as the
+  full rebuild.
+- **PATCHED LIVE without comparison:** 2,487 of 2,489 in the three later runs, with 2 fallbacks rebuilt in full. The always-on
+  parity check on the rewritten (filled) nodes passed for each patched frame. That is real protection, but it is not the byte
+  comparison.
+- **"About 25 % cheaper a frame"** compares different runs. It stands as a description; it was not re-checked against the job
+  logs in this correction.
+
+Nothing served is affected; the published frames are unchanged. The SCOREBOARD row of 2026-11-16 23:23Z ("byte-identical to
+the full rebuild") gets an appended correction row pointing at the VERIFY runs.

@@ -54,6 +54,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RATED_RUN_LABEL__',
   '__RAW_DISABLE_LOCAL_RUN_TIME__',
   '__RAW_DISABLE_STALE_CHIP__',
+  // components/map/marineLateWash.test.js (the late wash, 2026-11-15): a seed that repairs a refused wash waits 150 ms, not 1 s
+  '__RAW_DISABLE_URGENT_WASH_SEED__',
   // tests/weatherAuthFetch.test.js ("kill switch: never a token, never a retry") and tests/sessionExpiredPrompt.test.js
   // ("kill switch and the auth page itself raise nothing"): #782, accounts only
   '__RAW_DISABLE_WEATHER_AUTH__',
