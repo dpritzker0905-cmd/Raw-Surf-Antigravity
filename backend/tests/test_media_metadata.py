@@ -137,3 +137,61 @@ async def test_the_public_copy_has_no_gps_and_the_server_keeps_its_own_record(ha
     bad = await client.post("/api/upload/conditions", headers=headers,
                             files={"file": ("x.jpg", b"\xff\xd8\x00garbage", "image/jpeg")})
     assert bad.status_code == 400
+
+
+# ── videos (MP4 / MOV), patched in place by services/video_metadata ───────────────────────────────────────────────
+def _box(btype, payload):
+    return struct.pack(">I4s", 8 + len(payload), btype) + payload
+
+
+def _mov(media=b"MEDIA-SAMPLES" * 50):
+    xyz = struct.pack(">HH", 18, 0x15C7) + b"+21.6650-158.0500/"
+    udta = _box(b"udta", _box(b"\xa9xyz", xyz) + _box(b"\xa9mak", b"\x00\x07\x00\x00PhoneCo"))
+    meta = _box(b"meta", _box(b"keys", b"com.apple.quicktime.creationdate")
+                + _box(b"ilst", b"2026-11-18T07:30:00-1000"))
+    trak = _box(b"trak", _box(b"tkhd", b"\x00" * 84) + meta)
+    moov = _box(b"moov", _box(b"mvhd", b"\x00" * 100) + udta + trak)
+    return _box(b"ftyp", b"qt  \x00\x00\x00\x00qt  ") + moov + _box(b"mdat", media)
+
+
+def test_video_location_is_read_then_neutered_in_place_losslessly(tmp_path):
+    from services.video_metadata import strip_video_in_place
+    original = _mov()
+    path = tmp_path / "v.mov"
+    path.write_bytes(original)
+    facts = strip_video_in_place(path)
+    patched = path.read_bytes()
+    assert facts.stripped and facts.neutered == 2
+    assert (facts.latitude, facts.longitude) == (pytest.approx(21.665), pytest.approx(-158.05))
+    assert facts.taken_at.isoformat() == "2026-11-18T07:30:00-10:00"
+    assert len(patched) == len(original)                                   # no offset can move
+    assert patched.endswith(_box(b"mdat", b"MEDIA-SAMPLES" * 50))           # media untouched
+    for gone in (b"21.6650", b"PhoneCo", b"2026-11-18", b"udta", b"\xa9xyz"):
+        assert gone not in patched
+    assert patched.count(b"free") == 2
+
+
+def test_non_isobmff_video_is_left_alone_and_a_malformed_mov_is_refused_without_a_file(tmp_path):
+    from services.media_metadata import write_public_copy
+    webm = b"\x1a\x45\xdf\xa3" + b"\x00" * 64
+    copy = write_public_copy(webm, "video/webm", True, tmp_path / "a.webm")
+    assert copy.stripped is False and (tmp_path / "a.webm").read_bytes() == webm
+    broken = _box(b"ftyp", b"qt  ") + struct.pack(">I4s", 9999, b"moov") + b"\x00" * 10
+    with pytest.raises(MetadataError):
+        write_public_copy(broken, "video/quicktime", True, tmp_path / "b.mov")
+    assert not (tmp_path / "b.mov").exists()
+
+
+async def test_a_go_live_video_keeps_its_location_privately_and_not_publicly(harness):
+    client, stored, maker = harness
+    headers = {"Authorization": "Bearer " + create_access_token({"sub": "pro"})}
+    r = await client.post("/api/upload/conditions", headers=headers,
+                          files={"file": ("clip.mov", _mov(), "video/quicktime")})
+    assert r.status_code == 200, r.text
+    assert r.json()["metadata_stripped"] is True and r.json()["media_type"] == "video"
+    (public_bytes,) = stored.values()
+    assert b"21.6650" not in public_bytes and len(public_bytes) == len(_mov())
+    async with maker() as db:
+        (rec,) = (await db.execute(select(ObservationMedia))).scalars().all()
+    assert (rec.exif_latitude, rec.exif_longitude) == (pytest.approx(21.665), pytest.approx(-158.05))
+    assert rec.exif_taken_at is not None

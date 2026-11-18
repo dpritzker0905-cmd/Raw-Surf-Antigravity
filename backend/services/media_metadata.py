@@ -11,14 +11,19 @@ reads those facts from the ORIGINAL bytes first (services/observation_media.insp
   orientation is put back, so phone photos do not display sideways.
 - PNG: eXIf, tEXt, iTXt, zTXt and tIME chunks are dropped.
 - WebP: EXIF and XMP chunks are dropped and the VP8X flags and RIFF size are corrected.
-- Anything else (GIF, HEIC/HEIF, video) is returned unchanged with `stripped=False`: Pillow here cannot rewrite HEIC
-  and video needs a video tool. Callers record that, and it is a listed follow-up.
+- MP4 / MOV / M4V video: `write_public_copy` patches the file in place (services/video_metadata): its location and
+  capture time are read for the private record, then its metadata boxes are neutered, losslessly.
+- Anything else (GIF, HEIC/HEIF, WebM) is stored unchanged with `stripped=False`: Pillow here cannot rewrite HEIC, and
+  a browser-recorded WebM carries no GPS. Callers record that.
 """
 from __future__ import annotations
 
 import io
+import os
 import struct
-from typing import Tuple
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional, Tuple
 
 _JPEG_KEEP_APP = {0xE0, 0xE2, 0xEE}            # APP0 JFIF, APP2 ICC, APP14 Adobe
 _PNG_DROP = {b"eXIf", b"tEXt", b"iTXt", b"zTXt", b"tIME"}
@@ -114,6 +119,36 @@ def strip_webp(content: bytes) -> bytes:
         i += 8 + size + (size % 2)
     payload = b"WEBP" + b"".join(chunks)
     return b"RIFF" + struct.pack("<I", len(payload)) + payload
+
+
+@dataclass
+class PublicCopy:
+    stripped: bool
+    size: int
+    latitude: Optional[float] = None       # from a video's own metadata (photos: observation_media.inspect_media)
+    longitude: Optional[float] = None
+    taken_at: Optional[datetime] = None
+
+
+def write_public_copy(content: bytes, content_type: str, is_video: bool, path) -> PublicCopy:
+    """Write the copy that goes to PUBLIC storage at `path`, without embedded metadata. Photos are stripped in memory;
+    videos are written, then patched on disk (services/video_metadata), whose location/time are returned for the
+    PRIVATE record. Blocking: call off the event loop. Raises MetadataError (and leaves no file) for a malformed file."""
+    if not is_video:
+        stored, stripped = strip_image_metadata(content, content_type)
+        with open(path, "wb") as f:
+            f.write(stored)
+        return PublicCopy(stripped=stripped, size=len(stored))
+    from services.video_metadata import strip_video_in_place
+    with open(path, "wb") as f:
+        f.write(content)
+    try:
+        facts = strip_video_in_place(path)
+    except MetadataError:
+        os.remove(path)
+        raise
+    return PublicCopy(stripped=facts.stripped, size=len(content), latitude=facts.latitude,
+                      longitude=facts.longitude, taken_at=facts.taken_at)
 
 
 def strip_image_metadata(content: bytes, content_type: str) -> Tuple[bytes, bool]:

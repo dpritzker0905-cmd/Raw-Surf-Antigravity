@@ -237,3 +237,19 @@ surf-report photo path, which is a different upload route. Already-stored photos
 backfill is decided.
 Tests +6 (each format: GPS gone, pixels identical, orientation kept; the route: public copy clean, private record
 kept, malformed refused); mutation: keeping APP1 fails. 99 related tests (incl. the upload identity suite) pass.
+## 2026-11-18 05:01Z T1 P3 (part 6): go-live videos too: location kept privately for the check, removed from the public copy
+
+David asked whether to keep the photographer's GPS in go-live media to help confirm location. Answer recorded: yes,
+PRIVATELY, which part 5 already did for photos (observation_media keeps the position read from the original; the
+observation checks flag exif_far beyond 1 km and exif_stale beyond 3 h; the app's device GPS is the primary check).
+The gap was video: its location was never read, and stayed in the public copy. Now `services/video_metadata.py`
+(pure Python, no ffmpeg: Render's Python runtime is not known to have it, and installing a binary dependency was not
+done) walks the MP4/MOV boxes, READS the ISO 6709 location (QuickTime ©xyz or Apple's
+com.apple.quicktime.location.ISO6709) and creation date for the private record, then NEUTERS every movie- and
+track-level `udta`/`meta` box in place (type -> `free`, payload zeroed): the length is unchanged so no chunk
+offset moves, the media data is untouched, and the file is patched on disk (no in-memory copy of a large video).
+`write_public_copy` now handles photos and videos for the route, off the event loop; routes/uploads/core.py shrank to
+792 lines. WebM (browser recorder, no GPS) and HEIC remain unstripped and say so (`metadata_stripped` false).
+Tests +3 (read then neuter, length and media unchanged; non-ISO left alone and malformed refused without a file; the
+route keeps the location privately and not publicly); mutation: skipping track-level boxes fails 2; the 53-test
+upload identity suite passes. Stacked on #1035.
