@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
 from database import get_db
-from models import (SurfTruthConsentEvent, CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
+from models import (TosContent, SurfTruthConsentEvent, CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
                     SurfSpot, SurfTruthAnchor, SurfTruthAnchorEvent, UserStreak)
 from routes.surf_data import checkins, observations, surf_reports
 from services import observation_media
@@ -121,7 +121,7 @@ async def world(monkeypatch):
     monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")  # the XP kill switch reads runtime_flags: no network in tests
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
-        for model in (Profile, SurfTruthConsentEvent, SurfSpot, CheckIn, UserStreak, ConditionReport, SurfReport, SurfObservation,
+        for model in (Profile, TosContent, SurfTruthConsentEvent, SurfSpot, CheckIn, UserStreak, ConditionReport, SurfReport, SurfObservation,
                       ObservationMedia, SurfTruthAnchor, SurfTruthAnchorEvent):
             await connection.run_sync(lambda conn, table=model.__table__: table.create(conn))
     maker = async_sessionmaker(engine, expire_on_commit=False)

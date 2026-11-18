@@ -45,6 +45,18 @@ describe('TrainingConsent (T1 P3 opt-in)', () => {
     expect(screen.getByRole('checkbox')).not.toBeChecked();
   });
 
+  test('after a new wording version an earlier yes shows as off, says why, and the screen it sits on is the source',
+    async () => {
+      apiClient.get.mockResolvedValue({ data: { ...SERVER, granted: false, needs_reconsent: true, version: 'old' } });
+      apiClient.put.mockResolvedValue({ data: { ...SERVER, granted: true, needs_reconsent: false } });
+      render(<TrainingConsent idPrefix="s" source="settings" />);
+      expect(await screen.findByText(/wording changed since you turned it on/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('checkbox'));
+      await waitFor(() => expect(apiClient.put).toHaveBeenCalledWith('/surf-observations/consent',
+        { granted: true, source: 'settings' }));
+      expect(screen.queryByText(/wording changed/i)).toBeNull();
+    });
+
   test('renders nothing when the server cannot answer (a report is never blocked by it)', async () => {
     apiClient.get.mockRejectedValue(new Error('401'));
     const { container } = render(<TrainingConsent idPrefix="t" />);

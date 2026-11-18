@@ -6,6 +6,7 @@ import { Button } from '../ui/button';
 import apiClient from '../../lib/apiClient';
 import { CURRENT_TOS_VERSION } from '../../constants/tos';
 import DeleteAccountSection from './DeleteAccountSection';
+import TrainingConsent from '../observations/TrainingConsent';
 
 /**
  * LegalSection -- Extracted from Settings.js
@@ -161,6 +162,12 @@ export const LegalSection = ({
               )}
             </div>
           )}
+
+          {/* Forecast data consent: the same opt-in as on the report form, changeable here at any time */}
+          <div className={`py-2 border-b ${borderClass}`}>
+            <h3 className={`${textPrimaryClass} text-sm font-medium mb-2`}>Forecast data</h3>
+            <TrainingConsent idPrefix="settings" source="settings" />
+          </div>
 
           {/* Acceptance History */}
           <div className={`py-2 border-b ${borderClass}`}>

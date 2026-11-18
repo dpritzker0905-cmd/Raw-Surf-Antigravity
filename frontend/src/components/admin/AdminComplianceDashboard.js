@@ -12,7 +12,7 @@ import {
   Shield, AlertTriangle, Scale, Users, Ban, Clock,
   Check, X, Loader2, ChevronDown, ChevronRight,
   MapPin, Eye, RefreshCw, FileText, Gavel, ExternalLink, MessageSquare,
-  Plus, Trash2, Save, ScrollText, Download, Upload, Database
+  Download, Database
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -20,6 +20,7 @@ import { Badge } from '../ui/badge';
 import { Textarea } from '../ui/textarea';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
+import LegalDocumentsEditor from './LegalDocumentsEditor';
 
 // --- Stat Card ----------------------------------------------------------------
 const StatCard = ({ icon: Icon, label, value, color = 'cyan' }) => (
@@ -109,140 +110,6 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
   const card = cardBgClass || 'bg-card border-border';
   const text = textClass || 'text-foreground';
   const textSec = textSecondary || 'text-muted-foreground';
-
-  // -- ToS Content Editor state ----------------------------------
-  const [tosEditorOpen, setTosEditorOpen] = useState(false);
-  const [editingDocType, setEditingDocType] = useState('tos');
-  const [editVersion, setEditVersion] = useState('');
-  const [editEffectiveDate, setEditEffectiveDate] = useState('');
-  const [editSections, setEditSections] = useState([]);
-  const [editorLoading, setEditorLoading] = useState(false);
-  const [editorSaving, setEditorSaving] = useState(false);
-
-  const loadTosContent = useCallback(async (docType) => {
-    setEditorLoading(true);
-    try {
-      const res = await apiClient.get(`/compliance/tos-content/current?doc_type=${docType}`);
-      setEditVersion(res.data.version || '1.0');
-      setEditEffectiveDate(res.data.effective_date || '');
-      setEditSections(res.data.sections || []);
-    } catch {
-      toast.error('Failed to load content');
-    } finally {
-      setEditorLoading(false);
-    }
-  }, []);
-
-  const saveTosContent = async () => {
-    if (!editSections.length) return toast.error('Add at least one section');
-    setEditorSaving(true);
-    try {
-      await apiClient.put('/compliance/tos-content', {
-        doc_type: editingDocType,
-        version: editVersion,
-        sections: editSections,
-        effective_date: editEffectiveDate,
-        set_active: true
-      });
-      toast.success(`${editingDocType === 'tos' ? 'Terms of Service' : 'Privacy Policy'} published!`);
-    } catch {
-      toast.error('Failed to save content');
-    } finally {
-      setEditorSaving(false);
-    }
-  };
-
-  const addSection = () => {
-    setEditSections(prev => [...prev, { title: `${prev.length + 1}. New Section`, body: '' }]);
-  };
-
-  const removeSection = (idx) => {
-    setEditSections(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const updateSection = (idx, field, value) => {
-    setEditSections(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
-  };
-
-  // -- ToS Import/Export helpers ----------------------------------
-  const exportAsJson = () => {
-    const payload = {
-      doc_type: editingDocType,
-      version: editVersion,
-      effective_date: editEffectiveDate,
-      sections: editSections,
-      exported_at: new Date().toISOString()
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${editingDocType}_v${editVersion}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Exported as JSON');
-  };
-
-  const exportAsCsv = () => {
-    const escCsv = (str) => `"${(str || '').replace(/"/g, '""')}"`;
-    const header = 'Section Number,Title,Body';
-    const rows = editSections.map((s, i) => `${i + 1},${escCsv(s.title)},${escCsv(s.body)}`);
-    const csv = [header, ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${editingDocType}_v${editVersion}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Exported as CSV (spreadsheet)');
-  };
-
-  const handleImport = (file) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = e.target.result;
-        if (file.name.endsWith('.json')) {
-          const data = JSON.parse(text);
-          if (data.sections && Array.isArray(data.sections)) {
-            setEditSections(data.sections);
-            if (data.version) setEditVersion(data.version);
-            if (data.effective_date) setEditEffectiveDate(data.effective_date);
-            toast.success(`Imported ${data.sections.length} sections from JSON`);
-          } else {
-            toast.error('Invalid JSON: must contain a "sections" array');
-          }
-        } else if (file.name.endsWith('.csv')) {
-          // Parse CSV: expects columns Title, Body (with optional Section Number)
-          const lines = text.split('\n').filter(l => l.trim());
-          const sections = [];
-          for (let i = 1; i < lines.length; i++) { // Skip header
-            const match = lines[i].match(/(?:"([^"]*(?:""[^"]*)*)"|([^,]*))/g);
-            if (match && match.length >= 2) {
-              const clean = (s) => (s || '').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
-              // If 3 columns: number, title, body. If 2: title, body
-              const title = match.length >= 3 ? clean(match[1]) : clean(match[0]);
-              const body = match.length >= 3 ? clean(match[2]) : clean(match[1]);
-              if (title) sections.push({ title, body });
-            }
-          }
-          if (sections.length > 0) {
-            setEditSections(sections);
-            toast.success(`Imported ${sections.length} sections from CSV`);
-          } else {
-            toast.error('No valid sections found in CSV');
-          }
-        } else {
-          toast.error('Unsupported file type. Use .json or .csv');
-        }
-      } catch (err) {
-        toast.error('Failed to parse file: ' + err.message);
-      }
-    };
-    reader.readAsText(file);
-  };
 
   // -- Data Management state ----------------------------------
   const [dataManagementOpen, setDataManagementOpen] = useState(false);
@@ -582,147 +449,8 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
         </Card>
       )}
 
-      {/* -- ToS & Privacy Content Editor ----------------------- */}
-      <Card className={`${card} mt-6`}>
-        <CardHeader className="cursor-pointer" onClick={() => {
-          if (!tosEditorOpen) {
-            loadTosContent(editingDocType);
-          }
-          setTosEditorOpen(!tosEditorOpen);
-        }}>
-          <div className="flex items-center justify-between">
-            <CardTitle className={`${text} flex items-center gap-2`}>
-              <ScrollText className="w-5 h-5 text-cyan-400" />
-              ToS & Privacy Content Editor
-            </CardTitle>
-            <ChevronDown className={`w-5 h-5 ${textSec} transition-transform ${tosEditorOpen ? 'rotate-180' : ''}`} />
-          </div>
-        </CardHeader>
-
-        {tosEditorOpen && (
-          <CardContent className="space-y-4">
-            {/* Document type toggle */}
-            <div className="flex gap-2">
-              {['tos', 'privacy'].map(dt => (
-                <Button
-                  key={dt}
-                  variant={editingDocType === dt ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => { setEditingDocType(dt); loadTosContent(dt); }}
-                  className={editingDocType === dt
-                    ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                    : `${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
-                >
-                  {dt === 'tos' ? 'Terms of Service' : 'Privacy Policy'}
-                </Button>
-              ))}
-            </div>
-
-            {/* Version + Effective Date */}
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className={`text-xs ${textSec} block mb-1`}>Version</label>
-                <input
-                  value={editVersion}
-                  onChange={e => setEditVersion(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-lg border text-sm ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-800 border-zinc-700 text-white'}`}
-                  placeholder="e.g. 1.0, 2.0"
-                />
-              </div>
-              <div className="flex-1">
-                <label className={`text-xs ${textSec} block mb-1`}>Effective Date</label>
-                <input
-                  value={editEffectiveDate}
-                  onChange={e => setEditEffectiveDate(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-lg border text-sm ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-800 border-zinc-700 text-white'}`}
-                  placeholder="e.g. May 2026"
-                />
-              </div>
-            </div>
-
-            {editorLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <>
-                {/* Sections editor */}
-                <div className="space-y-3">
-                  {editSections.map((section, idx) => (
-                    <div key={idx} className={`p-3 rounded-lg border ${isLight ? 'bg-gray-50 border-gray-200' : 'bg-zinc-800/50 border-zinc-700'}`}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`text-xs font-mono ${textSec}`}>-{idx + 1}</span>
-                        <input aria-label="Text input"
-                          value={section.title}
-                          onChange={e => updateSection(idx, 'title', e.target.value)}
-                          className={`flex-1 px-2 py-1 rounded border text-sm font-medium ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-900 border-zinc-600 text-white'}`}
-                        />
-                        <button aria-label="Delete"
-                          onClick={() => removeSection(idx)}
-                          className="p-1 text-red-400 hover:text-red-300 transition-colors"
-                          title="Remove section"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <Textarea aria-label="Section content..."
-                        value={section.body}
-                        onChange={e => updateSection(idx, 'body', e.target.value)}
-                        rows={3}
-                        className={`w-full text-sm ${isLight ? 'bg-white border-gray-300' : 'bg-zinc-900 border-zinc-600'}`}
-                        placeholder="Section content..."
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Import/Export + Add section + Publish */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={addSection} className="flex items-center gap-1.5">
-                    <Plus className="w-4 h-4" /> Add Section
-                  </Button>
-
-                  <div className="flex items-center gap-1 border-l border-zinc-700 pl-2 ml-1">
-                    <Button variant="outline" size="sm" onClick={exportAsJson} className="flex items-center gap-1" title="Export as JSON" aria-label="Download">
-                      <Download className="w-3.5 h-3.5" /> JSON
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={exportAsCsv} className="flex items-center gap-1" title="Export as CSV (spreadsheet)" aria-label="Download">
-                      <Download className="w-3.5 h-3.5" /> CSV
-                    </Button>
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        accept=".json,.csv"
-                        className="hidden"
-                        onChange={(e) => { handleImport(e.target.files[0]); e.target.value = ''; }}
-                      />
-                      <span className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md border transition-colors hover:bg-muted/50 cursor-pointer ${
-                        isLight ? 'border-gray-300 text-gray-700' : 'border-zinc-700 text-zinc-300'
-                      }`}>
-                        <Upload className="w-3.5 h-3.5" /> Import
-                      </span>
-                    </label>
-                  </div>
-
-                  <Button aria-label="Loader2"
-                    onClick={saveTosContent}
-                    disabled={editorSaving}
-                    className="flex-1 min-w-[200px] bg-gradient-to-r from-emerald-500 via-yellow-500 to-orange-500 text-black font-bold hover:opacity-90"
-                  >
-                    {editorSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                    {editorSaving ? 'Publishing...' : `Publish ${editingDocType === 'tos' ? 'ToS' : 'Privacy Policy'} v${editVersion}`}
-                  </Button>
-                </div>
-
-                <p className={`text-xs ${textSec}`}>
-                  Publishing activates this version and deactivates all previous versions. All users will see the updated content immediately.
-                  {editingDocType === 'tos' && ' To trigger re-acceptance, update the version in constants/tos.js to match.'}
-                </p>
-              </>
-            )}
-          </CardContent>
-        )}
-      </Card>
+      {/* -- Legal documents: Terms, Privacy, Forecast data consent (sub-sections) -- */}
+      <LegalDocumentsEditor />
 
       {/* -- Data Management (Export / Deletion) ----------------------- */}
       <Card className={`${card} mt-6`}>
