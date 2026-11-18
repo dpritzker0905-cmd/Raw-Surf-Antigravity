@@ -222,6 +222,38 @@ The header '22:30Z Anchors C: the admin "Surf truth" area' ran AHEAD of the cloc
 
 The header '23:20Z T1 P4 export built (stacked on anchors C): private, pseudonymized rows for the offline fit' ran AHEAD of the clock: it was committed at 2026-11-16T22:46:20Z, 34 minutes before the time it states (an estimate; LESSONS L-P10).
 
+## 2026-11-18 01:04Z Post-deploy check: the two surf-truth logs refuse UPDATE, DELETE and TRUNCATE in production (header from `date -u`)
+
+Owed since anchors A/B. Production Supabase (the Antigravity project), read-only except one block that rolls itself back:
+- Catalog: `surf_truth_anchor_events` and `surf_truth_admin_actions` exist with RLS on, 2 non-internal triggers each, and
+  `service_role` holds INSERT but not UPDATE on both.
+- Behaviour, as `postgres` (the table OWNER, so grants do not apply and only the triggers stand): one DO block inserted
+  a synthetic row into each table, then tried UPDATE, DELETE and TRUNCATE. All six were refused with
+  "<table> is append-only"; the inserts succeeded. The block then raised, which rolled back everything; a follow-up
+  query found 0 probe rows in either table.
+- Positive control: the inserts in the same block succeeded, so the refusals are the triggers, not a broken table.
+## 2026-11-18 01:37Z T1 P3 (part 1): a deletion request now reaches the surf-truth tables, and the GDPR routes run at all (header from the UTC clock)
+
+Found while starting P3: `/compliance/delete-my-data` anonymizes the profile instead of deleting it, so the CASCADE
+foreign keys on `surf_observations` / `observation_media` / `surf_truth_anchors` never fire. A deleted account's
+observations (device GPS, photo EXIF positions, install-id hash) survived. Worse, BOTH GDPR routes raised before
+finishing: the deletion on `Follow.followed_id` (the column is `following_id`), the admin export on that, on
+`Review.reviewed_id` (`reviewee_id`) and on `Booking.surfer_id` (no such column; `creator_id`). And six of the
+profile fields the deletion "cleared" are not columns (phone, instagram_handle, website, board_description,
+is_active, is_deleted): those assignments silently did nothing, and the real home/on-demand positions were never
+cleared.
+
+Fixed (`services/surf_truth_erasure.py` + `routes/compliance_pkg/gdpr.py`): the deletion erases the user's
+observations, photo-fact rows and anchor row in the same transaction, un-attributes their audits of others (the
+verdict stays), and clears the real social-URL and location columns (a rename now raises instead of silently
+skipping). The admin export includes the user's surf-truth rows. 4 tests run the real handlers on SQLite; mutation:
+dropping the erasure call fails the route test.
+
+NOT done, for David: (1) the append-only anchor-event and admin-action logs keep the profile id and admin reasons
+after a deletion: legal call; (2) exports already in private storage (pseudonymous) wait on the retention rule;
+(3) Profile has no deleted flag and the auth account is not removed, so `is_deleted` never existed: a design
+question for the account owners, not this lane; (4) the report photo stays in the `conditions` bucket with its
+report (owned by those features).
 ## 2026-11-18 03:03Z Admin: the Surf Forecast panel tells the truth about flags (header from the UTC clock)
 
 David asked for a comprehensive, working admin for the surf sim's logic. A read-only survey of the admin found the
@@ -327,6 +359,16 @@ avatar has no GPS); estate fragment +13.
 Recorded for #1038 (advisor, PASS-WITH-LIMITS at b6afb3920): a very long fragmented MP4 (more than ~2,000 fragments,
 each a `moof` + `mdat` pair at the top level) now exceeds the 4,096-box budget and is refused with a 400. Accepted: phone
 recordings are not fragmented, and a refused upload is never published unchecked.
+## 2026-11-18 15:21Z T1 P4: the export needs the OWNER'S server switch, not just an admin's tick box
+
+The advisor recorded on #1033 that its approval check box is client-side only. Worse, the export route itself is already
+on dev (`POST /api/admin/surf-truth/export`) and `SURF_TRUTH_EXPORT_KEY` is set on Render, while the consent filter (#1024),
+retention (#1034) and counsel's wording are not merged: any admin could have written an unfiltered export. Now the route
+refuses (403) unless the server's environment has `SURF_TRUTH_EXPORTS_ENABLED` exactly `1`, which only David can set
+(Render env); default OFF. This is a privacy gate, not a served number, so it does not follow D-065's ship-on rule.
+The retention job's fresh export (#1034) is left as is: it only REPLACES exports, and none can exist unless the switch
+allowed the first one. Tests +5 (unset, empty, 0, true, yes all refused with nothing written or logged); removing the
+gate fails 5. Guards fragment +5.
 ## 2026-11-18 16:17Z T1 P3 (part 8): iPhone HEIC photos lose their GPS too, without a decoder
 
 The server has no HEIC decoder (pillow-heif is not installed), so feed, comment, story and general HEIC photos were

@@ -11,7 +11,9 @@ This module finds those items through `iinf` + `iloc` and overwrites their bytes
 - an XMP item becomes zeros.
 The file length and every offset stay the same and the image data is untouched.
 A malformed file raises MetadataError (the caller refuses it rather than publishing it unchecked). The walk is bounded:
-at most MAX_BOXES boxes and MAX_ITEMS items, so a crafted file cannot make it allocate without limit.
+at most MAX_BOXES boxes, MAX_ITEMS items and MAX_EXTENTS extents in the WHOLE file (one budget, checked inside the
+extent loop, so zero-width offset/length fields cannot spin it), and only the Exif/XMP items' extents are kept
+(advisor hold on #1054: 4,096 items x 4,096 extents once built ~16.7 million tuples from a few tens of KB).
 """
 from __future__ import annotations
 
@@ -22,6 +24,7 @@ from services.media_metadata import MetadataError
 
 MAX_BOXES = 4096
 MAX_ITEMS = 4096
+MAX_EXTENTS = 4096
 _EMPTY_EXIF = b"\x00\x00\x00\x00" + b"MM\x00\x2a\x00\x00\x00\x08" + b"\x00\x00" + b"\x00\x00\x00\x00"
 _HEIF_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"mif1", b"msf1", b"avif"}
 
@@ -92,9 +95,10 @@ def _read_uint(buf: bytes, pos: int, nbytes: int) -> int:
     return int.from_bytes(buf[pos:pos + nbytes], "big") if nbytes else 0
 
 
-def _locations(buf: bytes, start: int, end: int) -> Dict[int, List[Tuple[int, int, int]]]:
-    """iloc: item_ID -> [(construction_method, offset, length)]; offsets are absolute for method 0, idat-relative
-    for method 1."""
+def _locations(buf: bytes, start: int, end: int, wanted) -> Dict[int, List[Tuple[int, int, int]]]:
+    """iloc: item_ID -> [(construction_method, offset, length)] for the items in `wanted` only; offsets are absolute
+    for method 0, idat-relative for method 1. Every item's extents count against ONE file budget (MAX_EXTENTS) and
+    the position is checked on every extent."""
     version = buf[start]
     pos = start + 4
     sizes = buf[pos]
@@ -108,7 +112,10 @@ def _locations(buf: bytes, start: int, end: int) -> Dict[int, List[Tuple[int, in
     if count > MAX_ITEMS:
         raise MetadataError("too many items")
     out: Dict[int, List[Tuple[int, int, int]]] = {}
+    extent_budget = MAX_EXTENTS
     for _ in range(count):
+        if pos > end:
+            raise MetadataError("iloc overruns its box")
         item_id = struct.unpack_from(">H" if version < 2 else ">I", buf, pos)[0]
         pos += 2 if version < 2 else 4
         method = 0
@@ -120,19 +127,25 @@ def _locations(buf: bytes, start: int, end: int) -> Dict[int, List[Tuple[int, in
         pos += base_offset_size
         extents = struct.unpack_from(">H", buf, pos)[0]
         pos += 2
-        if extents > MAX_ITEMS:
-            raise MetadataError("too many extents")
+        extent_budget -= extents
+        if extent_budget < 0:
+            raise MetadataError(f"more than {MAX_EXTENTS} extents in the file")
+        keep = item_id in wanted
         spans = []
         for _e in range(extents):
+            if pos > end:
+                raise MetadataError("iloc overruns its box")
             pos += index_size
             off = _read_uint(buf, pos, offset_size)
             pos += offset_size
             length = _read_uint(buf, pos, length_size)
             pos += length_size
-            spans.append((method, base + off, length))
+            if keep:
+                spans.append((method, base + off, length))
         if pos > end:
             raise MetadataError("iloc overruns its box")
-        out[item_id] = spans
+        if keep:
+            out[item_id] = spans
     return out
 
 
@@ -143,14 +156,17 @@ def _metadata_spans(buf) -> List[Tuple[bytes, List[Tuple[int, int]]]]:
     if meta is None:
         return []                                            # no meta box: no items
     m_off, m_size, m_header = meta
-    types, locs, idat = {}, {}, None
+    types, locs, idat, iloc = {}, {}, None, None
     for o, s, t, h in _boxes(buf, m_off + m_header + 4, m_off + m_size, budget):   # meta is a FullBox
         if t == b"iinf":
             types = _items(buf, o + h, o + s, budget)
         elif t == b"iloc":
-            locs = _locations(buf, o + h, o + s)
+            iloc = (o + h, o + s)                            # read after iinf: only the metadata items are kept
         elif t == b"idat":
             idat = o + h
+    wanted = {i for i, kind in types.items() if kind in (b"Exif", b"XMP ")}
+    if iloc is not None and wanted:
+        locs = _locations(buf, iloc[0], iloc[1], wanted)
     out = []
     for item_id, kind in types.items():
         if kind not in (b"Exif", b"XMP "):
