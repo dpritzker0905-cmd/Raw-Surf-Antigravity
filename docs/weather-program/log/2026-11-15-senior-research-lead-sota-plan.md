@@ -2727,3 +2727,18 @@ downgrade, owner). Sent to the director.
     sfbofs, ...). Hourly 2-D surface NetCDF, about 2-3 day range. A candidate for nearshore SST, currents and water
     level in the US.
   - **NOAA RTOFS** (`noaa-nws-rtofs-pds`): daily HYCOM archives, a second global SST/currents source.
+
+## 2026-11-18 17:16 -0500 Rank-5 gate v2 registered (advisor red-team adopted in full)
+- Text: shared notes `open-meteo-exit-plan-2026-11-18.md` section J. Red-team:
+  `REDTEAM-RANK5-OPEN-METEO-GATE-2026-11-18.md`.
+- **Order:** cache key and refusal, then rebake, then census.
+- **The census counts at one HTTP wrapper** and reports "0 of N" per row.
+  - Each of the 12 rows gets a canary or injected fault; a row without one reads "NOT TESTED".
+  - Positive control: one allow-listed fetch.
+  - The probe vanishing does not count as a pass.
+- **Browser rows** are checked by a CSP connect-src.
+- **Every kill switch on these rows falls back to "unavailable"**, never to Open-Meteo.
+- **Tide M1-0** is scored against observed water level (CO-OPS + UHSLC/GLOSS), not against Open-Meteo (identical by
+  construction).
+- **Parity metrics are defined** (p99 precip peak, cloud MAD 0.10, temp bias + MAD + p95). Planted errors at 1×/2×
+  tolerance.
