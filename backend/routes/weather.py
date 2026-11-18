@@ -230,6 +230,8 @@ class SpotRatingItem(BaseModel):
     level: str = "unknown"               # very_poor..epic | unknown
     confidence: str = "low"              # low|medium|high (bathymetry/verification-aware)
     surf_height_m: Optional[float] = None
+    surf_face_low_m: Optional[float] = None   # SURF_FACE_RANGE: declared here or Pydantic drops them at this boundary
+    surf_face_high_m: Optional[float] = None  # (= surf_height_m); absent on older frames and where there is no range
     period_s: Optional[float] = None
     # WS-CAN-0064 batch fields — always-on in the frames for /conditions/batch; declared here or
     # Pydantic silently DROPS them at this boundary (the wire-contract guard caught exactly that).
