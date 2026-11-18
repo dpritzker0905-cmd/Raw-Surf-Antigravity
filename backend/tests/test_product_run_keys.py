@@ -331,9 +331,148 @@ def test_scrub_swap_finds_the_current_object_of_the_other_hour():
 @pytest.mark.parametrize("workflow", ["forecast-ingest.yml", "forecast-ingest-pilots.yml", "precompute.yml"])
 def test_every_manifest_writer_reads_the_one_repo_variable(workflow):
     text = (REPO / ".github" / "workflows" / workflow).read_text(encoding="utf-8")
-    assert re.search(r"^\s+PRODUCT_RUN_KEYED_NAMES: \$\{\{ vars\.PRODUCT_RUN_KEYED_NAMES \|\| '0' \}\}\s*$", text, re.M)
+    # ON by default since 2026-11-17 (the owner's ship-on rule); the repo variable '0' is the kill switch, and
+    # test_only_the_canonical_on_value_enables_it proves '0' writes the legacy names (the pre-flip output).
+    assert re.search(r"^\s+PRODUCT_RUN_KEYED_NAMES: \$\{\{ vars\.PRODUCT_RUN_KEYED_NAMES \|\| '1' \}\}\s*$", text, re.M)
 
 
 def test_the_registry_lists_it_dark():
     text = (REPO / "backend" / "routes" / "admin" / "surf_forecast.py").read_text(encoding="utf-8")
     assert re.search(r'"PRODUCT_RUN_KEYED_NAMES": \("0",', text)
+
+
+# ---- the cap and its fuses (2026-11-17, #1005): a 25,000 cap needs a second fuse ----
+
+def _live(n):
+    return {f"gfs_marine_waves_x_202611{d:02d}T{h:02d}0000Z.json" for d in range(1, 29) for h in range(0, 24)} if n is None else \
+        {f"gfs_marine_waves_x_20261101T{h:02d}0000Z.r20261101T0000-{i:08x}.json" for i, h in enumerate([0] * n)}
+
+
+def test_fuse_a_refuses_a_sweep_whose_head_shrank_under_80_percent_of_the_last():
+    live = sorted(_live(100))
+    stale = [A, B]
+    marks = {A: 0.0, B: 0.0}
+    ref = set(live[:79])                                          # the head names 79 of last sweep's 100
+    d, m, reason = gc.plan_sweep(live + stale, ref, marks, now=1e9, grace_s=1, min_manifest=1, prev_referenced=100)
+    assert d == [] and m == marks and reason.startswith("FUSE A") and "79" in reason and "100" in reason
+    d, _, reason = gc.plan_sweep(live + stale, set(live[:80]), marks, now=1e9, grace_s=1, min_manifest=1, prev_referenced=100)
+    assert reason is None and set(d) == {A, B}                       # 80 % holds: the sweep runs (the 20 unnamed are only marked)
+    d, _, reason = gc.plan_sweep(live + stale, set(live[:10]), marks, now=1e9, grace_s=1, min_manifest=1, prev_referenced=None)
+    assert reason is None                                          # no previous count (first sweep, or unreadable blob): unarmed
+
+
+def _scale(n_live, n_due, n_young=0):
+    live = [f"gfs_marine_waves_x_20261101T000000Z.r20261101T0000-{i:08x}.json" for i in range(n_live)]
+    due = [f"gfs_marine_waves_y_20261101T000000Z.r20261031T0000-{i:08x}.json" for i in range(n_due)]
+    young = [f"gfs_marine_waves_z_20261101T000000Z.r20261031T0600-{i:08x}.json" for i in range(n_young)]
+    marks = {n: 0.0 for n in due}
+    marks.update({n: 1e9 for n in young})                          # marked this sweep's instant: not yet past the grace
+    return live + due + young, set(live), marks
+
+
+def test_fuse_b_counts_everything_due_before_the_cap_at_realistic_scale():
+    listed, ref, marks = _scale(18000, 40000)                     # 40,000 due of 58,000 listed: a writer naming objects it lacks
+    d, m, reason = gc.plan_sweep(listed, ref, marks, now=1e9, grace_s=1, min_manifest=1, max_delete=25000)
+    assert d == [] and m == marks and reason.startswith("FUSE B") and "40000" in reason   # the 25,000 cap does not hide it
+    listed, ref, marks = _scale(21800, 18000, n_young=18000)      # steady state: last cycle's 18,000 due, this cycle's marked
+    d, _, reason = gc.plan_sweep(listed, ref, marks, now=1e9, grace_s=1, min_manifest=1, max_delete=25000)
+    assert reason is None and len(d) == 18000                     # 18,000 of 57,800 = 31 %
+    listed, ref, marks = _scale(28000, 30000)                     # 30,000 due of 58,000 = 52 %: inside the fuse, the cap clips
+    d, _, reason = gc.plan_sweep(listed, ref, marks, now=1e9, grace_s=1, min_manifest=1, max_delete=25000)
+    assert reason is None and len(d) == 25000
+
+
+class _Bin:
+    def __init__(self):
+        self.one = []
+
+    def _delete_from_supabase(self, name):
+        self.one.append(name)
+
+
+def test_deletes_go_in_bulk_batches_and_the_fallback_is_capped(monkeypatch):
+    from services.weather_pipeline import store as store_mod
+    names = [f"n{i}" for i in range(2500)]
+    calls = []
+    monkeypatch.setattr(store_mod, "_l2_pipeline_writes_allowed", lambda: True)
+    b = _Bin()
+    assert gc.delete_names(b, names, "bkt", bulk=lambda chunk, bucket: calls.append(len(chunk)) or True) == (3, [])
+    assert calls == [1000, 1000, 500] and b.one == []
+    b = _Bin()                                                    # every bulk call fails: at most 500 single DELETEs a sweep
+    ok, left = gc.delete_names(b, names, "bkt", bulk=lambda chunk, bucket: False, max_single=500)
+    assert ok == 0 and b.one == names[:500] and left == names[500:]
+    monkeypatch.setattr(store_mod, "_l2_pipeline_writes_allowed", lambda: False)
+    b, calls = _Bin(), []
+    assert gc.delete_names(b, names[:3], "bkt", bulk=lambda chunk, bucket: calls.append(1) or True) == (0, [])
+    assert calls == [] and b.one == names[:3]                     # no gate, no bulk call (the per-object path gates itself)
+
+
+def test_a_refusal_and_a_capped_fallback_are_announced_on_the_run_page(tmp_path, monkeypatch, capsys):
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    gc.announce("Product GC sweep refused", "FUSE B: 40000 objects due of 58000")
+    assert "::warning title=Product GC sweep refused::FUSE B: 40000 objects due of 58000" in capsys.readouterr().out
+    assert summary.read_text(encoding="utf-8") == "- **Product GC sweep refused:** FUSE B: 40000 objects due of 58000\n"
+
+
+def test_a_sweep_keeps_the_marks_of_what_it_could_not_delete_and_records_the_count(monkeypatch, capsys):
+    from services.weather_pipeline import store as store_mod
+    listed, ref, marks = _scale(30, 12)
+    uploaded = {}
+
+    class _Store:
+        def get_manifest(self):
+            class _M:
+                products = []
+            return _M()
+
+        def _delete_from_supabase(self, name):
+            pass
+
+        def _upload_to_supabase(self, key, body):
+            uploaded[key] = json.loads(body.decode("utf-8"))
+
+    monkeypatch.setenv(rk.FLAG, "1")
+    monkeypatch.setenv("PRODUCT_GC_MIN_MANIFEST", "1")
+    monkeypatch.setenv("PRODUCT_GC_MAX_SINGLE_DELETE", "5")
+    monkeypatch.setattr(store_mod, "_get_supabase_storage", lambda: object())
+    monkeypatch.setattr(store_mod, "_fetch_remote_manifest_products", lambda: [{"filename": n} for n in ref])
+    monkeypatch.setattr(gc, "_list_top_level", lambda sb, bucket: listed)
+    monkeypatch.setattr(gc, "_read_state", lambda sb, bucket: (dict(marks), None))
+    monkeypatch.setattr(gc, "_bulk_delete_rest", lambda names, bucket: False)
+    monkeypatch.setattr(store_mod, "_l2_pipeline_writes_allowed", lambda: True)
+    out = gc.run_object_gc(_Store(), now=1e9)
+    assert out["deleted"] == 5 and out["left"] == 7 and out["referenced"] == 30
+    kept = uploaded[gc.MARKS_KEY]
+    assert kept["referenced"] == 30 and len(kept["marks"]) == 7 and all(kept["marks"][n] == 0.0 for n in kept["marks"])
+    assert "::warning title=Product GC bulk delete failed::7 of 12" in capsys.readouterr().out
+
+
+def test_the_previous_referenced_count_is_read_back_from_the_marks_blob():
+    class _Sb:
+        def __init__(self, body):
+            self.body = body
+            self.storage = self
+
+        def from_(self, bucket):
+            return self
+
+        def download(self, key):
+            if self.body is None:
+                raise FileNotFoundError(key)
+            return self.body
+    assert gc._read_state(_Sb(b'{"marks": {"a": 5}, "referenced": 21803}'), "b") == ({"a": 5.0}, 21803)
+    assert gc._read_state(_Sb(b'{"marks": {}}'), "b") == ({}, None)          # an old blob: FUSE A unarmed once
+    assert gc._read_state(_Sb(None), "b") == ({}, None)
+    assert gc._read_marks(_Sb(b'{"marks": {"a": 5}, "referenced": 3}'), "b") == {"a": 5.0}
+
+
+def test_the_cap_default_is_25000_with_both_fuses_armed_in_the_sweep():
+    src = (REPO / "backend" / "services" / "weather_pipeline" / "product_object_gc.py").read_text(encoding="utf-8")
+    assert 'os.environ.get("PRODUCT_GC_MAX_DELETE", "25000")' in src
+    assert "prev_referenced=prev_referenced" in src and 'PRODUCT_GC_MAX_DELETE_SHARE", "0.6"' in src
+    assert 'PRODUCT_GC_MAX_SINGLE_DELETE", "500"' in src
+    for wf in ("forecast-ingest.yml", "forecast-ingest-pilots.yml"):        # FUSE A's release lever is a repo variable
+        text = (REPO / ".github" / "workflows" / wf).read_text(encoding="utf-8")
+        assert "PRODUCT_GC_MIN_REFERENCED_RATIO: ${{ vars.PRODUCT_GC_MIN_REFERENCED_RATIO || '0.8' }}" in text
+        assert "PRODUCT_GC_MAX_DELETE_SHARE: ${{ vars.PRODUCT_GC_MAX_DELETE_SHARE || '0.6' }}" in text   # FUSE B's release

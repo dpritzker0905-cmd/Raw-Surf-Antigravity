@@ -15,7 +15,7 @@ import {
   Shield, Zap, Users, DollarSign, Ban, 
   Loader2, ChevronLeft, ChevronRight, UserCheck, Trophy, Radio, MapPin, X, ArrowLeft, Activity,
   Megaphone, History, RefreshCw, Wallet, AlertCircle, Edit, BarChart2,
-  Headphones, Server, Flag, Mail, Layout, Lock, Scale, Waves
+  Headphones, Server, Flag, Mail, Layout, Lock, Scale, Waves, Anchor
 } from 'lucide-react';
 
 import { Button } from './ui/button';
@@ -53,6 +53,7 @@ import { AdminSupportDashboard } from './admin/AdminSupportDashboard';
 
 import { AdminSystemDashboard } from './admin/AdminSystemDashboard';
 import { AdminSurfForecastPanel } from './admin/AdminSurfForecastPanel';
+import AdminSurfTruthPanel from './admin/surf-truth/AdminSurfTruthPanel';
 
 import { AdminFinanceDashboard } from './admin/AdminFinanceDashboard';
 
@@ -302,6 +303,7 @@ const UnifiedAdminConsole = () => {
     { id: 'communications', label: 'Comms', icon: Mail },
     { id: 'system', label: 'System', icon: Server },
     { id: 'surf-forecast', label: 'Surf Forecast', icon: Waves },
+    { id: 'surf-truth', label: 'Surf Truth', icon: Anchor },
     { id: 'finance', label: 'Finance', icon: Wallet },
     { id: 'content-mgmt', label: 'Content', icon: Layout },
     { id: 'persona', label: 'Persona', icon: Zap },
@@ -336,8 +338,9 @@ const UnifiedAdminConsole = () => {
             <ArrowLeft className="w-5 h-5" />
             Back
           </button>
-          <h1 className="text-lg font-bold text-yellow-400 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-red-500" />
+          <h1 className={`text-lg font-bold flex items-center gap-2 ${
+            theme === 'beach' ? 'text-amber-900' : isLight ? 'text-gray-900' : 'text-yellow-400'}`}>
+            <Shield className="w-5 h-5 text-red-500" aria-hidden="true" />
             Admin Console
           </h1>
           <div className="flex items-center gap-2">
@@ -409,8 +412,9 @@ const UnifiedAdminConsole = () => {
             <ChevronRight className={`w-5 h-5 ${theme === 'beach' ? 'text-amber-900' : isLight ? 'text-black' : 'text-foreground'}`} />
           </button>
           
-          <div 
+          <nav
             id="admin-tabs-container"
+            aria-label="Admin sections"
             className="flex overflow-x-auto px-12 pb-2 gap-1 scroll-smooth scrollbar-none"
           >
             {tabs.map((tab) => {
@@ -434,13 +438,15 @@ const UnifiedAdminConsole = () => {
                           : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:bg-zinc-800/50 hover:text-zinc-100'
                   }`}
                   data-testid={`admin-tab-${tab.id}`}
+                  type="button"
+                  aria-current={isActive ? 'true' : undefined}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-4 h-4" aria-hidden="true" />
                   {tab.label}
                 </button>
               );
             })}
-          </div>
+          </nav>
         </div>
       </div>
 
@@ -511,6 +517,11 @@ const UnifiedAdminConsole = () => {
         {/* Surf Forecast Tab - rating system flags, precomputed-data freshness, report moderation */}
         {activeTab === 'surf-forecast' && (
           <AdminSurfForecastPanel />
+        )}
+
+        {/* Surf Truth Tab - blind crowd reports: anchors, observers, coverage, audit queue (T1) */}
+        {activeTab === 'surf-truth' && (
+          <AdminSurfTruthPanel />
         )}
 
         {/* Finance Tab - Refunds, Payouts, Failed Payments */}

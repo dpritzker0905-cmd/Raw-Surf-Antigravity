@@ -1,0 +1,97 @@
+name: Tide M1 gate (FES2022b via PyFES vs NOAA CO-OPS)
+# WHY (director 2026-11-15 21:23 EST, owner: "nothing depending on open-meteo", "best path toward state of the art"):
+# M1 replaces model sea level with an astronomical tide. This job is the PRE-REGISTERED gate, reconciled with the
+# research lead's (docs/weather-program/log/2026-11-15-claude-tide-m1.md, 22:25 EST): frozen window 2026-10-15..28,
+# 26 CO-OPS stations, arms A FES2022b (PyFES) and B EOT20 (pyTMD) against test-only Open-Meteo references C/D,
+# plus a 19-year MLLW synthesis and three controls.
+# PyFES is GPL: it runs ONLY here, never in the served backend. Measurement only: no bucket write, no live backend call.
+# AVISO credentials come from the AVISO_USERNAME / AVISO_PASSWORD secrets, read by the script from the environment and
+# never printed. Public CO-OPS GETs only.
+# ONE-SHOT START (advisor 2026-11-16 13:00Z): no branch push starts this credentialed gate, so a later fix on the branch
+# can never re-run it on the same window. It runs only when the tag `tide-gate-G2` is pushed: one named run, pushed on
+# the owner's word typed in the session that runs it. (workflow_dispatch alone cannot work here: GitHub dispatches only
+# workflows that exist on the default branch, `dev`.) A second run needs that tag deleted and pushed again, on purpose.
+# tests/test_tide_fes_offline_guard.py pins this: no branch push, no schedule.
+on:
+  push:
+    tags: [tide-gate-G2]
+permissions:
+  contents: read
+  actions: write        # only to prune superseded tide-data caches (repo cache limit is 10 GB, shared)
+concurrency:
+  group: tide-fes-gate
+  cancel-in-progress: false
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (offline-only dependencies; pyfes pinned to a release with a binary wheel)
+        run: pip install "pyfes==2026.5.2" "pyTMD==3.1.0" "timescale==0.1.3" "paramiko==5.1.0" netCDF4 numpy pyyaml pandas lxml
+      # AVISO SFTP ran ~160 KB/s per connection on the first run (17 min per 160 MB file; 8 of 16 files when the
+      # 150-min limit cancelled it, and nothing was cached). So: 4 connections, a large SSH window, a download step of
+      # its own, and caches restored from the newest run and SAVED EVEN WHEN THE DOWNLOAD FAILS, so progress carries over.
+      - name: Restore FES2022b downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: fes_cache
+          key: fes2022b-v2-${{ github.run_id }}
+          restore-keys: fes2022b-v2-
+      - name: Restore EOT20 ocean tides
+        uses: actions/cache/restore@v4
+        with:
+          path: eot20_cache
+          key: eot20-ocean-v2-${{ github.run_id }}
+          restore-keys: eot20-ocean-v2-
+      - name: Download FES2022b (AVISO, pinned host key) and EOT20 (SEANOE)
+        id: dl
+        timeout-minutes: 280
+        env:
+          AVISO_USERNAME: ${{ secrets.AVISO_USERNAME }}
+          AVISO_PASSWORD: ${{ secrets.AVISO_PASSWORD }}
+        run: python backend/scripts/tide_fes/fes_gate.py --download-only --cache fes_cache --eot20 eot20_cache
+      - name: Drop partial files before saving
+        if: always()
+        run: |
+          mkdir -p fes_cache eot20_cache
+          rm -f fes_cache/*.part eot20_cache/eot20.zip eot20_cache/ocean_tides.zip
+          ls -la fes_cache eot20_cache/EOT20/ocean_tides 2>/dev/null | tail -40 || true
+      - name: Save FES2022b downloads
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: fes_cache
+          key: fes2022b-v2-${{ github.run_id }}
+      - name: Save EOT20 ocean tides
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: eot20_cache
+          key: eot20-ocean-v2-${{ github.run_id }}
+      # Prune ONLY after a complete download: G2 run 43879148124 failed mid-download and the old if: always() deleted
+      # the full branch cache. (Caches are scoped to the ref that saved them: a tag run sees only its own tag's caches
+      # and the default branch's, so a re-run on the same tag resumes from what this tag saved.)
+      - name: Prune superseded tide-data caches
+        if: steps.dl.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for prefix in fes2022b-v2- eot20-ocean-v2- fes2022b-extrapolated-v1- eot20-ocean-v1; do
+            gh cache list --key "$prefix" --limit 50 --json key -q '.[].key'               | grep -v -- "-${{ github.run_id }}$" | xargs -r -n1 gh cache delete || true
+          done
+      - name: Run the gate
+        if: steps.dl.outcome == 'success'
+        timeout-minutes: 60
+        run: python backend/scripts/tide_fes/fes_gate.py --cache fes_cache --eot20 eot20_cache --work fes_work > fes_gate.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tide-fes-gate
+          path: fes_gate.json
+          if-no-files-found: ignore
+          retention-days: 30

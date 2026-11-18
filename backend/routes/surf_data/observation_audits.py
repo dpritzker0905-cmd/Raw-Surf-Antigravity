@@ -5,10 +5,10 @@ photo, the place and the entry. A pass pays the held XP (and any corroboration i
 nothing. The audit judges whether the report is GENUINE (a real, current look at that spot), never whether its
 height agrees with anyone, our forecast included: the queue does not show a forecast.
 """
-from typing import Literal
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +23,8 @@ router = APIRouter()
 class AuditVerdict(BaseModel):
     model_config = ConfigDict(extra="forbid")
     verdict: Literal["pass", "fail"]
+    # A fail withholds XP, so it needs a reason, as a status change does (advisor, #988). Optional for a pass.
+    reason: Optional[str] = Field(None, max_length=500)
 
 
 @router.get("/admin/surf-observations/audits")
@@ -52,8 +54,11 @@ async def resolve_audit(observation_id: str, body: AuditVerdict, db: AsyncSessio
         raise HTTPException(status_code=409, detail="Observation is not awaiting audit")
     if obs.user_id == admin.id:
         raise HTTPException(status_code=403, detail="Cannot audit your own observation")
+    reason = (body.reason or "").strip() or None
+    if body.verdict == "fail" and not reason:
+        raise HTTPException(status_code=422, detail="A failed audit needs a reason")
     await observation_rewards.resolve_audit(db, obs, body.verdict, admin.id)
-    surf_truth_admin.log_action(db, admin.id, "audit_verdict", "surf_observation", obs.id,
+    surf_truth_admin.log_action(db, admin.id, "audit_verdict", "surf_observation", obs.id, reason=reason,
                                 detail={"verdict": body.verdict, "xp_status": obs.xp_status})
     await db.commit()
     return {"id": obs.id, "xp_status": obs.xp_status}
