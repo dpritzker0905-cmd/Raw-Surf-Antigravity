@@ -16,9 +16,10 @@ from models import (
     Post, Comment, Booking, GalleryPurchase, PaymentTransaction,
     Message, Follow, CheckIn, Review
 )
+from services.surf_truth_erasure import erase_surf_truth, export_surf_truth
 import logging
 
-router = APIRouter(prefix="/compliance", tags=["compliance"])
+router =APIRouter(prefix="/compliance", tags=["compliance"])
 logger = logging.getLogger(__name__)
 
 
@@ -81,10 +82,11 @@ async def export_user_data(
     )
     export["comments"] = [_serialize_row(c) for c in comments_result.scalars().all()]
     
-    # Bookings (as photographer or surfer)
+    # Bookings (as photographer or the surfer who created it). Booking has no surfer_id: the old filter raised
+    # AttributeError, so this export never completed.
     bookings_result = await db.execute(
         select(Booking).where(
-            (Booking.photographer_id == user_id) | (Booking.surfer_id == user_id)
+            (Booking.photographer_id == user_id) | (Booking.creator_id == user_id)
         ).order_by(Booking.created_at.desc())
     )
     export["bookings"] = [_serialize_row(b) for b in bookings_result.scalars().all()]
@@ -121,7 +123,7 @@ async def export_user_data(
     
     # Followers
     followers_result = await db.execute(
-        select(Follow).where(Follow.followed_id == user_id)
+        select(Follow).where(Follow.following_id == user_id)
     )
     export["followers"] = [_serialize_row(f) for f in followers_result.scalars().all()]
     
@@ -132,7 +134,7 @@ async def export_user_data(
     export["reviews_given"] = [_serialize_row(r) for r in reviews_given.scalars().all()]
     
     reviews_received = await db.execute(
-        select(Review).where(Review.reviewed_id == user_id)
+        select(Review).where(Review.reviewee_id == user_id)
     )
     export["reviews_received"] = [_serialize_row(r) for r in reviews_received.scalars().all()]
     
@@ -147,7 +149,10 @@ async def export_user_data(
         select(TosViolation).where(TosViolation.user_id == user_id)
     )
     export["tos_violations"] = [_serialize_row(v) for v in violations_result.scalars().all()]
-    
+
+    # Surf-truth observations, photo facts and observer status (T1 P3)
+    export.update(await export_surf_truth(db, user_id))
+
     # Summary stats
     export["summary"] = {
         "total_posts": len(export["posts"]),
@@ -159,6 +164,7 @@ async def export_user_data(
         "total_check_ins": len(export["check_ins"]),
         "total_following": len(export["following"]),
         "total_followers": len(export["followers"]),
+        "total_surf_observations": len(export["surf_observations"]),
     }
     
     return export
@@ -177,6 +183,7 @@ async def request_data_deletion(
     - Posts, comments, reactions
     - Follows (follower + following)
     - Check-ins, reviews
+    - Surf-truth observations, photo facts and observer status (services/surf_truth_erasure.py)
     - Messages (sender side anonymized)
     - Profile data is anonymized (name, bio, avatar cleared)
 
@@ -204,7 +211,7 @@ async def request_data_deletion(
 
     # 2. Delete social graph
     await db.execute(delete(Follow).where(
-        (Follow.follower_id == user_id) | (Follow.followed_id == user_id)
+        (Follow.follower_id == user_id) | (Follow.following_id == user_id)
     ))
 
     # 3. Delete check-ins
@@ -212,6 +219,10 @@ async def request_data_deletion(
 
     # 4. Delete reviews given
     await db.execute(delete(Review).where(Review.reviewer_id == user_id))
+
+    # 4b. Surf-truth observations (device GPS, photo EXIF), photo facts and observer status (T1 P3). Same
+    # transaction: if this fails the whole request rolls back rather than reporting a partial deletion.
+    await erase_surf_truth(db, user_id)
 
     # 5. Anonymize messages (don't delete — recipient still has the conversation)
     await db.execute(
@@ -226,15 +237,18 @@ async def request_data_deletion(
     profile.bio = None
     profile.avatar_url = None
     profile.email = f"deleted_{user_id[:8]}@deleted.rawsurf.app"
-    profile.phone = None
-    profile.instagram_handle = None
-    profile.website = None
     profile.wetsuit_color = None
     profile.rash_guard_color = None
-    profile.board_description = None
     profile.stance = None
-    profile.is_active = False
-    profile.is_deleted = True
+    # These are the REAL column names. The old code set phone / instagram_handle / website / board_description /
+    # is_active / is_deleted, none of which is a Profile column, so those assignments silently did nothing, and the
+    # home and on-demand positions below were never cleared. A loop over names catches a future rename loudly.
+    for column in ("instagram_url", "website_url", "portfolio_url", "location",
+                   "home_latitude", "home_longitude", "home_location_name",
+                   "on_demand_latitude", "on_demand_longitude", "on_demand_city"):
+        if column not in Profile.__table__.columns:
+            raise RuntimeError(f"GDPR erasure names a Profile column that does not exist: {column}")
+        setattr(profile, column, None)
 
     await db.commit()
 

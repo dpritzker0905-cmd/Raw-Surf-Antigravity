@@ -91,8 +91,13 @@ async def admin_actions(limit: int = 100, db: AsyncSession = Depends(get_db),
 async def export_observations(since: Optional[datetime] = None, db: AsyncSession = Depends(get_db),
                               admin: Profile = Depends(get_current_admin)):
     """Write the pseudonymized blind-observation export to PRIVATE storage for the offline truth model (T1 P4).
-    Fails closed (503) without the pseudonym key or private storage; every export is logged."""
+    Refused (403) unless the owner has switched exports on on the server (SURF_TRUTH_EXPORTS_ENABLED=1); fails closed
+    (503) without the pseudonym key or private storage; every export is logged."""
     from services import surf_truth_export as ste
+    if not ste.exports_enabled():
+        raise HTTPException(status_code=403, detail=(
+            f"Exports are switched off on the server. The owner turns them on with {ste.ENABLE_ENV}=1 once consent, "
+            "retention and the consent wording are in place."))
     try:
         key = ste.export_key()
         rows, manifest = await ste.build_export(db, key, since=since)
