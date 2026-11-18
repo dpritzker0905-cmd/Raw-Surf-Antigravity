@@ -84,6 +84,8 @@ jobs:
           PRODUCT_RUN_KEYED_NAMES: ${{ vars.PRODUCT_RUN_KEYED_NAMES || '1' }}
           # The product GC's FUSE A release (product_object_gc.py): the owner sets '0' for ONE run after a real shrink, then unsets it.
           PRODUCT_GC_MIN_REFERENCED_RATIO: ${{ vars.PRODUCT_GC_MIN_REFERENCED_RATIO || '0.8' }}
+          # FUSE B's release (product_object_gc.py): after a backlog (missed sweeps) the owner raises it, e.g. '0.9', until the count is back, then unsets it.
+          PRODUCT_GC_MAX_DELETE_SHARE: ${{ vars.PRODUCT_GC_MAX_DELETE_SHARE || '0.6' }}
           NODE_ENV: production
           RENDER: 'true'
           MANIFEST_IMMUTABLE_PUBLICATION: '0' # Dark: same publication contract as core writer
