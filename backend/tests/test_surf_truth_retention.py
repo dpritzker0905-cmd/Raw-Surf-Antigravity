@@ -71,6 +71,12 @@ def test_a_key_rotation_removes_the_old_keys_exports_and_orphans_wait_for_their_
     assert "previous pseudonym key" in p["delete"]["bbbbbb"]
 
 
+@pytest.fixture(autouse=True)
+def _scheduler_host(monkeypatch):
+    """enforce() refuses off the scheduler host; these tests stand in for it."""
+    monkeypatch.setenv(ret.HOST_ENV, "true")
+
+
 class FakeStore:
     def __init__(self, objects, manifests):
         self._objects, self._manifests, self.deleted = objects, manifests, []
@@ -292,5 +298,52 @@ def test_cut_at_is_taken_before_the_rows_are_read():
     async def go():
         _rows, manifest = await ste.build_export(DB(), b"k" * 40)
         assert datetime.fromisoformat(manifest["cut_at"]) <= seen[0]
+    asyncio.run(go())
+
+
+
+
+def test_retention_refuses_off_the_scheduler_host(maker, monkeypatch):
+    """A laptop or CI run holding the storage key and a different pseudonym key would delete production's exports."""
+    monkeypatch.delenv(ret.HOST_ENV, raising=False)
+    monkeypatch.delenv(ret.OVERRIDE_ENV, raising=False)
+    store = FakeStore([], {})
+
+    async def go():
+        async with maker() as db:
+            with pytest.raises(ret.RetentionRefused):
+                await ret.enforce(db, store=store, now=NOW)
+    asyncio.run(go())
+    monkeypatch.setenv(ret.OVERRIDE_ENV, "1")                       # an explicit, deliberate override works
+    asyncio.run(_enforce_empty(maker, store))
+
+
+async def _enforce_empty(maker, store):
+    async with maker() as db:
+        assert (await ret.enforce(db, store=store, now=NOW))["deleted_runs"] == 0
+
+
+def test_a_failed_fresh_export_is_logged_for_the_admin_and_the_stale_exports_still_go(maker, monkeypatch):
+    monkeypatch.setenv(ste.KEY_ENV, "k" * 40)
+    store, _o, _m = _store((("aaaaaa", 1), ("bbbbbb", 30)), ste.key_fingerprint(b"k" * 40))
+
+    async def broken_build(db, key, since=None):
+        return [], {"schema": "s", "rows": 0}
+
+    async def broken_write(rows, manifest, now=None):
+        raise ste.ExportUnavailable("private storage refused the upload (status 503)")
+    monkeypatch.setattr(ste, "build_export", broken_build)
+    monkeypatch.setattr(ste, "write_export", broken_write)
+
+    async def go():
+        async with maker() as db:
+            db.add(SurfTruthConsentEvent(profile_id="ana", granted=False, version="v", source="settings",
+                                         at=NOW - timedelta(minutes=30)))
+            await db.commit()
+            summary = await ret.enforce(db, store=store, now=NOW)
+            assert summary["fresh_export"] is None and "503" in summary["fresh_error"]
+            assert summary["deleted_runs"] == 2 and len(store.deleted) == 4      # privacy first: the stale ones go
+            actions = [a.action for a in (await db.execute(select(SurfTruthAdminAction))).scalars().all()]
+            assert "retention_fresh_export_failed" in actions and "retention" in actions
     asyncio.run(go())
 

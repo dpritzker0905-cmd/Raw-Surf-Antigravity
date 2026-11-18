@@ -367,3 +367,13 @@ nothing; non-JSON manifest is an orphan; withdrawal and new version each force a
 paging; cut_at before the query. Mutation: restoring the fail-open path fails 2.
 Also on the #1026 head: the export tests named the old consent version by hand, so after the version bump and the
 version rule 6 of them read 0 rows; they now use `stc.CONSENT_VERSION` (pushed as 00e21a025).
+## 2026-11-18 16:58Z T1 P3 (part 4 follow-up): retention's two recorded limits closed
+
+The advisor passed #1034 with two limits. (1) A failed FRESH export left the stale exports in place with only a server log
+line. Now the failure is an admin-visible action (`retention_fresh_export_failed`, shown in the admin action history with
+its reason), and the stale exports are deleted ANYWAY, exactly as when there is no key: keeping them would keep a
+withdrawn person's reports past the 7-day promise (privacy first; a new export can be made by hand). (2) Retention
+deletes exports made under any OTHER pseudonym key, so a laptop or CI run holding the storage key and a different `SURF_TRUTH_EXPORT_KEY` would delete production's exports. `enforce()` now refuses (`RetentionRefused`) unless it runs
+where the scheduler runs (`RENDER` set) or with `SURF_TRUTH_RETENTION_HOST_OK=1`. Production and dev share one Render
+service and so one key. Tests +2 (refused off the host, an explicit override works; a failed fresh export is logged and
+the stale exports still go). Guards fragment +2.

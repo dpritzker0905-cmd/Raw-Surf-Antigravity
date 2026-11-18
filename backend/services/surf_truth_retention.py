@@ -23,6 +23,7 @@ The planner (`plan`) is pure; storage access goes through a small injectable sto
 from __future__ import annotations
 
 import json
+import os
 import logging
 import re
 from dataclasses import dataclass, field
@@ -204,10 +205,28 @@ async def last_revocation_at(db) -> Optional[datetime]:
     return max(times) if times else None
 
 
+HOST_ENV = "RENDER"                                  # Render sets it on the service that runs the scheduler
+OVERRIDE_ENV = "SURF_TRUTH_RETENTION_HOST_OK"
+
+
+class RetentionRefused(RuntimeError):
+    """enforce() was called somewhere other than the scheduler's host."""
+
+
+def on_scheduler_host() -> bool:
+    """Retention DELETES exports made under any other pseudonym key, so a run from a laptop or CI holding the storage
+    key and a DIFFERENT SURF_TRUTH_EXPORT_KEY would delete production's exports (advisor limit on #1034). It runs only
+    where the scheduler runs (Render), or where someone explicitly sets SURF_TRUTH_RETENTION_HOST_OK=1."""
+    return bool(os.environ.get(HOST_ENV)) or os.environ.get(OVERRIDE_ENV, "").strip() == "1"
+
+
 async def enforce(db, store=None, now: Optional[datetime] = None) -> dict:
-    """Apply the rule once. Logs a `retention` action with counts (and an `export` action if it wrote one). Commits."""
+    """Apply the rule once. Logs a `retention` action with counts (and an `export` action if it wrote one). Commits.
+    Raises RetentionRefused off the scheduler host."""
     import asyncio
     from services import surf_truth_admin, surf_truth_export as ste
+    if not on_scheduler_host():
+        raise RetentionRefused(f"retention runs only on the scheduler host ({HOST_ENV}) or with {OVERRIDE_ENV}=1")
     now = now or datetime.now(timezone.utc)
     store = store or await asyncio.to_thread(StorageStore)
     try:
@@ -244,21 +263,33 @@ async def enforce(db, store=None, now: Optional[datetime] = None) -> dict:
     if len(decision["delete"]) > MAX_DELETE_RUNS:            # bound one sweep's reach; the rest go next time
         oldest_first = sorted(decision["delete"], key=lambda rid: runs[rid].created_at or now)
         decision["delete"] = {rid: decision["delete"][rid] for rid in oldest_first[:MAX_DELETE_RUNS]}
-    fresh = None
+    fresh, fresh_error = None, None
     if decision["fresh_export"]:
-        rows, manifest = await ste.build_export(db, key)
-        fresh = await ste.write_export(rows, manifest, now=now)
-        surf_truth_admin.log_action(db, SYSTEM_ACTOR, "export", "surf_truth_export", fresh["run_id"],
-                                    detail={"rows": fresh["rows"], "object": fresh["data_object"],
-                                            "why": "fresh export after an account deletion"})
+        try:
+            rows, manifest = await ste.build_export(db, key)
+            fresh = await ste.write_export(rows, manifest, now=now)
+        except Exception as exc:  # noqa: BLE001 - reported to the admin log, and the stale exports still go
+            # Privacy first (advisor limit on #1034): keeping the stale exports because their replacement failed would
+            # keep a withdrawn person's reports past the 7-day promise. They are deleted as planned, exactly as when
+            # there is no key; a new export can be made by hand. The failure is an admin-visible action, not only a log.
+            fresh_error = f"{type(exc).__name__}: {str(exc)[:200]}"
+            logger.error("[surf-truth retention] fresh export failed: %s", fresh_error)
+            surf_truth_admin.log_action(db, SYSTEM_ACTOR, "retention_fresh_export_failed", "surf_truth_export",
+                                        "retention", detail={"why": fresh_error,
+                                                             "stale_exports_deleted": len(decision["delete"])})
+        else:
+            surf_truth_admin.log_action(db, SYSTEM_ACTOR, "export", "surf_truth_export", fresh["run_id"],
+                                        detail={"rows": fresh["rows"], "object": fresh["data_object"],
+                                                "why": "fresh export after a deletion or consent change"})
     doomed = [k for rid in decision["delete"] for k in runs[rid].keys]
     if doomed:
         await asyncio.to_thread(store.delete, doomed)
     summary = {"kept": decision["keep"] + ([fresh["run_id"]] if fresh else []), "deleted_runs": len(decision["delete"]),
                "deleted_objects": len(doomed), "fresh_export": fresh["run_id"] if fresh else None,
-               "reasons": sorted(set(decision["delete"].values())), "overdue": overdue}
+               "reasons": sorted(set(decision["delete"].values())), "overdue": overdue, "fresh_error": fresh_error}
     surf_truth_admin.log_action(db, SYSTEM_ACTOR, "retention", "surf_truth_export", "retention",
                                 detail={"kept": len(summary["kept"]), "deleted_runs": summary["deleted_runs"],
-                                        "fresh_export": summary["fresh_export"], "overdue": overdue})
+                                        "fresh_export": summary["fresh_export"], "overdue": overdue,
+                                        "fresh_error": fresh_error})
     await db.commit()
     return summary
