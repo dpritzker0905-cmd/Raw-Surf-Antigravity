@@ -221,3 +221,26 @@ The header '22:30Z Anchors C: the admin "Surf truth" area' ran AHEAD of the cloc
 ## 2026-11-17 02:57Z CLOCK CORRECTION (from `date -u`; append-only)
 
 The header '23:20Z T1 P4 export built (stacked on anchors C): private, pseudonymized rows for the offline fit' ran AHEAD of the clock: it was committed at 2026-11-16T22:46:20Z, 34 minutes before the time it states (an estimate; LESSONS L-P10).
+
+## 2026-11-18 01:37Z T1 P3 (part 1): a deletion request now reaches the surf-truth tables, and the GDPR routes run at all (header from the UTC clock)
+
+Found while starting P3: `/compliance/delete-my-data` anonymizes the profile instead of deleting it, so the CASCADE
+foreign keys on `surf_observations` / `observation_media` / `surf_truth_anchors` never fire. A deleted account's
+observations (device GPS, photo EXIF positions, install-id hash) survived. Worse, BOTH GDPR routes raised before
+finishing: the deletion on `Follow.followed_id` (the column is `following_id`), the admin export on that, on
+`Review.reviewed_id` (`reviewee_id`) and on `Booking.surfer_id` (no such column; `creator_id`). And six of the
+profile fields the deletion "cleared" are not columns (phone, instagram_handle, website, board_description,
+is_active, is_deleted): those assignments silently did nothing, and the real home/on-demand positions were never
+cleared.
+
+Fixed (`services/surf_truth_erasure.py` + `routes/compliance_pkg/gdpr.py`): the deletion erases the user's
+observations, photo-fact rows and anchor row in the same transaction, un-attributes their audits of others (the
+verdict stays), and clears the real social-URL and location columns (a rename now raises instead of silently
+skipping). The admin export includes the user's surf-truth rows. 4 tests run the real handlers on SQLite; mutation:
+dropping the erasure call fails the route test.
+
+NOT done, for David: (1) the append-only anchor-event and admin-action logs keep the profile id and admin reasons
+after a deletion: legal call; (2) exports already in private storage (pseudonymous) wait on the retention rule;
+(3) Profile has no deleted flag and the auth account is not removed, so `is_deleted` never existed: a design
+question for the account owners, not this lane; (4) the report photo stays in the `conditions` bucket with its
+report (owned by those features).
