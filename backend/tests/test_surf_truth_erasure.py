@@ -176,7 +176,7 @@ def test_deletion_removes_the_users_condition_media_and_sign_in(maker, monkeypat
             ])
             await db.commit()
             result = await request_data_deletion(user_id="leaver", db=db)
-        assert result["media"] == {"deleted": 3, "local_removed": True, "error": None}
+        assert result["media"] == {"deleted": 3, "foreign_ignored": 0, "local_removed": True, "error": None}
         # the listing under the user's prefix plus the report's own object; never another user's file
         assert sorted(store.deleted) == ["leaver/a.jpg", "leaver/report.jpg", "leaver/v.mov"]
         assert not local.exists() and (tmp_path / "conditions" / "stayer").exists()
@@ -204,3 +204,35 @@ def test_a_storage_failure_is_reported_not_hidden_and_the_rows_stay_deleted(make
             assert (await _count(db, ObservationMedia, ObservationMedia.user_id == "leaver")).scalar() == 0
     asyncio.run(go())
 
+
+
+def test_a_report_naming_someone_elses_photo_never_deletes_it(maker, monkeypatch, tmp_path):
+    """Advisor hold on #1049: condition_reports.media_url is client-supplied. A leaver who filed reports naming
+    another person's photo (directly, or with a `..` path trick) must not get that photo deleted."""
+    from routes.uploads import core as upload_core
+    from services import account_erasure_media as aem
+    store = FakeStorage(listed=["leaver/a.jpg", "stayer/b.jpg"])
+    monkeypatch.setattr(aem, "_Storage", lambda: store)
+    monkeypatch.setattr(upload_core, "UPLOAD_DIR", tmp_path)
+
+    async def go():
+        async with maker() as db:
+            db.add_all([
+                ConditionReport(photographer_id="leaver", media_url=PUB + "stayer/b.jpg", expires_at=NOW),
+                ConditionReport(photographer_id="leaver", media_url=PUB + "leaver/../stayer/b.jpg", expires_at=NOW),
+                ConditionReport(photographer_id="leaver", media_url=PUB + "leaverx/c.jpg", expires_at=NOW),
+                ConditionReport(photographer_id="leaver", media_url=PUB + "leaver/own.jpg", expires_at=NOW),
+            ])
+            await db.commit()
+            result = await request_data_deletion(user_id="leaver", db=db)
+        assert result["media"]["foreign_ignored"] == 3 and result["media"]["error"] is None
+        assert sorted(store.deleted) == ["leaver/a.jpg", "leaver/own.jpg"]
+    asyncio.run(go())
+
+
+def test_own_key_accepts_only_plain_keys_under_the_users_folder():
+    from services.account_erasure_media import own_key
+    assert own_key("u1", "u1/a.jpg") and own_key("u1", "u1/sub/a.jpg")
+    for bad in ("u2/a.jpg", "u1x/a.jpg", "u1/../u2/a.jpg", "u1//a.jpg", "u1/", "u1", "", None, "/u1/a.jpg", "u1/./a"):
+        assert not own_key("u1", bad), bad
+    assert not own_key("", "/a.jpg")
