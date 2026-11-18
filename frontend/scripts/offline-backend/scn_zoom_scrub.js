@@ -103,12 +103,12 @@ const PROBE = () => {
   // else for a series frame anchor + its hour (series pages ask the cadence-aligned product times).
   const dataMs = (s, W) => (s.pid ? stampMs(s.pid) : (s.served ? Date.parse(s.served) : (s.series && s.hour != null ? W.anchor + s.hour * 3600000 : null)));
   P.dataIso = (s, W) => { const m = dataMs(s, W); return m == null ? null : new Date(m).toISOString(); };
-  const exactNow = (s, W) => dataMs(s, W) === W.expectedMs && s.layer === 'waves' && s.model === 'GFS' && s.stride === 0;
+  const exactNow = (s, W) => dataMs(s, W) === W.expectedMs && s.layer === 'waves' && s.model === (window.__ZS_MODEL__ || 'GFS') && s.stride === 0;
   const loop = (t) => {
     const W = P.w;
     if (W && !W.done && W.tLast != null && t >= W.tLast) {
       const s = P.snap(); const rel = t - W.tLast;
-      if (W.label == null && s.hour === W.target && s.layer === 'waves' && s.model === 'GFS' && (s.seq > W.seq0 || s.store)) W.label = rel;
+      if (W.label == null && s.hour === W.target && s.layer === 'waves' && s.model === (window.__ZS_MODEL__ || 'GFS') && (s.seq > W.seq0 || s.store)) W.label = rel;
       const ok = exactNow(s, W);
       if (W.exact == null && ok) { W.exact = W.already ? 0 : rel; W.via = s.store ? 'store' : (s.series ? 'series' : 'grid'); W.pid = s.pid; }
       else if (W.exact != null && !ok) W.regress += 1;
@@ -236,6 +236,7 @@ async function session(arm, zoom) {
   await page.addInitScript(PROBE);
   const steps = [];
   try {
+    await page.addInitScript((m) => { window.__ZS_MODEL__ = m; }, MODEL);   // the probe's exact check follows the cell's model (2026-11-18)
     if (CPU > 1) { const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU }); }
     await L.openMap(page);
     if (MODEL !== 'GFS') { await page.evaluate((m) => window.setActiveModel && window.setActiveModel(m), MODEL); await sleep(1500); }
@@ -247,6 +248,16 @@ async function session(arm, zoom) {
     const firstFrameMs = Date.now() - tClick;
     const firstFrame = await page.evaluate(() => { const x = window.__ZS__.snap(); delete x.grid; return x; });
     await sleep(SETTLE);
+    // PHONE (2026-11-18): the mobile layout keeps the timeline wheel in a collapsed, inert sheet; open it (as the census does) so the
+    // keys reach the wheel. A no-op on desktop.
+    await page.evaluate(() => {
+      const body = document.getElementById('weather-mobile-timeline-body');
+      if (!body || !body.inert) return;
+      const h = [...document.querySelectorAll('button[aria-controls="weather-mobile-timeline-body"][aria-expanded="false"]')]
+        .find((b) => b.offsetParent !== null && /Open timeline/.test(b.getAttribute('aria-label') || ''));
+      if (h) h.click();
+    });
+    await sleep(1500);
     // IDLE TWO-rAF (the live-read rule, 2026-10-24): the time two consecutive animation frames take with nothing happening, 30 samples.
     // Step timings are only a claim when the median reads 40 ms or less; otherwise the box (or this headless window) is too loaded.
     const idleTwoRaf = await page.evaluate(() => new Promise((resolve) => {
@@ -260,7 +271,7 @@ async function session(arm, zoom) {
     const expected = {};
     for (const [, target] of STEPS) {
       const ask = new Date(anchor + target * 3600000).toISOString();
-      const j = await (await fetch(`http://127.0.0.1:${PORT}/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=${encodeURIComponent(ask)}&bbox=${EXPBOX}`)).json();
+      const j = await (await fetch(`http://127.0.0.1:${PORT}/api/weather/grid?model=${MODEL}&domain=marine&layer=waves&valid_time=${encodeURIComponent(ask)}&bbox=${EXPBOX}`)).json();
       expected[target] = j.product_id;
     }
     const vp = await page.evaluate(() => { const m = window.__MAP_INSTANCE__ || window.map; const b = m.getBounds(); return { z: +m.getZoom().toFixed(2), w: +b.getWest().toFixed(2), s: +b.getSouth().toFixed(2), e: +b.getEast().toFixed(2), n: +b.getNorth().toFixed(2) }; });
