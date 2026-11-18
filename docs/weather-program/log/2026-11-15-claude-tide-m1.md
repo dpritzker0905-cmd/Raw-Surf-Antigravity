@@ -2402,3 +2402,26 @@ unchanged.
   One-shot tag.
 - **On ACCEPT:** the repo variable `TIDE_CMEMS_PRIMARY=1` (#1066's builder fills CMEMS), with the kill switch to the
   FES harmonic or "unavailable", never Open-Meteo (owner, about 23:00Z).
+
+## 18:35 EST 2026-11-18 (`date`) - M1-0 ACCEPT amendment 1 (before any run): IOC SLSMF REMOVED from the gauge panel; free raw data only
+**The owner, verbatim (relayed by the research lead and the director):**
+- "Its free SOTA , no paid plans, raw free data for SOTA tides".
+- "We need the tides to work all around the world SOTA".
+
+**The research lead's licence finding (section M, update 1):**
+- IOC SLSMF data "may not be used for any commercial purposes", and that includes validation.
+- **=> The 18:00 ACCEPT registration's "IOC/GLOSS gauges" are WITHDRAWN.**
+
+**The ACCEPT panel is now:**
+- the CO-OPS stations (public domain), outside the G4 window as already registered;
+- UHSLC fast-delivery gauges (validation use is allowed) on every surf coast.
+  - The ids are fixed in code before any run.
+  - The list grows from G3t's `uhslc_non_us` to cover the surf coasts listed in `open-meteo-exit-plan-2026-11-18.md`
+    section M.
+
+**Also scored, separately:**
+- astronomical-only and total water;
+- high- and low-water timing;
+- mean error.
+
+**Not used:** GESLA-4, until its licence is read. Nothing else in the registration changes.
