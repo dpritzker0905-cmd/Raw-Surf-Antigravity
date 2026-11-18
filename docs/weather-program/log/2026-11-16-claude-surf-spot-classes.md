@@ -2,6 +2,7 @@
 
 > RECORD COPY (2026-11-17, docs only). B2 FAILED in v1 and in v2; nothing reads B2. The code, workflow and data behind this log
 > stay UNMERGED on draft PR #968 (branch `claude/surf-spot-classes`, commit 72539be35), on the director's word, and are not on dev.
+> Anchor: the annotated tag `record/b2-spot-classes-v2` points at 72539be35, so this record still resolves if the draft branch is ever deleted.
 > To recompute v2: check out 72539be35, then `backend/scripts/score_spot_class.py` (score_v2) on these files (sha256 at 72539be35):
 >   - backend/data/spot_class_v2_predictions.json: 460182a47f0b8536088d2feb10d1218ce9f5ad7cf699ab21c43521f057ed0ed7
 >   - backend/data/spot_class_v2_osm_evidence.json: c41c262072479c2939f781fe2475aaddc88618e6d0c721a99098bea477b706dd
