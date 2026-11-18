@@ -166,9 +166,9 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
                 logger.debug(f"[Surf v3] magnet '{_geo.magnet_name}' x{_geo.magnet_factor} at ({lat},{lng})")
             response.surf_height_m = round(surf, 4) if surf is not None else None
             response.surf_regime = regime
-            # SURF_FACE_RANGE (dark, default OFF): the face range beside the height, at the height's own birthplace
+            # SURF_FACE_RANGE (ON, kill '0'): the face range beside the height, at the height's own birthplace
             # and from the same inputs. HIGH is the number just served; LOW is the same chain with no highest-tenth
-            # factor. Its own try: a failure costs the range and nothing else. Flag off: no call, no fields.
+            # factor. Its own try: a failure costs the range and nothing else. Killed: no call, both fields null.
             try:
                 from services.weather_pipeline.surf_point import surf_face_range_at
                 _rng = surf_face_range_at(lat, lng, response.point.speed, response.point.period,

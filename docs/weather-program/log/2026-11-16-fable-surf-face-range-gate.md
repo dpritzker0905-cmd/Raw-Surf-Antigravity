@@ -266,3 +266,43 @@ is owed before the flag is turned on anywhere, and a flip without them is not su
 Also done on this head: a comment at the `with` statement in `surf_face_range_at` saying no await, thread hand-off or
 cached call may be added inside it, and why. And a note for whoever edits `backend/routes/admin/surf_forecast.py`
 next: it is at exactly 800 lines and the size check fails on the next added line.
+
+## 2026-11-18 02:41Z The flag ships ON, on the owner's typed word. It is still not scored
+
+**The owner's words**, typed in this session on 2026-11-17 while I was fixing this branch's conflict with `dev`:
+"fix the conflict on #977, if it goes into dev, it needs to be on, not dark". The flag's own registry entry said it
+"flips only on the owner's typed word". That word is now given, so the code default is `1`.
+
+**What ON was before this change: nothing a user could reach.** Reading the wire before flipping: `/point` excluded
+both fields from its JSON (`Field(exclude=True)`), and the rated row passes through `SpotRatingItem`, which drops
+undeclared keys. Turning the flag on as it stood would have computed a range and thrown it away at both boundaries.
+So this change also:
+- serves `surf_face_low_m` and `surf_face_high_m` on `/point` (the `exclude` is removed);
+- declares both on `SpotRatingItem`, so they survive the wire model and the precomputed frame.
+
+**What does not change.** The served height, regime, score and level. HIGH is the served height itself; LOW is the
+same chain with no highest-tenth factor. Killed (`SURF_FACE_RANGE=0`): no second chain pass, both `/point` fields
+null, no such key on the rated row, every other value identical.
+
+**What was checked** (local, `backend/.venv`, not the declared CI environment):
+- `tests/test_surf_face_range.py`, 20 tests, pass. New: the default is on and the kill works; the registry says on and
+  the guardrail coverage says BLIND; `/point` serves the two fields by default and every other key is equal on or
+  killed; no range at an open-ocean point; END TO END with the code default through the real point service, the real
+  `rate_one_spot`, the precompute's frame builder, the frame selector and `SpotRatingItem`, then the same killed.
+- Cost of the second chain pass, measured (`face_cost.py`, sweep point, geometry resolved once, best of 5 x 1000):
+  8.3 microseconds per marine point killed, 24.4 on, **+16.1 microseconds**. One precompute run of 10,638 points
+  (1,773 spots x 3 models x 2 hours): **+0.17 s**. Local machine; the runner will differ, the order of magnitude
+  should not.
+- The conflict with `dev` was in `_RATING_FLAGS` only (both sides added a flag on the opener line); resolved by
+  inserting this branch's entry into dev's line, the five shared entries checked textually identical.
+
+**What is NOT established.**
+- **The range is not validated.** The gate needs physical breaker truth and is NOT RUNNABLE. It is on by the
+  owner's word, not on evidence. LOW is a definition (the significant height through the same cap), not a
+  measurement of the smaller waves of a set.
+- **Detectable bias: none can be stated.** With no truth there is no error to bound. The only statements available
+  are structural: low <= high always; low = high / 1.27 below the cap; low = high deep in the cap.
+- **No client reads the fields.** Nothing on screen changes. Showing "3 to 4 ft" is a client change in the forecast
+  readout files, which are reserved for another lane.
+- The live guardrail is BLIND to this flag (nothing it watches reads the fields), so it cannot auto-disable it.
+- Hosted CI has not run on this head, and the advisor has not reviewed it.

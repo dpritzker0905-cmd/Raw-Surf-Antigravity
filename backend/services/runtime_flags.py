@@ -54,8 +54,9 @@ GUARDED = {
     "SPOT_HUB_RATE_ONE_SPOT": "1",      # spot-hub phase 2 (#710): the hub on rate_one_spot; kill '0' = the old chain
     "SURF_NEARSHORE_MOP": "1",          # CDIP MOP nearshore sea at California spots: nearshore judge 86/86 runs better,
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
-    "SURF_FACE_RANGE": "0",             # dark: adds the H1/3-H1/10 face range beside the height; its gate needs physical
-                                        # breaker truth and is NOT RUNNABLE (log 2026-11-16-fable-surf-face-range-gate.md)
+    "SURF_FACE_RANGE": "1",             # ON by the owner's typed word 2026-11-17 ("it needs to be on, not dark"): adds the
+                                        # H1/3-H1/10 face range beside the height. NOT SCORED: its gate needs physical breaker
+                                        # truth and is NOT RUNNABLE (log 2026-11-16-fable-surf-face-range-gate.md); kill '0'
     "RATING_REF_PRIOR": "0",            # JAC-2 (#771): held OFF: -17.9 pt mean rating move on reference-less
                                         # spot-hours (480/480 moved, 414 level changes), no rating truth yet
     "FRAME_ENTITLEMENT": "0",           # O6 accounts only: EVERY static frame private + signed URLs. Held OFF: needs the

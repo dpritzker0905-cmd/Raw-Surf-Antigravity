@@ -325,7 +325,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         "level": level,
         "confidence": spot_confidence(spot.get("accuracy_flag"), spot.get("is_verified_peak")),
         "surf_height_m": round(surf_h, 3) if surf_h is not None else None,
-        **_face_range_fields(marine),   # SURF_FACE_RANGE (dark): no key at all unless the flag is on
+        **_face_range_fields(marine),   # SURF_FACE_RANGE (ON, kill '0'): no key where there is no range
         "period_s": round(period, 1) if period is not None else None,
         # ★ THE TWO BATCH FIELDS (WS-CAN-0064): /conditions/batch now serves from these frames,
         # and its frozen per-spot shape needs the swell bearing and the OFFSHORE height beside

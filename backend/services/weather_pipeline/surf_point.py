@@ -259,14 +259,15 @@ _FACE_RANGE_REGIMES = ("shelf", "shoaling", "breaking")   # regimes whose value 
 
 
 def surf_face_range_at(lat: float, lng: float, Hs_m, Tp_s, served_height_m, served_regime, **chain_kwargs):
-    """(low_m, high_m) of the surf face at a coordinate, or None. DARK: None unless SURF_FACE_RANGE is '1'.
+    """(low_m, high_m) of the surf face at a coordinate, or None. ON by default; None when SURF_FACE_RANGE is '0'.
 
     HIGH is DEFINED as the height already served (`served_height_m`, the published H1/10 or the cap): it is passed
     in, never recomputed, so the range can not disagree with the headline. LOW is the SAME chain (`estimate_surf_at`
     with the same `chain_kwargs`: geometry, partitions, tide, nearshore sea) with the highest-tenth factor at 1.0,
     through the same cap, and never above HIGH. Additive: nothing here changes a served height or a rating.
-    The gate that decides whether this ever turns on needs physical breaker truth and is NOT RUNNABLE today:
-    docs/weather-program/log/2026-11-16-fable-surf-face-range-gate.md. Kill: SURF_FACE_RANGE=0 (the default)."""
+    NOT SCORED: the gate that would test the range needs physical breaker truth and is NOT RUNNABLE today
+    (docs/weather-program/log/2026-11-16-fable-surf-face-range-gate.md). It is on by the owner's typed word of
+    2026-11-17, not on evidence that the range is right. Kill: SURF_FACE_RANGE=0."""
     from services import runtime_flags as _rf
     if _rf.flag("SURF_FACE_RANGE") != "1":
         return None
