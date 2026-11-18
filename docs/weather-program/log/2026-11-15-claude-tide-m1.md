@@ -2425,3 +2425,23 @@ unchanged.
 - mean error.
 
 **Not used:** GESLA-4, until its licence is read. Nothing else in the registration changes.
+
+## 18:50 EST 2026-11-18 (`date`) - M1-0 amendment 2 (before any run): load tide is OUT of the gauge-comparable level; two REPORTED diagnostic candidates added
+**The research lead's correction (section M):**
+- Tide gauges, and the water depth that matters for surf, measure the OCEAN (elastic) tide relative to the seabed and
+  land.
+- Ocean + load is the geocentric tide that altimetry sees. The load tide reaches several cm in places.
+- **=> No served level or gauge score may include `tide_loading`.**
+
+**Added to `parity_rules.CANDIDATES` (REPORTED ONLY; the primary and the PASS rule are unchanged):**
+- `parts_with_load@nearest` = ocean_tide + sea_surface_height + invert_barometer + tide_loading. If it equals TOTAL, the
+  load tide is inside TOTAL.
+- `total_minus_load@nearest` = TOTAL - tide_loading, the gauge-comparable level.
+
+**Consequences:**
+- If the run shows that TOTAL carries the load tide, then:
+  - the served CMEMS series (#1066) becomes TOTAL - tide_loading, documented, with its own SCOREBOARD row (it then
+    differs from the old Open-Meteo level by the load tide);
+  - ACCEPT scores that arm.
+- T3's harmonic v2 is ocean tide only (pyTMD, load excluded).
+- `combine()` now takes `-name` to subtract (tested).

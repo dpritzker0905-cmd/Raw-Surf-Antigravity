@@ -23,6 +23,11 @@ CANDIDATES = {                           # name: (cell, summed variables); only 
     "tide+ssh@nearest": ("nearest", ("ocean_tide", "sea_surface_height")),
     "tide+ssh+ib@nearest": ("nearest", ("ocean_tide", "sea_surface_height", "invert_barometer")),
     "tide_only@nearest": ("nearest", ("ocean_tide",)),
+    # Reported only (2026-11-18, the research lead's load-tide correction): gauges and surf depth see the OCEAN tide
+    # relative to the seabed; ocean + load is the geocentric tide altimetry sees. These two show whether TOTAL already
+    # carries tide_loading (TOTAL == parts with load) and what the gauge-comparable level (TOTAL - load) would be.
+    "parts_with_load@nearest": ("nearest", ("ocean_tide", "sea_surface_height", "invert_barometer", "tide_loading")),
+    "total_minus_load@nearest": ("nearest", ("total_sea_level", "-tide_loading")),
 }
 RULE_TEXT = (f"PASS iff p{QUANTILE} |CMEMS {PRIMARY} - Open-Meteo sea_level_height_msl| <= {LINE_M} m over the "
              f"{HINDCAST_H} h before the run's 00Z at the {len(HELD_KEYS)} held keys, with >= {MIN_PAIR_SHARE:.0%} of "
@@ -52,10 +57,11 @@ def nearest_wet_cell(lats, lons, key, wet):
 
 
 def combine(cell, terms):
-    """The sum of the named variables' series at one cell (NaN wherever any term is NaN)."""
+    """The signed sum of the named variables' series at one cell ('-name' subtracts; NaN wherever any term is NaN)."""
     out = None
     for t in terms:
-        v = np.asarray(cell[t], float)
+        sign, name = (-1.0, t[1:]) if t.startswith("-") else (1.0, t)
+        v = sign * np.asarray(cell[name], float)
         out = v.copy() if out is None else out + v
     return out
 

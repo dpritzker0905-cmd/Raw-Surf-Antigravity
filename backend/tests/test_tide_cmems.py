@@ -53,6 +53,9 @@ def test_combine_and_stats():
     c = {"a": [1.0, np.nan], "b": [0.5, 0.5]}
     out = PR.combine(c, ("a", "b"))
     assert out[0] == 1.5 and np.isnan(out[1])
+    assert PR.combine({"t": [1.0], "l": [0.25]}, ("t", "-l"))[0] == 0.75     # TOTAL - load
+    assert PR.CANDIDATES["total_minus_load@nearest"] == ("nearest", ("total_sea_level", "-tide_loading"))
+    assert "parts_with_load@nearest" in PR.CANDIDATES and PR.PRIMARY == "total_sea_level@nearest"   # gate unchanged
     s = PR.stats([0.0, 0.01, np.nan])
     assert s["n"] == 2 and s["max_m"] == 0.01
     assert PR.stats([])["n"] == 0
