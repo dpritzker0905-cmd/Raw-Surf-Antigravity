@@ -1,0 +1,486 @@
+{
+ "_registered": "G3t FINAL b6eb66fa6; lists fixed 2026-11-17 from METADATA and maps only (no water values read)",
+ "_beach_rule": "item 5 qualifies only exposure == 'open'; every other row is reported as back-barrier/excluded",
+ "_uhslc_rule": "UHSLC fast-delivery, non-US, in the 19 listed surf countries, the LOWEST uhslc_id per country (deterministic, before truth; one per country keeps the run inside the job limit)",
+ "ioos_hohonu": [
+  {
+   "dataset_id": "hohonu_10057_bald_head_island",
+   "title": "Bald Head Island",
+   "lat": 33.877,
+   "lon": -77.9999,
+   "exposure": "sheltered",
+   "why": "map-checked: Cape Fear River side marina"
+  },
+  {
+   "dataset_id": "hohonu_10048_cape_lookout_nation",
+   "title": "Cape Lookout National Seashore (decommissioned)",
+   "lat": 34.613,
+   "lon": -76.5312,
+   "exposure": "excluded",
+   "why": "decommissioned"
+  },
+  {
+   "dataset_id": "hohonu_10036_captiva_island_fl",
+   "title": "Captiva Island, FL",
+   "lat": 26.5204,
+   "lon": -82.1882,
+   "exposure": "sheltered",
+   "why": "map-checked: Pine Island Sound side"
+  },
+  {
+   "dataset_id": "hohonu_10047_city_of_beaufort_sc",
+   "title": "City of Beaufort SC",
+   "lat": 32.4299,
+   "lon": -80.6719,
+   "exposure": "sheltered",
+   "why": "name rule: Beaufort"
+  },
+  {
+   "dataset_id": "coastal-studies-institute-wanche",
+   "title": "Coastal Studies Institute, Wanchese, NC (decommissioned)",
+   "lat": 35.8694,
+   "lon": -75.6634,
+   "exposure": "excluded",
+   "why": "decommissioned"
+  },
+  {
+   "dataset_id": "collington-creek-inn-dock-kill-d",
+   "title": "Collington Creek Inn Dock, Kill Devil Hills, NC (decommissioned)",
+   "lat": 36.015,
+   "lon": -75.6875,
+   "exposure": "excluded",
+   "why": "decommissioned"
+  },
+  {
+   "dataset_id": "hohonu-93_currituck_co",
+   "title": "Currituck Co",
+   "lat": 36.3697,
+   "lon": -75.8294,
+   "exposure": "sheltered",
+   "why": "name rule: Currituck"
+  },
+  {
+   "dataset_id": "hohonu_174_debordieu_colony_sc",
+   "title": "DeBordieu Colony, SC",
+   "lat": 33.375,
+   "lon": -79.1561,
+   "exposure": "sheltered",
+   "why": "map-checked: back-barrier creek"
+  },
+  {
+   "dataset_id": "hohonu_10015_duck_nc",
+   "title": "Duck, NC",
+   "lat": 36.2233,
+   "lon": -75.7725,
+   "exposure": "sheltered",
+   "why": "map-checked: Currituck Sound (back-barrier)"
+  },
+  {
+   "dataset_id": "hohonu_199_edisto_beach_sc",
+   "title": "Edisto Beach, SC",
+   "lat": 32.4937,
+   "lon": -80.339,
+   "exposure": "sheltered",
+   "why": "map-checked: Big Bay Creek, back side"
+  },
+  {
+   "dataset_id": "hohonu-187_emerald_isle",
+   "title": "Emerald Isle",
+   "lat": 34.6711,
+   "lon": -77.0066,
+   "exposure": "sheltered",
+   "why": "map-checked: Bogue Sound side"
+  },
+  {
+   "dataset_id": "fernandina-beach-1-fl",
+   "title": "Fernandina Beach 1, FL",
+   "lat": 30.6713,
+   "lon": -81.4658,
+   "exposure": "sheltered",
+   "why": "map-checked: Amelia River"
+  },
+  {
+   "dataset_id": "fernandina-beach-2-fl",
+   "title": "Fernandina Beach 2, FL",
+   "lat": 30.6713,
+   "lon": -81.4653,
+   "exposure": "sheltered",
+   "why": "map-checked: Amelia River"
+  },
+  {
+   "dataset_id": "hohonu_10008_folly_river_bridge_",
+   "title": "Folly River Bridge, SC",
+   "lat": 32.6619,
+   "lon": -79.9436,
+   "exposure": "sheltered",
+   "why": "name rule: River"
+  },
+  {
+   "dataset_id": "hohonu_10120_fort_raleigh_nation",
+   "title": "Fort Raleigh National Historic Site",
+   "lat": 35.9399,
+   "lon": -75.7088,
+   "exposure": "sheltered",
+   "why": "name rule: Historic"
+  },
+  {
+   "dataset_id": "hohonu_10046_fripp_island",
+   "title": "Fripp Island, SC",
+   "lat": 32.3097,
+   "lon": -80.5043,
+   "exposure": "sheltered",
+   "why": "map-checked: back-barrier inlet creek"
+  },
+  {
+   "dataset_id": "hohonu_10007_georgetown_county_h",
+   "title": "Georgetown County Hwy 701 Bridge, SC",
+   "lat": 33.48,
+   "lon": -79.2725,
+   "exposure": "sheltered",
+   "why": "name rule: Georgetown"
+  },
+  {
+   "dataset_id": "hohonu_10153_georgetown_south_ca",
+   "title": "Georgetown, South Carolina",
+   "lat": 33.3659,
+   "lon": -79.2835,
+   "exposure": "sheltered",
+   "why": "name rule: Georgetown"
+  },
+  {
+   "dataset_id": "hohonu_10116_hammocks_beach_stat",
+   "title": "Hammocks Beach State Park, NC",
+   "lat": 34.6696,
+   "lon": -77.1433,
+   "exposure": "sheltered",
+   "why": "name rule: Hammocks"
+  },
+  {
+   "dataset_id": "hohonu_10040_hilton_head",
+   "title": "Hilton Head, SC",
+   "lat": 32.1749,
+   "lon": -80.7611,
+   "exposure": "sheltered",
+   "why": "map-checked: back-island creek (Broad Creek area)"
+  },
+  {
+   "dataset_id": "hohonu_10021_holden_beach_brunsw",
+   "title": "Holden Beach, Brunswick County, NC",
+   "lat": 33.9159,
+   "lon": -78.2694,
+   "exposure": "sheltered",
+   "why": "map-checked: ICW at the bridge"
+  },
+  {
+   "dataset_id": "hwy-64-little-bridge-dare-county",
+   "title": "Hwy 64, Little Bridge, Dare County, NC (decommissioned)",
+   "lat": 35.8986,
+   "lon": -75.6156,
+   "exposure": "excluded",
+   "why": "decommissioned"
+  },
+  {
+   "dataset_id": "hohonu_069_isle_of_palms-_sc",
+   "title": "Isle of Palms, SC",
+   "lat": 32.8059,
+   "lon": -79.7612,
+   "exposure": "sheltered",
+   "why": "map-checked: back-barrier marsh creek"
+  },
+  {
+   "dataset_id": "hohonu_10041_john-s_pass",
+   "title": "John's Pass",
+   "lat": 27.7845,
+   "lon": -82.782,
+   "exposure": "sheltered",
+   "why": "inside an inlet pass (map not checked; name rule: pass)"
+  },
+  {
+   "dataset_id": "hohonu_138_kiawah_island_sc",
+   "title": "Kiawah Island, SC",
+   "lat": 32.6175,
+   "lon": -80.023,
+   "exposure": "sheltered",
+   "why": "map-checked: Kiawah River marsh"
+  },
+  {
+   "dataset_id": "hohonu-141_marine_corp_recruit_d",
+   "title": "Marine Corp Recruit Depot Parris Island",
+   "lat": 32.3345,
+   "lon": -80.6719,
+   "exposure": "sheltered",
+   "why": "name rule: Depot"
+  },
+  {
+   "dataset_id": "hohonu-85_mexico_beach",
+   "title": "Mexico Beach",
+   "lat": 29.9526,
+   "lon": -85.4241,
+   "exposure": "sheltered",
+   "why": "map-checked: canal behind the beach"
+  },
+  {
+   "dataset_id": "hohonu_10126_new_bern_nc",
+   "title": "New Bern, NC",
+   "lat": 35.12,
+   "lon": -77.0602,
+   "exposure": "sheltered",
+   "why": "name rule: New Bern"
+  },
+  {
+   "dataset_id": "hohonu_10059_north_myrtle_beach_",
+   "title": "North Myrtle Beach, Cherry Grove",
+   "lat": 33.8413,
+   "lon": -78.6147,
+   "exposure": "sheltered",
+   "why": "map-checked: Cherry Grove marsh channel"
+  },
+  {
+   "dataset_id": "hohonu-152_north_topsail_beach",
+   "title": "North Topsail Beach",
+   "lat": 34.4977,
+   "lon": -77.4133,
+   "exposure": "sheltered",
+   "why": "map-checked: sound side (New River Inlet Rd)"
+  },
+  {
+   "dataset_id": "hohonu_10060_ocean_isle_beach",
+   "title": "Ocean Isle Beach",
+   "lat": 33.8955,
+   "lon": -78.435,
+   "exposure": "sheltered",
+   "why": "map-checked: ICW / canal side"
+  },
+  {
+   "dataset_id": "hohonu_10069_oyster_landing_n_in",
+   "title": "Oyster Landing (N Inlet Estuary), SC",
+   "lat": 33.3494,
+   "lon": -79.1889,
+   "exposure": "sheltered",
+   "why": "name rule: Landing"
+  },
+  {
+   "dataset_id": "hohonu_10033_pawleys_island_sc",
+   "title": "Pawleys Island, SC (decommissioned)",
+   "lat": 33.4425,
+   "lon": -79.1151,
+   "exposure": "excluded",
+   "why": "decommissioned"
+  },
+  {
+   "dataset_id": "hohonu_10044_port_royal_sound_fo",
+   "title": "Port Royal Sound Foundation SC",
+   "lat": 32.3748,
+   "lon": -80.8371,
+   "exposure": "sheltered",
+   "why": "name rule: Sound"
+  },
+  {
+   "dataset_id": "hohonu_10043_sanibel",
+   "title": "Sanibel",
+   "lat": 26.4534,
+   "lon": -82.0355,
+   "exposure": "sheltered",
+   "why": "map-checked: San Carlos Bay at the causeway"
+  },
+  {
+   "dataset_id": "hohonu_173_seabrook_island_sc",
+   "title": "Seabrook Island, SC",
+   "lat": 32.5797,
+   "lon": -80.1583,
+   "exposure": "sheltered",
+   "why": "map-checked: back-island creek"
+  },
+  {
+   "dataset_id": "hohonu_10125_snow-s_cut_bridge",
+   "title": "Snow's Cut Bridge, NC (decommissioned)",
+   "lat": 34.0555,
+   "lon": -77.8999,
+   "exposure": "excluded",
+   "why": "decommissioned"
+  },
+  {
+   "dataset_id": "hohonu_10020_southern_shores_nc",
+   "title": "Southern Shores, NC (decommissioned)",
+   "lat": 36.131,
+   "lon": -75.7453,
+   "exposure": "excluded",
+   "why": "decommissioned"
+  },
+  {
+   "dataset_id": "hohonu_10027_sullivan-s_island_s",
+   "title": "Sullivan's Island, SC",
+   "lat": 32.7654,
+   "lon": -79.8614,
+   "exposure": "sheltered",
+   "why": "map-checked: harbour / Cove side"
+  },
+  {
+   "dataset_id": "hohonu_10037_surf_city",
+   "title": "Surf City",
+   "lat": 34.4272,
+   "lon": -77.5474,
+   "exposure": "sheltered",
+   "why": "map-checked: ICW / Topsail Sound at the bridge"
+  },
+  {
+   "dataset_id": "hohonu-104_the_citadel_ashley_ri",
+   "title": "The Citadel, Ashley River, SC",
+   "lat": 32.7967,
+   "lon": -79.9681,
+   "exposure": "sheltered",
+   "why": "name rule: Citadel"
+  },
+  {
+   "dataset_id": "hohonu_10032_topsail_beach_nc",
+   "title": "Topsail Beach, NC",
+   "lat": 34.3656,
+   "lon": -77.632,
+   "exposure": "sheltered",
+   "why": "map-checked: sound side"
+  },
+  {
+   "dataset_id": "hohonu-124_washington_acres_boat",
+   "title": "Washington Acres Boat Ramp",
+   "lat": 34.3397,
+   "lon": -77.7057,
+   "exposure": "sheltered",
+   "why": "name rule: Ramp"
+  }
+ ],
+ "uhslc_non_us": [
+  {
+   "uhslc_id": 128,
+   "name": "Thevenard",
+   "country": "Australia",
+   "lat": -32.15,
+   "lon": 133.64
+  },
+  {
+   "uhslc_id": 47,
+   "name": "Chichijima",
+   "country": "Japan",
+   "lat": 27.1,
+   "lon": 142.18330000000003
+  },
+  {
+   "uhslc_id": 33,
+   "name": "Bitung",
+   "country": "Indonesia",
+   "lat": 1.43896,
+   "lon": 125.19049999999999
+  },
+  {
+   "uhslc_id": 181,
+   "name": "Durban",
+   "country": "South Africa",
+   "lat": -29.8667,
+   "lon": 31.05000000000001
+  },
+  {
+   "uhslc_id": 21,
+   "name": "Juan Fernandez",
+   "country": "Chile",
+   "lat": -33.6367,
+   "lon": -78.82999999999998
+  },
+  {
+   "uhslc_id": 84,
+   "name": "Lobos de Afuera",
+   "country": "Peru",
+   "lat": -6.9333,
+   "lon": -80.7167
+  },
+  {
+   "uhslc_id": 34,
+   "name": "Cabo San Lucas",
+   "country": "Mexico",
+   "lat": 22.88,
+   "lon": -109.9083
+  },
+  {
+   "uhslc_id": 71,
+   "name": "Wellington",
+   "country": "New Zealand",
+   "lat": -41.2833,
+   "lon": 174.7833
+  },
+  {
+   "uhslc_id": 209,
+   "name": "Cascais",
+   "country": "Portugal",
+   "lat": 38.6917,
+   "lon": -9.416699999999992
+  },
+  {
+   "uhslc_id": 207,
+   "name": "Ceuta",
+   "country": "Spain",
+   "lat": 35.9,
+   "lon": -5.316700000000083
+  },
+  {
+   "uhslc_id": 822,
+   "name": "Brest",
+   "country": "France",
+   "lat": 48.3833,
+   "lon": -4.4950000000000045
+  },
+  {
+   "uhslc_id": 293,
+   "name": "Lerwick",
+   "country": "United Kingdom of Great Britain and Northern Ireland",
+   "lat": 60.155,
+   "lon": -1.1399999999999864
+  },
+  {
+   "uhslc_id": 834,
+   "name": "Malin Head",
+   "country": "Ireland",
+   "lat": 55.3667,
+   "lon": -7.333300000000008
+  },
+  {
+   "uhslc_id": 280,
+   "name": "Ilha Fiscal, Rio de Janeiro",
+   "country": "Brazil",
+   "lat": -22.8967,
+   "lon": -43.16500000000002
+  },
+  {
+   "uhslc_id": 87,
+   "name": "Quepos",
+   "country": "Costa Rica",
+   "lat": 9.425,
+   "lon": -84.17200000000003
+  },
+  {
+   "uhslc_id": 3,
+   "name": "Baltra",
+   "country": "Ecuador",
+   "lat": -0.43656,
+   "lon": -90.28550000000001
+  },
+  {
+   "uhslc_id": 15,
+   "name": "Papeete",
+   "country": "French Polynesia",
+   "lat": -17.53309,
+   "lon": -149.5727
+  },
+  {
+   "uhslc_id": 18,
+   "name": "Suva",
+   "country": "Fiji",
+   "lat": -18.1333,
+   "lon": 178.42830000000004
+  },
+  {
+   "uhslc_id": 370,
+   "name": "Manila",
+   "country": "Philippines",
+   "lat": 14.58214,
+   "lon": 120.97149999999999
+  }
+ ]
+}
