@@ -18,6 +18,7 @@ import logging
 logger = logging.getLogger(__name__)
 import logging
 
+from core.password_policy import validate_new_password
 from core.rate_limiter import rate_limit_check
 from database import get_db
 from models import Profile, PasswordResetToken
@@ -259,9 +260,7 @@ async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(
     if token_record.expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="This reset link has expired")
     
-    # Validate new password
-    if len(data.new_password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    validate_new_password(data.new_password)
     
     # Get user and update password
     user_result = await db.execute(select(Profile).where(Profile.id == token_record.user_id))

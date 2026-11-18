@@ -9,10 +9,13 @@ Features tested:
 4. Login response includes is_ad_supported field
 """
 
+import secrets
 import pytest
 import requests
 import os
 import uuid
+
+_POLICY_TEST_PASSWORD = secrets.token_urlsafe(16)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
@@ -28,7 +31,7 @@ class TestHobbyistConversion:
     def setup(self):
         """Setup test user for conversion tests"""
         self.test_email = f"test_photographer_{uuid.uuid4().hex[:8]}@test.com"
-        self.test_password = "testpass123"
+        self.test_password = _POLICY_TEST_PASSWORD
         
         # Create a photographer user for testing
         signup_response = requests.post(
@@ -96,7 +99,7 @@ class TestHobbyistConversion:
             f"{BASE_URL}/api/auth/signup",
             json={
                 "email": test_email,
-                "password": "testpass123",
+                "password": _POLICY_TEST_PASSWORD,
                 "full_name": "Test Photographer Basic",
                 "role": "Photographer"
             }
@@ -176,7 +179,7 @@ class TestAdFreeToggleLogic:
     def setup(self):
         """Setup test user with credits for payment tests"""
         self.test_email = f"test_surfer_credits_{uuid.uuid4().hex[:8]}@test.com"
-        self.test_password = "testpass123"
+        self.test_password = _POLICY_TEST_PASSWORD
         
         # Create a surfer user for testing
         signup_response = requests.post(
@@ -284,7 +287,7 @@ class TestLoginIsAdSupported:
     def test_login_new_user_default_is_ad_supported(self):
         """Test new user login has is_ad_supported=True by default (free tier)"""
         test_email = f"test_new_user_{uuid.uuid4().hex[:8]}@test.com"
-        test_password = "testpass123"
+        test_password = _POLICY_TEST_PASSWORD
         
         # Create new user
         signup_response = requests.post(
@@ -323,7 +326,7 @@ class TestGromSubscriptionAdToggle:
         """Test Grom free tier sets is_ad_supported=True"""
         # Create parent
         parent_email = f"test_parent_{uuid.uuid4().hex[:8]}@test.com"
-        parent_password = "testpass123"
+        parent_password = _POLICY_TEST_PASSWORD
         
         parent_signup = requests.post(
             f"{BASE_URL}/api/auth/signup",
@@ -347,7 +350,7 @@ class TestGromSubscriptionAdToggle:
             f"{BASE_URL}/api/auth/signup",
             json={
                 "email": grom_email,
-                "password": "testpass123",
+                "password": _POLICY_TEST_PASSWORD,
                 "full_name": "Test Grom",
                 "role": "Grom",
                 "parent_email": parent_email,

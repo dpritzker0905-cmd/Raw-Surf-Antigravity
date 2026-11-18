@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
+import { meetsPasswordMinimum, PASSWORD_MINIMUM_MESSAGE } from '../lib/passwordPolicy';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
@@ -205,8 +206,8 @@ export const ResetPassword = () => {
       return;
     }
 
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (!meetsPasswordMinimum(password)) {
+      toast.error(PASSWORD_MINIMUM_MESSAGE);
       return;
     }
 
@@ -302,7 +303,8 @@ export const ResetPassword = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="bg-zinc-800 border-zinc-700 text-white h-12 pl-10 pr-10"
                   required
-                  minLength={6}
+                  autoComplete="new-password"
+                  aria-describedby="reset-password-hint"
                   data-testid="new-password-input"
                 />
                 <button aria-label="Hide"
@@ -323,12 +325,12 @@ export const ResetPassword = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="bg-zinc-800 border-zinc-700 text-white h-12 pl-10"
                   required
-                  minLength={6}
+                  autoComplete="new-password"
                   data-testid="confirm-password-input"
                 />
               </div>
 
-              <p className="text-xs text-gray-500">Password must be at least 6 characters</p>
+              <p id="reset-password-hint" className="text-xs text-gray-500">{PASSWORD_MINIMUM_MESSAGE}</p>
 
               <Button aria-label="Loader2"
                 type="submit"

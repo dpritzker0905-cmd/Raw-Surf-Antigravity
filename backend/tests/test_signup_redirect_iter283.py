@@ -13,10 +13,13 @@ Also verifies:
 - User is logged in after signup (returns user data)
 """
 
+import secrets
 import pytest
 import requests
 import os
 import uuid
+
+_POLICY_TEST_PASSWORD = secrets.token_urlsafe(16)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
@@ -26,7 +29,7 @@ class TestSignupRedirectLogic:
     @pytest.fixture(autouse=True)
     def setup(self):
         """Setup test data"""
-        self.test_password = "Test123!"
+        self.test_password = _POLICY_TEST_PASSWORD
         self.test_email_prefix = f"signuptest_{uuid.uuid4().hex[:8]}"
     
     def test_surfer_signup_redirects_to_surfer_subscription(self):
@@ -242,7 +245,7 @@ class TestSignupUsernameValidation:
         
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": email,
-            "password": "Test123!",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "No Username User",
             "role": "Surfer"
             # Missing username
@@ -257,7 +260,7 @@ class TestSignupUsernameValidation:
         
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": email,
-            "password": "Test123!",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Short Username User",
             "username": "ab",  # Too short
             "role": "Surfer"
@@ -277,7 +280,7 @@ class TestSignupUserLoggedIn:
         
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": email,
-            "password": "Test123!",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Logged In User",
             "username": username,
             "role": "Surfer"

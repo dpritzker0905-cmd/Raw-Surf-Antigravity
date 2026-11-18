@@ -4,6 +4,7 @@
  * v33: Rewritten to exactly match AdminP1Dashboard.js handler implementations.
  */
 import apiClient from '../lib/apiClient';
+import { meetsPasswordMinimum, PASSWORD_MINIMUM_MESSAGE } from '../lib/passwordPolicy';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
@@ -197,6 +198,10 @@ const useAdminP1Actions = ({
   };
 
   const seedAllRoleAccounts = async () => {
+    if (!meetsPasswordMinimum(testAccountPassword)) {
+      toast.error(PASSWORD_MINIMUM_MESSAGE);
+      return;
+    }
     setSeedingAccounts(true);
     try {
       const response = await apiClient.post(`/admin/seed-test-accounts`, {

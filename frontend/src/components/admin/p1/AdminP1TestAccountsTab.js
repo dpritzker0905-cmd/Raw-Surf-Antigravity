@@ -9,6 +9,7 @@ import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
 import { Avatar, AvatarFallback } from '../../ui/avatar';
+import { meetsPasswordMinimum, PASSWORD_MINIMUM_MESSAGE } from '../../../lib/passwordPolicy';
 
 const AdminP1TestAccountsTab = ({
   testAccounts, testAccountPassword, setTestAccountPassword,
@@ -33,17 +34,22 @@ const AdminP1TestAccountsTab = ({
       <CardContent className="space-y-4">
         <div className="flex items-center gap-4">
           <div className="flex-1">
-            <label className={`text-xs ${textSecondary}`}>Password for new accounts</label>
+            <label htmlFor="test-account-password" className={`text-xs ${textSecondary}`}>Password for new accounts</label>
             <Input
+              id="test-account-password"
+              type="password"
+              autoComplete="new-password"
+              aria-describedby="test-account-password-hint"
               value={testAccountPassword}
               onChange={(e) => setTestAccountPassword(e.target.value)}
               className="bg-muted border-border"
-              placeholder="Test123!"
+              placeholder="Enter a password"
             />
+            <p id="test-account-password-hint" className={`text-xs ${textSecondary}`}>{PASSWORD_MINIMUM_MESSAGE}</p>
           </div>
-          <Button aria-label="Loader2"
+          <Button
             onClick={seedAllRoleAccounts}
-            disabled={seedingAccounts}
+            disabled={seedingAccounts || !meetsPasswordMinimum(testAccountPassword)}
             className="bg-green-500 hover:bg-green-600 text-white"
             data-testid="seed-all-roles-btn"
           >

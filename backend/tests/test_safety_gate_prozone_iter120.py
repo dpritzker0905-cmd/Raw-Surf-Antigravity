@@ -7,6 +7,7 @@ Tests:
 4. Pro-Zone logic for different roles (Hobbyist, Grom Parent, Surfer, Grom)
 5. Haversine distance calculation accuracy
 """
+import secrets
 import pytest
 import requests
 import os
@@ -17,15 +18,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.geo import haversine_distance
 
+_POLICY_TEST_PASSWORD = secrets.token_urlsafe(16)
+
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials from iteration 119
 GROM_PARENT_EMAIL = "testgromparent@gmail.com"
-GROM_PARENT_PASSWORD = "test123"
+GROM_PARENT_PASSWORD = _POLICY_TEST_PASSWORD
 GROM_PARENT_ID = "e57e7be6-e217-47f7-9978-b51c469c7bbf"
 
 LINKED_GROM_EMAIL = "testgrom4@gmail.com"
-LINKED_GROM_PASSWORD = "test123"
+LINKED_GROM_PASSWORD = _POLICY_TEST_PASSWORD
 
 
 class TestGromSignupRequiresParentEmail:
@@ -35,7 +38,7 @@ class TestGromSignupRequiresParentEmail:
         """Grom signup without parent_email should return 400 error"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": "test_unlinked_grom@test.com",
-            "password": "test123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Unlinked Grom",
             "role": "GROM"
             # NO parent_email - should fail
@@ -55,7 +58,7 @@ class TestGromSignupRequiresParentEmail:
         
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": unique_email,
-            "password": "test123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Linked Grom",
             "role": "GROM",
             "parent_email": "parent@test.com",  # Has parent_email
@@ -116,7 +119,7 @@ class TestProZoneCheckEndpoint:
         
         signup_response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": unique_email,
-            "password": "test123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Surfer",
             "role": "SURFER"
         })

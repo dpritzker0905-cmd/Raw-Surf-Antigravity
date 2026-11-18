@@ -17,6 +17,7 @@ import { Input } from '../../ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '../../ui/avatar';
 import apiClient from '../../../lib/apiClient';
+import { meetsPasswordMinimum, PASSWORD_MINIMUM_MESSAGE } from '../../../lib/passwordPolicy';
 import { getFullUrl } from '../../../utils/media';
 import { toast } from 'sonner';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -273,7 +274,7 @@ const UsersTabContent = ({
   };
 
   const handleResetPassword = async () => {
-    if (!resetPasswordUser || !newPassword) return;
+    if (!resetPasswordUser || !meetsPasswordMinimum(newPassword)) return;
     setResetPasswordLoading(true);
     try {
       await apiClient.post(`/admin/users/${resetPasswordUser.id}/reset-password`, { new_password: newPassword });
@@ -517,20 +518,18 @@ const UsersTabContent = ({
               <span className={`font-semibold ${t.textPrimary}`}>{resetPasswordUser?.full_name || resetPasswordUser?.email}</span>
             </p>
             <p className={`text-xs ${t.textMuted}`}>{resetPasswordUser?.email}</p>
-            <Input aria-label="Enter new password (min 6 characters)"
+            <Input aria-label="Enter new password" aria-describedby="admin-reset-password-hint"
               type="text" value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter new password (min 6 characters)"
+              placeholder="Enter new password"
               className={`border ${t.inputBg} ${t.textPrimary}`} autoComplete="new-password"
             />
-            {newPassword && newPassword.length < 6 && (
-              <p className="text-red-500 text-xs font-semibold">Password must be at least 6 characters</p>
-            )}
+            <p id="admin-reset-password-hint" className={`text-xs ${t.textMuted}`}>{PASSWORD_MINIMUM_MESSAGE}</p>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => { setShowResetPasswordModal(false); setNewPassword(''); }} className={`flex-1 border ${t.border} ${t.textPrimary} ${t.hoverBg}`}>Cancel</Button>
               <Button aria-label="Reset password"
                 onClick={handleResetPassword}
-                disabled={!newPassword || newPassword.length < 6 || resetPasswordLoading}
+                disabled={!meetsPasswordMinimum(newPassword) || resetPasswordLoading}
                 className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold"
               >
                 {resetPasswordLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <KeyRound className="w-4 h-4 mr-2" />}

@@ -7,6 +7,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
+import { meetsPasswordMinimum, PASSWORD_MINIMUM_MESSAGE } from '../../lib/passwordPolicy';
 
 /**
  * PasswordSecurityCard - Allows authenticated users to change their password.
@@ -40,12 +41,13 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
 
   const strength = getPasswordStrength(newPassword);
   const passwordsMatch = newPassword && confirmPassword && newPassword === confirmPassword;
-  const canSubmit = currentPassword && newPassword.length >= 6 && passwordsMatch && !saving;
+  const newPasswordMeetsMinimum = meetsPasswordMinimum(newPassword);
+  const canSubmit = currentPassword && newPasswordMeetsMinimum && passwordsMatch && !saving;
 
   const handleChangePassword = async () => {
     setError(''); setSuccess(false);
     if (newPassword !== confirmPassword) { setError('New passwords do not match'); return; }
-    if (newPassword.length < 6) { setError('Password must be at least 6 characters'); return; }
+    if (!newPasswordMeetsMinimum) { setError(PASSWORD_MINIMUM_MESSAGE); return; }
     if (newPassword === currentPassword) { setError('New password must be different from current password'); return; }
     setSaving(true);
     try {
@@ -99,17 +101,18 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
 
           {/* New Password */}
           <div className="space-y-1.5">
-            <label className={`text-xs font-medium ${textSecondaryClass}`}>New Password</label>
+            <label htmlFor="new-password" className={`text-xs font-medium ${textSecondaryClass}`}>New Password</label>
             <div className="relative">
-              <Input id="new-password" type={showNew ? 'text' : 'password'} value={newPassword} onChange={(e) => { setNewPassword(e.target.value); setError(''); setSuccess(false); }} placeholder="Enter new password (min 6 chars)" className={`${cardBgClass} ${borderClass} pr-10`} autoComplete="new-password" />
+              <Input id="new-password" type={showNew ? 'text' : 'password'} value={newPassword} onChange={(e) => { setNewPassword(e.target.value); setError(''); setSuccess(false); }} placeholder="Enter new password" className={`${cardBgClass} ${borderClass} pr-10`} autoComplete="new-password" aria-describedby="change-password-hint" />
               <button type="button" aria-expanded={showNew} onClick={() => setShowNew(!showNew)} className={`absolute right-3 top-1/2 -translate-y-1/2 ${textSecondaryClass} hover:text-foreground transition-colors`} tabIndex={-1} aria-label="Hide">
                 {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {newPassword && (
+            <p id="change-password-hint" className={`text-xs ${textSecondaryClass}`}>{PASSWORD_MINIMUM_MESSAGE}</p>
+            {newPasswordMeetsMinimum && (
               <div className="space-y-1">
                 <div className="flex gap-1">{[1,2,3,4].map((level) => (<div key={level} className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${level <= strength.score ? strength.color : 'bg-muted'}`} />))}</div>
-                <p className={`text-xs ${strength.score <= 1 ? 'text-red-400' : strength.score === 2 ? 'text-orange-400' : strength.score === 3 ? 'text-yellow-400' : 'text-green-400'}`}>{strength.label}{strength.score <= 2 && ' - try adding uppercase, numbers, or symbols'}</p>
+                <p className={`text-xs ${strength.score <= 1 ? 'text-red-400' : strength.score === 2 ? 'text-orange-400' : strength.score === 3 ? 'text-yellow-400' : 'text-green-400'}`}>{strength.label}</p>
               </div>
             )}
           </div>
