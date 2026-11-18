@@ -39,11 +39,12 @@ const payload = {
 };
 const LAT = 21.665; const LNG = -158.05;
 const spot = { id: 's1', name: 'Pipeline', latitude: LAT, longitude: LNG, isCluster: false };
-const HOURS = [0, 2, 5, 9, 17, 29, 41];   // 41 is past the series: both must say "no tide"
+const HOURS = [0, 2, 5, 9, 17, 29, 43];   // the series ends at +42 h, so 43 is past it: both must say "no tide"
 
 let fetchMock;
 beforeEach(() => {
   jest.useFakeTimers({ now: NOW, doNotFake: ['queueMicrotask', 'nextTick', 'setImmediate'] });
+  jest.setSystemTime(NOW);   // Jest 27 ignores useFakeTimers({ now }); without this the fake clock starts at the REAL time and the fixture expired 2026-11-17
   clearPointTideCache();
   window.localStorage.clear();
   delete window.__RAW_DISABLE_TIDE_OVERLAY__;
