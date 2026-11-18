@@ -371,3 +371,35 @@ tab. Not a script loop, not a replay, never repeated to "confirm".
   made.
 - Also noted, not chased: what the page asks the backend for at load (count by route), since section 10 could not tell
   ordinary from miss.
+
+## 12. The observed dev-site session (2026-11-18, about 10:30 to 10:45 EST): no backend grid request in any step, no miss
+Run once, as section 11 says: one page load of the dev site's map with `?diag=1` in the built-in browser (already signed
+in; no credentials touched), waves on, three views in one page, six steps. `/api/health` 200 in 1.47 s before (10:20) and
+200 in 1.67 s after (10:45). No 429 or 5xx seen. The tab was closed afterwards.
+- **What the page asked the backend for:** at load, `/capabilities` once and `/wind_lane` (a small poll); on turning waves
+  on, `/products` once. **Not one `/grid` or `/grid_series` request in the whole session**, at load, on arrival at any view
+  or in any of the six steps.
+- **The client's counters over the session:** misses `{}` at the start and `{}` at the end. Hits 0 -> 4, crops 0 -> 1,
+  lruHits 0 -> 5, static fetches 1 -> 75, series frames 0 -> 9. All but five of the fetches happened as the layer came on.
+- **The grid, per step** (engine's resident wave grid, stamp is the valid hour):
+  - view 0 (-158, 21.6, z5): arrival 23x20 at 15:00 (the one crop), step 0 -> 181x82 at 18:00, step 1 -> 181x82 at 21:00
+  - view 1 (-9.5, 39, z5): arrival 181x82 at 15:00, steps -> 18:00, 21:00, both 181x82
+  - view 2 (-5, 50, z4.5): the same
+  The hour advanced on every step, and no step held the thinned 46x21.
+- **Named by section 11's own words:** one step (view 0, step 0) is STATIC as written (a hit counted, no backend request,
+  a full grid). The other five have no backend request and a full grid but the hit counter did NOT move, so by the letter
+  they are "anything else, written down as seen": the frame was already in memory from the frames fetched when the layer
+  came on. The definition was too narrow for a frame served from memory; it is left as written and the five are not
+  relabelled. No step is BACKEND.
+- **An instrument of mine that failed:** my count of frame downloads per step read 0 throughout while the client's own
+  counter went 1 -> 75, so my pattern did not match the frame addresses. The client's counter is the figure; mine is void.
+- **What this says:** for GFS waves at these three views today, the deployed dev client takes the static path and never
+  falls to the backend, on a first visit to each hour. That agrees with the harness result of section 7 and is now seen on
+  a deployed site. With section 10: the backend grid traffic in the logs is therefore not this case; it comes from other
+  views, layers or models (regional boxes, ICON and EURO, the swell layers) or other callers, which this session did not
+  visit and says nothing about.
+- **Limits.** Six steps, one browser, one model and layer, three views at z4.5 to z5, one moment (a fresh GFS run present);
+  the dev site, not production; steps made by key events from the page's console, not a hand on the wheel.
+- **Standing.** The first-visit delay named in section 4 is not reached at these views on the deployed client. No fix is
+  proposed. Whether the regional or ICON/EURO requests seen in the logs are misses or ordinary is a different question and
+  is not opened here.
