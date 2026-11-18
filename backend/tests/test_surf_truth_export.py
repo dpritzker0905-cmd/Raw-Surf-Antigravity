@@ -50,6 +50,7 @@ def _obs(oid, user, *, flow="blind_v1", at=NOW - timedelta(hours=1), device="dev
 async def world(monkeypatch):
     monkeypatch.setattr(security, "SECRET_KEY", secrets.token_urlsafe(48))
     monkeypatch.setenv(ste.KEY_ENV, KEY)
+    monkeypatch.setenv(ste.ENABLE_ENV, "1")
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
         for model in (Profile, SurfSpot, SurfObservation, SurfTruthAnchor, SurfTruthAnchorEvent, SurfTruthAdminAction,
@@ -232,3 +233,23 @@ async def test_export_needs_consent_when_received_and_at_export(world):
     assert observers == {ste.pseudonym(KEY.encode(), "observer", "ana-profile-id")}       # only Ana's rows
     assert manifest["rows"] == 2 and manifest["excluded_no_consent"] == 2
     assert "consent_rule" in manifest
+
+
+@pytest.mark.parametrize("value", [None, "", "0", "true", "yes"])
+async def test_exports_stay_off_unless_the_owner_switched_them_on(world, monkeypatch, value):
+    """The admin screen's approval box is only a reminder; the server refuses unless SURF_TRUTH_EXPORTS_ENABLED is
+    exactly "1" (advisor, #1033: the approval was client-side only)."""
+    written = []
+
+    async def fake_write(rows, manifest, now=None):
+        written.append(rows)
+        return {"run_id": "r", "data_object": "o", "manifest_object": "m", "rows": len(rows)}
+    monkeypatch.setattr(ste, "write_export", fake_write)
+    if value is None:
+        monkeypatch.delenv(ste.ENABLE_ENV, raising=False)
+    else:
+        monkeypatch.setenv(ste.ENABLE_ENV, value)
+    r = await world.client.post("/api/admin/surf-truth/export", headers=_token("boss"))
+    assert r.status_code == 403 and ste.ENABLE_ENV in r.json()["detail"] and written == []
+    async with world.maker() as db:
+        assert (await db.execute(select(SurfTruthAdminAction))).scalars().all() == []
