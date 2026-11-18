@@ -2606,3 +2606,21 @@ finding):**
     (linear, unmeasured).
   - **G1c:** the admin coverage class column.
   - Gate: null control + harmful-flag positive control.
+
+## 2026-11-18 02:20 -0500 Dispatch-ready spec for the archive read (the director asked for it; written before any number exists)
+- **Vehicle (VERIFIED on origin/dev):** extend the existing `scored-rows-gate.yml`; do not add a new job.
+  - It is dispatch-only, holds the monitor's secrets by name, and enforces GET-only in code (`read_only_http`).
+  - It prints aggregates only (n<10 suppressed) and uploads no artifact.
+  - Its last run, 44155289880, read 686,567 rows in 1 min 39 s.
+- **The new reads:** three sections behind a new input, `research_reads`, default `'0'` (the `gates_v2` pattern):
+  - **A, ASK 16:** the gap of the served forecast and of the equal mean to Open-Meteo best_match, split into a bias part
+    and a spread part.
+  - **B, big swell:** served vs the equal mean, with the cohort selected on the EQUAL-MEAN forecast ≥ 3.0 m. Sensitivity
+    at 2.5 and 4.0 m. Split by member tier class. Holm, 1-day block bootstrap.
+  - **C, isotonic Step 0:** a CORP MSE = MCB − DSC + UNC decomposition per lead × basin.
+- **The reading rule** is fixed in the shared note `job-spec-archive-research-reads-2026-11-18.md`:
+  - Window: 7 complete days `[D-8, D-1)`, with halves as replication. The archive starts 2026-08, so it is disjoint from
+    the L1 TRAIN, TEST and held-out weeks.
+  - At +48/+72 h, B is decided on `stored-global_mid` rows. No regional member row exists past 48 h.
+  - C's trigger: MCB ≥ 15% of MSE, CI lower bound > 0, n ≥ 200. It is a screen only.
+- **Asked of David:** one dispatch, after a small lane PR passes the §24 gate. Nothing served changes.
