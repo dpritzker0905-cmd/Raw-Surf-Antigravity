@@ -19,3 +19,45 @@ prefetch is reopened. Freshness is not testable offline (the lab's bundle is alw
 census hook's per-commit render ms. Per step, from the keydown to the next frame presented: ms in React commits (census), script outside
 React, style + layout, paint + composite, GPU tasks, and idle. 3 sessions. Reported, not gated; the void rule applies. Limit stated now:
 an emulated phone (CPU throttle on this machine's GPU), not a real mid-range Android.
+
+## 23:25Z: results (as they fell; offline lab; today's `dev` production build; machine 85-92% busy during the trace)
+
+**Probe fixes found while running (no app code):** the zoom-scrub scenario (1) never opened the phone's collapsed timeline sheet, so
+phone keys never reached the wheel; (2) hard-coded GFS in its exact check and its expected-frame request, so every ICON step read
+"never exact". Both fixed and committed (`aedd8e2f0`) BEFORE the cells were re-run; the first cell runs are superseded, not used.
+
+### A. In-box first visits (arm `cur` = bundles on; ms from the key to the exact frame; the scenario's 10 fixed steps)
+
+| cell | cur (bundles on) | noregional (bundles off) |
+|---|---|---|
+| Hawaii z9 GFS desktop | 9, 0, 0, 9, 13, 11, 5, 17, 2, 2: all exact <= 17 ms | 47, 0, 0, 33, 40, 39, 45, 40, 42, 48 |
+| Hawaii z9 GFS phone | 0, 0, 93, 0, 9, 1, **109**, 10, 0, 8: all exact; one step 109 ms | 0, -, -, 0, 240, 158, 375, 211, 0, - |
+| Hawaii z9 ICON desktop | 0, 0, 4, 0, 0, 2, **never**, 14, 0, 16 | 0, 0, 131, 0, 53, 58, never, 35, 0, 47 |
+| Hawaii z9 ICON phone | 0, 0, 8, 0, 7, 7, **never**, 7, 0, 6 | 0, 0, 111, 0, 158, 203, never, 171, 0, 209 |
+| **Florida z8 GFS phone** | **NO FIRST FRAME in 60 s (3 of 3 runs)** | 0, 0, 215, 0, 456, then 5 never |
+
+- The registered claim ("every first-visit step exact within 100 ms inside a box") **does not hold as written**: Hawaii GFS phone has one
+  step at 109 ms; ICON's 7th step (the burst to +172 h, past ICON's 168 h native range) is never exact in EITHER arm (ICON's tail, not
+  the bundle); and Florida on the phone never draws at all with bundles on.
+- Where it does draw, the bundle path is what makes first visits fast (0-17 ms desktop, 0-10 ms phone, vs 33-456 ms bundles off).
+- **Florida z8 phone, bundles ON: a likely real defect.** The state dump at the timeout (`boxC/fl-phone-cur-diag.json.nofirstframe.json`):
+  the regional bundle loaded (113 slices, prewarm frame ok), the series cache keeps hitting, but the engine holds no grid; the app's own
+  backstop logs "Render backstop: engine empty + idle >= 3s, re-driving" every 3 s, a truth chain reports "ABSENT ... died after
+  cacheRead (38s silent)", and NO `/grid` request is ever made. Bundles OFF on the same phone view draws. Desktop at the same view drew
+  (2026-11-16). Not yet traced to code. **The CDN prefetch stays dropped (inside a box it adds nothing where the bundle works), but this
+  phone defect is a bigger first-visit problem than the prefetch was.**
+
+### B. Phone trace split by phase (390x844 dpr 3, 4x CPU, z6, GFS waves, 10 steps; production build, so React's own share is inside "script")
+
+| session | calibration | step window (median) | main thread busy | script | style + layout | paint + composite | GPU thread | keypress-to-paint p50 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 126.7 ms | 1903 ms | 1885 ms | 1450 ms | 82 ms | 212 ms | 275 ms | 316 ms |
+| 2 | 122.9 ms | 1686 ms | 1674 ms | 1311 ms | 56 ms | 210 ms | 188 ms | 256 ms |
+| 3 | 120.1 ms | 1644 ms | 1628 ms | 1229 ms | 56 ms | 204 ms | 222 ms | 260 ms |
+
+- The emulated phone's main thread is busy for ~99% of every step's window; **script is ~75% of a step** (1.2-1.45 s), paint ~205 ms,
+  layout 56-82 ms; the GPU thread 190-275 ms. The step window exceeds the 900 ms dwell because the throttled page answers the harness late.
+- So the next lever is script, not layout or paint. Which script is not measured here: React's share needs the profiling build, which
+  crashes on `dev` (the React 19 `react-dom/profiling` alias fix lives only on `opus/scrub-render-census`'s craco config); a JS sampling
+  profile of one step is the next instrument.
+- Limits: an emulated phone (CPU throttle on this desktop's GPU), not a real Android; the machine was 85-92% busy; trace overhead included.
