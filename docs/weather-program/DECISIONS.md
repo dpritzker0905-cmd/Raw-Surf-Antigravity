@@ -2276,3 +2276,21 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Supersedes** the `[COMPANY]` / `[PRIVACY NOTICE LINK]` default placeholders of D-082. The markers still refuse a
   published text that carries them.
 - **Still DRAFT:** counsel has reviewed no wording.
+
+### D-084 · Company details: only a real change re-asks; corrections keep consents, with an append-only record (2026-11-18, decided by the owner)
+- **Owner:**
+  - "Only real name changes" (typed in this lane's session, answering whether a company-details typo fix should
+    re-ask everyone and empty the export);
+  - "Yes, correction option" (typed in the T1 session, relayed with the details below).
+- **Rule:**
+  - A Company details publish is either a CHANGE or a CORRECTION, and the admin must say which.
+    - A CHANGE (a different company or privacy notice) starts a new consent revision. Everyone who opted in is asked
+      again, and retention replaces the exports.
+    - A CORRECTION (a typo, same meaning) keeps the revision. Every consent and export stands.
+  - A publish that leaves the consent's filled words untouched never re-asks anyone.
+  - Every publish appends a row to `company_details_changes` (append-only on Postgres) holding the old and new
+    details, the filled consent words before and after, who published it and when. The record therefore still shows
+    exactly what each person saw.
+- **Supersedes** D-083's "the consent's served version names the FILLED words". It now names the Company details
+  revision.
+- **Reopen if** counsel says that a corrected name or link under an unchanged consent version is not valid consent.

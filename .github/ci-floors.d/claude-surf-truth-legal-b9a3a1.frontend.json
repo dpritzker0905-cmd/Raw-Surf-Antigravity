@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 5,
+  "tests": 6,
   "files": 1,
   "branch": "claude/surf-truth-legal-b9a3a1",
   "date": "2026-11-18",
-  "note": "T1 legal: Company details tab, /privacy page, consent privacy link"
+  "note": "T1 legal: Company details tab (change/correction), /privacy page, consent privacy link"
 }

@@ -86,3 +86,37 @@ Tests:
 - `check_eslint.js`: no new debt.
 - Not run locally: `npm run build`, and the browser preview of the three themes.
 - Floors re-derived: guards +30 (+1 file), estate +7, frontend +5 (+1 suite).
+
+## 2026-11-18 18:43Z (from the UTC clock) Correction option for Company details (David: "Only real name changes")
+
+The advisor asked what a typo fix in Company details does. Until now it re-asked everyone and emptied the next
+export. David answered in this session, "Only real name changes", and the T1 session relayed "Yes, correction option"
+with three points. All three are built:
+
+1. **A change or a correction:**
+   - The consent's served version now follows a Company details REVISION, not the filled words.
+   - A CHANGE (a different company or privacy notice) starts a new revision, so everyone is asked again.
+   - A CORRECTION keeps the revision, so every consent and every export stays.
+   - The admin must pick "A change" or "A correction" before Publish. Nothing is preselected.
+2. **The proof:** a new append-only table, `company_details_changes`, gets one row for every publish.
+   - Each row holds the old and new details, the filled consent words and version before and after, the kind, the
+     revision, and who published it and when.
+   - On Postgres it uses the consent-event pattern: triggers refuse UPDATE, DELETE and TRUNCATE, the service role has
+     SELECT and INSERT only, and RLS is on.
+   - Under a corrected version, the record still shows what each person saw.
+3. **No needless export replacement:**
+   - Retention now counts a Company details publish as a revocation only when that row says the consent version
+     changed.
+   - A publish that leaves the consent's filled words untouched keeps the revision, whatever the admin chose. Example:
+     setting the privacy contact, which the default consent does not use.
+
+The default served version moved from a hash of the words to a hash of the revision ("default" before any change).
+The stack is unmerged, so no stored grant is affected.
+
+Tests:
+- Backend: **208 passed, 1 skipped** (12 files). The new tests cover a correction keeping consents and the record
+  (old and new words, same version), a no-op publish, retention counting changes but not corrections, and the
+  append-only DDL.
+- Frontend Jest: **20 passed in 4 suites**, in a scratch checkout.
+- ESLint: no new debt.
+- Floors: guards +32 (+1 file), estate +10, frontend +6 (+1 suite).

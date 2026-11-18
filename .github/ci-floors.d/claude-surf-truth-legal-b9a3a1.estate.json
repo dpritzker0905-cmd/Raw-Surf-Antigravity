@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 7,
+  "tests": 10,
   "branch": "claude/surf-truth-legal-b9a3a1",
   "date": "2026-11-18",
-  "note": "T1 legal: consent filled from Company details; company details validated"
+  "note": "T1 legal: Company details, correction option, append-only publish record"
 }
