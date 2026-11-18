@@ -197,3 +197,26 @@ on the next pilots run.
   01:52:31Z, the first pilots run after #1009 merged.
 - **The next counted run is 44249848808** (created 06:14:12Z). #998 merged at 03:16:52Z, so this run also carries its five raster
   sets, in their own steps; by the plan they are not an exclusion, and their time counts toward line 2.
+
+### 2026-11-18 14:07Z: counted run 2 of 4: pilots 44249848808 (06:14Z start, head after #998 / #1005 / #1006)
+
+`frames_budget_gate.py --run 44249848808`, with latest.json as last written by this run (09:20:51Z).
+
+| line | measured | verdict |
+|---|---|---|
+| 1. skips per step <= 2 | frames 0 / 0; rated **12 / 12** (log lines and report agree) | **FAIL** |
+| 2. no timeout, job < 240 min | frames step 1,191 s (success), rated step 1,875 s (success), job 186 min | PASS |
+| 3. no rated set behind its plain sibling | **12 behind**: the 12 skipped sets | **FAIL** |
+| 4. no plain GFS regional waves bundle skipped | 0 | PASS |
+| 5. #975 order | positions 1-19 are the 19 GFS regional waves rated bundles, 20th is GFS/marine/waves/global_mid_rated (from the rated report's key order, read by this session) | PASS |
+
+- **The 12 skipped sets** are all GFS regional **wind_waves** rated bundles: brazil_east, south_africa, mexico_centralamerica_pac,
+  us_southeast_midatlantic, azores, us_northeast, france_biscay, canaries_madeira_morocco, caribbean_pr_dr, srilanka_maldives,
+  centralamerica_caribbean, us_pacific_northwest. They are the last tier the order reaches.
+- **The rated set seconds grew,** from 1,596 s on run 1 to 1,784 s on run 2 (+12 %). GFS/marine/waves/global_mid_rated went from
+  97.7 s to 124.2 s (+27 %).
+- **Not measured, a hypothesis:** #1006 (hourly GFS wind ON, merged between the two runs) gives the rating overlay a wind
+  product at every hour, which would make rated frames heavier. The plan was sized before it.
+- **Standing:** 1 PASS (run 1), 1 FAIL (run 2). By the registered rule the gate fails on any timeout, or on lines 1, 3 or 4
+  failing in 2 of 4. Two counted runs remain.
+- **Not changed here:** the budget. Any re-sizing is a plan change for the advisor's read and the director's go.
