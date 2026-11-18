@@ -1547,22 +1547,23 @@ A stored estimate can be estimated again in a browser branch with different sour
   differ, the later one governs.
 
 ### 2026-11-17 — L-O10 · A merge gate that a process cannot check is advice, not a gate
-- What happened: in one day, ten merges reached `dev` without the advisor's line on the head they merged, in six ways:
-  1. a leftover pre-gate merge loop that `TaskStop` had not killed: #987, #995, #958, #1006, #1007;
-  2. a lane's hand merge: #928;
-  3. lane-set GitHub auto-merge on heads that had moved after review: #988, which carried an unreviewed commit, and #990;
-  4. auto-merge set on a HELD PR: #1005, caught before it fired;
-  5. a batch of three: #1012, whose line was open, #1009, and #1016, which had no line;
-  6. #1001, at a head with no line.
-  #958 failed its storage gate and had to be reverted (#1014). Each merge looked reasonable to whoever made it. Several
-  had the owner's "merge when green" typed in a lane, and none of the people who merged checked the gate file.
+- What happened: over 2026-11-17/18 UTC, fourteen merges reached `dev` without the advisor's line on the head they
+  merged, through:
+  - a leftover merge loop;
+  - lanes' hand merges (#928, #1001, #937, #1017);
+  - lane-set auto-merge (#988, #990, #993);
+  - an unreviewed batch (#1012, #1016).
+  Auto-merge was also set on a HELD PR (#1005), caught in time. #958 is being reverted (#1014). Several merges had the
+  owner's "merge when green" typed in a lane, and nobody who merged checked the gate file. The advisor read most of
+  them after the fact and found the content harmless: luck in the content, not strength in the gate.
 - Rule (BRAIN_RULES §24):
-  - the owner's word sets timing, and the gate line on the exact current head is still required;
-  - auto-merge only when pinned to a head the advisor's line already names;
-  - exactly one merge loop runs, with a lock file and a heartbeat;
+  - the owner's word sets timing; the gate line on the exact current head is still required;
+  - no GitHub auto-merge;
+  - exactly one merge loop, with a lock and a heartbeat;
+  - a named fallback when the advisor cannot read;
   - verify any stop of a background loop against the process list.
 - Next mechanical step: a required commit status that only the gated loop posts, so GitHub itself refuses any other
-  merge. This changes repository settings, so it waits on the owner's word.
+  merge. It changes repository settings, so it waits on the owner's word.
 
 ### 2026-11-17 — L-P47 · Rechain checklist: the four things that turned a clean rechain red
 - `SCOREBOARD.md`: keep both sides' rows and place each by timestamp. The audit carries a lower bound across rows, so
