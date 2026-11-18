@@ -446,3 +446,17 @@ working tree's. Paths under `frontend/src/components/map/`.
   padded, snapped box, so a viewport of roughly 7 to 8 deg may already pass 12: inference); which backend pages are thinned;
   and the GPU frame store's own path, not traced.
 - **Nothing is proposed in this section.** A fix for any of the cases is a separate proposal to the director.
+
+## 14. Case 4 of section 13 (ICON and EURO at the world box): the program's own record says it was already static on 26 Oct
+Read from the repository only (2026-11-18, 14:25 EST); nothing live was read today.
+- `docs/weather-program/log/2026-10-26-claude-lead-flag-flips.md:27`: one GET of `/api/weather/capabilities` that day showed
+  `gulf_fill_mid` true and `gulf_fill_mid_mode` **targeted** on every marine record. `log/2026-10-25-claude-euro-icon-world-
+  store.md:38`: the filled sets were published (EURO 99 frames, ICON 115, parity_bad 0) and the backend ran the same flag.
+- Those are the two conditions `staticFrames.js:500-507` needs. So by the record, ICON and EURO world views have been served
+  from the filled static set since late October, and the 1.5 s exact-upgrade wait is not reached there either.
+- **This is a record from 23 days ago, not a check of today's value.** A flag can have been turned off since (the live
+  guardrail can do that). It was not re-read: a `/capabilities` read is a request to the live backend and today's word did
+  not cover it.
+- **What it changes:** my recommendation in the note to the director ("case 4 first") is withdrawn. If the record still
+  holds, the ICON and EURO `/grid` traffic in section 10 (regional boxes) is cases 1, 3 and 6: close views outside or across
+  regional tiles. Those are questions of which regional tiles are published, not of client code.
