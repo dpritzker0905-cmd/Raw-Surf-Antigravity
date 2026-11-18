@@ -2772,3 +2772,20 @@ downgrade, owner). Sent to the director.
   section L. The research lead keeps it current.
 - **Critical path:** census wrapper, then tide M1-0 + raster flips, then small items, then stored-only fallbacks, then
   ICON-EU, then hub horizon (after #1005), then ingest, then attribution, then proxy removal, then guard blocking.
+
+## 2026-11-18 17:40 -0500 Routing confirmed; #1064 accept-gate note; row 7 same-model replacement; ICON-EU facts
+- **Routing confirmed by the director:**
+  - census wrapper and static guard → repair lead;
+  - ICON-EU → frame-carry;
+  - WebGL tiles → layer-animation;
+  - attribution → tide lane;
+  - ingest → a new ingest lane.
+  Kept current in shared note section L.
+- **#1064 (tide M1-0):** parity vs Open-Meteo is the same CMEMS data, so it proves plumbing only. ACCEPT must score both
+  arms vs observed water level (CO-OPS + UHSLC/GLOSS; median, p95, max, timing; ME; planted 1×/2×). Sent to the tide
+  lane.
+- **Row 7:** `point_resolution.py:418-438` uses the Open-Meteo point only for a degraded GLOBAL-COARSE marine sample.
+  Open-Meteo's GFS wave point is NOAA GFS-Wave 0.25°, so a direct `.idx` byte-range point read from
+  `noaa-gfs-bdp-pds` replaces it with no downgrade. EURO → MFWAM 1/12°, ICON → GWAM.
+- **ICON-EU** (opendata.dwd.de, read today): 8 cycles a day, hourly to +78 h, then 3-hourly to +120 h, about 1 MB per
+  field per step. A 120 h seam to global ICON needs a pre-registered seam check.
