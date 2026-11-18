@@ -2650,3 +2650,23 @@ Full note: shared notes `open-meteo-exit-plan-2026-11-18.md` (sections A-D), sen
   1. a CI host guard with a planted-URL positive control;
   2. a runtime census showing 0 Open-Meteo requests;
   3. per-layer parity rows.
+
+## 2026-11-18 13:47 -0500 Open-Meteo WORK LIST v1 (owner ruling 13:13Z: "No user data should be open-meteo"; "widen guardrails yes")
+Full table: shared notes `open-meteo-exit-plan-2026-11-18.md` section E (12 paths: route, field, share, replacement,
+downgrade, owner). Sent to the director.
+
+- **CORRECTION to the 10:45 entry:** browser `.om` covers temperature, rain, fog and water temp for ALL three models.
+  - `ownRasterFrames.js:170` `DEFAULT_ON_LAYERS` = satellite, pressure, gusts, currents.
+  - Own sets are published, but the client does not draw them.
+- **New live paths:**
+  - `spot_conditions.py:386` hub fallback, when any of 11 dates is missed. ICON stores about 7 days.
+  - `forecast_ingester.py` runs every ingest cycle and feeds the last-resort wind cache.
+  - Tide feeds every surf height (SURF_TIDE_DEPTH) and the glyph bake (RATING_TIDE).
+- **Render app logs, 24 h** (read-only; shares pending a count pass):
+  - a 10-minute Open-Meteo point-fetch cycle, GFS waves+wind at 3 points near Mavericks;
+  - a ~20-spot sweep at 11:57Z;
+  - GFS/ICON all_marine grid fetches (Florida bbox).
+- **Keep-minimal Open-Meteo: none needed.** The closest call is the tide residual outside the US (CMEMS merged-sl
+  unconfirmed).
+- **G1a design notes** sent to the rating-band lane: ledger-row guard, tier-class strata, harm rule, null, positive
+  and shuffled controls, and 2-run anti-flap.
