@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from models import (SurfTruthConsentEvent, Booking, CheckIn, Comment, Follow, GalleryPurchase, Message, ObservationMedia, PaymentTransaction,
+from models import (SurfTruthAdminAction, SurfTruthConsentEvent, Booking, CheckIn, Comment, Follow, GalleryPurchase, Message, ObservationMedia, PaymentTransaction,
                     Post, Profile, Review, SurfObservation, SurfTruthAnchor, TosAcknowledgement, TosViolation)
 from models.enums import RoleEnum
 from routes.compliance_pkg.gdpr import request_data_deletion
@@ -36,7 +36,7 @@ def maker():
         async with engine.begin() as conn:
             for model in (Profile, Post, Comment, Follow, CheckIn, Review, Message, SurfObservation,
                           ObservationMedia, SurfTruthAnchor, Booking, GalleryPurchase, PaymentTransaction,
-                          TosAcknowledgement, TosViolation, SurfTruthConsentEvent):
+                          TosAcknowledgement, TosViolation, SurfTruthConsentEvent, SurfTruthAdminAction):
                 await conn.run_sync(lambda c, t=model.__table__: t.create(c))
         mk = async_sessionmaker(engine, expire_on_commit=False)
         async with mk() as db:
@@ -87,6 +87,10 @@ def test_deletion_request_erases_the_users_surf_truth_rows_and_keeps_others(make
                     gone.instagram_url) == ("Deleted User", None, None, None, None)
             stays = (await db.execute(select(Profile).where(Profile.id == "stayer"))).scalar_one()
             assert stays.home_latitude == 21.6
+            # the retention job's trigger: WHEN an account was erased, never who
+            (mark,) = (await db.execute(select(SurfTruthAdminAction))).scalars().all()
+            assert (mark.action, mark.admin_id, mark.target_type) == ("account_erasure", "system", "account")
+            assert "leaver" not in (mark.target_id or "") and mark.reason is None and mark.detail is None
             # the consent history is the proof of consent: kept, like ToS acknowledgements
             assert (await _count(db, SurfTruthConsentEvent, SurfTruthConsentEvent.profile_id == "leaver")
                     ).scalar() == 1

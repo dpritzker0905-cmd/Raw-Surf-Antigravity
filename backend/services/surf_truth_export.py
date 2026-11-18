@@ -17,8 +17,9 @@ observations).
 PSEUDONYMOUS IS NOT ANONYMOUS. Each row keeps a spot, a minute and a stable observer key, so anyone holding the
 database can re-identify rows by joining on spot and time, and a regular at one break is recognisable from the pattern.
 The export is PERSONAL DATA in private storage and is handled as such: private bucket only, service-role access only,
-never published, never copied into the repo or an artifact. Retention and deletion are P3's (see the log): until P3,
-no real export runs without David's answer on retention and consent.
+never published, never copied into the repo or an artifact. RETENTION (owner, 2026-11-18): the 3 newest exports are
+kept; after an account deletion a fresh export replaces every older one within 7 days (services/surf_truth_retention,
+a daily job). CONSENT: only rows whose observer opted in, then and now (services/surf_truth_consent).
 KEY ROTATION: a new SURF_TRUTH_EXPORT_KEY gives every observer a new key, so b_j does not carry across the change.
 A rotation therefore means a FULL re-export, and fits never mix exports made under different keys (the manifest
 records a key fingerprint for exactly that check).

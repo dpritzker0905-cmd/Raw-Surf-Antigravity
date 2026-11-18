@@ -290,3 +290,19 @@ Tests: backend +6 (default until published; one-label-one-text; unknown document
 new version asks again, agreeing again restores, counts), Jest +5. Mutation: ignoring the version in the export's
 check fails the version-rule test. 116 surf-truth backend and 468 Jest tests (admin, observations, settings,
 src/tests) pass; the lint ratchet passes (debt down). NOT checked in a browser: the admin needs an admin login.
+## 2026-11-18 04:26Z T1 P3 (part 4): David's retention rule, enforced daily (header from the UTC clock)
+
+DECISION (David, in chat, 2026-11-18 04:26Z): "Keep the 3 newest exports, purge within 7 days". He also reported that
+SURF_TRUTH_EXPORT_KEY is now set on the Render backend (value recorded nowhere; he keeps a copy).
+Built (`services/surf_truth_retention.py` + the scheduler job `surf_truth_retention`, daily 04:15 UTC, shown and
+switchable in the admin Jobs tab):
+1. keep the 3 newest exports (by manifest cut_at) under the current pseudonym key, delete the rest;
+2. after any account deletion, write a FRESH export (the person's rows are already erased) and delete every older
+   one; daily, so well inside the 7 days;
+3. exports under a previous key (manifest key fingerprint differs) are deleted;
+4. orphans (data without manifest or the reverse) are deleted after a 6-hour grace;
+without the key, a pending deletion removes every export (fail safe). The deletion request now writes an
+`account_erasure` line to the append-only admin action log under a random id: when, never who. Each run logs
+`retention` (and `export` when it wrote one) as actor `system`, with counts only.
+Tests +6 (the four rules and the enforcer, with a fake store); mutation: a planner that ignores deletions fails 3.
+73 related backend tests pass. Stacked on #1026.
