@@ -15,12 +15,13 @@ import { CUSTOM_COLOR_SCALES, applyPrecipColorScale, applyThemePressureScale } f
 import {
   createOwnRasterLayer, buildStepLut, PRESSURE_LUT, PRESSURE_OPACITY_STOPS, TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS,
   CLOUD_LUT, SATELLITE_OPACITY_STOPS, RAIN_LUT, RAIN_OPACITY_STOPS, FOG_LUT, FOG_OPACITY_STOPS, WATER_TEMP_LUT, waterTempOpacityStops, GUST_OPACITY_STOPS, CURRENTS_OPACITY_STOPS,
-  scaleForTheme,
+  scaleForTheme, opacityAtZoom,
 } from './ownRasterLayer';
 import { RASTER_NAMES, getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
 import { requestIsobars } from './isobarStore';
 import { GUST_LUT, gustScale } from './gustPalette';
-import { setShownGustField } from './gustParticles';
+import { setShownGustField, gustFieldTint } from './gustParticles';
+import { v2FieldTint } from './WebGLWindUtils';
 import { CURRENTS_LUT, currentsScale } from './currentsPalette';
 import { loadDownscale, setDownscaled } from './ownRasterDownscale';
 import {
@@ -233,6 +234,11 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
         .catch(() => apply(null));
     }
     if (layer === 'pressure') L.setIsobarColor(ISO_INK[theme] || ISO_INK.dark);
+    // Gusts tint the basemap on light and beach exactly as the wind field does (gustParticles.gustFieldTint); read each frame,
+    // so both kills act live.
+    if (layer === 'gusts' && typeof L.setTint === 'function') {
+      L.setTint((z) => gustFieldTint(theme, z, (zz) => opacityAtZoom(GUST_OPACITY_STOPS, zz), v2FieldTint(theme)));
+    }
     return () => { alive = false; };
   }, [engaged, layer, theme, gen]);
 

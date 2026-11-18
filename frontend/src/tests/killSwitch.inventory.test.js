@@ -101,6 +101,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_GUST_PARTICLES__',
   // gustParticles.test.js ("the flicker: on by default, off under its kill and under prefers-reduced-motion"; 2026-11-18)
   '__RAW_DISABLE_GUST_FLICKER__',
+  // gustParticles.test.js ("the gust field tints like the wind field on light and beach; both kills turn it off"; 2026-11-18)
+  '__RAW_DISABLE_GUST_FIELD_TINT__',
   // currentsLayer.test.js ("its kill restores the handheld radius"; 2026-11-15, own-only phone prefetch)
   '__RAW_DISABLE_OWN_ONLY_PREFETCH2__',
   // ownRasterDecode.test.js ("without a Worker (and under its kill) the same function runs on the main thread"; 2026-11-15)

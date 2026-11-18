@@ -29,6 +29,24 @@ export function gustColourMode(activeLayers) {
   return !a.includes('wind') && a.includes('gusts') && gustParticlesOn();
 }
 
+/**
+ * GUST FIELD TINT (2026-11-18, David chose "tune light" after the three-theme screenshots): on light and beach the WIND field is
+ * not laid over the basemap, it TINTS it (multiply, WebGLWindUtils.v2FieldTint), which is why its colours run deeper and its
+ * white streaks read stronger. Measured on the same view: the gust field's luminance 0.387 vs the wind's 0.300, streak
+ * contrast 29.7e-3 vs 32.9e-3. The gust raster now tints the same way, with the strength scaled so that (gust alpha x tint)
+ * equals (wind field alpha x tint) at every zoom: the same ink as the wind field for the same knot. Dark is untouched (the
+ * wind's dark field is alpha-over too). Kills: window.__RAW_DISABLE_GUST_FIELD_TINT__ (Gusts back to alpha-over), and the
+ * wind's own __RAW_DISABLE_WIND_FIELD_TINT__ (v2FieldTint returns 0) turns both off together.
+ */
+export const WIND_FIELD_OPACITY = Object.freeze({ dark: 0.48, light: 0.65, beach: 0.55 });   // WebGLWindEngine's heatmapOpacity
+export function gustFieldTint(theme, zoom, gustOpacityAt, windTint, win = (typeof window !== 'undefined' ? window : null)) {
+  if (win && win.__RAW_DISABLE_GUST_FIELD_TINT__ === true) return 0;
+  const s = Number(windTint) || 0;
+  if (!(s > 0)) return 0;
+  const g = Number(gustOpacityAt(zoom)) || 0;
+  return g > 0 ? s * (WIND_FIELD_OPACITY[theme] || g) / g : 0;
+}
+
 let shown = null;
 const subs = new Set();
 

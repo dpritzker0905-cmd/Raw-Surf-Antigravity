@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   gustParticlesOn, windParticlesWanted, gustColourMode, encodeGustTexture, decodeGustByte,
-  getShownGustField, setShownGustField, subscribeGustField,
+  getShownGustField, setShownGustField, subscribeGustField, gustFieldTint, WIND_FIELD_OPACITY,
 } from './gustParticles';
 import { GUST_RAMP_MAX_KN, rampMaxFor, gustColourActive, setGustField, clearGustField, gustFlicker, GUST_FLICKER_HZ, GUST_FLICKER_DEPTH } from './windGustColour';
 import { DRAW_VS, DRAW_FS } from './WebGLWindShaders';
@@ -210,6 +210,36 @@ describe('gust flicker (the non-colour gustiness cue)', () => {
     expect(DRAW_VS).toMatch(/if \(u_gust_on > 0\.5 && u_gust_flick\.x > 0\.5\)/);
     expect(DRAW_VS).toContain('smoothstep(1.3, 2.2, v_cspeed / max(v_speed, 2.0))');
     expect(DRAW_FS).toMatch(/: color\.a\) \* v_flick;/);
+  });
+});
+
+describe('gust field tint (the wind field\'s look on light and beach)', () => {
+  const gustAt = () => 0.5;   // a flat gust opacity, for arithmetic that reads cleanly
+
+  test('the gust field tints like the wind field on light and beach; both kills turn it off', () => {
+    // (gust alpha x tint) == (wind field alpha x the wind's tint): same ink as the wind field for the same knot
+    expect(gustFieldTint('light', 5, gustAt, 0.70 / 0.65, {}) * 0.5).toBeCloseTo((0.70 / 0.65) * 0.65, 10);
+    expect(gustFieldTint('beach', 5, gustAt, 0.60 / 0.55, {}) * 0.5).toBeCloseTo((0.60 / 0.55) * 0.55, 10);
+    expect(gustFieldTint('dark', 5, gustAt, 0, {})).toBe(0);                                   // dark: alpha-over, as the wind
+    expect(gustFieldTint('light', 5, gustAt, 0.70 / 0.65, { __RAW_DISABLE_GUST_FIELD_TINT__: true })).toBe(0);
+    expect(gustFieldTint('light', 5, gustAt, 0, {})).toBe(0);                                  // the wind's tint killed
+    expect(gustFieldTint('light', 5, () => 0, 1, {})).toBe(0);                                 // no opacity: no divide by zero
+  });
+
+  test('the layer multiplies only when tinted, and restores MapLibre\'s premultiplied blend after', () => {
+    const L = src('ownRasterLayer.js');
+    expect(L).toContain('if (u_tint > 0.0) outc = vec4(mix(vec3(1.0), col.rgb, clamp(alpha * u_tint, 0.0, 1.0)), 1.0);');
+    expect(L).toMatch(/if \(tint > 0\) gl\.blendFuncSeparate\(gl\.DST_COLOR, gl\.ZERO, gl\.ZERO, gl\.ONE\);\s*gl\.drawArrays\(gl\.TRIANGLE_STRIP, 0, 4\);\s*if \(tint > 0\) gl\.blendFunc\(gl\.ONE, gl\.ONE_MINUS_SRC_ALPHA\);/);
+    // only the gusts layer sets a tint: every other raster layer is unchanged
+    const H = src('useOwnRasterFrames.js');
+    expect((H.match(/L\.setTint\(/g) || []).length).toBe(1);
+    expect(H).toContain("if (layer === 'gusts' && typeof L.setTint === 'function')");
+  });
+
+  test('the same formula as the wind heatmap tint (HEATMAP_FS)', () => {
+    expect(src('WebGLWindShaders.js')).toContain('vec4(mix(vec3(1.0), fieldRgb, clamp(alpha * u_field_tint, 0.0, 1.0)), 1.0)');
+    expect(WIND_FIELD_OPACITY).toEqual({ dark: 0.48, light: 0.65, beach: 0.55 });
+    expect(src('WebGLWindEngine.js')).toContain("var heatmapOpacity = effectiveTheme === 'dark' ? 0.48 : (effectiveTheme === 'light' ? 0.65 : 0.55);");
   });
 });
 
