@@ -222,6 +222,16 @@ The header '22:30Z Anchors C: the admin "Surf truth" area' ran AHEAD of the cloc
 
 The header '23:20Z T1 P4 export built (stacked on anchors C): private, pseudonymized rows for the offline fit' ran AHEAD of the clock: it was committed at 2026-11-16T22:46:20Z, 34 minutes before the time it states (an estimate; LESSONS L-P10).
 
+## 2026-11-18 01:04Z Post-deploy check: the two surf-truth logs refuse UPDATE, DELETE and TRUNCATE in production (header from `date -u`)
+
+Owed since anchors A/B. Production Supabase (the Antigravity project), read-only except one block that rolls itself back:
+- Catalog: `surf_truth_anchor_events` and `surf_truth_admin_actions` exist with RLS on, 2 non-internal triggers each, and
+  `service_role` holds INSERT but not UPDATE on both.
+- Behaviour, as `postgres` (the table OWNER, so grants do not apply and only the triggers stand): one DO block inserted
+  a synthetic row into each table, then tried UPDATE, DELETE and TRUNCATE. All six were refused with
+  "<table> is append-only"; the inserts succeeded. The block then raised, which rolled back everything; a follow-up
+  query found 0 probe rows in either table.
+- Positive control: the inserts in the same block succeeded, so the refusals are the triggers, not a broken table.
 ## 2026-11-18 03:03Z Admin: the Surf Forecast panel tells the truth about flags (header from the UTC clock)
 
 David asked for a comprehensive, working admin for the surf sim's logic. A read-only survey of the admin found the
