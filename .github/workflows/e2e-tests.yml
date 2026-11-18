@@ -69,7 +69,8 @@ concurrency:
 
 jobs:
   e2e:
-    runs-on: ubuntu-latest
+    # Playwright 1.60 supports Ubuntu 24.04. Keep the runner pinned through image migrations.
+    runs-on: ubuntu-24.04
     # ⭐ CHECK THE ENCLOSING BOUND BEFORE ADDING AN INNER WAIT. Worst case is now frontend wait 20 +
     # installs ~2 + backend wait 15 + tests ~8 = ~45 min. At the old 25 the job would have died with a
     # generic job timeout INSTEAD of the specific "the backend did not deploy" error below — the wait
