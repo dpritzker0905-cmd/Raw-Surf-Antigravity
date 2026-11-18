@@ -615,3 +615,21 @@ is VOID a third time, and the next step is a new month under this registration, 
 - `reuse_run_id_2=44107750669`
 - `runs=2026100100,2026101112,2026101300,2026101412,2026101712,2026101900,2026102312,2026102500,2026103100`
 - `ens_mirror=gcs`
+
+## 2026-11-18 01:51 -0500 Addendum to the option (b) amendment: the sameness control, measured and made a preflight
+
+- **Measured** (advisor condition 4): run 2026-10-02 00Z is already held from S3 and is not one of the 9. Its 336 h
+  `enfo` `ef` `.index` was read from BOTH mirrors at 20:10 EST.
+  - Both copies are 2,012,998 bytes and byte-identical.
+  - sha256 (both): `42b52eaf9a58d3e4c66432b07faddd85f913a58624da984913a7fc399d90d34`.
+  - The index lists every message's offset and length, so an identical index is strong evidence of identical files.
+- **Preflight:** the workflow's `mirror_check` job (`backend/scripts/wind_lr_mirror_check.py`) repeats the check in CI
+  before any collection, and widens it.
+  - It compares the `ef` indexes at 180 and 336 h, the HRES and AIFS-ENS indexes, and the GRIB bytes of the first
+    10u message at 336 h.
+  - Any difference fails the job, and then neither collect nor score runs.
+- **Runs:** the 9 named October runs, as amended at 19:07. The advisor's 00:42Z read accepted leaving the 3 fit-half
+  drops (09-03, 09-15, 09-21) dropped. They stay dropped.
+- **Precondition:** the director's written confirmation that no session has opened the report artifact of 43952101715 or
+  44107750669, or seen the scored numbers in any form. Without it there is no dispatch, and if anyone has, the route
+  is November.
