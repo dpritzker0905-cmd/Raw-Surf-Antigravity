@@ -41,3 +41,33 @@ regional tiles hourly + 1/6 deg world 3-hourly). Started on David's word "start 
 §3's last bullet says the 14-day forward collection "started below". It has NOT started: no collector exists yet. It is a
 ledger commitment (ledger.d/claude--gusts-currents-layers-172ef8.jsonl) and starts when built, as the next step of G4.
 Draft PR #1025 carries this world set.
+
+## 4. The 14-day collector, and everything ON by default (2026-11-18 ~04:30Z)
+David (2026-11-17): "build the 14-day SST collector", then "I dont want things starting dark (off), make them start on, with a
+test and kill switch". So, each with a test pinning both states:
+
+| What | Default | Kill | Test |
+|---|---|---|---|
+| `sst-g4-collect.yml`, daily 16:23 UTC | ON | repo variable `SST_G4_COLLECT=0` | test_sst_collect (the `if`, key only in storage steps) |
+| pilots step `water_temp_cmems` (spec default_on) | ON | repo variable `FRAME_RASTER_WATER_TEMP_CMEMS=0` | test_frame_set_raster_sst (enabled unset / '' / '1', off at '0') |
+| client: ICON water temp draws the Copernicus set | ON (DEFAULT_ON_MODELS) | `window.__RAW_DISABLE_RASTER_OWN_WATER_TEMP__ = true` | ownRasterFrames.test + useOwnRasterFrames.unpublished (unpublished -> .om, as before) |
+
+GFS and EURO water temp are unchanged (their own skin temperature). The section 11 observation check is now the GUARDRAIL that
+runs after ICON's switch, not a gate before it (David's ON-by-default rule); its FAIL line for ICON (not beating persistence)
+means the kill is used.
+
+COLLECTOR (`backend/scripts/sst_collect.py`, storage only through stdlib `sst_bucket_io.py`, the wind-emos-collect pattern):
+- Saves only what cannot be fetched later: each day's Copernicus bulletin at the stations (Copernicus overwrites past forecast
+  steps with analyses). GFS skin, ECMWF skt and NDBC WTMP stay in public archives and are read at scoring time.
+- Station rule (section 11, frozen on the first run): every station with a numeric WTMP in NDBC latest_obs between 60S and
+  65N; its own 1/12-deg cell, or the nearest ocean cell within 2 cells, else excluded with the reason.
+- Reads the store's time-series layout (geoChunked, chunks [3216 h, 1, 16, 16]): one chunk per station box holds a whole
+  bulletin. An all-land box is never written by the store (it answers 403): read as land. A refused TIME axis fails loudly.
+- One run = the last 264 hourly values per station, keyed by the store's last step (`runs/<YYYYMMDDTHH>.json.gz`, create-only
+  under `calibration/sst_g4/`); an unchanged store is skipped.
+- Dry run (offline, the real store, no upload, 2026-11-18): 369 stations kept, 68 excluded (all in lakes, bays and rivers the
+  global model has no sea in: the Great Lakes, Chesapeake, Hudson, Galveston, Puget Sound, SF Bay); kept stations sit a median
+  3.7 km (max 24.8) from their cell centre; 188 chunk reads, 98 s, a 188 KB file; store end 2026-11-27T23Z; 0 stations all
+  missing.
+- Starts when #1025 merges (`dev` is the default branch, so the schedule fires from there); 14 bulletins = about two weeks
+  after merge. The ledger commitment's due date (2026-12-05) stands if it merges by ~2026-11-20.

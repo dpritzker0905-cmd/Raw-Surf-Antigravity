@@ -37,15 +37,20 @@ def test_the_set_contract():
     g = fsr.grid_of(sp)
     assert (g["cols"], g["rows"]) == (2160, 1021) and g["bounds"] == (-180.0, -80.0, 180.0 - 1 / 6, 90.0)
     assert sp["field"] == fb.TEMP_C and sp["frame_plane"] and sp["hours"] == tuple(range(0, 238, 3))
-    assert sp["env"] == "FRAME_RASTER_WATER_TEMP_CMEMS" and sp["default_on"] is False and not fsr.enabled("water_temp_cmems")
+    assert sp["env"] == "FRAME_RASTER_WATER_TEMP_CMEMS" and sp["default_on"] is True and fsr.enabled("water_temp_cmems")
     assert "Copernicus Marine Service" in sp["credit"] and sp["value_unit"] == "degC"
     assert isinstance(fsr.make_source(sp, session=object()), sst.CmemsSstSource)
 
 
-def test_dark_until_its_variable_is_1(monkeypatch, capsys):
+def test_on_by_default_and_the_kill_is_0(monkeypatch, capsys):
+    """David 2026-11-17: new things start ON with a test and a kill switch. Unset or empty (an unset repo variable reaches the
+    step as '') = on; '0' = off, the publisher skips the set."""
+    for v in ("", "1"):
+        monkeypatch.setenv("FRAME_RASTER_WATER_TEMP_CMEMS", v)
+        assert fsr.enabled("water_temp_cmems")
+    monkeypatch.setenv("FRAME_RASTER_WATER_TEMP_CMEMS", "0")
+    assert not fsr.enabled("water_temp_cmems")
     assert script.main(["--set", "water_temp_cmems", "--out-dir", "unused"]) == 0 and "skipped" in capsys.readouterr().out
-    monkeypatch.setenv("FRAME_RASTER_WATER_TEMP_CMEMS", "1")
-    assert fsr.enabled("water_temp_cmems")
 
 
 def test_every_second_cell_is_its_own_value():
@@ -57,12 +62,12 @@ def test_every_second_cell_is_its_own_value():
         sst.sixth(a[:-1])
 
 
-def test_the_pilots_workflow_has_one_dark_step_with_its_own_timeout_and_budget():
+def test_the_pilots_workflow_has_one_step_on_by_default_with_its_own_timeout_and_budget():
     yml = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
     steps = [s for s in yml.split("\n      - name: ")[1:] if "--set water_temp_cmems\n" in s + "\n"]
     assert len(steps) == 1
     step = steps[0]
-    assert "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_WATER_TEMP_CMEMS == '1'" in step
+    assert "vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_WATER_TEMP_CMEMS || '1') != '0'" in step   # unset = on
     assert "continue-on-error: true" in step and "timeout-minutes: 20" in step and 'FRAME_RASTER_BUDGET_S: "900"' in step
 
 

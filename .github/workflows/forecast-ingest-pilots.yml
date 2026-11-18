@@ -616,9 +616,10 @@ jobs:
         run: python scripts/publish_raster_frames.py --set currents
       # G4 (2026-11-17): Copernicus ocean-model water temperature, the WORLD half of arm R2: 1/6 deg, 3-hourly, f000-f237 from the
       # hourly-mean thetao top level (the same CMEMS store family as currents). Offline cost: 80 frames, 71.6 MB, 47 s
-      # (docs/weather-program/log/2026-11-17-opus-g4-copernicus-sst.md). Off unless FRAME_RASTER_WATER_TEMP_CMEMS=1.
-      - name: Publish raster static frames (Copernicus water temp 1/6 deg; off unless FRAME_RASTER_WATER_TEMP_CMEMS=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_WATER_TEMP_CMEMS == '1' }}
+      # (docs/weather-program/log/2026-11-17-opus-g4-copernicus-sst.md). ON by default (David 2026-11-17); kill: the repository
+      # variable FRAME_RASTER_WATER_TEMP_CMEMS = '0'.
+      - name: Publish raster static frames (Copernicus water temp 1/6 deg; on, kill FRAME_RASTER_WATER_TEMP_CMEMS=0)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_WATER_TEMP_CMEMS || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 20
         working-directory: backend

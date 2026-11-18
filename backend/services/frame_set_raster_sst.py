@@ -36,7 +36,7 @@ CREDIT = "Generated using E.U. Copernicus Marine Service Information; https://do
 SPEC = {
     "target": {"model": "CMEMS", "domain": "marine", "layer": "water_temp", "region_id": "global_1p6"},
     "field": fb.TEMP_C, "grid": GRID_KEY, "frame_plane": True, "idx": ("thetao",), "convert": lambda a: a,
-    "valid": (-3.0, 40.0), "clip": None, "env": "FRAME_RASTER_WATER_TEMP_CMEMS", "default_on": False,
+    "valid": (-3.0, 40.0), "clip": None, "env": "FRAME_RASTER_WATER_TEMP_CMEMS", "default_on": True,   # ON (David 2026-11-17); kill "0"
     "value_kind": "sea_water_temperature_top_layer", "value_unit": "degC",
     "source_dataset": "Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 cmems_mod_glo_phy_anfc_0.083deg_PT1H-m thetao "
                       "(hourly mean) at -0.494 m; every second 1/12-degree cell (1/6 degree), the cells' own values",
