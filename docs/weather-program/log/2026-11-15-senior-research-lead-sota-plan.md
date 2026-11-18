@@ -2440,3 +2440,13 @@ before the read. Then construction fidelity within 0.02 m at every lead, then th
     is unchanged.
   - Real EURO output to 360 h is the existing unbuilt lever L6(b) (`docs/research/instant-marine-sota-2026-10-26.md`).
     It is owner-gated because it replaces the blended tail.
+
+- 2026-11-17 19:10 -0500: **Cost of EURO/ICON full horizon, from run 44083737083's log (no dispatch):**
+  - Today: EURO pilot 238 products in 3.0 min; ICON pilot 714 in 3.5 min. The same-lane analogues, EURO/ICON wind
+    pilots (57/61 steps, 14 regions), take 4.0/5.2 min.
+  - Projected: **+2,436 products per fire (EURO +672, ICON +1,764), about +10 min** on a 128-138 min ingest step
+    (timeout 300).
+  - Storage about +0.6 GB (+1% of 60.55 GB); objects +11%.
+  - GC churn goes from about 18k to 20.4k per cycle: it fits #1005's 25k cap and NOT the current 500, so this lands
+    after #1005.
+  - Manifest bytes and Render RSS are unmeasured; measure them at the dev deploy.
