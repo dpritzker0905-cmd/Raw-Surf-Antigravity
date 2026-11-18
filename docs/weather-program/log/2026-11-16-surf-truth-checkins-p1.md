@@ -271,3 +271,18 @@ David chose the last two items from the admin survey. Both backend routes alread
 Tests: backend: the history route returns the actor's name (assertion added, 16 pass); Jest +3 (history dialog, export
 gated by the approval box then posts and shows the run, a refused export shows why). Lint ratchet passes. Not checked
 in a browser (admin login). Base: dev.
+## 2026-11-18 04:42Z T1 P3 (part 5): go-live photos lose their GPS before they reach the public bucket (header from the UTC clock)
+
+The Surf truth Consent tab had recorded it since anchors C: go-live condition photos go to the PUBLIC `conditions`
+bucket with their original file data, so a phone photo's GPS position (and camera serial, times) was readable by
+anyone holding its link. `services/media_metadata.py` now strips the stored copy, losslessly (the image data is
+never re-encoded): JPEG drops every APPn except JFIF/ICC/Adobe and COM, then puts back a minimal EXIF holding ONLY a
+non-upright Orientation so photos do not turn sideways; PNG drops eXIf/tEXt/iTXt/zTXt/tIME; WebP drops EXIF/XMP and
+fixes the VP8X flags and RIFF size. The server's own facts (hash, EXIF position and time, for the blind-observation
+checks) are still read from the ORIGINAL bytes and kept in the private `observation_media` table. A malformed
+JPEG/PNG/WebP is refused (400) rather than stored unstripped. The upload reply says `metadata_stripped`.
+NOT stripped yet (follow-up): HEIC/HEIF (Pillow here cannot rewrite it) and video (needs a video tool); and the
+surf-report photo path, which is a different upload route. Already-stored photos keep their metadata until a
+backfill is decided.
+Tests +6 (each format: GPS gone, pixels identical, orientation kept; the route: public copy clean, private record
+kept, malformed refused); mutation: keeping APP1 fails. 99 related tests (incl. the upload identity suite) pass.
