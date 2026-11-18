@@ -329,6 +329,8 @@ function markPinStale(key) {
   const pin = _state.pins.get(key);
   if (pin) pin.stale = true;
 }
+/** A caller that fetched a frame itself (ownRasterDecode's worker path) got a 404 / 400: re-pin as loadFrameParsed would. */
+export const markStaticPinStale = (key) => markPinStale(key);
 
 // ── Frame loads: ONE fetch + parse per path, shared; vectors built on top, once per path ──────────────────────
 // A frame fetch is SHARED by every caller that wants the same immutable path (seam A's exact /grid, seam B's window and the

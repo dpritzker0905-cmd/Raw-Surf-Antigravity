@@ -111,6 +111,11 @@ export const TEMPERATURE_OPACITY_STOPS = [[2, 0.38], [5, 0.44], [8, 0.49], [12, 
 export const SATELLITE_OPACITY_STOPS = [[2, 0.55], [5, 0.60], [8, 0.65], [12, 0.70]];
 export const RAIN_OPACITY_STOPS = [[2, 0.60], [5, 0.68], [8, 0.74], [12, 0.78]];   // MapWebGL's rainOp (the bold pass)
 export const FOG_OPACITY_STOPS = [[2, 0.40], [5, 0.52], [8, 0.60], [12, 0.65]];
+// Gusts (2026-11-15, own frames only, no .om slot): the wind ramp's own alpha (0.72-0.95) times these, about the temperature
+// pair's strength, so the basemap's land and labels stay readable in every theme (three-theme screenshots in the gate log).
+export const GUST_OPACITY_STOPS = [[2, 0.50], [5, 0.56], [8, 0.60], [12, 0.62]];
+// Currents (2026-11-15): the palette already fades slow water out (currentsPalette.js alpha), so the layer itself stays bold.
+export const CURRENTS_OPACITY_STOPS = [[2, 0.70], [5, 0.75], [8, 0.80], [12, 0.80]];
 // Water temp keeps MapWebGL's street-zoom fade (past z12.5 one SST cell spans the viewport) unless its own kill is set.
 export const WATER_TEMP_OPACITY_STOPS = [[2, 0.45], [5, 0.52], [8, 0.58], [12, 0.62]];
 export const WATER_TEMP_HIGHZOOM_FADE = [[12.5, 0.62], [13.5, 0.35], [15, 0.12]];
