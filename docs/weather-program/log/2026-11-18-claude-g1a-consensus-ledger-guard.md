@@ -82,3 +82,23 @@ env value above the manifest, so a guardrail 'off' would never have stopped the 
   basin controls would then fail and read VOID, so this cannot pass silently. The first tests at 300 draws showed exactly
   this (VOID at 18 cells); the tests now use 1,000.
 - **Coverage display:** G1c's admin column should show the new class `ledger` (not this PR).
+
+## 4. The research lead's rulings on head 853d1109, applied (2026-11-18, still before any archive read)
+
+1. **Hs level plant:** +0.06 m (1.2x the basin line) is accepted. A 2x plant, +0.10 m, is added, and direction gets the same
+   pair: +6 deg (1.2x) and +10 deg (2x) rotations, with +30 deg on 15 % as the 2x share plant. **Required detection rate,
+   pinned on synthetic rows over 20 seeded reruns: >= 80 % for the 1.2x plants, 100 % for the 2x plants**
+   (`test_detection_rate_over_20_seeds`). Every plant must still fire on each run, or the run is VOID.
+2. **Decision classes:** four reporting classes, each printed with its n per lead. The decision rows are the spec's:
+   - +24 h decides on stored-regional;
+   - +48/+72 h decide on stored-global_mid together with stored-mixed;
+   - any-unknown stays a coverage alarm only.
+3. **Holm resolution:**
+   - **Families:** the pooled MAE rule is one family across the leads that reach n. Each statistic x lead is one family
+     across basins.
+   - **Draws:** B = 10,000.
+   - **Self-check every run:** a family of m tests is resolved only when 1/(B+1) <= 0.025 / (10 m). Otherwise the verdict
+     is **UNDER_RESOLVED ("raise B")**, distinct from VOID; m, B and the floor are printed. At B = 10,000 that allows
+     m <= 25 per family.
+   - VOID keeps its single meaning: a control misbehaved.
+   - UNDER_RESOLVED, like VOID and INSUFFICIENT, is never a strike.

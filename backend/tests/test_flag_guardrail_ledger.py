@@ -15,10 +15,10 @@ FLAG = "CONSENSUS_DIRECTION_VECTOR"
 
 
 def led(state, serve_state="NO_FIRE"):
-    one = {"pooled": {24: {"suppressed": True}, 48: {"suppressed": True}, 72: {"suppressed": True}}, "basins": {}}
-    cell = {"mae": one, "bias": one}
+    cell = {lead: {"mae": {"suppressed": True}, "bias": {"suppressed": True}, "n": 0} for lead in (24, 48, 72)}
     base = {"controls": {"null": False, "shuffled-day null": False, "positive": True}, "coverage": [],
-            "classes": {"stored-regional": cell}, "fire": state == "FIRE", "decidable": True, "reasons": []}
+            "classes": {"stored-regional": cell}, "fire": state == "FIRE", "decidable": True, "reasons": [],
+            "families": [{"family": "pooled mae across leads", "m": 3, "resolved": True}], "reps": 10000}
     return {FLAG: dict(base, state=state, quantity="dir", role="guard",
                        why=["stored-regional pooled +48 h: lower bound +3.100 > +2.000 deg (n 400)"] if state == "FIRE" else []),
             "CONSENSUS_SERVE": dict(base, state=serve_state, quantity="hs", role="readiness", why=[])}
@@ -50,7 +50,7 @@ def test_a_ledger_flag_alone_never_stages_the_replay():
 def test_fire_is_a_worse_strike_and_void_or_insufficient_never_strike():
     assert score([FLAG], NOW, "FIRE")[FLAG]["verdict"] == gs.WORSE
     assert score([FLAG], NOW, "NO_FIRE")[FLAG]["verdict"] == gs.NOT_WORSE
-    for state in ("VOID", "INSUFFICIENT"):
+    for state in ("VOID", "INSUFFICIENT", "UNDER_RESOLVED"):
         assert score([FLAG], NOW, state)[FLAG]["verdict"] == gs.UNTESTABLE
 
 
