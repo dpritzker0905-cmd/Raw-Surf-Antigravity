@@ -211,3 +211,129 @@ the pre-breaking chain low at 11 of 11 buoys (observed over model 1.59), which c
 Measure the candidate model mean-type period against buoy mean period, at the nearshore validation stations, in an
 Actions job printing aggregates only: median ratio and spread, by station. Rule: the period part of the target is
 not built unless the median ratio is within 10% at three quarters of the stations. Not started. No look yet.
+
+## 2026-11-16 15:51Z The build: SURF_FACE_RANGE, default OFF. What was written and what the tests pin
+
+The advisor cleared the amended gate at `f78161547` (PASS WITH LIMITS, no open condition) and said the code for the
+default-off flag may be written. Branch `fable/surf-face-range-build`, on top of the gate branch.
+
+**What the flag does when on, exactly as amendment 2 says.**
+- `surf_height_convention.significant_statistic()`: a scoped switch (a ContextVar) under which the chain publishes the
+  significant height through the same cap. Outside the block nothing changes.
+- `surf_point.surf_face_range_at(...)`: HIGH is the served height, passed in and never recomputed. LOW is
+  `estimate_surf_at` again, same geometry, partitions, tide and nearshore sea, inside that block, and never above HIGH.
+- `point_surf_augment`: the range is produced at the one site where the height is produced, in its own try.
+- `schemas.NormalizedPointResponse`: two fields with `exclude=True`, so the `/point` JSON gains no key, flag on or off.
+- `spot_ratings.rate_one_spot`: two keys, `surf_face_low_m` and `surf_face_high_m`, present only when the range exists.
+- The rating is computed from the existing height field. Nothing reads the new keys.
+- Registered: `runtime_flags.GUARDED` ("0"), `_RATING_FLAGS`, `flag_guardrail.COVERAGE` (BLIND). No workflow or Render
+  env sets it.
+
+**What the 17 tests pin** (`backend/tests/test_surf_face_range.py`, guards lane, must read 3930):
+- Flag off: no range, and the chain is not called a second time.
+- The served height and regime at the sweep point are exactly equal flag off, flag on, and after a low end was
+  computed, at 48 offshore heights from 0.25 to 12 m.
+- HIGH equals the served height. LOW equals HIGH over 1.27 where the cap does not bind; deep in the cap both ends are
+  the cap. The sweep is required to cross the cap.
+- Both ends are monotone in 0.01 m steps from 0.01 to 12 m.
+- The switch is restored on an exception and is invisible to another thread.
+- `/point` serializes byte-identical JSON flag off and flag on.
+- The rating row with the range equals the row without it on every other key.
+- Mutation check, run by hand: with the switch disabled in `enabled()`, 3 of the 17 fail. Restored.
+
+**Cost when on:** one more pass through the chain's arithmetic per point (the geometry is reused). Not measured on
+the live box, and it must be before any flip: the 1-CPU box serves production.
+
+**Not done, and not claimed.**
+- The gate has not run and cannot: no physical truth source is approved.
+- Precomputed frames would carry the two keys only after a lane runs with the flag on. No lane does.
+- No frontend change. No alert, glyph or hub reads the keys.
+- The period part of the target is not in this build.
+
+## 2026-11-16 15:58Z Owed BEFORE any flip (the advisor's review of the build at `e6a037b15`)
+
+The advisor ruled PASS WITH LIMITS, no open condition, to merge the build dark. These are not merge conditions. Each
+is owed before the flag is turned on anywhere, and a flip without them is not supported by this file.
+
+1. **An end-to-end flag-on test through precompute.** The two response fields are `exclude=True`, which drops them on
+   ANY serialization, including a `model_dump` into a cache or a JSON hop between the point service and precompute.
+   So with the flag on, the range may silently never reach a stored rating row. My rating-row test injects the range
+   on a fake resolver and does not cover this. Not built.
+2. **The cost of the second chain pass, measured offline,** per point and per precompute frame. Never on the live box.
+3. **The gate itself:** a physical breaker truth source with its own approved section, then the low-end test.
+4. **The detectable-bias statement** from amendment 3, before the first truth source is approved.
+
+Also done on this head: a comment at the `with` statement in `surf_face_range_at` saying no await, thread hand-off or
+cached call may be added inside it, and why. And a note for whoever edits `backend/routes/admin/surf_forecast.py`
+next: it is at exactly 800 lines and the size check fails on the next added line.
+
+## 2026-11-18 02:41Z The flag ships ON, on the owner's typed word. It is still not scored
+
+**The owner's words**, typed in this session on 2026-11-17 while I was fixing this branch's conflict with `dev`:
+"fix the conflict on #977, if it goes into dev, it needs to be on, not dark". The flag's own registry entry said it
+"flips only on the owner's typed word". That word is now given, so the code default is `1`.
+
+**What ON was before this change: nothing a user could reach.** Reading the wire before flipping: `/point` excluded
+both fields from its JSON (`Field(exclude=True)`), and the rated row passes through `SpotRatingItem`, which drops
+undeclared keys. Turning the flag on as it stood would have computed a range and thrown it away at both boundaries.
+So this change also:
+- serves `surf_face_low_m` and `surf_face_high_m` on `/point` (the `exclude` is removed);
+- declares both on `SpotRatingItem`, so they survive the wire model and the precomputed frame.
+
+**What does not change.** The served height, regime, score and level. HIGH is the served height itself; LOW is the
+same chain with no highest-tenth factor. Killed (`SURF_FACE_RANGE=0`): no second chain pass, both `/point` fields
+null, no such key on the rated row, every other value identical.
+
+**What was checked** (local, `backend/.venv`, not the declared CI environment):
+- `tests/test_surf_face_range.py`, 20 tests, pass. New: the default is on and the kill works; the registry says on and
+  the guardrail coverage says BLIND; `/point` serves the two fields by default and every other key is equal on or
+  killed; no range at an open-ocean point; END TO END with the code default through the real point service, the real
+  `rate_one_spot`, the precompute's frame builder, the frame selector and `SpotRatingItem`, then the same killed.
+- Cost of the second chain pass, measured (`face_cost.py`, sweep point, geometry resolved once, best of 5 x 1000):
+  8.3 microseconds per marine point killed, 24.4 on, **+16.1 microseconds**. One precompute run of 10,638 points
+  (1,773 spots x 3 models x 2 hours): **+0.17 s**. Local machine; the runner will differ, the order of magnitude
+  should not.
+- The conflict with `dev` was in `_RATING_FLAGS` only (both sides added a flag on the opener line); resolved by
+  inserting this branch's entry into dev's line, the five shared entries checked textually identical.
+
+**What is NOT established.**
+- **The range is not validated.** The gate needs physical breaker truth and is NOT RUNNABLE. It is on by the
+  owner's word, not on evidence. LOW is a definition (the significant height through the same cap), not a
+  measurement of the smaller waves of a set.
+- **Detectable bias: none can be stated.** With no truth there is no error to bound. The only statements available
+  are structural: low <= high always; low = high / 1.27 below the cap; low = high deep in the cap.
+- **No client reads the fields.** Nothing on screen changes. Showing "3 to 4 ft" is a client change in the forecast
+  readout files, which are reserved for another lane.
+- The live guardrail is BLIND to this flag (nothing it watches reads the fields), so it cannot auto-disable it.
+- Hosted CI has not run on this head, and the advisor has not reviewed it.
+
+## 2026-11-18 05:51Z Two guard lanes went red with the flag on; what they caught and the fixes
+
+Hosted CI on `adcfab8aa` (run 44232824585) failed two lanes. Both failures were caused by this branch, and I had
+not run either suite locally before pushing. The advisor asked me to say what they are.
+
+1. **Chain lane, `test_sea_inputs_every_caller.py`, 2 failures.**
+   - "estimate_surf_at called without the hour's water level: surf_point.py:285". A text check that every serving
+     call names `water_level_m`. `surf_face_range_at` forwarded its inputs as `**chain_kwargs`, so the check could
+     not see them. They were passed (the caller named them), but the guard was right to object: an input forwarded
+     blind is one a later edit can drop without anyone noticing. **Fix:** the function now takes `swell_from_deg`,
+     `geometry`, `partitions`, `water_level_m` and `nearshore` by name and passes each by name.
+   - "the surface must call estimate_surf_at exactly once". With the flag on, `/point` runs the chain a second
+     time for the LOW end. **Fix, in the guard itself and not by switching the flag off inside it:** its spy now
+     counts a call made inside `significant_statistic()` apart from a served-height call. "Exactly once" still
+     means the served height; at most one low pass is allowed per served height; and the low pass must carry the
+     SAME water level and nearshore sea as the height it sits beside (asserted). `surf_height_convention` gains
+     `in_significant_statistic()` for that.
+2. **Guards lane, `test_spot_rating_wire_contract.py`, 9 failures** ("SETUP BROKEN: `**Call` in rate_one_spot's
+   return"). That guard reads the keys `rate_one_spot` returns and checks each is declared on the wire model. It
+   could not read `**_face_range_fields(marine)`. **Fix:** the two keys are now added as a conditional between two
+   dict literals, the form the guard reads, so it now CHECKS that `surf_face_low_m` and `surf_face_high_m` are
+   declared on `SpotRatingItem`. That is the very defect I found by hand before the flip (the wire model dropping
+   them); the guard would have found it for me.
+
+Local after the fixes: 133 tests pass across both suites, the face-range file and their neighbours.
+The served height, regime, score and level are still unchanged; these edits change how inputs are passed and how
+two keys are spelled into a dict, not any value.
+
+**For whoever builds the client (the advisor's condition):** the range must not be drawn as a measured range until it
+is scored. A label such as "typical to larger sets (model estimate)" is the most it supports.

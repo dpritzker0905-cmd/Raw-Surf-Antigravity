@@ -475,3 +475,4 @@ def test_the_cap_default_is_25000_with_both_fuses_armed_in_the_sweep():
     for wf in ("forecast-ingest.yml", "forecast-ingest-pilots.yml"):        # FUSE A's release lever is a repo variable
         text = (REPO / ".github" / "workflows" / wf).read_text(encoding="utf-8")
         assert "PRODUCT_GC_MIN_REFERENCED_RATIO: ${{ vars.PRODUCT_GC_MIN_REFERENCED_RATIO || '0.8' }}" in text
+        assert "PRODUCT_GC_MAX_DELETE_SHARE: ${{ vars.PRODUCT_GC_MAX_DELETE_SHARE || '0.6' }}" in text   # FUSE B's release

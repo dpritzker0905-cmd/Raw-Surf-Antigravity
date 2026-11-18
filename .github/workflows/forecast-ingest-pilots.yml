@@ -84,6 +84,8 @@ jobs:
           PRODUCT_RUN_KEYED_NAMES: ${{ vars.PRODUCT_RUN_KEYED_NAMES || '1' }}
           # The product GC's FUSE A release (product_object_gc.py): the owner sets '0' for ONE run after a real shrink, then unsets it.
           PRODUCT_GC_MIN_REFERENCED_RATIO: ${{ vars.PRODUCT_GC_MIN_REFERENCED_RATIO || '0.8' }}
+          # FUSE B's release (product_object_gc.py): after a backlog (missed sweeps) the owner raises it, e.g. '0.9', until the count is back, then unsets it.
+          PRODUCT_GC_MAX_DELETE_SHARE: ${{ vars.PRODUCT_GC_MAX_DELETE_SHARE || '0.6' }}
           NODE_ENV: production
           RENDER: 'true'
           MANIFEST_IMMUTABLE_PUBLICATION: '0' # Dark: same publication contract as core writer
@@ -410,20 +412,6 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RASTER_PRECIP_ICON_0P125: ${{ vars.FRAME_RASTER_PRECIP_ICON_0P125 || '1' }}
         run: python scripts/publish_raster_frames.py --set precipitation_icon_0p125
-
-      # ICON total cloud cover at 0.125 deg (G3, 2026-11-16): DWD clct by the same sub-point area mean. Off unless
-      # FRAME_RASTER_CLOUD_ICON_0P125=1.
-      - name: Publish raster static frames (ICON cloud cover 0.125 deg; off unless FRAME_RASTER_CLOUD_ICON_0P125=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD_ICON_0P125 == '1' }}
-        continue-on-error: true
-        timeout-minutes: 30
-        working-directory: backend
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          FRAME_RASTER_CLOUD_ICON_0P125: ${{ vars.FRAME_RASTER_CLOUD_ICON_0P125 }}
-          FRAME_RASTER_BUDGET_S: "900"
-        run: python scripts/publish_raster_frames.py --set cloud_cover_icon_0p125
 
       # PER-MODEL PRESSURE (2026-10-23; the owner, 20:13 EDT: "Yes start it", answering "start the per-model pressure route?"
       # after "We want each models pressure showing"). EURO = ECMWF IFS open data msl (CC BY 4.0, attribution required), the
