@@ -2294,3 +2294,19 @@ unchanged.
 - item 5 NOT RUNNABLE unless an open-coast gauge is found before the start.
 
 **Owner's word:** the tag and the run each need it again.
+
+## 23:59 EST 2026-11-17 (`date`) - G4 item 6 settled: Open-Meteo documents NO retention, so C and D are ARCHIVED daily from the start
+- **Previous Runs API page (read today):**
+  - "Most models are archived from January 2024".
+  - It states no retention or expiry policy.
+- **Marine API page (read today):**
+  - It does not document previous runs for marine variables.
+  - `past_days` is limited to 0-92.
+- **G3t's fetch of January 2026 previous_day1/2 in November** shows that at least 10 months is retrievable today. That
+  is not a promise.
+- **=> G4 FINAL includes a daily reference-archive job from the start timestamp:** C (latest) and D (previous_day1/2) at
+  the 26 gauge positions, written to a private artifact.
+  - It fetches references only, never observed water, and so does not break the embargo.
+  - It needs the owner's word, because it is a scheduled workflow.
+  - Scoring uses the archive. If the archive misses a day and the API still serves it at scoring time, the API value is
+    used, and that substitution is recorded.
