@@ -292,6 +292,18 @@ export function washDataMs(x) {
   return gridValidMs(x);
 }
 const cycleOf = (x) => { const g = gridOf(x); return g ? ((g.model_run_time_status === 'known' && g.model_run_time) || g.__readoutModelRun || null) : null; };
+/**
+ * THE LATE WASH (2026-11-15, docs/weather-program/log/2026-11-15-claude-marine-late-wash.md): does consuming this staged seed REPAIR
+ * a wash the time rule is refusing right now? True when the seed is the resident's hour and the current base is not (or is absent).
+ * Pure: no telemetry (washMatchesResident counts what the engine DRAWS; this only asks). Unknown times: false (the 1 s quiet rule).
+ */
+export function seedRepairsWash(base, seed, resident) {
+  const r = washDataMs(resident); const s = washDataMs(seed);
+  if (r === null || s === null || Math.abs(s - r) > SAME_STEP_TOL_MS) return false;
+  const b = washDataMs(base);
+  return b === null || Math.abs(b - r) > SAME_STEP_TOL_MS;
+}
+
 export function washMatchesResident(base, resident, win) {
   const w = win || (typeof window !== 'undefined' ? window : null);
   if (w && w.__RAW_DISABLE_WASH_TIME_MATCH__ === true) return { ok: true, why: 'killed' };

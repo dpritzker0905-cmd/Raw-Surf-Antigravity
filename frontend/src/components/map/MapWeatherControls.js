@@ -6,7 +6,8 @@ import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale 
 import { setSurfModeFlag } from './backendWeatherServiceClient'; import { useSurfModeFlagState } from './useSurfModeFlagState';   // D6: one band state for every panel
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 import useHeightUnit from './useHeightUnit';
-import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp';
+import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp'; import { gustLegend } from './gustPalette'; import { currentsLegend } from './currentsPalette';
+import { fallbackFor, useOwnOnlyLayersAvailable } from './ownLayerAvailability';
 import { evenTicks, LegendTicks } from './legendTicks';
 import { activeCadenceHours, stepHour } from './cadenceStep';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
@@ -18,6 +19,8 @@ import { responsiveWeatherOn } from './useMapChromeLayout'; import LayerDataCred
 import { marineWaveLegend } from './marineWavePalette';
 import WeatherLayerSheet, { useWeatherPanelDisclosure } from './WeatherLayerSheet';
 import { buildGradientCSS, buildStops, evenStops, HEIGHT_VARIABLES } from './weatherControlLegend'; import { rasterLegend, rasterPaletteKey } from './rasterPalettes';
+const ownLayerKilled = (name) => typeof window !== 'undefined' && (window[`__RAW_DISABLE_RASTER_OWN_${name}__`] === true || window.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true);
+const gustsKilled = () => ownLayerKilled('GUSTS');
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 /**
@@ -98,6 +101,8 @@ export var MapWeatherControls = ({
   const trackBg = isLight ? '#e5e7eb' : '#3f3f46';
 
   const allowedModels = getAllowedModels(userTier);
+  // Own-frames-only layers (gusts, currents) are offered only while their frame sets are published (ownLayerAvailability.js).
+  const ownAvail = useOwnOnlyLayersAvailable();
 
   // Activation-latency affordance: useOpenMeteoTileUrls emits 'rawsurf:raster-loading' while
   // an activated raster's first tiles fetch+decode (cold CDN edge on the less-trafficked
@@ -125,10 +130,14 @@ export var MapWeatherControls = ({
     { id: 'radar', label: 'Radar', icon: CloudRain, color: 'text-indigo-400' },
     { id: 'satellite', label: 'Satellite', icon: Globe, color: 'text-sky-400' },
     { id: 'wind', label: 'Wind', icon: Wind, color: 'text-teal-400' },
+    // Gusts (2026-11-15): own frames only; hidden under its kill (window.__RAW_DISABLE_RASTER_OWN_GUSTS__ = true).
+    ...(gustsKilled() || !ownAvail.gusts ? [] : [{ id: 'gusts', label: 'Gusts', icon: Wind, color: 'text-amber-500' }]),
     { id: 'waves', label: 'Waves', icon: Waves, color: 'text-blue-300' },
     { id: 'swell_1', label: 'Swell', icon: Waves, color: 'text-cyan-400' },
     { id: 'swell_2', label: 'Swell 2', icon: Waves, color: 'text-purple-400' },
     { id: 'wind_waves', label: 'Wind Waves', icon: Wind, color: 'text-emerald-400' },
+    // Ocean currents (2026-11-15): own frames only; hidden under its kill (window.__RAW_DISABLE_RASTER_OWN_CURRENTS__ = true).
+    ...(ownLayerKilled('CURRENTS') || !ownAvail.currents ? [] : [{ id: 'currents', label: 'Currents', icon: Waves, color: 'text-teal-500' }]),
     { id: 'fog', label: 'Fog', icon: Cloud, color: 'text-gray-400' },
     { id: 'pressure', label: 'Pressure', icon: Thermometer, color: 'text-rose-400' },
     { id: 'temperature', label: 'Air Temp', icon: Thermometer, color: 'text-orange-400' },
@@ -140,6 +149,10 @@ export var MapWeatherControls = ({
   };
 
   const activeLayer = activeLayers[0] || null;
+  // A remembered gusts / currents layer whose frames are not published: switch to its visible relative (wind / waves), never
+  // leave an empty map under a hidden chip (ownLayerAvailability.fallbackFor; waits for the first availability answer).
+  const ownFallback = fallbackFor(activeLayer, ownAvail);
+  useEffect(() => { if (ownFallback) onLayerToggle(ownFallback); }, [ownFallback]);   // onLayerToggle: the parent toggle; only a new fallback re-runs
 
   // Map layer IDs to their omVariable names for color scale lookup
   const LAYER_TO_VARIABLE = {
@@ -163,6 +176,7 @@ export var MapWeatherControls = ({
     satellite: 'Cloud Cover (%)',
     fog: 'Visibility / Fog',
     wind: 'Wind Speed (kts)',
+    gusts: 'Wind Gusts (kts)',
     pressure: 'Pressure (hPa)',
     temperature: 'Air Temp (°F)',
     water_temp: 'Water Temp (°F)',
@@ -209,6 +223,12 @@ export var MapWeatherControls = ({
       gradientCSS: windLegendGradientCSS(theme),
       stops: evenStops(windLegendStops(theme)),
     };
+    // Gusts: the wind legend's own table and ticks (gustPalette.js), so a knot reads the same colour on both layers.
+    const gl = gustLegend(theme);
+    config.gusts = { label: LEGEND_LABELS.gusts, gradientCSS: gl.gradientCSS, stops: evenStops(gl.ticks) };
+    // Currents: viridis by speed, ticks in the user's unit (ft -> kts, m -> m/s), currentsPalette.js.
+    const cl = currentsLegend(theme, heightUnit);
+    config.currents = { label: cl.label, gradientCSS: cl.gradientCSS, stops: evenStops(cl.ticks) };
     config.radar = {
       label: LEGEND_LABELS.radar,
       gradientCSS: 'linear-gradient(to right, rgba(200,200,200,0.3), rgba(96,165,250,0.6), rgba(99,102,241,0.7), rgba(147,51,234,0.85), rgba(219,39,119,0.95))',
@@ -757,6 +777,7 @@ export var MapWeatherControls = ({
       <div ref={timelineDrawerRef} {...visibilityProps} data-weather-timeline="mobile" data-timeline-collapsed={String(collapsedState)} className="weather-mobile-timeline absolute left-0 right-0 z-[900] md:hidden px-4 pointer-events-none transition-all duration-300" style={{ bottom: isImmersiveMode ? '16px' : '72px' }}>
         <div className={`pointer-events-auto rounded-xl backdrop-blur-xl border shadow-2xl ${bgClass} ${collapsedState ? 'pt-2 pb-2' : 'p-3'} transition-all duration-300`}>
           <TimelineDrawerHeader expanded={isCompactTimelineOpen} timeLabel={formatTime()} textClass={textMuted}
+            stale={{ model: activeModel, layer: activeLayer, hour: currentTimeOffset, windOn: !isRadar && (activeLayers || []).includes('wind') }}
             onToggle={() => { if (!isCompactTimelineOpen) setCollapsedState(false); onCompactTimelineToggle?.(); }} />
           <div className="weather-mobile-timeline-handle flex justify-center gap-24 items-center pb-2 -mt-2">
             <button type="button" className={`weather-legend-toggle text-[11px] px-3 rounded-full border ${chipBg} ${textMuted}`} aria-expanded={compactLegendOpen} onClick={() => setCompactLegendOpen(value => !value)}>
