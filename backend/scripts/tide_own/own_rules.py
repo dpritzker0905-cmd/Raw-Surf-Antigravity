@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
-SCHEMA = "raw-surf/tide-own/1"           # must equal services/weather_pipeline/tide_own.SCHEMA (pinned by a test)
+SCHEMA = "raw-surf/tide-own/2"           # must equal services/weather_pipeline/tide_own.SCHEMA (pinned by a test)
 BOX_DEG = 0.5
 BACK_DAYS, AHEAD_DAYS = 3, 45            # served window: 3 days back (tide_state_at looks back) to 45 days ahead; the job
                                          # runs daily and the server refuses a table older than 7 days, so at least 38
@@ -149,15 +149,25 @@ def place_hourly(hours, idx, values):
 
 
 MISSING_I16 = -32768                      # must equal services/weather_pipeline/tide_own._MISSING (pinned by a test)
+I16_MAX_MM = 32767                        # the int16 range in mm: levels must lie within +-32.767 m; -32768 = no value
 
 
 def encode_i16(vals):
     """A series of mm-or-None as base64 of little-endian int16 (None -> -32768): the compact form tide_own reads, so
-    the serving process's peak while loading stays near the table's size (lists of ints peaked at about 122 MB)."""
+    the serving process's peak while loading stays near the table's size (lists of ints peaked at about 122 MB).
+    A value outside +-32.767 m is REFUSED (ValueError), never clipped: a tide level that large is a bug upstream."""
     import base64
     import struct
-    clipped = [MISSING_I16 if v is None else max(-32767, min(32767, int(v))) for v in vals]
-    return base64.b64encode(struct.pack(f"<{len(clipped)}h", *clipped)).decode("ascii")
+    out = []
+    for v in vals:
+        if v is None:
+            out.append(MISSING_I16)
+            continue
+        iv = int(v)
+        if not -I16_MAX_MM <= iv <= I16_MAX_MM:
+            raise ValueError(f"tide level {iv} mm is outside the int16 range (+-{I16_MAX_MM} mm)")
+        out.append(iv)
+    return base64.b64encode(struct.pack(f"<{len(out)}h", *out)).decode("ascii")
 
 
 def encode_table(doc):

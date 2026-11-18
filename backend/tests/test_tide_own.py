@@ -104,7 +104,7 @@ def test_compact_series_round_trip_and_stay_small():
     about 122 MB in the serving process; the compact form peaks at about 28 MB, measured 2026-11-18, 1,800 keys)."""
     assert OR.MISSING_I16 == tide_own._MISSING == -32768
     now = datetime(2026, 11, 18, 15, tzinfo=UTC)
-    vals = [None, 1250, -40000, 40000] + [7] * (48 * 24 - 4)
+    vals = [None, 1250, -32767, 32767] + [7] * (48 * 24 - 4)       # the int16 range: +-32.767 m, -32768 = no value
     t = _table(now, {"21.7,-158.0": vals})
     t["cmems"] = {"21.7,-158.0": [None] * (48 * 24)}
     enc = OR.encode_table(t)
@@ -112,11 +112,33 @@ def test_compact_series_round_trip_and_stay_small():
     got = tide_own.validate(enc)
     a = got["am"]["21.7,-158.0"]
     assert a.typecode == "h" and list(a[:4]) == [-32768, 1250, -32767, 32767]
+    for out_of_range in (32768, -32768, 40000):                     # refused at write, never clipped
+        with pytest.raises(ValueError):
+            OR.encode_i16([0, out_of_range])
     assert tide_own.validate(t)["am"]["21.7,-158.0"][1] == 1250          # the list form still loads
     s = tide_own.series_from_table(got, (21.7, -158.0), 3, now)
     assert s["source"] == "am" and s["level"][0] == 0.007                # CMEMS all-null: falls to A+M
     bad = dict(enc, keys={"21.7,-158.0": enc["keys"]["21.7,-158.0"][:-4]})
     assert tide_own.validate(bad) is None                                # wrong length refused
+
+
+def test_an_old_schema_table_is_refused_not_misread():
+    """The format changed (int16 base64), so the schema is /2; a /1 table is refused rather than misread."""
+    assert tide_own.SCHEMA == OR.SCHEMA == "raw-surf/tide-own/2"
+    now = datetime(2026, 11, 18, tzinfo=UTC)
+    old = dict(_table(now, {"1.0,1.0": [1] * (48 * 24)}), schema="raw-surf/tide-own/1")
+    assert tide_own.validate(old) is None
+
+
+def test_the_product_cleanup_sweep_cannot_touch_the_table():
+    """The advisor's condition 2 on PR A: the first build writes to the production bucket under tide_own/. The product
+    object GC (#1005) lists only TOP-LEVEL objects and touches only names in the product grammar, so neither object can
+    ever be marked or deleted by it."""
+    from services.weather_pipeline import product_object_gc as GC
+    for name in ("tide_own/series.json.gz", "tide_own/m.json", "series.json.gz", "m.json"):
+        assert not GC.is_product_object(name)
+    src = (BACKEND / "scripts" / "tide_own" / "storage_io.py").read_text(encoding="utf-8")
+    assert 'PREFIX = "tide_own/"' in src                         # every write is under the prefix
 
 
 def test_validate_rejects_bad_shapes():

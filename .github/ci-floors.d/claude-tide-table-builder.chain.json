@@ -1,6 +1,6 @@
 {
   "lane": "chain",
-  "tests": 14,
+  "tests": 16,
   "files": 1,
   "branch": "claude/tide-table-builder",
   "date": "2026-11-18",

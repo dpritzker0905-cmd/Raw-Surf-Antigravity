@@ -36,7 +36,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 SERIES_KEY = "tide_own/series.json.gz"
-SCHEMA = "raw-surf/tide-own/1"
+SCHEMA = "raw-surf/tide-own/2"   # /2 (2026-11-18): int16 mm series in base64; a reader of /1 refuses a /2 table
 LABELS = {
     "cmems": ("Tide: ocean model sea level (tide + currents; no storm-surge guarantee)",
               "Copernicus Marine Service (Global Ocean Physics Analysis and Forecast)"),
