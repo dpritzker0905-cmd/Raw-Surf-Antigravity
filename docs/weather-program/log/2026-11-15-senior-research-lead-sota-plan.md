@@ -2607,7 +2607,7 @@ finding):**
   - **G1c:** the admin coverage class column.
   - Gate: null control + harmful-flag positive control.
 
-## 2026-11-18 02:20 -0500 Dispatch-ready spec for the archive read (the director asked for it; written before any number exists)
+## 2026-11-18 02:09 -0500 Dispatch-ready spec for the archive read (the director asked for it; written before any number exists)
 - **Vehicle (VERIFIED on origin/dev):** extend the existing `scored-rows-gate.yml`; do not add a new job.
   - It is dispatch-only, holds the monitor's secrets by name, and enforces GET-only in code (`read_only_http`).
   - It prints aggregates only (n<10 suppressed) and uploads no artifact.
