@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 14,
+  "files": 1,
+  "branch": "claude/surf-truth-anchors-b",
+  "date": "2026-11-16",
+  "note": "T1 anchors B: admin API + action log"
+}

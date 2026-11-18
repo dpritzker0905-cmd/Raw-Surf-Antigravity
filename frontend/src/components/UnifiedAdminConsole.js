@@ -15,7 +15,7 @@ import {
   Shield, Zap, Users, DollarSign, Ban, 
   Loader2, ChevronLeft, ChevronRight, UserCheck, Trophy, Radio, MapPin, X, ArrowLeft, Activity,
   Megaphone, History, RefreshCw, Wallet, AlertCircle, Edit, BarChart2,
-  Headphones, Server, Flag, Mail, Layout, Lock, Scale, Waves
+  Headphones, Server, Flag, Mail, Layout, Lock, Scale, Waves, Anchor
 } from 'lucide-react';
 
 import { Button } from './ui/button';
@@ -53,6 +53,7 @@ import { AdminSupportDashboard } from './admin/AdminSupportDashboard';
 
 import { AdminSystemDashboard } from './admin/AdminSystemDashboard';
 import { AdminSurfForecastPanel } from './admin/AdminSurfForecastPanel';
+import AdminSurfTruthPanel from './admin/surf-truth/AdminSurfTruthPanel';
 
 import { AdminFinanceDashboard } from './admin/AdminFinanceDashboard';
 
@@ -302,6 +303,7 @@ const UnifiedAdminConsole = () => {
     { id: 'communications', label: 'Comms', icon: Mail },
     { id: 'system', label: 'System', icon: Server },
     { id: 'surf-forecast', label: 'Surf Forecast', icon: Waves },
+    { id: 'surf-truth', label: 'Surf Truth', icon: Anchor },
     { id: 'finance', label: 'Finance', icon: Wallet },
     { id: 'content-mgmt', label: 'Content', icon: Layout },
     { id: 'persona', label: 'Persona', icon: Zap },
@@ -511,6 +513,11 @@ const UnifiedAdminConsole = () => {
         {/* Surf Forecast Tab - rating system flags, precomputed-data freshness, report moderation */}
         {activeTab === 'surf-forecast' && (
           <AdminSurfForecastPanel />
+        )}
+
+        {/* Surf Truth Tab - blind crowd reports: anchors, observers, coverage, audit queue (T1) */}
+        {activeTab === 'surf-truth' && (
+          <AdminSurfTruthPanel />
         )}
 
         {/* Finance Tab - Refunds, Payouts, Failed Payments */}
