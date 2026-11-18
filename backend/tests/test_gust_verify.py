@@ -83,10 +83,36 @@ def test_a_failed_step_is_dropped_never_filled():
             if f == 3:
                 raise RuntimeError("idx has no GUST message")
             return [1.0] * len(nodes), [2.0] * len(nodes)
-    doc = C.collect_cycle(Fake(), datetime(2026, 11, 18, tzinfo=timezone.utc), [{"id": "A", "node": [1, 2]}], workers=1)
+    doc = C.collect_cycle(Fake(), datetime(2026, 11, 18, tzinfo=timezone.utc), [{"id": "A", "node": [1, 2]}], workers=1,
+                          waits=(0, 0))
     assert [s["f"] for s in doc["steps"]] == [0, 6]
-    assert doc["dropped"] == [{"f": 3, "why": "RuntimeError: idx has no GUST message"}]
+    assert doc["dropped"] == [{"f": 3, "why": "RuntimeError: idx has no GUST message", "attempts": 3}]
     assert doc["station_ids"] == ["A"] and doc["cycle"] == "2026111800"
+
+
+def test_a_throttled_step_is_retried():
+    calls = []
+
+    class Flaky:
+        name, steps = "EURO", (3,)
+
+        def window(self, f):
+            return 1
+
+        def step(self, cycle, f, nodes):
+            calls.append(f)
+            if len(calls) < 3:
+                raise RuntimeError("range GET -> HTTP 503")
+            return [1.0], [2.0]
+    doc = C.collect_cycle(Flaky(), datetime(2026, 11, 18, tzinfo=timezone.utc), [{"id": "A", "node": [1, 2]}], workers=1,
+                          waits=(0, 0, 0))
+    assert len(calls) == 3 and doc["dropped"] == [] and doc["steps"][0]["g"] == [1.0]
+
+
+def test_the_scorer_reads_a_first_runs_station_list(tmp_path):
+    _record(str(tmp_path), days=1, models=("GFS",))
+    os.rename(os.path.join(str(tmp_path), "stations.json"), os.path.join(str(tmp_path), "stations.json.new"))
+    assert S.score(str(tmp_path))["models"]["GFS"]
 
 
 # ------------------------------------------------------------------------------------------------ scorer pieces

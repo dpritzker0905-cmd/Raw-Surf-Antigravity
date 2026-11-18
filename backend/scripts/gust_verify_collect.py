@@ -282,16 +282,26 @@ class IconModel:
         return g, u
 
 
-def collect_cycle(model, cycle, stations, workers=4):
-    """{model, cycle, station_ids, steps:[{f, w, g, u}], dropped:[{f, why}]}; a failed step is dropped, never filled."""
+RETRY_WAITS = (5, 15, 45)               # seconds; the AWS mirror answers 503 under load (dry run 44392035963: 130 EURO steps)
+
+
+def collect_cycle(model, cycle, stations, workers=4, waits=RETRY_WAITS):
+    """{model, cycle, station_ids, steps:[{f, w, g, u}], dropped:[{f, why}]}; a step is retried after `waits`, then dropped
+    with its last reason, never filled. (A throttled .index comes back as an error page, which the source reads as "index has
+    no 10fg": the retry covers it too.)"""
+    import time
     nodes = [tuple(s["node"]) for s in stations]
 
     def one(f):
-        try:
-            g, u = model.step(cycle, f, nodes)
-            return {"f": f, "w": model.window(f), "g": g, "u": u}, None
-        except Exception as e:  # noqa: BLE001 - recorded with its reason
-            return None, {"f": f, "why": f"{type(e).__name__}: {str(e)[:160]}"}
+        why = None
+        for wait in (0,) + tuple(waits):
+            time.sleep(wait)
+            try:
+                g, u = model.step(cycle, f, nodes)
+                return {"f": f, "w": model.window(f), "g": g, "u": u}, None
+            except Exception as e:  # noqa: BLE001 - recorded with its reason
+                why = f"{type(e).__name__}: {str(e)[:160]}"
+        return None, {"f": f, "why": why, "attempts": 1 + len(waits)}
     with ThreadPoolExecutor(workers) as ex:
         res = list(ex.map(one, model.steps))
     return {"model": model.name, "cycle": cycle.strftime("%Y%m%d%H"), "station_ids": [s["id"] for s in stations],

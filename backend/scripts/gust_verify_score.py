@@ -155,7 +155,8 @@ def cycle_hour(name):
 
 
 def build_pairs(d):
-    stations = _load(os.path.join(d, "stations.json"))["stations"]
+    sp = os.path.join(d, "stations.json")
+    stations = _load(sp if os.path.exists(sp) else sp + ".new")["stations"]       # a first run has only the .new twin
     ids = [s["id"] for s in stations]
     adj = [height_factor(s.get("z_m")) for s in stations]
     obs = load_obs(d)
