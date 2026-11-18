@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 3,
+  "tests": 4,
   "branch": "claude/surf-truth-strip-heic",
   "date": "2026-11-18",
-  "note": ""
+  "note": "HEIC strip incl. extent budget"
 }

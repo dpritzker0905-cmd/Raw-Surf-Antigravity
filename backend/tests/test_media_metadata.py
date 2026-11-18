@@ -408,6 +408,28 @@ def test_a_malformed_heic_is_refused_not_published():
         strip_image_metadata(_heic()[:60], "image/heic")             # truncated
 
 
+def test_a_heic_whose_iloc_claims_millions_of_zero_width_extents_is_refused_quickly():
+    """Advisor hold on #1054: 4,096 items x 4,096 extents with zero-width offset/length fields used to build ~16.7
+    million tuples from a ~25 KB file. One extent budget for the whole file now refuses it at once."""
+    import time
+    from services.heic_metadata import MAX_EXTENTS, strip_heif
+
+    def box(t, p):
+        return struct.pack(">I4s", 8 + len(p), t) + p
+
+    def full(t, v, p):
+        return box(t, bytes([v, 0, 0, 0]) + p)
+    iinf = full(b"iinf", 0, struct.pack(">H", 1) + full(b"infe", 2, struct.pack(">HH4s", 1, 0, b"Exif") + b"\x00"))
+    entries = b"".join(struct.pack(">HHH", i, 0, 4096) for i in range(1, 4097))    # no offset/length bytes at all
+    iloc = full(b"iloc", 0, bytes([0x00, 0x00]) + struct.pack(">H", 4096) + entries)
+    crafted = box(b"ftyp", b"heic\x00\x00\x00\x00mif1heic") + full(b"meta", 0, iinf + iloc)
+    assert len(crafted) < 30_000 and 4096 * 4096 > MAX_EXTENTS
+    t0 = time.perf_counter()
+    with pytest.raises(MetadataError, match="extents"):
+        strip_heif(crafted)
+    assert time.perf_counter() - t0 < 1.0
+
+
 async def test_a_heic_feed_photo_is_published_without_gps(social):
     client, stored = social
     r = await client.post("/api/upload/feed", files={"file": ("IMG_0001.HEIC", _heic(), "image/heic")})
