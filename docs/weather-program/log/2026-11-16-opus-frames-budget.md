@@ -220,3 +220,14 @@ on the next pilots run.
 - **Standing:** 1 PASS (run 1), 1 FAIL (run 2). By the registered rule the gate fails on any timeout, or on lines 1, 3 or 4
   failing in 2 of 4. Two counted runs remain.
 - **Not changed here:** the budget. Any re-sizing is a plan change for the advisor's read and the director's go.
+
+## 2026-11-18 16:33Z: one more exclusion, named before any reading
+
+- **EXCLUDED, a frames step that did not run to its end:** pilots run 44302521936 (schedule, created 2026-11-18 12:17:34Z).
+  - Its job was cancelled at 15:05:36Z, with "Publish static forecast frames" cancelled after 14:50:45-15:05:33Z.
+  - The rated step and the raster steps (the 0.125 deg sets included) were skipped.
+  - Who or what cancelled it is not known to this lane. A workflow_dispatch pilots run, 44325777889, was created 14:34:40Z.
+- **Next candidate:** 44325777889 (workflow_dispatch). It counts if it is otherwise ordinary; that is decided by this item's rules
+  before its lines are read.
+- **#998's steady-state time check** (the 0.125 deg steps against "<= 120 s") is still owed. 44302521936 never reached those
+  steps, so the next pilots run that does is the one read.
