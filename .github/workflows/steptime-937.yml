@@ -1,0 +1,95 @@
+# #937 scrub step-time test on a GitHub-HOSTED runner: "hosted runner, software GL" (pre-registration 3, amendment 6e in
+# docs/weather-program/log/2026-11-15-claude-marine-late-wash.md). Measurement only: no secret, no served effect, nothing on Render.
+#
+# STARTS ONLY on a pushed tag `steptime-937-*` (one shot; this file lives on the #937 branch, so workflow_dispatch is unavailable).
+# No branch push, pull_request or schedule can start it. Starting it is a dispatch and needs David's word (the director, 2026-11-16).
+# Everything it talks to it starts itself on localhost: serve_synthetic (the lab backend), serve_spa (the build), and the lab CDN
+# built here from the synthetic store. The scenario refuses AB_LIVE=1.
+# A/A first, then A/B, in this one job (6b, 6e). The log shows the A/A summary only; the A/B rows go to the artifact and are not
+# echoed, so they stay unopened until the A/A has been read and sent to the advisor.
+name: Step-time test 937 (hosted, software GL)
+
+on:
+  push:
+    tags: ['steptime-937-*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: steptime-937
+  cancel-in-progress: false
+
+jobs:
+  steptime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      MARINE_REGIONAL_TILE_FIRST: '1'
+      MARINE_REGIONAL_TILE_FIRST_SURF: '1'
+    steps:
+      - name: Lab directory
+        run: echo "LAB=$RUNNER_TEMP/lab" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: frontend/.node-version
+      - name: Install (backend for the lab server and publisher; frontend for the build and the harness)
+        run: |
+          pip install -r backend/requirements.txt
+          cd frontend && npm ci --no-audit --no-fund
+      - name: Build the app (the #937 build under test)
+        working-directory: frontend
+        env:
+          CI: 'false'
+          GENERATE_SOURCEMAP: 'false'
+          NODE_OPTIONS: --openssl-legacy-provider
+        run: npx craco build
+      - name: Lab store and lab CDN (synthetic; same flags as the local runs)
+        run: |
+          mkdir -p "$LAB"
+          python frontend/scripts/offline-backend/serve_synthetic.py --dir "$LAB/store" --models GFS --layers waves,wind \
+            --regions florida_east_coast,us_southeast_midatlantic --dynamic 1 --horizon 48 --build-only
+          python backend/scripts/publish_frame_images.py --store-dir "$LAB/store" --out-dir "$LAB/cdn" --only frames > "$LAB/publish.log" 2>&1
+          tail -3 "$LAB/publish.log"
+      - name: Runner record (6e point 3)
+        run: |
+          {
+            echo "image: $ImageOS $ImageVersion"; echo "cores: $(nproc)"; echo "memory: $(free -m | awk '/Mem:/ {print $2}') MB"
+            echo "chrome: $(google-chrome --version 2>/dev/null || echo unknown)"; echo "started: $(date -u +%FT%TZ)"
+            echo "cpu (1/5/15 min load): $(cut -d' ' -f1-3 /proc/loadavg)"
+          } | tee "$LAB/runner.txt"
+      - name: A/A (kill against kill) then A/B (fix against kill)
+        run: |
+          python frontend/scripts/offline-backend/serve_synthetic.py --dir "$LAB/store" --models GFS --layers waves,wind \
+            --regions florida_east_coast,us_southeast_midatlantic --dynamic 1 --horizon 48 --port 4151 > "$LAB/backend.log" 2>&1 &
+          node frontend/scripts/offline-backend/serve_spa.js frontend/build 3108 > "$LAB/spa.log" 2>&1 &
+          for i in $(seq 1 90); do (echo > /dev/tcp/127.0.0.1/3108) 2>/dev/null && (echo > /dev/tcp/127.0.0.1/4151) 2>/dev/null && break; sleep 2; done
+          cd frontend/scripts/offline-backend
+          export AB_BASE=http://127.0.0.1:3108 PORT=4151 CDN_DIR="$LAB/cdn" DEVICES=desktop,phone CADENCES=200,400,800 GROUPS=8 STEPS=47
+          echo "cpu before A/A: $(cut -d' ' -f1 /proc/loadavg)" | tee -a "$LAB/runner.txt"
+          MODE=AA OUT="$LAB/AA.json" node scn_scrub_step_time_v2.js 2>&1 | grep -v host-audit
+          echo "cpu after A/A: $(cut -d' ' -f1 /proc/loadavg)" | tee -a "$LAB/runner.txt"
+          echo "== A/A summary (software GL) =="
+          python step_time_v2_stats.py "$LAB/AA.json"
+          # A/B: rows to the artifact only; not echoed (read after the A/A has gone to the advisor)
+          MODE=AB OUT="$LAB/AB.json" node scn_scrub_step_time_v2.js > "$LAB/AB.console.txt" 2>&1
+          echo "cpu after A/B: $(cut -d' ' -f1 /proc/loadavg)" | tee -a "$LAB/runner.txt"
+          echo "A/B written to the artifact (not shown here)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: steptime-937-software-gl
+          path: |
+            ${{ runner.temp }}/lab/AA.json
+            ${{ runner.temp }}/lab/AB.json
+            ${{ runner.temp }}/lab/AB.console.txt
+            ${{ runner.temp }}/lab/runner.txt
+            ${{ runner.temp }}/lab/publish.log
+          if-no-files-found: warn
+          retention-days: 30

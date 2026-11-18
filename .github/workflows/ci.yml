@@ -489,7 +489,9 @@ jobs:
     runs-on: ubuntu-latest
     # CI 34886811636 passed all 1874 guards but used 19m58s of 20m.
     # Keep a bounded five-minute margin; selection and pass floors stay unchanged.
-    timeout-minutes: 25
+    # 25 -> 35 (2026-11-18): the suite grew; green runs now take 23-24 min (b2-record-anchor 02:15-02:39Z) and runs on dev,
+    # #998 and other branches were CANCELLED at exactly 25 min with no guards.xml (dev 01:49-02:15Z), failing every PR's merge.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v5
 

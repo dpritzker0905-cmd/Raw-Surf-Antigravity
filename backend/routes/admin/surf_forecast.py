@@ -9,14 +9,13 @@ One place for the operator to see the rating pipeline's truth and moderate the d
   - DELETE /admin/surf-forecast/reports/{id} — remove a report (immediately stops influencing ratings;
         the confirmation/nudge windows only read fresh rows).
 
-Flags are SERVER ENV (Render / workflow env) — this endpoint reports what the serve box actually sees;
-flipping them is an env change + restart, documented per flag. Since D-065 the GUARDED flags
-(services/runtime_flags.GUARDED) also read the runtime manifest control/flags.json (env > manifest > default),
-which the guardrail workflow alone writes; the status board reports their effective value and its source. Read-only besides report deletion.
+Flags are SERVER ENV (Render / workflow env); this endpoint reports what the serve box sees. Since D-065 the GUARDED
+flags (services/runtime_flags.GUARDED) also read the runtime manifest control/flags.json (env > manifest > default),
+which the guardrail workflow alone writes; each row gives its source and the guardrail's reason. Read-only besides
+report deletion, which is written to admin_logs.
 """
 import asyncio
 import logging
-import os
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -25,14 +24,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from services import runtime_flags as _rf
+from services.admin_flag_board import flag_rows
 from models import Profile, SurfReport, SurfSpot
+from routes.admin.core import log_admin_action
 from deps.admin_auth import get_current_admin
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
-_RATING_FLAGS = {"SAMPLER_UNRESOLVED_STATIONS": ("1", "[D-065 GUARDED, ON, guardrail BLIND] NDBC 46267 by name (Strait of Juan de Fuca, unresolved at 0.25 deg): the station's point returns no data, not the open-Pacific cell 0.96 deg away (+1.5 m). Nothing else moves. services/weather_pipeline/unresolved_stations.py; kill '0'", "code default; no workflow or Render env sets it (a kill needs Render AND the ingest/precompute env, or the manifest)"), "ICON_SWELL2_SERVE": ("0", "[owner yes 2026-11-13 20:28 EST; flipped ON via the manifest after #877 merges] option B: /grid + /point serve the stored ICON swell_2 blend, else unsupported. services/weather_pipeline/icon_swell2_serve.py", "runtime manifest (control/flags.json, flag-guardrail reenable) - keep Render env UNSET; pairs with repo variable ICON_SWELL2_STORED=1"), "WEATHER_TIER_CLAMP": ("0", "[D-065 held OFF until weatherAuthFetch.js is live] O5 accounts only: no verified JWT = 401, else clamp to the tier window. services/weather_tier_clamp.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"), "WEATHER_ACCOUNT_RATE_LIMIT": ("1", "[kill '0'] per-account 429 + Retry-After on clamped reads and /frame-urls (in-process buckets; acts only once WEATHER_TIER_CLAMP / FRAME_ENTITLEMENT is on). services/weather_account_rate_limit.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"), "FRAME_WIND_GFS_HOURLY": ("1", "[D-065 ON, owner yes 2026-11-17 08:36 EST, guardrail BLIND, filter SKIPPED (no cached window); kill '0'] GFS global_mid wind stores NOAA's own hourly field f000-f120 (was 3-hourly; offline model-vs-model hold-out: the best interpolation left 0.89 m/s vector RMSE vs NOAA's own hour), so /grid wind and the ratings that read it move between 3-hourly steps. services/weather_pipeline/wind_mid_res_ingestion.py", "forecast-ingest-pilots.yml env (the global_mid wind ingest)"), "FRAME_ENTITLEMENT": ("0", "[D-065 held OFF until bucket weather-frames-private exists and the signer ships] O6 accounts only: every frame private, signed per class to accounts (/api/weather/frame-urls). services/frame_entitlement.py", "forecast-ingest-pilots.yml env (publisher) AND runtime manifest (signer)"),  # O5 #782 + O6 #783: on the opener line, this file sits at the 800-line cap
+_RATING_FLAGS = {"SURF_FACE_RANGE": ("1", "[D-065 ON, owner's typed word 2026-11-17 'it needs to be on, not dark'; NOT SCORED: gate NOT RUNNABLE (no physical breaker truth), guardrail BLIND; kill '0'] adds surf_face_low_m (same chain, no highest-tenth factor) and surf_face_high_m (= the served height) to /point and the spot rating row; the height, score and level are byte-identical. services/weather_pipeline/surf_point.py surf_face_range_at", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"), "SAMPLER_UNRESOLVED_STATIONS": ("1", "[D-065 GUARDED, ON, guardrail BLIND] NDBC 46267 by name (Strait of Juan de Fuca, unresolved at 0.25 deg): the station's point returns no data, not the open-Pacific cell 0.96 deg away (+1.5 m). Nothing else moves. services/weather_pipeline/unresolved_stations.py; kill '0'", "code default; no workflow or Render env sets it (a kill needs Render AND the ingest/precompute env, or the manifest)"), "ICON_SWELL2_SERVE": ("0", "[owner yes 2026-11-13 20:28 EST; flipped ON via the manifest after #877 merges] option B: /grid + /point serve the stored ICON swell_2 blend, else unsupported. services/weather_pipeline/icon_swell2_serve.py", "runtime manifest (control/flags.json, flag-guardrail reenable) - keep Render env UNSET; pairs with repo variable ICON_SWELL2_STORED=1"), "WEATHER_TIER_CLAMP": ("0", "[D-065 held OFF until weatherAuthFetch.js is live] O5 accounts only: no verified JWT = 401, else clamp to the tier window. services/weather_tier_clamp.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"), "WEATHER_ACCOUNT_RATE_LIMIT": ("1", "[kill '0'] per-account 429 + Retry-After on clamped reads and /frame-urls (in-process buckets; acts only once WEATHER_TIER_CLAMP / FRAME_ENTITLEMENT is on). services/weather_account_rate_limit.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"), "FRAME_WIND_GFS_HOURLY": ("1", "[D-065 ON, owner yes 2026-11-17 08:36 EST, guardrail BLIND, filter SKIPPED (no cached window); kill '0'] GFS global_mid wind stores NOAA's own hourly field f000-f120 (was 3-hourly; offline model-vs-model hold-out: the best interpolation left 0.89 m/s vector RMSE vs NOAA's own hour), so /grid wind and the ratings that read it move between 3-hourly steps. services/weather_pipeline/wind_mid_res_ingestion.py", "forecast-ingest-pilots.yml env (the global_mid wind ingest)"), "FRAME_ENTITLEMENT": ("0", "[D-065 held OFF until bucket weather-frames-private exists and the signer ships] O6 accounts only: every frame private, signed per class to accounts (/api/weather/frame-urls). services/frame_entitlement.py", "forecast-ingest-pilots.yml env (publisher) AND runtime manifest (signer)"),  # O5 #782 + O6 #783: on the opener line, this file sits at the 800-line cap
     "COPERNICUS_PEAK_PERIOD": ("0", "CMEMS (MFWAM) total wave_period from VTPK, the spectral PEAK period the surf chain is written for, instead of VTM10 (energy period Tm-1,0, kept as wave_period_tm10); CMEMS partitions keep VTM01 (no partition peak exists). services/cmems_period_map.py",
                                "forecast-ingest, forecast-ingest-pilots and precompute workflow env AND Render env together (Render serves the native CMEMS /point)"),
     "ICON_PEAK_PERIOD": ("0", "DWD GWAM partition PEAK periods ppts/ppww (were mean mpts/mpww) and a smooth blended total peak period (was tm10, kept as wave_period_tm10). services/gwam_peak_period.py",
@@ -422,7 +423,7 @@ _RATING_FLAGS = {"SAMPLER_UNRESOLVED_STATIONS": ("1", "[D-065 GUARDED, ON, guard
     # 2026-07-30: partitions now reach the RATING at all three surfaces, so a lane split on this
     # flag changes scores and LEVELS (measured: level moves on 50% of spot-hours), not just
     # heights — the exact RATING_TIDE-class trap. 4x the marine point resolutions when on.
-    "SURF_PARTITIONS":             ("0", "Spectral swell trains in the height AND the rating (all surfaces)",
+    "SURF_PARTITIONS":             ("0", "Spectral swell trains in the height AND the rating (all surfaces) [cap period rule UNDECIDED (D-081): gate before ON]",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # 2026-11-02 (DARK): GFS partitions are per-node SLOTS (WW3 §3.12), so the slot-wise bilinear blend can mix two
     # swells (14.8% of coastal stencils hold a swap, measured offline). On, the trains are matched by direction +
@@ -574,15 +575,9 @@ _RATING_FLAGS = {"SAMPLER_UNRESOLVED_STATIONS": ("1", "[D-065 GUARDED, ON, guard
 async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
     """The rating system's live truth: flag values AS THE SERVE BOX SEES THEM, blob freshness, and
     calibration summaries. Every sub-read is independent and never fatal."""
-    flags = []
-    for name, (default, controls, where) in _RATING_FLAGS.items():
-        # D-065: a GUARDED flag's effective value can come from the runtime manifest (the guardrail's kill).
-        r = (_rf.resolve(name, default) if name in _rf.GUARDED
-             else {"value": os.environ.get(name, default), "source": "env" if name in os.environ else "default",
-                   "entry": None})
-        flags.append({"name": name, "value": r["value"], "default": default, "active": r["value"] != "0",
-                      "source": r["source"], "manifest_entry": r["entry"], "guarded": name in _rf.GUARDED,
-                      "controls": controls, "where": where})
+    # D-065: a GUARDED flag's effective value can come from the runtime manifest (the guardrail's kill); each row also
+    # says its kind (switch vs a numeric setting), source, guardrail entry and fix version (services/admin_flag_board).
+    flags = flag_rows(_RATING_FLAGS)
 
     blobs = {}
     try:
@@ -599,7 +594,7 @@ async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
         blobs["spot_ratings"] = {"error": str(e)}
     try:
         from services.weather_pipeline.spot_size_climatology import load_size_climatology_l2_cached
-        clim = load_size_climatology_l2_cached()
+        clim = await asyncio.to_thread(load_size_climatology_l2_cached)  # off-loop like its siblings (blocking L2 read)
         spots = (clim or {}).get("spots", {})
         ready = sum(1 for rec in spots.values() if isinstance(rec, dict) and rec.get("n", 0) >= 12)
         blobs["spot_size_climatology"] = {"updated_at": (clim or {}).get("updated_at"),
@@ -626,7 +621,8 @@ async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
         gulf_fill = targeted_fill_stats()
     except Exception as e:
         gulf_fill = {"error": str(e)}
-    return {"flags": flags, "blobs": blobs, "gulf_fill_targeted": gulf_fill, "regional_tile_first": tile_first, "now": datetime.now(timezone.utc).isoformat()}
+    return {"flags": flags, "blobs": blobs, "gulf_fill_targeted": gulf_fill, "regional_tile_first": tile_first,
+            "manifest": _rf.status(), "now": datetime.now(timezone.utc).isoformat()}
 
 
 @router.post("/admin/surf-forecast/size-reference")
@@ -709,7 +705,7 @@ async def local_size_preview(admin: Profile = Depends(get_current_admin),
     from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached
     from services.weather_pipeline.spot_size_climatology import load_size_climatology_l2_cached
 
-    clim = load_size_climatology_l2_cached()
+    clim = await asyncio.to_thread(load_size_climatology_l2_cached)  # off-loop (blocking L2 read)
     if not clim:
         raise HTTPException(status_code=503, detail="size climatology blob not present in L2")
     obj = await asyncio.to_thread(load_spot_ratings_l2_cached)  # off-loop: requests.get(timeout=10) behind a TTL
@@ -794,7 +790,9 @@ async def delete_surf_report(
     row = (await db.execute(select(SurfReport).where(SurfReport.id == report_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(status_code=404, detail="Report not found")
+    await log_admin_action(db, admin.id, "delete_surf_report", "surf_report", report_id, {   # admin_logs: the trace
+        "spot_id": row.spot_id, "user_id": row.user_id, "rating": row.rating,
+        "created_at": row.created_at.isoformat() if row.created_at else None})
     await db.delete(row)
     await db.commit()
-    logger.info("[admin/surf-forecast] report %s deleted by admin %s", report_id, getattr(admin, "id", "?"))
     return {"deleted": report_id}

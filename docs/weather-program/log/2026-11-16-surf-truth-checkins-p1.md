@@ -244,6 +244,31 @@ after a deletion: legal call; (2) exports already in private storage (pseudonymo
 (3) Profile has no deleted flag and the auth account is not removed, so `is_deleted` never existed: a design
 question for the account owners, not this lane; (4) the report photo stays in the `conditions` bucket with its
 report (owned by those features).
+## 2026-11-18 03:03Z Admin: the Surf Forecast panel tells the truth about flags (header from the UTC clock)
+
+David asked for a comprehensive, working admin for the surf sim's logic. A read-only survey of the admin found the
+Surf Forecast panel (Admin > Surf Forecast) had fallen behind D-065. Fixed here, no served number moves:
+- Each flag row now shows its real value (numeric settings such as SURF_REFRACTION_KR 0.873 were shown as on/off),
+  its source (environment / guardrail manifest / code default) and, when the guardrail set it, the guardrail's
+  reason, who and when, plus the fix version that would clear an automatic off. Flags read only by a workflow lane
+  are marked: the serve box's copy says nothing about the lane's. The manifest's own health is shown (read time,
+  entries, or the read error).
+- The panel's text said flags are env vars and never a silent toggle; it now explains D-065 precedence.
+- Search, and groups: set by guardrail / changed from default / guarded / numeric settings.
+- A failed blob read is shown as a failure (it rendered as "-" or 0); the regional-tile-first and Gulf-fill
+  counters the backend already returned are shown.
+- Deleting a user condition report is confirmed in a themed dialog (was window.confirm) and written to admin_logs
+  (was only a server log line).
+- Themes and ARIA: semantic tokens with meaning in words (hardcoded emerald/amber/red removed), table headers with
+  scope, a unique label per delete button; the console's section bar is a labelled nav with aria-current, and its
+  title colour no longer hardcodes yellow in light and beach.
+- The size climatology read moved off the event loop at both call sites (a blocking L2 read on the 1-CPU box).
+Backend: `services/admin_flag_board.py` builds the rows; `surf_forecast.py` stays under the 800-line cap (798).
+Tests: backend +9 (kinds, guardrail entry, lane marking, every registered flag has a row, the deletion is logged),
+Jest +5 (the panel had none). 131 related backend and 438 admin Jest tests pass; lint ratchet passes (debt down).
+NOT checked in a browser: the admin needs an admin login.
+Next, from the same survey (each its own PR): data and ingest health (/api/health/data), a per-spot geometry and
+rating inspector, guardrail run history and the owner's re-enable, the surf-truth export button and anchor history.
 ## 2026-11-18 15:41Z T1 P3 (part 1 follow-up): a deletion request now reaches the files and the sign-in
 
 The advisor recorded two limits on #1022: a deletion request did not remove the person's photos from the PUBLIC
