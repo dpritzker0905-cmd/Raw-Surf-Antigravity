@@ -538,3 +538,144 @@ Still owed before any fetch:
 - the collector (GEFS-Wave and `waef` byte-range reads, the nearest wet cell, the R1 proxy);
 - the measured publication delays;
 - the version list for GEFS-Wave and IFS/wave in 2025-10..2026-06.
+
+## 2026-11-17 18:16 -0500 Fill run 44107750669: VOID (second row); missing runs are throttling, not absence
+
+**Verdict record** (the advisor read the score job's public log at 22:18Z; nobody here has opened the report):
+- VOID, `test half 53 runs over 31 days`. The rule needs >= 60 runs AND >= 30 days.
+- This is the SECOND VOID row; the first was 48 runs over 29 days. No threshold moves.
+- This session has NOT opened the report artifact or the run-page summary. Only the collect jobs' public logs were
+  read, for the run lists below.
+
+**Which runs are missing, from the collect logs:**
+- The test half is October 00Z/12Z: 62 scheduled runs.
+- 48 came from the reused run and 5 were collected by this fill, giving 53.
+- The 9 still missing:
+  - 10-01 00Z;
+  - 10-11 12Z;
+  - 10-13 00Z;
+  - 10-14 12Z;
+  - 10-17 12Z;
+  - 10-19 00Z;
+  - 10-23 12Z;
+  - 10-25 00Z;
+  - 10-31 00Z.
+- Each failed both attempts with HTTP 503 from the `ecmwf-forecasts` S3 mirror (SlowDown throttling), mostly on the
+  336 h `.index`.
+- None is absent at the source (S3 returns 403/404 for a missing key, not 503), and none was outside the fill's list.
+- This fill tried 14 test-half runs and recovered 5. The fit half still lacks 09-03, 09-15 and 09-21, all 503s.
+
+**What the registration allows:** the 09:57Z fill plan says a run still missing after the fill "stays dropped and is
+never filled". A third collection of these 9 runs is therefore not a completion under the current registration. It
+would need a registered amendment made WITHOUT any result read, and David's word to dispatch.
+
+**The honest options, for the advisor:**
+1. **A new month** (e.g. November 2026, once it has its 14-day truth), under the same registration.
+2. **A transport amendment** before any read: ECMWF open data is also mirrored outside AWS. Fetch only the 9 named runs
+   from a second mirror, serially, at off-peak hours.
+   - Cost: about 9 runs x ~20 min ≈ 3 h collect plus ~1.5 h score.
+   - Expected recovery: most of the 9, if the second mirror does not throttle. 7 are needed.
+   - At this fill's 5-of-14 rate on the same mirror, a repeat would recover about 3 and stay VOID.
+3. **A split amendment** before any read: the 12 already-collected runs of 09-25..09-30 sit between the fit half (day
+   <= 24) and October.
+   - Moving them into the test half gives 65 runs.
+   - But it shortens the fit/test separation that the gap may exist to keep. The advisor's call.
+
+## 2026-11-17 21:27 -0500 AMENDMENT (no result read): a one-time second-mirror collection of 12 named runs (option b)
+
+This section replaces an earlier nine-run draft (19:07 EST) that existed only on this unmerged branch. The draft
+collected the nine test-half runs and left the three fit-half runs dropped. It was changed at the advisor's condition 2,
+before any result was read. A 20:51 EST addendum on the same branch is folded in here (its header wrongly read 01:51 -0500, a UTC clock
+labelled EST; corrected under L-P10).
+
+Owner, 18:31 EST, verbatim: "Go with option b, fetch the 9 from the second mirror". After being told the revised cost
+(12 runs, about 5.5 h), the owner wrote: "Yes, dispatch then". Advisor conditions, 2026-11-18 00:00Z; this text was
+approved with two edits at 01:30Z.
+
+**Why the "never filled" rule changes, and why that is a real amendment.** The 09:57Z rule "a run still missing after
+the fill stays dropped and is never filled" was a stop against open-ended retries. It is lifted ONCE, for one reason
+only. The missing set was decided by S3 SlowDown throttling (HTTP 503 on every one), which does not depend on what the
+forecasts said. Recovering those runs cannot favour an answer, and the decision to continue is taken knowing only a
+count (53 test runs), never a per-line number.
+
+**Precondition (1):** written confirmation from the director that no session has opened the report artifact of
+43952101715 or 44107750669, or seen the scored numbers in any form. This session has not. If anyone has, this
+amendment is void and the route is (a), November.
+
+**Runs (2):** exactly these twelve, no others, one attempt series:
+- test half (9): 2026-10-01 00Z, 10-11 12Z, 10-13 00Z, 10-14 12Z, 10-17 12Z, 10-19 00Z, 10-23 12Z, 10-25 00Z, 10-31 00Z;
+- fit half (3): 2026-09-03 00Z, 09-15 00Z, 09-21 00Z.
+
+**Mirror listing (3)** (HEAD requests only, no data read, 18:35 and 19:22 EST):
+- ECMWF's Google Cloud copy (storage.googleapis.com/ecmwf-open-data) holds all twelve runs. Checked: ens `ef` at
+  180, 336 and 360 h, HRES `oper` at 240 h, and AIFS-ENS `pf` at 336 h.
+- The Azure copy refuses access (409). data.ecmwf.int no longer keeps these months.
+
+**Sameness control (4):**
+- Measured at 20:10 EST: the 336 h `ef` `.index` of 2026-10-02 00Z (held from S3, not one of the twelve) is
+  byte-identical on both mirrors. Both copies are 2,012,998 bytes, with sha256
+  `42b52eaf9a58d3e4c66432b07faddd85f913a58624da984913a7fc399d90d34`.
+- Before any collection, the workflow's `mirror_check` job (`wind_lr_mirror_check.py`) repeats and widens this. It
+  compares sha256 of:
+  - the `ef` indexes at 180 and 336 h;
+  - the HRES and AIFS-ENS indexes;
+  - the GRIB bytes of the first 10u message at 336 h.
+- Any difference stops the dispatch: no collection, no score.
+- A failed or throttled fetch from either mirror is NOT a pass: the job stops and is retried later. The collection
+  never starts without a completed comparison. In the code, any exception, non-200 or short read exits non-zero.
+
+**Final stop (5):** after this collection, the gate is scored ONCE on whatever exists.
+- At least 60 test runs (and at least 30 days): the verdict stands as scored.
+- Under 60: October is VOID for good, and the route is (a), November under this registration, once its 14-day truth
+  exists.
+- There is no fourth collection.
+
+**Scoring (6):** recomputed from the full set of run files (43952101715 + 44107750669 + this run), not patched onto
+an earlier scoring. The report stays unopened until the advisor has read the verdict record from the log.
+
+**Unchanged:** the split (fit runs are September day <= 24, test runs are October; the 09-25..09-30 embargo stays),
+the arms, the thresholds and the VOID rules.
+
+**Cost:** about 12 runs x ~20 min serially, so about 4 h collect plus about 1.5 h score: about 5.5 h.
+
+**Dispatch** (from dev, after the GATE line and the merge):
+- `reuse_run_id=43952101715`
+- `reuse_run_id_2=44107750669`
+- `ens_mirror=gcs`
+- `runs=2026090300,2026091500,2026092100,2026100100,2026101112,2026101300,2026101412,2026101712,2026101900,2026102312,2026102500,2026103100`
+
+## 2026-11-18 09:51 -0500 ADDENDUM to condition 4 (no result read): the sameness control compares against HELD data
+
+**Run 44264197330** (dispatched 08:06Z from dev `e3455d4d6`): the sameness control was not completed. Amazon's S3
+copy answered HTTP 503 to the 180 h `ef` index after `_get`'s retries, so the run stopped there: no collection, no
+score, no report. This is not a VOID row, and the one-attempt series of condition 2 has not started.
+
+**Owner, 08:29 EST, verbatim:** "Go with b if that is the path toward SOTA?" Option (b) was the advisor's stronger
+design, 08:15Z.
+
+**What changes (condition 4 only).** The control no longer reads S3. For run 2026-10-02 00Z (held by 43952101715,
+shard 14, not one of the twelve):
+1. the Google copy's 336 h `ef` `.index` must equal the 20:10 EST hand measurement: 2,012,998 bytes, sha256
+   `b42b52eaf9a58d3e4c66432b07faddd85f913a58624da984913a7fc399d90d34`;
+2. the station values decoded from the Google copy, through the collection's own readers, must EQUAL the values held
+   in that run's file, element for element (float32, NaN = NaN), at 460 stations: ENS 10u/10v/10fg at 180 and 336 h,
+   HRES 10u/10v at 240 h, AIFS-ENS 10u/10v at 336 h.
+
+The run file keeps decoded station values, not raw GRIB bytes (checked: `collect_run` saves `.npz` arrays only), so
+(2) compares decoded values. The same bytes give the same values; a different field gives different values. Any
+difference exits 1 (stop). A read error, a missing held file or a missing key exits 2 (NOT COMPLETED, also a stop).
+
+**Correction to the 21:27 amendment's hash (a transcription error, not a re-measurement).** The amendment printed
+the sha256 as `42b52eaf…d34`, 63 characters. On Windows `sha256sum` escapes a backslashed path by printing `\` before
+the hash; the 20:10 output was `\b42b52eaf…d34` on both files, then `IDENTICAL`, and the leading `b` was lost with
+the backslash when copied. The true value is the 64-character one above. Found when the new control ran locally
+(below) and reported the index DIFFERENT while every decoded value matched. A test now rejects any recorded hash
+that is not 64 hex characters.
+
+**Local run of the control, disclosed** (this machine, numpy 2.5.5, eccodes 2.50.0, held shard 14 and the station
+freeze of 43952101715 downloaded; the report artifact NOT downloaded or opened): all 10 decoded fields SAME, max
+|diff| 0; with the corrected hash the index is SAME; PASS. It reads no forecast score and no truth. It shows that the
+control can pass, and that a mismatch (the 63-character hash) does fail it.
+
+**Unchanged:** conditions 1, 2, 3, 5 and 6, the twelve runs, and the dispatch inputs. The dispatch still needs the
+owner's word, typed after the GATE line and the merge.

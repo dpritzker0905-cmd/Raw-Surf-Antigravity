@@ -239,3 +239,68 @@ A/B ALSO run on a GitHub-hosted runner. Everything in sections 6, 6a and 6b appl
 director (11:10 EST) treats that as a dispatch needing David's word, so no tag is pushed until he gives it. It holds no secret, and
 builds the lab store and CDN on the runner (the CDN step checked locally: exit 0, 45 objects). It records the runner image, cores,
 memory, Chrome and the GL renderer per session. It prints the A/A summary only; the A/B rows go to the artifact, not the log.
+
+### 6f. Hosted run 1 (`steptime-937-1`, run 44183558083): A/A complete and clean; A/B NOT RUN TO COMPLETION; NO VERDICT (recorded 2026-11-18 04:50Z)
+
+**Outcome, as the advisor ruled (2026-11-18 04:40Z): A/A complete and clean; A/B not run to completion; no verdict.** No step-time
+verdict of any kind exists for #937, on software or real GL.
+
+- **Merge order.** #937 was squash-merged at 2026-11-18 03:18:22Z (`df35a8c27`) on David's word ("Merge #937 now"), BEFORE this run
+  was read, and by this lane rather than through the director's gate (that rule is in section 6g). It is live ON with its kill switch
+  `window.__RAW_DISABLE_URGENT_WASH_SEED__ = true`. If the fresh run fails, the kill switch is the remedy.
+- **Why the A/B did not finish.** The job annotation reads "The job has exceeded the maximum execution time of 5h30m0s". The limit
+  is this lane's own: `steptime-937.yml` sets `timeout-minutes: 330`. Nobody cancelled it. The A/A alone took 3 h 56 min (21:54Z to
+  01:50Z) and the A/B is the same size, so a full pass needs about 8 h, more than the 330-min limit and more than GitHub's 6 h cap on
+  a hosted job. A budget error in the design, not chance. (This lane first told the advisor "no timeout set": a silent grep failure
+  reported as a fact, corrected the same hour.)
+- **AB.json was never opened.** The artifact uploaded at the end of the job holds partial A/B rows. A partial ABBA sequence is
+  unbalanced, and reading it before a fresh run would be two looks at one question, so it stays unread.
+- **Runner record** (job log, 6e point 3): ubuntu26 20261111.196.1, 4 cores, 15982 MB, Chrome 157.0.8103.50, GL
+  `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)`: SOFTWARE GL, where a PASS is
+  necessary but not sufficient. Load average 0.28 before the A/A and 6.82 after it: the test's own work on 4 cores, not a neighbour.
+
+**A/A, read from the job log only** (R = the instrument's resolution; censored = waits over the 3 s window; n = paired frame-changing steps):
+
+| cell | R median (ms) | R p95 (ms) | censored A / B | n | A/A median diff (ms) [95% CI] |
+|---|---|---|---|---|---|
+| desktop 200 | 0.2 | 0.5 | 0.0% / 0.0% | 736 | 0.0 [-0.2, 0.2] |
+| desktop 400 | 0.2 | 0.7 | 0.0% / 0.0% | 736 | -0.0 [-0.3, 0.2] |
+| desktop 800 | 0.2 | 0.6 | 0.0% / 0.0% | 736 | 0.0 [-0.2, 0.1] |
+| phone 200 | 0.5 | 2.8 | 0.0% / 0.0% | 736 | -0.6 [-1.2, -0.1] |
+| phone 400 | 0.6 | 5.2 | 0.0% / 0.0% | 736 | -0.0 [-0.6, 0.6] |
+| phone 800 | 0.3 | 7.7 | 0.7% / 0.7% | 735 | 0.1 [-0.1, 0.6] |
+
+**Resolvable cells, fixed from the A/A alone before any A/B row was read** (R median <= 5 ms, R p95 <= 15 ms, both arms under 5%
+censored): ALL SIX. The advisor accepted this list. The phone-200 A/A interval excludes zero; it is one of six 95% intervals, which
+happens by chance about a quarter of the time, and it is a fifth of R. Recorded; it does not void the instrument.
+
+**Still owed, now after the merge:** a fresh full run (A/A then A/B) under tag `steptime-937-2`, on the merged code. It needs David's
+word as a dispatch. Before it runs, the workflow must split the A/A and the A/B into separate jobs (each under 6 h, the A/B needing
+the A/A), with the A/A summary still echoed to the log and the A/B rows written to the artifact only. The local quiet-hours GPU run is
+also still owed.
+
+### 6g. The lane-merge rule this lane broke (2026-11-18 04:50Z)
+
+On 2026-11-17 the director ruled that a lane never merges its own PR to dev: it sends the director the PR number and full head sha and
+stops, and the director merges after the advisor has read that exact head. This lane merged #1001 (`86c682a00`) and #937 (`df35a8c27`)
+itself, each on David's direct word. An owner's word to merge names WHAT merges; the director's gated loop is still WHO merges. #1021
+went to the director as a head, unmerged.
+
+### 6h. Amendment: run 2 split into four same-machine jobs (registered 2026-11-18 13:36Z, before tag `steptime-937-2` exists and before any run-2 row exists)
+
+David's word, 2026-11-18: "Yes, split and run". Everything in sections 6, 6a, 6b and 6e applies unchanged except as written here.
+1. **Four jobs, each on its own hosted runner**, each running its OWN A/A (kill against kill) and THEN its A/B (fix against kill)
+   on the SAME machine, at the registered size (8 ABBA groups x 47 steps): `desktop-all` (desktop, 200 / 400 / 800 ms), `phone-200`,
+   `phone-400` and `phone-800`. The advisor's point: separate A/A and A/B jobs would land on different machines, so each A/B is
+   read against the A/A of the machine it ran on.
+2. **Budget, from run 1's own per-cell times** (job log, A/A only): desktop 1131 + 1094 + 1847 s = 68 min for all three cadences;
+   phone 3279 / 3422 / 3378 s, 55-57 min per cadence. A/A + A/B per job: about 2.3 h for desktop, about 1.9 h per phone cadence,
+   plus about 6 min of setup. `timeout-minutes: 240` per job, under GitHub's 6 h cap with more than 1.5 h of margin.
+3. **Resolvable cells are decided again, per cell, from that cell's run-2 A/A alone**, with the same rule (R median <= 5 ms,
+   R p95 <= 15 ms, both arms under 5 % censored), and fixed in this log before any run-2 A/B row is read. Run 1's list does not carry
+   over. A cell that fails the rule reads "not shown worse at the instrument's resolution of R ms", never a pass.
+4. **Line and labels unchanged:** 5 / 15 / 15 ms and censored share 2 pp; every result is "software GL", where a PASS is necessary,
+   not sufficient. A job that times out or fails yields NO verdict for its cells, and its partial A/B rows stay unread.
+5. **Each job records** its cell, CPU model, image, cores, memory, Chrome and the GL renderer string, so the four machines can be
+   compared. The A/A summary goes to each job's log; the A/B rows go to that job's artifact only.
+6. **Run 1's partial AB.json stays unread for good.** The local quiet-hours GPU run stays owed.

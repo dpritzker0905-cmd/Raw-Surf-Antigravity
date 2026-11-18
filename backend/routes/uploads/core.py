@@ -42,6 +42,7 @@ from .identity import uploader_id
 from core.security import get_current_user_id
 from models import Profile, GalleryItem, ObservationMedia
 from services.observation_media import inspect_media
+from services.media_metadata import MetadataError, strip_image_metadata
 from utils.video_processor import (
     get_video_info, 
     needs_transcoding, 
@@ -527,12 +528,22 @@ async def upload_conditions_media(
     filename = f"{uuid.uuid4()}{ext}"
     media_type = "video" if is_video else "image"
 
+    # T1 P3: the conditions bucket is PUBLIC, so the stored copy of a photo loses its embedded metadata (GPS position,
+    # camera serial, times; services/media_metadata, lossless). The server's own facts are read from the ORIGINAL
+    # bytes below and kept private. HEIC/HEIF and video are stored unchanged for now (metadata_stripped false).
+    stored, metadata_stripped = content, False
+    if not is_video:
+        try:
+            stored, metadata_stripped = strip_image_metadata(content, file.content_type)
+        except MetadataError:
+            raise HTTPException(status_code=400, detail="Could not read this image. Please try another photo.")
+
     conditions_dir = UPLOAD_DIR / "conditions" / user_id
     conditions_dir.mkdir(parents=True, exist_ok=True)
 
     file_path = conditions_dir / filename
     with open(file_path, "wb") as f:
-        f.write(content)
+        f.write(stored)
 
     # Upload to Supabase for persistence (Render disk is ephemeral)
     local_url = f"/api/uploads/conditions/{user_id}/{filename}"
@@ -564,8 +575,9 @@ async def upload_conditions_media(
         "media_url": media_url,
         "media_type": media_type,
         "filename": filename,
-        "size": len(content),
-        "persistent": bool(supabase_url)
+        "size": len(stored),
+        "persistent": bool(supabase_url),
+        "metadata_stripped": metadata_stripped,
     }
 
 

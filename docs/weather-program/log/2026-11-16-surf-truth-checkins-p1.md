@@ -221,3 +221,76 @@ The header '22:30Z Anchors C: the admin "Surf truth" area' ran AHEAD of the cloc
 ## 2026-11-17 02:57Z CLOCK CORRECTION (from `date -u`; append-only)
 
 The header '23:20Z T1 P4 export built (stacked on anchors C): private, pseudonymized rows for the offline fit' ran AHEAD of the clock: it was committed at 2026-11-16T22:46:20Z, 34 minutes before the time it states (an estimate; LESSONS L-P10).
+
+## 2026-11-18 01:04Z Post-deploy check: the two surf-truth logs refuse UPDATE, DELETE and TRUNCATE in production (header from `date -u`)
+
+Owed since anchors A/B. Production Supabase (the Antigravity project), read-only except one block that rolls itself back:
+- Catalog: `surf_truth_anchor_events` and `surf_truth_admin_actions` exist with RLS on, 2 non-internal triggers each, and
+  `service_role` holds INSERT but not UPDATE on both.
+- Behaviour, as `postgres` (the table OWNER, so grants do not apply and only the triggers stand): one DO block inserted
+  a synthetic row into each table, then tried UPDATE, DELETE and TRUNCATE. All six were refused with
+  "<table> is append-only"; the inserts succeeded. The block then raised, which rolled back everything; a follow-up
+  query found 0 probe rows in either table.
+- Positive control: the inserts in the same block succeeded, so the refusals are the triggers, not a broken table.
+## 2026-11-18 01:37Z T1 P3 (part 1): a deletion request now reaches the surf-truth tables, and the GDPR routes run at all (header from the UTC clock)
+
+Found while starting P3: `/compliance/delete-my-data` anonymizes the profile instead of deleting it, so the CASCADE
+foreign keys on `surf_observations` / `observation_media` / `surf_truth_anchors` never fire. A deleted account's
+observations (device GPS, photo EXIF positions, install-id hash) survived. Worse, BOTH GDPR routes raised before
+finishing: the deletion on `Follow.followed_id` (the column is `following_id`), the admin export on that, on
+`Review.reviewed_id` (`reviewee_id`) and on `Booking.surfer_id` (no such column; `creator_id`). And six of the
+profile fields the deletion "cleared" are not columns (phone, instagram_handle, website, board_description,
+is_active, is_deleted): those assignments silently did nothing, and the real home/on-demand positions were never
+cleared.
+
+Fixed (`services/surf_truth_erasure.py` + `routes/compliance_pkg/gdpr.py`): the deletion erases the user's
+observations, photo-fact rows and anchor row in the same transaction, un-attributes their audits of others (the
+verdict stays), and clears the real social-URL and location columns (a rename now raises instead of silently
+skipping). The admin export includes the user's surf-truth rows. 4 tests run the real handlers on SQLite; mutation:
+dropping the erasure call fails the route test.
+
+NOT done, for David: (1) the append-only anchor-event and admin-action logs keep the profile id and admin reasons
+after a deletion: legal call; (2) exports already in private storage (pseudonymous) wait on the retention rule;
+(3) Profile has no deleted flag and the auth account is not removed, so `is_deleted` never existed: a design
+question for the account owners, not this lane; (4) the report photo stays in the `conditions` bucket with its
+report (owned by those features).
+## 2026-11-18 03:03Z Admin: the Surf Forecast panel tells the truth about flags (header from the UTC clock)
+
+David asked for a comprehensive, working admin for the surf sim's logic. A read-only survey of the admin found the
+Surf Forecast panel (Admin > Surf Forecast) had fallen behind D-065. Fixed here, no served number moves:
+- Each flag row now shows its real value (numeric settings such as SURF_REFRACTION_KR 0.873 were shown as on/off),
+  its source (environment / guardrail manifest / code default) and, when the guardrail set it, the guardrail's
+  reason, who and when, plus the fix version that would clear an automatic off. Flags read only by a workflow lane
+  are marked: the serve box's copy says nothing about the lane's. The manifest's own health is shown (read time,
+  entries, or the read error).
+- The panel's text said flags are env vars and never a silent toggle; it now explains D-065 precedence.
+- Search, and groups: set by guardrail / changed from default / guarded / numeric settings.
+- A failed blob read is shown as a failure (it rendered as "-" or 0); the regional-tile-first and Gulf-fill
+  counters the backend already returned are shown.
+- Deleting a user condition report is confirmed in a themed dialog (was window.confirm) and written to admin_logs
+  (was only a server log line).
+- Themes and ARIA: semantic tokens with meaning in words (hardcoded emerald/amber/red removed), table headers with
+  scope, a unique label per delete button; the console's section bar is a labelled nav with aria-current, and its
+  title colour no longer hardcodes yellow in light and beach.
+- The size climatology read moved off the event loop at both call sites (a blocking L2 read on the 1-CPU box).
+Backend: `services/admin_flag_board.py` builds the rows; `surf_forecast.py` stays under the 800-line cap (798).
+Tests: backend +9 (kinds, guardrail entry, lane marking, every registered flag has a row, the deletion is logged),
+Jest +5 (the panel had none). 131 related backend and 438 admin Jest tests pass; lint ratchet passes (debt down).
+NOT checked in a browser: the admin needs an admin login.
+Next, from the same survey (each its own PR): data and ingest health (/api/health/data), a per-spot geometry and
+rating inspector, guardrail run history and the owner's re-enable, the surf-truth export button and anchor history.
+## 2026-11-18 04:42Z T1 P3 (part 5): go-live photos lose their GPS before they reach the public bucket (header from the UTC clock)
+
+The Surf truth Consent tab had recorded it since anchors C: go-live condition photos go to the PUBLIC `conditions`
+bucket with their original file data, so a phone photo's GPS position (and camera serial, times) was readable by
+anyone holding its link. `services/media_metadata.py` now strips the stored copy, losslessly (the image data is
+never re-encoded): JPEG drops every APPn except JFIF/ICC/Adobe and COM, then puts back a minimal EXIF holding ONLY a
+non-upright Orientation so photos do not turn sideways; PNG drops eXIf/tEXt/iTXt/zTXt/tIME; WebP drops EXIF/XMP and
+fixes the VP8X flags and RIFF size. The server's own facts (hash, EXIF position and time, for the blind-observation
+checks) are still read from the ORIGINAL bytes and kept in the private `observation_media` table. A malformed
+JPEG/PNG/WebP is refused (400) rather than stored unstripped. The upload reply says `metadata_stripped`.
+NOT stripped yet (follow-up): HEIC/HEIF (Pillow here cannot rewrite it) and video (needs a video tool); and the
+surf-report photo path, which is a different upload route. Already-stored photos keep their metadata until a
+backfill is decided.
+Tests +6 (each format: GPS gone, pixels identical, orientation kept; the route: public copy clean, private record
+kept, malformed refused); mutation: keeping APP1 fails. 99 related tests (incl. the upload identity suite) pass.

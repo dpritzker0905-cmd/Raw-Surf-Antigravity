@@ -80,6 +80,8 @@ COVERAGE = {
     "RATING_BREAKER_TYPE": (RATING, "the quality score's breaker-type term; no observed rating exists"),
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": (RATING, "the quality score's oversize gate reads the height cap's depth "
                                                  "(CMP-3); the height is unchanged, no observed rating exists"),
+    "SURF_FACE_RANGE": (BLIND, "adds two fields beside the served height; no height, rating or glyph reads them. Evidence: "
+                               "test_surf_face_range.py (height, score and level byte-identical, flag on or off)"),
     "RATING_REF_PRIOR": (RATING, "the quality score's size reference for spots with no climatology (JAC-2, #771); no "
                                  "observed rating exists. Evidence: MOP size-category agreement (#839)"),
     "ALERTS_FORECAST_WINDOWS": (VOLUME, "sent-alert volume per user-day against its cap"),
