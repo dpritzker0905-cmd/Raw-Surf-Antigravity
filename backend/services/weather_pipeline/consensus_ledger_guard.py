@@ -31,11 +31,14 @@ THE RULE (registered in the G1a PR before any number was read; the research lead
     1/(REPS + 1) <= 0.025 / (m x `RESOLUTION_HEADROOM`), ten times below Holm's smallest threshold. Otherwise the verdict
     reads UNDER_RESOLVED ("raise B"), never VOID and never NO_FIRE; m, B and the floor are printed;
   * CONTROLS, on the same items every run; a misbehaving control makes the verdict VOID (never a fire):
-      null            arm := served: must not fire;
-      shuffled-day    the null with its UTC-day labels permuted: must not fire;
-      positives       `PLANTS`, sized to the line (1.2 x) and with margin (2 x): each must fire, and a rotation or level
-                      shift planted in one basin must be caught by the `bias` test itself. Required detection, measured
-                      on synthetic rows over 20 seeds (tests): >= 80 % for the 1.2 x plants, 100 % for the 2 x plants.
+      null            arm := served: must not fire. A null that fires is ALWAYS VOID: under-resolution never excuses it;
+      shuffled-day    the null with its UTC-day labels permuted: must not fire (same rule);
+      positives       `PLANTS`, sized with margin (2 x, and the +10 % Hs amplitude) and to the line (1.2 x). Each 2 x plant
+                      must fire on every run, a rotation or level shift in one basin by the `bias` test itself; a miss is
+                      VOID, or UNDER_RESOLVED when a family cannot fire at this B. The 1.2 x plants are REPORTED each run
+                      (a miss on noise is expected about 1 run in 5) and their detection rate is pinned on synthetic rows
+                      over 20 seeds (tests): >= 80 % for the 1.2 x plants, 100 % for the 2 x plants; the guardrail
+                      prints their rolling rate over its recent runs.
     With too few pairs a positive cannot fire, so the verdict is INSUFFICIENT or VOID: a guard that could not have seen
     harm says so instead of reading "no harm".
 
@@ -89,7 +92,8 @@ PLANTS = {
          ("+0.10 m level in one basin (2x)", "basin", 0.10, BIAS)),
 }
 
-FIRE, NO_FIRE, VOID, INSUFFICIENT, UNDER_RESOLVED = "FIRE", "NO_FIRE", "VOID", "INSUFFICIENT", "UNDER_RESOLVED"
+REPORTED_ONLY = "(1.2x)"       # plants sized at 1.2x the line: reported each run, never a per-run VOID (the lead's FIX 2)
+FIRE, NO_FIRE, VOID, INSUFFICIENT, UNDER_RESOLVED ="FIRE", "NO_FIRE", "VOID", "INSUFFICIENT", "UNDER_RESOLVED"
 
 
 def wrap180(x: float) -> float:
@@ -301,25 +305,29 @@ def verdict(items: Sequence[dict], q: str, reps: int = REPS, seed: int = SEED) -
     main = judge(items, q, reps, seed)
     controls = {"null": not judge(null_items(items), q, reps, seed, report=False)["fire"],     # True = behaved
                 "shuffled-day null": not judge(shuffled_day_items(items, seed), q, reps, seed, report=False)["fire"]}
+    reported = {}                           # the 1.2x plants: reported each run, their rate pinned by the 20-seed test
     for name, kind, size, must in PLANTS[q]:
         j = judge(planted_items(items, q, kind, size, seed), q, reps, seed, report=False)
-        controls[name] = j["fire"] and (must is None or must in j["fired"])
-    bad = [name for name, ok in controls.items() if not ok]
+        (reported if REPORTED_ONLY in name else controls)[name] = j["fire"] and (must is None or must in j["fired"])
+    bad_nulls = [name for name in ("null", "shuffled-day null") if not controls[name]]
+    bad_plants = [name for name, ok in controls.items() if not ok and name not in bad_nulls]
     under = [f"{f['family']} (m {f['m']})" for f in main["under_resolved"]]
     if not main["decidable"]:
         state, why = INSUFFICIENT, [f"no lead's decision rows reached n {POOLED_MIN_N}"]
-    elif bad and under:
-        state, why = UNDER_RESOLVED, [f"raise B: {', '.join(under)} cannot fire at B {reps}"]
-    elif bad:
-        state, why = VOID, [f"control misbehaved: {', '.join(bad)} (nulls must stay quiet; every planted harm must "
-                            f"be caught)"]
+    elif bad_nulls:                         # under-resolution never excuses a null that fired
+        state, why = VOID, [f"null control fired: {', '.join(bad_nulls)} (the pipeline sees harm where there is none)"]
+    elif bad_plants and under:              # it may only explain a planted harm that could not fire
+        state, why = UNDER_RESOLVED, [f"raise B: {', '.join(under)} cannot fire at B {reps} "
+                                      f"(missed: {', '.join(bad_plants)})"]
+    elif bad_plants:
+        state, why = VOID, [f"control misbehaved: {', '.join(bad_plants)} (every 2x planted harm must be caught)"]
     elif main["fire"]:
         state, why = FIRE, list(main["reasons"])
     elif under:
         state, why = UNDER_RESOLVED, [f"raise B: {', '.join(under)} cannot fire at B {reps}"]
     else:
         state, why = NO_FIRE, []
-    return dict(main, state=state, why=why, controls=controls, reps=reps)
+    return dict(main, state=state, why=why, controls=controls, reported=reported, reps=reps)
 
 
 # ---- one run ---------------------------------------------------------------------------------------------------------
@@ -357,6 +365,8 @@ def render(report: dict) -> str:
         reps = r.get("reps", REPS)
         role = "READINESS (pre-flip; no kill path)" if r["role"] == "readiness" else "guard"
         ctl = ", ".join(f"{k} {'ok' if v else 'FAILED'}" for k, v in r["controls"].items())
+        ctl += "; reported (1.2x, not a VOID trigger): " + (", ".join(
+            f"{k} {'caught' if v else 'missed'}" for k, v in (r.get("reported") or {}).items()) or "none")
         fam = "; ".join(f"{f['family']} m {f['m']}{'' if f['resolved'] else ' UNDER-RESOLVED'}" for f in r["families"])
         out += [f"**`{flag}`** ({role}; {'Hs' if q == HS else 'direction'}; lines {POOLED_LINE[q]} pooled / "
                 f"{BASIN_LINE[q]} basin {unit}): **{r['state']}**. Controls: {ctl}.",

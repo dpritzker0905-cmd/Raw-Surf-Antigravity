@@ -331,6 +331,8 @@ def ledger_report(now: datetime, fetch=None) -> dict:
 
 
 LEDGER_VERDICT = {"FIRE": gs.WORSE, "NO_FIRE": gs.NOT_WORSE}       # VOID / INSUFFICIENT -> UNTESTABLE (never a strike)
+PLANT_KEY = "__g1a_plants__"         # in the job's watch cache beside the strike counters; never a flag name
+PLANT_HISTORY = 28                   # 7 days of 6-hourly runs
 
 
 # ---- one run --------------------------------------------------------------------------------------------------------
@@ -404,6 +406,15 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
             except Exception as e:                               # noqa: BLE001 - recorded
                 results[f].setdefault("notes", []).append(f"alert volume unreadable: {type(e).__name__}")
     watch = load_watch(args.cache_dir) if watch is None else watch
+    plant_rates = {}
+    if ledger:                               # G1a: the 1.2x plants' rolling detection over the last PLANT_HISTORY runs
+        hist = dict(watch.get(PLANT_KEY) or {})
+        for flag, r in ledger.items():
+            for name, ok in (r.get("reported") or {}).items():
+                k = f"{flag} | {name}"
+                hist[k] = (list(hist.get(k) or []) + [bool(ok)])[-PLANT_HISTORY:]
+                plant_rates[k] = (sum(hist[k]), len(hist[k]))
+        watch = dict(watch, **{PLANT_KEY: hist})
     decisions, new = {}, manifest
     for f in watched:
         d = decide(f, results.get(f, {"verdict": "UNTESTABLE", "reasons": ["not scored (held off)"]}),
@@ -417,7 +428,7 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
         print(f"strike counter not saved ({e}): the next run starts its count again")
     changed = new != manifest
     report = {"mode": "enforce" if enforce else "dry-run", "generated_utc": iso(now), "decisions": decisions,
-              "results": results, "changed": changed, "watch": watch, "ledger": ledger,
+              "results": results, "changed": changed, "watch": watch, "ledger": ledger, "plant_rates": plant_rates,
               "ledger_commands": [ledger_command(f, d, args.run_url) for f, d in decisions.items()
                                   if d["action"] == "disable"]}
     if enforce and changed:
@@ -459,6 +470,10 @@ def markdown(report: dict) -> str:
     if report.get("ledger"):
         from services.weather_pipeline import consensus_ledger_guard as clg
         lines += ["", clg.render(report["ledger"])]
+        rates = report.get("plant_rates") or {}
+        if rates:
+            lines += ["1.2x plants, rolling detection over this job's recent runs (required >= 80 % on synthetic rows): "
+                      + "; ".join(f"{k} {a}/{n}" for k, (a, n) in sorted(rates.items())), ""]
     for c in report.get("ledger_commands", []):
         lines += ["", "Ledger line owed (BRAIN_RULES section 23), for the next session's fragment:", "```", c, "```"]
     return "\n".join(lines) + "\n"

@@ -118,3 +118,24 @@ def test_kill_switch_reaches_the_build_lane_through_an_empty_env(monkeypatch):
         assert cp.direction_mode() == "vector"
     finally:
         rf._reset_for_tests(None)
+
+
+def test_the_1_2x_plants_rolling_rate_is_kept_in_the_job_cache_and_printed(monkeypatch):
+    monkeypatch.setattr(fg, "save_watch", lambda *a: None)
+
+    def scorer(state, caught):
+        def s(flags, n, c, o):
+            led_ = led(state)
+            led_[FLAG]["reported"] = {"+6 deg rotation in one basin (1.2x)": caught}
+            return fg.score_flags(flags, n, c, o, stage=no_stage, replay=lambda f, ctx: {"verdict": gs.NOT_WORSE},
+                                  ledger=lambda _now: led_)
+        return s
+
+    first = fg.run(_args(), now=NOW, manifest=fg.empty_manifest(), watch={}, volumes=lambda *a: {},
+                   scorer=scorer("NO_FIRE", True))
+    second = fg.run(_args(), now=NOW + timedelta(hours=6), manifest=fg.empty_manifest(), watch=first["watch"],
+                    volumes=lambda *a: {}, scorer=scorer("NO_FIRE", False))
+    key = f"{FLAG} | +6 deg rotation in one basin (1.2x)"
+    assert second["plant_rates"][key] == (1, 2)
+    assert f"{key} 1/2" in fg.markdown(second)
+    assert not second["changed"]                                          # a reported miss never acts

@@ -102,3 +102,26 @@ env value above the manifest, so a guardrail 'off' would never have stopped the 
      m <= 25 per family.
    - VOID keeps its single meaning: a control misbehaved.
    - UNDER_RESOLVED, like VOID and INSUFFICIENT, is never a strike.
+
+## 5. The lead's statistics review of 42954468: two fixes (2026-11-18)
+
+1. **A null that fires is always VOID.** Under-resolution may only excuse a 2x plant that could not fire, never a null
+   that fired. Precedence is now:
+   - INSUFFICIENT;
+   - a null or the shuffled-day null fired → VOID;
+   - a 2x plant missed and a family is under-resolved → UNDER_RESOLVED;
+   - a 2x plant missed → VOID;
+   - FIRE, then UNDER_RESOLVED, then NO_FIRE.
+
+   Pinned by `test_a_null_that_fires_is_void_even_when_a_family_is_under_resolved`.
+2. **The 1.2x plants are reported, not per-run VOID triggers.** They are required only in >= 80 % of seeds, so making
+   them VOID triggers would have blinded the guard on about a third of real runs.
+   - Per-run VOID triggers are now: a null fires, or a 2x plant (or the +10 % Hs amplitude) misses.
+   - The 1.2x plants are printed each run as caught or missed.
+   - The guardrail keeps their rolling detection over its last 28 runs (7 days) in the job's watch cache, beside the
+     strike counters, and prints it.
+   - Pinned by `test_a_missed_1_2x_plant_is_reported_not_a_void` and
+     `test_the_1_2x_plants_rolling_rate_is_kept_in_the_job_cache_and_printed`.
+
+The 20-seed detection test takes about 2 minutes locally. The chain lane has no slow marker, so it runs unmarked; the seeds
+are not cut.

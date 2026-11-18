@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 24,
+  "tests": 27,
   "files": 2,
   "branch": "claude/g1a-consensus-guard",
   "date": "2026-11-18",
-  "note": "G1a: consensus ledger guard (16) + flag guardrail ledger class and kill-switch contract (8)"
+  "note": "G1a: consensus ledger guard (18) + flag guardrail ledger class, kill-switch contract and plant rates (9)"
 }

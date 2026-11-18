@@ -159,3 +159,22 @@ def test_render_prints_class_n_and_never_an_id_a_time_or_a_date():
 def test_small_cells_are_suppressed_at_birth():
     assert g._public({"n": 9, "delta": 1.0, "lo": 0.5, "hi": 1.5, "p": 0.0}) == {"suppressed": True}
     assert "p" not in g._public({"n": 10, "delta": 1.0, "lo": 0.5, "hi": 1.5, "p": 0.0})
+
+
+def test_a_null_that_fires_is_void_even_when_a_family_is_under_resolved(monkeypatch):
+    """The lead's FIX 1: under-resolution may only excuse a planted harm that could not fire, never a null that fired."""
+    monkeypatch.setattr(g, "null_items", lambda its: g.planted_items(its, g.DIR, "basin", 10.0))
+    r = g.verdict(items(), g.DIR, reps=500)
+    assert r["under_resolved"] and not r["controls"]["null"]
+    assert r["state"] == g.VOID and "null control fired" in r["why"][0]
+
+
+def test_a_missed_1_2x_plant_is_reported_not_a_void(monkeypatch):
+    """The lead's FIX 2: only the nulls and the 2x plants are per-run VOID triggers; a 1.2x miss is reported."""
+    monkeypatch.setitem(g.PLANTS, g.HS, (("a plant that cannot fire (1.2x)", "share", 0.0, None),
+                                         ("+0.10 m level in one basin (2x)", "basin", 0.10, g.BIAS)))
+    r = g.verdict(items(), g.HS, reps=REPS)
+    assert r["state"] == g.NO_FIRE and r["reported"] == {"a plant that cannot fire (1.2x)": False}
+    assert "a plant that cannot fire (1.2x) missed" in g.render({"CONSENSUS_SERVE": dict(r, quantity=g.HS,
+                                                                                          role="readiness")})
+    assert g.verdict(items(harm_hs=0.05), g.HS, reps=REPS)["state"] == g.FIRE
