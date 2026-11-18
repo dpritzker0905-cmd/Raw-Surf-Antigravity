@@ -130,7 +130,7 @@ def test_the_credentialed_gate_starts_only_from_its_one_shot_tag():
     text = (BACKEND.parent / ".github" / "workflows" / "tide-fes-gate.yml").read_text(encoding="utf-8")
     block = re.search(r"(?ms)^on:\n(.*?)^\S", text).group(1)                     # the trigger block, up to the next key
     lines = [ln.strip() for ln in block.splitlines() if ln.strip() and not ln.strip().startswith("#")]
-    assert lines == ["workflow_dispatch:", "push:", "tags: [tide-gate-G2]"], lines   # no branches, paths, schedule
+    assert lines == ["push:", "tags: [tide-gate-G2]"], lines   # tag only: no dispatch, branches, paths, schedule (scored, final)
 
 
 def test_seasonal_refit_recovers_a_known_constant():

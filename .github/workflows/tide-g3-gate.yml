@@ -9,7 +9,6 @@ name: Tide M1 gate G3 (seasonal + non-tidal water level vs observed)
 # by the scripts and never printed. The log carries stage names and memory only; scores reach the summary and artifact.
 # Pinned by tests/test_tide_g3_rules.py.
 on:
-  workflow_dispatch:
   push:
     tags: [tide-gate-G3]
 permissions:

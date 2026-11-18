@@ -13,7 +13,6 @@ name: Tide M1 gate (FES2022b via PyFES vs NOAA CO-OPS)
 # workflows that exist on the default branch, `dev`.) A second run needs that tag deleted and pushed again, on purpose.
 # tests/test_tide_fes_offline_guard.py pins this: no branch push, no schedule.
 on:
-  workflow_dispatch:
   push:
     tags: [tide-gate-G2]
 permissions:

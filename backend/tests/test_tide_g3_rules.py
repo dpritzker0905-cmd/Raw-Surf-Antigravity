@@ -92,7 +92,7 @@ def test_g3_workflow_is_one_shot_with_scoped_credentials_and_pins():
     wf = (BACKEND.parent / ".github" / "workflows" / "tide-g3-gate.yml").read_text(encoding="utf-8")
     block = re.search(r"(?ms)^on:\n(.*?)^\S", wf).group(1)
     lines = [ln.strip() for ln in block.splitlines() if ln.strip() and not ln.strip().startswith("#")]
-    assert lines == ["workflow_dispatch:", "push:", "tags: [tide-gate-G3]"], lines
+    assert lines == ["push:", "tags: [tide-gate-G3]"], lines   # tag only (scored, final)
     steps = re.split(r"\n      - ", wf)
     aviso = [s for s in steps if "AVISO_PASSWORD" in s]
     cm = [s for s in steps if "COPERNICUSMARINE_SERVICE_PASSWORD" in s]
