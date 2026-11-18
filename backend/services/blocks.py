@@ -14,6 +14,11 @@ Semantics, decided once:
   * LISTS (search, feeds, comment threads) hide the other side in BOTH directions, matching the
     `all_excluded_ids` contract the block routes already publish.
 
+WITHDRAWN accounts (a deletion request inside its 30-day restore window, services/account_deletion) are hidden from
+EVERYONE, signed in or not: every VIEW of their profile or content answers 404 and every LIST drops them, as if the
+account were already gone. A restore brings everything back unchanged. The source of truth is `account_deletions`
+(status 'pending'), never the free-text suspension reason.
+
 Cost: every helper is one indexed query on `user_blocks` (blocker_id / blocked_id are both indexed), never one
 query per row. List surfaces fetch the viewer's excluded-id set once and filter in SQL with `NOT IN`.
 """
@@ -25,7 +30,9 @@ from fastapi import HTTPException
 from sqlalchemy import and_, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import UserBlock
+from models import AccountDeletion, UserBlock
+
+_PENDING = "pending"          # services.account_deletion.PENDING (not imported: that module imports this one's callers)
 
 # One wording for every refused action: it names the effect, not who blocked whom.
 BLOCKED_ACTION_DETAIL = "This action is not available between these accounts."
@@ -71,6 +78,30 @@ async def assert_not_blocked(db: AsyncSession, a: Optional[str], b: Optional[str
         raise HTTPException(status_code=403, detail=BLOCKED_ACTION_DETAIL)
 
 
+def withdrawn_ids_query():
+    """SELECT of the profile ids whose deletion is pending (usable inside NOT IN)."""
+    return select(AccountDeletion.profile_id).where(AccountDeletion.status == _PENDING)
+
+
+async def withdrawn_user_ids(db: AsyncSession) -> Set[str]:
+    """Profiles inside their deletion window: hidden from every other user."""
+    return {r[0] for r in (await db.execute(withdrawn_ids_query())).all()}
+
+
+def listed_clause(column):
+    """SQL clause keeping rows whose user ``column`` (Profile.id, Post.author_id, ...) is not a withdrawn account."""
+    return column.notin_(withdrawn_ids_query())
+
+
+async def assert_owner_listed(db: AsyncSession, owner_id: Optional[str], detail: str = BLOCKED_VIEW_DETAIL) -> None:
+    """404 when ``owner_id`` is a withdrawn account (for views that have no viewer to check blocks against)."""
+    if not owner_id:
+        return
+    row = await db.get(AccountDeletion, owner_id)
+    if row is not None and row.status == _PENDING:
+        raise HTTPException(status_code=404, detail=detail)
+
+
 async def assert_visible_to(
     db: AsyncSession, owner_id: Optional[str], viewer_id: Optional[str], detail: str = BLOCKED_VIEW_DETAIL
 ) -> None:
@@ -79,16 +110,19 @@ async def assert_visible_to(
     ``detail`` must be the surface's OWN not-found wording so the blocked response is byte-identical to the
     response for a record that does not exist.
 
-    An anonymous viewer (``viewer_id`` None) cannot be matched to a block and is not affected.
+    An anonymous viewer (``viewer_id`` None) cannot be matched to a block; a WITHDRAWN owner is hidden from everyone.
     """
+    await assert_owner_listed(db, owner_id, detail)
     if viewer_id and await has_blocked_viewer(db, owner_id, viewer_id):
         raise HTTPException(status_code=404, detail=detail)
 
 
 async def excluded_user_ids(db: AsyncSession, user_id: Optional[str]) -> Set[str]:
-    """Every user that ``user_id`` blocked or that blocked ``user_id`` - one query, for list filtering."""
+    """Every user that ``user_id`` blocked or that blocked ``user_id``, plus every withdrawn account - for list
+    filtering. Withdrawn accounts are excluded for anonymous viewers too."""
+    out: Set[str] = await withdrawn_user_ids(db)
     if not user_id:
-        return set()
+        return out
     rows = (
         await db.execute(
             select(UserBlock.blocker_id, UserBlock.blocked_id).where(
@@ -96,7 +130,6 @@ async def excluded_user_ids(db: AsyncSession, user_id: Optional[str]) -> Set[str
             )
         )
     ).all()
-    out: Set[str] = set()
     for blocker_id, blocked_id in rows:
         out.add(blocked_id if blocker_id == user_id else blocker_id)
     out.discard(user_id)

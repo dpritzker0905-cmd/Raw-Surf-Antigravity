@@ -17,6 +17,7 @@ import re
 from database import get_db
 from models import Profile, UsernameHistory
 from core.security import get_user_id_from_jwt_or_query
+from services.blocks import listed_clause  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter(prefix="/username", tags=["username"])
 
@@ -359,7 +360,7 @@ async def search_usernames(
     
     # First get exact prefix matches
     prefix_result = await db.execute(
-        select(Profile)
+        select(Profile).where(listed_clause(Profile.id))
         .where(Profile.username.isnot(None))
         .where(func.lower(Profile.username).like(f"{search_term}%"))
         .order_by(Profile.username)
@@ -374,7 +375,7 @@ async def search_usernames(
     if remaining > 0:
         prefix_ids = [p.id for p in prefix_matches]
         contains_result = await db.execute(
-            select(Profile)
+            select(Profile).where(listed_clause(Profile.id))
             .where(Profile.username.isnot(None))
             .where(func.lower(Profile.username).like(f"%{search_term}%"))
             .where(Profile.id.notin_(prefix_ids) if prefix_ids else True)
@@ -414,7 +415,7 @@ async def lookup_username(
     clean_username = username.lower().lstrip('@')
     
     result = await db.execute(
-        select(Profile).where(
+        select(Profile).where(listed_clause(Profile.id)).where(
             func.lower(Profile.username) == clean_username
         )
     )

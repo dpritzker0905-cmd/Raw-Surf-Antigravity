@@ -74,10 +74,21 @@ def calculate_distance_miles(lat1: float, lon1: float, lat2: float, lon2: float)
     c = 2 * math.asin(math.sqrt(a))
     return R * c
 
+async def _withdrawn(db: AsyncSession, profile_id: str) -> bool:
+    from services.blocks import assert_owner_listed
+    try:
+        await assert_owner_listed(db, profile_id)
+    except HTTPException:
+        return True
+    return False
+
+
 async def can_view_story(db: AsyncSession, story: Story, viewer_id: str, following_ids: Optional[set] = None) -> bool:
     """Apply the same owner/follower/guardian visibility contract to one story."""
     author = story.author
     if not author:
+        return False
+    if await _withdrawn(db, author.id):                       # pending deletion: hidden from everyone
         return False
     if author.role == RoleEnum.GROM:
         if story.visibility == 'public' and story.guardian_approval_status == 'approved':

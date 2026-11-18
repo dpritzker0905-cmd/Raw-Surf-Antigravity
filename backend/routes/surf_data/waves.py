@@ -13,6 +13,7 @@ import re
 
 from database import get_db
 from models import Post, Profile, PostLike, PostReaction, Follow, Hashtag, PostHashtag
+from services.blocks import listed_clause  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ async def get_waves_feed(
     hashtag: Optional hashtag filter (without the # symbol)
     """
     try:
-        base_query = select(Post).where(
+        base_query = select(Post).where(listed_clause(Post.author_id)).where(
             Post.content_type == 'wave',
             Post.media_type == 'video'
         )
@@ -95,7 +96,7 @@ async def get_waves_feed(
         base_query = base_query.options(selectinload(Post.author))
         
         # Get total count
-        count_query = select(func.count()).select_from(Post).where(
+        count_query = select(func.count()).select_from(Post).where(listed_clause(Post.author_id)).where(
             Post.content_type == 'wave',
             Post.media_type == 'video'
         )
@@ -292,7 +293,7 @@ async def get_trending_waves(
         
         # Trending: sorted by engagement score
         trending_query = (
-            select(Post)
+            select(Post).where(listed_clause(Post.author_id))
             .where(
                 Post.content_type == 'wave',
                 Post.media_type == 'video',
@@ -311,7 +312,7 @@ async def get_trending_waves(
         
         # Recent: sorted purely by created_at (catches brand new waves)
         recent_query = (
-            select(Post)
+            select(Post).where(listed_clause(Post.author_id))
             .where(
                 Post.content_type == 'wave',
                 Post.media_type == 'video',
@@ -370,7 +371,7 @@ async def get_waves_by_hashtag(
         clean_tag = tag.lower().lstrip('#')
         
         query = (
-            select(Post)
+            select(Post).where(listed_clause(Post.author_id))
             .join(PostHashtag, Post.id == PostHashtag.post_id)
             .join(Hashtag, PostHashtag.hashtag_id == Hashtag.id)
             .where(
@@ -438,7 +439,7 @@ async def record_wave_view(
     """Record a view on a Wave"""
     try:
         result = await db.execute(
-            select(Post).where(Post.id == wave_id, Post.content_type == 'wave')
+            select(Post).where(listed_clause(Post.author_id)).where(Post.id == wave_id, Post.content_type == 'wave')
         )
         wave = result.scalar_one_or_none()
         
@@ -467,7 +468,7 @@ async def get_wave(
     """Get a single Wave by ID"""
     try:
         result = await db.execute(
-            select(Post)
+            select(Post).where(listed_clause(Post.author_id))
             .where(Post.id == wave_id, Post.content_type == 'wave')
             .options(selectinload(Post.author))
         )
@@ -539,7 +540,7 @@ async def get_user_waves(
 ):
     """Get all Waves by a specific user"""
     try:
-        query = select(Post).where(
+        query = select(Post).where(listed_clause(Post.author_id)).where(
             Post.author_id == user_id,
             Post.content_type == 'wave'
         ).order_by(desc(Post.created_at)).offset(offset).limit(limit)
@@ -549,7 +550,7 @@ async def get_user_waves(
         
         # Count total
         count_result = await db.execute(
-            select(func.count()).select_from(Post).where(
+            select(func.count()).select_from(Post).where(listed_clause(Post.author_id)).where(
                 Post.author_id == user_id,
                 Post.content_type == 'wave'
             )

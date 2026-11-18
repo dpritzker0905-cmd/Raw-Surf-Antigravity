@@ -15,6 +15,7 @@ from services.blocks import assert_visible_to, excluded_user_ids, not_in_ids
 from services.guardian_policy import assert_level_allows, notify_guardian_of_teen_activity
 from models import Profile, RoleEnum
 from models import Booking, BookingParticipant, Gallery, GalleryItem, LiveSession, Post
+from services.blocks import listed_clause  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter()
 
@@ -273,7 +274,7 @@ async def get_storefront_stats(profile_id: str, db: AsyncSession = Depends(get_d
     from sqlalchemy import func as sql_func
     
     # Verify profile exists
-    profile_result = await db.execute(select(Profile).where(Profile.id == profile_id))
+    profile_result = await db.execute(select(Profile).where(listed_clause(Profile.id)).where(Profile.id == profile_id))
     profile = profile_result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
@@ -356,7 +357,7 @@ async def get_trust_signals(profile_id: str, db: AsyncSession = Depends(get_db))
     from sqlalchemy import func as sql_func
 
     # Verify profile exists
-    prof_result = await db.execute(select(Profile).where(Profile.id == profile_id))
+    prof_result = await db.execute(select(Profile).where(listed_clause(Profile.id)).where(Profile.id == profile_id))
     profile = prof_result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")

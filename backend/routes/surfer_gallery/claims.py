@@ -15,6 +15,7 @@ from models import (
 )
 
 from .gallery_core import ClaimActionRequest, VisibilityUpdateRequest, get_gallery_tier_from_service, get_max_quality_for_tier
+from services.blocks import assert_owner_listed  # withdrawn accounts (pending deletion) are hidden
 router = APIRouter()
 @router.get("/claim-queue-count/{surfer_id}")
 async def get_claim_queue_count(
@@ -409,6 +410,7 @@ async def get_public_gallery(
     Get surfer's public gallery (visible on their Sessions Tab)
     Only returns items where is_public = True
     """
+    await assert_owner_listed(db, surfer_id)
     query = select(SurferGalleryItem).where(
         SurferGalleryItem.surfer_id == surfer_id,
         SurferGalleryItem.is_public == True,
