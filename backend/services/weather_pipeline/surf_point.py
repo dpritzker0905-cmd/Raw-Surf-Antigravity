@@ -258,13 +258,16 @@ def _swell_exposure_normal(lat, lng):
 _FACE_RANGE_REGIMES = ("shelf", "shoaling", "breaking")   # regimes whose value is surf, so a face range means something
 
 
-def surf_face_range_at(lat: float, lng: float, Hs_m, Tp_s, served_height_m, served_regime, **chain_kwargs):
+def surf_face_range_at(lat: float, lng: float, Hs_m, Tp_s, served_height_m, served_regime, swell_from_deg=None,
+                       geometry: Optional[SurfGeometry] = None, partitions=None, water_level_m: float = 0.0,
+                       nearshore=None):
     """(low_m, high_m) of the surf face at a coordinate, or None. ON by default; None when SURF_FACE_RANGE is '0'.
 
     HIGH is DEFINED as the height already served (`served_height_m`, the published H1/10 or the cap): it is passed
     in, never recomputed, so the range can not disagree with the headline. LOW is the SAME chain (`estimate_surf_at`
-    with the same `chain_kwargs`: geometry, partitions, tide, nearshore sea) with the highest-tenth factor at 1.0,
-    through the same cap, and never above HIGH. Additive: nothing here changes a served height or a rating.
+    with the same inputs, each passed by name: bearing, geometry, partitions, the hour's water level, the nearshore
+    sea) with the highest-tenth factor at 1.0, through the same cap, and never above HIGH. Additive: nothing here
+    changes a served height or a rating.
     NOT SCORED: the gate that would test the range needs physical breaker truth and is NOT RUNNABLE today
     (docs/weather-program/log/2026-11-16-fable-surf-face-range-gate.md). It is on by the owner's typed word of
     2026-11-17, not on evidence that the range is right. Kill: SURF_FACE_RANGE=0."""
@@ -282,7 +285,8 @@ def surf_face_range_at(lat: float, lng: float, Hs_m, Tp_s, served_height_m, serv
     # and serve it later), work handed to a thread or task that inherits this context and whose result is then served,
     # and a callee that reads the convention once and keeps it. None exists in the chain today (checked 2026-11-16).
     with _conv.significant_statistic():
-        low, _regime = estimate_surf_at(lat, lng, Hs_m, Tp_s, **chain_kwargs)
+        low, _regime = estimate_surf_at(lat, lng, Hs_m, Tp_s, swell_from_deg=swell_from_deg, geometry=geometry,
+                                        partitions=partitions, water_level_m=water_level_m, nearshore=nearshore)
     if low is None or not float(low) > 0.0:
         return None
     return min(float(low), high), high

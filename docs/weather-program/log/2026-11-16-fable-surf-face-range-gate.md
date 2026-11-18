@@ -306,3 +306,34 @@ null, no such key on the rated row, every other value identical.
   readout files, which are reserved for another lane.
 - The live guardrail is BLIND to this flag (nothing it watches reads the fields), so it cannot auto-disable it.
 - Hosted CI has not run on this head, and the advisor has not reviewed it.
+
+## 2026-11-18 05:51Z Two guard lanes went red with the flag on; what they caught and the fixes
+
+Hosted CI on `adcfab8aa` (run 44232824585) failed two lanes. Both failures were caused by this branch, and I had
+not run either suite locally before pushing. The advisor asked me to say what they are.
+
+1. **Chain lane, `test_sea_inputs_every_caller.py`, 2 failures.**
+   - "estimate_surf_at called without the hour's water level: surf_point.py:285". A text check that every serving
+     call names `water_level_m`. `surf_face_range_at` forwarded its inputs as `**chain_kwargs`, so the check could
+     not see them. They were passed (the caller named them), but the guard was right to object: an input forwarded
+     blind is one a later edit can drop without anyone noticing. **Fix:** the function now takes `swell_from_deg`,
+     `geometry`, `partitions`, `water_level_m` and `nearshore` by name and passes each by name.
+   - "the surface must call estimate_surf_at exactly once". With the flag on, `/point` runs the chain a second
+     time for the LOW end. **Fix, in the guard itself and not by switching the flag off inside it:** its spy now
+     counts a call made inside `significant_statistic()` apart from a served-height call. "Exactly once" still
+     means the served height; at most one low pass is allowed per served height; and the low pass must carry the
+     SAME water level and nearshore sea as the height it sits beside (asserted). `surf_height_convention` gains
+     `in_significant_statistic()` for that.
+2. **Guards lane, `test_spot_rating_wire_contract.py`, 9 failures** ("SETUP BROKEN: `**Call` in rate_one_spot's
+   return"). That guard reads the keys `rate_one_spot` returns and checks each is declared on the wire model. It
+   could not read `**_face_range_fields(marine)`. **Fix:** the two keys are now added as a conditional between two
+   dict literals, the form the guard reads, so it now CHECKS that `surf_face_low_m` and `surf_face_high_m` are
+   declared on `SpotRatingItem`. That is the very defect I found by hand before the flip (the wire model dropping
+   them); the guard would have found it for me.
+
+Local after the fixes: 133 tests pass across both suites, the face-range file and their neighbours.
+The served height, regime, score and level are still unchanged; these edits change how inputs are passed and how
+two keys are spelled into a dict, not any value.
+
+**For whoever builds the client (the advisor's condition):** the range must not be drawn as a measured range until it
+is scored. A label such as "typical to larger sets (model estimate)" is the most it supports.

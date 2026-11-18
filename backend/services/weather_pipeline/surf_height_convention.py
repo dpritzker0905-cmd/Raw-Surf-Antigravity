@@ -77,6 +77,12 @@ def significant_statistic():
         _SIGNIFICANT_ONLY.reset(token)
 
 
+def in_significant_statistic() -> bool:
+    """True only inside `significant_statistic()`: the chain is computing the LOW end of the face range, not a
+    served height. For guards that count how many times a surface composes its served height."""
+    return bool(_SIGNIFICANT_ONLY.get())
+
+
 def enabled() -> bool:
     if _SIGNIFICANT_ONLY.get():
         return False
