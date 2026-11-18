@@ -96,7 +96,12 @@ class EcmwfOpenDataSource:
         import pygrib
         from services.noaa_gfs_pressure_fetcher import _fetch_message_bytes
         param, levtype = self.spec["idx"]
-        ent = index_entry(self.http.get(self._stem(cycle, f) + ".index", timeout=60).text, param, levtype)
+        text = self.http.get(self._stem(cycle, f) + ".index", timeout=60).text
+        ent = None
+        for p in self.spec.get("params") or (param,):     # a field ECMWF names differently by lead time (gusts: 10fg, 10fg3)
+            ent = index_entry(text, p, levtype)
+            if ent is not None:
+                break
         if ent is None:
             raise RuntimeError(f"index has no {param}/{levtype} fc message")
         off, length = ent
@@ -113,7 +118,10 @@ class EcmwfOpenDataSource:
         return self.spec["convert"](to_gfs_order(values, lon0))
 
     def _steps_for(self, f):
-        """The GRIB stepRange values that mean forecast hour f: the instant itself."""
+        """The GRIB stepRange values that mean forecast hour f: the instant itself; for a spec with `window_max` (gusts), any
+        window ENDING at f ("89-90", "141-144", "144-150": a maximum over the hours before f)."""
+        if self.spec.get("window_max"):
+            return tuple(f"{k}-{f}" for k in range(0, f))
         return (str(f),)
 
 
@@ -211,7 +219,7 @@ def box_mean(values, node, counts, lattice=LATTICE):
     return plane
 
 
-def nearest_pick(clat, clon, node):
+def nearest_pick(clat, clon, node, lattice=LATTICE):
     """For every lattice node, the index of the native cell NEAREST its centre among the cells assigned to its box (-1 = an
     empty box): the largest 3D unit-vector dot product, chosen per node with one lexsort. A point sample, as the GFS and EURO
     frames and the box's own dwd_icon_pressure_fetcher are (static-frames' review of #534)."""
@@ -220,10 +228,11 @@ def nearest_pick(clat, clon, node):
     clon = np.asarray(clon, dtype=float)
     if np.nanmax(np.abs(clat)) <= np.pi + 0.01:
         clat, clon = np.degrees(clat), np.degrees(clon)
-    rows, cols = LATTICE
+    rows, cols = lattice
+    step = 360.0 / cols
     r, c = node // cols, node % cols
     la, lo = np.radians(clat), np.radians(clon)
-    nla, nlo = np.radians(-90.0 + 0.5 * r), np.radians(-180.0 + 0.5 * c)
+    nla, nlo = np.radians(-90.0 + step * r), np.radians(-180.0 + step * c)
     dot = np.cos(la) * np.cos(nla) * np.cos(lo - nlo) + np.sin(la) * np.sin(nla)
     order = np.lexsort((-dot, node))
     first = order[np.r_[True, node[order][1:] != node[order][:-1]]]
@@ -238,11 +247,11 @@ def nearest_pick(clat, clon, node):
     return pick
 
 
-def nearest_plane(values, pick):
-    """(361, 720) frame-order plane from native values by the nearest-cell pick; empty boxes (near the poles) take the periodic
-    linear interpolation along their row, as box_mean does."""
+def nearest_plane(values, pick, lattice=LATTICE):
+    """Frame-order plane on `lattice` ((361, 720) by default) from native values by the nearest-cell pick; empty boxes (near the
+    poles) take the periodic linear interpolation along their row, as box_mean does."""
     import numpy as np
-    rows, cols = LATTICE
+    rows, cols = lattice
     v = np.asarray(values, dtype=float)
     out = np.where(pick >= 0, v[np.clip(pick, 0, None)], np.nan).reshape(rows, cols)
     x = np.arange(cols)
@@ -467,6 +476,36 @@ class IconPrecip0p125Source(IconPrecipSource):
         return i125.area_mean(self.rate(cycle, f, ncells), pick)
 
 
+class IconGridSource(IconOpenDataSource):
+    """DWD ICON on the SPEC's lattice (2026-11-15, the gust set: 0.25 deg), by the nearest cell, as the pressure set's point sample:
+    a gust is a point value (the owner: each model's own gust, from its own GRIB), never smoothed by a box mean. The grid is
+    built once per publish under a lock (the publisher's pool asks for it from six threads at once)."""
+
+    def __init__(self, spec, session=None):
+        import threading
+        super().__init__(spec, session)
+        self._grid_lock = threading.Lock()
+
+    def lattice(self):
+        g = fsr.grid_of(self.spec)
+        return (g["rows"], g["cols"])
+
+    def grid(self, cycle):
+        with self._grid_lock:
+            if cycle not in self._grid:
+                clat = self._decode_bz2(self._invar(cycle, "CLAT"))
+                clon = self._decode_bz2(self._invar(cycle, "CLON"))
+                if clat.shape != clon.shape:
+                    raise RuntimeError(f"CLAT {clat.shape} and CLON {clon.shape} differ")
+                node, _counts = box_assignment(clat, clon, self.lattice())
+                self._grid[cycle] = (nearest_pick(clat, clon, node, self.lattice()), clat.size)
+            return self._grid[cycle]
+
+    def fetch(self, cycle, f):
+        pick, ncells = self.grid(cycle)
+        return nearest_plane(self.spec["convert"](self._native(cycle, f, ncells)), pick, self.lattice())
+
+
 SOURCES = {"ecmwf": EcmwfOpenDataSource, "ecmwf_precip": EcmwfPrecipSource, "icon": IconOpenDataSource,
            "icon_precip": IconPrecipSource, "icon_precip_0p125": IconPrecip0p125Source,
-           "icon_0p125": IconOpenData0p125Source}
+           "icon_0p125": IconOpenData0p125Source, "icon_grid": IconGridSource}
