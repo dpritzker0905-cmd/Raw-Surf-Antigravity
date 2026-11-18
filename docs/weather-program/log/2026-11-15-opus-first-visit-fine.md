@@ -190,3 +190,22 @@ Owed before the claim is general: a second pilot area, ICON (and EURO where bund
 - A (more pilot boxes) adds about 40 min to GFS Marine Pilot alone: it does not fit the budget.
 So B is viable only as 30-deg tiles with a vectorized encoder; A is out on budget. The director decides; the advisor's open questions
 (replace vs fetch-after; David's word and a parity line; storage and egress x 3 models) still apply.
+
+## 2026-11-18 20:49Z: the session's knowledge run past SubQ (long context) and Reflection, at David's word ("run all this chat knowledge by longcat, and subq's long context, along with reflection after")
+
+A 7.8 KB digest of the whole session (#921, the phone re-render census, coarse-then-fine, #959, the artifacts, the machine load) with six
+questions; both answers are advisory and recorded here as received in substance. LongCat: payload previewed offline
+(sha256 ae5c05ae23a1fbc01f2720bdb5c90b3f16cd576063072a34acf40d1208a56832), NOT sent: it is paid and waits on David's approval of that hash.
+- **SubQ (subq-preview):** the worker-ON decision rests on gates 1-2 (decode ms + identity), not frame time; gate 3's 0.3 ms miss is
+  inside noise. "Dropped as redundant" (CDN prefetch) is n=1 (one box, one zoom, desktop, one session). For the render fix the one
+  quiet run (0.99x, p95 240 vs 240) is the valid one: no user-visible win. SwiftShader is not a phone GPU. The artifacts show the harness
+  has silent-failure modes. Option B does not yet earn its cost. Keep the worker ON as load-shedding; measure keypress-to-paint on the
+  hosted runner. Profile the 240 ms (commit / layout / paint / GPU upload) before any store refactor. Highest-value next action: one
+  clean phone trace on a mid-range Android at z6.
+- **Reflection (Beam):** agrees with SubQ on the above; corrects SubQ's "prefetch the next hour's regional CDN bundle" (a no-op inside
+  boxes, where the bundle holds the whole run; no bundle exists outside). Adds what SubQ missed: gate 3's "fail" is not evidence either
+  way (voided runs + the kill-arm arrival artifact): worker frame time is UNMEASURED, not failed. Next action: one end-to-end trace on a
+  mid-range Android, quiet machine, splitting keypress-to-paint into commit / layout / paint / GPU upload, with CDN bundle hit/miss by box.
+- **My reading:** both converge on the same next step (a real phone trace, split by phase). One correction to Reflection's second step:
+  "first paint from a downsampled CDN regional frame inside boxes" is redundant: inside boxes the exact frame is already drawn in
+  0-17 ms on desktop; the open gap is outside the boxes. Recorded, not acted on.
