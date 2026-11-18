@@ -2789,3 +2789,20 @@ downgrade, owner). Sent to the director.
   `noaa-gfs-bdp-pds` replaces it with no downgrade. EURO → MFWAM 1/12°, ICON → GWAM.
 - **ICON-EU** (opendata.dwd.de, read today): 8 cycles a day, hourly to +78 h, then 3-hourly to +120 h, about 1 MB per
   field per step. A 120 h seam to global ICON needs a pre-registered seam check.
+
+## 2026-11-18 17:56 -0500 Global SOTA tide design (owner: "tides to work all around the world SOTA", "free ... no paid plans"); NWPS
+- **Design** (shared note `open-meteo-exit-plan-2026-11-18.md` section M). Per spot:
+  1. local gauge harmonics where representative (CO-OPS; UHSLC after its written OK);
+  2. otherwise FES2022b via pyTMD at 1/30°, with shallow-water constituents, minor-constituent inference and nodal
+     corrections, on a wet node facing the same open water as the spot;
+  3. plus a residual: CMEMS MOWL non-tidal parts globally, STOFS cwl−htp in the US;
+  4. datum: MSL, with MLLW/LAT derived from the constituents.
+  - Validation: a global UHSLC + CO-OPS panel scoring RMSE, p95, max and timing, with ME and planted controls.
+  - All sources are free raw data.
+- **Licences (not legal advice):**
+  - UHSLC: free use and redistribution with a citation; commercial use not addressed, so confirm in writing.
+  - IOC SLSMF: no commercial use, so EXCLUDED.
+  - GESLA-4: unread, so excluded.
+- **NOAA NWPS** (NOMADS, public domain): SWAN at 500 m-1.8 km. 34 coastal offices live today, including JAX/MLB
+  (NE Florida) and LOX/SGX (SoCal). Proposed: an offline paired test vs CDIP/MOP before any use as the US nearshore
+  boundary of the one chain.
