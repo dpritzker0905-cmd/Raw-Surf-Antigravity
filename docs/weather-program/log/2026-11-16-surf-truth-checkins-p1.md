@@ -244,3 +244,14 @@ after a deletion: legal call; (2) exports already in private storage (pseudonymo
 (3) Profile has no deleted flag and the auth account is not removed, so `is_deleted` never existed: a design
 question for the account owners, not this lane; (4) the report photo stays in the `conditions` bucket with its
 report (owned by those features).
+## 2026-11-18 15:41Z T1 P3 (part 1 follow-up): a deletion request now reaches the files and the sign-in
+
+The advisor recorded two limits on #1022: a deletion request did not remove the person's photos from the PUBLIC
+`conditions` bucket, and did not stop sign-in to the anonymized profile (the password hash survived; the username `deleted_<id8>` could be guessed). Now `/compliance/delete-my-data` also (1) deletes the person's condition reports and,
+AFTER the commit (storage is not transactional), removes every `conditions/<user_id>/` object plus any other
+`conditions` object a deleted row pointed at, and the local copy `<UPLOAD_DIR>/conditions/<user_id>`: best effort,
+returned as `media` and logged as an error on failure, never hidden; (2) clears the password hash, deletes passkeys,
+TOTP secret, recovery codes and pending MFA challenges, and marks the profile suspended. NOT done, a decision for
+David: a session token already issued stays valid until it expires (`ACCESS_TOKEN_EXPIRE_DAYS` = 30); revoking it needs a
+server-side check on every request (a token version or a deny list). Tests +3 (URL parsing; files and sign-in removed,
+other users untouched; a storage failure is reported and the rows stay deleted). Guards fragment +3.
