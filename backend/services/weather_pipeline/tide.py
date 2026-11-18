@@ -350,37 +350,36 @@ def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dic
 
 
 def tide_source() -> str:
-    """'own' (served default: our FES2022b + altimetry mean-level table, `tide_own`, with Open-Meteo ONLY as the
-    per-key fallback where our table has no value), 'open-meteo' (the kill switch SURF_TIDE_OWN=0: the old source
-    everywhere) or 'legacy' (the raw test env TIDE_LEGACY_OPEN_METEO=1: Open-Meteo only, never the table).
+    """'own' (served default: our table, `tide_own`: the CMEMS sea level read directly, else our harmonic tide),
+    'off' (the kill switch SURF_TIDE_OWN=0: no tide, an honest "unavailable") or 'legacy' (the raw test env
+    TIDE_LEGACY_OPEN_METEO=1 only: the old Open-Meteo acquisition, kept so its unit tests run until it is deleted).
 
-    The owner, 2026-11-18: "No user data should be open-meteo" (13:13Z), then "use open-meteo only if not using it
-    causes a downgrade in forecast or service". Our own A + M reads better than the Open-Meteo level on G3t's rows
-    (a seen window, not a verdict), so it is primary; a blank tide is a service downgrade, so where our table has no
-    value for a key (no FES water, no M yet, table missing or stale) that key falls back to Open-Meteo. Every series
-    carries "source" ("own" | "open-meteo") so the label can say which it is.
+    The owner, 2026-11-18 ~23:00Z (via the director): cut Open-Meteo out of all user data; internal testing only
+    (licence). No served path reaches Open-Meteo: 'legacy' is never read from the runtime manifest, and
+    tests/test_tide_own.py pins that no deploy or workflow sets it.
     """
     if os.environ.get("TIDE_LEGACY_OPEN_METEO") == "1":
         return "legacy"
     from services.runtime_flags import on
-    return "own" if on("SURF_TIDE_OWN") else "open-meteo"
+    return "own" if on("SURF_TIDE_OWN") else "off"
+
+
+def _prefer_cmems() -> bool:
+    from services.runtime_flags import on
+    return on("SURF_TIDE_CMEMS")
 
 
 async def fetch_tide_hourly(lat, lng, client=None, forecast_days: int = 3) -> Optional[dict]:
-    """The hourly tide series for (lat,lng): {"time":[...], "level":[m...], "source": "own"|"open-meteo"} or None.
-    Our own A + M table first (`tide_own`); Open-Meteo only where it has no value for this key, or when killed.
-    Caller cancellation propagates."""
+    """The hourly tide series for (lat,lng): {"time":[...], "level":[m...], "source": "cmems"|"am", "label", "credit"}
+    or None (tide unavailable). Never Open-Meteo outside the test-only legacy path. Caller cancellation propagates."""
     key = _round_key(lat, lng)
     source = tide_source()
     if source == "own":
         from services.weather_pipeline import tide_own
-        own = await tide_own.fetch_series(key, forecast_days)
-        if own is not None:
-            return dict(own, source="own")
-    om = await _within_budget(_fetch_point(key, client, forecast_days), [key], _TIDE_POINT_TIMEOUT_S, None)
-    if om is None or source == "legacy":
-        return om
-    return dict(om, source="open-meteo")
+        return await tide_own.fetch_series(key, forecast_days, _prefer_cmems())
+    if source == "off":
+        return None
+    return await _within_budget(_fetch_point(key, client, forecast_days), [key], _TIDE_POINT_TIMEOUT_S, None)
 
 
 async def _within_budget(operation, keys, seconds, unavailable):
@@ -438,19 +437,19 @@ async def prewarm_tide_cache(latlngs, client=None, forecast_days: int = 3, chunk
     it's ~10 requests for ~1500 spots. Requests use the ROUNDED key coords, exactly what fetch_tide_hourly
     would request, so the seeded entries have the same values as the per-spot path. Failures cool down
     without seeding data; cancellation propagates. Returns the number of cells seeded.
-    With the own source (served default) one table read covers the keys our table holds; only the keys it lacks are
-    batch-fetched from Open-Meteo (the owner's rule: Open-Meteo only where not using it would degrade service)."""
+    With the served source one table read covers every key and nothing is fetched from Open-Meteo; the batch
+    request below runs only on the test-only legacy path."""
     keys = _prewarm_keys(latlngs, forecast_days=forecast_days)
     seeded = 0
-    if tide_source() == "own":                       # our table first; only the keys it lacks go to Open-Meteo
+    source = tide_source()
+    if source != "legacy":                           # served: one table read covers every key; never Open-Meteo
+        if source == "off":
+            return 0
         from services.weather_pipeline import tide_own
-        lacking = []
+        prefer = _prefer_cmems()
         for k in keys:
-            if await tide_own.fetch_series(k, forecast_days) is not None:
-                seeded += 1
-            else:
-                lacking.append(k)
-        keys = lacking
+            seeded += int(await tide_own.fetch_series(k, forecast_days, prefer) is not None)
+        return seeded
     for i in range(0, len(keys), chunk_size):
         chunk = keys[i:i + chunk_size]
         if time.monotonic() < _TIDE_RATE_LIMIT_UNTIL:

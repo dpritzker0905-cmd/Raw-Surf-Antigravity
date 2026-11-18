@@ -114,5 +114,39 @@ def cell_km(lat, lng, la, lo):
     return 6371.0 * math.hypot(math.radians(la - lat), math.radians(((lo - lng + 180) % 360) - 180) * math.cos(math.radians(lat)))
 
 
+# ---------------------------------------------------------------- CMEMS direct read (M1-0)
+CMEMS_DATASET = "cmems_mod_glo_phy_anfc_merged-sl_PT1H-i"
+CMEMS_AHEAD_DAYS = 10                    # the product ends about 9 days ahead; ask a little past it
+
+
+def nearest_cell(lats, lons, key):
+    """(iy, ix) of the grid cell nearest the key on a regular lat/lon grid (longitude wrapped), or None. MUST equal
+    scripts/tide_cmems/parity_rules.nearest_cell, the M1-0 parity rule's primary cell (pinned by a test)."""
+    lats, lons = np.asarray(lats, float), np.asarray(lons, float)
+    if lats.size == 0 or lons.size == 0:
+        return None
+    iy = int(np.argmin(np.abs(lats - key[0])))
+    ix = int(np.argmin(np.abs(((lons - key[1] + 180.0) % 360.0) - 180.0)))
+    return iy, ix
+
+
+def hour_index(start, epoch_s):
+    """The table hour index of a UTC epoch second, or None if it is not on the hour."""
+    d = int(epoch_s) - int(start.timestamp())
+    return d // 3600 if d % 3600 == 0 else None
+
+
+def place_hourly(hours, idx, values):
+    """[mm or None] * hours with each finite value placed at its index (indices outside 0..hours-1 dropped)."""
+    out = [None] * hours
+    for i, v in zip(idx, values):
+        if i is None or not 0 <= i < hours:
+            continue
+        fv = float(v)
+        if math.isfinite(fv):
+            out[i] = int(round(fv * 1000.0))
+    return out
+
+
 def utc(*a):
     return datetime(*a, tzinfo=timezone.utc)

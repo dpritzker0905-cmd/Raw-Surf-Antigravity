@@ -1,6 +1,8 @@
-"""Build the SERVED own-data tide table (services/weather_pipeline/tide_own.py): A + M per 0.1-degree spot key, hourly.
+"""Build the SERVED tide table (services/weather_pipeline/tide_own.py), per 0.1-degree spot key, hourly:
+  cmems  (with --cmems 1, set only after the M1-0 parity PASS) CMEMS total_sea_level at the nearest cell, read directly;
+  keys   our harmonic tide A + M, the fallback where a key has no CMEMS series.
 
-WHY: the owner, 2026-11-18 13:13Z: "No user data should be open-meteo". The arm is exactly the one the tide gates
+WHY: the owner, 2026-11-18 ~23:00Z: no Open-Meteo in user data (licence). The harmonic arm is the one the tide gates
 measure (G3t's "A+M", G4's primary): A = FES2022b ocean tide + long-period equilibrium (PyFES, arms.fes_eval), M = the
 2016-2025 mean altimetry SLA at the G3t cell rule (g3_sources.s1_cell_series + g3t_rules.split_s1).
 
@@ -15,6 +17,7 @@ import argparse
 import gzip
 import json
 import lzma
+import os
 import shutil
 import sys
 import time
@@ -135,6 +138,47 @@ def compute_m(keys_pts, m_cache, work, budget_s):
     return done
 
 
+def cmems_fill(keys_pts, start, hours, work, now):
+    """{key: [mm or None] * hours}: CMEMS `total_sea_level` (OR.CMEMS_DATASET) at the grid cell NEAREST each key, the
+    M1-0 parity rule's primary candidate, one download per OR.TILE_DEG tile. Hours the product does not cover (it
+    ends about 9 days ahead) stay None; a key whose nearest cell is land gets no CMEMS series at all."""
+    import copernicusmarine
+    import xarray as xr
+    end = min(start + timedelta(hours=hours - 1), now + timedelta(days=OR.CMEMS_AHEAD_DAYS))
+    by_tile = {}
+    for k, (la, lo) in keys_pts.items():
+        by_tile.setdefault(OR.tile_of(la, lo), []).append(k)
+    out = {}
+    work.mkdir(parents=True, exist_ok=True)
+    for tile, ks in sorted(by_tile.items()):
+        clat, clng, half = OR.tile_request(tile)
+        name = f"cm_{tile[0]:.0f}_{tile[1]:.0f}.nc".replace("-", "m")
+        try:
+            copernicusmarine.subset(dataset_id=OR.CMEMS_DATASET, variables=["total_sea_level"],
+                                    minimum_longitude=clng - half, maximum_longitude=clng + half,
+                                    minimum_latitude=clat - half, maximum_latitude=clat + half,
+                                    start_datetime=f"{start:%Y-%m-%dT%H:%M:%S}", end_datetime=f"{end:%Y-%m-%dT%H:%M:%S}",
+                                    output_directory=str(work), output_filename=name,
+                                    username=os.environ.get("COPERNICUSMARINE_SERVICE_USERNAME", ""),
+                                    password=os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD", ""),
+                                    disable_progress_bar=True)
+            ds = xr.open_dataset(work / name).load()
+            (work / name).unlink(missing_ok=True)
+        except Exception as e:                                                   # noqa: BLE001 - per tile
+            log(f"cmems tile {tile}: {type(e).__name__}")
+            continue
+        idx = [OR.hour_index(start, t) for t in ds.time.values.astype("datetime64[s]").astype("int64")]
+        lats, lons, tsl = ds.latitude.values, ds.longitude.values, ds["total_sea_level"].values
+        for k in ks:
+            cell = OR.nearest_cell(lats, lons, keys_pts[k])
+            if cell is None:
+                continue
+            vals = OR.place_hourly(hours, idx, tsl[:, cell[0], cell[1]])
+            if any(v is not None for v in vals):
+                out[k] = vals
+    return out
+
+
 def m_parity(work):
     """PRECONDITION: the tile method must reproduce G3t's per-point M at its 26 gauges (G3t run 44166851340) to
     within OR.M_PARITY_MAX_M. Returns (ok, worst |diff|, n compared). Model files and CO-OPS metadata only."""
@@ -163,6 +207,7 @@ def main():
     ap.add_argument("--m-cache", default="tide_own_m.json")
     ap.add_argument("--m-budget-min", type=float, default=200.0)
     ap.add_argument("--out", default="tide_own_series.json.gz")
+    ap.add_argument("--cmems", default="0", help="1 = also fill the CMEMS direct read (only after the M1-0 PASS)")
     ap.add_argument("--download-fes-only", action="store_true")
     args = ap.parse_args()
     if args.download_fes_only:
@@ -207,6 +252,10 @@ def main():
         n_a += a is not None
         out_keys[k] = OR.levels_mm(a, (m_cache.get(k) or {}).get("m"))
     doc = OR.table(now, start, hours, out_keys, m_cache)
+    if args.cmems == "1":
+        doc["cmems"] = cmems_fill(keys_pts, start, hours, work / "cmems", now)
+        doc["cmems_dataset"] = OR.CMEMS_DATASET
+        log(f"CMEMS direct read at {len(doc['cmems'])} of {len(keys_pts)} keys")
     with gzip.open(args.out, "wt", encoding="utf-8") as fh:
         json.dump(doc, fh, separators=(",", ":"))
     served = sum(any(v is not None for v in vals) for vals in out_keys.values())

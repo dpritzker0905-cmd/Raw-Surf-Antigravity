@@ -125,32 +125,16 @@ def test_a_failed_read_keeps_the_last_good_table():
 
 
 # ---------------------------------------------------------------- dispatch
-class _Resp:
-    def __init__(self, data):
-        self.status_code, self._data, self.headers = 200, data, {}
-
-    def json(self):
-        return self._data
-
-
-class _OMClient:
-    """A stand-in Open-Meteo: records every URL, answers 0.9 m for every hour (one location or a list)."""
-    def __init__(self):
-        self.urls = []
-
-    async def get(self, url):
-        self.urls.append(url)
-        day0 = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-        one = {"hourly": {"time": [(day0 + timedelta(hours=i)).strftime("%Y-%m-%dT%H:00") for i in range(72)],
-                          "sea_level_height_msl": [0.9] * 72}}
-        n = url.split("latitude=")[1].split("&")[0].count(",") + 1
-        return _Resp(one if n == 1 else [one] * n)
+class _NoClient:
+    async def get(self, url):                            # the owner: no Open-Meteo in any user-facing number
+        raise AssertionError(f"Open-Meteo requested: {url}")
 
 
 @pytest.fixture
 def served(monkeypatch):
     monkeypatch.delenv("TIDE_LEGACY_OPEN_METEO", raising=False)
     monkeypatch.delenv("SURF_TIDE_OWN", raising=False)
+    monkeypatch.delenv("SURF_TIDE_CMEMS", raising=False)
     monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
     tide._reset_tide_cache_for_test()
     yield
@@ -158,43 +142,63 @@ def served(monkeypatch):
     tide._reset_tide_cache_for_test()
 
 
-def test_served_default_is_our_own_table_with_no_open_meteo_request(served):
+def _two_source_table(now):
+    t = _table(now, {"21.7,-158.0": [250] * (48 * 24), "10.0,10.0": [400] * (48 * 24)})
+    cm = [None] * (48 * 24)
+    for i in range(72, 72 + 9 * 24):                     # CMEMS covers today .. +9 days, as the product does
+        cm[i] = 1300
+    t["cmems"] = {"21.7,-158.0": cm}
+    return t
+
+
+def test_served_default_prefers_cmems_then_our_harmonic_tide_never_open_meteo(served):
     now = datetime.now(UTC)
-    tide_own._reset_for_tests(lambda: _table(now, {"21.7,-158.0": [250] * (48 * 24)}))
-    om = _OMClient()
+    tide_own._reset_for_tests(lambda: _two_source_table(now))
     assert tide.tide_source() == "own"
-    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=om))
-    assert s and s["source"] == "own" and s["level"][0] == 0.25 and len(s["time"]) == 72
-    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04)], client=om)) == 1
-    assert om.urls == []                                 # our table covered it: Open-Meteo never asked
+    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient()))
+    assert s["source"] == "cmems" and s["level"][0] == 1.3 and "Copernicus" in s["credit"]
+    h = asyncio.run(tide.fetch_tide_hourly(10.0, 10.0, client=_NoClient()))          # no CMEMS series for this key
+    assert h["source"] == "am" and h["level"][0] == 0.4 and "FES2022" in h["credit"]
+    assert asyncio.run(tide.fetch_tide_hourly(-5.0, -5.0, client=_NoClient())) is None   # neither: unavailable
+    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04), (10.0, 10.0), (-5.0, -5.0)],
+                                               client=_NoClient())) == 2
 
 
-def test_open_meteo_only_for_the_key_our_table_lacks(served):
-    """The owner: Open-Meteo only where not using it would downgrade service (a blank tide is a downgrade)."""
+def test_cmems_kill_serves_our_harmonic_tide(served, monkeypatch):
+    monkeypatch.setenv("SURF_TIDE_CMEMS", "0")
     now = datetime.now(UTC)
-    tide_own._reset_for_tests(lambda: _table(now, {"21.7,-158.0": [250] * (48 * 24)}))
-    om = _OMClient()
-    s = asyncio.run(tide.fetch_tide_hourly(10.0, 10.0, client=om))
-    assert s and s["source"] == "open-meteo" and s["level"][0] == 0.9
-    assert len(om.urls) == 1 and "latitude=10.0&longitude=10.0" in om.urls[0]
-    tide._reset_tide_cache_for_test()
-    om2 = _OMClient()
-    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04), (10.0, 10.0), (12.0, 12.0)], client=om2)) == 3
-    assert len(om2.urls) == 1 and "21.7" not in om2.urls[0]          # one batch, only the two lacking keys
+    tide_own._reset_for_tests(lambda: _two_source_table(now))
+    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient()))
+    assert s["source"] == "am" and s["level"][0] == 0.25
 
 
-def test_a_missing_table_falls_back_rather_than_blanking_every_spot(served):
-    tide_own._reset_for_tests(lambda: None)              # before the first build: no table in the bucket
-    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_OMClient()))
-    assert s and s["source"] == "open-meteo"
+def test_a_missing_table_is_unavailable_not_open_meteo(served):
+    tide_own._reset_for_tests(lambda: None)              # before the first build
+    assert asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient())) is None
+    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04)], client=_NoClient())) == 0
 
 
-def test_kill_switch_serves_open_meteo_everywhere_and_skips_the_table(served, monkeypatch):
+def test_tide_kill_serves_no_tide_and_never_reads_or_requests(served, monkeypatch):
     monkeypatch.setenv("SURF_TIDE_OWN", "0")
     tide_own._reset_for_tests(lambda: pytest.fail("the table must not be read when killed"))
-    assert tide.tide_source() == "open-meteo"
-    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_OMClient()))
-    assert s and s["source"] == "open-meteo"
+    assert tide.tide_source() == "off"
+    assert asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient())) is None
+    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04)], client=_NoClient())) == 0
+
+
+def test_cmems_fill_helpers_place_hours_and_pick_the_parity_cell():
+    start = datetime(2026, 11, 15, tzinfo=UTC)
+    assert OR.hour_index(start, int(start.timestamp()) + 7200) == 2
+    assert OR.hour_index(start, int(start.timestamp()) + 1800) is None
+    vals = OR.place_hourly(4, [0, 2, 9, None], [0.5, float("nan"), 1.0, 2.0])
+    assert vals == [500, None, None, None]
+    lats, lons = np.arange(20.0, 22.0, 1 / 12), np.arange(-159.0, -157.0, 1 / 12)
+    iy, ix = OR.nearest_cell(lats, lons, (21.3, -157.9))
+    assert abs(lats[iy] - 21.3) <= 1 / 24 and abs(lons[ix] + 157.9) <= 1 / 24
+    assert OR.CMEMS_DATASET == "cmems_mod_glo_phy_anfc_merged-sl_PT1H-i"
+    build = (BACKEND / "scripts" / "tide_own" / "build_series.py").read_text(encoding="utf-8")
+    assert 'if args.cmems == "1":' in build                                  # CMEMS only after the parity PASS
+    assert "vars.TIDE_CMEMS_PRIMARY || '0'" in WF
 
 
 def test_no_deploy_or_workflow_sets_the_legacy_open_meteo_path():
