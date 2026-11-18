@@ -285,3 +285,34 @@ that, with the fixture (which other lanes' offline tests need for the same reaso
   what share would be worth acting on.
 - Neither step 1 nor step 2 is started. Reading production logs and running a scenario on the dev site are actions outside
   this offline lane; they wait for the director's or the owner's word.
+
+## 9. Sizing the thinned path from the backend's request logs: what counts, written BEFORE any log line is read
+The owner's word, in this session, 2026-11-18 08:26 EST: "Yes, read the logs". A read of logs that already exist on the
+host. No request is sent to the backend, no client change, nothing written anywhere but this file.
+
+- **What is counted** (request logs of the backend service, successful GETs only, the longest window the host keeps up to
+  7 days, per day and in total):
+  - `L` = requests to `/api/weather/capabilities`. The client asks for it once per page load
+    (`LayerAccessResolver.js:35`, a module-level fetch), so `L` stands for page loads of the app, which is MORE than map
+    sessions with a marine layer on. That makes every ratio below lean LOW, and it is said beside every number.
+  - `S` = requests to `/api/weather/grid_series`.
+  - `G` = requests to `/api/weather/grid`.
+- **What the counts can and cannot say.** A step served from a static frame asks the backend for nothing. A step on the
+  thinned path asks for a series page or a `/grid` upgrade. So `S/L` and `G/L` bound the thinned path FROM ABOVE: other
+  things also call these routes (close zooms that are meant to use `/grid`, a model or layer with no static set, any
+  script). The logs cannot count steps, cannot say WHY a request was made, and cannot tell a first visit from a repeat.
+- **If the log lines carry the query string:** split `S` and `G` by model and layer, and `G` by world or box. If they do
+  not, only the totals are reported and that is said.
+- **If the log lines carry a host or a referrer:** split production from dev (one box serves both). If not, said.
+- **Verdicts, fixed now:**
+  - RARE: `S/L < 0.2` AND `G/L < 0.2` over the window (fewer than one backend grid request per five page loads). Then the
+    thinned path cannot be common; no fix is worth building; stop here.
+  - ROUTINE: `S/L >= 1` OR `G/L >= 1` (at least one per page load). Then the backend is asked for grids as a matter of
+    course. That is NOT yet "the slow path is common" (see what the counts cannot say); it sends the question to step 2,
+    one observed session on the dev site, for the reasons. Step 2 is not authorized by today's word and would be asked for.
+  - Anything between: UNRESOLVED, recorded as that; same next step.
+- **Void, recorded as void:** fewer than 30 `L` in the window; the request logs do not carry paths; or the window the host
+  keeps is under 24 hours.
+- **Not done under this heading:** no request to the live backend or the dev site, no `/api/health` probe (nothing is being
+  loaded), no reading of application logs beyond request lines, no user identifiers recorded here (counts only; no IPs, no
+  coordinates).
