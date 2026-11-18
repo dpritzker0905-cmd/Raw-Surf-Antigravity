@@ -2310,3 +2310,51 @@ unchanged.
   - It needs the owner's word, because it is a scheduled workflow.
   - Scoring uses the archive. If the archive misses a day and the API still serves it at scoring time, the API value is
     used, and that substitution is recorded.
+
+## 17:20 EST 2026-11-18 (`date`) - M1-0 PARITY PROBE REGISTERED and built (branch `claude/tide-m1-0-parity`); nothing run, no value read
+**Why (the director, from the research lead's verified finding):**
+- Open-Meteo's `sea_level_height_msl`, the level every served tide reads today, IS CMEMS
+  `cmems_mod_glo_phy_anfc_merged-sl_PT1H-i`.
+- So M1-0 reads that dataset directly and proves parity, then switches the served level to the direct read. That would
+  remove the Open-Meteo dependency with no change in numbers.
+- The rule update (David, 19:09Z, via the director): Open-Meteo stays as the fallback, behind the kill switch.
+
+**The dataset, from the public catalogue (no credentials):**
+- GLOBAL_ANALYSISFORECAST_PHY_001_024, hourly, 1/12-degree grid, 2022-09-01 to about 9 days ahead.
+- Variables:
+  - `total_sea_level` (sea_surface_height_above_geoid);
+  - `ocean_tide`;
+  - `sea_surface_height` (dynamic);
+  - `invert_barometer`;
+  - `tide_loading`;
+  - two global-mean terms.
+
+**THE RULE, fixed in `backend/scripts/tide_cmems/parity_rules.py` before any run:**
+- **Held set:** 20 served 0.1-degree keys: 10 US gauges and breaks, plus 10 surf spots worldwide (the tuple in the
+  file).
+- **Pairs:** every hour of the 48 h before the run's 00Z. These are hindcast hours, so the forecast run cannot differ.
+- **Primary:** CMEMS `total_sea_level` at the grid cell NEAREST the key, against Open-Meteo `sea_level_height_msl` at
+  the same key (the request the served tide makes).
+- **PASS:** p99 |delta| <= 0.01 m, with >= 90% of the 960 expected pairs present.
+- **Reported only:** the other candidates (nearest WET cell; tide+ssh; tide+ssh+ib; tide alone) and the 96 forecast
+  hours.
+- **On a MISS:** no switch. Find the cause and register again.
+
+**Workflow:** `tide-cmems-parity.yml`.
+- It starts only on the one-shot tag `tide-cmems-parity`, with no dispatch.
+- Copernicus credentials are on the probe step only.
+- It reads model values only: CMEMS and Open-Meteo, no observed water. Nothing is served and nothing is written to the
+  bucket.
+- 8 tests in `tests/test_tide_cmems.py`; estate floor fragment +8.
+
+**Next:**
+1. The advisor reads the head.
+2. The tag runs it (the owner's or director's word).
+3. The advisor reads the verdict first.
+4. On PASS, the served switch is the next PR:
+   - built on #1061's table machinery;
+   - the table is filled from CMEMS `total_sea_level`;
+   - Open-Meteo is the fallback behind the kill switch;
+   - SCOREBOARD row "expected about no change";
+   - a post-deploy check.
+5. #1061's A+M stays a candidate for after G4.
