@@ -61,3 +61,26 @@ phone keys never reached the wheel; (2) hard-coded GFS in its exact check and it
   crashes on `dev` (the React 19 `react-dom/profiling` alias fix lives only on `opus/scrub-render-census`'s craco config); a JS sampling
   profile of one step is the next instrument.
 - Limits: an emulated phone (CPU throttle on this desktop's GPU), not a real Android; the machine was 85-92% busy; trace overhead included.
+
+## 23:46Z: CORRECTION: the "Florida z8 phone draws nothing" was a LAB ARTIFACT, not an app defect (traced; David: "Yes, trace it")
+
+- **What the app did:** it committed frames (`orchestratorCommit series_GFS_waves_h1 OK`, then the settle check's "committing covering
+  regional series frame" 17 times), and the WebGL layer refused each one: `__MARINE_RENDER_SOURCE_DIAG__` = hasData true, hasGrid true,
+  nonzeroCount 0, maxHeight 0, `renderBlockedReason: "all_zero_grid"`. Every height in the committed grid was zero.
+- **Why every height was zero:** the lab's synthetic land mask (`serve_synthetic.py --land-mask 1`, `LAND_BOXES`) marks the box
+  lon -125..-70, lat 25..60 as land. That covers the entire Florida east coast. The phone's narrow view at z8 (lon -81.14..-80.06,
+  lat 27.14..29.05; its series box -81..-80 x 27..29) is therefore ALL land in the lab. The desktop view at the same centre is tall enough
+  to reach the lab's water near 25-26 N, which is why desktop drew. Real products have ocean east of about -80.6 at that latitude.
+- So: not a production defect, and the earlier "likely real defect" message to the director is withdrawn.
+- **Re-measured at a Florida-box view that reaches lab water** (z8, (-80.3, 25.3), phone, 4x): bundles ON, every step exact:
+  0, 33, 0, 0, 48, 47, **385** (the burst to +172 h, from the series), 8, 0, 16. The bundles-OFF session ran at a third of the load
+  (calibration 38.5 vs 118.5 ms), so its timings (0, 54, 0, 0, 95, 99, 109, 71, 0, 86) are not comparable with this one.
+- **A real but minor behaviour found on the way:** when a view is genuinely all land (all-zero grid), the app re-drives a fetch every 3 s
+  indefinitely ("Render backstop: engine empty + idle >= 3s"). That is wasted client work on an inland view; a follow-up, not a bug in
+  what is drawn.
+- **Lab lesson:** the coarse `LAND_BOXES` make any narrow coastal view in a continent box all land; coastal phone cells must sit on lab
+  water, or the lab needs a real coastline mask.
+
+**Part A as it stands:** inside a pilot box, with bundles on, every measured first visit draws the exact frame; all but two steps are
+within 48 ms (desktop <= 17 ms). The two exceptions: Hawaii GFS phone one step at 109 ms, and the +172 h burst step (Florida phone
+385 ms; ICON never exact in either arm, past ICON's 168 h range). The CDN prefetch stays dropped.

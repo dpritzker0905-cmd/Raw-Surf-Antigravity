@@ -243,7 +243,7 @@ async function session(arm, zoom) {
     await L.jump(page, CLNG, CLAT, zoom);
     const tClick = Date.now();
     await clickExact(page, 'Waves');
-    const consoleErr = []; page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') consoleErr.push(m.text().slice(0, 200)); });
+    const consoleErr = []; page.on('console', (m) => { const t = m.text(); if (m.type() === 'error' || m.type() === 'warning' || (process.env.DIAG_ALL === '1' && /marine|arbiter|reject|commit|regional|store|series|frame|hold|veil|drop|skip/i.test(t))) consoleErr.push(`${m.type()}: ${t.slice(0, 260)}`); });
     page.on('pageerror', (e) => consoleErr.push('PAGEERROR ' + String(e && e.message).slice(0, 200)));
     try {
       await page.waitForFunction(() => { const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; return d && d.waveGrid; }, null, { timeout: 60000, polling: 16 });
@@ -256,9 +256,10 @@ async function session(arm, zoom) {
           static: j(window.__RAW_STATIC_FRAMES__ ? { ...window.__RAW_STATIC_FRAMES__, regional: undefined } : null),
           seriesDiag: j(window.__MARINE_SERIES_DIAG__ || null), pending: j(window.__MARINE_FETCH_PENDING__ || null),
           drawn: j(window.__MARINE_DRAWN__ || null), retired: j(window.__MARINE_DRAWN_RETIRED__ || null),
-          zoom: (window.__MAP_INSTANCE__ || window.map) ? (window.__MAP_INSTANCE__ || window.map).getZoom() : null };
+          zoom: (window.__MAP_INSTANCE__ || window.map) ? (window.__MAP_INSTANCE__ || window.map).getZoom() : null,
+          marineGlobals: Object.fromEntries(Object.keys(window).filter((k) => /^__(WEBGL_)?MARINE/.test(k)).map((k) => [k, (() => { try { return JSON.stringify(window[k]).slice(0, 300); } catch (er) { return String(window[k]).slice(0, 120); } })()])) };
       }).catch((er) => ({ evalError: String(er) }));
-      require('fs').writeFileSync((process.env.OUT || 'zoom-scrub.json') + '.nofirstframe.json', JSON.stringify({ arm, zoom, view: VIEW, st, consoleErr: consoleErr.slice(-40), reqs: log.requests ? log.requests.slice(-40) : null }, null, 1));
+      require('fs').writeFileSync((process.env.OUT || 'zoom-scrub.json') + '.nofirstframe.json', JSON.stringify({ arm, zoom, view: VIEW, st, consoleErr: consoleErr.slice(process.env.DIAG_ALL === '1' ? -400 : -40), reqs: log.requests ? log.requests.slice(-40) : null }, null, 1));
       throw e;
     }
     // firstFrame: ms from the Waves click to the first wave grid in the engine (the owner's "time to first frame"), and its source.
