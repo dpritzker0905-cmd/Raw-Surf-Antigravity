@@ -280,3 +280,15 @@ TOTP secret, recovery codes and pending MFA challenges, and marks the profile su
 David: a session token already issued stays valid until it expires (`ACCESS_TOKEN_EXPIRE_DAYS` = 30); revoking it needs a
 server-side check on every request (a token version or a deny list). Tests +3 (URL parsing; files and sign-in removed,
 other users untouched; a storage failure is reported and the rows stay deleted). Guards fragment +3.
+## 2026-11-18 17:41Z Deleted accounts lose their sessions: issued tokens are revoked (David: "Revoke sessions")
+
+Tokens are stateless 30-day JWTs, so a deleted account's token kept working for up to a month (advisor limit on #1022;
+David chose this fix in the T1 session). New `session_revocations` table (one row per account: a cutoff time) and `core/session_revocation`: `security.verify_token`, the one function every authenticated path calls (HTTP dependencies,
+WebSockets, MFA), refuses any token whose `iat` is at or before the account's cutoff. The check reads an IN-MEMORY map,
+so no request pays a database query on the 1-CPU box; the map is updated in-process right after the deleting commit and
+reloaded from the table every minute by a plain scheduler job (not `tracked()`: no per-minute status write, and no
+admin toggle can switch it off), so every process enforces it within a minute. Only cutoffs younger than the token
+lifetime are loaded. `delete-my-data` now records the cutoff in its transaction. A refresh that fails keeps the last
+good map. Tests +5 (cutoff semantics; verify_token and the route dependency refuse; reload keeps recent and in-process
+cutoffs and survives a database error; revoke moves the cutoff; deletion revokes at once and others keep their sessions). Guards fragment +1, estate +4. Not yet used for password change or admin suspension: same helper, one line
+each, worth a follow-up.
