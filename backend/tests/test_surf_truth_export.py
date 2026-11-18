@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
 from database import get_db
-from models import (Profile, RoleEnum, SurfObservation, SurfSpot, SurfTruthAdminAction, SurfTruthAnchor,
+from models import (AccountDeletion, Profile, RoleEnum, SurfObservation, SurfSpot, SurfTruthAdminAction, SurfTruthAnchor,
                     SurfTruthAnchorEvent)
 from routes.surf_data import surf_truth_admin
 from services import surf_truth_export as ste
@@ -51,7 +51,8 @@ async def world(monkeypatch):
     monkeypatch.setenv(ste.KEY_ENV, KEY)
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
-        for model in (Profile, SurfSpot, SurfObservation, SurfTruthAnchor, SurfTruthAnchorEvent, SurfTruthAdminAction):
+        for model in (Profile, SurfSpot, SurfObservation, SurfTruthAnchor, SurfTruthAnchorEvent, SurfTruthAdminAction,
+                      AccountDeletion):
             await connection.run_sync(lambda conn, table=model.__table__: table.create(conn))
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as db:
@@ -206,3 +207,15 @@ def test_status_lookup_uses_each_profiles_own_history():
     assert ste.anchor_status_at(index, "a", t0 + timedelta(hours=1)) == "probation"
     assert ste.anchor_status_at(index, "a", t0 + timedelta(hours=3)) == "active"
     assert ste.anchor_status_at(index, "c", t0 + timedelta(hours=3)) is None
+
+async def test_a_pending_deletion_takes_the_persons_reports_out_of_every_new_export(world):
+    """A deletion request withdraws the reports at once, before the 30-day erasure (services/account_deletion)."""
+    from datetime import timedelta
+    rows, _m = await _build(world)
+    users_before = {r["observer_key"] for r in rows}
+    async with world.maker() as db:
+        db.add(AccountDeletion(profile_id="ana-profile-id", status="pending", purge_after=NOW + timedelta(days=30)))
+        await db.commit()
+    rows_after, manifest = await _build(world)
+    assert len(rows_after) < len(rows) and manifest["rows"] == len(rows_after)
+    assert {r["observer_key"] for r in rows_after} < users_before

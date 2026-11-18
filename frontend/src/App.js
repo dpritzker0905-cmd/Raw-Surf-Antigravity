@@ -20,6 +20,7 @@ import PushNotificationPrompt from './components/PushNotificationPrompt';
 import { Home } from './components/Home';
 import { Auth } from './components/Auth';
 import { ForgotPassword, ResetPassword } from './components/PasswordReset';
+import RestoreAccount from './components/RestoreAccount';
 
 // ---  Route-split (lazy): loaded only when the user navigates there ---
 // This splits the 1.09 MB bundle into smaller chunks for faster initial load
@@ -143,6 +144,7 @@ function App() {
             <Route path="/auth" element={<Auth />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/restore-account" element={<RestoreAccount />} />
 
  {/* GG Onboarding / Subscription (no nav) GG */}
             <Route path="/surfer-subscription" element={<SubscriptionRoute><Lazy><SurferSubscription /></Lazy></SubscriptionRoute>} />

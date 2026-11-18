@@ -135,6 +135,10 @@ async def build_export(db, key: bytes, since: Optional[datetime] = None) -> tupl
     if since is not None:
         q = q.where(SurfObservation.received_at >= since)
     rows = (await db.execute(q)).scalars().all()
+    # A deletion request withdraws the person's reports at once, before the 30-day erasure (services/account_deletion).
+    from services.account_deletion import pending_user_ids
+    pending = await pending_user_ids(db)
+    rows = [r for r in rows if r.user_id not in pending]
     spots = {s.id: s for s in (await db.execute(select(SurfSpot).where(
         SurfSpot.id.in_({r.spot_id for r in rows if r.spot_id})))).scalars().all()} if rows else {}
     users = {r.user_id for r in rows}

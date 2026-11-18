@@ -188,6 +188,8 @@ async def login_passkey_verify(request: Request, data: LoginVerifyBody, db: Asyn
     except pk.PasskeyRejected:
         raise HTTPException(status_code=401, detail=FAILED)
     profile = await _profile(db, row.user_id)
+    if profile.is_suspended:          # the password and MFA paths already refuse a suspended account; a passkey did not
+        raise HTTPException(status_code=403, detail="Account suspended")
     token = create_access_token({"sub": profile.id, "role": profile.role.value, "amr": ["webauthn"]})
     payload = session_payload(profile, token)
     payload["mfa_method"] = "passkey"

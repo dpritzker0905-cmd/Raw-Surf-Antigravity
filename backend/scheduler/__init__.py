@@ -320,6 +320,16 @@ def start_scheduler():
         replace_existing=True, max_instances=1, coalesce=True
     )
 
+    # Account deletions: erase the accounts whose 30-day restore window has ended (services/account_deletion).
+    from .account_deletion import purge_due_account_deletions_task
+    scheduler.add_job(
+        tracked('account_deletion_purge', 'Erase accounts whose 30-day restore window ended', 'Daily (03:40 UTC)',
+                purge_due_account_deletions_task),
+        CronTrigger(hour=3, minute=40, timezone=timezone.utc),
+        id='account_deletion_purge', name='Erase accounts whose 30-day restore window ended',
+        replace_existing=True, max_instances=1, coalesce=True
+    )
+
     scheduler.start()
     logger.info("[Scheduler] Background scheduler started")
     logger.info("[Scheduler] Jobs: surf_alerts (15min), story_cleanup (1hr), leaderboard_reset (monthly), "

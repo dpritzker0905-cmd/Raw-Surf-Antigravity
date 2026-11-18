@@ -1,9 +1,9 @@
 /**
- * Account deletion (GDPR Art. 17) must reach the backend and must end the session (audit 2026-10-18, F-06).
+ * Account deletion (GDPR Art. 17) must reach the backend and must end the session (audit 2026-10-18, F-06), and by
+ * default it is SCHEDULED with a 30-day restore window (David, 2026-11-18); "Delete everything now" erases at once.
  *
- * The defects: the call went to '/api/compliance/delete-my-data' on an axios base URL that already ends in /api, so
- * it requested /api/api/compliance/delete-my-data and ALWAYS 404ed (nobody could delete their data from the app);
- * and its success path never called logout(), so the deleted account's session stayed live.
+ * The earlier defects: the call went to '/api/compliance/delete-my-data' on an axios base URL that already ends in
+ * /api, so it requested /api/api/... and ALWAYS 404ed; and its success path never called logout().
  *
  * These tests use the REAL apiClient with a stub transport, so the URL asserted is the one that would be requested.
  */
@@ -21,31 +21,46 @@ let respond;
 beforeEach(() => {
   requested = [];
   mockLogout.mockReset();
-  respond = (config) => Promise.resolve({ data: {}, status: 200, statusText: 'OK', headers: {}, config });
+  respond = (config) => Promise.resolve({
+    data: { mode: 'scheduled', purge_after: '2026-12-18T20:00:00+00:00', restore_email_sent: true },
+    status: 200, statusText: 'OK', headers: {}, config,
+  });
   apiClient.defaults.adapter = (config) => {
-    requested.push({ method: config.method, url: `${config.baseURL}${config.url}` });
+    requested.push({ method: config.method, url: `${config.baseURL}${config.url}`, params: config.params || {} });
     return respond(config);
   };
 });
 
-const confirmDeletion = () => {
+const confirmDeletion = ({ now = false } = {}) => {
   render(<DeleteAccountSection />);
   fireEvent.click(screen.getByRole('button', { name: 'Request Data Deletion' }));
+  if (now) fireEvent.click(screen.getByRole('checkbox', { name: /delete everything now/i }));
   fireEvent.change(screen.getByLabelText(/type delete to confirm/i), { target: { value: 'DELETE' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Delete Forever' }));
+  fireEvent.click(screen.getByRole('button', { name: now ? 'Delete Forever' : 'Delete in 30 Days' }));
 };
 
-it('posts to /api/compliance/delete-my-data exactly once (no doubled /api prefix)', async () => {
+it('schedules the deletion by default: one POST to /api/compliance/delete-my-data, no doubled /api, no immediate flag', async () => {
   confirmDeletion();
   await waitFor(() => expect(requested).toHaveLength(1));
   expect(requested[0].method).toBe('post');
   expect(requested[0].url).toMatch(/\/api\/compliance\/delete-my-data$/);
   expect(requested[0].url).not.toMatch(/\/api\/api\//);
+  expect(requested[0].params).toEqual({});
 });
 
-it('ends the session (logout) once the backend has deleted the account', async () => {
+it('ends the session and explains the 30-day restore window', async () => {
   confirmDeletion();
   await waitFor(() => expect(mockLogout).toHaveBeenCalledTimes(1));
+  const status = screen.getByRole('status');
+  expect(status).toHaveTextContent('Account scheduled for deletion');
+  expect(status).toHaveTextContent(/restore it before then, use the link we emailed you/i);
+});
+
+it('"Delete everything now" asks the backend for an immediate erasure', async () => {
+  respond = (config) => Promise.resolve({ data: { mode: 'immediate' }, status: 200, statusText: 'OK', headers: {}, config });
+  confirmDeletion({ now: true });
+  await waitFor(() => expect(mockLogout).toHaveBeenCalledTimes(1));
+  expect(requested[0].params).toEqual({ immediate: true });
   expect(screen.getByRole('status')).toHaveTextContent('Account data deleted');
 });
 
