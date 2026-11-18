@@ -409,3 +409,18 @@ async def test_observation_records_the_consent_in_force_when_received(world):
     first_row, second_row = await world.rows()
     assert (first_row.consent_training, first_row.consent_version) == (False, None)
     assert (second_row.consent_training, second_row.consent_version) == (True, stc.CONSENT_VERSION)
+
+def test_the_consent_text_promises_only_what_the_code_does():
+    """Advisor 11-18: the first draft said 'never your name' and that withdrawal reached earlier reports everywhere.
+    The export is pseudonymous (re-identifiable by us) and already-made exports are not purged on withdrawal."""
+    from services import surf_truth_consent as stc
+    from services.surf_truth_export import FIELDS
+    text = stc.CONSENT_TEXT.lower()
+    assert "never your name" not in text and "none of your reports are used" not in text
+    assert "trace it back to your account" in text and "not changed" in text
+    # each group of exported fields is named in the text
+    named = {"spot": ("spot_id",), "to the minute": ("received_at",), "how far": ("gps_distance_m", "exif_distance_m"),
+             "app version": ("client_build",), "same for all your reports": ("observer_key",)}
+    for phrase, fields in named.items():
+        assert phrase in text, phrase
+        assert set(fields) <= set(FIELDS), fields
