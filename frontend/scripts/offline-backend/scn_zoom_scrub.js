@@ -50,6 +50,8 @@ const SETTLE = +(process.env.SETTLE || 8000);
 const ZOOMS = (process.env.ZOOMS || '2,3,4,5,7,9').split(',').map(Number);
 const [CLNG, CLAT] = (process.env.CENTER || '-79.5,28.6').split(',').map(Number);
 const VIEW = process.env.VIEW || 'desktop';
+const MODEL = process.env.MODEL || 'GFS';   // 2026-11-18: a second model (ICON / EURO regional bundles)
+const CPU = +(process.env.CPU || (VIEW === 'phone' ? 4 : 1));   // 2026-11-18: phone = 4x CPU throttle
 const VIEWS = { desktop: { width: 1280, height: 800, dpr: 1 }, owner: { width: 844, height: 390, dpr: 2 }, phone: { width: 390, height: 844, dpr: 3 } };
 const LAT_SERIES = +(process.env.LAT_SERIES || 0); const LAT_GRID = +(process.env.LAT_GRID || 0); const LAT_PRODUCTS = +(process.env.LAT_PRODUCTS || 0); const CDN_LAT = +(process.env.CDN_LAT || 0);
 if (!CDN_DIR) throw Error('CDN_DIR=<a local copy of the weather-frames bucket> is required');
@@ -234,7 +236,10 @@ async function session(arm, zoom) {
   await page.addInitScript(PROBE);
   const steps = [];
   try {
-    await L.openMap(page); await L.jump(page, CLNG, CLAT, zoom);
+    if (CPU > 1) { const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU }); }
+    await L.openMap(page);
+    if (MODEL !== 'GFS') { await page.evaluate((m) => window.setActiveModel && window.setActiveModel(m), MODEL); await sleep(1500); }
+    await L.jump(page, CLNG, CLAT, zoom);
     const tClick = Date.now();
     await clickExact(page, 'Waves');
     await page.waitForFunction(() => { const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; return d && d.waveGrid; }, null, { timeout: 60000, polling: 16 });
@@ -287,7 +292,8 @@ async function session(arm, zoom) {
       const k = `${q.q.layer}${q.path}`;
       const w = (marineAll[k] = marineAll[k] || { n: 0, ms: 0 }); w.n += 1; w.ms += q.ms || 0;
     }
-    return { arm, zoom, view: VIEW, vp, firstFrameMs, idleTwoRaf, firstFrame: { cols: firstFrame.cols, rows: firstFrame.rows, series: firstFrame.series, store: firstFrame.store, pid: firstFrame.pid },
+    const cal = await page.evaluate(() => { const t0 = performance.now(); let h = 0x811c9dc5; for (let i = 0; i < 20000000; i += 1) { h ^= i; h = Math.imul(h, 0x01000193) >>> 0; } window.__CAL_SINK__ = h; return +(performance.now() - t0).toFixed(1); });
+    return { arm, zoom, view: VIEW, model: MODEL, cpu: CPU, cal, layerVia: page.__layerVia, vp, firstFrameMs, idleTwoRaf, firstFrame: { cols: firstFrame.cols, rows: firstFrame.rows, series: firstFrame.series, store: firstFrame.store, pid: firstFrame.pid },
       steps, before, after, backendRequests: byPath, marineAll, errors: log.errors.slice(0, 5), ...(REQLOG ? { reqLog } : {}) };
   } finally { await browser.close(); }
 }
