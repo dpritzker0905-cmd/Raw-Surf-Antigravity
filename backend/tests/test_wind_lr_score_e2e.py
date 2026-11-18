@@ -104,3 +104,88 @@ def test_fill_mode_skips_runs_the_reused_run_already_has(tmp_path, monkeypatch):
     got = H.collect_run(None, datetime(2026, 10, 1, tzinfo=timezone.utc), np.zeros(1), np.zeros(1),
                         str(tmp_path), prior_dir=str(prior))
     assert got == "prior"
+
+
+def test_named_run_mode_takes_only_the_listed_runs_and_refuses_outside_ones():
+    pool = H.runs_in_window()
+    got = H.named_runs("2026101300, 2026100112,2026103100", pool)
+    assert [f"{r:%Y%m%d%H}" for r in got] == ["2026100112", "2026101300", "2026103100"]
+    import pytest
+    with pytest.raises(SystemExit):
+        H.named_runs("2026110100", pool)
+
+
+def test_mirror_is_s3_by_default_and_only_known_mirrors_are_allowed(monkeypatch):
+    import importlib
+    import pytest
+    monkeypatch.delenv("WLR_ENS_BASE", raising=False)
+    assert importlib.reload(H).ENS_BASE == H.ef.AWS_BASE
+    monkeypatch.setenv("WLR_ENS_BASE", "https://storage.googleapis.com/ecmwf-open-data")
+    assert importlib.reload(H).ENS_BASE.startswith("https://storage.googleapis.com/")
+    monkeypatch.setenv("WLR_ENS_BASE", "https://example.com/x")
+    with pytest.raises(SystemExit):
+        importlib.reload(H)
+    monkeypatch.delenv("WLR_ENS_BASE")
+    importlib.reload(H)
+
+
+def test_collect_reads_the_chosen_mirror(tmp_path, monkeypatch):
+    monkeypatch.setattr(H, "ENS_BASE", "https://storage.googleapis.com/ecmwf-open-data")
+    seen = {}
+
+    def fake_available(session, run, step, base=None):
+        seen["base"] = base
+        return False
+    monkeypatch.setattr(H.ef, "run_available", fake_available)
+    assert H.collect_run(None, datetime(2026, 10, 13, tzinfo=timezone.utc), np.zeros(1), np.zeros(1),
+                         str(tmp_path)) == "missing"
+    assert seen["base"] == "https://storage.googleapis.com/ecmwf-open-data"
+
+
+class _Resp:
+    def __init__(self, content, code=200):
+        self.content, self.status_code = content, code
+
+
+def _fake_session_factory(differ_on=None):
+    """Serves an identical tiny index and GRIB span from both mirrors, or different bytes for one URL substring."""
+    import wind_lr_mirror_check as M
+    index = b'{"param": "10u", "levtype": "sfc", "step": "336", "_offset": 0, "_length": 4}\n'
+
+    def get(session, url, headers=None, **_k):
+        body = index if url.endswith(".index") else b"GRIB"
+        if differ_on and differ_on in url and url.startswith(M.GCS):
+            body = body[:-1] + b"x"                  # same length, different bytes
+        return _Resp(body)
+    return get
+
+
+def test_mirror_sameness_control_passes_on_identical_bytes_and_stops_on_any_difference(monkeypatch):
+    import wind_lr_mirror_check as M
+    monkeypatch.setattr(M.ef, "_get", _fake_session_factory())
+    rows = M.compare(None)
+    assert len(rows) == 5 and all(a == b for _, a, b in rows)
+    monkeypatch.setattr(M.ef, "_get", _fake_session_factory(differ_on=".grib2"))
+    rows = M.compare(None)
+    assert [lbl for lbl, a, b in rows if a != b] == ["ens ef 336 grib 10u message"]
+
+
+def test_mirror_sameness_control_never_passes_on_a_failed_or_throttled_read(monkeypatch):
+    import pytest
+    import wind_lr_mirror_check as M
+    good = _fake_session_factory()
+
+    def throttled(session, url, headers=None, **k):
+        if url.startswith(M.ef.AWS_BASE) and url.endswith(".grib2"):
+            raise RuntimeError("HTTP 503 SlowDown")
+        return good(session, url, headers, **k)
+
+    def missing(session, url, headers=None, **k):
+        return _Resp(b"", 404) if url.startswith(M.GCS) else good(session, url, headers, **k)
+
+    for fake in (throttled, missing):
+        monkeypatch.setattr(M.ef, "_get", fake)
+        with pytest.raises(RuntimeError):
+            M.compare(None)
+    monkeypatch.setattr(M, "compare", lambda s: (_ for _ in ()).throw(RuntimeError("HTTP 503")))
+    assert M.main() == 2
