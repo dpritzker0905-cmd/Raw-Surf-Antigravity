@@ -2358,3 +2358,47 @@ unchanged.
    - SCOREBOARD row "expected about no change";
    - a post-deploy check.
 5. #1061's A+M stays a candidate for after G4.
+
+## 18:00 EST 2026-11-18 (`date`) - M1-0 amended before any run: the parity probe is a PLUMBING check; ACCEPT is a separate registered read against OBSERVED water (the research lead's gate note, adopted)
+**Why the amendment.** From the research lead's gate note:
+- Open-Meteo's marine page says `sea_level_height_msl` comes from "MeteoFrance SMOC", which is CMEMS
+  GLOBAL_ANALYSISFORECAST_PHY_001_024.
+- CMEMS's QUID section II.4 says `cmems_mod_glo_phy_anfc_merged-sl_PT1H-i` is FES2014 tide + inverse barometer + steric
+  + mass + GLO12 ssh, with a total.
+- **=> The two arms are the same data underneath, so parity is about 0 by construction.**
+- The 17:20 probe therefore proves PLUMBING only: datum, time zone, the cell and interpolation. It does not prove
+  quality.
+- It is renamed as such. Its rule and line are unchanged.
+
+**ACCEPT (registered now, before any value; built only after the advisor reads this design):**
+- **Arms, both scored against OBSERVED water:**
+  - the served Open-Meteo level (O);
+  - CMEMS `total_sea_level` read directly at the nearest cell (K).
+- **Truth:**
+  - the 26 CO-OPS stations of G3t;
+  - non-US UHSLC fast-delivery gauges (G3t's `uhslc_non_us` list) and IOC/GLOSS gauges with >= 80% coverage after QC.
+  - These are fixed by id in the code before the run.
+- **Window:**
+  - the 28 days ending at the run's 00Z minus 3 days (the CO-OPS verified-data lag);
+  - **it must END before G4's committed START.** The G4 embargo (addendum 1, change 5) forbids reading observed water
+    at the 26 gauges inside the G4 window;
+  - if G4 has started, ACCEPT uses only the non-US gauges.
+- **Each series is mean-removed per gauge over the window.** O and K sit above the geoid, the gauges on their own
+  datums, so the gauges' level is not comparable. A separate MEAN-ERROR row is reported beside it, because MAE is blind
+  to small constant offsets.
+- **Metrics per arm:**
+  - median, p95 and max |error|;
+  - high- and low-water TIMING error (minutes, from 6-minute or hourly extrema as available).
+- **ACCEPT iff ALL of these hold:**
+  - K - O <= +0.01 m on median |error| and on p95 |error| (point, and the upper end of a 2-day block bootstrap, 2000
+    draws);
+  - K - O <= +10 min on the median timing error;
+  - the plumbing check PASSes.
+- **Controls (VOID if any fails):**
+  - **null:** O against itself gives 0 on every metric;
+  - **planted errors on K:** +0.01 m and +0.02 m offsets, and 10- and 20-minute time shifts. The 1x plants must be
+    DETECTED, by the mean-error row for the offset and the timing row for the shift.
+- **Credentials:** Copernicus on the probe step only. Observed water comes from public CO-OPS, UHSLC and IOC services.
+  One-shot tag.
+- **On ACCEPT:** the repo variable `TIDE_CMEMS_PRIMARY=1` (#1066's builder fills CMEMS), with the kill switch to the
+  FES harmonic or "unavailable", never Open-Meteo (owner, about 23:00Z).
