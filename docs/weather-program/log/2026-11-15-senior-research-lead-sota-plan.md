@@ -2555,3 +2555,11 @@ finding):**
     valid-date block bootstrap. That needs the per-row archive through the director's sanctioned job.
   - LESSON (generalises L-S28): a "same bin" comparison must use the same rows. Check the cohort definition before
     reading two MAEs side by side.
+
+- 2026-11-17 23:35 -0500: **Flywheel rulings (asked by the adviser):**
+  - (1) F1 splits by TIME: disjoint TRAIN/VAL/TEST date ranges, all 19 buoys in each, with a ≥ 10-day gap at each
+    boundary.
+    - No buoy-wise split: neighbours in different splits leak.
+    - A REPORTED leave-one-D-066-block-out (100 km) check inside TEST. It never selects anything.
+  - (2) A "frozen baseline" means stored forecasts of a fixed configuration, scored forward. It never means re-running a
+    pinned version. F2's baseline is the current tree with learned terms off, in the same run (the adviser's baseline A).
