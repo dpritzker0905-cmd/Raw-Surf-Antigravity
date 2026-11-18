@@ -4,8 +4,9 @@
  * forecasts; services/surf_truth_consent.py on the backend).
  *
  * All three are versioned `tos_content` documents (GET /compliance/tos-content/current, PUT /compliance/tos-content).
- * Version rule for the consent, shown to the admin: re-publishing the SAME version is a wording fix and existing
- * consent stays valid; a NEW version means the meaning changed, and everyone who opted in is asked again.
+ * Version rule for the consent, shown to the admin: a version names ONE text, because people agreed to that text. Any
+ * change of words needs a NEW version (the server refuses it otherwise, 409), and a new version asks everyone who
+ * opted in again. Re-publishing the same text under the same version changes nothing for anyone.
  *
  * Themes: semantic tokens only (card/background/border/foreground/muted/primary), which light, dark and beach all
  * define; inputs in beach mode pair the global amber-900 input text with a light amber field (as BlindHeightInput).
@@ -98,6 +99,7 @@ export default function LegalDocumentsEditor() {
   const [loadedVersion, setLoadedVersion] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [sections, setSections] = useState([]);
+  const [loadedSections, setLoadedSections] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const tabRefs = useRef({});
@@ -113,6 +115,7 @@ export default function LegalDocumentsEditor() {
       setLoadedVersion(res.data.version || '1.0');
       setEffectiveDate(res.data.effective_date || '');
       setSections(res.data.sections || []);
+      setLoadedSections(res.data.sections || []);
     } catch {
       toast.error('Could not load the document');
     } finally {
@@ -125,6 +128,9 @@ export default function LegalDocumentsEditor() {
   const doc = LEGAL_DOCS.find((d) => d.id === docType);
   const consent = isConsent(docType);
   const newVersion = version.trim() !== '' && version.trim() !== loadedVersion;
+  const words = (secs) => JSON.stringify((secs || []).slice(0, 1).map((s) => [(s.title || '').trim(), (s.body || '').trim()]));
+  // The consent's text under a published version is what people agreed to: changing it needs a new version.
+  const textLocked = consent && !newVersion && words(sections) !== words(loadedSections);
 
   const choose = (id) => {
     setDocType(id);
@@ -155,6 +161,7 @@ export default function LegalDocumentsEditor() {
         sections: consent ? sections.slice(0, 1) : sections, effective_date: effectiveDate, set_active: true });
       toast.success(`${doc.label} ${version.trim()} published`);
       setLoadedVersion(version.trim());
+      setLoadedSections(consent ? sections.slice(0, 1) : sections);
     } catch (err) {
       toast.error(err?.response?.data?.detail?.toString?.() || 'Could not publish');
     } finally {
@@ -223,7 +230,9 @@ export default function LegalDocumentsEditor() {
                 <p role="status" className="rounded-lg border border-border bg-muted/40 p-2 text-sm text-foreground">
                   {newVersion
                     ? `New version: everyone who opted in under ${loadedVersion} is asked again and counts as off until they agree.`
-                    : `Same version (${loadedVersion}): a wording fix. Everyone who opted in stays opted in.`}
+                    : textLocked
+                      ? `The text of version ${loadedVersion} cannot change: people agreed to it. Enter a new version to publish these words; everyone who opted in will be asked again.`
+                      : `Same version (${loadedVersion}), same text: everyone who opted in stays opted in.`}
                 </p>
               )}
 
@@ -290,7 +299,7 @@ export default function LegalDocumentsEditor() {
                     <Upload className="h-3.5 w-3.5" aria-hidden="true" /> Import
                   </label>
                 )}
-                <Button onClick={publish} disabled={saving || loading} className="min-w-[200px] flex-1">
+                <Button onClick={publish} disabled={saving || loading || textLocked} className="min-w-[200px] flex-1">
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                     : <Save className="mr-2 h-4 w-4" aria-hidden="true" />}
                   {saving ? 'Publishing...' : `Publish ${doc.short} ${version.trim() || ''}${consent && newVersion ? ' (asks everyone again)' : ''}`}

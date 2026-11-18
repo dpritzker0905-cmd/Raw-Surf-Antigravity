@@ -2,12 +2,19 @@
 
 THE RULE, enforced daily by the scheduler job `surf_truth_retention` (well inside the 7-day bound):
 1. Keep the 3 newest exports (by manifest `cut_at`) made under the CURRENT pseudonym key; delete every older one.
-2. After any account deletion: within 7 days, write a FRESH export (the person's rows are already erased, so it no
-   longer contains them) and delete every older export.
+2. After any REVOCATION: within 7 days, write a FRESH export and delete every older export. A revocation is an account
+   deletion (the person's rows are already erased), a withdrawn consent, or a newly published consent version (a
+   grant under an older version no longer counts); the fresh export applies the consent filter, so it no longer
+   contains those people's reports. The bound is checked: a revocation pending longer than ERASURE_BOUND is reported
+   as `overdue` in the run's log line.
 3. A key rotation removes every export made under the old key (its manifest's key fingerprint no longer matches).
 4. Orphans (a data object with no manifest, or a manifest with no data) are deleted once they are older than a
    6-hour grace, so an export being written is never caught half-way.
-Without the key, no fresh export can be written; then a pending deletion removes EVERY export (fail safe).
+Without the key, no fresh export can be written; then a pending revocation removes EVERY export (fail safe).
+FAIL CLOSED on reads (advisor hold on #1034): if any listed manifest cannot be read (timeout, 5xx, a listed object that
+404s), the whole sweep is skipped and logged as `retention_skipped`; a transient error must never make a valid export
+look like an orphan. Only a manifest that WAS read but is not valid JSON counts as broken (an orphan). Listings are
+paged, and one sweep deletes at most MAX_DELETE_RUNS runs (the rest go the next day), bounding any bug's reach.
 
 Account deletions are recorded by `services.surf_truth_erasure` as an `account_erasure` line in the append-only admin
 action log with a random target id: when, never who. Every enforcement run is logged as `retention` with counts.
@@ -24,13 +31,15 @@ from typing import Optional
 
 from sqlalchemy import func, select
 
-from models import SurfTruthAdminAction
+from models import SurfTruthAdminAction, SurfTruthConsentEvent, TosContent
 
 logger = logging.getLogger(__name__)
 
 KEEP = 3
 ERASURE_BOUND = timedelta(days=7)
 ORPHAN_GRACE = timedelta(hours=6)
+MAX_DELETE_RUNS = 200
+LIST_PAGE = 1000
 SYSTEM_ACTOR = "system"
 _RUN_RE = re.compile(r"^(?P<run>[0-9a-f]{6,32})(?P<kind>\.manifest\.json|\.jsonl)$")
 
@@ -86,9 +95,10 @@ def collect_runs(objects: list, manifests: dict) -> dict:
     return runs
 
 
-def plan(runs: dict, now: datetime, fingerprint: Optional[str], last_erasure: Optional[datetime]) -> dict:
-    """PURE. {'fresh_export': bool, 'keep': [run ids], 'delete': {run id: reason}}. With a fresh export pending, every
-    complete run is deleted once the fresh one exists (the caller keeps only that one)."""
+def plan(runs: dict, now: datetime, fingerprint: Optional[str], last_revocation: Optional[datetime]) -> dict:
+    """PURE. {'fresh_export', 'pending', 'keep': [run ids], 'delete': {run id: reason}}. `pending`: some export was
+    cut at or before the last revocation. With a fresh export due, every complete run is deleted once the fresh one
+    exists (the caller keeps only that one)."""
     delete, valid = {}, []
     for run in runs.values():
         if not run.complete:
@@ -101,18 +111,22 @@ def plan(runs: dict, now: datetime, fingerprint: Optional[str], last_erasure: Op
             continue
         valid.append(run)
     valid.sort(key=lambda r: r.cut_at, reverse=True)
-    pending = last_erasure is not None and any(r.cut_at <= last_erasure for r in valid)
+    pending = last_revocation is not None and any(r.cut_at <= last_revocation for r in valid)
     if pending:
         if fingerprint is None:                     # cannot write a fresh export: remove everything (fail safe)
             for r in valid:
-                delete[r.run_id] = "account deleted since this export, and no key to write a fresh one"
-            return {"fresh_export": False, "keep": [], "delete": delete}
+                delete[r.run_id] = "a deletion or consent change since this export, and no key to write a fresh one"
+            return {"fresh_export": False, "pending": True, "keep": [], "delete": delete}
         for r in valid:
-            delete[r.run_id] = "an account was deleted since; replaced by a fresh export"
-        return {"fresh_export": True, "keep": [], "delete": delete}
+            delete[r.run_id] = "a deletion or consent change since; replaced by a fresh export"
+        return {"fresh_export": True, "pending": True, "keep": [], "delete": delete}
     for r in valid[KEEP:]:
         delete[r.run_id] = f"older than the {KEEP} newest exports"
-    return {"fresh_export": False, "keep": [r.run_id for r in valid[:KEEP]], "delete": delete}
+    return {"fresh_export": False, "pending": False, "keep": [r.run_id for r in valid[:KEEP]], "delete": delete}
+
+
+class BrokenManifest(ValueError):
+    """A manifest that was read but is not valid JSON: its run is an orphan."""
 
 
 class StorageStore:
@@ -128,11 +142,19 @@ class StorageStore:
         self.bucket, self.prefix = BUCKET, PREFIX
 
     def _list(self, prefix: str) -> list:
+        """Every entry under `prefix`, page by page (one listing used to stop silently at 1,000)."""
         import requests
-        r = requests.post(f"{self.base}/storage/v1/object/list/{self.bucket}", headers=self.headers, timeout=20,
-                          json={"prefix": prefix, "limit": 1000, "offset": 0, "sortBy": {"column": "name", "order": "asc"}})
-        r.raise_for_status()
-        return r.json() if isinstance(r.json(), list) else []
+        out, offset = [], 0
+        while True:
+            r = requests.post(f"{self.base}/storage/v1/object/list/{self.bucket}", headers=self.headers, timeout=20,
+                              json={"prefix": prefix, "limit": LIST_PAGE, "offset": offset,
+                                    "sortBy": {"column": "name", "order": "asc"}})
+            r.raise_for_status()
+            page = r.json() if isinstance(r.json(), list) else []
+            out += page
+            if len(page) < LIST_PAGE:
+                return out
+            offset += LIST_PAGE
 
     def objects(self) -> list:
         out = []
@@ -146,12 +168,17 @@ class StorageStore:
         return out
 
     def manifest(self, key: str) -> Optional[dict]:
+        """The parsed manifest; None for a listed object that is gone (a read failure, not an orphan); raises
+        BrokenManifest for one that was read but is not valid JSON."""
         import requests
         r = requests.get(f"{self.base}/storage/v1/object/{self.bucket}/{key}", headers=self.headers, timeout=20)
         if r.status_code in (400, 404):
             return None
         r.raise_for_status()
-        return json.loads(r.text)
+        try:
+            return json.loads(r.text)
+        except ValueError as e:
+            raise BrokenManifest(str(e)) from e
 
     def delete(self, keys: list) -> None:
         import requests
@@ -162,10 +189,19 @@ class StorageStore:
                 raise RuntimeError(f"storage refused the delete (status {r.status_code})")
 
 
-async def last_erasure_at(db) -> Optional[datetime]:
-    at = (await db.execute(select(func.max(SurfTruthAdminAction.at))
-                           .where(SurfTruthAdminAction.action == "account_erasure"))).scalar_one_or_none()
-    return _aware(at) if at else None
+async def last_revocation_at(db) -> Optional[datetime]:
+    """The newest of: an account deletion, a withdrawn consent, the moment the active consent wording was published.
+    Any of them can take reports out of what may be exported, so exports cut before it are replaced."""
+    erasure = (await db.execute(select(func.max(SurfTruthAdminAction.at))
+                                .where(SurfTruthAdminAction.action == "account_erasure"))).scalar_one_or_none()
+    withdrawn = (await db.execute(select(func.max(SurfTruthConsentEvent.at))
+                                  .where(SurfTruthConsentEvent.granted.is_(False)))).scalar_one_or_none()
+    from services.surf_truth_consent import DOC_TYPE
+    doc = (await db.execute(select(TosContent).where(TosContent.doc_type == DOC_TYPE, TosContent.is_active.is_(True))
+                            .limit(1))).scalar_one_or_none()
+    published = (doc.updated_at or doc.created_at) if doc is not None else None
+    times = [_aware(t) for t in (erasure, withdrawn, published) if t]
+    return max(times) if times else None
 
 
 async def enforce(db, store=None, now: Optional[datetime] = None) -> dict:
@@ -184,11 +220,30 @@ async def enforce(db, store=None, now: Optional[datetime] = None) -> dict:
     manifests = {}
     for k in manifest_keys:
         try:
-            manifests[k] = await asyncio.to_thread(store.manifest, k)
-        except Exception as e:  # an unreadable manifest makes its run an orphan, never a crash
-            logger.warning("[surf-truth retention] manifest unreadable %s: %s", k, e)
+            m = await asyncio.to_thread(store.manifest, k)
+        except BrokenManifest:                    # read, but not JSON: genuinely broken, so its run is an orphan
+            continue
+        except Exception as e:  # noqa: BLE001 - FAIL CLOSED: a read error must never delete a valid export
+            m, why = None, type(e).__name__
+        else:
+            why = "listed but not found"
+        if m is None:
+            logger.warning("[surf-truth retention] sweep skipped: manifest %s unreadable (%s)", k, why)
+            surf_truth_admin.log_action(db, SYSTEM_ACTOR, "retention_skipped", "surf_truth_export", "retention",
+                                        detail={"why": f"a manifest could not be read ({why})"})
+            await db.commit()
+            return {"skipped": f"a manifest could not be read ({why})", "kept": [], "deleted_runs": 0,
+                    "deleted_objects": 0, "fresh_export": None, "reasons": []}
+        manifests[k] = m
     runs = collect_runs(objects, manifests)
-    decision = plan(runs, now, fingerprint, await last_erasure_at(db))
+    revoked = await last_revocation_at(db)
+    decision = plan(runs, now, fingerprint, revoked)
+    overdue = bool(decision["pending"] and revoked and now - revoked > ERASURE_BOUND)
+    if overdue:
+        logger.error("[surf-truth retention] a revocation from %s is past the %s bound", revoked, ERASURE_BOUND)
+    if len(decision["delete"]) > MAX_DELETE_RUNS:            # bound one sweep's reach; the rest go next time
+        oldest_first = sorted(decision["delete"], key=lambda rid: runs[rid].created_at or now)
+        decision["delete"] = {rid: decision["delete"][rid] for rid in oldest_first[:MAX_DELETE_RUNS]}
     fresh = None
     if decision["fresh_export"]:
         rows, manifest = await ste.build_export(db, key)
@@ -201,9 +256,9 @@ async def enforce(db, store=None, now: Optional[datetime] = None) -> dict:
         await asyncio.to_thread(store.delete, doomed)
     summary = {"kept": decision["keep"] + ([fresh["run_id"]] if fresh else []), "deleted_runs": len(decision["delete"]),
                "deleted_objects": len(doomed), "fresh_export": fresh["run_id"] if fresh else None,
-               "reasons": sorted(set(decision["delete"].values()))}
+               "reasons": sorted(set(decision["delete"].values())), "overdue": overdue}
     surf_truth_admin.log_action(db, SYSTEM_ACTOR, "retention", "surf_truth_export", "retention",
                                 detail={"kept": len(summary["kept"]), "deleted_runs": summary["deleted_runs"],
-                                        "fresh_export": summary["fresh_export"]})
+                                        "fresh_export": summary["fresh_export"], "overdue": overdue})
     await db.commit()
     return summary

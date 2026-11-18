@@ -306,3 +306,39 @@ without the key, a pending deletion removes every export (fail safe). The deleti
 `retention` (and `export` when it wrote one) as actor `system`, with counts only.
 Tests +6 (the four rules and the enforcer, with a fake store); mutation: a planner that ignores deletions fails 3.
 73 related backend tests pass. Stacked on #1026.
+## 2026-11-18 13:53Z T1 P3 (part 2, advisor HOLD fixed): the consent text says only what is true
+
+The advisor held #1024 at 6ffd34254: the text said "(with the spot and time, but never your name)" and "from then on,
+none of your reports are used, including earlier ones". The export is PSEUDONYMOUS, not anonymous (observer and device
+codes, distances, EXIF age, app version), and nothing purges exports already made when someone withdraws. New text
+(CONSENT_VERSION `draft-2026-11-18b`) names what each used report carries, says the code can be traced back to the
+account, says later checks leave out all the person's reports, and says copies made before a withdrawal are not
+changed. A stronger promise belongs only in the change that builds the purge, under a new version. Test +1 pins each
+phrase to the export's FIELDS (guards fragment +8). Still a DRAFT for counsel.
+## 2026-11-18 14:08Z T1 P3 (part 3, advisor HOLD fixed): a consent version names one text
+
+The advisor held #1026 at 0a710de3f: `save_tos_content` replaced `sections` in place under the same version, and a grant
+counts when its version matches, so the wording could change under consent already given. Now, for the forecast
+consent only, the save refuses (409) different words under a version already published, or under the built-in
+default's version; re-publishing the same text is allowed. Any change, a typo fix included, is a new version and asks
+everyone again. The admin editor says so in words and disables Publish while new words sit under the old version.
+Also carries #1024's new default text (`draft-2026-11-18b`). Tests: the same-version test now expects the 409, +1 for
+the default's version (estate fragment +7); the editor test shows the lock (Jest 4 pass); ESLint ratchet shrinks.
+Mutation: removing the refusal fails 2.
+## 2026-11-18 14:19Z T1 P3 (part 4, advisor HOLD fixed): retention fails closed, and a withdrawal purges too
+
+The advisor held #1034 at 322b2bc46 on four points, all fixed. (a) FAILED OPEN: an unreadable manifest was logged and
+skipped, so its valid export looked like an orphan and was deleted after the grace (possibly one of the 3 newest).
+Now any read error on a listed manifest (timeout, 5xx, a listed object that 404s) skips the WHOLE sweep and logs
+`retention_skipped`; only a manifest that was read but is not JSON counts as broken (an orphan). (b) Only an account
+deletion triggered the purge. Now a REVOCATION does: an account deletion, a withdrawn consent, or the active consent
+wording's publication time; the fresh export's consent filter then leaves those reports out. The consent text could
+therefore promise it, so the default is now `draft-2026-11-18c`: "Copies made before you turned it off are deleted
+within 7 days" (pinned to ERASURE_BOUND by a test). (c) `cut_at` is taken BEFORE the rows are read, so a revocation
+committing mid-query still marks that export as stale. (d) Listings are paged (1,000 per page) and one sweep deletes
+at most MAX_DELETE_RUNS = 200 runs, oldest first. ERASURE_BOUND is now used: a revocation pending longer than 7 days
+is logged `overdue`. Tests +9 (guards fragment now +15): unreadable or missing manifest skips and deletes
+nothing; non-JSON manifest is an orphan; withdrawal and new version each force a fresh export; overdue; delete cap;
+paging; cut_at before the query. Mutation: restoring the fail-open path fails 2.
+Also on the #1026 head: the export tests named the old consent version by hand, so after the version bump and the
+version rule 6 of them read 0 rows; they now use `stc.CONSENT_VERSION` (pushed as 00e21a025).

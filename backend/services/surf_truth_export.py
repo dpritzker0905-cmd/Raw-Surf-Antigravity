@@ -133,6 +133,9 @@ def export_row(key: bytes, obs: SurfObservation, spot: Optional[SurfSpot], ancho
 
 
 async def build_export(db, key: bytes, since: Optional[datetime] = None) -> tuple[list[dict], dict]:
+    # cut_at is taken BEFORE the rows are read (advisor hold on #1034): a deletion or withdrawal that commits while the
+    # query runs is then later than cut_at, so retention still sees this export as needing replacement.
+    cut_at = datetime.now(timezone.utc)
     q = select(SurfObservation).where(SurfObservation.flow == "blind_v1").order_by(SurfObservation.received_at)
     if since is not None:
         q = q.where(SurfObservation.received_at >= since)
@@ -151,7 +154,7 @@ async def build_export(db, key: bytes, since: Optional[datetime] = None) -> tupl
         out.append(export_row(key, r, spots.get(r.spot_id), anchor_status_at(events, r.user_id, _aware(r.received_at))))
     manifest = {
         "schema": SCHEMA, "rows": len(out), "since": since.isoformat() if since else None,
-        "cut_at": datetime.now(timezone.utc).isoformat(), "fields": list(FIELDS),
+        "cut_at": cut_at.isoformat(), "fields": list(FIELDS),
         "observers": len({o["observer_key"] for o in out}), "spots": len({o["spot_id"] for o in out}),
         "pseudonyms": "HMAC-SHA256 under " + KEY_ENV + " (key not in the export)",
         "key_fingerprint": key_fingerprint(key), "received_at_resolution": "minute",
