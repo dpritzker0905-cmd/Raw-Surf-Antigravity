@@ -22,6 +22,7 @@ from database import get_db
 from models import (TosContent, Profile, RoleEnum, SurfObservation, SurfSpot, SurfTruthAdminAction, SurfTruthAnchor,
                     SurfTruthAnchorEvent, SurfTruthConsentEvent)
 from routes.surf_data import surf_truth_admin
+from services import surf_truth_consent as stc
 from services import surf_truth_export as ste
 
 KEY = "k" * 40
@@ -43,7 +44,7 @@ def _obs(oid, user, *, flow="blind_v1", at=NOW - timedelta(hours=1), device="dev
         media_url="https://cdn.example.test/photo.jpg", exif_check="ok", exif_distance_m=40.0, exif_age_s=60.0,
         flags="range_only", device_hash=device, quality_ok=True, xp_status="granted", corroborated=False,
         audit_selected=False, client_build="a1b2c3d", consent_training=consent,
-        consent_version="draft-2026-11-18" if consent else None)
+        consent_version=stc.CONSENT_VERSION if consent else None)
 
 
 @pytest_asyncio.fixture
@@ -65,7 +66,7 @@ async def world(monkeypatch):
         db.add_all([_obs("o1", "ana-profile-id", at=NOW - timedelta(hours=3)), _obs("o2", "ana-profile-id"),
                     _obs("o3", "ana-profile-id", flow="legacy_report")])
         # Ana opted in before any of her reports (P3: only consented rows are exported)
-        db.add(SurfTruthConsentEvent(profile_id="ana-profile-id", granted=True, version="draft-2026-11-18",
+        db.add(SurfTruthConsentEvent(profile_id="ana-profile-id", granted=True, version=stc.CONSENT_VERSION,
                                      source="blind_height_input", at=NOW - timedelta(hours=5)))
         # appointed BETWEEN o1 and o2: o1 was filed by an ordinary observer, o2 by an active anchor
         db.add(SurfTruthAnchorEvent(profile_id="ana-profile-id", from_status=None, to_status="active",
@@ -220,11 +221,11 @@ async def test_export_needs_consent_when_received_and_at_export(world):
         db.add(Profile(id="cy", user_id="c", email="cy@example.invalid", full_name="Cy", role=RoleEnum.SURFER))
         db.add_all([_obs("b1", "ben", consent=False),          # made while Ben had not opted in
                     _obs("c1", "cy")])                         # made while Cy had opted in...
-        db.add(SurfTruthConsentEvent(profile_id="ben", granted=True, version="draft-2026-11-18",
+        db.add(SurfTruthConsentEvent(profile_id="ben", granted=True, version=stc.CONSENT_VERSION,
                                      source="settings", at=NOW))        # Ben opts in AFTER his report
-        db.add(SurfTruthConsentEvent(profile_id="cy", granted=True, version="draft-2026-11-18",
+        db.add(SurfTruthConsentEvent(profile_id="cy", granted=True, version=stc.CONSENT_VERSION,
                                      source="blind_height_input", at=NOW - timedelta(hours=4)))
-        db.add(SurfTruthConsentEvent(profile_id="cy", granted=False, version="draft-2026-11-18",
+        db.add(SurfTruthConsentEvent(profile_id="cy", granted=False, version=stc.CONSENT_VERSION,
                                      source="settings", at=NOW - timedelta(minutes=5)))   # ...then withdrew
         await db.commit()
     rows, manifest = await _build(world)
