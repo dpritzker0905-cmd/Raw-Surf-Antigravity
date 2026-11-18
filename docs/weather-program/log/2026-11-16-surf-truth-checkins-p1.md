@@ -222,6 +222,16 @@ The header '22:30Z Anchors C: the admin "Surf truth" area' ran AHEAD of the cloc
 
 The header '23:20Z T1 P4 export built (stacked on anchors C): private, pseudonymized rows for the offline fit' ran AHEAD of the clock: it was committed at 2026-11-16T22:46:20Z, 34 minutes before the time it states (an estimate; LESSONS L-P10).
 
+## 2026-11-18 01:04Z Post-deploy check: the two surf-truth logs refuse UPDATE, DELETE and TRUNCATE in production (header from `date -u`)
+
+Owed since anchors A/B. Production Supabase (the Antigravity project), read-only except one block that rolls itself back:
+- Catalog: `surf_truth_anchor_events` and `surf_truth_admin_actions` exist with RLS on, 2 non-internal triggers each, and
+  `service_role` holds INSERT but not UPDATE on both.
+- Behaviour, as `postgres` (the table OWNER, so grants do not apply and only the triggers stand): one DO block inserted
+  a synthetic row into each table, then tried UPDATE, DELETE and TRUNCATE. All six were refused with
+  "<table> is append-only"; the inserts succeeded. The block then raised, which rolled back everything; a follow-up
+  query found 0 probe rows in either table.
+- Positive control: the inserts in the same block succeeded, so the refusals are the triggers, not a broken table.
 ## 2026-11-18 03:03Z Admin: the Surf Forecast panel tells the truth about flags (header from the UTC clock)
 
 David asked for a comprehensive, working admin for the surf sim's logic. A read-only survey of the admin found the
@@ -275,3 +285,18 @@ failed read is reported in the response and shown as an alert.
 Tests: backend +4 (frame selection and order without replay inputs; geometry never raises; the route reads cached
 objects only, 404, search; a failed blob read is reported), Jest +3. Route identity guard still passes (18). 103
 admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1030.
+## 2026-11-18 04:42Z T1 P3 (part 5): go-live photos lose their GPS before they reach the public bucket (header from the UTC clock)
+
+The Surf truth Consent tab had recorded it since anchors C: go-live condition photos go to the PUBLIC `conditions`
+bucket with their original file data, so a phone photo's GPS position (and camera serial, times) was readable by
+anyone holding its link. `services/media_metadata.py` now strips the stored copy, losslessly (the image data is
+never re-encoded): JPEG drops every APPn except JFIF/ICC/Adobe and COM, then puts back a minimal EXIF holding ONLY a
+non-upright Orientation so photos do not turn sideways; PNG drops eXIf/tEXt/iTXt/zTXt/tIME; WebP drops EXIF/XMP and
+fixes the VP8X flags and RIFF size. The server's own facts (hash, EXIF position and time, for the blind-observation
+checks) are still read from the ORIGINAL bytes and kept in the private `observation_media` table. A malformed
+JPEG/PNG/WebP is refused (400) rather than stored unstripped. The upload reply says `metadata_stripped`.
+NOT stripped yet (follow-up): HEIC/HEIF (Pillow here cannot rewrite it) and video (needs a video tool); and the
+surf-report photo path, which is a different upload route. Already-stored photos keep their metadata until a
+backfill is decided.
+Tests +6 (each format: GPS gone, pixels identical, orientation kept; the route: public copy clean, private record
+kept, malformed refused); mutation: keeping APP1 fails. 99 related tests (incl. the upload identity suite) pass.

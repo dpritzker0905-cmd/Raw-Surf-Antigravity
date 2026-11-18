@@ -142,50 +142,48 @@ def test_collect_reads_the_chosen_mirror(tmp_path, monkeypatch):
     assert seen["base"] == "https://storage.googleapis.com/ecmwf-open-data"
 
 
-class _Resp:
-    def __init__(self, content, code=200):
-        self.content, self.status_code = content, code
-
-
-def _fake_session_factory(differ_on=None):
-    """Serves an identical tiny index and GRIB span from both mirrors, or different bytes for one URL substring."""
+def _mirror_check_setup(tmp_path, monkeypatch):
+    """A held run file and a station freeze on disk; the mirror reads are faked (option b: no S3 read at all)."""
+    import json
+    import wind_lr_hindcast as H
     import wind_lr_mirror_check as M
-    index = b'{"param": "10u", "levtype": "sfc", "step": "336", "_offset": 0, "_length": 4}\n'
-
-    def get(session, url, headers=None, **_k):
-        body = index if url.endswith(".index") else b"GRIB"
-        if differ_on and differ_on in url and url.startswith(M.GCS):
-            body = body[:-1] + b"x"                  # same length, different bytes
-        return _Resp(body)
-    return get
-
-
-def test_mirror_sameness_control_passes_on_identical_bytes_and_stops_on_any_difference(monkeypatch):
-    import wind_lr_mirror_check as M
-    monkeypatch.setattr(M.ef, "_get", _fake_session_factory())
-    rows = M.compare(None)
-    assert len(rows) == 5 and all(a == b for _, a, b in rows)
-    monkeypatch.setattr(M.ef, "_get", _fake_session_factory(differ_on=".grib2"))
-    rows = M.compare(None)
-    assert [lbl for lbl, a, b in rows if a != b] == ["ens ef 336 grib 10u message"]
+    import types
+    import wind_lr_obs as obs
+    monkeypatch.setitem(sys.modules, "requests", types.SimpleNamespace(Session=lambda: None))
+    held = {"ens_10u_336": np.array([[1.0, np.nan]], np.float32), "hres_10u_240": np.array([2.0, 3.0], np.float32)}
+    (tmp_path / "prior").mkdir()
+    np.savez_compressed(tmp_path / "prior" / "2026100200.npz", **held)
+    json.dump({"ndbc": [], "asos": []}, open(tmp_path / "wind_lr_stations.json", "w"))
+    monkeypatch.setattr(obs, "gfs_land", lambda s, cache: (None, None))
+    monkeypatch.setattr(H, "sample_points", lambda st, land, meta: ([0.0, 1.0], [0.0, 1.0]))
+    good_index = ("idx", "a", "a")
+    argv = ["--cache", str(tmp_path), "--prior", str(tmp_path / "prior")]
+    return M, held, good_index, argv
 
 
-def test_mirror_sameness_control_never_passes_on_a_failed_or_throttled_read(monkeypatch):
-    import pytest
-    import wind_lr_mirror_check as M
-    good = _fake_session_factory()
+def test_mirror_sameness_control_passes_on_identical_values_and_stops_on_any_difference(tmp_path, monkeypatch):
+    M, held, good_index, argv = _mirror_check_setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(M, "index_row", lambda s: good_index)
+    monkeypatch.setattr(M, "mirror_values", lambda s, run, la, lo: {k: v.copy() for k, v in held.items()})
+    assert M.main(argv) == 0
+    changed = {k: v.copy() for k, v in held.items()}
+    changed["hres_10u_240"][1] = np.nextafter(np.float32(3.0), np.float32(4.0))
+    monkeypatch.setattr(M, "mirror_values", lambda s, run, la, lo: changed)
+    assert M.main(argv) == 1
+    monkeypatch.setattr(M, "mirror_values", lambda s, run, la, lo: {k: v.copy() for k, v in held.items()})
+    monkeypatch.setattr(M, "index_row", lambda s: ("idx", "a", "b"))       # index differs from the hand measurement
+    assert M.main(argv) == 1
 
-    def throttled(session, url, headers=None, **k):
-        if url.startswith(M.ef.AWS_BASE) and url.endswith(".grib2"):
-            raise RuntimeError("HTTP 503 SlowDown")
-        return good(session, url, headers, **k)
 
-    def missing(session, url, headers=None, **k):
-        return _Resp(b"", 404) if url.startswith(M.GCS) else good(session, url, headers, **k)
+def test_mirror_sameness_control_never_passes_on_a_failed_or_throttled_read(tmp_path, monkeypatch):
+    M, held, good_index, argv = _mirror_check_setup(tmp_path, monkeypatch)
 
-    for fake in (throttled, missing):
-        monkeypatch.setattr(M.ef, "_get", fake)
-        with pytest.raises(RuntimeError):
-            M.compare(None)
-    monkeypatch.setattr(M, "compare", lambda s: (_ for _ in ()).throw(RuntimeError("HTTP 503")))
-    assert M.main() == 2
+    def throttled(*a, **k):
+        raise RuntimeError("HTTP 503 SlowDown")
+    monkeypatch.setattr(M, "index_row", throttled)
+    assert M.main(argv) == 2
+    monkeypatch.setattr(M, "index_row", lambda s: good_index)
+    monkeypatch.setattr(M, "mirror_values", throttled)
+    assert M.main(argv) == 2
+    monkeypatch.setattr(M, "mirror_values", lambda s, run, la, lo: {"aifs_10u_336": np.zeros(2, np.float32)})
+    assert M.main(argv) == 2                                                # a key the held file lacks: not completed
