@@ -2233,7 +2233,7 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Owner:** "Yes, after #1009" (the pin), then "Start the cap period rule pin", typed in the repair lead's session.
 - Record: `log/2026-11-18-fable-cap-period-rule-pin.md`.
 
-### D-082 · T1 append-only logs: minimal content now, retention by per-subject keys + monthly partitions (2026-11-18, PROPOSED; periods await counsel)
+### D-083 · T1 append-only logs: minimal content now, retention by per-subject keys + monthly partitions (2026-11-18, PROPOSED; periods await counsel)
 - **Asked by:** David, 2026-11-18, routed the legal follow-ups (consent wording, California precise geolocation, and
   whether erasure must reach the append-only logs) to their own lane. Research by the director's session, which is
   not legal advice; counsel has reviewed nothing.
@@ -2252,9 +2252,11 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - whether to build the mechanism before those answers (David).
 - **Reopen if:** counsel's review changes a per-table basis, or the EDPB pinpoints (05/2020 ¶107) read differently
   in the English text.
-- If D-082 is already taken when this merges, renumber it in the merge commit and in the design doc.
+- Numbered D-083 (first drafted as D-082): #1059 holds D-082 (the Open-Meteo rule). Order proposed by this lane on
+  2026-11-18, at the advisor's request, and sent to the director and the repair lead: #1059 keeps D-082, and this
+  lane's three entries are D-083, D-084 and D-085.
 
-### D-083 · Forecast-data consent: one switch; the controller is Raw Surf Adventures Inc., editable in the admin (2026-11-18, decided by the owner)
+### D-084 · Forecast-data consent: one switch; the controller is Raw Surf Adventures Inc., editable in the admin (2026-11-18, decided by the owner)
 - **Owner, typed in this lane's session (2026-11-18):**
   - "one switch, entity is Raw Surf Adventures Inc."
   - "we need these settings to be changed in the appropriate admin area"
@@ -2273,11 +2275,11 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - The privacy notice is a new public page, `/privacy`, which renders the active Privacy Policy.
   - The default Privacy Policy keeps sections 1-9 unchanged. "10. Who We Are" and "11. Forecast Data From Your Wave
     Reports" are appended after them.
-- **Supersedes** the `[COMPANY]` / `[PRIVACY NOTICE LINK]` default placeholders of D-082. The markers still refuse a
+- **Supersedes** the `[COMPANY]` / `[PRIVACY NOTICE LINK]` default placeholders of D-083. The markers still refuse a
   published text that carries them.
 - **Still DRAFT:** counsel has reviewed no wording.
 
-### D-084 · Company details: only a real change re-asks; corrections keep consents, with an append-only record (2026-11-18, decided by the owner)
+### D-085 · Company details: only a real change re-asks; corrections keep consents, with an append-only record (2026-11-18, decided by the owner)
 - **Owner:**
   - "Only real name changes" (typed in this lane's session, answering whether a company-details typo fix should
     re-ask everyone and empty the export);
@@ -2291,6 +2293,6 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - Every publish appends a row to `company_details_changes` (append-only on Postgres) holding the old and new
     details, the filled consent words before and after, who published it and when. The record therefore still shows
     exactly what each person saw.
-- **Supersedes** D-083's "the consent's served version names the FILLED words". It now names the Company details
+- **Supersedes** D-084's "the consent's served version names the FILLED words". It now names the Company details
   revision.
 - **Reopen if** counsel says that a corrected name or link under an unchanged consent version is not valid consent.

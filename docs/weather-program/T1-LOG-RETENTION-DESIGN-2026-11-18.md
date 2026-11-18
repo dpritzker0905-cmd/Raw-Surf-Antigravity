@@ -2,7 +2,7 @@
 
 **Status: PROPOSED.** This is an engineering design. Counsel has reviewed nothing; it rests on research, not legal
 advice. The retention periods are David's or counsel's to set. They are named constants with no value in
-`backend/services/surf_truth_log_retention.py`, and `awaiting()` lists them. Decision entry: `DECISIONS.md` D-082.
+`backend/services/surf_truth_log_retention.py`, and `awaiting()` lists them. Decision entry: `DECISIONS.md` D-083 (first drafted as D-082; #1059 holds D-082).
 
 The legal research of 2026-11-18 was done with the legal-sources MCP. It retrieved the GDPR text, CJEU C-129/21,
 CNIL Délibération 2021-122 and Cal. Civ. Code 1798.100/.105/.121/.140. It is held in the director's notes,

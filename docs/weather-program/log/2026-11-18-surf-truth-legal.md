@@ -120,3 +120,21 @@ Tests:
 - Frontend Jest: **20 passed in 4 suites**, in a scratch checkout.
 - ESLint: no new debt.
 - Floors: guards +32 (+1 file), estate +10, frontend +6 (+1 suite).
+
+## 2026-11-18 22:57Z (from the UTC clock) CORRECTION: decision numbers (append-only; earlier entries left as written)
+
+The advisor flagged that this lane's decision numbers clashed with #1059, which also claims D-082 (the Open-Meteo
+rule). No other open PR adds a D-08x entry; I checked every open PR to dev for added `### D-` lines.
+
+#1059 is docs only and will merge before #1048, which still carries the unmerged #1026 and #1034. So #1059 keeps
+D-082 and this lane's entries move up by one:
+
+| Was | Now | Entry |
+|---|---|---|
+| D-082 | **D-083** | append-only logs (PROPOSED) |
+| D-083 | **D-084** | one switch, Raw Surf Adventures Inc., Company details, /privacy |
+| D-084 | **D-085** | the correction option |
+
+Every mention of D-082, D-083 or D-084 above in this log, and in this lane's two ledger lines, means the new number
+in the table. DECISIONS.md and the design doc carry the new numbers. The order was sent to the director and the
+repair lead for confirmation.
