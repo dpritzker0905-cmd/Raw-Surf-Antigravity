@@ -25,6 +25,22 @@ CELL_KM = 11
 SOURCE = "model-msl"
 
 
+# The credit FOLLOWS PROVENANCE (2026-11-18; the owner ~23:00Z: open agency providers, every source credited where its data
+# is shown). `tide.fetch_tide_hourly` series carry `source` once the own-data tide ships (#1061: "own" | "open-meteo";
+# #1066: "cmems" | "am"); a series without it is the Open-Meteo acquisition, as before.
+_FES = ("FES2022 (AVISO) + Copernicus Marine", "https://www.aviso.altimetry.fr/en/data/products/auxiliary-products/global-tide-fes.html")
+_CMEMS = ("E.U. Copernicus Marine Service Information", "https://doi.org/10.48670/moi-00016")
+_OPEN_METEO = ("Open-Meteo Marine", "https://open-meteo.com/en/licence")
+PROVIDERS = {"cmems": _CMEMS, "am": _FES, "own": _FES, "open-meteo": _OPEN_METEO}
+
+
+def provider_for(series):
+    """(provider credit, licence/source URL, series source) for a tide series; unknown or absent = Open-Meteo."""
+    src = (series or {}).get("source") or "open-meteo"
+    credit, url = PROVIDERS.get(src, _OPEN_METEO)
+    return credit, url, src
+
+
 def _event(e):
     return {"time": e["time"].strftime("%Y-%m-%dT%H:%M:%SZ"), "height_m": round(e["level_m"], 3)}
 
@@ -72,6 +88,7 @@ def build_point_tide(series, lat, lng, now):
                          "trend": "rising" if rate > 0.02 else "falling" if rate < -0.02 else "slack",
                          "rate_m_per_h": round(rate, 3)}
                 break
+    provider, provider_url, series_source = provider_for(series)
     nxt = {t: next((_event(e) for e in events if selected_end is not None and e["type"] == t and now < e["time"] <= selected_end), None)
            for t in ("High", "Low")}
     return {
@@ -84,7 +101,7 @@ def build_point_tide(series, lat, lng, now):
         "coverage": [{"start": part[0][0].strftime("%Y-%m-%dT%H:%M:%SZ"),
                       "end": part[-1][0].strftime("%Y-%m-%dT%H:%M:%SZ")} for part in usable],
         "timezone": "UTC", "datum": "MSL", "quantity": "modeled_sea_level",
-        "provider": "Open-Meteo Marine", "source_url": _tide.OPEN_METEO_MARINE_API,
+        "provider": provider, "source_url": provider_url, "series_source": series_source,
         # Retained for older clients. New clients use explicit UTC, never a guessed civil zone.
         "tz_offset_h": round(float(lng) / 15.0), "tz_approx": True,
         "source": SOURCE, "cell_km": CELL_KM,

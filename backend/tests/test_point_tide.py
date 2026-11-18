@@ -84,6 +84,23 @@ def test_selected_coverage_gaps_and_nonfinite():
         assert WPT.build_point_tide(series, 0, 0, NOW)["height_m"] is None
 
 
+def test_credit_follows_the_series_provenance():
+    """The owner ~23:00Z: open agency providers, every source credited where its data is shown. The payload names the
+    provider of the series actually served; a series without a source is the old Open-Meteo acquisition."""
+    expect = {None: "Open-Meteo Marine", "open-meteo": "Open-Meteo Marine",
+              "cmems": "E.U. Copernicus Marine Service Information",
+              "am": "FES2022 (AVISO) + Copernicus Marine", "own": "FES2022 (AVISO) + Copernicus Marine",
+              "something-new": "Open-Meteo Marine"}
+    for src, provider in expect.items():
+        series = _series()
+        if src is not None:
+            series["source"] = src
+        out = WPT.build_point_tide(series, 0, 0, NOW)
+        assert out["provider"] == provider and out["source_url"].startswith("https://")
+        assert out["series_source"] == (src or "open-meteo")
+        assert out["source"] == "model-msl"                 # the old field keeps its meaning for older clients
+
+
 def test_no_extrapolation_or_reordering():
     series = _series(hours=3)
     out = WPT.build_point_tide(series, 0, 0, NOW)
