@@ -25,6 +25,10 @@ _TOP_LEVEL = {b"ftyp", b"moov", b"mdat", b"free", b"skip", b"wide", b"pnot", b"u
               b"sidx", b"meta", b"udta", b"pdin", b"prft", b"emsg"}
 _NEUTER = {b"udta", b"meta"}
 _MAX_READ = 16 * 1024 * 1024                    # a metadata box larger than this is neutered without being read
+# A real phone or camera MP4 has a few dozen boxes at the levels walked here. The budget bounds the walk's time and
+# memory for a hostile file (500 MB of 8-byte boxes would otherwise be ~62 million entries): beyond it the file is
+# refused, not published unchecked.
+MAX_BOXES = 4096
 _ISO6709 = re.compile(rb"([+-]\d{1,2}(?:\.\d+)?)([+-]\d{1,3}(?:\.\d+)?)(?:[+-]\d+(?:\.\d+)?)?(?:CRS[^/]*)?/")
 _DATE = re.compile(rb"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)")
 
@@ -38,10 +42,14 @@ class VideoFacts:
     neutered: int = 0
 
 
-def _boxes(f, start: int, end: int) -> Iterator[Tuple[int, int, bytes, int]]:
-    """(offset, total size, type, header length) of each box in [start, end)."""
+def _boxes(f, start: int, end: int, budget: list) -> Iterator[Tuple[int, int, bytes, int]]:
+    """(offset, total size, type, header length) of each box in [start, end), lazily. `budget` is a one-item list
+    shared by the whole walk; MetadataError once it runs out."""
     pos = start
     while pos + 8 <= end:
+        budget[0] -= 1
+        if budget[0] < 0:
+            raise MetadataError(f"more than {MAX_BOXES} boxes")
         f.seek(pos)
         head = f.read(8)
         if len(head) < 8:
@@ -118,18 +126,20 @@ def strip_video_in_place(path) -> VideoFacts:
     if not is_isobmff(path):
         return VideoFacts(stripped=False)
     facts = VideoFacts(stripped=True)
+    budget = [MAX_BOXES]
     with open(path, "r+b") as f:
         f.seek(0, 2)
         end = f.tell()
-        for off, size, btype, header in list(_boxes(f, 0, end)):
+        # Lazy walk: neutering keeps every box's length, so the positions still to be read never move.
+        for off, size, btype, header in _boxes(f, 0, end, budget):
             if btype in _NEUTER:                               # top-level metadata (rare, but possible)
                 _neuter(f, off, size, header, facts)
             elif btype == b"moov":
-                for c_off, c_size, c_type, c_header in list(_boxes(f, off + header, off + size)):
+                for c_off, c_size, c_type, c_header in _boxes(f, off + header, off + size, budget):
                     if c_type in _NEUTER:
                         _neuter(f, c_off, c_size, c_header, facts)
                     elif c_type == b"trak":
-                        for t_off, t_size, t_type, t_header in list(_boxes(f, c_off + c_header, c_off + c_size)):
+                        for t_off, t_size, t_type, t_header in _boxes(f, c_off + c_header, c_off + c_size, budget):
                             if t_type in _NEUTER:
                                 _neuter(f, t_off, t_size, t_header, facts)
     return facts

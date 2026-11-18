@@ -195,3 +195,24 @@ async def test_a_go_live_video_keeps_its_location_privately_and_not_publicly(har
         (rec,) = (await db.execute(select(ObservationMedia))).scalars().all()
     assert (rec.exif_latitude, rec.exif_longitude) == (pytest.approx(21.665), pytest.approx(-158.05))
     assert rec.exif_taken_at is not None
+
+def test_a_file_of_many_tiny_boxes_is_refused_without_building_a_huge_list(tmp_path):
+    from services.media_metadata import write_public_copy
+    from services.video_metadata import MAX_BOXES
+    flood = _box(b"ftyp", b"qt  ") + _box(b"moov", b"".join(_box(b"free", b"") for _ in range(MAX_BOXES + 10)))
+    with pytest.raises(MetadataError):
+        write_public_copy(flood, "video/quicktime", True, tmp_path / "flood.mov")
+    assert not (tmp_path / "flood.mov").exists()
+    ok = write_public_copy(_mov(), "video/quicktime", True, tmp_path / "ok.mov")   # a real-shaped file is well inside
+    assert ok.stripped and ok.latitude == pytest.approx(21.665)
+
+
+def test_any_failure_while_stripping_a_video_leaves_no_file(tmp_path, monkeypatch):
+    from services import media_metadata, video_metadata
+
+    def boom(path):
+        raise RuntimeError("unexpected")
+    monkeypatch.setattr(video_metadata, "strip_video_in_place", boom)
+    with pytest.raises(RuntimeError):
+        media_metadata.write_public_copy(_mov(), "video/quicktime", True, tmp_path / "c.mov")
+    assert not (tmp_path / "c.mov").exists()

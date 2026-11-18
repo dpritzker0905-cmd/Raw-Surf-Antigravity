@@ -144,7 +144,7 @@ def write_public_copy(content: bytes, content_type: str, is_video: bool, path) -
         f.write(content)
     try:
         facts = strip_video_in_place(path)
-    except MetadataError:
+    except BaseException:          # ANY failure: never leave the unstripped copy where the route could publish it
         os.remove(path)
         raise
     return PublicCopy(stripped=facts.stripped, size=len(content), latitude=facts.latitude,
