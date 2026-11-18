@@ -19,7 +19,12 @@ ADMIN = Profile(id="admin")
 
 @pytest.fixture
 def maker():
+    """One in-memory database per test, disposed at teardown (the estate lane's SQLite lifetime census fails on any
+    connection left open)."""
+    engine = None
+
     async def build():
+        nonlocal engine
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         async with engine.begin() as conn:
             for model in (Profile, TosContent, SurfTruthConsentEvent, CompanyDetailsChange):
@@ -31,7 +36,8 @@ def maker():
                                role=RoleEnum.SURFER))
             await db.commit()
         return mk
-    return asyncio.run(build())
+    yield asyncio.run(build())
+    asyncio.run(engine.dispose())
 
 
 def _publish(db, version, title="Use my reports", body="Off unless you turn it on.", sections=None):
