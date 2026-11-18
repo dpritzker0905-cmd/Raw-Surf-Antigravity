@@ -2418,3 +2418,18 @@ service". This refines 13:13Z ("No user data should be open-meteo").
   - the kill switch serves Open-Meteo and never reads the table.
 - With the tide, flag, caller and weather-API suites, 168 pass locally. Lint is clean.
 - Chain floor fragment: +16 tests, +1 file.
+
+## 17:50 EST 2026-11-18 (`date`) - #1061 is STEP 1 of the Open-Meteo exit: TRANSITIONAL (docs only; the code at aacbff96d is unchanged)
+**The owner's latest word**, typed in the director's session at about 23:00Z: "use open agency data providers, and cut
+out open-meteo all together as a middle man... not for user data, as well will need a license".
+
+**The director's sequencing:**
+- **#1061 lands as STEP 1.** Our own A + M is primary, and Open-Meteo stays ONLY as the per-key fallback where it is
+  already served today. It reduces Open-Meteo use and blanks nothing.
+- **The Open-Meteo fallback is removed in STEP 2**: branch `claude/tide-own-data-step2`, its own PR, stacked on #1061.
+  - Step 2 adds the CMEMS direct read (M1-0, #1064) and the harmonic tide.
+  - In step 2, missing coverage shows "unavailable", and the kill switch never reaches Open-Meteo.
+
+**The instrument:**
+- After step 1 deploys, the share of served tide series with `source` "open-meteo" is reported.
+- Step 2 must take it to 0.
