@@ -140,3 +140,31 @@ def test_collect_reads_the_chosen_mirror(tmp_path, monkeypatch):
     assert H.collect_run(None, datetime(2026, 10, 13, tzinfo=timezone.utc), np.zeros(1), np.zeros(1),
                          str(tmp_path)) == "missing"
     assert seen["base"] == "https://storage.googleapis.com/ecmwf-open-data"
+
+
+class _Resp:
+    def __init__(self, content, code=200):
+        self.content, self.status_code = content, code
+
+
+def _fake_session_factory(differ_on=None):
+    """Serves an identical tiny index and GRIB span from both mirrors, or different bytes for one URL substring."""
+    import wind_lr_mirror_check as M
+    index = b'{"param": "10u", "levtype": "sfc", "step": "336", "_offset": 0, "_length": 4}\n'
+
+    def get(session, url, headers=None, **_k):
+        body = index if url.endswith(".index") else b"GRIB"
+        if differ_on and differ_on in url and url.startswith(M.GCS):
+            body = body + b"x"
+        return _Resp(body)
+    return get
+
+
+def test_mirror_sameness_control_passes_on_identical_bytes_and_stops_on_any_difference(monkeypatch):
+    import wind_lr_mirror_check as M
+    monkeypatch.setattr(M.ef, "_get", _fake_session_factory())
+    rows = M.compare(None)
+    assert len(rows) == 5 and all(a == b for _, a, b in rows)
+    monkeypatch.setattr(M.ef, "_get", _fake_session_factory(differ_on=".grib2"))
+    rows = M.compare(None)
+    assert [lbl for lbl, a, b in rows if a != b] == ["ens ef 336 grib 10u message"]

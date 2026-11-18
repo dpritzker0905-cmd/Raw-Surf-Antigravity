@@ -91,8 +91,25 @@ jobs:
             ${{ runner.temp }}/wlr/ndbc/
             ${{ runner.temp }}/wlr/asos/
 
+  mirror_check:
+    # The sameness control (advisor 2026-11-18 00:00Z, condition 4): before any second-mirror read, one run already held
+    # from S3 is read from both mirrors and compared by sha256. Different bytes stop the run: no collection, no score.
+    if: ${{ github.event.inputs.ens_mirror == 'gcs' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0
+      - name: Same bytes on both mirrors
+        working-directory: backend
+        run: python scripts/wind_lr_mirror_check.py
+
   collect:
-    needs: stations
+    needs: [stations, mirror_check]
+    if: ${{ always() && needs.stations.result == 'success' && needs.mirror_check.result != 'failure' && needs.mirror_check.result != 'cancelled' }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     strategy:
@@ -148,8 +165,8 @@ jobs:
           path: ${{ runner.temp }}/wlr/runs/
 
   score:
-    needs: collect
-    if: always() && needs.stations.result == 'success'
+    needs: [stations, mirror_check, collect]
+    if: ${{ always() && needs.stations.result == 'success' && needs.mirror_check.result != 'failure' && needs.mirror_check.result != 'cancelled' }}
     runs-on: ubuntu-latest
     timeout-minutes: 240
     steps:
