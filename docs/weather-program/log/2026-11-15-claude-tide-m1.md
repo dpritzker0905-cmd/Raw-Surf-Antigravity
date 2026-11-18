@@ -2121,3 +2121,126 @@ position.**
 - The tag `tide-gate-G3t` is pushed at 55080566d (code cleared at 92f31a70c; later commits are log-only).
 - The failure rule (written 14:53 EST) applies.
 - **Run 44166851340** (push event at 139f76142) is in progress since 20:12:37Z.
+
+## 22:10 EST 2026-11-17 (`date`) - G3t RESULT (run 44166851340, tag at 139f76142): FAIL as registered, not VOID; read by the advisor first (02:25Z)
+The advisor recomputed the verdict from the JSON's items, controls and coverage, and it agrees. The public log carries
+stage lines only. The JSON is in the shared notes (`tide-overlay-2026-11-15/g3t-result-run-44166851340.json`); the
+advisor's read is `advisor-tide-g3t-read-2026-11-18.md`.
+
+**Controls (both hold):**
+- positive control (NOAA's constants vs NOAA's predictions): 0.0029 m (line <= 0.01);
+- label swap: 0.509 m (line > 0.3).
+
+**Coverage:** 24 gauges scored. Excluded: 8443970 (D < 95%) and 8771510 (observed < 95%). Not void.
+
+**Items** (point [lo, hi], m):
+- **1 PASS:**
+  - P - D: -0.0533 [-0.0685, -0.0411];
+  - P - C: -0.0636 [-0.0776, -0.0510];
+  - mean-removed P - D: -0.0164 [-0.0411, -0.0022].
+- **2 PASS:** no gauge on the raw score. One gauge mean-removed (8726724, +0.0547), reported only.
+- **3a PASS:** (A+M) - A = -0.0413 [-0.0506, -0.0271].
+- **3b FAIL:** P - (A+M) = +0.0003 [-0.0108, +0.0079]; the upper end is >= 0. (The shifted-arm point, +0.0190, did not
+  beat P.)
+- **4 PASS:** High/Low timing median 8.58 min; |MLLW| median 0.0135 m.
+- **5 NOT RUNNABLE:** all 43 Hohonu gauges are back-barrier or excluded.
+- **Datum label:** none.
+
+**Reported rows** (median RMSE, m):
+- tide alone (A): 0.146;
+- tide + mean level (A+M): 0.121;
+- P: 0.127;
+- D: 0.147;
+- served C: 0.178;
+- oracle: 0.065.
+
+The mean level is the gain: per-gauge bias goes from -0.099 to +0.008. The seasonal term nets to zero over Jan-Jul and
+hurts a little from April. UHSLC (reported only): 12 of 19 scored; P beats C at 11 of 12.
+
+**Meaning:**
+- The registered product (tide + mean level + seasonal) does NOT ship on this.
+- A + M READS 0.057 m better than served C on these gauges. That is a reported row on a window now seen, not a pass.
+- No evidence at surf beaches.
+
+**Not allowed:**
+- no re-run;
+- no dropping S and calling this window a pass;
+- no threshold change.
+
+The score is final.
+
+**Next (the owner's choice):** a NEW registration with A + M as the primary and S as a reported arm, on unseen data:
+2026-07-25 onward plus the two held-out weeks. The advisor's three conditions:
+1. the window and the gauges are fixed before any fetch;
+2. item 3 is rewritten so the reported seasonal arm can neither rescue nor sink the primary;
+3. the same failure rule and a one-shot tag.
+
+Nothing served changes; #926 and #931 stay held.
+
+## 22:22 EST 2026-11-17 (`date`) - G4 PRE-REGISTRATION DRAFT: tide + mean level, PROSPECTIVE (owner: "Yes, keep moving forward toward SOTA", typed here 22:1x EST, answering "draft the new registration?")
+Written before any G4 code or data. Nothing has been fetched for G4.
+
+**Why prospective, not the advisor's retrospective window.**
+- The proposed window (2026-07-25 onward plus the two held-out weeks) is NOT unseen at these gauges. The G3t
+  registration records "2026-07-25 onward is seen":
+  - G3's truth-only count and window (07-26 .. 09-07);
+  - #926's held-out week 09-15;
+  - G2 (09-29 .. 10-12);
+  - the M1 lead's window (10-15 .. 10-28).
+- The held-out weeks 03-15 and 06-15 were #926/#931's TEST weeks, so they are seen too.
+- What is left are fragments (for example 10-29 onward), and their status can be argued. A prospective window is the
+  only one that is unseen by construction.
+
+**Primary (P4):** A + M.
+- A = FES2022b (as in G3t; the same PyFES pin and constituents).
+- M = the gauge cell's mean SLA over 2016-01-01 .. 2025-12-31 (CMEMS SEALEVEL_GLO_PHY_L4_MY_008_047, the same cell rule
+  as G3t). It is one constant per gauge, computed in the gate from model files only, and written to the log before any
+  truth is fetched.
+
+**Window:** prospective, hourly.
+- It starts at the first 00Z at least 24 h after the tag push.
+- It ends 56 days later (8 weeks, at least 28 independent 2-day blocks).
+- It crosses the end of the US East Coast seasonal high (Sep-Nov) into the winter low, so dropping S is tested where S
+  is largest.
+- The tag is pushed only on the owner's word after FINAL.
+- The gate runs ONCE, after the window closes plus 3 days (CO-OPS verified data lag). Nothing is read before then.
+
+**Gauges:** the same 26 CO-OPS stations as G3t, fixed now. The 95% coverage exclusion and > 20% void rule are
+unchanged.
+
+**References:**
+- C = the served Open-Meteo tide, the latest run, as served (test reference only, per the owner's rule);
+- D = Open-Meteo previous_day1 / previous_day2 with the 365-day-mean datum, as in G3t.
+
+**Items (all must hold):**
+1. P4 - D upper end <= -0.02 m AND P4 - C upper end < 0 (2-day block bootstrap, 2000 draws, seed 20261119).
+2. No gauge worse than D by > 0.05 m (point), and none that D scores and P4 cannot.
+3. (A + M) - A upper end < 0 (the mean level still earns its place out of sample).
+4. Tide shape: High/Low timing median <= 20 min; |MLLW| median <= 0.05 m.
+5. Beach no-harm guard: carried, NOT RUNNABLE (no open-coast independent gauge exists; 2026-11-17 survey in the
+   shared notes).
+
+**Seasonal term S, REPORTED ONLY:**
+- The arm A + M + S and its difference from P4 are printed with an interval.
+- They enter no item, cannot rescue a failed item and cannot sink a passed one (the advisor's condition 2).
+- If S beats P4 here, that is a finding for a later registration, not a pass.
+
+**Controls (VOID):** unchanged from G3t:
+- positive control (NOAA's constants vs NOAA's predictions) <= 0.01 m;
+- label swap > 0.3 m;
+- coverage.
+
+**Failure rule and start (the advisor's condition 3):**
+- Same as G3t, with a one-shot tag `tide-gate-G4`, no workflow_dispatch, and credentials on their steps only.
+- A run with no score may be re-run only once the cause is fixed and recorded, and only on the owner's word again.
+- A scored run is FINAL.
+
+**Datum label, parity and scope label:** as G3t.
+
+**On PASS:** ship-ON under D-080 with the owner's merge, the parity CI, the credits, and records of use.
+
+**Open for the advisor:**
+- (a) the 56-day length;
+- (b) whether to add the 3 uncorrected-but-active CO-OPS gauges as reported rows;
+- (c) whether M should be the base mean or the base trend carried to the window mid-date. G3t reported both, and the
+  trend variant was not opened as a selection criterion.
