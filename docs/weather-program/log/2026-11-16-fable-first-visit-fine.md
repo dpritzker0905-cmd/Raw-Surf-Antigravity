@@ -316,3 +316,36 @@ host. No request is sent to the backend, no client change, nothing written anywh
 - **Not done under this heading:** no request to the live backend or the dev site, no `/api/health` probe (nothing is being
   loaded), no reading of application logs beyond request lines, no user identifiers recorded here (counts only; no IPs, no
   coordinates).
+
+## 10. The request-log count (read 2026-11-18, 08:45 to about 09:25 EST). Verdict by section 9's rule: ROUTINE, on almost no users
+Source: the backend service's own access lines in the host's log store (there is no separate request log; the lines carry
+the path and query string, a client address, no host and no referrer). Window 2026-11-11 13:30Z to 2026-11-18 13:30Z,
+read with a text filter per route, paged 100 at a time. Nothing was sent to the backend. No address is recorded here.
+- **Counts.** `L` (`/capabilities`) = 119 (one full page of 100 to 15 Nov 23:56Z, taken as 100 from the page being full,
+  plus 19 counted by hand). `S` (`/grid_series`) = 456 (four pages parsed by script, the last 56 by hand). `G` (`/grid`) =
+  266 (three pages tallied by hand; every breakdown sums to 266). All 200. The two larger counts were made by helper agents
+  and are not re-counted by me.
+- **Ratios.** `S/L` = 3.8, `G/L` = 2.2. Both are at or above 1, so by the rule written in section 9: **ROUTINE**. Not void
+  (119 page loads, a 7-day window, paths present).
+- **What ROUTINE does not mean here, and why the logs cannot size the slow path for real users:**
+  - `S` came from 3 client addresses in 7 days; one sent 64% of it. `G` came from 10; one sent 61%, and seven others each
+    sent one identical 12-request waves batch on one day each (84 lines: a daily automated job from rotating addresses, not
+    identified). Most of 15 Nov's `G` is one address repeating an ICON wind pair about every 10 minutes for three hours.
+  - `L` itself includes automated callers: data-centre addresses on a 4-hour beat in the first page.
+  - So this is a handful of clients, mostly one, plus automation. There is not enough real-user traffic in a week for a
+    share of real users to mean anything, whichever way the ratio fell.
+- **What the lines do show about the client's behaviour** (the useful part):
+  - Every `S` and `G` line carries a `bbox`. `S`: 410 regional boxes, 46 world; 354 GFS, 90 ICON, 12 EURO; waves 178,
+    wind_waves 84, swell_1 83, swell_2 75, wind 36; 216 multi-hour pages and 240 single-hour asks. `G`: 202 regional, 64
+    world; ICON 128, GFS 96, EURO 42; waves 150, wind 109, the other three 7.
+  - So at regional views the deployed client asks the backend for series pages and single hours as a matter of course, on
+    every marine layer, and ICON and EURO lean on `/grid`. Whether those are the views and layers the static sets are meant
+    to cover (a miss) or ones they are not meant to cover (ordinary) the logs cannot say: that needs the client's own miss
+    reasons.
+- **Split by production and dev: not possible** (no host in the lines). Said, as section 9 required.
+- **Limits.** Hand tallies for two of the three counts; the host's store is taken as complete for the window with no
+  independent check; no line after 17 Nov 21:12Z on either grid route while `/capabilities` lines continue to 18 Nov 06:33Z.
+- **Next, by the rule:** step 2, one observed session on the dev site (`?diag=1`, the client's static counters and miss
+  reasons before and after, `/api/health` before and after). NOT started: today's word covered the logs only.
+- The raw pages the helpers saved hold client addresses; they sit in this session's tool-results folder outside the
+  repository and are not copied anywhere.
