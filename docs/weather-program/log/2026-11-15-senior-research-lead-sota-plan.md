@@ -2583,3 +2583,12 @@ finding):**
     - show the coverage class in the admin;
     - null and positive (harmful-flag) controls.
   - Handoff to the director: shared notes `research-lead-handoff-2026-11-18.md`.
+
+- 2026-11-18 00:20 -0500: **Rulings on the helper's isotonic calibration gate v3** (shared notes
+  `isotonic-calibration-gate-proposal-2026-11-18.md`):
+  - The gate waits for L1 E2.
+  - Step 0 (T-reliability, MCB/DSC/UNC of the served deterministic) may run now, as a diagnostic only, on rows outside
+    the L1 TEST window and the held-out weeks. The row window is recorded.
+  - Activation trigger: E2's MCB is ≥ 15% of CRPS on VAL (CI lower bound > 0), OR L1 gate 3 fails.
+  - Harm: L1 gate 2 form, with Holm across leads. DSC tolerance 5% relative. Identity above p99.
+  - Thresholds are frozen in a dated prereg before the first fit.
