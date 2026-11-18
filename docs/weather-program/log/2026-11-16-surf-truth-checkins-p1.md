@@ -244,3 +244,27 @@ after a deletion: legal call; (2) exports already in private storage (pseudonymo
 (3) Profile has no deleted flag and the auth account is not removed, so `is_deleted` never existed: a design
 question for the account owners, not this lane; (4) the report photo stays in the `conditions` bucket with its
 report (owned by those features).
+## 2026-11-18 02:08Z T1 P3 (part 2): opt-in consent, snapshotted on each report, enforced by the export (header from the UTC clock)
+
+David chose the consent flag next. Built so it needs no legal decision to be safe, and so counsel can change the
+words without a release:
+- `surf_truth_consent_events` (new, private, append-only by trigger like the anchor log): every grant and withdrawal
+  with the wording version and screen. The newest event is the choice in force; NO event means NO (opt-in). Kept
+  after an account deletion as the proof of consent (like ToS acknowledgements); included in the GDPR export.
+- `GET/PUT /api/surf-observations/consent` (strict JWT; the body takes only `granted` and a known `source`; the
+  server sets the version). The wording is served from `services/surf_truth_consent.py`: an ENGINEERING DRAFT
+  (`draft-2026-11-18`), not reviewed by counsel.
+- Each observation records the consent in force when received (`consent_training`, `consent_version`; NULL on
+  older rows = no).
+- The export keeps a row only if its observer had opted in when it was made AND is still opted in at export, so a
+  withdrawal stops every later export from using any of their rows. The row schema is unchanged (the fit's
+  contract); the manifest states the rule and how many rows it excluded.
+- UI: one native checkbox at the foot of the blind-height form on all three report screens, wording from the
+  server, state in words ("On"/"Off"), hidden if the server cannot answer so a report is never blocked.
+
+Tests: backend +7 (opt-in default and append-only history; the body cannot set version, owner or source; the
+snapshot; the export's then-and-now rule), Jest +4. Mutation: an export without the consent filter fails the
+then-and-now test. 110 surf-truth backend tests and 89 Jest tests in the touched trees pass.
+
+For David: the wording (`CONSENT_TITLE`/`CONSENT_TEXT`) and whether internal forecast VALIDATION, as opposed to
+training, needs this consent at all. Today the export treats both as needing it (the safe default).

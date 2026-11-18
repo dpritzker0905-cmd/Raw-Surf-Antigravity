@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
 from database import get_db
-from models import (CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
+from models import (SurfTruthConsentEvent, CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
                     SurfSpot, SurfTruthAnchor, SurfTruthAnchorEvent, UserStreak)
 from routes.surf_data import checkins, observations, surf_reports
 from services import observation_media
@@ -121,7 +121,7 @@ async def world(monkeypatch):
     monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")  # the XP kill switch reads runtime_flags: no network in tests
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
-        for model in (Profile, SurfSpot, CheckIn, UserStreak, ConditionReport, SurfReport, SurfObservation,
+        for model in (Profile, SurfTruthConsentEvent, SurfSpot, CheckIn, UserStreak, ConditionReport, SurfReport, SurfObservation,
                       ObservationMedia, SurfTruthAnchor, SurfTruthAnchorEvent):
             await connection.run_sync(lambda conn, table=model.__table__: table.create(conn))
     maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -365,3 +365,47 @@ async def test_client_build_is_stored_and_shape_checked(world):
     assert bad.status_code == 200  # a malformed stamp never costs the observation
     second = (await world.rows())[1]
     assert second.client_build is None and "bad_client_build" in second.flags
+
+
+# ── P3 consent (services/surf_truth_consent.py) ───────────────────────────────────────────────────────────────────
+CONSENT_URL = "/api/surf-observations/consent"
+
+
+async def test_consent_is_off_by_default_and_each_choice_is_appended(world):
+    from services import surf_truth_consent as stc
+    assert (await world.client.get(CONSENT_URL)).status_code == 401
+    r = await world.client.get(CONSENT_URL, headers=_token("surfer"))
+    assert r.status_code == 200
+    body = r.json()
+    assert body["granted"] is False and body["version"] is None                      # opt-in: no choice is no
+    assert body["current_version"] == stc.CONSENT_VERSION and body["text"] == stc.CONSENT_TEXT
+    on = await world.client.put(CONSENT_URL, json={"granted": True}, headers=_token("surfer"))
+    assert on.json()["granted"] is True and on.json()["version"] == stc.CONSENT_VERSION
+    off = await world.client.put(CONSENT_URL, json={"granted": False, "source": "settings"}, headers=_token("surfer"))
+    assert off.json()["granted"] is False
+    async with world.maker() as db:
+        history = (await db.execute(select(SurfTruthConsentEvent).order_by(SurfTruthConsentEvent.at))).scalars().all()
+    assert [(e.profile_id, e.granted, e.source) for e in history] == [
+        ("surfer", True, "blind_height_input"), ("surfer", False, "settings")]
+    # another person's choice is untouched by this one
+    assert (await world.client.get(CONSENT_URL, headers=_token("photog"))).json()["granted"] is False
+
+
+@pytest.mark.parametrize("bad", [{"granted": True, "version": "v0"}, {"granted": True, "profile_id": "photog"},
+                                 {"granted": True, "source": "admin"}, {}])
+async def test_consent_body_cannot_set_version_owner_or_unknown_source(world, bad):
+    r = await world.client.put(CONSENT_URL, json=bad, headers=_token("surfer"))
+    assert r.status_code == 422
+    async with world.maker() as db:
+        assert (await db.execute(select(SurfTruthConsentEvent))).scalars().all() == []
+
+
+async def test_observation_records_the_consent_in_force_when_received(world):
+    from services import surf_truth_consent as stc
+    assert (await world.client.post(URL, json=_checkin(), headers=_token("surfer"))).status_code == 200
+    await world.client.put(CONSENT_URL, json={"granted": True}, headers=_token("surfer"))
+    second = _checkin(ref_id=None, spot_id="nsb")
+    assert (await world.client.post(URL, json=second, headers=_token("surfer"))).status_code == 200
+    first_row, second_row = await world.rows()
+    assert (first_row.consent_training, first_row.consent_version) == (False, None)
+    assert (second_row.consent_training, second_row.consent_version) == (True, stc.CONSENT_VERSION)
