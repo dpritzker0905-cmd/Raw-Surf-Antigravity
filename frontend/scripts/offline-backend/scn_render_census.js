@@ -148,10 +148,14 @@ const PROBE = () => {
     await sleep(1500);
     out.hookSeen = await page.evaluate(() => !!window.__RC__);
     const cpu = cpuSampler(); const calBefore = await page.evaluate(CALIBRATE);
+    // TRACE=1 (2026-11-18, part B): a Chromium trace over the steps, split per step by user-timing marks (traceSplit.js).
+    const TRACE = process.env.TRACE === '1';
+    if (TRACE) await browser.startTracing(page, { categories: ['devtools.timeline', 'blink.user_timing', 'gpu', 'v8.execute', 'disabled-by-default-devtools.timeline'] });
     for (let i = 0; i < STEPS; i += 1) {
       const w = page.locator('[role="slider"][aria-label*="timeline wheel"]').filter({ visible: true }).first();
       if (await w.count()) await w.focus().catch(() => {});
       await page.evaluate(() => { window.__RC__.cur = {}; window.__RC__.on = true; const A = window.__AB__; A.on = true; A.key = null; A.ev = []; A.hours = []; A.blank = 0; });
+      if (TRACE) await page.evaluate((k) => performance.mark(`rc-step-${k}`), i);
       if (await w.count()) await page.keyboard.press('ArrowRight');
       await sleep(DWELL);
       const step = await page.evaluate(() => { const s = window.__RC__.cur; window.__RC__.on = false; window.__RC__.cur = null; return s; });
@@ -179,6 +183,13 @@ const PROBE = () => {
         dhInstant: ab.rec && ab.sel && Number.isFinite(ab.rec.dataMs) && Number.isFinite(ab.sel.labelMs) ? Math.round((ab.rec.dataMs - ab.sel.labelMs) / 3600000) : null,
         labelMoved: !prev || (ab.target === prev.target + 1 && ab.valuetext !== prev.valuetext), noEventTiming: ab.noEventTiming };
       out.steps.push(step);
+    }
+    if (TRACE) {
+      await page.evaluate(() => performance.mark('rc-step-end'));
+      const buf = await browser.stopTracing();
+      const { splitTrace } = require('./traceSplit.js');
+      out.trace = splitTrace(JSON.parse(buf.toString('utf8')), STEPS);
+      out.steps.forEach((st, k) => { if (out.trace.steps[k]) st.__phase = out.trace.steps[k]; });
     }
     const calAfter = await page.evaluate(CALIBRATE); out.load = { calBefore, calAfter, cal: Math.max(calBefore, calAfter), cpu: cpu.stop() };
     // per component: renders per step (median) and own ms per step (median)
