@@ -75,7 +75,7 @@ describe('ICON air temperature at 0.125 deg (2026-11-18)', () => {
     expect(ownFramesOn('temperature', 'EURO')).toBe(false);   // pending the owner (vote split 2026-11-14)
   });
 
-  test('KILL: the temperature kill, the global kill or the per-set kill puts ICON back on the .om path', () => {
+  test('KILL: the temperature kill, the global kill or the per-set kill stops our ICON frames (unavailable; never .om: see the unpublished suite)', () => {
     window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true;
     expect(ownFramesOn('temperature', 'ICON')).toBe(false);
     delete window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__;

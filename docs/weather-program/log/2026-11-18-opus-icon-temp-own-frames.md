@@ -44,10 +44,11 @@ Evidence, none of it new in this PR:
   - The status line shows "Air Temp: no published forecast yet" or "Air Temp: no forecast for this hour" (the gusts / currents
     rule).
   - Past ICON's 180 h the layer shows "no forecast for this hour". The `.om` `dwd_icon` also ends at ICON's horizon.
-- **Kill:** `window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true`. The global own-frames kill and the per-set kill also work.
-  Each returns ICON temperature to the `.om` path, as before. **Open question for the director:** under the owner's new rule,
-  the kill may instead need to show "unavailable" (no `.om` at all). It is left as the old behaviour here because it is an
-  operator's emergency lever, not a user path.
+- **Kill:** `window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true`. The global own-frames kill, the per-set kill and the
+  static-frames global kill also work. Each stops our ICON frames, and the layer then shows "unavailable". **No kill returns it
+  to `.om`.** The director, relaying the owner (2026-11-18): "no kill switch falls back to Open-Meteo, and that's the standard
+  for every exit row". Pinned: under every kill, `useOwnRasterLayers` drops ICON `temperature` from the `.om` layer list, so
+  MapWebGL and its temporal preloader never request it.
 - GFS and EURO temperature are unchanged (OFF, `.om`).
 - Frame size, measured: 2.65 MB gzipped (8.30 MB raw) per frame, against 1.1-5 MB per hour on the `.om` path
   (`2026-10-22-claude-raster-instant.md`).

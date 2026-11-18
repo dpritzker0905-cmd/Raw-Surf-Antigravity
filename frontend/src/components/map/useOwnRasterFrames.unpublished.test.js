@@ -8,6 +8,7 @@
 import React, { useLayoutEffect } from 'react';
 import { act, render, renderHook, waitFor } from '@testing-library/react';
 import { useOwnRasterFrames, HANDOVER_LAYERS } from './useOwnRasterFrames';
+import { useOwnRasterLayers } from './useOwnRasterLayers';
 import { _resetOwnRasterFramesForTest, tel } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 import { createOwnRasterLayer } from './ownRasterLayer';
@@ -112,18 +113,40 @@ describe('a layer whose set is not published yet falls back to .om (lever on)', 
     expect(getPinnedIndex).not.toHaveBeenCalled();
   });
 
-  test('ICON air temperature engages without the lever (2026-11-18) and its kill puts it back on .om', () => {
+  test('ICON air temperature engages without the lever (2026-11-18); its kill stops our frames and STILL never hands it to .om', () => {
     delete window.__RAW_RASTER_OWN_FRAMES__;
     run('temperature', 'ICON');
     expect(getPinnedIndex).toHaveBeenCalledWith('ICON/weather/temperature/global_0p125');
-    getPinnedIndex.mockClear();
-    window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true;
-    try {
-      expect(run('temperature', 'ICON').result.current).toBe(false);   // released: the .om path draws, as before the flip
-      expect(getPinnedIndex).not.toHaveBeenCalled();
-    } finally {
-      delete window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__;
+    for (const kill of ['__RAW_DISABLE_RASTER_OWN_TEMPERATURE__', '__RAW_DISABLE_RASTER_OWN_FRAMES__']) {
+      getPinnedIndex.mockClear();
+      window[kill] = true;
+      try {
+        expect(run('temperature', 'ICON').result.current).toBe(true);   // claimed: no Open-Meteo, the status line says unavailable
+        expect(getPinnedIndex).not.toHaveBeenCalled();                  // and our frames are off too
+      } finally {
+        delete window[kill];
+      }
     }
+    staticSetEnabled.mockImplementation((key) => key !== 'ICON/weather/temperature/global_0p125');   // the per-set kill
+    expect(run('temperature', 'ICON').result.current).toBe(true);
+  });
+
+  test('THE KILL NEVER REQUESTS .om: under every kill the .om layer list drops ICON air temperature; GFS keeps it', () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    const omLayersFor = (model) => renderHook(() => useOwnRasterLayers({
+      mapInstance: null, activeModel: model, activeLayers: ['temperature'], timeOffsetHours: 0, theme: 'dark',
+    })).result.current;
+    for (const kill of [null, '__RAW_DISABLE_RASTER_OWN_TEMPERATURE__', '__RAW_DISABLE_RASTER_OWN_FRAMES__']) {
+      if (kill) window[kill] = true;
+      try {
+        expect(omLayersFor('ICON')).toEqual([]);              // MapWebGL's .om list (and its temporal preloader) never sees it
+        expect(omLayersFor('GFS')).toEqual(['temperature']);  // unchanged: GFS is not flipped
+      } finally {
+        if (kill) delete window[kill];
+      }
+    }
+    staticFramesEnabled.mockReturnValue(false);               // the static-frames global kill
+    expect(omLayersFor('ICON')).toEqual([]);
   });
 
   test('NO .om FALLBACK for ICON air temperature (2026-11-18): an unpublished set keeps the layer claimed and says unavailable', async () => {

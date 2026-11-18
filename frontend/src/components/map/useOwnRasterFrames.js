@@ -314,10 +314,11 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     setWanted(layer, win, st.onFieldCb);
   }, [engaged, index, fbIndex, timeOffsetHours, layer, M, gen]);
 
-  // NO .om FALLBACK for an own-only model of a handover layer (ICON air temperature, 2026-11-18): while our frames are wanted the
-  // layer stays claimed, so MapWebGL never draws the Open-Meteo copy: not on a cold toggle, not on a missing set, index or hour.
-  // The status line says "unavailable" meanwhile (1c and step 4). The layer's kill (ownFramesOn false) releases it, as before.
-  if (wanted && ownOnlyFor(layer, M)) return true;
+  // NO .om FALLBACK for an own-only model of a handover layer (ICON air temperature, 2026-11-18): while the layer is on, it stays
+  // claimed, so MapWebGL never draws (or asks Open-Meteo for) the .om copy: not on a cold toggle, not on a missing set, index or
+  // hour, and NOT under a kill either (the director, relaying the owner: no kill switch falls back to Open-Meteo). A kill (layer,
+  // own-frames or per-set) only stops our frames; the status line then says "unavailable" (1c), as for gusts and currents.
+  if (active && ownOnlyFor(layer, M)) return true;
   if (!handoverLayer(layer) || (typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_HANDOVER__ === true)) return engaged;
   return engaged && shown;
 }
