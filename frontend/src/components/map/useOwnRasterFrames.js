@@ -23,7 +23,7 @@ import { GUST_LUT, gustScale } from './gustPalette';
 import { CURRENTS_LUT, currentsScale } from './currentsPalette';
 import { loadDownscale, setDownscaled } from './ownRasterDownscale';
 import {
-  OWN_ONLY_LAYERS, endNoteText, sourceModel, combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
+  OWN_ONLY_LAYERS, ownOnlyFor, endNoteText, sourceModel, combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
   planWindow, setEngaged, setWanted, tel, ownWindowRadius,
 } from './ownRasterFrames';
 
@@ -163,7 +163,8 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
 
   // 1c. OWN-ONLY layers (gusts): no .om path behind them, so a miss (killed, set not published, no index) draws nothing. Say so
   // on the status line rather than show an unexplained empty map.
-  const ownOnly = OWN_ONLY_LAYERS.includes(layer);
+  // Own-only per model too (ICON air temperature, 2026-11-18): ownOnlyFor.
+  const ownOnly = OWN_ONLY_LAYERS.includes(layer) || ownOnlyFor(layer, M);
   useEffect(() => {
     if (!ownOnly || !active || drawing || rasterReadoutKilled()) return undefined;
     const name = RASTER_NAMES[layer] || layer;
@@ -313,6 +314,10 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     setWanted(layer, win, st.onFieldCb);
   }, [engaged, index, fbIndex, timeOffsetHours, layer, M, gen]);
 
+  // NO .om FALLBACK for an own-only model of a handover layer (ICON air temperature, 2026-11-18): while our frames are wanted the
+  // layer stays claimed, so MapWebGL never draws the Open-Meteo copy: not on a cold toggle, not on a missing set, index or hour.
+  // The status line says "unavailable" meanwhile (1c and step 4). The layer's kill (ownFramesOn false) releases it, as before.
+  if (wanted && ownOnlyFor(layer, M)) return true;
   if (!handoverLayer(layer) || (typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_HANDOVER__ === true)) return engaged;
   return engaged && shown;
 }

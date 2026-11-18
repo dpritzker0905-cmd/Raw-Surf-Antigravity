@@ -106,9 +106,35 @@ describe('a layer whose set is not published yet falls back to .om (lever on)', 
   test('without the lever none of them engages on any model (default-OFF pending the owner): the .om path draws', () => {
     delete window.__RAW_RASTER_OWN_FRAMES__;
     for (const layer of ['fog', 'water_temp', 'temperature']) for (const model of ['GFS', 'EURO', 'ICON']) {
+      if (layer === 'temperature' && model === 'ICON') continue;   // ON by default since 2026-11-18 (the 0.125-degree set)
       expect(run(layer, model).result.current).toBe(false);
     }
     expect(getPinnedIndex).not.toHaveBeenCalled();
+  });
+
+  test('ICON air temperature engages without the lever (2026-11-18) and its kill puts it back on .om', () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    run('temperature', 'ICON');
+    expect(getPinnedIndex).toHaveBeenCalledWith('ICON/weather/temperature/global_0p125');
+    getPinnedIndex.mockClear();
+    window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true;
+    try {
+      expect(run('temperature', 'ICON').result.current).toBe(false);   // released: the .om path draws, as before the flip
+      expect(getPinnedIndex).not.toHaveBeenCalled();
+    } finally {
+      delete window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__;
+    }
+  });
+
+  test('NO .om FALLBACK for ICON air temperature (2026-11-18): an unpublished set keeps the layer claimed and says unavailable', async () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    getPinnedIndex.mockResolvedValue(null);                            // no set in latest.json
+    const { result } = run('temperature', 'ICON');
+    expect(result.current).toBe(true);                                 // claimed at once: no cold-toggle .om draw either
+    await waitFor(() => expect(tel().misses.no_index).toBeGreaterThan(0));
+    expect(result.current).toBe(true);                                 // still claimed after the miss: nothing draws, never .om
+    const { result: gfs } = run('temperature', 'GFS');                 // GFS is not flipped: unchanged
+    expect(gfs.current).toBe(false);
   });
 });
 

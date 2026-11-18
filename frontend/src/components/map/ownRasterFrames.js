@@ -59,7 +59,10 @@ export const OWN_RASTER_SETS = {
     models: { GFS: 'GFS/weather/temperature/global_0p5', EURO: 'EURO/weather/temperature/global_0p25', ICON: 'ICON/weather/temperature/global_0p125' },
     // `workerDecode`: decode the one drawn field off the main thread (ownRasterDecode), as the own-only layers do. A 0.125-degree
     // frame is 4.15 M nodes, four times a 0.25-degree one; the shared path would parse every field to Float64 on the main thread.
-    fallback: null, field: TEMP_FIELD, unit: '°C', workerDecode: true,
+    // `ownOnlyModels` (2026-11-18, the owner via the director: "cut Open-Meteo out of all user data", NO .om fallback): with ICON
+    // picked the layer is drawn from our frames or not at all. A missing set, index or hour shows "unavailable" on the status line
+    // (the gusts / currents rule), never the .om copy.
+    fallback: null, field: TEMP_FIELD, unit: '°C', workerDecode: true, ownOnlyModels: ['ICON'],
   },
   // FOG (2026-11-14): GFS surface visibility, the field the .om path draws for EVERY model (it pins ncep_gfs025 for fog,
   // openMeteoEndpoints.js), so every model reads the GFS set here too: the same field under the same label as before.
@@ -132,6 +135,12 @@ export function endNoteText(layer, model, lastMs, runMs) {
 }
 /** Layers drawn ONLY from our own frames (no .om path behind them): the picker shows them, a miss shows nothing. */
 export const OWN_ONLY_LAYERS = Object.freeze(Object.keys(OWN_RASTER_SETS).filter((l) => OWN_RASTER_SETS[l].ownOnly));
+/** Is this layer drawn ONLY from our frames for this model? Own-only layers for every model; a layer that lists `ownOnlyModels`
+ *  for those models (ICON air temperature, 2026-11-18: no Open-Meteo fallback). A miss then shows "unavailable", not the .om. */
+export function ownOnlyFor(layer, model = 'GFS') {
+  const set = OWN_RASTER_SETS[layer];
+  return !!set && (!!set.ownOnly || (set.ownOnlyModels || []).includes(up(model)));
+}
 // Who the frames come from, for the legend credit and the status line.
 export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON', CMEMS: 'Copernicus Marine' };
 const up = (m) => String(m || 'GFS').toUpperCase();

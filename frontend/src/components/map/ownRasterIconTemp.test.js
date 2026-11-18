@@ -4,7 +4,7 @@
  * Pins: the set key, the default (ICON only), the kill back to the .om path, the off-main-thread decode, and the phone memory cap.
  */
 import {
-  OWN_RASTER_SETS, DEFAULT_ON_MODELS, HANDHELD_NODE_BUDGET, TEMP_FIELD, ownFramesOn, setKey, loadField, getField,
+  OWN_RASTER_SETS, DEFAULT_ON_MODELS, HANDHELD_NODE_BUDGET, TEMP_FIELD, ownFramesOn, ownOnlyFor, setKey, loadField, getField,
   _resetOwnRasterFramesForTest,
 } from './ownRasterFrames';
 import { RASTER_SET_KEYS } from './staticRasterSets';
@@ -56,6 +56,16 @@ describe('ICON air temperature at 0.125 deg (2026-11-18)', () => {
     expect(setKey('temperature', 'GFS')).toBe('GFS/weather/temperature/global_0p5');
     expect(setKey('temperature', 'EURO')).toBe('EURO/weather/temperature/global_0p25');
     expect(OWN_RASTER_SETS.temperature.field).toBe(TEMP_FIELD);
+  });
+
+  test('own frames ONLY for ICON temperature (no .om fallback); GFS / EURO temperature keep their .om path; gusts stay own-only', () => {
+    expect(ownOnlyFor('temperature', 'ICON')).toBe(true);
+    expect(ownOnlyFor('temperature', 'icon')).toBe(true);
+    expect(ownOnlyFor('temperature', 'GFS')).toBe(false);
+    expect(ownOnlyFor('temperature', 'EURO')).toBe(false);
+    expect(ownOnlyFor('gusts', 'GFS')).toBe(true);
+    expect(ownOnlyFor('fog', 'ICON')).toBe(false);
+    expect(ownOnlyFor('nope', 'ICON')).toBe(false);
   });
 
   test('ON by default for ICON only, with no lever', () => {

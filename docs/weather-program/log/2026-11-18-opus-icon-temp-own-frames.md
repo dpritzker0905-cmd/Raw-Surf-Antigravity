@@ -37,8 +37,18 @@ Evidence, none of it new in this PR:
   - a handheld node budget of four 0.125-degree frames (~66 MB of Float32). The ±1 window fits, and 0.25-degree sets never reach
     the budget.
 - `staticRasterSets.js`: the 0.125 key is listed.
+- **NO `.om` FALLBACK** (owner's word via the director, ~23:00Z: "cut Open-Meteo out of all user data; internal testing only",
+  no `.om` fallback). The temperature set lists `ownOnlyModels: ['ICON']`, read through `ownOnlyFor(layer, model)`.
+  - While ICON temperature's own frames are on, `useOwnRasterFrames` keeps the layer claimed. MapWebGL therefore never draws
+    the Open-Meteo copy: not on a cold toggle, not on a missing set or index, not on a missing hour.
+  - The status line shows "Air Temp: no published forecast yet" or "Air Temp: no forecast for this hour" (the gusts / currents
+    rule).
+  - Past ICON's 180 h the layer shows "no forecast for this hour". The `.om` `dwd_icon` also ends at ICON's horizon.
 - **Kill:** `window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true`. The global own-frames kill and the per-set kill also work.
-  Each returns ICON temperature to the `.om` path, as before. GFS and EURO temperature are unchanged (OFF).
+  Each returns ICON temperature to the `.om` path, as before. **Open question for the director:** under the owner's new rule,
+  the kill may instead need to show "unavailable" (no `.om` at all). It is left as the old behaviour here because it is an
+  operator's emergency lever, not a user path.
+- GFS and EURO temperature are unchanged (OFF, `.om`).
 - Frame size, measured: 2.65 MB gzipped (8.30 MB raw) per frame, against 1.1-5 MB per hour on the `.om` path
   (`2026-10-22-claude-raster-instant.md`).
 
