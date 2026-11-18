@@ -197,7 +197,7 @@ SPECS = {
     "precipitation_icon_0p125": {
         "target": {"model": "ICON", "domain": "weather", "layer": "precipitation", "region_id": "global_0p125"},
         "field": fb.PRECIP_MM_H, "idx": ("tot_prec", ("TOT_PREC",)), "convert": lambda a: a, "grid": "0p125",
-        "valid": VALID_MM_H, "clip": None, "env": "FRAME_RASTER_PRECIP_ICON_0P125", "default_on": False, "frame_plane": True,
+        "valid": VALID_MM_H, "clip": None, "env": "FRAME_RASTER_PRECIP_ICON_0P125", "default_on": True, "frame_plane": True,
         "value_kind": "precipitation_rate", "value_unit": "mm/h",
         "source_dataset": "DWD ICON global (icosahedral R3B7) TOT_PREC, totals differenced to the preceding step, "
                           "area mean (sampled) onto 0.125 deg: 3 x 3 sub-points per box, nearest cell each; not conservative per cell",
@@ -240,7 +240,7 @@ SPECS = {
     "water_temp": {
         "target": {"model": "GFS", "domain": "weather", "layer": "water_temp", "region_id": "global_0p25"},
         "field": fb.TEMP_C, "idx": ("TMP", "surface"), "convert": lambda a: a - 273.15, "grid": "0p25",
-        "valid": (-95.0, 90.0), "clip": None, "env": "FRAME_RASTER_WATER_TEMP", "default_on": False,
+        "valid": (-95.0, 90.0), "clip": None, "env": "FRAME_RASTER_WATER_TEMP", "default_on": True,
         "value_kind": "skin_temperature", "value_unit": "degC",
         "source_dataset": "gfs.pgrb2.0p25 TMP surface (skin temperature; SST over the ocean), every point",
         "hours": F_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
@@ -278,7 +278,7 @@ SPECS = {
     "cloud_cover_euro": {
         "target": {"model": "EURO", "domain": "weather", "layer": "cloud_cover", "region_id": "global_0p25"},
         "field": fb.CLOUD_PCT, "idx": ("tcc", "sfc"), "convert": lambda a: a * 100.0, "grid": "0p25",
-        "valid": (-0.5, 100.5), "clip": (0.0, 100.0), "env": "FRAME_RASTER_CLOUD_EURO", "default_on": False,
+        "valid": (-0.5, 100.5), "clip": (0.0, 100.0), "env": "FRAME_RASTER_CLOUD_EURO", "default_on": True,
         "value_kind": "cloud_cover", "value_unit": "%",
         "source_dataset": "ECMWF IFS open data, oper fc 0p25 tcc (total cloud cover, x 100), every point",
         "hours": tuple(range(0, 145, 3)) + tuple(range(150, 241, 6)), "source": "ecmwf", "upstream_provider": "ecmwf",
@@ -290,7 +290,7 @@ SPECS = {
     "temperature_icon": {
         "target": {"model": "ICON", "domain": "weather", "layer": "temperature", "region_id": "global_0p5"},
         "field": fb.TEMP_C, "idx": ("t_2m", ("T_2M",)), "convert": lambda a: a - 273.15,
-        "valid": (-95.0, 65.0), "clip": None, "env": "FRAME_RASTER_TEMPERATURE_ICON", "default_on": False, "frame_plane": True,
+        "valid": (-95.0, 65.0), "clip": None, "env": "FRAME_RASTER_TEMPERATURE_ICON", "default_on": True, "frame_plane": True,
         "value_kind": "temperature_2m", "value_unit": "degC",
         "source_dataset": "DWD ICON global (icosahedral R3B7) T_2M, onto 0.5 deg as pressure_icon",
         "hours": tuple(range(0, 181, 3)), "source": "icon", "upstream_provider": "dwd",
@@ -304,7 +304,7 @@ SPECS = {
     "temperature_icon_0p125": {
         "target": {"model": "ICON", "domain": "weather", "layer": "temperature", "region_id": "global_0p125"},
         "field": fb.TEMP_C, "idx": ("t_2m", ("T_2M",)), "convert": lambda a: a - 273.15, "grid": "0p125",
-        "valid": (-95.0, 65.0), "clip": None, "env": "FRAME_RASTER_TEMPERATURE_ICON_0P125", "default_on": False,
+        "valid": (-95.0, 65.0), "clip": None, "env": "FRAME_RASTER_TEMPERATURE_ICON_0P125", "default_on": True,
         "frame_plane": True, "value_kind": "temperature_2m", "value_unit": "degC",
         "source_dataset": "DWD ICON global (icosahedral R3B7) T_2M, nearest cell onto 0.125 deg (DWD's own 0.125 map)",
         "hours": tuple(range(0, 181, 3)), "source": "icon_0p125", "upstream_provider": "dwd",
