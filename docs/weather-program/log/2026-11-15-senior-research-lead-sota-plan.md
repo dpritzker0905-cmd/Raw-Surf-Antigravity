@@ -2467,3 +2467,46 @@ before the read. Then construction fidelity within 0.02 m at every lead, then th
   - Hourly waves mainly remove time-interpolation in days 1-5 (scrub fidelity, rating timing against tide and wind).
     Its skill gain at buoys is UNMEASURED: wave fields change slowly, so expect it to be small. It should not take GC
     budget ahead of the consensus fix.
+
+## 2026-11-17 20:30 -0500 Big-swell weighting: fold it into L1, do not build a separate lever (L1 AMENDMENT 3 DRAFT)
+
+**Sources:**
+- Memory: consensus-decision.md. The big-swell (≥ 3 m) table was binned by OBSERVED Hs, a regression-to-mean
+  artifact. Binned by the forecast, the equal mean's bias is −0.10/−0.04/−0.03 m. LOBO weights were about GFS 0.25 /
+  ECMWF 0.75 / GWAM 0 (−7%, short window). Pooled weighting gained ≤ 3.6%.
+- Literature (Consensus):
+  - Pan 2016 (Water Sci. Eng.): locally weighted multi-model weights beat the mean for typhoon peak waves.
+  - Majumder 2018 (J. Oper. Oceanogr.): a modified super-ensemble beats regression for cyclones.
+  - Ren 2025 (Ocean Eng.): a gated big-wave regressor.
+  - Han 2026 (JGR MLC): a Rayleigh-weighted loss, −14.9% high-wave RMSE.
+  - So regime-aware combination is a recognised SOTA direction, but these papers show gains in case studies, not
+    against a calibrated EMOS.
+- Cross-checks: Reflection Beam-1.0, SubQ (answered as subq-preview: the new savant-1.4 needs a Claude Code restart),
+  LongCat-2.5 (MCP, one paid submit, sha b6a777cc…). All three agree on the structure.
+
+**The helper's 0.657 vs 0.576 m (served GFS vs equal, big swell, +24 h): its binning variable is unknown.**
+- If it was binned by the observation, it repeats the 2026-09-30 artifact. It must be re-read binned by the FORECAST
+  (the equal mean) before it carries weight.
+
+**Amendment 3 to the L1 prereg (pre-registered NOW, before any TEST fetch, unconditionally; LongCat's critical
+finding):**
+1. **Arm E3 (secondary):** EMOS whose mean coefficients are a smooth function of the forecast mean (a natural spline in
+   log of the equal-mean forecast, 3 knots at its TRAIN quantiles). Ridge-shrunk toward E2's coefficients, with λ by
+   blocked CV inside TRAIN only. It is NOT conditional on step (a): the "add it if it survives" path is a forking-paths
+   leak and is struck.
+2. Step (a), the forecast-binned big-swell read, runs on TRAIN-period archive rows only. It is reported and never used
+   to choose E3's form.
+3. **Big-swell definition:** forecast equal-mean ≥ 3.0 m, fixed now. 2.5 and 4.0 m are reported as sensitivity, not
+   gated.
+4. **E3 gate:** CRPS of E3 vs E2 in the ≥ 3.0 m forecast bin, CI lower bound > 0, AND pooled not significantly worse.
+   It is tested with E2's primary gate under Holm across the gating hypotheses (primary E2-vs-R2 first, then E3).
+5. **Required second baseline for E2:** the R2 amendment's EMOS-fitted deterministic of the EQUAL 3-model mean (GWAM
+   included). R1 already includes GWAM.
+   - The ensembles omit GWAM because DWD publishes no open wave ensemble. Its deterministic enters E2 and E3 as a third
+     mean covariate (pre-registered), so the served member set is not silently dropped.
+6. **Reliability:** PIT histogram reported per basin. The shuffle control applies to E3 as well.
+
+**Not adopted:**
+- A standalone regime-weighting lever. Pooled weighting gained ≤ 3.6%, and forecast-binned big-swell bias is small.
+  A separate lever would compete for the same GC/serving budget.
+- Reflection's note: "a regime lever may be unnecessary". E3 is a cheap nested test inside L1, not a build.
