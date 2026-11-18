@@ -1545,3 +1545,31 @@ A stored estimate can be estimated again in a browser branch with different sour
 - Rule: every relayed owner decision carries its clock time and verbatim words. A lane acting on a relay re-reads the
   board (and the relaying session's latest message) for a newer word on the same topic before it builds. When two
   differ, the later one governs.
+
+### 2026-11-17 — L-O10 · A merge gate that a process cannot check is advice, not a gate
+- What happened: over 2026-11-17/18 UTC, fourteen merges reached `dev` without the advisor's line on the head they
+  merged, through:
+  - a leftover merge loop;
+  - lanes' hand merges (#928, #1001, #937, #1017);
+  - lane-set auto-merge (#988, #990, #993);
+  - an unreviewed batch (#1012, #1016).
+  Auto-merge was also set on a HELD PR (#1005), caught in time. #958 is being reverted (#1014). Several merges had the
+  owner's "merge when green" typed in a lane, and nobody who merged checked the gate file. The advisor read most of
+  them after the fact and found the content harmless: luck in the content, not strength in the gate.
+- Rule (BRAIN_RULES §24):
+  - the owner's word sets timing; the gate line on the exact current head is still required;
+  - no GitHub auto-merge;
+  - exactly one merge loop, with a lock and a heartbeat;
+  - a named fallback when the advisor cannot read;
+  - verify any stop of a background loop against the process list.
+- Next mechanical step: a required commit status that only the gated loop posts, so GitHub itself refuses any other
+  merge. It changes repository settings, so it waits on the owner's word.
+
+### 2026-11-17 — L-P47 · Rechain checklist: the four things that turned a clean rechain red
+- `SCOREBOARD.md`: keep both sides' rows and place each by timestamp. The audit carries a lower bound across rows, so
+  one early row below a later one fails `backend-estate-coverage` (#928 failed twice).
+- A floor-staleness "N below what CI last observed" message means the branch lacks `dev`'s newer floor fragments:
+  merge `dev` in, and do not add a fragment. Only a PR that removes tests writes one (`rederive_floor.py --add`).
+- A new raster set's env switch must also be listed in `data-health-monitor.yml` (`test_raster_set_freshness`).
+- `backend-sim-composition-guards` CANCELLED at its 25-minute timeout is not a test failure: read the log, then rerun
+  only the failed job.

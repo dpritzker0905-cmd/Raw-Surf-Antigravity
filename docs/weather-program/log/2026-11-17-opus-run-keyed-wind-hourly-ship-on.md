@@ -155,3 +155,14 @@ raw-surf-backend" instead. The ledger fragment had not merged; its lines carry n
 - **What I check:** the `[Product GC]` line and any `::warning::` in both runs' logs, and the counts by read-only SQL after each
   run.
 - **Any miss is a kill** (repository variable `PRODUCT_RUN_KEYED_NAMES = '0'`, David's word, or a revert).
+
+## 01:40Z (2026-11-18): FUSE B's release wired (the advisor's limit on ad10e5ca0)
+
+The advisor passed #1005 at ad10e5ca0 (PASS WITH LIMITS). One limit was that FUSE B had no release lever. About three missed
+sweeps in a row push the backlog past 60 % of the listing, and it then refuses every sweep while the bucket grows.
+**This follow-up:**
+- Both GC lanes pass `PRODUCT_GC_MAX_DELETE_SHARE: ${{ vars.PRODUCT_GC_MAX_DELETE_SHARE || '0.6' }}`.
+- The docstring states the release, beside FUSE A's. Once a person has checked that the head is complete (its referenced count
+  near the live set), the owner (David) raises the variable (e.g. '0.9') until the object count is back, then unsets it.
+- A test pins both workflow lines.
+- No change to the default behaviour.

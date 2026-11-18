@@ -17,6 +17,7 @@ from services.weather_pipeline import mop_serving
 from services.weather_pipeline import sea_inputs
 from services.weather_pipeline import sim_rating
 from services.weather_pipeline import spot_conditions
+from services.weather_pipeline import surf_height_convention as _conv
 from services.weather_pipeline import surf_point
 from services.weather_pipeline import tide as tide_mod
 from services import surf_conditions
@@ -64,11 +65,19 @@ def stubs(monkeypatch):
     monkeypatch.setattr(tide_mod, "tide_norm_at", tide_at)
     monkeypatch.setattr(mop_serving, "nearshore_for_point", mop_at)
     calls = []
+    LOW_PASSES.clear()
     real = surf_point.estimate_surf_at
 
     def spy(lat, lng, *a, **k):
         out = real(lat, lng, *a, **k)
-        calls.append(out[0])
+        # SURF_FACE_RANGE (on by default): /point runs the SAME chain a second time for the LOW end of the face range,
+        # inside `significant_statistic()`. That pass is not a served height. It is counted apart, so "exactly once"
+        # below still means the SERVED height, and its inputs are recorded to prove they are the hour's own.
+        if _conv.in_significant_statistic():
+            LOW_PASSES.append({"water_level_m": k.get("water_level_m"), "nearshore": k.get("nearshore")})
+        else:
+            calls.append(out[0])
+            SERVED_INPUTS.append({"water_level_m": k.get("water_level_m"), "nearshore": k.get("nearshore")})
         return out
     monkeypatch.setattr(surf_point, "estimate_surf_at", spy)
     monkeypatch.setattr(sim_rating, "estimate_surf_at", spy)
@@ -77,10 +86,17 @@ def stubs(monkeypatch):
     return calls
 
 
+LOW_PASSES, SERVED_INPUTS = [], []
+
+
 def _last(calls, fn):
-    n = len(calls)
+    n, n_low = len(calls), len(LOW_PASSES)
     fn()
     assert len(calls) == n + 1, "the surface must call estimate_surf_at exactly once"
+    new_low = LOW_PASSES[n_low:]
+    assert len(new_low) <= 1, "at most one face-range pass per served height"
+    if new_low:                          # the low end breaks in the SAME water as the height it sits beside
+        assert new_low[0] == SERVED_INPUTS[-1], (new_low[0], SERVED_INPUTS[-1])
     return calls[-1]
 
 
