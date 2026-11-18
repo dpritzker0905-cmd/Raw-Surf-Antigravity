@@ -58,7 +58,11 @@ def test_each_set_has_the_agreed_key_grid_hours_field_and_source(name):
     assert sp["credit"] and sp["license"] and sp["source_url"].startswith("https://")
 
 
-@pytest.mark.parametrize("name", sorted(NEW))
+# water_temp, temperature_icon and cloud_cover_euro ship ON since 2026-11-17 (the owner's rule): test_raster_ship_on.py.
+STILL_DARK = sorted(set(NEW) - {"water_temp", "temperature_icon", "cloud_cover_euro"})
+
+
+@pytest.mark.parametrize("name", STILL_DARK)
 def test_each_set_is_dark_until_its_own_variable_is_1(name, monkeypatch, capsys):
     assert fsr.SPECS[name]["default_on"] is False and not fsr.enabled(name)
     assert script.main(["--set", name, "--out-dir", "unused"]) == 0 and "skipped" in capsys.readouterr().out
@@ -68,7 +72,7 @@ def test_each_set_is_dark_until_its_own_variable_is_1(name, monkeypatch, capsys)
     assert fsr.enabled(name)
 
 
-@pytest.mark.parametrize("name", sorted(NEW))
+@pytest.mark.parametrize("name", STILL_DARK)
 def test_the_pilots_workflow_has_a_dark_step_per_set(name):
     yml = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
     env = NEW[name][1]
