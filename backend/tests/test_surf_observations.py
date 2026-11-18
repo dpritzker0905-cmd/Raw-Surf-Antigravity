@@ -371,7 +371,28 @@ async def test_client_build_is_stored_and_shape_checked(world):
 CONSENT_URL = "/api/surf-observations/consent"
 
 
-async def test_consent_is_off_by_default_and_each_choice_is_appended(world):
+@pytest.fixture
+def final_wording(monkeypatch):
+    """Treat the built-in draft wording as final (its [COMPANY] / [PRIVACY NOTICE LINK] markers would otherwise
+    refuse every grant): for tests of the consent MECHANICS, not of the placeholders."""
+    from services import surf_truth_consent as stc
+    monkeypatch.setattr(stc, "PLACEHOLDERS", ())
+
+
+async def test_a_grant_under_draft_placeholders_is_409_and_a_withdrawal_still_works(world):
+    from services import surf_truth_consent as stc
+    body = (await world.client.get(CONSENT_URL, headers=_token("surfer"))).json()
+    assert body["final"] is False and stc.COMPANY_PLACEHOLDER in body["text"]
+    on = await world.client.put(CONSENT_URL, json={"granted": True}, headers=_token("surfer"))
+    assert on.status_code == 409
+    off = await world.client.put(CONSENT_URL, json={"granted": False, "source": "settings"}, headers=_token("surfer"))
+    assert off.status_code == 200 and off.json()["granted"] is False
+    async with world.maker() as db:
+        history = (await db.execute(select(SurfTruthConsentEvent))).scalars().all()
+    assert [(e.granted, e.source) for e in history] == [(False, "settings")]
+
+
+async def test_consent_is_off_by_default_and_each_choice_is_appended(world, final_wording):
     from services import surf_truth_consent as stc
     assert (await world.client.get(CONSENT_URL)).status_code == 401
     r = await world.client.get(CONSENT_URL, headers=_token("surfer"))
@@ -400,7 +421,7 @@ async def test_consent_body_cannot_set_version_owner_or_unknown_source(world, ba
         assert (await db.execute(select(SurfTruthConsentEvent))).scalars().all() == []
 
 
-async def test_observation_records_the_consent_in_force_when_received(world):
+async def test_observation_records_the_consent_in_force_when_received(world, final_wording):
     from services import surf_truth_consent as stc
     assert (await world.client.post(URL, json=_checkin(), headers=_token("surfer"))).status_code == 200
     await world.client.put(CONSENT_URL, json={"granted": True}, headers=_token("surfer"))
@@ -422,8 +443,18 @@ def test_the_consent_text_promises_only_what_the_code_does():
     from services import surf_truth_retention as ret
     assert ret.ERASURE_BOUND.days == 7                      # the promise and the retention bound move together
     # each group of exported fields is named in the text
-    named = {"spot": ("spot_id",), "to the minute": ("received_at",), "how far": ("gps_distance_m", "exif_distance_m"),
+    named = {"spot": ("spot_id",), "to the minute": ("received_at",),
+             "roughly how far": ("gps_distance_band", "exif_distance_band"),
              "app version": ("client_build",), "same for all your reports": ("observer_key",)}
     for phrase, fields in named.items():
         assert phrase in text, phrase
         assert set(fields) <= set(FIELDS), fields
+    # California precise geolocation (Civ. Code 1798.140(w)): a radius of 1,850 ft. No exact distance leaves, and the
+    # narrowest band the text promises ("never closer than 1 km") is what the export actually uses.
+    from services import surf_truth_export as ste
+    assert not {"gps_distance_m", "exif_distance_m", "gps_check"} & set(FIELDS)
+    assert "never closer than 1 km" in text and ste.DISTANCE_BANDS[0] == (1000.0, "<1 km")
+    # 2026-11-18 legal research: Art. 7(3) (earlier use stays lawful), withdrawal as easy as consent, the controller
+    # named and the privacy notice linked (still DRAFT placeholders until David supplies them)
+    assert "already made stay" in text and "this same switch" in text
+    assert stc.COMPANY_PLACEHOLDER.lower() in text and stc.PRIVACY_NOTICE_PLACEHOLDER.lower() in text

@@ -257,6 +257,11 @@ async def save_tos_content(
         if not ok:
             raise HTTPException(status_code=400,
                                 detail="The forecast data consent needs exactly one section with a label and a text")
+        # A draft placeholder ([COMPANY], [PRIVACY NOTICE LINK]) must never become the text people agree to.
+        left = surf_truth_consent.unfilled(str(data.sections[0].get('body') or '') + str(data.sections[0].get('title')))
+        if data.set_active and left:
+            raise HTTPException(status_code=400, detail=(
+                "Fill in " + " and ".join(left) + " before making this consent text active."))
 
     # Check if this version already exists
     existing = await db.execute(

@@ -34,6 +34,9 @@ const TrainingConsent = ({ idPrefix = 'obs', source = 'blind_height_input' }) =>
   }, []);
 
   if (!state) return null;
+  // A wording the server marks not final still carries draft placeholders (no controller name or privacy link yet),
+  // so nobody can agree to it: show nothing rather than the markers. An existing yes stays visible so it can be undone.
+  if (state.final === false && !state.granted) return null;
 
   const id = `${idPrefix}-training-consent`;
   const toggle = async (granted) => {

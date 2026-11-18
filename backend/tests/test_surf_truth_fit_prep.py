@@ -22,7 +22,7 @@ def _row(**over):
             "anchor_status_at_obs": None, "flow": "blind_v1", "spot_id": "s", "spot_lon": 0.0,
             "received_at": "2026-12-01T10:15:00+00:00", "height_value": 3.0, "height_unit": "ft",
             "height_bucket": None, "height_scale": "face", "set_or_avg": "sets", "forecast_shown_before": False,
-            "flags": [], "gps_distance_m": 10.0, "exif_age_s": None, "exif_check": "none", "xp_status": "granted"}
+            "flags": [], "gps_distance_band": "<1 km", "exif_age_s": None, "exif_check": "none", "xp_status": "granted"}
     base.update(over)
     return base
 
@@ -38,12 +38,25 @@ def test_holdout_is_a_fixed_threshold_near_20_percent_and_stable():
 @pytest.mark.parametrize("over,reason", [
     ({"flow": "legacy_report"}, "flow"), ({"forecast_shown_before": True}, "forecast_shown_before"),
     ({"flags": ["duplicate_media"]}, "duplicate_media"), ({"flags": ["no_parent"]}, "no_parent"),
-    ({"gps_distance_m": 2500.0}, "gps_over_2km"), ({"exif_age_s": 11000.0}, "exif_over_3h"),
+    ({"gps_distance_band": "2-10 km"}, "gps_over_2km"), ({"gps_distance_band": ">10 km"}, "gps_over_2km"),
+    ({"exif_age_s": 11000.0}, "exif_over_3h"),
     ({"xp_status": "audit_failed"}, "audit_failed"),
 ])
 def test_exclusions(over, reason):
     assert prep.exclusion_reason(_row(**over)) == reason
     assert prep.exclusion_reason(_row()) is None
+
+
+@pytest.mark.parametrize("metres", [None, 0.0, 999.9, 1000.0, 1999.9, 2000.0, 2000.1, 9999.0, 10000.0, 10000.1, 5e5])
+def test_the_band_cut_is_the_registered_2km_cut_exactly(metres):
+    """Export schema 2 sends bands, not metres (California precise geolocation). The fit's #989 rule 'exclude GPS > 2 km'
+    must give the SAME answer from the band as it did from the exact distance, at and around every edge."""
+    from services import surf_truth_export as ste
+    band = ste.distance_band(metres)
+    assert band in {None, ste.FAR_BAND} | {label for _e, label in ste.DISTANCE_BANDS}
+    excluded_by_band = prep.exclusion_reason(_row(gps_distance_band=band)) == "gps_over_2km"
+    assert excluded_by_band == (metres is not None and metres > 2000)
+    assert prep.SCHEMA == ste.SCHEMA
 
 
 @pytest.mark.parametrize("value,unit,width", [(3.0, "ft", 1.0), (3.5, "ft", 0.5), (1.2, "m", 0.1), (2.0, "m", 1.0)])

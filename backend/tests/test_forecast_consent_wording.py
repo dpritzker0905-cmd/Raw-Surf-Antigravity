@@ -110,7 +110,10 @@ def test_a_version_keeps_its_text_and_a_new_version_asks_again(maker):
     asyncio.run(go())
 
 
-def test_the_default_wordings_version_cannot_be_published_with_other_text(maker):
+def test_the_default_wordings_version_cannot_be_published_with_other_text(maker, monkeypatch):
+    # The version rule, not the placeholders, is under test here: treat the default as final (no markers).
+    monkeypatch.setattr(stc, "PLACEHOLDERS", ())
+
     async def go():
         async with maker() as db:
             await stc.record(db, "ana", True, "settings", now=T0)          # agreed to the built-in default
@@ -121,5 +124,33 @@ def test_the_default_wordings_version_cannot_be_published_with_other_text(maker)
             assert (await stc.wording(db))["text"] == stc.CONSENT_TEXT
             await _publish(db, stc.CONSENT_VERSION, sections=stc.DEFAULT_SECTIONS)   # publishing it unchanged is fine
             assert (await stc.current(db, "ana"))["granted"] is True
+    asyncio.run(go())
+
+
+def test_a_draft_placeholder_blocks_every_grant_but_never_a_withdrawal(maker):
+    """Legal research 2026-11-18: consent must name the controller (GDPR Art. 13(1)(a)). Until David gives the
+    entity name and the privacy-notice link, the default carries visible markers and nobody can agree to it."""
+    async def go():
+        async with maker() as db:
+            words = await stc.wording(db)
+            assert words["final"] is False and stc.unfilled(words["text"]) == list(stc.PLACEHOLDERS)
+            with pytest.raises(stc.WordingNotFinal):
+                await stc.record(db, "ana", True, "settings", now=T0)
+            await stc.record(db, "ben", False, "settings", now=T0)              # a withdrawal is always recorded
+            await db.commit()
+            assert await stc.granted_now(db, {"ana", "ben"}) == set()
+            # the admin cannot make a text with a marker active ...
+            with pytest.raises(HTTPException) as exc:
+                await _publish(db, "1.0", body="When on, [COMPANY] uses your reports.")
+            assert exc.value.status_code == 400 and "[COMPANY]" in exc.value.detail
+            with pytest.raises(HTTPException):
+                await _publish(db, "1.0", sections=stc.DEFAULT_SECTIONS)
+            # ... and once filled in under a new version, a grant counts
+            await _publish(db, "1.0", body=stc.CONSENT_TEXT.replace(stc.COMPANY_PLACEHOLDER, "Example Ltd").replace(
+                stc.PRIVACY_NOTICE_PLACEHOLDER, "https://example.invalid/privacy"))
+            assert (await stc.wording(db))["final"] is True
+            await stc.record(db, "ana", True, "settings", now=T0 + timedelta(minutes=1))
+            await db.commit()
+            assert await stc.granted_now(db, {"ana"}) == {"ana"}
     asyncio.run(go())
 

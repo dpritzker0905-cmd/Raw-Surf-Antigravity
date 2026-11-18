@@ -261,7 +261,8 @@ class ConsentIn(BaseModel):
 async def _consent_reply(db: AsyncSession, user_id: str) -> dict:
     words = await surf_truth_consent.wording(db)
     state = await surf_truth_consent.current(db, user_id, version=words["version"])
-    return {**state, "current_version": words["version"], "title": words["title"], "text": words["text"]}
+    return {**state, "current_version": words["version"], "title": words["title"], "text": words["text"],
+            "final": words["final"]}
 
 
 @router.get("/surf-observations/consent")
@@ -274,8 +275,12 @@ async def get_consent(db: AsyncSession = Depends(get_db), user_id: str = Depends
 @router.put("/surf-observations/consent")
 async def put_consent(data: ConsentIn, db: AsyncSession = Depends(get_db),
                       user_id: str = Depends(get_current_user_id)):
-    """Record the caller's choice under the current wording (append-only history; the newest choice is in force)."""
-    await surf_truth_consent.record(db, user_id, data.granted, data.source)
+    """Record the caller's choice under the current wording (append-only history; the newest choice is in force).
+    A grant under a wording that still has draft placeholders is refused with 409; a withdrawal always succeeds."""
+    try:
+        await surf_truth_consent.record(db, user_id, data.granted, data.source)
+    except surf_truth_consent.WordingNotFinal as exc:
+        raise HTTPException(status_code=409, detail="This option is not available yet.") from exc
     await db.commit()
     return await _consent_reply(db, user_id)
 

@@ -51,6 +51,8 @@ def _obs(oid, user, *, flow="blind_v1", at=NOW - timedelta(hours=1), device="dev
 async def world(monkeypatch):
     monkeypatch.setattr(security, "SECRET_KEY", secrets.token_urlsafe(48))
     monkeypatch.setenv(ste.KEY_ENV, KEY)
+    # the export mechanics, not the draft placeholders, are under test (see test_a_draft_wording_exports_nothing)
+    monkeypatch.setattr(stc, "PLACEHOLDERS", ())
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
         for model in (Profile, TosContent, SurfSpot, SurfObservation, SurfTruthAnchor, SurfTruthAnchorEvent, SurfTruthAdminAction,
@@ -108,6 +110,36 @@ async def test_rows_carry_no_identity_position_url_or_converted_height(world):
     for secret in SECRET_VALUES + ("29.0001", "-80.9001", "face_m"):
         assert secret not in text, secret
     assert rows[0]["height_value"] == 4.0 and rows[0]["flags"] == ["range_only"]  # the raw entry IS exported
+
+
+async def test_distances_leave_only_as_bands_of_1km_or_wider(world):
+    """Schema 2 (legal research 2026-11-18): California's precise geolocation is a 1,850 ft (~564 m) radius. The
+    fixture rows sit 12 m (GPS) and 40 m (photo) from a published spot: neither number, nor the 500 m 'ok' check,
+    may leave."""
+    rows, manifest = await _build(world)
+    assert manifest["schema"] == ste.SCHEMA == "raw-surf/surf-truth-export/2"
+    assert manifest["distance_bands"] == ["<1 km", "1-2 km", "2-10 km", ">10 km"]
+    for r in rows:
+        assert (r["gps_distance_band"], r["exif_distance_band"]) == ("<1 km", "<1 km")
+        assert "gps_distance_m" not in r and "exif_distance_m" not in r and "gps_check" not in r
+    assert '"12.0"' not in json.dumps(rows) and "12.0" not in json.dumps(rows) and "40.0" not in json.dumps(rows)
+    # the narrowest band is wider than the legal circle even when the sea takes half the disc
+    narrowest = ste.DISTANCE_BANDS[0][0]
+    assert (narrowest ** 2) / 2 > 564.0 ** 2
+
+
+@pytest.mark.parametrize("metres,band", [(None, None), (0.0, "<1 km"), (999.9, "<1 km"), (1000.0, "1-2 km"),
+                                          (2000.0, "1-2 km"), (2000.1, "2-10 km"), (10000.0, "2-10 km"),
+                                          (10000.1, ">10 km")])
+def test_distance_band_edges(metres, band):
+    assert ste.distance_band(metres) == band
+
+
+async def test_a_draft_wording_exports_nothing(world, monkeypatch):
+    """While the consent text still has its [COMPANY] / [PRIVACY NOTICE LINK] markers nobody holds a valid grant."""
+    monkeypatch.setattr(stc, "PLACEHOLDERS", (stc.COMPANY_PLACEHOLDER, stc.PRIVACY_NOTICE_PLACEHOLDER))
+    rows, manifest = await _build(world)
+    assert rows == [] and manifest["excluded_no_consent"] == 2
 
 
 async def test_pseudonyms_are_stable_per_key_and_differ_across_keys(world):
