@@ -260,3 +260,28 @@ product takes makes both the defect and its fix imaginary.
 **Standing.** No code change is proposed. This branch holds the probe, the fixture and this log as the record; no PR is
 opened for a fix. The ledger fragment on this branch (the close of #930) still needs to reach dev: a docs-and-lab PR for
 that, with the fixture (which other lanes' offline tests need for the same reason), is the one thing I propose.
+
+## 8. The advisor on section 7 (received 2026-11-18 00:53 EST), and what is left. Nothing measured in this section.
+- **A caution on wording, taken:** section 7 shows that today's dev client takes the static path IN THIS HARNESS, with real
+  frames, at five views. It is still not an observation of the deployed site. That sentence stands beside the retraction:
+  the earlier finding was a harness artefact, and the new one is a harness result too, with a harness that now reaches the
+  product's path. Neither has been seen in production.
+- **Is there telemetry that already says how often users land on the thinned path? No** (the advisor read dev): the client
+  keeps per-browser counters only (`window.__RAW_STATIC_FRAMES__`: hits, misses by reason, bytes; `staticFrames.js:84-90`),
+  visible in the HUD with `?diag=1`; nothing is sent anywhere and there is no beacon or metrics route.
+- **The order it recommends, cheapest and least intrusive first, and I agree:**
+  1. THE BACKEND'S OWN REQUEST LOGS. A step served by the thinned path asks the backend for a `/grid_series` page or a `/grid`
+     upgrade; a step served by a static frame asks it for nothing. So `/api/weather/grid_series` and `/grid` requests per
+     day against map loads (`/capabilities` calls, which every map load makes) bound the share from above; split by model
+     and layer from the query string and by hour. A read of logs that already exist: no client change, no new user data, no
+     load.
+  2. ONE OBSERVED SESSION on the dev site: a fresh browser, `?diag=1`, the five views, the counters read before and after,
+     `/api/health` before and after. It says whether the deployed client takes the static path at all, and gives the
+     REASONS for any miss (which the server's logs cannot).
+  3. A CLIENT BEACON only if 1 and 2 leave it open: new collection from users' browsers, so the owner's word, a volume cap,
+     counts by reason only (no coordinates or identifiers), and a kill.
+- **To be written down BEFORE the logs are read** (not written yet, because neither step is authorized yet): which request
+  patterns count as "the thinned path" and which are ordinary (a session's first series page is expected, not a miss), and
+  what share would be worth acting on.
+- Neither step 1 nor step 2 is started. Reading production logs and running a scenario on the dev site are actions outside
+  this offline lane; they wait for the director's or the owner's word.
