@@ -2311,6 +2311,67 @@ unchanged.
   - Scoring uses the archive. If the archive misses a day and the API still serves it at scoring time, the API value is
     used, and that substitution is recorded.
 
+## 09:51 EST 2026-11-18 (`date`) - G4: the advisor's three FINAL edits ADOPTED; the power check and the daily reference archive BUILT on the owner's word (nothing run; no G4 value read)
+**Owner's word** (typed in this session, 2026-11-18, answering "Do you approve the archive workflow and the power-check
+job now?"): "Yes, move forward on the path toward SOTA". It covers building BOTH jobs and the power check's one run (tag
+`tide-g4-power`). The G4 tag and the G4 scored run still each need the owner's word again.
+
+**The advisor's FINAL edits (07:25Z), adopted. They supersede the draft where they differ:**
+1. **The draft's window sentence is withdrawn**: "It crosses the end of the US East Coast seasonal high (Sep-Nov) into the
+   winter low, so dropping S is tested where S is largest". Addendum 1's sentence stands instead: a late-November window
+   tests the mean level in WINTER only. Whether S can be dropped at the seasonal high stays OPEN.
+2. **The reference archive is a plain Actions artifact, NOT "private"** (item 6 said "private"; that word is withdrawn).
+   In a public repo any signed-in user can download it, and Open-Meteo values are not sensitive.
+   - Repo artifact retention, measured 2026-11-18: 90 days (the maximum).
+   - The longest window (84 d) + 3 d = 87 d fits, but tightly. So the job re-uploads the CUMULATIVE archive daily with
+     retention 90; the newest artifact always holds everything.
+3. **The power check uses G3t's SEEN hourly series, for design only.**
+   - Its ONLY output is the pass share (the fraction of 56-day stretches whose (A+M) - D upper end is <= -0.02), printed.
+   - No arm other than A+M against D is scored in it.
+
+**Built (branch `claude/tide-g4-final`, nothing run yet):**
+- `backend/scripts/tide_g4/g4_rules.py`: pure rules, tested.
+  - **Stretches:** 56 consecutive CALENDAR days from each 00Z, a 1-day step, never bridging a held-out week. On G3t's
+    window that gives 48 stretches: 18 in Jan 1 .. Mar 15, 30 in Mar 22 .. Jun 15, and none in Jun 22 .. Jul 24 (33
+    days).
+  - **The pass line:** the upper end <= -0.02 m. A non-finite upper end is a miss.
+  - **The length it fixes:** 56 days if the share >= 0.8, else 84.
+  - **The archive's phases:** nothing before START; archiving until window end + 3 days; then complete.
+  - **Archive rules:**
+    - the last 3 UTC days are asked for on each run;
+    - the FIRST value seen for an hour is kept;
+    - a new archive may start only within 3 days of START (later, a missing previous archive fails the run rather than
+      replacing history with a part of it).
+  - `START = None` and `LEN_DAYS = None` until G4 FINAL commits them, so the archive does nothing until then.
+- `backend/scripts/tide_g4/g4_power.py` with `.github/workflows/tide-g4-power.yml`:
+  - **Trigger:** one-shot tag `tide-g4-power`, no workflow_dispatch.
+  - **Credentials:** AVISO on the FES download only, Copernicus on the check only.
+  - **Steps:** S1 preflight first; A from FES2022b; M as the base mean (2016-2025) of the G3t cell; D only (C, S and A
+    alone are never computed); CO-OPS observed water on G3t's seen window.
+  - **Scoring:** `paired_median_diff(A+M, D)` per stretch: 2000 draws, seed 20261119 (G4's), 2-day blocks.
+  - **Output:** printed with nothing else: the share, the stretch and gauge counts, and the length.
+- `backend/scripts/tide_g4/g4_archive.py` with `.github/workflows/tide-g4-reference-archive.yml`:
+  - **Schedule:** daily at 07:17 UTC (outside the quiet window); workflow_dispatch for a missed day only.
+  - **Secrets:** none. **Permissions:** `contents: read`, plus `actions: read` to download the previous artifact.
+  - **What it saves at the 26 gauge positions** (as G3t asked: CO-OPS metadata rounded to 0.1 degree):
+    - Open-Meteo `sea_level_height_msl` (C) and `_previous_day1` / `_previous_day2` (D);
+    - once, the 365 days of previous_day1 before START (D's datum).
+  - **What it never fetches:** observed water. The embargo holds; a test pins it.
+- `backend/tests/test_tide_g4_rules.py`: 11 tests (also pins: nothing served imports these, the 26 gauges equal G3t's,
+  the 3 reported rows are separate).
+
+**Dry run of the archive, references only, run locally:**
+- 2 gauges, with START temporarily set to 2026-11-16 in a scratch script (not committed).
+- 48 hourly values for each of C, D1 and D2 at each gauge.
+- 8712 datum hours (363 days; G3t's rule needs >= 330 x 24).
+- Phase output: `archiving`.
+
+**Next, in order:**
+1. The advisor reads this branch's head.
+2. On a PASS line, push the tag `tide-g4-power` (the owner's word above) and read the share. The advisor reads it
+   first; I do not open the JSON before the advisor does.
+3. G4 FINAL commits LEN_DAYS, the 26 per-gauge M values and the START timestamp (at least 24 h after the commit, at
+   00Z), and sets `START`/`LEN_DAYS` in `g4_rules.py`, which arms the archive.
 ## 18:20 EST 2026-11-18 (`date`) - Data credits follow provenance (branch `claude/credits-provenance`; the research lead's row 16 of the Open-Meteo exit); no served number changes
 **Why.**
 - The owner, about 23:00Z: open agency providers, and every source is credited where its data is shown.

@@ -84,3 +84,50 @@ Local: 116 raster tests pass (an off-declared interpreter; hosted CI is the auth
 
 The first pilots run after merge must publish all five sets. The check is the public latest.json `run` for each key, and each
 step's conclusion and seconds. The table goes to the director.
+
+## 2026-11-18 14:51Z: post-merge verification of #998 (merged 2026-11-18 03:16:52Z, 70460bea2), with the advisor's five limits
+
+**Published:** the first pilots run after the merge, 44249848808, published all five sets, every one at full coverage (public
+latest.json, writer gh-run-44249848808, run 2026-11-18T00:00:00Z):
+
+| set | frames | step time (first publish) |
+|---|---|---|
+| GFS/weather/water_temp/global_0p25 | 113 / 113 | 20 s |
+| ICON/weather/temperature/global_0p5 | 61 / 61 | 43 s |
+| EURO/weather/cloud_cover/global_0p25 | 65 / 65 | 15 s |
+| ICON/weather/precipitation/global_0p125 | 112 / 112 | **326 s** |
+| ICON/weather/temperature/global_0p125 | 61 / 61 | **373 s** |
+
+**Limit 1, the kill.** Each set is killed by its repository variable set to '0', which is David's word, or by a revert PR. No
+other lever exists.
+
+**Limit 2, readers. A CORRECTION to this log's table and to #998's body.** They said the client reads GFS water_temp and ICON
+temperature 0.5 by default. **It does not.**
+- `ownRasterFrames.js` on dev has `DEFAULT_ON_LAYERS = ['satellite', 'pressure', 'gusts', 'currents']` and
+  `DEFAULT_ON_MODELS = {}`, deliberately, under the no-regression rule:
+  - GFS water_temp stays on the .om gfs013 (0.117 deg, finer than our 0.25 deg set);
+  - ICON temperature stays on .om (our 0.5 deg is coarser than dwd_icon at ~0.125 deg).
+- The other three sets have no client key at all.
+- So **none of the five sets is read by the client by default**: about 410 MB a run published for the lever only
+  (`window.__RAW_RASTER_OWN_FRAMES__`).
+- **What would make them earn their bytes** (a client change and an owner decision, not made here):
+  - point the ICON temperature key at the new 0.125 deg set, which is as fine as dwd_icon, and turn it on by the
+    no-regression rule;
+  - decide EURO cloud and ICON precip 0.125 the same way.
+
+**Limit 3, time against the pre-registered "<= 120 s".** The first publish took **326 s** (ICON precip 0.125) and **373 s** (ICON
+temperature 0.125). That includes the one-off DWD map download, about 50 MB, and every frame built new. **Steady state is
+OWED:** the second run after the merge, pilots 44302521936, is in progress and had not reached those steps at writing. Its two
+step times decide PASS or FAIL, which is recorded in #956's log and here.
+
+**Limit 4, the D-080 live look on dev.** One short look, no script.
+- `/api/health` returned 200 in 1.80 s (14:20:00Z, before) and 200 in 1.34 s (14:45:43Z, after).
+- dev--rawsurf.netlify.app/map (David entered the beta access code), GFS, Water Temp: the legend reads "© Open-Meteo · CC BY 4.0",
+  the .om reader loaded, no own-frames lever is set, and no request went to the water_temp frame set.
+- **This shows Limit 2 live:** the published sets are not drawn by default.
+
+**Limit 5, the buckets** (read-only SQL, ~14:50Z):
+- weather-frames: 1.64 GB, 9,479 objects (1.24 GB before #998; +0.4 GB, the predicted ~410 MB a run; two-run retention makes
+  it about 2.1 GB).
+- All buckets: 70.82 GB against the Pro plan's 100 GB included (Supabase's published allowance, not read from the account).
+- weather-products: 68.37 GB mid-cycle, while two ingests write run-keyed objects; #1005's sweeps bring it back down.
