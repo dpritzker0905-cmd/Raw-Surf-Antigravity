@@ -294,3 +294,13 @@ surf-report photo path, which is a different upload route. Already-stored photos
 backfill is decided.
 Tests +6 (each format: GPS gone, pixels identical, orientation kept; the route: public copy clean, private record
 kept, malformed refused); mutation: keeping APP1 fails. 99 related tests (incl. the upload identity suite) pass.
+## 2026-11-18 15:21Z T1 P4: the export needs the OWNER'S server switch, not just an admin's tick box
+
+The advisor recorded on #1033 that its approval check box is client-side only. Worse, the export route itself is already
+on dev (`POST /api/admin/surf-truth/export`) and `SURF_TRUTH_EXPORT_KEY` is set on Render, while the consent filter (#1024),
+retention (#1034) and counsel's wording are not merged: any admin could have written an unfiltered export. Now the route
+refuses (403) unless the server's environment has `SURF_TRUTH_EXPORTS_ENABLED` exactly `1`, which only David can set
+(Render env); default OFF. This is a privacy gate, not a served number, so it does not follow D-065's ship-on rule.
+The retention job's fresh export (#1034) is left as is: it only REPLACES exports, and none can exist unless the switch
+allowed the first one. Tests +5 (unset, empty, 0, true, yes all refused with nothing written or logged); removing the
+gate fails 5. Guards fragment +5.
