@@ -15,7 +15,7 @@ test('every Open-Meteo raster layer credits Open-Meteo with its licence link', (
 test('radar credits RainViewer; marine and wind layers carry no credit here', () => {
   expect(creditFor('radar').href).toBe('https://www.rainviewer.com/');
   for (const layer of ['waves', 'swell_1', 'swell_2', 'wind_waves', 'wind']) expect(creditFor(layer)).toBeNull();
-  expect(Object.keys(LAYER_CREDITS).sort()).toEqual(['fog', 'pressure', 'radar', 'rain', 'satellite', 'temperature', 'water_temp']);
+  expect(Object.keys(LAYER_CREDITS).sort()).toEqual(['currents', 'fog', 'gusts', 'pressure', 'radar', 'rain', 'satellite', 'temperature', 'water_temp']);
 });
 
 test('renders a real link with an accessible name, opening safely in a new tab', () => {

@@ -477,3 +477,32 @@ No `-enfo-cf` file exists beside the `ef` file after the switch (2026-09-13 +180
 - The rerun's authority, typed by David in THIS session (`local_0d0d332f`) at 2026-11-16 13:30 EST, answering "Rerun the
   long-range wind hindcast for #939, once, from dev, after the 50/51-member fix (#982) merges and the Actions queue is
   quiet?": "Yes, rerun once".
+
+## 2026-11-17 09:57Z Hindcast rerun 43952101715: VOID by its own size rules (advisor read first); the fill plan, recorded before any dispatch
+
+**Outcome (the advisor read the score job's log; neither the advisor nor I opened the report artifact or the run
+page's summary table):** VOID, not a result. Nothing goes into #939. The verdict record: chosen `ens_mean_debias`;
+400 NDBC and 60 ASOS stations; 48 test runs. Void reasons, both size rules registered before any run:
+1. "test half 48 runs over 29 days" (needs >= 60 runs and >= 30 days);
+2. "24 of 122 runs dropped (> 10%)".
+**Cause:** the public ECMWF open-data bucket throttled the fetch. Every shard logged hundreds of HTTP 503 answers
+(27-465 each, about 8,400 in all), and 11 shards gave up on 24 runs after retries. The data exists; the fetch lost it.
+Twenty-four concurrent shards on one public bucket is what got throttled.
+**The per-line numbers in that run's report and summary table were computed on the 98 surviving runs. They are void,
+and they stay unread.**
+
+**Designed counts, from the design alone (no data):** a complete collection gives TEST = runs issued in October 2026
+= 62 runs over 31 days, against the rule (>= 60 runs and >= 30 days). That is a THIN margin:
+- losing 3 test runs voids it;
+- losing both runs of any 2 days voids it;
+- the dropped-run rule allows at most 12 of 122.
+**The thresholds are not moved.**
+
+**The fill (the next run, only on David's word typed in this session):**
+- Collect ONLY the 24 missing runs. Reuse the cached run files, the frozen station list and the truth snapshot of run
+  43952101715 (its artifacts are kept until 2027-02-14).
+- 6 shards, at most 3 at a time (was 24, 12 at a time). Fetch retries raised from 8 to 12, with the back-off cap raised
+  from 60 s to 180 s.
+- Then score ONCE on the complete set. Split, arms and thresholds are unchanged.
+- A run still missing after the fill stays dropped and is never filled. If the sizes are then still short, the gate is
+  VOID again and is reported as such.
