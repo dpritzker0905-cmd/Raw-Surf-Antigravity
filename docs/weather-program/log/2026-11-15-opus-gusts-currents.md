@@ -1,0 +1,480 @@
+# 2026-11-15 — Gusts and Ocean Currents layers (session gusts-currents-layers, Opus)
+
+Owner approval (relayed by the director, local_d6b521eb): add **Gusts** and **Ocean Currents** to the weather picker as
+state-of-the-art lanes on the SAME path the raster layers use (own static frames, `v1/latest.json`, `FRAME_RASTER_*` repo
+variables, `ownRasterFrames.js` client). No second path; no live-backend load; the 14-day / tier contract untouched
+(`LayerAccessResolver.js` and `capabilities.py` are not edited: both layers inherit the model-wide window, as fog and the
+temperatures do, which have no capability rows).
+
+## 1. The path, mapped before any code
+
+- Publisher: `backend/scripts/publish_raster_frames.py --set <name>` → `services/frame_set_raster.py` (`SPECS`, `build_set`,
+  `publish`: frames → index → `latest.json` last, retention, latest-guard) → one pilots step per set in
+  `.github/workflows/forecast-ingest-pilots.yml`, gated `vars.FRAME_IMAGES_PUBLISH == '1' && vars.<VAR> == '1'`.
+- Codec: `services/frame_binary.py` RSWF frames (`encode_plane` one field). Sources: `GfsGribSource` (NOAA AWS byte ranges),
+  `frame_set_raster_sources.py` (ECMWF open data, DWD ICON).
+- Client: `staticRasterSets.js` (keys) → `ownRasterFrames.js` (sets per layer/model, levers, kills, window, LRU) →
+  `useOwnRasterFrames.js` (index pin, window pump, GL layer, LUT per theme, status line) → `ownRasterLayer.js` (R32F
+  texture per frame, step LUT, 160 ms value blend = the animation lane's hook) → `useOwnRasterLayers.js` (one hook per layer;
+  engaged layers leave the `.om` path). Picker + legends: `MapWeatherControls.js` (desktop panel, mobile collapsed float,
+  mobile sheet all map the one `layers` list). Status words: `rasterDrawnFrame.js`. Credit: `LayerDataCredit.js`.
+- Tier gating: `LayerAccessResolver.js` gates models and days only (no per-layer rule), so new layers need no edit there.
+
+## 2. Sources
+
+| | GFS (NOAA) | ECMWF open data | DWD ICON | our fetchers before |
+|---|---|---|---|---|
+| gust | `GUST:surface`, **instantaneous**, f000 (`anl`) to f336, 0.25° | `10fg`: **max** since the previous post-processing (3/6 h window) | `VMAX_10M`: **max** since the last output | `gust` exists as a point variable only, no layer |
+
+Gusts publish **GFS only**: mixing an instantaneous gust (GFS) with window maxima (EURO, ICON) under one label would mix
+meanings. Every model reads the GFS set (as fog does) and the credit names NOAA GFS (a bug fixed on the way: the credit and
+status line named the PICKED model, so fog under EURO was credited to ECMWF; `ownRasterFrames.sourceModel`).
+
+Currents: Copernicus Marine `GLOBAL_ANALYSISFORECAST_PHY_001_024`, `cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i`, surface
+`uo/vo` (elevation index 49, -0.494 m, checked against the store), instantaneous, 00/06/12/18Z to ~240 h, updated ~06 UTC.
+Read from the service's ARCO Zarr by chunk (`[1,1,512,2048]` float32 blosc-lz4; 24 GETs per step). The existing
+`copernicus_*` fetchers read the WAVE dataset through the toolbox; the toolbox opens this same Zarr. The bucket did not ask
+for credentials on 2026-11-15 (undocumented); the project's registered account (the `COPERNICUSMARINE_SERVICE_*` secrets)
+is the licensee. Licence: free, any purpose incl. commercial, visible credit required: "Generated using E.U. Copernicus
+Marine Service Information; https://doi.org/10.48670/moi-00016" (in the index and the legend credit link).
+Alternatives considered: the hourly-mean and SMOC (tides + Stokes) datasets — 2x the bytes and hourly-mean is not
+instantaneous; SMOC is the follow-up if the owner wants tidal currents.
+
+## 3. Frame contracts
+
+| set (key) | variable | grid | hours | fields | repo variable |
+|---|---|---|---|---|---|
+| `GFS/weather/gust/global_0p25` | GFS GUST surface | 1440 × 721 | pressure's 193 (hourly to 120 h, then 3-hourly) | 4 `speed` kn (0.01) | `FRAME_RASTER_GUST` |
+| `CMEMS/marine/currents/global_0p25` | CMEMS uo/vo -0.494 m | 1440 × 721 | 0–240 h every 6 h (41) | 4 `speed` kn + 1 `direction` TOWARD (0.01°), `uv_convention` 1 | `FRAME_RASTER_CURRENTS` |
+
+Currents regrid: the 0.25° nodes sit exactly on every third 1/12° row and column, so each node is the 3 × 3 VECTOR mean
+(u and v separately) over ocean cells; no ocean cell → no data; south of 80S → no data. A currents frame is the wind frame
+layout, so `staticFrameCodec.buildWindVectors` already turns it into flow vectors (pinned by a test): the particle hook.
+`frame_binary.encode_planes` (several fields per frame) is new; `encode_plane` is its one-field case, byte for byte (test).
+
+## 4. Offline cost (real data, `--out-dir`, this machine; the pilots-job budget)
+
+| set | cycle | frames | MB per run | KB / frame (gz) | seconds | parity max (tol) |
+|---|---|---|---|---|---|---|
+| gust | GFS 2026-11-15 06Z | 192/193 (f147: NOAA connection reset) | 172.4 | 893 | 45.4 | 0.005 kn (0.005) |
+| currents | CMEMS bulletin 2026-11-15 | 41/41 | 72.5 | 1768 | 58.3 | 0.005 (0.005) |
+
+Pilots-job budget (the frame-carry lane's measurement, run 43709308169: 130 of 200 min used, all raster steps together
+~3.5 min): the two new steps add ~2 min. Each has its own step, budget and timeout: gust `timeout-minutes: 15`,
+`FRAME_RASTER_BUDGET_S=540`; currents `15` / `600`. Gust's 0.01 kn steps compress like fog's 1 m (rounding to 0.1 kn saved
+<3%, so the exact step stays). Currents re-read ~1.7 GB from Copernicus once per new bulletin (a run whose bulletin is
+already published reads only the time axis).
+
+## 5. Value parity against the source (independent readers)
+
+Gust (eccodes `codes_grib_find_nearest` on NOAA's own GRIB message vs the decoded frame node), f024 and f000:
+
+| point | GRIB kn | frame kn | diff |
+|---|---|---|---|
+| Pipeline 21.75, -158 | 26.642 | 26.640 | -0.0015 |
+| J-Bay -34, 25 | 17.700 | 17.700 | +0.0002 |
+| Trestles 33.25, -117.75 | 2.343 | 2.340 | -0.0035 |
+| Nazaré 39.5, -9.25 | 18.672 | 18.670 | -0.0018 |
+| Southern Ocean -55, 140 | 39.665 | 39.670 | +0.0047 |
+| Antimeridian 10, 179.75 | 16.339 | 16.340 | +0.0008 |
+| Mavericks 37.5, -122.5 | 3.704 | 3.700 | -0.0042 |
+
+Worst 0.0047 kn at f024, 0.0035 kn at f000 (tolerance 0.005).
+
+Currents (xarray + zarr opening the store, NOT the publisher's chunk reader; the 3 × 3 cells around each node), f048:
+
+| point | source kn / deg | frame kn / deg |
+|---|---|---|
+| Gulf Stream 35.5, -74.75 | 0.840 / 58.3 | 0.840 / 58.3 |
+| Kuroshio 34, 140.5 | 1.357 / 352.9 | 1.360 / 352.9 |
+| Agulhas -35, 26.5 | 1.054 / 242.7 | 1.050 / 242.7 |
+| off Pipeline 21.75, -158.25 | 0.192 / 344.7 | 0.190 / 344.7 |
+| Equator 0, -140 | 0.589 / 262.3 | 0.590 / 262.3 |
+| Antimeridian -5, 179.75 | 0.305 / 332.6 | 0.300 / 332.6 |
+| Drake -58, -65 | 1.286 / 63.1 | 1.290 / 63.1 |
+
+Worst 0.0049 kn and 0.005° (tolerances 0.005 / 0.005); every point had 9 ocean cells (the alignment holds).
+
+## 6. PRE-REGISTERED GATE (written before the browser measurements below)
+
+Offline only: production build, the synthetic backend (`serve_synthetic.py`), the frames above served by a local CDN with
+**150 ms** added latency and CORS; never the live box. Desktop = 1440 × 900; phone = 390 × 844 with 4× CPU throttle.
+
+- **G1 first paint**: click the layer chip → first frame drawn (`__RAW_OWN_RASTER__.shown` set). Pass: desktop ≤ 1.0 s and
+  phone ≤ 2.0 s, median of 5 cold toggles per layer.
+- **G2 scrub step**: one-hour (gusts) / six-hour (currents) steps on the ForecastWheel by keyboard after the first frame;
+  key → the wanted frame on screen. Pass: median ≤ 50 ms desktop and ≤ 150 ms phone over 10 steps; no step leaves the
+  label ahead of the field without the status line saying so.
+- **G3 value parity**: §5 — PASS already (every point within the frame's own tolerance).
+- **G4 themes and devices**: screenshots of both layers in light, dark and beach on desktop and phone, legend and credit
+  visible, land and labels readable. Pass = all 12 captured and read by me; any unreadable combination fails.
+- **G5 tests**: backend raster tests + the frontend map and `src/tests` trees green, ESLint ratchet not grown.
+
+## 6b. PRE-REGISTERED OBSERVATION CHECK (written 2026-11-15 20:10Z, before any pair was computed; the director's science bar)
+
+Not a pass/fail gate: every number is reported, bad ones included. What is compared is the SOURCE field at the frame node
+(the frames equal the source within 0.005 kn, §5/§7a, so this verifies what the map serves).
+
+**G6 gusts vs NDBC buoys.** Observations: NDBC realtime2 standard-met `GST` (peak 5 or 8 s gust in the hour's sampling
+window, m/s) and `WSPD`, at every NDBC buoy/C-MAN in the realtime2 index between 60S and 65N that reported GST in the window
+(no hand-picking; the list is written to the evidence file). Anemometer heights (~3-5 m on buoys) are NOT adjusted to 10 m:
+the bias this causes is stated, not corrected. Forecasts: GFS GUST (cycles 00Z 2026-11-12 .. 06Z 2026-11-15, every 6 h),
+ECMWF 10fg/10fg3 (every 00/12Z cycle data.ecmwf.int still holds), ICON VMAX_10M (every cycle opendata.dwd.de still holds),
+the 0.25-degree node nearest each station (the frame lattice), the observation nearest each valid hour within +-10 min (EURO
+and ICON, windowed maxima: the max of the hourly GST obs over the same window). Leads binned 0-23, 24-47, 48-71, 72-119 h.
+Metrics per model x lead bin: n, bias (fc - obs), MAE, RMSE, and the hit rate / false-alarm ratio for gusts >= 15 m/s
+(the researcher's proposal). Same-pair comparison: the three models scored on the station-hours all three cover.
+
+**G7 currents vs HF radar.** Observations: NOAA IOOS HF radar hourly total surface currents (ERDDAP, US West Coast 6 km
+and US East/Gulf 6 km) for the hours inside the CMEMS 2026-11-15 bulletin's span that have already happened. Pairs: each
+CMEMS 0.25-degree node with >= 50% HF-radar coverage of its 3 x 3 box of 1/12-degree cells, radar u/v averaged over that
+box. Metrics per hour and pooled: n, speed bias, vector RMSE, complex correlation magnitude, direction MAE for observed
+speeds >= 0.2 m/s. Stated caveat: HF radar measures the top ~1 m including tidal and Stokes flow, the CMEMS field is the
+-0.494 m model level without tides, so a tidal residual is expected near coasts.
+
+## 7. Results
+
+### 7a. Owner direction mid-session (13:02–13:19 EST): per-model gusts, the wind palette, the wind layer's far-hour rules
+
+- "These lanes need to serve instantly from real GFS, EURO, and ICON lanes from GRIB and CMEM directly": §2's GFS-only gust
+  choice is replaced by EACH MODEL'S OWN gust set, its definition said on screen per model (the legend credit note).
+- "Mirroring the existing wind theme colors for wind gusts ... will emphasise how much faster the gusts are": the gust heatmap
+  takes the colour the WIND HEATMAP draws for the same knot in that theme (`WindColorRamp.resolveDrawnField`, its hue path;
+  dark with its rules off falls back to the particle ramp exactly as the wind field texture does). The legend bar is built
+  from the same stops.
+- "Wind gust should match that logic" (past EURO 240 h / ICON 180 h): measured in the wind code, not assumed —
+  EURO wind past 240 h = the GFS field labelled "GFS stand-in beyond this model's range" (`euro_wind_extension.py`); ICON
+  wind past 180 h = ICON's OWN data looped over its whole days, 3-hourly, basis `icon_loop_extrapolation` ("beyond ICON's
+  native range"; `viewport_helper.extend_icon_wind_to_14d`). Gusts do the same: EURO → GFS stand-in (pressure's existing
+  `fallback`), ICON → `ownRasterFrames.loopTail` (same frame files, no extra bytes; span = whole days from the first frame).
+
+ECMWF's open-data gust, decoded per step (cycle 2026-11-15 00Z) — three products by lead time, all window MAXIMA:
+`10fg` over the past 1 h to 90 h (stepRange "89-90"), `10fg3` over the past 3 h from 93 to 144 h ("141-144"), `10fg` over
+the past 6 h from 150 to 240 h ("234-240"). The EURO source takes whichever is published at each step (`params`) and
+accepts a window ending at the step (`window_max`).
+
+| set | cycle | frames | MB per run | seconds | parity max (tol) | repo variable |
+|---|---|---|---|---|---|---|
+| gust_euro (`EURO/weather/gust/global_0p25`) | ECMWF 2026-11-15 00Z | 64/64 | 70.1 | 22.2 | 0.005 kn (0.005) | `FRAME_RASTER_GUST_EURO` |
+| gust_icon (`ICON/weather/gust/global_0p25`) | DWD ICON 2026-11-15 12Z | 112/112 | 142.0 | 59.6 | 0.005 kn (0.005) | `FRAME_RASTER_GUST_ICON` |
+
+Independent parity (EURO: eccodes `codes_grib_find_nearest` on ECMWF's own message; ICON: brute-force great-circle nearest
+native cell from DWD's CLAT/CLON, not the publisher's lexsort pick), same seven points as §5:
+EURO f024 (1 h window) worst 0.0048 kn, EURO f120 (3 h window) worst 0.0045 kn, ICON f024 worst 0.0047 kn — every point
+inside the frame's own 0.005 kn tolerance. Example, Pipeline f024: GFS 26.64 kn (instantaneous), EURO 28.45 kn (1 h max),
+ICON 30.84 kn (1 h max): the definitions differ and the legend says which is on screen.
+
+All four new sets together, offline: ~3.1 min and ~457 MB per run on this machine (gust 45 s, gust_euro 22 s, gust_icon
+60 s, currents 58 s; each its own step and timeout).
+
+### 7b. Gate G1/G2/G4 (offline harness `ab_lib.js`: production build, synthetic backend, the REAL frame sets of §4/§7a on a local
+CDN at +150 ms; host audit 0 leaks to the live box; 5 cold toggles, 10 frame-changing single-key steps per row)
+
+First run found two faults, fixed and re-measured:
+- Phone scrub on GFS gusts p50 361 ms: window misses (handhelds prefetched +-1 frame; at a step every 250 ms the next hourly
+  0.9 MB frame was still in flight). Fix: the own-only layers keep two frames ahead on every device
+  (`ownWindowRadius`, kill `__RAW_DISABLE_OWN_ONLY_PREFETCH2__`).
+- Currents in light / beach wore a lavender veil over still water. Fix: alpha 0 below 0.25 kn (dark 0.2 kn).
+
+| row | first paint median | step p50 / p95 |
+|---|---|---|
+| desktop gusts GFS / EURO / ICON | 425 / 548 / 468 ms | 28/36, 32/32 (n=3), 25/30 ms |
+| desktop currents | 571 ms | 27 / 31 ms |
+| phone (4x CPU) gusts GFS / EURO / ICON | 1404 / 1340 / 1316 ms | 215/248, 211/231, 162/225 ms |
+| phone currents | 1451 ms | 212 / 266 ms |
+
+Against §6: G1 PASS (desktop <= 1.0 s, phone <= 2.0 s). G2 desktop PASS (<= 50 ms); G2 phone NOT MET (<= 150 ms pre-registered).
+For reference the live raster lanes measured 269-281 ms p50 on phone in the same harness (2026-11-14 own-three log). Phone
+breakdown (GFS gusts, per step): key -> the app's re-render reaching the layer 55-121 ms, then -> drawn 33-98 ms, field decode
+~20 ms, fetch already done by the prefetch. The app-wide re-render per hour is the remaining cost (the own-three log's filed
+next-batch item); a fast path around React would draw the field before the hour label repaints, against the same-frame rule,
+so it is not taken here. G4: 14 screenshots (2 layers x 3 themes x desktop/phone + the phone sheet) read: real fields, legend
+and credit visible, land and labels readable after the veil fix. G5: backend raster tests 94 + 9 pass; frontend map + src/tests
+trees pass except two mirror-only artefacts (a missing `program/` folder; one 64 s timeout that passes alone).
+
+### 7c. G6 / G7 observation check (pre-registered §6b; scored to valid time 2026-11-15 20Z; protocol unchanged after the results)
+
+G6 gusts vs every realtime2 station reporting GST (552 stations, 70% coastal fixed; 468,003 pairs), m/s (kn):
+
+| model | lead h | n | bias | MAE | RMSE | hit / FAR (>= 15 m/s) |
+|---|---|---|---|---|---|---|
+| GFS | 0-23 | 164,189 | +0.02 | 2.58 (5.01 kn) | 3.50 | 0.49 / 0.41 |
+| GFS | 24-47 | 121,503 | -0.00 | 2.73 | 3.73 | 0.50 / 0.42 |
+| GFS | 48-71 | 73,482 | -0.16 | 2.89 | 4.00 | 0.49 / 0.42 |
+| GFS | 72-119 | 23,887 | -0.19 | 3.00 | 4.21 | 0.48 / 0.43 |
+| EURO | 0-23 | 21,956 | +1.80 | 2.74 | 3.61 | 0.66 / 0.58 |
+| EURO | 24-47 | 17,478 | +1.75 | 2.82 | 3.72 | 0.62 / 0.58 |
+| EURO | 48-71 | 9,458 | +1.87 | 2.94 | 3.95 | 0.65 / 0.53 |
+| EURO | 72-80 | 1,586 | +2.12 | 3.18 | 4.25 | 0.58 / 0.63 |
+| ICON | 0-23 | 33,262 | +1.09 | 2.80 | 4.01 | 0.64 / 0.54 |
+| ICON | 24-26 | 1,202 | +1.45 | 2.89 | 4.03 | 0.67 / 0.53 |
+
+Same pairs (4,242 station-hours at 536 stations, each model's shortest lead): GFS bias +0.05 / MAE 2.75 / RMSE 3.91 / hit 0.61 /
+FAR 0.36; EURO +1.79 / 2.78 / 3.75 / 0.69 / 0.50; ICON +1.07 / 2.77 / 3.96 / 0.64 / 0.52. Reading: MAE is equal within
+0.03 m/s; GFS is unbiased against buoys, EURO and ICON read 1-2 m/s high. Part of that high bias is the comparison, not the
+models: their 1-hour MAXIMUM is scored against one ~8-minute peak per hour, and buoy anemometers (~4 m) read ~8% low vs 10 m
+(+0.6-0.8 m/s to every model's bias). Not a bias correction target until both are separated (a follow-up). No confidence
+intervals (pairs autocorrelated).
+Deviations: ECMWF 00Z 11-12 had aged off data.ecmwf.int (7 cycles 12Z 11-12 .. 12Z 11-15 used; every EURO pair is a 1-hour
+window, leads <= 80); DWD keeps ~1 day (4 ICON cycles, leads <= 26).
+
+G7 currents vs NOAA IOOS HF radar (`ucsdHfrW6`, `ucsdHfrE6`), CMEMS bulletin 2026-11-15, 3 x 3 box pairs:
+
+| hour | n | speed bias m/s | vector RMSE m/s | complex corr | direction MAE (obs >= 0.2 m/s) |
+|---|---|---|---|---|---|
+| 00Z | 707 | -0.004 | 0.243 | 0.63 | 39.4 deg (361) |
+| 06Z | 729 | -0.003 | 0.283 | 0.56 | 36.4 deg (386) |
+| 12Z | 748 | +0.000 | 0.244 | 0.56 | 42.6 deg (367) |
+| pooled | 2,184 | -0.002 | 0.257 | 0.58 | 39.4 deg (1,114) |
+
+The pooled speed bias hides two of opposite sign: East/Gulf 0.032 m/s slow, West 0.021 m/s fast. 18Z not scored (radar data
+ended 15Z / 13Z at run time). Caveat: radar sees the top ~1 m with tide, wind drift and Stokes drift; CMEMS is the -0.494 m
+level without them, which is in the direction error.
+Evidence (raw pairs, station list, scripts): kept outside the repo with the session's scratch (g6_pairs.csv 468,003 rows,
+g7_pairs.csv 2,184 rows); available to the advisor on request.
+
+### 7d. The director's gate line (17:00Z rules): "at every scrub step, the label names the stored hour that was actually drawn"
+
+Full 14-day scrub, one hour per key, real frames, offline harness. Per step: frame drawn = frame wanted (else STALE), drawn hour
+= asked hour (EXACT) or the status line says "the nearest stored forecast" (the readout wind uses; the raster lanes' shared
+`describeRasterFrame`), "Estimated forecast" on stand-in hours, "no forecast for this hour" past the set's end.
+
+| run | steps | exact | nearest (labelled) | stand-in hours | no frame | stale | blank | mislabelled |
+|---|---|---|---|---|---|---|---|---|
+| gusts GFS desktop | 340 | 175 | 147 | 0 | 18 | 0 | 0 | 0 |
+| gusts GFS phone 4x | 340 | 175 | 147 | 0 | 18 | 0 | 0 | 0 |
+| gusts EURO desktop | 340 | 91 | 231 | 102 | 18 | 0 | 0 | 0 |
+| gusts ICON desktop | 340 | 152 | 170 | 150 | 18 | 0 | 0 | 0 |
+| currents desktop | 340 | 37 | 183 | 0 | 120 | 0 | 0 | 0 |
+
+The first pass found 1 mislabelled step each for GFS and ICON gusts: a frame drawn 2 h from the asked hour with no note, at
+a set's last frame and at the ICON / GFS stand-in seam (the note's bound was half the gap to a neighbour that does not
+exist there). Fixed in the shared own-raster code, so pressure and satellite gain it too: at a set's first / last frame and
+at the own / stand-in seam the note covers the whole 3 h pick window. Kill `__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__`.
+"No frame" hours: the scrubber runs to now + 14 days; these offline sets were 7-15 h old (GFS 06Z, CMEMS bulletin 00Z, 6-hourly
+to 240 h), so the last hours have no frame and say so. Phone decode worker: 177 / 177 loads off the main thread; phone step
+p50 after it: GFS 228, EURO 324, ICON 192, currents 182 ms (unchanged within the measured +-40 % phone noise; the per-hour
+app re-render is the cost).
+
+### 8. Agreed interface: ENS gusts past ICON 180 h / EURO 240 h (stage 2; NOT built; waits for #939's gate and the director)
+
+With the wind long-range lane (local_162f460b, PR #939 held; stage 1 #935 = gfs_wind_standin, which this PR's `gfs_standin`
+BEYOND strategy already matches):
+- Source: `ens_wind/latest.npz` (+ `latest.json`: run, steps, grid), 1-degree grid, rows S->N, lon 0..359, ENS steps 144..360
+  every 6 h; arrays `{u,v,speed,gust,gust_p90,spread}_{step}` in m/s. Gust = member MEDIAN of 10fg (max gust in the 6 h to
+  the step), clipped >= speed; p90 likewise.
+- Sampler: `ens_wind_extension.sample_step(meta, arrays, step, lats, lons)` (vectorised; plain bilinear, lon wrap, pole clamp;
+  the gate's de-bias factor if recorded; returns u, v, speed, direction, gust, gust_p90, spread and a `clipped` mask). Pinned
+  equal to `build_points` (the wind product's composition) by #939's test: one composition per hour for wind and gust.
+- This side: a raster set per model tail at NATIVE 6-hourly ENS steps only (no interpolation of window maxima), sampled at
+  every 0.25-degree node, knots, field 4 = median, a new field = p90; refuse a frame if > 1 % of cells were clipped; a BEYOND
+  strategy `ens_mean_extension` for ICON / EURO; label "Days 8-14: ECMWF ensemble mean (estimate) · max gust in the 6 h to
+  this time", accessible label adds "extremes are under-read". The p90 risk cue's UI: with the director.
+- Fallback when ENS is absent: the GFS stand-in (as now). max(wind x GF, wind) only for a source without gusts.
+
+### 7e. Honest-label gate re-run after the owner's 19:27 EST decision (no GFS stand-in past ICON / EURO range)
+
+| run | steps | exact | nearest (labelled) | no frame | end note seen | stale | blank | mislabelled |
+|---|---|---|---|---|---|---|---|---|
+| gusts ICON desktop | 340 | 99 | 71 | 170 | "ICON gusts end at day 7.5; ensemble estimate coming" | 0 | 0 | 0 |
+| gusts EURO desktop | 340 | 56 | 162 | 122 | "EURO gusts end at day 10; ensemble estimate coming" | 0 | 0 | 0 |
+| gusts ICON phone 4x | 340 | 99 | 71 | 170 | "ICON gusts end at day 7.5; ensemble estimate coming" | 0 | 0 | 0 |
+
+No frame from another model is drawn past a model's range (no stand-in entries: "estimated" 0). GFS gusts and currents are
+unchanged from §7d.
+
+### 9. Phone gate: accepted with an owed re-test (the director, 2026-11-15 21:10 EST)
+
+Accepted as "no worse than the live raster lanes in the same harness" (phone step p50 182-324 ms vs fog / EURO air temp
+269-281 ms). OWED: re-run the pre-registered 150 ms phone step target after Move 3's app-wide re-render fix lands, record
+it here and in SCOREBOARD (ledger commitment, this PR's fragment).
+
+### 10. PRE-REGISTERED: the advisor's condition 3, bytes on a real link (written 2026-11-15 21:52 EST, before any throttled run)
+
+Harness of §7b (real frames, production build, synthetic backend, phone profile 390 x 844 at 4x CPU), the SAME 5 cold toggles
+and 10 frame-changing single-key steps per row, gusts GFS / EURO / ICON and currents, with the link throttled by CDP
+`Network.emulateNetworkConditions` (the local CDN's +150 ms stays off for these rows; the throttle carries the latency):
+- **Fast 4G**: 9 Mbit/s down, 1.5 up, 170 ms RTT. PASS line: phone step p50 within 1.5x the unthrottled figure of §7b/§7d
+  (GFS 228, EURO 324, ICON 192, currents 182 ms) AND no step where the label leads the field without the status note
+  (status "Loading ... still showing ..." or "the nearest stored forecast" whenever drawn != asked).
+- **Slow 4G**: 1.6 Mbit/s down, 0.75 up, 150 ms RTT. Reported, no pass line.
+- Reported per row: bytes transferred per step (CDN bytes / frame-changing steps, from the local CDN's byte counter), with the
+  2-ahead prefetch ON and with the metered-link rule engaged (navigator.connection effectiveType '3g' emulated).
+- If Fast 4G misses the line: the lever is a 0.5-degree tier at world zoom (frames ~1/4 the bytes); raised with the director
+  before building. Quantisation alone measured only 3-25 % smaller (§4).
+Also (the advisor's condition-1 follow-up, written the same minute): a remembered gusts / currents layer whose sets are not
+published falls back to wind / currents -> waves once the availability answer is known (ownLayerAvailability.fallbackFor),
+never an empty map. Built 21:50, tested after the 22:00-00:30 quiet window.
+
+## 11. G4 PRE-REGISTRATION: Copernicus SST as water temperature (the director's assignment, 2026-11-15 21:59 EST)
+
+Written before any CMEMS SST value was read. Assignment: CMEMS global ocean physics SST (1/12 deg) as ICON's water-temp source
+(DWD ICON has no skin temperature; today ICON's water temp is blank on own frames, GFS skin on the .om path) and as an upgrade for
+all models, labelled.
+
+**Source (metadata read 21:58 EST, no values):** GLOBAL_ANALYSISFORECAST_PHY_001_024. Candidate A:
+`cmems_mod_glo_phy_anfc_0.083deg_PT1H-m` (hourly MEAN, surface level: so, thetao, uo, vo, zos; ARCO
+`mdl-arco-time-014/.../timeChunked.zarr`). Candidate B: `cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i` (6-hourly
+instantaneous, 50 levels; `mdl-arco-time-013`). Pre-chosen: A (hourly, surface only, one level to read), unless its
+`thetao` is not the top level (checked from `.zattrs` / the elevation coordinate before any value), then B.
+
+**Resolution tension, both arms measured before choosing:** the director's rule moves a layer to own frames only where the set
+is at least as fine as today's .om grid (GFS water temp = gfs013, 0.117 deg). Arm R1: 1/6 deg (every second 1/12 cell,
+2160 x 1021, no interpolation: point values at the 1/12 cells) - finer than 0.117? No (0.167): FAILS the rule by itself, so
+R1 is only the ICON source (blank today). Arm R2: full 1/12 deg (4320 x 2041) published as regional tiles over the pilot
+boxes + 1/6 deg world: passes the rule where tiles exist. Bytes per frame and per run reported for both before any
+build beyond a prototype.
+
+**Parity gate (pass/fail):** every published node equals the source cell value within the frame's 0.025 degC tolerance at
+>= 7 independent points (xarray + zarr reader, not the publisher's), including two coastal cells and one antimeridian cell.
+
+**Observation check (reported, plus one pass line):**
+- Truth: NDBC realtime2 `WTMP` (hull / ~1 m sensor) at every station reporting it between 60S and 65N (no hand-picking),
+  hourly, matched to the nearest valid hour; CMEMS's hourly MEAN paired with the mean of the station's obs in that hour.
+- Paired arms on the SAME station-hours: CMEMS thetao; GFS TMP:surface (skin; the served GFS water temp); ECMWF skt (EURO's
+  water temp); persistence (the station's own value 24 h earlier); a NEGATIVE control (CMEMS shifted +48 h).
+- Leads: 0-23 h and 24-47 h from the bulletins available at run time (CMEMS replaces past steps with analyses, so older
+  forecasts cannot be fetched back; a 14-day forward collection starts at build time - one bulletin a day - and is reported
+  when 14 days exist, as the director's truth rule asks).
+- Metrics: n, bias, MAE, RMSE degC per arm and lead bin; bootstrap 95% CI on the paired MAE difference (station blocks).
+- PASS line for "upgrade for all models": CMEMS paired MAE lower than BOTH GFS skin and ECMWF skt with the CI upper bound < 0,
+  in the 0-23 h bin; the negative control must lose to persistence. For ICON (blank today) the bar is beating persistence.
+- Stated caveats in advance: hull sensors read ~1 m down, skin temperature (GFS/ECMWF) differs from bulk SST by a diurnal
+  warm layer (largest in calm, sunny afternoons): reported by local hour.
+
+**Label:** "Water temp: Copernicus ocean model (1/12°, top 0.5 m, hourly mean)" with the Copernicus credit and DOI (licence
+§2.4); under ICON: "ICON has no sea temperature; showing Copernicus ocean model".
+**Not built before:** the director's go on the resolution arm after the bytes table; David's word on bucket growth (with the
+SMOC question).
+
+### 11b. G4 decisions (the director, 2026-11-15 22:22 and 22:41 EST)
+- Resolution arm R2 chosen; bytes table (estimated from the measured water-temp density, 0.6 B/node gz; the 19 pilot boxes):
+  1/12 deg regional tiles 0.28 M nodes, 0.17 MB/frame; 1/6 deg world 2.21 M nodes, 1.37 MB/frame.
+- APPROVED under the director's line: 1/12 deg regional tiles HOURLY + 1/6 deg world 3-HOURLY (~0.15 GB/run, ~0.3 GB stored,
+  ~110 MB per full world scrub; comparable to today's water-temp set). Built behind the §11 gate; prototype after 00:30.
+- Queued after #928 and G4 (the director, from the research lead's brief): the HEIGHT-SCALE display (face H1/10 by default,
+  Hawaiian default in Hawaii, a user toggle, the scale always labelled; ratings and size labels from the physical height).
+
+### 10b. RESULTS of §10 (2026-11-16, phone 390 x 844 at 4x CPU, real frames, production build at f2277b283 + the fallback commit;
+0 live-host leaks in every arm). Harness fixes made BEFORE these rows (each would have biased the result, none chosen from it):
+the link throttle starts after the app shell loads (with it from navigation the page itself timed out); the phone's EURO /
+ICON buttons sit in the weather sheet, so the harness now opens it and FAILS if the model button is missing (each row below
+records the set it actually pinned); the "label leads the field" check is timed from the step's want (the status line's own
+300 ms quiet time + 300 ms slack), not from the keypress.
+
+CORRECTION to §7b / §9 (appended, the rows above are not edited): the phone rows labelled EURO and ICON gusts there ran GFS
+frames (the model buttons were not reachable on the phone layout; the same 881 KB per step gave it away). The rows below are
+the first true phone EURO / ICON measurements. Desktop rows, GFS rows and currents rows of §7b / §7d are unaffected.
+
+| arm | row (pinned) | first paint | step p50 / p95 | KB per step | unlabelled | timeouts |
+|---|---|---|---|---|---|---|
+| unthrottled (CDN +150 ms) | gusts GFS | 1008 ms | 188 / 234 | 881 | 0 | 0 |
+| | gusts EURO | 1026 ms | 178 / 178 (n 3) | 1042 | 0 | 0 |
+| | gusts ICON | 987 ms | 179 / 221 | 1240 | 0 | 0 |
+| | currents | 1088 ms | 176 / 244 | 1728 | 0 | 0 |
+| Fast 4G | gusts GFS | 3817 ms | **328** / 813 (1.74x: FAIL) | 881 | 0 | 0 |
+| | gusts EURO | 4560 ms | 183 / 183 (1.03x) | 1042 | 0 | 0 |
+| | gusts ICON | 5113 ms | **873** / 1308 (4.9x: FAIL) | 1240 | 0 | 0 |
+| | currents | 5930 ms | 180 / 200 (1.02x) | 1728 | 0 | 0 |
+| Fast 4G + metered rule | gusts GFS | 3693 ms | 277 / 780 | 881 | 0 | 0 |
+| | gusts EURO | 4675 ms | 181 / 195 (n 4) | 1015 | 0 | 0 |
+| | gusts ICON | 5168 ms | 775 / 1344 | 1240 | 0 | 0 |
+| | currents | 6127 ms | 143 / 169 | 1728 | 0 | 0 |
+| Slow 4G (reported) | gusts GFS | 19.2 s | 2336 / 9116 | 881 | 0 | 1 |
+| | gusts EURO | 23.4 s | 186 / 202 (n 4) | 1015 | 0 | 0 |
+| | gusts ICON | 26.4 s | 8612 / 9502 | 1240 | 0 | 1 |
+| | currents | none of 5 | 2638 / 5508 | 1901 | 0 | 3 |
+
+Against the line: labels PASS everywhere (0 steps with the field behind the label unsaid). Fast 4G steps: EURO and currents
+PASS; GFS (1.74x) and ICON (4.9x) FAIL. Cause: the hourly sets (GFS to 120 h, ICON to 78 h) ask a new 0.9-1.2 MB frame every
+step, ~0.8-1.1 s on 9 Mbit/s, while the 3- / 6-hourly sets ask one every few steps. The metered rule (prefetch radius 1) does
+not rescue it. First paint on Fast 4G is 3.8-5.9 s (the first frame shares the link with the prefetched neighbours; a
+first-frame-first fix is built and tested, not yet measured).
+
+Levers measured offline on the real frames (5 frames each), BEFORE any build, per §10's rule to raise them first:
+| set | today | 1-byte field at the palette's own step | 0.5 deg tier (u16) |
+|---|---|---|---|
+| gusts GFS | 876 KB | 472 KB (54 %), 0.5 kn = the gust LUT step | 262 KB (30 %) |
+| gusts ICON | 1237 KB | 561 KB (45 %) | 329 KB (27 %) |
+| currents | 1728 KB | speed 0.02 kn = the currents LUT step: 406 KB (23 %) if the not-yet-drawn direction field is left out until particles (it is 1214 KB of the frame) | 136 KB (8 %) |
+(§4's "quantisation alone 3-25 %" measured rounding inside the u16 field; a real 1-byte field is the bigger lever.)
+
+### 10c. On §10b (the advisor, 2026-11-16 22:10Z), appended
+- READING THE PASSES: EURO gusts (n 3-4 frame-changing steps) and currents (6-hourly) pass Fast 4G because most scrub steps
+  fetch nothing (the hour maps to a frame already held), NOT because 1.0-1.7 MB frames are cheap. These sizes are not "fine".
+- WHAT THE SCREEN SAID in the old phone "EURO" / "ICON" rows (§7b, §9): the app's pinned index in every one of them was GFS's
+  (audit `pin.model` = GFS in gate-full, gate-phone2, gate-phone3: the model selector never left GFS), so the screen said GFS
+  (model button, frames and the NOAA GFS credit agree). A HARNESS mislabel only; no product label defect; the phone
+  "0 mislabelled" of §7d stands.
+
+## 12. PRE-REGISTRATION: lever A, one-byte fields (written 2026-11-16 22:20Z, before any build; the SAME line and run as §10)
+
+Change: gusts store speed in a NEW one-byte field at 0.5 kn (the gust LUT step); currents store speed in a NEW one-byte field
+at 0.02 kn (the currents LUT step) and drop the direction field. The 2-byte field 4 stays for the wind sets and old frames.
+- CODES: 0 = no data; 1..254 = band k (value floor(v / step)); 255 = SATURATED (v >= 254 x step: gusts >= 127 kn, currents
+  >= 5.08 kn). DECODE to the band centre ((k - 1) x step + step / 2) so the value error is <= half a step AND the colour band
+  never changes (a value and its decode share floor(v / step), and every LUT breakpoint sits on a multiple of the step from 0);
+  code 255 decodes to the top band (drawn as the ramp's last colour, which both palettes already hold above 75 kn / 4 kn). No
+  readout or surf-chain code reads these frames (display only; checked: the own-raster path is the only reader), so no number
+  is printed from a saturated cell. The publisher counts saturated cells per frame into the build log and the index.
+- PARITY (re-done, tolerance stated now): decoded vs source <= 0.25 kn (gusts) / 0.01 kn (currents) at the §5 points per
+  model, plus a full-frame band check: 0 cells whose LUT band differs between source and decode.
+- LABEL: currents become speed only: the legend reads "Ocean current speed (kts)"; the credit note stays. When particles
+  bring direction back (as u / v, the animation lane's request) its bytes return and condition 3 is re-read then.
+- PREDICTION (mine, written before measuring; the advisor's arithmetic agrees): wire time at 9 Mbit/s ~0.4 s (GFS 472 KB) /
+  ~0.5 s (ICON 561 KB). Scaling today's excess over the unthrottled p50 by the byte ratio: GFS ~265 ms vs its 282 ms line
+  (borderline PASS), ICON ~490 ms vs 268 ms (FAIL). If ICON fails again that is a SECOND recorded FAIL and lever B (0.5-degree
+  world tier) follows; the line is not moved.
+- SAME RUN: §10b's harness, arms (unthrottled +150 ms; Fast 4G; Fast 4G + metered; Slow 4G reported), 5 cold toggles, 10
+  frame-changing steps, pinned-set check; first paint reported beside §10b's rows (first-frame-first is in this build).
+- COST STATED: frame_binary.py changes again, so every content-carried set rebuilds once on the next pilots run (the
+  content-key fingerprint); that one run's static-frames step can take up to its own budget (600 / 960 s with tails), and
+  nothing more after it.
+- SLOW 4G (19-26 s first paint, currents never painted in 5 tries) goes to David in plain words as a product question.
+
+### 12b. Corrections to §12 (appended 2026-11-16 22:19Z; §12 is not edited)
+- TIME: §12's header says "written 2026-11-16 22:20Z". That was ahead of the clock: the commit that holds it, e8e430eab, is
+  timestamped 2026-11-16 22:11Z, which is when §12 was written (still before any build or measurement). (LESSONS L-P10.)
+- THE CODE, exactly: for 0 <= v < 254 x step, k = floor(v / step) + 1 (so v = 0 -> k = 1); decode = (k - 1) x step + step / 2;
+  k = 255 for v >= 254 x step (saturated); k = 0 = no data. The parity test asserts it at v = 0, at the last unsaturated value
+  (just below 254 x step) and at the first saturated value.
+- THE BAND CLAIM is about CELL VALUES: 0 cells whose decoded value falls in a different LUT band from the source value. The
+  shader still interpolates between cells and between frames (the value blend), so a rendered pixel near a band edge can differ
+  from today's by up to half a step: harmless, and not what the check claims.
+
+### 12c. Lever A as built (appended 2026-11-16, before the re-run; §12 / §12b are not edited)
+- ONE CHANGE TO THE REGISTERED CODE, found while writing the palette test and made BEFORE any measurement: the client shader takes
+  a cell's LUT entry as floor((v - min) / step + 1e-3), so a value within 0.001 step under a band edge already draws the next
+  band. The encoder now takes the band by the SAME rule, k = floor(v / step + 1e-3) + 1 (frame_binary.BAND_INDEX_EPS), so every
+  cell's palette entry equals its source value's. Cost: the decode error bound is half a step + 0.001 step (0.2505 kn gusts,
+  0.01002 kn currents), not exactly half a step as §12 said. Saturation uses the same rule.
+- THE PALETTE CLAIM, exactly: every cell draws the palette entry of its SOURCE value, byte for byte (bandFields.test.js, all three
+  themes, both layers, a dense sweep). It is NOT byte-identical to today's two-byte frames everywhere: those round to 0.01 kn
+  first, so a source value within 0.005 kn under a band edge was drawn one band UP; such cells now draw their true band. On real
+  frames that difference is measured (both formats published from the same cycle) and reported with the re-run.
+- FORMAT / ROLLOUT: new field ids 12 (gusts, 0.5 kn) and 13 (current speed, 0.02 kn), u8, descriptor scale = step,
+  offset = -step / 2 (every existing generic decoder reads the band centre with no new code); 255 = saturated, counted per frame
+  (`saturated_cells` in the publish report, `band_encoding` in the index). The client lists [band field, field 4] per set, so
+  frames published before the change still decode (pinned by a test). Kill: repo variable FRAME_RASTER_ONE_BYTE=0 on the four
+  pilots steps (the old two-byte frames; currents speed + direction). Currents become speed only: legend "Ocean current speed".
+- READERS (the director's condition 2): no infobox, point readout or legend reads these frames (grep: only ownRasterFrames /
+  useOwnRasterFrames / ownLayerAvailability read the sets; no backend route); the legend is built from the palette, not frames.
+
+### 12d. Lever A on real frames (appended 2026-11-16 ~23:15Z; instrument: scratch abcompare.py over both formats published from the SAME cycle)
+GFS / EURO / ICON gusts 2026-11-16 12Z, currents 2026-11-16 00Z, every frame, each set published twice (FRAME_RASTER_ONE_BYTE=0, =1).
+"LUT differs" = the client's palette entry (floor(v / step + 1e-3), the shader rule) differs between the two decoded frames.
+
+| set | frames | cells | LUT differs | explained by the old 0.01 kn rounding | MB old -> new | ratio | saturated | parity |
+|---|---|---|---|---|---|---|---|---|
+| gust (GFS) | 193 | 200.4 M | 1.52 % | 100 % | 173.5 -> 94.0 | 0.542 | 0 | 0.2505 kn |
+| gust_euro | 64 | 66.4 M | 0.88 % | 100 % | 69.7 -> 34.0 | 0.488 | 8 | 0.2505 kn |
+| gust_icon | 112 | 116.3 M | 0.90 % | 100 % | 142.2 -> 64.3 | 0.452 | 0 | 0.2505 kn |
+| currents | 41 | 28.4 M | 24.87 % | 100 % | 72.5 -> 17.4 | 0.241 | 0 | 0.01002 kn |
+
+- "Explained" means: the old frame drew the cell exactly ONE band up, from a value within 0.005 kn (+ the eps) above that band's
+  edge, i.e. a source value just under the edge that the 0.01 kn rounding pushed over it. No cell differs any other way, and the
+  no-data masks are identical. So the new frames draw each cell's SOURCE band; the old frames drew the rounded value's band.
+  Currents differ so often because their band (0.02 kn) is only two old rounding steps wide.
+- The 8 saturated EURO cells (>= 127 kn 10fg, one cycle) draw the top colour either way (the LUT clamps at 75 kn).
+- Parity: every built frame within the half-step + 0.001-step bound (0.2505 / 0.01002 kn), checked by the publisher's own reader.
+- Sizes are on top of §12's prediction (GFS 54 %, ICON 45 %, currents 24 %). The 4G re-run (§10 arms, first-frame-first on) follows.
