@@ -59,3 +59,44 @@ that was served from cache is left out and counted.
    path that fires, and the request leaving, so the cause of the wait is named with its file and line.
 2. Read Move 3's prefetch-after-dwell code and ask that lane what was tried.
 3. Only then a design, written here before it is built.
+
+## 4. THE PROBE (2026-11-17, 20:52-21:06 EST): the cause is named. No gate number in this section.
+**Instrument:** `scn_first_visit_probe.js` and `first_visit_probe_report.js` (this branch). A build of this branch (dev
+`bd8e4c8cd`), offline backend, waves, GFS, dark, desktop; six views, a fresh page each, four isolated +3 h steps with 6 s
+between them: 24 first-visit steps. In the page every `setTimeout` (delay, where it was set, when it fired), every
+`/api/weather/grid` request (when it left, its stack) and the engine's grid every 40 ms were recorded; stacks resolved through
+the build's source maps. 0 errors. Machine note: one core was held by a runaway process of another lane during this run
+(reported to the director); the timings below are set by a timer, not by load, and repeat to within 35 ms.
+**What the timeline shows, the same in every view:**
+- The thinned world frame of the new hour (46 x 21) is the engine's grid 23 to 89 ms after the keydown.
+- **The fine grid's request leaves 1,529 to 1,565 ms after the keydown in 21 of 24 steps** (median 1,535 ms). In the other
+  three it left at 132, 338 and 1,048 ms, behind an earlier step's fall-back timer that happened to fire then. The fine grid is
+  the engine's grid 1.5 to 5.1 s after the keydown (most often 1.9 to 2.8 s): the request then takes 0.3 to 1.3 s here.
+- A 1,500 ms timer is set 24 to 35 ms after the keydown and fires at 1,527 to 1,551 ms, immediately before the request:
+  **`marineExactUpgrade.js:286`**, `setTimeout(drive, EXACT_UPGRADE_DELAY_MS)`, in `useMarineExactUpgrade`. A second 1,500 ms
+  timer fires beside it (`marineWorldWarmOnSettle.js:59`); it warms world frames and is not the one that asks for this grid.
+  (The request is not attributed to the timer by the instrument itself: it leaves after an `await` inside the timer's
+  callback. The match is by time, in 21 of 21, and by reading the code: the timer's callback is the settle check.)
+**The cause, by file and line.** `EXACT_UPGRADE_DELAY_MS = 1500` (`marineExactUpgrade.js:50`). The hook arms when a THINNED
+world frame becomes the engine's grid; 1,500 ms later, if the selected hour has not moved, it runs the settle check
+(`checkRef.current()`), which at a regional viewport finds the coarse grid and asks for the fine one. Nothing asks sooner for a
+keyboard or button step: the faster settle timers (60 to 250 ms, `useMarineScrubSettle.js:456-468`) belong to a wheel drag.
+**The wait is deliberate, and its own comment says why:** "offline replay of a click burst: with 900 ms the first fetch went
+out for an hour the next click replaced, and a second followed". Beside it `EXACT_UPGRADE_GLOBAL_GAP_MS = 1500`: "stepping
+through hours one after another must not fire an exact world fetch per step". It is a dwell guard for the one 1-CPU backend
+(a world `/grid` is 2.3 MB and 3 to 9 s there), added 2026-10-01 (`733c69f91`) and already raised from 900 ms by measurement.
+**What that means for the gate written in section 2, said before any design.**
+- F1 (the request leaves within 400 ms) and F3 (the backend is asked no more, in a scrub at 600 ms a step) pull against each
+  other for any change that only shortens the wait: a wait shorter than the gap between two clicks sends a request for the
+  first click that today is never sent. A shorter wait alone cannot pass both lines. That is the finding of this probe, and
+  I do not move either line.
+- So the question is not "how short can the wait be" but "when is the wait not needed". It protects the backend. Where the
+  fine grid can be had WITHOUT the backend there is nothing to protect: an hour already in the client's cache, in the GPU
+  frame store, or served as a crop of a static CDN frame (`staticFrames.js`, mid-zoom crops since 2026-10-22). In production
+  static frames are on; in this harness the frame stand-in holds no wave frames, so every fine grid here went to `/grid`.
+  NOT yet known, and the next thing to establish before a design: at these views and zooms, on production's configuration,
+  is the fine grid served from the CDN crop path or from the backend? If from the CDN, the 1.5 s wait buys nothing there and
+  the upgrade can run at once for those hours with F3 untouched. If from the backend, the honest options are a speculative
+  prefetch of the next hour after a dwell (one request moved off the step, at most one wasted per dwell: F3 fails by one as
+  written) or leaving it as it is.
+- Asked of the Move 3 lane (owed): what its prefetch-after-dwell work covered at regional zooms.
