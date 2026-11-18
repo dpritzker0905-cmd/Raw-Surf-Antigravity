@@ -139,3 +139,72 @@ client's routing rule, run as code on the exact request boxes the probe recorded
 - A larger question this raises, for the director, not started: at a regional zoom a step draws the THINNED series frame
   (46 x 21) first and upgrades later, while the full 2-degree frame for that hour may already be in the GPU frame store.
   Drawing the crop of the stored frame at once would remove the stand-in altogether, not just shorten its life.
+
+## 6. THE DESIGN (2026-11-17, 23:00 EST), at the owner's word ("Yes, write it"). Written before anything is built or measured.
+**One sentence.** When the thinned stand-in lands and the fine grid for the settled view would be answered as a crop of a
+static frame, ask for it at once; whenever the answer would be the backend, wait the 1,500 ms as today.
+
+**Where.** One place: the hook `useMarineExactUpgrade` (`marineExactUpgrade.js:270-288`), which today arms
+`setTimeout(drive, EXACT_UPGRADE_DELAY_MS)`. Nothing else moves: `drive` still runs the same settle check
+(`checkRef.current()`), which still asks through the normal fetch path, so the arbiter, the dedupe ledger and the truth tags
+see an ordinary commit, as the module's header requires.
+
+**The decision, a pure function** (new, `marineFastFine.js`, so the 800-line files are not grown):
+`fastFineOk({ model, layer, viewportBbox, surf, win })` is true only when ALL of these hold, and false on any doubt:
+1. not killed: `window.__RAW_DISABLE_FIRST_VISIT_FAST_FINE__ !== true`;
+2. the box the fetch path would send is a static crop BY THE SAME RULE THE FETCH PATH USES: the viewport box through
+   `clampViewportBbox(box, layer, model)` (`backendWeatherServiceClientCoverage.js:196`), then
+   `staticEligible({ model, layer, bbox, surf })` (`staticFrames.js:490`), the two calls
+   `backendWeatherServiceClient.js:453` makes, not a copy of their logic;
+3. the set's index is already pinned (`hasPinnedIndex(staticSetKeyForBox(...))`), so the ask cannot fall to `/grid` for
+   want of an index;
+4. the model is GFS and the surf (rating) mode is off. EURO and ICON, and the rated band, keep today's wait in this first
+   version: their crop rules refuse more often and were not checked (section 5).
+When it is true the hook arms `drive` after **`FAST_FINE_DELAY_MS = 120`** in place of 1,500 (not 0: the stand-in's own
+frame must paint first, and a second keydown within 120 ms, a held arrow key, still supersedes it). The existing hour-held
+test in `drive` is kept with the same shorter span: the hour must not have moved for 120 ms. The 4,500 ms fall-back drive
+and every bound (`MAX_ATTEMPTS`, `MIN_GAP_MS`, `GLOBAL_GAP_MS`) are unchanged.
+
+**Why this cannot ask the backend more, and where it still could.** If conditions 2 and 3 hold, the fetch the settle check
+starts is answered by `tryStaticWorldGrid` from the pinned static frame and `/grid` is not called. It could still reach the
+backend when the static path MISSES after having said eligible (the hour's frame absent from the index, a failed download,
+a decode error): `tryStaticWorldGrid` then returns null and the same code falls through to `/grid`, 1.4 s earlier than
+today. That is the one way this design can add backend load, and so:
+5. a static miss on a fast-fine ask is COUNTED (`window.__RAW_FAST_FINE__.misses`) and trips a breaker: after **2** misses
+   in a session, fast-fine is off for that session (the 1,500 ms wait returns). A miss costs at most the request today's
+   code would have sent anyway, sooner; the breaker stops a burst of them.
+Also counted: `armedFast`, `armedSlow` (with the reason: killed, not_static, no_index, model, surf), `fired`.
+
+**What changes on screen.** At a regional zoom where the fine grid is a 2-degree crop: the coarse stand-in is replaced
+after about 120 ms plus a frame fetch or a cache read, in place of 1.5 s plus that. In a click burst faster than 120 ms a
+step, nothing changes. In a burst slower than that, each step now gets its crop (from the CDN or the client's 12-frame
+cache) where today only the last did: more CDN frame requests, no backend requests. Where the fine grid is a real regional
+product from the backend: nothing changes.
+
+**The gate.** Section 2's lines stand, none moved. Three things are added before any number exists, because sections 4
+and 5 showed the gate as written could not see this design:
+- **The harness must exercise the crop path.** The frame stand-in is given real GFS wave frames (the 2026-11-15 12Z set
+  already fetched, served as a static base) and the offline backend's manifest lists the regional tiles, so that
+  `staticEligible` answers as in section 5. Proven first by a **path check P0**: with the change killed, at the five views,
+  the fine grid arrives with `window.__RAW_STATIC_FRAMES__` showing a crop hit and NO `/grid` request; if P0 fails the
+  harness is not production-like and nothing below is run.
+- **F3 is counted three ways, per scenario:** `/api/weather/grid`, `/api/weather/grid_series`, and static frame downloads.
+  The registered line (the two backend endpoints not higher in any repeat) decides. Frame downloads are REPORTED beside it
+  with no pass line; a rise is expected in scenario (b) and is stated, not hidden.
+- **F7, the miss path (new).** With the frame for the stepped hour removed from the stand-in (a forced static miss), the
+  ask falls to `/grid`: the count of `/grid` requests in arm B must not exceed arm A's (it is the same request, sooner), the
+  miss is counted, and after two misses the next step waits 1,500 ms again. Unit tests for the breaker.
+- F6's unit tests: with the kill set, or any of conditions 2 to 4 false, the timer armed is exactly
+  `EXACT_UPGRADE_DELAY_MS`; `fastFineOk` is false on a thrown error, a missing manifest and an unpinned index.
+- The positive control of section 2 (a lab switch that removes the wait unconditionally must make F3 fail) is kept: it is
+  what shows F3 can see a storm.
+
+**What I am not doing, and why.** Not shortening the wait where the backend answers (the probe showed that trades requests
+for speed, and the 1,500 ms was raised from 900 by measurement). Not prefetching the next hour. Not drawing the stored
+frame's crop in place of the stand-in (the larger idea of section 5: it would touch the step path itself and is the
+director's to assign). Not touching wind: the wind engine has no stand-in and its wait was not probed.
+
+**Order of work.** (1) The harness change and P0. (2) `fastFineOk`, the hook change, the counters and breaker, unit tests.
+(3) The gate, both arms, with the controls. (4) A draft PR with every line as it came out. Ships ON with its kill only if
+the registered lines pass (D-065); it changes when a request is sent, never what is served, so no `SCOREBOARD.md` row.
+The advisor is sent this section before step 2.
