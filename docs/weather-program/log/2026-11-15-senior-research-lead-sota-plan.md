@@ -2742,3 +2742,19 @@ downgrade, owner). Sent to the director.
   construction).
 - **Parity metrics are defined** (p99 precip peak, cloud MAD 0.10, temp bias + MAD + p95). Planted errors at 1×/2×
   tolerance.
+
+## 2026-11-18 17:19 -0500 Re-framed under D-082 (#1059): Open-Meteo kept as a fallback until covered; gate v3; retraction
+- **David 19:09Z:** "Keep until covered … use it as a fallback if no better alternative is available/causing a
+  downgrade". This supersedes the 13:13Z "No user data should be open-meteo" framing used above.
+- **The 12 paths re-tagged** (shared note section K):
+  - REPLACE: tide (CMEMS MOWL, M1-0), raster GFS/EURO sets, EURO wind past 240 h (stored GFS), /surf-conditions
+    (one-chain), dead code.
+  - KEEP-AS-FALLBACK until covered: ICON raster, hub days past the horizon, /point manifest miss, /grid viewport/SWR,
+    ingest, the legacy wind cache, WebGL tiles.
+  - MEASURE: the degraded-coastal preference.
+  - The probe: refuse implausible valid_times before fetching.
+- **Gate v3:** the static guard and server refusal are dropped. Kept: census as measurement, parity vs observed truth
+  before each REPLACE, provenance labels, D-080 kill switches (which may fall back to Open-Meteo).
+- **RETRACTION:** the "cache key omits valid_time, so wrong-hour values" bug is not confirmed. The repair lead read
+  `fetch_point`: the series is cached and the hour is picked after it (None beyond 3 h). The claim was a log-agent
+  inference echoed by the external reviewers, never traced in code.
