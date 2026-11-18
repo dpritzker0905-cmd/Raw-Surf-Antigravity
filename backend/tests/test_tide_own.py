@@ -125,37 +125,76 @@ def test_a_failed_read_keeps_the_last_good_table():
 
 
 # ---------------------------------------------------------------- dispatch
-class _NoClient:
-    async def get(self, url):                            # any Open-Meteo request is a failure of the owner's rule
-        raise AssertionError(f"Open-Meteo requested: {url}")
+class _Resp:
+    def __init__(self, data):
+        self.status_code, self._data, self.headers = 200, data, {}
+
+    def json(self):
+        return self._data
 
 
-def test_served_default_is_our_own_table_and_never_open_meteo(monkeypatch):
+class _OMClient:
+    """A stand-in Open-Meteo: records every URL, answers 0.9 m for every hour (one location or a list)."""
+    def __init__(self):
+        self.urls = []
+
+    async def get(self, url):
+        self.urls.append(url)
+        day0 = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        one = {"hourly": {"time": [(day0 + timedelta(hours=i)).strftime("%Y-%m-%dT%H:00") for i in range(72)],
+                          "sea_level_height_msl": [0.9] * 72}}
+        n = url.split("latitude=")[1].split("&")[0].count(",") + 1
+        return _Resp(one if n == 1 else [one] * n)
+
+
+@pytest.fixture
+def served(monkeypatch):
     monkeypatch.delenv("TIDE_LEGACY_OPEN_METEO", raising=False)
     monkeypatch.delenv("SURF_TIDE_OWN", raising=False)
     monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    tide._reset_tide_cache_for_test()
+    yield
+    tide_own._reset_for_tests()
+    tide._reset_tide_cache_for_test()
+
+
+def test_served_default_is_our_own_table_with_no_open_meteo_request(served):
     now = datetime.now(UTC)
     tide_own._reset_for_tests(lambda: _table(now, {"21.7,-158.0": [250] * (48 * 24)}))
-    try:
-        assert tide.tide_source() == "own"
-        s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient()))
-        assert s and s["level"][0] == 0.25 and len(s["time"]) == 72
-        assert asyncio.run(tide.fetch_tide_hourly(10.0, 10.0, client=_NoClient())) is None       # absent = none
-        assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04), (10.0, 10.0)], client=_NoClient())) == 1
-    finally:
-        tide_own._reset_for_tests()
+    om = _OMClient()
+    assert tide.tide_source() == "own"
+    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=om))
+    assert s and s["source"] == "own" and s["level"][0] == 0.25 and len(s["time"]) == 72
+    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04)], client=om)) == 1
+    assert om.urls == []                                 # our table covered it: Open-Meteo never asked
 
 
-def test_kill_switch_gives_no_tide_and_no_request(monkeypatch):
-    monkeypatch.delenv("TIDE_LEGACY_OPEN_METEO", raising=False)
+def test_open_meteo_only_for_the_key_our_table_lacks(served):
+    """The owner: Open-Meteo only where not using it would downgrade service (a blank tide is a downgrade)."""
+    now = datetime.now(UTC)
+    tide_own._reset_for_tests(lambda: _table(now, {"21.7,-158.0": [250] * (48 * 24)}))
+    om = _OMClient()
+    s = asyncio.run(tide.fetch_tide_hourly(10.0, 10.0, client=om))
+    assert s and s["source"] == "open-meteo" and s["level"][0] == 0.9
+    assert len(om.urls) == 1 and "latitude=10.0&longitude=10.0" in om.urls[0]
+    tide._reset_tide_cache_for_test()
+    om2 = _OMClient()
+    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04), (10.0, 10.0), (12.0, 12.0)], client=om2)) == 3
+    assert len(om2.urls) == 1 and "21.7" not in om2.urls[0]          # one batch, only the two lacking keys
+
+
+def test_a_missing_table_falls_back_rather_than_blanking_every_spot(served):
+    tide_own._reset_for_tests(lambda: None)              # before the first build: no table in the bucket
+    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_OMClient()))
+    assert s and s["source"] == "open-meteo"
+
+
+def test_kill_switch_serves_open_meteo_everywhere_and_skips_the_table(served, monkeypatch):
     monkeypatch.setenv("SURF_TIDE_OWN", "0")
     tide_own._reset_for_tests(lambda: pytest.fail("the table must not be read when killed"))
-    try:
-        assert tide.tide_source() == "off"
-        assert asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient())) is None
-        assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04)], client=_NoClient())) == 0
-    finally:
-        tide_own._reset_for_tests()
+    assert tide.tide_source() == "open-meteo"
+    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_OMClient()))
+    assert s and s["source"] == "open-meteo"
 
 
 def test_no_deploy_or_workflow_sets_the_legacy_open_meteo_path():

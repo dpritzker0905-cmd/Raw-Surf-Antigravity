@@ -1,6 +1,7 @@
 """tide_own.py - the served tide from OUR OWN data: FES2022b astronomical tide + the altimetry mean level (A + M).
 
-WHY: the owner, 2026-11-18 13:13Z: "No user data should be open-meteo". The served tide was Open-Meteo
+WHY: the owner, 2026-11-18: "No user data should be open-meteo" (13:13Z), then "use open-meteo only if not using it
+causes a downgrade in forecast or service". The served tide was Open-Meteo
 `sea_level_height_msl`. It now comes from a table our CI builds (`scripts/tide_own/build_series.py`, workflow
 `tide-own-series.yml`), the same arm the tide gates G3t and G4 measure:
   A = FES2022b ocean tide + its long-period equilibrium term (PyFES, run ONLY in CI: PyFES is GPL and never enters
@@ -10,8 +11,9 @@ WHY: the owner, 2026-11-18 13:13Z: "No user data should be open-meteo". The serv
 Metres relative to mean sea level, hourly, per 0.1-degree key (`tide._round_key`), from 3 days back to ~45 days ahead.
 
 NO STORM SURGE. Where the table has no value (FES has no water there, M is not computed yet, or the table is
-missing/stale) the answer is None, "tide unavailable": NEVER an Open-Meteo fallback. The kill switch
-`SURF_TIDE_OWN=0` gives the same None.
+missing/stale) this returns None and `tide.fetch_tide_hourly` falls back to Open-Meteo FOR THAT KEY ONLY (a blank tide
+is a service downgrade); the series it returns says which source it is. The kill switch `SURF_TIDE_OWN=0` serves
+Open-Meteo everywhere, the pre-change behaviour.
 
 The table is read from the weather bucket at most once per TTL per process; a failed read cools down and keeps the
 last good table. A request never blocks on storage longer than `TIDE_OWN_TIMEOUT_S`.

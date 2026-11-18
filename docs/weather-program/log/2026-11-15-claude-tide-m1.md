@@ -2383,3 +2383,38 @@ advisor reads it.
    writes to the production bucket.
 3. The default-on history filter.
 4. The owner's merge.
+
+## 16:36 EST 2026-11-18 (`date`) - OWN-DATA TIDE, addendum 1: the owner's refined rule; Open-Meteo becomes the PER-KEY FALLBACK, not "unavailable"
+**The owner, typed here today:** "remember to use open-meteo only if not using it causes a downgrade in forecast or
+service". This refines 13:13Z ("No user data should be open-meteo").
+
+**What changes in #1061 (supersedes the 14:09 section where they differ):**
+- **Our A + M table stays PRIMARY.** On G3t's seen rows it reads better than the Open-Meteo level: median RMSE 0.121 m
+  against 0.178 m. That is a seen window, not a verdict.
+- **Where our table has NO value for a key, that key alone falls back to Open-Meteo** instead of going blank, because a
+  blank tide is a service downgrade. The cases:
+  - no FES water there;
+  - no M yet;
+  - the table is missing, unreadable or older than 7 days.
+- **`prewarm_tide_cache`:** our table covers its keys; only the keys it lacks are batch-fetched from Open-Meteo.
+- **The kill switch `SURF_TIDE_OWN=0`** now serves Open-Meteo everywhere, as before this change, NOT "tide unavailable".
+- **Every served series carries `"source": "own" | "open-meteo"`,** so the label can name its source honestly.
+  - The label text for "own" is unchanged.
+  - An Open-Meteo key is labelled with Open-Meteo, as today.
+- **The merge-order hazard in the 14:09 section is GONE.** With no table yet, every key falls back to Open-Meteo,
+  exactly as served today; nothing goes blank. The first build (`tide-own-build`) is still wanted before or soon after
+  the merge, so that the own source actually serves.
+- **Unchanged:**
+  - PyFES and the FES constants stay in CI.
+  - The G3t M parity precondition.
+  - Credential scoping.
+  - `TIDE_LEGACY_OPEN_METEO` stays test-only and is pinned unset in every deploy and workflow.
+
+**Tests:**
+- `tests/test_tide_own.py` now has 16 tests:
+  - the own table is used and Open-Meteo is never asked;
+  - only the lacking key goes to Open-Meteo (one batch, only the lacking keys);
+  - a missing table falls back rather than blanking;
+  - the kill switch serves Open-Meteo and never reads the table.
+- With the tide, flag, caller and weather-API suites, 168 pass locally. Lint is clean.
+- Chain floor fragment: +16 tests, +1 file.
