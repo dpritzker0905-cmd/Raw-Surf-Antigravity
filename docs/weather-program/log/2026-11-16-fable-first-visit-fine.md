@@ -208,3 +208,55 @@ director's to assign). Not touching wind: the wind engine has no stand-in and it
 (3) The gate, both arms, with the controls. (4) A draft PR with every line as it came out. Ships ON with its kill only if
 the registered lines pass (D-065); it changes when a request is sent, never what is served, so no `SCOREBOARD.md` row.
 The advisor is sent this section before step 2.
+
+## 7. THE PATH CHECK (2026-11-18, 00:03-00:16 EST): the premise is gone. With wave frames on the CDN there is NO stand-in.
+At the owner's word ("do the harness change and path check now").
+**The harness change.** `wave_frames_fixture.js` (this branch): a local stand-in for the frame CDN holding REAL frames, built
+from the GFS `waves` world set fetched from the public CDN on 2026-11-15 (run 12Z, 57 frames, 3-hourly to f168), each frame
+at its original path, gzipped, with `latest.json` and the run's index. The probe takes `STATIC_BASE` and now records the
+requests that go to it and the client's own static telemetry per step. Until now the stand-in held only pressure frames, so
+the client had no wave set to read and asked the backend for everything.
+**The run.** The build of section 4 (dev `bd8e4c8cd`, nothing changed in the client), the same five regional views, four
+isolated +3 h steps each, a fresh page per view: 20 steps. First on two views (6 steps), then all five; the same both times.
+**What happened, in 20 of 20 steps:**
+- The engine's grid after the step is the FULL 2-degree world frame, **181 x 82**, of the new hour, **40 to 91 ms** after the
+  keydown. The thinned 46 x 21 frame never appears.
+- **No `/api/weather/grid` and no `/grid_series` request leaves**, in any step.
+- No frame is downloaded during a step either: the frame is already in the client (static hit +1 and cache hit +1 per step,
+  0 misses). The frames were fetched ahead by the client's own prefetch while the page settled: the stand-in served 424
+  frames, 7 indexes and 7 `latest.json` over the 7 page loads of the two runs, about 60 frames (roughly 3 MB) a page.
+- My own P0 line reads "0 of 20" because it was written to look for a CROP hit. There was no crop: the world frame itself is
+  drawn. The check as written was looking for the wrong thing; what it shows is better than what it asked for.
+**What this means.**
+- In section 2 I wrote: "If arm A's median is itself under 600 ms on this build the premise is gone and the line is VOID (then
+  there is nothing to fix here and that is the finding)." Arm A here is today's client, and the full-resolution frame is on
+  screen in under 100 ms. **F1 is VOID by its own clause. There is nothing to fix for GFS waves where the static set is
+  published, and the design of section 6 is not built.**
+- The 1.5 s wait of section 4 is real code and was measured correctly, but it only runs when the step was served by the
+  BACKEND's thinned series page. With the static set present the series frames are full resolution
+  (`staticSeriesFrames`, `staticFrames.js:670`), so the thinned frame, the upgrade and its wait never start.
+- **A correction to my own earlier reports.** "On a first pass every step shows the coarse world grid for 1.5 to 4 s" (the
+  marine hour-blend log, sections 21-23 and 31, and the finding I passed to the director) was a property of MY HARNESS, whose
+  frame stand-in held no wave frames, not of the product as configured in production. The hour blend's first-visit failure
+  (H8f) was measured in that same artificial condition. That PR is closed for another reason (the owner's blinded look), so
+  nothing ships on it, but the finding should not be repeated as a production defect. Section 5's reasoning ("the request
+  that waits is a static crop in production") was a step toward this and is superseded: at these views production does not
+  wait at all.
+- **Where the thinned stand-in and its 1.5 s wait can still occur in production** (by reading the code, NOT measured): a set
+  the CDN does not hold; a static miss (an hour missing from the index, a failed download); the first seconds of a session
+  before `latest.json` and the index are read; static frames switched off (the kill, or a build without the bucket URL).
+  How often any of these happens to real users is not known and is the only thing left worth measuring here.
+- Limits: one model and layer (GFS waves); a 2.5-day-old run, which the client accepted; an offline backend for everything
+  that is not a frame; not seen on the deployed site. Wind was not checked (it has its own static set and no stand-in).
+**The advisor's read of sections 2, 5 and 6 (received 00:14 EST, recorded as it arrived, before any gate number):** go ahead
+with the harness and P0; change the design before building. Its two main findings: (i) "a miss costs at most the request
+today's code would have sent" is FALSE for the middle steps of a scrub, so a fast ask must be static-only and never fall to
+`/grid`; (ii) once the harness serves the static path the control cannot make F3 fail, so F3 is void unless a view where the
+BACKEND answers is added. Also: decide again inside the timer on the box actually sent; check the hour is in the index;
+a line of at most one frame download per settled step; a negative path check with a mid-width product; time the call, not a
+network request. All of it is right and all of it is now moot for this design, which is not built. Finding (ii) is the same
+trap this section fell into from the other side, and it goes into the lessons: a harness that cannot reach the path the
+product takes makes both the defect and its fix imaginary.
+**Standing.** No code change is proposed. This branch holds the probe, the fixture and this log as the record; no PR is
+opened for a fix. The ledger fragment on this branch (the close of #930) still needs to reach dev: a docs-and-lab PR for
+that, with the fixture (which other lanes' offline tests need for the same reason), is the one thing I propose.
