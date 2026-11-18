@@ -2510,3 +2510,38 @@ finding):**
 - A standalone regime-weighting lever. Pooled weighting gained ≤ 3.6%, and forecast-binned big-swell bias is small.
   A separate lever would compete for the same GC/serving budget.
 - Reflection's note: "a regime lever may be unnecessary". E3 is a cheap nested test inside L1, not a build.
+
+## 2026-11-17 22:40 -0500 L1 AMENDMENT 4 DRAFT: what the wave-EMOS literature says (Consensus Pro in Chrome + MCP)
+**Evidence:**
+- **Murphy et al. 2025** (Applied Ocean Research, North Sea, 0-168 h):
+  - The best calibration of the mean of Hs ALWAYS uses the deterministic run AND the ensemble mean of Hs, plus ONE
+    covariate of a DIFFERENT quantity (wind speed or Tm).
+  - At most 3 covariates are justified, with a consistent set across horizons.
+  - The ensemble SD is "strikingly" skilful for the Hs error SD.
+- **Jewson et al. 2026** (QJRMS): parameter uncertainty matters. HLR/NGR with an objective-Bayes right-Haar prior (RHP)
+  was the most accurate (CRPS, log score) and the most reliable, and it reduced the underestimation of extremes. A free
+  library exists and it is cheap to run. Bootstrap calibration is the older alternative (Gaetan 2024).
+- **Wessel et al. 2025** (MWR): training EMOS on the threshold-weighted CRPS (twCRPS) improves extreme-event forecasts,
+  at a body-tail trade-off that LINEAR POOLING with the standard fit mitigates.
+- **Campos et al. 2024** (Wea. Forecasting): a NOAA 20-year GEFSv12 WAVE reforecast exists (WW3 set up as operational
+  GEFSv12 wave, 5 members, daily, 16 d). Skill degrades mostly between days 4 and 10; week 2 needs probabilistic use.
+  - Hosting is UNVERIFIED: `noaa-gefs-retrospective` holds the GEFSv12 atmospheric reforecast 2000-2019, but I did not
+    confirm a wave component there.
+
+**Amendment 4 (draft; supersedes parts of amendment 3; binds only after the advisor's read):**
+1. **E2 mean covariates (Murphy form):** the ECMWF ensemble mean, the GEFS-Wave ensemble mean, and ONE cross-quantity
+   covariate (the forecast 10 m wind speed at the point, pre-registered over Tm).
+   - The deterministic members (GWAM, plus the GFS/ECMWF deterministic) enter through the R2 baseline and an E2b
+     variant, not all at once. Cap: ≤ 3 mean covariates per fit (Murphy).
+   - The SD is linear in the pooled ensemble SD.
+2. **E2 is fitted with RHP parameter uncertainty (Jewson).** Plain ML-NGR is reported as E2-ML. This targets gate 3
+   (reliability) directly.
+3. **E3 is REPLACED:** the spline in the forecast mean (amendment 3) adds parameters against Murphy's ≤ 3 finding. The
+   new E3 is EMOS trained on twCRPS with threshold 3.0 m, LINEARLY POOLED with E2 at a weight fixed by blocked CV inside
+   TRAIN (Wessel).
+   - The gate is unchanged: the ≥ 3.0 m FORECAST bin, CI lower bound > 0, pooled not significantly worse, under Holm.
+   - It is still pre-registered unconditionally.
+4. **Reported (not gating):** a GEFS-only EMOS fitted on the 20-year reforecast if its hosting is confirmed. Its TRAIN is
+   far longer than the 10-month window, which tests whether training length, not the method, limits L1.
+   - It must use the operational-equivalent configuration (Campos), and it is never mixed into the joint ECMWF+GEFS fit:
+     ECMWF has no open reforecast.
