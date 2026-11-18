@@ -58,8 +58,12 @@ describe('tide formatting', () => {
   test('the credit follows the payload provenance; none named means none shown', () => {
     expect(tideCredit(payload)).toBeNull();
     const c = tideCredit({ ...payload, provider: 'E.U. Copernicus Marine Service Information', source_url: 'https://doi.org/10.48670/moi-00016' });
-    expect(c).toEqual({ text: 'E.U. Copernicus Marine Service Information', href: 'https://doi.org/10.48670/moi-00016',
+    expect(c).toEqual({ text: 'E.U. Copernicus Marine Service Information', href: 'https://doi.org/10.48670/moi-00016', title: null,
       label: 'Tide data source: E.U. Copernicus Marine Service Information (opens in a new tab)' });
+    const fes = tideCredit({ provider: 'FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine',
+      source_url: 'https://doi.org/10.24400/527896/A01-2024.004', credit_detail: 'The FES2022 Tide product was funded by CNES. CNES, 2024.' });
+    expect(fes.title).toBe('The FES2022 Tide product was funded by CNES. CNES, 2024.');   // the licence's full attribution
+    expect(fes.label).toBe('Tide data source: The FES2022 Tide product was funded by CNES. CNES, 2024. (opens in a new tab)');
     expect(tideCredit({ provider: 'FES2022 (AVISO) + Copernicus Marine', source_url: 'javascript:alert(1)' }).href).toBeNull();
     expect(tideCredit({ provider: '   ' })).toBeNull();
   });

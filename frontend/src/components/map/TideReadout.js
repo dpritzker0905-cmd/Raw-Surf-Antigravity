@@ -77,9 +77,9 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
         {credit && <>
           {' · '}
           {credit.href
-            ? <a href={credit.href} target="_blank" rel="noopener noreferrer" aria-label={credit.label} data-testid="tide-credit"
+            ? <a href={credit.href} target="_blank" rel="noopener noreferrer" aria-label={credit.label} title={credit.title || undefined} data-testid="tide-credit"
                  className="underline decoration-dotted underline-offset-2 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-current rounded-sm">{credit.text}</a>
-            : <span data-testid="tide-credit">{credit.text}</span>}
+            : <span data-testid="tide-credit" title={credit.title || undefined}>{credit.text}</span>}
         </>}
       </div>
       {d.tz_approx && tideUsesSolar(d.tz_offset_h, undefined, atMs) && (

@@ -46,6 +46,24 @@ test('a layer drawn from our own frames credits NOAA GFS, and only while it is',
 });
 
 
+test('credit follows provenance for every default-on own layer: own set -> its agency, .om -> Open-Meteo', () => {
+  // The research lead's row-16 check (2026-11-18): satellite (cloud) and pressure draw from OUR frames by default
+  // (DEFAULT_ON_LAYERS), so their credit must name the agency of the set on screen, and Open-Meteo only on the .om path.
+  const { DEFAULT_ON_LAYERS } = require('./ownRasterFrames');
+  expect(DEFAULT_ON_LAYERS).toEqual(expect.arrayContaining(['satellite', 'pressure']));
+  const agency = { GFS: /^NOAA GFS/, EURO: /^EURO · © ECMWF · CC BY 4\.0/, ICON: /^ICON · Datenbasis: Deutscher Wetterdienst/ };
+  for (const layer of ['satellite', 'pressure']) {
+    for (const [model, re] of Object.entries(agency)) {
+      const c = creditFor(layer, { [layer]: model }, {});
+      expect(c.text).toMatch(re);
+      expect(c.href).not.toMatch(/open-meteo/);
+    }
+    const om = creditFor(layer, {}, {});                    // not engaged = the .om path is what is drawn
+    expect(om.text).toBe('© Open-Meteo · CC BY 4.0');
+    expect(om.href).toBe('https://open-meteo.com/en/licence#maps');
+  }
+});
+
 test('per-model pressure: the credit names the model of the frame on screen', () => {
   const { setEngaged } = require('./ownRasterFrames');
   setEngaged('pressure', 'EURO');

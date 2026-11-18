@@ -19,7 +19,10 @@ export function tideCredit(payload) {
   const text = payload && typeof payload.provider === 'string' ? payload.provider.trim() : '';
   if (!text) return null;
   const url = payload && typeof payload.source_url === 'string' && /^https:\/\//.test(payload.source_url) ? payload.source_url : null;
-  return { text, href: url, label: `Tide data source: ${text}${url ? ' (opens in a new tab)' : ''}` };
+  // The full attribution the source's licence asks for (FES2022: AVISO licence s. 3.1) rides as the title and accessible name.
+  const detail = payload && typeof payload.credit_detail === 'string' ? payload.credit_detail.trim() : '';
+  return { text, href: url, title: detail || null,
+    label: `Tide data source: ${detail || text}${url ? ' (opens in a new tab)' : ''}` };
 }
 
 export function infoboxTideDisabled() {
