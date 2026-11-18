@@ -1,0 +1,83 @@
+name: Tide M1 gate G3 (seasonal + non-tidal water level vs observed)
+# WHY: the pre-registered G3 gate (docs/weather-program/log/2026-11-15-claude-tide-m1.md, G3 FINAL + addenda through
+# c0a2a95a4): FES2022b tide + altimetry seasonal + NOAA STOFS surge (forecasts as issued), scored against OBSERVED water
+# at 26 CO-OPS gauges against test-only Open-Meteo references. Measurement only: no bucket write, nothing served, no live
+# backend. PyFES is GPL and runs only here.
+# ONE-SHOT START: only a push of the tag `tide-gate-G3` (on the owner's word typed in the session that runs it) starts
+# it; no branch push and no schedule can. workflow_dispatch is inert until the file reaches the default branch (dev).
+# Credentials: AVISO only on the FES download step, Copernicus Marine only on the gate step; read from the environment
+# by the scripts and never printed. The log carries stage names and memory only; scores reach the summary and artifact.
+# Pinned by tests/test_tide_g3_rules.py.
+on:
+  push:
+    tags: [tide-gate-G3]
+permissions:
+  contents: read
+  actions: write        # only to prune superseded G3 FES caches (repo cache limit is 10 GB, shared)
+concurrency:
+  group: tide-g3-gate
+  cancel-in-progress: false
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (offline-only dependencies, pinned)
+        run: |
+          pip install "pyfes==2026.5.2" "pyTMD==3.1.0" "timescale==0.1.3" "paramiko==5.1.0" "copernicusmarine==2.4.1" netCDF4 numpy scipy xarray h5netcdf pandas lxml pyyaml
+          python -m pip freeze --all > pip_freeze.txt   # exact versions of the unpinned libraries, into the artifact
+      # A tag run sees only its own tag's caches (and dev's): G2's FES cache is not visible here, so FES downloads again
+      # (G2's re-run took 3h40 on 2 connections). Progress is saved even if the step times out.
+      - name: Restore FES2022b downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: fes_cache
+          key: fes2022b-g3-${{ github.run_id }}
+          restore-keys: fes2022b-g3-
+      - name: Download FES2022b (AVISO, pinned host key)
+        id: dl
+        timeout-minutes: 280
+        env:
+          AVISO_USERNAME: ${{ secrets.AVISO_USERNAME }}
+          AVISO_PASSWORD: ${{ secrets.AVISO_PASSWORD }}
+        run: python backend/scripts/tide_g3/g3_gate.py --download-fes-only --fes-cache fes_cache
+      - name: Drop partial files before saving
+        if: always()
+        run: |
+          mkdir -p fes_cache
+          rm -f fes_cache/*.part
+      - name: Save FES2022b downloads
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: fes_cache
+          key: fes2022b-g3-${{ github.run_id }}
+      - name: Prune superseded G3 FES caches
+        if: steps.dl.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh cache list --key fes2022b-g3- --limit 50 --json key -q '.[].key' \
+            | grep -v -- "-${{ github.run_id }}$" | xargs -r -n1 gh cache delete || true
+      # The gate: S1 preflight FIRST (before any truth is fetched), then sources, then truth, then scoring.
+      - name: Run the G3 gate
+        if: steps.dl.outcome == 'success'
+        timeout-minutes: 180     # S1 / N1 now serial (run 44011150843); ~45 min estimated, headroom for a slow Copernicus
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python backend/scripts/tide_g3/g3_gate.py --fes-cache fes_cache --work g3_work > g3_gate.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tide-g3-gate
+          path: |
+            g3_gate.json
+            pip_freeze.txt
+          if-no-files-found: ignore
+          retention-days: 30
