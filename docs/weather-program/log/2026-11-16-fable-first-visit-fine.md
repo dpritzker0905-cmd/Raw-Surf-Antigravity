@@ -349,3 +349,25 @@ read with a text filter per route, paged 100 at a time. Nothing was sent to the 
   reasons before and after, `/api/health` before and after). NOT started: today's word covered the logs only.
 - The raw pages the helpers saved hold client addresses; they sit in this session's tool-results folder outside the
   repository and are not copied anywhere.
+
+## 11. One observed session on the dev site: the protocol, written BEFORE the page is opened
+The owner's word, in this session, 2026-11-18 (after section 10): "Yes, run it". ONE short session, by hand in one browser
+tab. Not a script loop, not a replay, never repeated to "confirm".
+- **Before and after:** one `GET /api/health` on the backend each side, status and time noted. If the first is not 200 or
+  takes over 5 s, the session is NOT run and that is the record.
+- **The session:** one page load of the dev site's map with `?diag=1`, in the built-in browser as it is (whatever sign-in
+  state it has). If the map asks for a sign-in, STOP: recorded as void, no credentials entered, no user faked in storage.
+  Waves layer on. Three views in the same page, no reload between them: (-158, 21.6) z5; (-9.5, 39) z5; (-5, 50) z4.5.
+  At each: Home on the time wheel, wait 6 s, then two +3 h steps (three ArrowRight each), 6 s apart. Six steps in all.
+- **Read per step, from the page only:** the client's own counters `window.__RAW_STATIC_FRAMES__` (hits, crops, lruHits,
+  misses by reason) before and after; the marine engine's grid size after; and the `/api/weather/grid` and `/grid_series`
+  requests the page made in the step's window (from the browser's resource timing: route, layer, model, world or box).
+- **How a step is named:** STATIC = the counters show a hit, no backend grid request in the window, and the grid is not the
+  thinned 46x21. BACKEND = a `/grid` or `/grid_series` request in the window; its miss reason is the finding. Anything else
+  is written down as seen.
+- **What this can say:** whether the DEPLOYED client takes the static path at these three views for GFS waves today, and the
+  reason for any miss. Six steps, one browser, one model and layer: a description, not a rate. No threshold, no verdict.
+- **Stop at once** on any 429 or 5xx from the backend, or if the page is plainly struggling; the after-health probe is still
+  made.
+- Also noted, not chased: what the page asks the backend for at load (count by route), since section 10 could not tell
+  ordinary from miss.
