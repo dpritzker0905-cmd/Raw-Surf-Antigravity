@@ -317,6 +317,10 @@ class NormalizedPointResponse(BaseModel):
     # byte-identical: like every Optional field above, the JSON gains a constant `"partitions":
     # null` on flag-off responses — ~18 bytes, no in-repo consumer parses it strictly.)
     partitions: Optional[List[Dict[str, Any]]] = None
+    # SURF_FACE_RANGE (ON, kill '0'): the face range beside `surf_height_m`, SERVED on /point. HIGH is `surf_height_m`
+    # itself; LOW is the same chain with no highest-tenth factor. Null where there is no surf, or when killed.
+    surf_face_low_m: Optional[float] = None
+    surf_face_high_m: Optional[float] = None
 
 
 class ManifestProduct(BaseModel):
