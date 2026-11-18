@@ -2818,3 +2818,17 @@ downgrade, owner). Sent to the director.
   - Hs plants at +0.06 and +0.10 m, with detection rates;
   - decision classes as specified (mixed rows joined with global_mid for +48/+72);
   - Holm per quantity × lead across basins, B = 10,000, and an UNDER-RESOLVED check distinct from VOID.
+
+## 2026-11-18 18:47 -0500 Commercial-use licence read: FES2022, EOT20, CMEMS (not legal advice); 15-day residual candidate
+- **FES2022:** AVISO License Issue 20 (effective 2026-08-10), §2.1(B), "for any purpose, including commercial
+  purposes".
+  - Only FES2022 CURRENTS are non-commercial (Annex A).
+  - Conditions: §3.1 attribution, including a LICENCE LINK; §3.2 no re-sharing of the original files via a public API,
+    portal or bucket. Predictions are fine.
+- **EOT20:** CC BY 4.0 (doi 10.17882/79489). Commercial use is OK with attribution.
+- **CMEMS:** free of charge, derivative works "for any purpose".
+  - The credit must be visible where the data is shown, and a use record must be kept.
+  - The commitment runs to 2028-06-30, so it is a planning risk.
+- **Verbatim clauses** are in shared notes `tide-licence-commercial-read-2026-11-18.md`.
+- **15-day residual candidate:** ECMWF `zos` (dynamic sea level, no tide) plus an inverse barometer computed from
+  ECMWF `msl`. Measure it against CMEMS on days 1-10 before any use (shared note, section M update 2).
