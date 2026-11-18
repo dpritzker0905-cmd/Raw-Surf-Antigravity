@@ -403,3 +403,46 @@ in; no credentials touched), waves on, three views in one page, six steps. `/api
 - **Standing.** The first-visit delay named in section 4 is not reached at these views on the deployed client. No fix is
   proposed. Whether the regional or ICON/EURO requests seen in the logs are misses or ordinary is a different question and
   is not opened here.
+
+## 13. Where the client gets a frame from, by model, layer and view: a read of the code (2026-11-18). No measurement
+Read by a helper agent on the working tree (dev `bd8e4c8cd`), checked against `origin/dev` `c66d8c055`: of the static-frame
+files only `staticFrames.js` (+2 lines, an export) and `staticRasterSets.js` (non-marine keys) differ, so the routing is the
+same. I checked three of its claims against the code myself (`staticFrames.js:618-623`, `staticFrameCrop.js:228-240`,
+`windStaticFrames.js:243-254`); they hold. The rest is the helper's reading, not re-read by me. Line numbers are the
+working tree's. Paths under `frontend/src/components/map/`.
+- **Two seams with two different boxes.** `/grid` asks `clampViewportBbox` (`backendWeatherServiceClientCoverage.js:196`):
+  a viewport over 40 deg becomes the world box. `/grid_series` asks the padded viewport, and switches to the world box
+  already at 15 deg on either axis (`marineBboxGeometry.js:83`). A step reads the series cache first; only a miss goes to
+  `fetchBackendMarineGrid`, which tries static first.
+- **Served from static today (by the code):**
+  - GFS, all four marine layers, world box: the world frame (`staticFrames.js:498-499`).
+  - A box over 12 and at most 40 deg, not crossing the antimeridian: a crop of the world frame, under `midCropRulesPass`
+    (`staticFrameCrop.js:228-255`).
+  - A box fully inside one regional tile of the manifest: the regional bundle, checked first (`staticFrames.js:493-494`,
+    `staticRegional.js`). Sets: GFS four layers, EURO waves, ICON waves / swell_1 / wind_waves.
+  - GFS wind at the world box, or a box over 20 deg and at most 180 wide (`windStaticFrames.js:243-266`).
+- **Waits on the backend BY DESIGN (no static set covers it), most common-looking first:**
+  1. A close view whose box is 12 deg or under and not fully inside a regional tile, any model and layer: `/grid` plus a
+     series page (`staticFrameCrop.js:237`).
+  2. Surf mode: every series page goes to `/grid_series&surf=1` (`staticFrames.js:619`); a surf world box always `/grid`.
+  3. A view that overhangs a regional tile's edge: `partial_cover`, then `/grid` (`staticFrames.js:558`).
+  4. ICON and EURO at the world box unless the filled set is servable (a `/capabilities` mode and the set's own record must
+     both say `targeted`; `staticFrames.js:500-507`, `staticWorldFillGuard.js`). Otherwise the thinned page, then `/grid`:
+     this is where the 1.5 s exact-upgrade wait of section 4 lives.
+  5. Wind at a box of 20 deg or under, and all ICON and EURO wind (`windStaticFrames.js:244, 252`).
+  6. ICON and EURO close views that overlap a regional tile without being inside it (`staticFrameCrop.js:252`).
+- **Coverage by model:** GFS has all four marine layers and wind. ICON has waves, swell_1, wind_waves (no swell_2, which is
+  blended client-side from GFS and EURO; no wind). EURO has waves and the three swell sets, no wind.
+- **Single-hour series requests (`hours=<one value>`)** are the cold-hour "mini": they fire when the hour's page is cold and
+  static does not own it (`marineSeriesStatic.js:54-58`), which includes GFS at the world box BEFORE its index is pinned.
+- **A gap in the client's own counters, which matters for sections 10 and 12:** a request that is simply NOT ELIGIBLE for
+  static records no miss at all. So "misses `{}`" in section 12 means no eligible request failed; it does not mean nothing
+  went to the backend (there, nothing did, by the request list). And the counters cannot size the by-design waits above.
+- **How this reads against the logs of section 10:** 410 of 456 series requests and 202 of 266 `/grid` requests were for
+  regional boxes, on all marine layers, with ICON and EURO leaning on `/grid`. That is the shape cases 1, 3, 4 and 6 would
+  give. It is a fit by shape, not a count: the logs do not carry the view.
+- **Unknown from the code:** which regional tiles the live manifest lists and which sets are actually published; the live
+  `/capabilities` values (so whether case 4 is static today); the exact viewport-to-box mapping (the 12 and 40 apply to the
+  padded, snapped box, so a viewport of roughly 7 to 8 deg may already pass 12: inference); which backend pages are thinned;
+  and the GPU frame store's own path, not traced.
+- **Nothing is proposed in this section.** A fix for any of the cases is a separate proposal to the director.
