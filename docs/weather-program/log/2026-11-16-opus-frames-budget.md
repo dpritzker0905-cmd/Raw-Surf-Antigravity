@@ -188,3 +188,12 @@ on the next pilots run.
 - **EXCLUDED:** the first pilots run that starts after #1009 merges. It is named by run id when it runs, before its gate lines
   are read.
 - **If one run follows both #1006 and #1009,** it is one excluded run, named once with both reasons.
+
+## 2026-11-18 13:54Z: exclusions named by run id, BEFORE their gate lines are read
+
+- **EXCLUDED, a forced rebuild (#1006, hourly wind ON at 15:52:16Z):** pilots run 44169533492, created 2026-11-17 20:27:41Z, the
+  first pilots run after #1006 merged.
+- **EXCLUDED, a forced rebuild (#1009, frame_binary.py, merged 2026-11-18 00:27Z):** pilots run 44219095846, created 2026-11-18
+  01:52:31Z, the first pilots run after #1009 merged.
+- **The next counted run is 44249848808** (created 06:14:12Z). #998 merged at 03:16:52Z, so this run also carries its five raster
+  sets, in their own steps; by the plan they are not an exclusion, and their time counts toward line 2.
