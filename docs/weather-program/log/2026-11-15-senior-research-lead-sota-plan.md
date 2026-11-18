@@ -2450,3 +2450,20 @@ before the read. Then construction fidelity within 0.02 m at every lead, then th
   - GC churn goes from about 18k to 20.4k per cycle: it fits #1005's 25k cap and NOT the current 500, so this lands
     after #1005.
   - Manifest bytes and Render RSS are unmeasured; measure them at the dev deploy.
+
+- 2026-11-17 19:40 -0500: **Fetcher caps vs upstream, applying "repo constants are OUR caps":**
+  - **GFS-Wave (AWS `noaa-gfs-bdp-pds`, 2026-11-16 00 Z): 209 files, hourly f000-f120 then 3-hourly to f384.** We ingest
+    129 steps, 3-hourly throughout (GFS Marine Pilot SUMMARY, run 44083737083).
+  - Lever L6(a) (2026-10-26) is built for WIND (#1006, FRAME_WIND_GFS_HOURLY, ON; GFS_WIND_HOURLY_UNTIL_H) and for
+    pressure (#827), but NOT for waves.
+  - EURO wind and waves are both capped at 240 h (65 steps), and ECMWF publishes 360 h. L6(b) applies to both layers.
+  - **Budget collision:** today's GFS Marine Pilot does 8,588 products / 129 steps / 35.8 min. Hourly waves to
+    120 h add 80 steps: about **+5,300 products per fire and about +22 min**.
+  - GC churn would be about 18k + 2.4k (the EURO/ICON horizon) + 5.3k ≈ **25.7k per cycle, over #1005's 25k cap**.
+    The two levers can't both land without re-sizing the cap or trimming layers (for example hourly `waves` only, not
+    all 4 GFS layers: about +1.3k).
+  - **Ranking:** the EURO/ICON horizon fix comes first. It plausibly repairs a measured served defect (the consensus
+    bias) and is cheaper.
+  - Hourly waves mainly remove time-interpolation in days 1-5 (scrub fidelity, rating timing against tide and wind).
+    Its skill gain at buoys is UNMEASURED: wave fields change slowly, so expect it to be small. It should not take GC
+    budget ahead of the consensus fix.
