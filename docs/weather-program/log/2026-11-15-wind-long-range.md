@@ -581,55 +581,64 @@ would need a registered amendment made WITHOUT any result read, and David's word
    - Moving them into the test half gives 65 runs.
    - But it shortens the fit/test separation that the gap may exist to keep. The advisor's call.
 
-## 2026-11-17 19:07 -0500 AMENDMENT (no result read): fetch the 9 named October runs from a second mirror, option (b)
+## 2026-11-18 02:27 -0500 AMENDMENT (no result read): a one-time second-mirror collection of 12 named runs (option b)
 
-**Owner, 18:31 EST, verbatim:** "Go with option b, fetch the 9 from the second mirror".
+This section replaces an earlier nine-run draft (19:07 EST) that existed only on this unmerged branch. The draft
+collected the nine test-half runs and left the three fit-half runs dropped. It was changed at the advisor's condition 2,
+before any result was read. A 20:51 addendum on the same branch is folded in here.
 
-This amendment is made WITHOUT any per-line result read. The report artifact of run 44107750669 is unopened by this
-session; only the verdict line and the collect logs' run lists were read.
+Owner, 18:31 EST, verbatim: "Go with option b, fetch the 9 from the second mirror". After being told the revised cost
+(12 runs, about 5.5 h), the owner wrote: "Yes, dispatch then". Advisor conditions, 2026-11-18 00:00Z; this text was
+approved with two edits at 01:30Z.
 
-**Mirror check** (one HEAD request per file, no data read, 18:35 EST):
-- `storage.googleapis.com/ecmwf-open-data` (ECMWF's Google Cloud copy, same layout) holds all 9 runs:
-  - the `enfo` `ef` index at 180, 336 and 360 h;
-  - the `aifs-ens` and `oper` files for the same runs.
-- The Azure copy refuses access (409). `data.ecmwf.int` no longer keeps October.
+**Why the "never filled" rule changes, and why that is a real amendment.** The 09:57Z rule "a run still missing after
+the fill stays dropped and is never filled" was a stop against open-ended retries. It is lifted ONCE, for one reason
+only. The missing set was decided by S3 SlowDown throttling (HTTP 503 on every one), which does not depend on what the
+forecasts said. Recovering those runs cannot favour an answer, and the decision to continue is taken knowing only a
+count (53 test runs), never a per-line number.
 
-**What changes:**
-- The 9 runs are 2026-10-01 00Z, 10-11 12Z, 10-13 00Z, 10-14 12Z, 10-17 12Z, 10-19 00Z, 10-23 12Z, 10-25 00Z and
-  10-31 00Z.
-- ONLY these runs are collected, one shard at a time.
-- The ENS, HRES and AIFS reads use the Google Cloud copy. NOAA reads are unchanged.
-- The run files of BOTH earlier runs are reused: 43952101715 and the fill 44107750669.
-- Then the gate is scored ONCE on the union.
+**Precondition (1):** written confirmation from the director that no session has opened the report artifact of
+43952101715 or 44107750669, or seen the scored numbers in any form. This session has not. If anyone has, this
+amendment is void and the route is (a), November.
 
-**What does not change:** the split, the arms, the thresholds and the VOID rules. The 3 missing fit-half runs (09-03,
-09-15, 09-21) stay dropped.
+**Runs (2):** exactly these twelve, no others, one attempt series:
+- test half (9): 2026-10-01 00Z, 10-11 12Z, 10-13 00Z, 10-14 12Z, 10-17 12Z, 10-19 00Z, 10-23 12Z, 10-25 00Z, 10-31 00Z;
+- fit half (3): 2026-09-03 00Z, 09-15 00Z, 09-21 00Z.
 
-**If it is still VOID:** a run that fails again stays dropped. If the test half is then still under 60 runs, the gate
-is VOID a third time, and the next step is a new month under this registration, not another fill.
+**Mirror listing (3)** (HEAD requests only, no data read, 18:35 and 19:22 EST):
+- ECMWF's Google Cloud copy (storage.googleapis.com/ecmwf-open-data) holds all twelve runs. Checked: ens `ef` at
+  180, 336 and 360 h, HRES `oper` at 240 h, and AIFS-ENS `pf` at 336 h.
+- The Azure copy refuses access (409). data.ecmwf.int no longer keeps these months.
 
-**Cost:** about 9 runs x ~20 min serially, so ~3 h collect plus ~1.5 h score.
+**Sameness control (4):**
+- Measured at 20:10 EST: the 336 h `ef` `.index` of 2026-10-02 00Z (held from S3, not one of the twelve) is
+  byte-identical on both mirrors. Both copies are 2,012,998 bytes, with sha256
+  `42b52eaf9a58d3e4c66432b07faddd85f913a58624da984913a7fc399d90d34`.
+- Before any collection, the workflow's `mirror_check` job (`wind_lr_mirror_check.py`) repeats and widens this. It
+  compares sha256 of:
+  - the `ef` indexes at 180 and 336 h;
+  - the HRES and AIFS-ENS indexes;
+  - the GRIB bytes of the first 10u message at 336 h.
+- Any difference stops the dispatch: no collection, no score.
+- A failed or throttled fetch from either mirror is NOT a pass: the job stops and is retried later. The collection
+  never starts without a completed comparison. In the code, any exception, non-200 or short read exits non-zero.
 
-**Dispatch:** from dev after the advisor's GATE line and the director's merge, with these inputs:
+**Final stop (5):** after this collection, the gate is scored ONCE on whatever exists.
+- At least 60 test runs (and at least 30 days): the verdict stands as scored.
+- Under 60: October is VOID for good, and the route is (a), November under this registration, once its 14-day truth
+  exists.
+- There is no fourth collection.
+
+**Scoring (6):** recomputed from the full set of run files (43952101715 + 44107750669 + this run), not patched onto
+an earlier scoring. The report stays unopened until the advisor has read the verdict record from the log.
+
+**Unchanged:** the split (fit runs are September day <= 24, test runs are October; the 09-25..09-30 embargo stays),
+the arms, the thresholds and the VOID rules.
+
+**Cost:** about 12 runs x ~20 min serially, so about 4 h collect plus about 1.5 h score: about 5.5 h.
+
+**Dispatch** (from dev, after the GATE line and the merge):
 - `reuse_run_id=43952101715`
 - `reuse_run_id_2=44107750669`
-- `runs=2026100100,2026101112,2026101300,2026101412,2026101712,2026101900,2026102312,2026102500,2026103100`
 - `ens_mirror=gcs`
-
-## 2026-11-18 01:51 -0500 Addendum to the option (b) amendment: the sameness control, measured and made a preflight
-
-- **Measured** (advisor condition 4): run 2026-10-02 00Z is already held from S3 and is not one of the 9. Its 336 h
-  `enfo` `ef` `.index` was read from BOTH mirrors at 20:10 EST.
-  - Both copies are 2,012,998 bytes and byte-identical.
-  - sha256 (both): `42b52eaf9a58d3e4c66432b07faddd85f913a58624da984913a7fc399d90d34`.
-  - The index lists every message's offset and length, so an identical index is strong evidence of identical files.
-- **Preflight:** the workflow's `mirror_check` job (`backend/scripts/wind_lr_mirror_check.py`) repeats the check in CI
-  before any collection, and widens it.
-  - It compares the `ef` indexes at 180 and 336 h, the HRES and AIFS-ENS indexes, and the GRIB bytes of the first
-    10u message at 336 h.
-  - Any difference fails the job, and then neither collect nor score runs.
-- **Runs:** the 9 named October runs, as amended at 19:07. The advisor's 00:42Z read accepted leaving the 3 fit-half
-  drops (09-03, 09-15, 09-21) dropped. They stay dropped.
-- **Precondition:** the director's written confirmation that no session has opened the report artifact of 43952101715 or
-  44107750669, or seen the scored numbers in any form. Without it there is no dispatch, and if anyone has, the route
-  is November.
+- `runs=2026090300,2026091500,2026092100,2026100100,2026101112,2026101300,2026101412,2026101712,2026101900,2026102312,2026102500,2026103100`

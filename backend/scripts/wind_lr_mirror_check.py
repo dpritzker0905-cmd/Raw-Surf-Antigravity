@@ -46,14 +46,25 @@ def compare(session, run=CHECK_RUN, bases=(ef.AWS_BASE, GCS)):
             ent = next(e for e in ec.parse_ecmwf_index(got[0].decode()) if e.get("param") == "10u")
             off, ln = int(ent["_offset"]), int(ent["_length"])
             rng = {"Range": f"bytes={off}-{off + ln - 1}"}
-            gb = [ef._get(session, ef.ef_url(b, run, 336, "grib2"), headers=rng).content for b in bases]
+            gb = []
+            for b in bases:
+                r = ef._get(session, ef.ef_url(b, run, 336, "grib2"), headers=rng)
+                if r.status_code not in (200, 206) or len(r.content) != ln:
+                    raise RuntimeError(f"10u message: HTTP {r.status_code}, {len(r.content)} of {ln} bytes from {b}")
+                gb.append(r.content)
             rows.append(("ens ef 336 grib 10u message", sha(gb[0]), sha(gb[1])))
     return rows
 
 
 def main():
-    import requests
-    rows = compare(requests.Session())
+    """A failed or throttled fetch from either mirror is NOT a pass: any exception or non-200 exits non-zero, and the
+    collection never starts without a completed comparison (advisor 2026-11-18 01:30Z, edit 1)."""
+    try:
+        import requests
+        rows = compare(requests.Session())
+    except Exception as e:  # noqa: BLE001 - every error path is a stop, never "no difference found"
+        print(f"sameness control on {CHECK_RUN:%Y%m%d%H}: NOT COMPLETED ({e}) - stop; retry later")
+        return 2
     same = all(a == b for _, a, b in rows)
     for label, a, b in rows:
         print(f"{'SAME' if a == b else 'DIFFERENT'}  {label}  s3 {a[:16]}  mirror {b[:16]}")

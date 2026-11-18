@@ -155,7 +155,7 @@ def _fake_session_factory(differ_on=None):
     def get(session, url, headers=None, **_k):
         body = index if url.endswith(".index") else b"GRIB"
         if differ_on and differ_on in url and url.startswith(M.GCS):
-            body = body + b"x"
+            body = body[:-1] + b"x"                  # same length, different bytes
         return _Resp(body)
     return get
 
@@ -168,3 +168,24 @@ def test_mirror_sameness_control_passes_on_identical_bytes_and_stops_on_any_diff
     monkeypatch.setattr(M.ef, "_get", _fake_session_factory(differ_on=".grib2"))
     rows = M.compare(None)
     assert [lbl for lbl, a, b in rows if a != b] == ["ens ef 336 grib 10u message"]
+
+
+def test_mirror_sameness_control_never_passes_on_a_failed_or_throttled_read(monkeypatch):
+    import pytest
+    import wind_lr_mirror_check as M
+    good = _fake_session_factory()
+
+    def throttled(session, url, headers=None, **k):
+        if url.startswith(M.ef.AWS_BASE) and url.endswith(".grib2"):
+            raise RuntimeError("HTTP 503 SlowDown")
+        return good(session, url, headers, **k)
+
+    def missing(session, url, headers=None, **k):
+        return _Resp(b"", 404) if url.startswith(M.GCS) else good(session, url, headers, **k)
+
+    for fake in (throttled, missing):
+        monkeypatch.setattr(M.ef, "_get", fake)
+        with pytest.raises(RuntimeError):
+            M.compare(None)
+    monkeypatch.setattr(M, "compare", lambda s: (_ for _ in ()).throw(RuntimeError("HTTP 503")))
+    assert M.main() == 2
