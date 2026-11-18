@@ -643,3 +643,39 @@ the arms, the thresholds and the VOID rules.
 - `reuse_run_id_2=44107750669`
 - `ens_mirror=gcs`
 - `runs=2026090300,2026091500,2026092100,2026100100,2026101112,2026101300,2026101412,2026101712,2026101900,2026102312,2026102500,2026103100`
+
+## 2026-11-18 09:51 -0500 ADDENDUM to condition 4 (no result read): the sameness control compares against HELD data
+
+**Run 44264197330** (dispatched 08:06Z from dev `e3455d4d6`): the sameness control was not completed. Amazon's S3
+copy answered HTTP 503 to the 180 h `ef` index after `_get`'s retries, so the run stopped there: no collection, no
+score, no report. This is not a VOID row, and the one-attempt series of condition 2 has not started.
+
+**Owner, 08:29 EST, verbatim:** "Go with b if that is the path toward SOTA?" Option (b) was the advisor's stronger
+design, 08:15Z.
+
+**What changes (condition 4 only).** The control no longer reads S3. For run 2026-10-02 00Z (held by 43952101715,
+shard 14, not one of the twelve):
+1. the Google copy's 336 h `ef` `.index` must equal the 20:10 EST hand measurement: 2,012,998 bytes, sha256
+   `b42b52eaf9a58d3e4c66432b07faddd85f913a58624da984913a7fc399d90d34`;
+2. the station values decoded from the Google copy, through the collection's own readers, must EQUAL the values held
+   in that run's file, element for element (float32, NaN = NaN), at 460 stations: ENS 10u/10v/10fg at 180 and 336 h,
+   HRES 10u/10v at 240 h, AIFS-ENS 10u/10v at 336 h.
+
+The run file keeps decoded station values, not raw GRIB bytes (checked: `collect_run` saves `.npz` arrays only), so
+(2) compares decoded values. The same bytes give the same values; a different field gives different values. Any
+difference exits 1 (stop). A read error, a missing held file or a missing key exits 2 (NOT COMPLETED, also a stop).
+
+**Correction to the 21:27 amendment's hash (a transcription error, not a re-measurement).** The amendment printed
+the sha256 as `42b52eaf…d34`, 63 characters. On Windows `sha256sum` escapes a backslashed path by printing `\` before
+the hash; the 20:10 output was `\b42b52eaf…d34` on both files, then `IDENTICAL`, and the leading `b` was lost with
+the backslash when copied. The true value is the 64-character one above. Found when the new control ran locally
+(below) and reported the index DIFFERENT while every decoded value matched. A test now rejects any recorded hash
+that is not 64 hex characters.
+
+**Local run of the control, disclosed** (this machine, numpy 2.5.5, eccodes 2.50.0, held shard 14 and the station
+freeze of 43952101715 downloaded; the report artifact NOT downloaded or opened): all 10 decoded fields SAME, max
+|diff| 0; with the corrected hash the index is SAME; PASS. It reads no forecast score and no truth. It shows that the
+control can pass, and that a mismatch (the 63-character hash) does fail it.
+
+**Unchanged:** conditions 1, 2, 3, 5 and 6, the twelve runs, and the dispatch inputs. The dispatch still needs the
+owner's word, typed after the GATE line and the merge.
