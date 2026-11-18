@@ -57,9 +57,11 @@ GUARDED = {
     "SURF_FACE_RANGE": "1",             # ON by the owner's typed word 2026-11-17 ("it needs to be on, not dark"): adds the
                                         # H1/3-H1/10 face range beside the height. NOT SCORED: its gate needs physical breaker
                                         # truth and is NOT RUNNABLE (log 2026-11-16-fable-surf-face-range-gate.md); kill '0'
-    "SURF_TIDE_OWN": "1",               # owner 2026-11-18 "No user data should be open-meteo": the served tide is our
-                                        # FES2022b + altimetry mean-level table (tide_own), Open-Meteo only per key where it
-                                        # has no value; kill '0' = Open-Meteo everywhere. Moves tide_fit + SURF_TIDE_DEPTH cap
+    "SURF_TIDE_OWN": "1",               # owner 2026-11-18 ~23:00Z: no Open-Meteo in user data (licence). The served
+                                        # tide is our table (tide_own); kill '0' = NO tide (honest unavailable),
+                                        # never Open-Meteo. Moves tide_fit and the SURF_TIDE_DEPTH cap
+    "SURF_TIDE_CMEMS": "1",             # M1-0: the CMEMS merged sea level read directly (parity with the old served
+                                        # level, |d| <= 0.01 m) where the table has it; kill '0' = our harmonic tide
     "RATING_REF_PRIOR": "0",            # JAC-2 (#771): held OFF: -17.9 pt mean rating move on reference-less
                                         # spot-hours (480/480 moved, 414 level changes), no rating truth yet
     "FRAME_ENTITLEMENT": "0",           # O6 accounts only: EVERY static frame private + signed URLs. Held OFF: needs the

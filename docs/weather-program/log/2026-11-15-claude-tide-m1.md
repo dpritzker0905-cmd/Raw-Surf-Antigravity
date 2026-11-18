@@ -2418,3 +2418,51 @@ service". This refines 13:13Z ("No user data should be open-meteo").
   - the kill switch serves Open-Meteo and never reads the table.
 - With the tide, flag, caller and weather-API suites, 168 pass locally. Lint is clean.
 - Chain floor fragment: +16 tests, +1 file.
+
+## 17:45 EST 2026-11-18 (`date`) - OWN-DATA TIDE STEP 2 built (branch `claude/tide-own-data-step2`, stacked on #1061): no Open-Meteo in any served tide; CMEMS read directly, then our harmonic tide, then "unavailable"
+**The owner's latest word**, typed in the director's session at about 23:00Z and relayed: "Ok we've decided to use open
+agency data providers, and cut out open-meteo all together as a middle man. We can use it for internal testing, but not
+for user data, as well will need a license".
+
+**The director's sequencing:**
+- **STEP 1 = #1061 at aacbff96d**, TRANSITIONAL. Our own A + M is primary; Open-Meteo is the fallback only where it is
+  already served today. That reduces Open-Meteo use and blanks nothing.
+- **STEP 2 = this branch.** It removes that fallback.
+
+**What step 2 serves per 0.1-degree key, in order:**
+1. **`cmems`**: CMEMS `total_sea_level` at the nearest cell, read directly (`cmems_mod_glo_phy_anfc_merged-sl_PT1H-i`,
+   the source the old Open-Meteo level came from).
+   - Expected to give about no change, subject to M1-0's registered parity, |delta| <= 0.01 m p99 (#1064, not run).
+   - Guarded by `SURF_TIDE_CMEMS` (code default "1").
+   - It is inert until the builder writes CMEMS, which happens only with the repo variable `TIDE_CMEMS_PRIMARY=1`, set
+     after M1-0 PASSes.
+2. **`am`**: our harmonic tide A + M.
+3. **None**: "tide unavailable".
+
+**No served path reaches Open-Meteo.** The old acquisition runs only under the raw test env `TIDE_LEGACY_OPEN_METEO=1`
+(pinned unset in every deploy and workflow).
+
+**Kill switches:**
+- `SURF_TIDE_CMEMS=0` serves the harmonic tide everywhere.
+- `SURF_TIDE_OWN=0` serves no tide.
+
+**Every series carries `source` ("cmems" | "am"), `label` and `credit`.**
+- The two sources sit on different references: CMEMS above the geoid, like the old level; A + M on mean sea level. So a
+  key never mixes them within one series.
+
+**The builder** now runs daily, because CMEMS updates daily. It fills CMEMS with one tile download per 4 degrees, at
+the nearest cell, which is the M1-0 primary.
+
+**The instrument (the director's item 3):**
+- After step 1 deploys, report the share of served tide series with `source` "open-meteo".
+- Step 2 must take it to 0.
+- Step 2 must not merge before its table holds the coverage that step 1 got from Open-Meteo. Otherwise those keys go
+  "unavailable".
+
+**Tests:** `tests/test_tide_own.py` has 17 tests (+1 over step 1). They pin that Open-Meteo is never requested and cover:
+- CMEMS, then A + M, then unavailable;
+- both kills;
+- a missing table is unavailable;
+- the CMEMS placement helpers.
+
+With the tide, flag, caller and weather-API suites, 169 pass locally. Lint is clean. Chain floor fragment: +1 test.

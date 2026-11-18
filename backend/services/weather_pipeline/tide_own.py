@@ -1,19 +1,21 @@
-"""tide_own.py - the served tide from OUR OWN data: FES2022b astronomical tide + the altimetry mean level (A + M).
+"""tide_own.py - the served tide level from sources WE read directly; no Open-Meteo in any user-facing number.
 
-WHY: the owner, 2026-11-18: "No user data should be open-meteo" (13:13Z), then "use open-meteo only if not using it
-causes a downgrade in forecast or service". The served tide was Open-Meteo
-`sea_level_height_msl`. It now comes from a table our CI builds (`scripts/tide_own/build_series.py`, workflow
-`tide-own-series.yml`), the same arm the tide gates G3t and G4 measure:
-  A = FES2022b ocean tide + its long-period equilibrium term (PyFES, run ONLY in CI: PyFES is GPL and never enters
-      this backend; the FES constants never leave CI either, only predictions do);
-  M = the 2016-2025 mean of the altimetry sea-level anomaly at the G3t cell rule (Copernicus Marine), one constant per
-      key, so the curve sits on today's mean sea level.
-Metres relative to mean sea level, hourly, per 0.1-degree key (`tide._round_key`), from 3 days back to ~45 days ahead.
+WHY: the owner, 2026-11-18 ~23:00Z (via the director): cut Open-Meteo out of all user data; it is for internal testing
+only (licence). The served tide was Open-Meteo `sea_level_height_msl`, which is itself CMEMS
+`cmems_mod_glo_phy_anfc_merged-sl_PT1H-i` (the research lead's finding). Our CI (`scripts/tide_own/build_series.py`,
+workflow `tide-own-series.yml`) builds ONE table with up to two series per 0.1-degree key (`tide._round_key`):
+  cmems  CMEMS `total_sea_level` at the nearest cell, read directly (the same numbers the served level had; parity
+         proven first by M1-0, `scripts/tide_cmems`), hourly, about 3 days back to ~9 days ahead;
+  am     our harmonic tide A + M: FES2022b ocean tide + long-period equilibrium (PyFES in CI only; GPL, never in this
+         backend; only predictions leave CI) + the 2016-2025 altimetry mean level at the G3t cell rule (the arm the tide
+         gates G3t / G4 measure), 3 days back to 45 days ahead.
+Order at serve time, per key: `cmems` when SURF_TIDE_CMEMS is on and the key has it, else `am`, else None ("tide
+unavailable"). NEVER Open-Meteo. The kill switches: SURF_TIDE_CMEMS=0 serves the harmonic tide everywhere;
+SURF_TIDE_OWN=0 serves no tide (honest "unavailable"). Every series says its source and carries its label.
 
-NO STORM SURGE. Where the table has no value (FES has no water there, M is not computed yet, or the table is
-missing/stale) this returns None and `tide.fetch_tide_hourly` falls back to Open-Meteo FOR THAT KEY ONLY (a blank tide
-is a service downgrade); the series it returns says which source it is. The kill switch `SURF_TIDE_OWN=0` serves
-Open-Meteo everywhere, the pre-change behaviour.
+NO STORM SURGE in `am`; `cmems` is the ocean model's total sea level (tide + dynamic sea level), as served before.
+The two sources sit on different references (`cmems`: above the geoid, as Open-Meteo's level was; `am`: mean sea
+level), so a key never mixes them within one series.
 
 The table is read from the weather bucket at most once per TTL per process; a failed read cools down and keeps the
 last good table. A request never blocks on storage longer than `TIDE_OWN_TIMEOUT_S`.
@@ -32,12 +34,16 @@ logger = logging.getLogger(__name__)
 
 SERIES_KEY = "tide_own/series.json.gz"
 SCHEMA = "raw-surf/tide-own/1"
-LABEL = "Tide: astronomical prediction + average sea level (no storm surge)"
-CREDITS = "FES2022 (AVISO/CNES/LEGOS/NOVELTIS); Copernicus Marine Service (altimetry mean sea level)"
+LABELS = {
+    "cmems": ("Tide: ocean model sea level (tide + currents; no storm-surge guarantee)",
+              "Copernicus Marine Service (Global Ocean Physics Analysis and Forecast)"),
+    "am": ("Tide: astronomical prediction + average sea level (no storm surge)",
+           "FES2022 (AVISO/CNES/LEGOS/NOVELTIS); Copernicus Marine Service (altimetry mean sea level)"),
+}
 _TTL_S = float(os.environ.get("TIDE_OWN_TTL_S", "3600"))
 _FAIL_COOLDOWN_S = 300.0
 _TIMEOUT_S = float(os.environ.get("TIDE_OWN_TIMEOUT_S", "10"))
-_MAX_AGE_S = 7 * 86400.0          # a table older than this is not served (the CI job runs every 3 days)
+_MAX_AGE_S = 7 * 86400.0          # a table older than this is not served (the CI job runs daily)
 
 _state = {"table": None, "read_at": 0.0, "fail_until": 0.0}
 _lock = threading.Lock()
@@ -49,22 +55,26 @@ def key_str(key) -> str:
     return f"{float(key[0]):.1f},{float(key[1]):.1f}"
 
 
+def _series_ok(d, hours):
+    return isinstance(d, dict) and all(isinstance(v, list) and len(v) == hours for v in d.values())
+
+
 def validate(doc) -> Optional[dict]:
-    """The table if it has the expected shape, else None. Levels are integer millimetres or null."""
+    """The table if it has the expected shape, else None. Levels are integer millimetres or null. `keys` is the
+    harmonic (am) series; `cmems` (optional) the CMEMS direct read, on the same hourly axis."""
     if not isinstance(doc, dict) or doc.get("schema") != SCHEMA:
         return None
     try:
         start = datetime.fromisoformat(str(doc["start"])).replace(tzinfo=timezone.utc)
         hours = int(doc["hours"])
-        keys = doc["keys"]
+        am = doc["keys"]
+        cm = doc.get("cmems") or {}
         generated = datetime.fromisoformat(str(doc["generated_at"]).replace("Z", "+00:00"))
     except (KeyError, TypeError, ValueError):
         return None
-    if hours <= 0 or not isinstance(keys, dict):
+    if hours <= 0 or not _series_ok(am, hours) or not _series_ok(cm, hours):
         return None
-    if any(not isinstance(v, list) or len(v) != hours for v in keys.values()):
-        return None
-    return {"start": start, "hours": hours, "keys": keys, "generated_at": generated}
+    return {"start": start, "hours": hours, "am": am, "cmems": cm, "generated_at": generated}
 
 
 def _fetch_bucket() -> Optional[dict]:
@@ -106,17 +116,7 @@ def _load_sync(now: float) -> Optional[dict]:
         return _state["table"]
 
 
-def series_from_table(table: Optional[dict], key, forecast_days: int, now: datetime) -> Optional[dict]:
-    """PURE: {"time": ["YYYY-MM-DDTHH:00", ...], "level": [m, ...]} from 00Z today for `forecast_days` days (the
-    window the Open-Meteo request returned, so callers see the same shape), truncated to the table's end. None when
-    the table is missing or too old, the key is absent, or the window holds no value."""
-    if table is None:
-        return None
-    if (now - table["generated_at"]).total_seconds() > _MAX_AGE_S:
-        return None
-    vals = table["keys"].get(key_str(key))
-    if vals is None:
-        return None
+def _slice(table, vals, forecast_days, now):
     day0 = now.astimezone(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     i0 = int((day0 - table["start"]).total_seconds() // 3600)
     i1 = min(i0 + 24 * int(forecast_days), table["hours"])
@@ -132,7 +132,28 @@ def series_from_table(table: Optional[dict], key, forecast_days: int, now: datet
     return {"time": times, "level": levels}
 
 
-async def fetch_series(key, forecast_days: int = 3) -> Optional[dict]:
+def series_from_table(table: Optional[dict], key, forecast_days: int, now: datetime,
+                      prefer_cmems: bool = True) -> Optional[dict]:
+    """PURE: {"time": ["YYYY-MM-DDTHH:00", ...], "level": [m, ...], "source", "label", "credit"} from 00Z today for
+    `forecast_days` days (the window the old request returned, so callers see the same shape), truncated to the
+    series' end. `cmems` first when preferred and present for the key, else `am`. None when the table is missing or
+    too old, or neither series has a value for the key in the window."""
+    if table is None or (now - table["generated_at"]).total_seconds() > _MAX_AGE_S:
+        return None
+    k = key_str(key)
+    order = ("cmems", "am") if prefer_cmems else ("am",)
+    for src in order:
+        vals = table[src].get(k)
+        if vals is None:
+            continue
+        s = _slice(table, vals, forecast_days, now)
+        if s is not None:
+            label, credit = LABELS[src]
+            return dict(s, source=src, label=label, credit=credit)
+    return None
+
+
+async def fetch_series(key, forecast_days: int = 3, prefer_cmems: bool = True) -> Optional[dict]:
     """The served tide series for a rounded key, or None (tide unavailable). Never raises; bounded by the timeout."""
     try:
         table = await asyncio.wait_for(asyncio.to_thread(_load_sync, time.time()), _TIMEOUT_S + 1.0)
@@ -140,7 +161,7 @@ async def fetch_series(key, forecast_days: int = 3) -> Optional[dict]:
         logger.warning("[tide-own] table load exceeded its budget")
         with _lock:
             table = _state["table"]
-    return series_from_table(table, key, forecast_days, datetime.now(timezone.utc))
+    return series_from_table(table, key, forecast_days, datetime.now(timezone.utc), prefer_cmems)
 
 
 def _reset_for_tests(fetcher=None) -> None:
