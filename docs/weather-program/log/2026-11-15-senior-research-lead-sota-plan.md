@@ -2685,3 +2685,23 @@ downgrade, owner). Sent to the director.
     +24 h.
   - The gain is coastal.
   - Next: replication plus the MFWAM arm.
+
+## 2026-11-18 14:55 -0500 RETRACTION: ECWAM 0.1 deg "wins at +48/+72 h" does not replicate; external red-team of the Open-Meteo plan
+- **Replication block** (5 new 00z runs, 11-13..11-17): at +48/+72 h the CIs straddle 0 and the sign disagrees with
+  block 1.
+  - Status: NOT ESTABLISHED. Block 1 is void.
+  - The pooled +24 h edge is post hoc; it will be tested only in a fresh block 3.
+- **Method lesson:**
+  - A +0.1 m additive plant was NOT detected by paired MAE (sign-blind); a +10% amplitude plant was.
+  - Every paired skill test now pre-registers a mean-error test beside MAE, each with its own positive controls (+0.05
+    and +0.1 m additive, +10% amplitude).
+  - Use 3-day or stationary blocks, a buoy × run bootstrap, and an equivalence read for fallback decisions.
+- **External red-team** (LongCat, Reflection, SubQ; shared note `open-meteo-exit-plan-2026-11-18.md` section H):
+  - No user-facing Open-Meteo keep is needed.
+  - New items:
+    1. The point cache key omits `valid_time`: a wrong-hour correctness bug.
+    2. Enforce server-side, not only on the client.
+    3. Persisted artifacts (CDN tiles, glyph bake, SW caches) need a cache-key bump and a rebake.
+    4. The degraded-coastal path must be stored-only.
+    5. Derived outputs (alerts, push, share cards) inherit the source.
+    6. Error paths must end in "unavailable".
