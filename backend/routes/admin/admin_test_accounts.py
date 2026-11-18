@@ -15,6 +15,7 @@ from core.password_policy import validate_new_password
 from database import get_db
 from deps.admin_auth import get_current_admin
 from models import Profile, UserActivityLog, RoleEnum
+from routes.auth_pkg.auth import hash_password
 from .moderation import log_audit
 
 router = APIRouter()
@@ -83,14 +84,10 @@ async def seed_test_accounts(
     """
     # Verify admin
     
-    import hashlib
     import uuid
     
     def generate_uuid():
         return str(uuid.uuid4())
-    
-    def hash_password(password: str) -> str:
-        return hashlib.sha256(password.encode()).hexdigest()
     
     created_accounts = []
     password = request.password if request.password is not None else secrets.token_urlsafe(24)
