@@ -2758,3 +2758,17 @@ downgrade, owner). Sent to the director.
 - **RETRACTION:** the "cache key omits valid_time, so wrong-hour values" bug is not confirmed. The repair lead read
   `fetch_point`: the series is cached and the hour is picked after it (None beyond 3 h). The claim was a log-agent
   inference echoed by the external reviewers, never traced in code.
+
+## 2026-11-18 17:27 -0500 Owner word ~23:00Z: full Open-Meteo exit (supersedes 19:09Z / D-082); master sequence owned by the research lead
+- **David, via the director:** "use open agency data providers, and cut out open-meteo all together as a middle man. We
+  can use it for internal testing, but not for user data, as well will need a license".
+- **Rules:**
+  - All paths are REPLACE.
+  - Kill switches fall back to an agency source or "unavailable".
+  - Parity uses MAE + ME vs observed truth.
+  - The static guard is warn-only first, blocking after the proxy and provider removal.
+  - Agency credits (ECMWF, CMEMS, DWD, NOAA).
+- **Master sequence:** 19 rows with owner, PR and status, in shared note `open-meteo-exit-plan-2026-11-18.md`
+  section L. The research lead keeps it current.
+- **Critical path:** census wrapper, then tide M1-0 + raster flips, then small items, then stored-only fallbacks, then
+  ICON-EU, then hub horizon (after #1005), then ingest, then attribution, then proxy removal, then guard blocking.
