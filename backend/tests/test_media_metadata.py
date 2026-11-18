@@ -287,3 +287,30 @@ async def test_user_gallery_photo_publishes_no_gps(social, tmp_path):
     assert r.status_code == 200, r.text
     (public_bytes,) = stored.values()
     assert piexif.load(public_bytes)["GPS"] == {} and r.json()["size"] == len(public_bytes)
+
+def test_a_file_of_many_tiny_boxes_is_refused_without_building_a_huge_list(tmp_path):
+    from services.media_metadata import write_public_copy
+    from services.video_metadata import MAX_BOXES
+    flood = _box(b"ftyp", b"qt  ") + _box(b"moov", b"".join(_box(b"free", b"") for _ in range(MAX_BOXES + 10)))
+    with pytest.raises(MetadataError):
+        write_public_copy(flood, "video/quicktime", True, tmp_path / "flood.mov")
+    assert not (tmp_path / "flood.mov").exists()
+    ok = write_public_copy(_mov(), "video/quicktime", True, tmp_path / "ok.mov")   # a real-shaped file is well inside
+    assert ok.stripped and ok.latitude == pytest.approx(21.665)
+
+
+def test_any_failure_while_stripping_a_video_leaves_no_file(tmp_path, monkeypatch):
+    from services import media_metadata, video_metadata
+
+    def boom(path):
+        raise RuntimeError("unexpected")
+    monkeypatch.setattr(video_metadata, "strip_video_in_place", boom)
+    with pytest.raises(RuntimeError):
+        media_metadata.write_public_copy(_mov(), "video/quicktime", True, tmp_path / "c.mov")
+    assert not (tmp_path / "c.mov").exists()
+
+def test_a_truncated_jpeg_is_a_metadata_error_not_a_crash():
+    with pytest.raises(MetadataError):          # was IndexError, which the routes answered with a 500
+        strip_image_metadata(b"\xff\xd8\xff", "image/jpeg")
+    with pytest.raises(MetadataError):
+        strip_image_metadata(_jpeg()[:2] + b"\xff", "image/jpeg")

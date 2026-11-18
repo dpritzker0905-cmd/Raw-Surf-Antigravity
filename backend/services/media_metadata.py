@@ -55,7 +55,7 @@ def strip_jpeg(content: bytes) -> bytes:
     i = 2
     n = len(content)
     while i < n:
-        if content[i] != 0xFF:
+        if content[i] != 0xFF or i + 1 >= n:      # a lone trailing 0xFF is truncation, not an IndexError (a 500)
             raise MetadataError("bad JPEG marker")
         marker = content[i + 1]
         if marker == 0xFF:                       # fill byte
@@ -172,7 +172,7 @@ def strip_stored_video(path) -> bool:
     from services.video_metadata import strip_video_in_place
     try:
         return strip_video_in_place(path).stripped
-    except MetadataError:
+    except BaseException:          # ANY failure: the local copy is served too, so it must not survive unstripped
         os.remove(path)
         raise
 
@@ -191,7 +191,7 @@ def write_public_copy(content: bytes, content_type: str, is_video: bool, path) -
         f.write(content)
     try:
         facts = strip_video_in_place(path)
-    except MetadataError:
+    except BaseException:          # ANY failure: never leave the unstripped copy where the route could publish it
         os.remove(path)
         raise
     return PublicCopy(stripped=facts.stripped, size=len(content), latitude=facts.latitude,

@@ -268,3 +268,23 @@ decision for David; avatars are already re-encoded by Pillow without EXIF. HEIC 
 unstripped; already-stored files wait on the backfill decision.
 Tests +10 (odd JPEG re-encoded clean and upright; four photo routes and four video routes (story, feed, comment, wave) publish no location; user
 gallery). Mutations: dropping the comment-video strip fails 1, writing the feed photo raw fails 1.
+## 2026-11-18 13:42Z T1 P3 (part 6, advisor HOLD fixed): a bounded box walk, and no unstripped file left behind on any error
+
+The advisor held #1038 at fb531cf5b for two defects, both now fixed. (1) Unbounded memory: `strip_video_in_place`
+built `list(_boxes(...))` at three levels, so a 500 MB upload of 8-byte boxes was about 62 million tuples (~11 GB)
+on the one shared server, sendable by any signed-in uploader. The walk is now lazy (neutering keeps every length, so
+no position still to be read can move) and shares one budget of `MAX_BOXES` = 4096 boxes per file; beyond it the
+file is refused with MetadataError and removed. A real phone MP4 has a few dozen boxes at these levels. (2)
+`write_public_copy` removed the written file only on MetadataError; it now removes it on ANY exception, so an
+unexpected error can never leave the unstripped copy where the route would publish it.
+Tests +2 (a flood of 4,106 boxes is refused with no file left while a real-shaped file still strips; an unexpected
+error leaves no file). Mutations: dropping the budget fails 1; catching only MetadataError fails 1.
+Limits the advisor recorded, NOT fixed here: GoPro GPMF / DJI telemetry tracks (a full GPS track inside the media
+data), top-level `uuid` boxes, and the mvhd/tkhd creation times, which stay.
+## 2026-11-18 13:48Z T1 P3 (part 7, addendum): two advisor limits on #1035 closed here
+
+A truncated JPEG (a lone trailing 0xFF) raised IndexError in `strip_jpeg`, which the routes answered with a 500; it is
+now a MetadataError (400). `strip_stored_video` removes the file on ANY exception, as part 6 now does, because the
+local copy is also served by `/api/uploads/...`. Tests +1 (estate fragment now +11). The other #1035 limits stay
+open: bytes after the JPEG image data (Android motion-photo video, secondary images) are copied as is, APP2 is kept
+without checking it is an ICC profile, HEIC keeps its GPS.
