@@ -292,3 +292,13 @@ lifetime are loaded. `delete-my-data` now records the cutoff in its transaction.
 good map. Tests +5 (cutoff semantics; verify_token and the route dependency refuse; reload keeps recent and in-process
 cutoffs and survives a database error; revoke moves the cutoff; deletion revokes at once and others keep their sessions). Guards fragment +1, estate +4. Not yet used for password change or admin suspension: same helper, one line
 each, worth a follow-up.
+## 2026-11-18 17:57Z Sessions also end on a password change, a password reset, a suspension or a ban (David: "Yes, add both")
+
+Instead of patching the ten-plus code paths that suspend or ban a profile or set its password (admin core, moderation, P1
+alerts, ToS violations, password reset, change-password, deletion), ONE SQLAlchemy `before_flush` hook in `core/session_revocation` writes the cutoff in the same transaction whenever a profile's `is_suspended` or `is_banned`
+becomes true, or a real password is replaced or cleared (setting a first password is not a revocation), and an `after_commit` hook makes it effective in this process (a rollback discards it). Future code paths are covered too.
+Change-password keeps the device that made the change signed in: it returns a fresh token carrying `rv` (minted past
+the new cutoff) and the current token's `amr`; the settings card stores it (`updateUser`) and says other devices were
+signed out. Tests +6 (the hook for suspension, ban, password replaced and cleared; no revocation for a first password,
+an unrelated edit or a rollback; change-password ends other sessions and keeps this one). Estate fragment now +10.
+Settings Jest 16 pass; ESLint ratchet passes.

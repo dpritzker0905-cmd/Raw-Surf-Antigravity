@@ -14,6 +14,9 @@ def _now():
     return datetime.now(timezone.utc)
 
 
+import core.session_revocation  # noqa: E402,F401 - registers the revoke-on-change database hook with the models
+
+
 class SessionRevocation(Base):
     __tablename__ = 'session_revocations'
     profile_id = Column(String(36), primary_key=True)          # no FK: the cutoff must outlive any profile change

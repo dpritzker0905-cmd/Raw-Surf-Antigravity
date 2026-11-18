@@ -82,3 +82,93 @@ def test_revoke_records_and_moves_the_cutoff_forward():
             assert row.reason == "password_changed" and row.revoked_at.replace(tzinfo=timezone.utc) == t1 + timedelta(hours=1)
         await engine.dispose()
     asyncio.run(go())
+
+# ── one database hook: password change / suspension / ban revoke too ────────────────────────────────────────────────
+def _profile_world():
+    from models import Profile, RoleEnum
+    from routes.auth_pkg.auth import hash_password
+
+    async def build():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        async with engine.begin() as conn:
+            for model in (Profile, SessionRevocation):
+                await conn.run_sync(lambda c, t=model.__table__: t.create(c))
+        maker = async_sessionmaker(engine, expire_on_commit=False)
+        async with maker() as db:
+            for pid, pw in (("ana", hash_password("old-password")), ("ben", None), ("cy", "x")):
+                db.add(Profile(id=pid, user_id=pid, email=pid + "@example.invalid", full_name=pid,
+                               role=RoleEnum.SURFER, password_hash=pw))
+            await db.commit()
+        return engine, maker
+    return asyncio.run(build())
+
+
+@pytest.mark.parametrize("change,reason", [
+    ({"is_suspended": True}, "suspended"), ({"is_banned": True}, "banned"),
+    ({"password_hash": "new-hash"}, "password_changed"), ({"password_hash": None}, "password_changed"),
+])
+def test_the_hook_revokes_on_suspension_ban_and_password_change(change, reason):
+    from models import Profile
+    engine, maker = _profile_world()
+
+    async def go():
+        async with maker() as db:
+            ana = await db.get(Profile, "ana")
+            for k, v in change.items():
+                setattr(ana, k, v)
+            await db.commit()
+            row = await db.get(SessionRevocation, "ana")
+            assert row is not None and row.reason == reason
+        assert "ana" in sr._cutoffs                                      # effective here right after the commit
+        await engine.dispose()
+    asyncio.run(go())
+
+
+def test_the_hook_ignores_a_first_password_other_edits_and_a_rollback():
+    from models import Profile
+    engine, maker = _profile_world()
+
+    async def go():
+        async with maker() as db:
+            (await db.get(Profile, "ben")).password_hash = "first-password-hash"   # setting a first password
+            (await db.get(Profile, "cy")).full_name = "Cy Renamed"
+            await db.commit()
+            assert (await db.get(SessionRevocation, "ben")) is None and (await db.get(SessionRevocation, "cy")) is None
+            (await db.get(Profile, "cy")).is_suspended = True
+            await db.flush()
+            await db.rollback()                                            # never committed: never effective
+        assert sr._cutoffs == {}
+        await engine.dispose()
+    asyncio.run(go())
+
+
+def test_changing_the_password_ends_other_sessions_and_keeps_this_device():
+    import httpx
+    from fastapi import FastAPI
+
+    from database import get_db
+    from routes.auth_pkg import auth as auth_routes
+    engine, maker = _profile_world()
+    app = FastAPI()
+    app.include_router(auth_routes.router, prefix="/api")
+
+    async def dependency():
+        async with maker() as db:
+            yield db
+    app.dependency_overrides[get_db] = dependency
+
+    async def go():
+        this_device = security.create_access_token({"sub": "ana", "role": "Surfer", "amr": ["pwd", "totp"]})
+        other_device = security.create_access_token({"sub": "ana", "role": "Surfer"})
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t.invalid") as c:
+            r = await c.post("/api/auth/change-password", headers={"Authorization": "Bearer " + this_device},
+                             json={"current_password": "old-password", "new_password": "new-password-123"})
+        assert r.status_code == 200, r.text
+        fresh = r.json()["access_token"]
+        for old in (this_device, other_device):
+            with pytest.raises(HTTPException):
+                security.verify_token(old)                              # every earlier session is over
+        claims = security.verify_token(fresh)                            # this device continues
+        assert claims["sub"] == "ana" and claims["amr"] == ["pwd", "totp"] and claims["rv"] >= sr._cutoffs["ana"]
+        await engine.dispose()
+    asyncio.run(go())
