@@ -1,8 +1,8 @@
 {
   "lane": "guards",
-  "tests": 32,
+  "tests": 35,
   "files": 1,
   "branch": "claude/surf-truth-legal-b9a3a1",
   "date": "2026-11-18",
-  "note": "T1 legal: bands, reason codes, log minimal, company-details revocation only on a version change"
+  "note": "T1 legal: bands, reason codes, log minimal, company-details revocation, schema-2-only prep"
 }

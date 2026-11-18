@@ -138,3 +138,30 @@ D-082 and this lane's entries move up by one:
 Every mention of D-082, D-083 or D-084 above in this log, and in this lane's two ledger lines, means the new number
 in the table. DECISIONS.md and the design doc carry the new numbers. The order was sent to the director and the
 repair lead for confirmation.
+
+## 2026-11-18 23:12Z (from the UTC clock) Advisor HOLD at 31f4baedb fixed: the active Company details are locked
+
+**The advisor's blocker:**
+- Before this fix, `PUT /compliance/tos-content` could name the ACTIVE `company_details` version with
+  `set_active=false`. It then overwrote that version in place:
+  - the new name was served at once;
+  - no `company_details_changes` row was written;
+  - the revision stayed the same, so every consent stayed valid under different words;
+  - retention saw nothing.
+- It was API-only (the editor always sends `set_active=true`) and untested.
+
+**Fix:** that request is now refused (409) unless the values are unchanged. Any change to the details in force goes
+through a recorded publish, as a change or a correction. Test:
+`test_the_active_company_details_cannot_change_without_a_recorded_publish`.
+
+**From the advisor's non-blocking limits:**
+- The record now also keeps the filled consent title (the checkbox label) before and after, not only the text.
+- A new test shows `prep.load_export` refuses any schema but 2.
+- The retention test fixture now disposes its engine. A local SQLite census found 12 open connections there; the
+  file is in the guards lane, which has no census.
+- Still open, recorded as limits:
+  - a correction is taken on the admin's word;
+  - the append-only triggers run on Postgres only and are never executed in CI;
+  - `test_surf_truth_erasure.py` (#1022's file) leaves 4 connections open locally; I did not change that file.
+
+Local: 215 passed across 10 files. Floors: guards +35, estate +11.
