@@ -447,3 +447,36 @@ Every triple in both arms: `okBlend` and `okHours` true, grid 181x83. Picture ra
 - **Standing.** The wind blend stays off and no PR is opened. Still not run: W8a as amended, W12 (light, beach, phone),
   W11's whole-tree run. If the wind blend is ever taken up again, the fine pass must blend too (or the blend must be
   declared a world-view feature), and W6 and W7 must be measured with the fine grid's pixels told apart.
+
+## 15. The two lines still owed, W8a as amended and W12: how each is run, written BEFORE either is run (2026-11-18, 17:25 EST)
+The owner's word in this session today: "Run the two lines". Record only; the blend stays off whatever they say.
+**W8a as amended (section 5, item 3), made concrete now:**
+- The fixture's wave term is `8 sin(ph), 8 cos(ph)` knots (`serve_synthetic.py:191-193`, `--moving-wind 8`): its own speed is
+  8 kn at every node and every hour. So "nodes where the wave's own speed is at least half the node's speed in both hours"
+  is: **nodes whose speed is at most 16 kn in both hours of the pair.** The mask comes from the generator's constant and the
+  stored bytes of the two hours, not from the mixed result.
+- Pair: (h, h+3), the step the app blends. Retention = mean |0.5 (a + b)| over the mask / the mean of the two hours' mean
+  speeds over the mask. World grid's bytes as the engine holds them, hours j = 1..4 (pairs j, j+1). The world grid is the
+  same field at every view, so ONE view is run and the four pairs are the whole sample: four pairs, not forty.
+- **Line (unchanged): pooled retention at least 0.85.**
+- **Positive control (must come out BELOW 0.85, on the same mask rule applied to its own pair):** the same measure for
+  (h, h+12), pairs j, j+4. Section 5 said the control "uses the same mask" without saying which measure; fixed now as the
+  whole-vector retention above. The moving-part-only figure of section 11 is printed beside it, not scored.
+- Void if the mask keeps under 10% of nodes in any pair, or the control does not come out below 0.85 (then the measure
+  cannot fail and says nothing).
+- Expected, written now: the wave moves 46 degrees of phase in 3 h, and a half-way mix of two equal vectors 46 degrees
+  apart keeps cos(23 deg) = 0.92 of the wave alone; with the steady background added, somewhat more. In 12 h it moves 185
+  degrees and the wave all but cancels. Two-sided: under 0.90 or the control above 0.85 means the test needs looking at.
+- A limit known before the run (section 14): this is the BASE's bytes. Under a resident fine grid it is not what is on
+  screen.
+**W12 (section 3): W1, W4 and W5 again in light desktop, beach desktop, and dark on the phone layout (390 x 844).**
+- W1 and W4 by `scn_wind_blend.js` exactly as the dark desktop gate runs of sections 10 and 11 (all ten views, same phases),
+  scored by `wind_blend_report.js` with the lines as section 3 wrote them. W5 by `scn_wind_blend_truth.js` with `ONLY=w5`
+  (all ten views, two hours each), line as section 3.
+- One run per configuration. "Each must pass its line": a configuration where any of the three fails is a fail for W12.
+- Known before the run and NOT a reason to rescore: W4 failed once of twice in dark (section 10, 11) and W4c was added as its
+  late check; W4c is reported beside W4 here but W12 as written names W4. W5 is scored for the world grid only, as before.
+- Void for a configuration if the page does not load its theme or layout (checked from the page), or under 8 of 10 views
+  complete.
+**Order:** W8a first (minutes), then the three W12 configurations, about an hour in all. Nothing is re-run to get a better
+figure; a crashed run is re-run once and said.
