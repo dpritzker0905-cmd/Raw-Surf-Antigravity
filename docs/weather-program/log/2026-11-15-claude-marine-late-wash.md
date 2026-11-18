@@ -285,3 +285,22 @@ On 2026-11-17 the director ruled that a lane never merges its own PR to dev: it 
 stops, and the director merges after the advisor has read that exact head. This lane merged #1001 (`86c682a00`) and #937 (`df35a8c27`)
 itself, each on David's direct word. An owner's word to merge names WHAT merges; the director's gated loop is still WHO merges. #1021
 went to the director as a head, unmerged.
+
+### 6h. Amendment: run 2 split into four same-machine jobs (registered 2026-11-18 13:36Z, before tag `steptime-937-2` exists and before any run-2 row exists)
+
+David's word, 2026-11-18: "Yes, split and run". Everything in sections 6, 6a, 6b and 6e applies unchanged except as written here.
+1. **Four jobs, each on its own hosted runner**, each running its OWN A/A (kill against kill) and THEN its A/B (fix against kill)
+   on the SAME machine, at the registered size (8 ABBA groups x 47 steps): `desktop-all` (desktop, 200 / 400 / 800 ms), `phone-200`,
+   `phone-400` and `phone-800`. The advisor's point: separate A/A and A/B jobs would land on different machines, so each A/B is
+   read against the A/A of the machine it ran on.
+2. **Budget, from run 1's own per-cell times** (job log, A/A only): desktop 1131 + 1094 + 1847 s = 68 min for all three cadences;
+   phone 3279 / 3422 / 3378 s, 55-57 min per cadence. A/A + A/B per job: about 2.3 h for desktop, about 1.9 h per phone cadence,
+   plus about 6 min of setup. `timeout-minutes: 240` per job, under GitHub's 6 h cap with more than 1.5 h of margin.
+3. **Resolvable cells are decided again, per cell, from that cell's run-2 A/A alone**, with the same rule (R median <= 5 ms,
+   R p95 <= 15 ms, both arms under 5 % censored), and fixed in this log before any run-2 A/B row is read. Run 1's list does not carry
+   over. A cell that fails the rule reads "not shown worse at the instrument's resolution of R ms", never a pass.
+4. **Line and labels unchanged:** 5 / 15 / 15 ms and censored share 2 pp; every result is "software GL", where a PASS is necessary,
+   not sufficient. A job that times out or fails yields NO verdict for its cells, and its partial A/B rows stay unread.
+5. **Each job records** its cell, CPU model, image, cores, memory, Chrome and the GL renderer string, so the four machines can be
+   compared. The A/A summary goes to each job's log; the A/B rows go to that job's artifact only.
+6. **Run 1's partial AB.json stays unread for good.** The local quiet-hours GPU run stays owed.
