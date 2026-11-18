@@ -275,3 +275,16 @@ failed read is reported in the response and shown as an alert.
 Tests: backend +4 (frame selection and order without replay inputs; geometry never raises; the route reads cached
 objects only, 404, search; a failed blob read is reported), Jest +3. Route identity guard still passes (18). 103
 admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1030.
+## 2026-11-18 03:47Z Admin: the guardrail's record in the Surf Forecast panel (header from the UTC clock)
+
+David chose guardrail history next. Admin > Surf Forecast > Guardrail (D-065) reads, read-only, the two objects the
+guardrail keeps in the private bucket: the live runtime manifest `control/flags.json` (each entry with state, reason,
+who, when, evidence) and `control/flags-actions.jsonl` (every decision it APPLIED: disable / clear, with the run).
+For a fix the guardrail turned off it says how it comes back: a new fix version in the code (current version shown;
+when the code is already newer than the entry, the view says the next run clears it) or the owner's words through
+the workflow's manual run, with the workflow link and a copyable `gh workflow run` command. That run is deliberately
+not an admin button: the guardrail workflow is the only writer of the manifest. When nothing is recorded the view
+says why (decisions are recorded only in enforce mode; a dry run reports in its GitHub issue).
+Backend: `services/admin_guardrail_view.py` (no write path; a test checks the module has no POST/PUT/upsert) and
+GET /admin/surf-forecast/guardrail (off the event loop). Tests: backend +3, Jest +3; route identity guard passes; 106
+admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1031.
