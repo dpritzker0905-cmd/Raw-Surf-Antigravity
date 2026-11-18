@@ -259,3 +259,9 @@ exists. STEP 3 (David, after merge): delete the REPOSITORY secret `SUPABASE_SERV
 workflow on dev to confirm. After that, dispatching these workflows from a lane branch is refused by design.
 Checks: all workflow YAML parses; 242 workflow-shape tests pass (4 failures in `test_audit_e2e_trace_override` are a
 Windows bash timeout on the untouched `e2e-tests.yml`).
+## 2026-11-18 16:40Z #1043 advisor HOLD fixed: a guard that every key-reading job carries the environment
+
+The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull_request` trigger and so failed `test_consensus_flip_sweep` (fixed at bbd7c8fac: the guard now pins the NEW rule, no PR trigger, dispatchable, environment declared, script run); (2) nothing asserted that every job naming the key declares the environment, so the next workflow
+that forgets would silently lose its key once the repository secret is deleted (open PR #1025's `sst-g4-collect.yml` already names the key without it). New `tests/test_workflow_key_environment.py` scans every workflow: each job that reads
+`secrets.SUPABASE_SERVICE_ROLE_KEY` (in the job or the workflow `env`) must declare `environment: supabase-service`, and no
+key-reading workflow may run on `pull_request`. 24 jobs today; tests +26 (estate fragment +26).
