@@ -16,8 +16,10 @@ from models import SessionRevocation
 @pytest.fixture(autouse=True)
 def _clean_map():
     sr._cutoffs.clear()
+    sr._state["loaded"] = False
     yield
     sr._cutoffs.clear()
+    sr._state["loaded"] = False
 
 
 def test_a_token_issued_at_or_before_the_cutoff_is_revoked_and_a_later_one_is_not():
@@ -171,4 +173,36 @@ def test_changing_the_password_ends_other_sessions_and_keeps_this_device():
         claims = security.verify_token(fresh)                            # this device continues
         assert claims["sub"] == "ana" and claims["amr"] == ["pwd", "totp"] and claims["rv"] >= sr._cutoffs["ana"]
         await engine.dispose()
+    asyncio.run(go())
+
+
+def test_startup_loads_the_cutoffs_before_traffic_and_says_loudly_when_it_cannot(caplog):
+    """Advisor hold on #1057: the map was empty at each process start until the scheduler's first run (and forever if
+    the scheduler did not start). The lifespan now awaits load_at_startup before serving."""
+    import inspect
+    from pathlib import Path
+    server = Path(__file__).resolve().parents[1] / "server.py"
+    lifespan = server.read_text(encoding="utf-8").split("async def lifespan", 1)[1].split("yield", 1)[0]
+    assert "await load_at_startup()" in lifespan                      # before the first request, not in a task
+
+    async def go():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        async with engine.begin() as conn:
+            await conn.run_sync(lambda c: SessionRevocation.__table__.create(c))
+        maker = async_sessionmaker(engine, expire_on_commit=False)
+        async with maker() as db:
+            db.add(SessionRevocation(profile_id="ana", revoked_at=datetime.now(timezone.utc)))
+            await db.commit()
+        assert await sr.load_at_startup(maker) is True and sr.loaded() and "ana" in sr._cutoffs
+        await engine.dispose()
+
+        sr._state["loaded"] = False
+
+        class Broken:
+            def __call__(self):
+                raise RuntimeError("database down")
+        caplog.set_level("ERROR", logger=sr.__name__)
+        assert await sr.load_at_startup(Broken(), attempts=2, pause_s=0) is False and not sr.loaded()
+        assert any("NOT LOADED AT STARTUP" in r.getMessage() and r.levelname == "ERROR" for r in caplog.records)
+    assert inspect.iscoroutinefunction(sr.load_at_startup)
     asyncio.run(go())
