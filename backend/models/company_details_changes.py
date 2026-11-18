@@ -39,6 +39,8 @@ class CompanyDetailsChange(Base):
     privacy_contact_after = Column(Text, nullable=True)
     consent_version_before = Column(String(64), nullable=True)
     consent_version_after = Column(String(64), nullable=False)
+    consent_title_before = Column(Text, nullable=True)        # the filled checkbox label before (advisor: record it too)
+    consent_title_after = Column(Text, nullable=True)          # the filled checkbox label after
     consent_text_before = Column(Text, nullable=True)         # the filled words people saw before
     consent_text_after = Column(Text, nullable=False)          # the filled words people see after
     consent_version_changed = Column(Boolean, nullable=False)  # True: everyone is asked again (retention revokes)

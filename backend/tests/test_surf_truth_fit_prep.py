@@ -47,6 +47,17 @@ def test_exclusions(over, reason):
     assert prep.exclusion_reason(_row()) is None
 
 
+@pytest.mark.parametrize("schema", ["raw-surf/surf-truth-export/1", None, "raw-surf/surf-truth-export/3"])
+def test_an_export_in_any_other_schema_is_refused(tmp_path, schema):
+    """Schema 2 sends distances only as bands; a schema-1 export (exact metres) is never read, so a fit needs a fresh
+    export (advisor on #1048: the refusal had no test)."""
+    data, manifest = tmp_path / "x.jsonl", tmp_path / "x.manifest.json"
+    data.write_text(json.dumps(_row(gps_distance_m=10.0)) + "\n", encoding="utf-8")
+    manifest.write_text(json.dumps({"schema": schema, "rows": 1, "key_fingerprint": "k"}), encoding="utf-8")
+    with pytest.raises(prep.NotRunnable, match="unknown export schema"):
+        prep.load_export(str(data), str(manifest))
+
+
 @pytest.mark.parametrize("metres", [None, 0.0, 999.9, 1000.0, 1999.9, 2000.0, 2000.1, 9999.0, 10000.0, 10000.1, 5e5])
 def test_the_band_cut_is_the_registered_2km_cut_exactly(metres):
     """Export schema 2 sends bands, not metres (California precise geolocation). The fit's #989 rule 'exclude GPS > 2 km'

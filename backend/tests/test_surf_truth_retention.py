@@ -90,13 +90,18 @@ class FakeStore:
 
 @pytest.fixture
 def maker():
+    """One in-memory database per test, disposed at teardown (no connection outlives the test)."""
+    engine = None
+
     async def build():
+        nonlocal engine
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         async with engine.begin() as conn:
             for model in (SurfTruthAdminAction, SurfTruthConsentEvent, TosContent, CompanyDetailsChange):
                 await conn.run_sync(lambda c, t=model.__table__: t.create(c))
         return async_sessionmaker(engine, expire_on_commit=False)
-    return asyncio.run(build())
+    yield asyncio.run(build())
+    asyncio.run(engine.dispose())
 
 
 def test_enforce_writes_a_fresh_export_after_a_deletion_deletes_the_rest_and_logs(maker, monkeypatch):

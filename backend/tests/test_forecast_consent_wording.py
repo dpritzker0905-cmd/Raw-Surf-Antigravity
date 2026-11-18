@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from models import CompanyDetailsChange, Profile, SurfTruthConsentEvent, TosContent
 from models.enums import RoleEnum
 from routes.compliance_pkg.tos import TosContentRequest, get_current_tos_content, save_tos_content
+from services import legal_identity
 from services import surf_truth_consent as stc
 
 T0 = datetime(2026, 11, 18, 2, 0, tzinfo=timezone.utc)
@@ -193,6 +194,35 @@ def test_a_correction_keeps_every_consent_and_records_what_people_saw(maker):
             assert "Raw Surf Adventures Inc. uses" in last.consent_text_after
             assert last.consent_version_before == last.consent_version_after == typo["version"]
             assert last.actor_id == "admin" and last.revision == rows[0].revision
+    asyncio.run(go())
+
+
+def test_the_active_company_details_cannot_change_without_a_recorded_publish(maker):
+    """Advisor hold on #1048: a PUT naming the ACTIVE company-details version with set_active false used to overwrite
+    it in place: the new name served at once, no record, same revision, every consent still valid. Now refused."""
+    from sqlalchemy import select
+
+    async def go():
+        async with maker() as db:
+            await _publish_company(db, "1.0")                                     # active, recorded
+            await stc.record(db, "ana", True, "settings", now=T0)
+            await db.commit()
+            before = await stc.wording(db)
+            fields = {**legal_identity.DEFAULTS, "legal_name": "Someone Else Ltd"}
+            with pytest.raises(HTTPException) as exc:
+                await save_tos_content(TosContentRequest(
+                    doc_type="company_details", version="1.0", set_active=False,
+                    sections=[{"title": k, "body": v} for k, v in fields.items()]), admin=ADMIN, db=db)
+            assert exc.value.status_code == 409 and "recorded" in exc.value.detail
+            await db.rollback()
+            assert (await stc.wording(db))["text"] == before["text"]              # nothing served changed
+            rows = (await db.execute(select(CompanyDetailsChange))).scalars().all()
+            assert len(rows) == 1 and rows[0].consent_title_after == stc.CONSENT_TITLE   # the title is recorded
+            # an unchanged re-save of the active version without set_active is still allowed (nothing to record)
+            await save_tos_content(TosContentRequest(
+                doc_type="company_details", version="1.0", set_active=False,
+                sections=[{"title": k, "body": v} for k, v in legal_identity.DEFAULTS.items()]),
+                admin=ADMIN, db=db)
     asyncio.run(go())
 
 

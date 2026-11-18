@@ -100,6 +100,7 @@ async def record_publish(db, *, doc_version: str, kind: str, before: dict, after
         privacy_url_before=before.get("privacy_url"), privacy_url_after=after["privacy_url"],
         privacy_contact_before=before.get("privacy_contact"), privacy_contact_after=after.get("privacy_contact"),
         consent_version_before=consent_before.get("version"), consent_version_after=consent_after["version"],
+        consent_title_before=consent_before.get("title"), consent_title_after=consent_after.get("title"),
         consent_text_before=consent_before.get("text"), consent_text_after=consent_after["text"],
         consent_version_changed=consent_before.get("version") != consent_after["version"], actor_id=actor_id)
     db.add(row)

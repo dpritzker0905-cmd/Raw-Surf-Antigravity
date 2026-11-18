@@ -311,6 +311,15 @@ async def save_tos_content(
             raise HTTPException(status_code=409, detail=(
                 f"Version {data.version} is already published with different wording, and people agreed to that text. "
                 "Publish the change as a new version; everyone will be asked again."))
+    if (data.doc_type == legal_identity.DOC_TYPE and content is not None and content.is_active
+            and not data.set_active
+            and legal_identity.from_sections(content.sections) != legal_identity.from_sections(data.sections)):
+        # Advisor hold on #1048: the ACTIVE company details are what people see. Changing them without set_active
+        # would skip the change/correction decision and the append-only company_details_changes record, and keep
+        # every consent valid under different words. Any change to them goes through a recorded publish.
+        raise HTTPException(status_code=409, detail=(
+            f"Company details {data.version} are in use. Publish the edit (as a change or a correction) so it is "
+            "recorded; it cannot be saved in place without publishing."))
 
     if content:
         # Update existing version
