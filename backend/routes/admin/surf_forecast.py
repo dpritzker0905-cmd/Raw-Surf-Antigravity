@@ -9,14 +9,13 @@ One place for the operator to see the rating pipeline's truth and moderate the d
   - DELETE /admin/surf-forecast/reports/{id} — remove a report (immediately stops influencing ratings;
         the confirmation/nudge windows only read fresh rows).
 
-Flags are SERVER ENV (Render / workflow env) — this endpoint reports what the serve box actually sees;
-flipping them is an env change + restart, documented per flag. Since D-065 the GUARDED flags
-(services/runtime_flags.GUARDED) also read the runtime manifest control/flags.json (env > manifest > default),
-which the guardrail workflow alone writes; the status board reports their effective value and its source. Read-only besides report deletion.
+Flags are SERVER ENV (Render / workflow env); this endpoint reports what the serve box sees. Since D-065 the GUARDED
+flags (services/runtime_flags.GUARDED) also read the runtime manifest control/flags.json (env > manifest > default),
+which the guardrail workflow alone writes; each row gives its source and the guardrail's reason. Read-only besides
+report deletion, which is written to admin_logs.
 """
 import asyncio
 import logging
-import os
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -25,7 +24,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from services import runtime_flags as _rf
+from services.admin_flag_board import flag_rows
 from models import Profile, SurfReport, SurfSpot
+from routes.admin.core import log_admin_action
 from deps.admin_auth import get_current_admin
 
 logger = logging.getLogger(__name__)
@@ -574,15 +575,9 @@ _RATING_FLAGS = {"SAMPLER_UNRESOLVED_STATIONS": ("1", "[D-065 GUARDED, ON, guard
 async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
     """The rating system's live truth: flag values AS THE SERVE BOX SEES THEM, blob freshness, and
     calibration summaries. Every sub-read is independent and never fatal."""
-    flags = []
-    for name, (default, controls, where) in _RATING_FLAGS.items():
-        # D-065: a GUARDED flag's effective value can come from the runtime manifest (the guardrail's kill).
-        r = (_rf.resolve(name, default) if name in _rf.GUARDED
-             else {"value": os.environ.get(name, default), "source": "env" if name in os.environ else "default",
-                   "entry": None})
-        flags.append({"name": name, "value": r["value"], "default": default, "active": r["value"] != "0",
-                      "source": r["source"], "manifest_entry": r["entry"], "guarded": name in _rf.GUARDED,
-                      "controls": controls, "where": where})
+    # D-065: a GUARDED flag's effective value can come from the runtime manifest (the guardrail's kill); each row also
+    # says its kind (switch vs a numeric setting), source, guardrail entry and fix version (services/admin_flag_board).
+    flags = flag_rows(_RATING_FLAGS)
 
     blobs = {}
     try:
@@ -599,7 +594,7 @@ async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
         blobs["spot_ratings"] = {"error": str(e)}
     try:
         from services.weather_pipeline.spot_size_climatology import load_size_climatology_l2_cached
-        clim = load_size_climatology_l2_cached()
+        clim = await asyncio.to_thread(load_size_climatology_l2_cached)  # off-loop like its siblings (blocking L2 read)
         spots = (clim or {}).get("spots", {})
         ready = sum(1 for rec in spots.values() if isinstance(rec, dict) and rec.get("n", 0) >= 12)
         blobs["spot_size_climatology"] = {"updated_at": (clim or {}).get("updated_at"),
@@ -626,7 +621,8 @@ async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
         gulf_fill = targeted_fill_stats()
     except Exception as e:
         gulf_fill = {"error": str(e)}
-    return {"flags": flags, "blobs": blobs, "gulf_fill_targeted": gulf_fill, "regional_tile_first": tile_first, "now": datetime.now(timezone.utc).isoformat()}
+    return {"flags": flags, "blobs": blobs, "gulf_fill_targeted": gulf_fill, "regional_tile_first": tile_first,
+            "manifest": _rf.status(), "now": datetime.now(timezone.utc).isoformat()}
 
 
 @router.post("/admin/surf-forecast/size-reference")
@@ -709,7 +705,7 @@ async def local_size_preview(admin: Profile = Depends(get_current_admin),
     from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached
     from services.weather_pipeline.spot_size_climatology import load_size_climatology_l2_cached
 
-    clim = load_size_climatology_l2_cached()
+    clim = await asyncio.to_thread(load_size_climatology_l2_cached)  # off-loop (blocking L2 read)
     if not clim:
         raise HTTPException(status_code=503, detail="size climatology blob not present in L2")
     obj = await asyncio.to_thread(load_spot_ratings_l2_cached)  # off-loop: requests.get(timeout=10) behind a TTL
@@ -794,7 +790,9 @@ async def delete_surf_report(
     row = (await db.execute(select(SurfReport).where(SurfReport.id == report_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(status_code=404, detail="Report not found")
+    await log_admin_action(db, admin.id, "delete_surf_report", "surf_report", report_id, {   # admin_logs: the trace
+        "spot_id": row.spot_id, "user_id": row.user_id, "rating": row.rating,
+        "created_at": row.created_at.isoformat() if row.created_at else None})
     await db.delete(row)
     await db.commit()
-    logger.info("[admin/surf-forecast] report %s deleted by admin %s", report_id, getattr(admin, "id", "?"))
     return {"deleted": report_id}
