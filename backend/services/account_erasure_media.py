@@ -6,8 +6,11 @@ condition_reports) but the files stayed public: anyone holding a link could stil
 surfed. Storage is not transactional, so this runs AFTER the database commit, best effort, and reports what it did;
 a failure is logged loudly and returned to the caller, never hidden.
 
-What is removed: every object under `conditions/<user_id>/` (the upload route's only layout) plus any other
-`conditions` object a deleted row pointed at, and the local directory `<UPLOAD_DIR>/conditions/<user_id>`.
+What is removed: every object under `conditions/<user_id>/` (the upload route's only layout) and the local
+directory `<UPLOAD_DIR>/conditions/<user_id>`. A deleted row's URL is CLIENT-SUPPLIED (condition_reports.media_url
+comes from the request body), so a URL is only ever used to find a key under the leaver's OWN prefix; a URL naming
+anyone else's object is ignored and counted in `foreign_ignored` (advisor hold on #1049: otherwise a user could file
+a report naming another person's photo, delete their account, and the server would delete that person's file).
 Blocking (HTTP and disk): call off the event loop.
 """
 from __future__ import annotations
@@ -64,10 +67,24 @@ class _Storage:
                 raise RuntimeError(f"storage refused the delete (status {r.status_code})")
 
 
+def own_key(user_id: str, key: Optional[str]) -> bool:
+    """True when `key` is an object under `<user_id>/` with no path tricks (no empty, `.` or `..` segments)."""
+    if not key or not user_id:
+        return False
+    parts = key.split("/")
+    return parts[0] == user_id and len(parts) > 1 and all(p not in ("", ".", "..") for p in parts[1:])
+
+
 def delete_account_media(user_id: str, urls: Iterable[Optional[str]], upload_dir: Optional[Path] = None,
                          store=None) -> dict:
-    """Remove the account's `conditions` media. Returns {deleted, local_removed, error}; never raises."""
-    result = {"deleted": 0, "local_removed": False, "error": None}
+    """Remove the account's `conditions` media. Returns {deleted, foreign_ignored, local_removed, error}; never raises."""
+    result = {"deleted": 0, "foreign_ignored": 0, "local_removed": False, "error": None}
+    url_keys = {k for k in (conditions_key(u) for u in urls) if k}
+    foreign = {k for k in url_keys if not own_key(user_id, k)}
+    if foreign:
+        result["foreign_ignored"] = len(foreign)
+        logger.warning("[erasure] %d media URL(s) on the deleted account's rows point outside its own folder; "
+                       "left in place", len(foreign))
     if upload_dir is not None:
         local = Path(upload_dir) / BUCKET / user_id
         if local.is_dir():
@@ -75,8 +92,8 @@ def delete_account_media(user_id: str, urls: Iterable[Optional[str]], upload_dir
             result["local_removed"] = not local.exists()
     try:
         store = store or _Storage()
-        keys = set(store.list_prefix(f"{user_id}/"))
-        keys |= {k for k in (conditions_key(u) for u in urls) if k}
+        keys = {k for k in store.list_prefix(f"{user_id}/") if own_key(user_id, k)}
+        keys |= url_keys - foreign
         if keys:
             store.delete(sorted(keys))
         result["deleted"] = len(keys)

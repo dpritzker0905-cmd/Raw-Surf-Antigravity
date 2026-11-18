@@ -1,8 +1,8 @@
 {
   "lane": "guards",
-  "tests": 3,
+  "tests": 5,
   "files": 0,
   "branch": "claude/surf-truth-erasure-reach",
   "date": "2026-11-18",
-  "note": ""
+  "note": "erasure reach: rows, files, sign-in; foreign-URL guard"
 }
