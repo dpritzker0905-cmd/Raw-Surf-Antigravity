@@ -400,3 +400,50 @@ fails (ratios near 1 remain with the fine grid off): the overlay is NOT the caus
 **What it would mean if established** (written now so it is not fitted later): at close views the wind blend as built blends
 only the base that the fine grid hides, so the user sees a hard cut there; W6 passed without testing those pixels; and W7's
 value-space figure (the base's bytes) describes a field that is not the one on screen at those views.
+
+## 14. The diagnostic's result (2026-11-18, run 16:24 to 16:41 EST), read once against section 13. D2 and D3 hold; **D1 FAILS as written**
+One run, dark, desktop, views 3, 4, 6, 9, four triples each, offline (the wind-branch build, the combined synthetic backend).
+`scn_wind_blend_truth.js` gained `FINE_OFF=1` and three recorded fields (`fine`, `toOld`, `toNew`); nothing else changed.
+Every triple in both arms: `okBlend` and `okHours` true, grid 181x83. Picture ratio = held picture's error over the cut's.
+
+| view | FINE-ON: ratio (fine grid resident?) j1..j4 | FINE-OFF: ratio j1..j4 |
+|---|---|---|
+| 3 (z3) | 0.66 (no), 0.66 (no), 0.66 (no), 0.66 (no) | 0.66, 0.66, 0.66, 0.66 |
+| 4 (z4) | 0.59 (no), 0.59 (no), 0.58 (no), 0.59 (no) | 0.59, 0.59, 0.58, 0.59 |
+| 6 (z5) | 0.94 (no), **1.06 (yes)**, **1.09 (yes)**, **1.02 (yes)** | 0.94, 0.93, 0.89, 0.80 |
+| 9 (z4.5) | 0.37 (no), 0.37 (no), **1.00 (yes)**, 0.37 (no) | 0.37, 0.37, 0.37, 0.37 |
+
+- **D2 HOLDS.** FINE-ON has four triples at 0.95 or above (1.06, 1.09, 1.02, 1.00), and every one has a fine grid resident at
+  the held moment; no triple without a fine grid reaches 0.95.
+- **D3 HOLDS.** In those four the held picture's distance to the NEW hour's picture is 0.18 to 0.26 luminance units, against
+  11.4 to 13.4 to the old hour's: the picture on screen IS the new hour. Where no fine grid is resident the two distances
+  are about equal (6.9 to 8.1 each), as a half-way mix should be.
+- **D1 FAILS as written.** FINE-OFF: no ratio is within 2% of 1.00 (the largest is 0.94), but three triples at view 6 are
+  above the 0.85 line (0.94, 0.93, 0.89). The line is not moved. By section 13's own reading the overlay is therefore NOT
+  shown to be the whole cause.
+- **Control:** view 3 is 0.66 in both arms, unchanged.
+- **What is established, and what is not:**
+  - ESTABLISHED for this fixture: every held picture that EQUALS an end hour (ratio 1.00 and above) is the unblended
+    viewport-fine pass showing the new hour over the mixing base. Switch the fine grid off and those four triples fall to
+    0.37 to 0.93.
+  - NOT explained: view 6 (-9.5, 39, z5) sits at 0.80 to 0.94 with no fine grid at all, in both arms, against 0.37 at view 9
+    and 0.59 to 0.66 at views 3 and 4. A true half-way mix is on screen there (both distances equal) and still gains little
+    in picture space. Section 11's third candidate (the colour of a mixed vector is not the mix of the colours, and how much
+    that costs depends on the view) is the one left standing; it is not tested here.
+  - Section 11's first candidate (a same-hour re-commit) played no part in either run. As an app behaviour it is untested.
+- **Consequences for earlier lines, recorded, none re-scored:**
+  - **W6's bracket was blind under the fine grid** (section 13): its "36 of 36" and "at most 1.0% outside" were measured on
+    pixels that include fine-grid pixels compared with themselves. W6 stands only for views with no fine grid resident.
+  - **W7 as registered stays NOT PASSED.** Its value-space figure describes the base's bytes; at close views with a fine
+    grid resident that is not the field on screen.
+  - **W14 (the fine overlay during a blend), void as registered, now has its answer by another road:** the overlay does not
+    blend, by design (`WebGLWindEngine.js:684`), and what the user sees there is a hard cut.
+  - **For the owner's blinded look (section 12):** two of the four wind pairs were at z4 and z4.5. Whether a fine grid was
+    resident in those clips was not recorded, so it cannot be said whether he was shown a blend or a cut there. Not
+    re-opened: the decision (blend off) stands on 8 of 10 not being reached.
+- **Identical figures in both arms at views 3, 4 and 9 (three of four):** the harness is deterministic here (particles not
+  drawn, a synthetic backend, replayed responses), as section 11's "truth picture read twice: 0.000" showed. Noted so the
+  equality is not read as a copy.
+- **Standing.** The wind blend stays off and no PR is opened. Still not run: W8a as amended, W12 (light, beach, phone),
+  W11's whole-tree run. If the wind blend is ever taken up again, the fine pass must blend too (or the blend must be
+  declared a world-view feature), and W6 and W7 must be measured with the fine grid's pixels told apart.

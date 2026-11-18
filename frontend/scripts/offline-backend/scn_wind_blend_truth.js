@@ -94,6 +94,7 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
   const { browser, page } = await L.launch(PHONE ? { port: +(process.env.PORT || 4203), width: 390, height: 844, dpr: 2, contextOptions: { isMobile: true, hasTouch: true } } : { port: +(process.env.PORT || 4203), width: 1280, height: 800, dpr: 1 });
   await rr.install(page); await page.addInitScript(SPY);
   await page.addInitScript((theme) => { try { localStorage.setItem('raw-surf-theme', theme); } catch (e) { /* private mode */ } window.__RAW_ENABLE_HOUR_BLEND__ = true; /* the blend is opt-in: both arms load the blended shaders, arm A sets the kill */ window.__RAW_STATIC_FRAMES_BASE__ = 'http://127.0.0.1:4293/'; }, THEME);
+  if (process.env.FINE_OFF === '1') await page.addInitScript(() => { window.__RAW_DISABLE_WIND_VIEWPORT_FINE__ = true; });   // log section 13: the diagnostic's FINE-OFF arm
   const errs = []; page.on('pageerror', (e) => errs.push(String(e).slice(0, 160).replace(/access_token=[^&\s"']+/g, 'access_token=REDACTED')));
   await L.openMap(page);
   const ev = (fn, arg) => page.evaluate(fn, arg);
@@ -128,14 +129,14 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
           if (same) { const now = H.tex(); H.put(H.refBytes(T[k], T[k + 2], false)); const LO = await H.shotUV(); H.put(H.refBytes(T[k], T[k + 2], true)); const HI = await H.shotUV(); H.put(now.b); await H.shot();
             bracket = { outside: H.outside(MV, LO, HI, 1), outside0: H.outside(MV, LO, HI, 0), loHi: (H.mad(LO.u, HI.u) + H.mad(LO.v, HI.v)) / 2 }; }
           return { st, mixing, bracket, same, values: same ? H.values(T[k], T[k + 2], T[k + 1]) : null, control: (same && T[k + 4] && T[k + 4].b.length === T[k].b.length) ? H.moving(k, k + 4) : null,
-            moving3: same ? H.moving(k, k + 2) : null, pBlend: H.mad(M, R[k + 1]), pCutA: H.mad(R[k], R[k + 1]), pCutB: H.mad(R[k + 2], R[k + 1]) };
+            moving3: same ? H.moving(k, k + 2) : null, pBlend: H.mad(M, R[k + 1]), pCutA: H.mad(R[k], R[k + 1]), pCutB: H.mad(R[k + 2], R[k + 1]), toOld: H.mad(M, R[k]), toNew: H.mad(M, R[k + 2]) };
         }, j);
         await home(); await ev(() => window.__WT__.kill(true)); await stepTo(j + 1); await sleep(700);
         const again = await ev(async (k) => { const H = window.__WT__; const lum = await H.shot(); return { noise: H.mad(lum, H.R[k + 1]), st: H.state() }; }, j);
         const grids = [real[j].dims, real[j + 1].dims, real[j + 2].dims, held.st.prevDims, held.st.dims];
         const okHours = before.valid === real[j].valid && held.st.valid === real[j + 2].valid && held.st.prevValid === real[j].valid;
         const okBlend = held.st.mix === 0.5 && held.st.starts - before.starts >= 1;
-        const t = { j, grids, sameGrid: new Set(grids).size === 1, okHours, okBlend, mixed: [held.st.prevValid, held.st.valid], hidden: real[j + 1].valid, mixing: held.mixing,
+        const t = { j, fine: !!held.st.fine, toOld: r4(held.toOld), toNew: r4(held.toNew), pCutA: r4(held.pCutA), pCutB: r4(held.pCutB), grids, sameGrid: new Set(grids).size === 1, okHours, okBlend, mixed: [held.st.prevValid, held.st.valid], hidden: real[j + 1].valid, mixing: held.mixing,
           values: held.values && Object.fromEntries(Object.entries(held.values).map(([k2, v]) => [k2, r4(v)])), control12h: r4(held.control), moving6h: r4(held.moving3),
           bracket: held.bracket && { outside: +held.bracket.outside.toFixed(5), outside0: +held.bracket.outside0.toFixed(5), loHi: r4(held.bracket.loHi) },
           pBlend: r4(held.pBlend), pCut: r4(Math.min(held.pCutA, held.pCutB)), truthNoise: r4(again.noise), startsDelta: held.st.starts - before.starts };
