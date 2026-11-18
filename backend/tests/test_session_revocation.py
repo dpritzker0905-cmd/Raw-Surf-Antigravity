@@ -206,3 +206,12 @@ def test_startup_loads_the_cutoffs_before_traffic_and_says_loudly_when_it_cannot
         assert any("NOT LOADED AT STARTUP" in r.getMessage() and r.levelname == "ERROR" for r in caplog.records)
     assert inspect.iscoroutinefunction(sr.load_at_startup)
     asyncio.run(go())
+
+
+def test_the_revocation_table_is_locked_to_the_backend_role():
+    """Advisor hold on #1057: no anon/authenticated access, row security on, created with the table (PostgreSQL)."""
+    log = " | ".join(str(getattr(getattr(fn, "__self__", None), "statement", "") or getattr(fn, "statement", ""))
+                     for fn in SessionRevocation.__table__.dispatch.after_create)
+    for needed in ("ENABLE ROW LEVEL SECURITY", "REVOKE ALL ON TABLE %(fullname)s FROM anon, authenticated",
+                   "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE %(fullname)s TO service_role"):
+        assert needed in log, needed

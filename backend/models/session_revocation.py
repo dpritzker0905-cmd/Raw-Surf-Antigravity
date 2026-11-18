@@ -5,7 +5,7 @@ token kept working for up to a month (advisor limit on #1022). See core/session_
 """
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, String
+from sqlalchemy import Column, DateTime, DDL, String, event
 
 from database import Base
 
@@ -22,3 +22,14 @@ class SessionRevocation(Base):
     profile_id = Column(String(36), primary_key=True)          # no FK: the cutoff must outlive any profile change
     revoked_at = Column(DateTime(timezone=True), nullable=False, default=_now, index=True)
     reason = Column(String(40), nullable=False, default='account_deleted')
+
+
+# Locked like the MFA tables (advisor hold on #1057): the browser holds a Supabase client, so without this a row written
+# from outside the backend could end anyone's sessions, or a deleted row revive a revoked one. Only the backend's
+# service role may read or write; created in the same transaction as the table.
+for _statement in (
+    'ALTER TABLE %(fullname)s ENABLE ROW LEVEL SECURITY',
+    'REVOKE ALL ON TABLE %(fullname)s FROM anon, authenticated',
+    'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE %(fullname)s TO service_role',
+):
+    event.listen(SessionRevocation.__table__, 'after_create', DDL(_statement).execute_if(dialect='postgresql'))
