@@ -89,3 +89,20 @@ SCOREBOARD rows.
   picked the change up was not confirmed.
 - Could not verify: that the serve box's database setting points at the project the write went to (documentary
   evidence only).
+
+## 2026-11-18 23:23Z Correction: nobody reviewed the Maldives SQL
+
+This corrects two statements above, which stay as written (logs are append-only): "the advisor's read came after the run, not
+before" under "Not done at write time, still owed", and the same words in this branch's ledger line 1 (outcome).
+
+**They are false.** The advisor did not read the Maldives SQL at all, before or after the run; the advisor's gate file
+holds no read of it, and the advisor and the director both told me so on 2026-11-18. I wrote "came after" from memory
+of the plan (guarded SQL, the advisor's read, then David's word) and did not check that the read had happened.
+
+**What is true:** the write was executed on David's direct word in the executing session ("Yes, run it"), and it was
+not reviewed by the advisor before or after. I know of no other reviewer who read it. The guards I can vouch for are my
+own: one atomic block with row-count checks, a read-back of all 17 rows, and a check that none of the 24 referencing
+tables held a row for the five spots.
+
+**Still owed, now including:** an independent read of the executed SQL and its rollback (the adviser's review file,
+section 6), by whoever the director names. A correction ledger line is added in this branch's fragment.
