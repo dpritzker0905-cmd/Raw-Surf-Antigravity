@@ -100,3 +100,42 @@ through hours one after another must not fire an exact world fetch per step". It
   prefetch of the next hour after a dwell (one request moved off the step, at most one wasted per dwell: F3 fails by one as
   written) or leaving it as it is.
 - Asked of the Move 3 lane (owed): what its prefetch-after-dwell work covered at regional zooms.
+
+## 5. Does production serve that fine grid from the CDN? By the client's own rule: YES for all five probe views (2026-11-17, 22:18 EST)
+The owner's question ("find out if production serves it from the CDN"). Answered WITHOUT touching the live backend: by the
+client's routing rule, run as code on the exact request boxes the probe recorded. Not observed on the deployed site.
+- **What the "fine grid" at these zooms is.** The boxes the client asked for in section 4 are 24 to 34 degrees wide
+  (`-170,13,-146,30`; `-22,31,3,46`; `138,-41,162,-26`; `-135,30,-111,45`; `-22,41,12,58`) and the grid that came back was
+  24 x 21 to 30 x 21: a CLIP of the 2-degree world field (`global_mid`), not a finer product. The sixth view (z4) asks for
+  the world box itself.
+- **The rule** (`staticFrames.staticEligible` -> `staticFrameCrop.midCropRulesPass`): with static frames on, a box 12 to 40
+  degrees wide is answered as a crop of the static CDN world frame when every regional tile it overlaps is narrower than the
+  box (the server would answer such a box from `global_mid` too). `tryStaticWorldGrid` then serves it from the pinned frame,
+  with no `/grid` request.
+- **The check** (a temporary Jest file, not committed; the real `midCropRulesPass`, a manifest built from all 19 regional
+  tiles in `backend/services/weather_pipeline/pilot_regions.py` read from that file, plus the world tier; the widest tile is
+  22 degrees, the tallest 24): all five boxes -> **CDN crop**. The same with every tile padded 3 degrees a side: all five ->
+  CDN crop. With no manifest read yet: backend `/grid` (as designed: "no manifest: /grid decides").
+- **So, in production's configuration** (static frames on by default since 2026-10-21, the mid-zoom crop since 2026-10-22,
+  GFS waves `global_mid` published 3-hourly on the CDN: 57 frames to f168 were read from it on 2026-11-15), the request that
+  waits 1.5 s at these views is NOT a backend request. It is a crop of a static frame: from the CDN the first time, and with
+  no network at all when the frame is already decoded (the client keeps 12) or held in the GPU frame store (Move 3 put every
+  marine layer there for world steps).
+- **What this does NOT establish.** (i) It was not watched on the deployed site. (ii) The live manifest may list GFS wave
+  products this check does not know of (a dynamic viewport product of middling width would turn a box back to `/grid`); the
+  repo's tile list is not the live manifest. (iii) The rule saying "eligible" is not the frame being there: an hour missing
+  from the pinned index, or a session whose manifest has not been read, still goes to `/grid`. (iv) EURO and ICON carry
+  estimated regional tails and are refused more often by the same rule; only GFS was checked. (v) Wind was not checked.
+  (vi) This harness never exercised the crop path: its frame stand-in holds no wave frames, which is why section 4 saw
+  `/grid` every time; so the harness UNDERSTATES how often production avoids the backend, and its 0.3 to 1.3 s "request
+  time" is the offline backend's, not the CDN's.
+- **What it means for the design, stated before any design is written.** For these views the 1.5 s dwell guards a backend
+  that is not being asked. The wait can be skipped exactly when `staticEligible` says the box is a static crop, and kept
+  whenever the answer would be `/grid`; then F3 (the backend is asked no more) holds by construction and F1 becomes reachable.
+  Two things must be true first and are the next measurements, in this order: the harness must serve wave frames so the crop
+  path is exercised offline (it has real GFS frames from 2026-11-15 to build that from), and the gate's request counts must
+  then count `/grid` and CDN frame requests SEPARATELY (a CDN frame is not load on the 1-CPU box, but a burst of them is
+  still traffic, and F3 as written says `/api/weather/grid` and `/grid_series`).
+- A larger question this raises, for the director, not started: at a regional zoom a step draws the THINNED series frame
+  (46 x 21) first and upgrades later, while the full 2-degree frame for that hour may already be in the GPU frame store.
+  Drawing the crop of the stored frame at once would remove the stand-in altogether, not just shorten its life.
