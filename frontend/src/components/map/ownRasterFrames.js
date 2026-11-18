@@ -21,7 +21,8 @@
  * (__RAW_DISABLE_STATIC_FRAMES_SETS__) turn it off. Any miss (no set published, no index) falls back to the .om path.
  * Telemetry: window.__RAW_OWN_RASTER__.
  */
-import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
+import { fetchFrameBytes, getPinnedIndex, loadFrameParsed, markStaticPinStale, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
+import { decodeOwnField, decodeWorkerKilled } from './ownRasterDecode';
 import { pickIndexFrame } from './staticFrameCodec';
 import { isHandheldDevice } from './deviceTier';
 import { applyWaterTempLandFill } from './waterTempLandFill';
@@ -30,7 +31,13 @@ export const PRESSURE_FIELD = 6;
 export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
 export const CLOUD_FIELD = 8;     // cloud_pct: u8, value = code - 1 (code 0 = no data); total cloud cover, %
 export const PRECIP_FIELD = 10;   // precip_mm_h: u16, value = code * 0.01 - 0.01 (code 0 = no data); mm/h in the step before the hour
-export const FOG_FIELD = 11;      // visibility_m: u16, value = code - 1 (code 0 = no data); surface visibility, metres (GFS VIS)
+// ONE-BYTE BAND fields (2026-11-16, lever A of #928's 4G gate; backend frame_binary.BAND_FIELDS): u8, code k -> the band centre
+// (k - 1) x step + step / 2 through the generic descriptor; 255 = saturated (the top band). A set lists its fields in preference
+// order, so frames published before the change (field 4) still decode during the rollout.
+export const GUST_BAND_FIELD = 12;     // gusts, 0.5 kn bands
+export const CURRENT_BAND_FIELD = 13;  // ocean current speed, 0.02 kn bands
+export const SPEED_FIELD = 4;     // speed: u16, value = code * 0.01 - 0.01 (code 0 = no data); knots (gusts; the wind frames' field)
+export const FOG_FIELD = 11;     // visibility_m: u16, value = code - 1 (code 0 = no data); surface visibility, metres (GFS VIS)
 // PER-MODEL (2026-10-24; the owner, 2026-10-23 20:13 EDT: "Yes start it", answering "start the per-model pressure route?" after
 // "We want each models pressure showing"): one published set per model. The layer follows the model selector; past a model's
 // last frame (EURO 240 h, ICON 180 h) the GFS frame stands in, labelled as an estimate (the wave layers' extension policy).
@@ -83,10 +90,52 @@ export const OWN_RASTER_SETS = {
     models: { GFS: 'GFS/weather/precipitation/global_0p25', EURO: 'EURO/weather/precipitation/global_0p25' },
     fallback: 'GFS', field: PRECIP_FIELD, unit: 'mm/h',
   },
+  // GUSTS (2026-11-15, the owner approved Gusts as a new picker layer; "these lanes need to serve instantly from real GFS, EURO,
+  // and ICON lanes from GRIB"): EACH MODEL'S OWN gust, in KNOTS (the wind layer's unit), 0.25 deg (frame_set_raster.py sets
+  // `gust`, `gust_euro`, `gust_icon`): GFS GUST (instantaneous, hourly to 120 h), ECMWF 10fg (max since the previous step, 3/6 h)
+  // and DWD ICON VMAX_10M (max since the previous output, hourly to 78 h). The credit says which definition is on screen
+  // (LayerDataCredit). Past EURO's 240 h / ICON's 180 h the GFS frame stands in, labelled as an estimate (pressure's policy).
+  // OWN-FRAMES ONLY (`ownOnly`): there is no .om path behind it, so a miss draws nothing and the status line says so.
+  // ON by default (DEFAULT_ON_LAYERS); kill: window.__RAW_DISABLE_RASTER_OWN_GUSTS__ = true.
+  gusts: {
+    models: { GFS: 'GFS/weather/gust/global_0p25', EURO: 'EURO/weather/gust/global_0p25', ICON: 'ICON/weather/gust/global_0p25' },
+    // PAST EACH MODEL'S RANGE (EURO 240 h, ICON 180 h): NO GUSTS, and the status line says so (`endNote`). The owner, 2026-11-15
+    // 19:27 EST: "I dont want icon wind past 7.5 days switched to gfs, we need a scientific estimation" (the same for gusts):
+    // never another model's field, never a loop. The ECMWF ensemble gust (member median, p90 risk cue; log §8, PR #939) plugs
+    // in later as a BEYOND strategy named here per model (`beyond: { ICON: 'ens_mean_extension', ... }` + a `fallback`).
+    fallback: null, endNote: true, field: [GUST_BAND_FIELD, SPEED_FIELD], unit: 'kn', ownOnly: true,
+  },
+  // OCEAN CURRENTS (2026-11-15, the owner approved Currents as a new picker layer): Copernicus Marine's global ocean model,
+  // surface current SPEED in knots (field 4) every 6 h to 240 h on 0.25 deg (frame_set_raster.py set `currents`); each frame
+  // also carries the direction the water flows TOWARD (field 1, the wind frames' layout, uv_convention 1) for a flow overlay.
+  // One ocean model for every picked model (the credit names Copernicus Marine). Own frames only; ON with a kill:
+  // window.__RAW_DISABLE_RASTER_OWN_CURRENTS__ = true. Past day 10 there is no frame: the status line says so.
+  currents: {
+    models: { GFS: 'CMEMS/marine/currents/global_0p25', EURO: 'CMEMS/marine/currents/global_0p25', ICON: 'CMEMS/marine/currents/global_0p25' },
+    fallback: null, field: [CURRENT_BAND_FIELD, SPEED_FIELD], unit: 'kn', ownOnly: true,
+  },
 };
+/** The status line past a model's own frames for a layer with `endNote` (gusts): "ICON gusts end at day 7.5; ensemble estimate
+ *  coming" (the owner's word, 2026-11-15 19:27 EST; the director's wording). `lastMs` = the model's last frame, `runMs` its run. */
+export function endNoteText(layer, model, lastMs, runMs) {
+  const set = OWN_RASTER_SETS[layer];
+  // GFS gusts run the whole 14 days: past its last frame only a newer run is missing, not a model's range.
+  if (!set || !set.endNote || up(model) === 'GFS' || !Number.isFinite(lastMs) || !Number.isFinite(runMs)) return null;
+  const days = Math.round(((lastMs - runMs) / 86400000) * 10) / 10;
+  const name = { gusts: 'gusts' }[layer] || layer;
+  return `${up(model)} ${name} end at day ${days}; ensemble estimate coming`;
+}
+/** Layers drawn ONLY from our own frames (no .om path behind them): the picker shows them, a miss shows nothing. */
+export const OWN_ONLY_LAYERS = Object.freeze(Object.keys(OWN_RASTER_SETS).filter((l) => OWN_RASTER_SETS[l].ownOnly));
 // Who the frames come from, for the legend credit and the status line.
-export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON' };
+export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON', CMEMS: 'Copernicus Marine' };
 const up = (m) => String(m || 'GFS').toUpperCase();
+/** The model whose data a layer's set for `model` really holds (the set key's first part): GFS for fog and gusts under any picked
+ *  model, so the credit and the status line never name ECMWF or DWD over NOAA's field. */
+export function sourceModel(layer, model = 'GFS') {
+  const key = setKey(layer, model);
+  return key ? key.split('/')[0] : up(model);
+}
 /** The set key for a layer and model, or null when that model has no own set. */
 export function setKey(layer, model = 'GFS') {
   const set = OWN_RASTER_SETS[layer];
@@ -115,7 +164,10 @@ const W = () => (typeof window !== 'undefined' ? window : {});
 // numbers: docs/weather-program/log/2026-11-14-opus-raster-own-three.md), so Reflection said no and SubQ yes; David's rule needs
 // both. Turning it on is one line: add 'fog' here. Until then the lever reaches it (window.__RAW_RASTER_OWN_FRAMES__ = 'fog').
 // Kill: __RAW_DISABLE_RASTER_OWN_FOG__.
-export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure']);
+// GUSTS (2026-11-15): a NEW layer, own frames only, ships ON (CLAUDE.md: new layers ship ON with a kill switch). Kill:
+// __RAW_DISABLE_RASTER_OWN_GUSTS__ (the picker then hides the layer, MapWeatherControls). CURRENTS (2026-11-15), the same:
+// kill __RAW_DISABLE_RASTER_OWN_CURRENTS__.
+export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'gusts', 'currents']);
 // PER-MODEL DEFAULTS (2026-11-14, the director), under the no-regression rule: a layer moves to own frames by default only where its
 // set is at least as fine as what the .om path draws today.
 //  - water_temp EURO: ECMWF skt at 0.25 deg = the .om ifs025: built, DEFAULT-OFF pending the owner (vote split 08:31Z, as fog).
@@ -184,14 +236,25 @@ export async function ownIndex(layer, model = 'GFS') {
  */
 export function combinedFrames(layer, model, index, fallbackIndex) {
   const m = up(model);
-  const own = framesOf(index).map((f) => ({ ...f, setKey: setKey(layer, m), model: m, estimated: null }));
-  const fb = OWN_RASTER_SETS[layer] && OWN_RASTER_SETS[layer].fallback;
+  const own = framesOf(index).map((f) => ({ ...f, setKey: setKey(layer, m), model: sourceModel(layer, m), estimated: null }));
+  const set = OWN_RASTER_SETS[layer] || {};
+  const fb = set.fallback;
   if (!fallbackIndex || !fb || fb === m || !own.length) return own;
-  const last = Date.parse(own[own.length - 1].valid_time);
-  const tail = framesOf(fallbackIndex).filter((f) => Date.parse(f.valid_time) > last)
-    .map((f) => ({ ...f, setKey: setKey(layer, fb), model: fb, estimated: 'gfs_estimated_fallback' }));
-  return own.concat(tail);
+  const strategy = BEYOND[(set.beyond && set.beyond[m]) || 'gfs_standin'];
+  return own.concat(strategy ? strategy({ layer, model: m, own, fallback: fb, fallbackIndex }) : []);
 }
+
+/** PAST A MODEL'S RANGE: how the hours after its last own frame are filled, one named strategy per (layer, model) in a set's
+ *  `beyond` map (default 'gfs_standin', the pressure / rain / EURO wind rule). A strategy returns the tail entries, each
+ *  { ...frame, setKey, model, estimated: <basis the status line words> }. The long-range method the senior research lead is
+ *  choosing (2026-11-15) plugs in here as a new entry; looping a model's own days is deliberately NOT one of them. */
+export const BEYOND = {
+  gfs_standin: ({ layer, own, fallback, fallbackIndex }) => {
+    const last = Date.parse(own[own.length - 1].valid_time);
+    return framesOf(fallbackIndex).filter((f) => Date.parse(f.valid_time) > last)
+      .map((f) => ({ ...f, setKey: setKey(layer, fallback), model: fallback, estimated: 'gfs_estimated_fallback' }));
+  },
+};
 
 /** The entry to show for an asked time in a combined list: the nearest within 3 h of the model's own, else (past its range)
  *  of the stand-in tail. pickIndexFrame's rule on each part, so own frames always win inside the model's range. */
@@ -217,6 +280,22 @@ export function frameAt(index, validMs) {
 }
 
 export function windowRadius() { return isHandheldDevice() ? 1 : 2; }
+/** PHONE PREFETCH (2026-11-15, the gusts/currents gate): handhelds keep +-1 frame, and at a brisk scrub (a step every ~250 ms) the
+ *  next hourly 0.25-deg frame (~0.9 MB, ~230 ms to fetch at 150 ms latency) was not there yet: GFS gusts' phone step p50 was
+ *  361 ms, almost all window misses. The own-only layers keep TWO frames ahead in the scrub direction on every device (one
+ *  behind). Scoped to them, so the live lanes keep their measured behaviour. Kill: __RAW_DISABLE_OWN_ONLY_PREFETCH2__. */
+export function ownWindowRadius(layer) {
+  const base = windowRadius();
+  if (!OWN_ONLY_LAYERS.includes(layer) || W().__RAW_DISABLE_OWN_ONLY_PREFETCH2__ === true || meteredLink()) return base;
+  return Math.max(2, base);
+}
+/** A link the user or the browser marks as costly or slow (Save-Data, or an effective type below 4G): the own-only layers' frames
+ *  are 0.9-1.8 MB, so they keep the device's own prefetch radius there (the advisor's red-team of #928, condition 3). */
+export function meteredLink(nav = (typeof navigator !== 'undefined' ? navigator : null)) {
+  const c = nav && (nav.connection || nav.mozConnection || nav.webkitConnection);
+  if (!c) return false;
+  return c.saveData === true || ['slow-2g', '2g', '3g'].includes(c.effectiveType);
+}
 
 /**
  * The frame positions to hold, in fetch priority: the shown one, then up to `radius` ahead in the scrub direction, then one
@@ -257,7 +336,9 @@ export async function landFill(field) {
 
 /** A decoded frame's one field as the renderer uploads it: Float32 values, MISSING for no data. */
 export function toField(parsed, fieldId) {
-  const src = parsed && parsed.fields && parsed.fields[fieldId];
+  const ids = Array.isArray(fieldId) ? fieldId : [fieldId];   // preference order (a band field first, then its two-byte form)
+  const fid = ids.find((id) => parsed && parsed.fields && parsed.fields[id]);
+  const src = fid !== undefined ? parsed.fields[fid] : null;
   if (!src || src.length !== parsed.cols * parsed.rows) return null;
   const values = new Float32Array(src.length);
   let min = Infinity; let max = -Infinity;
@@ -317,6 +398,9 @@ export function loadField(layer, frame, priority) {
     p = (async () => {
       const t = tel();
       t.loads += 1;
+      // OWN-ONLY LAYERS (gusts, currents; 2026-11-15): fetch + inflate in staticFrames' worker, then decode ONLY the drawn field
+      // to Float32 in ownRasterDecode's worker (no main-thread parse of every field). The live lanes keep the shared path.
+      if (set.ownOnly && !decodeWorkerKilled()) return loadOwnOnly(key, frame, priority, set, t);
       // Fetch priority (staticFrames, #479): 'high' for the frame the step wants, 'low' for the rest of the window.
       const got = await loadFrameParsed(key, frame, undefined, priority ? { priority } : undefined);
       if (!got) { t.loadErrors += 1; noteMiss('load_failed'); noteFailed(frame.path); return null; }
@@ -335,6 +419,31 @@ export function loadField(layer, frame, priority) {
     _inflight.set(frame.path, p);
   }
   return p;
+}
+
+/** The own-only layers' load: worker fetch + inflate, worker decode of the one field; the same checks and telemetry as the
+ *  shared path (a frame whose valid time is not its index entry's is refused; 404 / 400 re-pins the set). */
+async function loadOwnOnly(key, frame, priority, set, t) {
+  const got = await fetchFrameBytes(frame.url || staticFramesBase() + frame.path, undefined, priority);
+  if (!got || got.error) {
+    if (got && (got.status === 404 || got.status === 400 || got.status === 'integrity')) markStaticPinStale(key);
+    t.loadErrors += 1; noteMiss(got && got.status ? `http_${got.status}` : 'load_failed'); noteFailed(frame.path); return null;
+  }
+  const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  let field = null;
+  try { field = await decodeOwnField(got.buffer, set.field, MISSING); } catch (e) { field = null; }
+  const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  if (!field || Math.abs(field.validMs - Date.parse(frame.valid_time)) > 1000) {
+    noteMiss(field ? 'valid_time_mismatch' : 'no_field'); noteFailed(frame.path); return null;
+  }
+  _failedAt.delete(frame.path);
+  t.bytes += got.wire || 0;
+  t.decodeMs.push(Math.round((t1 - t0) * 10) / 10);
+  if (t.decodeMs.length > 50) t.decodeMs.shift();
+  t.decodeOffThread = (t.decodeOffThread || 0) + (field.offThread ? 1 : 0);
+  delete field.offThread;
+  keep(frame.path, field);
+  return field;
 }
 
 // ── the window pump: at most MAX_IN_FLIGHT loads, started in the wanted order; a frame that left the window is never started ──

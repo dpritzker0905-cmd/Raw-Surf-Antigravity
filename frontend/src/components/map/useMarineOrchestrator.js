@@ -1,6 +1,7 @@
 import { useRef, useEffect, useMemo } from 'react';
 import { getMarineHourlyCache, extractMarineAtOffset, getModelSafeMarine, isContainedInMarineCache } from './marineController';
-import { getBackendCopernicusFlag, getBackendWeatherFlag, getBackendIconMarineFlag, getSharedValidTime } from './backendWeatherServiceClient';
+import { getBackendCopernicusFlag, getBackendWeatherFlag, getBackendIconMarineFlag, getSharedValidTime, getSurfModeFlag } from './backendWeatherServiceClient';
+import { staticRatedReadySync } from './staticFrames';
 import { findClosestHourIndex } from './marineControllerUtils';
 import { computeGridContentHash } from './marineGridHash';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
@@ -337,7 +338,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       let isCached = false;
       try {
         const bounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
-        isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves');
+        isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves')
+          || (getSurfModeFlag() && staticRatedReadySync(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves', getSharedValidTime));   // the rated mosaic in memory (staticFrames)
       } catch (e) {
         isCached = false;
       }

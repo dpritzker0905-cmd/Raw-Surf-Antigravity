@@ -55,7 +55,7 @@ PENDING_EXPIRY_H = 96                  # unmatched past-target rows drop (buoy g
 # read and written only in the Actions lanes).
 # ⬆ 54,000 -> 64,000 (2026-11-01): SAMPLER_SCALAR_LEDGER_MODELS can add EURO_SCALAR and ICON_SCALAR. Every switch armed
 # with the scalar dark is 11 lanes x 60 x 72 = 47,520; x1.3 = 61,776 <= 64,000 (~7.7 MB object, Actions lanes only).
-PENDING_MAX_ENTRIES = 64000
+PENDING_MAX_ENTRIES = 68000   # 11-16: + the NOAA bulletin lane (skill_noaa_bulletin): 12 x 60 x 72 x 1.3 = 67,392
 OM_MARINE = "https://marine-api.open-meteo.com/v1/marine"
 
 SOURCE_OURS = "raw_surf"
@@ -673,6 +673,8 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
                 logger.warning("[forecast-skill] OM same-model control lane failed (%s)", e)
     except Exception as e:
         logger.warning("[forecast-skill] competitor lane failed (%s)", e)
+    from services.weather_pipeline.skill_noaa_bulletin import ledger_rows as noaa_bulletin_rows   # D-072 v2 reference
+    incoming.extend(noaa_bulletin_rows(report, now, LEADS_H))         # own try and kill switch FORECAST_SKILL_NOAA_BULL
 
     pending, pending_exists = load_calibration_rows_l2(SKILL_PENDING_L2_KEY)
     merge_stats: Dict[str, int] = {}

@@ -16,6 +16,7 @@
 // Unknown inputs FAIL OPEN (the leg is inert: the 2026-07-03 unknown-input lesson). Kills: __RAW_DISABLE_BAND_RES_FADE__,
 // __RAW_DISABLE_BAND_EDGE_FADE__. The words for it (not colour alone): ForecastTimeStatus reads heldBy and says so.
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { formatRunLocal, localRunTimeOn } from './readoutDateFormat';
 
 const smooth = (t) => { const c = Math.max(0, Math.min(1, t)); return c * c * (3 - 2 * c); };
 const num = (w, k, d) => (typeof w[k] === 'number' ? w[k] : d);
@@ -51,6 +52,62 @@ export function resolveBandResolutionEdge(win, cov) {
   const fade = Math.min(resFade, edgeFade);
   const heldBy = fade >= 0.5 ? null : (resFade <= edgeFade ? 'resolution' : 'edge');
   return { fade, resFade, edgeFade, heldBy };
+}
+
+/**
+ * A cached RATING grid the band cannot paint at this view (2026-11-15, rating band SOTA lane; measured offline in
+ * scn_band_zoom_stability.js): its lattice spacing is at or past the resolution leg's HI (1.0 deg: the band is held off on it)
+ * while the view is narrower than the span leg's HI (9.5 deg: the band would otherwise show). Before this, a 2-deg world crop
+ * cached on a zoom-out answered the next zoomed-in pan as a CACHE HIT: the engine rejected it as a downgrade (or held the band
+ * for resolution) and, the cache having "answered", no fine grid was ever asked: the band stayed off for as long as one looked.
+ * Such an entry is not a hit (the predicate) and is not served (the selector): the fetch asks for a fine grid instead.
+ * Unknown inputs fail OPEN (not coarse). Kill: window.__RAW_DISABLE_COARSE_RATED_CACHE_SKIP__ = true.
+ */
+// The second leg (measured the same day, the stuck PAN): after a pan at z9 the lookup took a 0.5-deg rated grid that contained the
+// view while the 0.25-deg resident still covered most of it, and the engine's no-downgrade guard (marineEngineDecisions
+// .shouldRejectResolutionDowngrade: >= 2x coarser over a regional resident covering >= 0.6) rejected it: the cache "answered", the
+// engine refused, nothing fine was asked, and the band stayed held at the edge. So a rated entry >= 2x coarser than the finest
+// rated entry of the same ask that overlaps the view (`finestCell`, the cache's own resident: ratedFinestCellDeg) is not a hit.
+export const ratedCellDeg = (grid) => {
+  if (!grid || !grid.bounds || !(grid.cols > 1)) return null;
+  const b = grid.bounds;
+  const span = b.east >= b.west ? b.east - b.west : b.east + 360 - b.west;
+  return span > 0 ? span / (grid.cols - 1) : null;
+};
+export function coarseRatedForView(grid, view, win, finestCell) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_DISABLE_COARSE_RATED_CACHE_SKIP__ === true || !grid || !view || !grid.bounds) return false;
+  const viewW = view.east >= view.west ? view.east - view.west : view.east + 360 - view.west;
+  if (!(viewW < num(w, '__RAW_RATING_SPAN_FADE_HI__', 9.5))) return false;
+  // An UNRATED grid under the surf key (the honest-swell bridge: global_coarse, the mid tier) while a rated grid of the same ask
+  // overlaps the view: the guard refuses rated -> unrated over that resident (measured: the stuck pan's real "hit" was a 2-deg
+  // unrated global_coarse entry), so it is not a hit either. finestCell is non-null only in surf mode (ratedFinestCellDeg).
+  // REVIEW 2026-11-15: every leg needs `finestCell` = a finer rated grid of the ask that COVERS >= 0.6 of the view (the guard's own
+  // rule, ratedFinestCellDeg). A standalone ">= 1 deg is never a hit" leg made every narrow surf view outside the pilot boxes (where
+  // the 2-deg world set is the best there is) refetch on every moveend; an "overlaps" finest made a box-edge view refetch forever.
+  if (!(typeof finestCell === 'number' && finestCell > 0)) return false;
+  if (!(grid.ratingMode || grid.rating_mode)) return true;
+  const cell = ratedCellDeg(grid);
+  if (cell === null) return false;
+  return cell >= 2 * finestCell - 1e-9;
+}
+
+/**
+ * THE RUN-AGE LABEL (advisor + director 2026-11-16, #933; David: "label hours the same honest way"). When the painted rating grid came
+ * from a rated bundle that trails the run its wave heights are on (staticRatedMosaic RUN AGE, `ratedRun` on the grid), the status line
+ * says so in words, like wind's "nearest stored forecast". `ratedRun` = { lagH, runTime }; nothing when the lag is 0 or unknown.
+ * Kill: window.__RAW_DISABLE_RATED_RUN_LABEL__ = true.
+ */
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export function ratedRunText(ratedRun) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_RATED_RUN_LABEL__ === true) return null;
+  const lag = ratedRun && Number(ratedRun.lagH);
+  if (!(lag > 0)) return null;
+  const t = ratedRun.runTime ? new Date(ratedRun.runTime) : null;
+  const ok = t && Number.isFinite(t.getTime());
+  const run = !ok ? 'an earlier run' : (localRunTimeOn() ? `the ${formatRunLocal(t.getTime())} run`   // the reader's time (readoutDateFormat)
+    : `the ${DAYS[t.getUTCDay()]} ${String(t.getUTCHours()).padStart(2, '0')}Z run`);
+  return `Surf ratings from ${run}, ${Math.round(lag)} h older than the wave heights (a newer rating run is not published yet).`;
 }
 
 /** The line ForecastTimeStatus shows while the band is held (words, so the state is never colour alone). */

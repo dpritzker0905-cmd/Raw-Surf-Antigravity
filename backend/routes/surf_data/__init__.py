@@ -8,6 +8,10 @@ from .waves import router as waves_router
 from .surf_log import router as surf_log_router
 from .surfboards import router as surfboards_router
 from .checkins import router as checkins_router
+from .observations import router as observations_router
+from .observation_audits import router as observation_audits_router
+from .surf_truth_admin import router as surf_truth_admin_router
+from .surf_truth_monitor import router as surf_truth_monitor_router
 
 router = APIRouter()
 router.include_router(conditions_router)
@@ -17,3 +21,7 @@ router.include_router(waves_router)
 router.include_router(surf_log_router)
 router.include_router(surfboards_router)
 router.include_router(checkins_router)
+router.include_router(observations_router)
+router.include_router(observation_audits_router)
+router.include_router(surf_truth_admin_router)
+router.include_router(surf_truth_monitor_router)

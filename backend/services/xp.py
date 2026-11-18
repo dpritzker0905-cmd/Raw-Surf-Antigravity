@@ -40,6 +40,12 @@ XP_RULES = {
     "on_demand_connect": XPRule(50, hot_streak=True),   # photographer reaches an on-demand request
     "on_demand_requested": XPRule(25),                  # the surfer whose request was answered
     "review_given": XPRule(10),                         # leaving a review
+    # T1 blind surf observations (services/observation_rewards.py decides WHEN; these say how much). Quality-gated,
+    # capped, audited; the three bonuses pay only after independent corroboration. None depends on the height.
+    "surf_observation": XPRule(5),
+    "surf_observation_corroborated": XPRule(5),
+    "surf_observation_first_of_day": XPRule(5),
+    "surf_observation_quiet_spot": XPRule(10),
 }
 
 

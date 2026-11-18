@@ -10,7 +10,7 @@ const { entries } = mapWeatherRouteMemory;
 const MAX_ENTRIES = 8;
 const HOUR_MS = 3600000;
 const LAYERS = new Set(['rain', 'radar', 'satellite', 'wind', 'waves', 'swell_1', 'swell_2',
-  'wind_waves', 'fog', 'pressure', 'temperature', 'water_temp']);
+  'wind_waves', 'fog', 'pressure', 'temperature', 'water_temp', 'gusts', 'currents']);
 
 export default function useMapWeatherRouteMemory({ user, activeModel, activeLayers, timeOffsetHours,
   setActiveLayers, setTimeOffsetHours, setIsPlayingTimeline }) {

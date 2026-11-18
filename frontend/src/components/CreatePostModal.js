@@ -15,6 +15,7 @@ import { CreateAdModal } from './CreateAdModal';
 import logger from '../utils/logger';
 import MediaPreviewCarousel from './social/MediaPreviewCarousel';
 import { ROLES } from '../constants/roles';
+import { sourceAfterEdit } from './create-post/conditionsProvenance';
 const DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const DirSelect = ({ value, onChange, placeholder = 'Dir' }) => (
   <Select value={value} onValueChange={onChange}>
@@ -56,7 +57,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
   const [tideStatus, setTideStatus] = useState('');
   const [tideHeightFt, setTideHeightFt] = useState('');
   const [conditionsLoading, setConditionsLoading] = useState(false);
-  const [conditionsSource, setConditionsSource] = useState('manual');
+  const [conditionsSource, setConditionsSource] = useState('unclaimed');   // no claim until a prefill (P0)
   const [knownSpots, setKnownSpots] = useState([]);
   const [selectedSpot, setSelectedSpot] = useState('');
   const [recentLocations, setRecentLocations] = useState([]);
@@ -326,7 +327,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
     setSessionStartTime(''); setSessionEndTime('');
     setWaveHeightFt(''); setWavePeriodSec(''); setWaveDirection('');
     setWaveDirectionDegrees(null); setWindSpeedMph(''); setWindDirection('');
-    setTideStatus(''); setTideHeightFt(''); setConditionsSource('manual');
+    setTideStatus(''); setTideHeightFt(''); setConditionsSource('unclaimed');
     setSelectedSpot(''); onClose();
   };
 
@@ -568,7 +569,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                       type="number"
                       step="0.5"
                       value={waveHeightFt}
-                      onChange={(e) => { setWaveHeightFt(e.target.value); setConditionsSource('manual'); }}
+                      onChange={(e) => { setWaveHeightFt(e.target.value); setConditionsSource(sourceAfterEdit); }}
                       placeholder="e.g., 4.5"
                       className="bg-zinc-800 border-zinc-700 text-white text-sm"
                     />
@@ -578,14 +579,14 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     <Input id="wave-period-input" aria-label="e.g., 12"
                       type="number"
                       value={wavePeriodSec}
-                      onChange={(e) => { setWavePeriodSec(e.target.value); setConditionsSource('manual'); }}
+                      onChange={(e) => { setWavePeriodSec(e.target.value); setConditionsSource(sourceAfterEdit); }}
                       placeholder="e.g., 12"
                       className="bg-zinc-800 border-zinc-700 text-white text-sm"
                     />
                   </div>
                   <div>
                     <span className="text-xs text-gray-400 mb-1 block">Wave Dir</span>
-                    <DirSelect value={waveDirection} onChange={(v) => { setWaveDirection(v); setConditionsSource('manual'); }} />
+                    <DirSelect value={waveDirection} onChange={(v) => { setWaveDirection(v); setConditionsSource(sourceAfterEdit); }} />
                   </div>
                 </div>
 
@@ -598,14 +599,14 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                       type="number"
                       step="0.5"
                       value={windSpeedMph}
-                      onChange={(e) => { setWindSpeedMph(e.target.value); setConditionsSource('manual'); }}
+                      onChange={(e) => { setWindSpeedMph(e.target.value); setConditionsSource(sourceAfterEdit); }}
                       placeholder="e.g., 8"
                       className="bg-zinc-800 border-zinc-700 text-white text-sm"
                     />
                   </div>
                   <div>
                     <span className="text-xs text-gray-400 mb-1 block">Direction</span>
-                    <DirSelect value={windDirection} onChange={(v) => { setWindDirection(v); setConditionsSource('manual'); }} placeholder="Select..." />
+                    <DirSelect value={windDirection} onChange={(v) => { setWindDirection(v); setConditionsSource(sourceAfterEdit); }} placeholder="Select..." />
                   </div>
                 </div>
 
@@ -614,7 +615,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     <span className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
                       <ArrowUpDown className="w-3 h-3" /> Tide Status
                     </span>
-                    <Select value={tideStatus} onValueChange={(v) => { setTideStatus(v); setConditionsSource('manual'); }}>
+                    <Select value={tideStatus} onValueChange={(v) => { setTideStatus(v); setConditionsSource(sourceAfterEdit); }}>
                       <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white text-sm">
                         <SelectValue placeholder="Select..." />
                       </SelectTrigger>
@@ -631,7 +632,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                       type="number"
                       step="0.1"
                       value={tideHeightFt}
-                      onChange={(e) => { setTideHeightFt(e.target.value); setConditionsSource('manual'); }}
+                      onChange={(e) => { setTideHeightFt(e.target.value); setConditionsSource(sourceAfterEdit); }}
                       placeholder="e.g., 2.3"
                       className="bg-zinc-800 border-zinc-700 text-white text-sm"
                     />
