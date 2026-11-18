@@ -2705,3 +2705,16 @@ downgrade, owner). Sent to the director.
     4. The degraded-coastal path must be stored-only.
     5. Derived outputs (alerts, push, share cards) inherit the source.
     6. Error paths must end in "unavailable".
+
+## 2026-11-18 15:42 -0500 Tide source RESOLVED: Open-Meteo's sea level IS Copernicus; new step M1-0
+- **Open-Meteo's marine API page** (read today): `sea_level_height_msl` comes from "MeteoFrance SMOC Currents,
+  Tides", i.e. CMEMS GLOBAL_ANALYSISFORECAST_PHY_001_024 at 0.08°, with the warning "Accuracy at coastal areas is
+  limited".
+- **CMEMS QUID 001-024 §II.4:** `cmems_mod_glo_phy_anfc_merged-sl_PT1H-i` (MOWL) holds the FES2014 ocean+load tide,
+  the inverse barometer, steric and mass terms, the GLO12 ssh, and a TOTAL.
+- **M1-0:** read MOWL TOTAL directly, keeping the 72 h de-mean.
+  - Gate: median |Δ| ≤ 0.01 m vs the Open-Meteo series at the 26 CO-OPS stations, with a null control.
+  - Removes Open-Meteo from every surf height with no downgrade.
+  - The G3b SOTA steps then build on it.
+- **No keep-minimal Open-Meteo candidate remains.**
+- **DWD ICON-EU verified on opendata** (t_2m, tot_prec, clct, wind, pmsl). That settles the Europe raster risk.
