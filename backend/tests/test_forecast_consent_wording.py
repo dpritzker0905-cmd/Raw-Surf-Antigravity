@@ -1,5 +1,6 @@
 """The forecast data consent wording is a legal document (Compliance > Legal documents), with the version rule:
-same version = a wording fix (consent stays); new version = the meaning changed (everyone is asked again)."""
+a version names ONE text (people agreed to it, so it never changes under them); any change is a new version, and a
+new version asks everyone again (advisor hold on #1026)."""
 import asyncio
 from datetime import datetime, timedelta, timezone
 
@@ -76,7 +77,7 @@ def test_unknown_document_type_is_refused(maker):
     asyncio.run(go())
 
 
-def test_same_version_keeps_consent_new_version_asks_again(maker):
+def test_a_version_keeps_its_text_and_a_new_version_asks_again(maker):
     async def go():
         async with maker() as db:
             await _publish(db, "1.0")
@@ -86,7 +87,10 @@ def test_same_version_keeps_consent_new_version_asks_again(maker):
             await db.commit()
             assert await stc.granted_now(db, {"ana", "ben", "cy"}) == {"ana", "ben"}
 
-            await _publish(db, "1.0", body="Off unless you turn it on (typo fixed).")   # wording fix
+            with pytest.raises(HTTPException) as exc:                                   # text change, same version
+                await _publish(db, "1.0", body="Off unless you turn it on (and also used for ads).")
+            assert exc.value.status_code == 409
+            await _publish(db, "1.0", body="  Off unless you turn it on.  ")              # same text: re-publish is fine
             assert (await stc.current(db, "ana"))["granted"] is True
             assert await stc.granted_now(db, {"ana", "ben"}) == {"ana", "ben"}
 
@@ -104,3 +108,18 @@ def test_same_version_keeps_consent_new_version_asks_again(maker):
             assert await stc.granted_now(db, {"ana", "ben"}) == {"ana"}
             assert (await stc.summary(db))["opted_in"] == 1
     asyncio.run(go())
+
+
+def test_the_default_wordings_version_cannot_be_published_with_other_text(maker):
+    async def go():
+        async with maker() as db:
+            await stc.record(db, "ana", True, "settings", now=T0)          # agreed to the built-in default
+            await db.commit()
+            with pytest.raises(HTTPException) as exc:
+                await _publish(db, stc.CONSENT_VERSION, body="Different words under the default's version.")
+            assert exc.value.status_code == 409
+            assert (await stc.wording(db))["text"] == stc.CONSENT_TEXT
+            await _publish(db, stc.CONSENT_VERSION, sections=stc.DEFAULT_SECTIONS)   # publishing it unchanged is fine
+            assert (await stc.current(db, "ana"))["granted"] is True
+    asyncio.run(go())
+

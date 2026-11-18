@@ -55,19 +55,22 @@ describe('LegalDocumentsEditor (Compliance > Legal documents)', () => {
     expect(screen.getByLabelText('Text under the checkbox')).toHaveValue('Off unless on.');
     expect(screen.queryByRole('button', { name: /add section/i })).toBeNull();
     expect(await screen.findByText('4')).toBeInTheDocument();                       // opted in under this version
-    expect(screen.getByRole('status')).toHaveTextContent(/wording fix/i);
+    expect(screen.getByRole('status')).toHaveTextContent(/same text: everyone who opted in stays opted in/i);
     fireEvent.change(screen.getByLabelText('Version'), { target: { value: '2.0' } });
     expect(screen.getByRole('status')).toHaveTextContent(/asked again/i);
     expect(screen.getByRole('button', { name: /publish consent 2\.0 \(asks everyone again\)/i })).toBeInTheDocument();
   });
 
-  test('publishing the consent sends one section under the chosen version', async () => {
+  test('new words under the same version are locked; a new version publishes them as one section', async () => {
     await openEditor();
     fireEvent.click(screen.getByRole('tab', { name: 'Forecast data consent' }));
     fireEvent.change(await screen.findByLabelText('Text under the checkbox'), { target: { value: 'Clearer words.' } });
-    fireEvent.click(screen.getByRole('button', { name: /publish consent 1\.0/i }));
+    expect(screen.getByRole('status')).toHaveTextContent(/cannot change: people agreed to it/i);
+    expect(screen.getByRole('button', { name: /publish consent 1\.0/i })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Version'), { target: { value: '1.1' } });
+    fireEvent.click(screen.getByRole('button', { name: /publish consent 1\.1/i }));
     await waitFor(() => expect(apiClient.put).toHaveBeenCalledWith('/compliance/tos-content', {
-      doc_type: 'forecast_consent', version: '1.0', sections: [{ title: 'Use my reports', body: 'Clearer words.' }],
+      doc_type: 'forecast_consent', version: '1.1', sections: [{ title: 'Use my reports', body: 'Clearer words.' }],
       effective_date: '', set_active: true,
     }));
   });

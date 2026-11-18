@@ -290,3 +290,22 @@ Tests: backend +6 (default until published; one-label-one-text; unknown document
 new version asks again, agreeing again restores, counts), Jest +5. Mutation: ignoring the version in the export's
 check fails the version-rule test. 116 surf-truth backend and 468 Jest tests (admin, observations, settings,
 src/tests) pass; the lint ratchet passes (debt down). NOT checked in a browser: the admin needs an admin login.
+## 2026-11-18 13:53Z T1 P3 (part 2, advisor HOLD fixed): the consent text says only what is true
+
+The advisor held #1024 at 6ffd34254: the text said "(with the spot and time, but never your name)" and "from then on,
+none of your reports are used, including earlier ones". The export is PSEUDONYMOUS, not anonymous (observer and device
+codes, distances, EXIF age, app version), and nothing purges exports already made when someone withdraws. New text
+(CONSENT_VERSION `draft-2026-11-18b`) names what each used report carries, says the code can be traced back to the
+account, says later checks leave out all the person's reports, and says copies made before a withdrawal are not
+changed. A stronger promise belongs only in the change that builds the purge, under a new version. Test +1 pins each
+phrase to the export's FIELDS (guards fragment +8). Still a DRAFT for counsel.
+## 2026-11-18 14:08Z T1 P3 (part 3, advisor HOLD fixed): a consent version names one text
+
+The advisor held #1026 at 0a710de3f: `save_tos_content` replaced `sections` in place under the same version, and a grant
+counts when its version matches, so the wording could change under consent already given. Now, for the forecast
+consent only, the save refuses (409) different words under a version already published, or under the built-in
+default's version; re-publishing the same text is allowed. Any change, a typo fix included, is a new version and asks
+everyone again. The admin editor says so in words and disables Publish while new words sit under the old version.
+Also carries #1024's new default text (`draft-2026-11-18b`). Tests: the same-version test now expects the 409, +1 for
+the default's version (estate fragment +7); the editor test shows the lock (Jest 4 pass); ESLint ratchet shrinks.
+Mutation: removing the refusal fails 2.

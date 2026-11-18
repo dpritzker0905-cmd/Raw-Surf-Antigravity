@@ -264,7 +264,19 @@ async def save_tos_content(
         .where(TosContent.doc_type == data.doc_type, TosContent.version == data.version)
     )
     content = existing.scalar_one_or_none()
-    
+    if data.doc_type == surf_truth_consent.DOC_TYPE:
+        # People agreed to a TEXT under a version, so a version's text never changes (advisor hold on #1026). Any
+        # change is a new version, which asks everyone again. The built-in default's version is reserved likewise.
+        def _words(sections):
+            return [(str(s.get('title') or '').strip(), str(s.get('body') or '').strip()) for s in sections or []]
+        prior = (content.sections if content else
+                 surf_truth_consent.DEFAULT_SECTIONS if data.version.strip() == surf_truth_consent.CONSENT_VERSION
+                 else None)
+        if prior is not None and _words(prior) != _words(data.sections):
+            raise HTTPException(status_code=409, detail=(
+                f"Version {data.version} is already published with different wording, and people agreed to that text. "
+                "Publish the change as a new version; everyone will be asked again."))
+
     if content:
         # Update existing version
         content.sections = data.sections
