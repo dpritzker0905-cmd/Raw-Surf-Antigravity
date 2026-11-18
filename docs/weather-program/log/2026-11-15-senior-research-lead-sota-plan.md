@@ -2718,3 +2718,12 @@ downgrade, owner). Sent to the director.
   - The G3b SOTA steps then build on it.
 - **No keep-minimal Open-Meteo candidate remains.**
 - **DWD ICON-EU verified on opendata** (t_2m, tot_prec, clct, wind, pmsl). That settles the Europe raster risk.
+
+## 2026-11-18 16:32 -0500 Team digest for all lanes; NOAA OFS and RTOFS verified
+- The one-page digest for every lane is in shared notes `TEAM-DIGEST-sources-and-lessons-2026-11-18.md`: the rule,
+  the verified free sources, where Open-Meteo remains, and 7 method lessons. Sent to the director to distribute.
+- **Verified on AWS today:**
+  - **NOAA NOS OFS** (`noaa-nos-ofs-pds`): 20 US coastal systems (wcofs/wcofs_da, ngofs2, gomofs, necofs, sscofs,
+    sfbofs, ...). Hourly 2-D surface NetCDF, about 2-3 day range. A candidate for nearshore SST, currents and water
+    level in the US.
+  - **NOAA RTOFS** (`noaa-nws-rtofs-pds`): daily HYCOM archives, a second global SST/currents source.
