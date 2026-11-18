@@ -40,8 +40,11 @@ const FS_DECL = `
 varying float v_cspeed;      // the colour speed (DRAW_VS): the gust in gust mode, else v_speed
 varying float v_flick;       // gust flicker (DRAW_VS): 1.0 outside gust mode`;
 
+// The fragment stage has its OWN switch: a uniform declared in both stages must match precision, and the vertex default is
+// highp while this pass is mediump ("Precisions of uniform 'u_gust_on' differ" failed the link and dropped the whole wind
+// layer to its Canvas2D fallback in the browser check, 2026-11-18). No gust uniform is shared between the two stages.
 const FS_UNIFORMS = `
-uniform float u_gust_on; uniform float u_ramp_max;   // gust mode: the ramp spans 0..u_ramp_max (the gust heatmap's 75 kn)`;
+uniform float u_gust_fs; uniform float u_ramp_max;   // gust mode (fragment's own switch): the ramp spans 0..u_ramp_max (75 kn)`;
 
 export const GUST_SPLICE = Object.freeze({
   on,
@@ -50,7 +53,7 @@ export const GUST_SPLICE = Object.freeze({
   fsDecl: on ? FS_DECL : '',
   fsUniforms: on ? FS_UNIFORMS : '',
   // the colour lookup's speed / ramp top
-  fsSpeed: on ? 'v_cspeed / (u_gust_on > 0.5 ? max(u_ramp_max, 1.0) : u_max_speed)' : 'v_speed / u_max_speed',
+  fsSpeed: on ? 'v_cspeed / (u_gust_fs > 0.5 ? max(u_ramp_max, 1.0) : u_max_speed)' : 'v_speed / u_max_speed',
   // the mark's alpha: the flicker multiplies it (1.0 outside gust mode)
   fsFlick: on ? ' * v_flick;   // v_flick: 1.0 outside gust mode' : ';',
 });

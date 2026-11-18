@@ -142,7 +142,7 @@ describe('engine and shaders', () => {
     expect(DRAW_VS).toContain('v_cspeed = v_speed;');
     expect(DRAW_VS).toMatch(/if \(u_gust_on > 0\.5\) \{[\s\S]*texture2D\(u_gust, guv\)/);
     expect(DRAW_VS).toContain('if (gb >= 1.0) v_cspeed = (gb - 1.0) / 254.0 * u_gust_max;');
-    expect(DRAW_FS).toContain('float normalizedSpeed = clamp(v_cspeed / (u_gust_on > 0.5 ? max(u_ramp_max, 1.0) : u_max_speed), 0.0, 1.0);');
+    expect(DRAW_FS).toContain('float normalizedSpeed = clamp(v_cspeed / (u_gust_fs > 0.5 ? max(u_ramp_max, 1.0) : u_max_speed), 0.0, 1.0);');
     expect(DRAW_VS).toContain('float sizeBase = v_speed < 0.5 ? 0.0 : 2.5 + 2.5 * smoothstep(1.0, 30.0, v_speed);');
     expect(DRAW_VS).toMatch(/keepRate \*= pow\(min\(1\.0, u_v2_speedkeep\.y \/ \(u_v2_speedkeep\.z \+ v_speed/);
   });
@@ -165,6 +165,17 @@ describe('the shader splice and its kill', () => {
     }
     expect(k.DRAW_FS).toContain('float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);');
     expect(k.DRAW_FS).toMatch(/: color\.a\);\n/);
+  });
+
+  test('LINK SAFETY: no gust uniform is declared in both stages (a precision mismatch fails the whole wind program)', () => {
+    // 2026-11-18 browser check: u_gust_on in both stages (vertex highp, fragment mediump) failed the link and dropped the WIND
+    // layer to its Canvas2D fallback. Jest compiles no GLSL, so the declaration rule is pinned here.
+    const uniforms = (s) => new Set([...s.matchAll(/uniform\s+(?:(?:lowp|mediump|highp)\s+)?\w+\s+(u_\w+)/g)].map((m) => m[1]));
+    const vs = uniforms(DRAW_VS); const fs = uniforms(DRAW_FS);
+    const shared = [...vs].filter((u) => fs.has(u) && /gust|ramp_max/.test(u));
+    expect(shared).toEqual([]);
+    expect(fs.has('u_gust_fs')).toBe(true);
+    expect(vs.has('u_gust_on')).toBe(true);
   });
 
   test('on: the splice is present', () => {

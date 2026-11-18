@@ -67,7 +67,8 @@ export function clearGustField(engine, gl) {
  */
 export function bindGustColour(gl, program, engine) {
   const on = gustColourActive(engine);
-  gl.uniform1f(gl.getUniformLocation(program, 'u_gust_on'), on ? 1 : 0);
+  gl.uniform1f(gl.getUniformLocation(program, 'u_gust_on'), on ? 1 : 0);   // the vertex stage's switch
+  gl.uniform1f(gl.getUniformLocation(program, 'u_gust_fs'), on ? 1 : 0);   // the fragment stage's own (gustShaderSplice.js: never shared)
   if (!on) return;
   const g = engine._gust;
   gl.activeTexture(gl.TEXTURE0 + GUST_UNIT);
