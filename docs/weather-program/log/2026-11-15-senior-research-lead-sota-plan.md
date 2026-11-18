@@ -2806,3 +2806,15 @@ downgrade, owner). Sent to the director.
 - **NOAA NWPS** (NOMADS, public domain): SWAN at 500 m-1.8 km. 34 coastal offices live today, including JAX/MLB
   (NE Florida) and LOX/SGX (SoCal). Proposed: an offline paired test vs CDIP/MOP before any use as the US nearshore
   boundary of the one chain.
+
+## 2026-11-18 18:15 -0500 CORRECTION: exclude the load tide; G4 v2-primary ruling
+- **Load tide:** gauges and surf depth measure the OCEAN tide relative to the seabed. Ocean + load is geocentric
+  (altimetry). My section M "with load tide" was wrong; the v2 arm and the MOWL use must exclude the load tide (check
+  whether MOWL TOTAL includes it).
+- **G4 v2 (pyTMD FES2022b) as PRIMARY before START:** research says YES, with conditions (a timestamped amendment, v1
+  reported only, nodes frozen, power re-check, a shared evaluator with ME, an implementation parity test with planted
+  controls, no embargoed gauges). Sent to the advisor.
+- **#1073 (G1a guard) rulings:**
+  - Hs plants at +0.06 and +0.10 m, with detection rates;
+  - decision classes as specified (mixed rows joined with global_mid for +48/+72);
+  - Holm per quantity × lead across basins, B = 10,000, and an UNDER-RESOLVED check distinct from VOID.
