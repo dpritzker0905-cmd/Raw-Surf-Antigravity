@@ -71,6 +71,7 @@ import gzip
 import hashlib
 import math
 import struct
+import zlib
 from datetime import datetime, timezone
 
 MAGIC = b"RSWF"
@@ -80,13 +81,31 @@ HEADER_FIXED = 72
 DESCRIPTOR = struct.Struct("<BBBBIdd")  # 24 bytes
 NO_MISSING = 0xFFFFFFFF
 GZIP_MAGIC = b"\x1f\x8b"
+# The most bytes a frame may decompress to. The largest frame written today is the 0.25-degree world lattice
+# (1440 x 721 nodes) with five fields, about 8.3 MB raw; this is roughly eight times that. A gzip of zeros expands
+# about a thousandfold, so without a cap 200 kB of input allocated 200 MB before the magic was even read.
+MAX_FRAME_BYTES = 64 * 1024 * 1024
+_HEADER_STRUCT = struct.Struct("<HHHHIBBBBI")
 
 HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED, LANE_WEIGHT, PRESSURE_HPA = 0, 1, 2, 3, 4, 5, 6
 TEMP_C, CLOUD_PCT, RATING, PRECIP_MM_H, VISIBILITY_M = 7, 8, 9, 10, 11
+# ONE-BYTE BAND fields (2026-11-16, lever A of #928's 4G gate, log §12/§12b): a speed stored as the BAND of its layer's palette,
+# k = floor(v / step) + 1 for 0 <= v < 254 x step, 255 = SATURATED (v >= 254 x step), 0 = no data. The descriptor carries
+# scale = step and offset = -step / 2, so every existing generic decoder (decode_plane, staticFrameCodec.parseFrame, the client's
+# raster decode worker) already reads code k as the band CENTRE (k - 1) x step + step / 2: error <= half a step, and a cell's
+# decoded value always sits in the same palette band as its source value (every LUT breakpoint is a multiple of the step).
+# 12 = gusts, 0.5 kn (the gust LUT step; tops at 127 kn); 13 = ocean current speed, 0.02 kn (the currents LUT step; 5.08 kn).
+GUST_KN_BAND, CURRENT_KN_BAND = 12, 13
+BAND_FIELDS = (GUST_KN_BAND, CURRENT_KN_BAND)
+BAND_SATURATED = 255
+# The client's LUT index is floor((v - min) / step + 1e-3) (ownRasterLayer's shader): the encoder takes the band by the SAME rule,
+# so a cell's palette entry is identical before and after (a value within 0.001 step under an edge already drew the next band).
+# The cost: the decode error bound is half a step + 0.001 step (TOLERANCE below).
+BAND_INDEX_EPS = 1e-3
 FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s", DIR_CONFIDENCE: "dir_confidence",
                SPEED: "speed", LANE_WEIGHT: "lane_weight", PRESSURE_HPA: "pressure_hpa", TEMP_C: "temp_c",
                CLOUD_PCT: "cloud_pct", RATING: "rating", PRECIP_MM_H: "precip_mm_h",
-               VISIBILITY_M: "visibility_m"}
+               VISIBILITY_M: "visibility_m", GUST_KN_BAND: "gust_kn_band", CURRENT_KN_BAND: "current_kn_band"}
 
 # (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data;
 # speed (knots, the wind products' unit; the index meta carries value_unit) does the same at 0.01.
@@ -103,6 +122,8 @@ FIELD_SPECS = {
     RATING: (4, 1, NO_MISSING, 1.0, 0.0),     # rated frames: the raw code (above), compared exactly
     PRECIP_MM_H: (2, 1, 0, 0.01, -0.01),      # raster: code 1 = 0.00 mm/h, 0 = no data; top code 655.34 mm/h
     VISIBILITY_M: (2, 1, 0, 1.0, -1.0),       # raster (fog): code 1 = 0 m, 0 = no data; top code 65534 m
+    GUST_KN_BAND: (1, 0, 0, 0.5, -0.25),      # band (above): code k -> (k - 1) x 0.5 + 0.25 kn; 255 = saturated (>= 127 kn)
+    CURRENT_KN_BAND: (1, 0, 0, 0.02, -0.01),  # band: code k -> (k - 1) x 0.02 + 0.01 kn; 255 = saturated (>= 5.08 kn)
 }
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
 WIND_FIELDS = (DIRECTION, SPEED)
@@ -132,6 +153,8 @@ TOLERANCE = {
     RATING: _half_step(RATING),                  # integer codes   -> any difference fails
     PRECIP_MM_H: _half_step(PRECIP_MM_H),        # 0.01 mm/h step  -> 0.005 mm/h
     VISIBILITY_M: _half_step(VISIBILITY_M),      # 1 m step        -> 0.5 m
+    GUST_KN_BAND: _half_step(GUST_KN_BAND) + 0.5 * 1e-3,       # 0.5 kn band -> 0.25 kn + the index eps (unsaturated cells)
+    CURRENT_KN_BAND: _half_step(CURRENT_KN_BAND) + 0.02 * 1e-3,  # 0.02 kn band -> 0.01 kn + the index eps
 }
 POSITION_TOL_DEG = 1e-6
 # Marine u, v rebuilt from the decoded height and direction, against the stored u, v the normalizer computed from the
@@ -355,10 +378,61 @@ def encode_frame(product, fields=DEFAULT_FIELDS):
     return head + b"".join(planes)
 
 
+def gunzip_capped(data, limit: int = MAX_FRAME_BYTES):
+    """`data` un-gzipped, refusing anything that expands past `limit` bytes. Raises ValueError, never a zlib error,
+    and never holds more than `limit` + 1 bytes of output: the cap is applied WHILE decompressing, not after."""
+    d = zlib.decompressobj(wbits=31)                  # 31: a gzip wrapper, as GZIP_MAGIC promises
+    try:
+        out = d.decompress(data, limit + 1)
+    except zlib.error as e:
+        raise ValueError(f"not a frame: bad gzip ({e})") from None
+    if len(out) > limit or d.unconsumed_tail:
+        raise ValueError(f"frame too large: it decompresses past the {limit}-byte cap")
+    if not d.eof:
+        raise ValueError("truncated frame: the gzip stream ends early")
+    if d.unused_data:
+        # gzip.decompress refused trailing garbage and joined a second member; one frame is one member (gzip_frame)
+        raise ValueError(f"not a frame: {len(d.unused_data)} byte(s) after the end of the gzip stream")
+    return out
+
+
+def checked_header(data):
+    """The fixed header and the descriptor table of an uncompressed frame, VALIDATED against the buffer. PURE.
+
+    Returns (enc, tfm, cols, rows, mask, row_order, col_order, nfields, uv_conv, header_bytes, descriptors). Every
+    fault is a ValueError that says what is wrong; before 2026-11-17 a short buffer raised struct.error, a
+    zero-width field IndexError, and a `header_bytes` that disagreed with the descriptor table raised NOTHING: the
+    planes were read from inside the header and came back as numbers."""
+    if len(data) < 4 or data[:4] != MAGIC:
+        raise ValueError("not a frame: bad magic")
+    if len(data) < HEADER_FIXED:
+        raise ValueError(f"truncated frame: {len(data)} bytes, the fixed header needs {HEADER_FIXED}")
+    enc, tfm, cols, rows, mask, row_order, col_order, nfields, uv_conv, header_bytes = _HEADER_STRUCT.unpack_from(data, 4)
+    if enc != ENCODING_VERSION:
+        raise ValueError(f"unsupported encoding_version {enc}")
+    expected = HEADER_FIXED + nfields * DESCRIPTOR.size
+    if header_bytes != expected:
+        raise ValueError(f"bad frame header: header_bytes is {header_bytes}, but {nfields} descriptor(s) end at {expected}")
+    if len(data) < header_bytes:
+        raise ValueError(f"truncated frame: {len(data)} bytes, the descriptor table ends at {header_bytes}")
+    descriptors = []
+    for i in range(nfields):
+        d = DESCRIPTOR.unpack_from(data, HEADER_FIXED + i * DESCRIPTOR.size)
+        fid, nb, layout = d[0], d[1], d[2]
+        if nb not in (1, 2, 4):
+            raise ValueError(f"bad frame descriptor: field {fid} is {nb} byte(s) wide; a frame holds 1, 2 or 4")
+        if layout not in (0, 1):
+            raise ValueError(f"bad frame descriptor: field {fid} has layout {layout}; a frame knows 0 and 1")
+        descriptors.append(d)
+    return enc, tfm, cols, rows, mask, row_order, col_order, nfields, uv_conv, header_bytes, descriptors
+
+
 def read_header(data):
     """The fixed header fields of an uncompressed frame: shape, field mask, uv convention, header length. PURE."""
     if data[:4] != MAGIC:
         raise ValueError("not a frame: bad magic")
+    if len(data) < HEADER_FIXED:
+        raise ValueError(f"truncated frame: {len(data)} bytes, the fixed header needs {HEADER_FIXED}")
     enc, tfm, cols, rows, mask, _ro, _co, nfields, uv_conv, header_bytes = struct.unpack_from("<HHHHIBBBBI", data, 4)
     return {"encoding_version": enc, "transform_version": tfm, "cols": cols, "rows": rows, "mask": mask, "nfields": nfields,
             "uv_convention": uv_conv, "header_bytes": header_bytes}
@@ -388,47 +462,74 @@ def encode_plane(values, bounds, valid_time, model_run_time, fid):
     """Raw frame bytes for ONE scalar field from a (rows, cols) float array, row 0 = SOUTH, column 0 = WEST, NaN = no data;
     `bounds` = (west, south, east, north), the outer cell centres. The same layout encode_frame writes (header, one
     descriptor, one plane), vectorised: a 720 x 361 raster encodes in milliseconds instead of a per-node loop."""
-    import numpy as np
-    arr = np.asarray(values, dtype=float)
-    rows, cols = arr.shape
-    nb, layout, missing, scale, offset = FIELD_SPECS[fid]
-    if nb not in (1, 2) or missing != 0:
+    if FIELD_SPECS[fid][2] != 0:
         raise ValueError(f"encode_plane handles u8/u16 fields with code 0 = no data, not field {fid}")
-    top = 0xFF if nb == 1 else 0xFFFF
-    ok = np.isfinite(arr)
-    codes = np.zeros(arr.shape, dtype=np.int64)
-    codes[ok] = np.rint((arr[ok] - offset) / scale).astype(np.int64)
-    if ok.any() and (codes[ok].min() < 1 or codes[ok].max() > top):
-        raise ValueError(f"field {fid}: values outside the u{8 * nb} range of its quantisation")
-    header_bytes = HEADER_FIXED + DESCRIPTOR.size
+    return encode_planes({fid: values}, bounds, valid_time, model_run_time)
+
+
+def encode_planes(planes, bounds, valid_time, model_run_time, uv_convention=0):
+    """Raw frame bytes for SEVERAL fields ({field id: (rows, cols) float array}, one grid) in field-id order; encode_plane is
+    the one-field case (byte for byte). A field with code 0 = no data takes NaN as no data; a field with no missing code
+    (direction, 2026-11-15: the currents set's flow direction) is written 0 where NaN, its validity carried by the frame's
+    speed field. `uv_convention` (header byte 19): 1 = u = +s sin d, v = +s cos d (direction is where the flow goes TO)."""
+    import numpy as np
+    fids = sorted(planes)
+    arrs = [np.asarray(planes[f], dtype=float) for f in fids]
+    rows, cols = arrs[0].shape
+    if any(a.shape != (rows, cols) for a in arrs):
+        raise ValueError("encode_planes: every field must share one grid")
+    header_bytes = HEADER_FIXED + DESCRIPTOR.size * len(fids)
     head = bytearray(MAGIC)
-    head += struct.pack("<HHHHIBBBBI", ENCODING_VERSION, TRANSFORM_VERSION, cols, rows, 1 << fid, 0, 0, 1, 0, header_bytes)
+    mask = sum(1 << f for f in fids)
+    head += struct.pack("<HHHHIBBBBI", ENCODING_VERSION, TRANSFORM_VERSION, cols, rows, mask, 0, 0, len(fids), uv_convention,
+                        header_bytes)
     head += struct.pack("<4d", *bounds)
     head += struct.pack("<2d", _epoch(valid_time), _epoch(model_run_time))
-    head += DESCRIPTOR.pack(fid, nb, layout, 0, missing, scale, offset)
-    raw = codes.astype("<u2" if nb == 2 else "u1").tobytes()
-    plane = raw[0::2] + raw[1::2] if (layout == 1 and nb == 2) else raw
-    return bytes(head) + plane
+    body = []
+    for fid, arr in zip(fids, arrs):
+        nb, layout, missing, scale, offset = FIELD_SPECS[fid]
+        if nb not in (1, 2) or missing not in (0, NO_MISSING):
+            raise ValueError(f"encode_planes handles u8/u16 fields, not field {fid}")
+        top = 0xFF if nb == 1 else 0xFFFF
+        lowest = 1 if missing == 0 else 0
+        ok = np.isfinite(arr)
+        codes = np.zeros(arr.shape, dtype=np.int64)
+        if fid in BAND_FIELDS:   # floor to the palette band, saturate at the top code (never an error)
+            if ok.any() and arr[ok].min() < 0:
+                raise ValueError(f"field {fid}: a band field holds non-negative values only")
+            codes[ok] = np.minimum(np.floor(arr[ok] / scale + BAND_INDEX_EPS).astype(np.int64) + 1, BAND_SATURATED)
+        else:
+            codes[ok] = np.rint((arr[ok] - offset) / scale).astype(np.int64)
+        if ok.any() and (codes[ok].min() < lowest or codes[ok].max() > top):
+            raise ValueError(f"field {fid}: values outside the u{8 * nb} range of its quantisation")
+        head += DESCRIPTOR.pack(fid, nb, layout, 0, missing, scale, offset)
+        raw = codes.astype("<u2" if nb == 2 else "u1").tobytes()
+        body.append(raw[0::2] + raw[1::2] if (layout == 1 and nb == 2) else raw)
+    return bytes(head) + b"".join(body)
+
+
+def band_saturated(fid, values):
+    """How many finite cells of `values` a band field stores as SATURATED (>= 254 x step); 0 for any other field."""
+    import numpy as np
+    if fid not in BAND_FIELDS:
+        return 0
+    a = np.asarray(values, dtype=float)
+    return int(np.sum(np.isfinite(a) & (np.floor(np.nan_to_num(a, nan=-1.0) / FIELD_SPECS[fid][3] + BAND_INDEX_EPS) >= BAND_SATURATED - 1)))
 
 
 def decode_plane(data):
     """(header dict, {field id: (rows, cols) float array, NaN = no data}) for a frame; vectorised twin of decode_frame."""
     import numpy as np
     if data[:2] == GZIP_MAGIC:
-        data = gzip.decompress(data)
-    if data[:4] != MAGIC:
-        raise ValueError("not a frame: bad magic")
-    enc, _tfm, cols, rows, _mask, _ro, _co, nfields, _uv, header_bytes = struct.unpack_from("<HHHHIBBBBI", data, 4)
-    if enc != ENCODING_VERSION:
-        raise ValueError(f"unsupported encoding_version {enc}")
+        data = gunzip_capped(data)
+    _enc, _tfm, cols, rows, _mask, _ro, _co, _nfields, _uv, header_bytes, descriptors = checked_header(data)
     head = {"cols": cols, "rows": rows, "bounds": struct.unpack_from("<4d", data, 24),
             "valid_epoch": struct.unpack_from("<d", data, 56)[0], "run_epoch": struct.unpack_from("<d", data, 64)[0]}
     out, pos, n = {}, header_bytes, cols * rows
-    for i in range(nfields):
-        fid, nb, layout, _rsv, missing, scale, offset = DESCRIPTOR.unpack_from(data, HEADER_FIXED + i * DESCRIPTOR.size)
+    for fid, nb, layout, _rsv, missing, scale, offset in descriptors:
+        if len(data) - pos < n * nb:
+            raise ValueError(f"truncated frame: field {fid} needs {n * nb} bytes, has {max(0, len(data) - pos)}")
         plane = np.frombuffer(data, dtype=np.uint8, count=n * nb, offset=pos)
-        if len(plane) != n * nb:
-            raise ValueError(f"truncated frame: field {fid}")
         pos += n * nb
         if nb == 1:
             codes = plane.astype(np.int64)
@@ -455,12 +556,8 @@ def sha256_hex(data):
 def decode_frame(data):
     """Inverse of encode_frame (gzip accepted). Returns {header..., 'fields': {id: [value or None, ...]}}."""
     if data[:2] == GZIP_MAGIC:
-        data = gzip.decompress(data)
-    if data[:4] != MAGIC:
-        raise ValueError("not a frame: bad magic")
-    enc, tfm, cols, rows, mask, row_order, col_order, nfields, uv_conv, header_bytes = struct.unpack_from("<HHHHIBBBBI", data, 4)
-    if enc != ENCODING_VERSION:
-        raise ValueError(f"unsupported encoding_version {enc}")
+        data = gunzip_capped(data)
+    enc, tfm, cols, rows, mask, row_order, col_order, _nfields, uv_conv, header_bytes, descriptors = checked_header(data)
     west, south, east, north = struct.unpack_from("<4d", data, 24)
     valid_epoch, run_epoch = struct.unpack_from("<2d", data, 56)
     n = cols * rows
@@ -468,8 +565,7 @@ def decode_frame(data):
            "row_order": row_order, "col_order": col_order, "uv_convention": uv_conv, "bounds": (west, south, east, north),
            "valid_epoch": valid_epoch, "run_epoch": run_epoch, "fields": {}}
     pos = header_bytes
-    for i in range(nfields):
-        fid, nb, layout, _rsv, missing, scale, offset = DESCRIPTOR.unpack_from(data, HEADER_FIXED + i * DESCRIPTOR.size)
+    for fid, nb, layout, _rsv, missing, scale, offset in descriptors:
         size = n * nb
         plane = data[pos:pos + size]
         if len(plane) != size:

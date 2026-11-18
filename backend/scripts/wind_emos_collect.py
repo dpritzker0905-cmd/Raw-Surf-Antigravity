@@ -68,16 +68,31 @@ def pack_run(fields_by_lead: dict, has_cf: bool = True) -> bytes:
     return buf.getvalue()
 
 
-def collect_run(session, run: datetime, lats, lons, leads=LEADS) -> bytes:
+def collect_run(session, run: datetime, lats, lons, leads=LEADS, base: str = ef.AWS_BASE) -> bytes:
     """All six leads of one run, or raise (a run with a missing lead is dropped, never filled)."""
     def at_stations(arr, meta):
         return ec.bilinear(arr, meta, lats, lons)
     out, has_cf = {}, []
     for L in leads:
-        f, fmeta = ef.fetch_step(session, run, L, at_stations)
+        f, fmeta = ef.fetch_step(session, run, L, at_stations, base=base)
         out[L] = f
         has_cf.append(bool(fmeta.get("has_cf")))
     return pack_run(out, has_cf=all(has_cf))
+
+
+def daily_target(session, now: datetime):
+    """(run, base) for the daily job: today's or yesterday's 00Z run, from data.ecmwf.int first (it keeps the newest
+    runs) and the AWS mirror second. A throttled or failing check is not a crash: (None, None) means no run today, and
+    a later backfill slice collects the day (it skips runs already stored)."""
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    for run in (today, today - timedelta(days=1)):
+        for base in (ef.ECMWF_BASE, ef.AWS_BASE):
+            try:
+                if ef.run_available(session, run, max(LEADS), base=base):
+                    return run, base
+            except Exception as e:  # noqa: BLE001 - class only; the next source is tried
+                print(f"daily: {run:%Y%m%d}00 on {'ecmwf' if base == ef.ECMWF_BASE else 'aws'}: {type(e).__name__}")
+    return None, None
 
 
 def existing_runs(cache: str) -> set:
@@ -117,9 +132,12 @@ def main(argv=None) -> int:
     stations = load_stations(a.cache)
     land, meta = obs.gfs_land(s, a.cache)
     lats, lons = H.sample_points(stations, land, meta)
+    base = ef.AWS_BASE
     if a.cmd == "daily":
-        run = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        runs = [r for r in (run, run - timedelta(days=1)) if ef.run_available(s, r, max(LEADS))][:1]
+        run, base = daily_target(s, datetime.now(timezone.utc))
+        runs = [run] if run else []
+        if not runs:
+            print("daily: no complete 00Z run reachable (throttled or not yet published); a later backfill slice collects it")
     else:
         start = datetime.fromisoformat(a.start).replace(tzinfo=timezone.utc)
         end = datetime.fromisoformat(a.end).replace(tzinfo=timezone.utc)
@@ -132,7 +150,7 @@ def main(argv=None) -> int:
             report["skipped"].append(name)
             continue
         try:
-            blob = collect_run(s, r, lats, lons)
+            blob = collect_run(s, r, lats, lons, base=base)
         except Exception as e:  # noqa: BLE001 - dropped and logged, never filled
             report["dropped"].append({"run": name, "why": str(e)[:200]})
             print(f"{name}: DROPPED {e}", flush=True)

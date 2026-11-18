@@ -1,5 +1,18 @@
 # 2026-11-16: B2, a class for every surf spot (claude, rating band lane)
 
+> RECORD COPY (2026-11-17, docs only). B2 FAILED in v1 and in v2; nothing reads B2. The code, workflow and data behind this log
+> stay UNMERGED on draft PR #968 (branch `claude/surf-spot-classes`, commit 72539be35), on the director's word, and are not on dev.
+> To recompute v2: check out 72539be35, then `backend/scripts/score_spot_class.py` (score_v2) on these files (sha256 at 72539be35):
+>   - backend/data/spot_class_v2_predictions.json: 460182a47f0b8536088d2feb10d1218ce9f5ad7cf699ab21c43521f057ed0ed7
+>   - backend/data/spot_class_v2_osm_evidence.json: c41c262072479c2939f781fe2475aaddc88618e6d0c721a99098bea477b706dd
+>   - backend/data/spot_class_v2_snapshot.json: c5d2dcbe3946c1f5198f007b338032daf65abd04aba72c4f377316780f9fd9a4
+>   - backend/data/spot_class_labels_v2.json: 7244f1741afe8591847b337a2469c7924ca60e45ec3a90e6fdfa43b1f3bc7348
+>   - backend/data/spot_class_labels_v2_second_reader.json: 28384a844317860c9df155f85868741b088b66ea63523f1d88f29a92f0b40383
+>   - backend/data/spot_class_v2_frames.json: 475fb34da937180fd760921d66a51d7951a4ecd3d669d076212e8eb3e4d7d946
+>   - backend/data/spot_class_labels.json: d31a84e141c3bcac5dc86648a52dbd7c1a2b10758088052994fdff4209c637cc
+> The predictions file's snapshot_sha256 and evidence_sha256 equal the hashes above (checked when this copy was made).
+
+
 Assigned by the director (2026-11-15 19:27 EST relay of David: "we need the surf estimates fixed too ... for each surf spot
 worldwide"), from the senior research lead's plan (PR #929 log, S1). Builds on the repair lead's S0 ablation (#942) and its live
 panel (#963). Design notes: shared notes `B2-SPOT-CLASS-SCHEMA-2026-11-15.md`.
@@ -266,3 +279,11 @@ intervals included; both file hashes match. Two lines added on the advisor's rea
 - WHERE THE UNKNOWNS ARE: all 65 classifier-unknown spots are in the untagged frame (65 of its 80 sampled; 0 in any other frame).
   Outside that frame the classifier adds nothing a tag does not already give. Inside it, it classifies 15 of 80. That is the size of
   the problem any v3 has to solve.
+
+LESSON (2026-11-17 10:27 EST, on the director's word): NEVER hand-write ledger lines. The first version of this PR's fragment was written
+as JSON by a script, not by the ledger tool. It failed `verify and the estate partition check: "not canonical (written by hand? use
+action_ledger.py append)". Both lines were regenerated with `backend/scripts/action_ledger.py append (the v1 line with
+--reconstructed and its original action time). Before pushing, run `action_ledger.py check-pr --base origin/dev; it reads the
+COMMITTED tree, so commit first. The same holds for every lane: lines through the tool, never by hand.
+Both ledger lines are now marked reconstructed and carry their ORIGINAL action times: v1 at 2026-11-16T22:53Z, v2 at
+2026-11-17T07:05Z (the time of the SCOREBOARD row). The regeneration date is not a second finding (the advisor's note, 15:32Z).

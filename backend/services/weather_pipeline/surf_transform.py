@@ -269,8 +269,8 @@ def komar_breaker_height(Hs_m, Tp_s):
     parameters alone (no local depth) — the dominant surf-zone predictor in the literature (deep-water
     height + period dominate Hb). Long-period / low-steepness groundswell amplifies more (jacks up bigger)
     than short-period wind chop. Returns None for non-physical inputs."""
-    if Hs_m is None or Tp_s is None or Hs_m <= 0 or Tp_s <= 0:
-        return None
+    if Hs_m is None or Tp_s is None or not (math.isfinite(Hs_m) and math.isfinite(Tp_s)) or Hs_m <= 0 or Tp_s <= 0:
+        return None                                # non-finite: Tp = inf raised here, Hs = inf returned NaN
     L0 = G * Tp_s * Tp_s / (2.0 * math.pi)
     if L0 <= 0:
         return None
@@ -405,8 +405,11 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     (depth-capped). ESTIMATE from bulk params — callers MUST tag is_estimated."""
     if Hs_m is None or Tp_s is None:
         return None, 'unknown'
-    if Hs_m != Hs_m or Tp_s != Tp_s:
-        return None, 'unknown'   # NaN passes every <=/>= guard and would propagate to the display
+    if not (math.isfinite(Hs_m) and math.isfinite(Tp_s)):
+        # NaN passes every <=/>= guard and would propagate to the display. +inf did worse (2026-11-17): Tp = inf
+        # raised ZeroDivisionError in the Komar step (L0 = inf, 0.0 ** -0.2), and Hs = inf came back as a FINITE
+        # height (the depth cap), a made-up number from a fill value. Neither is a sea state: no estimate.
+        return None, 'unknown'
     if Hs_m <= 0:
         return 0.0, 'calm'
     if Tp_s <= 0:
@@ -604,7 +607,10 @@ def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_w
     # The combined sea is still bounded by what the local depth can hold — recombining in quadrature
     # can otherwise push the sum back above a cap each individual train respected.
     if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
-        tp_ref = max((p.get("tp") or 0.0) for p in partitions if isinstance(p, dict))
+        # A non-finite period is not a period: it must not set the cap (2026-11-17: an inf-period train, dropped above,
+        # still raised the cap to its ceiling; a NaN made the max order-dependent). Finite values are read as before.
+        tp_ref = max(((p.get("tp") or 0.0) for p in partitions
+                      if isinstance(p, dict) and math.isfinite(p.get("tp") or 0.0)), default=0.0)
         _slope = (depth_m / (shelf_width_km * 1000.0)) if (shelf_width_km and shelf_width_km > 0) else None
         cap = breaker_index(tp_ref, slope=_slope) * effective_cap_depth(depth_m, break_depth_m, water_level_m)
         if h_total >= cap:

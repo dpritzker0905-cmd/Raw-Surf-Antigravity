@@ -477,3 +477,64 @@ No `-enfo-cf` file exists beside the `ef` file after the switch (2026-09-13 +180
 - The rerun's authority, typed by David in THIS session (`local_0d0d332f`) at 2026-11-16 13:30 EST, answering "Rerun the
   long-range wind hindcast for #939, once, from dev, after the 50/51-member fix (#982) merges and the Actions queue is
   quiet?": "Yes, rerun once".
+
+## 2026-11-17 09:57Z Hindcast rerun 43952101715: VOID by its own size rules (advisor read first); the fill plan, recorded before any dispatch
+
+**Outcome (the advisor read the score job's log; neither the advisor nor I opened the report artifact or the run
+page's summary table):** VOID, not a result. Nothing goes into #939. The verdict record: chosen `ens_mean_debias`;
+400 NDBC and 60 ASOS stations; 48 test runs. Void reasons, both size rules registered before any run:
+1. "test half 48 runs over 29 days" (needs >= 60 runs and >= 30 days);
+2. "24 of 122 runs dropped (> 10%)".
+**Cause:** the public ECMWF open-data bucket throttled the fetch. Every shard logged hundreds of HTTP 503 answers
+(27-465 each, about 8,400 in all), and 11 shards gave up on 24 runs after retries. The data exists; the fetch lost it.
+Twenty-four concurrent shards on one public bucket is what got throttled.
+**The per-line numbers in that run's report and summary table were computed on the 98 surviving runs. They are void,
+and they stay unread.**
+
+**Designed counts, from the design alone (no data):** a complete collection gives TEST = runs issued in October 2026
+= 62 runs over 31 days, against the rule (>= 60 runs and >= 30 days). That is a THIN margin:
+- losing 3 test runs voids it;
+- losing both runs of any 2 days voids it;
+- the dropped-run rule allows at most 12 of 122.
+**The thresholds are not moved.**
+
+**The fill (the next run, only on David's word typed in this session):**
+- Collect ONLY the 24 missing runs. Reuse the cached run files, the frozen station list and the truth snapshot of run
+  43952101715 (its artifacts are kept until 2027-02-14).
+- 6 shards, at most 3 at a time (was 24, 12 at a time). Fetch retries raised from 8 to 12, with the back-off cap raised
+  from 60 s to 180 s.
+- Then score ONCE on the complete set. Split, arms and thresholds are unchanged.
+- A run still missing after the fill stays dropped and is never filled. If the sizes are then still short, the gate is
+  VOID again and is reported as such.
+
+## 2026-11-17 17:51 -0500 L1 instrument written OFFLINE for the advisor's read (no fetch, no score)
+
+The fill run 44107750669 finished (conclusion: success). Its verdict has NOT been opened here: the advisor reads it
+first. Meanwhile, the L1 registration (senior-research-lead log, FIXED 2026-11-17 00:33) said "the code goes to the
+advisor before any fetch". Branch `claude/l1-wave-emos`:
+
+- `backend/scripts/wave_emos_core.py`: log-normal laws with closed-form CRPS in METRES (Baran & Lerch 2015). E2 is
+  NGR on log Hs; R2 is EMOS on log R1 (with the "proxy, ICON absent" label). The rolling fit uses 90 days, refits
+  weekly, takes only rows published and valid before the refit, starts 2025-10-01, and restarts at an upgrade date.
+  The frozen fit and climatology arm C are also here.
+- `backend/scripts/wave_l1_score.py`: gate lines G1-G4 on 10-day valid-date blocks (3-day blocks for FRAGILE). It has
+  the cell-exclusion VOID, plus the null, derangement and halved-spread VOID controls. Reported: E1, R1, C, per-buoy
+  CRPSS, the per-model arms, the shuffled spread, the spread term, the shipped form, and the week-2 Brier score.
+- `backend/tests/test_wave_l1.py`, 8 tests. On synthetic data, an informative ensemble passes and an uninformative
+  one does not.
+
+**Three points for the advisor before any fetch:**
+1. **Derangement reference.** The instrument scores deranged E2 against arm C at the true buoy, and requires
+   CRPSS < 0. The draft's line "the CRPS skill must collapse below 0" does not name a reference.
+2. **Shipped-form rule.** The two spread reports can disagree. On synthetic data the spread term was real
+   (CRPSS +0.021, CI [0.017, 0.024]), yet the shuffled-spread E2 kept 83% of the gain over R2, because the gain was
+   mostly a mean correction. The code ships constant spread if EITHER report says so, and labels a PASS
+   "mean correction only". "Survives the shuffle" is read as keeping at least half the gain (the draft's
+   negative-control wording).
+3. **E2 spread law.** It is read literally: "the SD is linear in the pooled ensemble SD" gives
+   sigma = |c| + |d| * SD(pooled log members). The wind EMOS uses a variance-linear law instead.
+
+Still owed before any fetch:
+- the collector (GEFS-Wave and `waef` byte-range reads, the nearest wet cell, the R1 proxy);
+- the measured publication delays;
+- the version list for GEFS-Wave and IFS/wave in 2025-10..2026-06.
