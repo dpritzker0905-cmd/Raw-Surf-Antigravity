@@ -261,3 +261,17 @@ the view states what "stale" means without re-deriving environment overrides.
 Tests: backend +1 (thresholds, including an override), Jest +4 (words not colours, the 503 path, unreachable, the
 limits). 150 data-health backend and 100 admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin
 login). Stacked on #1029.
+## 2026-11-18 03:33Z Admin: a read-only spot inspector in the Surf Forecast panel (header from the UTC clock)
+
+David chose the spot inspector next. Admin > Surf Forecast > Spot inspector: search a spot, then see the catalogue
+row, the geometry the chain uses there (`resolve_surf_geometry`: shore normal and its source and match distance,
+the MOP swell normal, break depth, shelf, coastal/nearshore, swell magnet), its local size reference, and every
+PRECOMPUTED `rate_one_spot` frame for it (score, level, breaking height in m and ft, period, swell direction, the
+limiting factor and its multiplier, why, confidence, geometry readiness), filterable by model.
+It is not a second forecast path (ONE FORECAST COMPOSITION) and cannot load the 1-CPU box: the new routes
+(`routes/admin/surf_spot_inspector.py`: GET /admin/surf-forecast/spots?q= and /spots/{id}) read only the offline
+geometry asset and the cached L2 objects, off the event loop, and never call estimate_surf_at or fetch weather. A
+failed read is reported in the response and shown as an alert.
+Tests: backend +4 (frame selection and order without replay inputs; geometry never raises; the route reads cached
+objects only, 404, search; a failed blob read is reported), Jest +3. Route identity guard still passes (18). 103
+admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1030.
