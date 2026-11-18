@@ -422,7 +422,7 @@ _RATING_FLAGS = {"SURF_FACE_RANGE": ("1", "[D-065 ON, owner's typed word 2026-11
     # 2026-07-30: partitions now reach the RATING at all three surfaces, so a lane split on this
     # flag changes scores and LEVELS (measured: level moves on 50% of spot-hours), not just
     # heights — the exact RATING_TIDE-class trap. 4x the marine point resolutions when on.
-    "SURF_PARTITIONS":             ("0", "Spectral swell trains in the height AND the rating (all surfaces)",
+    "SURF_PARTITIONS":             ("0", "Spectral swell trains in the height AND the rating (all surfaces) [cap period rule UNDECIDED (D-081): gate before ON]",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # 2026-11-02 (DARK): GFS partitions are per-node SLOTS (WW3 §3.12), so the slot-wise bilinear blend can mix two
     # swells (14.8% of coastal stencils hold a swap, measured offline). On, the trains are matched by direction +
