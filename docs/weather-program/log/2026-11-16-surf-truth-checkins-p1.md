@@ -288,3 +288,12 @@ says why (decisions are recorded only in enforce mode; a dry run reports in its 
 Backend: `services/admin_guardrail_view.py` (no write path; a test checks the module has no POST/PUT/upsert) and
 GET /admin/surf-forecast/guardrail (off the event loop). Tests: backend +3, Jest +3; route identity guard passes; 106
 admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1031.
+## 2026-11-18 15:53Z Admin Surf Forecast: the advisor's limits on #1029-#1032
+
+(1) No test pinned the auth of the new admin routes: `tests/test_admin_surf_forecast_auth.py` ENUMERATES every `/admin/surf-forecast` route from the three routers (8 today, GET/POST/DELETE) and requires 401 without a token and 403 for
+a signed-in non-admin, so a later route is covered without editing the test. (2) #1031 scanned every frame x spot ON the
+event loop per click: `frames_for` now runs in a thread. (3) #1032: each open panel polled two private-bucket reads every
+60 s: `cached_guardrail_view` reuses the view for 60 s under one lock (the guardrail runs every 6 h). (4) #1030's
+`thresholds` on the PUBLIC `/api/health/data` are LEFT: they are configuration limits (hours), no secret and already
+implied by the public verdicts; moving them behind auth would need a second endpoint for one admin card. Tests +10
+(estate fragment +10).
