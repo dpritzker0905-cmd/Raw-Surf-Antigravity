@@ -506,17 +506,6 @@ class IconGridSource(IconOpenDataSource):
         return nearest_plane(self.spec["convert"](self._native(cycle, f, ncells)), pick, self.lattice())
 
 
-class IconArea0p125Source(IconPrecip0p125Source):
-    """An instantaneous ICON AREA field (cloud cover, %) on the 0.125-degree lattice by the same supersampled area mean as the
-    precipitation set (it shares that set's pick map and its refusals), read straight from its hour's file: no differencing."""
-
-    def fetch(self, cycle, f):
-        from services import frame_set_raster_icon125 as i125
-        pick, ncells = self.grid(cycle)
-        return i125.area_mean(self.spec["convert"](self._native(cycle, f, ncells)), pick)
-
-
 SOURCES = {"ecmwf": EcmwfOpenDataSource, "ecmwf_precip": EcmwfPrecipSource, "icon": IconOpenDataSource,
            "icon_precip": IconPrecipSource, "icon_precip_0p125": IconPrecip0p125Source,
-           "icon_0p125": IconOpenData0p125Source, "icon_grid": IconGridSource,
-           "icon_area_0p125": IconArea0p125Source}
+           "icon_0p125": IconOpenData0p125Source, "icon_grid": IconGridSource}
