@@ -221,3 +221,18 @@ The header '22:30Z Anchors C: the admin "Surf truth" area' ran AHEAD of the cloc
 ## 2026-11-17 02:57Z CLOCK CORRECTION (from `date -u`; append-only)
 
 The header '23:20Z T1 P4 export built (stacked on anchors C): private, pseudonymized rows for the offline fit' ran AHEAD of the clock: it was committed at 2026-11-16T22:46:20Z, 34 minutes before the time it states (an estimate; LESSONS L-P10).
+
+## 2026-11-18 03:58Z Admin: surf-truth exports and anchor history get their screens (header from the UTC clock)
+
+David chose the last two items from the admin survey. Both backend routes already existed with no screen:
+- Surf truth > Anchors: each anchor row has "History", a dialog reading the append-only event log
+  (GET /admin/surf-truth/anchors/{id}/events): every appointment and change, who and the reason. The route now also
+  returns the actor's name for display (the id stays as the record).
+- Surf truth > Model: accurate facts (the fit is written and pre-registered; reviewed before any run; no fit yet;
+  nothing moves a served height) and "Exports for the model": a "Run an export" dialog that posts
+  /admin/surf-truth/export only after an "the owner has approved exports (retention and consent)" box is ticked
+  (the server still refuses while SURF_TRUTH_EXPORT_KEY is unset, and the refusal is shown), plus the list of past
+  exports from the admin action log (who, when, rows, object). The old placeholder Model tab is removed.
+Tests: backend: the history route returns the actor's name (assertion added, 16 pass); Jest +3 (history dialog, export
+gated by the approval box then posts and shows the run, a refused export shows why). Lint ratchet passes. Not checked
+in a browser (admin login). Base: dev.
