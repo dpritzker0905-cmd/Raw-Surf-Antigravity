@@ -12,6 +12,7 @@
  */
 import { memo, useEffect, useRef } from 'react';
 import WebGLWindEngine, { windGridsCompatible } from './WebGLWindEngine';
+import { getShownGustField, subscribeGustField } from './gustParticles';
 import { coalesceOn, coalesceWindDeliveries, refreshWindSpeedScale } from './windDeliveryCoalesce';
 import { windLayerBeforeId, windCoastlineLayer, windCoastlineWanted, WIND_COASTLINE } from './WebGLWindUtils';
 import { syncWindBasemapMute, windBasemapMuteStale } from './windBasemapMute';
@@ -222,7 +223,7 @@ export function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, 
 // memo (2026-07-07, chip task_c5366c79 slice 3): MapWebGL re-renders per radar frame step;
 // all props here are primitives or stable refs once the caller hoists onError. Skipping
 // renders on equal props is behavior-identical (effects key on the same prop values).
-function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revision, onError, theme }) {
+function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revision, onError, theme, gustColour = false }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
@@ -533,6 +534,26 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
       mapInstance.triggerRepaint();
     }
   }, [active, mapInstance]);
+
+  // GUSTS (gustParticles.js): with Gusts picked the marks move on the wind and take their colour from the gust field the gust
+  // raster has ON SCREEN, so a scrub recolours them in the frame that changes the field. Off = the Wind layer exactly.
+  useEffect(() => {
+    if (!mapInstance) return undefined;
+    const apply = (field) => {
+      const engine = engineRef.current;
+      const gl = glRef.current || mapInstance?.painter?.context?.gl;
+      if (!engine || !gl || typeof engine.setGustField !== 'function') return false;
+      try { engine.setGustField(gl, gustColour ? field : null); } catch (e) { /* GL lost: the next field retries */ }
+      mapInstance.triggerRepaint();
+      return true;
+    };
+    if (!gustColour) { apply(null); return undefined; }
+    // GL comes up with the custom layer: until then, retry on the map's next render.
+    const onRender = () => { if (apply(getShownGustField())) mapInstance.off('render', onRender); };
+    if (!apply(getShownGustField())) mapInstance.on('render', onRender);
+    const unsub = subscribeGustField((f) => { apply(f); });
+    return () => { unsub(); try { mapInstance.off('render', onRender); } catch (e) { /* map gone */ } apply(null); };
+  }, [gustColour, mapInstance]);
 
  // No DOM element this renders directly into MapLibre's WebGL context
   return null;

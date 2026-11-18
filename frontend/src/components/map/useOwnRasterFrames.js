@@ -20,6 +20,7 @@ import {
 import { RASTER_NAMES, getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
 import { requestIsobars } from './isobarStore';
 import { GUST_LUT, gustScale } from './gustPalette';
+import { setShownGustField } from './gustParticles';
 import { CURRENTS_LUT, currentsScale } from './currentsPalette';
 import { loadDownscale, setDownscaled } from './ownRasterDownscale';
 import {
@@ -193,6 +194,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
             nearestMaxHours: st.nearestMaxHours || 1, drawnFactor: drawnFactor || 1 };
           emitOwnShown(layer, path);                     // synchronous: the isobars cut with the field, in the same frame
+          if (layer === 'gusts') setShownGustField(field || null);   // the wind particles take their colour from it (gustParticles.js)
           if (path && st.widen) Promise.resolve().then(() => { if (st.widen) st.widen(); });   // first frame on screen: prefetch now
           Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : sourceModel(layer, M)); if (path) setShown(true); });
         });
@@ -209,6 +211,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       st.layerObj = null;
       setWanted(layer, [], null);
       emitOwnShown(layer, null);
+      if (layer === 'gusts') setShownGustField(null);
     };
   }, [engaged, mapInstance, layer, beforeId]);
 

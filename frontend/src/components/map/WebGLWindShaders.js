@@ -2,7 +2,7 @@
  * WebGLWindShaders.js
  * GPU-native shaders for raw wind particle simulation.
  */
-import { GLSL_PT_REG } from './gridPointRegistration'; import { STATE_SPLICE } from './particleState'; import { WIND_RK2_GLSL, WIND_RK2_STEP } from './particleRk2'; import { GLSL_TRAIL_UV } from './windTrailAnchor'; import { GLSL_INK_MARK, GLSL_INK_COVER } from './windInk'; import { GLSL_LAND_FS } from './windLandMask'; import { GLSL_TRAIL_VEIL } from './windTrailVeil';
+import { GLSL_PT_REG } from './gridPointRegistration'; import { STATE_SPLICE } from './particleState'; import { WIND_RK2_GLSL, WIND_RK2_STEP } from './particleRk2'; import { GLSL_TRAIL_UV } from './windTrailAnchor'; import { GLSL_INK_MARK, GLSL_INK_COVER } from './windInk'; import { GLSL_LAND_FS } from './windLandMask'; import { GLSL_TRAIL_VEIL } from './windTrailVeil'; import { GUST_SPLICE } from './gustShaderSplice';
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -374,7 +374,7 @@ uniform float u_tile_width;       // v3.22: local tile width for high zoom preci
 varying float v_speed;
 varying float v_alpha;
 varying vec4 v_debug_color;
-varying vec2 v_world; varying vec2 v_dir;              // 2026-07-18: screen-space wind direction — the mark is ORIENTED. v_world: windLandMask.js
+varying vec2 v_world; varying vec2 v_dir;              // 2026-07-18: screen-space wind direction — the mark is ORIENTED. v_world: windLandMask.js${GUST_SPLICE.vsDecl}
 uniform float u_v2_density; uniform float u_v2_motion; uniform float u_v2_keep; uniform vec4 u_v2_speedkeep; uniform float u_v2_px_per_kn; uniform float u_v2_speed_max; uniform float u_v2_gamma; varying float v_stretch; // PARTICLES V2
 uniform float u_trail_dk; uniform float u_dash_thin; uniform float u_dash_min_css; varying float v_thin; // close-zoom thin marks: narrowing, width floor (css px), this mark's share (WebGLWindUtils WIND_CLOSE_THIN)
 uniform sampler2D u_wind;
@@ -484,7 +484,7 @@ void main() {
       wind = mix(wind, fineWind, fw);
     }
   }
-  v_speed = length(wind);
+  v_speed = length(wind);${GUST_SPLICE.vsColour}
   // SPEED-AWARE KEEP (WebGLWindUtils.v2SpeedKeep): the motion floor lets a fast mark outlive the legacy drop rule, so it
   // out-inks a slow one by legacyDrop/cap; keep fast marks in exactly that ratio and ink per area stops tracking speed.
   if (u_v2_speedkeep.x > 0.0) keepRate *= pow(min(1.0, u_v2_speedkeep.y / (u_v2_speedkeep.z + v_speed * u_v2_speedkeep.w)), u_v2_speedkeep.x);
@@ -654,11 +654,11 @@ void main() {
 }`;
 
 export const DRAW_FS = `precision mediump float;
-varying float v_speed;
+varying float v_speed;${GUST_SPLICE.fsDecl}
 varying float v_alpha;
 varying vec4 v_debug_color;
 uniform sampler2D u_color_ramp; ${GLSL_LAND_FS}
-uniform float u_max_speed;
+uniform float u_max_speed;${GUST_SPLICE.fsUniforms}
 uniform float u_theme;       // 2026-07-18: 0=dark 1=light 2=beach — the particle program never had it
 uniform float u_theme_rim;   // 1 = theme-aware rim/core, 0 = legacy black/white (kill switch)
 uniform float u_calm_alpha_kill; // 1 = restore the 07-19 calm-alpha set (kill switch; default 0)
@@ -701,7 +701,7 @@ void main() {
   // Smooth anti-aliasing edge softening
   float soft = smoothstep(0.5, 0.2, dist);
   
-  float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);
+  float normalizedSpeed = clamp(${GUST_SPLICE.fsSpeed}, 0.0, 1.0);
   float land = u_land_on > 0.5 ? texture2D(u_land_mask, v_world).r : 1.0; vec4 color = mix(texture2D(u_color_ramp, vec2(normalizedSpeed, 0.75)), texture2D(u_color_ramp, vec2(normalizedSpeed, 0.25)), land);   // LUT row 0 over land, row 1 over sea (dark's rules; windLandMask.js)
   
   // CASING (dual-tone, theme-aware rim; 2026-07-18 rounds 2-6): rationale relocated verbatim to
@@ -754,7 +754,7 @@ void main() {
   }
   
   // v3.20: Use color.a from the theme color ramp LUT to regulate particle transparency
-  float alpha = v_alpha * soft * (u_v2_theme > 0.5 ? mix(0.85, 1.0, smoothstep(0.0, 40.0, v_speed)) : color.a);
+  float alpha = v_alpha * soft * (u_v2_theme > 0.5 ? mix(0.85, 1.0, smoothstep(0.0, 40.0, v_speed)) : color.a)${GUST_SPLICE.fsFlick}
   gl_FragColor = vec4(rgb * alpha * (u_white.y + (u_white.x - u_white.y) * land) * (1.0 - (u_calm_air.y + (u_calm_air.x - u_calm_air.y) * land) * (1.0 - smoothstep(u_calm_air.z, u_calm_air.w, v_speed))), alpha);   // dark's white, ground by ground (windLandMask.js u_white), and its fall in near-calm air (windCalmAir.js u_calm_air: exactly 1.0 when both dims are 0): the light level, never the cover
 }`;
 
