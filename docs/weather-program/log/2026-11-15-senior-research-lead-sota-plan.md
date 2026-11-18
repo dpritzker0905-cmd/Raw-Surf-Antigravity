@@ -2592,3 +2592,17 @@ finding):**
   - Activation trigger: E2's MCB is ≥ 15% of CRPS on VAL (CI lower bound > 0), OR L1 gate 3 fails.
   - Harm: L1 gate 2 form, with Holm across leads. DSC tolerance 5% relative. Identity above p99.
   - Thresholds are frozen in a dated prereg before the first fit.
+
+- 2026-11-18 00:55 -0500: **G1 (guardrail widening) scoped** (helper's read-only code note
+  `g1-guardrail-widening-scope-2026-11-18.md`, origin/dev df658392, plus the lead's find):
+  - **G1a, the consensus guard:**
+    - The chain replay is GFS-only (`replay_one` passes "GFS"), and v0 archives no EURO/ICON marine.
+    - BUT the skill ledger already scores `raw_surf`, `raw_surf:EURO` and `raw_surf:ICON` on identical buoy target
+      hours (`skill_consensus.py`).
+    - So CONSENSUS_SERVE can be judged paired from ledger rows (equal mean vs served GFS), as a new "ledger" coverage
+      class. Do this BEFORE the flip. Check ledger retention ≥ 14 days.
+  - **G1b:** the offshore `hs_station` replay needs a code change: geometry is built for role "nearshore" only, and
+    depth silently defaults to 20 m. Make depth_m required. About 3.6 min at 6 stations now, about 15 min at 25
+    (linear, unmeasured).
+  - **G1c:** the admin coverage class column.
+  - Gate: null control + harmful-flag positive control.
