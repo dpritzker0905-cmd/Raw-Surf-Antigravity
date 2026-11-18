@@ -364,3 +364,39 @@ Ten randomized pairs of hard cut against cross-fade, four of them wind; protocol
 no difference 2. The four wind pairs: hard cut 2 (dark desktop z3; dark phone z4), cross-fade 1 (beach desktop z3), no
 difference 1 (light desktop z4.5). As registered, anything short of 8 of 10 for the cross-fade means the blend stays off.
 With no preference for it and a gate that is not through (section 11), no wind PR is opened; this branch is the record.
+
+## 13. W7's picture-against-value contradiction: a diagnosis, registered BEFORE the diagnostic run (2026-11-18, 15:45 EST)
+The owner's word in this session today: "Wind record items". Record only: the blend stays off, nothing ships from this.
+**What was read before writing this (no new measurement):**
+- The stored per-triple numbers of section 11's run (dark, desktop, 10 views x 4 triples). Picture ratio (held picture's
+  error over the cut's) by view: world views 0 to 2: about 0.55 to 0.80 at j1, j2 and 1.04 to 2.22 at j3, j4; view 3 all four
+  0.66; view 4: 0.60, 0.60, **1.00 (6.87 / 6.87)**, 0.61; views 5 to 8 (z5): 0.81 to 1.79, mostly at or above 1; view 9:
+  1.01, 0.36, 1.00, 0.38. Several ratios are 1.00 to four figures: the held picture EQUALS an end hour's picture there.
+- **Candidate 1 of section 11 (a same-hour re-commit ends the blend) is ruled out for this run**, by the code and the
+  record together: a cancel sets the telemetry mix to 0 and nothing sets it back, and the scenario reads `mix === 0.5` AFTER
+  both pictures were taken (`okBlend`), which holds in 36 of 40 triples including the ones at ratio 1.00. The code path
+  exists (`keepOutgoingWindBase`: `same_hour` sets the blend to null) and is still untested as an app behaviour; it is not
+  what happened here.
+- **A new candidate, from the engine's code:** the viewport-fine wind grid (`_windFine`, drawn ON TOP of the base at close
+  views) has its own pass, and that pass is deliberately never hour-blended (`WebGLWindEngine.js:684`,
+  `setWindBlendUniforms(..., 0)`). Where it covers the view, the colour picture shows the NEW hour's fine grid whatever the
+  base underneath mixes. The same pass is drawn in the value view too, so section 11's W6 bracket (the held value picture
+  against two pictures made by rewriting the BASE texture) compares the overlay with itself wherever the overlay covers: it
+  reads "inside the bracket" there without testing anything.
+**The diagnostic (one run, dark, desktop, views 3, 4, 6, 9; the same held step as section 11), two arms:**
+- arm FINE-ON: as section 11. arm FINE-OFF: the same with the existing kill `window.__RAW_DISABLE_WIND_VIEWPORT_FINE__ =
+  true` set before load (the client keeps the world grid at every view).
+- recorded per triple, new: whether a fine grid is resident at the held moment; the held picture's distance to EACH end
+  hour's picture (not only the smaller); the picture ratio as before.
+**Predictions, fixed now. If the overlay is the cause:**
+- D1. FINE-OFF: every triple with `okBlend` and `okHours` has a picture ratio at most **0.85**, and none is within 2% of 1.00.
+- D2. FINE-ON: at least one triple at ratio 0.95 or above reappears (the contradiction replicates), and every such triple has
+  a fine grid resident at the held moment.
+- D3. FINE-ON, in the triples at 0.95 or above: the held picture is nearer the NEW hour's picture than the old hour's.
+- View 3 is the control that should not change: about 0.66 in both arms (within 0.10).
+**How it is read.** D1 to D3 all hold: the cause is the unblended fine pass, recorded as established for this fixture. D1
+fails (ratios near 1 remain with the fine grid off): the overlay is NOT the cause and the contradiction stays open. D2 fails
+(nothing replicates): void, the run cannot say. Anything else: written as it comes out. No threshold moves after the run.
+**What it would mean if established** (written now so it is not fitted later): at close views the wind blend as built blends
+only the base that the fine grid hides, so the user sees a hard cut there; W6 passed without testing those pixels; and W7's
+value-space figure (the base's bytes) describes a field that is not the one on screen at those views.
