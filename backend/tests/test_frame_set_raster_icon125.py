@@ -157,14 +157,15 @@ def test_the_set_is_icon_rain_on_the_0p125_lattice_with_the_0p25_sets_hours():
     assert issubclass(srcs.IconPrecip0p125Source, srcs.IconPrecipSource)
 
 
-def test_the_set_is_dark_until_its_own_variable_and_has_one_gated_pilots_step(monkeypatch):
+def test_the_set_ships_on_and_has_one_pilots_step_its_variable_kills(monkeypatch):
+    # ON since 2026-11-17 (the owner's rule); the kill switch '0' is proved in test_raster_ship_on.py.
     monkeypatch.delenv("FRAME_RASTER_PRECIP_ICON_0P125", raising=False)
-    assert SPEC["default_on"] is False and not fsr.enabled("precipitation_icon_0p125")
-    monkeypatch.setenv("FRAME_RASTER_PRECIP_ICON_0P125", "1")
-    assert fsr.enabled("precipitation_icon_0p125")
+    assert SPEC["default_on"] is True and fsr.enabled("precipitation_icon_0p125")
+    monkeypatch.setenv("FRAME_RASTER_PRECIP_ICON_0P125", "0")
+    assert not fsr.enabled("precipitation_icon_0p125")
     yml = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
     steps = [s for s in yml.split("\n      - name: ")[1:] if "--set precipitation_icon_0p125\n" in s + "\n"]
-    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP_ICON_0P125 == '1'" in steps[0]
+    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_PRECIP_ICON_0P125 || '1') != '0'" in steps[0]
 
 
 class _Src(srcs.IconPrecip0p125Source):
@@ -266,10 +267,10 @@ def test_the_temperature_set_is_icon_t2m_on_the_0p125_lattice_by_nearest_cell(mo
     assert tuple(TSPEC["hours"]) == tuple(fsr.SPECS["temperature_icon"]["hours"])
     assert srcs.SOURCES["icon_0p125"] is srcs.IconOpenData0p125Source
     monkeypatch.delenv("FRAME_RASTER_TEMPERATURE_ICON_0P125", raising=False)
-    assert TSPEC["default_on"] is False and not fsr.enabled("temperature_icon_0p125")
+    assert TSPEC["default_on"] is True and fsr.enabled("temperature_icon_0p125")   # ON since 2026-11-17 (the owner's rule)
     yml = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
     steps = [s for s in yml.split("\n      - name: ")[1:] if "--set temperature_icon_0p125\n" in s + "\n"]
-    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE_ICON_0P125 == '1'" in steps[0]
+    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_TEMPERATURE_ICON_0P125 || '1') != '0'" in steps[0]
 
 
 class _TSrc(srcs.IconOpenData0p125Source):
