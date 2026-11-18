@@ -2572,3 +2572,14 @@ finding):**
     discrimination (it needs better inputs).
   - An isotonic calibration MAP as a served arm is deferred. It overlaps L1 EMOS and F3 conformal and is unstable in
     the tail. Revisit if L1's MCB stays large after EMOS.
+
+- 2026-11-18 00:05 -0500: **FINDING (origin/dev, read this session): the D-080 safety net is narrow.**
+  - `default_on_filter.py:128` scores `eval_harness_stations.json`: 6 stations, all CDIP nearshore California.
+  - `flag_guardrail.py` replays ON vs OFF at the same harness stations, GFS-only. Its COVERAGE table: 13 of 21 guarded
+    flags BLIND, 4 RATING, 3 REPLAY, 1 VOLUME.
+  - Proposed G1:
+    - widen the replay to the L1 19-buoy NDBC panel for `hs_station`;
+    - add a consensus-capable replay arm before the CONSENSUS_SERVE flip;
+    - show the coverage class in the admin;
+    - null and positive (harmful-flag) controls.
+  - Handoff to the director: shared notes `research-lead-handoff-2026-11-18.md`.
