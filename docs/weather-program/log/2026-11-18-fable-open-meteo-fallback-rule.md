@@ -34,3 +34,24 @@ unchanged condition about paying, the point path's standing against it), and an 
   require paying) stands and is unverified here.
 - It does not build the CI guard. D-082 says how the guard changes when it is built.
 - It does not scope the work to cover the uncovered spots with agency data ("keep until covered").
+
+## 2026-11-18 22:29Z D-082 amended: Open-Meteo leaves the user path altogether
+
+The entry written above (fallback where nothing better is available) held for a few hours. What changed it:
+
+- The advisor's first limit on this PR was the licence. David typed here "Yes, read them". Open-Meteo's terms, pricing
+  and licence pages were read in the browser: the free API is non-commercial only, an app with subscriptions is listed
+  as commercial, commercial use needs a paid plan and a separate customer endpoint, and the free API is limited to
+  10,000 calls a day per IP. The code calls only the free endpoints. Note in the shared notes folder:
+  `fable-open-meteo-terms-read-2026-11-18.md`. An engineer's reading, not legal advice.
+- David was given three ways out (cover with agency data, a paid plan, self-hosting) and typed here: "Cover with
+  agency data, start the coastal band".
+- The director then relayed a further owner word from its own session ("cut out open-meteo all together as a middle
+  man ... internal testing, but not for user data"). It is recorded in D-082 as a relay.
+
+D-082 now carries an amendment block that governs: end state as D-074 (nothing a user sees comes from Open-Meteo);
+each existing call is REPLACED by an agency source, not blanked by default; kill switches never fall back to
+Open-Meteo; no new call site; the transition and its licence exposure stated plainly; Copernicus must not be labelled
+EURO. The afternoon's text is kept below the block as history. D-074's appended note was reworded to match.
+
+Still no code and no served number moves. The first build under this entry is the world coastal band for waves.

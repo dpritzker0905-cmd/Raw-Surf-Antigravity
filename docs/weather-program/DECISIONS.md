@@ -2126,9 +2126,10 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - A CI guard is to fail any served route or browser bundle that references an Open-Meteo host (tests, scripts and
     grading modules allow-listed).
 - **Rollback:** none needed for the rule. Each migration step carries its own kill switch.
-- **Update 2026-11-18: the "test-only" line is SUPERSEDED by D-082** (the owner's typed word). Open-Meteo may also
-  serve a user as a FALLBACK where no better alternative is available and removing it would downgrade the service.
-  The primary-source rule and the migrations stand. Read D-082 before acting on this entry.
+- **Update 2026-11-18: read D-082 before acting on this entry.** This rule STANDS as the end state (the owner
+  briefly allowed Open-Meteo as a user-facing fallback that afternoon, then withdrew it on the licence finding).
+  D-082 says how each existing user-facing call is retired: replaced by an agency source, never by Open-Meteo, and
+  not blanked by default.
 
 ### D-075 · Long-range wind and gusts: ECMWF ensemble members past the native end, hard hand-off, no loop (2026-11-15, decided)
 - **Owner, verbatim:**
@@ -2236,7 +2237,40 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Owner:** "Yes, after #1009" (the pin), then "Start the cap period rule pin", typed in the repair lead's session.
 - Record: `log/2026-11-18-fable-cap-period-rule-pin.md`.
 
-### D-082 · Open-Meteo may serve a user as a FALLBACK where nothing better is available; supersedes D-074's "test-only" (2026-11-18, decided by the owner)
+### D-082 · Open-Meteo leaves the user path: agency data replaces every fallback; internal testing only (2026-11-18, decided by the owner, AMENDED the same day)
+- **AMENDMENT, 2026-11-18 evening. THIS BLOCK GOVERNS; the text below it is the afternoon's version, kept as history.**
+  - **Owner:**
+    - Typed in the repair lead's session, after being told the licence finding below and offered "cover with agency
+      data", "take a paid plan" or "self-host": "Cover with agency data, start the coastal band".
+    - Relayed by the director, quoted as typed in the director's session (a relay, not witnessed by the session
+      writing this; the director gave the time as about 23:00Z, and this session's clock read 22:26Z after the relay
+      arrived, so the time is an estimate): "Ok we've decided to use open agency data providers, and cut out open-meteo all
+      together as a middle man. We can use it for internal testing, but not for user data, as well will need a license".
+  - **Why it changed in one afternoon: the licence.** Open-Meteo's published terms, read 2026-11-18
+    (open-meteo.com/en/terms, /pricing, /licence): the free API is for non-commercial use only; an app with
+    subscriptions is listed as commercial use; commercial use needs a paid plan and a separate customer endpoint; the
+    free API is limited to 10,000 calls a day per IP. Raw Surf has subscription tiers and calls only the free
+    endpoints. So "fallback for users" and D-074's "not on a basis that would require us to pay" cannot both hold.
+    An engineer's reading of published terms, not legal advice.
+  - **Rule (end state, same as D-074):** nothing a user sees comes from Open-Meteo, not even as a fallback.
+    Open-Meteo is for internal tests, research scripts and grading benchmarks only.
+  - **How each existing user-facing call is retired:** it is REPLACED by an agency source (NOAA, ECMWF open data, DWD
+    open data, Copernicus), not by "no data". Where no agency source can cover a case, the answer is an honest
+    "unavailable" with a reason, and that is decided per case with a count, not by default.
+  - **Kill switches:** a change made under this entry ships ON (D-080) and its kill switch falls back to a stored
+    agency product or to "unavailable". Never to Open-Meteo.
+  - **No new call site.** No new Open-Meteo reference on a served route or in the browser bundle, from today.
+  - **Transition, stated plainly:** until its agency cover ships, an existing fallback keeps answering, and that use
+    is outside Open-Meteo's terms. The owner was told this before choosing. The order of work is therefore by exposure:
+    the tide level (the largest caller in the precompute log), the wave point fallback (the coastal band), the raster
+    layers, then wind and pressure. Owners and the full inventory: the research lead's exit plan and `SOTA-ROADMAP.md`.
+  - **Attribution** is owed wherever Open-Meteo data is still shown during the transition (CC BY 4.0, credit and
+    link). The research lead's client search found a linked credit only on the map's raster legend. Not fixed here.
+  - **Copernicus under the EURO name:** Copernicus Marine's wave model is Meteo-France MFWAM. It is an agency source,
+    and it must not be labelled EURO. The label change is its own PR.
+  - **Figures to quote** (the #1015 counter, precompute run 44374022005, 2026-11-18, two rated hours): wave answers
+    not from a stored product: GFS 5.5%, ICON 7.8%, EURO 7.9% (of which just over half is Copernicus); wind 0.0%.
+    728 of 1,769 active spots (41.2%) lie outside every 0.25 degree regional tile.
 - **Owner, verbatim, typed in the repair lead's session:**
   - 14:09 EST (19:09Z, the session's stamp), to the question "keep Open-Meteo until agency data covers them, or
     blank them now?": "Keep until
