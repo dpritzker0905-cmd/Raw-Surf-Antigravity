@@ -13,6 +13,10 @@ reads those facts from the ORIGINAL bytes first (services/observation_media.insp
 - WebP: EXIF and XMP chunks are dropped and the VP8X flags and RIFF size are corrected.
 - MP4 / MOV / M4V video: `write_public_copy` patches the file in place (services/video_metadata): its location and
   capture time are read for the private record, then its metadata boxes are neutered, losslessly.
+- A photo the lossless walk refuses but Pillow can decode is re-encoded without metadata (`public_image_bytes`), so
+  an odd file is cleaned, not rejected; a video kept after transcoding is patched with `strip_stored_video`.
+- Used by every upload route that stores into a PUBLIC bucket: go-live conditions, general, story, feed, comment,
+  wave and user gallery (T1 P3 part 7).
 - Anything else (GIF, HEIC/HEIF, WebM) is stored unchanged with `stripped=False`: Pillow here cannot rewrite HEIC, and
   a browser-recorded WebM carries no GPS. Callers record that.
 """
@@ -130,12 +134,55 @@ class PublicCopy:
     taken_at: Optional[datetime] = None
 
 
+def _reencode_image(content: bytes) -> bytes:
+    """Last resort for a photo the lossless walk refuses (an odd but decodable file): decode and re-encode it without
+    any metadata, upright. Lossy for JPEG/WebP, so it only runs when the lossless path cannot. Raises MetadataError
+    when the image cannot be decoded at all."""
+    try:
+        from PIL import Image, ImageOps
+        with Image.open(io.BytesIO(content)) as im:
+            fmt = (im.format or "").upper()
+            if fmt not in ("JPEG", "PNG", "WEBP"):
+                raise MetadataError(f"cannot re-encode {fmt or 'unknown'}")
+            upright = ImageOps.exif_transpose(im)
+            if fmt == "JPEG" and upright.mode not in ("RGB", "L"):
+                upright = upright.convert("RGB")
+            out = io.BytesIO()
+            upright.save(out, fmt, **({"quality": 92} if fmt in ("JPEG", "WEBP") else {}))
+            return out.getvalue()
+    except MetadataError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - any decode failure means the file is not a usable image
+        raise MetadataError(f"undecodable image: {type(exc).__name__}") from exc
+
+
+def public_image_bytes(content: bytes, content_type: str) -> Tuple[bytes, bool]:
+    """Photo bytes for PUBLIC storage: lossless strip first, a metadata-free re-encode if the walk refuses the file.
+    Raises MetadataError only for a file that is not a decodable JPEG/PNG/WebP."""
+    try:
+        return strip_image_metadata(content, content_type)
+    except MetadataError:
+        return _reencode_image(content), True
+
+
+def strip_stored_video(path) -> bool:
+    """Neuter the metadata of a video already on disk (a transcoded output or a kept raw file) before it is stored
+    publicly. Returns whether it was stripped (False for non-MP4/MOV, e.g. WebM). Removes the file and raises
+    MetadataError for a malformed MP4/MOV, so a file that cannot be checked is never published."""
+    from services.video_metadata import strip_video_in_place
+    try:
+        return strip_video_in_place(path).stripped
+    except MetadataError:
+        os.remove(path)
+        raise
+
+
 def write_public_copy(content: bytes, content_type: str, is_video: bool, path) -> PublicCopy:
     """Write the copy that goes to PUBLIC storage at `path`, without embedded metadata. Photos are stripped in memory;
     videos are written, then patched on disk (services/video_metadata), whose location/time are returned for the
     PRIVATE record. Blocking: call off the event loop. Raises MetadataError (and leaves no file) for a malformed file."""
     if not is_video:
-        stored, stripped = strip_image_metadata(content, content_type)
+        stored, stripped = public_image_bytes(content, content_type)
         with open(path, "wb") as f:
             f.write(stored)
         return PublicCopy(stripped=stripped, size=len(stored))

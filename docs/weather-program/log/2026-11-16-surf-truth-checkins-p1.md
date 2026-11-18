@@ -253,3 +253,18 @@ offset moves, the media data is untouched, and the file is patched on disk (no i
 Tests +3 (read then neuter, length and media unchanged; non-ISO left alone and malformed refused without a file; the
 route keeps the location privately and not publicly); mutation: skipping track-level boxes fails 2; the 53-test
 upload identity suite passes. Stacked on #1035.
+## 2026-11-18 13:34Z T1 P3 (part 7): social uploads publish no GPS either
+
+David: "Yes, social uploads". Six more routes stored the original bytes in PUBLIC buckets, GPS and all: /upload
+(general), /upload/story, /upload/feed, /upload/comment, /upload/wave and /upload/user-gallery. Photos now
+go through write_public_copy (lossless strip); a photo the lossless walk refuses but Pillow can decode is
+re-encoded without metadata and upright (public_image_bytes), so an odd phone file is cleaned rather than rejected;
+an undecodable one is refused (400). Videos are transcoded by ffmpeg where available, and ffmpeg copies global
+metadata by default, so the FINAL file (transcoded or kept raw) is patched in place with strip_stored_video before
+upload; a malformed MP4/MOV is removed and refused. The route wrappers live in outes/uploads/public_copy.py
+(core.py stays at 789 lines). Not in this part: photographer commercial originals (/upload/gallery,
+/upload/photographer-gallery, /photos/upload): buyers may expect camera EXIF, so GPS-only stripping there is a
+decision for David; avatars are already re-encoded by Pillow without EXIF. HEIC on feed/comment and WebM stay
+unstripped; already-stored files wait on the backfill decision.
+Tests +10 (odd JPEG re-encoded clean and upright; four photo routes and four video routes (story, feed, comment, wave) publish no location; user
+gallery). Mutations: dropping the comment-video strip fails 1, writing the feed photo raw fails 1.

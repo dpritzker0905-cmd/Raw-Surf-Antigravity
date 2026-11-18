@@ -43,6 +43,7 @@ from core.security import get_current_user_id
 from models import Profile, GalleryItem, ObservationMedia
 from services.observation_media import inspect_media
 from services.media_metadata import MetadataError, write_public_copy
+from .public_copy import store_public
 from utils.video_processor import (
     get_video_info, 
     needs_transcoding, 
@@ -404,11 +405,9 @@ async def upload_general_file(
     
     file_path = general_dir / filename
     
-    # Save file locally first
-    content_size = len(content)
-    with open(file_path, "wb") as f:
-        f.write(content)
-    
+    # T1 P3: the general bucket is PUBLIC, so the stored copy loses its embedded metadata (GPS, serials, times).
+    content_size = await store_public(content, actual_content_type, False, file_path)
+
     # Persist to Supabase Storage (Render disk is ephemeral)
     local_url = f"/api/uploads/general/{filename}"
     supabase_url = upload_to_supabase_storage(
@@ -468,11 +467,9 @@ async def upload_story_media(
     
     file_path = stories_dir / filename
     
-    # Save file locally first
-    content_size = len(content)
-    with open(file_path, "wb") as f:
-        f.write(content)
-    
+    # T1 P3: the stories bucket is PUBLIC, so the stored copy loses its embedded metadata (GPS, serials, times).
+    content_size = await store_public(content, file.content_type, media_type == "video", file_path)
+
     # Persist to Supabase Storage (Render disk is ephemeral)
     local_url = f"/api/uploads/stories/{filename}"
     supabase_url = upload_to_supabase_storage(

@@ -195,3 +195,95 @@ async def test_a_go_live_video_keeps_its_location_privately_and_not_publicly(har
         (rec,) = (await db.execute(select(ObservationMedia))).scalars().all()
     assert (rec.exif_latitude, rec.exif_longitude) == (pytest.approx(21.665), pytest.approx(-158.05))
     assert rec.exif_taken_at is not None
+
+
+# ── social uploads (T1 P3 part 7): general, story, feed, comment, user gallery store into PUBLIC buckets ──────────────
+def test_an_odd_but_decodable_jpeg_is_re_encoded_clean_not_refused():
+    from services.media_metadata import public_image_bytes
+    good = _jpeg(comment=False)
+    seg = struct.unpack(">H", good[4:6])[0]
+    odd = good[:4 + seg] + b"\x00\x00" + good[4 + seg:]          # stray bytes between segments
+    with pytest.raises(MetadataError):
+        strip_jpeg(odd)                                            # the lossless walk refuses it
+    out, stripped = public_image_bytes(odd, "image/jpeg")
+    assert stripped and piexif.load(out)["GPS"] == {} and b"PhoneCo" not in out
+    with Image.open(io.BytesIO(out)) as im:
+        assert im.size == (16, 32)                                 # orientation 6 applied, so it still shows upright
+
+
+@pytest_asyncio.fixture
+async def social(tmp_path, monkeypatch):
+    from routes.uploads import comments as upload_comments, media as upload_media, media_gallery as upload_gallery
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 's.sqlite'}")
+    async with engine.begin() as conn:
+        await conn.run_sync(lambda c: Profile.__table__.create(c))
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with maker() as db:
+        db.add(Profile(id="u1", user_id="u1", email="u1@example.invalid", username="u1", full_name="U One",
+                       role=RoleEnum.SURFER))
+        await db.commit()
+    stored = {}
+
+    def record(local_path, bucket, key, content_type="image/jpeg"):
+        stored[f"{bucket}/{key}"] = open(local_path, "rb").read()
+        return f"https://cdn.fixture.invalid/{bucket}/{key}"
+
+    def no_transcode(path, *a, **k):          # ffmpeg is not here: every video takes the kept-raw path
+        return False, "no ffmpeg in tests", None
+    for mod in (upload_core, upload_media, upload_comments, upload_gallery):
+        monkeypatch.setattr(mod, "UPLOAD_DIR", tmp_path / "uploads")
+        monkeypatch.setattr(mod, "upload_to_supabase_storage", record)
+        if hasattr(mod, "SUPABASE_STORAGE_AVAILABLE"):
+            monkeypatch.setattr(mod, "SUPABASE_STORAGE_AVAILABLE", True)
+        for name in ("process_video_from_path", "process_video_upload"):
+            if hasattr(mod, name):
+                monkeypatch.setattr(mod, name, no_transcode)
+        if hasattr(mod, "generate_video_thumbnail"):
+            monkeypatch.setattr(mod, "generate_video_thumbnail", lambda *a, **k: (False, None))
+        if hasattr(mod, "get_video_info"):
+            monkeypatch.setattr(mod, "get_video_info", lambda *a, **k: None)
+    (tmp_path / "uploads").mkdir()
+    app = FastAPI()
+    for mod in (upload_core, upload_media, upload_comments):
+        app.include_router(mod.router, prefix="/api")
+
+    async def dependency():
+        async with maker() as db:
+            yield db
+    app.dependency_overrides[get_db] = dependency
+    headers = {"Authorization": "Bearer " + create_access_token({"sub": "u1"})}
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://fixture.invalid",
+                                 headers=headers) as client:
+        yield client, stored
+    await engine.dispose()
+
+
+@pytest.mark.parametrize("route", ["/api/upload", "/api/upload/story", "/api/upload/feed", "/api/upload/comment"])
+async def test_social_photo_uploads_publish_no_gps(social, route):
+    client, stored = social
+    r = await client.post(route, files={"file": ("beach.jpg", _jpeg(), "image/jpeg")})
+    assert r.status_code == 200, r.text
+    (public_bytes,) = stored.values()
+    assert piexif.load(public_bytes)["GPS"] == {} and b"shot at the pier" not in public_bytes
+    assert r.json()["size"] == len(public_bytes)
+    assert (await client.post(route, files={"file": ("x.jpg", b"\xff\xd8\x00garbage", "image/jpeg")})).status_code == 400
+
+
+@pytest.mark.parametrize("route", ["/api/upload/story", "/api/upload/feed", "/api/upload/comment", "/api/upload/wave"])
+async def test_social_video_uploads_publish_no_location(social, route):
+    client, stored = social
+    r = await client.post(route, files={"file": ("clip.mov", _mov(), "video/quicktime")})
+    assert r.status_code == 200, r.text
+    (public_bytes,) = stored.values()
+    assert b"21.6650" not in public_bytes and b"PhoneCo" not in public_bytes and len(public_bytes) == len(_mov())
+
+
+async def test_user_gallery_photo_publishes_no_gps(social, tmp_path):
+    from routes.uploads import media_gallery as upload_gallery
+    client, stored = social
+    app = client._transport.app
+    app.include_router(upload_gallery.router, prefix="/api")
+    r = await client.post("/api/upload/user-gallery", files={"file": ("g.jpg", _jpeg(), "image/jpeg")})
+    assert r.status_code == 200, r.text
+    (public_bytes,) = stored.values()
+    assert piexif.load(public_bytes)["GPS"] == {} and r.json()["size"] == len(public_bytes)
