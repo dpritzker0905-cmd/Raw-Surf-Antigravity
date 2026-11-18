@@ -1,12 +1,11 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import apiClient from '../../lib/apiClient';
 import PrivacyPolicyPage from './PrivacyPolicyPage';
 
 jest.mock('../../lib/apiClient', () => ({ __esModule: true, default: { get: jest.fn() } }));
 
-const page = () => render(<MemoryRouter><PrivacyPolicyPage /></MemoryRouter>);
+const page = () => render(<PrivacyPolicyPage />);
 
 beforeEach(() => apiClient.get.mockReset());
 

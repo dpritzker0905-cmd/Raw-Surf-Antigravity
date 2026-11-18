@@ -49,3 +49,40 @@ is evidence about this environment, not CI): the 11 surf-truth/consent files gav
 
 Open, for David or counsel: the controller name; the privacy-notice URL; one switch or two; the claims period for
 consent records; anchor and admin log periods; whether to build the shredding mechanism before those answers.
+
+## 2026-11-18 16:24Z (from the UTC clock) David answered: one switch; Raw Surf Adventures Inc.; Company details in the admin; /privacy
+
+These supersede the open items above for the name, the link and the switch count. David typed his answers in this
+session; they are quoted in D-083. Checked: no `/privacy` route existed (App.js and the routing components), and the
+Privacy Policy appeared only inside Settings > Legal. David's instruction was "if /privacy exists use it, then
+build it", so it was built.
+
+- **Company details** (`services/legal_identity.py`):
+  - a versioned `tos_content` document, doc_type `company_details`, so it keeps a history and an author with no
+    migration;
+  - fields: the legal name (default "Raw Surf Adventures Inc."), the privacy link (default `/privacy`) and an
+    optional privacy contact, all validated;
+  - the admin edits them in Compliance > Legal documents, in a tab right after Terms of Service.
+- **Tokens:**
+  - `{company}`, `{privacy_url}` and `{privacy_contact}` are filled when the ToS, the Privacy Policy and the consent
+    are served;
+  - the admin editor loads `raw=true` and so edits the template, never the filled text.
+- **Consent `draft-2026-11-18e`:**
+  - the served version is `<version>+<8 hex of the filled words>`, so renaming the company asks everyone again;
+  - retention now counts a Company details publication as a revocation;
+  - the default wording is now final, so grants are accepted. Counsel has still reviewed nothing.
+- **Privacy Policy defaults:** sections 1-9 are byte-identical. Two new sections were appended (10 "Who We Are", 11
+  "Forecast Data From Your Wave Reports"), in line with "don't overwrite, just append".
+  - A Privacy Policy already PUBLISHED in a database is not touched by code. An admin adds the two sections there by
+    publishing a new version.
+- **New public `/privacy` page** (semantic theme tokens: light, dark, beach). The consent switch links it in a new
+  tab.
+
+Tests:
+- Backend from `backend/`: **203 passed, 1 skipped** (12 files, local venv).
+- Frontend: the Jest suites TrainingConsent, LegalDocumentsEditor, PrivacyPolicyPage and AdminSurfTruthPanel gave
+  **19 passed in 4 suites**. They were run from a scratch checkout of the commit outside `.claude`, with
+  `node_modules` linked, because Jest finds no tests under the `.claude\worktrees` path.
+- `check_eslint.js`: no new debt.
+- Not run locally: `npm run build`, and the browser preview of the three themes.
+- Floors re-derived: guards +30 (+1 file), estate +7, frontend +5 (+1 suite).

@@ -11,7 +11,6 @@
  * loading state as role=status, a failure as role=alert, a real link back.
  */
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import apiClient from '../../lib/apiClient';
 
 export default function PrivacyPolicyPage() {
@@ -51,9 +50,9 @@ export default function PrivacyPolicyPage() {
           </section>
         ))}
         <p>
-          <Link to="/" className="text-sm font-medium text-primary underline underline-offset-2 focus:outline-none focus:ring-2 focus:ring-ring rounded">
+          <a href="/" className="text-sm font-medium text-primary underline underline-offset-2 focus:outline-none focus:ring-2 focus:ring-ring rounded">
             Back to Raw Surf
-          </Link>
+          </a>
         </p>
       </article>
     </main>

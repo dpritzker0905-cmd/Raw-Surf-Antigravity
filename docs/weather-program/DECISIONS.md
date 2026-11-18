@@ -2237,3 +2237,26 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Reopen if:** counsel's review changes a per-table basis, or the EDPB pinpoints (05/2020 ¶107) read differently
   in the English text.
 - If D-082 is already taken when this merges, renumber it in the merge commit and in the design doc.
+
+### D-083 · Forecast-data consent: one switch; the controller is Raw Surf Adventures Inc., editable in the admin (2026-11-18, decided by the owner)
+- **Owner, typed in this lane's session (2026-11-18):**
+  - "one switch, entity is Raw Surf Adventures Inc."
+  - "we need these settings to be changed in the appropriate admin area"
+  - "privacy notice URL is our in-app /privacy page I believe, check" (checked: no such page existed); "if /privacy
+    exists use it, then build it"
+  - "don't overwrite, just append, if we have one already"
+  - "yes put it next to the terms of service"
+- **Rule:**
+  - ONE consent switch covers "measure and improve". "Improve" is defined narrowly in the text.
+  - The legal entity name, the privacy-notice link and an optional privacy contact are **Company details**: a
+    versioned legal document in Compliance > Legal documents, right after the Terms of Service.
+  - The Terms, the Privacy Policy and the consent use `{company}` / `{privacy_url}` / `{privacy_contact}`. These are
+    filled when the text is served, and the admin edits the template.
+  - The consent's served version names the FILLED words, so renaming the company asks everyone again. Retention
+    treats it as a revocation.
+  - The privacy notice is a new public page, `/privacy`, which renders the active Privacy Policy.
+  - The default Privacy Policy keeps sections 1-9 unchanged. "10. Who We Are" and "11. Forecast Data From Your Wave
+    Reports" are appended after them.
+- **Supersedes** the `[COMPANY]` / `[PRIVACY NOTICE LINK]` default placeholders of D-082. The markers still refuse a
+  published text that carries them.
+- **Still DRAFT:** counsel has reviewed no wording.

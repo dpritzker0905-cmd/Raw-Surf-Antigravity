@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 1,
-  "files": 0,
+  "tests": 5,
+  "files": 1,
   "branch": "claude/surf-truth-legal-b9a3a1",
   "date": "2026-11-18",
-  "note": "T1 legal: consent switch hidden while wording is a draft"
+  "note": "T1 legal: Company details tab, /privacy page, consent privacy link"
 }
