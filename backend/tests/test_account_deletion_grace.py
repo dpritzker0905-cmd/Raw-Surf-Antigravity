@@ -80,8 +80,11 @@ def test_the_link_restores_once_within_the_window_and_never_lifts_a_moderation_s
         async with maker() as db:                                                 # moderation keeps its suspension
             stayer = await db.get(Profile, "stayer")
             row, tok = await ad.schedule(db, stayer, now=NOW)
-            stayer.suspended_reason = "moderation: spam"
             await db.commit()
+        async with maker() as db:                                                 # a moderator, later, elsewhere
+            (await db.get(Profile, "stayer")).suspended_reason = "moderation: spam"
+            await db.commit()
+        async with maker() as db:
             assert (await ad.restore(db, tok, now=NOW + timedelta(days=1))).is_suspended is True
     asyncio.run(go())
 
@@ -142,3 +145,98 @@ def test_a_suspended_account_cannot_sign_in_with_a_passkey(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         asyncio.run(pk_routes.login_passkey_verify(FakeRequest(), body, db=None))
     assert exc.value.status_code == 403
+
+
+# ── advisor holds on #1062 ──────────────────────────────────────────────────────────────────────────────────────────
+async def _scheduled(maker, who="leaver", when=NOW):  # noqa: F811
+    async with maker() as db:
+        row, tok = await ad.schedule(db, await db.get(Profile, who), now=when)
+        await db.commit()
+    return tok
+
+
+def test_an_admin_unsuspend_during_the_window_cancels_the_deletion(maker):  # noqa: F811
+    """Hold 1: an account unsuspended by anything but the restore link must never be erased on day 30."""
+    async def go():
+        tok = await _scheduled(maker, when=NOW - timedelta(days=31))
+        async with maker() as db:                                              # e.g. routes/admin/core.py unsuspend
+            p = await db.get(Profile, "leaver")
+            p.is_suspended, p.suspended_at, p.suspended_reason = False, None, None
+            await db.commit()
+        async with maker() as db:
+            row = await db.get(AccountDeletion, "leaver")
+            assert row.status == "cancelled" and row.restore_token_hash is None and row.cancelled_at is not None
+            assert await ad.purge_due(db, erase_account, now=NOW) == 0
+            assert (await db.get(Profile, "leaver")).full_name == "leaver"     # never erased
+            assert await ad.restore(db, tok, now=NOW) is None                  # the emailed link is dead too
+    asyncio.run(go())
+
+
+@pytest.mark.parametrize("moderate", ["ban", "reason", "until", "reassert"])
+def test_moderation_during_the_window_survives_a_restore(maker, moderate):  # noqa: F811
+    """Hold 2: a ban or suspension imposed during the window is recorded, not inferred from text."""
+    async def go():
+        tok = await _scheduled(maker)
+        async with maker() as db:
+            p = await db.get(Profile, "leaver")
+            if moderate == "ban":
+                p.is_banned, p.is_suspended = True, True                       # violations.py permanent ban
+            elif moderate == "reason":
+                p.suspended_reason = "Location fraud violation"
+            elif moderate == "until":
+                p.suspension_until = NOW + timedelta(days=90)
+            else:
+                p.is_suspended = True                                          # p1.py: same value, still moderation
+            await db.commit()
+        async with maker() as db:
+            assert (await db.get(AccountDeletion, "leaver")).moderation_hold is True
+            restored = await ad.restore(db, tok, now=NOW + timedelta(days=1))
+            await db.commit()
+            assert restored is not None and restored.is_suspended is True
+    asyncio.run(go())
+
+
+def test_an_account_already_suspended_when_it_asked_stays_suspended_after_restore(maker):  # noqa: F811
+    async def go():
+        async with maker() as db:
+            p = await db.get(Profile, "leaver")
+            p.is_suspended, p.suspended_reason = True, "moderation: earlier"
+            await db.commit()
+        tok = await _scheduled(maker)
+        async with maker() as db:
+            assert (await db.get(AccountDeletion, "leaver")).prior_suspended is True
+            assert (await ad.restore(db, tok, now=NOW + timedelta(days=1))).is_suspended is True
+    asyncio.run(go())
+
+
+def test_the_purge_never_erases_a_live_account_and_one_failure_does_not_stop_the_run(maker):  # noqa: F811
+    from sqlalchemy import update
+
+    async def go():
+        await _scheduled(maker, "leaver", NOW - timedelta(days=31))
+        await _scheduled(maker, "stayer", NOW - timedelta(days=31))
+        async with maker() as db:                                              # lifted outside the ORM: no hook fired
+            await db.execute(update(Profile).where(Profile.id == "stayer").values(is_suspended=False))
+            await db.commit()
+        calls = []
+
+        async def flaky(db, pid):
+            calls.append(pid)
+            raise RuntimeError("storage down")
+        async with maker() as db:
+            assert await ad.purge_due(db, flaky, now=NOW) == 0
+        assert calls == ["leaver"]                                             # stayer refused, not erased
+        async with maker() as db:
+            assert (await db.get(AccountDeletion, "stayer")).status == "cancelled"
+            assert (await db.get(AccountDeletion, "leaver")).status == "pending"   # retried next run
+            assert await ad.purge_due(db, erase_account, now=NOW) == 1
+    asyncio.run(go())
+
+
+def test_the_deletion_table_is_locked_to_the_backend_role():
+    """Hold 3: row security on, anon/authenticated revoked, created with the table (PostgreSQL)."""
+    log = " | ".join(str(getattr(getattr(fn, "__self__", None), "statement", "") or getattr(fn, "statement", ""))
+                     for fn in AccountDeletion.__table__.dispatch.after_create)
+    for needed in ("ENABLE ROW LEVEL SECURITY", "REVOKE ALL ON TABLE %(fullname)s FROM anon, authenticated",
+                   "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE %(fullname)s TO service_role"):
+        assert needed in log, needed
