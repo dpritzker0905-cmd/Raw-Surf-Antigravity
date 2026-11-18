@@ -92,20 +92,35 @@ jobs:
             ${{ runner.temp }}/wlr/asos/
 
   mirror_check:
-    # The sameness control (advisor 2026-11-18 00:00Z, condition 4): before any second-mirror read, one run already held
-    # from S3 is read from both mirrors and compared by sha256. Different bytes stop the run: no collection, no score.
+    # The sameness control (advisor 2026-11-18 00:00Z, condition 4; option b addendum 2026-11-18): before any
+    # collection, one run ALREADY HELD from S3 is decoded from the second mirror and compared with the held values, and
+    # the mirror's 336 h index with the hand-measured sha256. S3 itself is not read (it answered 503, run 44264197330).
+    # A difference stops the run: no collection, no score; a comparison that cannot complete stops it too.
+    needs: [stations]
     if: ${{ github.event.inputs.ens_mirror == 'gcs' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: pip install numpy requests==2.31.0
-      - name: Same bytes on both mirrors
+      - run: pip install numpy requests==2.31.0 eccodes==2.50.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: wind-lr-stations
+          path: ${{ runner.temp }}/wlr
+      - name: The held S3 run files of the reused run
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wind-lr-runs-*
+          path: ${{ runner.temp }}/wlr/prior
+          merge-multiple: true
+          run-id: ${{ github.event.inputs.reuse_run_id }}
+          github-token: ${{ github.token }}
+      - name: Mirror values equal the held S3 values
         working-directory: backend
-        run: python scripts/wind_lr_mirror_check.py
+        run: python scripts/wind_lr_mirror_check.py --cache "$RUNNER_TEMP/wlr" --prior "$RUNNER_TEMP/wlr/prior"
 
   collect:
     needs: [stations, mirror_check]
