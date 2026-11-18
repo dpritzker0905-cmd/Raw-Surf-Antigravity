@@ -2217,6 +2217,22 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - If the check fails, the kill switch is used (runtime manifest, no deploy) and the failure is written to the log.
   - This is item 8 of the contract suite.
 
+### D-081 · The partitioned cap's period rule is UNDECIDED; no partition lane turns ON before a gate decides it (2026-11-18)
+- **What the rule is today** (`surf_transform.estimate_surf_partitioned`): when swell trains are transformed separately
+  and recombined, the cap on the combined height uses the LONGEST period among the LISTED trains, whatever that
+  train's share of the energy and whether or not it transformed to anything.
+- **Why it is a decision and not a fact:** the alternative, the period of the MOST ENERGETIC transformed train, gave a
+  different served height on 31 of 1,089 capped spot-steps in an offline replay of one ECMWF run (27 of 253 on the US
+  east coast). Neither rule has been scored against any observation.
+- **Rule:** neither `SURF_PARTITIONS` nor `ECMWF_PERIOD_BANDS` turns ON until a pre-registered gate has chosen the
+  cap period rule. Under D-080 a merged lane ships ON, so this entry is a condition on MERGING a change that turns
+  either lane on, not on a flip afterwards.
+- **Nothing live is affected:** both lanes are off, and no served number moves with this entry.
+- **Pinned by** `backend/tests/test_cap_period_rule_pin.py`. A deliberate change of rule changes that file in the same
+  PR as its gate.
+- **Owner:** "Yes, after #1009" (the pin), then "Start the cap period rule pin", typed in the repair lead's session.
+- Record: `log/2026-11-18-fable-cap-period-rule-pin.md`.
+
 ### D-082 · T1 append-only logs: minimal content now, retention by per-subject keys + monthly partitions (2026-11-18, PROPOSED; periods await counsel)
 - **Asked by:** David, 2026-11-18, routed the legal follow-ups (consent wording, California precise geolocation, and
   whether erasure must reach the append-only logs) to their own lane. Research by the director's session, which is

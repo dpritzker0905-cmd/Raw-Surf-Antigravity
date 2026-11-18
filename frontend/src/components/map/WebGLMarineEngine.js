@@ -10,7 +10,7 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound'; import { syncParticleStateFormat, applyParticleStateUniforms } from './particleState'; import { applyCrestPhaseUniforms } from './crestLocalPhase'; import { applyCrestRankUniforms } from './crestTexelRank'; import { resolveOrbitalPitch, bandMotionScale } from './oneWayCrests';
 import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity'; import { worldWrapDecision } from './worldWrapCull';
-import { unpatchedMaskHold } from './marineUnpatchedMaskHold'; import { recordMarineEvent } from './marineForensics'; import { keepMaskPatch, stampMaskPatch } from './maskPatchKeep'; import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames'; import { coarseMaskReuse, noteCoarseMaskUse, releaseCoarseMaskCache } from './marineCoarseMaskCache';   // __RAW_FORENSIC__ ring; 2026-10-23 jank
+import { unpatchedMaskHold } from './marineUnpatchedMaskHold'; import { recordMarineEvent } from './marineForensics'; import { keepMaskPatch, stampMaskPatch } from './maskPatchKeep'; import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames'; import { seedRepairsWash } from './marineStaleHour'; import { coarseMaskReuse, noteCoarseMaskUse, releaseCoarseMaskCache } from './marineCoarseMaskCache';   // __RAW_FORENSIC__ ring; 2026-10-23 jank
 import { arbiterDecide } from './marineCommitArbiter'; import { washMatchesResident } from './marineStaleHour';   // ARBITER PHASE B: shadow verdicts at the commit choke; D1 wash time
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { cachedFramebufferStatus, advTeardownNeeded } from './advFboSync';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
@@ -536,7 +536,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // first) so blend-both re-engages for the new model without waiting for an organic world commit.
   // A base already matching the seed's identity means an organic commit beat the seed here — the seed
   // is DISCARDED (the old gate left it pending forever, which then blocked every future staging) unless it is a 2-degree seed over a coarser base of that hour.
-  if (seedConsumeAllowed(zoom) && this._pendingCoarseBaseGrid) {   // QUIET SEED (marineQuietFrames.js, asked every frame; kill __RAW_DISABLE_QUIET_SEED__)
+  if (seedConsumeAllowed(zoom, !!this._pendingCoarseBaseGrid && seedRepairsWash(this._coarseBaseData, this._pendingCoarseBaseGrid, this._waveData && this._waveData.waveGrid))
+      && this._pendingCoarseBaseGrid) {   // QUIET SEED (marineQuietFrames.js, asked every frame; kill __RAW_DISABLE_QUIET_SEED__); urgent when it repairs a refused wash (the late wash, kill __RAW_DISABLE_URGENT_WASH_SEED__)
     const _seed = this._pendingCoarseBaseGrid;
     const _b = this._coarseBaseData;
     const _stale = coarseBaseStaleForSeed(_b, _seed);   // no base, ANOTHER model/layer, another HOUR (F-21, marineStaleHour.js) or a finer lattice of the same hour (rule 6)

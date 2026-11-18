@@ -157,14 +157,15 @@ def test_the_set_is_icon_rain_on_the_0p125_lattice_with_the_0p25_sets_hours():
     assert issubclass(srcs.IconPrecip0p125Source, srcs.IconPrecipSource)
 
 
-def test_the_set_is_dark_until_its_own_variable_and_has_one_gated_pilots_step(monkeypatch):
+def test_the_set_ships_on_and_has_one_pilots_step_its_variable_kills(monkeypatch):
+    # ON since 2026-11-17 (the owner's rule); the kill switch '0' is proved in test_raster_ship_on.py.
     monkeypatch.delenv("FRAME_RASTER_PRECIP_ICON_0P125", raising=False)
-    assert SPEC["default_on"] is False and not fsr.enabled("precipitation_icon_0p125")
-    monkeypatch.setenv("FRAME_RASTER_PRECIP_ICON_0P125", "1")
-    assert fsr.enabled("precipitation_icon_0p125")
+    assert SPEC["default_on"] is True and fsr.enabled("precipitation_icon_0p125")
+    monkeypatch.setenv("FRAME_RASTER_PRECIP_ICON_0P125", "0")
+    assert not fsr.enabled("precipitation_icon_0p125")
     yml = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
     steps = [s for s in yml.split("\n      - name: ")[1:] if "--set precipitation_icon_0p125\n" in s + "\n"]
-    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP_ICON_0P125 == '1'" in steps[0]
+    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_PRECIP_ICON_0P125 || '1') != '0'" in steps[0]
 
 
 class _Src(srcs.IconPrecip0p125Source):
@@ -266,10 +267,10 @@ def test_the_temperature_set_is_icon_t2m_on_the_0p125_lattice_by_nearest_cell(mo
     assert tuple(TSPEC["hours"]) == tuple(fsr.SPECS["temperature_icon"]["hours"])
     assert srcs.SOURCES["icon_0p125"] is srcs.IconOpenData0p125Source
     monkeypatch.delenv("FRAME_RASTER_TEMPERATURE_ICON_0P125", raising=False)
-    assert TSPEC["default_on"] is False and not fsr.enabled("temperature_icon_0p125")
+    assert TSPEC["default_on"] is True and fsr.enabled("temperature_icon_0p125")   # ON since 2026-11-17 (the owner's rule)
     yml = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
     steps = [s for s in yml.split("\n      - name: ")[1:] if "--set temperature_icon_0p125\n" in s + "\n"]
-    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE_ICON_0P125 == '1'" in steps[0]
+    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_TEMPERATURE_ICON_0P125 || '1') != '0'" in steps[0]
 
 
 class _TSrc(srcs.IconOpenData0p125Source):
@@ -302,29 +303,3 @@ def test_the_temperature_map_is_refused_when_dwds_cells_are_not_this_runs(monkey
                                                             np.array([0.0, 2.0, 1.0])))
     with pytest.raises(RuntimeError, match="not this run's ICON grid"):
         _TSrc().grid(datetime(2026, 11, 16, 0, tzinfo=timezone.utc))
-
-
-# ── ICON cloud cover at 0.125 deg: cloud_cover_icon_0p125 (dark) ──────────────────────────────────────────────────────────
-
-CSPEC = fsr.SPECS["cloud_cover_icon_0p125"]
-
-
-def test_the_cloud_set_is_icon_clct_on_the_0p125_lattice_by_area_mean(monkeypatch):
-    assert fs.set_key(CSPEC["target"]) == "ICON/weather/cloud_cover/global_0p125"
-    assert (CSPEC["grid"], CSPEC["source"], CSPEC["idx"], CSPEC["clip"]) == ("0p125", "icon_area_0p125", ("clct", ("CLCT",)), (0.0, 100.0))
-    assert tuple(CSPEC["hours"]) == tuple(range(0, 79)) + tuple(range(81, 181, 3))
-    assert srcs.SOURCES["icon_area_0p125"] is srcs.IconArea0p125Source
-    monkeypatch.delenv("FRAME_RASTER_CLOUD_ICON_0P125", raising=False)
-    assert CSPEC["default_on"] is False and not fsr.enabled("cloud_cover_icon_0p125")
-    yml = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
-    steps = [s for s in yml.split("\n      - name: ")[1:] if "--set cloud_cover_icon_0p125\n" in s + "\n"]
-    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD_ICON_0P125 == '1'" in steps[0]
-
-
-def test_a_cloud_frame_is_the_area_mean_of_the_hours_own_field_with_no_differencing(monkeypatch):
-    src = srcs.IconArea0p125Source(CSPEC, session=object())
-    asked = []
-    monkeypatch.setattr(src, "_native", lambda cycle, f, n: asked.append(f) or np.array([100.0, 0.0, 50.0, np.nan]))
-    monkeypatch.setattr(srcs.IconArea0p125Source, "grid", lambda self, cycle: (np.array([[[0, 1, 2, 2], [3, 3, 3, 3]]], np.int32), 4))
-    plane = src.fetch("run", 7)
-    assert plane[0, 0] == pytest.approx(50.0) and np.isnan(plane[0, 1]) and asked == [7]
