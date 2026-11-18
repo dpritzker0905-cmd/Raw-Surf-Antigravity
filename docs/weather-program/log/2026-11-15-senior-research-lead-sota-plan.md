@@ -2624,3 +2624,29 @@ finding):**
   - At +48/+72 h, B is decided on `stored-global_mid` rows. No regional member row exists past 48 h.
   - C's trigger: MCB ≥ 15% of MSE, CI lower bound > 0, n ≥ 200. It is a screen only.
 - **Asked of David:** one dispatch, after a small lane PR passes the §24 gate. Nothing served changes.
+
+## 2026-11-18 11:19 -0500 Open-Meteo exit plan, re-measured (owner 2026-11-18: "research where we have open-meteo for user data, and how we can use free GRIB or cmem pipeline in place of it")
+Full note: shared notes `open-meteo-exit-plan-2026-11-18.md` (sections A-D), sent to the director in two parts.
+
+- **NEW free source, verified live (AWS `ecmwf-forecasts` listing and .index read):**
+  - ECMWF open data publishes **0.1 deg** (`ifs/0p1/{oper,enfo,wave,waef}`) since 2026-10-20, under CC BY 4.0.
+  - `oper` sfc includes 2t, tp, tcc, 10u/10v, 10fg and msl.
+  - `wave` includes swh, mwd, mwp, pp1d and h1012..h2530, to 360 h.
+  - Our code uses 0.25 deg only.
+  - It is an arm for EURO frames, a EURO wave arm (vs MFWAM; offline test assigned to the SOTA researcher) and the G6
+    fallback.
+- **STOFS-2D-Global** (`noaa-gestofs-pds`): htp/swl/cwl, 180 h, MSL. 2.5 km grids for CONUS, Hawaii and Guam. A US
+  tide and surge source.
+- **CMEMS PHY 001_024** `merged-sl` hourly: whether it includes the tide is UNCONFIRMED.
+- **Still LIVE-PRIMARY on dev:**
+  - tide (`tide.py`);
+  - ICON temp, precip, cloud and water-temp `.om` raster;
+  - `GET /surf-conditions` on its explicit-hour and by-name branches (`surf_conditions.py:269,450`). This is also a
+    one-chain violation.
+- **LIVE-FALLBACK:** the point and viewport fallbacks, and the ingest fallbacks.
+- **DEAD:** four unused `OPEN_METEO_MARINE_URL` constants, plus forecast_ingester.py and weather_worker.py (not
+  imported by any route).
+- **Rank-5 gate drafted for the advisor:**
+  1. a CI host guard with a planted-URL positive control;
+  2. a runtime census showing 0 Open-Meteo requests;
+  3. per-layer parity rows.
