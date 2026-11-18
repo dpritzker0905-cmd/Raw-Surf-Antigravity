@@ -2670,3 +2670,18 @@ downgrade, owner). Sent to the director.
   unconfirmed).
 - **G1a design notes** sent to the rating-band lane: ledger-row guard, tier-class strata, harm rule, null, positive
   and shuffled controls, and 2-run anti-flap.
+
+## 2026-11-18 14:02 -0500 Open-Meteo shares MEASURED (Render app logs, 24 h, read-only) and ECMWF 0.1 deg wave first read
+- **About 540 Open-Meteo fetches in 24 h.** About 91% come from one synthetic probe (spot-ratings at Mavericks with
+  July-2026 `valid_time`s, sender unknown). The point cache key leaves out `valid_time`, so all of the probe's
+  responses are Open-Meteo-backed.
+- Our own nearshore-validation and surf-spot-panel CI score Open-Meteo-backed coastal points.
+- A real user's EURO-past-240 h wind fell back to GFS through Open-Meteo.
+- The SWR revalidation fetched Open-Meteo grids.
+- Tide is unmeasurable from the logs (they show failures only).
+- New fixes (i)-(v) are in shared note `open-meteo-exit-plan-2026-11-18.md` section F.
+- **ECWAM 0.1 vs 0.25, offline, 8 runs (WEAK):**
+  - 0.1 is better at +48 h (−0.021, CI [−0.038, −0.001]) and +72 h (−0.027, CI [−0.041, −0.012]); it does not win at
+    +24 h.
+  - The gain is coastal.
+  - Next: replication plus the MFWAM arm.
