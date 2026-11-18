@@ -300,8 +300,9 @@ def planted_items(items: Sequence[dict], q: str, kind: str, size: float, seed: i
 
 def verdict(items: Sequence[dict], q: str, reps: int = REPS, seed: int = SEED) -> dict:
     """The decision for one quantity with all its controls. Precedence: INSUFFICIENT (no lead's decision rows reach
-    POOLED_MIN_N); then a misbehaving control is UNDER_RESOLVED when a family cannot fire at this B, else VOID; then
-    FIRE; then UNDER_RESOLVED; then NO_FIRE. A FIRE with healthy controls always stands."""
+    POOLED_MIN_N); a null or the shuffled-day null fired -> VOID (never excused); a 2x plant missed while a family is
+    under-resolved -> UNDER_RESOLVED; a 2x plant missed -> VOID; then FIRE; then UNDER_RESOLVED; then NO_FIRE. The 1.2x
+    plants are `reported`, never a VOID trigger. A FIRE with healthy controls always stands."""
     main = judge(items, q, reps, seed)
     controls = {"null": not judge(null_items(items), q, reps, seed, report=False)["fire"],     # True = behaved
                 "shuffled-day null": not judge(shuffled_day_items(items, seed), q, reps, seed, report=False)["fire"]}

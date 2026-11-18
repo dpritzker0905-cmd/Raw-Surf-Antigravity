@@ -333,6 +333,11 @@ def ledger_report(now: datetime, fetch=None) -> dict:
 LEDGER_VERDICT = {"FIRE": gs.WORSE, "NO_FIRE": gs.NOT_WORSE}       # VOID / INSUFFICIENT -> UNTESTABLE (never a strike)
 PLANT_KEY = "__g1a_plants__"         # in the job's watch cache beside the strike counters; never a flag name
 PLANT_HISTORY = 28                   # 7 days of 6-hourly runs
+# The research lead's limit (2026-11-18): the guard was built on synthetic rows only, so its first runs on the real archive
+# are REPORT-ONLY: a FIRE there is printed but never counts as a strike, until the lead has read the first real run. The
+# count lives in the job cache; a lost cache restarts it, which only delays a disable, never causes one.
+LEDGER_RUNS_KEY = "__g1a_runs__"
+LEDGER_REPORT_ONLY_RUNS = 2
 
 
 # ---- one run --------------------------------------------------------------------------------------------------------
@@ -415,6 +420,14 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
                 hist[k] = (list(hist.get(k) or []) + [bool(ok)])[-PLANT_HISTORY:]
                 plant_rates[k] = (sum(hist[k]), len(hist[k]))
         watch = dict(watch, **{PLANT_KEY: hist})
+        done = int(watch.get(LEDGER_RUNS_KEY) or 0)
+        if done < LEDGER_REPORT_ONLY_RUNS:
+            for f, r in results.items():
+                if r.get("coverage") == LEDGER and r.get("verdict") == gs.WORSE:
+                    r["verdict"] = gs.UNTESTABLE
+                    r["reasons"] = list(r.get("reasons") or []) + [
+                        f"REPORT-ONLY run {done + 1} of {LEDGER_REPORT_ONLY_RUNS}: a FIRE is printed, not a strike"]
+        watch = dict(watch, **{LEDGER_RUNS_KEY: done + 1})
     decisions, new = {}, manifest
     for f in watched:
         d = decide(f, results.get(f, {"verdict": "UNTESTABLE", "reasons": ["not scored (held off)"]}),

@@ -61,6 +61,9 @@ def test_an_unreadable_archive_leaves_the_flag_untestable():
     assert r[FLAG]["verdict"] == gs.UNTESTABLE and "__ledger__" not in r
 
 
+ARMED = {fg.LEDGER_RUNS_KEY: fg.LEDGER_REPORT_ONLY_RUNS}    # past the report-only first runs
+
+
 def _args():
     return argparse.Namespace(enforce="0", reenable="", owner_words="", actor="", cache_dir="c", out="o", alert_cap=2,
                               run_url="run")
@@ -73,7 +76,7 @@ def _run(state, now, watch, manifest=None):
 
 def test_kill_switch_contract_two_fires_a_day_apart_write_off_and_leave_default_off_flags_alone(monkeypatch):
     monkeypatch.setattr(fg, "save_watch", lambda *a: None)
-    first = _run("FIRE", NOW, {})
+    first = _run("FIRE", NOW, ARMED)
     assert first["decisions"][FLAG]["action"] == "strike" and not first["changed"]
     second = _run("FIRE", NOW + timedelta(hours=25), first["watch"])
     assert second["decisions"][FLAG]["action"] == "disable"
@@ -86,7 +89,7 @@ def test_kill_switch_contract_two_fires_a_day_apart_write_off_and_leave_default_
 
 def test_a_quiet_run_between_fires_resets_the_count(monkeypatch):
     monkeypatch.setattr(fg, "save_watch", lambda *a: None)
-    first = _run("FIRE", NOW, {})
+    first = _run("FIRE", NOW, ARMED)
     quiet = _run("VOID", NOW + timedelta(hours=6), first["watch"])
     assert quiet["decisions"][FLAG]["action"] == "none" and FLAG not in quiet["watch"]
     again = _run("FIRE", NOW + timedelta(hours=30), quiet["watch"])
@@ -95,7 +98,7 @@ def test_a_quiet_run_between_fires_resets_the_count(monkeypatch):
 
 def test_the_report_carries_the_readiness_section_and_no_identifier(monkeypatch):
     monkeypatch.setattr(fg, "save_watch", lambda *a: None)
-    md = fg.markdown(_run("NO_FIRE", NOW, {}))
+    md = fg.markdown(_run("NO_FIRE", NOW, ARMED))
     assert "Consensus guard from the scored ledger" in md and "READINESS (pre-flip; no kill path)" in md
     assert "buoy" not in md.lower().split("consensus guard")[1]
 
@@ -131,7 +134,7 @@ def test_the_1_2x_plants_rolling_rate_is_kept_in_the_job_cache_and_printed(monke
                                   ledger=lambda _now: led_)
         return s
 
-    first = fg.run(_args(), now=NOW, manifest=fg.empty_manifest(), watch={}, volumes=lambda *a: {},
+    first = fg.run(_args(), now=NOW, manifest=fg.empty_manifest(), watch=ARMED, volumes=lambda *a: {},
                    scorer=scorer("NO_FIRE", True))
     second = fg.run(_args(), now=NOW + timedelta(hours=6), manifest=fg.empty_manifest(), watch=first["watch"],
                     volumes=lambda *a: {}, scorer=scorer("NO_FIRE", False))
@@ -139,3 +142,14 @@ def test_the_1_2x_plants_rolling_rate_is_kept_in_the_job_cache_and_printed(monke
     assert second["plant_rates"][key] == (1, 2)
     assert f"{key} 1/2" in fg.markdown(second)
     assert not second["changed"]                                          # a reported miss never acts
+
+
+def test_the_first_runs_on_the_real_archive_are_report_only(monkeypatch):
+    """The research lead's limit: until the lead has read the first real run, a FIRE is printed, never a strike."""
+    monkeypatch.setattr(fg, "save_watch", lambda *a: None)
+    watch = {}
+    for i in range(fg.LEDGER_REPORT_ONLY_RUNS):
+        r = _run("FIRE", NOW + timedelta(hours=25 * i), watch)
+        assert r["decisions"][FLAG]["action"] == "none" and "REPORT-ONLY" in r["decisions"][FLAG]["reason"]
+        watch = r["watch"]
+    assert _run("FIRE", NOW + timedelta(hours=60), watch)["decisions"][FLAG]["action"] == "strike"

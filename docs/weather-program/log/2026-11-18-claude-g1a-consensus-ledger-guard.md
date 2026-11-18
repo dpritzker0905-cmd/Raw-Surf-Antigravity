@@ -125,3 +125,16 @@ env value above the manifest, so a guardrail 'off' would never have stopped the 
 
 The 20-seed detection test takes about 2 minutes locally. The chain lane has no slow marker, so it runs unmarked; the seeds
 are not cut.
+
+## 6. Statistics review: PASS-WITH-LIMITS, open=none (research lead, head 417c9881)
+
+The research lead set three limits. Two are applied here; the third waits for hosted CI.
+
+1. **Report-only start:** the guard's first `LEDGER_REPORT_ONLY_RUNS` = 2 runs on the real archive are report-only. A FIRE
+   is printed with "REPORT-ONLY run k of 2" and never counts as a strike. The count lives in the job's watch cache, so a
+   lost cache restarts it, which only delays a disable.
+   - Pinned by `test_the_first_runs_on_the_real_archive_are_report_only`.
+   - The research lead reads the first real run before any strike can count.
+2. **Docstring:** the `verdict()` docstring now states the code's precedence.
+3. **Hosted runtime (open, checked on the first run):** the 20-seed detection test takes about 2 minutes locally.
+   Its hosted chain-lane duration is to be checked on the first run.
