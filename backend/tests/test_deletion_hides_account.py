@@ -20,10 +20,11 @@ from sqlalchemy.orm import sessionmaker
 
 from core.security import create_access_token
 from database import Base, get_db
-from models import AccountDeletion, Post, Profile, RoleEnum
+from models import AccountDeletion, Follow, Post, Profile, RoleEnum
 from routes.explore_discover import router as explore_router
 from routes.posts import router as posts_router
 from routes.profiles import router as profiles_router
+from routes.social import router as social_router
 from services import blocks
 
 PEOPLE = ('dana', 'carol', 'viewer')
@@ -52,6 +53,8 @@ def _world(tmp_path):
         for pid in ('dana', 'carol'):
             db.add(Post(id=f'post-{pid}', author_id=pid, media_url=f'https://example.invalid/{pid}.jpg',
                         spot_id='spot-1', caption=f'{pid} post #glassy'))
+        for follower, followed in (('viewer', 'dana'), ('viewer', 'carol'), ('dana', 'carol')):
+            db.add(Follow(id=f'f-{follower}-{followed}', follower_id=follower, following_id=followed))
         db.add(AccountDeletion(profile_id='dana', status='pending', requested_at=NOW, purge_after=NOW + timedelta(days=30)))
         db.commit()
     sync_engine.dispose()
@@ -64,7 +67,7 @@ def _world(tmp_path):
             yield session
 
     app = FastAPI()
-    for router in (posts_router, profiles_router, explore_router):
+    for router in (posts_router, profiles_router, explore_router, social_router):
         app.include_router(router, prefix='/api')
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as client:
@@ -124,6 +127,16 @@ def test_feeds_and_searches_drop_the_withdrawn_account(world):
     assert client.get('/api/username/lookup/danasurf').status_code == 404
     found = client.get('/api/search/global', params={'q': 'Wave'}).json()
     assert 'dana' not in {u.get('id') for u in found.get('users', [])}
+
+
+def test_follower_and_following_lists_drop_the_withdrawn_account(world):
+    client, maker = world
+    followers = {u['id'] for u in client.get('/api/followers/carol').json()}
+    assert followers == {'viewer'}                                       # dana followed carol, but is withdrawn
+    following = {u['id'] for u in client.get('/api/following/viewer').json()}
+    assert following == {'carol'}                                       # viewer followed dana too
+    _restore(client, maker)
+    assert {u['id'] for u in client.get('/api/following/viewer').json()} == {'carol', 'dana'}
 
 
 def test_a_restore_brings_everything_back(world):

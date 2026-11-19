@@ -700,7 +700,7 @@ async def get_following_list(
 
     # First try explicit Follow table
     result = await db.execute(
-        select(Follow)
+        select(Follow).where(listed_clause(Follow.follower_id), listed_clause(Follow.following_id))
         .where(Follow.follower_id == user_id)
         .options(selectinload(Follow.following))
         .limit(limit)
@@ -725,7 +725,7 @@ async def get_following_list(
     if len(following) < limit:
         from sqlalchemy import or_
         friend_result = await db.execute(
-            select(Friend)
+            select(Friend).where(listed_clause(Friend.requester_id), listed_clause(Friend.addressee_id))
             .where(
                 or_(Friend.requester_id == user_id, Friend.addressee_id == user_id),
                 Friend.status == FriendshipStatusEnum.ACCEPTED
