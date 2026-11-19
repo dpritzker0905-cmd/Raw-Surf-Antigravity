@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 9,
+  "tests": 5,
   "branch": "claude/violation-scrub-retention",
   "date": "2026-11-19",
-  "note": "violation scrub (GPS and notes only), open-case skip"
+  "note": "violation scrub (GPS and notes only)"
 }

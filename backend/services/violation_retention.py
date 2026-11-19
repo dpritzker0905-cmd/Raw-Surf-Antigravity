@@ -7,19 +7,15 @@ David's ruling (2026-11-19, 02:20Z): "Keep the ban evidence, only wipe GPS and n
 - keeps the row itself, its reason code (`violation_type`), severity, strikes, action, dates, reviewer and decision ref.
 There is NO expiry: the rows are not deleted on a clock.
 
-`purge_due` also skips an account with an open moderation case at day 30 (see `open_case` / `flag_open_case`).
+Deferred, pending David's word: skipping the day-30 erasure while an appeal is open.
 Not here (on hold for counsel): the hashed `moderation_tombstones` anti-evasion trail.
 """
 from __future__ import annotations
 
-import logging
 import re
-from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import select
 
-logger = logging.getLogger(__name__)
 
 REMOVED_TEXT = "[removed at account erasure]"
 _LOCATION_COLUMNS = ("claimed_latitude", "claimed_longitude", "actual_latitude", "actual_longitude")
@@ -82,24 +78,3 @@ async def scrub_violations(db, user_id: str) -> int:
         row.description = REMOVED_TEXT
         row.appeal_text = None
     return len(rows)
-
-
-async def open_case(db, user_id: str) -> bool:
-    """True when the account has a violation under appeal. The caller treats a failure to ask as open."""
-    from models import TosViolation
-    found = (await db.execute(select(TosViolation.id).where(
-        TosViolation.user_id == user_id,
-        (TosViolation.status == "appealed") | (TosViolation.appeal_status == "pending"),
-    ).limit(1))).first()
-    return found is not None
-
-
-async def flag_open_case(db, user_id: str, now: Optional[datetime] = None) -> None:
-    from models import ModerationHold
-    now = now or datetime.now(timezone.utc)
-    row = await db.get(ModerationHold, user_id)
-    if row is None:
-        row = ModerationHold(profile_id=user_id)
-        db.add(row)
-    row.open_case_flagged_at = now
-    await db.commit()

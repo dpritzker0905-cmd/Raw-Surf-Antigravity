@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from models import (AccountDeletion, Booking, CheckIn, Comment, ConditionReport, Follow, GalleryPurchase, Message,
-                    MfaChallenge, MfaRecoveryCode, ModerationHold, ObservationMedia, PaymentTransaction, Post, Profile,
+                    MfaChallenge, MfaRecoveryCode, ObservationMedia, PaymentTransaction, Post, Profile,
                     Review, SessionRevocation, SurfObservation, SurfTruthAnchor, SurfTruthConsentEvent, SurfTruthAdminAction,
                     TosAcknowledgement, TosViolation, UserMfa, WebauthnCredential)
 from models.enums import RoleEnum
@@ -46,7 +46,7 @@ def maker():
             for model in (Profile, Post, Comment, Follow, CheckIn, Review, Message, SurfObservation, ObservationMedia,
                           SurfTruthAnchor, Booking, GalleryPurchase, PaymentTransaction, TosAcknowledgement,
                           TosViolation, ConditionReport, WebauthnCredential, UserMfa, MfaRecoveryCode, MfaChallenge,
-                          SessionRevocation, AccountDeletion, SurfTruthConsentEvent, SurfTruthAdminAction, ModerationHold):
+                          SessionRevocation, AccountDeletion, SurfTruthConsentEvent, SurfTruthAdminAction):
                 await conn.run_sync(lambda c, t=model.__table__: t.create(c))
         mk = async_sessionmaker(engine, expire_on_commit=False)
         async with mk() as db:
@@ -118,75 +118,20 @@ def test_scrub_evidence_fails_closed_on_a_malformed_blob():
     assert "x" in vr.scrub_evidence(deep)                         # depth-limited, never raises
 
 
-def test_erasure_keeps_the_row_with_no_expiry(maker):
-    """David: the evidence stays. Nothing in the module deletes a violation row on a clock."""
+
+def test_erasure_keeps_the_row_with_no_expiry_and_no_hold(maker):
+    """David: the evidence stays. Nothing deletes a violation row on a clock, and nothing skips an erasure."""
     assert not hasattr(vr, "VIOLATION_RETENTION") and not hasattr(vr, "purge_expired_violations")
-    assert not hasattr(ModerationHold, "legal_hold")
+    assert not hasattr(vr, "open_case") and not hasattr(vr, "flag_open_case")
 
 
-def _appeal(maker, pid, **values):
-    async def go():
-        async with maker() as db:
-            row = (await db.execute(select(TosViolation).where(TosViolation.user_id == pid))).scalars().one()
-            for key, value in values.items():
-                setattr(row, key, value)
-            await db.commit()
-    asyncio.run(go())
-
-
-@pytest.mark.parametrize("values", [{"appeal_status": "pending"}, {"status": "appealed"}])
-def test_the_day_30_purge_skips_and_flags_an_account_with_an_open_case(maker, values):
-    _appeal(maker, "leaver", **values)
-
+def test_the_day_30_purge_scrubs_the_violation_rows(maker):
     async def go():
         async with maker() as db:
             await ad.schedule(db, await db.get(Profile, "leaver"), now=NOW - timedelta(days=31))
             await db.commit()
-            assert await ad.purge_due(db, erase_account, now=NOW) == 0
-        async with maker() as db:
-            assert (await db.get(AccountDeletion, "leaver")).status == "pending"       # kept, retried tomorrow
-            assert (await db.get(Profile, "leaver")).full_name == "leaver"             # not anonymised
-            assert (await db.get(ModerationHold, "leaver")).open_case_flagged_at is not None
+            assert await ad.purge_due(db, erase_account, now=NOW) == 1
     asyncio.run(go())
-    assert _violations(maker, "leaver")[0].actual_latitude == 34.0                    # the evidence is intact
-
-
-def test_once_the_case_closes_the_next_run_erases_and_scrubs(maker):
-    _appeal(maker, "leaver", appeal_status="pending")
-
-    async def go():
-        async with maker() as db:
-            await ad.schedule(db, await db.get(Profile, "leaver"), now=NOW - timedelta(days=31))
-            await db.commit()
-            assert await ad.purge_due(db, erase_account, now=NOW) == 0
-    asyncio.run(go())
-    _appeal(maker, "leaver", appeal_status="denied", status="active")
-
-    async def again():
-        async with maker() as db:
-            assert await ad.purge_due(db, erase_account, now=NOW + timedelta(days=1)) == 1
-    asyncio.run(again())
-    assert _violations(maker, "leaver")[0].actual_latitude is None
-
-
-def test_if_the_open_case_check_fails_nothing_is_erased(maker, monkeypatch):
-    async def broken(db, pid):
-        raise RuntimeError("database hiccup")
-    monkeypatch.setattr(vr, "open_case", broken)
-
-    async def go():
-        async with maker() as db:
-            await ad.schedule(db, await db.get(Profile, "leaver"), now=NOW - timedelta(days=31))
-            await db.commit()
-            assert await ad.purge_due(db, erase_account, now=NOW) == 0
-        async with maker() as db:
-            assert (await db.get(AccountDeletion, "leaver")).status == "pending"
-            assert (await db.get(Profile, "leaver")).full_name == "leaver"
-    asyncio.run(go())
-
-
-def test_the_hold_table_is_locked_to_the_backend_role():
-    log = " | ".join(str(getattr(getattr(fn, "__self__", None), "statement", "") or getattr(fn, "statement", ""))
-                     for fn in ModerationHold.__table__.dispatch.after_create)
-    for needed in ("ENABLE ROW LEVEL SECURITY", "REVOKE ALL ON TABLE %(fullname)s FROM anon, authenticated"):
-        assert needed in log
+    (row,) = _violations(maker, "leaver")
+    assert row.actual_latitude is None and row.description == vr.REMOVED_TEXT
+    assert row.evidence == {**KEPT, "scrubbed": True}

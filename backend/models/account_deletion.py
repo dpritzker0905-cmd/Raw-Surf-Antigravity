@@ -35,20 +35,4 @@ for _statement in (
 ):
     event.listen(AccountDeletion.__table__, 'after_create', DDL(_statement).execute_if(dialect='postgresql'))
 
-class ModerationHold(Base):
-    """Moderation state that outlives the erasure. `open_case_flagged_at` records that the day-30 erasure was skipped
-    because a moderation case was open. (Violation rows are kept, with no expiry: David, 2026-11-19, "Keep the ban
-    evidence, only wipe GPS and notes".)"""
-    __tablename__ = 'moderation_holds'
-    profile_id = Column(String(36), primary_key=True)
-    open_case_flagged_at = Column(DateTime(timezone=True), nullable=True)
-
-
-for _statement in (
-    'ALTER TABLE %(fullname)s ENABLE ROW LEVEL SECURITY',
-    'REVOKE ALL ON TABLE %(fullname)s FROM anon, authenticated',
-    'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE %(fullname)s TO service_role',
-):
-    event.listen(ModerationHold.__table__, 'after_create', DDL(_statement).execute_if(dialect='postgresql'))
-
 import services.account_deletion  # noqa: E402,F401 - registers the cancel/hold database hook with the models

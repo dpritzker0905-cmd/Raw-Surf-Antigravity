@@ -21,7 +21,8 @@ What PR #1097 now does, and what this memo's recommendation therefore becomes:
   scrubbed evidence without a time limit is defensible** (GDPR Art. 5(1)(e) storage limitation; Art. 17(3)(e) needs
   a real prospect of a claim; CCPA retention disclosure). Expect counsel to ask for a limit; the code can add one
   later without a schema change to `tos_violations`.
-- Still in: the day-30 purge skips and flags an account with an open moderation case (a violation under appeal).
+- **Deferred, pending David's word:** skipping the day-30 erasure while an appeal is open. It was in the first cut of
+  PR #1097 and is removed; the day-30 purge erases every due account.
 - Still on hold for counsel: the hashed `moderation_tombstones` anti-evasion trail (sections 4 to 6). Nothing in this
   PR changes who can re-register.
 - The one-off script for already-erased accounts is committed, dry-run by default, and has NOT been run.
