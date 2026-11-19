@@ -97,6 +97,16 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_OWN_GUSTS__',
   // currentsLayer.test.js ("ships ON, and its kill turns it off"; 2026-11-15, the new Currents layer)
   '__RAW_DISABLE_RASTER_OWN_CURRENTS__',
+  // gustParticles.test.js ("ships ON: Gusts runs the wind particles; the kill returns it to the heatmap alone"; 2026-11-18)
+  '__RAW_DISABLE_GUST_PARTICLES__',
+  // gustParticles.test.js ("the flicker: on by default, off under its kill and under prefers-reduced-motion"; 2026-11-18)
+  '__RAW_DISABLE_GUST_FLICKER__',
+  // gustParticles.test.js ("the gust field tints like the wind field on light and beach; both kills turn it off"; 2026-11-18)
+  '__RAW_DISABLE_GUST_FIELD_TINT__',
+  // gustsLayer.test.js ("the kill returns light to the wind field exactly; the legend follows the same rows"; 2026-11-18)
+  '__RAW_DISABLE_GUST_LIGHT_FASTBAND__',
+  // gustsLayer.test.js ("dark keeps the table's alpha; the kill returns light and beach to it"; 2026-11-18)
+  '__RAW_DISABLE_GUST_WIND_ALPHA__',
   // currentsLayer.test.js ("its kill restores the handheld radius"; 2026-11-15, own-only phone prefetch)
   '__RAW_DISABLE_OWN_ONLY_PREFETCH2__',
   // ownRasterDecode.test.js ("without a Worker (and under its kill) the same function runs on the main thread"; 2026-11-15)

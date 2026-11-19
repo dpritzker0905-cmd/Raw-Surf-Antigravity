@@ -49,6 +49,21 @@ def _record(raw: Any) -> Optional[Dict[str, Any]]:
     return record
 
 
+def _shoreline(value: Any):
+    """(km, (latitude, longitude) or None) from a shoreline file entry.
+
+    Two shapes are read: a bare distance in km (the first filter's file), and `[km, latitude, longitude]` from
+    `spot_candidate_shoreline.py`, which also carries the nearest shoreline POINT, the placement suggestion."""
+    if isinstance(value, bool) or value is None:
+        return None, None
+    if isinstance(value, (int, float)):
+        return float(value), None
+    if isinstance(value, (list, tuple)) and len(value) == 3 and valid_coordinate(value[1], value[2]) \
+            and isinstance(value[0], (int, float)) and not isinstance(value[0], bool):
+        return float(value[0]), (float(value[1]), float(value[2]))
+    return None, None
+
+
 def plan(records: Iterable[Any], spots: Iterable[Dict[str, Any]], *, source: str, licence: str, attribution: str,
          batch_id: str, shoreline_km: Optional[Dict[str, Any]] = None,
          max_shoreline_km: Optional[float] = None) -> Dict[str, Any]:
@@ -70,7 +85,7 @@ def plan(records: Iterable[Any], spots: Iterable[Dict[str, Any]], *, source: str
         if is_business(record["name"], record["labels"]):
             skipped["business (school, shop, hotel)"] += 1
             continue
-        distance = (shoreline_km or {}).get(record_id)
+        distance, suggestion = _shoreline((shoreline_km or {}).get(record_id))
         if max_shoreline_km is not None:
             if distance is None:
                 skipped["no shoreline distance"] += 1
@@ -86,6 +101,9 @@ def plan(records: Iterable[Any], spots: Iterable[Dict[str, Any]], *, source: str
             "country": (str(record["country"])[:100] if record["country"] else None),
             "source_labels": list(record["labels"]) if record["labels"] else None,
             "shoreline_km": distance, "status": "pending",
+            "suggested_latitude": suggestion[0] if suggestion else None,
+            "suggested_longitude": suggestion[1] if suggestion else None,
+            "suggested_method": "nearest_shoreline" if suggestion else None,
             **classify(record["name"], latitude, longitude, index),
         })
     return {"rows": rows, "skipped": dict(skipped), "tiers": dict(Counter(row["tier"] for row in rows)),

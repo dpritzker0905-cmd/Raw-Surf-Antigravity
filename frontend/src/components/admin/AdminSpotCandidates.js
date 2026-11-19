@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, MapPin, Search } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { AdminCandidatePlacer } from './AdminCandidatePlacer';
 import { Input } from '../ui/input';
 import apiClient from '../../lib/apiClient';
 import logger from '../../utils/logger';
@@ -40,6 +42,7 @@ export const AdminSpotCandidates = ({ onCounts }) => {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [placing, setPlacing] = useState(null);
   const requestRef = useRef(0);
 
   const fetchCandidates = useCallback(async () => {
@@ -145,6 +148,19 @@ export const AdminSpotCandidates = ({ onCounts }) => {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-input text-muted-foreground text-[10px]">
+                  {candidate.proposed_latitude != null
+                    ? (candidate.proposed_method === 'shoreline_suggestion'
+                      ? 'Placed: shoreline suggestion taken' : 'Placed by hand')
+                    : (candidate.suggested_latitude != null ? 'Not placed: shoreline suggestion ready' : 'Not placed')}
+                </Badge>
+                {(candidate.status === 'pending' || candidate.status === 'held') && (
+                  <Button type="button" size="sm" variant="outline" className="border-input"
+                    aria-label={`Place ${candidate.name} on the map`} onClick={() => setPlacing(candidate)}>
+                    <MapPin className="w-4 h-4 mr-1" aria-hidden="true" />
+                    Place
+                  </Button>
+                )}
                 <Badge className="bg-input text-foreground text-[10px]">
                   {candidate.tier}: {TIER_LABELS[candidate.tier] || 'Unknown'}
                 </Badge>
@@ -155,6 +171,14 @@ export const AdminSpotCandidates = ({ onCounts }) => {
             </li>
           ))}
         </ul>
+      )}
+
+      {placing && (
+        <AdminCandidatePlacer
+          candidate={placing}
+          onClose={() => setPlacing(null)}
+          onSaved={() => { setPlacing(null); fetchCandidates(); }}
+        />
       )}
 
       {!error && (

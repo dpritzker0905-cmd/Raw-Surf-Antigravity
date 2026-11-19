@@ -42,7 +42,8 @@ from .identity import uploader_id
 from core.security import get_current_user_id
 from models import Profile, GalleryItem, ObservationMedia
 from services.observation_media import inspect_media
-from services.media_metadata import MetadataError, strip_image_metadata
+from services.media_metadata import MetadataError, check_decode_size, write_public_copy
+from .public_copy import store_public
 from utils.video_processor import (
     get_video_info, 
     needs_transcoding, 
@@ -404,11 +405,9 @@ async def upload_general_file(
     
     file_path = general_dir / filename
     
-    # Save file locally first
-    content_size = len(content)
-    with open(file_path, "wb") as f:
-        f.write(content)
-    
+    # T1 P3: the general bucket is PUBLIC, so the stored copy loses its embedded metadata (GPS, serials, times).
+    content_size = await store_public(content, actual_content_type, False, file_path)
+
     # Persist to Supabase Storage (Render disk is ephemeral)
     local_url = f"/api/uploads/general/{filename}"
     supabase_url = upload_to_supabase_storage(
@@ -468,11 +467,9 @@ async def upload_story_media(
     
     file_path = stories_dir / filename
     
-    # Save file locally first
-    content_size = len(content)
-    with open(file_path, "wb") as f:
-        f.write(content)
-    
+    # T1 P3: the stories bucket is PUBLIC, so the stored copy loses its embedded metadata (GPS, serials, times).
+    content_size = await store_public(content, file.content_type, media_type == "video", file_path)
+
     # Persist to Supabase Storage (Render disk is ephemeral)
     local_url = f"/api/uploads/stories/{filename}"
     supabase_url = upload_to_supabase_storage(
@@ -528,22 +525,16 @@ async def upload_conditions_media(
     filename = f"{uuid.uuid4()}{ext}"
     media_type = "video" if is_video else "image"
 
-    # T1 P3: the conditions bucket is PUBLIC, so the stored copy of a photo loses its embedded metadata (GPS position,
-    # camera serial, times; services/media_metadata, lossless). The server's own facts are read from the ORIGINAL
-    # bytes below and kept private. HEIC/HEIF and video are stored unchanged for now (metadata_stripped false).
-    stored, metadata_stripped = content, False
-    if not is_video:
-        try:
-            stored, metadata_stripped = strip_image_metadata(content, file.content_type)
-        except MetadataError:
-            raise HTTPException(status_code=400, detail="Could not read this image. Please try another photo.")
-
+    # T1 P3: the conditions bucket is PUBLIC, so the stored copy of a photo or MP4/MOV video loses its embedded metadata
+    # (GPS position, serials, times), losslessly (services/media_metadata.write_public_copy, off the event loop). The
+    # location facts are kept PRIVATELY below: a photo's from the original bytes, a video's read before it is neutered.
     conditions_dir = UPLOAD_DIR / "conditions" / user_id
     conditions_dir.mkdir(parents=True, exist_ok=True)
-
     file_path = conditions_dir / filename
-    with open(file_path, "wb") as f:
-        f.write(stored)
+    try:
+        public = await asyncio.to_thread(write_public_copy, content, file.content_type, is_video, file_path)
+    except MetadataError:
+        raise HTTPException(status_code=400, detail="Could not read this file. Please try another photo or video.")
 
     # Upload to Supabase for persistence (Render disk is ephemeral)
     local_url = f"/api/uploads/conditions/{user_id}/{filename}"
@@ -563,9 +554,10 @@ async def upload_conditions_media(
     # Best effort: a failure here must never fail the go-live upload.
     try:
         facts = inspect_media(content, is_image=not is_video)
+        lat, lon, at = ((facts.exif_latitude, facts.exif_longitude, facts.exif_taken_at) if not is_video
+                        else (public.latitude, public.longitude, public.taken_at))   # a video's own metadata
         db.add(ObservationMedia(user_id=user_id, media_url=media_url, media_type=media_type, sha256=facts.sha256,
-                                exif_latitude=facts.exif_latitude, exif_longitude=facts.exif_longitude,
-                                exif_taken_at=facts.exif_taken_at))
+                                exif_latitude=lat, exif_longitude=lon, exif_taken_at=at))
         await db.commit()
     except Exception as exc:  # noqa: BLE001
         await db.rollback()
@@ -575,9 +567,9 @@ async def upload_conditions_media(
         "media_url": media_url,
         "media_type": media_type,
         "filename": filename,
-        "size": len(stored),
+        "size": public.size,
         "persistent": bool(supabase_url),
-        "metadata_stripped": metadata_stripped,
+        "metadata_stripped": public.stripped,
     }
 
 
@@ -682,9 +674,10 @@ async def upload_avatar(
     
     file_path = avatars_dir / filename
     
-    # Resize avatar to reasonable size
+    # Resize avatar to reasonable size (the re-save drops EXIF/GPS; the pixel cap comes before any decode)
     try:
         img = Image.open(io.BytesIO(content))
+        check_decode_size(img)
         img.thumbnail((500, 500), Image.LANCZOS)
         
         if img.mode in ('RGBA', 'P'):
@@ -692,9 +685,8 @@ async def upload_avatar(
         
         img.save(file_path, "JPEG", quality=85)
     except Exception as e:
-        logging.warning(f"Could not process image, saving as raw: {e}")
-        with open(file_path, "wb") as f:
-            f.write(content)
+        logging.warning(f"Could not process avatar ({type(e).__name__}); storing it stripped instead of raw")
+        await store_public(content, file.content_type, False, file_path)   # T1 P3: never the raw bytes publicly
     
     # Persist to Supabase Storage (Render disk is ephemeral)
     local_url = f"/api/uploads/avatars/{filename}"

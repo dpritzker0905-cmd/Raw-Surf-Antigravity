@@ -200,6 +200,7 @@ uniform vec4 u_grid;      // west, south, dLon, dLat (cell-centre lattice)
 uniform vec3 u_size;      // cols, rows, wraps (1 = columns wrap at the antimeridian)
 uniform vec3 u_lutMap;    // min, step, n
 uniform float u_opacity;
+uniform float u_tint;     // > 0: TINT the basemap (multiply), as the wind field does on light and beach (WebGLWindUtils.v2FieldTint)
 uniform vec2 u_iso;       // interval (0 = off), line width px
 uniform sampler2D u_dz0;  // the elevation-difference tiles (R8, linear), air temperature only
 uniform sampler2D u_dz1;
@@ -263,6 +264,8 @@ void main() {
     float la = (1.0 - smoothstep(0.5 * u_iso.y, 0.5 * u_iso.y + 1.0, dist)) * u_isoColor.a;
     outc = vec4(u_isoColor.rgb * la, la) + (1.0 - la) * outc;
   }
+  // The wind field's own tint (HEATMAP_FS): white where the field is clear, the field colour where it is full; the blend multiplies.
+  if (u_tint > 0.0) outc = vec4(mix(vec3(1.0), col.rgb, clamp(alpha * u_tint, 0.0, 1.0)), 1.0);
   fragColor = outc;
 }`;
 
@@ -321,7 +324,7 @@ export function createOwnRasterLayer({
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { fail('link'); return false; }
     st.prog = prog;
     st.loc = {};
-    for (const u of ['u_matrix', 'u_field', 'u_field2', 'u_mix', 'u_lut', 'u_grid', 'u_size', 'u_lutMap', 'u_opacity', 'u_iso', 'u_isoColor',
+    for (const u of ['u_matrix', 'u_field', 'u_field2', 'u_mix', 'u_lut', 'u_grid', 'u_size', 'u_lutMap', 'u_opacity', 'u_tint', 'u_iso', 'u_isoColor',
       'u_dz0', 'u_dz1', 'u_dzLat', 'u_dzLon', 'u_dzCode', 'u_dzCols1']) {
       st.loc[u] = gl.getUniformLocation(prog, u);
     }
@@ -525,12 +528,19 @@ export function createOwnRasterLayer({
       } else {
         gl.uniform4f(st.loc.u_dzLat, 0, 1, 1, 0);
       }
-      // MapLibre set premultiplied alpha blending for the translucent pass (colorModeForRenderPass); keep it.
+      // MapLibre set premultiplied alpha blending for the translucent pass (colorModeForRenderPass); keep it. A TINTED layer
+      // (Gusts on light and beach: the wind field's look) multiplies instead, then puts MapLibre's blend back.
+      const tint = st.tint ? Number(st.tint(st.map ? st.map.getZoom() : 2)) || 0 : 0;
+      gl.uniform1f(st.loc.u_tint, tint);
+      if (tint > 0) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      if (tint > 0) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       gl.bindVertexArray(null);
     },
 
     setLut(lut, map = lutMap) { st.lut = lut; st.lutMap = map; st.lutDirty = true; if (st.map) st.map.triggerRepaint(); },
+    /** A (zoom) => strength read each frame (0 = the usual alpha-over field); null clears it. */
+    setTint(fn) { st.tint = typeof fn === 'function' ? fn : null; if (st.map) st.map.triggerRepaint(); },
     setIsobarColor(rgba) { st.isoColor = rgba; if (st.map) st.map.triggerRepaint(); },
     /** The elevation downscale's decoded asset ({ lattice, offset, step, lapse, tiles: [{ col0, cols, rows, data }] }), or null
      *  to draw the field as is. At most DZ_TILES_MAX tiles; anything else is refused (the field draws as is). */

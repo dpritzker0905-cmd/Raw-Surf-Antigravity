@@ -21,6 +21,13 @@ on:
       - 'frontend/src/**/*.jsx'
   workflow_dispatch: {}
 
+# A new commit on a PR cancels that PR's older run of this workflow (the Actions queue was the bottleneck,
+# 2026-11-19). A push gets a group of its own (its run id): GitHub keeps only ONE pending run per group and
+# replaces it even with cancel-in-progress false, so a shared push group would drop queued dev/main runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   check-encoding:
     runs-on: ubuntu-latest

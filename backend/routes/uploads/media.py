@@ -25,6 +25,7 @@ from .core import (
     _cached_file_response, _SHORT_CACHE,
 )
 from .storage import unlinked_media_names
+from .public_copy import store_public, strip_public_video
 from utils.video_processor import (
     get_video_info, process_video_from_path, process_video_upload,
     generate_video_thumbnail
@@ -139,6 +140,8 @@ async def upload_feed_media(
         gc.collect()
 
         video_path = feed_dir / result['filename']
+        # T1 P3: the feed bucket is PUBLIC; the stored video (transcoded or kept raw) loses its location metadata.
+        await strip_public_video(video_path)
         thumbnail_filename = f"{result['filename'].rsplit('.', 1)[0]}_thumb.jpg"
         thumbnail_path = feed_dir / thumbnail_filename
 
@@ -203,10 +206,8 @@ async def upload_feed_media(
         filename = f"{uuid.uuid4()}{ext}"
         file_path = feed_dir / filename
 
-        with open(file_path, "wb") as f:
-            f.write(content)
-
-        content_size = len(content)
+        # T1 P3: the feed bucket is PUBLIC, so the stored copy loses its embedded metadata (GPS, serials, times).
+        content_size = await store_public(content, file.content_type, False, file_path)
         del content
         gc.collect()
 
@@ -379,6 +380,8 @@ async def upload_wave_video(
     # ── 5. Generate thumbnail (runs ffmpeg subprocess, not Python RAM) ──
     thumbnail_url = None
     video_path = waves_dir / result['filename']
+    # T1 P3: the stored wave (transcoded or kept raw) loses its location metadata before it is published.
+    await strip_public_video(video_path)
     thumbnail_filename = f"{result['filename'].rsplit('.', 1)[0]}_thumb.jpg"
     thumbnail_path = waves_dir / thumbnail_filename
 

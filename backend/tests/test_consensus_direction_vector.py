@@ -388,5 +388,9 @@ def test_the_flag_is_registered_and_declared_on_by_default():
     reg = (repo / "backend" / "routes" / "admin" / "surf_forecast.py").read_text("utf-8")
     assert '"CONSENSUS_DIRECTION_VECTOR": ("1",' in reg
     pilots = (repo / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text("utf-8")
-    assert "          CONSENSUS_DIRECTION_VECTOR: '1'" in pilots
+    # G1a (2026-11-18): the build lane passes '' so the manifest (a flag-guardrail 'off') reaches it; '' falls through to
+    # the code default '1' (runtime_flags.resolve treats an empty value as unset), so the vector stays ON.
+    assert "          CONSENSUS_DIRECTION_VECTOR: ''" in pilots
+    from services import runtime_flags as _rf
+    assert _rf.GUARDED["CONSENSUS_DIRECTION_VECTOR"] == "1"
     assert cp.DIRECTION_VECTOR_FLAG == "CONSENSUS_DIRECTION_VECTOR"
