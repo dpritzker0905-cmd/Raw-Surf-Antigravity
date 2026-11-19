@@ -325,6 +325,20 @@ Jest +5 (the panel had none). 131 related backend and 438 admin Jest tests pass;
 NOT checked in a browser: the admin needs an admin login.
 Next, from the same survey (each its own PR): data and ingest health (/api/health/data), a per-spot geometry and
 rating inspector, guardrail run history and the owner's re-enable, the surf-truth export button and anchor history.
+## 2026-11-18 03:15Z Admin: data and ingest health in the Surf Forecast panel (header from the UTC clock)
+
+David chose the health view next. Admin > Surf Forecast now opens with "Data and ingest health", which reads
+`/api/health/data`: the report the external uptime monitor polls, computed from the SERVED manifest on read (no
+database, no forecast fetch), so it is cheap enough for the panel's 60-second refresh. It shows the overall verdict
+in words, the freshest run's age, the manifest's writer, every alert, and per lane (GFS/ICON/EURO x
+marine/wind/weather, plus the precomputed ratings): verdict, newest-run age, lag behind the freshest lane, reach
+ahead, the model cycle's age and status, and source. A critical report arrives as HTTP 503; its body is still the
+report and is shown as an alert, not as a load failure. The report now carries the limits it judged against
+(`thresholds`: stale and critical hours, minimum reach per model, the EURO 06/18Z reach, the ratings limits), so
+the view states what "stale" means without re-deriving environment overrides.
+Tests: backend +1 (thresholds, including an override), Jest +4 (words not colours, the 503 path, unreachable, the
+limits). 150 data-health backend and 100 admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin
+login). Stacked on #1029.
 ## 2026-11-18 04:26Z T1 P3 (part 4): David's retention rule, enforced daily (header from the UTC clock)
 
 DECISION (David, in chat, 2026-11-18 04:26Z): "Keep the 3 newest exports, purge within 7 days". He also reported that
