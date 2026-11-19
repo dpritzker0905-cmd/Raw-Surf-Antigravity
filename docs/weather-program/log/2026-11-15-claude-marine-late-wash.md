@@ -371,3 +371,13 @@ Beside the numbers:
   cell: desktop +23.0 [-0.3, 23.1], +17.4 [-1.1, 19.4], +17.0 [-0.7, 17.8]; phone 200 +7.9 [-0.8, 7.9]; phone 400 +13.6 [6.4, 17.8],
   the only CI clear of zero. A possible first-step cost of the fix after Home and settle: a check for the GPU run, not a finding yet.
 - desktop 400 / 800 censored steps are the same steps in both arms, so their censored difference is 0.
+
+### 6l. Two wording corrections to 6j/6k (the advisor, 2026-11-18, with the gate line on #1060; numbers unchanged)
+
+1. **The phone-800 stalls are not shown to be a kill-path problem.** In the A/A, both arms were the kill and the stalls
+   sat only in the B blocks (38 steps over 1 s against 0). In the A/B, the kill again took the B slot. What the data shows
+   is that **the stalls follow the B slot of the harness at phone 800**, whichever arm is in it. Test: swap which arm takes
+   the B slot. This replaces "a real slow-step problem on the kill path" in 6j and "the stalls sit on the KILL arm" in 6k.
+2. **The first-step p95 rise is a probable once-per-block cost of the fix, not a mere possibility.** It is higher on the
+   fix arm in all five resolvable cells (+7.9 to +23.0 ms, one CI clear of zero), and five of five in one direction is
+   unlikely by chance. It was not a registered verdict input, so it does not change the PASS. To be measured on the GPU run.
