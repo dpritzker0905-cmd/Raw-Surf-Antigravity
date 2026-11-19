@@ -1,17 +1,16 @@
 """
-Global Surf Spot Importer - OSM Overpass API Integration
-Imports surf breaks from OpenStreetMap globally.
+Curated surf-spot importer (retired: the command-line entry point stops, see _legacy_spot_writer).
+
+It used to import from OpenStreetMap as well. That path was removed on 2026-11-18: OSM coordinates are ODbL
+share-alike and may not be written to surf_spots. `import_osm_spots` remains only to refuse; the Overpass fetch
+and its endpoint are gone, so nothing here can reach OpenStreetMap.
 """
 import asyncio
-import aiohttp
 import logging
 from typing import List, Dict, Optional
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
-
-# OSM Overpass API endpoint
-OVERPASS_API = "https://overpass-api.de/api/interpreter"
 
 # Region definitions for tiered import
 IMPORT_REGIONS = {
@@ -518,33 +517,6 @@ async def import_curated_spots(db_session, return_detail: bool = False):
 
     await db_session.commit()
     return (imported, skipped) if return_detail else imported
-
-
-async def fetch_osm_surf_spots(bbox: str) -> List[Dict]:
-    """Fetch surf spots from OSM Overpass API for a bounding box."""
-    query = f"""
-    [out:json][timeout:60];
-    (
-      node["sport"="surfing"]({bbox});
-      node["leisure"="surfing"]({bbox});
-      node["natural"="beach"]["sport"="surfing"]({bbox});
-      way["sport"="surfing"]({bbox});
-    );
-    out center;
-    """
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(OVERPASS_API, data={"data": query}, timeout=aiohttp.ClientTimeout(total=120)) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data.get("elements", [])
-                else:
-                    logger.error(f"OSM API error: {response.status}")
-                    return []
-    except Exception as e:
-        logger.error(f"Error fetching OSM data: {e}")
-        return []
 
 
 class OsmImportForbidden(RuntimeError):

@@ -262,3 +262,14 @@ async def test_the_osm_importer_is_removed_whatever_the_environment_says(maker, 
     assert "await import_osm_spots" not in source          # and nothing in the importer calls it
     route = (BACKEND / "routes/surf_spots/admin_spots.py").read_text(encoding="utf-8")
     assert "import_osm_spots(" not in route
+
+
+def test_nothing_in_the_importer_can_reach_openstreetmap_any_more():
+    """The uncalled Overpass fetch was dead code that invited reuse (director, 2026-11-18). It is deleted."""
+    source = (BACKEND / "scripts/import_global_spots.py").read_text(encoding="utf-8")
+    for gone in ("fetch_osm_surf_spots", "overpass-api", "OVERPASS_API", "aiohttp"):
+        assert gone not in source, gone
+    from scripts import import_global_spots
+    assert not hasattr(import_global_spots, "fetch_osm_surf_spots")
+    assert callable(import_global_spots.import_osm_spots)          # kept only to refuse
+    assert len(import_global_spots.CURATED_SPOTS) > 300             # the curated list is untouched
