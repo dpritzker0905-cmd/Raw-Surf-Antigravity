@@ -304,3 +304,70 @@ David's word, 2026-11-18: "Yes, split and run". Everything in sections 6, 6a, 6b
 5. **Each job records** its cell, CPU model, image, cores, memory, Chrome and the GL renderer string, so the four machines can be
    compared. The A/A summary goes to each job's log; the A/B rows go to that job's artifact only.
 6. **Run 1's partial AB.json stays unread for good.** The local quiet-hours GPU run stays owed.
+
+### 6i. Run 2 clarification (written 2026-11-18 14:50:09Z, after tag `steptime-937-2` was pushed at 14:46:57Z, before any run-2 row or log line was read)
+
+Kept in the shared notes at the time and appended here after the run, as the advisor allowed (14:45Z), so #1041's gated head
+`fdd003591` did not move. It changes no code and no rule; it states how 6h applies.
+
+1. With a missing job: a failed or timed-out job gives no verdict for its cells, so the outcome is then UNRESOLVED unless some cell is
+   WORSE (FAIL). If the desktop job fails, three cells go at once.
+2. The app under test is dev `402c1c878`: the tag points at `fdd003591` = `402c1c878` plus only the workflow and the 6h text.
+3. The dispatch rests on David's words in this lane, 2026-11-18: "Yes, split and run", then "push the tag when the advisor passes".
+4. When it ends: per job, the A/A from the job LOG only; the resolvable list fixed in writing; all four runner records sent; then
+   stop until the advisor answers. No A/B file is opened before that.
+
+### 6j. Run 2 A/A and the resolvable cells (fixed 2026-11-18 17:39:52Z, from the job logs only, before any A/B file was opened)
+
+Run 44328030256, all four jobs `success`. Every job: image ubuntu26 20261111.196.1, 4 cores, 15983 MB, Chrome 157.0.8103.50,
+GL "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)))", i.e. software GL.
+
+| job | cell | ran (Z) | CPU |
+|---|---|---|---|
+| 134884504506 | desktop-all | 14:46:53 - 17:04:14 | AMD EPYC 9V74 |
+| 134884504315 | phone-200 | 14:46:52 - 16:41:11 | AMD EPYC 7763 |
+| 134884504680 | phone-400 | 14:46:53 - 16:20:24 | AMD EPYC 9V74 |
+| 134884503804 | phone-800 | 14:46:53 - 16:04:40 | AMD EPYC 9V45 |
+
+| cell | R median (ms) | R p95 (ms) | censored A / B | n | resolvable |
+|---|---|---|---|---|---|
+| desktop 200 | 0.2 | 0.6 | 0 % / 0 % | 736 | yes |
+| desktop 400 | 0.3 | 1.6 | 0 % / 0 % | 736 | yes |
+| desktop 800 | 0.2 | 0.8 | 0 % / 0 % | 736 | yes |
+| phone 200 | 0.6 | 8.4 | 0 % / 0 % | 736 | yes |
+| phone 400 | 0.9 | 3.6 | 0 % / 0 % | 736 | yes |
+| phone 800 | 0.6 | **1389.8** | 0 % / 0.8 % | 736 | **no** |
+
+So PASS needs all five resolvable cells NOT WORSE; any WORSE cell is FAIL; phone 800 can only read "not shown worse at R". The
+advisor agreed (2026-11-18, before the A/B was read) and ruled the different CPUs immaterial, since each cell's A/A and A/B ran on
+one machine.
+
+Finding in the A/A (both arms are the kill): phone 800's B blocks had 38 steps over 1 s, 6 censored and 101 superseded, against
+0 / 0 / 37 in its A blocks. The cell drifts within a job. Not evidence about #937: the same family as the ~2 s kill-arm steps of
+section 5. Open item: a real slow-step problem on the kill path.
+
+### 6k. Run 2 A/B: PASS on software GL (read 2026-11-18 after the advisor's go; the rule of 6j unchanged)
+
+`step_time_v2_stats.py` from `fdd003591`, run per job on that job's `AA.json` and `AB.json` (artifacts
+`steptime-937-software-gl-<cell>`). A = fix (lever off), B = kill; d = A minus B; bootstrap CIs over ABBA groups.
+
+| cell | median d [CI] | p95 fix vs kill, d [CI] | long-task d [CI] | censored fix / kill | steps > 1 s | verdict |
+|---|---|---|---|---|---|---|
+| desktop 200 | 0.0 [-0.1, 0.2] | 10.3 vs 10.7, -0.4 [-0.7, 0.0] | 0.0 [-0.1, 0.1] | 0.0 % / 0.0 % | 0 | NOT WORSE |
+| desktop 400 | 0.0 [-0.1, 0.1] | 11.9 vs 12.3, -0.4 [-0.8, 0.1] | 0.1 [-0.1, 0.3] | 0.5 % / 0.5 % | 4 | NOT WORSE |
+| desktop 800 | 0.1 [-0.1, 0.3] | 13.5 vs 12.6, +0.9 [-0.2, 2.3] | 0.0 [-0.3, 0.4] | 2.2 % / 2.2 % | 16 | NOT WORSE |
+| phone 200 | 0.0 [-0.2, 0.2] | 45.4 vs 47.4, -2.0 [-6.7, 14.0] | -0.1 [-0.6, 0.4] | 0.3 % / 0.4 % | 3 | NOT WORSE |
+| phone 400 | -0.5 [-1.6, 0.5] | 51.1 vs 45.4, +5.7 [-2.2, 12.2] | 0.4 [-0.1, 1.8] | 0.0 % / 0.0 % | 0 | NOT WORSE |
+| phone 800 | -1.2 [-2.8, -0.2] | 48.1 vs 920.4, -872.3 [-2572.4, 5.9] | -2.4 [-4.0, 3.8] | 0.0 % / 0.5 % | 32 | not shown worse at R (not resolvable) |
+
+**Verdict: PASS (software GL).** All five resolvable cells NOT WORSE, none WORSE. A software-GL PASS is necessary, not sufficient:
+the local quiet-hours GPU run stays owed. Each job's own script line prints `OVERALL UNRESOLVED` only because one job sees 1 or 3
+cells; the 5-of-6 rule is applied across the four jobs, as 6h registered.
+
+Beside the numbers:
+- phone 800: the stalls sit on the KILL arm again (32 steps > 1 s, 4 censored, 101 superseded, against fix 0 / 0 / 44), the same
+  within-job drift as its A/A. Kept as the open kill-path item of 6j.
+- The first frame-changing step of each block (reported apart, n = 16 per cell, not a verdict input) has a higher fix-arm p95 in every
+  cell: desktop +23.0 [-0.3, 23.1], +17.4 [-1.1, 19.4], +17.0 [-0.7, 17.8]; phone 200 +7.9 [-0.8, 7.9]; phone 400 +13.6 [6.4, 17.8],
+  the only CI clear of zero. A possible first-step cost of the fix after Home and settle: a check for the GPU run, not a finding yet.
+- desktop 400 / 800 censored steps are the same steps in both arms, so their censored difference is 0.
