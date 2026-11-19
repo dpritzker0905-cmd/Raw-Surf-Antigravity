@@ -8,7 +8,10 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from models import AccountDeletion, ModerationHold, Profile, SessionRevocation, TosViolation
+from models import (AccountDeletion, Booking, CheckIn, Comment, ConditionReport, Follow, GalleryPurchase, Message,
+                    MfaChallenge, MfaRecoveryCode, ModerationHold, ObservationMedia, PaymentTransaction, Post, Profile,
+                    Review, SessionRevocation, SurfObservation, SurfTruthAnchor, SurfTruthConsentEvent,
+                    TosAcknowledgement, TosViolation, UserMfa, WebauthnCredential)
 from models.enums import RoleEnum
 from routes.compliance_pkg.gdpr import erase_account, request_data_deletion
 from services import account_deletion as ad
@@ -29,7 +32,10 @@ def maker():
     async def build():
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         async with engine.begin() as conn:
-            for model in (Profile, TosViolation, SessionRevocation, AccountDeletion, ModerationHold):
+            for model in (Profile, Post, Comment, Follow, CheckIn, Review, Message, SurfObservation, ObservationMedia,
+                          SurfTruthAnchor, Booking, GalleryPurchase, PaymentTransaction, TosAcknowledgement,
+                          TosViolation, ConditionReport, WebauthnCredential, UserMfa, MfaRecoveryCode, MfaChallenge,
+                          SessionRevocation, AccountDeletion, SurfTruthConsentEvent, ModerationHold):
                 await conn.run_sync(lambda c, t=model.__table__: t.create(c))
         mk = async_sessionmaker(engine, expire_on_commit=False)
         async with mk() as db:
