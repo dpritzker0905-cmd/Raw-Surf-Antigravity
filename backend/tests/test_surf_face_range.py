@@ -50,7 +50,8 @@ def _served(hs, geo):
 
 def _range(hs, geo):
     h, regime = _served(hs, geo)
-    return surf_point.surf_face_range_at(LAT, LNG, hs, TP, h, regime, swell_from_deg=DIR, geometry=geo), h, regime
+    return surf_point.surf_face_range_at(LAT, LNG, hs, TP, h, regime, swell_from_deg=DIR, geometry=geo,
+                                         water_level_m=0.0), h, regime
 
 
 def test_the_flag_is_guarded_its_code_default_is_on_and_the_kill_works(monkeypatch):
@@ -75,7 +76,8 @@ def test_killed_no_range_is_computed_and_the_chain_is_never_called_a_second_time
     calls = []
     real = surf_point.estimate_surf_at
     monkeypatch.setattr(surf_point, "estimate_surf_at", lambda *a, **k: calls.append(1) or real(*a, **k))
-    assert surf_point.surf_face_range_at(LAT, LNG, 1.0, TP, h, regime, swell_from_deg=DIR, geometry=geo) is None
+    assert surf_point.surf_face_range_at(LAT, LNG, 1.0, TP, h, regime, swell_from_deg=DIR, geometry=geo,
+                                         water_level_m=0.0) is None
     assert calls == []
 
 
@@ -139,7 +141,62 @@ def test_with_the_convention_off_the_range_collapses_to_one_number(monkeypatch):
 def test_no_range_where_there_is_no_surf(monkeypatch, height, regime):
     monkeypatch.setenv(FLAG, "1")
     geo = surf_point.resolve_surf_geometry(LAT, LNG)
-    assert surf_point.surf_face_range_at(LAT, LNG, 1.0, TP, height, regime, swell_from_deg=DIR, geometry=geo) is None
+    assert surf_point.surf_face_range_at(LAT, LNG, 1.0, TP, height, regime, swell_from_deg=DIR, geometry=geo,
+                                         water_level_m=0.0) is None
+
+
+def test_the_water_level_is_required_by_name_with_no_default(monkeypatch):
+    """LOW must be computed at the hour's water level, the one HIGH was served at. A default of 0.0 would let a
+    caller forget it and get a LOW from a different depth; so leaving it out, or passing it by position, fails."""
+    monkeypatch.setenv(FLAG, "1")
+    geo = surf_point.resolve_surf_geometry(LAT, LNG)
+    h, regime = _served(1.0, geo)
+    with pytest.raises(TypeError, match="water_level_m"):
+        surf_point.surf_face_range_at(LAT, LNG, 1.0, TP, h, regime, swell_from_deg=DIR, geometry=geo)
+    with pytest.raises(TypeError):                              # by position: one argument too many
+        surf_point.surf_face_range_at(LAT, LNG, 1.0, TP, h, regime, DIR, geo, None, None, 0.0)
+
+
+def _references(root, name):
+    """(calls, files) for `name` under `root`: every CALL site as 'file:line', and every file that mentions the
+    name at all (a call, a bare reference, an import or an alias of it), so a renamed import can not hide a caller."""
+    import ast
+    import pathlib
+    root = pathlib.Path(root)
+    calls, files = [], set()
+    for path in sorted(root.rglob("*.py")):
+        rel = path.relative_to(root).as_posix()
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Call):
+                f = node.func
+                if (f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", None)) == name:
+                    calls.append(f"{rel}:{node.lineno}")
+            if ((isinstance(node, ast.Attribute) and node.attr == name) or (isinstance(node, ast.Name) and node.id == name)
+                    or (isinstance(node, ast.ImportFrom) and any(a.name == name for a in node.names))):
+                files.add(rel)
+    return calls, files
+
+
+def test_the_reference_counter_sees_a_second_caller_and_an_aliased_import(tmp_path):
+    """Positive control for the guard below: it must be able to fail."""
+    (tmp_path / "a.py").write_text("import conv\nwith conv.significant_statistic():\n    pass\n", encoding="utf-8")
+    (tmp_path / "b.py").write_text("from conv import significant_statistic as low\nwith low():\n    pass\n",
+                                   encoding="utf-8")
+    calls, files = _references(tmp_path, "significant_statistic")
+    assert calls == ["a.py:2"] and files == {"a.py", "b.py"}    # b.py calls it under another name: caught by `files`
+
+
+def test_the_significant_statistic_has_one_call_site_and_the_range_has_one_caller():
+    """The switch publishes a height that is NOT the served one. One entry point keeps that auditable: a second
+    caller could serve or cache a significant height as the surf height (the hazards listed in
+    `surf_face_range_at`). A deliberate second caller changes this test, and re-checks those hazards, in its PR."""
+    services = os.path.join(backend_dir, "services")
+    calls, files = _references(services, "significant_statistic")
+    assert [c.rsplit(":", 1)[0] for c in calls] == ["weather_pipeline/surf_point.py"], calls
+    assert files == {"weather_pipeline/surf_point.py"}, files          # the `def` itself is not a reference
+    calls, files = _references(services, "surf_face_range_at")
+    assert [c.rsplit(":", 1)[0] for c in calls] == ["weather_pipeline/point_surf_augment.py"], calls
+    assert files == {"weather_pipeline/point_surf_augment.py"}, files
 
 
 def test_the_statistic_switch_is_scoped_restored_on_error_and_invisible_to_other_threads():

@@ -106,9 +106,18 @@ describe('a layer whose set is not published yet falls back to .om (lever on)', 
   test('without the lever none of them engages on any model (default-OFF pending the owner): the .om path draws', () => {
     delete window.__RAW_RASTER_OWN_FRAMES__;
     for (const layer of ['fog', 'water_temp', 'temperature']) for (const model of ['GFS', 'EURO', 'ICON']) {
+      if (layer === 'water_temp' && model === 'ICON') continue;   // G4: ON by default, its unpublished miss is the test below
       expect(run(layer, model).result.current).toBe(false);
     }
     expect(getPinnedIndex).not.toHaveBeenCalled();
+  });
+
+  test('G4: ICON water temp is ON by default; while its Copernicus set is unpublished it falls back to the .om path', async () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    const h = run('water_temp', 'ICON');
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(getPinnedIndex).toHaveBeenCalled();          // it asked for its own set...
+    expect(h.result.current).toBe(false);               // ...found none published, and the .om path draws (as before)
   });
 });
 

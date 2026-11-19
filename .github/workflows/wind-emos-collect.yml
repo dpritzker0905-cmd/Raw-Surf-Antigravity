@@ -39,6 +39,7 @@ env:
 
 jobs:
   single:
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
     if: ${{ (github.event.inputs.mode || 'daily') != 'backfill' }}
     runs-on: ubuntu-latest
     timeout-minutes: 300
@@ -78,6 +79,7 @@ jobs:
           if-no-files-found: ignore
 
   backfill:
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
     if: ${{ github.event.inputs.mode == 'backfill' }}
     runs-on: ubuntu-latest
     timeout-minutes: 340
