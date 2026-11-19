@@ -32,7 +32,7 @@ import nwps_archive_bucket_io as IO  # noqa: E402
 import nwps_teacher_archive as A  # noqa: E402
 
 NOW = datetime(2026, 11, 19, 13, 23, tzinfo=timezone.utc)
-STDLIB_OK = {"argparse", "hashlib", "json", "os", "re", "sys", "time", "urllib", "datetime"}
+STDLIB_OK = {"argparse", "gzip", "hashlib", "json", "os", "re", "sys", "time", "urllib", "datetime"}
 
 
 def grib(lead, unit=1, discipline=10, category=0, number=3, payload=b"wavefield!", edition=2):
@@ -95,11 +95,24 @@ def _listing(tree):
     return lambda url: tree.get(url, [])
 
 
-def _tree(day="20261119"):
+def _tree(day="20261119", nested=False, spectra=False):
+    """A fake NOAA server: every cycle folder lists its grids, every grid folder lists its files."""
     wr = "%s/wr.%s/" % (A.BASE, day)
     er = "%s/er.%s/" % (A.BASE, day)
-    return {wr: ["lox/", "mtr/", "readme.txt"], wr + "lox/": ["00/", "06/", "tmp/"], wr + "mtr/": ["00/"],
-            er: ["mhx/"], er + "mhx/": ["00/"]}
+    t = {wr: ["lox/", "mtr/", "readme.txt"], wr + "lox/": ["00/", "06/", "tmp/"], wr + "mtr/": ["00/"],
+         er: ["mhx/"], er + "mhx/": ["00/"]}
+    for root, wfo, cycle in ((wr, "lox", "00"), (wr, "lox", "06"), (wr, "mtr", "00"), (er, "mhx", "00")):
+        c = "%s%s/%s/" % (root, wfo, cycle)
+        t[c] = ["CG1/", "notes/"]
+        t[c + "CG1/"] = ["nwps.t%sz.cg1.%s.grib2" % (cycle, wfo), "nwps.t%sz.20m_cg1_runup.%s.txt" % (cycle, wfo)]
+    lox00 = wr + "lox/00/"
+    if nested:
+        t[lox00] = ["CG1/", "CG2/", "CG3/"]
+        t[lox00 + "CG2/"] = ["nwps.t00z.cg2.lox.grib2"]
+        t[lox00 + "CG3/"] = []                                    # the folder exists before its file does
+    if spectra:
+        t[lox00 + "CG1/"] = t[lox00 + "CG1/"] + ["nwps.t00z.spc2d_46025_cg1.lox.txt"]
+    return t
 
 
 def test_the_plan_lists_cycles_once_and_never_what_is_stored():
@@ -131,6 +144,42 @@ def _files():
     return {j[5]: blob for j in A.plan(_listing(_tree()), ["20261119"], set(), 12)}, blob
 
 
+def test_every_grid_an_office_publishes_and_every_spectrum_file_is_planned():
+    """The nested grids are the ones that resolve the coast; the spectra let the teacher be checked before breaking."""
+    tree = _tree(nested=True, spectra=True)
+    jobs = [j for j in A.plan(_listing(tree), ["20261119"], set(), 12) if (j[2], j[3]) == ("lox", "00")]
+    assert sorted((j[6], j[4].split("/")[-1]) for j in jobs) == [
+        ("cg1", "t00z.cg1.f000-012.grib2"), ("cg2", "t00z.cg2.f000-012.grib2"),
+        ("spectra", "t00z.spc2d_46025_cg1.txt.gz")]
+    assert [j[5] for j in jobs if j[6] == "cg2"] == [A.BASE + "/wr.20261119/lox/00/CG2/nwps.t00z.cg2.lox.grib2"]
+    # CG3 lists no file yet: not planned now, picked up by a later run; the run-up text is not a spectrum
+    assert not any("cg3" in j[4] or "runup" in j[5] for j in jobs)
+
+
+def test_a_spectrum_is_stored_whole_gzipped_and_gunzips_to_the_source(tmp_path):
+    import gzip
+    tree = _tree(spectra=True)
+    text = b"NWPS 2D SPECTRUM\n" + b"0.05 0.06 0.07\n" * 400
+    files = {j[5]: (text if j[6] == "spectra" else grib(0) + grib(24))
+             for j in A.plan(_listing(tree), ["20261119"], set(), 12)}
+
+    def go(where):
+        return A.run(_listing(tree), lambda u: files.get(u), str(where), ["20261119"], set(), 12, 10**9, 10**9,
+                     now=NOW, log=lambda *_: None)
+
+    s = go(tmp_path / "a")
+    d = tmp_path / "a" / "out" / "20261119" / "lox"
+    stored = (d / "t00z.spc2d_46025_cg1.txt.gz.new").read_bytes()
+    assert gzip.decompress(stored) == text and len(stored) < len(text)
+    idx = json.loads((d / "t00z.spc2d_46025_cg1.index.json.new").read_text())
+    assert idx["kind"] == "spectra" and idx["keep_hours"] is None
+    assert idx["source_sha256"] == hashlib.sha256(text).hexdigest()
+    assert s["files_by_kind"] == {"cg1": 4, "spectra": 1}
+    assert s["kept_bytes_by_kind"]["spectra"] == len(stored) and s["source_bytes_by_kind"]["spectra"] == len(text)
+    go(tmp_path / "b")                                            # the same source gives the same stored bytes
+    assert (tmp_path / "b" / "out" / "20261119" / "lox" / "t00z.spc2d_46025_cg1.txt.gz.new").read_bytes() == stored
+
+
 def test_a_run_writes_the_kept_bytes_and_an_index_that_names_its_source(tmp_path):
     files, blob = _files()
     s = _run(tmp_path, files)
@@ -145,7 +194,9 @@ def test_a_run_writes_the_kept_bytes_and_an_index_that_names_its_source(tmp_path
     assert idx["source_sha256"] == hashlib.sha256(blob).hexdigest() and idx["source_bytes"] == len(blob)
     assert idx["source"].endswith("/wr.20261119/lox/00/CG1/nwps.t00z.cg1.lox.grib2")
     assert "NOAA" in idx["attribution"] and idx["retrieved_at"] == "2026-11-19T13:23:00Z"
-    assert idx["kept"] == 2 and idx["messages"] == 3 and idx["keep_hours"] == 12
+    assert idx["kept"] == 2 and idx["messages"] == 3 and idx["keep_hours"] == 12 and idx["kind"] == "cg1"
+    assert s["files_by_kind"] == {"cg1": 4} and s["kept_bytes_by_kind"] == {"cg1": s["kept_bytes"]}
+    assert s["source_bytes_by_kind"] == {"cg1": 4 * len(blob)}
 
 
 def test_the_kept_cap_stops_the_run_and_says_what_is_left(tmp_path):
@@ -160,7 +211,7 @@ def test_the_download_cap_stops_the_run_too(tmp_path):
     assert s["saved"] == 2 and s["stopped"] == "download cap" and s["left_for_next_run"] == 2
 
 
-def test_a_cycle_whose_file_is_not_published_yet_is_counted_and_left_for_later(tmp_path):
+def test_a_file_that_was_listed_and_then_fails_is_counted_and_left_for_later(tmp_path):
     files, _ = _files()
     gone = sorted(files)[0]
     del files[gone]
@@ -244,6 +295,17 @@ def test_data_goes_up_before_its_index_and_an_index_never_goes_up_alone(monkeypa
     assert sent == [order[0]] and "index skipped" in capsys.readouterr().out
 
 
+def test_a_spectrum_index_goes_up_only_with_its_gzipped_data(monkeypatch, tmp_path):
+    d = tmp_path / "out" / "20261119" / "lox"
+    d.mkdir(parents=True)
+    (d / "t00z.spc2d_46025_cg1.txt.gz.new").write_bytes(b"gz")
+    (d / "t00z.spc2d_46025_cg1.index.json.new").write_text("{}")
+    sent = []
+    monkeypatch.setattr(IO, "put_new", lambda key, blob: sent.append(key.split("/")[-1]) or 200)
+    assert IO.main(["x", "upload", "--dir", str(tmp_path)]) == 0
+    assert sent == ["t00z.spc2d_46025_cg1.txt.gz", "t00z.spc2d_46025_cg1.index.json"]
+
+
 # ── the workflow and the clean-up ────────────────────────────────────────────────────────────────────────────
 def test_the_workflow_does_not_start_itself_and_the_key_is_in_the_storage_steps_only():
     path = os.path.join(os.path.dirname(BACKEND), ".github", "workflows", "nwps-teacher-archive.yml")
@@ -260,5 +322,8 @@ def test_no_archive_key_is_a_product_name():
     from services.weather_pipeline.product_object_gc import is_product_object
     key = A.object_key("20261119", "lox", "00", 12)
     assert key.startswith("calibration/nwps_teacher/v1/")
-    for k in (key, key.split("/")[-1], key[:-len(".grib2")] + ".index.json"):
+    spec = A.spectrum_key("20261119", "lox", "nwps.t12z.spc2d_46025_cg1.lox.txt")
+    assert spec == "calibration/nwps_teacher/v1/20261119/lox/t12z.spc2d_46025_cg1.txt.gz"
+    assert A.object_key("20261119", "lox", "00", 12, "CG2").endswith("/t00z.cg2.f000-012.grib2")
+    for k in (key, key.split("/")[-1], key[:-len(".grib2")] + ".index.json", spec, spec.split("/")[-1]):
         assert not is_product_object(k)

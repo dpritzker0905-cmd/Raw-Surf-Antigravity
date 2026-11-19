@@ -17,9 +17,14 @@ name: NWPS teacher archive (offline collection, serves nothing)
 # steps, which run the standard-library script nwps_archive_bucket_io.py as `python3 -I -S`. The collector step has no
 # credential in its environment, installs nothing, and imports only the standard library.
 #
-# BOUNDED: at most 200 MB added to the bucket and 2,500 MB pulled from NOAA per run (the collector's own caps), one
-# request at a time. Daily at 13:23 UTC, clear of the ingest (:15), pilots (:45), precompute (:45) and EMOS (10:07)
-# minutes.
+# WHAT IS KEPT: every grid an office publishes (the outer grid and the nested, finer ones), leads 0 to 12 h, whole
+# GRIB2 messages byte for byte; and the 2-D spectra at buoy points, whole, gzipped.
+#
+# BOUNDED, PROVISIONALLY: at most 200 MB added to the bucket and 2,500 MB pulled from NOAA per run (the collector's own
+# caps), one request at a time. Those two numbers are placeholders. The FIRST run is a manual dispatch of ONE office
+# with everything; its report gives bytes per grid and for the spectra, and the caps and the projected size per season
+# are set from that. If the total is too large, offices with no spots are dropped (the `offices` input), never the
+# nested grids. Daily at 13:23 UTC, clear of the ingest (:15), pilots (:45), precompute (:45) and EMOS (10:07) minutes.
 
 on:
   schedule:

@@ -61,3 +61,32 @@ keep rule is not working: the run then keeps whole files and hits the cap early,
 Not the teacher fit, not a served number, and not a claim that NOAA's nearshore model is better than our chain. The
 step 4 pre-registration will require our chain to beat BOTH NOAA's nearshore forecast as published AND our current
 chain, on buoys held out from the fit.
+
+## 2026-11-19 01:15Z Amended before merge: every grid, and the spectra
+
+**Asked for by the director** on reading #1090: "CG1 only is NOT enough for the purpose. The teacher is meant to show
+the per-spot nearshore transfer, and CG1 (500 m to 1.8 km) is too coarse at the break. The value is in the nested
+grids." Three changes, all made:
+
+1. **Every grid an office publishes is kept**, not only the outer one: the collector lists each cycle's grid folders
+   (`CG1`, `CG2`, ...) and plans the GRIB2 file of each. Same rule for each: leads 0 to 12 h, whole messages, byte
+   for byte. Only files a grid's own folder lists are planned, so a cycle still being published is picked up later.
+2. **The 2-D spectra at buoy points are kept**, whole and gzipped (a test pins that the stored object gunzips to the
+   source byte for byte, and that the same source gives the same stored bytes). They are what lets the teacher be
+   checked before breaking, against buoys NOAA owns.
+3. **The caps are placeholders until measured.** The run's report now gives, per grid and for the spectra, the bytes
+   at the source and as kept. The first run is a manual dispatch of one office with everything; the caps and the
+   projected size per season are set from that. If the total is too large, offices with no spots are dropped first,
+   never the nested grids.
+
+What the first section of this log said that is now out of date: "the outer-grid file" (it is every grid), and "those
+are NOT collected by this PR" about the spectra (they are). The rip-current and run-up text products are still not
+collected.
+
+Checks: `tests/test_nwps_teacher_archive.py` 30 passed locally (3 new: every grid and spectrum planned; a spectrum
+stored gzipped and reversible; a spectrum's index never uploaded without its data). CI lint gate clean. Chain floor
+fragment now +30. Still NOT done: any run against NOAA's real server.
+
+A mistake of mine while amending, recorded because it touched the machine and not the repo: one shell command began
+with a bare `python -`, which this machine's rules forbid. I stopped the command and killed one process whose command
+line was exactly `C:\Python314\python.exe -` (PID 42148). I believe it was that command's child; I can not prove it.

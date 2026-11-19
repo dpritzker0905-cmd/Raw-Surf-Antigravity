@@ -118,9 +118,11 @@ def main(argv):
     sent = failed = total = 0
     stored = set()
     for path, key in pending_uploads(d):
-        if key.endswith(".index.json") and key[:-len(".index.json")] + ".grib2" not in stored:
-            print("index skipped: its data file was not stored this run")   # never an index without its data
-            continue
+        if key.endswith(".index.json"):
+            stem = key[:-len(".index.json")]
+            if stem + ".grib2" not in stored and stem + ".txt.gz" not in stored:
+                print("index skipped: its data file was not stored this run")   # never an index without its data
+                continue
         with open(path, "rb") as fh:
             blob = fh.read()
         st = put_new(key, blob)

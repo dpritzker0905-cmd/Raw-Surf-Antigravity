@@ -6,10 +6,19 @@ Prediction System (NWPS) runs a nearshore wave model per coastal forecast office
 FIVE DAYS. It is the TEACHER for the per-spot nearshore transfer (step 4): we learn from it, we never serve it. A
 teacher needs a season of history, and that history exists only if someone keeps it.
 
-WHAT IT DOES. For each office and cycle still on NOAA's server and not yet archived, it downloads the outer-grid GRIB2
-file, keeps the messages whose lead time is at or under --keep-hours, and writes them BYTE FOR BYTE with a small index
-beside them. It decodes nothing: a GRIB2 message is self-delimiting, and the lead time sits at a fixed place in its
-product section, so the split is done on the bytes (no eccodes, no pygrib, no third-party package at all).
+WHAT IT DOES. For each office and cycle still on NOAA's server and not yet archived:
+  - EVERY grid the office publishes (the outer grid CG1 and the nested, finer grids CG2 and up, which are the ones
+    that resolve the coast): it downloads the GRIB2 file, keeps the messages whose lead time is at or under
+    --keep-hours, and writes them BYTE FOR BYTE;
+  - the 2-D SPECTRA at buoy points: each text file whole, gzipped (it gunzips to the source byte for byte). They are
+    what lets the teacher be checked before breaking, against buoys NOAA owns.
+Each stored object has a small index beside it. Nothing is decoded: a GRIB2 message is self-delimiting, and the lead
+time sits at a fixed place in its product section, so the split is done on the bytes (no eccodes, no pygrib, no
+third-party package at all).
+
+THE CAPS ARE PROVISIONAL (director, 2026-11-19): they are to be sized from a MEASURED first run of one office with
+everything. The run's report gives bytes per grid and for the spectra, at the source and as kept. If the total is too
+large, offices with no spots are dropped first (--offices), never the nested grids.
 
 WHAT IT IS NOT. It serves no number, calls nothing of the Raw Surf backend, and writes no manifest or product.
 
@@ -25,6 +34,7 @@ Kill: NWPS_TEACHER_ARCHIVE=0 (the script exits at once, having fetched nothing).
   python3 scripts/nwps_teacher_archive.py --cache C [--days-back 3] [--keep-hours 12] [--max-kept-mb 200]
 """
 import argparse
+import gzip
 import hashlib
 import json
 import os
@@ -122,18 +132,36 @@ def select(blob: bytes, keep_hours: float):
     return b"".join(kept), stats
 
 
-def object_key(day: str, wfo: str, cycle: str, keep_hours: float) -> str:
-    return "%s/%s/%s/t%sz.%s.f000-%03d.grib2" % (PREFIX, day, wfo, cycle, GRID.lower(), int(keep_hours))
+def object_key(day: str, wfo: str, cycle: str, keep_hours: float, grid: str = GRID) -> str:
+    return "%s/%s/%s/t%sz.%s.f000-%03d.grib2" % (PREFIX, day, wfo, cycle, grid.lower(), int(keep_hours))
 
 
-def source_url(region: str, day: str, wfo: str, cycle: str) -> str:
-    return "%s/%s.%s/%s/%s/%s/nwps.t%sz.%s.%s.grib2" % (BASE, region, day, wfo, cycle, GRID, cycle, GRID.lower(), wfo)
+def spectrum_key(day: str, wfo: str, filename: str) -> str:
+    """`nwps.t12z.spc2d_46025_cg1.lox.txt` -> `<prefix>/<day>/lox/t12z.spc2d_46025_cg1.txt.gz` (stored gzipped)."""
+    stem = filename[len("nwps."):] if filename.startswith("nwps.") else filename
+    stem = stem[:-len(".%s.txt" % wfo)] if stem.endswith(".%s.txt" % wfo) else stem[:-len(".txt")]
+    return "%s/%s/%s/%s.txt.gz" % (PREFIX, day, wfo, stem)
+
+
+def source_url(region: str, day: str, wfo: str, cycle: str, grid: str = GRID) -> str:
+    return "%s/%s.%s/%s/%s/%s/nwps.t%sz.%s.%s.grib2" % (BASE, region, day, wfo, cycle, grid, cycle, grid.lower(), wfo)
+
+
+_GRID_DIR = re.compile(r"^CG\d+/$")
+_SPECTRUM = re.compile(r"^nwps\.t\d\dz\.spc2d_.+\.txt$")
 
 
 def plan(listing, days, existing, keep_hours, wfos=None, rotate=0) -> list:
-    """Jobs still to do: (day, region, wfo, cycle, key, url), offices rotated by `rotate`. `listing(url)` returns the
-    entry names of a folder ([] when it is absent). Never plans a key that is already stored. PURE given `listing`."""
+    """Jobs still to do: (day, region, wfo, cycle, key, url, kind), offices rotated by `rotate`. `kind` is the grid
+    (`cg1`, `cg2`, ...) for a GRIB2 file, or `spectra` for a 2-D spectrum at a buoy point. EVERY grid an office
+    publishes is planned (the nested grids are the ones that resolve the coast), and every spectrum file. Only files
+    that the grid's own folder lists are planned, so a cycle still being published is picked up by a later run.
+    `listing(url)` returns the entry names of a folder ([] when it is absent). Never plans a stored key. PURE."""
     jobs = []
+
+    def stored(key):
+        return key in existing or key[len(PREFIX) + 1:] in existing
+
     for day in days:
         for region in REGIONS:
             root = "%s/%s.%s/" % (BASE, region, day)
@@ -145,15 +173,27 @@ def plan(listing, days, existing, keep_hours, wfos=None, rotate=0) -> list:
                     cycle = c.rstrip("/")
                     if not c.endswith("/") or not (len(cycle) == 2 and cycle.isdigit()):
                         continue
-                    key = object_key(day, wfo, cycle, keep_hours)
-                    if key in existing or key[len(PREFIX) + 1:] in existing:
-                        continue
-                    jobs.append((day, region, wfo, cycle, key, source_url(region, day, wfo, cycle)))
+                    for g in listing(root + entry + c):
+                        if not _GRID_DIR.match(g):
+                            continue
+                        grid = g.rstrip("/")
+                        folder = root + entry + c + g
+                        names = listing(folder)
+                        grib = "nwps.t%sz.%s.%s.grib2" % (cycle, grid.lower(), wfo)
+                        if grib in names:
+                            key = object_key(day, wfo, cycle, keep_hours, grid)
+                            if not stored(key):
+                                jobs.append((day, region, wfo, cycle, key, folder + grib, grid.lower()))
+                        for name in names:
+                            if _SPECTRUM.match(name):
+                                key = spectrum_key(day, wfo, name)
+                                if not stored(key):
+                                    jobs.append((day, region, wfo, cycle, key, folder + name, "spectra"))
     offices = sorted({j[2] for j in jobs})
     if offices and rotate:
         shift = rotate % len(offices)
         rank = {w: i for i, w in enumerate(offices[shift:] + offices[:shift])}
-        jobs.sort(key=lambda j: (rank[j[2]], j[0], j[3]))
+        jobs.sort(key=lambda j: (rank[j[2]], j[0], j[3], j[6], j[4]))
     return jobs
 
 
@@ -163,41 +203,57 @@ def run(listing, fetch, cache, days, existing, keep_hours, max_kept, max_downloa
     now = now or datetime.now(timezone.utc)
     jobs = plan(listing, days, existing, keep_hours, wfos, rotate)
     summary = {"planned": len(jobs), "saved": 0, "kept_bytes": 0, "downloaded_bytes": 0, "skipped_absent": 0,
-               "skipped_empty": 0, "left_for_next_run": 0, "stopped": None, "kept_bytes_by_day": {}}
-    for i, (day, region, wfo, cycle, key, url) in enumerate(jobs):
+               "skipped_empty": 0, "left_for_next_run": 0, "stopped": None, "kept_bytes_by_day": {},
+               "kept_bytes_by_kind": {}, "source_bytes_by_kind": {}, "files_by_kind": {}}
+    for i, (day, region, wfo, cycle, key, url, kind) in enumerate(jobs):
         if summary["kept_bytes"] >= max_kept or summary["downloaded_bytes"] >= max_download:
             summary["stopped"] = "kept cap" if summary["kept_bytes"] >= max_kept else "download cap"
             summary["left_for_next_run"] = len(jobs) - i
             break
         blob = fetch(url)
         if blob is None:
-            summary["skipped_absent"] += 1               # the cycle folder exists before its file does
+            summary["skipped_absent"] += 1               # listed a moment ago, gone or failed now
             continue
         summary["downloaded_bytes"] += len(blob)
-        kept, stats = select(blob, keep_hours)
-        if not kept:
+        if kind == "spectra":
+            # The whole text file, gzipped (lossless; mtime 0 so the same source gives the same bytes).
+            kept = gzip.compress(blob, compresslevel=9, mtime=0)
+            stats = {"stored_as": "gzip of the unaltered source text"}
+            note = "the stored object gunzips to the source byte for byte"
+        else:
+            kept, stats = select(blob, keep_hours)
+            note = "each kept GRIB2 message is byte-identical to the source; only whole messages are dropped"
+        if not kept or (kind != "spectra" and not stats["kept"]):
             summary["skipped_empty"] += 1
-            log("%s %s t%sz: nothing kept of %d bytes (%d messages)" % (day, wfo, cycle, len(blob), stats["messages"]))
+            log("%s %s t%sz %s: nothing kept of %d bytes" % (day, wfo, cycle, kind, len(blob)))
             continue
         rel = key[len(PREFIX) + 1:]
         path = os.path.join(cache, "out", *rel.split("/"))
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path + ".new", "wb") as fh:
             fh.write(kept)
-        index = {"key": key, "source": url, "region": region, "office": wfo, "day": day, "cycle": cycle, "grid": GRID,
-                 "keep_hours": keep_hours, "source_bytes": len(blob), "source_sha256": hashlib.sha256(blob).hexdigest(),
-                 "kept_bytes": len(kept), "kept_sha256": hashlib.sha256(kept).hexdigest(),
-                 "retrieved_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "attribution": ATTRIBUTION,
-                 "unaltered": "each kept GRIB2 message is byte-identical to the source; only whole messages are dropped",
-                 **stats}
-        with open(path[:-len(".grib2")] + ".index.json.new", "w", encoding="utf-8") as fh:
+        index = {"key": key, "source": url, "region": region, "office": wfo, "day": day, "cycle": cycle, "kind": kind,
+                 "keep_hours": (None if kind == "spectra" else keep_hours), "source_bytes": len(blob),
+                 "source_sha256": hashlib.sha256(blob).hexdigest(), "kept_bytes": len(kept),
+                 "kept_sha256": hashlib.sha256(kept).hexdigest(), "retrieved_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                 "attribution": ATTRIBUTION, "unaltered": note, **stats}
+        with open(index_path(path) + ".new", "w", encoding="utf-8") as fh:
             json.dump(index, fh, sort_keys=True)
         summary["saved"] += 1
         summary["kept_bytes"] += len(kept)
         summary["kept_bytes_by_day"][day] = summary["kept_bytes_by_day"].get(day, 0) + len(kept)
-        log("%s %s t%sz: kept %d of %d messages, %.1f of %.1f MB" % (
-            day, wfo, cycle, stats["kept"], stats["messages"], len(kept) / 1e6, len(blob) / 1e6))
+        for field, size in (("kept_bytes_by_kind", len(kept)), ("source_bytes_by_kind", len(blob)), ("files_by_kind", 1)):
+            summary[field][kind] = summary[field].get(kind, 0) + size
+        log("%s %s t%sz %s: %.2f MB kept of %.2f MB" % (day, wfo, cycle, kind, len(kept) / 1e6, len(blob) / 1e6))
     return summary
+
+
+def index_path(data_path: str) -> str:
+    """The index beside a stored object: `<name>.grib2` or `<name>.txt.gz` -> `<name>.index.json`."""
+    for ext in (".grib2", ".txt.gz"):
+        if data_path.endswith(ext):
+            return data_path[:-len(ext)] + ".index.json"
+    return data_path + ".index.json"
 
 
 def _http(url: str, pause: float, limit=None):
@@ -251,6 +307,9 @@ def main(argv=None) -> int:
               s["skipped_empty"], s["left_for_next_run"], (" (stopped: %s)" % s["stopped"]) if s["stopped"] else ""))
     for day in sorted(s["kept_bytes_by_day"]):
         print("  kept for %s: %.1f MB" % (day, s["kept_bytes_by_day"][day] / 1e6))
+    for kind in sorted(s["kept_bytes_by_kind"]):          # the measurement the caps are to be sized from
+        print("  %s: %d files, %.2f MB kept of %.2f MB at the source" % (
+            kind, s["files_by_kind"][kind], s["kept_bytes_by_kind"][kind] / 1e6, s["source_bytes_by_kind"][kind] / 1e6))
     with open(os.path.join(a.cache, "collect_report_nwps.json"), "w", encoding="utf-8") as fh:
         json.dump(s, fh, sort_keys=True)
     return 0
