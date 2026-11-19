@@ -212,3 +212,27 @@ The real `publish_bundle` ran into a LocalSink on f000-f012 with 4 workers, on t
   at the hourly steps, so the client switch should be visually null, except 3-hour rain (mass within 0.25 %). No SCOREBOARD
   row here; frame-carry's switch adds one if it moves a number.
 - Tests: `tests/test_frame_set_raster_sflux.py`, 13 tests (estate lane, floor fragment +13).
+
+## Next work (recorded at the director's wind-down, 2026-11-19 ~01:40Z; nothing below is started)
+
+1. **ICON cloud at 0.125°, Q2 (2 % steps).** The director said GO: dark until a client key exists, after this PR.
+   - Re-land #958's code with the plane rounded to 2 % before encoding. The revert to undo is `f26087f9c` (#1014), followed by
+     the Q2 change.
+   - Re-run the Q1/Q2/Q5 arms table on ONE current run, LOCALLY: no Actions dispatch while the queue is above about 25, and
+     nothing against the live backend.
+   - Cite the re-measured bytes against the 4.5x gate. The 2026-11-16 Q2 measurement was 1.52-1.55 MB a frame, 3.81-4.05x,
+     about 171 MB a run.
+   - Send the head to the advisor and the director; never self-merge.
+   - pygrib has no Windows wheel. The local gate uses eccodes + omfiles in a scratch venv, the way `frame_set_raster_sflux.decode`
+     falls back to eccodes.
+2. **Past-horizon "ICON prediction" / "EURO prediction"** (David, about 01:20-01:30Z, via the director): "Yes, go with the
+   Raw Surf prediction" and "Yes, label it ICON prediction and EURO prediction".
+   - Past each model's horizon, every raster layer shows a skill-weighted, lead-dependent blend of ensemble means (ECMWF ENS,
+     GEFS, AIFS-ENS), with smooth per-variable handovers. The label names the model; the infobox names the ensemble sources.
+   - The frame-carry lane (`local_3b9c4185`) leads ONE shared module. This lane's part is the PUBLISHER side: which
+     ensemble-mean sets (cloud, temperature, rain) to publish, at what resolution and cost. Also agree the interface (set
+     keys, grids, hours, metadata naming) with frame-carry.
+   - The ICON cloud Q2 set needs the same hand-over past h180.
+3. **#1095 follow-ups:**
+   - Confirm the step's minutes and upload time at the first publish on Actions (the estimate is +12-17 min).
+   - The advisor's verdict, including whether the two plant amendments stand.
