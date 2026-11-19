@@ -93,3 +93,9 @@ coastal views behave like reality. LESSONS gets the rule: check the lab fixture 
   example a world-grid fetch that fails or is withheld), with `scn_all_land_idle.js` counting the "engine empty" console lines; the
   reverted code at `ae0fe0779` is the starting point.
 - The scenario's `kill` arm now sets an inert flag (the code that read it is gone); both arms measure the same build.
+
+## 2026-11-19 15:58Z: correction: the registration header's time
+
+- The header `23:58Z: registration (committed alone, before any code)` (line 3) was written on **2026-11-18** (commit `ebd1b2e71`, 2026-11-18T23:59:13Z),
+  but this file is dated 2026-11-19, so the time reads as 2026-11-19 23:58Z, a day after it was written. Read it as **2026-11-18 23:58Z**.
+  The audit (L-P10) caught it on PR #1099. Ledger: `correction` line in this branch's fragment.
