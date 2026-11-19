@@ -430,6 +430,15 @@ refuses (403) unless the server's environment has `SURF_TRUTH_EXPORTS_ENABLED` e
 The retention job's fresh export (#1034) is left as is: it only REPLACES exports, and none can exist unless the switch
 allowed the first one. Tests +5 (unset, empty, 0, true, yes all refused with nothing written or logged); removing the
 gate fails 5. Guards fragment +5.
+## 2026-11-18 15:53Z Admin Surf Forecast: the advisor's limits on #1029-#1032
+
+(1) No test pinned the auth of the new admin routes: `tests/test_admin_surf_forecast_auth.py` ENUMERATES every `/admin/surf-forecast` route from the three routers (8 today, GET/POST/DELETE) and requires 401 without a token and 403 for
+a signed-in non-admin, so a later route is covered without editing the test. (2) #1031 scanned every frame x spot ON the
+event loop per click: `frames_for` now runs in a thread. (3) #1032: each open panel polled two private-bucket reads every
+60 s: `cached_guardrail_view` reuses the view for 60 s under one lock (the guardrail runs every 6 h). (4) #1030's
+`thresholds` on the PUBLIC `/api/health/data` are LEFT: they are configuration limits (hours), no secret and already
+implied by the public verdicts; moving them behind auth would need a second endpoint for one admin card. Tests +10
+(estate fragment +10).
 ## 2026-11-18 16:40Z #1043 advisor HOLD fixed: a guard that every key-reading job carries the environment
 
 The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull_request` trigger and so failed `test_consensus_flip_sweep` (fixed at bbd7c8fac: the guard now pins the NEW rule, no PR trigger, dispatchable, environment declared, script run); (2) nothing asserted that every job naming the key declares the environment, so the next workflow
