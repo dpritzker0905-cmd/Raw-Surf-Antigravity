@@ -705,3 +705,23 @@ this run's truth. Raised by this lane on 2026-11-19, so that 3b's gatekeeper sta
 - It never downloaded the truth snapshot.
 
 **Unchanged:** conditions 1-6 and the final stop rule.
+
+## 2026-11-19 VERDICT of run 44376282465: FAIL (#939 stays out)
+
+**The run:** completed 2026-11-19 05:10Z, and the GitHub workflow concluded "success". That means only that every job
+ran; it is not the verdict.
+
+**The verdict:** the designated first reader, the Haiku 5.5 researcher (local_80e6193e), sent it to this lane under
+the advisor's conditions (1)-(4). Its message, quoted verbatim:
+
+> "Verdict: FAIL. Counts: test runs 62 (floor 60, so not VOID); test days 31 from the October TEST window, which is the
+> registration's own day count (the public score JSON has no days field, so this is derived, not printed); void
+> reasons: none (dropped-run VOID not triggered). Read from the public score job log only; no report artifact opened;
+> no other numbers recorded or sent. I took no part in step 3b."
+
+**What follows, under the registration:**
+- The ECMWF ENS hand-off (#939) does NOT ship, and the final stop rule holds: no re-run, no fourth collection, and no
+  re-scoring of these runs under a changed rule.
+- Long-range wind still needs a different fix. Looping stays unacceptable (the owner's rule).
+- Condition (2) still binds. No per-station, per-region or per-lead number from this run is read or recorded until
+  step 3b's TEST is scored. This lane has still opened no report or score log.
