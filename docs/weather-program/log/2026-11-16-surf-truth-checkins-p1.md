@@ -254,6 +254,30 @@ after a deletion: legal call; (2) exports already in private storage (pseudonymo
 (3) Profile has no deleted flag and the auth account is not removed, so `is_deleted` never existed: a design
 question for the account owners, not this lane; (4) the report photo stays in the `conditions` bucket with its
 report (owned by those features).
+## 2026-11-18 02:08Z T1 P3 (part 2): opt-in consent, snapshotted on each report, enforced by the export (header from the UTC clock)
+
+David chose the consent flag next. Built so it needs no legal decision to be safe, and so counsel can change the
+words without a release:
+- `surf_truth_consent_events` (new, private, append-only by trigger like the anchor log): every grant and withdrawal
+  with the wording version and screen. The newest event is the choice in force; NO event means NO (opt-in). Kept
+  after an account deletion as the proof of consent (like ToS acknowledgements); included in the GDPR export.
+- `GET/PUT /api/surf-observations/consent` (strict JWT; the body takes only `granted` and a known `source`; the
+  server sets the version). The wording is served from `services/surf_truth_consent.py`: an ENGINEERING DRAFT
+  (`draft-2026-11-18`), not reviewed by counsel.
+- Each observation records the consent in force when received (`consent_training`, `consent_version`; NULL on
+  older rows = no).
+- The export keeps a row only if its observer had opted in when it was made AND is still opted in at export, so a
+  withdrawal stops every later export from using any of their rows. The row schema is unchanged (the fit's
+  contract); the manifest states the rule and how many rows it excluded.
+- UI: one native checkbox at the foot of the blind-height form on all three report screens, wording from the
+  server, state in words ("On"/"Off"), hidden if the server cannot answer so a report is never blocked.
+
+Tests: backend +7 (opt-in default and append-only history; the body cannot set version, owner or source; the
+snapshot; the export's then-and-now rule), Jest +4. Mutation: an export without the consent filter fails the
+then-and-now test. 110 surf-truth backend tests and 89 Jest tests in the touched trees pass.
+
+For David: the wording (`CONSENT_TITLE`/`CONSENT_TEXT`) and whether internal forecast VALIDATION, as opposed to
+training, needs this consent at all. Today the export treats both as needing it (the safe default).
 ## 2026-11-18 03:03Z Admin: the Surf Forecast panel tells the truth about flags (header from the UTC clock)
 
 David asked for a comprehensive, working admin for the surf sim's logic. A read-only survey of the admin found the
@@ -279,6 +303,34 @@ Jest +5 (the panel had none). 131 related backend and 438 admin Jest tests pass;
 NOT checked in a browser: the admin needs an admin login.
 Next, from the same survey (each its own PR): data and ingest health (/api/health/data), a per-spot geometry and
 rating inspector, guardrail run history and the owner's re-enable, the surf-truth export button and anchor history.
+## 2026-11-18 03:15Z Admin: data and ingest health in the Surf Forecast panel (header from the UTC clock)
+
+David chose the health view next. Admin > Surf Forecast now opens with "Data and ingest health", which reads
+`/api/health/data`: the report the external uptime monitor polls, computed from the SERVED manifest on read (no
+database, no forecast fetch), so it is cheap enough for the panel's 60-second refresh. It shows the overall verdict
+in words, the freshest run's age, the manifest's writer, every alert, and per lane (GFS/ICON/EURO x
+marine/wind/weather, plus the precomputed ratings): verdict, newest-run age, lag behind the freshest lane, reach
+ahead, the model cycle's age and status, and source. A critical report arrives as HTTP 503; its body is still the
+report and is shown as an alert, not as a load failure. The report now carries the limits it judged against
+(`thresholds`: stale and critical hours, minimum reach per model, the EURO 06/18Z reach, the ratings limits), so
+the view states what "stale" means without re-deriving environment overrides.
+Tests: backend +1 (thresholds, including an override), Jest +4 (words not colours, the 503 path, unreachable, the
+limits). 150 data-health backend and 100 admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin
+login). Stacked on #1029.
+## 2026-11-18 03:33Z Admin: a read-only spot inspector in the Surf Forecast panel (header from the UTC clock)
+
+David chose the spot inspector next. Admin > Surf Forecast > Spot inspector: search a spot, then see the catalogue
+row, the geometry the chain uses there (`resolve_surf_geometry`: shore normal and its source and match distance,
+the MOP swell normal, break depth, shelf, coastal/nearshore, swell magnet), its local size reference, and every
+PRECOMPUTED `rate_one_spot` frame for it (score, level, breaking height in m and ft, period, swell direction, the
+limiting factor and its multiplier, why, confidence, geometry readiness), filterable by model.
+It is not a second forecast path (ONE FORECAST COMPOSITION) and cannot load the 1-CPU box: the new routes
+(`routes/admin/surf_spot_inspector.py`: GET /admin/surf-forecast/spots?q= and /spots/{id}) read only the offline
+geometry asset and the cached L2 objects, off the event loop, and never call estimate_surf_at or fetch weather. A
+failed read is reported in the response and shown as an alert.
+Tests: backend +4 (frame selection and order without replay inputs; geometry never raises; the route reads cached
+objects only, 404, search; a failed blob read is reported), Jest +3. Route identity guard still passes (18). 103
+admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1030.
 ## 2026-11-18 04:42Z T1 P3 (part 5): go-live photos lose their GPS before they reach the public bucket (header from the UTC clock)
 
 The Surf truth Consent tab had recorded it since anchors C: go-live condition photos go to the PUBLIC `conditions`
@@ -294,6 +346,15 @@ surf-report photo path, which is a different upload route. Already-stored photos
 backfill is decided.
 Tests +6 (each format: GPS gone, pixels identical, orientation kept; the route: public copy clean, private record
 kept, malformed refused); mutation: keeping APP1 fails. 99 related tests (incl. the upload identity suite) pass.
+## 2026-11-18 13:53Z T1 P3 (part 2, advisor HOLD fixed): the consent text says only what is true
+
+The advisor held #1024 at 6ffd34254: the text said "(with the spot and time, but never your name)" and "from then on,
+none of your reports are used, including earlier ones". The export is PSEUDONYMOUS, not anonymous (observer and device
+codes, distances, EXIF age, app version), and nothing purges exports already made when someone withdraws. New text
+(CONSENT_VERSION `draft-2026-11-18b`) names what each used report carries, says the code can be traced back to the
+account, says later checks leave out all the person's reports, and says copies made before a withdrawal are not
+changed. A stronger promise belongs only in the change that builds the purge, under a new version. Test +1 pins each
+phrase to the export's FIELDS (guards fragment +8). Still a DRAFT for counsel.
 ## 2026-11-18 14:50Z Supabase service-role key moves into the `supabase-service` GitHub Environment (dev/main only)
 
 The key was a repository secret, readable by any workflow run from any branch in this public repo, a pull request
