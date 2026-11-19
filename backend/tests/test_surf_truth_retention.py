@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from models import SurfTruthAdminAction, SurfTruthConsentEvent, TosContent
+from models import CompanyDetailsChange, SurfTruthAdminAction, SurfTruthConsentEvent, TosContent
 from services import surf_truth_export as ste
 from services import surf_truth_retention as ret
 
@@ -96,13 +96,18 @@ class FakeStore:
 
 @pytest.fixture
 def maker():
+    """One in-memory database per test, disposed at teardown (no connection outlives the test)."""
+    engine = None
+
     async def build():
+        nonlocal engine
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         async with engine.begin() as conn:
-            for model in (SurfTruthAdminAction, SurfTruthConsentEvent, TosContent):
+            for model in (SurfTruthAdminAction, SurfTruthConsentEvent, TosContent, CompanyDetailsChange):
                 await conn.run_sync(lambda c, t=model.__table__: t.create(c))
         return async_sessionmaker(engine, expire_on_commit=False)
-    return asyncio.run(build())
+    yield asyncio.run(build())
+    asyncio.run(engine.dispose())
 
 
 def test_enforce_writes_a_fresh_export_after_a_deletion_deletes_the_rest_and_logs(maker, monkeypatch):
@@ -208,8 +213,9 @@ def test_a_manifest_that_is_not_json_is_an_orphan(maker, monkeypatch):
     asyncio.run(go())
 
 
-@pytest.mark.parametrize("event", ["withdrawal", "new_version"])
+@pytest.mark.parametrize("event", ["withdrawal", "new_version", "company_details"])
 def test_a_withdrawal_or_a_new_consent_version_replaces_older_exports(maker, monkeypatch, event):
+    # company_details: a new legal name fills the consent's {company}, so it is a new consent version too
     monkeypatch.setenv(ste.KEY_ENV, "k" * 40)
     store, _o, _m = _store((("aaaaaa", 1), ("bbbbbb", 30)), ste.key_fingerprint(b"k" * 40))
     _fakes(monkeypatch)
@@ -219,13 +225,37 @@ def test_a_withdrawal_or_a_new_consent_version_replaces_older_exports(maker, mon
             if event == "withdrawal":
                 db.add(SurfTruthConsentEvent(profile_id="ana", granted=False, version="v", source="settings",
                                              at=NOW - timedelta(minutes=30)))
+            elif event == "company_details":
+                db.add(_company_change(changed=True))
             else:
-                db.add(TosContent(doc_type="forecast_consent", version="2.0", is_active=True,
+                db.add(TosContent(doc_type="forecast_consent",
+                                  version="2.0", is_active=True,
                                   sections=[{"title": "t", "body": "b"}], created_at=NOW - timedelta(minutes=30),
                                   updated_at=NOW - timedelta(minutes=30)))
             await db.commit()
             summary = await ret.enforce(db, store=store, now=NOW)
             assert summary["fresh_export"] == "ffffff" and summary["deleted_runs"] == 2 and not summary["overdue"]
+    asyncio.run(go())
+
+
+def _company_change(changed, kind="change"):
+    return CompanyDetailsChange(doc_version="2.0", kind=kind, revision="r", legal_name_after="X Inc.",
+                                privacy_url_after="/privacy", consent_version_after="v+1", consent_text_after="t",
+                                consent_version_changed=changed, actor_id="admin", at=NOW - timedelta(minutes=30))
+
+
+@pytest.mark.parametrize("kind", ["correction", "change"])
+def test_a_company_details_publish_that_keeps_the_consent_version_is_not_a_revocation(maker, kind):
+    """Owner, 2026-11-18: a correction (or a publish that leaves the consent's words alone) keeps every consent, so
+    it must not replace the exports."""
+    async def go():
+        async with maker() as db:
+            db.add(_company_change(changed=False, kind=kind))
+            await db.commit()
+            assert await ret.last_revocation_at(db) is None
+            db.add(_company_change(changed=True))
+            await db.commit()
+            assert await ret.last_revocation_at(db) == NOW - timedelta(minutes=30)
     asyncio.run(go())
 
 

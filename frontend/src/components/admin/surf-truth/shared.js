@@ -2,7 +2,7 @@
  * Shared bits for the admin "Surf truth" area: a fetch hook and the one anchor-status dialog.
  *
  * The status dialog is the ONLY way this area changes anything about a person: it sets an anchor status with a
- * required reason through POST /admin/surf-truth/anchors/{id}/status, which writes the anchor's event log and the
+ * required reason code through POST /admin/surf-truth/anchors/{id}/status, which writes the anchor's event log and the
  * admin action log. Nothing here edits a reported number (brief item E).
  */
 import React, { useCallback, useEffect, useState } from 'react';
@@ -11,7 +11,43 @@ import apiClient from '../../../lib/apiClient';
 import logger from '../../../utils/logger';
 import { Button } from '../../ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog';
-import { Textarea } from '../../ui/textarea';
+
+// REASON CODES, never free text: the anchor and admin logs are append-only and outlive an account erasure, so they
+// must not hold an admin's words about a named person (T1 log retention design, 2026-11-18). These mirror
+// backend/services/surf_truth_admin.py ANCHOR_REASONS / AUDIT_FAIL_REASONS (parity: test_surf_truth_log_minimal.py).
+export const ANCHOR_REASONS = {
+  reliable_record: 'Consistent, well-documented reports',
+  new_anchor_watch: 'New anchor: watch period first',
+  probation_passed: 'Probation passed',
+  quality_concern: 'Concern about report quality',
+  inactive: 'No recent reports',
+  observer_request: 'The observer asked',
+  account_issue: 'Account or conduct issue',
+  admin_correction: 'Corrects an earlier admin change',
+};
+export const AUDIT_FAIL_REASONS = {
+  photo_wrong_spot: 'Photo is not of this spot',
+  photo_not_current: 'Photo is not current',
+  photo_no_surf: 'Photo does not show the surf',
+  photo_reused: 'Photo copied or reused',
+  place_time_implausible: 'Place or time implausible',
+  other_policy: 'Other policy breach',
+};
+export const reasonLabel = (code) => ANCHOR_REASONS[code] || AUDIT_FAIL_REASONS[code] || code;
+
+/** A labelled native select of reason codes (keyboard and screen-reader support come with the element). */
+export function ReasonSelect({ id, reasons, value, onChange }) {
+  return (
+    <div className="space-y-1">
+      <label htmlFor={id} className="text-sm text-muted-foreground">Reason (required)</label>
+      <select id={id} aria-label="Reason" value={value} onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md border border-border bg-card p-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+        <option value="">Choose a reason…</option>
+        {Object.entries(reasons).map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+      </select>
+    </div>
+  );
+}
 
 export const ANCHOR_STATUSES = [
   { value: 'active', label: 'Active', help: 'Sets the scale everyone else is calibrated against.' },
@@ -80,7 +116,7 @@ export function AnchorStatusDialog({ target, onClose, onDone }) {
     setSaving(true);
     try {
       await apiClient.post(`/admin/surf-truth/anchors/${encodeURIComponent(target.profileId)}/status`,
-        { status, reason: reason.trim() });
+        { status, reason });
       toast.success(`${target.name || 'Observer'} is now ${status}.`);
       onDone();
     } catch (err) {
@@ -113,14 +149,10 @@ export function AnchorStatusDialog({ target, onClose, onDone }) {
             </label>
           ))}
         </fieldset>
-        <div className="space-y-1">
-          <label htmlFor="anchor-status-reason" className="text-sm text-muted-foreground">Reason (required)</label>
-          <Textarea id="anchor-status-reason" aria-label="Reason" value={reason} maxLength={500}
-            onChange={(e) => setReason(e.target.value)} className="bg-card text-foreground border-border" />
-        </div>
+        <ReasonSelect id="anchor-status-reason" reasons={ANCHOR_REASONS} value={reason} onChange={setReason} />
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={submit} disabled={saving || !reason.trim()}>Save status</Button>
+          <Button onClick={submit} disabled={saving || !reason}>Save status</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

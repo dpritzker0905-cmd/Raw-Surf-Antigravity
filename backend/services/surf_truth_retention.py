@@ -191,17 +191,24 @@ class StorageStore:
 
 
 async def last_revocation_at(db) -> Optional[datetime]:
-    """The newest of: an account deletion, a withdrawn consent, the moment the active consent wording was published.
-    Any of them can take reports out of what may be exported, so exports cut before it are replaced."""
+    """The newest of: an account deletion, a withdrawn consent, the moment the active consent wording was published,
+    and the newest Company details publish that CHANGED the consent version (a new company or privacy notice; the
+    company_details_changes record says so). A correction, or a publish that leaves the consent's words alone, is NOT
+    a revocation (owner, 2026-11-18). Any of these can take reports out of what may be exported, so exports cut
+    before it are replaced."""
+    from models import CompanyDetailsChange
+    from services.surf_truth_consent import DOC_TYPE
     erasure = (await db.execute(select(func.max(SurfTruthAdminAction.at))
                                 .where(SurfTruthAdminAction.action == "account_erasure"))).scalar_one_or_none()
     withdrawn = (await db.execute(select(func.max(SurfTruthConsentEvent.at))
                                   .where(SurfTruthConsentEvent.granted.is_(False)))).scalar_one_or_none()
-    from services.surf_truth_consent import DOC_TYPE
-    doc = (await db.execute(select(TosContent).where(TosContent.doc_type == DOC_TYPE, TosContent.is_active.is_(True))
-                            .limit(1))).scalar_one_or_none()
-    published = (doc.updated_at or doc.created_at) if doc is not None else None
-    times = [_aware(t) for t in (erasure, withdrawn, published) if t]
+    renamed = (await db.execute(select(func.max(CompanyDetailsChange.at))
+                                .where(CompanyDetailsChange.consent_version_changed.is_(True)))).scalar_one_or_none()
+    times = [_aware(t) for t in (erasure, withdrawn, renamed) if t]
+    doc = (await db.execute(select(TosContent).where(TosContent.doc_type == DOC_TYPE,
+                                                     TosContent.is_active.is_(True)).limit(1))).scalar_one_or_none()
+    if doc is not None and (doc.updated_at or doc.created_at):
+        times.append(_aware(doc.updated_at or doc.created_at))
     return max(times) if times else None
 
 

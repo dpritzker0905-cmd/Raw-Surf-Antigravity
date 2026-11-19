@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,7 +27,8 @@ RECENT = timedelta(days=30)
 class AnchorStatusChange(BaseModel):
     model_config = ConfigDict(extra="forbid")
     status: Literal["active", "probation", "suspended"]
-    reason: str = Field(..., min_length=1, max_length=surf_truth_anchors.MAX_REASON)
+    # A REASON CODE, never free text: the event and action logs are append-only (T1 log retention design 2026-11-18)
+    reason: Literal[tuple(surf_truth_admin.ANCHOR_REASONS)]
 
 
 @router.get("/admin/surf-truth/anchors")

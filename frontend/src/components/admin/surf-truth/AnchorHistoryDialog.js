@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import apiClient from '../../../lib/apiClient';
 import { Button } from '../../ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog';
-import { formatWhen } from './shared';
+import { formatWhen, reasonLabel } from './shared';
 
 /**
  * One anchor's status history, from the append-only event log (GET /admin/surf-truth/anchors/{id}/events): every
- * appointment and change, who made it and the reason they wrote. Read-only.
+ * appointment and change, who made it and why. Reasons are codes (shared.js ANCHOR_REASONS) shown by their label;
+ * an older free-text reason, written before codes, is shown as it was. Read-only.
  */
 export default function AnchorHistoryDialog({ target, onClose }) {
   const [state, setState] = useState({ loading: true, events: [], error: '' });
@@ -44,7 +45,7 @@ export default function AnchorHistoryDialog({ target, onClose }) {
                   {e.from_status ? `${e.from_status} → ${e.to_status}` : `appointed as ${e.to_status}`}
                 </span>
                 <span className="text-muted-foreground"> · {formatWhen(e.at)} · by {e.actor_name || e.actor_id}</span>
-                {e.reason && <span className="block text-xs text-foreground">“{e.reason}”</span>}
+                {e.reason && <span className="block text-xs text-foreground">Reason: {reasonLabel(e.reason)}</span>}
               </li>
             ))}
           </ol>
