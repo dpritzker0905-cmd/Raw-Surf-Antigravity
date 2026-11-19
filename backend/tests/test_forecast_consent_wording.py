@@ -281,6 +281,7 @@ def test_renaming_the_company_is_a_new_consent_version_that_asks_everyone_again(
 @pytest.mark.parametrize("values,why", [
     ({"legal_name": ""}, "required"), ({"privacy_url": "javascript:alert(1)"}, "privacy notice link"),
     ({"privacy_contact": "not an email"}, "email"),
+    ({"privacy_url": "//evil"}, "privacy notice link"), ({"privacy_url": "///x"}, "privacy notice link"),
 ])
 def test_company_details_are_validated(maker, values, why):
     async def go():
@@ -292,6 +293,18 @@ def test_company_details_are_validated(maker, values, why):
                 await save_tos_content(TosContentRequest(doc_type="company_details", version="1.0",
                                                          sections=[{"title": "ceo", "body": "x"}]), admin=ADMIN, db=db)
     asyncio.run(go())
+
+
+@pytest.mark.parametrize("url,ok", [
+    ("//evil", False), ("///x", False), ("//", False), ("/privacy", True), ("/", True), ("/a/b-c_d", True),
+    ("https://example.com/privacy", True), ("http://example.com", False),
+])
+def test_privacy_link_is_one_app_path_or_https(url, ok):
+    """A second leading slash is a protocol-relative link the browser sends to another host."""
+    from services import legal_identity as li
+    sections = [{"title": "legal_name", "body": "Raw Surf Adventures Inc."}, {"title": "privacy_url", "body": url}]
+    refusal = li.validate(sections)
+    assert (refusal is None) is ok, refusal
 
 
 def test_documents_are_served_filled_but_edited_as_templates(maker):
