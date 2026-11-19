@@ -35,7 +35,7 @@ DEFAULTS = {"legal_name": "Raw Surf Adventures Inc.", "privacy_url": "/privacy",
 DEFAULT_VERSION = "1.0"
 TOKENS = {"{company}": "legal_name", "{privacy_url}": "privacy_url", "{privacy_contact}": "privacy_contact"}
 REQUIRED = ("legal_name", "privacy_url")
-_URL = re.compile(r"^(/[A-Za-z0-9/_\-]*|https://[^\s<>\"']+)$")
+_URL = re.compile(r"^(/|/[A-Za-z0-9_\-][A-Za-z0-9/_\-]*|https://[^\s<>\"']+)$")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
