@@ -27,6 +27,11 @@ from core.security import get_user_id_from_jwt_or_query
 router = APIRouter(prefix="/admin/spots", tags=["Admin Spots"])
 
 logger = logging.getLogger(__name__)
+
+# The admin table's accuracy filter (the same five the panel has always offered, now applied in the database).
+ACCURACY_FILTERS = ("flagged", "low_accuracy", "unverified", "verified")
+VERIFIED_ACCURACY_FLAGS = ("verified", "admin_verified", "community_verified")
+
 # ============ PYDANTIC MODELS ============
 
 class SpotCreateRequest(BaseModel):
@@ -129,33 +134,42 @@ async def admin_list_spots(
     search: Optional[str] = None,
     country: Optional[str] = None,
     flagged_only: bool = False,
+    accuracy: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """List all spots with admin metadata"""
-    
+    """List all spots with admin metadata, one page at a time.
+
+    `total` is the count of EVERY spot matching the filters, not of the page, so the admin table can show
+    "51-100 of 1,702" and page through all of them. The filters run in the database: the table used to load up to
+    5,000 rows and filter in the browser, then show the first 50.
+    """
+    if accuracy not in (None, "", "all", *ACCURACY_FILTERS):
+        raise HTTPException(status_code=422, detail=f"accuracy must be one of: all, {', '.join(ACCURACY_FILTERS)}")
+
     query = select(SurfSpot)
-    
+
     # Filters
-    if search:
-        query = query.where(
-            or_(
-                SurfSpot.name.ilike(f"%{search}%"),
-                SurfSpot.region.ilike(f"%{search}%")
-            )
-        )
+    if search and search.strip():
+        like = f"%{search.strip()}%"
+        query = query.where(or_(SurfSpot.name.ilike(like), SurfSpot.region.ilike(like), SurfSpot.country.ilike(like)))
     if country:
         query = query.where(SurfSpot.country == country)
-    if flagged_only:
+    if flagged_only or accuracy == "flagged":
         query = query.where(SurfSpot.flagged_for_review == True)
-    
+    elif accuracy in ("low_accuracy", "unverified"):
+        query = query.where(SurfSpot.accuracy_flag == accuracy)
+    elif accuracy == "verified":
+        query = query.where(SurfSpot.accuracy_flag.in_(VERIFIED_ACCURACY_FLAGS))
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar()
-    
-    # Paginate
+
+    # Paginate. The id tiebreak keeps same-named spots in one fixed order, so a row cannot repeat on, or go
+    # missing between, two pages.
     offset = (page - 1) * limit
-    query = query.order_by(SurfSpot.name).offset(offset).limit(limit)
+    query = query.order_by(SurfSpot.name, SurfSpot.id).offset(offset).limit(limit)
     
     result = await db.execute(query)
     spots = result.scalars().all()
@@ -413,11 +427,15 @@ async def admin_delete_spot(
 async def admin_get_precision_queue(
     admin: Profile = Depends(get_current_admin),
     page: int = Query(1, ge=1),
-    limit: int = Query(20, le=100),
+    limit: int = Query(20, ge=1, le=200),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get spots flagged for review (>150m from water or unverified)"""
-    
+    """Get spots flagged for review (>150m from water or unverified), one page at a time.
+
+    `total` counts the whole queue. The id tiebreak matters here: `created_at` is empty on most rows, so ordering
+    by it alone let the database return a different order per page (a spot could repeat or never appear).
+    """
+
     # Get flagged spots or spots with low accuracy
     query = select(SurfSpot).where(
         or_(
@@ -426,7 +444,7 @@ async def admin_get_precision_queue(
             SurfSpot.accuracy_flag == 'unverified'
         ),
         SurfSpot.is_active == True
-    ).order_by(desc(SurfSpot.created_at))
+    ).order_by(desc(SurfSpot.created_at), SurfSpot.name, SurfSpot.id)
     
     # Count
     count_query = select(func.count()).select_from(query.subquery())
@@ -453,7 +471,8 @@ async def admin_get_precision_queue(
             "created_at": s.created_at.isoformat() if s.created_at else None
         } for s in spots],
         "total": total,
-        "page": page
+        "page": page,
+        "limit": limit
     }
 
 
