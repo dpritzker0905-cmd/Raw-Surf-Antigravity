@@ -9,6 +9,22 @@ export const TIDE_FOOTER = 'Modeled sea level · MSL';
 export const TIDE_SOLAR_NOTE = 'times approx. (local solar time)';
 export const TIDE_UNAVAILABLE = 'Modeled sea level unavailable for selected time';
 
+/**
+ * The tide's data credit FOLLOWS PROVENANCE (2026-11-18; owner ~23:00Z: open agency providers, every source credited
+ * where its data is shown). The point-tide payload names its `provider` and `source_url`, chosen server-side from the
+ * served series' own source (CMEMS read directly, our FES2022 harmonic tide, or, until the exit lands, Open-Meteo).
+ * Null when the payload names none (older servers): the footer then shows its plain text, as before.
+ */
+export function tideCredit(payload) {
+  const text = payload && typeof payload.provider === 'string' ? payload.provider.trim() : '';
+  if (!text) return null;
+  const url = payload && typeof payload.source_url === 'string' && /^https:\/\//.test(payload.source_url) ? payload.source_url : null;
+  // The full attribution the source's licence asks for (FES2022: AVISO licence s. 3.1) rides as the title and accessible name.
+  const detail = payload && typeof payload.credit_detail === 'string' ? payload.credit_detail.trim() : '';
+  return { text, href: url, title: detail || null,
+    label: `Tide data source: ${detail || text}${url ? ' (opens in a new tab)' : ''}` };
+}
+
 export function infoboxTideDisabled() {
   return typeof window !== 'undefined' && window.__RAW_DISABLE_INFOBOX_TIDE__ === true;
 }
