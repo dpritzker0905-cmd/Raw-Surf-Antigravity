@@ -31,6 +31,7 @@ from .surf_truth_anchors import SurfTruthAnchor, SurfTruthAnchorEvent  # noqa: F
 from .surf_truth_admin import SurfTruthAdminAction  # noqa: F401
 from .session_revocation import SessionRevocation  # noqa: F401
 from .account_deletion import AccountDeletion  # noqa: F401
+from .surf_truth_consent import SurfTruthConsentEvent  # noqa: F401
 from .mfa import UserMfa, MfaRecoveryCode, MfaChallenge  # noqa: F401
 from .passkeys import WebauthnCredential, WebauthnCeremony  # noqa: F401
 

@@ -4,6 +4,10 @@ import BlindHeightInput, {
   defaultScaleFor, emptyObservation, observationLabel, observationPayload, observationReady,
 } from './BlindHeightInput';
 
+// The consent toggle inside fetches its state; here the server never answers, so it renders nothing (its own tests
+// are in TrainingConsent.test.js).
+jest.mock('../../lib/apiClient', () => ({ __esModule: true, default: { get: jest.fn(() => new Promise(() => {})), put: jest.fn() } }));
+
 function Harness({ defaultScale = 'face', onValue }) {
   const [obs, setObs] = useState(null);
   return (
