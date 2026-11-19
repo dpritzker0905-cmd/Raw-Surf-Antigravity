@@ -15,6 +15,9 @@ import { ContentMarker as Marker } from './ContentMarker';
 import { getHeightUnit, formatHeightFromMeters } from './heightUnits';
 import { getCachedTideState, ensureTideState, formatTideLine, trendArrow } from './tideClient';
 import { MapPersonContextCard, useExplorePinContext } from './MapPersonContext';
+import {
+  UNVERIFIED_LOCATION_TEXT, UNVERIFIED_RING_STYLE, isLocationUnverified, withUnverifiedLocation,
+} from './unverifiedLocation';
 
 /**
  * ACCESSIBILITY (user mandate 2026-07-14, §0a item 1): the rating glyph is the map's core data
@@ -178,6 +181,8 @@ var MapMarkerLayers = ({
               ? null : getCachedTideState(lat, lng)) || null)
           : null;
         const tideLine = tideState ? formatTideLine(tideState, heightUnit) : null;
+        // A spot whose position nobody has verified: hollow pin, dashed ring, and the words (unverifiedLocation.js).
+        const unverified = isLocationUnverified(cluster);
         return (
           <Marker
             key={`spot-${cluster.id}`}
@@ -193,7 +198,8 @@ var MapMarkerLayers = ({
               type="button"
               className={`relative cursor-pointer rounded-full ${BUTTON_RESET} ${FOCUS_RING}`}
               style={{ position: 'relative', width: 32, height: 32 }}
-              aria-label={spotGlyphAriaLabel(cluster, rating, tideLine, heightUnit)}
+              aria-label={withUnverifiedLocation(spotGlyphAriaLabel(cluster, rating, tideLine, heightUnit), unverified)}
+              data-location-unverified={unverified ? 'true' : undefined}
               onMouseEnter={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}
               onMouseLeave={() => setHoveredSpotId(null)}
               onFocus={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}
@@ -214,6 +220,9 @@ var MapMarkerLayers = ({
                 });
               }}
             >
+              {unverified && (
+                <span aria-hidden="true" data-testid="unverified-location-ring" style={UNVERIFIED_RING_STYLE} />
+              )}
               {rating ? (
                 <div
                   style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -258,10 +267,12 @@ var MapMarkerLayers = ({
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: !isWithinGeofence ? '#27272a' : hasPhotographers ? 'linear-gradient(to right, #34d399, #facc15)' : '#3f3f46',
                     border: !isWithinGeofence || !hasPhotographers ? '2px solid #52525b' : 'none',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                    // Unverified location: a HOLLOW pin (the fill goes; a see-through tint keeps the icon legible).
+                    ...(unverified ? { background: 'rgba(24,24,27,0.35)', border: '2px solid rgba(255,255,255,0.9)' } : null)
                   }}
                 >
-                  <svg width="16" height="16" fill={hasPhotographers && isWithinGeofence ? '#000' : '#d4d4d8'} viewBox="0 0 24 24">
+                  <svg width="16" height="16" fill={unverified ? '#ffffff' : hasPhotographers && isWithinGeofence ? '#000' : '#d4d4d8'} viewBox="0 0 24 24">
                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                   </svg>
                 </div>
@@ -284,6 +295,11 @@ var MapMarkerLayers = ({
                     <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: rating ? rating.color : '#22d3ee' }}></span>
                     <span>{cluster.name || 'Surf Spot'}{rating ? ` · ${rating.label}` : ''}</span>
                   </div>
+                  {unverified && (
+                    <div className="mt-0.5 text-[10px] font-normal text-zinc-300" data-testid="glyph-unverified-location">
+                      {UNVERIFIED_LOCATION_TEXT}: the pin may not be on the break
+                    </div>
+                  )}
                   {/* LIVE surf height + period, as structured fields (the endpoint resolved them per-spot). Shown
                       whenever a rating exists so the hover always carries the current surf height, not just prose. */}
                   {rating && rating.surfHeightM != null && (

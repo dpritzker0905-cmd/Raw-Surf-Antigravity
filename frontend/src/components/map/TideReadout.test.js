@@ -4,6 +4,7 @@ import TideReadout, { TIDE_TICK_MS } from './TideReadout';
 import { clearPointTideCache } from './usePointTide';
 import {
   formatTideTime, formatTideEvent, formatTideHeight, tideAt, tideCovers, formatTideRate, tideAriaLabel, tideCurve, trendWord, trendGlyph,
+  tideCredit,
 } from './tideReadoutFormat';
 
 const NOW = '2026-11-07T12:00:00Z';
@@ -54,6 +55,18 @@ describe('tide formatting', () => {
     expect(tideAriaLabel({ ...payload, trend: 'falling' }, 'm', 0)).toMatch(/low -0\.4 m/);
     expect(tideAriaLabel({...payload,tz_offset_h:'UTC'},'m',0)).toMatch(/UTC$/);
   });
+  test('the credit follows the payload provenance; none named means none shown', () => {
+    expect(tideCredit(payload)).toBeNull();
+    const c = tideCredit({ ...payload, provider: 'E.U. Copernicus Marine Service Information', source_url: 'https://doi.org/10.48670/moi-00016' });
+    expect(c).toEqual({ text: 'E.U. Copernicus Marine Service Information', href: 'https://doi.org/10.48670/moi-00016', title: null,
+      label: 'Tide data source: E.U. Copernicus Marine Service Information (opens in a new tab)' });
+    const fes = tideCredit({ provider: 'FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine',
+      source_url: 'https://doi.org/10.24400/527896/A01-2024.004', credit_detail: 'The FES2022 Tide product was funded by CNES. CNES, 2024.' });
+    expect(fes.title).toBe('The FES2022 Tide product was funded by CNES. CNES, 2024.');   // the licence's full attribution
+    expect(fes.label).toBe('Tide data source: The FES2022 Tide product was funded by CNES. CNES, 2024. (opens in a new tab)');
+    expect(tideCredit({ provider: 'FES2022 (AVISO) + Copernicus Marine', source_url: 'javascript:alert(1)' }).href).toBeNull();
+    expect(tideCredit({ provider: '   ' })).toBeNull();
+  });
   test('curve needs points and places now', () => {
     expect(tideCurve([], NOW)).toBeNull();
     const c = tideCurve(series, NOW);
@@ -84,6 +97,22 @@ describe('TideReadout', () => {
     expect(screen.queryByRole('button', { name: 'About tide data' })).toBeNull();
     expect(screen.queryByText(/Open-Meteo|not an official tide table/)).toBeNull();
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('footer credits the agency the served series came from, as a real link with an accessible name', async () => {
+    const cm = { ...payload, provider: 'E.U. Copernicus Marine Service Information', source_url: 'https://doi.org/10.48670/moi-00016' };
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(cm) }));
+    for (const [isLight, isBeach] of [[false, false], [true, false], [false, true]]) {   // dark, light, beach
+      clearPointTideCache();
+      const { unmount } = render(<TideReadout lat={21.6} lng={-158} heightUnit="m" isLight={isLight} isBeach={isBeach} atTime={Date.parse(NOW)} />);
+      const a = await screen.findByTestId('tide-credit');
+      expect(a.tagName).toBe('A');
+      expect(a.textContent).toBe('E.U. Copernicus Marine Service Information');
+      expect(a.getAttribute('href')).toBe('https://doi.org/10.48670/moi-00016');
+      expect(a.getAttribute('rel')).toBe('noopener noreferrer');
+      expect(a.getAttribute('aria-label')).toBe('Tide data source: E.U. Copernicus Marine Service Information (opens in a new tab)');
+      unmount();
+    }
   });
 
   test('themes render without throwing', async () => {

@@ -33,6 +33,7 @@ os.environ['ENV'] = 'production'  # refuse all legacy development identity short
 os.environ.pop('TESTING', None)
 logging.disable(logging.CRITICAL)
 
+sys.path.insert(0, str(ROOT / 'backend'))  # security.verify_token imports core.session_revocation lazily (#1057)
 security_path = ROOT / 'backend/core/security.py'
 spec = importlib.util.spec_from_file_location('fixture_actual_security', security_path)
 security = importlib.util.module_from_spec(spec)

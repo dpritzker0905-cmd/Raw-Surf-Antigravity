@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
 from database import get_db
-from models import (SurfTruthConsentEvent, CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
+from models import (TosContent, SurfTruthConsentEvent, CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
                     SurfSpot, SurfTruthAdminAction, SurfTruthAnchor, SurfTruthAnchorEvent, XPTransaction)
 from models import surf_truth_admin as admin_models
 from routes.surf_data import observation_audits, observations, surf_truth_admin
@@ -36,7 +36,7 @@ async def world(monkeypatch):
     monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
-        for model in (Profile, SurfTruthConsentEvent, SurfSpot, CheckIn, ConditionReport, SurfReport, SurfObservation, ObservationMedia,
+        for model in (Profile, TosContent, SurfTruthConsentEvent, SurfSpot, CheckIn, ConditionReport, SurfReport, SurfObservation, ObservationMedia,
                       SurfTruthAnchor, SurfTruthAnchorEvent, SurfTruthAdminAction, XPTransaction):
             await connection.run_sync(lambda conn, table=model.__table__: table.create(conn))
     maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -95,6 +95,7 @@ async def test_status_change_writes_both_logs(world):
     assert (anchor["profile_id"], anchor["status"], anchor["appointed_by"]) == ("pho", "active", "boss")
     events = (await world.client.get("/api/admin/surf-truth/anchors/pho/events", headers=_token("boss"))).json()
     assert [(e["from_status"], e["to_status"]) for e in events] == [(None, "probation"), ("probation", "active")]
+    assert {(e["actor_id"], e["actor_name"]) for e in events} == {("boss", "boss")}   # the admin's name, for display
     actions = await _actions(world)
     assert sorted(a["detail"]["to"] for a in actions) == ["active", "probation"]
     assert all(a["action"] == "anchor_status" and a["admin_id"] == "boss" and a["reason"] for a in actions)
