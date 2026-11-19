@@ -66,3 +66,43 @@ and valid time. Both grids hold the native Gaussian points in the same order.
 ## Results
 
 (appended below as measured)
+
+### First hour of the registered run (2026-11-18 18Z, f006), and a rain diagnosis (not the gate)
+
+- **Temperatures:** both 2 m and water (ocean nodes) match .om EXACTLY: bias 0, MAD 0, max |Δ| 0 over 4,718,592 and
+  3,124,916 nodes.
+  - Planted 1x and 2x offsets are both caught.
+  - The one-column roll raises the MAD from 0 to 0.143 K (2 m) and 0.086 K (water).
+  - Null control 0.
+- **Rain FAILS as registered** at f006:
+  - mass +2.53 % against .om (line ±1 %);
+  - storage 1,308,418 B, 6.92x the 0.25° set (line 4.5x);
+  - peaks 0.9999 and max 0.9995, both pass.
+- **Diagnosis** (scratch `rain_diag.py`, same cycle and hour). .om `precipitation` has scale_factor 10. It is NOAA's own field
+  rounded to 0.1 mm: our native amount rounded to 0.1 mm equals .om at **100.00 % of nodes**.
+  - **.om itself is 2.65 % below NOAA's mass.** 35.8 % of nodes hold less than 0.05 mm (4.0 % of the mass), and .om rounds
+    them to 0.
+  - Our 0.01 mm/h set is −0.19 % from NOAA but +2.53 % from .om.
+  - Rate-plane steps, bytes per frame (×0.25° set) and mass vs NOAA:
+
+    | step (mm/h) | bytes a frame | × 0.25° set | mass vs NOAA |
+    |---|---|---|---|
+    | 0.01 | 1,308,418 | 6.9x | −0.19 % |
+    | 0.02 | 971,077 | 5.1x | −0.26 % |
+    | 0.05 | 653,150 | 3.5x | −1.14 % |
+    | 0.1 | 469,156 | 2.5x | −2.65 % (equals .om) |
+
+## Rain arm R2, REGISTERED 2026-11-18 ~01:15Z (after the f006 diagnosis above, before any other hour is measured)
+
+**Rule:** the AMOUNT over the step before each hour (1 h to f120, 3 h after) is rounded to 0.1 mm, .om's own step. The frame
+stores amount / step in mm/h, in the same field 10 and descriptor, so the client is unchanged.
+
+**Hours:** the registered six. f006 has already been seen, so it is reported but does not count toward the verdict.
+1. **Mass** vs .om within ±1 % (strict) at every hour.
+2. **Peaks:** the sum over the .om top 0.1 % of wet nodes, and our max, each more than 90 % of .om's.
+3. **Storage** at most 4.5x the 0.25° `precipitation` frame at the same hour.
+4. **Planted errors,** as registered: mass ×1.01 / ×1.02, peaks ×0.90 / ×0.80. The 1x plants must fail.
+5. **Reported, not gated:** the share of nodes equal to .om within 0.005 mm, and mass vs NOAA's unrounded field.
+
+**The trade, stated for the director:** R2 draws exactly what users see today (.om). It drops drizzle below 0.05 mm per step,
+as .om does. The 0.01 arm keeps that drizzle but fails the storage line and the registered mass line.
