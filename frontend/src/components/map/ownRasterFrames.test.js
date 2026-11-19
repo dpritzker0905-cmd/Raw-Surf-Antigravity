@@ -1,7 +1,7 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
   combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, PRECIP_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
-  _resetOwnRasterFramesForTest, FAIL_BACKOFF_MS, FOG_FIELD, landFill, tel, DEFAULT_ON_MODELS,
+  _resetOwnRasterFramesForTest, FAIL_BACKOFF_MS, FOG_FIELD, landFill, tel, DEFAULT_ON_MODELS, sourceModel,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 
@@ -248,11 +248,18 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
   });
   test('ON by default (D-052; pressure 2026-11-12): no lever needed; rain stays dark; fog / EURO air + water temp OFF pending the owner', () => {
     expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure', 'gusts', 'currents']);   // gusts, currents: new own-only layers, ON (2026-11-15)
-    expect(DEFAULT_ON_MODELS).toEqual({});
+    expect(DEFAULT_ON_MODELS).toEqual({ water_temp: ['ICON'] });   // G4: ICON's Copernicus water temp (David 2026-11-17)
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
     expect(ownFramesOn('rain', 'GFS')).toBe(false);
+  });
+  test('G4: ICON water temp draws the Copernicus set by DEFAULT; GFS / EURO keep their skin temp; the kill restores the .om path', () => {
+    expect(ownFramesOn('water_temp', 'ICON')).toBe(true);
+    expect(ownFramesOn('water_temp', 'GFS')).toBe(false);
+    expect(ownFramesOn('water_temp', 'EURO')).toBe(false);
+    window.__RAW_DISABLE_RASTER_OWN_WATER_TEMP__ = true;
+    try { expect(ownFramesOn('water_temp', 'ICON')).toBe(false); } finally { delete window.__RAW_DISABLE_RASTER_OWN_WATER_TEMP__; }
   });
   test('pressure is ON by default for each model with its own set', () => {
     for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('pressure', m)).toBe(true);
@@ -425,16 +432,19 @@ describe('fog and water temperature (2026-11-14)', () => {
     expect(OWN_RASTER_SETS.fog.unit).toBe('m');
   });
 
-  test('water temp: GFS skin temperature for GFS and ICON (ICON has none; the .om cross-fall), EURO its own; land filled', () => {
+  test('water temp: GFS skin temperature for GFS, EURO its own, ICON the Copernicus ocean model (G4; ICON has none); land filled', () => {
     expect(setKey('water_temp', 'GFS')).toBe('GFS/weather/water_temp/global_0p25');
-    expect(setKey('water_temp', 'ICON')).toBe('GFS/weather/water_temp/global_0p25');
+    expect(setKey('water_temp', 'ICON')).toBe('CMEMS/marine/water_temp/global_1p6');
+    expect(sourceModel('water_temp', 'ICON')).toBe('CMEMS');   // the credit says Copernicus, never DWD or NOAA
     expect(setKey('water_temp', 'EURO')).toBe('EURO/weather/water_temp/global_0p25');
     expect(OWN_RASTER_SETS.water_temp.field).toBe(TEMP_FIELD);
     expect(OWN_RASTER_SETS.water_temp.landFill).toBe(true);
   });
 
-  test('DEFAULT-OFF pending the owner (vote split 08:31Z): no lever, every model on the .om path; the lever reaches each', () => {
-    for (const m of ['GFS', 'EURO', 'ICON']) { expect(ownFramesOn('fog', m)).toBe(false); expect(ownFramesOn('water_temp', m)).toBe(false); }
+  test('DEFAULT-OFF pending the owner (vote split 08:31Z): no lever, every model on the .om path (but ICON water temp, G4); the lever reaches each', () => {
+    for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('fog', m)).toBe(false);
+    for (const m of ['GFS', 'EURO']) expect(ownFramesOn('water_temp', m)).toBe(false);
+    expect(ownFramesOn('water_temp', 'ICON')).toBe(true);   // G4: ICON's Copernicus water temp is ON by default (David 2026-11-17)
     window.__RAW_RASTER_OWN_FRAMES__ = 'fog,water_temp';
     for (const m of ['GFS', 'EURO', 'ICON']) { expect(ownFramesOn('fog', m)).toBe(true); expect(ownFramesOn('water_temp', m)).toBe(true); }
   });

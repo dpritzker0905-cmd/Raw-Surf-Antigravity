@@ -1,14 +1,15 @@
 /**
  * TideReadout - the map infobox's tide block (2026-11-07). Selected height (ft/m setting), arrow + word
  * (Rising/Falling/Slack, never colour or arrow alone), rate, next high/low in UTC, and a mini
- * curve around the selected instant with its marker. MODEL sea level (Open-Meteo MSL), stated in the footer. Three themes.
+ * curve around the selected instant with its marker. MODEL sea level, stated in the footer with its data credit, which
+ * follows the served series' provenance (tideCredit). Three themes.
  * Kill: window.__RAW_DISABLE_INFOBOX_TIDE__ = true. The infobox has ONE layout (desktop and mobile share it).
  */
 import React, { useEffect, useState } from 'react';
 import { usePointTide } from './usePointTide';
 import { responsiveWeatherOn } from './useMapChromeLayout';
 import {
-  TIDE_FOOTER, TIDE_SOLAR_NOTE, TIDE_UNAVAILABLE, tideAt, tideUsesSolar, infoboxTideDisabled, trendWord, trendGlyph, formatTideHeight,
+  TIDE_FOOTER, TIDE_SOLAR_NOTE, TIDE_UNAVAILABLE, tideAt, tideCredit, tideUsesSolar, infoboxTideDisabled, trendWord, trendGlyph, formatTideHeight,
   formatTideEvent, formatTideRate, tideAriaLabel, tideCurve,
 } from './tideReadoutFormat';
 
@@ -44,6 +45,7 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
   const rate = formatTideRate(d.rate_m_per_h, unit, d.trend);
   const hi = formatTideEvent('high', d.next_high, unit, d.tz_offset_h, undefined, atMs);
   const lo = formatTideEvent('low', d.next_low, unit, d.tz_offset_h, undefined, atMs);
+  const credit = tideCredit(payload);
   const curveHeight = responsiveWeatherOn() ? 56 : 40;
   const curve = tideCurve(d, d.now, 176, curveHeight);
   return (
@@ -70,7 +72,16 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
       )}
       {hi && <div className={`text-[10px] ${textClass}`}>{hi}</div>}
       {lo && <div className={`text-[10px] ${textClass}`}>{lo}</div>}
-      <div className={`text-[10px] leading-tight mt-1 ${muted}`}>{TIDE_FOOTER}</div>
+      <div className={`text-[10px] leading-tight mt-1 ${muted}`}>
+        {TIDE_FOOTER}
+        {credit && <>
+          {' · '}
+          {credit.href
+            ? <a href={credit.href} target="_blank" rel="noopener noreferrer" aria-label={credit.label} title={credit.title || undefined} data-testid="tide-credit"
+                 className="underline decoration-dotted underline-offset-2 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-current rounded-sm">{credit.text}</a>
+            : <span data-testid="tide-credit" title={credit.title || undefined}>{credit.text}</span>}
+        </>}
+      </div>
       {d.tz_approx && tideUsesSolar(d.tz_offset_h, undefined, atMs) && (
         <div className={`text-[8px] leading-tight ${muted}`} data-testid="tide-solar-note">{TIDE_SOLAR_NOTE}</div>
       )}
