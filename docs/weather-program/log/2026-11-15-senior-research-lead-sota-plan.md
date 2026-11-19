@@ -2832,3 +2832,15 @@ downgrade, owner). Sent to the director.
 - **Verbatim clauses** are in shared notes `tide-licence-commercial-read-2026-11-18.md`.
 - **15-day residual candidate:** ECMWF `zos` (dynamic sea level, no tide) plus an inverse barometer computed from
   ECMWF `msl`. Measure it against CMEMS on days 1-10 before any use (shared note, section M update 2).
+
+## 2026-11-18 19:06 -0500 AIFS waves in free ECMWF open data; #1073 statistics PASS-WITH-LIMITS; T8 routed
+- **AIFS ML waves** (verified from the AWS listing): `aifs-single/0p25/wave/` holds swh, mwd, mwp, cdww and
+  h1012..h2530, at 0.25°, to at least +324 h, under CC BY 4.0.
+  - It is a diverse member candidate for the consensus and for L1.
+  - Measure first: paired vs NDBC, MAE + ME, replication, and a consensus with/without arm (shared note section O).
+- **#1073 (G1a guard): research statistics PASS-WITH-LIMITS** at 417c9881 / 144cc28d.
+  - Fixes adopted: a fired null is always VOID; 1.2× plants are reported only; Holm per statistic × lead with
+    B = 10,000 and a resolution floor; report-only for the first 2 runs.
+  - The research lead reads the first real run before the third.
+- **T8** (ECMWF zos + IB residual) is routed to the tide lane. The FES2022 commercial reading is confirmed
+  independently.
