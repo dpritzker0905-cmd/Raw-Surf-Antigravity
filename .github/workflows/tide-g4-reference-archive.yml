@@ -1,0 +1,50 @@
+name: Tide G4 reference archive (Open-Meteo C and D at the 26 gauges; references only, never observed water)
+# WHY: G4 item 6 and the advisor's FINAL edit 2 (docs/weather-program/log/2026-11-15-claude-tide-m1.md). Open-Meteo
+# documents no retention for previous runs, so the TEST-ONLY references are saved daily from G4's committed START.
+# Started on the owner's word (2026-11-18). Before START (g4_rules.START is None until G4 FINAL) every run is a no-op.
+# CUMULATIVE: each run downloads the newest archive artifact, adds the last 3 UTC days (first value seen is kept) and
+# re-uploads ALL of it with retention 90 days, so the newest artifact always holds everything. A plain artifact: in a
+# public repo any signed-in user can download it; Open-Meteo values are not sensitive. No secrets; nothing served.
+# Pinned by tests/test_tide_g4_rules.py.
+on:
+  schedule:
+    - cron: '17 7 * * *'          # 07:17 UTC: outside the 22:00-00:30 EST quiet window (03:00-05:30 UTC)
+  workflow_dispatch: {}           # recovery only (a missed day); references, not a scored gate
+permissions:
+  contents: read
+  actions: read                   # to download the previous archive artifact
+concurrency:
+  group: tide-g4-reference-archive
+  cancel-in-progress: false
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pip install numpy
+      - name: Fetch the newest cumulative archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p prev
+          for id in $(gh run list -R "${{ github.repository }}" --workflow tide-g4-reference-archive.yml \
+                        --status success --limit 20 --json databaseId -q '.[].databaseId'); do
+            if gh run download "$id" -R "${{ github.repository }}" -n tide-g4-reference-archive -D prev; then
+              echo "previous archive: run $id"; break
+            fi
+          done
+      - name: Archive the last 3 UTC days
+        id: arc
+        run: python backend/scripts/tide_g4/g4_archive.py --prev prev/g4_reference_archive.json --out g4_reference_archive.json
+      - uses: actions/upload-artifact@v4
+        if: steps.arc.outputs.phase == 'archiving'
+        with:
+          name: tide-g4-reference-archive
+          path: g4_reference_archive.json
+          if-no-files-found: error
+          retention-days: 90

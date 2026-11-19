@@ -497,3 +497,13 @@ def test_ratings_lane_future_frames_clamp_to_zero_age(monkeypatch):
     rep = compute_data_health(_Store(_all_healthy()), now=NOW)
     lane = rep["lanes"]["ratings/precomputed"]
     assert lane["verdict"] == "ok" and lane["age_h"] == 0.0
+
+
+def test_report_states_the_thresholds_it_judged_against(monkeypatch):
+    """The admin's data-health view shows what "stale" means; the report carries the limits it used."""
+    monkeypatch.setenv("HEALTH_STALE_HOURS", "5")
+    monkeypatch.setenv("HEALTH_MIN_HORIZON_HOURS_ICON", "120")
+    th = compute_data_health(_Store(_all_healthy()), now=NOW)["thresholds"]
+    assert th["stale_h"] == 5.0 and th["critical_h"] == 12.0
+    assert th["min_horizon_h"] == {"GFS": 288.0, "EURO": 192.0, "ICON": 120.0}
+    assert th["ratings_warn_h"] == 3.5 and th["ratings_critical_h"] == 6.0
