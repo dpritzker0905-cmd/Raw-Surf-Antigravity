@@ -22,7 +22,9 @@ from scripts import _legacy_spot_writer
 BACKEND = pathlib.Path(__file__).resolve().parents[1]
 LEGACY_SCRIPTS = ("scripts/global_expansion_phase3.py", "scripts/global_expansion_phase4.py",
                   "scripts/global_expansion_phase5.py", "scripts/spot_sync_april_2026.py",
-                  "scripts/archive/global_expansion_phase2.py")
+                  "scripts/archive/global_expansion_phase2.py",
+                  # added 2026-11-18: the same find-by-name-then-overwrite shape, missed by the first five
+                  "scripts/caribbean_asia_pacific_expansion.py", "scripts/archive/global_mega_expansion.py")
 
 
 @pytest_asyncio.fixture
@@ -142,3 +144,24 @@ def test_every_retired_spot_script_checks_before_it_touches_the_database(relativ
     name = pathlib.PurePosixPath(relative).name
     assert body[-1] == f'refuse_legacy_spot_write("{name}")', body
     assert body[0] == "try:" and "import refuse_legacy_spot_write" in body[1]
+
+
+def test_the_seed_files_no_longer_carry_the_wrong_maldives_pins():
+    """Production was corrected on 2026-11-18 (Quarters moved; Yin Yang, Pasta Point, Malik's, Five Islands hidden).
+    A seed file that still held the old values would put the wrong pins back on a fresh database."""
+    from scripts import caribbean_asia_pacific_expansion as asia
+    from scripts import expand_tahiti_maldives_africa as tahiti
+
+    assert (asia.MALDIVES_SPOTS["Quarters"]["lat"], asia.MALDIVES_SPOTS["Quarters"]["lon"]) == (3.9333, 73.4833)
+    quarters = [s for s in tahiti.MALDIVES_SPOTS if s["name"] == "Quarters"]
+    assert [(s["latitude"], s["longitude"]) for s in quarters] == [(3.9333, 73.4833)]       # the two seeds agree
+
+    seeded = set(asia.MALDIVES_SPOTS) | {s["name"] for s in tahiti.MALDIVES_SPOTS}
+    for hidden in ("Yin Yang", "Pasta Point", "Malik's", "Five Islands"):
+        assert hidden not in seeded, hidden
+    assert set(asia.MALDIVES_WITHHELD) == {"Yin Yang", "Pasta Point"}
+    assert {s["name"] for s in tahiti.MALDIVES_WITHHELD} == {"Malik's", "Five Islands"}
+    # nothing else left either Maldives list: 10 - 2 = 8 and 15 - 2 = 13 entries remain
+    assert len(asia.MALDIVES_SPOTS) == 8 and len(tahiti.MALDIVES_SPOTS) == 13
+    # the old open-water coordinate is gone from anything that is seeded
+    assert all((v["lat"], v["lon"]) != (3.938, 73.248) for v in asia.MALDIVES_SPOTS.values())
