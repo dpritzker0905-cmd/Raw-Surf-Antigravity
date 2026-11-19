@@ -147,3 +147,68 @@ same hour (line 4.5x).
       0.80 × .om's max.
 - **Compute (this Windows box, one thread, every frame encoded twice for the null control):** 9.5-12.3 s an hour for all
   three sets, so about 5-6 s for one pass. Fetching the three messages took 1.2-6.8 s an hour here.
+
+## Rain arm R2, measured (`r2_gate.py`, the module's own `round_rain`; same cycle and hours)
+
+| hour | step | mass vs .om | peaks / max | nodes equal to .om (≤ 0.005 mm) | mass vs NOAA unrounded | bytes a frame (× 0.25°) | verdict |
+|---|---|---|---|---|---|---|---|
+| f006 (seen) | 1 h | 0.0000 % | 1.0000 / 1.0000 | 100.00 % | −2.65 % | 469,156 (2.48) | PASS |
+| f048 | 1 h | 0.0000 % | 1.0000 / 1.0000 | 100.00 % | −2.39 % | 479,208 (2.49) | PASS |
+| f120 | 1 h | 0.0000 % | 1.0000 / 1.0000 | 100.00 % | −2.41 % | 479,525 (2.49) | PASS |
+| f123 | 3 h | 0.196 % | 1.0000 / 1.0001 | 70.87 % | −0.71 % | 750,572 (3.03) | PASS |
+| f240 | 3 h | 0.191 % | 1.0000 / 1.0001 | 71.47 % | −0.81 % | 730,425 (2.81) | PASS |
+| f384 | 3 h | 0.233 % | 1.0000 / 1.0000 | 72.12 % | −0.91 % | 714,574 (2.78) | PASS |
+
+- **Plants (anchored to .om), all caught at all six hours**, with the tie rule below:
+  - peaks 1x and 2x;
+  - mass 2x.
+  - Mass 1x lands exactly ON the 1 % line: |rel| = 0.0099999999999998 at f006/f120 and 0.0100000000000002 elsewhere (float
+    summation). Tie rule, stated here: a value within 1e-9 of the line counts as ON the line, and so as off. Under that rule
+    the 1x mass plant is caught at all six hours. Without it, the strict "< 1 %" let the float 1e-13 under the line pass at
+    f006 and f120. Recorded, not hidden.
+- **Why 3-hour steps are not 100 % equal:** the frame stores mm/h in 0.01 steps, so a 0.1 mm amount over 3 h (0.0333 mm/h)
+  is stored as 0.03 or 0.04 mm/h. The mass is still within 0.25 % of .om.
+- **Verdict: R2 PASSES** mass, peaks and storage at every hour. It draws today's .om rain, so no user-visible change.
+  It is 0.7-2.7 % below NOAA's unrounded mass, as .om is. That is the drizzle under 0.05 mm per step.
+
+## End to end, publish path (`bundle_time.py`)
+
+The real `publish_bundle` ran into a LocalSink on f000-f012 with 4 workers, on this Windows box (network about 4 MB/s):
+- 35.4 s for 13 hours, so about 2.7 s an hour. A first attempt took 44.2 s, with one transient fetch failure.
+- Indexes and latest.json were written for all three sets.
+- The transient failure exposed a cascade: a failed hour left every later rain hour of its 6-hour bucket without a previous
+  average. Fixed: the next rain hour re-reads the previous hour's average alone (pinned by a test).
+
+## Costs (for the director)
+
+**Storage per run, 209 hours (rain 208):**
+
+| set | bytes a frame | per run | the 0.25° equivalent per run |
+|---|---|---|---|
+| `temperature_0p117` | 2.86-2.93 MB | about 600 MB | about 165 MB |
+| `water_temp_0p117` | 2.07-2.73 MB | about 450 MB | about 130 MB |
+| `precipitation_0p117` (R2) | 0.47-0.75 MB | about 120 MB | about 45 MB |
+| **all three** | | **about 1.17 GB a run** | about 340 MB |
+
+- Every frame passes the 4.5x line that #958 failed: 3.64-3.66x, 3.32-3.40x and 2.48-3.03x.
+- In absolute terms, retention keeps the current run and the previous one, so about 2.3 GB stays resident in the frames
+  bucket.
+- For comparison, the three ICON 0.125 sets are about 465-510 MB a run. Phones also download about 2.9 MB per air-temperature
+  frame. Both are the frame-carry lane's to weigh at the client switch.
+
+**Pilots minutes:** about 9.5-12 min of build at 2.7-3.4 s an hour (this box's network), plus the upload of about 1.17 GB.
+- Estimate: about 12-17 min added per pilots run.
+- The step's own budget is 1500 s and its timeout 35 min. The job has a 300-min limit with about 180 min of slack.
+- To be CONFIRMED at the first publish on GitHub Actions; until then this is an estimate, not a measurement.
+
+## Shipping
+
+- Ships ON, three set switches: `FRAME_RASTER_TEMPERATURE_0P117`, `FRAME_RASTER_WATER_TEMP_0P117` and
+  `FRAME_RASTER_PRECIP_0P117`. Unset = on, '0' = that set off; the step runs while any one is on. The data-health monitor
+  passes each switch by name.
+- Kill fallback: the client stays on whatever it draws today. No client reads these keys until the frame-carry lane switches
+  them; the plan is no .om fallback.
+- **No served number moves in this PR:** the client is untouched. Both temperatures equal .om exactly and rain R2 equals .om
+  at the hourly steps, so the client switch should be visually null, except 3-hour rain (mass within 0.25 %). No SCOREBOARD
+  row here; frame-carry's switch adds one if it moves a number.
+- Tests: `tests/test_frame_set_raster_sflux.py`, 13 tests (estate lane, floor fragment +13).
