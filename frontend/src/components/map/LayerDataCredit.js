@@ -41,6 +41,10 @@ const OWN_NOTE = {
   // Currents (2026-11-15, the advisor's red-team of #928): what the field is NOT, on screen. Copernicus' global model at -0.5 m
   // on 1/12 deg, 6-hourly, mapped to 0.25 deg; no tide, no surf-zone or rip current (the HF-radar check: direction off ~39 deg).
   currents: { text: ' · open-ocean current; no tides, not a nearshore / rip current', label: 'Open-ocean current from the Copernicus global model (half a metre down, every 6 hours, about 28 km cells): no tides, and not a nearshore or rip current.' },
+  // Water temp from the Copernicus ocean model (G4, 2026-11-17): a bulk temperature of the top half metre, not a skin temperature.
+  water_temp: (model) => (model === 'CMEMS'
+    ? { text: ' · ocean model, top 0.5 m', label: 'Copernicus ocean model sea temperature: the top half metre, hourly mean, 1/6 degree cells (not a skin temperature). DWD ICON has no sea temperature of its own.' }
+    : null),
   gusts: (model) => withStormCaveat(model === 'GFS'
     ? { text: ' · instantaneous', label: 'GFS surface wind gust at the valid time (instantaneous).' }
     : { text: ' · peak since last step', label: model === 'EURO'
