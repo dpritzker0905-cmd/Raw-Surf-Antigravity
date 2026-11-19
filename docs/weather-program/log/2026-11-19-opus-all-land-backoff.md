@@ -22,3 +22,18 @@ re-arms. A cold load (engine empty for any other reason) keeps today's cadence u
 **The lab fix (no gate; a fixture correction):** `serve_synthetic.py` `LAND_BOXES` marks lon -125..-70, lat 25..60 as land, so the whole US
 Atlantic and Gulf coasts, Florida's east coast included, are land in the lab. Water cuts along the US Atlantic and Gulf coasts make
 coastal views behave like reality. LESSONS gets the rule: check the lab fixture against reality before calling a defect.
+
+## 01:03Z: L2 run 1 (Kansas) does not exercise the change: a fixture mismatch, recorded; amendment before the re-run
+
+- Run 1 as registered (Kansas (-98, 38) z8 desktop, 5 min idle, 2 sessions per arm, backend 4300 = the OLD land mask):
+  ON 45 / 47 re-drives, KILL 46 / 46; `/grid` 0-1, `/grid_series` 8-14 while idle in BOTH arms; `renderBlockedReason` null; the
+  planner never engaged (`__RAW_ALL_LAND_REDRIVE__` null). As registered, L2 FAILS.
+- Why (dumped): Kansas is NOT all land in this lab. `serve_synthetic --dynamic 1` answers the inland viewport from the synthetic field
+  UNMASKED (117 cells, all non-zero, max 2.47 m; `renderAccepted: true`), so waves draw there; the re-drives come from the CLAMP branch
+  (`regional_too_coarse`, willSharpen false), a different backstop path with its own cap. The registered view never produced the
+  all-zero state the change targets. (Same lesson as L-P48, applied to my own gate.)
+- **Amendment (before the re-run):** L2 is re-run on the view that IS all-zero in this lab, the 2026-11-18 reproduction: Florida z8
+  (-80.6, 28.1), PHONE (390x844, 4x), backend 4300 (old land mask), 5 min idle, 2 sessions per arm. Pass line unchanged: ON <= 5 re-drives
+  and `/grid` + `/grid_series` ON <= KILL. Kansas run 1 stays on record.
+- Side finding, not this PR's scope: on an inland view the clamp backstop re-drives ~every 6.5 s and asks 8-14 `/grid_series` pages in
+  5 min idle in both arms.
