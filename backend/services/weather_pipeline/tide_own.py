@@ -33,6 +33,8 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from services.weather_pipeline.config_env import env_float
+
 logger = logging.getLogger(__name__)
 
 SERIES_KEY = "tide_own/series.json.gz"
@@ -43,9 +45,9 @@ LABELS = {
     "am": ("Tide: astronomical prediction + average sea level (no storm surge)",
            "FES2022 (AVISO/CNES/LEGOS/NOVELTIS); Copernicus Marine Service (altimetry mean sea level)"),
 }
-_TTL_S = float(os.environ.get("TIDE_OWN_TTL_S", "3600"))
+_TTL_S = env_float("TIDE_OWN_TTL_S", 3600.0)
 _FAIL_COOLDOWN_S = 300.0
-_TIMEOUT_S = float(os.environ.get("TIDE_OWN_TIMEOUT_S", "10"))
+_TIMEOUT_S = env_float("TIDE_OWN_TIMEOUT_S", 10.0)
 _MAX_AGE_S = 7 * 86400.0          # a table older than this is not served (the CI job runs daily)
 
 _state = {"table": None, "read_at": 0.0, "fail_until": 0.0}
