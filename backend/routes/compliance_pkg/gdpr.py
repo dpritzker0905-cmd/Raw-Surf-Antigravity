@@ -332,6 +332,11 @@ async def erase_account(db: AsyncSession, user_id: str) -> dict:
             raise RuntimeError(f"GDPR erasure names a Profile column that does not exist: {column}")
         setattr(profile, column, None)
 
+    # 6b. Moderation: scrub the location and free text of the account's violation rows (services/violation_retention).
+    # The reason, dates and decision ref stay; a daily job deletes the rows 12 months after this erasure.
+    from services.violation_retention import scrub_violations
+    await scrub_violations(db, user_id)
+
     await db.commit()
     note_revoked(user_id, revoked_at)          # this process refuses the user's tokens from now on
 

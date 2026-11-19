@@ -125,6 +125,18 @@ async def purge_due(db, erase, now: Optional[datetime] = None) -> int:
             await db.commit()
             log.warning("[account deletion] a due deletion was cancelled: the account is no longer suspended")
             continue
+        from services import violation_retention
+        try:
+            is_open = await violation_retention.open_case(db, pid)
+        except Exception as exc:  # noqa: BLE001 - cannot tell: fail closed, do not erase
+            await db.rollback()
+            log.error("[account deletion] open-case check failed (%s); erasure skipped, retried next run",
+                      type(exc).__name__)
+            continue
+        if is_open:                                            # a moderation case is open: keep the evidence, flag it
+            await violation_retention.flag_open_case(db, pid, now)
+            log.warning("[account deletion] erasure skipped: a moderation case is open; flagged for an admin")
+            continue
         try:
             result = await erase(db, pid)
         except Exception as exc:  # noqa: BLE001 - one bad account must not stop the others; retried tomorrow
