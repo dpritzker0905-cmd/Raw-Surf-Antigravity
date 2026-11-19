@@ -36,25 +36,53 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out-dir", help="offline: write the public objects here instead of the bucket")
     ap.add_argument("--set", default="pressure", choices=sorted(fsr.SPECS), help="which raster set (default: pressure)")
+    ap.add_argument("--bundle", choices=("sflux",), help="publish every set of a bundle from one read of each hour's file "
+                    "(sflux: GFS 0.117 deg temperature, water temperature and rain; services/frame_set_raster_sflux.py)")
     args = ap.parse_args(argv)
+    if args.bundle or fsr.spec_for(args.set).get("bundle"):
+        return _bundle(args)
     spec = fsr.spec_for(args.set)
     if not fsr.enabled(args.set):
         print(f"[raster] {args.set}: off ({spec['env']}); skipped")
         return 0
+    sink = _sink(args)
+    report = fsr.publish(fsr.make_source(spec), sink, pub._uploader(sink), log=print, spec=spec)
+    print(json.dumps(report, indent=1, sort_keys=True))
+    return _status(args.set, report)
+
+
+def _bundle(args):
+    """The sflux bundle (--bundle sflux, or --set naming one of its sets): one read of each hour feeds every set switched on."""
+    from services import frame_set_raster_sflux as sflux
+    names = [args.set] if not args.bundle else list(sflux.SPECS)
+    on = [n for n in names if fsr.enabled(n)]
+    for n in sorted(set(names) - set(on)):
+        print(f"[raster] {n}: off ({fsr.spec_for(n)['env']}); skipped")
+    if not on:
+        return 0
+    sink = _sink(args)
+    reports = sflux.publish_bundle(sflux.SfluxSource(), sink, pub._uploader(sink), names=on, log=print)
+    print(json.dumps(reports, indent=1, sort_keys=True))
+    return max([_status(n, r) for n, r in reports.items()] or [0])
+
+
+def _sink(args):
     sink = pub.LocalSink(args.out_dir) if args.out_dir else pub.SupabaseSink()
     if fe.enabled():
         # O6 (held OFF, accounts only): raster frames are forecast data too; the same private bucket and path-free index.
         private = pub.LocalSink(Path(args.out_dir) / "_private") if args.out_dir else pub.SupabaseSink(bucket=fe.PRIVATE_BUCKET, public=False)
         sink = fe.EntitledSink(sink, private)
     sink.ensure_bucket()
-    report = fsr.publish(fsr.make_source(spec), sink, pub._uploader(sink), log=print, spec=spec)
-    print(json.dumps(report, indent=1, sort_keys=True))
+    return sink
+
+
+def _status(name, report):
     status = report.get("status")
     if status in FAILED:
         # A failed publish KEEPS the published index (the map draws the last good run), so say so where it is seen: an error
         # annotation on the step (continue-on-error keeps the cycle going) and a non-zero exit; raster_set_freshness.py on the
         # data-health monitor pages if the set then goes stale (2026-11-16, the director).
-        print(f"::error title=Raster set {args.set} not published::status {status}; the published index stays. "
+        print(f"::error title=Raster set {name} not published::status {status}; the published index stays. "
               f"{report.get('reason') or ''}".strip())
         return 1
     return 0

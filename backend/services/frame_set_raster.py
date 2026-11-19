@@ -718,8 +718,10 @@ def make_index(cycle, frames, stats, spec=None):
     return index
 
 
-def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=time.monotonic, coverage_floor=None, spec=None):
-    """One raster set's publish. Returns a report dict; never raises for a missing cycle or a coverage refusal."""
+def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=time.monotonic, coverage_floor=None, spec=None,
+            built=None):
+    """One raster set's publish. Returns a report dict; never raises for a missing cycle or a coverage refusal. `built` = the
+    set's (frames, uploads, stats) already built from `source`'s cycle (frame_set_raster_sflux: one read feeds three sets)."""
     sp = effective_spec(spec or SPECS["pressure"])
     key, prefix = fs.set_key(sp["target"]), fs.set_prefix(sp["target"])
     budget = float(os.environ.get("FRAME_RASTER_BUDGET_S", "420")) if budget_s is None else budget_s
@@ -739,8 +741,8 @@ def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=ti
     if entry and entry.get("run") == iso(cycle):
         log(f"[raster] {key}: cycle {iso(cycle)} already published")
         return {"status": "unchanged", "run": iso(cycle), "index": entry.get("index")}
-    frames, uploads, stats = build_set(source, cycle, log=log, deadline=started + budget, clock=clock, spec=sp)
-    stats["seconds_build"] = round(clock() - started, 1)
+    frames, uploads, stats = built or build_set(source, cycle, log=log, deadline=started + budget, clock=clock, spec=sp)
+    stats.setdefault("seconds_build", round(clock() - started, 1))
     hours = sp.get("hours", F_HOURS)
     coverage = stats["built"] / len(hours)
     if coverage < floor:
@@ -779,3 +781,8 @@ def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=ti
         deleted = len(gone)
     return {"status": "published", "run": iso(cycle), "index": index["path"], "uploaded": len(uploads), "deleted": deleted,
             "seconds": round(clock() - started, 1), **stats}
+
+
+# GFS at 0.117 deg from NOAA's surface flux files (2026-11-18): three sets fed by one read of each hour (their own module).
+from services import frame_set_raster_sflux as _sflux  # noqa: E402
+_sflux.register(SPECS, GRIDS)

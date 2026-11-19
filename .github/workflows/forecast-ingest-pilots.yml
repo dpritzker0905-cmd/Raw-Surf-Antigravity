@@ -604,3 +604,21 @@ jobs:
           FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}   # kill '0': the old two-byte frames (log §12)
           FRAME_RASTER_BUDGET_S: "600"
         run: python scripts/publish_raster_frames.py --set currents
+
+      # GFS AT 0.117 DEG FROM NOAA'S SURFACE FLUX FILES (2026-11-18, the Open-Meteo exit; services/frame_set_raster_sflux.py): air
+      # temperature, water temperature and rain on the native T1534 Gaussian points (Open-Meteo's ncep_gfs013 grid), f000-f384, ONE
+      # read of each hour's file feeding all three sets. Gate and costs: docs/weather-program/log/2026-11-18-opus-gfs-sflux-frames.md
+      # (about 10-12 min, about 1.17 GB a run for the three). ON; each set's kill is its variable '0'; the step runs while any is on.
+      - name: Publish raster static frames (GFS 0.117 deg sflux temperature, water temp, rain; ON, kill each FRAME_RASTER_*_0P117=0)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && ((vars.FRAME_RASTER_TEMPERATURE_0P117 || '1') != '0' || (vars.FRAME_RASTER_WATER_TEMP_0P117 || '1') != '0' || (vars.FRAME_RASTER_PRECIP_0P117 || '1') != '0') }}
+        continue-on-error: true
+        timeout-minutes: 35
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_TEMPERATURE_0P117: ${{ vars.FRAME_RASTER_TEMPERATURE_0P117 || '1' }}
+          FRAME_RASTER_WATER_TEMP_0P117: ${{ vars.FRAME_RASTER_WATER_TEMP_0P117 || '1' }}
+          FRAME_RASTER_PRECIP_0P117: ${{ vars.FRAME_RASTER_PRECIP_0P117 || '1' }}
+          FRAME_RASTER_BUDGET_S: "1500"
+        run: python scripts/publish_raster_frames.py --bundle sflux
