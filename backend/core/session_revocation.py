@@ -166,3 +166,9 @@ async def load_at_startup(session_maker=None, attempts: int = 3, pause_s: float 
     logger.error("[sessions] REVOKED SESSIONS NOT LOADED AT STARTUP after %d attempts: tokens of deleted, suspended "
                  "or password-changed accounts are ACCEPTED by this process until a refresh succeeds", attempts)
     return False
+
+
+# Load every model now, at import, never for the first time inside a flush (#1062 CI). The hooks above import `models`
+# lazily; the first such import also loads models/account_deletion, whose service registers its own Session hook. Done
+# mid-dispatch, that mutates SQLAlchemy's listener deque while it is iterated: "deque mutated during iteration".
+import models  # noqa: E402,F401

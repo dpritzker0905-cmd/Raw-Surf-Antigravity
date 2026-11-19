@@ -25,6 +25,36 @@ CELL_KM = 11
 SOURCE = "model-msl"
 
 
+# The credit FOLLOWS PROVENANCE (2026-11-18; the owner ~23:00Z: open agency providers, every source credited where its data
+# is shown). `tide.fetch_tide_hourly` series carry `source` once the own-data tide ships (#1061: "own" | "open-meteo";
+# #1066: "cmems" | "am"); a series without it is the Open-Meteo acquisition, as before.
+# FES2022's attribution is the AVISO licence's (s. 3.1, read in full for G3t, M1 log addendum 2): the creators and CNES as
+# Licensor, the citation with its DOI, a link to the licence, and a note that the material was modified; the release page
+# asks for its acknowledgement sentence too. The visible text is short (the infobox footer); `credit_detail` carries all
+# of it and the client shows it as the link's title and accessible name.
+FES_CITATION = ("CNES, 2024. FES2022 (Finite Element Solution) Tidal model (Version 2024). CNES. "
+                "https://doi.org/10.24400/527896/A01-2024.004")
+FES_ACK = ("The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available "
+           "by AVISO")
+FES_LICENCE = "https://www.aviso.altimetry.fr/fileadmin/documents/data/License_Aviso.pdf"   # the text read in full, issue 2.0
+_FES = ("FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine", "https://doi.org/10.24400/527896/A01-2024.004",
+        f"{FES_ACK}. {FES_CITATION}. Licence: {FES_LICENCE}. Modified: tide predictions computed at this point from the "
+        "FES2022 constituents, plus the 2016-2025 mean sea level from E.U. Copernicus Marine Service Information.")
+_CMEMS = ("E.U. Copernicus Marine Service Information", "https://doi.org/10.48670/moi-00016",
+          "Generated using E.U. Copernicus Marine Service Information (Global Ocean Physics Analysis and Forecast, "
+          "https://doi.org/10.48670/moi-00016).")
+_OPEN_METEO = ("Open-Meteo Marine", "https://open-meteo.com/en/licence", "Weather data by Open-Meteo.com, CC BY 4.0.")
+PROVIDERS = {"cmems": _CMEMS, "am": _FES, "own": _FES, "open-meteo": _OPEN_METEO}
+
+
+def provider_for(series):
+    """(provider credit, licence/source URL, full attribution, series source) for a tide series; unknown or absent =
+    Open-Meteo."""
+    src = (series or {}).get("source") or "open-meteo"
+    credit, url, detail = PROVIDERS.get(src, _OPEN_METEO)
+    return credit, url, detail, src
+
+
 def _event(e):
     return {"time": e["time"].strftime("%Y-%m-%dT%H:%M:%SZ"), "height_m": round(e["level_m"], 3)}
 
@@ -72,6 +102,7 @@ def build_point_tide(series, lat, lng, now):
                          "trend": "rising" if rate > 0.02 else "falling" if rate < -0.02 else "slack",
                          "rate_m_per_h": round(rate, 3)}
                 break
+    provider, provider_url, credit_detail, series_source = provider_for(series)
     nxt = {t: next((_event(e) for e in events if selected_end is not None and e["type"] == t and now < e["time"] <= selected_end), None)
            for t in ("High", "Low")}
     return {
@@ -84,7 +115,7 @@ def build_point_tide(series, lat, lng, now):
         "coverage": [{"start": part[0][0].strftime("%Y-%m-%dT%H:%M:%SZ"),
                       "end": part[-1][0].strftime("%Y-%m-%dT%H:%M:%SZ")} for part in usable],
         "timezone": "UTC", "datum": "MSL", "quantity": "modeled_sea_level",
-        "provider": "Open-Meteo Marine", "source_url": _tide.OPEN_METEO_MARINE_API,
+        "provider": provider, "source_url": provider_url, "credit_detail": credit_detail, "series_source": series_source,
         # Retained for older clients. New clients use explicit UTC, never a guessed civil zone.
         "tz_offset_h": round(float(lng) / 15.0), "tz_approx": True,
         "source": SOURCE, "cell_km": CELL_KM,

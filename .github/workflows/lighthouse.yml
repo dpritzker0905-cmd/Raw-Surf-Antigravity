@@ -7,10 +7,11 @@ on:
   # `main` added 2026-08-05 with ci.yml — the promotion is a fast-forward push, so it ran no checks.
   # No `paths:` filter here either, so this job always runs and is safe as a required check
   # (measured: 20 of the last 20 runs succeeded).
+  # Not on pull_request since 2026-11-19 (owner: "Yes, do 2 and 3"): each PR push queued an audit against the
+  # account's Actions concurrency cap, and Lighthouse is not a required check. It audits dev after each merge.
   push:
     branches: [dev, main]
-  pull_request:
-    branches: [dev, main]
+  workflow_dispatch:
 
 # A newer push or PR update makes the older audit obsolete; cancelling it frees the runner. (No paths filter:
 # see the trigger note above. This lane sends nothing to the live backend, so a filter would buy that box nothing.)

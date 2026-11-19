@@ -4,8 +4,7 @@ import apiClient from '../../../lib/apiClient';
 import { Button } from '../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog';
-import { Textarea } from '../../ui/textarea';
-import { ViewState, formatWhen, useAdminGet } from './shared';
+import { AUDIT_FAIL_REASONS, ReasonSelect, ViewState, formatWhen, useAdminGet } from './shared';
 
 const FLAG_TEXT = {
   gps_far: 'device GPS far from the spot', gps_missing: 'no device GPS', exif_far: 'photo taken far away',
@@ -31,14 +30,10 @@ function FailReasonDialog({ target, onClose, onSubmit }) {
             Why is this report not genuine? It earns no XP but stays recorded. Your name and reason are logged.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-1">
-          <label htmlFor="audit-fail-reason" className="text-sm text-muted-foreground">Reason (required)</label>
-          <Textarea id="audit-fail-reason" aria-label="Reason" value={reason} maxLength={500} autoFocus
-            onChange={(e) => setReason(e.target.value)} className="bg-card text-foreground border-border" />
-        </div>
+        <ReasonSelect id="audit-fail-reason" reasons={AUDIT_FAIL_REASONS} value={reason} onChange={setReason} />
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => onSubmit(reason.trim())} disabled={!reason.trim()}>Fail report</Button>
+          <Button onClick={() => onSubmit(reason)} disabled={!reason}>Fail report</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -55,7 +50,7 @@ export default function QualityQueueTab() {
   const [busy, setBusy] = useState(null);
   const [failing, setFailing] = useState(null);
   const decide = async (id, verdict, reason) => {
-    const body = verdict === 'fail' ? { verdict, reason: reason.slice(0, 500) } : { verdict };
+    const body = verdict === 'fail' ? { verdict, reason } : { verdict };
     setFailing(null);
     setBusy(id);
     try {

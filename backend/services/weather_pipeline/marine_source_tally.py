@@ -31,6 +31,33 @@ from typing import Optional
 
 FLAG = "SPOT_RATINGS_SOURCE_TALLY"
 STORED, NO_ANSWER, ERROR = "stored", "no_answer", "error"
+# THE SPLIT OF `stored` (2026-11-18, the before-and-after instrument for the coastal band; D-082). A product id says a
+# stored product answered, not that it answered WELL: a land-masked sample from the 10 degree world grid, kept as the
+# last resort after the live branch returned nothing, carried a product id and was counted as plain `stored`.
+# Every label below still counts as stored in the "not stored" share, so that share reads exactly as before.
+SPLIT_FLAG = "SPOT_RATINGS_SOURCE_TALLY_SPLIT"       # '0' -> one `stored` label, the table as it was
+STORED_WORLD = "stored:world_grid"                   # answered cleanly by a 2 or 10 degree world product
+STORED_DEGRADED = "stored:world_grid_degraded"       # the degraded world sample served after the live branch failed
+STORED_NO_VALUE = "stored:no_value"                  # a stored product covers the point and has no value there
+_DEGRADED_REASON = "coarse_sample_degraded_direct_point_failed"   # set only by point_resolution's coarse_last_resort
+_WORLD_STATUS = "inside_global_coarse"                            # point_resolution 2b's label for a global tier
+
+
+def is_stored(source) -> bool:
+    return source == STORED or str(source).startswith(STORED + ":")
+
+
+def stored_kind(resp) -> str:
+    """Which kind of stored answer. PURE. Reads only labels the resolver already set on the response."""
+    if os.environ.get(SPLIT_FLAG, "1") == "0":
+        return STORED
+    if getattr(resp, "fallback_reason", None) == _DEGRADED_REASON:
+        return STORED_DEGRADED
+    if getattr(getattr(resp, "point", None), "interpolation_method", None) == "unavailable":
+        return STORED_NO_VALUE
+    if getattr(resp, "coverage_status", None) == _WORLD_STATUS:
+        return STORED_WORLD
+    return STORED
 LEAD_BANDS = ((24, "0-24h"), (48, "24-48h"), (72, "48-72h"))
 LAST_BAND = "72h+"
 COUNTED = {("marine", "waves"): "waves", ("wind", "wind"): "wind"}        # (domain, layer) -> the table it lands in
@@ -45,7 +72,9 @@ def enabled() -> bool:
 def classify(resp) -> str:
     """Where a point answer (waves or wind) came from. PURE.
 
-    `stored`               a stored product answered (the response carries a product_id)
+    `stored`               a stored product answered (the response carries a product_id): a regional tile or a
+                           viewport product. Three more labels, all still "stored" (see `stored_kind`):
+                           `stored:world_grid`, `stored:world_grid_degraded`, `stored:no_value`
     `upstream:<provider>[:<model>]`  no stored product: the resolver's live branch answered. The labels are the
                            response's own: `copernicus:cmems_mod_glo_wav...` is Meteo-France MFWAM, `open-meteo:...`
                            is Open-Meteo (reached through the weather-proxy), `gfs_estimated_fallback:...` is the
@@ -54,7 +83,7 @@ def classify(resp) -> str:
     if resp is None or getattr(resp, "point", None) is None:
         return NO_ANSWER
     if getattr(resp, "product_id", None):
-        return STORED
+        return stored_kind(resp)
     provider = getattr(resp, "upstream_provider", None) or getattr(resp, "provider", None) or "unknown"
     label = "upstream:%s" % str(provider).strip().lower()
     model = getattr(resp, "upstream_model", None)
@@ -140,7 +169,7 @@ def summary_lines(counts) -> list:
         if not sub:
             lines.append("Point source (spot ratings, %s): nothing counted." % table)
             continue
-        sources = sorted({k[2] for k in sub}, key=lambda src: (src != STORED, src))
+        sources = sorted({k[2] for k in sub}, key=lambda src: (not is_stored(src), src))
         bands = [name for _l, name in LEAD_BANDS] + [LAST_BAND, "unknown"]
         lines += ["Point source for the precomputed spot ratings: %s (counts of spot-frames, served ratings stage):" % table.upper(),
                   "", "| model | lead | " + " | ".join(sources) + " | not stored |", "|---|---|" + "---|" * (len(sources) + 1)]
@@ -151,7 +180,7 @@ def summary_lines(counts) -> list:
                 total = sum(row)
                 if not total:
                     continue
-                stored = row[sources.index(STORED)] if STORED in sources else 0
+                stored = sum(n for src, n in zip(sources, row) if is_stored(src))
                 lines.append("| %s | %s | %s | %.1f%% |" % (model, band, " | ".join(str(n) for n in row),
                                                            100.0 * (total - stored) / total))
     return lines
@@ -165,9 +194,11 @@ def one_line(counts) -> str:
         out = []
         for model in sorted({k[0] for k in sub}):
             total = sum(n for (m, _b, _s), n in sub.items() if m == model)
-            stored = sum(n for (m, _b, src), n in sub.items() if m == model and src == STORED)
+            stored = sum(n for (m, _b, src), n in sub.items() if m == model and is_stored(src))
+            weak = sum(n for (m, _b, src), n in sub.items() if m == model and src in (STORED_DEGRADED, STORED_NO_VALUE))
             out.append("%s %d of %d not stored (%.1f%%)" % (model, total - stored, total,
-                                                            100.0 * (total - stored) / total if total else 0.0))
+                                                            100.0 * (total - stored) / total if total else 0.0)
+                       + (", %d stored without a usable value" % weak if weak else ""))
         parts.append("%s: %s" % (table, "; ".join(out) or "nothing counted"))
     return " | ".join(parts)
 

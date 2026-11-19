@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
 from database import get_db
-from models import (SurfTruthConsentEvent, CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
+from models import (CompanyDetailsChange, TosContent, SurfTruthConsentEvent,CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
                     SurfSpot, SurfTruthAdminAction, SurfTruthAnchor, SurfTruthAnchorEvent, XPTransaction)
 from models import surf_truth_admin as admin_models
 from routes.surf_data import observation_audits, observations, surf_truth_admin
@@ -36,7 +36,7 @@ async def world(monkeypatch):
     monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
-        for model in (Profile, SurfTruthConsentEvent, SurfSpot, CheckIn, ConditionReport, SurfReport, SurfObservation, ObservationMedia,
+        for model in (Profile, TosContent, SurfTruthConsentEvent, CompanyDetailsChange,SurfSpot, CheckIn, ConditionReport, SurfReport, SurfObservation, ObservationMedia,
                       SurfTruthAnchor, SurfTruthAnchorEvent, SurfTruthAdminAction, XPTransaction):
             await connection.run_sync(lambda conn, table=model.__table__: table.create(conn))
     maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -64,7 +64,7 @@ async def world(monkeypatch):
         await engine.dispose()
 
 
-def _change(world, profile, status, reason="checked against the pier photo", who="boss"):
+def _change(world, profile, status, reason="reliable_record", who="boss"):
     return world.client.post(f"/api/admin/surf-truth/anchors/{profile}/status",
                              json={"status": status, "reason": reason}, headers=_token(who))
 
@@ -89,20 +89,22 @@ async def test_a_non_admin_cannot_appoint_anyone(world):
 
 async def test_status_change_writes_both_logs(world):
     assert (await _change(world, "pho", "probation")).status_code == 200
-    r = await _change(world, "pho", "active", "two weeks of photo checks within 10%")
+    r = await _change(world, "pho", "active", "probation_passed")
     assert r.json() == {"profile_id": "pho", "status": "active", "from_status": "probation"}
     (anchor,) = (await world.client.get("/api/admin/surf-truth/anchors", headers=_token("boss"))).json()
     assert (anchor["profile_id"], anchor["status"], anchor["appointed_by"]) == ("pho", "active", "boss")
     events = (await world.client.get("/api/admin/surf-truth/anchors/pho/events", headers=_token("boss"))).json()
     assert [(e["from_status"], e["to_status"]) for e in events] == [(None, "probation"), ("probation", "active")]
+    assert {(e["actor_id"], e["actor_name"]) for e in events} == {("boss", "boss")}   # the admin's name, for display
     actions = await _actions(world)
     assert sorted(a["detail"]["to"] for a in actions) == ["active", "probation"]
     assert all(a["action"] == "anchor_status" and a["admin_id"] == "boss" and a["reason"] for a in actions)
 
 
 @pytest.mark.parametrize("body", [
-    {"status": "active", "reason": ""}, {"status": "trusted", "reason": "x"}, {"status": "active"},
-    {"status": "active", "reason": "x", "face_m": 2.0},
+    {"status": "active", "reason": ""}, {"status": "trusted", "reason": "reliable_record"}, {"status": "active"},
+    {"status": "active", "reason": "reliable_record", "face_m": 2.0},
+    {"status": "active", "reason": "two weeks of photo checks within 10%"},   # free text: codes only (log retention)
 ])
 async def test_bad_bodies_are_refused_and_logged_nowhere(world, body):
     r = await world.client.post("/api/admin/surf-truth/anchors/pho/status", json=body, headers=_token("boss"))
@@ -120,7 +122,7 @@ async def test_unknown_profile_and_no_op_change(world):
 
 
 async def test_self_appointment_is_allowed_but_marked(world):
-    assert (await _change(world, "boss", "active", "owner as first anchor")).status_code == 200
+    assert (await _change(world, "boss", "active", "reliable_record")).status_code == 200
     (action,) = await _actions(world)
     assert action["detail"]["self"] is True
 
@@ -131,11 +133,11 @@ async def test_audit_verdicts_are_logged_and_never_touch_the_number(world, monke
         entry_screen="checkin_modal", ref_id="ci-ana", height_value=3, height_unit="ft", height_scale="face",
         set_or_avg="sets", latitude=29.0, longitude=-80.9, device_id=str(uuid.uuid4())), headers=_token("ana"))
     obs_id = r.json()["id"]
-    await world.client.post(f"/api/admin/surf-observations/{obs_id}/audit", json={"verdict": "fail", "reason": "photo of another beach"},
+    await world.client.post(f"/api/admin/surf-observations/{obs_id}/audit", json={"verdict": "fail", "reason": "photo_wrong_spot"},
                             headers=_token("boss"))
     (action,) = await _actions(world)
     assert (action["action"], action["target_id"], action["detail"]["verdict"]) == ("audit_verdict", obs_id, "fail")
-    assert action["reason"] == "photo of another beach" and action["admin_name"] == "boss"
+    assert action["reason"] == "photo_wrong_spot" and action["admin_name"] == "boss"
     async with world.maker() as db:
         obs = await db.get(SurfObservation, obs_id)
     assert obs.height_value == 3 and obs.face_m > 0   # a verdict changes a status, never the reported number
@@ -164,7 +166,8 @@ async def test_a_failed_audit_needs_a_reason(world, monkeypatch):
         entry_screen="checkin_modal", ref_id="ci-ana", height_value=3, height_unit="ft", height_scale="face",
         set_or_avg="sets", latitude=29.0, longitude=-80.9, device_id=str(uuid.uuid4())), headers=_token("ana"))
     obs_id = r.json()["id"]
-    for body in ({"verdict": "fail"}, {"verdict": "fail", "reason": "   "}):
+    for body in ({"verdict": "fail"}, {"verdict": "fail", "reason": "   "},
+                 {"verdict": "fail", "reason": "photo of another beach"}):            # free text: codes only
         refused = await world.client.post(f"/api/admin/surf-observations/{obs_id}/audit", json=body,
                                           headers=_token("boss"))
         assert refused.status_code == 422

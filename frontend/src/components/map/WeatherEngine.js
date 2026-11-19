@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind, getBackendWindFlag, prewarmSiblingModelWind, isRenderableWindData } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
+import { windParticlesWanted } from './gustParticles';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
 import { windGridsCompatible } from './WebGLWindEngine'; import { keepResidentFine } from './windOverlayKeep'; import { queueWindDelivery } from './windDeliveryCoalesce';
 import { recordTruthStage } from './weatherTruthTracker';
@@ -268,9 +269,11 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     } catch (e) { /* backfill is best-effort — never break the scrub commit */ }
   };
 
+  // Gusts run the wind particles too (motion from the wind, colour from the gust: gustParticles.js), so the wind is fetched
+  // for them exactly as for Wind. Kill: window.__RAW_DISABLE_GUST_PARTICLES__ = true.
   const isWindActive = useMemo(
-    () => activeLayers.includes('wind'),
-     
+    () => windParticlesWanted(activeLayers),
+
     [activeLayers.join(',')]
   );
 

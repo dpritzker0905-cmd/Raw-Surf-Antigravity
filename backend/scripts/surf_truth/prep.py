@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Optional
 
-SCHEMA = "raw-surf/surf-truth-export/1"
+SCHEMA = "raw-surf/surf-truth-export/2"           # 2: distances as bands (services/surf_truth_export.DISTANCE_BANDS)
+GPS_EXCLUDED_BANDS = {"2-10 km", ">10 km"}        # #989 "GPS > 2 km": the export's 1-2 km band ends at 2000 m inclusive
 FT = 0.3048
 HOLDOUT_THRESHOLD = int(0.2 * 2 ** 256)          # fixed threshold, never a quantile (#989 holdout, research lead)
 CELL_HOURS = 3
@@ -74,7 +75,7 @@ def exclusion_reason(row: dict) -> Optional[str]:
     flags = set(row.get("flags") or [])
     if flags & EXCLUDING_FLAGS:
         return sorted(flags & EXCLUDING_FLAGS)[0]
-    if row.get("gps_distance_m") is not None and row["gps_distance_m"] > 2000:
+    if row.get("gps_distance_band") in GPS_EXCLUDED_BANDS:
         return "gps_over_2km"
     if row.get("exif_age_s") is not None and abs(row["exif_age_s"]) > 10800:
         return "exif_over_3h"

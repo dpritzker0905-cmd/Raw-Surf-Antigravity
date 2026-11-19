@@ -517,6 +517,11 @@ async def run_expansion():
 
 
 async def main():
+    try:
+        from _legacy_spot_writer import refuse_legacy_spot_write
+    except ImportError:
+        from scripts._legacy_spot_writer import refuse_legacy_spot_write
+    refuse_legacy_spot_write("global_expansion_phase4.py")
     stats, total = await run_expansion()
     print(f"\nDone! Added {stats['added']}, Updated {stats['updated']}")
     print(f"Total spots in database: {total}")

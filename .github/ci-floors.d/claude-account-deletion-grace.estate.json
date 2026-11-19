@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 14,
+  "tests": 16,
   "branch": "claude/account-deletion-grace",
-  "date": "2026-11-18",
-  "note": "restorable deletion incl. cancel/hold guards and table lock"
+  "date": "2026-11-19",
+  "note": "restorable deletion incl. cancel/hold guards, table lock, hooks registered at import"
 }

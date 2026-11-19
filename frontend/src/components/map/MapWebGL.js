@@ -8,6 +8,7 @@ import { MarineParticleCanvas } from './GPUMarineLayer';
 import MapMarkerLayers from './MapMarkerLayers';
 import { WindParticleOverlay } from './WindParticleOverlay';
 import { WebGLWindLayer } from './WebGLWindLayer';
+import { windParticlesWanted, gustColourMode } from './gustParticles';
 import { WebGLMarineLayer } from './WebGLMarineLayer';
 import { OceanMask } from './OceanMask';
 import { useWeatherEngine } from './WeatherEngine';
@@ -1057,7 +1058,8 @@ const MapWebGL = ({
         {!webglWindFailed ? (
           <WebGLWindLayer
             mapInstance={mapInstance}
-            active={activeLayers.includes('wind')}
+            active={windParticlesWanted(activeLayers)}
+            gustColour={gustColourMode(activeLayers)}
             data={windData}
             deliveryQueue={windDeliveryQueue}
             revision={windRevision?.current || 0}

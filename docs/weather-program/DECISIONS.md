@@ -2236,6 +2236,10 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   PR as its gate.
 - **Owner:** "Yes, after #1009" (the pin), then "Start the cap period rule pin", typed in the repair lead's session.
 - Record: `log/2026-11-18-fable-cap-period-rule-pin.md`.
+- **Update 2026-11-18 (the alternatives include, not "the alternative is"):** the two rules named above are not the
+  only candidates. A third is an ENERGY-WEIGHTED period across the transformed trains (each train's period weighted
+  by its share of the energy), which sits between the two. It has not been replayed or scored. The gate that chooses
+  the rule registers every candidate it will compare before it reads a result. The rule and its pin are unchanged.
 
 ### D-082 · Open-Meteo leaves the user path: agency data replaces every fallback; internal testing only (2026-11-18, decided by the owner, AMENDED the same day)
 - **AMENDMENT, 2026-11-18 evening. THIS BLOCK GOVERNS; the text below it is the afternoon's version, kept as history.**
@@ -2309,3 +2313,67 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   took waves this way, at the two rated hours. The #1015 count is the instrument; the direction is down.
 - **No served number moves with this entry.**
 - Record: `log/2026-11-18-fable-open-meteo-fallback-rule.md`.
+
+### D-083 · T1 append-only logs: minimal content now, retention by per-subject keys + monthly partitions (2026-11-18, PROPOSED; periods await counsel)
+- **Asked by:** David, 2026-11-18, routed the legal follow-ups (consent wording, California precise geolocation, and
+  whether erasure must reach the append-only logs) to their own lane. Research by the director's session, which is
+  not legal advice; counsel has reviewed nothing.
+- **Decided by engineering (reversible, no served number):**
+  - The anchor and admin logs hold REASON CODES only, never free text.
+  - The admin log's `detail` takes allow-listed keys only.
+  - The export sends distances only as bands of 1 km or wider (schema 2), and no longer sends the 500 m `gps_check`.
+  - The consent default is draft `draft-2026-11-18d`, with `[COMPANY]` / `[PRIVACY NOTICE LINK]` placeholders that
+    refuse every grant until they are filled in.
+- **Proposed, NOT decided:** crypto-shredding with per-subject keys plus monthly partitions dropped at the end of
+  each period. Design: `T1-LOG-RETENTION-DESIGN-2026-11-18.md`.
+- **Open (named constants in `services/surf_truth_log_retention.py`, all None):**
+  - the claims period for consent records after erasure (counsel);
+  - anchor events, 6-12 months, and whether they are shredded at erasure (David);
+  - admin actions, 6-12 months (David or counsel);
+  - whether to build the mechanism before those answers (David).
+- **Reopen if:** counsel's review changes a per-table basis, or the EDPB pinpoints (05/2020 ¶107) read differently
+  in the English text.
+- Numbered D-083 (first drafted as D-082): #1059 holds D-082 (the Open-Meteo rule). Order proposed by this lane on
+  2026-11-18, at the advisor's request, and sent to the director and the repair lead: #1059 keeps D-082, and this
+  lane's three entries are D-083, D-084 and D-085.
+
+### D-084 · Forecast-data consent: one switch; the controller is Raw Surf Adventures Inc., editable in the admin (2026-11-18, decided by the owner)
+- **Owner, typed in this lane's session (2026-11-18):**
+  - "one switch, entity is Raw Surf Adventures Inc."
+  - "we need these settings to be changed in the appropriate admin area"
+  - "privacy notice URL is our in-app /privacy page I believe, check" (checked: no such page existed); "if /privacy
+    exists use it, then build it"
+  - "don't overwrite, just append, if we have one already"
+  - "yes put it next to the terms of service"
+- **Rule:**
+  - ONE consent switch covers "measure and improve". "Improve" is defined narrowly in the text.
+  - The legal entity name, the privacy-notice link and an optional privacy contact are **Company details**: a
+    versioned legal document in Compliance > Legal documents, right after the Terms of Service.
+  - The Terms, the Privacy Policy and the consent use `{company}` / `{privacy_url}` / `{privacy_contact}`. These are
+    filled when the text is served, and the admin edits the template.
+  - The consent's served version names the FILLED words, so renaming the company asks everyone again. Retention
+    treats it as a revocation.
+  - The privacy notice is a new public page, `/privacy`, which renders the active Privacy Policy.
+  - The default Privacy Policy keeps sections 1-9 unchanged. "10. Who We Are" and "11. Forecast Data From Your Wave
+    Reports" are appended after them.
+- **Supersedes** the `[COMPANY]` / `[PRIVACY NOTICE LINK]` default placeholders of D-083. The markers still refuse a
+  published text that carries them.
+- **Still DRAFT:** counsel has reviewed no wording.
+
+### D-085 · Company details: only a real change re-asks; corrections keep consents, with an append-only record (2026-11-18, decided by the owner)
+- **Owner:**
+  - "Only real name changes" (typed in this lane's session, answering whether a company-details typo fix should
+    re-ask everyone and empty the export);
+  - "Yes, correction option" (typed in the T1 session, relayed with the details below).
+- **Rule:**
+  - A Company details publish is either a CHANGE or a CORRECTION, and the admin must say which.
+    - A CHANGE (a different company or privacy notice) starts a new consent revision. Everyone who opted in is asked
+      again, and retention replaces the exports.
+    - A CORRECTION (a typo, same meaning) keeps the revision. Every consent and export stands.
+  - A publish that leaves the consent's filled words untouched never re-asks anyone.
+  - Every publish appends a row to `company_details_changes` (append-only on Postgres) holding the old and new
+    details, the filled consent words before and after, who published it and when. The record therefore still shows
+    exactly what each person saw.
+- **Supersedes** D-084's "the consent's served version names the FILLED words". It now names the Company details
+  revision.
+- **Reopen if** counsel says that a corrected name or link under an unchanged consent version is not valid consent.

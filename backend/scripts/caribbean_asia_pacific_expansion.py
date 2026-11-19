@@ -318,6 +318,16 @@ SRI_LANKA_SPOTS = {
 # Central + North atolls, charter/resort access required
 # =============================================================================
 
+# WITHHELD 2026-11-18: these two are NOT seeded any more. Their coordinates were wrong (Yin Yang on the wrong atoll
+# and in open water; Pasta Point about 50 km from the real break), both rows are hidden in production
+# (is_active = false) on the owner's word, and no licence-clean coordinate exists for either. Kept here only as a
+# record of what this file used to write. A person adds them back through the admin editor with a real position;
+# a coordinate from a surf site or from OpenStreetMap may not be written.
+MALDIVES_WITHHELD = {
+    "Yin Yang": {"lat": 3.968, "lon": 73.268, "why": "wrong atoll, open water"},
+    "Pasta Point": {"lat": 3.898, "lon": 73.408, "why": "about 50 km from the real break"},
+}
+
 MALDIVES_SPOTS = {
     # North Male Atoll
     "Chickens": {
@@ -352,26 +362,18 @@ MALDIVES_SPOTS = {
     },
     
     # Central Atolls
-    "Yin Yang": {
-        "lat": 3.968, "lon": 73.268,  # South Male reef
-        "region": "South Male Atoll", "state": "South Male", "country": "Maldives",
-        "spot_type": "reef_break", "difficulty": "advanced",
-        "notes": "A-frame peak"
-    },
+    # Quarters: corrected 2026-11-18. This file had 3.938, 73.248, which is open water about 26 km west of South
+    # Male (it resolved to open ocean and served the offshore height as surf). Production was moved to the value
+    # below on the owner's word; it is the repo's other seed for this spot (expand_tahiti_maldives_africa.py).
+    # It is still an estimate, not a surveyed peak.
     "Quarters": {
-        "lat": 3.938, "lon": 73.248,  # Right reef offshore
+        "lat": 3.9333, "lon": 73.4833,
         "region": "South Male Atoll", "state": "South Male", "country": "Maldives",
         "spot_type": "reef_break", "difficulty": "intermediate",
         "notes": "Protected inside reef"
     },
-    
+
     # Outer Atolls
-    "Pasta Point": {
-        "lat": 3.898, "lon": 73.408,  # Exclusive resort wave
-        "region": "North Male Atoll", "state": "North Male", "country": "Maldives",
-        "spot_type": "point_break", "difficulty": "intermediate",
-        "notes": "Exclusive Cinnamon Dhonveli access"
-    },
     "Lohis": {
         "lat": 4.248, "lon": 73.468,  # Left reef break
         "region": "North Male Atoll", "state": "North Male", "country": "Maldives",
@@ -728,6 +730,11 @@ async def run_expansion():
 
 
 async def main():
+    try:
+        from _legacy_spot_writer import refuse_legacy_spot_write
+    except ImportError:
+        from scripts._legacy_spot_writer import refuse_legacy_spot_write
+    refuse_legacy_spot_write("caribbean_asia_pacific_expansion.py")
     stats, total = await run_expansion()
     print(f"\nDone! Added {stats['added']}, Updated {stats['updated']}")
     print(f"Total spots in database: {total}")
