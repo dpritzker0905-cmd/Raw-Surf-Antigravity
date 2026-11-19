@@ -279,11 +279,14 @@ async def enforce(db, store=None, now: Optional[datetime] = None) -> dict:
             # Privacy first (advisor limit on #1034): keeping the stale exports because their replacement failed would
             # keep a withdrawn person's reports past the 7-day promise. They are deleted as planned, exactly as when
             # there is no key; a new export can be made by hand. The failure is an admin-visible action, not only a log.
+            # The admin log is append-only and outlives an account erasure, so it takes only code-written text
+            # (surf_truth_admin.DETAIL_KEYS): the exception's CLASS name, never its message, which a database or storage
+            # error can fill with row values, paths or ids. The full text goes to the server log and the returned summary.
             fresh_error = f"{type(exc).__name__}: {str(exc)[:200]}"
             logger.error("[surf-truth retention] fresh export failed: %s", fresh_error)
             surf_truth_admin.log_action(db, SYSTEM_ACTOR, "retention_fresh_export_failed", "surf_truth_export",
-                                        "retention", detail={"why": fresh_error,
-                                                             "stale_exports_deleted": len(decision["delete"])})
+                                        "retention", detail={"why": f"fresh export failed ({type(exc).__name__})",
+                                                             "deleted_runs": len(decision["delete"])})
         else:
             surf_truth_admin.log_action(db, SYSTEM_ACTOR, "export", "surf_truth_export", fresh["run_id"],
                                         detail={"rows": fresh["rows"], "object": fresh["data_object"],
@@ -296,7 +299,6 @@ async def enforce(db, store=None, now: Optional[datetime] = None) -> dict:
                "reasons": sorted(set(decision["delete"].values())), "overdue": overdue, "fresh_error": fresh_error}
     surf_truth_admin.log_action(db, SYSTEM_ACTOR, "retention", "surf_truth_export", "retention",
                                 detail={"kept": len(summary["kept"]), "deleted_runs": summary["deleted_runs"],
-                                        "fresh_export": summary["fresh_export"], "overdue": overdue,
-                                        "fresh_error": fresh_error})
+                                        "fresh_export": summary["fresh_export"], "overdue": overdue})
     await db.commit()
     return summary

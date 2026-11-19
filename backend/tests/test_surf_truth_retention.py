@@ -3,6 +3,7 @@ deletion, a withdrawn consent, a new consent version); a key rotation removes th
 grace. Advisor hold on #1034: a read error skips the sweep (never deletes), listings are paged, deletes are capped, and
 an export's cut_at is taken before its rows are read."""
 import asyncio
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -373,7 +374,13 @@ def test_a_failed_fresh_export_is_logged_for_the_admin_and_the_stale_exports_sti
             summary = await ret.enforce(db, store=store, now=NOW)
             assert summary["fresh_export"] is None and "503" in summary["fresh_error"]
             assert summary["deleted_runs"] == 2 and len(store.deleted) == 4      # privacy first: the stale ones go
-            actions = [a.action for a in (await db.execute(select(SurfTruthAdminAction))).scalars().all()]
+            logged = (await db.execute(select(SurfTruthAdminAction))).scalars().all()
+            actions = [a.action for a in logged]
             assert "retention_fresh_export_failed" in actions and "retention" in actions
+            failed = next(a for a in logged if a.action == "retention_fresh_export_failed")
+            assert json.loads(failed.detail) == {"why": "fresh export failed (ExportUnavailable)", "deleted_runs": 2}
+            # The append-only admin log outlives an erasure, so the exception's MESSAGE never reaches it: only the
+            # class name (code-written). The full text stays in the returned summary and the server log.
+            assert all("status 503" not in (a.detail or "") for a in logged)
     asyncio.run(go())
 
