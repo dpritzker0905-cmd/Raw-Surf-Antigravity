@@ -528,3 +528,16 @@ The commit that carries it (`8e9c77d91`) was pushed before 17:16 by the machine'
 no fine grid is resident, section 14), W8a as amended, W8b, W8c, W9, W13. Failed or not met: W4 (dark once of twice, light,
 beach), W8d, W2b (unresolvable), W7 (section 14), W12, W2 once (beach, loaded machine). Void: W14 as registered (answered
 by section 14: the fine pass does not blend). Not run: W11's whole-tree run. The wind blend stays OFF; no PR is opened.
+
+## 17. Open items, logged at the director's request (2026-11-18, evening EST). Nothing measured in this section
+The director's reply to sections 13 to 16: the wind blend stays OFF and there is no PR.
+- **Condition on any re-try of the wind blend:** it must either blend the viewport-fine pass too
+  (`WebGLWindEngine.js:684`), or the gate must test what is actually on screen (the passes told apart before scoring).
+- **OPEN, unexplained: W4** (every step fully at rest 420 ms later). It failed in dark desktop once of twice (sections 10,
+  11), in light desktop (76 of 80) and in beach desktop (73 of 80), and passed on the phone layout (80 of 80). No cause is
+  established. Not investigated: which steps fail, whether they are the steps with a grid swap, and whether W4c (the late
+  check) passes on the same runs.
+- **OPEN, unexplained: the empty 12-hour controls in W8a** (section 16). The control returned a value for pairs j1 and j2
+  and nothing for j3 and j4 (hours 7 and 8). The instrument returns nothing when the two hours' byte arrays differ in
+  length or one is missing; which, and why hours 7 and 8 differ, is not established.
+- Also still open from section 14: the residual at view 6 (picture ratio 0.80 to 0.94 with no fine grid resident).
