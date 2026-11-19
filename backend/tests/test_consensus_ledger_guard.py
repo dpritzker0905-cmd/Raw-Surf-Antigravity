@@ -20,7 +20,7 @@ REPS = 2500
 AUTO = {24: ("regional", "regional"), 48: ("global_mid", "global_mid"), 72: ("global_mid", "regional")}
 
 
-def rows(harm_hs=0.0, harm_dir=0.0, rot_dir=0.0, tiers=None, days=14, hours=HOURS, buoys=BUOYS, seed=7):
+def rows(harm_hs=0.0, harm_dir=0.0, rot_dir=0.0, tiers=None, days=14, hours=HOURS, buoys=BUOYS, seed=7, serv_rot=0.0):
     """Served and shadow rows on the same observation, plus the ICON / EURO member rows that carry the tier (by default
     each lead's decision class: +24 h regional, +48 h global_mid, +72 h mixed). harm_* grows the shadow's |error| by that
     much; rot_dir rotates the shadow's direction by that many degrees."""
@@ -33,7 +33,7 @@ def rows(harm_hs=0.0, harm_dir=0.0, rot_dir=0.0, tiers=None, days=14, hours=HOUR
             for b in buoys:
                 obs, mwd = 1.5 + rng.random(), rng.uniform(0, 360)
                 for lead in g.LEADS:
-                    e, de = rng.gauss(0, 0.3), rng.gauss(0, 15)
+                    e, de = rng.gauss(0, 0.3), rng.gauss(0, 15) + serv_rot
                     base = {"buoy_id": b, "target_time": t, "lead_h": float(lead), "obs_time": t, "obs_hs_m": obs,
                             "obs_mwd_deg": mwd}
                     out.append(dict(base, source=g.SERVED, hs_m=obs + e, err_m=e, dir_deg=(mwd + de) % 360))
@@ -178,3 +178,34 @@ def test_a_missed_1_2x_plant_is_reported_not_a_void(monkeypatch):
     assert "a plant that cannot fire (1.2x) missed" in g.render({"CONSENSUS_SERVE": dict(r, quantity=g.HS,
                                                                                           role="readiness")})
     assert g.verdict(items(harm_hs=0.05), g.HS, reps=REPS)["state"] == g.FIRE
+
+
+def test_a_smaller_absolute_bias_is_an_improvement_and_never_fires():
+    """The advisor's HOLD, finding 1: served +8 deg, arm +1 deg. The old two-sided (arm - served) rule read -7 and fired."""
+    it = items(serv_rot=8.0, rot_dir=-7.0)
+    j = g.judge(it, g.DIR, reps=REPS)
+    cell = j["classes"]["stored-regional"][24][g.BIAS]
+    assert cell["delta"] < -5.0 and not j["fire"]
+    assert g.verdict(it, g.DIR, reps=REPS)["state"] == g.NO_FIRE
+
+
+def test_direction_bias_is_circular_never_a_pairwise_difference():
+    """The advisor's HOLD, finding 3: +175 against -175 is a 10-degree rotation, not 350 degrees."""
+    it = [dict(x, **{g.DIR: (175.0, -175.0)}) for x in items()]
+    j = g.judge(it, g.DIR, reps=REPS)
+    assert not j["fire"]
+    assert abs(j["classes"]["stored-regional"][24][g.BIAS]["delta"]) < 1e-6
+
+
+def test_the_noisy_swap_null_keeps_real_noise_and_stays_quiet():
+    sw = g.swap_items(items())
+    assert any(a != b for a, b in (x[g.HS] for x in sw))                 # not the trivial all-zero null
+    for q in (g.HS, g.DIR):
+        assert not g.judge(sw, q, reps=REPS)["fire"]
+
+
+def test_no_fire_needs_every_lead_judged():
+    """The advisor's limit: one lead with enough rows must not read as "not worse" for all three."""
+    it = [x for x in items() if x["lead"] == 24]
+    r = g.verdict(it, g.HS, reps=REPS)
+    assert r["state"] == g.INSUFFICIENT and "+24 h" in r["why"][0]

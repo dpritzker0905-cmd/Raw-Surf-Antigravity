@@ -333,11 +333,18 @@ def ledger_report(now: datetime, fetch=None) -> dict:
 LEDGER_VERDICT = {"FIRE": gs.WORSE, "NO_FIRE": gs.NOT_WORSE}       # VOID / INSUFFICIENT -> UNTESTABLE (never a strike)
 PLANT_KEY = "__g1a_plants__"         # in the job's watch cache beside the strike counters; never a flag name
 PLANT_HISTORY = 28                   # 7 days of 6-hourly runs
-# The research lead's limit (2026-11-18): the guard was built on synthetic rows only, so its first runs on the real archive
-# are REPORT-ONLY: a FIRE there is printed but never counts as a strike, until the lead has read the first real run. The
-# count lives in the job cache; a lost cache restarts it, which only delays a disable, never causes one.
-LEDGER_RUNS_KEY = "__g1a_runs__"
-LEDGER_REPORT_ONLY_RUNS = 2
+# REPORT-ONLY UNTIL RELEASED (the research lead's limit 2026-11-18, made explicit on the advisor's HOLD 2026-11-19): the
+# guard was built on synthetic rows only, so a ledger FIRE is printed but never counts as a strike until someone has READ a
+# real run and released it. The release is the repository variable LEDGER_GUARD_RELEASED='1' (the workflow passes it by
+# name; default '0'), set on the research lead's READ line. A run counter would release itself after two scheduled runs
+# whether or not anyone read them (the advisor's finding), so there is none. The job only COUNTS runs that reached a real
+# verdict (FIRE / NO_FIRE), for the report.
+LEDGER_RELEASE_ENV = "LEDGER_GUARD_RELEASED"
+LEDGER_RUNS_KEY = "__g1a_real_verdicts__"
+
+
+def ledger_released() -> bool:
+    return os.environ.get(LEDGER_RELEASE_ENV, "0") == "1"
 
 
 # ---- one run --------------------------------------------------------------------------------------------------------
@@ -354,9 +361,9 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
     try:                                     # once per run; also carries CONSENSUS_SERVE's readiness cells for the report
         led = (ledger or ledger_report)(now)
         results["__ledger__"] = led
-    except BaseException as e:               # noqa: BLE001 - an unreadable archive leaves the ledger flags UNTESTABLE
-        if isinstance(e, (KeyboardInterrupt, SystemExit)):
-            raise
+    except Exception as e:                   # noqa: BLE001 - an unreadable archive leaves the ledger flags UNTESTABLE
+        # Exception, not BaseException: scored_rows_gate.ReadOnlyViolation is a BaseException ON PURPOSE (a write attempt
+        # inside the read-only guard must stop the job, never read as "unavailable").
         print(f"scored ledger unavailable this run ({type(e).__name__}); ledger flags are UNTESTABLE")
     ctx = None
     if seen:
@@ -420,14 +427,16 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
                 hist[k] = (list(hist.get(k) or []) + [bool(ok)])[-PLANT_HISTORY:]
                 plant_rates[k] = (sum(hist[k]), len(hist[k]))
         watch = dict(watch, **{PLANT_KEY: hist})
-        done = int(watch.get(LEDGER_RUNS_KEY) or 0)
-        if done < LEDGER_REPORT_ONLY_RUNS:
+        real = sum(1 for r in ledger.values() if r.get("role") == "guard" and r.get("state") in ("FIRE", "NO_FIRE"))
+        seen_real = int(watch.get(LEDGER_RUNS_KEY) or 0) + (1 if real else 0)
+        watch = dict(watch, **{LEDGER_RUNS_KEY: seen_real})
+        if not ledger_released():
             for f, r in results.items():
                 if r.get("coverage") == LEDGER and r.get("verdict") == gs.WORSE:
                     r["verdict"] = gs.UNTESTABLE
                     r["reasons"] = list(r.get("reasons") or []) + [
-                        f"REPORT-ONLY run {done + 1} of {LEDGER_REPORT_ONLY_RUNS}: a FIRE is printed, not a strike"]
-        watch = dict(watch, **{LEDGER_RUNS_KEY: done + 1})
+                        f"REPORT-ONLY until released ({LEDGER_RELEASE_ENV}=1 after the research lead's READ of a real run; "
+                        f"runs with a real verdict so far: {seen_real}): a FIRE is printed, not a strike"]
     decisions, new = {}, manifest
     for f in watched:
         d = decide(f, results.get(f, {"verdict": "UNTESTABLE", "reasons": ["not scored (held off)"]}),

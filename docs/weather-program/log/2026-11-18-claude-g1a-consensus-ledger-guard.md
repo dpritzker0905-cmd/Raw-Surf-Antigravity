@@ -7,6 +7,10 @@ hands that flag's value in the consensus build lane to the runtime manifest (sti
 
 ## 1. The rule, registered before any real number was read
 
+> **SUPERSEDED IN PART** by sections 4, 5 and 7: decision classes, Holm families, B and the resolution check (4); a
+> fired null is always VOID and the 1.2x plants are reported only (5); the bias rule, circular direction means, the noisy
+> swap null and the explicit release (7). Where this section and those disagree, those hold.
+
 Nothing below was tuned on archive rows: the module was built and tested on synthetic rows only, and no scored-archive
 read has been run from this branch.
 
@@ -138,3 +142,75 @@ The research lead set three limits. Two are applied here; the third waits for ho
 2. **Docstring:** the `verdict()` docstring now states the code's precedence.
 3. **Hosted runtime (open, checked on the first run):** the 20-seed detection test takes about 2 minutes locally.
    Its hosted chain-lane duration is to be checked on the first run.
+
+## 7. The advisor's HOLD on 144cc28d6 (2026-11-19 01:03Z), corrected before any real row was read
+
+The advisor's independent code read found three paths to a wrong strike. Each is corrected **in the rule as well as the
+code**, before any archive row has been read.
+
+1. **The bias rule fired on an improvement.**
+   - Registered rule (section 1): the two-sided basin mean of (arm error − served error). With served +8° and arm +1°,
+     that reads −7° and fired.
+   - **Corrected rule:** bias is judged against the observation. The statistic is |arm bias| − |served bias|, one-sided:
+     only a LARGER absolute bias, beyond the basin line, can fire. Hs uses the mean signed error; direction uses the
+     circular mean (next point).
+   - Test: `test_a_smaller_absolute_bias_is_an_improvement_and_never_fires`.
+2. **"The first two real runs are report-only" was not what the code did.** The counter advanced on every run with a
+   ledger report, including INSUFFICIENT, VOID and dry runs, so two scheduled runs released the guard whether or not
+   anyone read them.
+   - **Corrected:** no counter releases anything. A ledger FIRE stays report-only until the repository variable
+     `LEDGER_GUARD_RELEASED` is '1'. `flag-guardrail.yml` passes it by name, with default '0'. It is set after the
+     research lead's READ line on a real run.
+   - The job counts only runs with a real verdict (FIRE / NO_FIRE), for the report.
+   - Tests: `test_report_only_until_explicitly_released` and `test_only_real_verdicts_are_counted`.
+3. **Direction differences were not re-wrapped.** +175° against −175° gave 350° where the rotation is −10°.
+   - **Corrected:** direction errors are never subtracted pair by pair. MAE uses |a| − |s| (each in [0, 180]); bias uses
+     circular means from the sine and cosine sums.
+   - Test: `test_direction_bias_is_circular_never_a_pairwise_difference`.
+
+**The advisor's limits, also addressed:**
+- **Noisy null:** the two exact nulls cannot fire, because every difference is exactly 0. A third, noisy null is added:
+  on a seeded half of the UTC days, arm and served swap places. That keeps the real day-to-day noise and removes any
+  one-way harm, so it bounds false strikes on real noise. A firing null makes the run VOID.
+  - Test: `test_the_noisy_swap_null_keeps_real_noise_and_stays_quiet`.
+- **NO_FIRE needs every lead judged:** NO_FIRE now requires all three leads to reach n. Otherwise the run reads
+  INSUFFICIENT and names the leads judged. A FIRE on a judged lead still stands.
+  - Test: `test_no_fire_needs_every_lead_judged`.
+- **Read-only violations surface:** `ReadOnlyViolation` (a BaseException on purpose) is no longer swallowed; the handler
+  catches `Exception` only.
+  - Test: `test_a_read_only_violation_is_never_swallowed`.
+- **The live manifest:** it holds no 'off' for `CONSENSUS_DIRECTION_VECTOR`.
+  - The flag-guardrail run 44409457006 (2026-11-18 22:18Z) lists it as watched, with action `none`; an 'off' entry
+    would read `hold`.
+  - `control/flags.json` was last written 2026-11-14 04:44Z (storage metadata, 568 bytes; its content was not read).
+  - So passing '' in the pilots lane keeps the vector ON at merge.
+- **Section 1 is now marked superseded in part** by sections 4, 5 and 7.
+
+**The exact form of the corrected bias statistic (settled on synthetic rows, still before any real row):**
+
+- **First form, abandoned:** re-drew both |arm bias| and |served bias| in each bootstrap draw. Near a served bias of zero,
+  |served bias| folds at zero, and that pushed every draw down. A planted +0.10 m read 0.100 with a lower bound of 0.056
+  (p 0.017), and Holm across 5 basins could not pass it; the +6 deg rotation was caught in 0 of 20 seeds.
+- **Registered form:** growth = |served bias + shift| − |served bias|, where:
+  - shift is the paired mean of (arm − served), formed on the circle for direction;
+  - served bias is the window's point value.
+
+  The bootstrap varies only the paired shift, which has low noise. One-sided, worse only.
+
+Examples:
+
+| served bias | arm bias | shift | growth | fires? |
+|---|---|---|---|---|
+| +8 deg | +1 deg | −7 deg | −7 deg | never |
+| −175 deg | +175 deg | −10 deg (not 350) | 0 deg | never |
+| 0 | +6 deg | +6 deg | +6 deg | yes |
+
+Limit: the served bias is held at its window value, so its own sampling error is not in the CI. That error is small
+next to the lines: about 0.01-0.02 m and 1-2 deg in a basin-lead cell of a few hundred pairs.
+- **The basin plant is redefined as a known growth of |bias|.** In the busiest basin, the arm's error becomes the served
+  error pushed `size` further from zero, in the served bias's own direction. Adding `size` to the arm would plant less than
+  `size` wherever the arm already beats the served lane: with served +8 deg and arm +1 deg, a +10 deg plant grew |bias| by
+  only 3 deg and VOIDed a correct NO_FIRE.
+- **Local result (py 3.12):** 34 pass in the guard and guardrail-ledger files after the last change. The 148-test set ran
+  just before it with 1 failure, the case this change fixes. CI is the authority.
+- **Wind-down (director, 2026-11-19 ~01:35Z):** step-6 phase 0 is deferred; this head goes to the advisor for the HOLD.

@@ -4,6 +4,8 @@ A ledger FIRE is a WORSE strike, so the guardrail's own 2-strikes-over-24-h rule
 control/flags.json; VOID, INSUFFICIENT or an unreadable archive never strike; a default-off flag is never touched; the
 replay is never staged for a ledger flag; CONSENSUS_SERVE is readiness only and never written."""
 import argparse
+
+import pytest
 from datetime import datetime, timedelta, timezone
 
 from scripts import flag_guardrail as fg
@@ -61,7 +63,13 @@ def test_an_unreadable_archive_leaves_the_flag_untestable():
     assert r[FLAG]["verdict"] == gs.UNTESTABLE and "__ledger__" not in r
 
 
-ARMED = {fg.LEDGER_RUNS_KEY: fg.LEDGER_REPORT_ONLY_RUNS}    # past the report-only first runs
+ARMED = {}
+
+
+@pytest.fixture(autouse=True)
+def released(monkeypatch):
+    """Most tests exercise the guard once released (LEDGER_GUARD_RELEASED=1); the report-only tests unset it."""
+    monkeypatch.setenv(fg.LEDGER_RELEASE_ENV, "1")
 
 
 def _args():
@@ -144,12 +152,34 @@ def test_the_1_2x_plants_rolling_rate_is_kept_in_the_job_cache_and_printed(monke
     assert not second["changed"]                                          # a reported miss never acts
 
 
-def test_the_first_runs_on_the_real_archive_are_report_only(monkeypatch):
-    """The research lead's limit: until the lead has read the first real run, a FIRE is printed, never a strike."""
+def test_report_only_until_explicitly_released(monkeypatch):
+    """The advisor's HOLD, finding 2: no run counter releases the guard by itself. Unreleased, FIRE after FIRE a day
+    apart never strikes; only LEDGER_GUARD_RELEASED=1 (set after the research lead's READ) lets a FIRE count."""
     monkeypatch.setattr(fg, "save_watch", lambda *a: None)
+    monkeypatch.setenv(fg.LEDGER_RELEASE_ENV, "0")
     watch = {}
-    for i in range(fg.LEDGER_REPORT_ONLY_RUNS):
+    for i in range(4):
         r = _run("FIRE", NOW + timedelta(hours=25 * i), watch)
-        assert r["decisions"][FLAG]["action"] == "none" and "REPORT-ONLY" in r["decisions"][FLAG]["reason"]
+        assert r["decisions"][FLAG]["action"] == "none" and "REPORT-ONLY until released" in r["decisions"][FLAG]["reason"]
         watch = r["watch"]
-    assert _run("FIRE", NOW + timedelta(hours=60), watch)["decisions"][FLAG]["action"] == "strike"
+    assert watch[fg.LEDGER_RUNS_KEY] == 4                                 # real verdicts are counted, for the report
+    monkeypatch.setenv(fg.LEDGER_RELEASE_ENV, "1")
+    assert _run("FIRE", NOW + timedelta(hours=125), watch)["decisions"][FLAG]["action"] == "strike"
+
+
+def test_only_real_verdicts_are_counted(monkeypatch):
+    monkeypatch.setattr(fg, "save_watch", lambda *a: None)
+    w = {}
+    for state in ("VOID", "INSUFFICIENT", "UNDER_RESOLVED"):
+        w = _run(state, NOW, w)["watch"]
+    assert w.get(fg.LEDGER_RUNS_KEY, 0) == 0
+    assert _run("NO_FIRE", NOW, w)["watch"][fg.LEDGER_RUNS_KEY] == 1
+
+
+def test_a_read_only_violation_is_never_swallowed():
+    import scored_rows_gate as srg
+
+    def write_attempt(_now):
+        raise srg.ReadOnlyViolation("refused a non-GET request: POST")
+    with pytest.raises(srg.ReadOnlyViolation):
+        fg.score_flags([FLAG], NOW, "c", "o", stage=no_stage, ledger=write_attempt)
