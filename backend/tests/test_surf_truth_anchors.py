@@ -142,3 +142,13 @@ def test_the_log_is_append_only_on_postgres():
     assert "UPDATE, DELETE" not in log.split("GRANT", 1)[1]
     anchors = " | ".join(_ddl(SurfTruthAnchor.__table__))
     assert "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE" in anchors
+
+
+def test_the_append_only_functions_pin_an_empty_search_path():
+    """Supabase advisor (function_search_path_mutable): both trigger functions run with search_path = '' so no object
+    on a caller's path can shadow anything they resolve. Production's existing functions are altered by
+    docs/runbooks/SQL-2026-11-18-surf-truth-trigger-search-path.sql."""
+    from models import surf_truth_admin as admin_models
+    for fn in (anchor_models.APPEND_ONLY_FUNCTION, admin_models.APPEND_ONLY_FUNCTION):
+        head = fn.split("AS $$", 1)[0]
+        assert "SET search_path = ''" in head, fn
