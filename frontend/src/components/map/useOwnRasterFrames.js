@@ -283,6 +283,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
         publishRasterDrawn({ layer, shown: null, want: null, unavailable: end || `${RASTER_NAMES[layer] || layer}: no forecast for this hour` });
       } else publish();
       noteMiss('no_frame');
+      if (layer === 'gusts') setShownGustField(null);   // past the gust range: the particles drop the last frame's colours (advisor hold, #1079)
       tel().want = { validMs, path: null, at: Date.now() };
       setWanted(layer, [], null);
       return;

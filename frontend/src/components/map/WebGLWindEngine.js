@@ -26,7 +26,7 @@ import {
 } from './WebGLWindEngineInit';
 import { recordTruthStage } from './weatherTruthTracker'; import { refreshWindSpeedScale } from './windDeliveryCoalesce';
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { advTeardownNeeded } from './advFboSync';
-import { setGustField, clearGustField, gustColourActive, rampMaxFor, bindGustColour, GUST_UNIT } from './windGustColour';   // Gusts: wind motion, gust colour (gustParticles.js)
+import { setGustField, clearGustField, setGustMode, gustColourActive, gustModeBlank, rampMaxFor, bindGustColour, GUST_UNIT } from './windGustColour';   // Gusts: wind motion, gust colour (gustParticles.js)
 
 function latToMercatorY(lat) {
   var latClamped = Math.max(-85.051129, Math.min(85.051129, lat));
@@ -333,6 +333,7 @@ WebGLWindEngine.prototype.clearWindData = function(gl) {
 
 WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom, theme, worldOffsets, viewportBounds) {
   if (!this._initialized || this._programBatch || !this._windData) return;   // _programBatch: shaders still compiling
+  if (gustModeBlank(this)) return;   // Gusts picked, no gust frame resident: draw nothing, never wind under the Gusts label (windGustColour.js)
 
   const windGrid = this._windData?.windGrid;
   if (windGrid) {
@@ -1024,6 +1025,8 @@ WebGLWindEngine.prototype.dispose = function(gl) {
 };
 /** Gusts (gustParticles.js): the gust field on screen colours the marks; null returns the engine to the Wind layer exactly. */
 WebGLWindEngine.prototype.setGustField = function(gl, field) { setGustField(this, gl, field); };
+/** Gusts picked (true) or not: keyed on the selected layer, not on a loaded texture (windGustColour.setGustMode). */
+WebGLWindEngine.prototype.setGustMode = function(on) { setGustMode(this, on); };
 /**
  * v3.11.2r1: Clear all framebuffers called on layer deactivation
  * to prevent stale trails from persisting across layer switches.

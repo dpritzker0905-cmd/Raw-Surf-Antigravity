@@ -224,6 +224,7 @@ export function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, 
 // all props here are primitives or stable refs once the caller hoists onError. Skipping
 // renders on equal props is behavior-identical (effects key on the same prop values).
 function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revision, onError, theme, gustColour = false }) {
+  const gustColourRef = useRef(gustColour);   // Gusts picked: read by the engine-creation effect (setGustMode)
   const engineRef = useRef(null);
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
@@ -262,6 +263,7 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
 
     const engine = new WebGLWindEngine();
     engineRef.current = engine;
+    if (typeof engine.setGustMode === 'function') engine.setGustMode(gustColourRef.current);   // a new engine starts in the picked layer's mode
 
     // R11-09 (2026-08-09): device-capability tier, NOT window width — the one-shot
     // `window.innerWidth < 768` here was the exact marine bug deviceTier.js was built to kill
@@ -537,12 +539,14 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
 
   // GUSTS (gustParticles.js): with Gusts picked the marks move on the wind and take their colour from the gust field the gust
   // raster has ON SCREEN, so a scrub recolours them in the frame that changes the field. Off = the Wind layer exactly.
+  gustColourRef.current = gustColour;
   useEffect(() => {
     if (!mapInstance) return undefined;
     const apply = (field) => {
       const engine = engineRef.current;
       const gl = glRef.current || mapInstance?.painter?.context?.gl;
       if (!engine || !gl || typeof engine.setGustField !== 'function') return false;
+      if (typeof engine.setGustMode === 'function') engine.setGustMode(gustColour);   // keyed on the PICKED layer, not on a loaded texture
       try { engine.setGustField(gl, gustColour ? field : null); } catch (e) { /* GL lost: the next field retries */ }
       mapInstance.triggerRepaint();
       return true;

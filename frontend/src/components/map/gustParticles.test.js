@@ -9,7 +9,7 @@ import {
   gustParticlesOn, windParticlesWanted, gustColourMode, encodeGustTexture, decodeGustByte,
   getShownGustField, setShownGustField, subscribeGustField, gustFieldTint, WIND_FIELD_OPACITY,
 } from './gustParticles';
-import { GUST_RAMP_MAX_KN, rampMaxFor, gustColourActive, setGustField, clearGustField, gustFlicker, GUST_FLICKER_HZ, GUST_FLICKER_DEPTH } from './windGustColour';
+import { GUST_RAMP_MAX_KN, rampMaxFor, gustColourActive, gustModeBlank, setGustMode, setGustField, clearGustField, gustFlicker, GUST_FLICKER_HZ, GUST_FLICKER_DEPTH } from './windGustColour';
 import { DRAW_VS, DRAW_FS } from './WebGLWindShaders';
 import { gustScale } from './gustPalette';
 import { drawnMarkRampData } from './WindColorRamp';
@@ -116,7 +116,7 @@ describe('engine and shaders', () => {
 
   test('a gust field switches the ramp to the gust heatmap\'s 75 kn span; null switches back', () => {
     const { gl, calls } = fakeGl();
-    const engine = { _maxWindSpeed: 42, _gust: null };
+    const engine = { _maxWindSpeed: 42, _gust: null, _gustMode: true };
     const f = { cols: 4, rows: 3, values: new Float32Array(12).fill(20), bounds: { west: -180, south: -90, east: 179.75, north: 90 } };
     setGustField(engine, gl, f);
     expect(gustColourActive(engine)).toBe(true);
@@ -126,6 +126,43 @@ describe('engine and shaders', () => {
     expect(calls.some((c) => c[0] === 'texSubImage2D')).toBe(true);
     clearGustField(engine, gl);
     expect(rampMaxFor(engine)).toBe(42);
+  });
+
+  // Advisor hold 1 on #1079: gust mode is keyed on the PICKED layer, never on a loaded texture.
+  test('Gusts picked with no gust frame: blank (no heatmap, no marks), never wind under the Gusts label', () => {
+    const { gl } = fakeGl();
+    const engine = { _maxWindSpeed: 42, _gust: null };
+    setGustMode(engine, true);
+    expect(gustModeBlank(engine)).toBe(true);
+    expect(gustColourActive(engine)).toBe(false);
+    const f = { cols: 4, rows: 3, values: new Float32Array(12).fill(20), bounds: { west: -180, south: -90, east: 179.75, north: 90 } };
+    setGustField(engine, gl, f);
+    expect(gustModeBlank(engine)).toBe(false);
+    expect(gustColourActive(engine)).toBe(true);
+    clearGustField(engine, gl);   // the frame goes (scrubbed past the range, or loading the next): blank again, not wind
+    expect(gustModeBlank(engine)).toBe(true);
+    // Wind picked: a stale texture never colours the marks, and the engine is never blank
+    setGustField(engine, gl, f);
+    setGustMode(engine, false);
+    expect(gustColourActive(engine)).toBe(false);
+    expect(gustModeBlank(engine)).toBe(false);
+    expect(rampMaxFor(engine)).toBe(42);
+  });
+
+  test('the engine returns before any pass when blank; the layer sets the mode from the picked layer', () => {
+    const e = src('WebGLWindEngine.js');
+    expect(e).toMatch(/!this\._windData\) return;[^\n]*\n\s*if \(gustModeBlank\(this\)\) return;/);
+    expect(e).toContain('WebGLWindEngine.prototype.setGustMode = function(on) { setGustMode(this, on); };');
+    const l = src('WebGLWindLayer.js');
+    expect(l).toContain('engine.setGustMode(gustColourRef.current)');   // a new engine starts in the picked mode
+    expect(l).toContain('engine.setGustMode(gustColour);');             // and follows the pick
+    expect(l).toContain('gustColourRef.current = gustColour;');
+  });
+
+  // Advisor hold 2 on #1079: past the gust range the particles drop the last frame's colours.
+  test('no gust frame for the hour clears the shown gust field', () => {
+    const r = src('useOwnRasterFrames.js');
+    expect(r).toMatch(/noteMiss\('no_frame'\);\s*if \(layer === 'gusts'\) setShownGustField\(null\);/);
   });
 
   test('the engine skips its own heatmap in gust mode and binds the gust colour on the particle pass', () => {

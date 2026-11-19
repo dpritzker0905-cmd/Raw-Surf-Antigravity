@@ -12,9 +12,23 @@ export const GUST_UNIT = 6;
 /** The gust colour ramp's top: the gust heatmap's own LUT spans 0-75 kn (gustPalette.js), so a knot draws one colour in both. */
 export const GUST_RAMP_MAX_KN = 75;
 
-/** True while the engine colours by gust (a texture is resident). */
+/**
+ * GUST MODE is keyed on the layer the user PICKED (setGustMode, from WebGLWindLayer's gustColour prop), never on whether a gust
+ * texture happens to be loaded (advisor hold on #1079): with Gusts picked and no gust frame resident, the engine draws nothing
+ * (gustModeBlank), so wind is never shown under the Gusts label; the gust raster's own status line says loading / unavailable.
+ */
+export function setGustMode(engine, on) {
+  if (engine) engine._gustMode = !!on;
+}
+
+/** True while the engine colours by gust: Gusts picked AND a gust texture resident. */
 export function gustColourActive(engine) {
-  return !!(engine && engine._gust && engine._gust.tex);
+  return !!(engine && engine._gustMode && engine._gust && engine._gust.tex);
+}
+
+/** Gusts picked but no gust frame resident (loading, or past the gust range): draw no heatmap and no marks. */
+export function gustModeBlank(engine) {
+  return !!(engine && engine._gustMode) && !(engine._gust && engine._gust.tex);
 }
 
 /** The ramp's top speed for this frame: the gust ramp's in gust mode, the wind's own otherwise. */
