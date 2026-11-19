@@ -2236,6 +2236,10 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   PR as its gate.
 - **Owner:** "Yes, after #1009" (the pin), then "Start the cap period rule pin", typed in the repair lead's session.
 - Record: `log/2026-11-18-fable-cap-period-rule-pin.md`.
+- **Update 2026-11-18 (the alternatives include, not "the alternative is"):** the two rules named above are not the
+  only candidates. A third is an ENERGY-WEIGHTED period across the transformed trains (each train's period weighted
+  by its share of the energy), which sits between the two. It has not been replayed or scored. The gate that chooses
+  the rule registers every candidate it will compare before it reads a result. The rule and its pin are unchanged.
 
 ### D-082 · Open-Meteo leaves the user path: agency data replaces every fallback; internal testing only (2026-11-18, decided by the owner, AMENDED the same day)
 - **AMENDMENT, 2026-11-18 evening. THIS BLOCK GOVERNS; the text below it is the afternoon's version, kept as history.**
