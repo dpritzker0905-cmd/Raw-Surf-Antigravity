@@ -188,3 +188,46 @@ on the next pilots run.
 - **EXCLUDED:** the first pilots run that starts after #1009 merges. It is named by run id when it runs, before its gate lines
   are read.
 - **If one run follows both #1006 and #1009,** it is one excluded run, named once with both reasons.
+
+## 2026-11-18 13:54Z: exclusions named by run id, BEFORE their gate lines are read
+
+- **EXCLUDED, a forced rebuild (#1006, hourly wind ON at 15:52:16Z):** pilots run 44169533492, created 2026-11-17 20:27:41Z, the
+  first pilots run after #1006 merged.
+- **EXCLUDED, a forced rebuild (#1009, frame_binary.py, merged 2026-11-18 00:27Z):** pilots run 44219095846, created 2026-11-18
+  01:52:31Z, the first pilots run after #1009 merged.
+- **The next counted run is 44249848808** (created 06:14:12Z). #998 merged at 03:16:52Z, so this run also carries its five raster
+  sets, in their own steps; by the plan they are not an exclusion, and their time counts toward line 2.
+
+### 2026-11-18 14:07Z: counted run 2 of 4: pilots 44249848808 (06:14Z start, head after #998 / #1005 / #1006)
+
+`frames_budget_gate.py --run 44249848808`, with latest.json as last written by this run (09:20:51Z).
+
+| line | measured | verdict |
+|---|---|---|
+| 1. skips per step <= 2 | frames 0 / 0; rated **12 / 12** (log lines and report agree) | **FAIL** |
+| 2. no timeout, job < 240 min | frames step 1,191 s (success), rated step 1,875 s (success), job 186 min | PASS |
+| 3. no rated set behind its plain sibling | **12 behind**: the 12 skipped sets | **FAIL** |
+| 4. no plain GFS regional waves bundle skipped | 0 | PASS |
+| 5. #975 order | positions 1-19 are the 19 GFS regional waves rated bundles, 20th is GFS/marine/waves/global_mid_rated (from the rated report's key order, read by this session) | PASS |
+
+- **The 12 skipped sets** are all GFS regional **wind_waves** rated bundles: brazil_east, south_africa, mexico_centralamerica_pac,
+  us_southeast_midatlantic, azores, us_northeast, france_biscay, canaries_madeira_morocco, caribbean_pr_dr, srilanka_maldives,
+  centralamerica_caribbean, us_pacific_northwest. They are the last tier the order reaches.
+- **The rated set seconds grew,** from 1,596 s on run 1 to 1,784 s on run 2 (+12 %). GFS/marine/waves/global_mid_rated went from
+  97.7 s to 124.2 s (+27 %).
+- **Not measured, a hypothesis:** #1006 (hourly GFS wind ON, merged between the two runs) gives the rating overlay a wind
+  product at every hour, which would make rated frames heavier. The plan was sized before it.
+- **Standing:** 1 PASS (run 1), 1 FAIL (run 2). By the registered rule the gate fails on any timeout, or on lines 1, 3 or 4
+  failing in 2 of 4. Two counted runs remain.
+- **Not changed here:** the budget. Any re-sizing is a plan change for the advisor's read and the director's go.
+
+## 2026-11-18 16:33Z: one more exclusion, named before any reading
+
+- **EXCLUDED, a frames step that did not run to its end:** pilots run 44302521936 (schedule, created 2026-11-18 12:17:34Z).
+  - Its job was cancelled at 15:05:36Z, with "Publish static forecast frames" cancelled after 14:50:45-15:05:33Z.
+  - The rated step and the raster steps (the 0.125 deg sets included) were skipped.
+  - Who or what cancelled it is not known to this lane. A workflow_dispatch pilots run, 44325777889, was created 14:34:40Z.
+- **Next candidate:** 44325777889 (workflow_dispatch). It counts if it is otherwise ordinary; that is decided by this item's rules
+  before its lines are read.
+- **#998's steady-state time check** (the 0.125 deg steps against "<= 120 s") is still owed. 44302521936 never reached those
+  steps, so the next pilots run that does is the one read.
