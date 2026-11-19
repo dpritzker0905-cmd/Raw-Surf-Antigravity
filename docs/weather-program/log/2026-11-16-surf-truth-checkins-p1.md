@@ -254,6 +254,52 @@ after a deletion: legal call; (2) exports already in private storage (pseudonymo
 (3) Profile has no deleted flag and the auth account is not removed, so `is_deleted` never existed: a design
 question for the account owners, not this lane; (4) the report photo stays in the `conditions` bucket with its
 report (owned by those features).
+## 2026-11-18 02:08Z T1 P3 (part 2): opt-in consent, snapshotted on each report, enforced by the export (header from the UTC clock)
+
+David chose the consent flag next. Built so it needs no legal decision to be safe, and so counsel can change the
+words without a release:
+- `surf_truth_consent_events` (new, private, append-only by trigger like the anchor log): every grant and withdrawal
+  with the wording version and screen. The newest event is the choice in force; NO event means NO (opt-in). Kept
+  after an account deletion as the proof of consent (like ToS acknowledgements); included in the GDPR export.
+- `GET/PUT /api/surf-observations/consent` (strict JWT; the body takes only `granted` and a known `source`; the
+  server sets the version). The wording is served from `services/surf_truth_consent.py`: an ENGINEERING DRAFT
+  (`draft-2026-11-18`), not reviewed by counsel.
+- Each observation records the consent in force when received (`consent_training`, `consent_version`; NULL on
+  older rows = no).
+- The export keeps a row only if its observer had opted in when it was made AND is still opted in at export, so a
+  withdrawal stops every later export from using any of their rows. The row schema is unchanged (the fit's
+  contract); the manifest states the rule and how many rows it excluded.
+- UI: one native checkbox at the foot of the blind-height form on all three report screens, wording from the
+  server, state in words ("On"/"Off"), hidden if the server cannot answer so a report is never blocked.
+
+Tests: backend +7 (opt-in default and append-only history; the body cannot set version, owner or source; the
+snapshot; the export's then-and-now rule), Jest +4. Mutation: an export without the consent filter fails the
+then-and-now test. 110 surf-truth backend tests and 89 Jest tests in the touched trees pass.
+
+For David: the wording (`CONSENT_TITLE`/`CONSENT_TEXT`) and whether internal forecast VALIDATION, as opposed to
+training, needs this consent at all. Today the export treats both as needing it (the safe default).
+## 2026-11-18 02:38Z T1 P3 (part 3): the consent wording is a legal document in the existing admin (header from the UTC clock)
+
+David: the wording must be editable in the admin we already have, in the logical place, with sub-sections, in all
+three themes. The admin already versions the Terms of Service and the Privacy Policy (Compliance tab,
+`tos_content`, `/compliance/tos-content`) and users read them in Settings > Legal. So the consent became a THIRD
+legal document there, not a new table:
+- Compliance > Legal documents, now with three sub-sections (a keyboard tablist): Terms of Service, Privacy Policy,
+  Forecast data consent. The consent sub-section is one checkbox label plus its text, shows counts (opted in under
+  this version / asked again / opted out), and says the version rule in words before publishing.
+- Version rule (the ToS editor's own convention): re-publishing the SAME version is a wording fix and consent stays
+  valid; a NEW version means the meaning changed, so earlier yeses stop counting (`needs_reconsent`) until the person
+  agrees again. The export and every new report use the choice in force under the current version.
+- Users change it in Settings > Legal ("Forecast data") as well as under the report form.
+- The old editor hardcoded light-vs-dark colours (beach rendered as dark), a clickable div header and unlabelled
+  inputs. The replacement (`LegalDocumentsEditor.js`) uses semantic tokens (defined for light, dark and beach in
+  index.css), a real disclosure button, labelled fields and a tablist.
+- The Surf truth > Consent / privacy tab no longer says "no consent yet"; it points to the new home.
+
+Tests: backend +6 (default until published; one-label-one-text; unknown document refused; same version keeps,
+new version asks again, agreeing again restores, counts), Jest +5. Mutation: ignoring the version in the export's
+check fails the version-rule test. 116 surf-truth backend and 468 Jest tests (admin, observations, settings,
+src/tests) pass; the lint ratchet passes (debt down). NOT checked in a browser: the admin needs an admin login.
 ## 2026-11-18 03:03Z Admin: the Surf Forecast panel tells the truth about flags (header from the UTC clock)
 
 David asked for a comprehensive, working admin for the surf sim's logic. A read-only survey of the admin found the
@@ -293,6 +339,63 @@ the view states what "stale" means without re-deriving environment overrides.
 Tests: backend +1 (thresholds, including an override), Jest +4 (words not colours, the 503 path, unreachable, the
 limits). 150 data-health backend and 100 admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin
 login). Stacked on #1029.
+## 2026-11-18 03:33Z Admin: a read-only spot inspector in the Surf Forecast panel (header from the UTC clock)
+
+David chose the spot inspector next. Admin > Surf Forecast > Spot inspector: search a spot, then see the catalogue
+row, the geometry the chain uses there (`resolve_surf_geometry`: shore normal and its source and match distance,
+the MOP swell normal, break depth, shelf, coastal/nearshore, swell magnet), its local size reference, and every
+PRECOMPUTED `rate_one_spot` frame for it (score, level, breaking height in m and ft, period, swell direction, the
+limiting factor and its multiplier, why, confidence, geometry readiness), filterable by model.
+It is not a second forecast path (ONE FORECAST COMPOSITION) and cannot load the 1-CPU box: the new routes
+(`routes/admin/surf_spot_inspector.py`: GET /admin/surf-forecast/spots?q= and /spots/{id}) read only the offline
+geometry asset and the cached L2 objects, off the event loop, and never call estimate_surf_at or fetch weather. A
+failed read is reported in the response and shown as an alert.
+Tests: backend +4 (frame selection and order without replay inputs; geometry never raises; the route reads cached
+objects only, 404, search; a failed blob read is reported), Jest +3. Route identity guard still passes (18). 103
+admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1030.
+## 2026-11-18 03:47Z Admin: the guardrail's record in the Surf Forecast panel (header from the UTC clock)
+
+David chose guardrail history next. Admin > Surf Forecast > Guardrail (D-065) reads, read-only, the two objects the
+guardrail keeps in the private bucket: the live runtime manifest `control/flags.json` (each entry with state, reason,
+who, when, evidence) and `control/flags-actions.jsonl` (every decision it APPLIED: disable / clear, with the run).
+For a fix the guardrail turned off it says how it comes back: a new fix version in the code (current version shown;
+when the code is already newer than the entry, the view says the next run clears it) or the owner's words through
+the workflow's manual run, with the workflow link and a copyable `gh workflow run` command. That run is deliberately
+not an admin button: the guardrail workflow is the only writer of the manifest. When nothing is recorded the view
+says why (decisions are recorded only in enforce mode; a dry run reports in its GitHub issue).
+Backend: `services/admin_guardrail_view.py` (no write path; a test checks the module has no POST/PUT/upsert) and
+GET /admin/surf-forecast/guardrail (off the event loop). Tests: backend +3, Jest +3; route identity guard passes; 106
+admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1031.
+## 2026-11-18 03:58Z Admin: surf-truth exports and anchor history get their screens (header from the UTC clock)
+
+David chose the last two items from the admin survey. Both backend routes already existed with no screen:
+- Surf truth > Anchors: each anchor row has "History", a dialog reading the append-only event log
+  (GET /admin/surf-truth/anchors/{id}/events): every appointment and change, who and the reason. The route now also
+  returns the actor's name for display (the id stays as the record).
+- Surf truth > Model: accurate facts (the fit is written and pre-registered; reviewed before any run; no fit yet;
+  nothing moves a served height) and "Exports for the model": a "Run an export" dialog that posts
+  /admin/surf-truth/export only after an "the owner has approved exports (retention and consent)" box is ticked
+  (the server still refuses while SURF_TRUTH_EXPORT_KEY is unset, and the refusal is shown), plus the list of past
+  exports from the admin action log (who, when, rows, object). The old placeholder Model tab is removed.
+Tests: backend: the history route returns the actor's name (assertion added, 16 pass); Jest +3 (history dialog, export
+gated by the approval box then posts and shows the run, a refused export shows why). Lint ratchet passes. Not checked
+in a browser (admin login). Base: dev.
+## 2026-11-18 04:26Z T1 P3 (part 4): David's retention rule, enforced daily (header from the UTC clock)
+
+DECISION (David, in chat, 2026-11-18 04:26Z): "Keep the 3 newest exports, purge within 7 days". He also reported that
+SURF_TRUTH_EXPORT_KEY is now set on the Render backend (value recorded nowhere; he keeps a copy).
+Built (`services/surf_truth_retention.py` + the scheduler job `surf_truth_retention`, daily 04:15 UTC, shown and
+switchable in the admin Jobs tab):
+1. keep the 3 newest exports (by manifest cut_at) under the current pseudonym key, delete the rest;
+2. after any account deletion, write a FRESH export (the person's rows are already erased) and delete every older
+   one; daily, so well inside the 7 days;
+3. exports under a previous key (manifest key fingerprint differs) are deleted;
+4. orphans (data without manifest or the reverse) are deleted after a 6-hour grace;
+without the key, a pending deletion removes every export (fail safe). The deletion request now writes an
+`account_erasure` line to the append-only admin action log under a random id: when, never who. Each run logs
+`retention` (and `export` when it wrote one) as actor `system`, with counts only.
+Tests +6 (the four rules and the enforcer, with a fake store); mutation: a planner that ignores deletions fails 3.
+73 related backend tests pass. Stacked on #1026.
 ## 2026-11-18 04:42Z T1 P3 (part 5): go-live photos lose their GPS before they reach the public bucket (header from the UTC clock)
 
 The Surf truth Consent tab had recorded it since anchors C: go-live condition photos go to the PUBLIC `conditions`
@@ -308,6 +411,152 @@ surf-report photo path, which is a different upload route. Already-stored photos
 backfill is decided.
 Tests +6 (each format: GPS gone, pixels identical, orientation kept; the route: public copy clean, private record
 kept, malformed refused); mutation: keeping APP1 fails. 99 related tests (incl. the upload identity suite) pass.
+## 2026-11-18 05:01Z T1 P3 (part 6): go-live videos too: location kept privately for the check, removed from the public copy
+
+David asked whether to keep the photographer's GPS in go-live media to help confirm location. Answer recorded: yes,
+PRIVATELY, which part 5 already did for photos (observation_media keeps the position read from the original; the
+observation checks flag exif_far beyond 1 km and exif_stale beyond 3 h; the app's device GPS is the primary check).
+The gap was video: its location was never read, and stayed in the public copy. Now `services/video_metadata.py`
+(pure Python, no ffmpeg: Render's Python runtime is not known to have it, and installing a binary dependency was not
+done) walks the MP4/MOV boxes, READS the ISO 6709 location (QuickTime ©xyz or Apple's
+com.apple.quicktime.location.ISO6709) and creation date for the private record, then NEUTERS every movie- and
+track-level `udta`/`meta` box in place (type -> `free`, payload zeroed): the length is unchanged so no chunk
+offset moves, the media data is untouched, and the file is patched on disk (no in-memory copy of a large video).
+`write_public_copy` now handles photos and videos for the route, off the event loop; routes/uploads/core.py shrank to
+792 lines. WebM (browser recorder, no GPS) and HEIC remain unstripped and say so (`metadata_stripped` false).
+Tests +3 (read then neuter, length and media unchanged; non-ISO left alone and malformed refused without a file; the
+route keeps the location privately and not publicly); mutation: skipping track-level boxes fails 2; the 53-test
+upload identity suite passes. Stacked on #1035.
+## 2026-11-18 13:34Z T1 P3 (part 7): social uploads publish no GPS either
+
+David: "Yes, social uploads". Six more routes stored the original bytes in PUBLIC buckets, GPS and all: /upload
+(general), /upload/story, /upload/feed, /upload/comment, /upload/wave and /upload/user-gallery. Photos now
+go through write_public_copy (lossless strip); a photo the lossless walk refuses but Pillow can decode is
+re-encoded without metadata and upright (public_image_bytes), so an odd phone file is cleaned rather than rejected;
+an undecodable one is refused (400). Videos are transcoded by ffmpeg where available, and ffmpeg copies global
+metadata by default, so the FINAL file (transcoded or kept raw) is patched in place with strip_stored_video before
+upload; a malformed MP4/MOV is removed and refused. The route wrappers live in `routes/uploads/public_copy.py`
+(core.py stays at 789 lines). Not in this part: photographer commercial originals (/upload/gallery,
+/upload/photographer-gallery, /photos/upload): buyers may expect camera EXIF, so GPS-only stripping there is a
+decision for David; avatars are already re-encoded by Pillow without EXIF. HEIC on feed/comment and WebM stay
+unstripped; already-stored files wait on the backfill decision.
+Tests +10 (odd JPEG re-encoded clean and upright; four photo routes and four video routes (story, feed, comment, wave) publish no location; user
+gallery). Mutations: dropping the comment-video strip fails 1, writing the feed photo raw fails 1.
+## 2026-11-18 13:42Z T1 P3 (part 6, advisor HOLD fixed): a bounded box walk, and no unstripped file left behind on any error
+
+The advisor held #1038 at fb531cf5b for two defects, both now fixed. (1) Unbounded memory: `strip_video_in_place`
+built `list(_boxes(...))` at three levels, so a 500 MB upload of 8-byte boxes was about 62 million tuples (~11 GB)
+on the one shared server, sendable by any signed-in uploader. The walk is now lazy (neutering keeps every length, so
+no position still to be read can move) and shares one budget of `MAX_BOXES` = 4096 boxes per file; beyond it the
+file is refused with MetadataError and removed. A real phone MP4 has a few dozen boxes at these levels. (2)
+`write_public_copy` removed the written file only on MetadataError; it now removes it on ANY exception, so an
+unexpected error can never leave the unstripped copy where the route would publish it.
+Tests +2 (a flood of 4,106 boxes is refused with no file left while a real-shaped file still strips; an unexpected
+error leaves no file). Mutations: dropping the budget fails 1; catching only MetadataError fails 1.
+Limits the advisor recorded, NOT fixed here: GoPro GPMF / DJI telemetry tracks (a full GPS track inside the media
+data), top-level `uuid` boxes, and the mvhd/tkhd creation times, which stay.
+## 2026-11-18 13:48Z T1 P3 (part 7, addendum): two advisor limits on #1035 closed here
+
+A truncated JPEG (a lone trailing 0xFF) raised IndexError in `strip_jpeg`, which the routes answered with a 500; it is
+now a MetadataError (400). `strip_stored_video` removes the file on ANY exception, as part 6 now does, because the
+local copy is also served by `/api/uploads/...`. Tests +1 (estate fragment now +11). The other #1035 limits stay
+open: bytes after the JPEG image data (Android motion-photo video, secondary images) are copied as is, APP2 is kept
+without checking it is an ICC profile, HEIC keeps its GPS.
+## 2026-11-18 13:53Z T1 P3 (part 2, advisor HOLD fixed): the consent text says only what is true
+
+The advisor held #1024 at 6ffd34254: the text said "(with the spot and time, but never your name)" and "from then on,
+none of your reports are used, including earlier ones". The export is PSEUDONYMOUS, not anonymous (observer and device
+codes, distances, EXIF age, app version), and nothing purges exports already made when someone withdraws. New text
+(CONSENT_VERSION `draft-2026-11-18b`) names what each used report carries, says the code can be traced back to the
+account, says later checks leave out all the person's reports, and says copies made before a withdrawal are not
+changed. A stronger promise belongs only in the change that builds the purge, under a new version. Test +1 pins each
+phrase to the export's FIELDS (guards fragment +8). Still a DRAFT for counsel.
+## 2026-11-18 14:08Z T1 P3 (part 3, advisor HOLD fixed): a consent version names one text
+
+The advisor held #1026 at 0a710de3f: `save_tos_content` replaced `sections` in place under the same version, and a grant
+counts when its version matches, so the wording could change under consent already given. Now, for the forecast
+consent only, the save refuses (409) different words under a version already published, or under the built-in
+default's version; re-publishing the same text is allowed. Any change, a typo fix included, is a new version and asks
+everyone again. The admin editor says so in words and disables Publish while new words sit under the old version.
+Also carries #1024's new default text (`draft-2026-11-18b`). Tests: the same-version test now expects the 409, +1 for
+the default's version (estate fragment +7); the editor test shows the lock (Jest 4 pass); ESLint ratchet shrinks.
+Mutation: removing the refusal fails 2.
+## 2026-11-18 14:19Z T1 P3 (part 4, advisor HOLD fixed): retention fails closed, and a withdrawal purges too
+
+The advisor held #1034 at 322b2bc46 on four points, all fixed. (a) FAILED OPEN: an unreadable manifest was logged and
+skipped, so its valid export looked like an orphan and was deleted after the grace (possibly one of the 3 newest).
+Now any read error on a listed manifest (timeout, 5xx, a listed object that 404s) skips the WHOLE sweep and logs
+`retention_skipped`; only a manifest that was read but is not JSON counts as broken (an orphan). (b) Only an account
+deletion triggered the purge. Now a REVOCATION does: an account deletion, a withdrawn consent, or the active consent
+wording's publication time; the fresh export's consent filter then leaves those reports out. The consent text could
+therefore promise it, so the default is now `draft-2026-11-18c`: "Copies made before you turned it off are deleted
+within 7 days" (pinned to ERASURE_BOUND by a test). (c) `cut_at` is taken BEFORE the rows are read, so a revocation
+committing mid-query still marks that export as stale. (d) Listings are paged (1,000 per page) and one sweep deletes
+at most MAX_DELETE_RUNS = 200 runs, oldest first. ERASURE_BOUND is now used: a revocation pending longer than 7 days
+is logged `overdue`. Tests +9 (guards fragment now +15): unreadable or missing manifest skips and deletes
+nothing; non-JSON manifest is an orphan; withdrawal and new version each force a fresh export; overdue; delete cap;
+paging; cut_at before the query. Mutation: restoring the fail-open path fails 2.
+Also on the #1026 head: the export tests named the old consent version by hand, so after the version bump and the
+version rule 6 of them read 0 rows; they now use `stc.CONSENT_VERSION` (pushed as 00e21a025).
+## 2026-11-18 14:50Z Supabase service-role key moves into the `supabase-service` GitHub Environment (dev/main only)
+
+The key was a repository secret, readable by any workflow run from any branch in this public repo, a pull request
+from a branch pushed here included. David created the environment `supabase-service` (deployment branches dev and
+main, no reviewers so the 4-hourly ingest is not held) and put the key in it (step 1, his action). This change gives
+every job that reads `SUPABASE_SERVICE_ROLE_KEY` that environment: 22 workflow files, 24 jobs. It also drops the
+`pull_request` trigger of `consensus-flip-sweep.yml`, the only key-reading workflow that ran on PRs (it could no
+longer get the key; it stays dispatchable on dev). Nothing breaks before step 3, because the repository copy still
+exists. STEP 3 (David, after merge): delete the REPOSITORY secret `SUPABASE_SERVICE_ROLE_KEY`, then dispatch one
+workflow on dev to confirm. After that, dispatching these workflows from a lane branch is refused by design.
+Checks: all workflow YAML parses; 242 workflow-shape tests pass (4 failures in `test_audit_e2e_trace_override` are a
+Windows bash timeout on the untouched `e2e-tests.yml`).
+## 2026-11-18 14:53Z T1 P3 (part 7, advisor HOLD fixed): no unbounded decode in the re-encode fallback; avatars covered
+
+The advisor held #1042 at 32d097793: `_reencode_image` fully decoded any JPEG/PNG/WebP the lossless walk refused, with no
+dimension limit, so a small file claiming 13,000 x 13,000 pixels (~500 MB decoded) could take down the shared server.
+Now `check_decode_size` reads the size from the header after `Image.open` and BEFORE any decode, and refuses more than
+`MAX_DECODE_PIXELS` = 50 MP: the largest common phone photo is a 50 MP full-resolution mode (8,160 x 6,120 = 49.9 MP),
+so one decode stays near 150 MB; Pillow's own guard only warns below ~179 MP. The lossy fallback is counted
+(`REENCODE_COUNT` plus a warning log line) so its rate is visible. The AVATAR route (public bucket) gets the same cap
+before its resize, and its error path now stores a STRIPPED copy instead of the raw bytes. Tests +2 (a bomb header is
+refused before any decode and not counted, while a normal odd file is counted; an avatar bomb is refused and a normal
+avatar has no GPS); estate fragment +13.
+Recorded for #1038 (advisor, PASS-WITH-LIMITS at b6afb3920): a very long fragmented MP4 (more than ~2,000 fragments,
+each a `moof` + `mdat` pair at the top level) now exceeds the 4,096-box budget and is refused with a 400. Accepted: phone
+recordings are not fragmented, and a refused upload is never published unchecked.
+## 2026-11-18 15:41Z T1 P3 (part 1 follow-up): a deletion request now reaches the files and the sign-in
+
+The advisor recorded two limits on #1022: a deletion request did not remove the person's photos from the PUBLIC
+`conditions` bucket, and did not stop sign-in to the anonymized profile (the password hash survived; the username `deleted_<id8>` could be guessed). Now `/compliance/delete-my-data` also (1) deletes the person's condition reports and,
+AFTER the commit (storage is not transactional), removes every `conditions/<user_id>/` object plus any other
+`conditions` object a deleted row pointed at, and the local copy `<UPLOAD_DIR>/conditions/<user_id>`: best effort,
+returned as `media` and logged as an error on failure, never hidden; (2) clears the password hash, deletes passkeys,
+TOTP secret, recovery codes and pending MFA challenges, and marks the profile suspended. NOT done, a decision for
+David: a session token already issued stays valid until it expires (`ACCESS_TOKEN_EXPIRE_DAYS` = 30); revoking it needs a
+server-side check on every request (a token version or a deny list). Tests +3 (URL parsing; files and sign-in removed,
+other users untouched; a storage failure is reported and the rows stay deleted). Guards fragment +3.
+## 2026-11-18 17:41Z Deleted accounts lose their sessions: issued tokens are revoked (David: "Revoke sessions")
+
+Tokens are stateless 30-day JWTs, so a deleted account's token kept working for up to a month (advisor limit on #1022;
+David chose this fix in the T1 session). New `session_revocations` table (one row per account: a cutoff time) and `core/session_revocation`: `security.verify_token`, the one function every authenticated path calls (HTTP dependencies,
+WebSockets, MFA), refuses any token whose `iat` is at or before the account's cutoff. The check reads an IN-MEMORY map,
+so no request pays a database query on the 1-CPU box; the map is updated in-process right after the deleting commit and
+reloaded from the table every minute by a plain scheduler job (not `tracked()`: no per-minute status write, and no
+admin toggle can switch it off), so every process enforces it within a minute. Only cutoffs younger than the token
+lifetime are loaded. `delete-my-data` now records the cutoff in its transaction. A refresh that fails keeps the last
+good map. Tests +5 (cutoff semantics; verify_token and the route dependency refuse; reload keeps recent and in-process
+cutoffs and survives a database error; revoke moves the cutoff; deletion revokes at once and others keep their sessions). Guards fragment +1, estate +4. Not yet used for password change or admin suspension: same helper, one line
+each, worth a follow-up.
+## 2026-11-18 17:57Z Sessions also end on a password change, a password reset, a suspension or a ban (David: "Yes, add both")
+
+Instead of patching the ten-plus code paths that suspend or ban a profile or set its password (admin core, moderation, P1
+alerts, ToS violations, password reset, change-password, deletion), ONE SQLAlchemy `before_flush` hook in `core/session_revocation` writes the cutoff in the same transaction whenever a profile's `is_suspended` or `is_banned`
+becomes true, or a real password is replaced or cleared (setting a first password is not a revocation), and an `after_commit` hook makes it effective in this process (a rollback discards it). Future code paths are covered too.
+Change-password keeps the device that made the change signed in: it returns a fresh token carrying `rv` (minted past
+the new cutoff) and the current token's `amr`; the settings card stores it (`updateUser`) and says other devices were
+signed out. Tests +6 (the hook for suspension, ban, password replaced and cleared; no revocation for a first password,
+an unrelated edit or a rollback; change-password ends other sessions and keeps this one). Estate fragment now +10.
+Settings Jest 16 pass; ESLint ratchet passes.
 ## 2026-11-18 15:21Z T1 P4: the export needs the OWNER'S server switch, not just an admin's tick box
 
 The advisor recorded on #1033 that its approval check box is client-side only. Worse, the export route itself is already
@@ -318,3 +567,40 @@ refuses (403) unless the server's environment has `SURF_TRUTH_EXPORTS_ENABLED` e
 The retention job's fresh export (#1034) is left as is: it only REPLACES exports, and none can exist unless the switch
 allowed the first one. Tests +5 (unset, empty, 0, true, yes all refused with nothing written or logged); removing the
 gate fails 5. Guards fragment +5.
+## 2026-11-18 15:53Z Admin Surf Forecast: the advisor's limits on #1029-#1032
+
+(1) No test pinned the auth of the new admin routes: `tests/test_admin_surf_forecast_auth.py` ENUMERATES every `/admin/surf-forecast` route from the three routers (8 today, GET/POST/DELETE) and requires 401 without a token and 403 for
+a signed-in non-admin, so a later route is covered without editing the test. (2) #1031 scanned every frame x spot ON the
+event loop per click: `frames_for` now runs in a thread. (3) #1032: each open panel polled two private-bucket reads every
+60 s: `cached_guardrail_view` reuses the view for 60 s under one lock (the guardrail runs every 6 h). (4) #1030's
+`thresholds` on the PUBLIC `/api/health/data` are LEFT: they are configuration limits (hours), no secret and already
+implied by the public verdicts; moving them behind auth would need a second endpoint for one admin card. Tests +10
+(estate fragment +10).
+## 2026-11-18 16:17Z T1 P3 (part 8): iPhone HEIC photos lose their GPS too, without a decoder
+
+The server has no HEIC decoder (pillow-heif is not installed), so feed, comment, story and general HEIC photos were
+stored exactly as uploaded, GPS included. HEIC is an ISO base media file like MP4: the iPhone keeps position, time and
+serial in an `Exif` item (and sometimes an XMP `mime` item) whose bytes `iloc` locates in `mdat` or `idat`. New `services/heic_metadata.py` walks `meta` / `iinf` / `iloc` (bounded: 4,096 boxes, 4,096 items) and overwrites those bytes IN
+PLACE: the Exif item becomes a valid EMPTY Exif block padded with zeros, XMP becomes zeros. Length and offsets are
+unchanged, the image bytes are untouched, and the rotation (`irot`/`imir` item properties, not EXIF) is kept. A
+malformed HEIC (an item outside the file, an open-length extent, a truncated box) is refused (400), never published
+unchecked. The go-live private record now reads a HEIC's GPS from its Exif item too (`observation_media` falls back to it
+when Pillow cannot open the file). Tests +3 (GPS read privately then blanked, length and image bytes unchanged,
+idempotent; a malformed HEIC refused; a HEIC feed upload published without GPS); the old test that expected HEIC to be
+stored unstripped now expects a refusal for bogus bytes. Estate fragment +3. NOT verified on a real iPhone file with a
+real decoder (none here): the synthetic file follows ISO/IEC 23008-12's `iinf`/`iloc` layout.
+## 2026-11-18 16:40Z #1043 advisor HOLD fixed: a guard that every key-reading job carries the environment
+
+The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull_request` trigger and so failed `test_consensus_flip_sweep` (fixed at bbd7c8fac: the guard now pins the NEW rule, no PR trigger, dispatchable, environment declared, script run); (2) nothing asserted that every job naming the key declares the environment, so the next workflow
+that forgets would silently lose its key once the repository secret is deleted (open PR #1025's `sst-g4-collect.yml` already names the key without it). New `tests/test_workflow_key_environment.py` scans every workflow: each job that reads
+`secrets.SUPABASE_SERVICE_ROLE_KEY` (in the job or the workflow `env`) must declare `environment: supabase-service`, and no
+key-reading workflow may run on `pull_request`. 24 jobs today; tests +26 (estate fragment +26).
+## 2026-11-18 19:26Z A READ-ONLY census of public files that still carry GPS (David: "Ok go", dry run first)
+
+Uploads are stripped from today on (#1035, #1038, #1042, #1054); files stored before keep their metadata. New `backend/scripts/public_media_gps_census.py` lists every object in the public buckets (paged) and reads only each file's first 256 KB (HTTP Range): JPEG/PNG/WebP EXIF GPS, HEIC's Exif item, MP4/MOV location atoms; a video whose `moov` sits after its media is
+UNKNOWN, never counted clean. It prints COUNTS per bucket only; object names (they contain user ids) go only to an optional
+LOCAL file. New dispatch-only `public-media-gps-census.yml` runs it on dev with the `supabase-service` environment and uploads
+counts only (artifacts on a public repo are readable by anyone). It has no write path (a test asserts it). NOT RUN yet:
+this machine has no storage key, and the workflow must reach dev first. Any backfill that rewrites files is a separate,
+approved step. Tests +5 (classification of each format with and without GPS, a truncated block is unknown, the limit and
+the no-names rule, no write path). Estate fragment +5.

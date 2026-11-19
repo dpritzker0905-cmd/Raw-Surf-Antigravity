@@ -14,6 +14,7 @@ from .core import (
     upload_to_supabase_storage, get_file_extension,
     _cached_file_response,
 )
+from .public_copy import store_public, strip_public_video
 from utils.video_processor import (
     get_video_info, process_video_from_path, generate_video_thumbnail
 )
@@ -134,6 +135,8 @@ async def upload_comment_media(
         gc.collect()
 
         video_path = comments_dir / result['filename']
+        # T1 P3: comment media is stored in the PUBLIC feed bucket; the video loses its location metadata first.
+        await strip_public_video(video_path)
         thumbnail_filename = f"{result['filename'].rsplit('.', 1)[0]}_thumb.jpg"
         thumbnail_path = comments_dir / thumbnail_filename
 
@@ -198,10 +201,8 @@ async def upload_comment_media(
         filename = f"{uuid.uuid4()}{ext}"
         file_path = comments_dir / filename
 
-        with open(file_path, "wb") as f:
-            f.write(content)
-
-        content_size = len(content)
+        # T1 P3: the stored copy loses its embedded metadata (GPS, serials, times) before it is published.
+        content_size = await store_public(content, file.content_type, False, file_path)
         del content
         gc.collect()
 

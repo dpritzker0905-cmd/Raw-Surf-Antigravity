@@ -17,8 +17,9 @@ observations).
 PSEUDONYMOUS IS NOT ANONYMOUS. Each row keeps a spot, a minute and a stable observer key, so anyone holding the
 database can re-identify rows by joining on spot and time, and a regular at one break is recognisable from the pattern.
 The export is PERSONAL DATA in private storage and is handled as such: private bucket only, service-role access only,
-never published, never copied into the repo or an artifact. Retention and deletion are P3's (see the log): until P3,
-no real export runs without David's answer on retention and consent.
+never published, never copied into the repo or an artifact. RETENTION (owner, 2026-11-18): the 3 newest exports are
+kept; after an account deletion a fresh export replaces every older one within 7 days (services/surf_truth_retention,
+a daily job). CONSENT: only rows whose observer opted in, then and now (services/surf_truth_consent).
 KEY ROTATION: a new SURF_TRUTH_EXPORT_KEY gives every observer a new key, so b_j does not carry across the change.
 A rotation therefore means a FULL re-export, and fits never mix exports made under different keys (the manifest
 records a key fingerprint for exactly that check).
@@ -43,6 +44,7 @@ import httpx
 from sqlalchemy import select
 
 from models import SurfObservation, SurfSpot, SurfTruthAnchorEvent
+from services import surf_truth_consent
 
 SCHEMA = "raw-surf/surf-truth-export/1"
 KEY_ENV = "SURF_TRUTH_EXPORT_KEY"
@@ -139,11 +141,18 @@ def export_row(key: bytes, obs: SurfObservation, spot: Optional[SurfSpot], ancho
 
 
 async def build_export(db, key: bytes, since: Optional[datetime] = None) -> tuple[list[dict], dict]:
+    # cut_at is taken BEFORE the rows are read (advisor hold on #1034): a deletion or withdrawal that commits while the
+    # query runs is then later than cut_at, so retention still sees this export as needing replacement.
+    cut_at = datetime.now(timezone.utc)
     q = select(SurfObservation).where(SurfObservation.flow == "blind_v1").order_by(SurfObservation.received_at)
     if since is not None:
         q = q.where(SurfObservation.received_at >= since)
-    rows = (await db.execute(q)).scalars().all()
-    spots = {s.id: s for s in (await db.execute(select(SurfSpot).where(
+    candidates = (await db.execute(q)).scalars().all()
+    # P3 consent: a row leaves only if the person had opted in when it was made AND is still opted in now, so a
+    # withdrawal stops every later export from using any of their rows. No choice recorded means no (opt-in).
+    consenting = await surf_truth_consent.granted_now(db, {r.user_id for r in candidates if r.consent_training})
+    rows = [r for r in candidates if r.consent_training and r.user_id in consenting]
+    spots ={s.id: s for s in (await db.execute(select(SurfSpot).where(
         SurfSpot.id.in_({r.spot_id for r in rows if r.spot_id})))).scalars().all()} if rows else {}
     users = {r.user_id for r in rows}
     events = index_events((await db.execute(select(SurfTruthAnchorEvent).where(
@@ -153,10 +162,12 @@ async def build_export(db, key: bytes, since: Optional[datetime] = None) -> tupl
         out.append(export_row(key, r, spots.get(r.spot_id), anchor_status_at(events, r.user_id, _aware(r.received_at))))
     manifest = {
         "schema": SCHEMA, "rows": len(out), "since": since.isoformat() if since else None,
-        "cut_at": datetime.now(timezone.utc).isoformat(), "fields": list(FIELDS),
+        "cut_at": cut_at.isoformat(), "fields": list(FIELDS),
         "observers": len({o["observer_key"] for o in out}), "spots": len({o["spot_id"] for o in out}),
         "pseudonyms": "HMAC-SHA256 under " + KEY_ENV + " (key not in the export)",
         "key_fingerprint": key_fingerprint(key), "received_at_resolution": "minute",
+        "consent_rule": "opted in when received AND opted in at export (services/surf_truth_consent)",
+        "excluded_no_consent": len(candidates) - len(rows),
     }
     return out, manifest
 

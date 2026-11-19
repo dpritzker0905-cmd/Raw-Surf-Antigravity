@@ -1,17 +1,16 @@
 """
-Global Surf Spot Importer - OSM Overpass API Integration
-Imports surf breaks from OpenStreetMap globally.
+Curated surf-spot importer (retired: the command-line entry point stops, see _legacy_spot_writer).
+
+It used to import from OpenStreetMap as well. That path was removed on 2026-11-18: OSM coordinates are ODbL
+share-alike and may not be written to surf_spots. `import_osm_spots` remains only to refuse; the Overpass fetch
+and its endpoint are gone, so nothing here can reach OpenStreetMap.
 """
 import asyncio
-import aiohttp
 import logging
 from typing import List, Dict, Optional
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
-
-# OSM Overpass API endpoint
-OVERPASS_API = "https://overpass-api.de/api/interpreter"
 
 # Region definitions for tiered import
 IMPORT_REGIONS = {
@@ -520,89 +519,22 @@ async def import_curated_spots(db_session, return_detail: bool = False):
     return (imported, skipped) if return_detail else imported
 
 
-async def fetch_osm_surf_spots(bbox: str) -> List[Dict]:
-    """Fetch surf spots from OSM Overpass API for a bounding box."""
-    query = f"""
-    [out:json][timeout:60];
-    (
-      node["sport"="surfing"]({bbox});
-      node["leisure"="surfing"]({bbox});
-      node["natural"="beach"]["sport"="surfing"]({bbox});
-      way["sport"="surfing"]({bbox});
-    );
-    out center;
-    """
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(OVERPASS_API, data={"data": query}, timeout=aiohttp.ClientTimeout(total=120)) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data.get("elements", [])
-                else:
-                    logger.error(f"OSM API error: {response.status}")
-                    return []
-    except Exception as e:
-        logger.error(f"Error fetching OSM data: {e}")
-        return []
+class OsmImportForbidden(RuntimeError):
+    """OpenStreetMap coordinates may not be written to surf_spots."""
 
 
 async def import_osm_spots(db_session, tier: int = 1) -> int:
-    """Import spots from OSM for a specific tier."""
-    from models import SurfSpot
-    from sqlalchemy import select
-    
-    region_config = IMPORT_REGIONS.get(tier)
-    if not region_config:
-        return 0
-    
-    imported = 0
-    bboxes = []
-    
-    if "bbox" in region_config:
-        bboxes.append(region_config["bbox"])
-    if "regions" in region_config:
-        for r in region_config["regions"]:
-            if "bbox" in r:
-                bboxes.append(r["bbox"])
-    
-    for bbox in bboxes:
-        elements = await fetch_osm_surf_spots(bbox)
-        
-        for elem in elements:
-            osm_id = str(elem.get("id"))
-            
-            # Get coordinates
-            lat = elem.get("lat") or elem.get("center", {}).get("lat")
-            lon = elem.get("lon") or elem.get("center", {}).get("lon")
-            
-            if not lat or not lon:
-                continue
-            
-            tags = elem.get("tags", {})
-            name = tags.get("name", tags.get("description", f"Surf Spot {osm_id}"))
-            
-            # Check if already exists
-            result = await db_session.execute(
-                select(SurfSpot).where(SurfSpot.osm_id == osm_id)
-            )
-            existing = result.scalar_one_or_none()
-            
-            if not existing:
-                spot = SurfSpot(
-                    name=name,
-                    osm_id=osm_id,
-                    latitude=lat,
-                    longitude=lon,
-                    import_tier=tier,
-                    description=tags.get("description"),
-                    is_active=True
-                )
-                db_session.add(spot)
-                imported += 1
-    
-    await db_session.commit()
-    return imported
+    """REMOVED 2026-11-18. Always raises; no environment variable turns it back on.
+
+    This used to fetch OpenStreetMap surfing nodes and insert each as an active spot at the OSM coordinate. OSM
+    is ODbL share-alike, and the project's rule is that an OSM (or surf-site) coordinate is evidence that a row is
+    wrong, never a value to write (`find_missing_spots.py`, `propose_spot_corrections.py`). Production carries
+    zero `osm_id` rows and must stay that way. The body was deleted, not gated, so it cannot be re-enabled by
+    configuration.
+    """
+    raise OsmImportForbidden(
+        "The OpenStreetMap import is removed: OSM coordinates are ODbL share-alike and may not be written to "
+        "surf_spots. Nothing was changed.")
 
 
 async def run_global_import(tiers: List[int] = [1, 2, 3]):
@@ -618,17 +550,17 @@ async def run_global_import(tiers: List[int] = [1, 2, 3]):
         total_imported += curated_count
         logger.info(f"Imported {curated_count} curated spots")
         
-        # Then import from OSM for each tier
-        for tier in tiers:
-            logger.info(f"Importing Tier {tier} from OSM...")
-            osm_count = await import_osm_spots(db, tier)
-            total_imported += osm_count
-            logger.info(f"Imported {osm_count} OSM spots for Tier {tier}")
-        
+        # The OpenStreetMap leg was removed 2026-11-18 (licence): see import_osm_spots. `tiers` is kept in the
+        # signature for callers and is no longer used.
         return total_imported
 
 
 if __name__ == "__main__":
+    try:
+        from _legacy_spot_writer import BULK_ADDS, refuse_legacy_spot_write
+    except ImportError:
+        from scripts._legacy_spot_writer import BULK_ADDS, refuse_legacy_spot_write
+    refuse_legacy_spot_write("import_global_spots.py", BULK_ADDS)
     import sys
     logging.basicConfig(level=logging.INFO)
     

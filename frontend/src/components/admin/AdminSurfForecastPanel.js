@@ -11,6 +11,8 @@ import { useThemeName } from '../../contexts/ThemeContext';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 import ForecastDataHealth from './ForecastDataHealth';
+import SpotInspector from './SpotInspector';
+import GuardrailHistory from './GuardrailHistory';
 
 /**
  * Admin · Surf Forecast — the rating system's control room.
@@ -289,7 +291,11 @@ export const AdminSurfForecastPanel = () => {
 
       <ForecastDataHealth refreshKey={refreshKey} />
 
+      <SpotInspector />
+
       <FlagBoard flags={flags} manifest={status?.manifest} />
+
+      <GuardrailHistory refreshKey={refreshKey} />
 
       <Card className="bg-card border-border">
         <CardHeader className="pb-2">

@@ -71,6 +71,7 @@ concurrency:
 
 jobs:
   precompute:
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
     runs-on: ubuntu-latest
     # 60 → 35 (2026-07-06): spatial batching landed and PROVED OUT — first batched run
     # 28771531702 finished in 25m27s (pre-warm 107 boxes / 977 points / 0 failed in 18.8 min),
