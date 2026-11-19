@@ -64,6 +64,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FLAG_GUARDRAIL_ENFORCE: ${{ vars.FLAG_GUARDRAIL_ENFORCE || '0' }}
+          # G1a: the consensus ledger guard is REPORT-ONLY until this repo variable is '1', set after the research
+          # lead's READ of a real run (a ledger FIRE is printed, never a strike, before that). Name only, no secret.
+          LEDGER_GUARD_RELEASED: ${{ vars.LEDGER_GUARD_RELEASED || '0' }}
           RUNTIME_FLAGS_MANIFEST: '0'
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REENABLE: ${{ inputs.reenable }}

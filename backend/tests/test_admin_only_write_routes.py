@@ -87,10 +87,19 @@ def test_signed_in_non_admin_is_refused_after_only_the_admin_lookup(use_db, meth
     assert db.execute.await_count == 1
 
 
+RETIRED = {("POST", "/api/surf-spots/update-coordinates")}
+
+
 @pytest.mark.parametrize("method,path", ADMIN_ONLY)
 def test_admin_reaches_the_handler(use_db, method, path):
     db = use_db(SimpleNamespace(id="caller", is_admin=True))
     response = _call(method, path, subject="caller")
+    if (method, path) in RETIRED:
+        # Retired 2026-11-18 (it overwrote coordinates by name). Still behind the admin gate, as the two tests above
+        # prove; past the gate it answers 410 and touches the database no further than the admin lookup.
+        assert response.status_code == 410, response.status_code
+        assert db.execute.await_count == 1
+        return
     assert response.status_code not in (401, 403, 422), response.status_code
     assert db.execute.await_count >= 2  # the admin lookup, then the handler's own work
 
