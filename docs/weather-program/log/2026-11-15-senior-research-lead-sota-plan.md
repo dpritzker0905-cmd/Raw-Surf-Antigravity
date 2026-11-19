@@ -2902,3 +2902,20 @@ downgrade, owner). Sent to the director.
   7. STOP tuning consensus weights and interpolation.
 - **Conflict flagged:** the flip split (period 36 / wind 31 / height 13) vs the Jacobian (alignment first). Rerun the
   flip attribution with direction separate before more step-3b period work.
+
+## 2026-11-18 20:20 -0500 Owner: "Yes, truth first"; 3b Amendment 2 (HRRR); the Raw Surf prediction pre-registration
+- **Truth first** (shared notes `truth-first-plan-2026-11-19.md`):
+  - S1: blind check-ins (seed verified pins in NE Florida, SoCal, Oahu, Europe; ≥ 200 blind reports per region across
+    ≥ 10 blocks);
+  - S2: surf-cam height extraction (licence-clean cams only; CDIP as the exam);
+  - S3: external truth meanwhile.
+  - The step 4/5 gates read "insufficient" until volume exists.
+- **3b Amendment 2:**
+  - the HRRR source arms H0/H1 at +24/+48 h, with lead- and issue-matched primary scoring plus an as-served secondary;
+  - the differences from the failed #728 are written in (power, metric, MOS, cell, its 7 anemometers excluded);
+  - the period arm is demoted pending a flip attribution that treats direction separately.
+- **The Raw Surf prediction** (owner-approved past-horizon blend):
+  - literature check: NBM-consistent; rain arms mean / PM / LPM;
+  - scored vs MRMS / ASOS / GOES CSM; it must beat plain GFS AND the best single ensemble mean;
+  - weights fitted on TRAIN, low-dimensional; a seam metric.
+- **Spent-data notice:** AIFS-wave spends Hs at the 19 L1 buoys for 07-01..10-31. Written into the isotonic proposal.
