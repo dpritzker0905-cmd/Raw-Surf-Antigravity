@@ -16,7 +16,7 @@ from models.spot_candidates import STATUSES, TIERS
 router = APIRouter(prefix="/admin/spots", tags=["Admin Spots"])
 
 
-def _row(c: SurfSpotCandidate) -> dict:
+def candidate_row(c: SurfSpotCandidate) -> dict:
     return {
         "id": c.id, "source": c.source, "source_record_id": c.source_record_id, "batch_id": c.batch_id,
         "name": c.name, "latitude": c.latitude, "longitude": c.longitude, "country": c.country,
@@ -25,7 +25,11 @@ def _row(c: SurfSpotCandidate) -> dict:
         "nearest_spot_km": c.nearest_spot_km,
         "name_match_spot_id": c.name_match_spot_id, "name_match_spot_name": c.name_match_spot_name,
         "name_match_km": c.name_match_km, "shoreline_km": c.shoreline_km,
+        "suggested_latitude": c.suggested_latitude, "suggested_longitude": c.suggested_longitude,
+        "suggested_method": c.suggested_method,
         "proposed_latitude": c.proposed_latitude, "proposed_longitude": c.proposed_longitude,
+        "proposed_method": c.proposed_method,
+        "proposed_at": c.proposed_at.isoformat() if c.proposed_at else None,
         "review_note": c.review_note, "reviewed_at": c.reviewed_at.isoformat() if c.reviewed_at else None,
         "duplicate_of_spot_id": c.duplicate_of_spot_id, "promoted_spot_id": c.promoted_spot_id,
     }
@@ -71,7 +75,7 @@ async def admin_list_spot_candidates(
         select(SurfSpotCandidate.tier, func.count()).group_by(SurfSpotCandidate.tier))).all())
 
     return {
-        "candidates": [_row(c) for c in rows],
+        "candidates": [candidate_row(c) for c in rows],
         "total": total, "page": page, "limit": limit,
         "counts": {"all": sum(by_status.values()),
                    "by_status": {s: by_status.get(s, 0) for s in STATUSES},
