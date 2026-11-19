@@ -1,0 +1,62 @@
+name: G4 SST record (Copernicus bulletins at NDBC stations; offline collection, serves nothing)
+
+# WHY: the section 11 observation check of G4 (docs/weather-program/log/2026-11-15-opus-gusts-currents.md; the collector's
+# log docs/weather-program/log/2026-11-17-opus-g4-copernicus-sst.md). Copernicus replaces past forecast steps with analyses,
+# so each day's bulletin must be saved the day it is issued; 14 days of them make the check.
+# Reads PUBLIC data only (NDBC latest_obs once, the Copernicus Marine ARCO store). It never calls the Raw Surf backend and
+# writes no manifest or product: only create-only calibration/sst_g4/ objects in the weather bucket.
+# CREDENTIALS (the wind-emos-collect.yml pattern): the service-role key exists ONLY in the two storage steps, which run the
+# standard-library script sst_bucket_io.py as `python3 -I -S`. Installing and collecting run with no credential.
+# ON by default (David 2026-11-17: "make them start on, with a test and kill switch"); kill: the repository variable
+# SST_G4_COLLECT = '0'. The `(vars.X || '1') != '0'` form, as the pilots steps use (their note: never a bare `!= '0'`).
+# Daily at 16:23 UTC: the store's daily bulletin is in by then (its time axis is the key: an unchanged store is skipped),
+# clear of the ingest / precompute / pilots minutes.
+
+on:
+  schedule:
+    - cron: '23 16 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sst-g4-collect
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  collect:
+    if: ${{ (vars.SST_G4_COLLECT || '1') != '0' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch stored state (storage only, stdlib)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 -I -S backend/scripts/sst_bucket_io.py fetch --dir "$RUNNER_TEMP/sst"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install requests numpy numcodecs
+      - name: Collect today's bulletin (no credential)
+        working-directory: backend
+        timeout-minutes: 20
+        run: python scripts/sst_collect.py daily --cache "$RUNNER_TEMP/sst"
+      - name: Upload new objects (storage only, stdlib, create-only)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 -I -S backend/scripts/sst_bucket_io.py upload --dir "$RUNNER_TEMP/sst"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sst-g4-collect-report
+          path: ${{ runner.temp }}/sst/collect_report_*.json
+          if-no-files-found: ignore

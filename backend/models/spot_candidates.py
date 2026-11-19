@@ -69,10 +69,17 @@ class SurfSpotCandidate(Base):
     name_match_km = Column(Float, nullable=True)
     shoreline_km = Column(Float, nullable=True)          # distance to the nearest ocean shoreline, when measured
 
-    # A person's proposed position (the placement helper suggests, the person confirms or drags).
+    # The placement helper's SUGGESTION: the nearest ocean shoreline point, worked out offline at load time
+    # (scripts/spot_candidate_shoreline.py). A machine's guess; it is never used as a spot's position unless a
+    # person takes it.
+    suggested_latitude = Column(Float, nullable=True)
+    suggested_longitude = Column(Float, nullable=True)
+    suggested_method = Column(String(32), nullable=True)  # 'nearest_shoreline'
+
+    # A PERSON's position (they take the suggestion, or drag the pin to the break).
     proposed_latitude = Column(Float, nullable=True)
     proposed_longitude = Column(Float, nullable=True)
-    proposed_method = Column(String(32), nullable=True)   # e.g. 'shoreline_snap', 'manual_drag'
+    proposed_method = Column(String(32), nullable=True)   # 'shoreline_suggestion' or 'manual'
     proposed_by = Column(String(36), nullable=True)
     proposed_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -95,6 +102,8 @@ class SurfSpotCandidate(Base):
                         name='ck_surf_spot_candidates_coordinate'),
         CheckConstraint('(proposed_latitude IS NULL) = (proposed_longitude IS NULL)',
                         name='ck_surf_spot_candidates_proposed_pair'),
+        CheckConstraint('(suggested_latitude IS NULL) = (suggested_longitude IS NULL)',
+                        name='ck_surf_spot_candidates_suggested_pair'),
         # A promoted row names its spot, and only a promoted row does.
         CheckConstraint("(status = 'promoted') = (promoted_spot_id IS NOT NULL)",
                         name='ck_surf_spot_candidates_promoted'),

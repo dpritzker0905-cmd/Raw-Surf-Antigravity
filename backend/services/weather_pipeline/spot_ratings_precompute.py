@@ -316,7 +316,23 @@ def fetch_active_spots_via_rest(limit: int = 5000, page_size: int = 1000) -> lis
         out.extend(batch[:take])          # defensive: an over-serving page never blows past `limit`
         if len(batch) < take:
             break
+    # FAIL LOUDLY AT THE CAP (2026-11-18). Reaching `limit` used to end the loop and return the first `limit` spots
+    # by id, so every active spot past it silently got no precomputed rating, with nothing logged. The catalogue is
+    # 1,769 active today and is about to grow; one more row is asked for, and if it exists the read refuses.
+    if len(out) >= limit:
+        probe = (f"{base}/rest/v1/surf_spots?select=id&is_active=eq.true&latitude=not.is.null"
+                 f"&longitude=not.is.null&order=id&limit=1&offset={limit}")
+        resp = requests.get(probe, headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=30)
+        resp.raise_for_status()
+        if resp.json():
+            raise SpotCapExceeded(
+                f"more than {limit} active surf spots: fetch_active_spots_via_rest(limit={limit}) would silently "
+                "leave the rest unrated. Raise the limit (and check the precompute's runtime) before adding spots.")
     return out
+
+
+class SpotCapExceeded(RuntimeError):
+    """The active catalogue is larger than the cap a caller asked `fetch_active_spots_via_rest` to read."""
 
 
 def _make_point_resolver():

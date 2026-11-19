@@ -2372,6 +2372,98 @@ job now?"): "Yes, move forward on the path toward SOTA". It covers building BOTH
    first; I do not open the JSON before the advisor does.
 3. G4 FINAL commits LEN_DAYS, the 26 per-gauge M values and the START timestamp (at least 24 h after the commit, at
    00Z), and sets `START`/`LEN_DAYS` in `g4_rules.py`, which arms the archive.
+## 17:20 EST 2026-11-18 (`date`) - M1-0 PARITY PROBE REGISTERED and built (branch `claude/tide-m1-0-parity`); nothing run, no value read
+**Why (the director, from the research lead's verified finding):**
+- Open-Meteo's `sea_level_height_msl`, the level every served tide reads today, IS CMEMS
+  `cmems_mod_glo_phy_anfc_merged-sl_PT1H-i`.
+- So M1-0 reads that dataset directly and proves parity, then switches the served level to the direct read. That would
+  remove the Open-Meteo dependency with no change in numbers.
+- The rule update (David, 19:09Z, via the director): Open-Meteo stays as the fallback, behind the kill switch.
+
+**The dataset, from the public catalogue (no credentials):**
+- GLOBAL_ANALYSISFORECAST_PHY_001_024, hourly, 1/12-degree grid, 2022-09-01 to about 9 days ahead.
+- Variables:
+  - `total_sea_level` (sea_surface_height_above_geoid);
+  - `ocean_tide`;
+  - `sea_surface_height` (dynamic);
+  - `invert_barometer`;
+  - `tide_loading`;
+  - two global-mean terms.
+
+**THE RULE, fixed in `backend/scripts/tide_cmems/parity_rules.py` before any run:**
+- **Held set:** 20 served 0.1-degree keys: 10 US gauges and breaks, plus 10 surf spots worldwide (the tuple in the
+  file).
+- **Pairs:** every hour of the 48 h before the run's 00Z. These are hindcast hours, so the forecast run cannot differ.
+- **Primary:** CMEMS `total_sea_level` at the grid cell NEAREST the key, against Open-Meteo `sea_level_height_msl` at
+  the same key (the request the served tide makes).
+- **PASS:** p99 |delta| <= 0.01 m, with >= 90% of the 960 expected pairs present.
+- **Reported only:** the other candidates (nearest WET cell; tide+ssh; tide+ssh+ib; tide alone) and the 96 forecast
+  hours.
+- **On a MISS:** no switch. Find the cause and register again.
+
+**Workflow:** `tide-cmems-parity.yml`.
+- It starts only on the one-shot tag `tide-cmems-parity`, with no dispatch.
+- Copernicus credentials are on the probe step only.
+- It reads model values only: CMEMS and Open-Meteo, no observed water. Nothing is served and nothing is written to the
+  bucket.
+- 8 tests in `tests/test_tide_cmems.py`; estate floor fragment +8.
+
+**Next:**
+1. The advisor reads the head.
+2. The tag runs it (the owner's or director's word).
+3. The advisor reads the verdict first.
+4. On PASS, the served switch is the next PR:
+   - built on #1061's table machinery;
+   - the table is filled from CMEMS `total_sea_level`;
+   - Open-Meteo is the fallback behind the kill switch;
+   - SCOREBOARD row "expected about no change";
+   - a post-deploy check.
+5. #1061's A+M stays a candidate for after G4.
+
+## 18:00 EST 2026-11-18 (`date`) - M1-0 amended before any run: the parity probe is a PLUMBING check; ACCEPT is a separate registered read against OBSERVED water (the research lead's gate note, adopted)
+**Why the amendment.** From the research lead's gate note:
+- Open-Meteo's marine page says `sea_level_height_msl` comes from "MeteoFrance SMOC", which is CMEMS
+  GLOBAL_ANALYSISFORECAST_PHY_001_024.
+- CMEMS's QUID section II.4 says `cmems_mod_glo_phy_anfc_merged-sl_PT1H-i` is FES2014 tide + inverse barometer + steric
+  + mass + GLO12 ssh, with a total.
+- **=> The two arms are the same data underneath, so parity is about 0 by construction.**
+- The 17:20 probe therefore proves PLUMBING only: datum, time zone, the cell and interpolation. It does not prove
+  quality.
+- It is renamed as such. Its rule and line are unchanged.
+
+**ACCEPT (registered now, before any value; built only after the advisor reads this design):**
+- **Arms, both scored against OBSERVED water:**
+  - the served Open-Meteo level (O);
+  - CMEMS `total_sea_level` read directly at the nearest cell (K).
+- **Truth:**
+  - the 26 CO-OPS stations of G3t;
+  - non-US UHSLC fast-delivery gauges (G3t's `uhslc_non_us` list) and IOC/GLOSS gauges with >= 80% coverage after QC.
+  - These are fixed by id in the code before the run.
+- **Window:**
+  - the 28 days ending at the run's 00Z minus 3 days (the CO-OPS verified-data lag);
+  - **it must END before G4's committed START.** The G4 embargo (addendum 1, change 5) forbids reading observed water
+    at the 26 gauges inside the G4 window;
+  - if G4 has started, ACCEPT uses only the non-US gauges.
+- **Each series is mean-removed per gauge over the window.** O and K sit above the geoid, the gauges on their own
+  datums, so the gauges' level is not comparable. A separate MEAN-ERROR row is reported beside it, because MAE is blind
+  to small constant offsets.
+- **Metrics per arm:**
+  - median, p95 and max |error|;
+  - high- and low-water TIMING error (minutes, from 6-minute or hourly extrema as available).
+- **ACCEPT iff ALL of these hold:**
+  - K - O <= +0.01 m on median |error| and on p95 |error| (point, and the upper end of a 2-day block bootstrap, 2000
+    draws);
+  - K - O <= +10 min on the median timing error;
+  - the plumbing check PASSes.
+- **Controls (VOID if any fails):**
+  - **null:** O against itself gives 0 on every metric;
+  - **planted errors on K:** +0.01 m and +0.02 m offsets, and 10- and 20-minute time shifts. The 1x plants must be
+    DETECTED, by the mean-error row for the offset and the timing row for the shift.
+- **Credentials:** Copernicus on the probe step only. Observed water comes from public CO-OPS, UHSLC and IOC services.
+  One-shot tag.
+- **On ACCEPT:** the repo variable `TIDE_CMEMS_PRIMARY=1` (#1066's builder fills CMEMS), with the kill switch to the
+  FES harmonic or "unavailable", never Open-Meteo (owner, about 23:00Z).
+
 ## 18:20 EST 2026-11-18 (`date`) - Data credits follow provenance (branch `claude/credits-provenance`; the research lead's row 16 of the Open-Meteo exit); no served number changes
 **Why.**
 - The owner, about 23:00Z: open agency providers, and every source is credited where its data is shown.
@@ -2408,6 +2500,28 @@ job now?"): "Yes, move forward on the path toward SOTA". It covers building BOTH
 - frontend `TideReadout.test.js` +2: the helper, plus the link in three themes (frontend +2);
 - two credit-string pins updated (`LayerDataCredit.test.js`, `gustsLayer.test.js`);
 - the ESLint ratchet passes.
+## 18:35 EST 2026-11-18 (`date`) - M1-0 ACCEPT amendment 1 (before any run): IOC SLSMF REMOVED from the gauge panel; free raw data only
+**The owner, verbatim (relayed by the research lead and the director):**
+- "Its free SOTA , no paid plans, raw free data for SOTA tides".
+- "We need the tides to work all around the world SOTA".
+
+**The research lead's licence finding (section M, update 1):**
+- IOC SLSMF data "may not be used for any commercial purposes", and that includes validation.
+- **=> The 18:00 ACCEPT registration's "IOC/GLOSS gauges" are WITHDRAWN.**
+
+**The ACCEPT panel is now:**
+- the CO-OPS stations (public domain), outside the G4 window as already registered;
+- UHSLC fast-delivery gauges (validation use is allowed) on every surf coast.
+  - The ids are fixed in code before any run.
+  - The list grows from G3t's `uhslc_non_us` to cover the surf coasts listed in `open-meteo-exit-plan-2026-11-18.md`
+    section M.
+
+**Also scored, separately:**
+- astronomical-only and total water;
+- high- and low-water timing;
+- mean error.
+
+**Not used:** GESLA-4, until its licence is read. Nothing else in the registration changes.
 
 ## 18:45 EST 2026-11-18 (`date`) - Tide table BUILDER split out as PR A (branch `claude/tide-table-builder`): no served change; the served switch follows as PR B
 **Why the split.**
@@ -2440,6 +2554,25 @@ table (1,800 keys x 1,152 h x 2 series), tracemalloc showed:
 - 100 tests pass with the tide, flag and acquisition suites.
 - Lint is clean.
 
+## 18:50 EST 2026-11-18 (`date`) - M1-0 amendment 2 (before any run): load tide is OUT of the gauge-comparable level; two REPORTED diagnostic candidates added
+**The research lead's correction (section M):**
+- Tide gauges, and the water depth that matters for surf, measure the OCEAN (elastic) tide relative to the seabed and
+  land.
+- Ocean + load is the geocentric tide that altimetry sees. The load tide reaches several cm in places.
+- **=> No served level or gauge score may include `tide_loading`.**
+
+**Added to `parity_rules.CANDIDATES` (REPORTED ONLY; the primary and the PASS rule are unchanged):**
+- `parts_with_load@nearest` = ocean_tide + sea_surface_height + invert_barometer + tide_loading. If it equals TOTAL, the
+  load tide is inside TOTAL.
+- `total_minus_load@nearest` = TOTAL - tide_loading, the gauge-comparable level.
+
+**Consequences:**
+- If the run shows that TOTAL carries the load tide, then:
+  - the served CMEMS series (#1066) becomes TOTAL - tide_loading, documented, with its own SCOREBOARD row (it then
+    differs from the old Open-Meteo level by the load tide);
+  - ACCEPT scores that arm.
+- T3's harmonic v2 is ocean tide only (pyTMD, load excluded).
+- `combine()` now takes `-name` to subtract (tested).
 ## 19:05 EST 2026-11-18 (`date`) - PR A (#1077): the advisor's four conditions met (split ACCEPTED, 23:4xZ)
 1. **Nothing served reads the table.** `test_nothing_served_reads_the_table_yet` pins that no module in server.py,
    services/ or routes/ imports `tide_own` (the loader itself excepted).
