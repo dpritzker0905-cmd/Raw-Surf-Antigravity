@@ -70,7 +70,7 @@ default, so no served number or confidence word moves.
 - The spot hub page does not show the words yet.
 - A change of the switch reaches the map within about a minute (two 30 s caches), not at once.
 
-## 2026-11-19 01:55Z After the advisor's read (PASS-WITH-LIMITS at f5c8fecf2): one fix here, and the list that must close before any promotion
+## 2026-11-19 01:47Z After the advisor's read (PASS-WITH-LIMITS at f5c8fecf2): one fix here, and the list that must close before any promotion
 
 **Fixed in this PR.** The advisor found that a failed read of the feature-flag table was swallowed with no rollback.
 On Postgres a failed statement aborts the transaction, so the spot query that follows on the same session would fail
