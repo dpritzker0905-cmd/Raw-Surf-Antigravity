@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 25,
+  "files": 1,
+  "branch": "claude/spot-admin-paging",
+  "date": "2026-11-18",
+  "note": "admin spot paging: list, queue, candidates"
+}

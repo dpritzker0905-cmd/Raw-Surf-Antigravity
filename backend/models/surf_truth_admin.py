@@ -31,7 +31,8 @@ class SurfTruthAdminAction(Base):
 
 
 APPEND_ONLY_FUNCTION = (
-    "CREATE OR REPLACE FUNCTION surf_truth_admin_actions_append_only() RETURNS trigger LANGUAGE plpgsql AS $$ "
+    "CREATE OR REPLACE FUNCTION surf_truth_admin_actions_append_only() RETURNS trigger LANGUAGE plpgsql "
+    "SET search_path = '' AS $$ "
     "BEGIN RAISE EXCEPTION 'surf_truth_admin_actions is append-only'; END; $$"
 )
 APPEND_ONLY_TRIGGER = (

@@ -66,8 +66,10 @@ export const OWN_RASTER_SETS = {
   // (DWD ICON has no skin temperature; the .om path makes the same cross-fall), ECMWF skt for EURO when its set is published.
   // Land is covered as on the .om path: an ocean fill against the Natural Earth land mask at decode (landFill), and the layer
   // anchored below the ocean mask's land fill (MapWebGL).
+  // ICON (G4, 2026-11-17): the Copernicus ocean model's top-layer temperature (1/6 deg world set, hourly mean every 3 h), not
+  // GFS's skin under ICON's name: the credit and status line say Copernicus (sourceModel). ON by default (DEFAULT_ON_MODELS).
   water_temp: {
-    models: { GFS: 'GFS/weather/water_temp/global_0p25', EURO: 'EURO/weather/water_temp/global_0p25', ICON: 'GFS/weather/water_temp/global_0p25' },
+    models: { GFS: 'GFS/weather/water_temp/global_0p25', EURO: 'EURO/weather/water_temp/global_0p25', ICON: 'CMEMS/marine/water_temp/global_1p6' },
     fallback: null, field: TEMP_FIELD, unit: '°C', landFill: true,
   },
   // CLOUD COVER (2026-10-24): the app's 'satellite' layer draws forecast total cloud cover (Satellite IR was discontinued,
@@ -171,15 +173,16 @@ export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'gusts'
 // PER-MODEL DEFAULTS (2026-11-14, the director), under the no-regression rule: a layer moves to own frames by default only where its
 // set is at least as fine as what the .om path draws today.
 //  - water_temp EURO: ECMWF skt at 0.25 deg = the .om ifs025: built, DEFAULT-OFF pending the owner (vote split 08:31Z, as fog).
-//  - water_temp ICON (today blank: DWD ICON has no skin temperature; the GFS 0.25 deg set would fill it): built, OFF until the
-//    director's overnight question (screenshot pair, attribution label, scrub numbers). The lever reaches it.
+//  - water_temp ICON (DWD ICON has no sea temperature): the Copernicus ocean-model set (G4), ON (David 2026-11-17: "make them
+//    start on, with a test and kill switch"); the section 11 observation check runs after, as its guardrail. Until the set is
+//    published a miss keeps ICON on the .om path (GFS skin, as before). Kill: __RAW_DISABLE_RASTER_OWN_WATER_TEMP__.
 //  - water_temp GFS: OFF (the .om gfs013, 0.117 deg, is finer than the 0.25 deg set).
 //  - temperature EURO: ECMWF 2t at 0.25 deg = the .om ifs025 (#888): built, DEFAULT-OFF pending the owner (as fog).
 //  - temperature GFS: OFF until a pre-registered visual-parity comparison at z5 / z7 / z9 (desktop + phone) shows the 0.5 deg set +
 //    ETOPO downscale no coarser than the .om gfs013. ICON: OFF (0.5 deg vs dwd_icon ~0.125 deg; a 0.125 deg set is not built).
 // Kills: __RAW_DISABLE_RASTER_OWN_TEMPERATURE__, __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ (each the .om path, as before).
 // Turning them on: { temperature: ['EURO'], water_temp: ['EURO'] } here. The lever reaches every model meanwhile.
-export const DEFAULT_ON_MODELS = Object.freeze({});
+export const DEFAULT_ON_MODELS = Object.freeze({ water_temp: ['ICON'] });   // G4 (David 2026-11-17: start on, with a test and kill)
 
 /** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
  *  stays on the .om path, which draws that model as before (never another model's frames under its label). */
