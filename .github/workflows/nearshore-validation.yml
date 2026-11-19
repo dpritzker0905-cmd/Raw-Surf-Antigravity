@@ -140,6 +140,7 @@ jobs:
               print("::notice::Nearshore NOT GRADED — ARMED OFF; scientific validation skipped.")
 
   validate:
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
     name: Scientific validation (verdict in report)
     needs: eligibility
     if: needs.eligibility.outputs.eligible == 'true'
