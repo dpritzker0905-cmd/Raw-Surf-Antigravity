@@ -79,6 +79,16 @@ VORTEX_PEAK = 6.5
 LAND_MASK = False
 LAND_BOXES = ((-125.0, 25.0, -70.0, 60.0), (-75.0, -50.0, -40.0, 5.0), (-10.0, 0.0, 40.0, 60.0), (60.0, 20.0, 130.0, 60.0),
               (115.0, -35.0, 150.0, -20.0))
+# WATER CUTS (2026-11-18, log 2026-11-19-opus-all-land-backoff.md): the North America box above made the WHOLE US Atlantic and Gulf
+# coasts land, Florida's east coast included, so any narrow coastal view there was all land in the lab and read as a client defect
+# ("waves never draw on a phone at Florida z8"; it was this fixture). These cuts return the sea east of a staircase that follows the real
+# coastline to within ~0.3 deg (the Gulf of Mexico, Florida, Georgia, the Carolinas, the Mid-Atlantic, New England's south shore).
+# A cell inside a cut is water whatever the boxes say. (west, south, east, north)
+WATER_CUTS = ((-97.5, 25.0, -82.8, 29.5), (-82.8, 25.0, -81.8, 26.5),                                 # Gulf of Mexico, SW Florida
+              (-80.4, 25.0, -70.0, 27.0), (-80.6, 27.0, -70.0, 29.0), (-81.3, 29.0, -70.0, 31.0),   # Florida's east coast
+              (-81.0, 31.0, -70.0, 32.5), (-79.6, 32.5, -70.0, 34.0), (-77.6, 34.0, -70.0, 35.0),   # Georgia, the Carolinas
+              (-75.6, 35.0, -70.0, 37.0), (-75.1, 37.0, -70.0, 39.0), (-74.0, 39.0, -70.0, 40.5),   # Mid-Atlantic
+              (-71.5, 40.5, -70.0, 41.3))                                                           # New England's south shore
 
 
 # WAVE LAKES (2026-10-23, `--wave-lakes 1`; the client's waveLakes.js): #497 makes EURO (ECMWF WAM) carry its own values on the
@@ -122,7 +132,9 @@ def is_land(lat, lng, res=2.0):
     # live Gulf fill rewrite thousands of coastal 2-deg land cells (live 2026-10-22, world /grid coarse_fill: EURO 2,465 of 4,689
     # masked cells, ICON 1,708 of 3,788). A coarse tier with the full boxes would leave no donor near any coast and hide the fill.
     m = 6.0 if res >= 5.0 else 0.0
-    return LAND_MASK and any(w + m <= lng <= e - m and s + m <= lat <= n - m for (w, s, e, n) in LAND_BOXES)
+    if not LAND_MASK or any(w <= lng <= e and s <= lat <= n for (w, s, e, n) in WATER_CUTS):
+        return False
+    return any(w + m <= lng <= e - m and s + m <= lat <= n - m for (w, s, e, n) in LAND_BOXES)
 
 
 def vortex_center(hours_since_start):

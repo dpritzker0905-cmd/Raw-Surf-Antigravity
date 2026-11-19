@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
 from database import get_db
-from models import (TosContent, SurfTruthConsentEvent, CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
+from models import (CompanyDetailsChange, TosContent, SurfTruthConsentEvent,CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
                     SurfSpot, SurfTruthAdminAction, SurfTruthAnchor, XPTransaction)
 from routes.surf_data import observation_audits, observations
 from services import observation_rewards
@@ -42,7 +42,7 @@ async def world(monkeypatch):
     monkeypatch.setattr(observation_rewards, "audit_draw", lambda: False)
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
-        for model in (Profile, TosContent, SurfTruthConsentEvent, SurfSpot, CheckIn, ConditionReport, SurfReport, SurfObservation, ObservationMedia,
+        for model in (Profile, TosContent, SurfTruthConsentEvent, CompanyDetailsChange,SurfSpot, CheckIn, ConditionReport, SurfReport, SurfObservation, ObservationMedia,
                       XPTransaction, SurfTruthAnchor, SurfTruthAdminAction):
             await connection.run_sync(lambda conn, table=model.__table__: table.create(conn))
     maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -198,7 +198,7 @@ async def test_audit_holds_xp_until_an_admin_passes_it(world, monkeypatch):
     ok = await world.client.post(f"/api/admin/surf-observations/{held}/audit", json={"verdict": "pass"},
                                  headers=_token("admin"))
     assert ok.status_code == 200 and await world.xp("ana") == [("surf_observation", 5)]
-    bad = await world.client.post(f"/api/admin/surf-observations/{failed}/audit", json={"verdict": "fail", "reason": "stock photo"},
+    bad = await world.client.post(f"/api/admin/surf-observations/{failed}/audit", json={"verdict": "fail", "reason": "photo_reused"},
                                   headers=_token("admin"))
     assert bad.json()["xp_status"] == "audit_failed" and await world.xp("ben") == []
     again = await world.client.post(f"/api/admin/surf-observations/{held}/audit", json={"verdict": "pass"},

@@ -32,6 +32,7 @@ const MessagesPage                = React.lazy(() => import('./components/Messag
 const MapPage                     = React.lazy(() => import('./components/MapPage').then(m => ({ default: m.MapPage })));
 const GalleryPage                 = React.lazy(() => import('./components/GalleryPage').then(m => ({ default: m.GalleryPage })));
 const UnifiedAdminConsole         = React.lazy(() => import('./components/UnifiedAdminConsole'));
+const PrivacyPolicyPage           = React.lazy(() => import('./components/legal/PrivacyPolicyPage'));
 const AdminApp                    = React.lazy(() => import('./admin/AdminApp'));
 const PhotographerBookingsManager = React.lazy(() => import('./components/PhotographerBookingsManager').then(m => ({ default: m.PhotographerBookingsManager })));
 const PhotographerSessionsManager = React.lazy(() => import('./components/PhotographerSessionsManager').then(m => ({ default: m.PhotographerSessionsManager })));
@@ -145,6 +146,8 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/restore-account" element={<RestoreAccount />} />
+            {/* The public privacy notice (Company details "Privacy notice link"; the forecast-data consent links it) */}
+            <Route path="/privacy" element={<Lazy><PrivacyPolicyPage /></Lazy>} />
 
  {/* GG Onboarding / Subscription (no nav) GG */}
             <Route path="/surfer-subscription" element={<SubscriptionRoute><Lazy><SurferSubscription /></Lazy></SubscriptionRoute>} />
