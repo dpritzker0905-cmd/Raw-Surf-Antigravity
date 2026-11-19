@@ -557,6 +557,21 @@ the new cutoff) and the current token's `amr`; the settings card stores it (`upd
 signed out. Tests +6 (the hook for suspension, ban, password replaced and cleared; no revocation for a first password,
 an unrelated edit or a rollback; change-password ends other sessions and keeps this one). Estate fragment now +10.
 Settings Jest 16 pass; ESLint ratchet passes.
+## 2026-11-18 19:48Z Account deletion gets a 30-day restore window (David: "Ok go")
+
+A deletion request now SCHEDULES the erasure (services/account_deletion, new `account_deletions` table): at once the
+account is suspended and every session revoked, its surf reports leave every NEW export (`surf_truth_export` reads
+`pending_user_ids`), and a restore link is emailed (Resend, as password reset; only the token's SHA-256 is stored). Within
+30 days `POST /compliance/restore-account` restores it (never lifting a moderation suspension); after 30 days a daily job
+(03:40 UTC) runs the full erasure (`gdpr.erase_account`, the old route body) and marks it purged; a failure on one account is
+retried the next day. `?immediate=true` erases at once. Sign-in for a pending account says how to restore it. Also fixed:
+the PASSKEY sign-in ignored `is_suspended` (a suspended or pending account could sign in with a passkey). Frontend: the
+delete card uses theme tokens (it hard-coded dark colours), defaults to 30 days with a "Delete everything now" option, and a
+new `/restore-account` page. NOT YET (phase 2): during the window the public profile, posts and photos stay reachable;
+hiding them everywhere and moving the photos to private storage come next. Also open: make a pending deletion a retention
+revocation once #1034 merges. Tests: backend +7 (schedule, restore once, moderation kept, expiry, purge only due, immediate,
+passkey refused; removing the passkey check fails its test), frontend +4 (two modes, restore page). Not checked in a
+browser.
 ## 2026-11-18 15:21Z T1 P4: the export needs the OWNER'S server switch, not just an admin's tick box
 
 The advisor recorded on #1033 that its approval check box is client-side only. Worse, the export route itself is already

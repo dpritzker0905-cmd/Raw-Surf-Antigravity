@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from models import (Booking, CheckIn, Comment, ConditionReport, Follow, GalleryPurchase, Message, MfaChallenge,
+from models import (AccountDeletion, Booking, CheckIn, Comment, ConditionReport, Follow, GalleryPurchase, Message, MfaChallenge,
                     MfaRecoveryCode, ObservationMedia, PaymentTransaction, Post, Profile, Review, SurfObservation,
                     SessionRevocation, SurfTruthAdminAction, SurfTruthAnchor, SurfTruthConsentEvent,
                     TosAcknowledgement, TosViolation, UserMfa, WebauthnCredential)
@@ -39,8 +39,8 @@ def maker():
             for model in (Profile, Post, Comment, Follow, CheckIn, Review, Message, SurfObservation,
                           ObservationMedia, SurfTruthAnchor, Booking, GalleryPurchase, PaymentTransaction,
                           TosAcknowledgement, TosViolation, ConditionReport, WebauthnCredential, UserMfa,
-                          MfaRecoveryCode, MfaChallenge, SessionRevocation, SurfTruthConsentEvent,
-                          SurfTruthAdminAction):
+                          MfaRecoveryCode, MfaChallenge, SessionRevocation, AccountDeletion,
+                          SurfTruthConsentEvent, SurfTruthAdminAction):
                 await conn.run_sync(lambda c, t=model.__table__: t.create(c))
         mk = async_sessionmaker(engine, expire_on_commit=False)
         async with mk() as db:
@@ -62,8 +62,10 @@ def maker():
                                       at=NOW),
             ])
             await db.commit()
-        return mk
-    return asyncio.run(build())
+        return engine, mk
+    engine, mk = asyncio.run(build())
+    yield mk
+    asyncio.run(engine.dispose())                   # close the pooled connections and their aiosqlite worker threads
 
 
 def _count(db, model, *where):
@@ -73,7 +75,7 @@ def _count(db, model, *where):
 def test_deletion_request_erases_the_users_surf_truth_rows_and_keeps_others(maker):
     async def go():
         async with maker() as db:
-            result = await request_data_deletion(user_id="leaver", db=db)
+            result = await request_data_deletion(user_id="leaver", db=db, immediate=True)
             assert result["success"] is True
         async with maker() as db:
             assert (await _count(db, SurfObservation, SurfObservation.user_id == "leaver")).scalar() == 0
@@ -187,7 +189,7 @@ def test_deletion_removes_the_users_condition_media_and_sign_in(maker, monkeypat
                 MfaRecoveryCode(user_id="leaver", code_hash="c" * 64),
             ])
             await db.commit()
-            result = await request_data_deletion(user_id="leaver", db=db)
+            result = await request_data_deletion(user_id="leaver", db=db, immediate=True)
         assert result["media"] == {"deleted": 3, "foreign_ignored": 0, "local_removed": True, "error": None}
         # the listing under the user's prefix plus the report's own object; never another user's file
         assert sorted(store.deleted) == ["leaver/a.jpg", "leaver/report.jpg", "leaver/v.mov"]
@@ -210,7 +212,7 @@ def test_a_storage_failure_is_reported_not_hidden_and_the_rows_stay_deleted(make
 
     async def go():
         async with maker() as db:
-            result = await request_data_deletion(user_id="leaver", db=db)
+            result = await request_data_deletion(user_id="leaver", db=db, immediate=True)
         assert result["success"] is True and result["media"]["error"] == "TimeoutError"
         async with maker() as db:
             assert (await _count(db, ObservationMedia, ObservationMedia.user_id == "leaver")).scalar() == 0
@@ -227,7 +229,7 @@ def test_deletion_revokes_every_session_token_already_issued(maker, monkeypatch,
 
     async def go():
         async with maker() as db:
-            await request_data_deletion(user_id="leaver", db=db)
+            await request_data_deletion(user_id="leaver", db=db, immediate=True)
         async with maker() as db:
             assert (await db.get(SessionRevocation, "leaver")) is not None   # every process picks it up within a minute
     asyncio.run(go())
@@ -257,7 +259,7 @@ def test_a_report_naming_someone_elses_photo_never_deletes_it(maker, monkeypatch
                 ConditionReport(photographer_id="leaver", media_url=PUB + "leaver/own.jpg", expires_at=NOW),
             ])
             await db.commit()
-            result = await request_data_deletion(user_id="leaver", db=db)
+            result = await request_data_deletion(user_id="leaver", db=db, immediate=True)
         assert result["media"]["foreign_ignored"] == 3 and result["media"]["error"] is None
         assert sorted(store.deleted) == ["leaver/a.jpg", "leaver/own.jpg"]
     asyncio.run(go())

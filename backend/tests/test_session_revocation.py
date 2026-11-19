@@ -87,13 +87,13 @@ def test_revoke_records_and_moves_the_cutoff_forward():
 
 # ── one database hook: password change / suspension / ban revoke too ────────────────────────────────────────────────
 def _profile_world():
-    from models import Profile, RoleEnum
+    from models import AccountDeletion, Profile, RoleEnum
     from routes.auth_pkg.auth import hash_password
 
     async def build():
         engine = create_async_engine("sqlite+aiosqlite:///:memory:")
         async with engine.begin() as conn:
-            for model in (Profile, SessionRevocation):
+            for model in (Profile, SessionRevocation, AccountDeletion):   # the deletion guard reads it on a suspension
                 await conn.run_sync(lambda c, t=model.__table__: t.create(c))
         maker = async_sessionmaker(engine, expire_on_commit=False)
         async with maker() as db:

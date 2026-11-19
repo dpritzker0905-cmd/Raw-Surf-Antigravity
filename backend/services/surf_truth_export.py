@@ -181,8 +181,11 @@ async def build_export(db, key: bytes, since: Optional[datetime] = None) -> tupl
     # P3 consent: a row leaves only if the person had opted in when it was made AND is still opted in now, so a
     # withdrawal stops every later export from using any of their rows. No choice recorded means no (opt-in).
     consenting = await surf_truth_consent.granted_now(db, {r.user_id for r in candidates if r.consent_training})
-    rows = [r for r in candidates if r.consent_training and r.user_id in consenting]
-    spots ={s.id: s for s in (await db.execute(select(SurfSpot).where(
+    # A deletion request withdraws the person's reports at once, before the 30-day erasure (services/account_deletion).
+    from services.account_deletion import pending_user_ids
+    pending = await pending_user_ids(db)
+    rows = [r for r in candidates if r.consent_training and r.user_id in consenting and r.user_id not in pending]
+    spots = {s.id: s for s in (await db.execute(select(SurfSpot).where(
         SurfSpot.id.in_({r.spot_id for r in rows if r.spot_id})))).scalars().all()} if rows else {}
     users = {r.user_id for r in rows}
     events = index_events((await db.execute(select(SurfTruthAnchorEvent).where(

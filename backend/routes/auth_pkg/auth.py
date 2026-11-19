@@ -485,6 +485,10 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     
     # Check if suspended
     if profile.is_suspended:
+        from services.account_deletion import is_pending
+        if await is_pending(db, profile.id):
+            raise HTTPException(status_code=403, detail=(
+                "This account is scheduled for deletion. Use the restore link we emailed you to restore it."))
         raise HTTPException(status_code=403, detail="Account suspended")
 
     # A second factor is owed (or must be set up) before any session token exists: see routes/auth_pkg/mfa.py.

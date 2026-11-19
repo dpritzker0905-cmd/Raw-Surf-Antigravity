@@ -1,6 +1,12 @@
 /**
- * DeleteAccountSection -- GDPR Article 17 self-service data deletion.
- * Shows in Settings page. Requires confirmation before proceeding.
+ * DeleteAccountSection -- GDPR Article 17 self-service deletion, with a 30-day restore window (David, 2026-11-18).
+ *
+ * By default the request SCHEDULES the deletion: the account is locked and signed out at once, a restore link is
+ * emailed, and everything is permanently erased after 30 days. "Delete everything now" erases at once
+ * (POST /compliance/delete-my-data?immediate=true).
+ *
+ * Themes: semantic tokens only (card/foreground/muted/border/destructive), which light, dark and beach all define.
+ * Accessibility: real buttons, a labelled confirmation field, the outcome announced in a status region.
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle2 } from 'lucide-react';
@@ -8,11 +14,13 @@ import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
 
-const DeleteAccountSection = ({ onDeleted }) => {
+const DeleteAccountSection = () => {
   const [step, setStep] = useState('idle');
   const [confirmText, setConfirmText] = useState('');
+  const [immediate, setImmediate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [outcome, setOutcome] = useState(null);
   const { logout } = useAuth();
   const redirectTimer = useRef(null);
 
@@ -25,16 +33,17 @@ const DeleteAccountSection = ({ onDeleted }) => {
     setError(null);
     try {
       // The client's base URL already ends in /api: a leading '/api' here made this /api/api/... and it always 404ed.
-      await apiClient.post('/compliance/delete-my-data');
+      const res = await apiClient.post('/compliance/delete-my-data', null, { params: immediate ? { immediate: true } : {} });
+      const scheduled = res?.data?.mode === 'scheduled';
+      setOutcome({ scheduled, purgeAfter: res?.data?.purge_after, emailed: res?.data?.restore_email_sent });
       setStep('done');
-      toast.success('Your account data was deleted.');
-      // End the session now: the token belongs to the deleted account, and logout also clears this device's
-      // per-account caches. ProtectedRoute then sends the signed-out visitor to /auth.
+      toast.success(scheduled ? 'Your account is scheduled for deletion.' : 'Your account data was deleted.');
+      // The account's sessions are revoked server-side; logout also clears this device's per-account caches.
       logout();
       localStorage.removeItem('raw-surf-token');
       redirectTimer.current = setTimeout(() => {
         window.location.href = '/auth';
-      }, 3000);
+      }, scheduled ? 6000 : 3000);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to delete account. Please try again.');
     } finally {
@@ -43,130 +52,84 @@ const DeleteAccountSection = ({ onDeleted }) => {
   };
 
   if (step === 'done') {
+    const until = outcome?.purgeAfter ? new Date(outcome.purgeAfter).toLocaleDateString() : 'in 30 days';
     return (
-      <div role="status" style={{
-        padding: 24,
-        textAlign: 'center',
-        background: 'rgba(239,68,68,0.05)',
-        borderRadius: 12,
-        border: '1px solid rgba(239,68,68,0.15)'
-      }}>
-        <CheckCircle2 size={40} color="#34d399" aria-hidden="true" style={{ marginBottom: 12 }} />
-        <p style={{ color: '#f1f5f9', fontWeight: 600, margin: 0 }}>
-          Account data deleted
+      <div role="status" className="rounded-xl border border-border bg-card p-6 text-center">
+        <CheckCircle2 size={40} className="mx-auto mb-3 text-emerald-500" aria-hidden="true" />
+        <p className="m-0 font-semibold text-foreground">
+          {outcome?.scheduled ? 'Account scheduled for deletion' : 'Account data deleted'}
         </p>
-        <p style={{ color: '#94a3b8', fontSize: 13, margin: '8px 0 0' }}>
-          Redirecting to login...
-        </p>
+        {outcome?.scheduled && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            It is locked now and will be permanently deleted on {until}.{' '}
+            {outcome.emailed
+              ? 'To restore it before then, use the link we emailed you.'
+              : 'We could not send the restore email; contact support to restore it before then.'}
+          </p>
+        )}
+        <p className="mt-2 text-sm text-muted-foreground">Redirecting to login...</p>
       </div>
     );
   }
 
   return (
-    <div style={{
-      padding: 16,
-      background: 'rgba(239,68,68,0.03)',
-      borderRadius: 12,
-      border: '1px solid rgba(239,68,68,0.1)'
-    }}>
-      <h4 style={{
-        margin: '0 0 8px',
-        fontSize: 15,
-        fontWeight: 600,
-        color: '#ef4444'
-      }}>
-        Delete My Account
-      </h4>
-      <p style={{ margin: '0 0 12px', fontSize: 13, color: '#94a3b8', lineHeight: 1.5 }}>
-        Permanently delete your account and all associated data. This action cannot be undone. 
-        Financial records are retained for legal compliance.
+    <div className="rounded-xl border border-destructive/30 bg-card p-4">
+      <h4 className="mb-2 text-base font-semibold text-destructive">Delete My Account</h4>
+      <p className="mb-3 text-sm leading-relaxed text-muted-foreground">
+        Your account is locked and signed out straight away, and permanently deleted after 30 days. Until then you
+        can restore it from the link we email you. Financial records are retained for legal compliance.
       </p>
 
       {step === 'idle' && (
         <button
+          type="button"
           onClick={() => setStep('confirm')}
-          style={{
-            padding: '8px 16px',
-            background: 'transparent',
-            color: '#ef4444',
-            border: '1px solid rgba(239,68,68,0.3)',
-            borderRadius: 8,
-            cursor: 'pointer',
-            fontSize: 13,
-            fontWeight: 600
-          }}
+          className="rounded-lg border border-destructive/40 px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Request Data Deletion
         </button>
       )}
 
       {step === 'confirm' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{
-            padding: 12,
-            background: 'rgba(239,68,68,0.08)',
-            borderRadius: 8,
-            fontSize: 12,
-            color: '#fca5a5',
-            lineHeight: 1.5
-          }}>
-            This will permanently delete your posts, comments, follows, check-ins, and reviews.
-            Your profile will be anonymized. Type <strong>DELETE</strong> to confirm.
+        <div className="flex flex-col gap-3">
+          <div className="rounded-lg bg-destructive/10 p-3 text-sm leading-relaxed text-foreground">
+            Your posts, comments, follows, check-ins, reviews and surf reports will be deleted and your profile
+            anonymized{immediate ? ' right away. This cannot be undone.' : ' after 30 days, unless you restore it.'}{' '}
+            Type <strong>DELETE</strong> to confirm.
           </div>
-          <input aria-label="Type DELETE to confirm account deletion"
+          <label className="flex items-start gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={immediate}
+              onChange={(e) => setImmediate(e.target.checked)}
+              className="mt-1"
+            />
+            <span>Delete everything now instead (no 30-day restore window; this cannot be undone)</span>
+          </label>
+          <input
+            aria-label="Type DELETE to confirm account deletion"
             type="text"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder='Type "DELETE" to confirm'
-            style={{
-              padding: '10px 12px',
-              background: 'rgba(0,0,0,0.3)',
-              border: '1px solid rgba(239,68,68,0.2)',
-              borderRadius: 8,
-              color: '#f1f5f9',
-              fontSize: 14,
-              outline: 'none'
-            }}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-          {error && (
-            <p role="alert" style={{ margin: 0, color: '#ef4444', fontSize: 12 }}>{error}</p>
-          )}
-          <div style={{ display: 'flex', gap: 8 }}>
+          {error && <p role="alert" className="m-0 text-sm text-destructive">{error}</p>}
+          <div className="flex gap-2">
             <button
-              onClick={() => { setStep('idle'); setConfirmText(''); setError(null); }}
-              style={{
-                flex: 1,
-                padding: '10px 0',
-                background: 'rgba(255,255,255,0.05)',
-                color: '#94a3b8',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 600
-              }}
+              type="button"
+              onClick={() => { setStep('idle'); setConfirmText(''); setError(null); setImmediate(false); }}
+              className="flex-1 rounded-lg border border-border bg-muted/40 py-2 text-sm font-semibold text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleDelete}
               disabled={confirmText !== 'DELETE' || loading}
-              style={{
-                flex: 1,
-                padding: '10px 0',
-                background: confirmText === 'DELETE'
-                  ? 'linear-gradient(135deg, #ef4444, #dc2626)'
-                  : 'rgba(239,68,68,0.1)',
-                color: confirmText === 'DELETE' ? '#fff' : '#94a3b8',
-                border: 'none',
-                borderRadius: 8,
-                cursor: confirmText === 'DELETE' ? 'pointer' : 'not-allowed',
-                fontSize: 13,
-                fontWeight: 600,
-                opacity: loading ? 0.6 : 1
-              }}
+              className="flex-1 rounded-lg bg-destructive py-2 text-sm font-semibold text-destructive-foreground disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {loading ? 'Deleting...' : 'Delete Forever'}
+              {loading ? 'Deleting...' : immediate ? 'Delete Forever' : 'Delete in 30 Days'}
             </button>
           </div>
         </div>
