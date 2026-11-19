@@ -37,3 +37,12 @@ coastal views behave like reality. LESSONS gets the rule: check the lab fixture 
   and `/grid` + `/grid_series` ON <= KILL. Kansas run 1 stays on record.
 - Side finding, not this PR's scope: on an inland view the clamp backstop re-drives ~every 6.5 s and asks 8-14 `/grid_series` pages in
   5 min idle in both arms.
+
+## 01:33Z: L2 run 2 (Florida phone, NO lab CDN) also did not exercise the change; second amendment before run 3
+
+- Run 2 (as amended at the previous section, but the scenario served no CDN): ON 0 / 0 re-drives, KILL 0 / 0; `/grid_series` 3-6 while
+  idle; nothing blocked. Without the lab CDN there is no regional bundle, and the 2026-11-18 all-zero state only appeared on the bundle
+  path (bundles off drew on the same view then too). Not a result for the change.
+- **Amendment:** `scn_all_land_idle.js` now serves the lab's published frames as the CDN (`CDN_DIR`, as `scn_zoom_scrub.js` did when the
+  defect was found). Run 3: the same view, phone, 5 min idle, 2 sessions per arm, `CDN_DIR` = the 2026-11-18 cdn7, backend 4300. Pass line
+  unchanged.
