@@ -2930,3 +2930,11 @@ downgrade, owner). Sent to the director.
 - **Amendment 4:** the long-range hindcast score log (truth overlaps 3b TEST) is read ONLY by an independent session
   (the SOTA researcher), which reports PASS/FAIL only, until 3b is scored. Fallback: keep it closed. The wind lane has
   attested in writing that it hasn't seen the hindcast truth.
+
+## 2026-11-18 20:34 -0500 Wind-down: designs committed to evidence/2026-11-19-research-lead/
+Copied from the shared notes so they live in the record of memory:
+- `best-sota-path-synthesis`, `truth-first-plan`;
+- `step3b-period-wind-preregistration` (Amendments 1-4), `step5-calibration-design-and-teacher-review`;
+- `mop-rejudge-preregistration`, `icon-rain-radar-test`;
+- `open-meteo-exit-plan` (sections A-P plus the master sequence L), `tide-licence-commercial-read`, `TEAM-DIGEST`;
+- `raw-surf-prediction-review-and-prereg`, marked DRAFT / NOT STARTED (next work).
