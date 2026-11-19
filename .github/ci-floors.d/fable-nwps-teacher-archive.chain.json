@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 27,
+  "files": 0,
+  "branch": "fable/nwps-teacher-archive",
+  "date": "2026-11-19",
+  "note": "NWPS teacher archive collector: unaltered split, caps, idempotence, no credential, workflow gate"
+}
