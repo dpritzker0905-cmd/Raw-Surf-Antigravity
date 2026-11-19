@@ -313,5 +313,10 @@ async def run_dedup(execute=False):
 
 
 if __name__ == "__main__":
+    try:
+        from _legacy_spot_writer import HARD_DELETES, refuse_legacy_spot_write
+    except ImportError:
+        from scripts._legacy_spot_writer import HARD_DELETES, refuse_legacy_spot_write
+    refuse_legacy_spot_write("dedup_surf_spots.py", HARD_DELETES)
     execute = "--execute" in sys.argv
     asyncio.run(run_dedup(execute=execute))

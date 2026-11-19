@@ -13,32 +13,6 @@ from models import Profile, SurfSpot
 router = APIRouter()
 
 
-# ── SQL safety: allowlisted table+column pairs for dynamic FK queries ──
-ALLOWED_FK_REFS = {
-    ("profiles", "current_spot_id"),
-    ("spot_refinements", "spot_id"),
-    ("spot_verifications", "spot_id"),
-    ("spot_edit_logs", "spot_id"),
-    ("spot_of_the_day", "spot_id"),
-    ("bookings", "surf_spot_id"),
-    ("dispatch_requests", "spot_id"),
-    ("posts", "spot_id"),
-    ("live_session_participants", "spot_id"),
-    ("check_ins", "spot_id"),
-    ("surf_reports", "spot_id"),
-    ("surf_alerts", "spot_id"),
-    ("photographer_requests", "spot_id"),
-    ("stories", "spot_id"),
-    ("gallery_items", "spot_id"),
-    ("surfer_gallery_items", "spot_id"),
-    ("live_sessions", "surf_spot_id"),
-    ("galleries", "surf_spot_id"),
-    ("condition_reports", "spot_id"),
-    ("social_live_streams", "spot_id"),
-    ("surf_passport_checkins", "spot_id"),
-    ("spot_seo_metadata", "spot_id"),
-}
-
 # FK tables that reference surf_spots.id (shared by both dedup endpoints)
 FK_REFS = [
     ("profiles", "current_spot_id"),
@@ -63,7 +37,14 @@ FK_REFS = [
     ("social_live_streams", "spot_id"),
     ("surf_passport_checkins", "spot_id"),
     ("spot_seo_metadata", "spot_id"),
+    # Added 2026-11-18. Both reference surf_spots with ON DELETE SET NULL, so a merge that did not list them
+    # silently detached every surf log entry and surf-truth observation from the spot it deleted.
+    ("surf_log_entries", "spot_id"),
+    ("surf_observations", "spot_id"),
 ]
+
+# SQL safety: the only table+column pairs the dynamic FK queries may name.
+ALLOWED_FK_REFS = set(FK_REFS)
 
 
 from sqlalchemy import text as sa_text
@@ -77,6 +58,34 @@ def _safe_fk_query(query_template: str, table: str, column: str) -> str:
     return sa_text(query_template.format(table=table, column=column))
 
 
+def missing_fk_refs() -> list:
+    """Tables that reference `surf_spots.id` but are NOT in FK_REFS, read from the models.
+
+    FK_REFS is kept by hand, and a merge DELETES the duplicate row. A referencing table that is not listed is not
+    re-parented: its rows are cascaded away or detached (SET NULL) by the delete, with nothing reported. Measured
+    2026-11-18: the list held 22 of 24 (it lacked `surf_log_entries` and `surf_observations`). Both merge endpoints
+    refuse to execute while this is non-empty, so the next table to reference a spot cannot be forgotten quietly."""
+    import models  # noqa: F401  (registers every table)
+    from database import Base
+    listed = set(FK_REFS)
+    found = set()
+    for table in Base.metadata.tables.values():
+        for fk in table.foreign_keys:
+            if fk.column.table.name == "surf_spots" and fk.column.name == "id":
+                found.add((table.name, fk.parent.name))
+    return sorted(found - listed)
+
+
+def _refusal(missing: list) -> dict:
+    names = ", ".join(f"{t}.{c}" for t, c in missing)
+    return {
+        "success": False, "mode": "REFUSED", "missing_fk_refs": [f"{t}.{c}" for t, c in missing],
+        "error": (f"Refused: {len(missing)} table(s) reference surf_spots but are not in the merge list ({names}). "
+                  "Deleting a duplicate now would drop or detach their rows. Add them to FK_REFS first. "
+                  "Nothing was changed."),
+    }
+
+
 async def _reparent_fk_refs(
     db: AsyncSession,
     survivor_id: str,
@@ -86,6 +95,9 @@ async def _reparent_fk_refs(
     """
     Re-parent all FK references from dup_id to survivor_id.
     Returns a dict of {table.column: count_or_action}.
+
+    When executing, an error here STOPS the merge (the caller rolls back). It used to be swallowed, and the caller
+    then deleted the duplicate anyway, taking the rows that had failed to move with it.
     """
     moved = {}
     for table, column in FK_REFS:
@@ -120,8 +132,10 @@ async def _reparent_fk_refs(
                 cnt = r.scalar() or 0
                 if cnt > 0:
                     moved[f"{table}.{column}"] = cnt
-        except Exception:
-            pass
+        except Exception as e:
+            if execute:
+                raise
+            moved[f"{table}.{column}"] = f"could not be counted: {type(e).__name__}"
     return moved
 
 
@@ -138,6 +152,10 @@ async def dedup_surf_spots(
     Default is DRY RUN. Pass ?execute=true to apply changes.
     """
     results = {"groups": [], "total_merged": 0, "errors": []}
+    missing = missing_fk_refs()
+    if execute and missing:
+        return _refusal(missing)
+    results["missing_fk_refs"] = [f"{t}.{c}" for t, c in missing]
 
     try:
         # Find duplicate groups: same name + state_province + country with count > 1
@@ -222,6 +240,7 @@ async def dedup_surf_spots(
         }
     except Exception as e:
         import traceback
+        await db.rollback()      # a merge that failed part-way leaves NOTHING applied
         results["errors"].append(str(e))
         return {"success": False, "error": str(e), "traceback": traceback.format_exc(), **results}
 
@@ -253,6 +272,10 @@ async def merge_near_duplicate_spots(
     Default is DRY RUN. Pass ?execute=true to apply changes.
     """
     results = {"merges": [], "total_merged": 0, "skipped": [], "errors": []}
+    missing = missing_fk_refs()
+    if execute and missing:
+        return _refusal(missing)
+    results["missing_fk_refs"] = [f"{t}.{c}" for t, c in missing]
 
     try:
         for survivor_pattern, dup_pattern, same_state in NEAR_DUPE_PAIRS:
@@ -326,5 +349,6 @@ async def merge_near_duplicate_spots(
         }
     except Exception as e:
         import traceback
+        await db.rollback()      # a merge that failed part-way leaves NOTHING applied
         results["errors"].append(str(e))
         return {"success": False, "error": str(e), "traceback": traceback.format_exc(), **results}

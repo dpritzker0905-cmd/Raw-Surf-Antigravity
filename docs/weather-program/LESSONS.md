@@ -1573,3 +1573,14 @@ A stored estimate can be estimated again in a browser branch with different sour
 - A new raster set's env switch must also be listed in `data-health-monitor.yml` (`test_raster_set_freshness`).
 - `backend-sim-composition-guards` CANCELLED at its 25-minute timeout is not a test failure: read the log, then rerun
   only the failed job.
+
+### 2026-11-18 — L-P48 · Check the lab fixture against reality before calling a defect
+- A phone view at Florida z8 "never drew waves with regional bundles on" in 3 of 3 offline runs. It was reported to the director as a
+  likely user-visible defect, then traced: the app committed frames correctly, every height was zero, and the WebGL layer rightly
+  refused them (`renderBlockedReason: "all_zero_grid"`). The zeros came from the lab: `serve_synthetic.py --land-mask 1`'s
+  North America box made the whole US Atlantic and Gulf coasts land. The phone's narrow view sat entirely on lab "land"; the
+  desktop's taller view reached lab water, which is why the defect looked phone-specific.
+- Rule: before calling an offline result a defect, check that the fixture under it matches reality at that place (land and water,
+  coverage, resolution, model range). A difference between two views or devices can be the fixture's geometry, not a client branch.
+- Same class as the layer-animation lane's harness lesson: the instrument or the fixture is the first suspect.
+- Fixed: `WATER_CUTS` in `serve_synthetic.py` return the sea along the US Atlantic and Gulf coasts.

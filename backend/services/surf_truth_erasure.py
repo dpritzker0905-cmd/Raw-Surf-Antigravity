@@ -18,16 +18,22 @@ What is NOT erased here, and why (David's call, recorded in the T1 log):
 - `surf_truth_anchor_events` and `surf_truth_admin_actions` are append-only audit logs (database triggers refuse
   UPDATE and DELETE even for the owner). They hold the profile id, which after deletion points at an anonymized
   profile, and admin-written reasons. Whether a deletion request must reach them needs a legal decision.
-- Exports already written to private storage (`surf-truth/exports/`) carry the user only as an HMAC pseudonym; the
-  proposed retention rule purges them within 7 days of a deletion. Not built until David answers.
+- Exports already written to private storage (`surf-truth/exports/`) carry the user only as an HMAC pseudonym. By the
+  owner's retention rule (services/surf_truth_retention.py) every export older than the deletion is replaced by a
+  fresh one within 7 days; the deletion itself is recorded here as an `account_erasure` line (when, never who).
 - The report photo itself lives with its condition/surf report in the `conditions` bucket, owned by those features.
 """
 from __future__ import annotations
+
+import uuid
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import ObservationMedia, SurfObservation, SurfTruthAnchor, SurfTruthConsentEvent
+from services import surf_truth_admin
+
+SYSTEM_ACTOR = "system"
 
 # Columns left out of a data-export package: server bookkeeping that says nothing about the person.
 _EXPORT_SKIP = {"_sa_instance_state"}
@@ -41,6 +47,8 @@ async def erase_surf_truth(db: AsyncSession, user_id: str) -> dict:
     anchor = (await db.execute(delete(SurfTruthAnchor).where(SurfTruthAnchor.profile_id == user_id))).rowcount
     audits = (await db.execute(update(SurfObservation).where(SurfObservation.audited_by == user_id)
                                .values(audited_by=None))).rowcount
+    # The retention job's trigger: WHEN an account was erased, under a random id, so the log names no one.
+    surf_truth_admin.log_action(db, SYSTEM_ACTOR, "account_erasure", "account", uuid.uuid4().hex)
     return {"surf_observations": observations or 0, "observation_media": media or 0,
             "surf_truth_anchor": anchor or 0, "audits_unattributed": audits or 0}
 

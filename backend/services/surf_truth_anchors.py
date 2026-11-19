@@ -1,7 +1,8 @@
 """The one place an anchor observer is appointed or changes status (and the one place it is read).
 
 Every change writes the anchor row AND an append-only log line in the same transaction, with the acting admin and a
-required reason. Nothing here touches a reported number: anchors are about whose reports set the scale, never about
+required REASON CODE (surf_truth_admin.ANCHOR_REASONS; never free text: the log is append-only and outlives an
+erasure, so it must not hold an admin's words about a named person; T1 log retention design, 2026-11-18). Nothing here touches a reported number: anchors are about whose reports set the scale, never about
 editing what anyone reported. The caller commits.
 """
 from __future__ import annotations
@@ -12,9 +13,9 @@ from typing import Optional
 from sqlalchemy import select
 
 from models import SurfTruthAnchor, SurfTruthAnchorEvent
+from services.surf_truth_admin import ANCHOR_REASONS
 
 STATUSES = ("active", "probation", "suspended")
-MAX_REASON = 500
 
 
 class AnchorError(ValueError):
@@ -38,8 +39,8 @@ async def set_status(db, profile_id: str, status: str, actor_id: str, reason: st
     reason = (reason or "").strip()
     if not reason:
         raise AnchorError("a reason is required")
-    if len(reason) > MAX_REASON:
-        raise AnchorError(f"reason is limited to {MAX_REASON} characters")
+    if reason not in ANCHOR_REASONS:
+        raise AnchorError(f"reason must be one of the codes {tuple(ANCHOR_REASONS)}")
     row = await db.get(SurfTruthAnchor, profile_id)
     previous = row.status if row else None
     if previous == status:

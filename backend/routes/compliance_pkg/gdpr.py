@@ -14,9 +14,11 @@ from core.security import get_current_user_id
 from models import (
     Profile, TosViolation, TosAcknowledgement,
     Post, Comment, Booking, GalleryPurchase, PaymentTransaction,
-    Message, Follow, CheckIn, Review
+    Message, Follow, CheckIn, Review, ConditionReport, ObservationMedia,
+    WebauthnCredential, UserMfa, MfaRecoveryCode, MfaChallenge,
 )
 from services.surf_truth_erasure import erase_surf_truth, export_surf_truth
+import asyncio
 import logging
 
 router =APIRouter(prefix="/compliance", tags=["compliance"])
@@ -184,6 +186,11 @@ async def request_data_deletion(
     - Follows (follower + following)
     - Check-ins, reviews
     - Surf-truth observations, photo facts and observer status (services/surf_truth_erasure.py)
+    - Condition reports, and their photos/videos in the PUBLIC conditions bucket (after the commit, best effort,
+      reported in `media`: services/account_erasure_media.py)
+    - Sign-in: the password, passkeys and second-factor secrets are removed and the account is marked suspended, so
+      nobody can sign in to the anonymized profile again, and every session token already issued is revoked
+      (core/session_revocation: refused within a minute on every server process, at once on this one).
     - Messages (sender side anonymized)
     - Profile data is anonymized (name, bio, avatar cleared)
 
@@ -221,8 +228,21 @@ async def request_data_deletion(
     await db.execute(delete(Review).where(Review.reviewer_id == user_id))
 
     # 4b. Surf-truth observations (device GPS, photo EXIF), photo facts and observer status (T1 P3). Same
-    # transaction: if this fails the whole request rolls back rather than reporting a partial deletion.
+    # transaction: if this fails the whole request rolls back rather than reporting a partial deletion. The media
+    # URLs are read first, so their files can be removed from public storage after the commit.
+    media_urls = list((await db.execute(select(ObservationMedia.media_url)
+                                        .where(ObservationMedia.user_id == user_id))).scalars().all())
+    media_urls += list((await db.execute(select(ConditionReport.media_url)
+                                         .where(ConditionReport.photographer_id == user_id))).scalars().all())
     await erase_surf_truth(db, user_id)
+    await db.execute(delete(ConditionReport).where(ConditionReport.photographer_id == user_id))
+
+    # 4c. Sign-in (advisor limit on #1022): no password, passkey or second factor survives, and the account is marked
+    # suspended, which the password and MFA paths already refuse.
+    for model in (WebauthnCredential, MfaRecoveryCode, MfaChallenge, UserMfa):
+        await db.execute(delete(model).where(model.user_id == user_id))
+    from core.session_revocation import note_revoked, revoke
+    revoked_at = await revoke(db, user_id, "account_deleted")
 
     # 5. Anonymize messages (don't delete — recipient still has the conversation)
     await db.execute(
@@ -240,6 +260,10 @@ async def request_data_deletion(
     profile.wetsuit_color = None
     profile.rash_guard_color = None
     profile.stance = None
+    profile.password_hash = None
+    profile.is_suspended = True
+    profile.suspended_at = datetime.now(timezone.utc)
+    profile.suspended_reason = "account deleted at the user's request"
     # These are the REAL column names. The old code set phone / instagram_handle / website / board_description /
     # is_active / is_deleted, none of which is a Profile column, so those assignments silently did nothing, and the
     # home and on-demand positions below were never cleared. A loop over names catches a future rename loudly.
@@ -251,11 +275,18 @@ async def request_data_deletion(
         setattr(profile, column, None)
 
     await db.commit()
+    note_revoked(user_id, revoked_at)          # this process refuses the user's tokens from now on
+
+    # 7. The files, now that the rows are gone (storage is not transactional; reported, never hidden).
+    from routes.uploads.core import UPLOAD_DIR
+    from services.account_erasure_media import delete_account_media
+    media = await asyncio.to_thread(delete_account_media, user_id, media_urls, UPLOAD_DIR)
 
     logger.info(f"GDPR deletion completed for user {user_id}")
 
     return {
         "success": True,
         "message": "Your account data has been deleted. Profile has been anonymized. Financial records are retained for legal compliance.",
-        "retained": ["payment_transactions", "bookings", "tos_acknowledgements", "tos_violations"]
+        "retained": ["payment_transactions", "bookings", "tos_acknowledgements", "tos_violations"],
+        "media": media,
     }

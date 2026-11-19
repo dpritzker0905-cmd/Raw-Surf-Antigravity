@@ -15,11 +15,13 @@ import { CUSTOM_COLOR_SCALES, applyPrecipColorScale, applyThemePressureScale } f
 import {
   createOwnRasterLayer, buildStepLut, PRESSURE_LUT, PRESSURE_OPACITY_STOPS, TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS,
   CLOUD_LUT, SATELLITE_OPACITY_STOPS, RAIN_LUT, RAIN_OPACITY_STOPS, FOG_LUT, FOG_OPACITY_STOPS, WATER_TEMP_LUT, waterTempOpacityStops, GUST_OPACITY_STOPS, CURRENTS_OPACITY_STOPS,
-  scaleForTheme,
+  scaleForTheme, opacityAtZoom,
 } from './ownRasterLayer';
 import { RASTER_NAMES, getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
 import { requestIsobars } from './isobarStore';
 import { GUST_LUT, gustScale } from './gustPalette';
+import { setShownGustField, gustFieldTint } from './gustParticles';
+import { v2FieldTint } from './WebGLWindUtils';
 import { CURRENTS_LUT, currentsScale } from './currentsPalette';
 import { loadDownscale, setDownscaled } from './ownRasterDownscale';
 import {
@@ -193,6 +195,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
             nearestMaxHours: st.nearestMaxHours || 1, drawnFactor: drawnFactor || 1 };
           emitOwnShown(layer, path);                     // synchronous: the isobars cut with the field, in the same frame
+          if (layer === 'gusts') setShownGustField(field || null);   // the wind particles take their colour from it (gustParticles.js)
           if (path && st.widen) Promise.resolve().then(() => { if (st.widen) st.widen(); });   // first frame on screen: prefetch now
           Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : sourceModel(layer, M)); if (path) setShown(true); });
         });
@@ -209,6 +212,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       st.layerObj = null;
       setWanted(layer, [], null);
       emitOwnShown(layer, null);
+      if (layer === 'gusts') setShownGustField(null);
     };
   }, [engaged, mapInstance, layer, beforeId]);
 
@@ -230,6 +234,11 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
         .catch(() => apply(null));
     }
     if (layer === 'pressure') L.setIsobarColor(ISO_INK[theme] || ISO_INK.dark);
+    // Gusts tint the basemap on light and beach exactly as the wind field does (gustParticles.gustFieldTint); read each frame,
+    // so both kills act live.
+    if (layer === 'gusts' && typeof L.setTint === 'function') {
+      L.setTint((z) => gustFieldTint(theme, z, (zz) => opacityAtZoom(GUST_OPACITY_STOPS, zz), v2FieldTint(theme)));
+    }
     return () => { alive = false; };
   }, [engaged, layer, theme, gen]);
 
@@ -274,6 +283,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
         publishRasterDrawn({ layer, shown: null, want: null, unavailable: end || `${RASTER_NAMES[layer] || layer}: no forecast for this hour` });
       } else publish();
       noteMiss('no_frame');
+      if (layer === 'gusts') setShownGustField(null);   // past the gust range: the particles drop the last frame's colours (advisor hold, #1079)
       tel().want = { validMs, path: null, at: Date.now() };
       setWanted(layer, [], null);
       return;
