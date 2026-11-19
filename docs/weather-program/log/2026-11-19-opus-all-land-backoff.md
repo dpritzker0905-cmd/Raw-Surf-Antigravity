@@ -58,3 +58,24 @@ coastal views behave like reality. LESSONS gets the rule: check the lab fixture 
   2026-11-18 "engine empty ... re-driving" lines) depends on whether the coarse world grid has landed first.
 - **Amendment (instrument only):** the scenario now counts REAL re-drives from the backstop's own console lines (engine-empty re-drive,
   clamp re-drive, clamp slow probe). Run 4: the same setup; the pass line reads REAL re-drives, unchanged otherwise.
+
+## 02:27Z: L2 run 4 (real re-drives): the targeted state never occurred; the reproducible all-zero state is ALREADY capped
+
+| session | arm | all_zero_grid | engine-empty re-drives | clamp re-drives | clamp slow probes | real total in 5 min | `/grid` | `/grid_series` |
+|---|---|---|---|---|---|---|---|---|
+| 1 | ON | yes | 0 | 1 | 4 | 5 | 0 | 2 |
+| 2 | KILL | yes | 0 | 1 | 4 | 5 | 0 | 2 |
+| 3 | KILL | yes | 0 | 1 | 4 | 5 | 0 | 1 |
+| 4 | ON | no (drew) | 0 | 0 | 0 | 0 | 0 | 2 |
+
+- In every all-zero session the coarse world grid was resident, so the backstop took its CLAMP branch, whose EXISTING no-progress cap
+  (3 no-progress ticks, then 4 slow probes, then terminal) already bounds it: 5 real re-drives in 5 minutes, 0 `/grid`, 1-2 `/grid_series`,
+  identical in both arms.
+- The state this PR targets, an EMPTY engine over an all-zero view (the 2026-11-18 "engine empty ... re-driving" lines, 9 in ~60 s while the
+  coarse world grid had not yet landed), did not occur in any idle session here. **L2, as amended, FAILS to show an effect**: the change is
+  untested in a live page, and the load the director worried about is already bounded in the state that does reproduce.
+- **Not shipped ON on this evidence** (the registration: default ON only if L1-L3 pass). Options for the director: (a) land the lab fix and
+  L-P48 alone, and drop the backoff code; (b) keep the backoff as a guard for the unreproduced empty-engine case, off by default, until a
+  run shows that state persisting; (c) find a reproduction of the empty-engine all-zero state first.
+- The backstop-tick counter (`__MARINE_BLANK_BACKSTOP_COUNT__`) over-states re-drives (it counts ticks the clamp cap then skips); any
+  instrument reading it reads load that does not happen.
