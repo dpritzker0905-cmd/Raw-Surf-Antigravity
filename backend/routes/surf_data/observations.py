@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import math
 from datetime import datetime, timedelta, timezone
-import os
 import re
 from typing import Literal, Optional
 
@@ -30,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.security import get_current_user_id
 from database import get_db
 from models import CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport, SurfSpot
-from services import observation_rewards
+from services import observation_rewards, surf_truth_anchors, surf_truth_consent
 from services.surf_observation_scale import SCALE_VERSION, ObservationError, normalise, region_default_scale
 
 router = APIRouter()
@@ -53,19 +52,16 @@ EXIF_MAX_AGE = timedelta(hours=3)
 EXIF_MAX_FUTURE = timedelta(minutes=10)
 FLOW = "blind_v1"
 _BUILD_RE = re.compile(r"[A-Za-z0-9._-]{1,40}")
-# Anchor observers (the owner and named trusted photographers) calibrate everyone else in the aggregator. The list is
-# profile ids in this environment variable, comma-separated; ids are configuration, kept out of this public repo.
-ANCHOR_ENV = "SURF_TRUTH_ANCHOR_IDS"
 # The same set POST /condition-reports admits as photographers: a grom parent shoots their grom's sessions and can
 # go live, so their reports come through the photographer flow and are grouped with it.
 _PHOTOGRAPHER_ROLES = {RoleEnum.GROM_PARENT, RoleEnum.HOBBYIST, RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO}
 
 
-def observer_role(user_id: str, role) -> str:
-    anchors = {x.strip() for x in os.environ.get(ANCHOR_ENV, "").split(",") if x.strip()}
-    if user_id in anchors:
-        return "anchor"
-    return "photographer" if role in _PHOTOGRAPHER_ROLES else "surfer"
+def observer_role(anchor: Optional[str], role) -> str:
+    """'anchor' (active anchor: sets the scale), 'anchor_probation', else photographer / surfer from the profile role.
+    Anchors live in the surf_truth_anchors table (services/surf_truth_anchors), managed by admins with a logged
+    reason; this replaced the SURF_TRUTH_ANCHOR_IDS environment variable."""
+    return anchor or ("photographer" if role in _PHOTOGRAPHER_ROLES else "surfer")
 
 
 class ObservationIn(BaseModel):
@@ -165,6 +161,7 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
 
     flags = set()
     role = (await db.execute(select(Profile.role).where(Profile.id == user_id))).scalar_one_or_none()
+    anchor = surf_truth_anchors.role_for(await surf_truth_anchors.anchor_status(db, user_id))
     device_time = _aware(data.observed_at_device)
     if device_time is not None and abs((device_time - now).total_seconds()) > 900:
         flags.add("device_clock_skew")
@@ -224,9 +221,10 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
                 flags.add("duplicate_media")
     if overridden and exif_check in ("none", "no_record"):
         flags.add("scale_override_no_photo")
+    consent = await surf_truth_consent.current(db, user_id)   # P3: the choice in force at receipt, kept on the row
 
     obs = SurfObservation(
-        user_id=user_id, observer_role=observer_role(user_id, role), flow=FLOW, spot_id=spot_id, surface=surface,
+        user_id=user_id, observer_role=observer_role(anchor, role), flow=FLOW, spot_id=spot_id, surface=surface,
         entry_screen=data.entry_screen, ref_id=data.ref_id, client_build=client_build,
         height_value=data.height_value, height_unit=data.height_unit if data.height_value is not None else None,
         height_bucket=data.height_bucket, height_scale=data.height_scale, set_or_avg=data.set_or_avg,
@@ -237,7 +235,7 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
         media_url=media_url, media_sha256=sha, exif_distance_m=exif_distance, exif_age_s=exif_age,
         exif_check=exif_check, duplicate_of=duplicate_of, flags=",".join(sorted(flags)),
         device_hash=observation_rewards.device_hash(data.device_id), xp_status="none", corroborated=False,
-        audit_selected=False,
+        audit_selected=False, consent_training=consent["granted"], consent_version=consent["version"],
     )
     db.add(obs)
     try:
@@ -251,6 +249,33 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
     # The reply names the stored row and its scale only. Quality flags, the converted height and the provenance
     # verdicts stay server-side: returning them would tell anyone gaming the checks which one fired.
     return {"id": obs.id, "height_scale": obs.height_scale, "scale_default": scale_default}
+
+
+class ConsentIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    granted: bool
+    source: Literal["blind_height_input", "settings"] = "blind_height_input"
+
+
+def _consent_reply(state: dict) -> dict:
+    return {**state, "current_version": surf_truth_consent.CONSENT_VERSION,
+            "title": surf_truth_consent.CONSENT_TITLE, "text": surf_truth_consent.CONSENT_TEXT}
+
+
+@router.get("/surf-observations/consent")
+async def get_consent(db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    """The caller's own forecast-improvement consent, with the current wording to show (opt-in: no choice = off)."""
+    return _consent_reply(await surf_truth_consent.current(db, user_id))
+
+
+@router.put("/surf-observations/consent")
+async def put_consent(data: ConsentIn, db: AsyncSession = Depends(get_db),
+                      user_id: str = Depends(get_current_user_id)):
+    """Record the caller's choice under the current wording (append-only history; the newest choice is in force)."""
+    await surf_truth_consent.record(db, user_id, data.granted, data.source)
+    await db.commit()
+    return _consent_reply(await surf_truth_consent.current(db, user_id))
 
 
 @router.get("/surf-observations/scale-default/{spot_id}")

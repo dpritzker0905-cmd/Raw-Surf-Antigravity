@@ -78,7 +78,7 @@ def sample_points(stations, land, meta):
 
 def _ecmwf_det(session, run, step, lats, lons, params=("10u", "10v", "10fg"), stream="oper", typ="fc"):
     """HRES (oper fc) station values {param: [nst]}."""
-    url = ef.ef_url(ef.AWS_BASE, run, step, "index", stream=stream, typ=typ)
+    url = ef.ef_url(ENS_BASE, run, step, "index", stream=stream, typ=typ)
     r = ef._get(session, url)
     if r.status_code != 200:
         raise FileNotFoundError(url)
@@ -118,11 +118,30 @@ def _noaa(session, url, wanted, lats, lons):
     return out
 
 
-def collect_run(session, run, lats, lons, out_dir):
+# ECMWF open-data mirror for the ENS, HRES and AIFS reads. Default: the S3 copy. WLR_ENS_BASE (set by the workflow's
+# ens_mirror input) may only name a known public mirror with the same layout (log 2026-11-17 18:16, option b).
+MIRRORS = (ef.AWS_BASE, "https://storage.googleapis.com/ecmwf-open-data")
+ENS_BASE = os.environ.get("WLR_ENS_BASE") or ef.AWS_BASE
+if ENS_BASE not in MIRRORS:
+    raise SystemExit(f"WLR_ENS_BASE {ENS_BASE!r} is not a known ECMWF open-data mirror")
+
+
+def named_runs(spec, all_runs):
+    """NAMED-RUN mode: the runs in a comma-separated YYYYMMDDHH list, which must all lie in the window."""
+    want = {datetime.strptime(x.strip(), "%Y%m%d%H").replace(tzinfo=timezone.utc) for x in spec.split(",") if x.strip()}
+    outside = sorted(w for w in want if w not in set(all_runs))
+    if outside:
+        raise SystemExit(f"named runs outside the window: {[f'{w:%Y%m%d%H}' for w in outside]}")
+    return [r for r in all_runs if r in want]
+
+
+def collect_run(session, run, lats, lons, out_dir, prior_dir=None):
     path = os.path.join(out_dir, f"{run:%Y%m%d%H}.npz")
     if os.path.exists(path):
         return "cached"
-    if not ef.run_available(session, run, 336):
+    if prior_dir and os.path.exists(os.path.join(prior_dir, f"{run:%Y%m%d%H}.npz")):
+        return "prior"          # FILL mode: collected by the reused run; not re-read and not re-uploaded
+    if not ef.run_available(session, run, 336, base=ENS_BASE):
         json.dump({"run": run.isoformat(), "missing": "enfo 336 h index"}, open(path + ".missing.json", "w"))
         return "missing"
 
@@ -131,7 +150,7 @@ def collect_run(session, run, lats, lons, out_dir):
     arrays, notes = {}, {"run": run.isoformat(), "errors": []}
     has_cf = []
     for step in ENS_STEPS:
-        f, fmeta = ef.fetch_step(session, run, step, at_stations)
+        f, fmeta = ef.fetch_step(session, run, step, at_stations, base=ENS_BASE)
         has_cf.append(bool(fmeta.get("has_cf")))
         for p in ef.PARAMS:
             arrays[f"ens_{p}_{step}"] = f[p].astype(np.float32)         # [51 or 50, nst] (amendment 5)
@@ -161,7 +180,7 @@ def collect_run(session, run, lats, lons, out_dir):
     for L in SCORED_LEADS:                     # the reported AIFS-ENS arm (amendment 2): 51 members, 10u/10v only
         try:
             f, _m = ef.fetch_step(session, run, L, at_stations, params=("10u", "10v"), model="aifs-ens",
-                                  file_types=("cf", "pf"))
+                                  file_types=("cf", "pf"), base=ENS_BASE)
             arrays[f"aifs_10u_{L}"], arrays[f"aifs_10v_{L}"] = f["10u"].astype(np.float32), f["10v"].astype(np.float32)
         except Exception as e:  # noqa: BLE001 - a reported arm; its gap is logged, the run is kept
             notes["errors"].append(f"aifs +{L}: {e}")
@@ -178,6 +197,7 @@ def main(argv=None):
     ap.add_argument("--shard", default="0/1")
     ap.add_argument("--out", default=None)
     ap.add_argument("--stations", default=None, help="frozen station JSON (default <cache>/wind_lr_stations.json)")
+    ap.add_argument("--prior", default=None, help="FILL mode: a reused run's run files; those runs are skipped")
     a = ap.parse_args(argv)
     os.makedirs(a.cache, exist_ok=True)
     s = requests.Session()
@@ -196,14 +216,17 @@ def main(argv=None):
         land, meta = obs.gfs_land(s, a.cache)
         lats, lons = sample_points(stations, land, meta)
         i, n = (int(x) for x in a.shard.split("/"))
-        runs = [r for k, r in enumerate(runs_in_window()) if k % n == i]
+        spec = os.environ.get("WLR_RUNS", "").strip()
+        pool = named_runs(spec, runs_in_window()) if spec else runs_in_window()
+        runs = [r for k, r in enumerate(pool) if k % n == i]
+        print(f"collect: {len(pool)} runs in pool ({'named' if spec else 'window'}), mirror {ENS_BASE}", flush=True)
         out_dir = os.path.join(a.cache, "runs")
         os.makedirs(out_dir, exist_ok=True)
         failed = []
         for attempt in (1, 2):                  # a run that fails is retried once at the end, never filled
             for r in (runs if attempt == 1 else failed[:]):
                 try:
-                    print(r.isoformat(), collect_run(s, r, lats, lons, out_dir), flush=True)
+                    print(r.isoformat(), collect_run(s, r, lats, lons, out_dir, a.prior), flush=True)
                     if r in failed:
                         failed.remove(r)
                 except Exception as e:  # noqa: BLE001 - recorded per run; the shard goes on

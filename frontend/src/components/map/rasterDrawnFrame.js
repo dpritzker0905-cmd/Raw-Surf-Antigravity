@@ -22,9 +22,9 @@ import { formatReadoutDate } from './readoutDateFormat';
 
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const PENDING_QUIET_MS = 300;
-export const RASTER_STATUS_LAYERS = new Set(['rain', 'radar', 'satellite', 'pressure', 'temperature', 'water_temp', 'fog']);
+export const RASTER_STATUS_LAYERS = new Set(['rain', 'radar', 'satellite', 'pressure', 'temperature', 'water_temp', 'fog', 'gusts', 'currents']);
 export const RASTER_NAMES = { rain: 'Precip', radar: 'Radar', satellite: 'Satellite', pressure: 'Pressure', temperature: 'Air Temp',
-  water_temp: 'Water Temp', fog: 'Fog' };
+  water_temp: 'Water Temp', fog: 'Fog', gusts: 'Gusts', currents: 'Currents' };
 export const rasterReadoutKilled = () => W().__RAW_DISABLE_RASTER_DRAWN_READOUT__ === true;
 
 let current = null;
@@ -84,7 +84,9 @@ export function describeRasterFrame(rec, layer, requestedMs) {
   const name = RASTER_NAMES[layer] || layer;
   const fmt = layer === 'radar' ? fmtClock : fmtHour;
   const { shown, want } = rec;
-  if (!want) return null;
+  // A layer drawn ONLY from our frames (gusts, 2026-11-15) has no .om path to fall back on: when it has nothing for the hour (set
+  // not published yet, or past its last frame) the line says so instead of leaving an empty map unexplained.
+  if (!want) return rec.unavailable ? { state: 'unavailable', text: rec.unavailable } : null;
   if (!shown) return { state: 'pending', text: `Loading ${name} ${fmt(want.dataMs)}…` };
   if (shown.url !== want.url) {
     const models = shown.model && want.model && shown.model !== want.model;

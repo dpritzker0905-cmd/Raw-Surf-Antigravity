@@ -1,0 +1,203 @@
+# 2026-11-17 — opus: PRODUCT_RUN_KEYED_NAMES and FRAME_WIND_GFS_HOURLY ship ON (the owner's yes)
+
+Session: the frame-carry side session. The owner answered in this session at 08:36 EST: "Yes, both". He was asked whether to
+turn on hourly GFS wind and run-keyed product names, after being told that the run-keyed rollout changes a Render setting first
+and then watches storage cleanup. Written 13:55Z.
+
+## PRODUCT_RUN_KEYED_NAMES, in the order of its own rollout (log 2026-11-01-claude-run-keyed-products.md, "Migration")
+
+1. **Render env first (done).** `PRODUCT_RUN_KEYED_NAMES=1` was set on the Render web service raw-surf-backend at 13:47Z.
+   - It triggered deploy dep-dbu5lurm8hqs73e6s6dg, live 13:50:10Z, at 2fcbd8153 (#1003).
+   - The previous live deploy was 38c9060fc (#1000). The only server change carried along is 5 lines in the offline
+     wind-hindcast `ens_wind_fetch.py`.
+   - `/api/health`: 200 in 1.28 s at 13:46:28Z (before), 200 in 0.69 s at 13:51:24Z (after).
+   - On the box, the flag drives only the disk sweep, which sheds run-keyed files the manifest no longer names. It is
+     harmless while no run-keyed names exist.
+2. **The writers (this PR).** forecast-ingest, forecast-ingest-pilots and precompute default `'1'`; the kill switch is the
+   repository variable `PRODUCT_RUN_KEYED_NAMES = '0'`, which is David's word, or a revert of this PR.
+   - `test_only_the_canonical_on_value_enables_it` proves '0' (and unset at code level) saves the legacy name, the
+     pre-flip output.
+   - The code default (`product_run_keys.enabled`, the registry's "0") stays off. Only the three writers and the box turn
+     it on, so tests and local runs keep legacy names.
+3. **Measure after merge, as the rollout says** (owed; this session does it):
+   - one GFS pilot box on the live box across two runs: its `run_time` follows the manifest within one restore;
+   - `Product object GC: {...}` in the ingest log;
+   - the storage object count flat across cycles;
+   - 0 "Stored product path not found" for run-keyed names.
+   **Rollback:** the repo variable to '0'. The Render flag may stay on. Leftover run-keyed objects stay until
+   `scripts/sweep_orphaned_l2.py --delete --yes`.
+   **Storage before:** weather-products 60.55 GB / 25,288 objects (read-only aggregate, 2026-11-17 ~06:45Z).
+
+## FRAME_WIND_GFS_HOURLY: its own PR, under D-065
+
+It moves a served number: the wind between the 3-hourly steps becomes NOAA's own hourly field to f120, so the ratings that
+read wind at those hours move too. So it ships with its code default ON, a kill switch, its registration in `_RATING_FLAGS`, a
+SCOREBOARD row, and the default-on history filter before merge. It also adds about 80 hourly wind frames to the FRAMES
+step, inside #996's 1,500 s. The first pilots run after it merges rebuilds the wind set with new hours, so under the
+frames-budget plan's item 3 it is excluded and named before its gate lines are read.
+
+## 16:20Z: step 3 written before merge (the advisor's condition, 16:17Z), and a blocker found while sizing it
+
+### Peak storage: measured, and it does not fit the GC as configured
+
+Read-only SQL over `storage.objects` (bucket weather-products, production project), ~16:30Z:
+
+| weather-products | objects | GB | rewritten in the last 4 h | new names created in 24 h |
+|---|---|---|---|---|
+| top-level product objects (the GC's domain) | 21,803 | 9.04 | 18,262 (8.30 GB) | 1,961 |
+| nested (snapshots, manifests, calibration, ...) | 3,327 | 51.56 | 242 | 289 |
+
+- **Today**, each 4-hour cycle overwrites about 18,000 product objects IN PLACE under the same legacy name. Storage stays flat.
+- **With run-keyed names**, every such write whose run or content changed is a NEW object. The old one waits for the GC.
+- **The GC deletes at most `PRODUCT_GC_MAX_DELETE` = 500 objects a sweep.** It sweeps only in `ingest_forecast_ci.py` (core every
+  4 h, pilots every 8 h), so about 750 deletes per 4 hours. No workflow raises the cap.
+- **Projected growth**, if 25-100 % of the 18,262 writes per cycle carry a new run or content:
+  - +4,600 to +18,000 objects and about +2 to +8 GB per 4 hours, against 750 deletes;
+  - so about **+12 to +50 GB a day**, from 62.6 GB of the Pro plan's 100 GB included;
+  - the allowance is passed in about 1 to 3 days.
+- The design log's own reopen line, "storage growth exceeds one extra run of objects", would trip within the first day.
+- **The expected peak with a GC that keeps up:** each superseded object lives two sweeps a grace apart, so legacy + current +
+  marked coexist, about 9.0 + 2 x 8.3, so about **26 GB of top-level products (+17 GB), about 79 GB in all**. That is only
+  reachable if the cap is at least the number of objects superseded per sweep.
+
+**So #1005 must NOT merge as it stands.** The fix is a decision for the advisor and David, not made here:
+- raise `PRODUCT_GC_MAX_DELETE` in the env of the GC-running lanes (forecast-ingest, forecast-ingest-pilots) to at least twice the
+  objects superseded per cycle (about 40,000), with the head-size, 95 % and grace guards unchanged;
+- or sweep in batches.
+Either way, the change deletes up to tens of thousands of production objects per sweep (only unreferenced and already marked
+ones). First measure the real new-object rate: one cycle with the flag on in ONE writer, counting `created_at` per cycle.
+
+### The trip rule (a kill = the repository variable PRODUCT_RUN_KEYED_NAMES = '0', David's word, or a revert)
+
+Any one of:
+- one "Stored product path not found" for a run-keyed name in an ingest or box log;
+- the top-level product object count not back within one run's worth (about +18,000) of its pre-flip 21,803 after two sweeps;
+- the bucket total rising more than 10 GB above 60.55 GB;
+- a GC summary showing `deleted` pinned at the cap two sweeps running.
+
+### The served fact this fixes (SCOREBOARD row added)
+
+A pilot tile's `run_time` on the box. The Cocoa Beach GFS tile served the 10-30T18Z run for 51 h while storage and the manifest
+had moved on (log 2026-11-01-claude-run-keyed-products.md). After the change: it follows the manifest within one restore.
+
+## 22:13Z: the blocker fixed: a 25,000 cap with two fuses, and batched deletes (David: "fix and rechain and merge and push #1005")
+
+David, typed in this session 2026-11-17 16:23 EST: "We need to fix and rechain and merge and push #1005 and more". Then:
+"Also others that have conflicts too".
+
+**The fix** (`product_object_gc.py`, per the advisor's 16:39Z condition that a higher cap needs a second fuse in the same change):
+- **The cap:** `PRODUCT_GC_MAX_DELETE` default 500 -> 25,000, just above the ~21,800 live top-level product objects.
+- **FUSE A, the head shrank:** the whole sweep is refused when this sweep's referenced set is under
+  `PRODUCT_GC_MIN_REFERENCED_RATIO` (0.8) of the previous sweep's. The previous count is now kept in the marks blob. This catches
+  a manifest read empty, truncated or partial.
+- **FUSE B, too much at once:** the whole sweep is refused when the planned deletes exceed `PRODUCT_GC_MAX_DELETE_SHARE` (0.6) of
+  the listed product objects. In steady state a core sweep deletes the previous cycle's ~18k superseded objects of ~58k listed,
+  about 31 %.
+- **Both refusals** log "[Product GC] sweep refused: FUSE A/B: ..." and leave the marks unchanged. A refused sweep only delays
+  deletes.
+- **A stale but complete published head** cannot delete current objects: the sweep unions it with the writer's own manifest. That
+  is unchanged.
+- **Deletes are batched,** 1,000 names per Storage bulk-delete REST call, behind the designated-writer gate. A failed batch falls
+  back to one DELETE per object. This was added because 18,000 sequential DELETEs would add many minutes per cycle.
+- **Tests:** +5 in `test_product_run_keys.py` (chain lane, fragment +5):
+  - FUSE A trips at 79/100 and passes at 80/100, unarmed with no previous count;
+  - FUSE B trips at 7/11 and the cap clips first at 6/11;
+  - bulk batches of 1000/1000/500, the per-object fallback, and no bulk call without the writer gate;
+  - the previous count is read back;
+  - the defaults.
+- **Mutants**, each 1 red: Fuse A removed, Fuse B loosened to 0.99, the gate dropped from the bulk path.
+
+**Still owed, at the first forecast-ingest cycle after merge** (David is reachable; this session watches it):
+- the `[Product GC]` summary: listed, referenced, marked, deleted, bulk_batches, or a FUSE refusal;
+- the top-level object count against 21,803 and the bucket against 60.55 GB;
+- 0 "Stored product path not found".
+The trip rule above stands. A kill is the repository variable PRODUCT_RUN_KEYED_NAMES = '0' or a revert.
+
+## 23:22Z: the advisor's HOLD at e4bd07228 (22:46Z): four fixes, and the verify check
+
+1. **FUSE B was inert at today's size.** It compared the deletes left after the 25,000 cap with 0.6 x listed; at ~58,000 listed it
+   could never fire. It now counts everything DUE before the cap. Tests at real scale:
+   - 40,000 due of 58,000: refused;
+   - 18,000 due of 57,800 (steady state): runs, 18,000 deleted;
+   - 30,000 due of 58,000: runs, clipped to 25,000.
+2. **FUSE A's refusal is permanent.** It fails closed: the stored count is not updated on a refusal. The docstring now says so,
+   and names the release. **Release:** the owner (David) sets the repository variable `PRODUCT_GC_MIN_REFERENCED_RATIO = '0'` for
+   ONE ingest run, which records the new count, then unsets it. Both GC lanes (forecast-ingest, forecast-ingest-pilots) now pass
+   that variable, default '0.8'.
+3. **The per-object fallback is capped** at `PRODUCT_GC_MAX_SINGLE_DELETE` (500) a sweep. Names not attempted keep their marks for
+   the next sweep (tested end to end through `run_object_gc`: 12 due, bulk failing, cap 5, so 5 deleted, 7 kept marked at their
+   original times, the count recorded).
+   - **Why:** Supabase documents a limit of 1,000 objects per `remove` call (guide "Delete Objects",
+     supabase.com/docs/guides/storage/management/delete-objects), and the batches are 1,000. The REST body `{"prefixes": [...]}`
+     on `DELETE /storage/v1/object/{bucket}` is the call the client library makes; it is not in those docs, so the first live
+     bulk call is unproven, which is exactly the case the capped fallback covers.
+4. **A refusal or a capped fallback is now visible:** a `::warning::` annotation and a step-summary line ("Product GC sweep
+   refused" / "Product GC bulk delete failed"), besides the log line.
+
+**Mutants**, each red: FUSE B on the capped list; the fallback cap removed; the re-mark of what was left dropped; the
+annotation dropped. Tests: chain lane +7 (fragment). 104 pass locally.
+
+**The red `verify` check** was the memory audit. This log and ledger line 1 carried the Render service's `srv-...` identifier,
+which the audit's identifier pattern refuses in this public repo. Both now name the service as "the Render web service
+raw-surf-backend" instead. The ledger fragment had not merged; its lines carry no hash, so the edit breaks nothing.
+
+### Before the first DELETING sweep (written now)
+
+- **The first sweep after merge deletes nothing:** no mark is two hours old yet. It should log `referenced` ~21,800,
+  `deleted` 0, `marked` = the objects this cycle superseded, and no FUSE line.
+- **The first deleting sweep is the next core cycle, about 4 h later.** Expected:
+  - `deleted` about 18,000;
+  - `bulk_batches` about 18, `left` 0;
+  - no FUSE refusal;
+  - 0 "Stored product path not found" in that run and on the box afterwards;
+  - the top-level object count back near 21,800 within two cycles;
+  - the bucket within 60.55 GB + one cycle (~8.3 GB).
+- **What I check:** the `[Product GC]` line and any `::warning::` in both runs' logs, and the counts by read-only SQL after each
+  run.
+- **Any miss is a kill** (repository variable `PRODUCT_RUN_KEYED_NAMES = '0'`, David's word, or a revert).
+
+## 01:40Z (2026-11-18): FUSE B's release wired (the advisor's limit on ad10e5ca0)
+
+The advisor passed #1005 at ad10e5ca0 (PASS WITH LIMITS). One limit was that FUSE B had no release lever. About three missed
+sweeps in a row push the backlog past 60 % of the listing, and it then refuses every sweep while the bucket grows.
+**This follow-up:**
+- Both GC lanes pass `PRODUCT_GC_MAX_DELETE_SHARE: ${{ vars.PRODUCT_GC_MAX_DELETE_SHARE || '0.6' }}`.
+- The docstring states the release, beside FUSE A's. Once a person has checked that the head is complete (its referenced count
+  near the live set), the owner (David) raises the variable (e.g. '0.9') until the object count is back, then unsets it.
+- A test pins both workflow lines.
+- No change to the default behaviour.
+
+## 2026-11-18 15:23Z: the first deleting sweep; what the 6,232 deleted objects were is INFERRED, not shown (the advisor's 07:28Z question)
+
+**What happened.**
+- The advisor asked at 07:28Z for a breakdown of the 6,232 objects marked at 06:28Z, before any delete, because only about 3,650
+  run-keyed twins existed and about 2,600 were unexplained.
+- I made a breakdown between ~07:35Z and ~07:45Z, BEFORE the 08:40:38Z delete (core 44259912726). But it was **by object name and
+  age only**, from `storage.objects`. I could not read the marks blob or the published manifest: no storage key on this machine.
+- I put pause-or-run to David at ~07:40Z. His answer ("Pause one cycle") reached me at 13:15Z, after both deleting sweeps.
+- **I did not send the breakdown to the advisor before the delete.** I sent it at ~13:20Z.
+
+**The breakdown,** top-level product objects created before the 06:28:36Z sweep:
+- 3,040 run-keyed objects and 21,864 legacy objects.
+- Of the legacy objects, **2,908** have a run-keyed twin (the same name minus the run key): superseded in place.
+- **18,956** have no twin. If the head names every run-keyed object, the referenced legacy objects number 18,674 - 3,040 =
+  15,634, so about 3,320 unreferenced legacy objects had no twin. With the 2,908 twins that makes about 6,230, which matches
+  the 6,232 marked.
+- **3,519** no-twin legacy objects had not been written since 2026-11-17 00Z: euro marine swell 1,434, euro marine waves 757,
+  euro marine wind 730, then GFS / ICON layers in tens to about a hundred. **All but 24 had valid times before 2026-11-18.**
+- **The 24** were EURO `global_coarse` `_estimated` tails (valid 11-23 to 11-26, last written 11-14 to 11-16), which native EURO
+  products under non-estimated names have since replaced.
+
+**What that shows and what it does not.** The ~3,320 no-twin objects that were deleted are INFERRED to lie inside those 3,519
+stale, past-valid-time (or replaced-estimate) objects: the counts fit, and the GC only marks names the head does not carry.
+**They were not shown to be those objects:** I never compared the marked set with the marks blob or the manifest. The evidence
+that nothing needed was deleted is:
+- no serving reader lists the products bucket (code: only diagnostics, `sweep_orphaned_l2`, `rollout_675_io` and the GC do;
+  the frames publisher, consensus, precompute and the box read through the manifest);
+- zero "Stored product path not found" in the three runs since, and `referenced` steady at about 18,385.
+That is the absence of errors, not a shown breakdown. Next time a large delete is due, the breakdown comes from a run that can
+read the marks blob, before the first deleting sweep.
+
+**Open, for the log (the advisor, 13:45Z).** The publisher's "rating refused (wind product(s) not on this disk)" lines fell
+from 289 (pilots 44219095846, before the flip) to 104 (44249848808). That is not a regression from run-keyed names, but 104
+rated frames refused a run is worth explaining. Not traced yet.

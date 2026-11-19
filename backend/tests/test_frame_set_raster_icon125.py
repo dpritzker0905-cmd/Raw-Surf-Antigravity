@@ -157,14 +157,15 @@ def test_the_set_is_icon_rain_on_the_0p125_lattice_with_the_0p25_sets_hours():
     assert issubclass(srcs.IconPrecip0p125Source, srcs.IconPrecipSource)
 
 
-def test_the_set_is_dark_until_its_own_variable_and_has_one_gated_pilots_step(monkeypatch):
+def test_the_set_ships_on_and_has_one_pilots_step_its_variable_kills(monkeypatch):
+    # ON since 2026-11-17 (the owner's rule); the kill switch '0' is proved in test_raster_ship_on.py.
     monkeypatch.delenv("FRAME_RASTER_PRECIP_ICON_0P125", raising=False)
-    assert SPEC["default_on"] is False and not fsr.enabled("precipitation_icon_0p125")
-    monkeypatch.setenv("FRAME_RASTER_PRECIP_ICON_0P125", "1")
-    assert fsr.enabled("precipitation_icon_0p125")
+    assert SPEC["default_on"] is True and fsr.enabled("precipitation_icon_0p125")
+    monkeypatch.setenv("FRAME_RASTER_PRECIP_ICON_0P125", "0")
+    assert not fsr.enabled("precipitation_icon_0p125")
     yml = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
     steps = [s for s in yml.split("\n      - name: ")[1:] if "--set precipitation_icon_0p125\n" in s + "\n"]
-    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP_ICON_0P125 == '1'" in steps[0]
+    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_PRECIP_ICON_0P125 || '1') != '0'" in steps[0]
 
 
 class _Src(srcs.IconPrecip0p125Source):
@@ -253,3 +254,52 @@ def test_a_real_near_tie_is_decided_in_float64():
     assert int(i125.nearest_among(sub, cells, cands)[0]) == 0
     rounded = cells.astype(np.float32).astype(np.float64)          # the defect: cell positions held in float32
     assert int(i125.nearest_among(sub, rounded, cands)[0]) == 1     # ... flips the pick to the farther cell
+
+
+# ── G1 option (a): temperature_icon_0p125, nearest cell (dark) ───────────────────────────────────────────────────────────
+
+TSPEC = fsr.SPECS["temperature_icon_0p125"]
+
+
+def test_the_temperature_set_is_icon_t2m_on_the_0p125_lattice_by_nearest_cell(monkeypatch):
+    assert fs.set_key(TSPEC["target"]) == "ICON/weather/temperature/global_0p125"
+    assert (TSPEC["grid"], TSPEC["source"], TSPEC["idx"]) == ("0p125", "icon_0p125", ("t_2m", ("T_2M",)))
+    assert tuple(TSPEC["hours"]) == tuple(fsr.SPECS["temperature_icon"]["hours"])
+    assert srcs.SOURCES["icon_0p125"] is srcs.IconOpenData0p125Source
+    monkeypatch.delenv("FRAME_RASTER_TEMPERATURE_ICON_0P125", raising=False)
+    assert TSPEC["default_on"] is True and fsr.enabled("temperature_icon_0p125")   # ON since 2026-11-17 (the owner's rule)
+    yml = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
+    steps = [s for s in yml.split("\n      - name: ")[1:] if "--set temperature_icon_0p125\n" in s + "\n"]
+    assert len(steps) == 1 and "vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_TEMPERATURE_ICON_0P125 || '1') != '0'" in steps[0]
+
+
+class _TSrc(srcs.IconOpenData0p125Source):
+    def __init__(self):
+        super().__init__(TSPEC, session=object())
+
+    def _decode_bz2(self, url):
+        if url.endswith("CLAT.grib2.bz2"):
+            return np.array([10.0, 20.0, 30.0])
+        if url.endswith("CLON.grib2.bz2"):
+            return np.array([0.0, 1.0, 2.0])
+        return np.array([273.15, 283.15, 293.15])                    # T_2M in K
+
+
+def test_a_temperature_frame_is_the_nearest_cells_value_in_degc_and_the_map_is_read_once(monkeypatch):
+    reads = []
+    nn = np.array([[0, 2, 1], [1, 1, 0]], dtype=np.int32)
+    dwd = (nn[:, :2], np.array([10.0, 20.0, 30.0]), np.array([0.0, 1.0, 2.0]))
+    monkeypatch.setattr(i125, "fetch_dwd_nn", lambda http: reads.append(1) or dwd)
+    monkeypatch.setattr(i125, "extend_nn", lambda n, xyz: nn)
+    src = _TSrc()
+    cyc = datetime(2026, 11, 16, 0, tzinfo=timezone.utc)
+    assert src.fetch(cyc, 6).tolist() == [[0.0, 20.0, 10.0], [10.0, 10.0, 0.0]]
+    src.fetch(cyc, 9)
+    assert reads == [1]
+
+
+def test_the_temperature_map_is_refused_when_dwds_cells_are_not_this_runs(monkeypatch):
+    monkeypatch.setattr(i125, "fetch_dwd_nn", lambda http: (np.zeros((1, 1), np.int32), np.array([10.0, 30.0, 20.0]),
+                                                            np.array([0.0, 2.0, 1.0])))
+    with pytest.raises(RuntimeError, match="not this run's ICON grid"):
+        _TSrc().grid(datetime(2026, 11, 16, 0, tzinfo=timezone.utc))
