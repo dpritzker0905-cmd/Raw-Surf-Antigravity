@@ -12,6 +12,7 @@ import { Button } from '../ui/button';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';
+import { getErrorMessage } from '../../utils/errors';
 import logger from '../../utils/logger';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePersona } from '../../contexts/PersonaContext';
@@ -215,7 +216,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
       }, 2000);
     } catch (error) {
       if (!mountedRef.current) return;
-      toast.error(error.response?.data?.detail || error.message || 'Failed to join session');
+      toast.error(getErrorMessage(error, 'Failed to join session'));
     } finally {
       joinInFlightRef.current = false;
       if (mountedRef.current) setLoading(false);

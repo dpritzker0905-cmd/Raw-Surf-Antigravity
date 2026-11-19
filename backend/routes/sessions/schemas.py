@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Literal, Optional
 from datetime import datetime, timezone
 import json
 import os
@@ -32,7 +32,7 @@ if STRIPE_API_KEY:
 class JoinSessionRequest(BaseModel):
     photographer_id: str
     selfie_url: Optional[str] = None
-    payment_method: str = 'credits'
+    payment_method: Literal["credits", "card", "subscription"] = "credits"
     effective_role: Optional[str] = None  # For God Mode persona masking
     resolution: Optional[str] = 'standard'  # CaptureSession: 'web', 'standard', 'high'
     use_account_credits: bool = False  # CaptureSession: Use account credits first

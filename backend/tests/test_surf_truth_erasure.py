@@ -62,8 +62,10 @@ def maker():
                                       at=NOW),
             ])
             await db.commit()
-        return mk
-    return asyncio.run(build())
+        return engine, mk
+    engine, mk = asyncio.run(build())
+    yield mk
+    asyncio.run(engine.dispose())                   # close the pooled connections and their aiosqlite worker threads
 
 
 def _count(db, model, *where):

@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 4,
+  "files": 0,
+  "branch": "codex/live-session-payment-integrity-20261119",
+  "date": "2026-11-19",
+  "note": "four client regressions for structured live-session recovery errors"
+}

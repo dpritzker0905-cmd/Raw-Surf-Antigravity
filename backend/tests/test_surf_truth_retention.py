@@ -3,6 +3,7 @@ deletion, a withdrawn consent, a new consent version); a key rotation removes th
 grace. Advisor hold on #1034: a read error skips the sweep (never deletes), listings are paged, deletes are capped, and
 an export's cut_at is taken before its rows are read."""
 import asyncio
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -69,6 +70,12 @@ def test_a_key_rotation_removes_the_old_keys_exports_and_orphans_wait_for_their_
     assert p["keep"] == ["aaaaaa"]
     assert set(p["delete"]) == {"bbbbbb", "dddddd", "eeeeee"}
     assert "previous pseudonym key" in p["delete"]["bbbbbb"]
+
+
+@pytest.fixture(autouse=True)
+def _scheduler_host(monkeypatch):
+    """enforce() refuses off the scheduler host; these tests stand in for it."""
+    monkeypatch.setenv(ret.HOST_ENV, "true")
 
 
 class FakeStore:
@@ -322,5 +329,58 @@ def test_cut_at_is_taken_before_the_rows_are_read():
     async def go():
         _rows, manifest = await ste.build_export(DB(), b"k" * 40)
         assert datetime.fromisoformat(manifest["cut_at"]) <= seen[0]
+    asyncio.run(go())
+
+
+
+
+def test_retention_refuses_off_the_scheduler_host(maker, monkeypatch):
+    """A laptop or CI run holding the storage key and a different pseudonym key would delete production's exports."""
+    monkeypatch.delenv(ret.HOST_ENV, raising=False)
+    monkeypatch.delenv(ret.OVERRIDE_ENV, raising=False)
+    store = FakeStore([], {})
+
+    async def go():
+        async with maker() as db:
+            with pytest.raises(ret.RetentionRefused):
+                await ret.enforce(db, store=store, now=NOW)
+    asyncio.run(go())
+    monkeypatch.setenv(ret.OVERRIDE_ENV, "1")                       # an explicit, deliberate override works
+    asyncio.run(_enforce_empty(maker, store))
+
+
+async def _enforce_empty(maker, store):
+    async with maker() as db:
+        assert (await ret.enforce(db, store=store, now=NOW))["deleted_runs"] == 0
+
+
+def test_a_failed_fresh_export_is_logged_for_the_admin_and_the_stale_exports_still_go(maker, monkeypatch):
+    monkeypatch.setenv(ste.KEY_ENV, "k" * 40)
+    store, _o, _m = _store((("aaaaaa", 1), ("bbbbbb", 30)), ste.key_fingerprint(b"k" * 40))
+
+    async def broken_build(db, key, since=None):
+        return [], {"schema": "s", "rows": 0}
+
+    async def broken_write(rows, manifest, now=None):
+        raise ste.ExportUnavailable("private storage refused the upload (status 503)")
+    monkeypatch.setattr(ste, "build_export", broken_build)
+    monkeypatch.setattr(ste, "write_export", broken_write)
+
+    async def go():
+        async with maker() as db:
+            db.add(SurfTruthConsentEvent(profile_id="ana", granted=False, version="v", source="settings",
+                                         at=NOW - timedelta(minutes=30)))
+            await db.commit()
+            summary = await ret.enforce(db, store=store, now=NOW)
+            assert summary["fresh_export"] is None and "503" in summary["fresh_error"]
+            assert summary["deleted_runs"] == 2 and len(store.deleted) == 4      # privacy first: the stale ones go
+            logged = (await db.execute(select(SurfTruthAdminAction))).scalars().all()
+            actions = [a.action for a in logged]
+            assert "retention_fresh_export_failed" in actions and "retention" in actions
+            failed = next(a for a in logged if a.action == "retention_fresh_export_failed")
+            assert json.loads(failed.detail) == {"why": "fresh export failed (ExportUnavailable)", "deleted_runs": 2}
+            # The append-only admin log outlives an erasure, so the exception's MESSAGE never reaches it: only the
+            # class name (code-written). The full text stays in the returned summary and the server log.
+            assert all("status 503" not in (a.detail or "") for a in logged)
     asyncio.run(go())
 
