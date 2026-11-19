@@ -434,6 +434,9 @@ async def lifespan(app: FastAPI):
     await ensure_database_tables()
     # Seed mock dev user profile on startup
     await seed_mock_user()
+    # Revoked sessions must be enforced from the FIRST request, not from the scheduler's first run (#1057).
+    from core.session_revocation import load_at_startup
+    await load_at_startup()
 
     # Run Copernicus quarantine scan
     from services.weather_pipeline.store import ProductStore

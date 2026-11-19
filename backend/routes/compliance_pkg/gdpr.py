@@ -189,8 +189,8 @@ async def request_data_deletion(
     - Condition reports, and their photos/videos in the PUBLIC conditions bucket (after the commit, best effort,
       reported in `media`: services/account_erasure_media.py)
     - Sign-in: the password, passkeys and second-factor secrets are removed and the account is marked suspended, so
-      nobody can sign in to the anonymized profile again. A session token already issued stays valid until it
-      expires (30 days): revoking issued tokens needs a server-side check and is the owner's decision.
+      nobody can sign in to the anonymized profile again, and every session token already issued is revoked
+      (core/session_revocation: refused within a minute on every server process, at once on this one).
     - Messages (sender side anonymized)
     - Profile data is anonymized (name, bio, avatar cleared)
 
@@ -241,6 +241,8 @@ async def request_data_deletion(
     # suspended, which the password and MFA paths already refuse.
     for model in (WebauthnCredential, MfaRecoveryCode, MfaChallenge, UserMfa):
         await db.execute(delete(model).where(model.user_id == user_id))
+    from core.session_revocation import note_revoked, revoke
+    revoked_at = await revoke(db, user_id, "account_deleted")
 
     # 5. Anonymize messages (don't delete — recipient still has the conversation)
     await db.execute(
@@ -273,6 +275,7 @@ async def request_data_deletion(
         setattr(profile, column, None)
 
     await db.commit()
+    note_revoked(user_id, revoked_at)          # this process refuses the user's tokens from now on
 
     # 7. The files, now that the rows are gone (storage is not transactional; reported, never hidden).
     from routes.uploads.core import UPLOAD_DIR
