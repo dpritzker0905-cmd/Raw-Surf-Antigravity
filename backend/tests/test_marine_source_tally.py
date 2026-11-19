@@ -338,3 +338,63 @@ def test_the_precompute_wraps_its_own_resolver_behind_the_switch_and_reports_onc
     # (the three uses from the wrap on: the wrap itself, the frame builder, and reading the counts back)
     assert after.count("(resolver") == 3 and "precompute_spot_ratings(resolver, spots, [model], hours)" in after
     assert 'getattr(resolver, "counts", None)' in after
+
+
+# ── the split of `stored` (2026-11-18): which kind of stored answer ──────────────────────────────────────────────
+def _stored(**kw):
+    return NS(point=NS(speed=1.0, interpolation_method=kw.pop("interp", "bilinear")), product_id="p", **kw)
+
+
+@pytest.mark.parametrize("resp,expected", [
+    (_stored(coverage_status="inside_regional_tile"), "stored"),
+    (_stored(coverage_status="inside_served_bbox"), "stored"),
+    (_stored(coverage_status="inside_global_coarse"), "stored:world_grid"),
+    (_stored(coverage_status="inside_global_coarse", fallback_reason="coarse_sample_degraded_direct_point_failed"),
+     "stored:world_grid_degraded"),
+    (_stored(coverage_status="inside_regional_tile", interp="unavailable"), "stored:no_value"),
+    # the degraded last resort wins over "no value": it says the live branch was tried and returned nothing
+    (_stored(coverage_status="inside_global_coarse", interp="unavailable",
+             fallback_reason="coarse_sample_degraded_direct_point_failed"), "stored:world_grid_degraded"),
+])
+def test_a_stored_answer_says_which_kind(resp, expected, monkeypatch):
+    monkeypatch.delenv(T.SPLIT_FLAG, raising=False)
+    assert T.classify(resp) == expected
+    assert T.is_stored(T.classify(resp))
+
+
+def test_the_split_kill_switch_restores_one_stored_label(monkeypatch):
+    monkeypatch.setenv(T.SPLIT_FLAG, "0")
+    for resp in (_stored(coverage_status="inside_global_coarse"),
+                 _stored(fallback_reason="coarse_sample_degraded_direct_point_failed"), _stored(interp="unavailable")):
+        assert T.classify(resp) == "stored"
+
+
+def test_is_stored_is_exact_about_the_prefix():
+    assert T.is_stored("stored") and T.is_stored("stored:world_grid")
+    assert not T.is_stored("upstream:open-meteo") and not T.is_stored("no_answer") and not T.is_stored("storedx")
+
+
+def test_every_stored_kind_counts_as_stored_in_the_not_stored_share():
+    """The share that existing readers quote must not move because a label was split."""
+    counts = {("waves", "GFS", "0-24h", "stored"): 60, ("waves", "GFS", "0-24h", "stored:world_grid"): 30,
+              ("waves", "GFS", "0-24h", "stored:world_grid_degraded"): 4, ("waves", "GFS", "0-24h", "stored:no_value"): 1,
+              ("waves", "GFS", "0-24h", "upstream:open-meteo:ncep_gfswave025"): 5}
+    lines = T.summary_lines(counts)
+    header = next(ln for ln in lines if ln.startswith("| model |"))
+    assert header == ("| model | lead | stored | stored:no_value | stored:world_grid | stored:world_grid_degraded | "
+                      "upstream:open-meteo:ncep_gfswave025 | not stored |")
+    assert "| GFS | 0-24h | 60 | 1 | 30 | 4 | 5 | 5.0% |" in lines
+    assert "GFS 5 of 100 not stored (5.0%), 5 stored without a usable value" in T.one_line(counts)
+
+
+def test_the_one_line_is_unchanged_when_nothing_is_weak():
+    counts = {("waves", "GFS", "0-24h", "stored"): 95, ("waves", "GFS", "0-24h", "upstream:open-meteo"): 5}
+    assert T.one_line(counts).startswith("waves: GFS 5 of 100 not stored (5.0%) |")
+
+
+def test_the_two_labels_the_split_reads_are_the_resolvers_own():
+    """The split keys on two strings the point resolver writes. If either is renamed there, this fails here, and the
+    counter does not quietly put every degraded answer back under plain `stored`."""
+    src = open(os.path.join(BACKEND, "services", "weather_pipeline", "point_resolution.py"), encoding="utf-8").read()
+    assert 'fallback_reason = "%s"' % T._DEGRADED_REASON in src
+    assert '"%s" if is_global_coarse' % T._WORLD_STATUS in src

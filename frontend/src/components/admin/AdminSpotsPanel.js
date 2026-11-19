@@ -13,6 +13,8 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 import { AdminSpotsStats } from './AdminSpotsStats';
 import { AdminSpotDuplicates } from './AdminSpotDuplicates';
+import { AdminPager } from './AdminPager';
+import { DEFAULT_PAGE_SIZE, adminSpotPagingDisabled, pageWindow } from './adminSpotPaging';
 import '../../utils/leafletLoader'; // sets window.L (see file for why this was needed)
 
 /**
@@ -36,7 +38,13 @@ const AdminSpotsPanel = ({ userId }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCountry, setFilterCountry] = useState('');
   const [editingSpot, setEditingSpot] = useState(null);
-  
+  const [pagingOff] = useState(adminSpotPagingDisabled);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const requestRef = useRef(0);
+  const loadedOnceRef = useRef(false);
+
   // Precision Pin Map Modal state
   const [precisionPinOpen, setPrecisionPinOpen] = useState(false);
   const [pinMapSpot, setPinMapSpot] = useState(null);
@@ -68,20 +76,48 @@ const AdminSpotsPanel = ({ userId }) => {
   // SurfSpotResponse omits is_verified_peak, flagged_for_review and accuracy_flag entirely. Every
   // accuracy badge was therefore `undefined && ...` and silently rendered nothing, so 165 flagged
   // spots and 55 human-verified ones were invisible while the summary tiles counted them.
+  // ★ ONE PAGE AT A TIME (owner, 2026-11-18). This used to ask for 5,000 rows, filter them in the browser and show
+  // the first 50, so row 51 onward could only be reached by searching for it. The server now filters and returns
+  // one page plus the true matching total. Kill switch: `window.__RAW_DISABLE_ADMIN_SPOT_PAGING__ = true`
+  // (adminSpotPaging.js) restores the old request and the old first-50 view.
   const fetchSpots = useCallback(async () => {
+    const mine = ++requestRef.current;
     try {
-      const params = new URLSearchParams({ limit: '5000' });
+      const params = new URLSearchParams(
+        pagingOff ? { limit: '5000' } : { page: String(page), limit: String(pageSize) });
       if (filterCountry) params.append('country', filterCountry);
-      if (accuracyFilter === 'flagged') params.append('flagged_only', 'true');
+      if (pagingOff) {
+        if (accuracyFilter === 'flagged') params.append('flagged_only', 'true');
+      } else {
+        if (accuracyFilter !== 'all') params.append('accuracy', accuracyFilter);
+        if (appliedSearch) params.append('search', appliedSearch);
+      }
       const response = await apiClient.get(`/admin/spots/list?${params.toString()}`);
-      setSpots(response.data.spots || []);
-      setSpotTotal(response.data.total ?? (response.data.spots || []).length);
+      if (mine !== requestRef.current) return true;   // a newer page or filter was asked for meanwhile
+      const rows = response.data.spots || [];
+      const total = response.data.total ?? rows.length;
+      setSpots(rows);
+      setSpotTotal(total);
+      // The page emptied (its last row was deleted, or the total shrank): step back to the last real page.
+      if (!pagingOff && rows.length === 0 && total > 0 && page > 1) setPage(pageWindow(page, pageSize, total).page);
       return true;
     } catch (error) {
       logger.error('Error fetching spots:', error);
       return false;
     }
-  }, [filterCountry, accuracyFilter]);
+  }, [filterCountry, accuracyFilter, pagingOff, page, pageSize, appliedSearch]);
+
+  // Typing searches the whole database, so wait for a pause before asking, and start from page 1.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const next = searchQuery.trim();
+      if (next !== appliedSearch) {
+        setAppliedSearch(next);
+        setPage(1);
+      }
+    }, 300);
+    return () => clearTimeout(id);
+  }, [searchQuery, appliedSearch]);
 
   // ONE refresh for every mutation. The tiles and the list read different endpoints, and
   // `handleUpdateSpot` used to refresh only the list — so editing a spot's accuracy left the
@@ -106,14 +142,20 @@ const AdminSpotsPanel = ({ userId }) => {
     }
   }, [fetchStats, fetchSpots]);
 
+  // The full-panel spinner is for the FIRST load only. Turning a page or typing a search re-reads the list alone:
+  // swapping the whole panel for a spinner there would unmount the search box mid-word and re-read the tiles.
   useEffect(() => {
     const load = async () => {
-      setLoading(true);
+      if (loadedOnceRef.current) {
+        await fetchSpots();
+        return;
+      }
+      loadedOnceRef.current = true;
       await refreshAll();
       setLoading(false);
     };
     load();
-  }, [refreshAll]);
+  }, [refreshAll, fetchSpots]);
 
   // The counts are a live view of production, so say when they were last read. Without it a stale
   // panel is indistinguishable from a correct one — which is exactly how the 165 flagged spots
@@ -284,13 +326,16 @@ const AdminSpotsPanel = ({ userId }) => {
     return true;
   };
 
-  const filteredSpots = spots.filter(spot =>
+  // Paged: the server already filtered, and `spots` IS the page. Kill switch on: the old in-browser filter.
+  const filteredSpots = !pagingOff ? spots : spots.filter(spot =>
     matchesAccuracy(spot) && (
       spot.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (spot.country || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (spot.region || '').toLowerCase().includes(searchQuery.toLowerCase())
     )
   );
+  const visibleSpots = pagingOff ? filteredSpots.slice(0, 50) : filteredSpots;
+  const changeFilter = (setter) => (e) => { setter(e.target.value); setPage(1); };
 
   // The one thing a reviewer needs to see at a glance, per row. Colour is paired with TEXT because
   // rating/accuracy state must never be conveyed by colour alone (accessibility mandate).
@@ -307,7 +352,12 @@ const AdminSpotsPanel = ({ userId }) => {
     return { label: 'Unverified', cls: 'bg-slate-500/20 text-muted-foreground' };
   };
 
-  const countries = [...new Set(spots.map(s => s.country).filter(Boolean))].sort();
+  // The country list comes from the tiles' read (every country in the database). One page of spots only knows
+  // the countries on that page.
+  const countries = [...new Set(
+    (stats?.by_country?.length ? stats.by_country.map(item => item.country) : spots.map(s => s.country))
+      .concat(filterCountry || []).filter(Boolean)
+  )].sort();
 
   if (loading) {
     return (
@@ -324,7 +374,7 @@ const AdminSpotsPanel = ({ userId }) => {
         stats={stats}
         lastRefreshed={lastRefreshed}
         filterCountry={filterCountry}
-        onFilterCountry={setFilterCountry}
+        onFilterCountry={(country) => { setFilterCountry(country); setPage(1); }}
         loadError={loadError}
       />
 
@@ -368,7 +418,7 @@ const AdminSpotsPanel = ({ userId }) => {
             </div>
             <select
               value={filterCountry}
-              onChange={(e) => setFilterCountry(e.target.value)}
+              onChange={changeFilter(setFilterCountry)}
               aria-label="Filter spots by country"
               className="bg-muted border border-border rounded-lg px-3 text-foreground"
             >
@@ -379,7 +429,7 @@ const AdminSpotsPanel = ({ userId }) => {
             </select>
             <select
               value={accuracyFilter}
-              onChange={(e) => setAccuracyFilter(e.target.value)}
+              onChange={changeFilter(setAccuracyFilter)}
               aria-label="Filter spots by accuracy state"
               className="bg-muted border border-border rounded-lg px-3 text-foreground"
             >
@@ -399,13 +449,16 @@ const AdminSpotsPanel = ({ userId }) => {
           <p className="text-xs text-muted-foreground mb-2" aria-live="polite">
             {loadError
               ? 'Spot list unavailable — the live read failed.'
-              : <>Showing {Math.min(filteredSpots.length, 50)} of {filteredSpots.length} matching
-                 {' '}({spotTotal} in the database)</>}
+              : pagingOff
+                ? <>Showing {Math.min(filteredSpots.length, 50)} of {filteredSpots.length} matching
+                   {' '}({spotTotal} in the database)</>
+                : <>{spotTotal.toLocaleString()} matching
+                   {stats?.total_spots != null && <> ({Number(stats.total_spots).toLocaleString()} in the database)</>}</>}
           </p>
 
           {/* Spots List */}
           <div className="space-y-2 max-h-[500px] overflow-y-auto">
-            {filteredSpots.slice(0, 50).map((spot) => (
+            {visibleSpots.map((spot) => (
               <div 
                 key={spot.id} 
                 className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-input transition-colors"
@@ -458,12 +511,25 @@ const AdminSpotsPanel = ({ userId }) => {
                 </div>
               </div>
             ))}
-            {filteredSpots.length > 50 && (
-              <p className="text-center text-gray-500 text-sm py-2">
+            {pagingOff && filteredSpots.length > 50 && (
+              <p className="text-center text-muted-foreground text-sm py-2">
                 Showing 50 of {filteredSpots.length} spots
               </p>
             )}
+            {!pagingOff && !loadError && visibleSpots.length === 0 && (
+              <p className="text-center text-muted-foreground text-sm py-6">No spots match these filters.</p>
+            )}
           </div>
+          {!pagingOff && !loadError && (
+            <AdminPager
+              label="spots"
+              page={page}
+              pageSize={pageSize}
+              total={spotTotal}
+              onPage={setPage}
+              onPageSize={(size) => { setPageSize(size); setPage(1); }}
+            />
+          )}
         </CardContent>
       </Card>
 
