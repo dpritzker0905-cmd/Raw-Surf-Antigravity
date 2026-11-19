@@ -19,6 +19,17 @@ from services import violation_retention as vr
 
 NOW = datetime(2026, 11, 19, 1, 0, tzinfo=timezone.utc)
 SECRET_TEXT = "claimed Haleiwa, was at home 21.60,-158.00"
+KEPT = {   # realistic evidence: URLs and paths, isoformat timestamps, id lists, long strings, words that merely CONTAIN
+    # "lat", "text", "detail", "summary" or "body"
+    "distance_miles": 41.0, "rule": "location_fraud", "source": "auto_detector",
+    "screenshots": ["https://cdn.example.invalid/evidence/2026/11/shot-1.png", "evidence/shot-2.jpg"],
+    "detected_at": "2026-11-03T18:22:41.512345+00:00", "violation_ids": ["v-100", "v-101"],
+    "related_post_id": "p-9", "platform": "ios", "context": "checkin", "detail": {"hits": 3}, "summary": {"n": 2},
+    "body": {"len": 120}, "gps_ok": False, "score": 0.93,
+    "reason_label": "Claimed location was 41 miles from the device's reported position at check-in time",
+    "checks": {"score": 0.93, "platform": "android"}}
+GPS_AND_NOTES = {"claimed_coords": [21.6, -158.0], "actual_coords": [34.0, -118.4], "lat": 34.0, "lng": -118.4,
+                 "claimedLatitude": 21.6, "note": SECRET_TEXT, "admin_notes": [SECRET_TEXT]}
 
 
 @pytest.fixture(autouse=True)
@@ -46,10 +57,8 @@ def maker():
                 db.add(TosViolation(
                     id=vid, user_id=pid, violation_type="location_fraud", severity="severe", strike_points=3,
                     title="Location Fraud: 41.0 miles discrepancy", description=SECRET_TEXT,
-                    evidence={"claimed_coords": [21.6, -158.0], "actual_coords": [34.0, -118.4],
-                              "distance_miles": 41.0, "note": SECRET_TEXT, "rule": "location_fraud",
-                              "source": "auto_detector", "screenshots": ["shot-1", "shot-2"],
-                              "checks": {"gps_ok": False, "lat": 34.0, "remark": SECRET_TEXT, "score": 0.93}},
+                    evidence={**KEPT, **GPS_AND_NOTES,
+                              "checks": {**KEPT["checks"], "lat": 34.0, "remark": SECRET_TEXT}},
                     related_type="booking", related_id="b1", claimed_latitude=21.6, claimed_longitude=-158.0,
                     actual_latitude=34.0, actual_longitude=-118.4, distance_discrepancy_miles=41.0,
                     action_taken="permanent_ban", reviewed_by="stayer", appeal_text="I was there, " + SECRET_TEXT,
@@ -73,10 +82,8 @@ def test_erasure_scrubs_location_and_free_text_but_keeps_the_decision(maker):
     asyncio.run(go())
     (row,) = _violations(maker, "leaver")
     assert (row.claimed_latitude, row.claimed_longitude, row.actual_latitude, row.actual_longitude) == (None,) * 4
-    # the evidence stays, minus coordinates and free text: numbers, flags and short codes survive
-    assert row.evidence == {"distance_miles": 41.0, "rule": "location_fraud", "source": "auto_detector",
-                            "screenshots": ["shot-1", "shot-2"], "checks": {"score": 0.93},
-                            "scrubbed": True}
+    # the evidence stays EXACTLY as it was, minus the GPS and note entries
+    assert row.evidence == {**KEPT, "scrubbed": True}
     assert row.description == vr.REMOVED_TEXT and row.appeal_text is None and row.title == "Location Fraud"
     assert SECRET_TEXT not in repr((row.title, row.description, row.evidence, row.appeal_text))
     # what shows a decision was made and why survives
@@ -88,24 +95,26 @@ def test_erasure_scrubs_location_and_free_text_but_keeps_the_decision(maker):
     assert other.actual_latitude == 34.0 and other.description == SECRET_TEXT
 
 
-def test_scrub_evidence_strips_coordinates_and_text_but_keeps_the_rest():
-    kept = vr.scrub_evidence({
-        "actual_coords": [1, 2], "track": [1.5, 2.5, 3.5], "distance_miles": 3.5, "reason": "location_fraud",
-        "sentence": "he said he was at the beach", "nested": {"latitude": 9, "ok": True, "msg": "free text here"},
-        "notes": ["a", "b"], "ids": ["a1", "b2"], "ratio": 0.5})
-    assert kept == {"distance_miles": 3.5, "reason": "location_fraud", "nested": {"ok": True},
-                    "ids": ["a1", "b2"], "ratio": 0.5, "scrubbed": True}
+def test_scrub_evidence_drops_only_gps_and_note_keys_by_whole_name():
+    gone = {"lat": 1, "Lng": 2, "longitude": 3, "claimed_coords": [1, 2], "actual_latitude": 1, "coordinates": {},
+            "gps": 1, "geo": 1, "claimedLatitude": 1, "device-lon": 1, "note": "x", "notes": ["a"], "comment": "x",
+            "admin_notes": "x", "moderatorNote": "x", "remarks": "x"}
+    kept = {"violation_ids": ["a"], "related_post_id": "p", "platform": "ios", "context": "c", "detail": {"a": 1},
+            "summary": "s", "body": {"b": 2}, "gps_ok": True, "latency_ms": 90, "template": "t", "notes_count": 2,
+            "url": "https://cdn.example.invalid/a/b.png?x=1&y=2", "at": "2026-11-03T18:22:41+00:00",
+            "long_text": "x " * 200, "nested": {"lat": 9, "keep": [{"note": "n", "ok": 1}]}}
+    out = vr.scrub_evidence({**gone, **kept})
+    assert out == {**kept, "nested": {"keep": [{"ok": 1}]}, "scrubbed": True}
 
 
 def test_scrub_evidence_fails_closed_on_a_malformed_blob():
     for bad in (None, "21.6,-158.0", [21.6, -158.0], 7):
         assert vr.scrub_evidence(bad) == {"scrubbed": True}
-    assert vr.scrub_evidence({"too": "free text with spaces"}) == {"scrubbed": True}   # a sentence is never kept
     deep = cur = {}
-    for _ in range(12):
+    for _ in range(30):
         cur["x"] = {}
         cur = cur["x"]
-    cur["lat_free"] = "y z"
+    cur["lat"] = 5
     assert "x" in vr.scrub_evidence(deep)                         # depth-limited, never raises
 
 
