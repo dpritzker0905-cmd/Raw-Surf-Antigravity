@@ -106,3 +106,44 @@ stores amount / step in mm/h, in the same field 10 and descriptor, so the client
 
 **The trade, stated for the director:** R2 draws exactly what users see today (.om). It drops drizzle below 0.05 mm per step,
 as .om does. The 0.01 arm keeps that drizzle but fails the storage line and the registered mass line.
+
+## Registered run, all six hours (cycle 2026-11-18 18Z; `sflux_gate.py`; the 0.01 mm/h rain arm as first registered)
+
+Land share of the grid (sflux LAND): 33.8 %. Bytes are gzip per frame. "x" is the ratio to the matching 0.25° frame at the
+same hour (line 4.5x).
+
+| hour | 2 m: bias / MAD / p95 / max (K) | roll-1 MAD | water (ocean): bias / MAD / max | roll-1 MAD | rain: mass vs .om / peaks / max | 2 m bytes (x) | water bytes (x) | rain bytes (x) |
+|---|---|---|---|---|---|---|---|---|
+| f006 | 0 / 0 / 0 / 0 | 0.143 | 0 / 0 / 0 | 0.086 | **+2.53 %** / 0.9999 / 0.9995 | 2,889,992 (3.65) | 2,105,278 (3.32) | 1,308,418 (**6.92**) |
+| f048 | 0 / 0 / 0 / 0 | 0.158 | 0 / 0 / 0 | 0.094 | **+2.23 %** / 1.0000 / 0.9995 | 2,930,040 (3.65) | 2,103,451 (3.32) | 1,244,323 (**6.47**) |
+| f120 | 0 / 0 / 0 / 0 | 0.155 | 0 / 0 / 0 | 0.088 | **+2.30 %** / 1.0000 / 1.0001 | 2,873,345 (3.64) | 2,072,444 (3.33) | 1,245,826 (**6.46**) |
+| f123 | 0 / 0 / 0 / 0 | 0.153 | 0 / 0 / 0 | 0.087 | +0.36 % / 1.0000 / 1.0001 | 2,872,909 (3.64) | 2,728,936 (3.40) | 1,201,407 (**4.85**) |
+| f240 | 0 / 0 / 0 / 0 | 0.154 | 0 / 0 / 0 | 0.087 | +0.47 % / 1.0000 / 1.0001 | 2,862,942 (3.66) | 2,066,267 (3.33) | 1,176,854 (**4.53**) |
+| f384 | 0 / 0 / 0 / 0 | 0.159 | 0 / 0 / 0 | 0.089 | +0.53 % / 1.0000 / 1.0002 | 2,871,271 (3.65) | 2,073,410 (3.32) | 1,150,880 (**4.48**) |
+
+- **Air temperature: PASS at all six hours.** Our decoded frame equals .om `temperature_2m` at every node; .om also stores
+  0.05 K steps.
+  - Planted +0.3 K and +0.6 K: caught at every hour.
+  - Negative control: a one-column roll raises the MAD from 0 to 0.14-0.16 K.
+  - Null control 0.
+  - Storage 3.64-3.66x: PASS.
+- **Water temperature: PASS at all six hours.** It equals .om `surface_temperature` on every ocean node; the all-node bias is
+  also 0.
+  - Plants caught; roll MAD 0.086-0.094 K.
+  - Storage 3.32-3.40x: PASS.
+- **Rain (0.01 arm): FAIL.**
+  - Mass is off by more than 1 % at the three hourly steps. It passes at the 3-hour steps (.om holds the 3-hour amount there,
+    ratio 3.0).
+  - Storage fails at all six hours (4.48-6.92x).
+  - The cause is the .om reference's 0.1 mm rounding, shown above. Arm R2 is the response.
+- **Planted errors, a defect in the gate itself:**
+  - The rain-peaks 1x plant was NOT caught at f048, f120, f123 and f384. It multiplied OUR values by 0.90, and our baseline
+    ratio sits a hair above 1 (1.00001 × 0.90 = 0.900009, which clears "> 0.90").
+  - The mass plants were caught only because the 0.01 arm's baseline is already off.
+  - A plant must be ANCHORED TO THE REFERENCE, so that the 1x plant lands exactly on the line whatever the baseline. R2's
+    plants are amended to that before R2 is run:
+    - mass: ours scaled so its mass is exactly 1.01 (1x) and 1.02 (2x) × .om's;
+    - peaks: ours at the .om top nodes set to 0.90 (1x) and 0.80 (2x) × .om's values there, and our global max to 0.90 /
+      0.80 × .om's max.
+- **Compute (this Windows box, one thread, every frame encoded twice for the null control):** 9.5-12.3 s an hour for all
+  three sets, so about 5-6 s for one pass. Fetching the three messages took 1.2-6.8 s an hour here.
