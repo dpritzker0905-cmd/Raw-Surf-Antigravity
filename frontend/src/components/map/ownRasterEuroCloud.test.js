@@ -46,10 +46,11 @@ describe('EURO cloud cover (2026-11-18)', () => {
     expect(OWN_RASTER_SETS.satellite.unit).toBe('%');
   });
 
-  test('ON for EURO with no lever; own frames only for EURO; GFS cloud unchanged; ICON has no set', () => {
+  test('ON for EURO with no lever; own frames only for EURO and GFS; ICON has no set (keeps .om until its set publishes)', () => {
     expect(ownFramesOn('satellite', 'EURO')).toBe(true);
     expect(ownOnlyFor('satellite', 'EURO')).toBe(true);
-    expect(ownOnlyFor('satellite', 'GFS')).toBe(false);
+    expect(ownOnlyFor('satellite', 'GFS')).toBe(true);
+    expect(ownOnlyFor('satellite', 'ICON')).toBe(false);
     expect(ownFramesOn('satellite', 'ICON')).toBe(false);
   });
 
@@ -60,23 +61,24 @@ describe('EURO cloud cover (2026-11-18)', () => {
     expect(combinedFrames('satellite', 'EURO', euro, gfs).map((f) => f.path)).toEqual(['e234', 'e240']);
   });
 
-  test('THE KILL NEVER REQUESTS .om: with EURO picked the .om list drops cloud under every kill; GFS cloud keeps today\'s rule', () => {
+  test('THE KILL NEVER REQUESTS .om: with EURO or GFS picked the .om list drops cloud under every kill and on a miss', () => {
     const omLayersFor = (model) => renderHook(() => useOwnRasterLayers({
       mapInstance: null, activeModel: model, activeLayers: ['satellite'], timeOffsetHours: 0, theme: 'dark',
     })).result.current;
-    for (const kill of [null, '__RAW_DISABLE_RASTER_OWN_SATELLITE__', '__RAW_DISABLE_RASTER_OWN_FRAMES__']) {
-      if (kill) window[kill] = true;
-      try {
-        expect(omLayersFor('EURO')).toEqual([]);
-      } finally {
-        if (kill) delete window[kill];
+    for (const model of ['EURO', 'GFS']) {
+      expect(omLayersFor(model)).toEqual([]);                            // a miss (no published index): unavailable, not .om
+      for (const kill of ['__RAW_DISABLE_RASTER_OWN_SATELLITE__', '__RAW_DISABLE_RASTER_OWN_FRAMES__']) {
+        window[kill] = true;
+        try { expect(omLayersFor(model)).toEqual([]); } finally { delete window[kill]; }
       }
     }
-    window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;   // GFS cloud: its kill still releases it to .om, as before this PR
-    try { expect(omLayersFor('GFS')).toEqual(['satellite']); } finally { delete window.__RAW_DISABLE_RASTER_OWN_SATELLITE__; }
-    staticSetEnabled.mockImplementation((key) => key !== EURO_CLOUD);   // the per-set kill
+    expect(omLayersFor('ICON')).toEqual(['satellite']);                 // no ICON cloud set yet: .om until it publishes
+    staticSetEnabled.mockReturnValue(false);                             // the per-set kills
     expect(omLayersFor('EURO')).toEqual([]);
+    expect(omLayersFor('GFS')).toEqual([]);
+    staticSetEnabled.mockReturnValue(true);
     staticFramesEnabled.mockReturnValue(false);                          // the static-frames global kill
     expect(omLayersFor('EURO')).toEqual([]);
+    expect(omLayersFor('GFS')).toEqual([]);
   });
 });

@@ -88,9 +88,11 @@ export const OWN_RASTER_SETS = {
     // EURO (2026-11-18, the owner: "cut Open-Meteo out of all user data"): ECMWF open data `tcc` x 100 at 0.25 deg, every point
     // (#955's set `cloud_cover_euro`; G3: all 1,038,240 nodes within 0.5 pp of ECMWF's own field, i.e. quantisation), hours 0-144
     // by 3 and 150-240 by 6: the same grid as the .om ecmwf_ifs025 it replaces. ON (satellite is a default-on layer) with NO .om
-    // fallback (`ownOnlyModels`): a miss, or past 240 h, says "unavailable". GFS cloud keeps its behaviour; ICON has no set.
+    // fallback (`ownOnlyModels`): a miss, or past 240 h, says "unavailable".
+    // GFS too (2026-11-18, the director relaying the owner's rule: no Open-Meteo in user data): GFS cloud was already drawn from
+    // our frames by default, but a kill or a miss fell back to the .om copy; now it says "unavailable". ICON has no set yet.
     models: { GFS: 'GFS/weather/cloud_cover/global_0p25', EURO: 'EURO/weather/cloud_cover/global_0p25' },
-    fallback: null, field: CLOUD_FIELD, unit: '%', ownOnlyModels: ['EURO'],
+    fallback: null, field: CLOUD_FIELD, unit: '%', ownOnlyModels: ['GFS', 'EURO'],
   },
   // PRECIPITATION (2026-11-12, the owner: "Yes, build it"): the app's 'rain' layer from GFS APCP (frame_set_raster.py,
   // set `precipitation`): mm/h in the hour before the frame (the 3-hour mean past f120), the same meaning as the .om field,

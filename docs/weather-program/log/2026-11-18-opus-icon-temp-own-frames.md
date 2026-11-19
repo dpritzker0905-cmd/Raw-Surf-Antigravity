@@ -145,6 +145,46 @@ EURO picked, each shows "unavailable" and none requests `.om`. Pinned on the `.o
 - ICON cloud everywhere.
 Both are named for the director: GFS needs `ownOnlyModels` (one word); ICON needs a published set.
 
+## Option A for ICON rain, measured (the director: nearest native cell at 0.0625 deg instead of the area mean; measurement only)
+Instrument: `optA_gate.py` (scratch).
+- **Inputs:** the publisher's own frame encoder (`frame_binary.encode_plane` then gzip). Values are read back from the decoded
+  frame, as a client reads them. The rate is DWD TOT_PREC differenced to the step before the hour, as `IconPrecipSource.rate`
+  computes it.
+- **Grid order:** cell areas come from DWD grid file 0026; its order was checked against the run's CLAT / CLON within 0.01 deg.
+- **The gate is G2's as registered:**
+  - mass within ±1 %;
+  - peaks: the 100 highest native cells at least 1 deg apart, each the highest lattice value within one lattice step / the cell
+    value, reported as median, p10 and global max;
+  - #958's storage line: gzipped bytes at most 4.5 x the 0.25-degree set.
+- **Run and hours:** 2026-11-18 12Z at f006 / f024 / f048 / f078 / f120. **Departure:** G2 named a 00Z cycle; this used 12Z so
+  that today's published 0.125 frames of the same run are the comparison arm.
+- **Controls:** a uniform field gives 0.0 % mass error at every resolution. A lattice shifted 8 columns must fail the peaks, and
+  it does (median 0.12-0.58). The global-max ratio cannot see a shift, so it is reported but is not a placement check.
+
+| arm | mass error (5 hours) | peaks kept: median / p10 / global max | gz a frame | x 0.25 box mean (line 4.5 x) | x published 0.125 | encode a frame |
+|---|---|---|---|---|---|---|
+| A: nearest cell, 0.0625 deg (5760 x 2881) | -0.06 .. +0.41 % | 1.00 / 0.999-1.00 / 1.00 | 3.01-3.55 MB | 8.3-9.7 x: **FAIL** | 2.5-3.0 x | 3.9-5.0 s |
+| A': nearest cell, 0.125 deg (2880 x 1441; DWD's own regrid, as ICON temperature) | -0.03 .. +0.38 % | 1.00 / 0.913-0.999 / 0.922-1.00 | 1.03-1.23 MB | 2.9-3.4 x: pass | 0.85-1.03 x | 0.9-1.5 s |
+| today: 3 x 3 sampled area mean, 0.125 deg (published frames, same run) | -0.07 .. +0.09 % | 0.927-0.960 / 0.737-0.805 / 0.788-0.971 | 1.18-1.22 MB | 3.3-3.4 x: pass | 1.0 | (G2: ~1.3 s) |
+
+- **A at 0.0625:** every native cell gets at least one node (median 4). Mass and every peak statistic PASS, but **storage FAILS**
+  the #958 line: about 3.2 MB a frame, about 360 MB a run for 112 frames, against 132 MB today.
+  - Not measured, and likely blocking on phones: a 5760-column texture exceeds the 4096 MAX_TEXTURE_SIZE that many mobile GPUs
+    report.
+  - Not measured either: each decoded field is 66 MB of Float32, so the handheld node budget (4 x 0.125 frames) holds one frame,
+    not the ±1 window.
+- **A' at 0.125 (not asked; run because it costs nothing on the same harness):**
+  - mass PASS;
+  - the median and the global max PASS at 0.90 at every hour, and **the p10 is 0.913-0.999, which also passes**;
+  - storage the same as today's set;
+  - the same grid, so no client change.
+  - Cost: 12.8 % of native cells (376,185 of 2,949,120) get no node, so a shower confined to one such cell is not drawn at its
+    own value. It is the regrid DWD's regular products and Open-Meteo's `dwd_icon` use (G1).
+  - It is a point sample, not an area mean: the research lead's 2026-11-16 point that rain is an area quantity argues against
+    it, and the legend note would change to "nearest model cell".
+- **Today's area mean on this run:** the global max kept falls to 0.788 at f048, lower than G2's 2026-11-16 reading (0.883 at
+  f120). The tails vary by run.
+
 ## 2026-11-19 ~01:40Z: the advisor's HOLD fixes on #1071, and NEXT WORK recorded at the owner's wind-down
 **HOLD fixes on this PR** (the advisor, 00:57Z):
 - **Credit.** An own-only model claimed with nothing drawn (killed, unpublished or pre-index) reports `'<MODEL>:idle'` to the
