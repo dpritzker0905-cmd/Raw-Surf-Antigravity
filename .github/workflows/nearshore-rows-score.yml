@@ -28,6 +28,7 @@ concurrency:
 
 jobs:
   score:
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

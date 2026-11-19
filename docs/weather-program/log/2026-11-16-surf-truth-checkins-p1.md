@@ -355,6 +355,18 @@ codes, distances, EXIF age, app version), and nothing purges exports already mad
 account, says later checks leave out all the person's reports, and says copies made before a withdrawal are not
 changed. A stronger promise belongs only in the change that builds the purge, under a new version. Test +1 pins each
 phrase to the export's FIELDS (guards fragment +8). Still a DRAFT for counsel.
+## 2026-11-18 14:50Z Supabase service-role key moves into the `supabase-service` GitHub Environment (dev/main only)
+
+The key was a repository secret, readable by any workflow run from any branch in this public repo, a pull request
+from a branch pushed here included. David created the environment `supabase-service` (deployment branches dev and
+main, no reviewers so the 4-hourly ingest is not held) and put the key in it (step 1, his action). This change gives
+every job that reads `SUPABASE_SERVICE_ROLE_KEY` that environment: 22 workflow files, 24 jobs. It also drops the
+`pull_request` trigger of `consensus-flip-sweep.yml`, the only key-reading workflow that ran on PRs (it could no
+longer get the key; it stays dispatchable on dev). Nothing breaks before step 3, because the repository copy still
+exists. STEP 3 (David, after merge): delete the REPOSITORY secret `SUPABASE_SERVICE_ROLE_KEY`, then dispatch one
+workflow on dev to confirm. After that, dispatching these workflows from a lane branch is refused by design.
+Checks: all workflow YAML parses; 242 workflow-shape tests pass (4 failures in `test_audit_e2e_trace_override` are a
+Windows bash timeout on the untouched `e2e-tests.yml`).
 ## 2026-11-18 15:41Z T1 P3 (part 1 follow-up): a deletion request now reaches the files and the sign-in
 
 The advisor recorded two limits on #1022: a deletion request did not remove the person's photos from the PUBLIC
@@ -376,3 +388,9 @@ refuses (403) unless the server's environment has `SURF_TRUTH_EXPORTS_ENABLED` e
 The retention job's fresh export (#1034) is left as is: it only REPLACES exports, and none can exist unless the switch
 allowed the first one. Tests +5 (unset, empty, 0, true, yes all refused with nothing written or logged); removing the
 gate fails 5. Guards fragment +5.
+## 2026-11-18 16:40Z #1043 advisor HOLD fixed: a guard that every key-reading job carries the environment
+
+The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull_request` trigger and so failed `test_consensus_flip_sweep` (fixed at bbd7c8fac: the guard now pins the NEW rule, no PR trigger, dispatchable, environment declared, script run); (2) nothing asserted that every job naming the key declares the environment, so the next workflow
+that forgets would silently lose its key once the repository secret is deleted (open PR #1025's `sst-g4-collect.yml` already names the key without it). New `tests/test_workflow_key_environment.py` scans every workflow: each job that reads
+`secrets.SUPABASE_SERVICE_ROLE_KEY` (in the job or the workflow `env`) must declare `environment: supabase-service`, and no
+key-reading workflow may run on `pull_request`. 24 jobs today; tests +26 (estate fragment +26).
