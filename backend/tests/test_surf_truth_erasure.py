@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from models import (Booking, CheckIn, Comment, Follow, GalleryPurchase, Message, ObservationMedia, PaymentTransaction,
+from models import (SurfTruthConsentEvent, Booking, CheckIn, Comment, Follow, GalleryPurchase, Message, ObservationMedia, PaymentTransaction,
                     Post, Profile, Review, SurfObservation, SurfTruthAnchor, TosAcknowledgement, TosViolation)
 from models.enums import RoleEnum
 from routes.compliance_pkg.gdpr import request_data_deletion
@@ -36,7 +36,7 @@ def maker():
         async with engine.begin() as conn:
             for model in (Profile, Post, Comment, Follow, CheckIn, Review, Message, SurfObservation,
                           ObservationMedia, SurfTruthAnchor, Booking, GalleryPurchase, PaymentTransaction,
-                          TosAcknowledgement, TosViolation):
+                          TosAcknowledgement, TosViolation, SurfTruthConsentEvent):
                 await conn.run_sync(lambda c, t=model.__table__: t.create(c))
         mk = async_sessionmaker(engine, expire_on_commit=False)
         async with mk() as db:
@@ -54,6 +54,8 @@ def maker():
                                  media_type="image", sha256="b" * 64),
                 SurfTruthAnchor(profile_id="leaver", status="active"),
                 SurfTruthAnchor(profile_id="stayer", status="active"),
+                SurfTruthConsentEvent(id="c1", profile_id="leaver", granted=True, version="v", source="settings",
+                                      at=NOW),
             ])
             await db.commit()
         return mk
@@ -85,6 +87,9 @@ def test_deletion_request_erases_the_users_surf_truth_rows_and_keeps_others(make
                     gone.instagram_url) == ("Deleted User", None, None, None, None)
             stays = (await db.execute(select(Profile).where(Profile.id == "stayer"))).scalar_one()
             assert stays.home_latitude == 21.6
+            # the consent history is the proof of consent: kept, like ToS acknowledgements
+            assert (await _count(db, SurfTruthConsentEvent, SurfTruthConsentEvent.profile_id == "leaver")
+                    ).scalar() == 1
     asyncio.run(go())
 
 
@@ -121,5 +126,6 @@ def test_data_export_includes_the_users_surf_truth_rows_only(maker):
         assert [m["id"] for m in package["observation_media"]] == ["m1"]
         assert package["observation_media"][0]["exif_latitude"] == 21.66      # their own data, every column
         assert [a["profile_id"] for a in package["surf_truth_anchor"]] == ["leaver"]
+        assert [(c["granted"], c["source"]) for c in package["surf_truth_consent_history"]] == [(True, "settings")]
         assert isinstance(package["surf_observations"][0]["received_at"], str)  # JSON-safe
     asyncio.run(go())
