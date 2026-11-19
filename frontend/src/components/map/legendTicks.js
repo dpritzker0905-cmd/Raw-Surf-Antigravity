@@ -1,5 +1,5 @@
 import { servedResolutionNotice, ServedResolutionRow } from './servedResolutionNotice';
-import { marineFallbackNotice, MarineFallbackRow, useMarineFallbackState } from './marineFallbackNotice';
+import { marineFallbackNotice, MarineFallbackRow, useMarineFallbackState, useMarineFallbackFieldState } from './marineFallbackNotice';
 import { useDrawnGridResolution } from './drawnGridResolution';
 import React from 'react';
 import { readMarineSurfMode } from './marineSurfMode';
@@ -93,6 +93,7 @@ export function tickTransform(pct) {
 export function LegendTicks({ ticks, className, showResolution = false }) {
   // Hooks must run before any early return, or the hook order changes with `ticks` (React rule).
   const marineFailed = useMarineFallbackState();
+  const fallbackField = useMarineFallbackFieldState();
   const drawnDeg = useDrawnGridResolution(showResolution && !marineFailed);
   const ratingOn = readMarineSurfMode();
   if (!Array.isArray(ticks) || ticks.length === 0) return null;
@@ -103,7 +104,7 @@ export function LegendTicks({ ticks, className, showResolution = false }) {
   const notice = d
     ? (drawnDeg != null ? servedResolutionNotice(drawnDeg, 'derived_from_served_grid') : servedResolutionNotice(d.resolution, d.resolutionSource))
     : null;
-  const fallback = showResolution ? marineFallbackNotice(marineFailed, ratingOn) : null;
+  const fallback = showResolution ? marineFallbackNotice(marineFailed, ratingOn, fallbackField) : null;
   return (
     <>
     <div className={`relative w-full ${className || ''}`} style={{ height: '0.85rem' }}>

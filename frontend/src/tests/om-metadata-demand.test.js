@@ -21,6 +21,7 @@ jest.mock('../components/map/LayerRegistry', () => ({
   LAYER_REGISTRY: {
     waves: { type: 'marine', omModelGroup: 'marine', omVariable: 'wave_height' },
     pressure: { type: 'raster', omVariable: 'pressure_msl' },
+    stormfuel: { type: 'raster', omVariable: 'cape' },   // a plain raster with no own-frames path, for the cold-metadata rule below
   },
   PRECIP_MODEL_MAP: {}, WIND_MODEL_MAP: {}, MARINE_MODEL_MAP: { GFS: 'ncep_gfswave025' },
   // Populated bootstrap axes must not suppress the first actual fetch on layer activation.
@@ -49,10 +50,14 @@ test('activating a raster requests its actual model despite bootstrap cached axe
   expect([...new Set(fetchModelMetadata.mock.calls.map(call => call[0]))]).toEqual(['ncep_gfs025']);
 });
 
-test('marine fallback still requests its required metadata', async () => {
-  renderHook(() => useOpenMeteoTileUrls({ ...base, webglMarineFailed: true }));
-  await waitFor(() => expect(fetchModelMetadata).toHaveBeenCalled());
-  expect([...new Set(fetchModelMetadata.mock.calls.map(call => call[0]))]).toEqual(['ncep_gfswave025']);
+// 2026-11-18 (Open-Meteo exit row 12). This test used to pin that a failed marine engine fetched the provider's marine
+// metadata and built marine tile URLs. That path is gone: the failed-engine fallback paints our own grid
+// (MarineEngineFallback), so the hook must ask the provider for NOTHING marine, whatever the engine's state.
+test('a failed marine engine requests NO provider metadata and builds NO marine tile URL', async () => {
+  const { result } = renderHook(() => useOpenMeteoTileUrls({ ...base, webglMarineFailed: true }));
+  await waitFor(() => expect(result.current.omTileUrls['pressure-slot-0']).toBe('om://transparent-tile'));
+  expect(fetchModelMetadata).not.toHaveBeenCalled();
+  expect(Object.keys(result.current.omTileUrls).filter(k => k.startsWith('waves-'))).toEqual([]);
 });
 
 test('historical warm-cache fix: live raster URLs resolve in the same animation callback', () => {
@@ -90,12 +95,15 @@ test.each(['network failure', 'unfinished manifest'])(
     });
     const cancelRaf = jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    // Ported 2026-11-18 from the failed-marine path (wave_height on ncep_gfswave025, which the hook no longer builds: exit row
+    // 12) to a plain raster layer on its own model. The rule under test is the hook's, not the layer's: a cold metadata failure
+    // must publish no guessed-axis URL, and the recovery must pick the real forecast hour. Same axes, same assertions.
     const provider = {
-      completed: true, reference_time: '2026-09-20T12:00:00Z', variables: ['wave_height'],
+      completed: true, reference_time: '2026-09-20T12:00:00Z', variables: ['cape'],
       valid_times: ['12', '15', '18', '21'].map(hour => `2026-09-20T${hour}:00:00Z`),
     };
-    MODEL_METADATA_CACHE.ncep_gfswave025 = {
-      variables: ['wave_height'], referenceTime: '2026-09-20T06:00:00Z',
+    MODEL_METADATA_CACHE.ncep_gfs025 = {
+      variables: ['cape'], referenceTime: '2026-09-20T06:00:00Z',
       validTimes: ['06', '09', '12', '15'].map(hour => `2026-09-20T${hour}:00:00Z`),
     };
     const transport = jest.fn(async () => new Response(JSON.stringify(provider)));
@@ -110,11 +118,11 @@ test.each(['network failure', 'unfinished manifest'])(
     });
     try {
       const view = renderHook(props => useOpenMeteoTileUrls(props), {
-        initialProps: { ...base, webglMarineFailed: true },
+        initialProps: { ...base, activeLayers: ['stormfuel'] },
       });
       unmount = view.unmount;
       await nextFrame();
-      const coldUrl = view.result.current.omTileUrls['waves-slot-0'];
+      const coldUrl = view.result.current.omTileUrls['stormfuel-slot-0'];
       // On the unfixed hook, actually decode its published URL: index 3 means 21Z
       // in the provider axis, although the user requested 15Z on the bootstrap axis.
       const decodedAfterFailure = coldUrl && coldUrl !== 'om://transparent-tile'
@@ -123,19 +131,19 @@ test.each(['network failure', 'unfinished manifest'])(
         coldUrl: 'om://transparent-tile', decodedAfterFailure: null,
       });
       expect(transport).toHaveBeenCalledTimes(1);
-      expect(LIVE_FETCHED_MODELS.has('ncep_gfswave025')).toBe(false);
+      expect(LIVE_FETCHED_MODELS.has('ncep_gfs025')).toBe(false);
 
       // A normal rerender retries metadata; only its real axis can authorize a URL.
-      view.rerender({ ...base, webglMarineFailed: true, theme: 'dark' });
+      view.rerender({ ...base, activeLayers: ['stormfuel'], theme: 'dark' });
       await nextFrame();
       // Metadata revision may schedule a second frame; drain that known work too.
       while (frames.length) await nextFrame();
       const recoveredUrl = Object.values(view.result.current.omTileUrls)
-        .find(url => url.includes('webgl_fallback=true'));
+        .find(url => url.includes('variable=cape'));
       expect(recoveredUrl).toContain('time_step=valid_times_1');
       expect(await normalizeUrl(recoveredUrl)).toContain('/1200Z/2026-09-20T1500.om');
-      expect(MODEL_METADATA_CACHE.ncep_gfswave025.sourceMetadata).toEqual(provider);
-      expect(LIVE_FETCHED_MODELS.has('ncep_gfswave025')).toBe(true);
+      expect(MODEL_METADATA_CACHE.ncep_gfs025.sourceMetadata).toEqual(provider);
+      expect(LIVE_FETCHED_MODELS.has('ncep_gfs025')).toBe(true);
     } finally {
       unmount?.();
       global.fetch = originalFetch;

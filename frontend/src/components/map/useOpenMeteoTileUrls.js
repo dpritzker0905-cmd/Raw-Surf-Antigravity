@@ -43,8 +43,7 @@ export function useOpenMeteoTileUrls({
   theme,
   timeOffsetHours,
   userTier,
-  activeMarineLayer,
-  webglMarineFailed
+  activeMarineLayer
 }) {
   const [protocolReady, setProtocolReady] = useState(false);
   const [metadataRevision, setMetadataRevision] = useState(0);
@@ -456,12 +455,9 @@ export function useOpenMeteoTileUrls({
         catch (err) { console.error('[TRANSITION] LAYER_ACCESS_DENIED:', err.message); return; }
 
         const tasks = Object.keys(LAYER_REGISTRY)
-          .filter(k =>
-            LAYER_REGISTRY[k].omVariable && (
-              LAYER_REGISTRY[k].type === 'raster' ||
-              (LAYER_REGISTRY[k].type === 'marine' && webglMarineFailed)
-            )
-          ) // Strict isolation: visual raster/failed-marine layers only
+          // Raster layers only. NO marine tile URL is ever built, engine failed or not: the failed-engine fallback draws our own
+          // grid (MarineEngineFallback, exit row 12), and with nothing of ours to draw the layer is unavailable, never a third party's.
+          .filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type === 'raster')
           .map(k => ({
             layerKey: k,
             variable: LAYER_REGISTRY[k].omVariable,
@@ -612,10 +608,7 @@ export function useOpenMeteoTileUrls({
             const targetMs = Date.now() + debouncedTimeOffsetHours * 3600000;
             const closestIdx = closestAxisIndex(validTimes, targetMs);
 
-            let targetUrl = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
-            if (entry.omModelGroup === 'marine' && webglMarineFailed) {
-              targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'webgl_fallback=true';
-            }
+            const targetUrl = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
             const currentUrls = omTileUrlsRef.current || {};
             const shownSlot = activeSlotsRef.current[layerKey]; const currentActiveSlot = shownSlot === -1 ? undefined : shownSlot;   // -1: re-toggled, hidden
 
@@ -706,7 +699,7 @@ export function useOpenMeteoTileUrls({
       controller.abort(); 
       if (rafRef.current) cancelAnimationFrame(rafRef.current); 
     };
-  }, [activeModel, theme, debouncedTimeOffsetHours, activeLayers, fetchMetadata, metadataRevision, userTier, webglMarineFailed, rasterPaletteKey()]);
+  }, [activeModel, theme, debouncedTimeOffsetHours, activeLayers, fetchMetadata, metadataRevision, userTier, rasterPaletteKey()]);
 
   useRasterDrawnPublisher(activeLayers, activeSlots, omTileUrls, targetSlotsRef);   // the status line's shown/wanted pair
   // NOTE: Imperative opacity/fade override removed. All raster paint properties

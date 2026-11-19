@@ -280,14 +280,14 @@ export function useWebGLGuardrail({
           if (lowFpsCount >= 12) {
             console.error(`[WebGLGuardrail] Frame rate consistently below 20 FPS (${fps} FPS) for 12 consecutive seconds. Triggering local rendering fallback overrides.`);
             
-            // BLANK GUARD (marineGuardrailRules.js): a fallback with no raster for the selected model, layer and hour is a blank sea.
+            // BLANK GUARD (marineGuardrailRules.js): a fallback with nothing of ours to draw (a surf-rating grid, the kill) is a blank sea.
             const sel = { model: (typeof window !== 'undefined' && window.activeModel) || 'GFS',
               layer: active.find((l) => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves',
               hour: typeof window !== 'undefined' ? Number(window.activeTimeOffsetHours) || 0 : 0 };
-            const canDraw = hasMarine ? marineFallbackDrawable(sel) : null;
+            const canDraw = hasMarine ? marineFallbackDrawable() : null;
             if (hasMarine && canDraw && canDraw.drawable === false && !ruleKilled('BLANK_GUARD')) {
-              window.__RAW_GUARDRAIL_NO_FALLBACK__ = { ...sel, rasterModel: canDraw.rasterModel, variable: canDraw.variable, fps, at: Date.now() };
-              recordChurn('marine_webgl_fallback_refused', { cause: 'no_raster_for_layer', ...sel, rasterModel: canDraw.rasterModel, fps });
+              window.__RAW_GUARDRAIL_NO_FALLBACK__ = { ...sel, why: canDraw.why, fps, at: Date.now() };
+              recordChurn('marine_webgl_fallback_refused', { cause: 'nothing_to_draw', why: canDraw.why, ...sel, fps });
               resetLowFps();
               return;
             }

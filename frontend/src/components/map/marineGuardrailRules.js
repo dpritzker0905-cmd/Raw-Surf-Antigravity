@@ -9,13 +9,14 @@
  * measured cheap marine draws whose main thread spent >= MAIN_THREAD_BUSY_FRACTION of it in long tasks is load the raster fallback
  * does not remove (series decode, land mask). Cheap draws on a quiet main thread still count (a GPU-bound device: the CPU-call
  * histogram cannot see GPU completion). Kill: window.__RAW_DISABLE_GUARDRAIL_MAIN_THREAD__ = true.
- * BLANK GUARD (2026-10-28, the same session's third trip: EURO + Swell, a blank sea): the fallback is Open-Meteo raster tiles, and a
- * raster model without the layer's variable draws a transparent tile (useOpenMeteoTileUrls: no cross-model fallback). The variable
- * lists are MODEL_METADATA_CACHE's: the bootstrap lists until live metadata replaces them. Kill:
+ * BLANK GUARD (2026-10-28, the same session's third trip: EURO + Swell, a blank sea; the owner: never a blank frame): the hook does
+ * not engage a fallback that has nothing to draw. Then the fallback was Open-Meteo raster tiles and the question was whether that
+ * provider's model carried the layer's variable. Since 2026-11-18 (Open-Meteo exit row 12) the fallback paints OUR OWN grid, the
+ * one the engine holds, so EURO and ICON swell draw like any other layer and the question is only whether that grid can be painted
+ * as height (marineFallbackDrawable). No third party's variable list is consulted. Kill:
  * window.__RAW_DISABLE_GUARDRAIL_BLANK_GUARD__ = true.
  */
-import { LAYER_REGISTRY, MARINE_MODEL_MAP, MODEL_METADATA_CACHE } from './LayerRegistry';
-import { ICON_MARINE_RASTER_CUTOVER_H, EURO_MARINE_RASTER_CUTOVER_H } from './modelHorizons';
+import { ownMarineFallbackKilled } from './marineFallbackField';
 
 export const THROTTLE_CADENCE_MIN_MS = 900;
 export const MAIN_THREAD_BUSY_FRACTION = 0.5;
@@ -66,13 +67,13 @@ export function lowFpsExemption({ cadence, cheap, busyFraction }) {
   return null;
 }
 
-/** Can the raster fallback draw (model, layer, hour)? { drawable, rasterModel, variable }; drawable null when unknown. */
-export function marineFallbackDrawable({ model, layer, hour }) {
-  const entry = LAYER_REGISTRY[layer];
-  const variable = entry && entry.omVariable;
-  let rasterModel = MARINE_MODEL_MAP[model] || 'ncep_gfswave025';
-  if (rasterModel === 'dwd_gwam' && hour > ICON_MARINE_RASTER_CUTOVER_H) rasterModel = 'ncep_gfswave025';   // useOpenMeteoTileUrls.resolveModel
-  if (rasterModel === 'ecmwf_wam025' && hour > EURO_MARINE_RASTER_CUTOVER_H) rasterModel = 'ncep_gfswave025';
-  const vars = MODEL_METADATA_CACHE[rasterModel] && MODEL_METADATA_CACHE[rasterModel].variables;
-  return { drawable: variable && Array.isArray(vars) ? vars.includes(variable) : null, rasterModel, variable: variable || null };
+/**
+ * Can the failed-engine fallback draw the sea NOW? { drawable, why }; drawable null when unknown (the engine holds no grid to
+ * judge by). The fallback paints the grid the engine itself holds (marineFallbackField), for any model, layer and hour, so the
+ * only things it cannot draw are a surf-rating grid (its height field carries scores) and anything at all under its own kill.
+ */
+export function marineFallbackDrawable(win = W()) {
+  const eng = win.__MARINE_ENGINE__; const grid = eng && eng._waveData && eng._waveData.waveGrid;
+  const why = ownMarineFallbackKilled(win) ? 'killed' : (grid && grid.ratingMode ? 'rating_grid' : null);
+  return { drawable: why ? false : (grid ? true : null), why };
 }

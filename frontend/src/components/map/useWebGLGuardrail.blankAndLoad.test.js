@@ -81,36 +81,65 @@ afterEach(() => {
 });
 
 describe('the fallback is only engaged when it can draw the selected layer', () => {
-  it('what the raster fallback can draw (the bootstrap variable lists; a cutover hour hands EURO/ICON to GFS Wave)', () => {
-    const d = (model, layer, hour = 100) => marineFallbackDrawable({ model, layer, hour }).drawable;
-    expect(['waves', 'swell_1', 'swell_2', 'wind_waves'].map((l) => d('GFS', l))).toEqual([true, true, true, true]);
-    expect(['waves', 'swell_1', 'swell_2', 'wind_waves'].map((l) => d('EURO', l))).toEqual([true, false, false, false]);
-    expect(['waves', 'swell_1', 'swell_2', 'wind_waves'].map((l) => d('ICON', l))).toEqual([true, true, false, true]);
-    expect(d('EURO', 'swell_1', 250)).toBe(true);    // past 240 h the raster is GFS Wave
-    expect(d('ICON', 'swell_2', 200)).toBe(true);    // past 168 h the raster is GFS Wave
+  // 2026-11-18 (Open-Meteo exit row 12): the fallback paints OUR OWN grid, the one the engine holds, so it can draw every model
+  // and layer the engine could. What it cannot draw is a surf-rating grid (scores in the height field) or anything under its
+  // own kill. No third party's variable list is consulted any more: the three tests below replace the ones that pinned it.
+  it('what the fallback can draw: any grid the engine holds, except a surf-rating grid or under its own kill; unknown with no grid', () => {
+    const win = (grid, extra = {}) => ({ __MARINE_ENGINE__: { _waveData: { waveGrid: grid } }, ...extra });
+    expect(marineFallbackDrawable(win({ cols: 3, rows: 3 }))).toEqual({ drawable: true, why: null });
+    expect(marineFallbackDrawable(win({ cols: 3, rows: 3, ratingMode: true }))).toEqual({ drawable: false, why: 'rating_grid' });
+    expect(marineFallbackDrawable(win({ cols: 3, rows: 3 }, { __RAW_DISABLE_OWN_MARINE_FALLBACK__: true }))).toEqual({ drawable: false, why: 'killed' });
+    expect(marineFallbackDrawable(win(null))).toEqual({ drawable: null, why: null });
+    expect(marineFallbackDrawable({})).toEqual({ drawable: null, why: null });
   });
 
-  it('the live session: EURO + Swell, slow frames: no trip (the sea would be blank), and it says why', () => {
+  it('THE THIRD-PARTY LIST NO LONGER DECIDES: emptying the provider\'s variable lists changes nothing', () => {
+    ['ecmwf_wam025', 'dwd_gwam', 'ncep_gfswave025'].forEach((m) => { MODEL_METADATA_CACHE[m] = { variables: [], validTimes: [] }; });
+    window.__MARINE_ENGINE__ = { _initialized: true, _waveData: { waveGrid: { cols: 3, rows: 3 } } };
+    expect(marineFallbackDrawable().drawable).toBe(true);
+  });
+
+  it('the live session again: EURO + Swell, slow frames. Our own grid has the swell, so it TRIPS and there is a sea to draw', () => {
     window.activeModel = 'EURO';
+    window.__MARINE_ENGINE__ = { _initialized: true, _waveData: { waveGrid: { cols: 3, rows: 3 } } };
     const map = makeMap(); const p = props(map, 'swell_1'); const clock = installClock();
     renderHook(() => useWebGLGuardrail(p));
     drive(map, clock, { intervals: [250], seconds: 40, bucket: SLOW });
-    expect(p.setWebglMarineFailed).not.toHaveBeenCalled();
-    expect(window.__RAW_GUARDRAIL_NO_FALLBACK__).toMatchObject({ model: 'EURO', layer: 'swell_1', rasterModel: 'ecmwf_wam025' });
+    expect(p.setWebglMarineFailed).toHaveBeenCalledWith(true);
+    expect(window.__RAW_GUARDRAIL_NO_FALLBACK__).toBeUndefined();
   });
 
-  it('ICON Swell 2 is the same blank; past 168 h (GFS raster) it trips', () => {
+  it('ICON Swell 2, the same: it trips at any hour', () => {
     window.activeModel = 'ICON';
+    window.__MARINE_ENGINE__ = { _initialized: true, _waveData: { waveGrid: { cols: 3, rows: 3 } } };
     const map = makeMap(); const p = props(map, 'swell_2'); const clock = installClock();
     renderHook(() => useWebGLGuardrail(p));
     drive(map, clock, { intervals: [250], seconds: 30, bucket: SLOW });
-    expect(p.setWebglMarineFailed).not.toHaveBeenCalled();
-    window.activeTimeOffsetHours = 200;
-    drive(map, clock, { intervals: [250], seconds: 14, bucket: SLOW });
     expect(p.setWebglMarineFailed).toHaveBeenCalledWith(true);
   });
 
-  it('CONTROL: EURO Waves and GFS Swell have a raster: slow frames trip as before', () => {
+  it('A SURF-RATING GRID, slow frames: no trip (the sea would be blank), and it says why', () => {
+    window.__MARINE_ENGINE__ = { _initialized: true, _waveData: { waveGrid: { cols: 3, rows: 3, ratingMode: true } } };
+    const map = makeMap(); const p = props(map, 'waves'); const clock = installClock();
+    renderHook(() => useWebGLGuardrail(p));
+    drive(map, clock, { intervals: [250], seconds: 40, bucket: SLOW });
+    expect(p.setWebglMarineFailed).not.toHaveBeenCalled();
+    expect(window.__RAW_GUARDRAIL_NO_FALLBACK__).toMatchObject({ model: 'GFS', layer: 'waves', why: 'rating_grid' });
+  });
+
+  it('the fallback\'s own kill, slow frames: no trip either (nothing would be drawn), and it says why', () => {
+    window.__RAW_DISABLE_OWN_MARINE_FALLBACK__ = true;
+    try {
+      window.__MARINE_ENGINE__ = { _initialized: true, _waveData: { waveGrid: { cols: 3, rows: 3 } } };
+      const map = makeMap(); const p = props(map, 'waves'); const clock = installClock();
+      renderHook(() => useWebGLGuardrail(p));
+      drive(map, clock, { intervals: [250], seconds: 40, bucket: SLOW });
+      expect(p.setWebglMarineFailed).not.toHaveBeenCalled();
+      expect(window.__RAW_GUARDRAIL_NO_FALLBACK__).toMatchObject({ why: 'killed' });
+    } finally { delete window.__RAW_DISABLE_OWN_MARINE_FALLBACK__; }
+  });
+
+  it('CONTROL: EURO Waves and GFS Swell: slow frames trip as before', () => {
     window.activeModel = 'EURO';
     const map = makeMap(); const p = props(map, 'waves'); const clock = installClock();
     renderHook(() => useWebGLGuardrail(p));
@@ -124,18 +153,10 @@ describe('the fallback is only engaged when it can draw the selected layer', () 
     expect(p2.setWebglMarineFailed).toHaveBeenCalledWith(true);
   });
 
-  it('live metadata decides when it is there: an ecmwf_wam025 list that carries swell makes EURO Swell drawable', () => {
-    MODEL_METADATA_CACHE.ecmwf_wam025 = { ...savedMeta.ecmwf_wam025, variables: ['wave_height', 'swell_wave_height'], sourceMetadata: {} };
-    window.activeModel = 'EURO';
-    const map = makeMap(); const p = props(map, 'swell_1'); const clock = installClock();
-    renderHook(() => useWebGLGuardrail(p));
-    drive(map, clock, { intervals: [250], seconds: 30, bucket: SLOW });
-    expect(p.setWebglMarineFailed).toHaveBeenCalledWith(true);
-  });
-
   it('POSITIVE CONTROL (the kill): __RAW_DISABLE_GUARDRAIL_BLANK_GUARD__ trips into the blank sea again', () => {
-    window.__RAW_DISABLE_GUARDRAIL_BLANK_GUARD__ = true; window.activeModel = 'EURO';
-    const map = makeMap(); const p = props(map, 'swell_1'); const clock = installClock();
+    window.__RAW_DISABLE_GUARDRAIL_BLANK_GUARD__ = true;
+    window.__MARINE_ENGINE__ = { _initialized: true, _waveData: { waveGrid: { cols: 3, rows: 3, ratingMode: true } } };
+    const map = makeMap(); const p = props(map, 'waves'); const clock = installClock();
     renderHook(() => useWebGLGuardrail(p));
     drive(map, clock, { intervals: [250], seconds: 30, bucket: SLOW });
     expect(p.setWebglMarineFailed).toHaveBeenCalledWith(true);

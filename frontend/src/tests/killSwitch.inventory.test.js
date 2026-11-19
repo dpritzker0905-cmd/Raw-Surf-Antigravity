@@ -195,6 +195,10 @@ const KILL_SWITCHES_TESTED = new Set([
   // O6 static-frame signer (2026-11-11). staticFrameSigner.test.js: with the switch set no /frame-urls call is made and the
   // paid hours stay unbuilt (-> /grid, the pre-O6 path); the same index without it is signed (null control).
   '__RAW_DISABLE_FRAME_SIGNER__',
+  // The failed-engine fallback's own wave-height field (2026-11-18, Open-Meteo exit row 12). marineFallbackField.test.js
+  // ("THE KILL draws nothing, and is read per draw") and MarineFallbackFieldLayer.test.js ("THE KILL: nothing drawn, reason
+  // 'killed'"): killed means NOTHING on the map and the legend's "unavailable" row; it never restores third-party tiles.
+  '__RAW_DISABLE_OWN_MARINE_FALLBACK__',
 ]);
 
 /**

@@ -158,3 +158,70 @@ line below differs from section 3, THIS section is the gate.
   This fallback covers failures of the marine ENGINE (a shader that will not compile, missing float-texture support, the
   frame-rate guard), not of the map.
 - F3, F4, F6 (plus the above), F7, F8 and F9 stand as amended by section 5.
+
+## 7. HANDOFF at the wind-down (2026-11-18, about 20:45 EST). The build was started and is NOT finished, NOT tested, NOT gated
+The director relayed the owner's wind-down (about 01:35Z: near the week's usage limit): do not start the row 12 build, make
+sure the design note is pushed with the four answers, write a handoff, stop. The answers are in section 5 and the advisor's
+gate changes in section 6, both pushed (`9320be8b1`) before any build. **The message arrived AFTER the build had begun**
+(the director had said "build once the advisor has read it", and the advisor's read came at about 20:15). So this section
+records honestly where the code stands, and the code is saved as ONE work-in-progress commit so nothing is lost.
+
+**STATE OF THE CODE: written, never run.** No unit test has executed (see the blocker below), no build, no lint, no gate
+line. Nothing here may be merged or treated as working.
+- New: `marineFallbackField.js` (the pure picture: extent with cell-edge corners, the 85.05 clip, Mercator rows north first,
+  the antimeridian, bilinear height over ocean nodes only, a colour lookup table per theme, the kill),
+  `MarineFallbackFieldLayer.js` (a MapLibre `canvas` source + `raster` layer, `animate: false`, re-read by play/pause on a
+  redraw; `MarineEngineFallback` = that plus the existing particle canvas; state published on
+  `window.__RAW_OWN_MARINE_FALLBACK__` and the `rawsurf:marine-fallback-field` event), and their two test files.
+- Changed: `MapWebGL.js` (the two marine `.om` terms removed; `MarineEngineFallback` mounted in the failed branch; the file
+  shrinks), `useOpenMeteoTileUrls.js` (no marine tile URL is built in any state; the `webglMarineFailed` argument and the
+  `webgl_fallback=true` tag are gone), `marineFallbackNotice.js` + test (no "third-party"; the rating band and crests not
+  drawn on this device, in text; the date-line limit in the tooltip; an "unavailable" state; a hook for the field state),
+  `legendTicks.js` (passes the field state), `killSwitch.inventory.test.js` (`__RAW_DISABLE_OWN_MARINE_FALLBACK__`).
+
+**THREE THINGS THE BUILD FOUND THAT THE DESIGN DID NOT HAVE. None is measured; each needs the director's and advisor's eye:**
+1. **No new dark table.** `colorScales.js` already has `getThemedWaveColorJS`, a JS mirror of the shader's height wash for all
+   three themes. The fallback uses it. The director's "one test, both sources" is written against it: the test READS the
+   dark anchors out of `WebGLMarineShaders.js` and compares them with the JS at the anchor heights. (Written, not run.)
+2. **A surf-rating grid cannot be drawn as height.** With the rating toggle on, the grid's height field carries SCORES and the
+   open ocean is masked. The fallback draws nothing for it (reason `rating_grid`) and the row says unavailable. Before this
+   change a user with the rating toggle on fell to the provider's height tiles; now they would see no field. That is a real
+   change in what those users see and is the owner's call if it matters.
+3. **The BLANK GUARD reasoned about the provider.** `marineGuardrailRules.marineFallbackDrawable` decided whether the
+   frame-rate guard may trip by asking whether Open-Meteo's model carried the layer's variable (EURO swell: no trip, "the sea
+   would be blank"). With our own field that question is wrong in both directions, so it is rewritten: the fallback can draw
+   any grid the engine holds, except a rating grid or under its own kill, and for those two the guard REFUSES the trip and
+   keeps the engine (the owner's rule recorded in that guard: never a blank frame). Consequences, both behaviour changes:
+   EURO and ICON swell now DO fall back on a slow device (to our own picture); a slow device with the rating toggle on stays
+   on the slow engine. `useWebGLGuardrail.js` and `useWebGLGuardrail.blankAndLoad.test.js` are changed for it.
+   **This needs a line in the gate (an F10) written before anything is measured. It is not written yet.**
+
+**EXISTING TESTS CHANGED: the part a reviewer must read first.**
+- `useWebGLGuardrail.blankAndLoad.test.js`: the tests that pinned the provider's variable lists (what the raster can draw;
+  EURO + Swell does not trip; ICON Swell 2; "live metadata decides") are REPLACED by tests of the new rule. The original
+  incident's test now asserts the opposite outcome (it trips), for the reason in item 3.
+- `src/tests/om-metadata-demand.test.js`: "marine fallback still requests its required metadata" is INVERTED (a failed
+  engine must request nothing marine). The cold-metadata test reached its rule through the failed-marine path, which no
+  longer exists; it is PORTED to a plain raster layer (`stormfuel` / `cape`, added to that file's mocked registry) with the
+  same axes and assertions. A blind port: it has not run.
+
+**BLOCKER, unsolved: Jest finds no tests in this worktree.** The worktree is under `.claude/`, and the runner's file matcher
+skips dot-directories ("No tests found", three attempts, including from a `subst` drive letter, which Jest resolved back
+to the real path; the drive mapping is removed). The note in memory says to run Jest from a detached worktree outside
+`.claude` with a `node_modules` junction. That was not done. Until it is, nothing in this change is verified.
+
+**WHAT IS LEFT, in order:**
+1. Run the tests (a worktree outside `.claude`): the four touched suites first, then both Jest trees; fix what fails.
+2. Write F10 (item 3) into the gate, and get the director's word on items 2 and 3, BEFORE any gate measurement.
+3. `npm run build`, the ESLint ratchet, the file-size rule (`MapWebGL.js` must have shrunk; unused imports in
+   `marineGuardrailRules.js` and `useOpenMeteoTileUrls.js` are likely after the removals and are not checked).
+4. Check `ForecastTimeStatus.js` (it reads the failed flag and says "no frame of ours is drawn": with our own field drawn
+   that sentence is now wrong) and `openMeteoProtocol.js:794` (reads `webgl_fallback=true`, now never sent).
+5. The lab: the deny-by-default proxy counter for F1 (not written), the scenario for F2 to F8 (not written), with
+   `wave_frames_fixture.js` from PR #1052 (not yet on dev).
+6. Floors (`rederive_floor.py --lane frontend`), the SCOREBOARD is not needed (no served number), the ledger line, the PR,
+   heads to the director and the advisor. This lane never merges it.
+
+**Elsewhere at the wind-down:** PR #1052 (first-visit record and lab) is open with Auto-fix on, in the director's merge
+loop. The wind blend is closed out on `fable/wind-hour-blend` (`24c4c4592`), OFF, no PR. Local harness servers (page server
+3198, synthetic backend 4205) may still be running; they are offline fixtures and safe to stop.

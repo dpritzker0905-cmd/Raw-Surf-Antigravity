@@ -4,7 +4,7 @@ import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
 import { useTheme } from '../../contexts/ThemeContext';
-import { MarineParticleCanvas } from './GPUMarineLayer';
+import { MarineEngineFallback } from './MarineFallbackFieldLayer';
 import MapMarkerLayers from './MapMarkerLayers';
 import { WindParticleOverlay } from './WindParticleOverlay';
 import { WebGLWindLayer } from './WebGLWindLayer';
@@ -266,8 +266,7 @@ const MapWebGL = ({
     theme,
     timeOffsetHours,
     userTier,
-    activeMarineLayer,
-    webglMarineFailed
+    activeMarineLayer
   });
 
   // Weather Engine: Decoupled weather analytics
@@ -823,12 +822,8 @@ const MapWebGL = ({
       ? Math.max(0, Math.min(1000, window.__RAW_RASTER_FADE_MS__)) : null;
     const fadeDisabled = typeof window !== 'undefined' && window.__RAW_RASTER_FADE_DISABLED__ === true;
     const fadeFor = (k) => fadeDisabled ? 0 : (fadeOverride !== null ? fadeOverride : (isTempPair(k) ? 200 : 0));
-    return protocolReady && Object.keys(LAYER_REGISTRY).filter(k =>
-      LAYER_REGISTRY[k].omVariable && (
-        LAYER_REGISTRY[k].type === 'raster' ||
-        (LAYER_REGISTRY[k].type === 'marine' && webglMarineFailed)
-      )
-    ).map(layerKey => {
+    // Raster layers only. Marine layers never draw from these tiles, engine failed or not (exit row 12: MarineEngineFallback).
+    return protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type === 'raster').map(layerKey => {
       return [0, 1, 2].map(slotIdx => {
         const slotKey = `${layerKey}-slot-${slotIdx}`;
         const url = omTileUrls[slotKey];
@@ -837,9 +832,8 @@ const MapWebGL = ({
           ? activeSlots[layerKey] === slotIdx
           : (closestTimeIdx % 3) === slotIdx;
 
-        // Strict visual isolation: Hide wind and marine layers from MapLibre's built-in raster renderer, unless failed
-        const isExcludedMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layerKey) && !webglMarineFailed;
-        const isVisualRaster = omLayers.includes(layerKey) && !isExcludedMarine && !['wind'].includes(layerKey);
+        // Strict visual isolation: wind and marine layers never draw through MapLibre's built-in raster renderer.
+        const isVisualRaster = omLayers.includes(layerKey) && !['waves', 'swell_1', 'swell_2', 'wind_waves', 'wind'].includes(layerKey);
 
         return (
           <Source
@@ -891,7 +885,7 @@ const MapWebGL = ({
         );
       });
     });
-  }, [protocolReady, omTileUrls, activeSlots, closestTimeIdx, activeLayers, webglMarineFailed, isTransitioning, scrubMemoBust, omSlotsBeforeId, marineBeforeId]);
+  }, [protocolReady, omTileUrls, activeSlots, closestTimeIdx, activeLayers, isTransitioning, scrubMemoBust, omSlotsBeforeId, marineBeforeId]);
 
   const spotGeofenceLayers = useMemo(() => (
     <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
@@ -1022,13 +1016,8 @@ const MapWebGL = ({
             onError={onMarineWebglError}
           />
         ) : (
-          <MarineParticleCanvas 
-            id="marine-canvas-layer"
-            mapInstance={mapInstance} 
-            active={!isTransitioning && !!activeMarineLayer}
-            data={marineWindData}
-            revision={marineData?.__commitRevision || marineData?.grid?.__activeLayerNonzeroCount || 0}
-          />
+          <MarineEngineFallback mapInstance={mapInstance} active={!isTransitioning && !!activeMarineLayer} data={marineWindData}
+            revision={marineData?.__commitRevision || marineData?.grid?.__activeLayerNonzeroCount || 0} theme={theme} beforeId={marineBeforeId} />
         )}
         {/* Spot geofences — memoized (scrub reconcile-cost fix) */}
         {spotGeofenceLayers}
