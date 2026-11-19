@@ -16,6 +16,7 @@ report was made); and that exports made before a withdrawal are deleted within 7
 """
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -23,38 +24,103 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import SurfTruthConsentEvent, TosContent
+from services import legal_identity
 
 DOC_TYPE = "forecast_consent"
-CONSENT_VERSION = "draft-2026-11-18c"     # the default's version until an admin publishes one. b: the advisor's 11-18
+CONSENT_VERSION = "draft-2026-11-18e"     # the default's version until an admin publishes one. b: the advisor's 11-18
 #                                           review (the first draft overstated both promises); c: retention now purges
-#                                           older exports after a withdrawal, so the text can promise it
+#                                           older exports after a withdrawal, so the text can promise it; d: the
+#                                           2026-11-18 legal research (names the controller, the Art. 7(3) sentence,
+#                                           withdrawal by "this same switch", distances only in bands); e: the
+#                                           controller and the privacy link come from Company details (tokens)
 CONSENT_TITLE = "Use my wave reports to improve Raw Surf's forecasts"
-# Each sentence maps to code. "spot, time to the minute, distances, app version" = surf_truth_export.FIELDS (observer
-# role, anchor status and quality flags are covered by "how we rated the report"). "A code instead of your name ... we
-# can still trace it back" = the HMAC pseudonyms: pseudonymous, NOT anonymous. "New checks leave out ... earlier ones
-# included" = build_export's granted_now filter. "Copies made before ... are deleted within 7 days" =
-# surf_truth_retention: a withdrawal is a revocation, so the daily job replaces every export cut before it.
-CONSENT_TEXT = ("Off unless you turn it on. When on, the wave heights you report can be used to check and improve our "
-                "surf forecasts. Each report is used with its spot, its time to the minute, how far you and your photo "
-                "were from the spot, your app version and how we rated the report, under a code instead of your name. "
-                "The code is the same for all your reports, and we can still trace it back to your account. Turn it "
-                "off any time: from then on, new forecast checks leave out all your reports, earlier ones included. "
-                "Copies made before you turned it off are deleted within 7 days.")
+
+# COMPANY DETAILS (owner, 2026-11-18): "{company}" and "{privacy_url}" are filled from Compliance > Legal documents >
+# Company details (services/legal_identity; defaults "Raw Surf Adventures Inc." and the app's /privacy page) when the
+# wording is served. When a token is in the wording, the served version is "<version>+<8 hex of the company-details
+# REVISION>". A Company details CHANGE (a different company or privacy notice) starts a new revision, so it is a new
+# version and asks everyone again; a CORRECTION (a typo, same meaning) keeps the revision, so consents stand (owner,
+# 2026-11-18: "Yes, correction option", "Only real name changes"). company_details_changes records the filled words
+# before and after every publish, so the record still shows exactly what each person saw.
+#
+# DRAFT MARKERS: an admin-published text may still carry "[COMPANY]" or "[PRIVACY NOTICE LINK]" (or a token whose
+# company detail is empty). Such a wording is NOT FINAL: a grant is refused (WordingNotFinal; the route answers 409),
+# the admin cannot make such a text active, and the app hides the switch. A withdrawal is always accepted.
+COMPANY_PLACEHOLDER = "[COMPANY]"
+PRIVACY_NOTICE_PLACEHOLDER = "[PRIVACY NOTICE LINK]"
+PLACEHOLDERS = (COMPANY_PLACEHOLDER, PRIVACY_NOTICE_PLACEHOLDER)
+
+# DRAFT wording, not reviewed by counsel. It adopts the 2026-11-18 research's proposed text with ONE switch for
+# "measure and improve" (owner, 2026-11-18: "one switch"), so "improve" is defined narrowly and the text says what
+# stays after a withdrawal. Each sentence maps to code:
+# - "spot, time to the minute, roughly how far ... in wide bands, app version" = surf_truth_export.FIELDS (observer
+#   role, anchor status and quality flags are covered by "how we rated the report"); the bands are
+#   surf_truth_export.DISTANCE_BANDS, none narrower than 1 km (California's precise-geolocation radius is 1,850 ft).
+# - "a code instead of your name ... we can trace it back" = the HMAC pseudonyms: pseudonymous, NOT anonymous.
+# - "Checks and corrections already made stay" = Art. 7(3): withdrawal does not undo processing before it.
+# - "new checks leave out all your reports, earlier ones included" = build_export's granted_now filter.
+# - "copies ... are deleted within 7 days" = surf_truth_retention: a withdrawal is a revocation, so the daily job
+#   replaces every export cut before it.
+# - "this same switch" = Art. 7(3) "as easy to withdraw as to give": the switch that records the grant also withdraws.
+CONSENT_TEXT = ("Help check our forecasts. Off unless you turn it on. When on, {company} uses the "
+                "wave heights you report to measure how far off our surf forecasts are and to correct them. Each "
+                "report is used with its spot, its time to the minute, roughly how far you and your photo were from "
+                "the spot (in wide bands, never closer than 1 km), your app version and how we rated the report. We "
+                "use a code instead of your name; it is the same for all your reports, and we can trace it back to "
+                "your account. Turn it off any time with this same switch. Checks and corrections already made stay, "
+                "but new checks leave out all your reports, earlier ones included, and copies made before you turned "
+                "it off are deleted within 7 days. Privacy notice: {privacy_url}")
 DEFAULT_SECTIONS = [{"title": CONSENT_TITLE, "body": CONSENT_TEXT}]
 SOURCES = ("blind_height_input", "settings")
 
 
-async def wording(db: AsyncSession) -> dict:
-    """The wording in force: {version, title, text, effective_date, published}. The active admin-published
-    `forecast_consent` document if there is one, else the built-in default."""
+class WordingNotFinal(ValueError):
+    """The wording in force still carries a draft placeholder, so nobody can agree to it yet."""
+
+
+def unfilled(text: Optional[str], details: Optional[dict] = None) -> list:
+    """What still keeps `text` from being final: draft markers, and (given the company details) any token whose
+    detail is empty. An empty list = the wording is final."""
+    left = [p for p in PLACEHOLDERS if p in (text or "")]
+    if details is not None:
+        left += [token for token, key in legal_identity.TOKENS.items() if token in (text or "") and not details.get(key)]
+    return left
+
+
+def _served(version: str, title: str, text: str, details: dict, revision: str) -> tuple[str, str, str]:
+    """Fill the tokens; a wording that used any token is served under '<version>+<8 hex of the revision>'."""
+    filled_title, filled_text = legal_identity.fill(title, details), legal_identity.fill(text, details)
+    if not any(token in title + "\n" + text for token in legal_identity.TOKENS):
+        return version, filled_title, filled_text
+    digest = hashlib.sha256(f"company-details:{revision}".encode()).hexdigest()[:8]
+    return f"{version}+{digest}", filled_title, filled_text
+
+
+def default_served_version() -> str:
+    """The version the built-in default is served under before any Company details change is published."""
+    return _served(CONSENT_VERSION, CONSENT_TITLE, CONSENT_TEXT, legal_identity.DEFAULTS,
+                   legal_identity.DEFAULT_REVISION)[0]
+
+
+async def wording(db: AsyncSession, details: Optional[dict] = None, revision: Optional[str] = None) -> dict:
+    """The wording in force, FILLED from the company details: {version, title, text, effective_date, published,
+    final, privacy_url}. The active admin-published `forecast_consent` document if there is one, else the built-in
+    default. `version` names the company-details revision (see _served). `details` / `revision` override what is in
+    force (the Company details save uses them to compute the words AFTER a publish before writing its record)."""
     doc = (await db.execute(select(TosContent).where(TosContent.doc_type == DOC_TYPE, TosContent.is_active.is_(True))
                             .limit(1))).scalar_one_or_none()
+    details = details if details is not None else await legal_identity.current(db)
+    revision = revision if revision is not None else await legal_identity.current_revision(db)
     if doc is not None and doc.sections:
         first = doc.sections[0]
-        return {"version": doc.version, "title": first.get("title") or CONSENT_TITLE,
-                "text": first.get("body") or "", "effective_date": doc.effective_date, "published": True}
-    return {"version": CONSENT_VERSION, "title": CONSENT_TITLE, "text": CONSENT_TEXT, "effective_date": None,
-            "published": False}
+        base, title, text, effective, published = (doc.version, first.get("title") or CONSENT_TITLE,
+                                                   first.get("body") or "", doc.effective_date, True)
+    else:
+        base, title, text, effective, published = CONSENT_VERSION, CONSENT_TITLE, CONSENT_TEXT, None, False
+    final = not unfilled(title + "\n" + text, details)
+    version, title, text = _served(base, title, text, details, revision)
+    return {"version": version, "title": title, "text": text, "effective_date": effective, "published": published,
+            "final": final, "privacy_url": details.get("privacy_url") or None}
 
 
 def _aware(ts: datetime) -> datetime:
@@ -77,10 +143,15 @@ async def current(db: AsyncSession, user_id: str, version: Optional[str] = None)
 
 async def record(db: AsyncSession, user_id: str, granted: bool, source: str,
                  now: Optional[datetime] = None) -> SurfTruthConsentEvent:
-    """Append one choice under the CURRENT wording's version. Does not commit."""
+    """Append one choice under the CURRENT wording's version. Does not commit. A GRANT under a wording that still
+    carries a draft placeholder raises WordingNotFinal (consent to a text that does not name the controller is not
+    informed); a withdrawal is always recorded."""
     if source not in SOURCES:
         raise ValueError(f"unknown consent source {source!r}")
-    version = (await wording(db))["version"]
+    words = await wording(db)
+    if granted and not words["final"]:
+        raise WordingNotFinal("the consent wording is not final (a draft marker, or a company detail is empty)")
+    version = words["version"]
     ev = SurfTruthConsentEvent(profile_id=user_id, granted=bool(granted), version=version, source=source,
                                at=now or datetime.now(timezone.utc))
     db.add(ev)
@@ -92,7 +163,10 @@ async def granted_now(db: AsyncSession, user_ids) -> set:
     ids = set(user_ids)
     if not ids:
         return set()
-    version = (await wording(db))["version"]
+    words = await wording(db)
+    if not words["final"]:
+        return set()                     # nobody can hold a grant under a draft wording (record() refuses one)
+    version = words["version"]
     rows = (await db.execute(select(SurfTruthConsentEvent).where(SurfTruthConsentEvent.profile_id.in_(ids)))
             ).scalars().all()
     newest: dict = {}
