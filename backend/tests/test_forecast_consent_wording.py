@@ -30,8 +30,10 @@ def maker():
                 db.add(Profile(id=pid, user_id=pid, email=pid + "@example.invalid", full_name=pid,
                                role=RoleEnum.SURFER))
             await db.commit()
-        return mk
-    return asyncio.run(build())
+        return engine, mk
+    engine, mk = asyncio.run(build())
+    yield mk
+    asyncio.run(engine.dispose())     # the estate lane's SQLite lifetime census fails on an engine left open
 
 
 def _publish(db, version, title="Use my reports", body="Off unless you turn it on.", sections=None):

@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useThemeName } from '../../contexts/ThemeContext';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
+import ForecastDataHealth from './ForecastDataHealth';
+import SpotInspector from './SpotInspector';
 
 /**
  * Admin · Surf Forecast — the rating system's control room.
@@ -220,8 +222,10 @@ export const AdminSurfForecastPanel = () => {
   const [reports, setReports] = useState([]);
   const [deleting, setDeleting] = useState(null);
   const [confirming, setConfirming] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (again = false) => {
+    if (again) setRefreshKey((k) => k + 1);   // the data-health card reloads on the same cadence (it loads itself first)
     try {
       const res = await apiClient.get('/admin/surf-forecast/status');
       setStatus(res.data);
@@ -241,7 +245,7 @@ export const AdminSurfForecastPanel = () => {
 
   useEffect(() => {
     fetchAll();
-    const interval = setInterval(fetchAll, 60000);
+    const interval = setInterval(() => fetchAll(true), 60000);
     return () => clearInterval(interval);
   }, [fetchAll]);
 
@@ -278,11 +282,15 @@ export const AdminSurfForecastPanel = () => {
           <Waves className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
           <h2 className="text-lg font-semibold text-foreground">Surf Forecast System</h2>
         </div>
-        <Button size="sm" variant="outline" onClick={fetchAll}>
+        <Button size="sm" variant="outline" onClick={() => fetchAll(true)}>
           <RefreshCw className="mr-1 h-4 w-4" aria-hidden="true" /> Refresh
         </Button>
       </div>
       {statusError && <p role="alert" className="rounded-lg border border-border p-2 text-sm text-foreground">{statusError}</p>}
+
+      <ForecastDataHealth refreshKey={refreshKey} />
+
+      <SpotInspector />
 
       <FlagBoard flags={flags} manifest={status?.manifest} />
 
