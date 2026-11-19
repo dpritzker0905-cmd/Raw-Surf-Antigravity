@@ -249,7 +249,7 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
   });
   test('ON by default (D-052; pressure 2026-11-12): no lever needed; rain stays dark; fog / EURO air + water temp OFF pending the owner', () => {
     expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure', 'gusts', 'currents']);   // gusts, currents: new own-only layers, ON (2026-11-15)
-    expect(DEFAULT_ON_MODELS).toEqual({ temperature: ['ICON'] });   // ICON air temperature, 0.125 deg (2026-11-18)
+    expect(DEFAULT_ON_MODELS).toEqual({ temperature: ['ICON'], rain: ['ICON'] });   // ICON air temp + rain, 0.125 deg (2026-11-18)
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
@@ -291,26 +291,28 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
 describe('precipitation, the rain layer (2026-11-12): GFS and EURO, dark until the lever names it', () => {
   afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_RAIN__; });
 
-  test('the set keys and field match the publisher contract; ICON has no set', () => {
+  test('the set keys and field match the publisher contract; ICON at 0.125 deg since 2026-11-18', () => {
     expect(setKey('rain', 'GFS')).toBe('GFS/weather/precipitation/global_0p25');
     expect(setKey('rain', 'EURO')).toBe('EURO/weather/precipitation/global_0p25');
-    expect(setKey('rain', 'ICON')).toBeNull();
+    expect(setKey('rain', 'ICON')).toBe('ICON/weather/precipitation/global_0p125');
     expect(OWN_RASTER_SETS.rain.field).toBe(PRECIP_FIELD);
     expect(PRECIP_FIELD).toBe(10);
     expect(OWN_RASTER_SETS.rain.unit).toBe('mm/h');
     expect(OWN_RASTER_SETS.rain.fallback).toBe('GFS');
   });
 
-  test('dark: off with no lever, and not one of the default-on layers', () => {
+  test('dark for GFS and EURO: off with no lever, and not one of the default-on layers; ICON ON (2026-11-18)', () => {
     expect(DEFAULT_ON_LAYERS).not.toContain('rain');
     expect(ownFramesOn('rain')).toBe(false);
+    expect(ownFramesOn('rain', 'EURO')).toBe(false);
+    expect(ownFramesOn('rain', 'ICON')).toBe(true);
   });
 
-  test('on when the lever names it, for GFS and EURO; ICON stays on the .om path', () => {
+  test('on when the lever names it, for GFS and EURO (ICON is on without it)', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = 'rain';
     expect(ownFramesOn('rain', 'GFS')).toBe(true);
     expect(ownFramesOn('rain', 'EURO')).toBe(true);
-    expect(ownFramesOn('rain', 'ICON')).toBe(false);
+    expect(ownFramesOn('rain', 'ICON')).toBe(true);
     expect(leverCovers('rain', 'temperature')).toBe(false);  // the lever named rain only
   });
 

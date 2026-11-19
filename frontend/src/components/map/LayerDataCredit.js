@@ -45,6 +45,12 @@ const OWN_NOTE = {
     : { text: ' · peak since last step', label: model === 'EURO'
       ? 'ECMWF 10fg / 10fg3: the strongest 10 m gust over the past 1 h (to 90 h), 3 h (to 144 h) or 6 h (to 240 h).'
       : 'ICON VMAX_10M: the strongest 10 m gust since the previous output (1 h to 78 h, then 3 h).' }),
+  // ICON rain (2026-11-18, the advisor's suggestion on #1075, ordered by the director): our 0.125-degree set is an AREA MEAN of
+  // DWD's model cells (G2: the median cell peak keeps 92-96 %, the sharpest ~10 % keep 74-85 %), so a local downpour can read
+  // lower than the model's own cell. Said on screen; GFS and EURO rain carry no note.
+  rain: (model) => (model === 'ICON'
+    ? { text: ' · area-averaged; local peaks can read low', label: 'ICON rain averaged over each 0.125 degree box (about 14 km), so the heaviest local downpours can read lower than in the model\'s own cells.' }
+    : null),
 };
 // While air temperature is drawn terrain-adjusted (ownRasterDownscale.js): the elevation source is credited too.
 const DOWNSCALE_NOTE = {

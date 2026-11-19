@@ -202,6 +202,14 @@ describe('a layer whose set is not published yet falls back to .om (lever on)', 
       jest.useRealTimers();
     }
   });
+
+  test('the credit never says Open-Meteo for a claimed own-only model with nothing drawn (2026-11-18): it names DWD', async () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    getPinnedIndex.mockResolvedValue(null);
+    run('rain', 'ICON');
+    await waitFor(() => expect(getEngaged().rain).toBe('ICON:idle'));
+    expect(creditFor('rain').text).toBe('ICON (Deutscher Wetterdienst)');   // no area-averaged note: nothing is drawn
+  });
 });
 
 test('MapWebGL hands a disengaged fog / water layer back to the .om list (the filter reads each hook return)', () => {

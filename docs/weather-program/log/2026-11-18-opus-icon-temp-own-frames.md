@@ -78,6 +78,39 @@ had none.
 - The 18:09Z sweep deleted nothing: it marked this cycle's superseded objects inside the 2 h grace.
 - The 20:01Z sweep deleted 16,477 of the 38,940 listed (42 %), under FUSE B's 60 % and the 25,000 cap.
 
+## Rain ICON 0.125: ON, own frames only (branch `opus/icon-rain-0p125-client`, stacked on #1071)
+The director's order after #1071: rain ICON 0.125 next.
+
+**Set.** `ICON/weather/precipitation/global_0p125` (#956's `precipitation_icon_0p125`):
+- DWD TOT_PREC differenced to a rate, hourly to 78 h, then 3-hourly to 180 h;
+- area-averaged with 3 x 3 sampled sub-points onto 0.125 deg;
+- live index, 2026-11-18 12Z run: 112 frames.
+
+**Gate:** the director's precip row, mass ±1 % and peaks ≥ 90 %. Evidence is the G2 re-measure after the pick-map fix, in this
+lane's 2026-11-16 log, §06:59Z, run 2026-11-16 00Z, five hours:
+- Mass error: -0.095 / +0.008 / +0.075 / -0.085 / -0.056 % at f006 / f024 / f048 / f078 / f120. **PASS.**
+- Median cell peak kept: 0.923 / 0.944 / 0.947 / 0.920 / 0.959. **PASS on the median.**
+- **NOT MET on the tails.**
+  - The p10 peak kept is 0.735-0.851.
+  - The global maximum kept is 0.883 at f120 (0.902 at f078).
+  - An area mean lowers single-cell peaks by design.
+  - The reference is DWD's native cells, not the `.om` copy, whose remap was not measured here.
+- **Single-cell mass is not exact** (sampled areas: median 5.8 %, p90 17 %). It must not be called "conservative".
+- **Ingest time half: open.** It is owed from #998's steady-state step times.
+
+Under the owner's rule the choice is this set or "unavailable" (no `.om`), so it ships ON. The tail limit is named for the
+director and the advisor to accept or refuse.
+
+**Change.**
+- `rain.models.ICON`, `DEFAULT_ON_MODELS.rain = ['ICON']`, `ownOnlyModels: ['ICON']`, `workerDecode`.
+- The static store lists the set.
+- Past ICON's 180 h the GFS frame stands in, labelled as an estimate. That has been the rain layer's rule since 2026-11-12,
+  the same as EURO.
+- GFS and EURO rain are unchanged (dark, `.om`).
+
+**Kill:** `window.__RAW_DISABLE_RASTER_OWN_RAIN__`, plus the own-frames, per-set and static-frames global kills. Each shows
+"unavailable", and none requests `.om`. Pinned: under each, the `.om` layer list drops ICON rain and keeps GFS rain.
+
 ## 2026-11-19 ~01:40Z: the advisor's HOLD fixes on #1071, and NEXT WORK recorded at the owner's wind-down
 **HOLD fixes on this PR** (the advisor, 00:57Z):
 - **Credit.** An own-only model claimed with nothing drawn (killed, unpublished or pre-index) reports `'<MODEL>:idle'` to the
