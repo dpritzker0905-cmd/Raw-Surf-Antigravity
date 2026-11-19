@@ -7,7 +7,7 @@ NOT RUN by this change. It needs David's word and a dry-run count first.
 
 An "erased" account is one whose profile carries the erasure marker (`suspended_reason` set by
 routes/compliance_pkg/gdpr.erase_account) or whose `account_deletions` row is `purged`. Only rows that still hold a
-location, an unscrubbed evidence blob or original free text are counted and changed. Idempotent. Needs the database
+location, an unscrubbed evidence blob or original free text are counted and changed. Idempotent. Per David (2026-11-19) it keeps the rows and the rest of `evidence`; it wipes only GPS and notes. Needs the database
 URL from the environment (name only: DATABASE_URL); no value belongs in this file.
 """
 import argparse

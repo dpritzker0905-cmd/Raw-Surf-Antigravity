@@ -1,6 +1,6 @@
-"""ToS violations after an erasure (David, 2026-11-18: "do the GPS clean-up now"): the location and free text are
-scrubbed at erasure, the rows are deleted 12 months later unless a legal hold is set, and the day-30 purge skips an
-account with an open moderation case. Each rule has a fail-closed case."""
+"""ToS violations after an erasure (David, 2026-11-19: "Keep the ban evidence, only wipe GPS and notes"): the GPS and
+the notes are scrubbed at erasure, the rest of the row and of its `evidence` is kept with no expiry, and the day-30
+purge skips an account with an open moderation case. Each rule has a fail-closed case."""
 import asyncio
 from datetime import datetime, timedelta, timezone
 
@@ -47,7 +47,9 @@ def maker():
                     id=vid, user_id=pid, violation_type="location_fraud", severity="severe", strike_points=3,
                     title="Location Fraud: 41.0 miles discrepancy", description=SECRET_TEXT,
                     evidence={"claimed_coords": [21.6, -158.0], "actual_coords": [34.0, -118.4],
-                              "distance_miles": 41.0, "note": SECRET_TEXT},
+                              "distance_miles": 41.0, "note": SECRET_TEXT, "rule": "location_fraud",
+                              "source": "auto_detector", "screenshots": ["shot-1", "shot-2"],
+                              "checks": {"gps_ok": False, "lat": 34.0, "remark": SECRET_TEXT, "score": 0.93}},
                     related_type="booking", related_id="b1", claimed_latitude=21.6, claimed_longitude=-158.0,
                     actual_latitude=34.0, actual_longitude=-118.4, distance_discrepancy_miles=41.0,
                     action_taken="permanent_ban", reviewed_by="stayer", appeal_text="I was there, " + SECRET_TEXT,
@@ -71,7 +73,10 @@ def test_erasure_scrubs_location_and_free_text_but_keeps_the_decision(maker):
     asyncio.run(go())
     (row,) = _violations(maker, "leaver")
     assert (row.claimed_latitude, row.claimed_longitude, row.actual_latitude, row.actual_longitude) == (None,) * 4
-    assert row.evidence == {"distance_miles": 41.0, "scrubbed": True}
+    # the evidence stays, minus coordinates and free text: numbers, flags and short codes survive
+    assert row.evidence == {"distance_miles": 41.0, "rule": "location_fraud", "source": "auto_detector",
+                            "screenshots": ["shot-1", "shot-2"], "checks": {"score": 0.93},
+                            "scrubbed": True}
     assert row.description == vr.REMOVED_TEXT and row.appeal_text is None and row.title == "Location Fraud"
     assert SECRET_TEXT not in repr((row.title, row.description, row.evidence, row.appeal_text))
     # what shows a decision was made and why survives
@@ -83,56 +88,31 @@ def test_erasure_scrubs_location_and_free_text_but_keeps_the_decision(maker):
     assert other.actual_latitude == 34.0 and other.description == SECRET_TEXT
 
 
-def test_scrub_evidence_keeps_only_whitelisted_numbers_and_never_fails_open():
-    assert vr.scrub_evidence({"actual_coords": [1, 2], "distance_miles": 3.5, "a": "text"}) == \
-        {"distance_miles": 3.5, "scrubbed": True}
-    for bad in (None, "21.6,-158.0", [21.6, -158.0], 7):          # a malformed blob loses everything
+def test_scrub_evidence_strips_coordinates_and_text_but_keeps_the_rest():
+    kept = vr.scrub_evidence({
+        "actual_coords": [1, 2], "track": [1.5, 2.5, 3.5], "distance_miles": 3.5, "reason": "location_fraud",
+        "sentence": "he said he was at the beach", "nested": {"latitude": 9, "ok": True, "msg": "free text here"},
+        "notes": ["a", "b"], "ids": ["a1", "b2"], "ratio": 0.5})
+    assert kept == {"distance_miles": 3.5, "reason": "location_fraud", "nested": {"ok": True},
+                    "ids": ["a1", "b2"], "ratio": 0.5, "scrubbed": True}
+
+
+def test_scrub_evidence_fails_closed_on_a_malformed_blob():
+    for bad in (None, "21.6,-158.0", [21.6, -158.0], 7):
         assert vr.scrub_evidence(bad) == {"scrubbed": True}
-    assert vr.scrub_evidence({"distance_miles": "41"}) == {"scrubbed": True}      # a string is not kept
-    assert vr.scrub_evidence({"distance_miles": True}) == {"scrubbed": True}      # nor a bool
+    assert vr.scrub_evidence({"too": "free text with spaces"}) == {"scrubbed": True}   # a sentence is never kept
+    deep = cur = {}
+    for _ in range(12):
+        cur["x"] = {}
+        cur = cur["x"]
+    cur["lat_free"] = "y z"
+    assert "x" in vr.scrub_evidence(deep)                         # depth-limited, never raises
 
 
-def test_the_retention_period_is_twelve_months():
-    assert vr.VIOLATION_RETENTION == timedelta(days=365)
-
-
-def _purged(db, pid, when, status="purged"):
-    db.add(AccountDeletion(profile_id=pid, status=status, requested_at=when, purge_after=when, purged_at=when))
-
-
-def test_rows_are_deleted_twelve_months_after_the_erasure_unless_held(maker):
-    async def go():
-        async with maker() as db:
-            _purged(db, "leaver", NOW - timedelta(days=366))
-            _purged(db, "stayer", NOW - timedelta(days=364))
-            await db.commit()
-            assert await vr.purge_expired_violations(db, now=NOW) == 1
-    asyncio.run(go())
-    assert _violations(maker, "leaver") == [] and len(_violations(maker, "stayer")) == 1   # not yet due: kept
-
-
-def test_a_legal_hold_keeps_the_rows_and_fails_closed_without_an_erasure_record(maker):
-    async def go():
-        async with maker() as db:
-            _purged(db, "leaver", NOW - timedelta(days=900))
-            db.add(ModerationHold(profile_id="leaver", legal_hold=True, hold_reason="claim pending"))
-            # an account that never completed an erasure is never swept, however old its request
-            db.add(AccountDeletion(profile_id="stayer", status="pending", requested_at=NOW - timedelta(days=900),
-                                   purge_after=NOW - timedelta(days=870)))
-            await db.commit()
-            assert await vr.purge_expired_violations(db, now=NOW) == 0
-    asyncio.run(go())
-    assert len(_violations(maker, "leaver")) == 1 and len(_violations(maker, "stayer")) == 1
-
-
-def test_a_purged_row_with_no_date_is_not_swept(maker):
-    async def go():
-        async with maker() as db:
-            db.add(AccountDeletion(profile_id="leaver", status="purged", requested_at=NOW, purge_after=NOW))
-            await db.commit()
-            assert await vr.purge_expired_violations(db, now=NOW) == 0
-    asyncio.run(go())
-    assert len(_violations(maker, "leaver")) == 1
+def test_erasure_keeps_the_row_with_no_expiry(maker):
+    """David: the evidence stays. Nothing in the module deletes a violation row on a clock."""
+    assert not hasattr(vr, "VIOLATION_RETENTION") and not hasattr(vr, "purge_expired_violations")
+    assert not hasattr(ModerationHold, "legal_hold")
 
 
 def _appeal(maker, pid, **values):

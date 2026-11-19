@@ -1,40 +1,74 @@
-"""What a ToS violation keeps after its account is erased (David, 2026-11-18: "do the GPS clean-up now").
+"""What a ToS violation keeps after its account is erased.
 
-Erasure scrubs the location and the free text of the account's violation rows, keeping what shows that a decision
-was made and why: the reason code (`violation_type`), `severity`, `strike_points`, `action_taken`, dates, `reviewed_by`,
-`related_type`/`related_id` (the decision ref) and the distance discrepancy. A daily job then deletes those rows once
-`VIOLATION_RETENTION` has passed since the erasure, unless an admin set `legal_hold` for the account.
+David's ruling (2026-11-19, 02:20Z): "Keep the ban evidence, only wipe GPS and notes". So erasure:
+- nulls the four claimed/actual lat/long columns;
+- replaces the free-text notes (`description`, `appeal_text`, and `title`, which an admin may have typed);
+- strips coordinates and free text from inside `evidence` but KEEPS the rest of it;
+- keeps the row itself, its reason code (`violation_type`), severity, strikes, action, dates, reviewer and decision ref.
+There is NO expiry: the rows are not deleted on a clock.
 
+`purge_due` also skips an account with an open moderation case at day 30 (see `open_case` / `flag_open_case`).
 Not here (on hold for counsel): the hashed `moderation_tombstones` anti-evasion trail.
 """
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+import re
+from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
-# "12 months" after the erasure (docs/audits/2026-11-18-moderation-trail-after-deletion-memo.md). Counsel confirms.
-VIOLATION_RETENTION = timedelta(days=365)
 REMOVED_TEXT = "[removed at account erasure]"
-# The only `evidence` keys that survive a scrub, and only as plain numbers: a discrepancy, never a position.
-_EVIDENCE_KEEP = ("distance_miles",)
 _LOCATION_COLUMNS = ("claimed_latitude", "claimed_longitude", "actual_latitude", "actual_longitude")
+# An `evidence` KEY whose name says it holds a position or a note: dropped with everything under it.
+_SENSITIVE_KEY = re.compile(
+    r"lat|lon|lng|coord|gps|position|location|geo|address|note|comment|text|description|message|body|reason_text|"
+    r"narrative|summary|detail|remark|caption|exif", re.I)
+# A string value survives only if it looks like a code ("location_fraud", "ban"), never a sentence.
+_CODE = re.compile(r"^[A-Za-z0-9_.:\-]{1,40}$")
+
+
+def _clean(value, depth: int = 0):
+    """`value` with coordinates and free text removed; the sentinel `_DROP` means "remove this entry"."""
+    if depth > 6:
+        return _DROP
+    if isinstance(value, bool) or value is None:
+        return value
+    if isinstance(value, (int, float)):
+        return value
+    if isinstance(value, str):
+        return value if _CODE.match(value) else _DROP
+    if isinstance(value, dict):
+        out = {}
+        for key, item in value.items():
+            if not isinstance(key, str) or _SENSITIVE_KEY.search(key):
+                continue
+            cleaned = _clean(item, depth + 1)
+            if cleaned is not _DROP:
+                out[key] = cleaned
+        return out
+    if isinstance(value, (list, tuple)):
+        if any(isinstance(i, (int, float)) and not isinstance(i, bool) for i in value) and len(value) >= 2 \
+                and all(isinstance(i, (int, float)) and not isinstance(i, bool) for i in value):
+            return _DROP                                       # a bare number list is a coordinate pair or a track
+        kept = [c for c in (_clean(i, depth + 1) for i in value) if c is not _DROP]
+        return kept
+    return _DROP
+
+
+_DROP = object()
 
 
 def scrub_evidence(evidence) -> dict:
-    """`evidence` with every coordinate, list and string dropped; only whitelisted numbers remain."""
-    kept = {}
-    if isinstance(evidence, dict):
-        for key in _EVIDENCE_KEEP:
-            value = evidence.get(key)
-            if isinstance(value, (int, float)) and not isinstance(value, bool):
-                kept[key] = value
-    kept["scrubbed"] = True
-    return kept
+    """`evidence` minus coordinates and free text, rest kept. Anything that is not a dict loses everything."""
+    cleaned = _clean(evidence) if isinstance(evidence, dict) else {}
+    if cleaned is _DROP:
+        cleaned = {}
+    cleaned["scrubbed"] = True
+    return cleaned
 
 
 async def scrub_violations(db, user_id: str) -> int:
@@ -66,28 +100,7 @@ async def flag_open_case(db, user_id: str, now: Optional[datetime] = None) -> No
     now = now or datetime.now(timezone.utc)
     row = await db.get(ModerationHold, user_id)
     if row is None:
-        row = ModerationHold(profile_id=user_id, legal_hold=False)
+        row = ModerationHold(profile_id=user_id)
         db.add(row)
     row.open_case_flagged_at = now
     await db.commit()
-
-
-async def purge_expired_violations(db, now: Optional[datetime] = None) -> int:
-    """Delete the violation rows of accounts erased more than VIOLATION_RETENTION ago, except those under legal hold.
-    Fails closed: only an account whose erasure is recorded (`account_deletions.status == purged` with a date) counts."""
-    from models import AccountDeletion, ModerationHold, TosViolation
-    now = now or datetime.now(timezone.utc)
-    cutoff = now - VIOLATION_RETENTION
-    held = select(ModerationHold.profile_id).where(ModerationHold.legal_hold.is_(True))
-    due = select(AccountDeletion.profile_id).where(
-        AccountDeletion.status == "purged",
-        AccountDeletion.purged_at.is_not(None),
-        AccountDeletion.purged_at <= cutoff,
-        AccountDeletion.profile_id.not_in(held),
-    )
-    result = await db.execute(delete(TosViolation).where(TosViolation.user_id.in_(due)))
-    await db.commit()
-    count = result.rowcount or 0
-    if count:
-        logger.info("[violation retention] %d violation rows past %d days deleted", count, VIOLATION_RETENTION.days)
-    return count

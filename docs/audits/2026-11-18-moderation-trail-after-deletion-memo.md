@@ -6,6 +6,25 @@ Source limits: the statute and article numbers below are from memory of the GDPR
 `T1-LEGAL-RESEARCH-2026-11-18.md` (which retrieved the GDPR and Cal. Civ. Code text). The "what platforms do" section
 is general industry knowledge, NOT re-verified against live policies this session. Treat every pinpoint as "verify".
 
+## 0. DECISION UPDATE (2026-11-19, supersedes the retention advice below)
+
+David's ruling, relayed by the director at about 02:20Z: **"Keep the ban evidence, only wipe GPS and notes."**
+What PR #1097 now does, and what this memo's recommendation therefore becomes:
+
+- At erasure: null the four claimed/actual lat/long columns; replace the free-text notes (`description`,
+  `appeal_text`, and `title`, which an admin may have typed); strip coordinates and free text from inside `evidence`
+  but **keep the rest of it** (numbers, flags and short codes; keys that name a position or a note are dropped).
+  The row, its reason code, severity, strikes, action, dates, reviewer and decision ref stay.
+- **No expiry.** The 12-month delete clock and the `legal_hold` flag are removed. The "second tier, 12 months"
+  advice in section 4 and the 12-month row in section 5 are withdrawn. **Counsel must now confirm that keeping the
+  scrubbed evidence without a time limit is defensible** (GDPR Art. 5(1)(e) storage limitation; Art. 17(3)(e) needs
+  a real prospect of a claim; CCPA retention disclosure). Expect counsel to ask for a limit; the code can add one
+  later without a schema change to `tos_violations`.
+- Still in: the day-30 purge skips and flags an account with an open moderation case (a violation under appeal).
+- Still on hold for counsel: the hashed `moderation_tombstones` anti-evasion trail (sections 4 to 6). Nothing in this
+  PR changes who can re-register.
+- The one-off script for already-erased accounts is committed, dry-run by default, and has NOT been run.
+
 ## 1. Answer in one paragraph
 
 Yes. Keep a **small, separate, hashed "moderation tombstone"** for accounts that were **banned** when they asked to be
