@@ -43,6 +43,7 @@ import httpx
 from sqlalchemy import select
 
 from models import SurfObservation, SurfSpot, SurfTruthAnchorEvent
+from services import surf_truth_consent
 
 SCHEMA = "raw-surf/surf-truth-export/1"
 KEY_ENV = "SURF_TRUTH_EXPORT_KEY"
@@ -142,8 +143,12 @@ async def build_export(db, key: bytes, since: Optional[datetime] = None) -> tupl
     q = select(SurfObservation).where(SurfObservation.flow == "blind_v1").order_by(SurfObservation.received_at)
     if since is not None:
         q = q.where(SurfObservation.received_at >= since)
-    rows = (await db.execute(q)).scalars().all()
-    spots = {s.id: s for s in (await db.execute(select(SurfSpot).where(
+    candidates = (await db.execute(q)).scalars().all()
+    # P3 consent: a row leaves only if the person had opted in when it was made AND is still opted in now, so a
+    # withdrawal stops every later export from using any of their rows. No choice recorded means no (opt-in).
+    consenting = await surf_truth_consent.granted_now(db, {r.user_id for r in candidates if r.consent_training})
+    rows = [r for r in candidates if r.consent_training and r.user_id in consenting]
+    spots ={s.id: s for s in (await db.execute(select(SurfSpot).where(
         SurfSpot.id.in_({r.spot_id for r in rows if r.spot_id})))).scalars().all()} if rows else {}
     users = {r.user_id for r in rows}
     events = index_events((await db.execute(select(SurfTruthAnchorEvent).where(
@@ -157,6 +162,8 @@ async def build_export(db, key: bytes, since: Optional[datetime] = None) -> tupl
         "observers": len({o["observer_key"] for o in out}), "spots": len({o["spot_id"] for o in out}),
         "pseudonyms": "HMAC-SHA256 under " + KEY_ENV + " (key not in the export)",
         "key_fingerprint": key_fingerprint(key), "received_at_resolution": "minute",
+        "consent_rule": "opted in when received AND opted in at export (services/surf_truth_consent)",
+        "excluded_no_consent": len(candidates) - len(rows),
     }
     return out, manifest
 
