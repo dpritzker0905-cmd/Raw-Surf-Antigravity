@@ -32,6 +32,7 @@ from .financial import (
 from .metrics import aggregate_platform_metrics_task
 from .gallery import process_selection_deadline_expiry_task
 from .forecast import ingest_marine_forecast_task
+from .surf_truth import surf_truth_retention_task
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,15 @@ def start_scheduler():
         tracked('check_surf_alerts', 'Check surf alerts against conditions', 'Every 15 minutes', check_surf_alerts_task),
         IntervalTrigger(minutes=15),
         id='check_surf_alerts', name='Check surf alerts against conditions',
+        replace_existing=True
+    )
+
+    # Surf-truth export retention — daily (owner's rule: 3 newest; after an account deletion, a fresh export within 7 days)
+    scheduler.add_job(
+        tracked('surf_truth_retention', 'Surf-truth export retention (3 newest; fresh export after a deletion)',
+                'Daily (04:15 UTC)', surf_truth_retention_task),
+        CronTrigger(hour=4, minute=15, timezone=timezone.utc),
+        id='surf_truth_retention', name='Surf-truth export retention',
         replace_existing=True
     )
 
