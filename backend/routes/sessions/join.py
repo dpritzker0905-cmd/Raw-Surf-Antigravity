@@ -6,14 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
 from uuid import uuid4
-from utils.credits import refund_credits
 from core.security import get_current_user_id
 from datetime import datetime, timedelta, timezone
 import json
 from models import AnalyticsEvent, CreditTransaction, LiveSession, LiveSessionParticipant, Notification, PaymentTransaction, Post, Profile, RoleEnum, XPTransaction
 
 from .schemas import JoinSessionRequest
-from utils.credits import deduct_credits
+from utils.credits import clean_amount, deduct_credits
 from services import live_session_escrow
 import os, stripe, logging
 import stripe_mcp_server, sqlite3
@@ -21,6 +20,40 @@ STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_A
 if STRIPE_API_KEY: stripe.api_key = STRIPE_API_KEY
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+async def _join_committed(db, participant_id, surfer_id, photographer_id, payment_method, price, debit_id):
+    """Read durable state after an ambiguous commit acknowledgment."""
+    query = select(LiveSessionParticipant.id).where(
+        LiveSessionParticipant.id == participant_id,
+        LiveSessionParticipant.surfer_id == surfer_id,
+        LiveSessionParticipant.photographer_id == photographer_id,
+        LiveSessionParticipant.payment_method == payment_method,
+        LiveSessionParticipant.payment_credit_transaction_id == debit_id,
+        LiveSessionParticipant.amount_paid == price,
+        LiveSessionParticipant.status == "active",
+    )
+    if debit_id is not None:
+        refunded = select(CreditTransaction.id).where(
+            CreditTransaction.refund_of_transaction_id == debit_id,
+            CreditTransaction.user_id == surfer_id,
+            CreditTransaction.amount > 0,
+        ).correlate(None).exists()
+        query = query.join(CreditTransaction, CreditTransaction.id == debit_id).where(
+            CreditTransaction.user_id == surfer_id,
+            CreditTransaction.transaction_type == "live_session_buyin",
+            CreditTransaction.reference_type == "live_session",
+            CreditTransaction.reference_id == photographer_id,
+            CreditTransaction.amount == -clean_amount(price),
+            ~refunded,
+        )
+        share = round(price * live_session_escrow.PHOTOGRAPHER_SHARE, 2)
+        hold = (
+            LiveSessionParticipant.escrow_status.in_((live_session_escrow.HELD, live_session_escrow.RELEASED))
+            if share > 0 else LiveSessionParticipant.escrow_status.is_(None)
+        )
+        query = query.where(LiveSessionParticipant.escrow_amount == share, hold)
+    return await db.scalar(query) is not None
+
 
 @router.post("/sessions/join")
 async def join_session(
@@ -42,9 +75,8 @@ async def join_session(
     - Grom Parents CAN join sessions and buy photos (they are Participants/Buyers)
     - Grom Parents CANNOT create sessions (enforced in go-live endpoint)
     
-    CRITICAL: Automated Credit Refund Logic
-    - If payment succeeds but session join fails, credits are automatically refunded
-    - User receives notification about the refund
+    The credit debit and participant are committed together. An uncertain commit is
+    resolved by reading the participant and its funding.
     """
     from models import AnalyticsEvent
 
@@ -124,11 +156,13 @@ async def join_session(
     
     # Try to use subscription live_buyin quota (free session if quota available)
     sub_quota_result = await try_use_subscription_quota(
-        db, surfer_id, data.photographer_id, 'live_buyin'
+        db, surfer_id, data.photographer_id, 'live_buyin', for_update=True
     )
     subscription_covered = sub_quota_result.get("used", False)
     if subscription_covered:
         final_price = 0.0  # Subscription covers this buy-in
+    elif data.payment_method == 'subscription':
+        raise HTTPException(status_code=400, detail="No subscription buy-in is available")
     
     # ============ CARD PAYMENT: Create Stripe Checkout Session ============
     if data.payment_method == 'card':
@@ -207,11 +241,10 @@ async def join_session(
         }
     
     # ============ CREDIT PAYMENT PROCESSING ============
-    payment_processed = False
-    payment_debit_id = str(uuid4())
+    payment_debit_id = str(uuid4()) if data.payment_method == 'credits' else None
     new_balance = surfer.credit_balance
 
-    if data.payment_method == 'credits':
+    if payment_debit_id is not None:
         success, new_balance, error = await deduct_credits(
             user_id=surfer_id,
             amount=final_price,
@@ -227,12 +260,12 @@ async def join_session(
         if not success:
             raise HTTPException(status_code=400, detail=error)
         
-        payment_processed = True
         # The photographer's share is not paid here: it is held on the participant row below and
         # released when the buyer acts on the delivered media, or after 7 days
         # (services/live_session_escrow.py).
 
-    # ============ TRY SESSION JOIN - REFUND ON FAILURE ============
+    participant_id = str(uuid4())
+    receipt = None
     try:
         # Determine participant role (grom_buyer if parent is buying for child)
         participant_role = 'grom_buyer' if actual_role == RoleEnum.GROM_PARENT else 'participant'
@@ -270,7 +303,8 @@ async def join_session(
             locked_high = photographer.photo_price_high or photographer.live_photo_price_high or 10.0
         
         participant = LiveSessionParticipant(
-            payment_credit_transaction_id=payment_debit_id if payment_processed else None,
+            id=participant_id,
+            payment_credit_transaction_id=payment_debit_id,
             photographer_id=data.photographer_id,
             surfer_id=surfer_id,
             spot_id=photographer.current_spot_id,
@@ -288,7 +322,7 @@ async def join_session(
             locked_price_standard=locked_standard,
             locked_price_high=locked_high,
         )
-        if payment_processed:
+        if payment_debit_id is not None:
             live_session_escrow.hold(participant, final_price)
 
         db.add(participant)
@@ -431,14 +465,7 @@ async def join_session(
             )
             db.add(photographer_xp)
         
-        # Commit all changes
-        await db.commit()
-        await db.refresh(participant)
-        
-        # NOTE: Badge milestone checks temporarily disabled due to async issues
-        # TODO: Fix check_badge_milestones async handling
-        
-        return {
+        receipt = {
             "message": "Successfully joined session",
             "session_id": participant.id,
             "photographer_name": photographer.full_name,
@@ -456,78 +483,31 @@ async def join_session(
             "badges_earned": badges_earned
         }
     
-    except Exception as join_error:
-        # ============ AUTOMATIC CREDIT REFUND ON FAILURE ============
-        # Payment was processed but session join failed - refund the user
-        logger.error(f"SESSION JOIN ERROR: {type(join_error).__name__}: {str(join_error)}")
-        import traceback
+        await db.commit()
+    except Exception:
+        logger.exception("Live session join failed")
+        try:
+            await db.rollback()
+            if receipt is not None and await _join_committed(
+                db, participant_id, surfer_id, data.photographer_id, data.payment_method, final_price, payment_debit_id,
+            ):
+                return {**receipt, "recovered": True}
+        except Exception:
+            logger.exception("Could not determine the committed live session join outcome")
+        else:
+            if receipt is None:
+                raise HTTPException(status_code=500, detail={
+                    "error": "Session join failed before commit.",
+                    "refunded": False,
+                    "recovery_required": False,
+                })
+        raise HTTPException(status_code=503, detail={
+            "error": "Could not confirm the session join. Check your session before retrying.",
+            "session_id": participant_id,
+            "recovery_required": True,
+        })
 
-
-        traceback.print_exc()
-        
-        await db.rollback()
-        
-        if payment_processed and data.payment_method == 'credits':
-            try:
-                # Re-fetch surfer after rollback
-                surfer_refetch = await db.execute(select(Profile).where(Profile.id == surfer_id))
-                surfer_for_refund = surfer_refetch.scalar_one_or_none()
-                
-                if surfer_for_refund:
-                    # A rolled-back debit needs no second additive refund. Only a
-                    # persisted, identified debit may restore cash/promo composition.
-                    success, _, error = await refund_credits(
-                        surfer_id, final_price, db, reference_type='refund',
-                        reference_id=data.photographer_id, original_transaction_id=payment_debit_id,
-                        transaction_type='session_join_refund')
-                    if not success:
-                        raise RuntimeError(error)
-
-                    # Create notification for the surfer about the refund
-                    refund_notification = Notification(
-                        user_id=surfer_id,
-                        type='credit_refund',
-                        title='Session Join Failed - Credit Refunded',
-                        body=f'A credit of ${final_price:.2f} has been added to your account for immediate use.',
-                        data=json.dumps({
-                            "refund_amount": final_price,
-                            "photographer_id": data.photographer_id,
-                            "photographer_name": photographer.full_name,
-                            "reason": "session_join_failed"
-                        })
-                    )
-                    db.add(refund_notification)
-                    
-                    await db.commit()
-                    
-                    # Return error with refund info
-                    raise HTTPException(
-                        status_code=500, 
-                        detail={
-                            "error": "Session join failed but your payment has been refunded",
-                            "refunded": True,
-                            "refund_amount": final_price,
-                            "new_balance": surfer_for_refund.credit_balance,
-                            "message": f"A credit of ${final_price:.2f} has been added to your account for immediate use."
-                        }
-                    )
-            except HTTPException:
-                raise
-            except Exception as refund_error:
-                # Refund also failed - log this critical error
-                logger.error(f"CRITICAL: Payment refund failed for user {surfer_id}: {str(refund_error)}")
-                raise HTTPException(
-                    status_code=500,
-                    detail={
-                        "error": "Session join failed. Please contact support for refund.",
-                        "refunded": False,
-                        "original_error": str(join_error),
-                        "refund_error": str(refund_error)
-                    }
-                )
-        
-        # Non-credit payment or no payment processed - just raise the error
-        raise HTTPException(status_code=500, detail=f"Failed to join session: {str(join_error)}")
+    return receipt
 
 
 class CompletePaymentRequest(BaseModel):

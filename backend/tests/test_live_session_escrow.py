@@ -12,14 +12,16 @@ import httpx
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
+from pydantic import ValidationError
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from core.security import create_access_token
 from database import Base, get_db
-from models import CreditTransaction, LiveSessionParticipant, Profile, RoleEnum, SurferGalleryItem, SurferSelectionQuota
+from models import CreditTransaction, LiveSessionParticipant, Profile, RoleEnum, SurferGalleryItem, SurferPhotoSubscription, SurferSelectionQuota
 from routes.bookings import booking_lifecycle
 from routes.sessions import join as session_join
+from routes.sessions.schemas import JoinSessionRequest
 from services import live_session_escrow as escrow
 
 BUYIN, SHARE = 25.0, 20.0
@@ -117,6 +119,79 @@ async def test_join_holds_the_share_and_pays_nothing_yet(harness, photographer):
     assert (participant.escrow_status, participant.escrow_amount) == ('held', pytest.approx(SHARE))
     assert (profile.credit_balance, profile.withdrawable_credits, profile.gear_only_credits) == (30.0, 0.0, 0.0)
     assert await earnings(harness, photographer) == []
+
+
+
+def test_join_schema_refuses_an_unrecognized_payment_method():
+    with pytest.raises(ValidationError, match="payment_method"):
+        JoinSessionRequest(photographer_id="pro", payment_method="unrecognized")
+
+
+@pytest.mark.parametrize("available", [False, True])
+async def test_subscription_join_requires_available_quota(harness, available):
+    if available:
+        async with harness.maker() as db:
+            db.add(SurferPhotoSubscription(
+                id="test-subscription", surfer_id="owner", photographer_id="pro",
+                expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+                live_session_buyins_remaining=1, amount_paid=BUYIN, payment_method="credits",
+            ))
+            await db.commit()
+
+    response = await harness.client.post(
+        "/api/sessions/join?surfer_id=owner", headers=bearer("owner"),
+        json={"photographer_id": "pro", "payment_method": "subscription"},
+    )
+
+    async with harness.maker() as db:
+        assert (await db.scalars(select(CreditTransaction))).all() == []
+        seats = (await db.scalars(select(LiveSessionParticipant))).all()
+        if available:
+            assert response.status_code == 200, response.text
+            assert response.json()["subscription_covered"] is True
+            assert len(seats) == 1 and seats[0].amount_paid == 0
+            assert seats[0].escrow_status is None
+            subscription = await db.get(SurferPhotoSubscription, "test-subscription")
+            assert subscription.live_session_buyins_remaining == 0
+        else:
+            assert response.status_code == 400, response.text
+            assert seats == []
+
+
+@pytest.mark.parametrize("durable", [False, True], ids=["rolled-back", "committed"])
+async def test_join_resolves_an_ambiguous_commit_without_refunding(harness, monkeypatch, durable):
+    original_commit = AsyncSession.commit
+
+    async def uncertain_commit(session):
+        if durable:
+            await original_commit(session)
+        raise ConnectionError("Fixture could not confirm the commit")
+
+    monkeypatch.setattr(AsyncSession, "commit", uncertain_commit)
+    response = await harness.client.post(
+        "/api/sessions/join?surfer_id=owner", headers=bearer("owner"),
+        json={"photographer_id": "pro", "payment_method": "credits"},
+    )
+
+    async with harness.maker() as db:
+        seats = (await db.scalars(select(LiveSessionParticipant))).all()
+        ledger = (await db.scalars(select(CreditTransaction))).all()
+        owner = await db.get(Profile, "owner")
+
+    if durable:
+        assert response.status_code == 200, response.text
+        assert response.json()["recovered"] is True
+        assert len(seats) == 1 and response.json()["session_id"] == seats[0].id
+        assert (seats[0].escrow_status, seats[0].escrow_amount) == ("held", SHARE)
+        assert len(ledger) == 1 and ledger[0].id == seats[0].payment_credit_transaction_id
+        assert ledger[0].amount == -BUYIN
+        assert owner.credit_balance == 100.0 - BUYIN
+    else:
+        assert response.status_code == 503, response.text
+        assert response.json()["detail"]["recovery_required"] is True
+        assert seats == []
+        assert ledger == []
+        assert owner.credit_balance == 100.0
 
 
 async def test_early_leave_refunds_the_buyer_and_cancels_the_hold(harness):
