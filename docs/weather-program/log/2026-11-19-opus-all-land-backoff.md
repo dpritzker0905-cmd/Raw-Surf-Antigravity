@@ -46,3 +46,15 @@ coastal views behave like reality. LESSONS gets the rule: check the lab fixture 
 - **Amendment:** `scn_all_land_idle.js` now serves the lab's published frames as the CDN (`CDN_DIR`, as `scn_zoom_scrub.js` did when the
   defect was found). Run 3: the same view, phone, 5 min idle, 2 sessions per arm, `CDN_DIR` = the 2026-11-18 cdn7, backend 4300. Pass line
   unchanged.
+
+## 02:02Z: L2 run 3 (with the lab CDN) reproduced all_zero_grid, but its "re-drives" count was backstop TICKS; third amendment
+
+- Run 3: `renderBlockedReason: all_zero_grid` in all 4 sessions (the reproduction holds), "re-drives" ON 46 / 46, KILL 47 / 46, the planner
+  never engaged (`__RAW_ALL_LAND_REDRIVE__` null).
+- Dumped (one 25 s session): the engine is NOT empty in this state. It holds the coarse WORLD grid (`__MARINE_SHARPEN_DIAG__.kind:
+  coarse_global`, willSharpen true), so the backstop takes its CLAMP branch (which has its own no-progress cap); the all-zero regional
+  frame the settle check commits is refused on top of it. And `__MARINE_BLANK_BACKSTOP_COUNT__`, the "re-drives" column, counts backstop
+  TICKS: it rises before the clamp cap returns early. So 46 is ticks, not re-drives, in both arms. The engine-EMPTY all-zero state (the
+  2026-11-18 "engine empty ... re-driving" lines) depends on whether the coarse world grid has landed first.
+- **Amendment (instrument only):** the scenario now counts REAL re-drives from the backstop's own console lines (engine-empty re-drive,
+  clamp re-drive, clamp slow probe). Run 4: the same setup; the pass line reads REAL re-drives, unchanged otherwise.
