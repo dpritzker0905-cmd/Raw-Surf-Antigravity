@@ -42,6 +42,7 @@ from .identity import uploader_id
 from core.security import get_current_user_id
 from models import Profile, GalleryItem, ObservationMedia
 from services.observation_media import inspect_media
+from services.media_metadata import MetadataError, write_public_copy
 from utils.video_processor import (
     get_video_info, 
     needs_transcoding, 
@@ -527,12 +528,16 @@ async def upload_conditions_media(
     filename = f"{uuid.uuid4()}{ext}"
     media_type = "video" if is_video else "image"
 
+    # T1 P3: the conditions bucket is PUBLIC, so the stored copy of a photo or MP4/MOV video loses its embedded metadata
+    # (GPS position, serials, times), losslessly (services/media_metadata.write_public_copy, off the event loop). The
+    # location facts are kept PRIVATELY below: a photo's from the original bytes, a video's read before it is neutered.
     conditions_dir = UPLOAD_DIR / "conditions" / user_id
     conditions_dir.mkdir(parents=True, exist_ok=True)
-
     file_path = conditions_dir / filename
-    with open(file_path, "wb") as f:
-        f.write(content)
+    try:
+        public = await asyncio.to_thread(write_public_copy, content, file.content_type, is_video, file_path)
+    except MetadataError:
+        raise HTTPException(status_code=400, detail="Could not read this file. Please try another photo or video.")
 
     # Upload to Supabase for persistence (Render disk is ephemeral)
     local_url = f"/api/uploads/conditions/{user_id}/{filename}"
@@ -552,9 +557,10 @@ async def upload_conditions_media(
     # Best effort: a failure here must never fail the go-live upload.
     try:
         facts = inspect_media(content, is_image=not is_video)
+        lat, lon, at = ((facts.exif_latitude, facts.exif_longitude, facts.exif_taken_at) if not is_video
+                        else (public.latitude, public.longitude, public.taken_at))   # a video's own metadata
         db.add(ObservationMedia(user_id=user_id, media_url=media_url, media_type=media_type, sha256=facts.sha256,
-                                exif_latitude=facts.exif_latitude, exif_longitude=facts.exif_longitude,
-                                exif_taken_at=facts.exif_taken_at))
+                                exif_latitude=lat, exif_longitude=lon, exif_taken_at=at))
         await db.commit()
     except Exception as exc:  # noqa: BLE001
         await db.rollback()
@@ -564,8 +570,9 @@ async def upload_conditions_media(
         "media_url": media_url,
         "media_type": media_type,
         "filename": filename,
-        "size": len(content),
-        "persistent": bool(supabase_url)
+        "size": public.size,
+        "persistent": bool(supabase_url),
+        "metadata_stripped": public.stripped,
     }
 
 

@@ -1,0 +1,87 @@
+name: Tide G4 power check (design only, on G3t's seen window; prints the pass share only)
+# WHY: G4 addendum 1 change 1 and the advisor's FINAL edit 3 (docs/weather-program/log/2026-11-15-claude-tide-m1.md):
+# G4's window length is set by a power check, not by feel. On G3t's SEEN window, every 56-day stretch scores (A+M)
+# against D with item 1's statistic; the ONLY output is the share whose upper end is <= -0.02 m (below 0.8 -> 84 days).
+# No other arm is scored. Measurement only: no bucket write, nothing served, no live backend. PyFES is GPL, CI only.
+# ONE-SHOT START: only a push of the tag `tide-g4-power` (on the owner's word, given 2026-11-18) starts it; no
+# workflow_dispatch. Credentials: AVISO only on the FES download step, Copernicus Marine only on the check step.
+# Pinned by tests/test_tide_g4_rules.py.
+on:
+  push:
+    tags: [tide-g4-power]
+permissions:
+  contents: read
+concurrency:
+  group: tide-g4-power
+  cancel-in-progress: false
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (offline-only dependencies, pinned as G3t)
+        run: pip install "pyfes==2026.5.2" "pyTMD==3.1.0" "timescale==0.1.3" "paramiko==5.1.0" "copernicusmarine==2.4.1" netCDF4 numpy scipy xarray h5netcdf pandas lxml pyyaml
+      - name: Restore FES2022b downloads (G3t's cache if it is still there)
+        id: fes
+        uses: actions/cache/restore@v4
+        with:
+          path: fes_cache
+          key: fes2022b-g4p-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            fes2022b-g4p-
+            fes2022b-g3t-
+      - name: Download FES2022b (AVISO, pinned host key; skipped files already cached)
+        timeout-minutes: 320
+        env:
+          AVISO_USERNAME: ${{ secrets.AVISO_USERNAME }}
+          AVISO_PASSWORD: ${{ secrets.AVISO_PASSWORD }}
+        run: python backend/scripts/tide_g4/g4_power.py --download-fes-only --fes-cache fes_cache
+      - name: Drop partial files before saving
+        if: always()
+        run: |
+          mkdir -p fes_cache
+          rm -f fes_cache/*.part
+      - name: Save FES2022b downloads
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: fes_cache
+          key: fes2022b-g4p-${{ github.run_id }}-${{ github.run_attempt }}
+  check:
+    needs: download
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (offline-only dependencies, pinned as G3t)
+        run: |
+          pip install "pyfes==2026.5.2" "pyTMD==3.1.0" "timescale==0.1.3" "paramiko==5.1.0" "copernicusmarine==2.4.1" netCDF4 numpy scipy xarray h5netcdf pandas lxml pyyaml
+          python -m pip freeze --all > pip_freeze.txt
+      - name: Restore FES2022b downloads (this run's)
+        uses: actions/cache/restore@v4
+        with:
+          path: fes_cache
+          key: fes2022b-g4p-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+      - name: Run the power check
+        timeout-minutes: 320
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python backend/scripts/tide_g4/g4_power.py --fes-cache fes_cache --work g4p_work > g4_power.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tide-g4-power
+          path: |
+            g4_power.json
+            pip_freeze.txt
+          if-no-files-found: ignore
+          retention-days: 90
