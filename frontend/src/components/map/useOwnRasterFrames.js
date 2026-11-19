@@ -72,6 +72,8 @@ export const edgeNoteOn = () => !(typeof window !== 'undefined' && window.__RAW_
 /** First frame first's kill (see the step effect): window.__RAW_DISABLE_OWN_FIRST_FRAME_FIRST__ = true. */
 export const firstFrameFirstOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_OWN_FIRST_FRAME_FIRST__ === true);
 export const sameFrameOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_SAME_FRAME__ === true);
+/** How long an own-only model waits after a failed index read before it asks again (no .om fallback behind it, 2026-11-18). */
+export const OWN_ONLY_RETRY_MS = 60000;
 // SCOPE (2026-11-14, the advisor's red-team of #889): the handover and the same-frame step apply ONLY to the layers this lane
 // built (default-OFF pending the owner, reachable with the lever). Pressure and satellite are live defaults with no before/after
 // measurement of either change (the handover also starts their .om path on a cold toggle: extra Open-Meteo requests and a decode
@@ -101,7 +103,24 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   // The legend credit names the source only once a frame set is pinned (before that nothing is drawn from it), and then the
   // model of the frame ON SCREEN (a GFS stand-in past EURO's range is NOAA's data): set from onShown below.
   const drawing = engaged && !!index;
-  useEffect(() => { setEngaged(layer, drawing ? sourceModel(layer, M) : false); return () => setEngaged(layer, false); }, [layer, drawing, M]);
+  // An own-only model that is claimed with nothing drawn (killed, unpublished, pre-index; 2026-11-18) reports '<MODEL>:idle': the
+  // credit names that model's own source with no note and never "© Open-Meteo" (Open-Meteo no longer draws it); the status line
+  // keeps its "unavailable" readout (rasterDrawnFrame reads the value as truthy).
+  const claimed = !!active && ownOnlyFor(layer, M);
+  useEffect(() => {
+    setEngaged(layer, drawing ? sourceModel(layer, M) : (claimed ? `${sourceModel(layer, M)}:idle` : false));
+    return () => setEngaged(layer, false);
+  }, [layer, drawing, claimed, M]);
+  // RETRY (2026-11-18, the advisor's HOLD on #1071): with no .om fallback, one failed index read must not latch "unavailable" for
+  // the session. An own-only model retries every OWN_ONLY_RETRY_MS while the layer is on (a read of latest.json only when it is
+  // due, staticFrames' pin rules). Kill: window.__RAW_DISABLE_RASTER_OWN_RETRY__ = true (the latch, as before).
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    if (!failed || !wanted || !ownOnlyFor(layer, M)) return undefined;
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_RETRY__ === true) return undefined;
+    const t = setTimeout(() => { setFailed(false); setRetry((n) => n + 1); }, OWN_ONLY_RETRY_MS);
+    return () => clearTimeout(t);
+  }, [failed, wanted, layer, M]);
 
   // 0. PREWARM (the toggle's latest.json + index round trips, before the toggle): with the lever on and the layer off, pin the
   // index once the map is idle. Two small JSON reads per map load, NO frames (raster frames never join an idle fill).
@@ -136,7 +155,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       if (idx && framesOf(idx).length) { if (idx !== memo) setIndex(idx); } else if (!memo) { noteMiss('no_index'); setFailed(true); }
     });
     return () => { alive = false; };
-  }, [wanted, layer, M]);
+  }, [wanted, layer, M, retry]);
 
   // 1b. The stand-in's index (GFS) for hours past the picked model's last frame: never capped, labelled as an estimate.
   useEffect(() => {

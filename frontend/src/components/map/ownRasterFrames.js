@@ -18,7 +18,9 @@
  * owner: "Yes, publish pressure"; kill window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true). Every other layer is DARK:
  * window.__RAW_RASTER_OWN_FRAMES__ = true (or localStorage '__RAW_RASTER_OWN_FRAMES__' = 'true') turns it on;
  * window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true, the static-frames global kill or the per-set kill
- * (__RAW_DISABLE_STATIC_FRAMES_SETS__) turn it off. Any miss (no set published, no index) falls back to the .om path.
+ * (__RAW_DISABLE_STATIC_FRAMES_SETS__) turn it off. Any miss (no set published, no index) falls back to the .om path, EXCEPT for
+ * an own-only layer or model (ownOnlyFor; 2026-11-18, the owner: no Open-Meteo in user data), where a miss or a kill says
+ * "unavailable" and the .om copy is never drawn.
  * Telemetry: window.__RAW_OWN_RASTER__.
  */
 import { fetchFrameBytes, getPinnedIndex, loadFrameParsed, markStaticPinStale, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
@@ -167,7 +169,8 @@ const W = () => (typeof window !== 'undefined' ? window : {});
 /** Layers whose own frames draw with no lever set; each is its own owner decision (D-052, 2026-10-26, the owner: "Flip both: the
  *  MARINE_GULF_FILL_MID_TARGETED repo variable and cloud 0.25 deg (repo var, then the client key after one publish)").
  *  Kill one layer: window.__RAW_DISABLE_RASTER_OWN_<LAYER>__ = true (cloud: __RAW_DISABLE_RASTER_OWN_SATELLITE__); kill all:
- *  __RAW_DISABLE_RASTER_OWN_FRAMES__. A miss (set not in latest.json, no index) still falls back to the .om path. */
+ *  __RAW_DISABLE_RASTER_OWN_FRAMES__. A miss (set not in latest.json, no index) still falls back to the .om path, except for an
+ *  own-only layer or model (ownOnlyFor), which says "unavailable" instead. */
 // PRESSURE (2026-11-12): the owner, "Yes, publish pressure", answering "Turn on pressure frame publishing in the ingest so I can
 // flip pressure on?". GFS, EURO and ICON each draw their own published set (a scrub step rebinds a resident texture instead of
 // decoding a whole-world .om hour), with the labelled isobars and H/L markers that ride the own-frames field.
@@ -192,9 +195,11 @@ export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'gusts'
 //  - temperature GFS: OFF until a pre-registered visual-parity comparison at z5 / z7 / z9 (desktop + phone) shows the 0.5 deg set +
 //    ETOPO downscale no coarser than the .om gfs013.
 //  - temperature ICON: ON since 2026-11-18. The 0.125 deg set (#957) matches the .om dwd_icon grid, so the no-regression rule holds;
-//    the owner's "No user data should be open-meteo" (2026-11-18) and the director's assignment. Kill:
-//    window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true (the .om path, as before).
-// Kills: __RAW_DISABLE_RASTER_OWN_TEMPERATURE__, __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ (each the .om path, as before).
+//    the owner's "No user data should be open-meteo" (2026-11-18) and the director's assignment. Own frames ONLY for ICON
+//    (`ownOnlyModels`): window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true stops our frames and the layer says "unavailable";
+//    no kill returns ICON to the .om path (the director, relaying the owner, 2026-11-18). Past ICON's 180 h: unavailable.
+// Kills for the models still on .om by default (GFS / EURO temperature, every water_temp): __RAW_DISABLE_RASTER_OWN_TEMPERATURE__,
+// __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ return them to the .om path, as before.
 // Turning them on: { temperature: ['EURO'], water_temp: ['EURO'] } here. The lever reaches every model meanwhile.
 export const DEFAULT_ON_MODELS = Object.freeze({ temperature: Object.freeze(['ICON']) });
 

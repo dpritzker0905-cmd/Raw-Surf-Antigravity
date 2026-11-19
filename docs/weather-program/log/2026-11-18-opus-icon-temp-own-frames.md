@@ -77,3 +77,64 @@ had none.
 - `referenced` holds at ~18,385-18,389. That is within 0.1 % of the 11-17 sweeps, far from FUSE A's 0.8 ratio.
 - The 18:09Z sweep deleted nothing: it marked this cycle's superseded objects inside the 2 h grace.
 - The 20:01Z sweep deleted 16,477 of the 38,940 listed (42 %), under FUSE B's 60 % and the 25,000 cap.
+
+## 2026-11-19 ~01:40Z: the advisor's HOLD fixes on #1071, and NEXT WORK recorded at the owner's wind-down
+**HOLD fixes on this PR** (the advisor, 00:57Z):
+- **Credit.** An own-only model claimed with nothing drawn (killed, unpublished or pre-index) reports `'<MODEL>:idle'` to the
+  engaged store. The credit names that model's source with no note, never "© Open-Meteo". The status line still reads it as
+  truthy, so the "unavailable" readout stays.
+- **Retry.** One failed index read no longer latches "unavailable" for the session. An own-only model retries every
+  `OWN_ONLY_RETRY_MS` (60 s) while the layer is on. Kill: `window.__RAW_DISABLE_RASTER_OWN_RETRY__` (the latch, as before).
+- **Comments.** Stale comments that said the temperature kill returns the `.om` path are corrected. A kill now shows
+  "unavailable" for ICON.
+- **For David** (the advisor asked that it be said plainly): with Open-Meteo gone, ICON air temperature is BLANK past h180 until
+  the prediction below is built. The old `.om` path drew GFS there without saying so.
+
+**NEXT WORK 1: the "ICON prediction" / "EURO prediction" past each model's horizon (owner rulings; NOT started, per the
+wind-down).**
+
+Owner words, typed in the director's session and relayed verbatim:
+- ~01:20Z: "Yes, go with the Raw Surf prediction".
+- ~01:30Z: "Yes, label it ICON prediction and EURO prediction".
+
+This lane leads ONE shared module (per-layer parameters), built with the gfs-flux lane (local_fe5abe5f).
+
+Design (the director's brief):
+1. **Base past ~day 7:** a lead-time-weighted mean of free ENSEMBLE means: ECMWF ENS (15 d), GEFS (16 d), and AIFS-ENS where
+   verified. The deterministic model's own last hours dominate near its horizon.
+2. **Weights from measured skill.** The research lead's pre-registration is `raw-surf-prediction-review-and-prereg-2026-11-19.md`
+   in shared notes:
+   - weights non-negative, summing to 1, constant or linear in lead, chosen by CV inside TRAIN;
+   - arms: plain GFS, each ensemble mean, and the blend;
+   - gate: the blend beats BOTH GFS and the best single mean at ≥ 3 of 4 lead days, with no lead or region worse and
+     temperature |ME| not worse; otherwise serve the best single mean;
+   - truth: MRMS for rain, ASOS / ISD / NDBC for temperature, the GOES Clear Sky Mask for cloud;
+   - a seam metric at each handover.
+3. **Handover per variable:**
+   - temperature: the model's last-hour offset carried forward, decaying over ~48 h;
+   - cloud: a weight shift;
+   - rain: probability-matched (PM) or LOCAL PM, never a plain average. Also report a calibrated P(≥ 1 mm / 6 h).
+4. **Inputs:** all are OUR frames; no Open-Meteo.
+5. **Label:** "ICON prediction" (days 8-14) or "EURO prediction" (days 11-14) in the legend and credit, in all three themes, as
+   text. The infobox explains it, e.g. "ICON's last run, extended with Raw Surf's ensemble-weighted prediction (ECMWF ENS,
+   GEFS)". The research lead adds: say past-horizon fields are smoother because they are less predictable.
+6. **Kill:** ON with a window kill switch that shows "unavailable".
+7. **One module,** so marine and wind can adopt the same name.
+
+Order: the design note goes to the advisor and the research lead first, then the build. It fixes #1075's HOLD (ICON rain blank
+past h180 by default, because the GFS stand-in only loads under the developer lever). #1075 and #1078 stay held until then.
+
+Archive starts for the research lead's TRAIN / TEST split:
+- **Read:** the ECMWF open-data mirror on AWS (`ecmwf-forecasts`) starts 2023-01-18 (listing read 01:3xZ).
+- **Not read** (the listing was stopped at the wind-down): GEFS (`noaa-gefs-pds`), GFS (`noaa-gfs-bdp-pds`), and AIFS-ENS
+  (ECMWF open data; its atmospheric fields and start date are unverified).
+
+**NEXT WORK 2: the rated-step FAIL in frames-budget counted run 2 (pilots 44249848808; NOT started).**
+- Rated set seconds grew from 1,596 to 1,784 (+12 %); `global_mid_rated` from 97.7 to 124.2 s. The 12 GFS regional wind_waves
+  rated bundles were skipped.
+- Hypothesis, unmeasured: #1006's hourly GFS wind.
+- Method: compare the rated step's per-set `frame_sets` report (seconds and frame counts) between runs 44083737083 and
+  44249848808. The logs were downloaded once, but the grep for `"frame_sets"` returned no match, so the report's log line format
+  must be found first. Then read counted runs 3 and 4.
+- **It gates two writers:** the director's condition is that neither the coastal-band writer nor B1's writer merges until this
+  is explained or the advisor re-sizes the budget. Send the verdict to the repair lead (local_ff1641e7) as well.
