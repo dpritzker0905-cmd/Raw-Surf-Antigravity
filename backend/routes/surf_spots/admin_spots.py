@@ -147,7 +147,17 @@ async def seed_florida_spots(
     Covers: Volusia County, Space Coast/Brevard, Treasure Coast, First Coast/NE Florida.
     
     Safe to run multiple times — deduplicates by name + region.
+
+    FAILS CLOSED as of 2026-11-18 (410). It adds spots in bulk, matched by name and region only: no duplicate
+    tiers, no review, no audit row. New spots now wait in the holding table (`surf_spot_candidates`) until a
+    person places and promotes them. The route is kept, not deleted, so this is reversible: a deliberate,
+    supervised run needs ALLOW_FLORIDA_SPOT_SEED=1 on the server.
     """
+    if os.environ.get("ALLOW_FLORIDA_SPOT_SEED", "0") != "1":
+        raise HTTPException(status_code=410, detail=(
+            "Retired: this seeded Florida spots in bulk with no duplicate check or review. Nothing was changed. "
+            "New spots go through the holding table (admin, Precision Queue, Candidates). "
+            "To run it deliberately, set ALLOW_FLORIDA_SPOT_SEED=1 on the server."))
     try:
         from scripts.seed_missing_florida_spots import seed_spots
         result = await seed_spots(db)
@@ -331,14 +341,20 @@ async def trigger_spot_import(
     and a two-tier name+proximity dedupe against LIVE production.
     Override for a deliberate, supervised run: ALLOW_CURATED_IMPORT=1.
     """
+    # OpenStreetMap coordinates may never be written to surf_spots (ODbL share-alike). This is refused whatever
+    # ALLOW_CURATED_IMPORT says; the importer itself also refuses (scripts/import_global_spots.import_osm_spots).
+    if include_osm:
+        raise HTTPException(status_code=410, detail=(
+            "The OpenStreetMap import is permanently disabled: OSM coordinates are ODbL share-alike and may not "
+            "be written to surf_spots. Nothing was changed."))
     if os.environ.get("ALLOW_CURATED_IMPORT", "0") != "1":
         raise HTTPException(
-            status_code=409,
-            detail=("Curated import is disabled: its (name, country) dedupe cannot see "
+            status_code=410,
+            detail=("Retired: the curated import's (name, country) dedupe cannot see "
                     "normalisation-variant duplicates and would re-add rows removed by a merge. "
-                    "Use scripts/import_reviewed_spots.py, or set ALLOW_CURATED_IMPORT=1 to "
-                    "override deliberately."))
-    from scripts.import_global_spots import import_curated_spots, import_osm_spots, CURATED_SPOTS
+                    "Nothing was changed. New spots go through the holding table (admin, Precision Queue, "
+                    "Candidates). To run it deliberately, set ALLOW_CURATED_IMPORT=1 on the server."))
+    from scripts.import_global_spots import import_curated_spots, CURATED_SPOTS
     
     # Filter curated spots by tier if specified
     if tier > 0:
@@ -358,12 +374,9 @@ async def trigger_spot_import(
     # so in the default state ticking "include OSM" did NOTHING and the toast still said success.
     # It now runs at every tier — but note production deliberately carries ZERO `osm_id`, because
     # OSM is ODbL share-alike. Leaving the checkbox off keeps the catalogue clean of it.
+    # The OSM leg is gone (refused at the top of this handler). The two keys stay in the response for callers.
     osm_count = 0
-    osm_skipped_reason = None
-    if include_osm:
-        osm_count = await import_osm_spots(db, tier)
-    elif include_osm is False:
-        osm_skipped_reason = "not requested"
+    osm_skipped_reason = "permanently disabled (licence)"
 
     total = curated_count + osm_count
     

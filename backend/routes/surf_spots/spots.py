@@ -16,6 +16,7 @@ from core.security import get_optional_user_id_from_jwt_or_query
 from utils.geo import haversine_distance
 from .schemas import SurfSpotResponse, get_visibility_radius, is_within_geofence
 from . import spots_cache
+from services import spot_location_status
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -76,7 +77,11 @@ async def get_surf_spots(
                             headers=_cache_headers(etag))
 
     query = select(SurfSpot).where(SurfSpot.is_active.is_(True))
-    
+    # Spots added from the holding table whose position nobody has verified are listed only while an admin has
+    # switched them on (services/spot_location_status). No spot carries that mark yet.
+    if not await spot_location_status.show_unverified_spots(db):
+        query = query.where(spot_location_status.hidden_clause(SurfSpot))
+
     if region:
         query = query.where(SurfSpot.region == region)
     if country:
@@ -138,7 +143,8 @@ async def get_surf_spots(
             active_photographers_count=active_count,
             country=spot.country, state_province=spot.state_province,
             wave_type=spot.wave_type, is_within_geofence=within_geofence,
-            distance_miles=round(distance, 2) if distance is not None else None
+            distance_miles=round(distance, 2) if distance is not None else None,
+            location_unverified=spot_location_status.location_unverified(getattr(spot, "accuracy_flag", None)),
         ))
 
     if not cacheable:
@@ -269,9 +275,12 @@ async def get_nearby_spots(
     db: AsyncSession = Depends(get_db)
 ):
     """Get surf spots within radius of given location with Privacy Shield"""
-    result = await db.execute(select(SurfSpot).where(SurfSpot.is_active.is_(True)))
+    nearby_query = select(SurfSpot).where(SurfSpot.is_active.is_(True))
+    if not await spot_location_status.show_unverified_spots(db):
+        nearby_query = nearby_query.where(spot_location_status.hidden_clause(SurfSpot))
+    result = await db.execute(nearby_query)
     all_spots = result.scalars().all()
-    
+
     visibility_radius = 1.0
     if user_id:
         user_result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -302,7 +311,8 @@ async def get_nearby_spots(
                 "description": spot.description, "difficulty": spot.difficulty,
                 "image_url": spot.image_url,
                 "active_photographers_count": active_count,
-                "is_within_geofence": within_geofence
+                "is_within_geofence": within_geofence,
+                "location_unverified": spot_location_status.location_unverified(spot.accuracy_flag),
             })
     
     nearby.sort(key=lambda x: x["distance_miles"])

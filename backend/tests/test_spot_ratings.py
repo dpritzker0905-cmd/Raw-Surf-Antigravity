@@ -319,13 +319,29 @@ def test_fetch_active_spots_short_first_page_stops(monkeypatch):
 
 
 def test_fetch_active_spots_respects_hard_limit(monkeypatch):
+    """The limit still bounds the read at 1000 + 1000 + 500 rows. What changed 2026-11-18: when MORE rows exist past
+    it, the read refuses instead of returning the first 2500 as if they were all of them (the silent form left every
+    later spot without a precomputed rating)."""
     import sys
+    import pytest
     monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "k")
     full = [[{"id": i} for i in range(1000)] for _ in range(9)]   # server would keep serving forever
     fake, calls = _mk_fake_requests(full)
     monkeypatch.setitem(sys.modules, "requests", fake)
-    out = pc.fetch_active_spots_via_rest(limit=2500)
-    assert len(out) == 2500
-    assert len(calls["urls"]) == 3                                # 1000 + 1000 + 500
+    with pytest.raises(pc.SpotCapExceeded, match="more than 2500 active surf spots"):
+        pc.fetch_active_spots_via_rest(limit=2500)
+    assert len(calls["urls"]) == 4                                # 1000 + 1000 + 500, then ONE probe row
     assert "limit=500" in calls["urls"][2]
+    assert "limit=1&offset=2500" in calls["urls"][3]
+
+
+def test_fetch_active_spots_exactly_at_the_limit_is_not_an_error(monkeypatch):
+    import sys
+    monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "k")
+    pages = [[{"id": i} for i in range(1000)], [{"id": i} for i in range(1000)], [{"id": i} for i in range(500)], []]
+    fake, calls = _mk_fake_requests(pages)                        # the probe finds nothing past row 2500
+    monkeypatch.setitem(sys.modules, "requests", fake)
+    assert len(pc.fetch_active_spots_via_rest(limit=2500)) == 2500
+    assert len(calls["urls"]) == 4

@@ -150,6 +150,14 @@ def verify_token(token: str, allow_scopes: tuple = ()) -> dict:
             status_code=401,
             detail="Invalid or expired session. Please log in again.",
         )
+    # A revoked account (deleted at the user's request) loses every token issued up to its cutoff
+    # (core/session_revocation: an in-memory map, so no request pays a database query).
+    from core.session_revocation import is_revoked
+    if is_revoked(payload):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired session. Please log in again.",
+        )
     return payload
 
 

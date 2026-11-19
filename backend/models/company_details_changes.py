@@ -52,7 +52,10 @@ for _statement in (
     'ALTER TABLE %(fullname)s ENABLE ROW LEVEL SECURITY',
     'REVOKE ALL ON TABLE %(fullname)s FROM anon, authenticated, service_role',
     'GRANT SELECT, INSERT ON TABLE %(fullname)s TO service_role',
-    "CREATE OR REPLACE FUNCTION company_details_changes_append_only() RETURNS trigger LANGUAGE plpgsql AS $$ "
+    # search_path pinned empty (the #1080 fix): a trigger function must not resolve names through a caller-controlled
+    # path. The body references no object, so nothing needs schema-qualifying.
+    "CREATE OR REPLACE FUNCTION company_details_changes_append_only() RETURNS trigger LANGUAGE plpgsql "
+    "SET search_path = '' AS $$ "
     "BEGIN RAISE EXCEPTION 'company_details_changes is append-only'; END; $$",
     "CREATE TRIGGER company_details_changes_no_rewrite BEFORE UPDATE OR DELETE ON %(fullname)s "
     "FOR EACH ROW EXECUTE FUNCTION company_details_changes_append_only()",

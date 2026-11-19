@@ -320,6 +320,16 @@ def start_scheduler():
     except Exception as e:
         logger.warning(f"[Scheduler] Memory trace init failed: {e}")
 
+    # Session revocations: reload the in-memory cutoffs every minute (and once now), so a revocation made in one
+    # process is enforced by every process within a minute (core/session_revocation).
+    from core.session_revocation import refresh as refresh_session_revocations
+    scheduler.add_job(
+        refresh_session_revocations,   # NOT tracked(): no per-minute status write, and no admin toggle can switch it off
+        IntervalTrigger(minutes=1), next_run_time=datetime.now(timezone.utc),
+        id='session_revocations', name='Reload revoked-session cutoffs',
+        replace_existing=True, max_instances=1, coalesce=True
+    )
+
     scheduler.start()
     logger.info("[Scheduler] Background scheduler started")
     logger.info("[Scheduler] Jobs: surf_alerts (15min), story_cleanup (1hr), leaderboard_reset (monthly), "

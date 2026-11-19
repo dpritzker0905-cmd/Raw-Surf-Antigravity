@@ -47,6 +47,8 @@ export const useMarkerClustering = (spots, bounds, zoom, options = {}) => {
           distance_miles: spot.distance_miles,
           is_verified_peak: spot.is_verified_peak,
           accuracy_flag: spot.accuracy_flag,
+          // Server flag: added from the holding table, position not yet verified (map/unverifiedLocation.js).
+          location_unverified: spot.location_unverified === true,
           wave_type: spot.wave_type,
           // Store full spot data for marker clicks
           spot: spot

@@ -232,6 +232,9 @@ def test_the_company_details_record_is_append_only_on_postgres():
     for needed in ("company_details_changes_no_rewrite", "company_details_changes_no_truncate", "BEFORE TRUNCATE",
                    "ENABLE ROW LEVEL SECURITY", "GRANT SELECT, INSERT ON TABLE"):
         assert needed in ddl, needed
+    # the trigger function pins an empty search_path (the #1080 fix), so no caller-controlled path is consulted
+    function = next(s for s in ddl.split(" | ") if "CREATE OR REPLACE FUNCTION company_details_changes_append_only" in s)
+    assert "LANGUAGE plpgsql SET search_path = '' AS $$" in function
 
 
 def test_a_publish_that_leaves_the_consent_words_alone_changes_nothing(maker):

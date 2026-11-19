@@ -1,0 +1,36 @@
+name: Tide M1-0 parity (CMEMS merged sea level read directly vs the served Open-Meteo level; model values only)
+# WHY: the director's M1-0 (2026-11-18): Open-Meteo's sea_level_height_msl is CMEMS
+# cmems_mod_glo_phy_anfc_merged-sl_PT1H-i. Before the served tide reads CMEMS directly, prove the two agree:
+# p99 |delta| <= 0.01 m over the 48 h before the run's 00Z at 20 fixed keys (rule fixed in
+# backend/scripts/tide_cmems/parity_rules.py before any run). No observed water, nothing served, no bucket write.
+# ONE-SHOT START: the tag `tide-cmems-parity` only (no dispatch, no schedule). Copernicus Marine credentials on the
+# probe step only, never printed. Pinned by tests/test_tide_cmems.py.
+on:
+  push:
+    tags: [tide-cmems-parity]
+permissions:
+  contents: read
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (pinned as the tide gates)
+        run: pip install "copernicusmarine==2.4.1" numpy xarray h5netcdf netCDF4 pandas
+      - name: Run the parity probe
+        timeout-minutes: 50
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python backend/scripts/tide_cmems/parity_probe.py --work parity_work > m1_0_parity.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tide-m1-0-parity
+          path: m1_0_parity.json
+          if-no-files-found: ignore
+          retention-days: 90
