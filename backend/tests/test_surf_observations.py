@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
 from database import get_db
-from models import (TosContent, SurfTruthConsentEvent, CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
+from models import (CompanyDetailsChange, TosContent, SurfTruthConsentEvent,CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
                     SurfSpot, SurfTruthAnchor, SurfTruthAnchorEvent, UserStreak)
 from routes.surf_data import checkins, observations, surf_reports
 from services import observation_media
@@ -121,7 +121,7 @@ async def world(monkeypatch):
     monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")  # the XP kill switch reads runtime_flags: no network in tests
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
-        for model in (Profile, TosContent, SurfTruthConsentEvent, SurfSpot, CheckIn, UserStreak, ConditionReport, SurfReport, SurfObservation,
+        for model in (Profile, TosContent, SurfTruthConsentEvent, CompanyDetailsChange,SurfSpot, CheckIn, UserStreak, ConditionReport, SurfReport, SurfObservation,
                       ObservationMedia, SurfTruthAnchor, SurfTruthAnchorEvent):
             await connection.run_sync(lambda conn, table=model.__table__: table.create(conn))
     maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -319,7 +319,7 @@ async def test_scale_default_endpoint_is_the_servers(world):
 async def test_server_sets_flow_role_and_keeps_device_time_as_a_claim(world, monkeypatch):
     from services import surf_truth_anchors
     async with world.maker() as db:  # an ACTIVE anchor in the anchors table (no longer an env var)
-        await surf_truth_anchors.set_status(db, "photog", "active", "admin-x", "trusted photographer")
+        await surf_truth_anchors.set_status(db, "photog", "active", "admin-x", "reliable_record")
         await db.commit()
     skewed = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
     r = await world.client.post(URL, json=_checkin(observed_at_device=skewed), headers=_token("surfer"))
@@ -371,6 +371,20 @@ async def test_client_build_is_stored_and_shape_checked(world):
 CONSENT_URL = "/api/surf-observations/consent"
 
 
+async def test_a_grant_under_a_wording_that_is_not_final_is_409_and_a_withdrawal_still_works(world, monkeypatch):
+    from services import legal_identity
+    monkeypatch.setattr(legal_identity, "DEFAULTS", {**legal_identity.DEFAULTS, "legal_name": ""})   # no controller
+    body = (await world.client.get(CONSENT_URL, headers=_token("surfer"))).json()
+    assert body["final"] is False
+    on = await world.client.put(CONSENT_URL, json={"granted": True}, headers=_token("surfer"))
+    assert on.status_code == 409
+    off = await world.client.put(CONSENT_URL, json={"granted": False, "source": "settings"}, headers=_token("surfer"))
+    assert off.status_code == 200 and off.json()["granted"] is False
+    async with world.maker() as db:
+        history = (await db.execute(select(SurfTruthConsentEvent))).scalars().all()
+    assert [(e.granted, e.source) for e in history] == [(False, "settings")]
+
+
 async def test_consent_is_off_by_default_and_each_choice_is_appended(world):
     from services import surf_truth_consent as stc
     assert (await world.client.get(CONSENT_URL)).status_code == 401
@@ -378,9 +392,11 @@ async def test_consent_is_off_by_default_and_each_choice_is_appended(world):
     assert r.status_code == 200
     body = r.json()
     assert body["granted"] is False and body["version"] is None                      # opt-in: no choice is no
-    assert body["current_version"] == stc.CONSENT_VERSION and body["text"] == stc.CONSENT_TEXT
+    served = stc.default_served_version()
+    assert body["current_version"] == served and body["final"] is True and body["privacy_url"] == "/privacy"
+    assert "Raw Surf Adventures Inc. uses" in body["text"] and "{" not in body["text"]
     on = await world.client.put(CONSENT_URL, json={"granted": True}, headers=_token("surfer"))
-    assert on.json()["granted"] is True and on.json()["version"] == stc.CONSENT_VERSION
+    assert on.json()["granted"] is True and on.json()["version"] == served
     off = await world.client.put(CONSENT_URL, json={"granted": False, "source": "settings"}, headers=_token("surfer"))
     assert off.json()["granted"] is False
     async with world.maker() as db:
@@ -408,7 +424,7 @@ async def test_observation_records_the_consent_in_force_when_received(world):
     assert (await world.client.post(URL, json=second, headers=_token("surfer"))).status_code == 200
     first_row, second_row = await world.rows()
     assert (first_row.consent_training, first_row.consent_version) == (False, None)
-    assert (second_row.consent_training, second_row.consent_version) == (True, stc.CONSENT_VERSION)
+    assert (second_row.consent_training, second_row.consent_version) == (True, stc.default_served_version())
 
 def test_the_consent_text_promises_only_what_the_code_does():
     """Advisor 11-18: the first draft said 'never your name' and that withdrawal reached earlier reports everywhere.
@@ -422,8 +438,18 @@ def test_the_consent_text_promises_only_what_the_code_does():
     from services import surf_truth_retention as ret
     assert ret.ERASURE_BOUND.days == 7                      # the promise and the retention bound move together
     # each group of exported fields is named in the text
-    named = {"spot": ("spot_id",), "to the minute": ("received_at",), "how far": ("gps_distance_m", "exif_distance_m"),
+    named = {"spot": ("spot_id",), "to the minute": ("received_at",),
+             "roughly how far": ("gps_distance_band", "exif_distance_band"),
              "app version": ("client_build",), "same for all your reports": ("observer_key",)}
     for phrase, fields in named.items():
         assert phrase in text, phrase
         assert set(fields) <= set(FIELDS), fields
+    # California precise geolocation (Civ. Code 1798.140(w)): a radius of 1,850 ft. No exact distance leaves, and the
+    # narrowest band the text promises ("never closer than 1 km") is what the export actually uses.
+    from services import surf_truth_export as ste
+    assert not {"gps_distance_m", "exif_distance_m", "gps_check"} & set(FIELDS)
+    assert "never closer than 1 km" in text and ste.DISTANCE_BANDS[0] == (1000.0, "<1 km")
+    # 2026-11-18 legal research: Art. 7(3) (earlier use stays lawful), withdrawal as easy as consent, the controller
+    # named and the privacy notice linked, both from Company details (owner 2026-11-18: Raw Surf Adventures Inc., /privacy)
+    assert "already made stay" in text and "this same switch" in text
+    assert "{company} uses" in text and text.endswith("privacy notice: {privacy_url}")
