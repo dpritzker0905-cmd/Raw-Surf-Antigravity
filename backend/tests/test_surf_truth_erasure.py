@@ -12,9 +12,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from models import (Booking, CheckIn, Comment, ConditionReport, Follow, GalleryPurchase, Message, MfaChallenge,
                     MfaRecoveryCode, ObservationMedia, PaymentTransaction, Post, Profile, Review, SurfObservation,
-                    SessionRevocation, SurfTruthAdminAction, SurfTruthAnchor, SurfTruthConsentEvent, TosAcknowledgement,
-                    TosViolation, UserMfa,
-                    WebauthnCredential)
+                    SessionRevocation, SurfTruthAdminAction, SurfTruthAnchor, SurfTruthConsentEvent,
+                    TosAcknowledgement, TosViolation, UserMfa, WebauthnCredential)
 from models.enums import RoleEnum
 from routes.compliance_pkg.gdpr import request_data_deletion
 from services.surf_truth_erasure import erase_surf_truth, export_surf_truth
@@ -40,7 +39,8 @@ def maker():
             for model in (Profile, Post, Comment, Follow, CheckIn, Review, Message, SurfObservation,
                           ObservationMedia, SurfTruthAnchor, Booking, GalleryPurchase, PaymentTransaction,
                           TosAcknowledgement, TosViolation, ConditionReport, WebauthnCredential, UserMfa,
-                          MfaRecoveryCode, MfaChallenge, SessionRevocation, SurfTruthConsentEvent, SurfTruthAdminAction):
+                          MfaRecoveryCode, MfaChallenge, SessionRevocation, SurfTruthConsentEvent,
+                          SurfTruthAdminAction):
                 await conn.run_sync(lambda c, t=model.__table__: t.create(c))
         mk = async_sessionmaker(engine, expire_on_commit=False)
         async with mk() as db:
