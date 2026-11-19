@@ -122,3 +122,39 @@ A peer session's rulings, recorded as they came; the build waits for the advisor
   - F9's dark pin is ONE test that evaluates the JS table and the shader's own dark anchors at the same heights (the
     anchors read from the shader source text, not copied by hand into the test).
   - No other line changes.
+
+## 6. The advisor's read (received 2026-11-18, about 20:15 EST), and the gate as amended BEFORE any build
+The advisor answered from my summary and has not read this file; the PR gets its full read. Every point is taken. Where a
+line below differs from section 3, THIS section is the gate.
+- **F1 is rewritten: count below the browser.** A page-level request log can miss requests made inside the map library's
+  workers and anything a protocol handler fetches itself. So the lab's browser is given a local proxy that DENIES every
+  outbound host by default except an allow-list, and records every host asked for, allowed or refused. Allow-list: the
+  local page server, the synthetic backend, the local frame stand-in, and the basemap's own tile host (without it no map
+  draws; named in the report). F1 passes when the proxy's record shows ZERO requests, allowed or refused, to any Open-Meteo
+  host or to the `weather-proxy` function, across the same runs as before (fallback forced; waves, swell_1, swell_2,
+  wind_waves; five views; six hour steps; three themes; desktop and phone).
+  **Positive control, per ROUTE:** dev's build under the SAME proxy must show at least one request by EACH route: the
+  `om://` handler's fetches, the `weather-proxy` function, and a direct Open-Meteo host. A route that shows none on dev
+  cannot be seen by the counter, and F1 is void for that route (said by name; if dev simply does not use a route, that is
+  shown from the code and the route is dropped with the reason).
+- **F2 no longer un-composites.** (a) The bitmap handed to the map is compared DIRECTLY with the field mapped through the
+  theme's table, with no map involved: every pixel within 1 of 255 per channel of the table's colour at the height that
+  pixel's own latitude and longitude interpolate to. (b) In the page, with the basemap hidden over a known flat colour and
+  the layer's opacity forced to 1, the colour read at 200 map coordinates over open water is within 4 of the table's.
+  (c) The full map picture is used only as a last check that the field is on screen (the picture with the field differs
+  from the picture without it over open water). The shuffled-heights control stays, on (a) and (b).
+- **F5 gains four traps:** (a) a grid that runs past about 85.05 degrees is clipped there, and the test says where;
+  (b) the image's corners are the outer cell EDGES, not the cell centres (a hot node must peak on its own coordinate, not
+  half a cell off); (c) a box that crosses the antimeridian (a case across 180 is added); (d) row order, north first. Cases
+  now: latitudes 0, 40, 70 and 85 N, and one box across 180. The even-latitude control stays.
+- **How every picture line is scored (the trap of section 14 of the wind log, named before it can bite):** the particle
+  canvas off; the raster fade duration zero or the read taken after it completes; the device pixel ratio fixed, or samples
+  taken by map coordinate, never by pixel; samples over open water, away from labels and the land mask.
+- **Limits written in from the start, and each gets its line in F6:**
+  - what the user sees when our own data has no frame for the hour: nothing drawn, and the "unavailable" row;
+  - that NO path falls back to Open-Meteo in ANY state: forced fallback, real engine failure, no grid, the kill set, a
+    failed redraw. F1's proxy runs over each of those states too.
+- **Said in the PR, as the advisor asks:** if the failure is a lost GL context the map itself is gone and nothing draws.
+  This fallback covers failures of the marine ENGINE (a shader that will not compile, missing float-texture support, the
+  frame-rate guard), not of the map.
+- F3, F4, F6 (plus the above), F7, F8 and F9 stand as amended by section 5.
