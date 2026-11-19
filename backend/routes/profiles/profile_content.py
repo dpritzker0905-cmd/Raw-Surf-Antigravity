@@ -9,7 +9,7 @@ Profile Content Routes - for Instagram-style profile tabs
 
 from fastapi import APIRouter, Depends, HTTPException
 from core.security import get_optional_user_id, get_user_id_from_jwt_or_query
-from services.blocks import assert_visible_to
+from services.blocks import assert_owner_listed, assert_visible_to
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
@@ -110,6 +110,7 @@ async def get_user_posts(
 @router.get("/profile/{user_id}/posts/count")
 async def get_user_posts_count(user_id: str, db: AsyncSession = Depends(get_db)):
     """Get count of user's posts"""
+    await assert_owner_listed(db, user_id)
     result = await db.execute(
         select(func.count(Post.id)).where(Post.author_id == user_id)
     )
@@ -132,6 +133,7 @@ async def get_session_shots(
     For SURFERS: Photos/videos transferred from photographers (purchased pro content)
     For PHOTOGRAPHERS: Their shot sessions (galleries they created from live sessions)
     """
+    await assert_owner_listed(db, user_id)
     # First check if user is a photographer
     user_result = await db.execute(
         select(Profile).where(Profile.id == user_id)
@@ -239,6 +241,7 @@ async def get_user_videos(
     db: AsyncSession = Depends(get_db)
 ):
     """Get user's video posts only (media_type='video' OR URL ends in a video extension)"""
+    await assert_owner_listed(db, user_id)
     from models import PostReaction, PostLike
     result = await db.execute(
         select(Post)
@@ -323,6 +326,7 @@ async def get_user_photos(
     db: AsyncSession = Depends(get_db)
 ):
     """Get user's photo posts only (excludes videos)"""
+    await assert_owner_listed(db, user_id)
     from models import PostReaction, PostLike
     result = await db.execute(
         select(Post)
@@ -516,6 +520,7 @@ async def check_if_saved(post_id: str, user_id: str, db: AsyncSession = Depends(
 @router.get("/profile/{user_id}/stats")
 async def get_profile_stats(user_id: str, db: AsyncSession = Depends(get_db)):
     """Get all profile stats in one call"""
+    await assert_owner_listed(db, user_id)
     # Posts count (all posts)
     posts_result = await db.execute(
         select(func.count(Post.id)).where(Post.author_id == user_id)

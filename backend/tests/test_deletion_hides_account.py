@@ -139,6 +139,22 @@ def test_follower_and_following_lists_drop_the_withdrawn_account(world):
     assert {u['id'] for u in client.get('/api/following/viewer').json()} == {'carol', 'dana'}
 
 
+def test_profile_tabs_locations_and_the_share_page_hide_the_withdrawn_account(world):
+    """Advisor hold on #1082: the profile's content tabs, the recent surf locations (with coordinates) and the public
+    share page (author name in HTML and link previews) were still served."""
+    client, maker = world
+    for tab in ('posts/count', 'session-shots', 'videos', 'photos', 'stats'):
+        assert client.get(f'/api/profile/dana/{tab}').status_code == 404, tab
+        assert client.get(f'/api/profile/carol/{tab}').status_code == 200, tab
+    assert client.get('/api/posts/user/dana/recent-locations').json() == []
+    page = client.get('/api/share/post-dana')
+    assert page.status_code == 200 and 'Dana' not in page.text and 'Post Not Found' in page.text
+    assert 'Carol' in client.get('/api/share/post-carol').text
+    _restore(client, maker)
+    assert client.get('/api/profile/dana/stats').status_code == 200
+    assert 'Dana' in client.get('/api/share/post-dana').text
+
+
 def test_a_restore_brings_everything_back(world):
     client, maker = world
     _restore(client, maker)
