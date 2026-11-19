@@ -389,6 +389,21 @@ offset moves, the media data is untouched, and the file is patched on disk (no i
 Tests +3 (read then neuter, length and media unchanged; non-ISO left alone and malformed refused without a file; the
 route keeps the location privately and not publicly); mutation: skipping track-level boxes fails 2; the 53-test
 upload identity suite passes. Stacked on #1035.
+## 2026-11-18 13:34Z T1 P3 (part 7): social uploads publish no GPS either
+
+David: "Yes, social uploads". Six more routes stored the original bytes in PUBLIC buckets, GPS and all: /upload
+(general), /upload/story, /upload/feed, /upload/comment, /upload/wave and /upload/user-gallery. Photos now
+go through write_public_copy (lossless strip); a photo the lossless walk refuses but Pillow can decode is
+re-encoded without metadata and upright (public_image_bytes), so an odd phone file is cleaned rather than rejected;
+an undecodable one is refused (400). Videos are transcoded by ffmpeg where available, and ffmpeg copies global
+metadata by default, so the FINAL file (transcoded or kept raw) is patched in place with strip_stored_video before
+upload; a malformed MP4/MOV is removed and refused. The route wrappers live in `routes/uploads/public_copy.py`
+(core.py stays at 789 lines). Not in this part: photographer commercial originals (/upload/gallery,
+/upload/photographer-gallery, /photos/upload): buyers may expect camera EXIF, so GPS-only stripping there is a
+decision for David; avatars are already re-encoded by Pillow without EXIF. HEIC on feed/comment and WebM stay
+unstripped; already-stored files wait on the backfill decision.
+Tests +10 (odd JPEG re-encoded clean and upright; four photo routes and four video routes (story, feed, comment, wave) publish no location; user
+gallery). Mutations: dropping the comment-video strip fails 1, writing the feed photo raw fails 1.
 ## 2026-11-18 13:42Z T1 P3 (part 6, advisor HOLD fixed): a bounded box walk, and no unstripped file left behind on any error
 
 The advisor held #1038 at fb531cf5b for two defects, both now fixed. (1) Unbounded memory: `strip_video_in_place`
@@ -402,6 +417,13 @@ Tests +2 (a flood of 4,106 boxes is refused with no file left while a real-shape
 error leaves no file). Mutations: dropping the budget fails 1; catching only MetadataError fails 1.
 Limits the advisor recorded, NOT fixed here: GoPro GPMF / DJI telemetry tracks (a full GPS track inside the media
 data), top-level `uuid` boxes, and the mvhd/tkhd creation times, which stay.
+## 2026-11-18 13:48Z T1 P3 (part 7, addendum): two advisor limits on #1035 closed here
+
+A truncated JPEG (a lone trailing 0xFF) raised IndexError in `strip_jpeg`, which the routes answered with a 500; it is
+now a MetadataError (400). `strip_stored_video` removes the file on ANY exception, as part 6 now does, because the
+local copy is also served by `/api/uploads/...`. Tests +1 (estate fragment now +11). The other #1035 limits stay
+open: bytes after the JPEG image data (Android motion-photo video, secondary images) are copied as is, APP2 is kept
+without checking it is an ICC profile, HEIC keeps its GPS.
 ## 2026-11-18 13:53Z T1 P3 (part 2, advisor HOLD fixed): the consent text says only what is true
 
 The advisor held #1024 at 6ffd34254: the text said "(with the spot and time, but never your name)" and "from then on,
@@ -423,6 +445,20 @@ exists. STEP 3 (David, after merge): delete the REPOSITORY secret `SUPABASE_SERV
 workflow on dev to confirm. After that, dispatching these workflows from a lane branch is refused by design.
 Checks: all workflow YAML parses; 242 workflow-shape tests pass (4 failures in `test_audit_e2e_trace_override` are a
 Windows bash timeout on the untouched `e2e-tests.yml`).
+## 2026-11-18 14:53Z T1 P3 (part 7, advisor HOLD fixed): no unbounded decode in the re-encode fallback; avatars covered
+
+The advisor held #1042 at 32d097793: `_reencode_image` fully decoded any JPEG/PNG/WebP the lossless walk refused, with no
+dimension limit, so a small file claiming 13,000 x 13,000 pixels (~500 MB decoded) could take down the shared server.
+Now `check_decode_size` reads the size from the header after `Image.open` and BEFORE any decode, and refuses more than
+`MAX_DECODE_PIXELS` = 50 MP: the largest common phone photo is a 50 MP full-resolution mode (8,160 x 6,120 = 49.9 MP),
+so one decode stays near 150 MB; Pillow's own guard only warns below ~179 MP. The lossy fallback is counted
+(`REENCODE_COUNT` plus a warning log line) so its rate is visible. The AVATAR route (public bucket) gets the same cap
+before its resize, and its error path now stores a STRIPPED copy instead of the raw bytes. Tests +2 (a bomb header is
+refused before any decode and not counted, while a normal odd file is counted; an avatar bomb is refused and a normal
+avatar has no GPS); estate fragment +13.
+Recorded for #1038 (advisor, PASS-WITH-LIMITS at b6afb3920): a very long fragmented MP4 (more than ~2,000 fragments,
+each a `moof` + `mdat` pair at the top level) now exceeds the 4,096-box budget and is refused with a 400. Accepted: phone
+recordings are not fragmented, and a refused upload is never published unchecked.
 ## 2026-11-18 15:41Z T1 P3 (part 1 follow-up): a deletion request now reaches the files and the sign-in
 
 The advisor recorded two limits on #1022: a deletion request did not remove the person's photos from the PUBLIC
