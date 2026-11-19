@@ -55,8 +55,12 @@ const DOWNSCALE_NOTE = {
 export function creditFor(layer, engaged = getEngaged(), downscaled = getDownscaled()) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_LAYER_DATA_CREDIT__ === true) return null;
   if (engaged && engaged[layer]) {
-    const s = SOURCES[OWN_SOURCE[engaged[layer]] || 'noaa'];   // the model of the frame on screen
-    const own = typeof OWN_NOTE[layer] === 'function' ? OWN_NOTE[layer](engaged[layer]) : OWN_NOTE[layer];
+    // '<MODEL>:idle' (2026-11-18): an own-only model claimed with nothing drawn (killed, unpublished, pre-index). Its own source,
+    // no note (nothing is drawn for a note to describe), and never "© Open-Meteo", which no longer draws it.
+    const [model, state] = String(engaged[layer]).split(':');
+    const s = SOURCES[OWN_SOURCE[model] || 'noaa'];   // the model of the frame on screen
+    if (state === 'idle') return s;
+    const own = typeof OWN_NOTE[layer] === 'function' ? OWN_NOTE[layer](model) : OWN_NOTE[layer];
     const n = own || (downscaled && downscaled[layer] ? DOWNSCALE_NOTE[layer] : null);
     return n ? { ...s, text: s.text + n.text, label: `${n.label} ${s.label}`, title: n.label } : s;
   }

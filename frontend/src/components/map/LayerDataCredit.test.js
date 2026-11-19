@@ -111,3 +111,12 @@ test('air temperature drawn terrain-adjusted credits the elevation source, only 
   expect(getByTestId('layer-data-credit').textContent).toBe('© Open-Meteo · CC BY 4.0');
   _resetDownscaleForTest();
 });
+
+test('an own-only model claimed with nothing drawn ("<MODEL>:idle", 2026-11-18) credits its own source, with no note and never Open-Meteo', () => {
+  const { setEngaged } = require('./ownRasterFrames');
+  act(() => setEngaged('temperature', 'ICON:idle'));
+  expect(creditFor('temperature').text).toBe('ICON (Deutscher Wetterdienst)');
+  act(() => setEngaged('satellite', 'EURO:idle'));
+  expect(creditFor('satellite').text).toBe('EURO (ECMWF) · CC BY 4.0');          // no "instantaneous" note: nothing is drawn
+  act(() => { setEngaged('temperature', false); setEngaged('satellite', false); });
+});

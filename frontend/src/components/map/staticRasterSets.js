@@ -15,6 +15,7 @@ export const RASTER_SET_KEYS = Object.freeze([
   // 2026-11-14 (the fog / air temp / water temp instant lane, #888's sets): per-model air temperature, GFS surface visibility
   // (fog) and model skin temperature (water temp).
   'EURO/weather/temperature/global_0p25', 'ICON/weather/temperature/global_0p5',
+  'ICON/weather/temperature/global_0p125',   // 2026-11-18: ICON air temperature at 0.125 deg (#957's set), ON for ICON
   'GFS/weather/fog/global_0p25',
   'GFS/weather/water_temp/global_0p25', 'EURO/weather/water_temp/global_0p25',
   // 2026-11-15: per-model gusts in knots (the new 'gusts' layer; FRAME_RASTER_GUST, _GUST_EURO, _GUST_ICON)
