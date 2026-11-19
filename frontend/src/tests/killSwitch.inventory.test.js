@@ -87,6 +87,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RESPONSIVE_WEATHER__',
   // components/map/ownRasterFrames.test.js (pressure from own frames, ON 2026-11-12; the kill is the .om path)
   '__RAW_DISABLE_RASTER_OWN_PRESSURE__',
+  // components/map/marineAllLandRedrive.test.js ("OFF PATH: __RAW_DISABLE_ALL_LAND_BACKOFF__ never holds an all-zero view"; 2026-11-18)
+  '__RAW_DISABLE_ALL_LAND_BACKOFF__',
   // components/map/ownRasterLayer.test.js ("OFF PATH: __RAW_DISABLE_RASTER_TEX_FIT__ uploads the full field"; 2026-11-16)
   '__RAW_DISABLE_RASTER_TEX_FIT__',
   // components/map/ownRasterFrames.test.js ("OFF PATH: its own kill wins over the lever and touches no other layer"; 2026-11-12)
