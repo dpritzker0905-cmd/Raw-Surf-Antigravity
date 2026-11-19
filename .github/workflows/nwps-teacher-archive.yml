@@ -52,6 +52,7 @@ jobs:
   archive:
     if: ${{ github.event_name == 'workflow_dispatch' || vars.NWPS_TEACHER_ARCHIVE == '1' }}
     runs-on: ubuntu-latest
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5

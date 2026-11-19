@@ -327,3 +327,40 @@ def test_no_archive_key_is_a_product_name():
     assert A.object_key("20261119", "lox", "00", 12, "CG2").endswith("/t00z.cg2.f000-012.grib2")
     for k in (key, key.split("/")[-1], key[:-len(".grib2")] + ".index.json", spec, spec.split("/")[-1]):
         assert not is_product_object(k)
+
+
+# ── advisor HOLD fixes (2026-11-19): a partial file is never stored; an outage or a failed upload is a red run ──
+def test_a_truncated_download_is_never_stored_and_is_left_for_the_next_run(tmp_path):
+    files, blob = _files()
+    first = sorted(files)[0]
+    files[first] = blob + grib(3)[:-9]                          # whole messages, then a cut-off one
+    s = _run(tmp_path, files)
+    assert s["skipped_truncated"] == 1 and s["saved"] == len(files) - 1
+    stored = [p for p in tmp_path.rglob("*.new")]
+    assert all(open(p, "rb").read() != blob + grib(3)[:-9] for p in stored)
+
+
+def test_a_source_outage_turns_the_collector_run_red(monkeypatch, tmp_path):
+    monkeypatch.delenv(A.FLAG, raising=False)
+    (tmp_path / "existing.json").write_text("[]")
+    monkeypatch.setitem(A.NET_FAILURES, "count", 0)
+
+    def refused(url, pause, limit=None):
+        A.NET_FAILURES["count"] += 1                             # what _http does for a non-404 failure
+        return None
+    monkeypatch.setattr(A, "_http", refused)
+    assert A.main(["--cache", str(tmp_path), "--pause", "0"]) == 1
+    assert (tmp_path / "collect_report_nwps.json").exists()     # the report is still written
+
+
+def test_a_failed_upload_turns_the_storage_run_red(monkeypatch, tmp_path):
+    d = tmp_path / "out" / "20261119" / "lox"
+    d.mkdir(parents=True)
+    (d / "t00z.cg1.f000-012.grib2.new").write_bytes(b"data")
+    monkeypatch.setattr(IO, "put_new", lambda key, blob: 500)
+    assert IO.main(["x", "upload", "--dir", str(tmp_path)]) == 1
+
+
+def test_the_job_reads_the_key_only_through_the_supabase_service_environment():
+    wf = open(os.path.join(BACKEND, "..", ".github", "workflows", "nwps-teacher-archive.yml"), encoding="utf-8").read()
+    assert "environment: supabase-service" in wf

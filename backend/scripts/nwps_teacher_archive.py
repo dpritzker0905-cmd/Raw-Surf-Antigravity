@@ -203,7 +203,7 @@ def run(listing, fetch, cache, days, existing, keep_hours, max_kept, max_downloa
     now = now or datetime.now(timezone.utc)
     jobs = plan(listing, days, existing, keep_hours, wfos, rotate)
     summary = {"planned": len(jobs), "saved": 0, "kept_bytes": 0, "downloaded_bytes": 0, "skipped_absent": 0,
-               "skipped_empty": 0, "left_for_next_run": 0, "stopped": None, "kept_bytes_by_day": {},
+               "skipped_empty": 0, "skipped_truncated": 0, "left_for_next_run": 0, "stopped": None, "kept_bytes_by_day": {},
                "kept_bytes_by_kind": {}, "source_bytes_by_kind": {}, "files_by_kind": {}}
     for i, (day, region, wfo, cycle, key, url, kind) in enumerate(jobs):
         if summary["kept_bytes"] >= max_kept or summary["downloaded_bytes"] >= max_download:
@@ -223,6 +223,13 @@ def run(listing, fetch, cache, days, existing, keep_hours, max_kept, max_downloa
         else:
             kept, stats = select(blob, keep_hours)
             note = "each kept GRIB2 message is byte-identical to the source; only whole messages are dropped"
+            if stats.get("unparsed_tail_bytes", 0):
+                # Never store a partial download: the upload is create-only, so a saved partial file would block this
+                # cycle for good. Leave it for the next run, which fetches it again.
+                summary["skipped_truncated"] += 1
+                log("%s %s t%sz %s: %d bytes not parsed; not stored, left for the next run" % (
+                    day, wfo, cycle, kind, stats["unparsed_tail_bytes"]))
+                continue
         if not kept or (kind != "spectra" and not stats["kept"]):
             summary["skipped_empty"] += 1
             log("%s %s t%sz %s: nothing kept of %d bytes" % (day, wfo, cycle, kind, len(blob)))
@@ -256,6 +263,9 @@ def index_path(data_path: str) -> str:
     return data_path + ".index.json"
 
 
+NET_FAILURES = {"count": 0}   # requests that failed for a reason other than 404 (an outage, a timeout)
+
+
 def _http(url: str, pause: float, limit=None):
     """GET one URL. None for a 404 or any failure (the class is logged, never the text)."""
     time.sleep(pause)
@@ -265,9 +275,11 @@ def _http(url: str, pause: float, limit=None):
             return resp.read() if limit is None else resp.read(limit)
     except urllib.error.HTTPError as e:
         if e.code != 404:
+            NET_FAILURES["count"] += 1
             print("GET failed: HTTP %d" % e.code)
         return None
     except Exception as e:  # noqa: BLE001 - class only
+        NET_FAILURES["count"] += 1
         print("GET failed: %s" % type(e).__name__)
         return None
 
@@ -312,6 +324,12 @@ def main(argv=None) -> int:
             kind, s["files_by_kind"][kind], s["kept_bytes_by_kind"][kind] / 1e6, s["source_bytes_by_kind"][kind] / 1e6))
     with open(os.path.join(a.cache, "collect_report_nwps.json"), "w", encoding="utf-8") as fh:
         json.dump(s, fh, sort_keys=True)
+    # A NOAA outage or a partial download turns the run red: the source keeps about five days, so a quiet green run
+    # would lose data with nobody told. The report above is written first either way.
+    if NET_FAILURES["count"] or s["skipped_truncated"]:
+        print("NWPS teacher archive FAILED: %d source request(s) failed, %d file(s) truncated" % (
+            NET_FAILURES["count"], s["skipped_truncated"]))
+        return 1
     return 0
 
 

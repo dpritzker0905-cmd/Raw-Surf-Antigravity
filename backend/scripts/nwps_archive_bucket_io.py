@@ -130,11 +130,11 @@ def main(argv):
             sent += 1
             total += len(blob)
             stored.add(key)
-        else:
+        elif st != 409:                               # 409 = already stored (create-only): not a failure
             failed += 1
         print(f"{key[len(PREFIX) + 1:]}: HTTP {st}")
     print(f"uploaded {sent} objects, {total / 1e6:.1f} MB; {failed} not stored")
-    return 0
+    return 1 if failed else 0                         # a failed upload turns the run red
 
 
 if __name__ == "__main__":
