@@ -12,8 +12,9 @@ David's ruling, relayed by the director at about 02:20Z: **"Keep the ban evidenc
 What PR #1097 now does, and what this memo's recommendation therefore becomes:
 
 - At erasure: null the four claimed/actual lat/long columns; replace the free-text notes (`description`,
-  `appeal_text`, and `title`, which an admin may have typed); strip coordinates and free text from inside `evidence`
-  but **keep the rest of it** (numbers, flags and short codes; keys that name a position or a note are dropped).
+  `appeal_text`, and `title`, which an admin may have typed); drop only the GPS and note entries inside
+  `evidence` (matched by whole key name: `lat`, `claimed_coords`, `note`, `admin_notes` and the like) and **keep
+  everything else unchanged** (URLs, timestamps, ids, long strings).
   The row, its reason code, severity, strikes, action, dates, reviewer and decision ref stay.
 - **No expiry.** The 12-month delete clock and the `legal_hold` flag are removed. The "second tier, 12 months"
   advice in section 4 and the 12-month row in section 5 are withdrawn. **Counsel must now confirm that keeping the
