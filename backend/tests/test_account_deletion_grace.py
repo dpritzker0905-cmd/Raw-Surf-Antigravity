@@ -240,3 +240,19 @@ def test_the_deletion_table_is_locked_to_the_backend_role():
     for needed in ("ENABLE ROW LEVEL SECURITY", "REVOKE ALL ON TABLE %(fullname)s FROM anon, authenticated",
                    "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE %(fullname)s TO service_role"):
         assert needed in log, needed
+
+
+@pytest.mark.parametrize("first", ["core.session_revocation", "services.account_deletion"])
+def test_every_session_hook_is_registered_when_either_hook_module_is_imported_first(first):
+    """#1062 CI: a request that imported core.session_revocation alone (core/security does, lazily) loaded the models
+    for the first time INSIDE a flush; the deletion hook then registered mid-dispatch: "deque mutated during iteration"."""
+    import subprocess
+    import sys
+    from pathlib import Path
+    code = ("import sys, importlib; importlib.import_module(%r); "
+            "assert 'services.account_deletion' in sys.modules and 'core.session_revocation' in sys.modules "
+            "and 'models' in sys.modules, sorted(m for m in sys.modules if m.startswith(('models', 'services', 'core')))"
+            % first)
+    run = subprocess.run([sys.executable, "-B", "-c", code], cwd=Path(__file__).resolve().parents[1],
+                         capture_output=True, text=True, encoding="utf-8", timeout=120)
+    assert run.returncode == 0, run.stdout + run.stderr

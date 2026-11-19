@@ -191,3 +191,8 @@ def _guard_pending_deletions(session, flush_context, instances):
 @event.listens_for(Session, "after_rollback")
 def _forget_own(session):
     session.info.pop(_OWN, None)
+
+
+# Same reason as the end of core/session_revocation: load the models (and with them every Session hook) at import time,
+# never for the first time inside a flush, where registering a hook mutates the listener list being dispatched.
+import models  # noqa: E402,F401
