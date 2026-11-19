@@ -58,5 +58,12 @@ async def show_unverified_spots(db) -> bool:
         value = bool(flag is not None and flag.is_enabled and not flag.kill_switch_enabled)
     except Exception:
         value = False
+        # A failed statement leaves a Postgres transaction ABORTED: without this rollback, the caller's next query
+        # on the same session (the spot list itself) fails too, and an unreadable flag table would turn the public
+        # spot list into a 500. Callers read the flag BEFORE any other work on the session, so nothing is lost.
+        try:
+            await db.rollback()
+        except Exception:
+            pass
     _cached, _cached_at = value, now
     return value

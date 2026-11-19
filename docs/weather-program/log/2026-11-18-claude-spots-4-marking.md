@@ -69,3 +69,32 @@ default, so no served number or confidence word moves.
   the first promotion.
 - The spot hub page does not show the words yet.
 - A change of the switch reaches the map within about a minute (two 30 s caches), not at once.
+
+## 2026-11-19 01:55Z After the advisor's read (PASS-WITH-LIMITS at f5c8fecf2): one fix here, and the list that must close before any promotion
+
+**Fixed in this PR.** The advisor found that a failed read of the feature-flag table was swallowed with no rollback.
+On Postgres a failed statement aborts the transaction, so the spot query that follows on the same session would fail
+too: the public spot list would answer 500 while that table was unreadable. `show_unverified_spots` now rolls the
+session back when the read fails (the flag is read before any other work on the session, so nothing is lost).
+New test: with the `feature_flags` table dropped, `/surf-spots` and `/surf-spots/nearby` still answer 200 and still
+leave the marked spot out. 15 tests in the file now. That test runs on SQLite, which does not abort a transaction the
+way Postgres does, so it proves the list survives and the rollback is called, not the Postgres behaviour itself.
+
+**Correction to "Not verified, and not done" above.** My list of routes the hide switch does not cover was incomplete.
+The advisor's list, which is the one to work from: `/explore/search`, `/search/global`, `/explore/surf-spots`,
+`/explore/trending`, `/spot-of-the-day`, the spot detail and spot hub routes, the ratings precompute, the live
+`/spot-ratings` path, and `/surf-spots/locations` (the summary counts). I had missed trending, the live spot-ratings
+path and the locations summary.
+
+**Must be closed BEFORE any candidate is promoted** (the advisor's five, the director's rule that no promotion runs
+until the promote PR merges):
+
+1. The hide switch on every route above, each with a test that it hides by default (promote PR).
+2. The class #1088 left open: eighteen scripts under `backend/scripts/migrations_archive` that overwrite coordinates
+   by name or insert spots; `run_dedup_now.py`; `normalize_surf_spot_hierarchy.py`; `seed_gallery_test_data.py`;
+   `backend/seed_spots.py`. Admin routes that can still write in bulk: dedup and merge with `execute=true`,
+   normalize-hierarchy (no dry run), the two seed routes.
+3. #1074 (placement helper): the new CHECK constraint is not added to a table that already exists; a failed ALTER at
+   startup is only logged; the stored suggestion skips the 50 km rule; there is no history on the write.
+4. The 5,000-spot cap: raise it and time the precompute before the catalogue passes it.
+5. The Maldives rollback (#1081) is written but not run and not tested.

@@ -124,8 +124,41 @@ async def test_the_switch_is_cached_briefly_and_fails_closed(world, monkeypatch)
         assert await status.show_unverified_spots(db) is True         # re-read after the 30 s
 
     class Broken:
+        rolled_back = 0
+
+        async def execute(self, *_a, **_k):
+            raise RuntimeError("database away")
+
+        async def rollback(self):
+            self.rolled_back += 1
+
+    status.reset_cache()
+    broken = Broken()
+    assert await status.show_unverified_spots(broken) is False        # any doubt reads as hidden
+    # ...and the failed read is rolled back, so the caller's next query does not run in an aborted transaction
+    assert broken.rolled_back == 1
+
+    class NoRollback:
         async def execute(self, *_a, **_k):
             raise RuntimeError("database away")
 
     status.reset_cache()
-    assert await status.show_unverified_spots(Broken()) is False      # any doubt reads as hidden
+    assert await status.show_unverified_spots(NoRollback()) is False  # a session that cannot roll back still reads hidden
+
+
+@pytest.mark.asyncio
+async def test_the_public_list_survives_an_unreadable_flag_table(world):
+    """The advisor's finding on #1087: a failed flag read must not take the spot list down with it. Here the
+    feature_flags table is dropped; the list still answers 200 and still leaves the marked spot out."""
+    from sqlalchemy import text
+    async with world.maker() as db:
+        await db.execute(text("DROP TABLE feature_flags"))
+        await db.commit()
+    status.reset_cache()
+    spots_cache.invalidate()
+    response = await world.get("/api/surf-spots")
+    assert response.status_code == 200
+    assert {row["id"] for row in response.json()} == {"old", "ver", "nul"}
+    status.reset_cache()
+    nearby = await world.get("/api/surf-spots/nearby", params={"latitude": 10.0, "longitude": 20.0})
+    assert nearby.status_code == 200
