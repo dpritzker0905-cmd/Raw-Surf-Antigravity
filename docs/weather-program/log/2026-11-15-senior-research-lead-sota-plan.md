@@ -2844,3 +2844,26 @@ downgrade, owner). Sent to the director.
   - The research lead reads the first real run before the third.
 - **T8** (ECMWF zos + IB residual) is routed to the tide lane. The FES2022 commercial reading is confirmed
   independently.
+
+## 2026-11-18 19:32 -0500 Step-5 calibration design; agency-teacher review; period/wind as step 3b; AIFS-ENS waef; European truth
+- **Design:** shared notes `step5-calibration-design-and-teacher-review-2026-11-19.md` (design only).
+- **Step 3b (new, before step 4):** period and wind correction vs public-domain station truth (NDBC, C-MAN,
+  ASOS/METAR).
+  - Primary wind metric: the hit rate of the rating's wind class. Reason: level flips come 67% from period + wind and
+    13% from height.
+- **Step 5:** log(H_obs/H_served) = b_region + b_site + g(sector, period), hierarchical and shrunk.
+  - Metric: RPS + mean signed class error.
+  - Leakage: K is fitted on model/teacher data, step 5 on truth (on K's residual); time blocks with a ≥ 10-day gap; 20%
+    of sites held out; a blind check-in sensitivity arm. b_site for verified pins only.
+  - Gate with a shuffled-site null and a planted +30% positive control.
+  - Truth status: CDIP research-only pending David's USACE ruling; FRF excluded; Oahu lifeguard record unconfirmed.
+- **Agency teacher (repair lead's idea): GOOD, for the US and Europe where a teacher passes vs buoys.**
+  - Learn pre-breaking at about 10-20 m and keep our breaking step.
+  - K² = a · W(θ) · S(T), 4-5 params, shrunk, unlit sectors → prior, a coverage threshold.
+  - The teacher archive must start now (NWPS keeps about 5 days).
+  - Sentinel-2 is ordinal only.
+  - No teacher outside the US and Europe (share uncounted).
+- **AIFS-ENS `waef`:** 51 members (cf + 50 pf), swh/mwd/mwp/period bands, 6-hourly to +360 h. A free ML wave
+  ensemble for L1.
+- **European wave truth:** CMEMS In Situ TAC (IBI/NWS/MED) under the CMEMS licence. The station count needs the
+  account.
