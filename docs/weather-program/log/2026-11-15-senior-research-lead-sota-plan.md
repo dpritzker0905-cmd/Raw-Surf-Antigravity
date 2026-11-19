@@ -2887,3 +2887,18 @@ downgrade, owner). Sent to the director.
 - **Step 6 advice:** score spread plus position; an input-verified verifying level (not +0-6 h as truth); a 10%
   threshold with a ±2 report; a sharpness line; phase 0 honest labels, one-chain numbers, a11y, a kill switch.
 - **AIFS-wave pre-registration:** B1-B3 accepted.
+
+## 2026-11-18 20:04 -0500 Owner: "Go with C" (MOP re-judge on non-Scripps truth); the best SOTA path, synthesised from our own evidence
+- **MOP:** it stays ON while it is re-judged against NWPS, the S2 ordinal and NOAA-owned buoys (sanity). The verdict can
+  only say "not worse". Pre-registration: shared notes `mop-rejudge-preregistration-2026-11-19.md`.
+- **Best SOTA path** (shared notes `best-sota-path-synthesis-2026-11-19.md`):
+  0. truth we own (blind check-ins, surf-cam height);
+  1. alignment, the #1 Jacobian term (swell trains, dominant pick, direction bias, exposure windows);
+  2. per-site transfer (MOP in CA, the validated teacher, the physics prior) plus per-site bias;
+  3. the height-physics fix (the ×1.27 double-count, break placement);
+  4. HRRR rating wind, then MOS;
+  5. period = definition, not MOS;
+  6. uncertainty and ensembles (incl. AIFS-ENS);
+  7. STOP tuning consensus weights and interpolation.
+- **Conflict flagged:** the flip split (period 36 / wind 31 / height 13) vs the Jacobian (alignment first). Rerun the
+  flip attribution with direction separate before more step-3b period work.
