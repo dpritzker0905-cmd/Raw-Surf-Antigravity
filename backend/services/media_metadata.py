@@ -17,7 +17,9 @@ reads those facts from the ORIGINAL bytes first (services/observation_media.insp
   an odd file is cleaned, not rejected; a video kept after transcoding is patched with `strip_stored_video`.
 - Used by every upload route that stores into a PUBLIC bucket: go-live conditions, general, story, feed, comment,
   wave and user gallery (T1 P3 part 7).
-- Anything else (GIF, HEIC/HEIF, WebM) is stored unchanged with `stripped=False`: Pillow here cannot rewrite HEIC, and
+- HEIC/HEIF: its Exif and XMP items are blanked in place without decoding (services/heic_metadata); the rotation
+  lives in item properties, not EXIF, so it is kept.
+- Anything else (GIF, WebM) is stored unchanged with `stripped=False`: Pillow here cannot rewrite HEIC, and
   a browser-recorded WebM carries no GPS. Callers record that.
 """
 from __future__ import annotations
@@ -227,4 +229,7 @@ def strip_image_metadata(content: bytes, content_type: str) -> Tuple[bytes, bool
         return strip_png(content), True
     if ct == "image/webp" or (content[:4] == b"RIFF" and content[8:12] == b"WEBP"):
         return strip_webp(content), True
+    from services.heic_metadata import is_heif, strip_heif
+    if ct in ("image/heic", "image/heif") or is_heif(content):
+        return strip_heif(content), True                    # lossless, no decoder needed (services/heic_metadata)
     return content, False

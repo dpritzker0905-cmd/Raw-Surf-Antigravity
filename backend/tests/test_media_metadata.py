@@ -86,7 +86,8 @@ def test_webp_exif_chunk_and_flag_are_removed():
 
 def test_unsupported_types_are_reported_unstripped_and_malformed_ones_refused():
     assert strip_image_metadata(b"GIF89a....", "image/gif") == (b"GIF89a....", False)
-    assert strip_image_metadata(b"....ftypheic", "image/heic")[1] is False
+    with pytest.raises(MetadataError):                 # HEIC is handled now (services/heic_metadata): bogus bytes are refused
+        strip_image_metadata(b"....ftypheic", "image/heic")
     with pytest.raises(MetadataError):
         strip_image_metadata(b"\xff\xd8\x00garbage", "image/jpeg")
 
@@ -352,3 +353,86 @@ async def test_an_avatar_bomb_is_refused_and_a_normal_avatar_has_no_gps(social):
     assert r.status_code == 200, r.text
     (public_bytes,) = stored.values()
     assert b"GPS" not in public_bytes and piexif.load(public_bytes)["GPS"] == {}
+
+# ── HEIC (T1 P3): the server cannot decode it, so its Exif/XMP items are blanked in place ────────────────────────────
+def _heic(exif_tiff=None, xmp=b'<x:xmpmeta xmlns:x="adobe:ns:meta/">Location 21.665</x:xmpmeta>', image=b"HEVC" * 64,
+          bad_offset=False):
+    def box(t, p):
+        return struct.pack(">I4s", 8 + len(p), t) + p
+
+    def full(t, v, p):
+        return box(t, bytes([v, 0, 0, 0]) + p)
+    exif_tiff = exif_tiff if exif_tiff is not None else piexif.dump({"GPS": GPS, "0th": {piexif.ImageIFD.Make: b"PhoneCo"}})[6:]
+    exif_item = struct.pack(">I", 0) + exif_tiff
+    hdlr = full(b"hdlr", 0, b"\x00" * 4 + b"pict" + b"\x00" * 12 + b"\x00")
+    infe = (full(b"infe", 2, struct.pack(">HH4s", 1, 0, b"Exif") + b"\x00")
+            + full(b"infe", 2, struct.pack(">HH4s", 2, 0, b"mime") + b"\x00application/rdf+xml\x00")
+            + full(b"infe", 2, struct.pack(">HH4s", 3, 0, b"hvc1") + b"\x00"))
+    iinf = full(b"iinf", 0, struct.pack(">H", 3) + infe)
+
+    def build(offsets):
+        entries = b"".join(struct.pack(">HHHII", i, 0, 1, off, n) for i, (off, n) in offsets.items())
+        iloc = full(b"iloc", 0, bytes([0x44, 0x00]) + struct.pack(">H", len(offsets)) + entries)
+        meta = full(b"meta", 0, hdlr + iinf + iloc)
+        ftyp = box(b"ftyp", b"heic\x00\x00\x00\x00mif1heic")
+        return ftyp, meta
+    sizes = {1: len(exif_item), 2: len(xmp), 3: len(image)}
+    ftyp, meta = build({k: (0, n) for k, n in sizes.items()})
+    start = len(ftyp) + len(meta) + 8
+    offsets, pos = {}, start
+    for k, n in sizes.items():
+        offsets[k] = (pos + (10_000 if bad_offset and k == 1 else 0), n)
+        pos += n
+    ftyp, meta = build(offsets)
+    return ftyp + meta + box(b"mdat", exif_item + xmp + image)
+
+
+def test_heic_gps_is_read_privately_then_blanked_losslessly():
+    from services.heic_metadata import extract_heif_exif, strip_heif
+    from services.observation_media import inspect_media
+    original = _heic()
+    facts = inspect_media(original, is_image=True)                  # Pillow cannot open HEIC here: the Exif item is read
+    assert (facts.exif_latitude, facts.exif_longitude) == (pytest.approx(21.665, abs=1e-3), pytest.approx(-158.05, abs=1e-3))
+    stripped, ok = strip_image_metadata(original, "image/heic")
+    assert ok and len(stripped) == len(original) and stripped.endswith(b"HEVC" * 64)   # image bytes untouched
+    assert b"PhoneCo" not in stripped and b"21.665" not in stripped
+    assert piexif.load(extract_heif_exif(stripped))["GPS"] == {}   # a valid, EMPTY Exif block remains
+    assert strip_heif(stripped) == stripped                          # idempotent
+
+
+def test_a_malformed_heic_is_refused_not_published():
+    from services.heic_metadata import strip_heif
+    with pytest.raises(MetadataError):
+        strip_heif(_heic(bad_offset=True))                           # the Exif item points outside the file
+    with pytest.raises(MetadataError):
+        strip_image_metadata(_heic()[:60], "image/heic")             # truncated
+
+
+def test_a_heic_whose_iloc_claims_millions_of_zero_width_extents_is_refused_quickly():
+    """Advisor hold on #1054: 4,096 items x 4,096 extents with zero-width offset/length fields used to build ~16.7
+    million tuples from a ~25 KB file. One extent budget for the whole file now refuses it at once."""
+    import time
+    from services.heic_metadata import MAX_EXTENTS, strip_heif
+
+    def box(t, p):
+        return struct.pack(">I4s", 8 + len(p), t) + p
+
+    def full(t, v, p):
+        return box(t, bytes([v, 0, 0, 0]) + p)
+    iinf = full(b"iinf", 0, struct.pack(">H", 1) + full(b"infe", 2, struct.pack(">HH4s", 1, 0, b"Exif") + b"\x00"))
+    entries = b"".join(struct.pack(">HHH", i, 0, 4096) for i in range(1, 4097))    # no offset/length bytes at all
+    iloc = full(b"iloc", 0, bytes([0x00, 0x00]) + struct.pack(">H", 4096) + entries)
+    crafted = box(b"ftyp", b"heic\x00\x00\x00\x00mif1heic") + full(b"meta", 0, iinf + iloc)
+    assert len(crafted) < 30_000 and 4096 * 4096 > MAX_EXTENTS
+    t0 = time.perf_counter()
+    with pytest.raises(MetadataError, match="extents"):
+        strip_heif(crafted)
+    assert time.perf_counter() - t0 < 1.0
+
+
+async def test_a_heic_feed_photo_is_published_without_gps(social):
+    client, stored = social
+    r = await client.post("/api/upload/feed", files={"file": ("IMG_0001.HEIC", _heic(), "image/heic")})
+    assert r.status_code == 200, r.text
+    (public_bytes,) = stored.values()
+    assert b"PhoneCo" not in public_bytes and b"21.665" not in public_bytes and public_bytes.endswith(b"HEVC" * 64)

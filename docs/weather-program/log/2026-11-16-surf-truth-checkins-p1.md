@@ -489,6 +489,19 @@ event loop per click: `frames_for` now runs in a thread. (3) #1032: each open pa
 `thresholds` on the PUBLIC `/api/health/data` are LEFT: they are configuration limits (hours), no secret and already
 implied by the public verdicts; moving them behind auth would need a second endpoint for one admin card. Tests +10
 (estate fragment +10).
+## 2026-11-18 16:17Z T1 P3 (part 8): iPhone HEIC photos lose their GPS too, without a decoder
+
+The server has no HEIC decoder (pillow-heif is not installed), so feed, comment, story and general HEIC photos were
+stored exactly as uploaded, GPS included. HEIC is an ISO base media file like MP4: the iPhone keeps position, time and
+serial in an `Exif` item (and sometimes an XMP `mime` item) whose bytes `iloc` locates in `mdat` or `idat`. New `services/heic_metadata.py` walks `meta` / `iinf` / `iloc` (bounded: 4,096 boxes, 4,096 items) and overwrites those bytes IN
+PLACE: the Exif item becomes a valid EMPTY Exif block padded with zeros, XMP becomes zeros. Length and offsets are
+unchanged, the image bytes are untouched, and the rotation (`irot`/`imir` item properties, not EXIF) is kept. A
+malformed HEIC (an item outside the file, an open-length extent, a truncated box) is refused (400), never published
+unchecked. The go-live private record now reads a HEIC's GPS from its Exif item too (`observation_media` falls back to it
+when Pillow cannot open the file). Tests +3 (GPS read privately then blanked, length and image bytes unchanged,
+idempotent; a malformed HEIC refused; a HEIC feed upload published without GPS); the old test that expected HEIC to be
+stored unstripped now expects a refusal for bogus bytes. Estate fragment +3. NOT verified on a real iPhone file with a
+real decoder (none here): the synthetic file follows ISO/IEC 23008-12's `iinf`/`iloc` layout.
 ## 2026-11-18 16:40Z #1043 advisor HOLD fixed: a guard that every key-reading job carries the environment
 
 The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull_request` trigger and so failed `test_consensus_flip_sweep` (fixed at bbd7c8fac: the guard now pins the NEW rule, no PR trigger, dispatchable, environment declared, script run); (2) nothing asserted that every job naming the key declares the environment, so the next workflow
