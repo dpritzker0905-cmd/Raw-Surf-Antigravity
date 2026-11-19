@@ -8,15 +8,18 @@ no data read, nothing dispatched. No served number moves.
 **Asked for by David**, typed in this session: "Bounce this off of reflection. Then write the buoy comparison
 pre-registration and send it to the advisor". The advisor read version 2 in full and passed it as a
 pre-registration subject to three wording fixes (the multiplicity sentence, the label-swap null, the exact low-bias
-rule), "exactly as below and you may commit it without sending it back". Those three fixes are in the text below.
+rule), "exactly as below and you may commit it without sending it back". It then ruled a fourth, on the wave-size
+split: the tested "big days" condition bins on the MEAN of the two compared arms' forecast height, and the split by
+observed height is reported as descriptive only. All four fixes are in the text below.
 
 **Registered by this commit.** No buoy observation, no band value and no served value had been read when it was
 committed. Two addenda exist as drafts and are NOT registered here: a DWD European regional arm (the advisor has
 not passed it) and a three-model consensus arm (with the advisor). Each will be its own document.
 
-One question is open with the advisor and does not change this text: whether the wave-size split should use
-forecast terciles instead of observed ones. It stands as written (observed) unless a later, separately registered
-amendment says otherwise, made before any number is read.
+**Correction to this header, same day (00:40Z, before any number was read).** The first commit of this file
+(`2ec7923ec`) carried the right body, with the fourth fix in it, under a header that still said three fixes and
+called the wave-size split an open question standing "as written (observed)". That header was written before the
+advisor's ruling arrived and was wrong by the time it was committed. The body governs and has not changed.
 
 ---
 
