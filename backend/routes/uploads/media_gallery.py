@@ -26,6 +26,7 @@ from .core import (
     _cached_file_response, _SHORT_CACHE,
 )
 from .storage import unlinked_media_names
+from .public_copy import store_public, strip_public_video
 from utils.video_processor import (
     process_video_upload, generate_video_thumbnail
 )
@@ -63,6 +64,7 @@ async def upload_user_gallery_media(
         media_url = f"/api/uploads/user-gallery/{user_id}/{result['filename']}"
         thumbnail_url = None
         video_path = user_gallery_dir / result['filename']
+        await strip_public_video(video_path)   # T1 P3: no location metadata in the served video
         thumbnail_filename = f"{result['filename'].rsplit('.', 1)[0]}_thumb.jpg"
         thumbnail_path = user_gallery_dir / thumbnail_filename
         thumb_success, _ = await asyncio.to_thread(
@@ -82,8 +84,8 @@ async def upload_user_gallery_media(
         ext = get_file_extension(file.content_type)
         filename = f"{uuid.uuid4()}{ext}"
         file_path = user_gallery_dir / filename
-        with open(file_path, "wb") as f:
-            f.write(content)
+        # T1 P3: the user-gallery bucket is PUBLIC, so the stored copy loses its embedded metadata.
+        stored_size = await store_public(content, file.content_type, False, file_path)
         local_url = f"/api/uploads/user-gallery/{user_id}/{filename}"
         supabase_url = upload_to_supabase_storage(
             file_path, 'user-gallery', f"{user_id}/{filename}",
@@ -91,7 +93,7 @@ async def upload_user_gallery_media(
         )
         media_url = supabase_url or local_url
         return {"media_url": media_url, "media_type": "image", "filename": filename,
-                "size": len(content), "persistent": bool(supabase_url)}
+                "size": stored_size, "persistent": bool(supabase_url)}
 
 
 @router.post("/upload/photographer-gallery")

@@ -210,4 +210,9 @@ async def main():
 
 
 if __name__ == "__main__":
+    try:
+        from _legacy_spot_writer import BULK_ADDS, refuse_legacy_spot_write
+    except ImportError:
+        from scripts._legacy_spot_writer import BULK_ADDS, refuse_legacy_spot_write
+    refuse_legacy_spot_write("seed_missing_florida_spots.py", BULK_ADDS)
     asyncio.run(main())

@@ -18,17 +18,6 @@ function Facts({ title, items }) {
   );
 }
 
-export function ModelTab() {
-  return (
-    <Facts title="Truth model (not built yet)" items={[
-      'No model has been fitted. Nothing in this area changes a surf height anyone sees.',
-      'Part D adds versioned model runs with rollback. Its test is written down (pre-registered) before any fit.',
-      'The model will hold the average anchor bias at zero, estimate each observer\'s own bias and noise, and learn how much people under-read the face from physical checks only (photos with a scale, satellite, shallow buoys).',
-      'Until then, reports are stored, checked and counted, but not combined into a "true" height.',
-    ]} />
-  );
-}
-
 export function ConsentTab() {
   return (
     <Facts title="Consent and privacy (part P3)" items={[

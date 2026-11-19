@@ -353,6 +353,33 @@ failed read is reported in the response and shown as an alert.
 Tests: backend +4 (frame selection and order without replay inputs; geometry never raises; the route reads cached
 objects only, 404, search; a failed blob read is reported), Jest +3. Route identity guard still passes (18). 103
 admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1030.
+## 2026-11-18 03:47Z Admin: the guardrail's record in the Surf Forecast panel (header from the UTC clock)
+
+David chose guardrail history next. Admin > Surf Forecast > Guardrail (D-065) reads, read-only, the two objects the
+guardrail keeps in the private bucket: the live runtime manifest `control/flags.json` (each entry with state, reason,
+who, when, evidence) and `control/flags-actions.jsonl` (every decision it APPLIED: disable / clear, with the run).
+For a fix the guardrail turned off it says how it comes back: a new fix version in the code (current version shown;
+when the code is already newer than the entry, the view says the next run clears it) or the owner's words through
+the workflow's manual run, with the workflow link and a copyable `gh workflow run` command. That run is deliberately
+not an admin button: the guardrail workflow is the only writer of the manifest. When nothing is recorded the view
+says why (decisions are recorded only in enforce mode; a dry run reports in its GitHub issue).
+Backend: `services/admin_guardrail_view.py` (no write path; a test checks the module has no POST/PUT/upsert) and
+GET /admin/surf-forecast/guardrail (off the event loop). Tests: backend +3, Jest +3; route identity guard passes; 106
+admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1031.
+## 2026-11-18 03:58Z Admin: surf-truth exports and anchor history get their screens (header from the UTC clock)
+
+David chose the last two items from the admin survey. Both backend routes already existed with no screen:
+- Surf truth > Anchors: each anchor row has "History", a dialog reading the append-only event log
+  (GET /admin/surf-truth/anchors/{id}/events): every appointment and change, who and the reason. The route now also
+  returns the actor's name for display (the id stays as the record).
+- Surf truth > Model: accurate facts (the fit is written and pre-registered; reviewed before any run; no fit yet;
+  nothing moves a served height) and "Exports for the model": a "Run an export" dialog that posts
+  /admin/surf-truth/export only after an "the owner has approved exports (retention and consent)" box is ticked
+  (the server still refuses while SURF_TRUTH_EXPORT_KEY is unset, and the refusal is shown), plus the list of past
+  exports from the admin action log (who, when, rows, object). The old placeholder Model tab is removed.
+Tests: backend: the history route returns the actor's name (assertion added, 16 pass); Jest +3 (history dialog, export
+gated by the approval box then posts and shows the run, a refused export shows why). Lint ratchet passes. Not checked
+in a browser (admin login). Base: dev.
 ## 2026-11-18 04:26Z T1 P3 (part 4): David's retention rule, enforced daily (header from the UTC clock)
 
 DECISION (David, in chat, 2026-11-18 04:26Z): "Keep the 3 newest exports, purge within 7 days". He also reported that
@@ -384,6 +411,57 @@ surf-report photo path, which is a different upload route. Already-stored photos
 backfill is decided.
 Tests +6 (each format: GPS gone, pixels identical, orientation kept; the route: public copy clean, private record
 kept, malformed refused); mutation: keeping APP1 fails. 99 related tests (incl. the upload identity suite) pass.
+## 2026-11-18 05:01Z T1 P3 (part 6): go-live videos too: location kept privately for the check, removed from the public copy
+
+David asked whether to keep the photographer's GPS in go-live media to help confirm location. Answer recorded: yes,
+PRIVATELY, which part 5 already did for photos (observation_media keeps the position read from the original; the
+observation checks flag exif_far beyond 1 km and exif_stale beyond 3 h; the app's device GPS is the primary check).
+The gap was video: its location was never read, and stayed in the public copy. Now `services/video_metadata.py`
+(pure Python, no ffmpeg: Render's Python runtime is not known to have it, and installing a binary dependency was not
+done) walks the MP4/MOV boxes, READS the ISO 6709 location (QuickTime ©xyz or Apple's
+com.apple.quicktime.location.ISO6709) and creation date for the private record, then NEUTERS every movie- and
+track-level `udta`/`meta` box in place (type -> `free`, payload zeroed): the length is unchanged so no chunk
+offset moves, the media data is untouched, and the file is patched on disk (no in-memory copy of a large video).
+`write_public_copy` now handles photos and videos for the route, off the event loop; routes/uploads/core.py shrank to
+792 lines. WebM (browser recorder, no GPS) and HEIC remain unstripped and say so (`metadata_stripped` false).
+Tests +3 (read then neuter, length and media unchanged; non-ISO left alone and malformed refused without a file; the
+route keeps the location privately and not publicly); mutation: skipping track-level boxes fails 2; the 53-test
+upload identity suite passes. Stacked on #1035.
+## 2026-11-18 13:34Z T1 P3 (part 7): social uploads publish no GPS either
+
+David: "Yes, social uploads". Six more routes stored the original bytes in PUBLIC buckets, GPS and all: /upload
+(general), /upload/story, /upload/feed, /upload/comment, /upload/wave and /upload/user-gallery. Photos now
+go through write_public_copy (lossless strip); a photo the lossless walk refuses but Pillow can decode is
+re-encoded without metadata and upright (public_image_bytes), so an odd phone file is cleaned rather than rejected;
+an undecodable one is refused (400). Videos are transcoded by ffmpeg where available, and ffmpeg copies global
+metadata by default, so the FINAL file (transcoded or kept raw) is patched in place with strip_stored_video before
+upload; a malformed MP4/MOV is removed and refused. The route wrappers live in `routes/uploads/public_copy.py`
+(core.py stays at 789 lines). Not in this part: photographer commercial originals (/upload/gallery,
+/upload/photographer-gallery, /photos/upload): buyers may expect camera EXIF, so GPS-only stripping there is a
+decision for David; avatars are already re-encoded by Pillow without EXIF. HEIC on feed/comment and WebM stay
+unstripped; already-stored files wait on the backfill decision.
+Tests +10 (odd JPEG re-encoded clean and upright; four photo routes and four video routes (story, feed, comment, wave) publish no location; user
+gallery). Mutations: dropping the comment-video strip fails 1, writing the feed photo raw fails 1.
+## 2026-11-18 13:42Z T1 P3 (part 6, advisor HOLD fixed): a bounded box walk, and no unstripped file left behind on any error
+
+The advisor held #1038 at fb531cf5b for two defects, both now fixed. (1) Unbounded memory: `strip_video_in_place`
+built `list(_boxes(...))` at three levels, so a 500 MB upload of 8-byte boxes was about 62 million tuples (~11 GB)
+on the one shared server, sendable by any signed-in uploader. The walk is now lazy (neutering keeps every length, so
+no position still to be read can move) and shares one budget of `MAX_BOXES` = 4096 boxes per file; beyond it the
+file is refused with MetadataError and removed. A real phone MP4 has a few dozen boxes at these levels. (2)
+`write_public_copy` removed the written file only on MetadataError; it now removes it on ANY exception, so an
+unexpected error can never leave the unstripped copy where the route would publish it.
+Tests +2 (a flood of 4,106 boxes is refused with no file left while a real-shaped file still strips; an unexpected
+error leaves no file). Mutations: dropping the budget fails 1; catching only MetadataError fails 1.
+Limits the advisor recorded, NOT fixed here: GoPro GPMF / DJI telemetry tracks (a full GPS track inside the media
+data), top-level `uuid` boxes, and the mvhd/tkhd creation times, which stay.
+## 2026-11-18 13:48Z T1 P3 (part 7, addendum): two advisor limits on #1035 closed here
+
+A truncated JPEG (a lone trailing 0xFF) raised IndexError in `strip_jpeg`, which the routes answered with a 500; it is
+now a MetadataError (400). `strip_stored_video` removes the file on ANY exception, as part 6 now does, because the
+local copy is also served by `/api/uploads/...`. Tests +1 (estate fragment now +11). The other #1035 limits stay
+open: bytes after the JPEG image data (Android motion-photo video, secondary images) are copied as is, APP2 is kept
+without checking it is an ICC profile, HEIC keeps its GPS.
 ## 2026-11-18 13:53Z T1 P3 (part 2, advisor HOLD fixed): the consent text says only what is true
 
 The advisor held #1024 at 6ffd34254: the text said "(with the spot and time, but never your name)" and "from then on,
@@ -432,6 +510,31 @@ exists. STEP 3 (David, after merge): delete the REPOSITORY secret `SUPABASE_SERV
 workflow on dev to confirm. After that, dispatching these workflows from a lane branch is refused by design.
 Checks: all workflow YAML parses; 242 workflow-shape tests pass (4 failures in `test_audit_e2e_trace_override` are a
 Windows bash timeout on the untouched `e2e-tests.yml`).
+## 2026-11-18 14:53Z T1 P3 (part 7, advisor HOLD fixed): no unbounded decode in the re-encode fallback; avatars covered
+
+The advisor held #1042 at 32d097793: `_reencode_image` fully decoded any JPEG/PNG/WebP the lossless walk refused, with no
+dimension limit, so a small file claiming 13,000 x 13,000 pixels (~500 MB decoded) could take down the shared server.
+Now `check_decode_size` reads the size from the header after `Image.open` and BEFORE any decode, and refuses more than
+`MAX_DECODE_PIXELS` = 50 MP: the largest common phone photo is a 50 MP full-resolution mode (8,160 x 6,120 = 49.9 MP),
+so one decode stays near 150 MB; Pillow's own guard only warns below ~179 MP. The lossy fallback is counted
+(`REENCODE_COUNT` plus a warning log line) so its rate is visible. The AVATAR route (public bucket) gets the same cap
+before its resize, and its error path now stores a STRIPPED copy instead of the raw bytes. Tests +2 (a bomb header is
+refused before any decode and not counted, while a normal odd file is counted; an avatar bomb is refused and a normal
+avatar has no GPS); estate fragment +13.
+Recorded for #1038 (advisor, PASS-WITH-LIMITS at b6afb3920): a very long fragmented MP4 (more than ~2,000 fragments,
+each a `moof` + `mdat` pair at the top level) now exceeds the 4,096-box budget and is refused with a 400. Accepted: phone
+recordings are not fragmented, and a refused upload is never published unchecked.
+## 2026-11-18 15:41Z T1 P3 (part 1 follow-up): a deletion request now reaches the files and the sign-in
+
+The advisor recorded two limits on #1022: a deletion request did not remove the person's photos from the PUBLIC
+`conditions` bucket, and did not stop sign-in to the anonymized profile (the password hash survived; the username `deleted_<id8>` could be guessed). Now `/compliance/delete-my-data` also (1) deletes the person's condition reports and,
+AFTER the commit (storage is not transactional), removes every `conditions/<user_id>/` object plus any other
+`conditions` object a deleted row pointed at, and the local copy `<UPLOAD_DIR>/conditions/<user_id>`: best effort,
+returned as `media` and logged as an error on failure, never hidden; (2) clears the password hash, deletes passkeys,
+TOTP secret, recovery codes and pending MFA challenges, and marks the profile suspended. NOT done, a decision for
+David: a session token already issued stays valid until it expires (`ACCESS_TOKEN_EXPIRE_DAYS` = 30); revoking it needs a
+server-side check on every request (a token version or a deny list). Tests +3 (URL parsing; files and sign-in removed,
+other users untouched; a storage failure is reported and the rows stay deleted). Guards fragment +3.
 ## 2026-11-18 15:21Z T1 P4: the export needs the OWNER'S server switch, not just an admin's tick box
 
 The advisor recorded on #1033 that its approval check box is client-side only. Worse, the export route itself is already
@@ -442,6 +545,28 @@ refuses (403) unless the server's environment has `SURF_TRUTH_EXPORTS_ENABLED` e
 The retention job's fresh export (#1034) is left as is: it only REPLACES exports, and none can exist unless the switch
 allowed the first one. Tests +5 (unset, empty, 0, true, yes all refused with nothing written or logged); removing the
 gate fails 5. Guards fragment +5.
+## 2026-11-18 15:53Z Admin Surf Forecast: the advisor's limits on #1029-#1032
+
+(1) No test pinned the auth of the new admin routes: `tests/test_admin_surf_forecast_auth.py` ENUMERATES every `/admin/surf-forecast` route from the three routers (8 today, GET/POST/DELETE) and requires 401 without a token and 403 for
+a signed-in non-admin, so a later route is covered without editing the test. (2) #1031 scanned every frame x spot ON the
+event loop per click: `frames_for` now runs in a thread. (3) #1032: each open panel polled two private-bucket reads every
+60 s: `cached_guardrail_view` reuses the view for 60 s under one lock (the guardrail runs every 6 h). (4) #1030's
+`thresholds` on the PUBLIC `/api/health/data` are LEFT: they are configuration limits (hours), no secret and already
+implied by the public verdicts; moving them behind auth would need a second endpoint for one admin card. Tests +10
+(estate fragment +10).
+## 2026-11-18 16:17Z T1 P3 (part 8): iPhone HEIC photos lose their GPS too, without a decoder
+
+The server has no HEIC decoder (pillow-heif is not installed), so feed, comment, story and general HEIC photos were
+stored exactly as uploaded, GPS included. HEIC is an ISO base media file like MP4: the iPhone keeps position, time and
+serial in an `Exif` item (and sometimes an XMP `mime` item) whose bytes `iloc` locates in `mdat` or `idat`. New `services/heic_metadata.py` walks `meta` / `iinf` / `iloc` (bounded: 4,096 boxes, 4,096 items) and overwrites those bytes IN
+PLACE: the Exif item becomes a valid EMPTY Exif block padded with zeros, XMP becomes zeros. Length and offsets are
+unchanged, the image bytes are untouched, and the rotation (`irot`/`imir` item properties, not EXIF) is kept. A
+malformed HEIC (an item outside the file, an open-length extent, a truncated box) is refused (400), never published
+unchecked. The go-live private record now reads a HEIC's GPS from its Exif item too (`observation_media` falls back to it
+when Pillow cannot open the file). Tests +3 (GPS read privately then blanked, length and image bytes unchanged,
+idempotent; a malformed HEIC refused; a HEIC feed upload published without GPS); the old test that expected HEIC to be
+stored unstripped now expects a refusal for bogus bytes. Estate fragment +3. NOT verified on a real iPhone file with a
+real decoder (none here): the synthetic file follows ISO/IEC 23008-12's `iinf`/`iloc` layout.
 ## 2026-11-18 16:40Z #1043 advisor HOLD fixed: a guard that every key-reading job carries the environment
 
 The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull_request` trigger and so failed `test_consensus_flip_sweep` (fixed at bbd7c8fac: the guard now pins the NEW rule, no PR trigger, dispatchable, environment declared, script run); (2) nothing asserted that every job naming the key declares the environment, so the next workflow
@@ -458,3 +583,12 @@ deletes exports made under any OTHER pseudonym key, so a laptop or CI run holdin
 where the scheduler runs (`RENDER` set) or with `SURF_TRUTH_RETENTION_HOST_OK=1`. Production and dev share one Render
 service and so one key. Tests +2 (refused off the host, an explicit override works; a failed fresh export is logged and
 the stale exports still go). Guards fragment +2.
+## 2026-11-18 19:26Z A READ-ONLY census of public files that still carry GPS (David: "Ok go", dry run first)
+
+Uploads are stripped from today on (#1035, #1038, #1042, #1054); files stored before keep their metadata. New `backend/scripts/public_media_gps_census.py` lists every object in the public buckets (paged) and reads only each file's first 256 KB (HTTP Range): JPEG/PNG/WebP EXIF GPS, HEIC's Exif item, MP4/MOV location atoms; a video whose `moov` sits after its media is
+UNKNOWN, never counted clean. It prints COUNTS per bucket only; object names (they contain user ids) go only to an optional
+LOCAL file. New dispatch-only `public-media-gps-census.yml` runs it on dev with the `supabase-service` environment and uploads
+counts only (artifacts on a public repo are readable by anyone). It has no write path (a test asserts it). NOT RUN yet:
+this machine has no storage key, and the workflow must reach dev first. Any backfill that rewrites files is a separate,
+approved step. Tests +5 (classification of each format with and without GPS, a truncated block is unknown, the limit and
+the no-names rule, no write path). Estate fragment +5.
