@@ -595,6 +595,16 @@ The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull
 that forgets would silently lose its key once the repository secret is deleted (open PR #1025's `sst-g4-collect.yml` already names the key without it). New `tests/test_workflow_key_environment.py` scans every workflow: each job that reads
 `secrets.SUPABASE_SERVICE_ROLE_KEY` (in the job or the workflow `env`) must declare `environment: supabase-service`, and no
 key-reading workflow may run on `pull_request`. 24 jobs today; tests +26 (estate fragment +26).
+## 2026-11-18 16:58Z T1 P3 (part 4 follow-up): retention's two recorded limits closed
+
+The advisor passed #1034 with two limits. (1) A failed FRESH export left the stale exports in place with only a server log
+line. Now the failure is an admin-visible action (`retention_fresh_export_failed`, shown in the admin action history with
+its reason), and the stale exports are deleted ANYWAY, exactly as when there is no key: keeping them would keep a
+withdrawn person's reports past the 7-day promise (privacy first; a new export can be made by hand). (2) Retention
+deletes exports made under any OTHER pseudonym key, so a laptop or CI run holding the storage key and a different `SURF_TRUTH_EXPORT_KEY` would delete production's exports. `enforce()` now refuses (`RetentionRefused`) unless it runs
+where the scheduler runs (`RENDER` set) or with `SURF_TRUTH_RETENTION_HOST_OK=1`. Production and dev share one Render
+service and so one key. Tests +2 (refused off the host, an explicit override works; a failed fresh export is logged and
+the stale exports still go). Guards fragment +2.
 ## 2026-11-18 19:26Z A READ-ONLY census of public files that still carry GPS (David: "Ok go", dry run first)
 
 Uploads are stripped from today on (#1035, #1038, #1042, #1054); files stored before keep their metadata. New `backend/scripts/public_media_gps_census.py` lists every object in the public buckets (paged) and reads only each file's first 256 KB (HTTP Range): JPEG/PNG/WebP EXIF GPS, HEIC's Exif item, MP4/MOV location atoms; a video whose `moov` sits after its media is
