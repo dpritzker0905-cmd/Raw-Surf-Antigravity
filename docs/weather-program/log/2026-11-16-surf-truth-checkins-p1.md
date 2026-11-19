@@ -508,3 +508,12 @@ The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull
 that forgets would silently lose its key once the repository secret is deleted (open PR #1025's `sst-g4-collect.yml` already names the key without it). New `tests/test_workflow_key_environment.py` scans every workflow: each job that reads
 `secrets.SUPABASE_SERVICE_ROLE_KEY` (in the job or the workflow `env`) must declare `environment: supabase-service`, and no
 key-reading workflow may run on `pull_request`. 24 jobs today; tests +26 (estate fragment +26).
+## 2026-11-18 19:26Z A READ-ONLY census of public files that still carry GPS (David: "Ok go", dry run first)
+
+Uploads are stripped from today on (#1035, #1038, #1042, #1054); files stored before keep their metadata. New `backend/scripts/public_media_gps_census.py` lists every object in the public buckets (paged) and reads only each file's first 256 KB (HTTP Range): JPEG/PNG/WebP EXIF GPS, HEIC's Exif item, MP4/MOV location atoms; a video whose `moov` sits after its media is
+UNKNOWN, never counted clean. It prints COUNTS per bucket only; object names (they contain user ids) go only to an optional
+LOCAL file. New dispatch-only `public-media-gps-census.yml` runs it on dev with the `supabase-service` environment and uploads
+counts only (artifacts on a public repo are readable by anyone). It has no write path (a test asserts it). NOT RUN yet:
+this machine has no storage key, and the workflow must reach dev first. Any backfill that rewrites files is a separate,
+approved step. Tests +5 (classification of each format with and without GPS, a truncated block is unknown, the limit and
+the no-names rule, no write path). Estate fragment +5.

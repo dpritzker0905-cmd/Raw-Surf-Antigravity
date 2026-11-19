@@ -1,0 +1,62 @@
+# Public media GPS census (T1 P3, 2026-11-18): READ-ONLY. Counts how many photos and videos already in the public
+# buckets still carry a GPS position (uploads are stripped from 2026-11-18 on). It lists objects and reads only each
+# file's first 256 KB; it never writes, moves or deletes. It publishes COUNTS only: object names contain user ids and
+# workflow artifacts on a public repository are readable by anyone, so no name list is uploaded.
+name: Public media GPS census (read-only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Files to inspect per bucket (the listing itself is complete)"
+        required: false
+        default: '200'
+        type: string
+      buckets:
+        description: "Comma-separated buckets"
+        required: false
+        default: 'conditions,feed,stories,general,user-gallery,gallery,avatars'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-media-gps-census
+  cancel-in-progress: false
+
+jobs:
+  census:
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: Count files that still carry GPS (read-only)
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CENSUS_LIMIT: ${{ inputs.limit || '200' }}
+          CENSUS_BUCKETS: ${{ inputs.buckets || 'conditions,feed,stories,general,user-gallery,gallery,avatars' }}
+        run: |
+          python scripts/public_media_gps_census.py --limit "$CENSUS_LIMIT" --buckets "$CENSUS_BUCKETS" \
+            --json census.json | tee census.txt
+          { echo '```'; cat census.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the counts (no object names)
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-media-gps-census
+          path: backend/census.json
+          retention-days: 14
