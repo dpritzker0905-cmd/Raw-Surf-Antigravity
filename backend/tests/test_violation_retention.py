@@ -65,7 +65,9 @@ def maker():
                     status="active"))
             await db.commit()
         return mk
-    return asyncio.run(build())
+    mk = asyncio.run(build())
+    yield mk
+    asyncio.run(mk.kw["bind"].dispose())          # the SQLite lifetime census counts every undisposed engine
 
 
 def _violations(maker, pid):
