@@ -22,8 +22,9 @@ const SOURCES = {
   // A layer drawn from our own frames (ownRasterFrames.js, free NOAA GRIB): public domain, credited as a courtesy.
   noaa: { text: 'NOAA GFS', href: 'https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast', label: 'Data source: NOAA NCEP Global Forecast System, public domain (opens in a new tab)' },
   // Per-model pressure (2026-10-24): ECMWF open data is CC BY 4.0 (attribution required); DWD asks for "Deutscher Wetterdienst".
-  ecmwf: { text: 'EURO (ECMWF) · CC BY 4.0', href: 'https://www.ecmwf.int/en/forecasts/datasets/open-data', label: 'Data source: ECMWF open data, licence CC BY 4.0 (opens in a new tab)' },
-  dwd: { text: 'ICON (Deutscher Wetterdienst)', href: 'https://opendata.dwd.de/', label: 'Data source: Deutscher Wetterdienst, ICON model (opens in a new tab)' },
+  // 2026-11-18 (the Open-Meteo exit, the research lead's row 16): each agency's own attribution wording, linked to its licence.
+  ecmwf: { text: 'EURO · © ECMWF · CC BY 4.0', href: 'https://www.ecmwf.int/en/forecasts/datasets/open-data', label: 'Data source: © ECMWF open data, licence CC BY 4.0 (opens in a new tab)' },
+  dwd: { text: 'ICON · Datenbasis: Deutscher Wetterdienst', href: 'https://www.dwd.de/EN/service/copyright/copyright_node.html', label: 'Data source: Deutscher Wetterdienst (Datenbasis: Deutscher Wetterdienst), ICON model (opens in a new tab)' },
   // Ocean currents (2026-11-15): the Copernicus Marine licence (s. 2.4) asks for this credit, with the product's DOI.
   cmems: { text: '© Copernicus Marine', href: 'https://doi.org/10.48670/moi-00016', label: 'Generated using E.U. Copernicus Marine Service Information (opens in a new tab)' },
 };
@@ -40,6 +41,10 @@ const OWN_NOTE = {
   // Currents (2026-11-15, the advisor's red-team of #928): what the field is NOT, on screen. Copernicus' global model at -0.5 m
   // on 1/12 deg, 6-hourly, mapped to 0.25 deg; no tide, no surf-zone or rip current (the HF-radar check: direction off ~39 deg).
   currents: { text: ' · open-ocean current; no tides, not a nearshore / rip current', label: 'Open-ocean current from the Copernicus global model (half a metre down, every 6 hours, about 28 km cells): no tides, and not a nearshore or rip current.' },
+  // Water temp from the Copernicus ocean model (G4, 2026-11-17): a bulk temperature of the top half metre, not a skin temperature.
+  water_temp: (model) => (model === 'CMEMS'
+    ? { text: ' · ocean model, top 0.5 m', label: 'Copernicus ocean model sea temperature: the top half metre, hourly mean, 1/6 degree cells (not a skin temperature). DWD ICON has no sea temperature of its own.' }
+    : null),
   gusts: (model) => withStormCaveat(model === 'GFS'
     ? { text: ' · instantaneous', label: 'GFS surface wind gust at the valid time (instantaneous).' }
     : { text: ' · peak since last step', label: model === 'EURO'

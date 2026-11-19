@@ -254,6 +254,30 @@ after a deletion: legal call; (2) exports already in private storage (pseudonymo
 (3) Profile has no deleted flag and the auth account is not removed, so `is_deleted` never existed: a design
 question for the account owners, not this lane; (4) the report photo stays in the `conditions` bucket with its
 report (owned by those features).
+## 2026-11-18 02:08Z T1 P3 (part 2): opt-in consent, snapshotted on each report, enforced by the export (header from the UTC clock)
+
+David chose the consent flag next. Built so it needs no legal decision to be safe, and so counsel can change the
+words without a release:
+- `surf_truth_consent_events` (new, private, append-only by trigger like the anchor log): every grant and withdrawal
+  with the wording version and screen. The newest event is the choice in force; NO event means NO (opt-in). Kept
+  after an account deletion as the proof of consent (like ToS acknowledgements); included in the GDPR export.
+- `GET/PUT /api/surf-observations/consent` (strict JWT; the body takes only `granted` and a known `source`; the
+  server sets the version). The wording is served from `services/surf_truth_consent.py`: an ENGINEERING DRAFT
+  (`draft-2026-11-18`), not reviewed by counsel.
+- Each observation records the consent in force when received (`consent_training`, `consent_version`; NULL on
+  older rows = no).
+- The export keeps a row only if its observer had opted in when it was made AND is still opted in at export, so a
+  withdrawal stops every later export from using any of their rows. The row schema is unchanged (the fit's
+  contract); the manifest states the rule and how many rows it excluded.
+- UI: one native checkbox at the foot of the blind-height form on all three report screens, wording from the
+  server, state in words ("On"/"Off"), hidden if the server cannot answer so a report is never blocked.
+
+Tests: backend +7 (opt-in default and append-only history; the body cannot set version, owner or source; the
+snapshot; the export's then-and-now rule), Jest +4. Mutation: an export without the consent filter fails the
+then-and-now test. 110 surf-truth backend tests and 89 Jest tests in the touched trees pass.
+
+For David: the wording (`CONSENT_TITLE`/`CONSENT_TEXT`) and whether internal forecast VALIDATION, as opposed to
+training, needs this consent at all. Today the export treats both as needing it (the safe default).
 ## 2026-11-18 03:03Z Admin: the Surf Forecast panel tells the truth about flags (header from the UTC clock)
 
 David asked for a comprehensive, working admin for the surf sim's logic. A read-only survey of the admin found the
@@ -335,6 +359,56 @@ surf-report photo path, which is a different upload route. Already-stored photos
 backfill is decided.
 Tests +6 (each format: GPS gone, pixels identical, orientation kept; the route: public copy clean, private record
 kept, malformed refused); mutation: keeping APP1 fails. 99 related tests (incl. the upload identity suite) pass.
+## 2026-11-18 05:01Z T1 P3 (part 6): go-live videos too: location kept privately for the check, removed from the public copy
+
+David asked whether to keep the photographer's GPS in go-live media to help confirm location. Answer recorded: yes,
+PRIVATELY, which part 5 already did for photos (observation_media keeps the position read from the original; the
+observation checks flag exif_far beyond 1 km and exif_stale beyond 3 h; the app's device GPS is the primary check).
+The gap was video: its location was never read, and stayed in the public copy. Now `services/video_metadata.py`
+(pure Python, no ffmpeg: Render's Python runtime is not known to have it, and installing a binary dependency was not
+done) walks the MP4/MOV boxes, READS the ISO 6709 location (QuickTime ©xyz or Apple's
+com.apple.quicktime.location.ISO6709) and creation date for the private record, then NEUTERS every movie- and
+track-level `udta`/`meta` box in place (type -> `free`, payload zeroed): the length is unchanged so no chunk
+offset moves, the media data is untouched, and the file is patched on disk (no in-memory copy of a large video).
+`write_public_copy` now handles photos and videos for the route, off the event loop; routes/uploads/core.py shrank to
+792 lines. WebM (browser recorder, no GPS) and HEIC remain unstripped and say so (`metadata_stripped` false).
+Tests +3 (read then neuter, length and media unchanged; non-ISO left alone and malformed refused without a file; the
+route keeps the location privately and not publicly); mutation: skipping track-level boxes fails 2; the 53-test
+upload identity suite passes. Stacked on #1035.
+## 2026-11-18 13:42Z T1 P3 (part 6, advisor HOLD fixed): a bounded box walk, and no unstripped file left behind on any error
+
+The advisor held #1038 at fb531cf5b for two defects, both now fixed. (1) Unbounded memory: `strip_video_in_place`
+built `list(_boxes(...))` at three levels, so a 500 MB upload of 8-byte boxes was about 62 million tuples (~11 GB)
+on the one shared server, sendable by any signed-in uploader. The walk is now lazy (neutering keeps every length, so
+no position still to be read can move) and shares one budget of `MAX_BOXES` = 4096 boxes per file; beyond it the
+file is refused with MetadataError and removed. A real phone MP4 has a few dozen boxes at these levels. (2)
+`write_public_copy` removed the written file only on MetadataError; it now removes it on ANY exception, so an
+unexpected error can never leave the unstripped copy where the route would publish it.
+Tests +2 (a flood of 4,106 boxes is refused with no file left while a real-shaped file still strips; an unexpected
+error leaves no file). Mutations: dropping the budget fails 1; catching only MetadataError fails 1.
+Limits the advisor recorded, NOT fixed here: GoPro GPMF / DJI telemetry tracks (a full GPS track inside the media
+data), top-level `uuid` boxes, and the mvhd/tkhd creation times, which stay.
+## 2026-11-18 13:53Z T1 P3 (part 2, advisor HOLD fixed): the consent text says only what is true
+
+The advisor held #1024 at 6ffd34254: the text said "(with the spot and time, but never your name)" and "from then on,
+none of your reports are used, including earlier ones". The export is PSEUDONYMOUS, not anonymous (observer and device
+codes, distances, EXIF age, app version), and nothing purges exports already made when someone withdraws. New text
+(CONSENT_VERSION `draft-2026-11-18b`) names what each used report carries, says the code can be traced back to the
+account, says later checks leave out all the person's reports, and says copies made before a withdrawal are not
+changed. A stronger promise belongs only in the change that builds the purge, under a new version. Test +1 pins each
+phrase to the export's FIELDS (guards fragment +8). Still a DRAFT for counsel.
+## 2026-11-18 14:50Z Supabase service-role key moves into the `supabase-service` GitHub Environment (dev/main only)
+
+The key was a repository secret, readable by any workflow run from any branch in this public repo, a pull request
+from a branch pushed here included. David created the environment `supabase-service` (deployment branches dev and
+main, no reviewers so the 4-hourly ingest is not held) and put the key in it (step 1, his action). This change gives
+every job that reads `SUPABASE_SERVICE_ROLE_KEY` that environment: 22 workflow files, 24 jobs. It also drops the
+`pull_request` trigger of `consensus-flip-sweep.yml`, the only key-reading workflow that ran on PRs (it could no
+longer get the key; it stays dispatchable on dev). Nothing breaks before step 3, because the repository copy still
+exists. STEP 3 (David, after merge): delete the REPOSITORY secret `SUPABASE_SERVICE_ROLE_KEY`, then dispatch one
+workflow on dev to confirm. After that, dispatching these workflows from a lane branch is refused by design.
+Checks: all workflow YAML parses; 242 workflow-shape tests pass (4 failures in `test_audit_e2e_trace_override` are a
+Windows bash timeout on the untouched `e2e-tests.yml`).
 ## 2026-11-18 15:21Z T1 P4: the export needs the OWNER'S server switch, not just an admin's tick box
 
 The advisor recorded on #1033 that its approval check box is client-side only. Worse, the export route itself is already
@@ -354,3 +428,9 @@ event loop per click: `frames_for` now runs in a thread. (3) #1032: each open pa
 `thresholds` on the PUBLIC `/api/health/data` are LEFT: they are configuration limits (hours), no secret and already
 implied by the public verdicts; moving them behind auth would need a second endpoint for one admin card. Tests +10
 (estate fragment +10).
+## 2026-11-18 16:40Z #1043 advisor HOLD fixed: a guard that every key-reading job carries the environment
+
+The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull_request` trigger and so failed `test_consensus_flip_sweep` (fixed at bbd7c8fac: the guard now pins the NEW rule, no PR trigger, dispatchable, environment declared, script run); (2) nothing asserted that every job naming the key declares the environment, so the next workflow
+that forgets would silently lose its key once the repository secret is deleted (open PR #1025's `sst-g4-collect.yml` already names the key without it). New `tests/test_workflow_key_environment.py` scans every workflow: each job that reads
+`secrets.SUPABASE_SERVICE_ROLE_KEY` (in the job or the workflow `env`) must declare `environment: supabase-service`, and no
+key-reading workflow may run on `pull_request`. 24 jobs today; tests +26 (estate fragment +26).

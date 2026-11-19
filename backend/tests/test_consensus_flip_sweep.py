@@ -158,13 +158,16 @@ def test_the_arms_differ_by_the_switch_alone():
             assert a[k] == v, f"{k}: the sweep would rate under {a[k]!r} while the lane serves {v!r}"
 
 
-def test_the_sweep_workflow_declares_no_flag_of_its_own_and_runs_on_its_own_changes():
+def test_the_sweep_workflow_declares_no_flag_of_its_own_and_reads_the_key_only_on_dev():
     with open(SWEEP_WORKFLOW, encoding="utf-8") as fh:
         text = fh.read()
     literals = [m.group(1) for m in map(S.LANE_LITERAL.match, text.splitlines()) if m]
     assert literals == [], f"the sweep workflow sets {literals}: flags belong to precompute.yml, read at run time"
-    assert "scripts/consensus_flip_sweep.py" in text and "backend/scripts/consensus_flip_sweep.py" in text
-    assert re.search(r"pull_request:\s*\n\s+paths:", text)
+    assert "python scripts/consensus_flip_sweep.py" in text            # the job runs the sweep script itself
+    # 2026-11-18 (PR #1043): the service-role key lives ONLY in the supabase-service environment (dev and main), so a
+    # pull-request run could never read it; the sweep no longer runs on PRs and is dispatched on dev instead.
+    assert not re.search(r"^\s*pull_request:", text, re.M) and "workflow_dispatch" in text
+    assert "environment: supabase-service" in text
 
 
 # ── end to end through the real precompute, with the real switch ────────────────────────────────────────────────────
