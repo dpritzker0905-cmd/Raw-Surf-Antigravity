@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 13,
+  "branch": "claude/gfs-sflux-frames",
+  "date": "2026-11-19",
+  "note": "GFS 0.117 deg sflux frame sets (temperature, water temp, rain)"
+}
