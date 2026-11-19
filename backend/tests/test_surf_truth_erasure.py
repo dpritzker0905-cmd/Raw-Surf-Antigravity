@@ -12,8 +12,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from models import (Booking, CheckIn, Comment, ConditionReport, Follow, GalleryPurchase, Message, MfaChallenge,
                     MfaRecoveryCode, ObservationMedia, PaymentTransaction, Post, Profile, Review, SurfObservation,
-                    SurfTruthAdminAction, SurfTruthAnchor, SurfTruthConsentEvent, TosAcknowledgement, TosViolation,
-                    UserMfa, WebauthnCredential)
+                    SessionRevocation, SurfTruthAdminAction, SurfTruthAnchor, SurfTruthConsentEvent,
+                    TosAcknowledgement, TosViolation, UserMfa, WebauthnCredential)
 from models.enums import RoleEnum
 from routes.compliance_pkg.gdpr import request_data_deletion
 from services.surf_truth_erasure import erase_surf_truth, export_surf_truth
@@ -39,7 +39,8 @@ def maker():
             for model in (Profile, Post, Comment, Follow, CheckIn, Review, Message, SurfObservation,
                           ObservationMedia, SurfTruthAnchor, Booking, GalleryPurchase, PaymentTransaction,
                           TosAcknowledgement, TosViolation, ConditionReport, WebauthnCredential, UserMfa,
-                          MfaRecoveryCode, MfaChallenge, SurfTruthConsentEvent, SurfTruthAdminAction):
+                          MfaRecoveryCode, MfaChallenge, SessionRevocation, SurfTruthConsentEvent,
+                          SurfTruthAdminAction):
                 await conn.run_sync(lambda c, t=model.__table__: t.create(c))
         mk = async_sessionmaker(engine, expire_on_commit=False)
         async with mk() as db:
@@ -215,6 +216,27 @@ def test_a_storage_failure_is_reported_not_hidden_and_the_rows_stay_deleted(make
             assert (await _count(db, ObservationMedia, ObservationMedia.user_id == "leaver")).scalar() == 0
     asyncio.run(go())
 
+def test_deletion_revokes_every_session_token_already_issued(maker, monkeypatch, tmp_path):
+    from core import security, session_revocation as sr
+    from routes.uploads import core as upload_core
+    monkeypatch.setattr(upload_core, "UPLOAD_DIR", tmp_path)
+    sr._cutoffs.clear()
+    token = security.create_access_token({"sub": "leaver"})
+    keeper = security.create_access_token({"sub": "stayer"})
+    assert security.verify_token(token)["sub"] == "leaver"
+
+    async def go():
+        async with maker() as db:
+            await request_data_deletion(user_id="leaver", db=db)
+        async with maker() as db:
+            assert (await db.get(SessionRevocation, "leaver")) is not None   # every process picks it up within a minute
+    asyncio.run(go())
+    try:
+        with pytest.raises(Exception):
+            security.verify_token(token)                                    # refused at once in this process
+        assert security.verify_token(keeper)["sub"] == "stayer"
+    finally:
+        sr._cutoffs.clear()
 
 
 def test_a_report_naming_someone_elses_photo_never_deletes_it(maker, monkeypatch, tmp_path):
