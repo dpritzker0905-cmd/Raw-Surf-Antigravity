@@ -57,6 +57,10 @@ const SPY = () => {
       const a = dec(T[ja], i); const b = dec(T[jb], i); const wa = [a[0] - mu, a[1] - mv]; const wb = [b[0] - mu, b[1] - mv];
       half += Math.hypot(0.5 * (wa[0] + wb[0]), 0.5 * (wa[1] + wb[1])); sp += 0.5 * (Math.hypot(wa[0], wa[1]) + Math.hypot(wb[0], wb[1])); }
     return half / Math.max(1e-9, sp); };
+  // W8a as amended (log section 15): nodes whose speed is at most `cap` kn in BOTH hours; mean |half-way mix| over the mean of the two hours' mean speeds
+  H.w8a = (ka, kb, cap) => { const A = H.T[ka]; const B = H.T[kb]; if (!A || !B || A.b.length !== B.b.length) return null; const n = A.w * A.h; let half = 0; let sa = 0; let sb = 0; let m = 0;
+    for (let i = 0; i < n; i++) { const a = dec(A, i); const b = dec(B, i); const la = Math.hypot(a[0], a[1]); const lb = Math.hypot(b[0], b[1]); if (la <= cap && lb <= cap) { m += 1; half += Math.hypot(0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1])); sa += la; sb += lb; } }
+    return { dims: A.w + 'x' + A.h, nodes: n, kept: m, retention: m ? (half / m) / (0.5 * (sa / m + sb / m)) : null, meanSpeed: m ? 0.5 * (sa / m + sb / m) : null }; };
   // W6: the references. The two hours' vectors averaged, encoded in the RESIDENT texture's range, rounded down / up.
   H.refBytes = (A, B, up) => { const n = A.w * A.h; const out = new Uint8Array(B.b); for (let i = 0; i < n; i++) { const a = dec(A, i); const b = dec(B, i);
       for (let c = 0; c < 2; c++) { const e = (0.5 * (a[c] + b[c]) - B.min[c]) / (B.max[c] - B.min[c]) * 255; out[i * 4 + c] = Math.max(0, Math.min(255, up ? Math.ceil(e) : Math.floor(e))); } }
@@ -114,7 +118,9 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
       await home(); await ev(() => { window.__WT__.R = {}; window.__WT__.T = {}; });
       const real = {};
       for (let j = 1; j <= 8; j++) { await stepTo(1); await sleep(400); real[j] = await ev(async (k) => { const H = window.__WT__; H.R[k] = await H.shot(); H.T[k] = H.tex(); return H.state(); }, j); }
-      for (let j = 1; j <= 4; j++) {
+      out.w8a = await ev(() => { const H = window.__WT__; const o = []; for (let k = 1; k <= 4; k++) o.push({ j: k, pair3h: H.w8a(k, k + 1, 16), control12h: H.w8a(k, k + 4, 16), movingOnly12h: H.moving(k, k + 4) }); return o; });
+      console.log('W8a ' + JSON.stringify(out.w8a));
+      for (let j = 1; j <= (ONLY === 'w8a' ? 0 : 4); j++) {
         await home(); await ev(() => window.__WT__.kill(true)); await stepTo(j); await sleep(600);
         const before = await ev(() => window.__WT__.state());
         const held = await ev(async (k) => {

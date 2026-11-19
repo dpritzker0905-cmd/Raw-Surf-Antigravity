@@ -480,3 +480,51 @@ The owner's word in this session today: "Run the two lines". Record only; the bl
   complete.
 **Order:** W8a first (minutes), then the three W12 configurations, about an hour in all. Nothing is re-run to get a better
 figure; a crashed run is re-run once and said.
+
+## 16. W8a as amended: PASS. W12: FAILS as written (one of three configurations passes). Run 2026-11-18, 17:19 to 19:27 EST
+Read once against section 15. **A correction first:** section 15's heading says "17:25 EST"; that was written from memory.
+The commit that carries it (`8e9c77d91`) was pushed before 17:16 by the machine's clock, and the first run started at
+17:19:34. The order (rules pushed, then runs) is as stated; only the clock time in the heading was wrong.
+
+**W8a as amended: PASS.** One view (world grid 181x83), dark desktop, the base's bytes as the engine holds them.
+| pair | nodes kept by the mask (speed at most 16 kn in both hours) | retention, 3 h pair | control, 12 h pair | moving part only, 12 h |
+|---|---|---|---|---|
+| j1 | 10,898 of 15,023 (73%) | 0.9498 | 0.6419 (9,026 kept) | 0.308 |
+| j2 | 10,915 (73%) | 0.9497 | 0.6438 (9,106 kept) | 0.308 |
+| j3 | 10,890 (72%) | 0.9494 | none | none |
+| j4 | 10,867 (72%) | 0.9492 | none | none |
+- Line 0.85: met in all four pairs (0.949 to 0.950; expected at least 0.92). The control is below 0.85 in both pairs that
+  produced one, so the measure can fail. Not void: the mask keeps 72 to 73%.
+- **The control came back empty for j3 and j4** (hours j+4 = 7 and 8). The instrument returns nothing when the two hours'
+  byte arrays differ in length or one is missing; which it was is not established. Two control pairs, not four.
+- Limit, as registered: the base's bytes. Under a resident fine grid this is not the field on screen (section 14).
+
+**W12: FAILS as written.** "Each must pass its line" in each configuration; W1, W4 and W5 as section 3.
+| configuration | W1 step, B over A (line 50%) | W4 at rest 420 ms later (line: all) | W5 self-mix (line 0.01) | result |
+|---|---|---|---|---|
+| light, desktop | 26.1%, 80 of 80 blended, no view worse: pass | **76 of 80: FAIL** | 0.0000, 20 cases, control 4.39 to 5.76: pass | **FAIL** |
+| beach, desktop (the re-run) | 25.4%, 80 of 80, no view worse: pass | **73 of 80: FAIL** | 0.0000, 20 cases, control 6.23 to 8.07: pass | **FAIL** |
+| dark, phone 390 x 844 (the re-run) | 26.3%, 80 of 80, no view worse: pass | 80 of 80: pass | 0.0000, 20 cases, control 4.98 to 8.39: pass | pass |
+- Every hour of every view settled in light and in the beach re-run; in the phone run one hour of one view (v6h1) did not
+  settle within 10 s. All ten views completed in each. Page errors: 0.
+- **W4 is the line that fails, in both desktop themes**, as it failed once of twice in dark desktop (sections 10, 11). So
+  the theme is not what breaks it. W4c (the late check added in section 10) was not re-scored here.
+- Other lines of the same runs, not part of W12, as they came out: W2 (frame cost) passed in light (+4.2% inside the blend
+  windows) and on the phone (+6.2%) and **failed in the beach re-run (+10.3%, line +10%)**, on a machine that was heavily
+  loaded by other sessions (simple shell commands took over a minute); W3, W8b and W9 passed in all three.
+- **Not checked as section 15 said it would be:** that each page actually loaded its theme and layout was to be "checked
+  from the page". No such check was made. The indirect signs agree with the settings (the phone run draws 147,456 particle
+  vertices where desktop draws up to 294,912; the step sizes differ by theme), but that is inference, not the check.
+- **The runs, as they happened:** light desktop ran cleanly. The synthetic backend then stopped answering during the beach
+  run (cause not established; no process of mine was left behind): from its fourth view hours no longer settled, its
+  self-mix run crashed, and the phone run that followed recorded empty grids. Those beach and phone outputs are discarded
+  (beach was void by section 15's own rule: under 8 of 10 views). The chain was stopped, the backend restarted with the wind
+  fixture alone (`--layers wind --moving-wind 8`; my first restart used a flag this branch's script does not have and
+  exited at once), a fresh response cache was used, and beach and phone were each re-run ONCE, with the backend checked
+  alive after every stage. The figures above for those two are the re-run's.
+- The first, discarded beach run's W1 over its completed views read 18.2%, in line with the re-run; noted, not used.
+
+**Where the wind gate stands after today.** Passed: W1, W2 (dark, light, phone), W3, W4c, W5 (world only), W6 (only where
+no fine grid is resident, section 14), W8a as amended, W8b, W8c, W9, W13. Failed or not met: W4 (dark once of twice, light,
+beach), W8d, W2b (unresolvable), W7 (section 14), W12, W2 once (beach, loaded machine). Void: W14 as registered (answered
+by section 14: the fine pass does not blend). Not run: W11's whole-tree run. The wind blend stays OFF; no PR is opened.
