@@ -354,6 +354,7 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
     // Anything else is listed below with its family. An unlisted kill fails here, so the question is asked when the kill is written (L-V36).
     const ORTHOGONAL = [
       '__RAW_DISABLE_WIND_DARK_RULES__',                                                                       // this change's own kill
+      '__RAW_DISABLE_GUST_FLICKER__',                                                                          // the Gusts layer's gustiness pulse (windGustColour.js, 2026-11-18): the mark's alpha in GUST mode only; no table, ramp, field or ground reads it, and Wind never sets u_gust_on
       '__RAW_DISABLE_WIND_FIXED_SPEED_REF__',                                                                  // the advection gamma's speed reference (windSpeedRef.js, 2026-10-19): MOTION per knot only; no table, ramp, field or ground reads it
       '__RAW_DISABLE_WIND_ABORT_REJECTS__',                                                                    // a superseded wind fetch rejects instead of resolving a safe-zero grid (windController.js, 2026-10-19): request flow only, no drawing
       '__RAW_DISABLE_WIND_WHITE_STREAK__',                                                                     // the white streak's (D-021): it picks which of dark's rules' tables and ring draw, and stands down with them

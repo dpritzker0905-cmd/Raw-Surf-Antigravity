@@ -427,6 +427,21 @@ offset moves, the media data is untouched, and the file is patched on disk (no i
 Tests +3 (read then neuter, length and media unchanged; non-ISO left alone and malformed refused without a file; the
 route keeps the location privately and not publicly); mutation: skipping track-level boxes fails 2; the 53-test
 upload identity suite passes. Stacked on #1035.
+## 2026-11-18 13:34Z T1 P3 (part 7): social uploads publish no GPS either
+
+David: "Yes, social uploads". Six more routes stored the original bytes in PUBLIC buckets, GPS and all: /upload
+(general), /upload/story, /upload/feed, /upload/comment, /upload/wave and /upload/user-gallery. Photos now
+go through write_public_copy (lossless strip); a photo the lossless walk refuses but Pillow can decode is
+re-encoded without metadata and upright (public_image_bytes), so an odd phone file is cleaned rather than rejected;
+an undecodable one is refused (400). Videos are transcoded by ffmpeg where available, and ffmpeg copies global
+metadata by default, so the FINAL file (transcoded or kept raw) is patched in place with strip_stored_video before
+upload; a malformed MP4/MOV is removed and refused. The route wrappers live in `routes/uploads/public_copy.py`
+(core.py stays at 789 lines). Not in this part: photographer commercial originals (/upload/gallery,
+/upload/photographer-gallery, /photos/upload): buyers may expect camera EXIF, so GPS-only stripping there is a
+decision for David; avatars are already re-encoded by Pillow without EXIF. HEIC on feed/comment and WebM stay
+unstripped; already-stored files wait on the backfill decision.
+Tests +10 (odd JPEG re-encoded clean and upright; four photo routes and four video routes (story, feed, comment, wave) publish no location; user
+gallery). Mutations: dropping the comment-video strip fails 1, writing the feed photo raw fails 1.
 ## 2026-11-18 13:42Z T1 P3 (part 6, advisor HOLD fixed): a bounded box walk, and no unstripped file left behind on any error
 
 The advisor held #1038 at fb531cf5b for two defects, both now fixed. (1) Unbounded memory: `strip_video_in_place`
@@ -440,6 +455,13 @@ Tests +2 (a flood of 4,106 boxes is refused with no file left while a real-shape
 error leaves no file). Mutations: dropping the budget fails 1; catching only MetadataError fails 1.
 Limits the advisor recorded, NOT fixed here: GoPro GPMF / DJI telemetry tracks (a full GPS track inside the media
 data), top-level `uuid` boxes, and the mvhd/tkhd creation times, which stay.
+## 2026-11-18 13:48Z T1 P3 (part 7, addendum): two advisor limits on #1035 closed here
+
+A truncated JPEG (a lone trailing 0xFF) raised IndexError in `strip_jpeg`, which the routes answered with a 500; it is
+now a MetadataError (400). `strip_stored_video` removes the file on ANY exception, as part 6 now does, because the
+local copy is also served by `/api/uploads/...`. Tests +1 (estate fragment now +11). The other #1035 limits stay
+open: bytes after the JPEG image data (Android motion-photo video, secondary images) are copied as is, APP2 is kept
+without checking it is an ICC profile, HEIC keeps its GPS.
 ## 2026-11-18 13:53Z T1 P3 (part 2, advisor HOLD fixed): the consent text says only what is true
 
 The advisor held #1024 at 6ffd34254: the text said "(with the spot and time, but never your name)" and "from then on,
@@ -488,6 +510,20 @@ exists. STEP 3 (David, after merge): delete the REPOSITORY secret `SUPABASE_SERV
 workflow on dev to confirm. After that, dispatching these workflows from a lane branch is refused by design.
 Checks: all workflow YAML parses; 242 workflow-shape tests pass (4 failures in `test_audit_e2e_trace_override` are a
 Windows bash timeout on the untouched `e2e-tests.yml`).
+## 2026-11-18 14:53Z T1 P3 (part 7, advisor HOLD fixed): no unbounded decode in the re-encode fallback; avatars covered
+
+The advisor held #1042 at 32d097793: `_reencode_image` fully decoded any JPEG/PNG/WebP the lossless walk refused, with no
+dimension limit, so a small file claiming 13,000 x 13,000 pixels (~500 MB decoded) could take down the shared server.
+Now `check_decode_size` reads the size from the header after `Image.open` and BEFORE any decode, and refuses more than
+`MAX_DECODE_PIXELS` = 50 MP: the largest common phone photo is a 50 MP full-resolution mode (8,160 x 6,120 = 49.9 MP),
+so one decode stays near 150 MB; Pillow's own guard only warns below ~179 MP. The lossy fallback is counted
+(`REENCODE_COUNT` plus a warning log line) so its rate is visible. The AVATAR route (public bucket) gets the same cap
+before its resize, and its error path now stores a STRIPPED copy instead of the raw bytes. Tests +2 (a bomb header is
+refused before any decode and not counted, while a normal odd file is counted; an avatar bomb is refused and a normal
+avatar has no GPS); estate fragment +13.
+Recorded for #1038 (advisor, PASS-WITH-LIMITS at b6afb3920): a very long fragmented MP4 (more than ~2,000 fragments,
+each a `moof` + `mdat` pair at the top level) now exceeds the 4,096-box budget and is refused with a 400. Accepted: phone
+recordings are not fragmented, and a refused upload is never published unchecked.
 ## 2026-11-18 15:41Z T1 P3 (part 1 follow-up): a deletion request now reaches the files and the sign-in
 
 The advisor recorded two limits on #1022: a deletion request did not remove the person's photos from the PUBLIC
@@ -518,9 +554,31 @@ event loop per click: `frames_for` now runs in a thread. (3) #1032: each open pa
 `thresholds` on the PUBLIC `/api/health/data` are LEFT: they are configuration limits (hours), no secret and already
 implied by the public verdicts; moving them behind auth would need a second endpoint for one admin card. Tests +10
 (estate fragment +10).
+## 2026-11-18 16:17Z T1 P3 (part 8): iPhone HEIC photos lose their GPS too, without a decoder
+
+The server has no HEIC decoder (pillow-heif is not installed), so feed, comment, story and general HEIC photos were
+stored exactly as uploaded, GPS included. HEIC is an ISO base media file like MP4: the iPhone keeps position, time and
+serial in an `Exif` item (and sometimes an XMP `mime` item) whose bytes `iloc` locates in `mdat` or `idat`. New `services/heic_metadata.py` walks `meta` / `iinf` / `iloc` (bounded: 4,096 boxes, 4,096 items) and overwrites those bytes IN
+PLACE: the Exif item becomes a valid EMPTY Exif block padded with zeros, XMP becomes zeros. Length and offsets are
+unchanged, the image bytes are untouched, and the rotation (`irot`/`imir` item properties, not EXIF) is kept. A
+malformed HEIC (an item outside the file, an open-length extent, a truncated box) is refused (400), never published
+unchecked. The go-live private record now reads a HEIC's GPS from its Exif item too (`observation_media` falls back to it
+when Pillow cannot open the file). Tests +3 (GPS read privately then blanked, length and image bytes unchanged,
+idempotent; a malformed HEIC refused; a HEIC feed upload published without GPS); the old test that expected HEIC to be
+stored unstripped now expects a refusal for bogus bytes. Estate fragment +3. NOT verified on a real iPhone file with a
+real decoder (none here): the synthetic file follows ISO/IEC 23008-12's `iinf`/`iloc` layout.
 ## 2026-11-18 16:40Z #1043 advisor HOLD fixed: a guard that every key-reading job carries the environment
 
 The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull_request` trigger and so failed `test_consensus_flip_sweep` (fixed at bbd7c8fac: the guard now pins the NEW rule, no PR trigger, dispatchable, environment declared, script run); (2) nothing asserted that every job naming the key declares the environment, so the next workflow
 that forgets would silently lose its key once the repository secret is deleted (open PR #1025's `sst-g4-collect.yml` already names the key without it). New `tests/test_workflow_key_environment.py` scans every workflow: each job that reads
 `secrets.SUPABASE_SERVICE_ROLE_KEY` (in the job or the workflow `env`) must declare `environment: supabase-service`, and no
 key-reading workflow may run on `pull_request`. 24 jobs today; tests +26 (estate fragment +26).
+## 2026-11-18 19:26Z A READ-ONLY census of public files that still carry GPS (David: "Ok go", dry run first)
+
+Uploads are stripped from today on (#1035, #1038, #1042, #1054); files stored before keep their metadata. New `backend/scripts/public_media_gps_census.py` lists every object in the public buckets (paged) and reads only each file's first 256 KB (HTTP Range): JPEG/PNG/WebP EXIF GPS, HEIC's Exif item, MP4/MOV location atoms; a video whose `moov` sits after its media is
+UNKNOWN, never counted clean. It prints COUNTS per bucket only; object names (they contain user ids) go only to an optional
+LOCAL file. New dispatch-only `public-media-gps-census.yml` runs it on dev with the `supabase-service` environment and uploads
+counts only (artifacts on a public repo are readable by anyone). It has no write path (a test asserts it). NOT RUN yet:
+this machine has no storage key, and the workflow must reach dev first. Any backfill that rewrites files is a separate,
+approved step. Tests +5 (classification of each format with and without GPS, a truncated block is unknown, the limit and
+the no-names rule, no write path). Estate fragment +5.

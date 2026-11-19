@@ -78,10 +78,18 @@ def inspect_media(content: bytes, is_image: bool) -> MediaFacts:
         return MediaFacts(sha256=digest)
     try:
         from PIL import Image
-        with Image.open(io.BytesIO(content)) as img:
-            exif = img.getexif()
-            gps = exif.get_ifd(_GPS_IFD) or {}
-            exif_ifd = exif.get_ifd(_EXIF_IFD) or {}
+        try:
+            with Image.open(io.BytesIO(content)) as img:
+                exif = img.getexif()
+        except Exception:  # noqa: BLE001 - e.g. HEIC, which this server cannot decode: read its Exif item directly
+            from services.heic_metadata import extract_heif_exif
+            tiff = extract_heif_exif(content)
+            if tiff is None:
+                raise
+            exif = Image.Exif()
+            exif.load(tiff)
+        gps = exif.get_ifd(_GPS_IFD) or {}
+        exif_ifd = exif.get_ifd(_EXIF_IFD) or {}
     except Exception:  # noqa: BLE001 - any unreadable header is "no EXIF", by design
         return MediaFacts(sha256=digest)
     lat = _dms(gps[2], gps.get(1, "N")) if 2 in gps else None

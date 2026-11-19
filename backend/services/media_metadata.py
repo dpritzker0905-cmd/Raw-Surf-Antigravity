@@ -13,7 +13,13 @@ reads those facts from the ORIGINAL bytes first (services/observation_media.insp
 - WebP: EXIF and XMP chunks are dropped and the VP8X flags and RIFF size are corrected.
 - MP4 / MOV / M4V video: `write_public_copy` patches the file in place (services/video_metadata): its location and
   capture time are read for the private record, then its metadata boxes are neutered, losslessly.
-- Anything else (GIF, HEIC/HEIF, WebM) is stored unchanged with `stripped=False`: Pillow here cannot rewrite HEIC, and
+- A photo the lossless walk refuses but Pillow can decode is re-encoded without metadata (`public_image_bytes`), so
+  an odd file is cleaned, not rejected; a video kept after transcoding is patched with `strip_stored_video`.
+- Used by every upload route that stores into a PUBLIC bucket: go-live conditions, general, story, feed, comment,
+  wave and user gallery (T1 P3 part 7).
+- HEIC/HEIF: its Exif and XMP items are blanked in place without decoding (services/heic_metadata); the rotation
+  lives in item properties, not EXIF, so it is kept.
+- Anything else (GIF, WebM) is stored unchanged with `stripped=False`: Pillow here cannot rewrite HEIC, and
   a browser-recorded WebM carries no GPS. Callers record that.
 """
 from __future__ import annotations
@@ -28,10 +34,24 @@ from typing import Optional, Tuple
 _JPEG_KEEP_APP = {0xE0, 0xE2, 0xEE}            # APP0 JFIF, APP2 ICC, APP14 Adobe
 _PNG_DROP = {b"eXIf", b"tEXt", b"iTXt", b"zTXt", b"tIME"}
 _WEBP_DROP = {b"EXIF", b"XMP "}
+# Decoding is the expensive step: a file can be small on disk and huge as pixels (13,000 x 13,000 of one colour is a
+# few MB as a JPEG and ~500 MB decoded). The largest common phone photo is a 50 MP full-resolution mode (8,160 x 6,120
+# = 49.9 MP), so nothing a real uploader sends needs more; at 3 bytes a pixel that bounds one decode near 150 MB.
+# Pillow's own bomb guard only warns below ~179 MP, so it is not enough on the one shared server (advisor, #1042).
+MAX_DECODE_PIXELS = 50_000_000
+REENCODE_COUNT = 0          # how often the lossy fallback ran since start (also logged): it should stay rare
 
 
 class MetadataError(ValueError):
     """The bytes could not be parsed as the format they claim to be."""
+
+
+def check_decode_size(im) -> None:
+    """Refuse an image whose pixel count exceeds MAX_DECODE_PIXELS. Call after Image.open, BEFORE any decode: the
+    size comes from the header, so this costs nothing."""
+    w, h = im.size
+    if w * h > MAX_DECODE_PIXELS:
+        raise MetadataError(f"image too large to decode ({w}x{h})")
 
 
 def _jpeg_orientation(content: bytes) -> int:
@@ -51,7 +71,7 @@ def strip_jpeg(content: bytes) -> bytes:
     i = 2
     n = len(content)
     while i < n:
-        if content[i] != 0xFF:
+        if content[i] != 0xFF or i + 1 >= n:      # a lone trailing 0xFF is truncation, not an IndexError (a 500)
             raise MetadataError("bad JPEG marker")
         marker = content[i + 1]
         if marker == 0xFF:                       # fill byte
@@ -130,12 +150,61 @@ class PublicCopy:
     taken_at: Optional[datetime] = None
 
 
+def _reencode_image(content: bytes) -> bytes:
+    """Last resort for a photo the lossless walk refuses (an odd but decodable file): decode and re-encode it without
+    any metadata, upright. Lossy for JPEG/WebP, so it only runs when the lossless path cannot. Raises MetadataError
+    when the image cannot be decoded at all."""
+    try:
+        from PIL import Image, ImageOps
+        with Image.open(io.BytesIO(content)) as im:
+            fmt = (im.format or "").upper()
+            if fmt not in ("JPEG", "PNG", "WEBP"):
+                raise MetadataError(f"cannot re-encode {fmt or 'unknown'}")
+            check_decode_size(im)                   # before the decode, which is where a small file gets huge
+            upright = ImageOps.exif_transpose(im)
+            if fmt == "JPEG" and upright.mode not in ("RGB", "L"):
+                upright = upright.convert("RGB")
+            out = io.BytesIO()
+            upright.save(out, fmt, **({"quality": 92} if fmt in ("JPEG", "WEBP") else {}))
+            return out.getvalue()
+    except MetadataError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - any decode failure means the file is not a usable image
+        raise MetadataError(f"undecodable image: {type(exc).__name__}") from exc
+
+
+def public_image_bytes(content: bytes, content_type: str) -> Tuple[bytes, bool]:
+    """Photo bytes for PUBLIC storage: lossless strip first, a metadata-free re-encode if the walk refuses the file.
+    Raises MetadataError only for a file that is not a decodable JPEG/PNG/WebP."""
+    try:
+        return strip_image_metadata(content, content_type)
+    except MetadataError:
+        global REENCODE_COUNT
+        out = _reencode_image(content)
+        REENCODE_COUNT += 1
+        import logging
+        logging.getLogger(__name__).warning("[media_metadata] lossy re-encode fallback used (count=%d)", REENCODE_COUNT)
+        return out, True
+
+
+def strip_stored_video(path) -> bool:
+    """Neuter the metadata of a video already on disk (a transcoded output or a kept raw file) before it is stored
+    publicly. Returns whether it was stripped (False for non-MP4/MOV, e.g. WebM). Removes the file and raises
+    MetadataError for a malformed MP4/MOV, so a file that cannot be checked is never published."""
+    from services.video_metadata import strip_video_in_place
+    try:
+        return strip_video_in_place(path).stripped
+    except BaseException:          # ANY failure: the local copy is served too, so it must not survive unstripped
+        os.remove(path)
+        raise
+
+
 def write_public_copy(content: bytes, content_type: str, is_video: bool, path) -> PublicCopy:
     """Write the copy that goes to PUBLIC storage at `path`, without embedded metadata. Photos are stripped in memory;
     videos are written, then patched on disk (services/video_metadata), whose location/time are returned for the
     PRIVATE record. Blocking: call off the event loop. Raises MetadataError (and leaves no file) for a malformed file."""
     if not is_video:
-        stored, stripped = strip_image_metadata(content, content_type)
+        stored, stripped = public_image_bytes(content, content_type)
         with open(path, "wb") as f:
             f.write(stored)
         return PublicCopy(stripped=stripped, size=len(stored))
@@ -160,4 +229,7 @@ def strip_image_metadata(content: bytes, content_type: str) -> Tuple[bytes, bool
         return strip_png(content), True
     if ct == "image/webp" or (content[:4] == b"RIFF" and content[8:12] == b"WEBP"):
         return strip_webp(content), True
+    from services.heic_metadata import is_heif, strip_heif
+    if ct in ("image/heic", "image/heif") or is_heif(content):
+        return strip_heif(content), True                    # lossless, no decoder needed (services/heic_metadata)
     return content, False

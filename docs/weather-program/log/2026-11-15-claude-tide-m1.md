@@ -2523,6 +2523,37 @@ job now?"): "Yes, move forward on the path toward SOTA". It covers building BOTH
 
 **Not used:** GESLA-4, until its licence is read. Nothing else in the registration changes.
 
+## 18:45 EST 2026-11-18 (`date`) - Tide table BUILDER split out as PR A (branch `claude/tide-table-builder`): no served change; the served switch follows as PR B
+**Why the split.**
+- The advisor HELD #1061 and #1066 (23:23Z). Merging either would switch every served tide before a CMEMS table
+  existed (point 1).
+- The service-role key now lives only in the dev/main `supabase-service` environment (#1043), so the first table cannot
+  be built from a tag before merge (point 2).
+
+**PR A carries only:**
+- the builder: `scripts/tide_own/`, and `tide-own-series.yml` with `environment: supabase-service`;
+- the loader module `services/weather_pipeline/tide_own.py`, which NO served module imports yet (a test pins that);
+- the builder and loader tests.
+
+**What happens after merge:**
+- One dispatch, on David's word with the advisor reading first, builds the first table. It includes CMEMS if M1-0
+  passes, with the load tide taken out if TOTAL carries it.
+- PR B, the served switch, then merges against a real table:
+  - it replaces #1061 and #1066 (tide.py's dispatch, the flags and the dispatch tests);
+  - it carries the coverage counts, the before/after, and the days-10-14 options with numbers.
+
+**Measured (point 4).** The loader holds int16 arrays decoded from the builder's base64 form. On a synthetic full-size
+table (1,800 keys x 1,152 h x 2 series), tracemalloc showed:
+- 9.3 MB retained;
+- a 28.1 MB peak while loading (lists of ints: 103 MB retained, a 122 MB peak);
+- gzip size 2.9 MB.
+
+**Tests:**
+- `tests/test_tide_own.py` has 14 tests in PR A: the builder rules, the loader, the compact round trip, the CMEMS fill
+  helpers, "nothing served reads it yet", and the credential scoping.
+- 100 tests pass with the tide, flag and acquisition suites.
+- Lint is clean.
+
 ## 18:50 EST 2026-11-18 (`date`) - M1-0 amendment 2 (before any run): load tide is OUT of the gauge-comparable level; two REPORTED diagnostic candidates added
 **The research lead's correction (section M):**
 - Tide gauges, and the water depth that matters for surf, measure the OCEAN (elastic) tide relative to the seabed and
@@ -2542,3 +2573,32 @@ job now?"): "Yes, move forward on the path toward SOTA". It covers building BOTH
   - ACCEPT scores that arm.
 - T3's harmonic v2 is ocean tide only (pyTMD, load excluded).
 - `combine()` now takes `-name` to subtract (tested).
+## 19:05 EST 2026-11-18 (`date`) - PR A (#1077): the advisor's four conditions met (split ACCEPTED, 23:4xZ)
+1. **Nothing served reads the table.** `test_nothing_served_reads_the_table_yet` pins that no module in server.py,
+   services/ or routes/ imports `tide_own` (the loader itself excepted).
+2. **The first build is a dispatch from dev**, on David's word typed in this session, with the advisor reading the build
+   log first.
+   - It writes only `tide_own/series.json.gz` and `tide_own/m.json` (the `storage_io.py` allow-list).
+   - The product clean-up sweep (`product_object_gc`, #1005) lists only TOP-LEVEL objects, and it touches only names in
+     its product grammar (`_PRODUCT_NAME`).
+   - `test_the_product_cleanup_sweep_cannot_touch_the_table` pins that neither name, nor its bare file name, is a
+     product object.
+3. **If M1-0 has not passed when A merges, the table is built WITHOUT CMEMS, and PR B must wait for a table that has
+   it.** PR B never merges on a harmonic-only table. This is stated in #1077 and will be a gate check in B.
+4. **int16 millimetres.**
+   - The range is +-32.767 m, and -32768 is the missing sentinel.
+   - `encode_i16` REFUSES an out-of-range value at write (ValueError, tested). It never clips.
+   - The schema is bumped to `raw-surf/tide-own/2`, so a `/1` table is refused rather than misread (tested).
+
+**Memory measurement method (repeated on the first real table):**
+- a synthetic full-size table: 1,800 keys x 1,152 hourly values x 2 series, A+M full and CMEMS for 12 days;
+- gzip JSON in the builder's form;
+- `tracemalloc` around `tide_own.validate(json.loads(gzip.decompress(raw)))`, with `gc.collect()` before reading
+  current and peak.
+
+**Result:**
+- 9.3 MB retained and a 28.1 MB peak in the compact form;
+- 103 MB retained and a 122 MB peak in the list-of-ints form;
+- the gzip size is 2.9 MB.
+
+`tests/test_tide_own.py` now has 16 tests (chain floor +16, +1 file).
