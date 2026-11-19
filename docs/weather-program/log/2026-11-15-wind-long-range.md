@@ -679,3 +679,29 @@ control can pass, and that a mismatch (the 63-character hash) does fail it.
 
 **Unchanged:** conditions 1, 2, 3, 5 and 6, the twelve runs, and the dispatch inputs. The dispatch still needs the
 owner's word, typed after the GATE line and the merge.
+
+## 2026-11-19 20:36 -0500 (01:36Z) FIRST READER of run 44376282465 delegated (no result read)
+
+**Run 44376282465** (dispatched 2026-11-18 19:02Z from dev `9c6c3caf6`): mirror_check succeeded.
+
+**Why the reader changes:** step 3b's TEST window (valid 2026-10-16 to 11-15) uses NDBC/ASOS station wind that overlaps
+this run's truth. Raised by this lane on 2026-11-19, so that 3b's gatekeeper stays blind.
+
+**The advisor's written agreement, quoted verbatim:**
+
+> "Advisor, 2026-11-19: I delegate the first read of the score log of run 44376282465 to the Haiku 5.5 researcher
+> session (local_80e6193e), to keep step 3b's gatekeeper blind; step 3b's TEST window (valid 2026-10-16 to 11-15) uses
+> station wind that overlaps this run's truth. Conditions: (1) the reader applies the registered decision rule as
+> written and reports ONLY the verdict line (PASS, FAIL or VOID) with the test-run and day counts the VOID rule needs;
+> (2) no per-station, per-region or per-lead number leaves that session, and the report artifact stays unopened by
+> everyone else, until step 3b's TEST is scored; (3) the reader takes no part in step 3b; (4) under 60 test runs or 30
+> days is VOID for good. I have read only the mirror_check log of this run (forecast values, no truth) and will not open
+> the score log or the report before 3b is scored."
+
+**This lane's record:**
+- It has opened no report or score log of 43952101715, 44107750669 or 44376282465, and has seen no truth.
+- It downloaded only two artifacts of 43952101715, for the mirror-check dry run: the station list with the land mask,
+  and shard 14's forecast values. Both are now deleted.
+- It never downloaded the truth snapshot.
+
+**Unchanged:** conditions 1-6 and the final stop rule.
