@@ -14,6 +14,7 @@ import logger from '../../utils/logger';
 import { AdminSpotsStats } from './AdminSpotsStats';
 import { AdminSpotDuplicates } from './AdminSpotDuplicates';
 import '../../utils/leafletLoader'; // sets window.L (see file for why this was needed)
+import { AdminUnverifiedSpotsToggle } from './AdminUnverifiedSpotsToggle';
 
 /**
  * AdminSpotsPanel - Extracted from UnifiedAdminConsole
@@ -352,6 +353,9 @@ const AdminSpotsPanel = ({ userId }) => {
           Refresh
         </Button>
       </div>
+
+      {/* Whether the public sees spots whose location nobody has verified (owner, 2026-11-18) */}
+      <AdminUnverifiedSpotsToggle />
 
       {/* Search & Filter */}
       <Card className="bg-card border-border">
