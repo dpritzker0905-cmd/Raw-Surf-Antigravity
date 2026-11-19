@@ -258,24 +258,31 @@ class ConsentIn(BaseModel):
     source: Literal["blind_height_input", "settings"] = "blind_height_input"
 
 
-def _consent_reply(state: dict) -> dict:
-    return {**state, "current_version": surf_truth_consent.CONSENT_VERSION,
-            "title": surf_truth_consent.CONSENT_TITLE, "text": surf_truth_consent.CONSENT_TEXT}
+async def _consent_reply(db: AsyncSession, user_id: str) -> dict:
+    words = await surf_truth_consent.wording(db)
+    state = await surf_truth_consent.current(db, user_id, version=words["version"])
+    return {**state, "current_version": words["version"], "title": words["title"], "text": words["text"],
+            "final": words["final"], "privacy_url": words["privacy_url"]}
 
 
 @router.get("/surf-observations/consent")
 async def get_consent(db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
-    """The caller's own forecast-improvement consent, with the current wording to show (opt-in: no choice = off)."""
-    return _consent_reply(await surf_truth_consent.current(db, user_id))
+    """The caller's own forecast-improvement consent in force, with the current wording to show (opt-in: no choice
+    = off; a grant under an older wording version is not in force and `needs_reconsent` is true)."""
+    return await _consent_reply(db, user_id)
 
 
 @router.put("/surf-observations/consent")
 async def put_consent(data: ConsentIn, db: AsyncSession = Depends(get_db),
                       user_id: str = Depends(get_current_user_id)):
-    """Record the caller's choice under the current wording (append-only history; the newest choice is in force)."""
-    await surf_truth_consent.record(db, user_id, data.granted, data.source)
+    """Record the caller's choice under the current wording (append-only history; the newest choice is in force).
+    A grant under a wording that still has draft placeholders is refused with 409; a withdrawal always succeeds."""
+    try:
+        await surf_truth_consent.record(db, user_id, data.granted, data.source)
+    except surf_truth_consent.WordingNotFinal as exc:
+        raise HTTPException(status_code=409, detail="This option is not available yet.") from exc
     await db.commit()
-    return _consent_reply(await surf_truth_consent.current(db, user_id))
+    return await _consent_reply(db, user_id)
 
 
 @router.get("/surf-observations/scale-default/{spot_id}")

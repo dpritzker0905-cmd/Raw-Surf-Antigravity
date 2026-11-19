@@ -39,8 +39,8 @@ def world(*, seed: int = 7, spots: int = 4, days: int = 12, anchors: dict = None
                         "height_value": round(y / FT, 1), "height_unit": "ft", "height_bucket": None,
                         "height_scale": "face", "set_or_avg": "sets", "scale_default": "face",
                         "scale_overridden": False, "normalization_version": "norm_v1", "input_kind": "value",
-                        "forecast_shown_before": False, "gps_check": "ok", "gps_distance_m": 50.0,
-                        "exif_check": "none", "exif_distance_m": None, "exif_age_s": None, "flags": [],
+                        "forecast_shown_before": False, "gps_distance_band": "<1 km",
+                        "exif_check": "none", "exif_distance_band": None, "exif_age_s": None, "flags": [],
                         "quality_ok": True, "xp_status": "granted", "corroborated": True, "client_build": "syn",
                     })
     return rows

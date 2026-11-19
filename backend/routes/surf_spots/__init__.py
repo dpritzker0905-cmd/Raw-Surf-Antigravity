@@ -33,6 +33,8 @@ from .crowd import router as crowd_router
 from .spot_dedup import router as spot_dedup_router
 from .spot_admin import router as spot_admin_router
 from .spot_admin import verification_router
+from .spot_candidates_admin import router as spot_candidates_admin_router
+from .spot_candidates_place import router as spot_candidates_place_router
 
 router.include_router(spots_router)
 router.include_router(live_router)
@@ -46,4 +48,6 @@ router.include_router(crowd_router)
 router.include_router(spot_dedup_router)
 router.include_router(spot_admin_router)
 router.include_router(verification_router)
+router.include_router(spot_candidates_admin_router)
+router.include_router(spot_candidates_place_router)
 
