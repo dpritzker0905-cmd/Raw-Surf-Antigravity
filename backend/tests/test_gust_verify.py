@@ -273,6 +273,10 @@ def test_storage_failures_print_class_not_text(monkeypatch, capsys):
 def test_workflow_keeps_the_key_in_storage_steps_behind_the_environment_and_defaults_on():
     """The key only in the stdlib storage steps, the job behind `environment: supabase-service`, never on pull_request
     (#1043's rule; the advisor's HOLD on #1063); the PR dry run is its own file and never names a credential."""
+    dry_path = WORKFLOW.replace("gust-verify.yml", "gust-verify-dry-run.yml")
+    for p, job in ((WORKFLOW, "  record:\n"), (dry_path, "  dry-run:\n")):     # 28599b035 committed both as empty files
+        assert os.path.exists(p) and os.path.getsize(p) > 500, f"{p} is missing or empty"
+        assert job in open(p, encoding="utf-8").read(), f"{p} has no {job.strip()} job"
     text = open(WORKFLOW, encoding="utf-8").read()
     assert "(vars.GUST_VERIFY_COLLECT || '1') != '0'" in text
     assert "    environment: supabase-service\n" in text
@@ -280,5 +284,5 @@ def test_workflow_keeps_the_key_in_storage_steps_behind_the_environment_and_defa
     for s in text.split("      - "):
         if "SUPABASE_SERVICE_ROLE_KEY" in s:
             assert "python3 -I -S backend/scripts/gust_bucket_io.py" in s, s
-    dry = open(WORKFLOW.replace("gust-verify.yml", "gust-verify-dry-run.yml"), encoding="utf-8").read()
+    dry = open(dry_path, encoding="utf-8").read()
     assert "pull_request:" in dry and "secrets." not in dry and "SUPABASE" not in dry and "gust_bucket_io.py fetch" not in dry
