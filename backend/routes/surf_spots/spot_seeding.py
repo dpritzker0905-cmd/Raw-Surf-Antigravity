@@ -2,7 +2,7 @@
 surf_spots/spot_seeding.py — Florida spot seeding, coordinate updates, and image seeding.
 Extracted from admin_spots.py (v93 audit) for LOC compliance.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from database import get_db
@@ -45,8 +45,21 @@ async def seed_florida_spots(db: AsyncSession = Depends(get_db), _admin=Depends(
 
 @router.post("/surf-spots/update-coordinates")
 async def update_surf_spot_coordinates(db: AsyncSession = Depends(get_db), _admin=Depends(get_current_admin)):
-    """Update existing surf spots with corrected coastal coordinates"""
-    coordinate_updates = {
+    """RETIRED 2026-11-18. Answers 410 and changes nothing.
+
+    It found 17 Florida spots by NAME ALONE and wrote a hard-coded 2026-era coordinate over whatever was stored: no
+    audit row, no `original_latitude`, no check that a person had since placed the pin. One request from any admin
+    session would have moved pins set with the precision tool back to their seed values, and it stopped with a
+    server error as soon as two spots shared one of those names. A coordinate is corrected through the admin editor
+    or the precision pin, which keep the old position and write an audit row.
+
+    The table below is kept only so the old values stay on record (`RETIRED_COORDINATE_SEEDS`)."""
+    raise HTTPException(status_code=410, detail=(
+        "Retired: this endpoint overwrote spot coordinates by name. Nothing was changed. "
+        "Move a spot with the admin editor or the precision pin."))
+
+
+RETIRED_COORDINATE_SEEDS = {
         "Jacksonville Beach Pier": {"latitude": 30.2950, "longitude": -81.3906},
         "Atlantic Beach": {"latitude": 30.3347, "longitude": -81.3963},
         "St. Augustine Beach": {"latitude": 29.8542, "longitude": -81.2680},
@@ -64,17 +77,7 @@ async def update_surf_spot_coordinates(db: AsyncSession = Depends(get_db), _admi
         "Pompano Beach Pier": {"latitude": 26.2378, "longitude": -80.0805},
         "South Beach": {"latitude": 25.7835, "longitude": -80.1250},
         "Haulover Beach": {"latitude": 25.9030, "longitude": -80.1180},
-    }
-    updated = 0
-    for spot_name, coords in coordinate_updates.items():
-        result = await db.execute(select(SurfSpot).where(SurfSpot.name == spot_name))
-        spot = result.scalar_one_or_none()
-        if spot:
-            spot.latitude = coords["latitude"]
-            spot.longitude = coords["longitude"]
-            updated += 1
-    await db.commit()
-    return {"message": f"Updated coordinates for {updated} surf spots", "updated_count": updated}
+}
 
 
 @router.post("/surf-spots/seed-images")
@@ -100,11 +103,17 @@ async def seed_spot_images(db: AsyncSession = Depends(get_db), _admin=Depends(ge
         "Haulover Beach": "https://images.unsplash.com/photo-1495954222046-2c427ecb546d?w=800",
     }
     updated = 0
+    ambiguous = []
     for spot_name, image_url in spot_images.items():
         result = await db.execute(select(SurfSpot).where(SurfSpot.name == spot_name))
-        spot = result.scalar_one_or_none()
-        if spot and not spot.image_url:
-            spot.image_url = image_url
+        matches = result.scalars().all()
+        # A name is not an identity: with two spots of one name this used to stop with a server error
+        # (scalar_one_or_none). Now a repeated name is skipped and reported, and no row is guessed at.
+        if len(matches) > 1:
+            ambiguous.append(spot_name)
+            continue
+        if matches and not matches[0].image_url:
+            matches[0].image_url = image_url
             updated += 1
     await db.commit()
-    return {"message": f"Updated {updated} spot images"}
+    return {"message": f"Updated {updated} spot images", "skipped_repeated_names": ambiguous}
