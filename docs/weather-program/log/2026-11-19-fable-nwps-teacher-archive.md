@@ -90,3 +90,64 @@ fragment now +30. Still NOT done: any run against NOAA's real server.
 A mistake of mine while amending, recorded because it touched the machine and not the repo: one shell command began
 with a bare `python -`, which this machine's rules forbid. I stopped the command and killed one process whose command
 line was exactly `C:\Python314\python.exe -` (PID 42148). I believe it was that command's child; I can not prove it.
+
+## 2026-11-19 01:55Z HANDOFF (wind-down on the owner's word, relayed by the director about 01:35Z)
+
+Work stopped here because the week's usage limit is near. Nothing below is started unless it says so.
+
+**Open PRs of this lane, with the head each stands at**
+
+| PR | Branch | Head | State |
+|---|---|---|---|
+| #1090 | fable/nwps-teacher-archive | this commit (code is db1900ada) | Advisor HOLD at db1900ada, written 01:46Z. The amended head (every grid, spectra) is NOT read. |
+| #1072 | fable/coastal-band-cells | 2b0e2d107 | Advisor PASS-WITH-LIMITS at 40a32ebee. New head is a plain merge of dev; CI not yet read. |
+| #1086 | fable/coastal-band-buoy-prereg | a413b874b | Advisor PASS. |
+| #1068 | fable/tally-stored-split | 09894ab6f | Advisor PASS-WITH-LIMITS. |
+| #1059 | fable/open-meteo-fallback-rule | 68cfade1c | Advisor PASS-WITH-LIMITS; asks for a target date per item and a paid-plan note. |
+| #1056 | fable/face-range-followup | 669a9c2dd | Advisor PASS was at d60790354; the head moved by a dev merge that was not mine. |
+
+I merge nothing; the director merges.
+
+**First work on resume: the advisor's three fixes to #1090, before the repository variable is set**
+
+1. A truncated source file is stored for good: the collector keeps what parsed and records the unparsed tail, and
+   the create-only upload then blocks that cycle forever. The cron sits inside the 12Z publishing window. Do not save
+   when the tail is non-zero.
+2. A NOAA failure is a green run: a refused or timed-out listing returns an empty plan and exit 0, and failed uploads
+   still exit 0. With about five days kept at the source nobody would know. Fail the run.
+3. The job names the service-role key with no `environment: supabase-service`. #1043's guard will fail it and the key
+   goes when the repository secret is deleted.
+
+Limits the advisor wants recorded (not fixed tonight): the caps are checked on running totals and overshoot by one
+file; files are read whole into memory; nothing prunes (worst case about 73 GB a year); the lead is read from a
+message's first field with no template check; a manual dispatch bypasses the variable. What the advisor did check and
+found right, at 3c52aa79d: the section 0 offsets, the 7777 check, the section walk, and the section 4 unit and
+forecast-time octets, against the specification for templates 4.0, 4.1 and 4.8.
+
+Still true of #1090: it has never run against NOAA's real server; the 200 MB and 2,500 MB caps are placeholders to be
+sized from one manual one-office run. I have not set NWPS_TEACHER_ARCHIVE and dispatched nothing.
+
+**#1072 estate lane, what was found**
+
+It failed "only 4012 passed, floor is 4013". All 13 band tests were selected and none can skip. At that run's merge
+base dev itself read 3999 against its own floor of 4000. #1076 on current dev reads 4011 and passes. After merging dev
+the script gives a floor of 4024 = 4011 + 13: zero margin. NOT found: why dev read one short at 00:31Z. If the lane
+fails again by one, that is the place to look, not the band tests.
+
+**Next work, in order, none started**
+
+1. The three #1090 fixes above, then the new head to the advisor.
+2. Flip-attribution pre-registration with direction as a fourth input (shuffled-direction null, planted direction
+   error, the served config, the same rows for every arm), to the advisor before any data; then the harness.
+3. ICON and EURO census hooks once #1072 merges, with the census import moved to module level or guarded (the
+   advisor's condition); EURO masks 9999.0.
+4. The EWAM addendum and the consensus addendum to the buoy pre-registration, each rewritten as its own document and
+   sent to the advisor first.
+5. The gate pre-registration draft for D-081; the glyph-versus-map count through the published-artifact reader.
+6. D-082: a target date per transition item and the paid-plan note.
+
+**Open with the owner:** the dispatch of the buoy collection; the 5,000-spot hard stop (#1070) against 9,467
+candidate spots; whether a flag flip should start a precompute by itself.
+
+**Known errors of mine still to correct:** guessed times in the shared notes of 2026-11-18/19 ran ahead of the clock;
+the memory guard result for the new topic file was never confirmed.
