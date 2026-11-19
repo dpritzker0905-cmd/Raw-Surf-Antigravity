@@ -2867,3 +2867,23 @@ downgrade, owner). Sent to the director.
   ensemble for L1.
 - **European wave truth:** CMEMS In Situ TAC (IBI/NWS/MED) under the CMEMS licence. The station count needs the
   account.
+
+## 2026-11-18 20:00 -0500 Step 3b pre-registration + Amendment 1; CDIP audit (SURF_NEARSHORE_MOP is ON); ICON rain ruling; step-6 advice
+- **3b pre-registration** (shared notes `step3b-period-wind-preregistration-2026-11-19.md`), with the advisor.
+  - Amendment 1 (the wind lane's build check, pre-data):
+    - class from `offshoreness()` ±0.5 plus 3/12 kt named constants, with the wq·wg MAE co-primary;
+    - window valid 07-01→11-15, TRAIN to 10-06, a 10-day gap, TEST 10-16→11-15;
+    - GFS + EURO only;
+    - plants +30°/+60° judged by signed ME;
+    - local solar hour; leave-station-out excluded from TRAIN.
+  - Includes the "beat the teacher" rule.
+- **CDIP audit:** `SURF_NEARSHORE_MOP` = "1" in production since 2026-11-05. It feeds CDIP MOP nearshore sea into
+  `estimate_surf_at` at California spots, against the new "CDIP is the exam, never the textbook" route. Escalated to
+  David via the director, with options A/B/C; research recommends C.
+  - `SHORE_NORMAL_MOP_CALIBRATED` is off (its file is fitted on CDIP).
+  - `SURF_SPECTRAL_K` is dark.
+- **ICON rain:** keep the area mean. A radar (MRMS) FSS test of three arms runs on a forward collector before any swap
+  (rules on every-day case selection and private storage).
+- **Step 6 advice:** score spread plus position; an input-verified verifying level (not +0-6 h as truth); a 10%
+  threshold with a ±2 report; a sharpness line; phase 0 honest labels, one-chain numbers, a11y, a kill switch.
+- **AIFS-wave pre-registration:** B1-B3 accepted.
