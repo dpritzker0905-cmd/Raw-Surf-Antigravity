@@ -2464,6 +2464,42 @@ job now?"): "Yes, move forward on the path toward SOTA". It covers building BOTH
 - **On ACCEPT:** the repo variable `TIDE_CMEMS_PRIMARY=1` (#1066's builder fills CMEMS), with the kill switch to the
   FES harmonic or "unavailable", never Open-Meteo (owner, about 23:00Z).
 
+## 18:20 EST 2026-11-18 (`date`) - Data credits follow provenance (branch `claude/credits-provenance`; the research lead's row 16 of the Open-Meteo exit); no served number changes
+**Why.**
+- The owner, about 23:00Z: open agency providers, and every source is credited where its data is shown.
+- The research lead routed row 16 here.
+
+**What changes:**
+- **The tide readout credits the agency of the series actually served.**
+  - `routes/weather_point_tide.py` now picks `provider` and `source_url` from the served series' `source`:
+    - `cmems` -> "E.U. Copernicus Marine Service Information";
+    - `am` / `own` -> "FES2022 (AVISO) + Copernicus Marine";
+    - absent or unknown -> "Open-Meteo Marine", which is what dev serves today.
+  - It adds `series_source`. The old `source: model-msl` field keeps its meaning.
+  - `TideReadout.js` shows the credit after "Modeled sea level · MSL":
+    - as a real link with an accessible name, in light, dark and beach (the infobox has one layout for desktop and
+      mobile);
+    - only `https://` URLs become links;
+    - with no provider, the footer is unchanged.
+  - This is forward-compatible with #1061 (step 1, "own" / "open-meteo") and #1066 (step 2, "cmems" / "am").
+- **Raster legend credits:** each agency's own wording.
+  - ECMWF: "EURO · © ECMWF · CC BY 4.0".
+  - DWD: "ICON · Datenbasis: Deutscher Wetterdienst", linked to DWD's copyright page.
+  - The Copernicus currents credit keeps the director's text; its accessible label already reads "Generated using E.U.
+    Copernicus Marine Service Information".
+  - `LayerDataCredit.creditFor` already followed provenance: an engaged own frame set gets its agency, and the `.om` path
+    gets Open-Meteo. That is pinned by the existing tests.
+- **Left as is, because they are true today:**
+  - "Forecast from Open-Meteo Marine API" (`SpotConditions`, non-p1 branch);
+  - "Auto-filled from Open-Meteo" (`CreatePostModal`; `/surf-conditions` reads Open-Meteo).
+  - They change when those paths are replaced with agency sources (other rows of the exit plan).
+
+**Tests:**
+- backend `test_point_tide.py` +1: the credit follows provenance for every source, and the old field is unchanged
+  (guards +1);
+- frontend `TideReadout.test.js` +2: the helper, plus the link in three themes (frontend +2);
+- two credit-string pins updated (`LayerDataCredit.test.js`, `gustsLayer.test.js`);
+- the ESLint ratchet passes.
 ## 18:35 EST 2026-11-18 (`date`) - M1-0 ACCEPT amendment 1 (before any run): IOC SLSMF REMOVED from the gauge panel; free raw data only
 **The owner, verbatim (relayed by the research lead and the director):**
 - "Its free SOTA , no paid plans, raw free data for SOTA tides".
