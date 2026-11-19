@@ -85,6 +85,11 @@ class SurfObservation(Base):
     audited_at = Column(DateTime(timezone=True), nullable=True)
     flags = Column(Text, nullable=False, default='')  # comma-separated, sorted
 
+    # P3: the person's forecast-improvement consent IN FORCE when this row was received (services/surf_truth_consent).
+    # NULL on rows made before consent existed: treated as no. The export also checks the CURRENT choice.
+    consent_training = Column(Boolean, nullable=True)
+    consent_version = Column(String(32), nullable=True)
+
     # One observation per parent report, enforced by the database too (the route's read-then-insert can race).
     # A NULL ref_id (a check-in observation made after today's check-in already existed) is not constrained.
     __table_args__ = (Index('ix_surf_observations_spot_received', 'spot_id', 'received_at'),

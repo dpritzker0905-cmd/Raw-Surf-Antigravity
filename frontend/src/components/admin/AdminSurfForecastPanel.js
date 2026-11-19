@@ -11,6 +11,7 @@ import { useThemeName } from '../../contexts/ThemeContext';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 import ForecastDataHealth from './ForecastDataHealth';
+import SpotInspector from './SpotInspector';
 
 /**
  * Admin · Surf Forecast — the rating system's control room.
@@ -288,6 +289,8 @@ export const AdminSurfForecastPanel = () => {
       {statusError && <p role="alert" className="rounded-lg border border-border p-2 text-sm text-foreground">{statusError}</p>}
 
       <ForecastDataHealth refreshKey={refreshKey} />
+
+      <SpotInspector />
 
       <FlagBoard flags={flags} manifest={status?.manifest} />
 
