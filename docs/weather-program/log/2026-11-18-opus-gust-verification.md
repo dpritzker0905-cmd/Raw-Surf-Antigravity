@@ -96,6 +96,13 @@ stations that have no metadata.
   answered 503 under load and 4..37 EURO steps per backfilled run were dropped (130 of them as "index has no 10fg": the source
   reads a throttled .index error page as an index; the collector now retries each step after 5 / 15 / 45 s, test added). The
   drops were recorded, never filled, so the EURO rows below cover each lead unevenly.
+- The advisor's HOLD on #1063 (2026-11-19, one workflow change): a key-reading workflow must declare
+  `environment: supabase-service` and must not run on pull_request (#1043's guard, not yet on dev when CI went green). The
+  `record` job now declares the environment and `gust-verify.yml` runs on schedule and dispatch only. The keyless dry run moved
+  to its own file, `gust-verify-dry-run.yml`, which names no credential. #1043's `test_workflow_key_environment.py`, run
+  locally against this branch, lists neither gust workflow. The test pins both rules.
+- The advisor's reminders, recorded: the 9-run reading in §3a is not a finding. The registered read is the 14-run re-score.
+  Merging starts a daily create-only write to the production bucket, which needs David's word; the director relays it.
 
 ## 3. Results
 

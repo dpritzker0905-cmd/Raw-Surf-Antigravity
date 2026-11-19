@@ -270,12 +270,15 @@ def test_storage_failures_print_class_not_text(monkeypatch, capsys):
     assert "OSError" in out and "secret-host" not in out
 
 
-def test_workflow_keeps_the_key_in_storage_steps_and_defaults_on():
+def test_workflow_keeps_the_key_in_storage_steps_behind_the_environment_and_defaults_on():
+    """The key only in the stdlib storage steps, the job behind `environment: supabase-service`, never on pull_request
+    (#1043's rule; the advisor's HOLD on #1063); the PR dry run is its own file and never names a credential."""
     text = open(WORKFLOW, encoding="utf-8").read()
     assert "(vars.GUST_VERIFY_COLLECT || '1') != '0'" in text
-    steps = text.split("      - ")
-    for s in steps:
+    assert "    environment: supabase-service\n" in text
+    assert "pull_request" not in text.split("\non:", 1)[1].split("\npermissions:", 1)[0]
+    for s in text.split("      - "):
         if "SUPABASE_SERVICE_ROLE_KEY" in s:
             assert "python3 -I -S backend/scripts/gust_bucket_io.py" in s, s
-    dry = text[text.index("  dry-run:"):]
-    assert "secrets." not in dry and "gust_bucket_io.py" not in dry
+    dry = open(WORKFLOW.replace("gust-verify.yml", "gust-verify-dry-run.yml"), encoding="utf-8").read()
+    assert "pull_request:" in dry and "secrets." not in dry and "SUPABASE" not in dry and "gust_bucket_io.py fetch" not in dry
