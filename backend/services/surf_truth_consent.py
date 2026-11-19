@@ -12,7 +12,7 @@ The DEFAULT wording below is used only until an admin publishes one. It is engin
 reviewed by counsel (David's call). It promises only what the code does: off by default; what each used report
 carries (it is pseudonymous, NOT anonymous); and that a withdrawal stops every LATER export from using any of the
 person's reports, earlier ones included (the export checks the CURRENT choice as well as the one in force when each
-report was made). It does not promise that exports already made are changed: nothing purges them on a withdrawal yet.
+report was made); and that exports made before a withdrawal are deleted within 7 days (services/surf_truth_retention).
 """
 from __future__ import annotations
 
@@ -25,20 +25,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models import SurfTruthConsentEvent, TosContent
 
 DOC_TYPE = "forecast_consent"
-CONSENT_VERSION = "draft-2026-11-18b"     # the default's version until an admin publishes one. b: the advisor's 11-18
-#                                           review; the first draft overstated both promises
+CONSENT_VERSION = "draft-2026-11-18c"     # the default's version until an admin publishes one. b: the advisor's 11-18
+#                                           review (the first draft overstated both promises); c: retention now purges
+#                                           older exports after a withdrawal, so the text can promise it
 CONSENT_TITLE = "Use my wave reports to improve Raw Surf's forecasts"
 # Each sentence maps to code. "spot, time to the minute, distances, app version" = surf_truth_export.FIELDS (observer
 # role, anchor status and quality flags are covered by "how we rated the report"). "A code instead of your name ... we
 # can still trace it back" = the HMAC pseudonyms: pseudonymous, NOT anonymous. "New checks leave out ... earlier ones
-# included" = build_export's granted_now filter. "Copies made before ... are not changed" stays true until a purge on
-# withdrawal exists; promise more only in the change that builds it, under a new CONSENT_VERSION.
+# included" = build_export's granted_now filter. "Copies made before ... are deleted within 7 days" =
+# surf_truth_retention: a withdrawal is a revocation, so the daily job replaces every export cut before it.
 CONSENT_TEXT = ("Off unless you turn it on. When on, the wave heights you report can be used to check and improve our "
                 "surf forecasts. Each report is used with its spot, its time to the minute, how far you and your photo "
                 "were from the spot, your app version and how we rated the report, under a code instead of your name. "
                 "The code is the same for all your reports, and we can still trace it back to your account. Turn it "
                 "off any time: from then on, new forecast checks leave out all your reports, earlier ones included. "
-                "Copies made before you turned it off are not changed.")
+                "Copies made before you turned it off are deleted within 7 days.")
 DEFAULT_SECTIONS = [{"title": CONSENT_TITLE, "body": CONSENT_TEXT}]
 SOURCES = ("blind_height_input", "settings")
 
