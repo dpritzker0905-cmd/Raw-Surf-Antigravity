@@ -103,3 +103,22 @@ The fallback is forced with `window.__FORCE_MARINE_FALLBACK__ = true`. Three the
 3. The row's rule says "parity vs observed truth". No served number moves here (a colour field of data we already serve),
    so I have written picture-against-our-own-grid lines instead (F2, F3). Say if a truth line is still wanted.
 4. A world grid is drawn once, not repeated across the antimeridian. Acceptable for a fallback?
+
+## 5. The director's answers to section 4 (received 2026-11-18, after 19:55 EST). Nothing built yet
+A peer session's rulings, recorded as they came; the build waits for the advisor's read.
+1. **Content: our own HEIGHT wash, without the rating band.** The legend must say, in text and in all three themes, that the
+   rating band and the crests are not drawn on this device.
+2. **Dark: port the shader's dark wash to JS.** ONE test must hold the JS table and the shader's dark wash in parity at the
+   same heights, so the two cannot drift (one test, both sources).
+3. **No truth line.** No served number moves, so "parity vs observed truth" (exit plan section L; the director cites D-080)
+   does not apply; F2 and F3, the picture against our own grid with the shuffled control, are the gate for this row.
+4. **A world grid drawn once, not repeated across the antimeridian, is acceptable for a fallback**, recorded as a known
+   limit here AND in the legend's notes, not silently. (Section 2 said it would be recorded "before deciding whether it
+   matters"; it is now decided: accepted, and disclosed.)
+- Also confirmed: the marine `.om` terms are removed in the same change; the kill lands on "unavailable", never Open-Meteo;
+  `MapWebGL.js` must shrink; the head goes to the director, and this lane never merges it.
+- **Gate changes that follow from these answers, made BEFORE any build:**
+  - F6 gains: the legend row's tooltip names the antimeridian limit (text present, three themes).
+  - F9's dark pin is ONE test that evaluates the JS table and the shader's own dark anchors at the same heights (the
+    anchors read from the shader source text, not copied by hand into the test).
+  - No other line changes.
