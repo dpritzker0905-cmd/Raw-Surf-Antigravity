@@ -357,6 +357,7 @@ def test_a_failed_upload_turns_the_storage_run_red(monkeypatch, tmp_path):
     d = tmp_path / "out" / "20261119" / "lox"
     d.mkdir(parents=True)
     (d / "t00z.cg1.f000-012.grib2.new").write_bytes(b"data")
+    (d / "t00z.cg1.f000-012.index.json.new").write_text("{}")
     monkeypatch.setattr(IO, "put_new", lambda key, blob: 500)
     assert IO.main(["x", "upload", "--dir", str(tmp_path)]) == 1
 
@@ -364,3 +365,27 @@ def test_a_failed_upload_turns_the_storage_run_red(monkeypatch, tmp_path):
 def test_the_job_reads_the_key_only_through_the_supabase_service_environment():
     wf = open(os.path.join(BACKEND, "..", ".github", "workflows", "nwps-teacher-archive.yml"), encoding="utf-8").read()
     assert "environment: supabase-service" in wf
+
+
+def test_a_file_that_ends_on_a_message_boundary_before_the_kept_window_ends_is_not_stored(tmp_path):
+    files, _ = _files()
+    first = sorted(files)[0]
+    files[first] = grib(0) + grib(6)                            # NOAA still writing: whole messages, no lead past 12 h
+    s = _run(tmp_path, files)
+    assert s["skipped_truncated"] == 1 and s["saved"] == len(files) - 1
+
+
+def test_a_data_file_without_its_index_is_not_uploaded(monkeypatch, tmp_path):
+    d = tmp_path / "out" / "20261119" / "lox"
+    d.mkdir(parents=True)
+    (d / "t00z.cg1.f000-012.grib2.new").write_bytes(b"data")   # the collector stopped before writing its index
+    sent = []
+    monkeypatch.setattr(IO, "put_new", lambda key, blob: sent.append(key) or 201)
+    assert IO.main(["x", "upload", "--dir", str(tmp_path)]) == 0
+    assert sent == []
+
+
+def test_the_upload_step_runs_after_a_red_collector():
+    wf = open(os.path.join(BACKEND, "..", ".github", "workflows", "nwps-teacher-archive.yml"), encoding="utf-8").read()
+    step = wf.split("Upload new objects", 1)[1].split("run:", 1)[0]
+    assert "if: ${{ !cancelled() }}" in step

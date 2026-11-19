@@ -71,6 +71,7 @@ jobs:
           python3 -I -S backend/scripts/nwps_teacher_archive.py --cache "$RUNNER_TEMP/nwps" --days-back 3
           --keep-hours "$KEEP_HOURS" --max-kept-mb "$MAX_KEPT_MB" --offices "$OFFICES"
       - name: Upload new objects (storage only, stdlib, create-only)
+        if: ${{ !cancelled() }}   # store the good files even when the collector went red; the job stays red
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

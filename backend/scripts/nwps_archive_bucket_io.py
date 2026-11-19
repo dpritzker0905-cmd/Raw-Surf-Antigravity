@@ -123,6 +123,17 @@ def main(argv):
             if stem + ".grib2" not in stored and stem + ".txt.gz" not in stored:
                 print("index skipped: its data file was not stored this run")   # never an index without its data
                 continue
+        else:
+            # The collector writes a data file, then its index LAST: a data file with no index beside it is from a run
+            # that stopped part-way (this step also runs after a collector failure), so it is not uploaded.
+            local_stem = path[:-len(".new")]
+            for ext in (".grib2", ".txt.gz"):
+                if local_stem.endswith(ext):
+                    local_stem = local_stem[:-len(ext)]
+                    break
+            if not os.path.exists(local_stem + ".index.json.new"):
+                print("data skipped: no index beside it (the collector stopped before finishing it)")
+                continue
         with open(path, "rb") as fh:
             blob = fh.read()
         st = put_new(key, blob)

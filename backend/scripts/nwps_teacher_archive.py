@@ -119,6 +119,7 @@ def select(blob: bytes, keep_hours: float):
         if lead is None:
             stats["unknown_lead"] += 1
         elif lead > keep_hours:
+            stats["beyond_keep"] = stats.get("beyond_keep", 0) + 1     # proof the file reaches past the kept window
             continue
         else:
             leads.append(lead)
@@ -223,9 +224,12 @@ def run(listing, fetch, cache, days, existing, keep_hours, max_kept, max_downloa
         else:
             kept, stats = select(blob, keep_hours)
             note = "each kept GRIB2 message is byte-identical to the source; only whole messages are dropped"
-            if stats.get("unparsed_tail_bytes", 0):
+            top = (stats.get("lead_hours_kept") or [None, None])[1]
+            short = top is not None and top < keep_hours and not stats.get("beyond_keep", 0)
+            if stats.get("unparsed_tail_bytes", 0) or short:
                 # Never store a partial download: the upload is create-only, so a saved partial file would block this
-                # cycle for good. Leave it for the next run, which fetches it again.
+                # cycle for good. A file NOAA is still writing can end exactly on a message boundary (no unparsed
+                # tail), so it must also reach the kept window's end. Leave it for the next run, which fetches it again.
                 summary["skipped_truncated"] += 1
                 log("%s %s t%sz %s: %d bytes not parsed; not stored, left for the next run" % (
                     day, wfo, cycle, kind, stats["unparsed_tail_bytes"]))
