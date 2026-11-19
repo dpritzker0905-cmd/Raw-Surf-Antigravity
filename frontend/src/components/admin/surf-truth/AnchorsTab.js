@@ -3,12 +3,14 @@ import { Button } from '../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../ui/table';
 import { AnchorStatusDialog, StatusBadge, ViewState, formatWhen, useAdminGet } from './shared';
+import AnchorHistoryDialog from './AnchorHistoryDialog';
 
 /** Anchors: who sets the scale, their status history, and the admin action log for the whole area. */
 export default function AnchorsTab() {
   const anchors = useAdminGet('/admin/surf-truth/anchors');
   const actions = useAdminGet('/admin/surf-truth/actions?limit=50');
   const [target, setTarget] = useState(null);
+  const [history, setHistory] = useState(null);
   const done = () => { setTarget(null); anchors.reload(); actions.reload(); };
   const rows = anchors.data || [];
   return (
@@ -41,11 +43,18 @@ export default function AnchorsTab() {
                       <TableCell className="text-muted-foreground">{formatWhen(a.status_since)}</TableCell>
                       <TableCell className="text-foreground">{a.observations_30d}</TableCell>
                       <TableCell>
-                        <Button size="sm" variant="outline"
-                          aria-label={`Change anchor status for ${a.name || a.profile_id}`}
-                          onClick={() => setTarget({ profileId: a.profile_id, name: a.name, current: a.status })}>
-                          Change status
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" variant="outline"
+                            aria-label={`Change anchor status for ${a.name || a.profile_id}`}
+                            onClick={() => setTarget({ profileId: a.profile_id, name: a.name, current: a.status })}>
+                            Change status
+                          </Button>
+                          <Button size="sm" variant="ghost"
+                            aria-label={`Status history for ${a.name || a.profile_id}`}
+                            onClick={() => setHistory({ profileId: a.profile_id, name: a.name })}>
+                            History
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -80,6 +89,7 @@ export default function AnchorsTab() {
         </CardContent>
       </Card>
       <AnchorStatusDialog target={target} onClose={() => setTarget(null)} onDone={done} />
+      <AnchorHistoryDialog target={history} onClose={() => setHistory(null)} />
     </div>
   );
 }

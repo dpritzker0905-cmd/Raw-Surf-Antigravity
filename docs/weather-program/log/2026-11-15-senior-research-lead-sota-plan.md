@@ -1950,3 +1950,991 @@ amendment 1, THIS governs.
 
 - 2026-11-17 08:39 -0500: LongCat retry (owner: "Retry LongCat once") FAILED again with a network failure (same payload, sha256 ff38bd71...ecbb).
   Billing is uncertain. No further retries. The Reflection + SubQ findings stand without it.
+
+- 2026-11-17 09:14 -0500: **RSWF v2 replay against stored v1 gzip (waves layer only): FAIL.**
+  - Results: MED+lzma 0.944; ocean-only MED+zlib 0.992; byte-shuffle+lzma 0.918. All are exact.
+  - None reaches the 0.80 gate, nor the 10% bar set at 00:25.
+  - Lzma would also need a JS decoder in the browser (decode cost unmeasured), so an 8% gain does not justify it.
+  - **Packing is CLOSED for now.** Reopen only with a new coder idea that clears 0.90 of v1 on every layer.
+
+## 2026-11-17 09:28 -0500 LongCat review RECEIVED (via David's logged-in LongCat chat in Chrome) and checked
+
+The MCP route failed 3 times (network). Same question, compact excerpt, pasted into longcat.ai/chat (Think mode). Billing:
+the API token pack shows 103.91K of 50M used, so the failed calls were immaterial.
+
+**Accepted (checked):**
+- **Joint concavity fails.** Komar Hb goes as Hs^0.8 Tp^0.4 (exponents sum to 1.2 > 1). It is concave in each variable
+  alone, but with correlated Hs and Tp the sign of f(mean) - E f(member) is NOT guaranteed. This refines Reflection's
+  "positive bias". Conclusion unchanged and stronger: propagate members, never the mean.
+- **Non-finite inputs crash.** Tp = inf gives L0 = inf, Hs/L0 = 0, and 0.0**-0.2 raises ZeroDivisionError (verified in
+  Python). The guard at :408 catches NaN, not inf.
+  - For ensemble ingestion: reject non-finite values and GRIB fill values before the chain. A small robustness fix,
+    for the lane.
+- **Censoring:** report the fraction of members at the cap, at 0, at the exposure floor, and dropped. When the
+  at-cap share is large, serve ">= cap" (matches the "depth-limited" label).
+- **Per-model weighting:** do not pool 31 + 50 raw members (L1 already says equal weight per model).
+- **Cost:** about 243 estimate_surf calls per spot-hour. Precompute slope_proxy, cap_depth and other per-spot
+  constants once per spot-hour.
+- **Missing direction fails open:** exposure is 1.0, which over-reads. Pseudo-partitions must carry mwd.
+
+**Rejected (checked):**
+- "Regime label at :530 is almost always 'shelf'." Numerically, H/Hs before exposure is 1.06-1.40 for typical seas
+  (only 2 m at 8 s gives 0.98), so 'shoaling' is common.
+- "Partitioned double-cap is inconsistent." The per-partition caps plus the combined cap at max Tp are the documented
+  intent (estimate_surf_partitioned docstring); x1.27 is linear, so quadrature is unaffected.
+
+**Packing note (helper):** EURO pressure gets MED+lzma 0.736 vs v1 (smooth fields compress well); waves stay at 0.918.
+Many GFS layer sets are not publicly readable (HTTP 400). Packing stays CLOSED. A future per-layer codec for smooth
+fields is a candidate only with a measured browser decode cost.
+
+- 2026-11-17 09:37 -0500: **Per-layer codec (EURO pressure): FAILS both bars.**
+  - MED + native zlib is 0.817 of v1 (18% smaller, misses 20%), exact, and decodes at 3.68 ms vs 1.90 ms for v1
+    on V8 (about 2x slower).
+  - lzma needs a wasm decoder (unmeasured).
+  - Packing stays CLOSED. Reopen only for a native-decode candidate <= 0.80 of v1, no slower on V8, then a device run.
+
+## 2026-11-17 09:55 EST "Science flywheel": how the agents keep improving the surf sim (owner: "innovate how we can leverage your intelligence to always improve"; LongCat + SubQ + Reflection)
+
+**Literature (Consensus):**
+- FunSearch (Romera-Paredes et al. 2023, Nature) and AlphaEvolve (Novikov et al. 2025): an LLM paired with a
+  systematic EVALUATOR, evolving programs.
+- Adaptive conformal inference (Gibbs & Candes 2021; Gibbs et al. 2022; Bhatnagar et al. 2023, strongly adaptive):
+  online coverage under shift.
+- Active statistical inference (Zrnic et al. 2024): spend the label budget where the model is uncertain, while keeping
+  inference valid.
+
+**The five components:**
+- F1: LLM program search on small chain components against a frozen evaluator.
+- F2: daily CRPS scorecards plus drift alarms.
+- F3: adaptive conformal intervals.
+- F4: active truth targeting.
+- F5: a weekly agent science sprint.
+
+**What each reviewer said:**
+- Reflection: F5 > F2 > F4 > F3 > F1, by value per unit of risk.
+- SubQ: F2 first (0.92); F1 is safe now for BUOY-scored components (0.98); F4's bias is moderate and fixable (0.98).
+- LongCat: the rankings differ only in axis (risk vs readiness). F1 is low-risk when scoped to buoys and premature for
+  surf truth.
+
+**Agreed 8-week order (recommendation):**
+- W1-2, F2: scorecards (CRPS by lead, region and model), multi-window drift alarms, a frozen baseline, and baselines
+  for climatology, persistence and the deterministic models. Every later gate and evaluator is an F2 metric.
+- Start pilot-anchor recruitment in parallel from W1; it is the long pole.
+- W3, F1 narrow pilot on BUOY-scored components only. First target: the offshore Hs bias factor.
+  - Evaluator: frozen TRAIN CRPS at the 19 buoys.
+  - Constraints: factor in [0.75, 1.35], monotone in Hs.
+- W4-5, F5 sprint 1: residuals, then Jacobian x input-error ranking, then pre-registration, offline test, and ship ON
+  under D-080.
+- W6-7, F3: conformal WRAPS the calibrated quantiles (it never replaces them):
+  - a calibration window disjoint from the F1 and L1 fits, on out-of-fold residuals;
+  - coverage checked by region x lead;
+  - CRPS must not degrade (coverage won only by widening is not a gain);
+  - paired with changepoint or group-conditional handling.
+- W7-8, F4 analysis loop. It needs the F2/F3 uncertainty maps.
+
+**F1 anti-overfit protocol (LongCat, adopted as the template; pre-register it before any search):**
+- Evaluator identity: hash the code commit, TRAIN manifest, metric and constraints, and ledger it before candidate 1.
+  Any change resets the round.
+- A fixed candidate budget (e.g. 300) and a compute cap. Extending either needs a new registration.
+- Splits: TRAIN is for search, VAL for finalist selection, and TEST scores the single VAL winner ONCE.
+- Multiple-comparison control: an equal-budget NULL search on shuffled targets. The winner must beat the 95th
+  percentile of the null max-statistic.
+- Fitness = VAL metric - lambda x complexity (lambda pre-registered). Physical constraints are hard filters.
+- No TEST data on disk in the search environment.
+- Candidates are restricted to physically interpretable forms.
+
+**F4 minimal unbiased design:**
+- a fixed random 10-15% of prompts (uniform in space and time, stratified), independent of model uncertainty;
+- a propensity log on every report;
+- the latent-truth model fit design-based on the random share, or with inverse-propensity weighting;
+- anchors and buoy-coincident reports to pin perception;
+- blind entry (already in place);
+- design effect and effective sample size reported.
+Targeted reports improve discrimination, not bias estimation.
+
+**Gaps a world-leading system has, ranked by LongCat; I checked each against our state:**
+1. A hindcast/reforecast archive over the buoy record (partly: the wind long-range hindcast scripts exist; there is no
+   wave reforecast archive).
+2. Independent truth beyond buoys (withheld buoys, altimetry, SAR, instrumented spots). Jason-3 was checked earlier.
+3. A chain regression suite with analytic/golden physics tests. "OFF restores bytes" does not prove the new output is
+   physically right.
+4. An experiment registry with immutable code + data + parameter hashes (extends the ledger; the surf-truth run store
+   is a model for it).
+5. Operational cadence and rehearsed rollback drills.
+6. Benchmarked scorecards against climatology, persistence, ECMWF deterministic and the consensus, plus value-based
+   scores.
+
+**Bottom line (all three agree):** the bottleneck is TRUTH and VERIFICATION ARCHIVES, not search.
+
+- 2026-11-17 10:01 -0500: **Helper learning-loop proposal folded into the flywheel (F5 plus the registry).** 64 of 168 lessons have an
+  executable check. Backfill order: science lessons first, sorted by served-number impact and recurrence.
+  - Judgement lessons get a stated-reason exemption (the exemption share is tracked).
+  - Every new check must fail on a seeded violation (mutation-tested).
+  - The director assigns the build.
+
+## 2026-11-17 10:40 EST Tide after the VOID G3 pilot: the version change, gauge contamination, and an INDEPENDENT truth network found (Consensus web, NWS SCN, Reflection, SubQ, LongCat, ERDDAP)
+
+**Facts verified:**
+- NWS SCN 26-51 (Updated), extracted from the PDF: STOFS v3.1 is "Effective on or about Aug 11, 2026, beginning with
+  the 1200 ... UTC cycle".
+- STOFS-2D-Global adds "a gridded bias correction" that uses "the current station bias correction approach ... (v2.1),
+  which corrects ... by removing the bias between the observed water levels at NOS/CO-OPS stations and most recent 5
+  days of nowcast water levels".
+- So **scoring STOFS at CO-OPS gauges is contaminated by the same observations.**
+- The LMSL/NAVD88 datum sentence did not come out of my extraction. It rests on the tide lane's and the advisor's
+  reading.
+
+**Literature (Consensus Pro, web):**
+- Standard practice when a system assimilates or corrects at gauges: withhold or independent gauges, plus lead-time
+  decay analysis (Byrne 2021; Zijl 2015; Asher 2019).
+- Persistence of the observed non-tidal residual is a "formidable" short-range baseline; DA and correction gains are
+  largest at 6-24 h and converge by 24-48 h (Tedesco 2024; Dinapoli 2023; Khalid 2020).
+
+**Second opinions:**
+- Reflection: option (i) (run G3b on v2.1 as registered) plus a locked prospective v3.1 test; independent gauges
+  primary; a decaying persistence blend.
+- SubQ: (ii) a prospective v3.1 level-free test (0.99); independent gauges as the leakage fix (0.83); persistence
+  blend yes (0.99).
+- LongCat (critical): IOC/UHSLC island gauges are the WRONG population for US shelf surf. Fit the persistence
+  e-foldings on TRAIN rather than asserting them. Bulk RMSE needs >= 12 months; storm-conditional needs 2-3 seasons or
+  pooled events. Close the VOID pilot first.
+
+**NEW (ERDDAP, checked live):** the IOOS sensors ERDDAP (erddap.sensors.ioos.us) lists ~60 non-CO-OPS water-level
+datasets, mostly Hohonu low-cost gauges ON SURF BEACHES:
+- North Carolina: Duck, Surf City, Topsail Beach, Emerald Isle, Ocean Isle, Holden Beach, Bald Head Island.
+- South Carolina: Kiawah, Isle of Palms, Folly, Edisto, Fripp, Hilton Head, Pawleys Island, Sullivan's Island.
+- Florida: Fernandina Beach, Sanibel, Captiva, John's Pass, Mexico Beach, Dania Beach.
+- Several are marked decommissioned.
+USGS coastal tidal water level in Florida is nearly absent (1 active site at parameter 72279).
+
+**Recommendation (one path):**
+1. Close G3 as VOID, with the datum cause recorded.
+2. Run G3b on v2.1 EXACTLY as registered: historical and supporting only.
+3. Register NOW a prospective **G3c on v3.1**:
+   - level-free primary: tide + seasonal + (cwl - htp);
+   - **PRIMARY truth = independent IOOS beach gauges (Hohonu etc.)**, each de-meaned on a pre-window period (so the
+     datum does not matter), with a QC and coverage rule;
+   - CO-OPS gauges reported only as a near-gauge upper bound, by distance and lead;
+   - the start timestamp strictly after registration;
+   - duration >= 12 months for bulk;
+   - storm-conditional claims by a pre-registered event-based power calculation (pooled events), using v2.1 G3b
+     errors as the surrogate.
+   - Independence check first: confirm the STOFS correction uses only NOS/CO-OPS stations, and that no Hohonu gauge
+     feeds it.
+4. **The persistence blend is a separate gate.** Its e-foldings are fitted on a TRAIN window at independent gauges;
+   "fresh" is defined by observation latency; tidal and non-tidal parts are fitted separately. Hohonu's real-time
+   beach data makes a true at-spot nowcast possible: a product feature in its own right.
+5. Shipping under D-080: ON at merge with a kill switch, after the gate.
+
+- 2026-11-17 10:42 -0500: **Tide split adopted** (David 09:59 "Prospective v3.1 test"; advisor split; tide lane and research lead agree).
+  - (a) A tide + seasonal gate now on Jan-Jul 2026 (no surge, post-pilot label).
+  - (b) Surge prospective on v3.1, scored on independent IOOS beach gauges, stratified by distance from CO-OPS
+    (v3.1 diffuses the correction across the grid), >= 12 months.
+  - The 64 GB v2.1 retrospective is skipped.
+  - The helper/LongCat decode_frame hardening findings (header/descriptor bounds, gzip size cap) went to the
+    director for a writer lane.
+
+- 2026-11-17 10:48 -0500: **Director assignments.**
+  - Tide: G3 VOID. G3t (tide + seasonal, no surge) gets a retrospective gate on Jan-Jul 2026 and ships ON on a PASS.
+    Surge gets a prospective v3.1 gate on independent IOOS/Hohonu beach gauges, >= 12 months, with an interim look.
+    G3b is dropped.
+  - The inf-Tp guard goes to the repair lead.
+  - Learning loop A+B: the helper is the writer.
+  - Flywheel F2 (scorecards) and gap 1 (wave reforecast archive): the next free lane (the verifier is first). F1 waits
+    for F2.
+  - Cold start: the animation lane (offline, seeded).
+  - **Research-lead note for the surge interim look:** pre-register it with an alpha-spending rule (e.g.
+    O'Brien-Fleming), so the interim cannot inflate the false-pass rate.
+
+- 2026-11-17 11:09 -0500: The G3t no-harm guard was added as pass item 5 (9d56192d1). The surge interim is reconciled with the advisor's
+  no-early-stop rule: REPORT-ONLY, so no alpha is spent. It cannot end the window, change a threshold or serve; any
+  later amendment is a new registration; its timing is fixed in advance.
+
+- 2026-11-17 11:48 -0500: **G3t addendum 2 read: READY FOR FINAL** from the research lead (no conditions); recommend no v2.1 arms.
+  - Non-blocking: scope says "seasonal term verified for the months tested" (Jan-Jul is half a cycle); the F2
+    scorecard watches Aug-Dec after shipping.
+  - The licence record-keeping (AVISO 7.3, CMEMS 2.6) goes on the build checklist.
+
+## 2026-11-17 11:58 EST Accuracy monitor RED: read across runs (director's input), and what it means for F2 and the bias term
+
+Recent Forecast Accuracy Monitor runs (from `gh run view --log`; height MAE over 59 buoys; bias; red 0.40, warn 0.30):
+
+| run | MAE (m) | bias (m) | verdict |
+|---|---|---|---|
+| 11-15 19Z, 43751829641 | 0.362 | -0.048 | WARN |
+| 11-16 08Z, 43826990245 | 0.476 | -0.095 | RED |
+| 11-16 23Z, 43973830230 | 0.445 | -0.070 | RED |
+| 11-17 09Z, 44052389611 | 0.431 | -0.140 | RED |
+
+The threshold's basis is "n=37 runs 08-05..08-08, p50 0.198 max 0.269": AUGUST, i.e. summer seas.
+
+**Reading:**
+1. **The absolute MAE alarm is SEASONALLY CONFOUNDED.** Hs error scales with Hs, and November seas are larger than
+   August's, so a fixed 0.40 m bound fires on season, not only on skill. Bias (-0.05..-0.14 m) explains only part of
+   the rise; most of it is error spread.
+   - Fix for F2: gate on SCALE-FREE or PAIRED metrics (MAE / mean observed Hs; skill vs persistence and climatology;
+     paired differences against a reference on the same buoy-times), with a seasonal basis.
+2. **The REAL gap is the PAIRED one** (director's 7-day archive): Raw Surf trails the Open-Meteo marine reference by
+   +0.061 / +0.084 / +0.098 m MAE at +24 / +48 / +72 h, on the same buoy-times, while beating persistence. Open-Meteo
+   stays test-only (D-074). This is the number to close.
+3. **The shadow consensus bias is +0.17 m at +48 h** (shadow minus equal, consistent across runs). That is worth its
+   own look, but it is a shadow, not served.
+
+**Next research (offline, existing archives only):**
+- DECOMPOSE the paired gap: per member (GFS, EURO, ICON) vs the reference on the same buoy-times; bias vs error-SD
+  split; by lead, basin and Hs tercile; nearest-cell distance (coastal "hole" buoys).
+- That tells us whether the gap comes from one member, the equal-weight consensus, interpolation or land contamination,
+  or a global bias.
+
+**Ranking consequence:**
+- The offshore Hs bias term (the F1 pilot target; roadmap rank 11) moves up.
+- F2 must be built with paired and scale-free metrics, so it isn't re-confounded.
+- L1 (ensembles) is unaffected but should use the same paired reference as a reported row.
+
+## 2026-11-17 12:10 EST Paired-gap decomposition, partial (helper ASK 16, from monitor run 44052389611's log; no row data)
+
+Leads are +24 / +48 / +72 h; n is 4,623 / 4,394 / 4,670.
+
+| arm | MAE (m) | bias (m) |
+|---|---|---|
+| served (raw_surf) | 0.336 / 0.377 / 0.390 | -0.081 / 0.000 / +0.007 |
+| EURO alone | 0.311 / 0.414 / 0.421 | +0.105 / +0.181 / +0.188 |
+| ICON alone | 0.495 / 0.526 / 0.519 | +0.171 / +0.217 / +0.190 |
+| reference (test-only) | 0.28-0.30 | -0.03 to -0.04 |
+
+- Paired win rate vs the reference: 40-43%. GFS is absent from the log.
+- **Finding 1:** at +48/+72 h the served bias is about 0 while the MAE gap is about 0.08-0.09 m, so the gap is mostly
+  SPREAD, not bias. (Inferred; it needs rows to confirm.) A bias term alone cannot close it.
+- **Finding 2 (important):** in big swell (forecast >= 3 m), the SERVED value is worse than the EQUAL three-model mean
+  at every lead: 0.657 vs 0.576 at +24 h, 0.761 vs 0.646 at +72 h. The settled consensus is the equal mean, so the
+  served construction diverges exactly where it matters.
+  - Suspect: the missing-member path (roadmap rank 9).
+  - Verify with rows before any fix.
+- **Finding 3:** at +24 h, EURO alone beats the served value (0.311 vs 0.336). The served -0.08 m bias while the
+  members read high suggests a low GFS.
+- **To finish:** a CI job (Actions already holds the service role) emits ONLY aggregates: per member including GFS;
+  bias/SD; lead x basin x Hs tercile; per-buoy top 5; served vs equal mean with the member count present. No agent
+  handles the key. The director assigns it.
+- **Ranking:** rank 9 (missing-member blend fix) moves UP. Skill and spread levers outrank the bias term.
+
+## 2026-11-17 14:05 EST ROOT CAUSE of the big-swell loss, from the record: the equal-mean consensus is NOT SERVED (it is blocked by a build defect)
+
+Code and record, read on origin/dev:
+- `CONSENSUS_SERVE` is '0' in forecast-ingest.yml and precompute.yml (and spot-series). Users get GFS marine waves,
+  with the scalar-height fix (flipped 2026-10-17) and the Southern California Bight GFS+EURO composition.
+- D-006 (owner, 2026-09-29) chose the EQUAL mean. Held-out, big swell: GFS 0.464 / 0.580 / 0.872 vs equal
+  0.432 / 0.432 / 0.645 m at 24 / 48 / 72 h. That matches today's monitor reading (served 0.657 vs equal 0.576 at +24 h,
+  0.761 vs 0.646 at +72 h).
+- **Why it is not flipped (STATE, 2026-11-14):** "DO NOT ... flip CONSENSUS_SERVE until the built product is fixed".
+  The BUILT shadow loses to the plain mean of its own members by about 0.07 m at +48/+72 h, and by 0.10-0.20 m where
+  EURO or ICON had no stored product at the point. It matches where both had one.
+- The suspected cause is FAR-WATER FALLBACK sampling (log `2026-11-14-fable-shadow-interp-grouping.md`, #870 merged).
+  - Its pre-registered reading rule: FALLBACK IS THE CAUSE / REFUTED / UNDECIDED / UNTESTABLE.
+  - It is due "no earlier than 2026-11-16", via the dispatch-only, read-only, aggregates-only `scored-rows-gate.yml`,
+    on the owner's dispatch. It is DUE NOW.
+
+**This is the single biggest SOTA lever in the offshore chain:**
+1. Dispatch scored-rows-gate (owner's word). It is read-only CI, aggregates only, with no live load.
+2. If "FALLBACK IS THE CAUSE": fix the blend so a member answered by a fallback path is refused (the cell keeps the
+   equal mean of the stored members, or GFS). That is a served change with its own test.
+3. Re-read construction fidelity: shadow vs the equal mean within 0.02 m at every lead.
+4. Flip `CONSENSUS_SERVE` '1' with `CONSENSUS_SERVE_KEEP_GFS` 'hawaii' (D-006 caveat; ledger seq 215), ON under D-080,
+   with the kill switch (all three places plus Render), the contract tests and the post-deploy check.
+- Expected gain (D-006 held-out): about 6-10% all-sea MAE, and 7-26% in big swell. That is most of the 6-10 cm paired
+  gap to the test reference.
+- The ASK 16 aggregates (per member including GFS, bias/SD, strata) can ride the same scored-rows job.
+
+## 2026-11-17 14:25 EST scored-rows-gate run 44155289880 (owner's dispatch): the #870 fallback rule reads REFUTED (control SUSPECT); the defect tracks EURO "unknown" member rows
+
+Source: the job log's table "Built CONSENSUS shadow vs the computed equal mean". Aggregates only. The rule is the one
+pre-registered in `log/2026-11-14-fable-shadow-interp-grouping.md`.
+
+**Applying the rule** (mixed cells on recorded paths with n >= 100; "reads" = shadow MAE - equal MAE):
+- **The refutation clause:** "a mixed cell on a PLAIN path with n >= 100 reads >= +0.050 m at both leads".
+  `bilinear x mixed`: +48 h n = 456, MAE 0.435 vs 0.371, **+0.064**; +72 h n = 260, 0.456 vs 0.378, **+0.078**.
+  Met, so **REFUTED: fallback sampling is not the cause.**
+- The fallback-path mixed cells (`nearest_ocean_coarse_masked`) have n = 12-13, below 100, so they do not count.
+- **The control** (stored members on plain paths must be within 0.020 m of zero):
+  `bilinear x stored` reads -0.030 (+48 h) and -0.027 (+72 h). It FAILS, so per the rule **"the comparison is
+  suspect"**.
+  - Note: all stored-member rows read shadow - equal about -0.04 m (signed) at every lead, including the +24 h
+    control. That is a separate small systematic difference whose cause is not established.
+- **Most rows (about 26k per lead) read `not recorded`.** The path field is still missing for most rows, so the test
+  rests on the minority that record it.
+
+**What the data DOES show** (the member-tier grouping):
+
+| lead | EURO / ICON tier | n | shadow - equal (signed) | shadow bias | equal bias |
+|---|---|---|---|---|---|
+| +48 | global_mid / global_mid | 12,945 | -0.044 | +0.003 | +0.047 |
+| +48 | **unknown** / global_mid | **10,138** | **+0.138** | +0.247 | +0.109 |
+| +48 | **unknown / unknown** | 4,627 | **+0.336** | +0.323 | -0.014 |
+| +72 | **unknown** / global_mid | 9,176 | **+0.138** | +0.242 | +0.104 |
+| +72 | **unknown / unknown** | 4,343 | **+0.333** | +0.318 | -0.015 |
+| +24 | unknown / unknown | 1,039 | +0.648 | +0.647 | -0.001 |
+
+- The defect follows rows where the scored EURO (and/or ICON) lane has NO stored tier, i.e. the ledger could not
+  answer that member at the point.
+- The built shadow nonetheless carried a value for it, and that value reads HIGH (+0.14 to +0.34 m, up to +0.65 m at
+  +24 h).
+- At +48/+72 h about HALF the rows are EURO = unknown.
+- It is not staleness (stale and fresh cycles read alike) and not frame snapping (snapped and on-frame read alike).
+
+**Working hypothesis (for the repair lead to test in code):** at points where the EURO lane has no stored product, the
+shadow's chooser answers EURO from a different source (an extension/estimated product or another tier), which reads
+high.
+- Check: `consensus_ingest` / `build_equal_mean_from_choosers`, the EURO chooser's source at those cells.
+- Fix candidates, each a served change with its own test:
+  - the blend refuses a member the serving and point lanes cannot answer from a stored product, or
+  - it keeps GFS / uses the mean of the stored members there.
+  Then re-read construction fidelity within 0.02 m at every lead, including the tier groups.
+
+**Not established:** the -0.04 m stored-row offset; whether the "unknown" EURO source is the extension blend.
+
+## 2026-11-17 14:40 EST CORRECTION: the IOOS "beach" gauges are SHELTERED (tide lane, from maps); open-coast surge truth, and a design that makes CO-OPS usable
+
+**Correction (mine, 10:40 EST section).** I called the Hohonu/IOOS gauges "ON SURF BEACHES" from their DATASET TITLES
+only. The tide lane checked 8 on maps (metadata only, no water values): all are on the sheltered side. Examples: Duck
+on Currituck Sound, Surf City at an ICW bridge, Sanibel on the causeway bay side, Kiawah on the river marsh, Captiva on
+Pine Island Sound. They are dock and bridge air-gap sensors: independent of CO-OPS, but an inland-attenuation set, not
+surf-beach truth.
+- Lesson (an L-S28 relative): a title is not a location. Check the map before calling a station "open coast".
+
+**Open-coast independent search (IOOS sensors ERDDAP, titles only, to be map-checked):**
+- GNSS-IR on IOOS: only Alaska (Gambell, Utqiagvik, Wainwright). None in the lower 48 there.
+- Non-CO-OPS candidates with open-coast titles:
+  - USGS 275839082495101 "Gulf of Mexico at Clearwater Beach, midpier";
+  - "JWS Balboa Pier" and "JWS Malibu Pier" (provider unknown; check).
+- Many open-coast PIERS exist but are CO-OPS: Jennette's, Cape Hatteras, Ocean City MD/NC, Lake Worth, Haulover,
+  Pensacola Beach, Gulf State Park, Galveston Pleasure Pier, Balboa, Port Aransas.
+
+**A design that removes most of the contamination** (research lead's proposal; verify the correction's form first):
+- NWS SCN 26-51 describes the STOFS correction as "removing the bias between the observed water levels at NOS/CO-OPS
+  stations and most recent 5 days of nowcast water levels", i.e. a slowly varying OFFSET (a 5-day mean).
+- Storm surge lives at periods of hours to about 2 days.
+- So score the surge on the STORM BAND: subtract from both forecast and observation their own trailing 5-day mean
+  (computed causally, ending at issue time). The correction's offset then cancels, while surge events remain.
+- That makes the open-coast CO-OPS piers usable for the SURGE question.
+- Low-frequency level (mean and seasonal) is G3t's job.
+- Controls:
+  - verify against the independent open-coast candidates above;
+  - verify against the sheltered IOOS set as an "attenuated" stratum (tiered: open coast > inlet > back-barrier);
+  - a negative control: shuffled storm timing must lose.
+- **To verify first:** that v3.1's gridded or station correction is constant through a forecast cycle (an offset),
+  not time-varying within the cycle. If it varies, the high-pass leaks.
+
+## 2026-11-17 14:50 EST Advisor rulings on my 14:25 reading (relayed by the repair lead, PR #1013), and the repair lead's code-based hypothesis
+
+**Corrections to my 14:25 EST section** (append-only; the advisor's rulings):
+1. "The defect follows rows where EURO/ICON has no stored tier" is NOT tested by the #870 rule. Mixed and stored cells
+   differ in place and time as well as in membership. It is **"consistent with"** a missing member, and needs its own
+   rule, written before its read, on the same station-hours.
+2. The SIZES in the tier table (+0.14 / +0.34 m) may NOT be used until the stored-member control (about -0.03 m) is
+   explained. The table is descriptive only.
+
+**Repair lead's code read** (consensus_product.py, consensus_ingest.py; nothing measured):
+- Each member is answered per GFS node by a chooser built on manifest_point_selection.
+- Where a member has no answer, or its path is unavailable / out_of_bounds_fallback, the node is MASKED (the shadow uses
+  unblended="mask").
+- A CONSENSUS point reads only stored products. The EURO/ICON LANES can answer from a live upstream, which is
+  presumably what a no-stored-tier row is.
+- **Revised hypothesis:** with nodes masked near the coast, the shadow's value at a buoy is taken from the remaining
+  nodes, i.e. another place, likely further offshore, and so reads high.
+  - This fits nothing for stored/stored, +0.14 with one member missing and +0.34 with both (descriptively).
+- **Test without buoys or private rows:** the stored CONSENSUS products' grid.diagnostics["consensus"] carry
+  member_missing, masked, member_sources and member_frame_offset_cells.
+- The read needs the private store. Route: a one-shot, read-only, aggregates-only CI job (like scored-rows-gate) that
+  prints those counts, plus the masked-node fraction within N km of each buoy, on the latest runs.
+- Pre-register its rule first. The owner dispatches it.
+
+- 2026-11-17 14:48 -0500: **Storm-band design checked by the tide lane** (model files, one cycle, 2026-11-16 00Z):
+  - cwl = htp + swl; the STOFS station anomaly (cwl - cwl.noanomaly) is non-zero only at 208 CO-OPS points, median
+    0.278 m;
+  - it is near-constant within a cycle (SD median 6.5 mm after the nowcast, max 66 mm).
+  - Recommended:
+    - PRIMARY arm (cwl.noanomaly - htp), storm-band filtered, at the open-coast CO-OPS pier ends;
+    - the served form reported, with the leak shown;
+    - a registered multi-cycle constancy precondition (>= 30 cycles; median SD <= 0.01 m, p95 <= 0.03 m);
+    - the advisor's place-independence strata and still-water truth (setup as its own arm).
+
+- 2026-11-17 15:14 -0500: **What a member tier of "unknown" means** (traced in code on dev):
+  - The tier comes from skill_attribution.serving_provenance -> tier_of(product_id); product_id comes from the
+    lane's resolve_point (buoy_calibration.py ~453).
+  - "unknown" = no product_id, i.e. the lane answered through PATH 2c, the direct UPSTREAM point-API fallback
+    (point_direct_fallbacks, product_id=None), or a fall-through that ended there.
+  - So on those rows shadow - equal compares a STORED member value (shadow) with an UPSTREAM member value (equal).
+    It is not purely a construction error.
+  - The repair lead retracted the masked-node hypothesis: those buoys read plain bilinear, so all four nodes were
+    blended.
+  - Lead hypothesis now: the stored EURO the chooser picks at +48/72 h (another tier, an older run, or an
+    _estimated/extension frame) reads high.
+  - D-074 check: can the served point path reach an Open-Meteo upstream through PATH 2c?
+
+- 2026-11-17 15:20 -0500: **Confirmed (repair lead, in code):** served /point can reach PATH 2c upstream (EURO marine: MFWAM, then Open-Meteo
+  ecmwf_wam025). That is D-074 items G5/G6 (M4), now confirmed live; the director was asked to raise priority (a served
+  guard plus a CI test).
+  - No workflow sets POINT_SKIP_NATIVE_COPERNICUS, so the no-tier EURO ledger rows were most likely MFWAM-answered
+    (to be confirmed per row).
+
+## 2026-11-17 16:25 EST LEADING EXPLANATION of the consensus defect: EURO and ICON drop from 0.25 deg to 2 deg after 48 h (code plus the existing table; a hypothesis until the member-source job reads it)
+
+**Code (origin/dev, marine_mid_res_ingestion.py):**
+- EURO regional 0.25 deg pilot: `EURO_MARINE_PILOT_FORECAST_DAYS` default **2** ("far hours fall through to mid/global
+  via the resolver ladder").
+- ICON regional 0.25 deg pilot: `ICON_MARINE_PILOT_FORECAST_DAYS` default **2**.
+- No workflow overrides either (git grep of .github/workflows).
+- Beyond 48 h, EURO/ICON come from the global_mid tier at **2 deg** (`EURO_MID_RES` / `ICON_MID_RES` = 2.0; cells about
+  220 km).
+- GFS's regional tiles have run the FULL horizon since 2026-11-01 (`GFS_PILOT_FULL_HORIZON`).
+- The EURO mid lane already downloads ECMWF's 0.25 deg wave GRIB and SAMPLES it at 2 deg, so the fine data is already
+  in hand.
+
+**The existing scored-rows table agrees (run 44155289880, member-tier grouping):**
+- +24 h: the dominant cell is EURO=regional / ICON=regional (n 24,798), shadow - equal -0.029. Fine.
+- +48 / +72 h: NO regional rows exist. Only global_mid / global_mid (n about 12-13k, -0.044) and the "unknown" rows
+  (lanes answered by upstream; +0.14 to +0.34).
+- So the defect appears exactly where EURO and ICON become 2 deg.
+- The consistent mechanism: near the coast a 2 deg cell is a far-offshore value or is masked.
+  - The lane at the buoy cannot use it, so it goes upstream and the row is "unknown".
+  - The shadow, built per GFS 0.25 deg node, still blends the coarse 2 deg member, which reads like offshore seas,
+    i.e. high.
+
+**SOTA fix candidates (each a served change; D-080 ON with a kill switch plus a gate):**
+1. Extend the EURO and ICON regional 0.25 deg products to their FULL horizons, as GFS did on 11-01:
+   - EURO from ECMWF open data to 240 h on 00/12 Z (144 h on 06/18 Z);
+   - ICON gwam to its horizon.
+   - It fixes the blend AND improves the served EURO/ICON layers at days 3-10. Cost: pilots-lane processing and
+     storage (the GRIB is already downloaded).
+2. Interim: the blend refuses a member whose tier is coarser than the primary's at that node (no mixing GFS 0.25 deg
+   with EURO/ICON 2 deg near the coast). The cell keeps the mean of the same-resolution members, or GFS.
+
+**Verification:** the repair lead's member-source job (record the chooser's tier per member at the nodes around each
+buoy) should read EURO/ICON = global_mid at +48/72 h wherever the defect appears. Its reading rule must be registered
+before the read. Then construction fidelity within 0.02 m at every lead, then the CONSENSUS_SERVE flip.
+
+- 2026-11-17 16:37 -0500: **Ready brief sent to the director** (shared notes `brief-euro-icon-full-horizon-2026-11-17.md`):
+  - EURO (Phase 1) and ICON (Phase 2) 0.25 deg pilot tiles to their native horizons (mirrors GFS item 13);
+  - cost about 2.4k products per fire (EURO ~670, ICON ~1,760);
+  - gate: construction within 0.02 m at +48/72 h, the global_mid/unknown share under 10%, no-harm 0.25 vs 2 deg at
+    buoys over 48-240 h, ops headroom;
+  - ships ON, then the CONSENSUS_SERVE flip.
+
+- 2026-11-17 16:50 -0500: **Helper knowledge pass received** (state-of-the-art researcher, Haiku 5.5):
+  - Packing stays closed: waves 0.918 of v1, pressure 0.736 (lzma) or 0.817 (zlib). Reopen only with a native codec
+    at or below 0.80 that is no slower than v1.
+  - Cold start: blocked on the seeded-session route; the offline critical path is about 305 ms.
+  - Learning-loop PR #1012: fixed in c6aaa9552; waiting on hosted CI.
+  - ASK 16: the paired gaps reproduce (+0.061/+0.084/+0.098 m). The rest needs the 7-day paired archive, which is a
+    private read: it needs a sanctioned read-only CI job with David's dispatch.
+  - Big swell: served MAE is worse than the equal mean at every lead (0.657 vs 0.576 m at +24 h).
+  - **Lead's read:** +24 h is the regional/regional zone where the built consensus is already faithful
+    (n 24,798). So the equal-mean gain at +24 h does NOT depend on the 48 h tier gap. A +24 h-only
+    CONSENSUS_SERVE flip could be gated now, with the longer leads following the EURO/ICON full-horizon brief.
+    This is a hypothesis for the director, not a decision.
+
+- 2026-11-17 18:15 -0500: **Horizon facts checked against upstream listings** (the EURO/ICON full-horizon brief):
+  - ECMWF wave stream (AWS listing of 2026-11-16): 00/12 Z has 85 steps to 360 h; 06/18 Z has 49 steps to 144 h.
+  - DWD GWAM 00 Z: 0-174 h, 3-hourly, 59 steps.
+  - **Correction to the brief:** 240 h is our own cap (`ecmwf_wave_service.py:21`, forecast_days=10;
+    `capabilities.py` native_horizon_hours=240), not ECMWF's. Phase 1 stays at 240 h, so the LOCKED extension contract
+    is unchanged.
+  - Real EURO output to 360 h is the existing unbuilt lever L6(b) (`docs/research/instant-marine-sota-2026-10-26.md`).
+    It is owner-gated because it replaces the blended tail.
+
+- 2026-11-17 19:10 -0500: **Cost of EURO/ICON full horizon, from run 44083737083's log (no dispatch):**
+  - Today: EURO pilot 238 products in 3.0 min; ICON pilot 714 in 3.5 min. The same-lane analogues, EURO/ICON wind
+    pilots (57/61 steps, 14 regions), take 4.0/5.2 min.
+  - Projected: **+2,436 products per fire (EURO +672, ICON +1,764), about +10 min** on a 128-138 min ingest step
+    (timeout 300).
+  - Storage about +0.6 GB (+1% of 60.55 GB); objects +11%.
+  - GC churn goes from about 18k to 20.4k per cycle: it fits #1005's 25k cap and NOT the current 500, so this lands
+    after #1005.
+  - Manifest bytes and Render RSS are unmeasured; measure them at the dev deploy.
+
+- 2026-11-17 19:40 -0500: **Fetcher caps vs upstream, applying "repo constants are OUR caps":**
+  - **GFS-Wave (AWS `noaa-gfs-bdp-pds`, 2026-11-16 00 Z): 209 files, hourly f000-f120 then 3-hourly to f384.** We ingest
+    129 steps, 3-hourly throughout (GFS Marine Pilot SUMMARY, run 44083737083).
+  - Lever L6(a) (2026-10-26) is built for WIND (#1006, FRAME_WIND_GFS_HOURLY, ON; GFS_WIND_HOURLY_UNTIL_H) and for
+    pressure (#827), but NOT for waves.
+  - EURO wind and waves are both capped at 240 h (65 steps), and ECMWF publishes 360 h. L6(b) applies to both layers.
+  - **Budget collision:** today's GFS Marine Pilot does 8,588 products / 129 steps / 35.8 min. Hourly waves to
+    120 h add 80 steps: about **+5,300 products per fire and about +22 min**.
+  - GC churn would be about 18k + 2.4k (the EURO/ICON horizon) + 5.3k ≈ **25.7k per cycle, over #1005's 25k cap**.
+    The two levers can't both land without re-sizing the cap or trimming layers (for example hourly `waves` only, not
+    all 4 GFS layers: about +1.3k).
+  - **Ranking:** the EURO/ICON horizon fix comes first. It plausibly repairs a measured served defect (the consensus
+    bias) and is cheaper.
+  - Hourly waves mainly remove time-interpolation in days 1-5 (scrub fidelity, rating timing against tide and wind).
+    Its skill gain at buoys is UNMEASURED: wave fields change slowly, so expect it to be small. It should not take GC
+    budget ahead of the consensus fix.
+
+## 2026-11-17 20:30 -0500 Big-swell weighting: fold it into L1, do not build a separate lever (L1 AMENDMENT 3 DRAFT)
+
+**Sources:**
+- Memory: consensus-decision.md. The big-swell (≥ 3 m) table was binned by OBSERVED Hs, a regression-to-mean
+  artifact. Binned by the forecast, the equal mean's bias is −0.10/−0.04/−0.03 m. LOBO weights were about GFS 0.25 /
+  ECMWF 0.75 / GWAM 0 (−7%, short window). Pooled weighting gained ≤ 3.6%.
+- Literature (Consensus):
+  - Pan 2016 (Water Sci. Eng.): locally weighted multi-model weights beat the mean for typhoon peak waves.
+  - Majumder 2018 (J. Oper. Oceanogr.): a modified super-ensemble beats regression for cyclones.
+  - Ren 2025 (Ocean Eng.): a gated big-wave regressor.
+  - Han 2026 (JGR MLC): a Rayleigh-weighted loss, −14.9% high-wave RMSE.
+  - So regime-aware combination is a recognised SOTA direction, but these papers show gains in case studies, not
+    against a calibrated EMOS.
+- Cross-checks: Reflection Beam-1.0, SubQ (answered as subq-preview: the new savant-1.4 needs a Claude Code restart),
+  LongCat-2.5 (MCP, one paid submit, sha b6a777cc…). All three agree on the structure.
+
+**The helper's 0.657 vs 0.576 m (served GFS vs equal, big swell, +24 h): its binning variable is unknown.**
+- If it was binned by the observation, it repeats the 2026-09-30 artifact. It must be re-read binned by the FORECAST
+  (the equal mean) before it carries weight.
+
+**Amendment 3 to the L1 prereg (pre-registered NOW, before any TEST fetch, unconditionally; LongCat's critical
+finding):**
+1. **Arm E3 (secondary):** EMOS whose mean coefficients are a smooth function of the forecast mean (a natural spline in
+   log of the equal-mean forecast, 3 knots at its TRAIN quantiles). Ridge-shrunk toward E2's coefficients, with λ by
+   blocked CV inside TRAIN only. It is NOT conditional on step (a): the "add it if it survives" path is a forking-paths
+   leak and is struck.
+2. Step (a), the forecast-binned big-swell read, runs on TRAIN-period archive rows only. It is reported and never used
+   to choose E3's form.
+3. **Big-swell definition:** forecast equal-mean ≥ 3.0 m, fixed now. 2.5 and 4.0 m are reported as sensitivity, not
+   gated.
+4. **E3 gate:** CRPS of E3 vs E2 in the ≥ 3.0 m forecast bin, CI lower bound > 0, AND pooled not significantly worse.
+   It is tested with E2's primary gate under Holm across the gating hypotheses (primary E2-vs-R2 first, then E3).
+5. **Required second baseline for E2:** the R2 amendment's EMOS-fitted deterministic of the EQUAL 3-model mean (GWAM
+   included). R1 already includes GWAM.
+   - The ensembles omit GWAM because DWD publishes no open wave ensemble. Its deterministic enters E2 and E3 as a third
+     mean covariate (pre-registered), so the served member set is not silently dropped.
+6. **Reliability:** PIT histogram reported per basin. The shuffle control applies to E3 as well.
+
+**Not adopted:**
+- A standalone regime-weighting lever. Pooled weighting gained ≤ 3.6%, and forecast-binned big-swell bias is small.
+  A separate lever would compete for the same GC/serving budget.
+- Reflection's note: "a regime lever may be unnecessary". E3 is a cheap nested test inside L1, not a build.
+
+## 2026-11-17 22:40 -0500 L1 AMENDMENT 4 DRAFT: what the wave-EMOS literature says (Consensus Pro in Chrome + MCP)
+**Evidence:**
+- **Murphy et al. 2025** (Applied Ocean Research, North Sea, 0-168 h):
+  - The best calibration of the mean of Hs ALWAYS uses the deterministic run AND the ensemble mean of Hs, plus ONE
+    covariate of a DIFFERENT quantity (wind speed or Tm).
+  - At most 3 covariates are justified, with a consistent set across horizons.
+  - The ensemble SD is "strikingly" skilful for the Hs error SD.
+- **Jewson et al. 2026** (QJRMS): parameter uncertainty matters. HLR/NGR with an objective-Bayes right-Haar prior (RHP)
+  was the most accurate (CRPS, log score) and the most reliable, and it reduced the underestimation of extremes. A free
+  library exists and it is cheap to run. Bootstrap calibration is the older alternative (Gaetan 2024).
+- **Wessel et al. 2025** (MWR): training EMOS on the threshold-weighted CRPS (twCRPS) improves extreme-event forecasts,
+  at a body-tail trade-off that LINEAR POOLING with the standard fit mitigates.
+- **Campos et al. 2024** (Wea. Forecasting): a NOAA 20-year GEFSv12 WAVE reforecast exists (WW3 set up as operational
+  GEFSv12 wave, 5 members, daily, 16 d). Skill degrades mostly between days 4 and 10; week 2 needs probabilistic use.
+  - Hosting is UNVERIFIED: `noaa-gefs-retrospective` holds the GEFSv12 atmospheric reforecast 2000-2019, but I did not
+    confirm a wave component there.
+
+**Amendment 4 (draft; supersedes parts of amendment 3; binds only after the advisor's read):**
+1. **E2 mean covariates (Murphy form):** the ECMWF ensemble mean, the GEFS-Wave ensemble mean, and ONE cross-quantity
+   covariate (the forecast 10 m wind speed at the point, pre-registered over Tm).
+   - The deterministic members (GWAM, plus the GFS/ECMWF deterministic) enter through the R2 baseline and an E2b
+     variant, not all at once. Cap: ≤ 3 mean covariates per fit (Murphy).
+   - The SD is linear in the pooled ensemble SD.
+2. **E2 is fitted with RHP parameter uncertainty (Jewson).** Plain ML-NGR is reported as E2-ML. This targets gate 3
+   (reliability) directly.
+3. **E3 is REPLACED:** the spline in the forecast mean (amendment 3) adds parameters against Murphy's ≤ 3 finding. The
+   new E3 is EMOS trained on twCRPS with threshold 3.0 m, LINEARLY POOLED with E2 at a weight fixed by blocked CV inside
+   TRAIN (Wessel).
+   - The gate is unchanged: the ≥ 3.0 m FORECAST bin, CI lower bound > 0, pooled not significantly worse, under Holm.
+   - It is still pre-registered unconditionally.
+4. **Reported (not gating):** a GEFS-only EMOS fitted on the 20-year reforecast if its hosting is confirmed. Its TRAIN is
+   far longer than the 10-month window, which tests whether training length, not the method, limits L1.
+   - It must use the operational-equivalent configuration (Campos), and it is never mixed into the joint ECMWF+GEFS fit:
+     ECMWF has no open reforecast.
+
+- 2026-11-17 23:10 -0500: **RETRACTION: the "+24 h-only CONSENSUS_SERVE flip" idea (16:50 entry) has no evidence behind it.**
+  - The helper's source: monitor run 44052389611, grade lines 197-210. "Big swell" there selected each arm on its OWN
+    forecast ≥ 3.0 m: served GFS n=580 (MAE 0.657, bias −0.153) vs equal n=649 (MAE 0.576, bias −0.110).
+  - Different cohorts, so 0.657 vs 0.576 is NOT a paired comparison. Self-selection on each arm's own forecast also
+    puts different false alarms in each bin.
+  - A valid read fixes ONE cohort (equal-mean forecast ≥ 3.0 m) and scores both arms on the same rows, with a
+    valid-date block bootstrap. That needs the per-row archive through the director's sanctioned job.
+  - LESSON (generalises L-S28): a "same bin" comparison must use the same rows. Check the cohort definition before
+    reading two MAEs side by side.
+
+- 2026-11-17 23:35 -0500: **Flywheel rulings (asked by the adviser):**
+  - (1) F1 splits by TIME: disjoint TRAIN/VAL/TEST date ranges, all 19 buoys in each, with a ≥ 10-day gap at each
+    boundary.
+    - No buoy-wise split: neighbours in different splits leak.
+    - A REPORTED leave-one-D-066-block-out (100 km) check inside TEST. It never selects anything.
+  - (2) A "frozen baseline" means stored forecasts of a fixed configuration, scored forward. It never means re-running a
+    pinned version. F2's baseline is the current tree with learned terms off, in the same run (the adviser's baseline A).
+
+- 2026-11-17 23:50 -0500: **F2 amendment: the conditional-calibration diagnostic** (the helper's literature pass;
+  abstracts only, not wave-specific).
+  - F2 scorecards and L1 reporting add CORP/T-reliability diagrams (Gneiting et al. 2023) and the score decomposition
+    MCB/DSC/UNC (Allen et al. 2023), per lead and basin.
+  - Diagnostic only: it selects nothing. It triages a loss into calibration (post-processing can fix it) vs
+    discrimination (it needs better inputs).
+  - An isotonic calibration MAP as a served arm is deferred. It overlaps L1 EMOS and F3 conformal and is unstable in
+    the tail. Revisit if L1's MCB stays large after EMOS.
+
+- 2026-11-18 00:05 -0500: **FINDING (origin/dev, read this session): the D-080 safety net is narrow.**
+  - `default_on_filter.py:128` scores `eval_harness_stations.json`: 6 stations, all CDIP nearshore California.
+  - `flag_guardrail.py` replays ON vs OFF at the same harness stations, GFS-only. Its COVERAGE table: 13 of 21 guarded
+    flags BLIND, 4 RATING, 3 REPLAY, 1 VOLUME.
+  - Proposed G1:
+    - widen the replay to the L1 19-buoy NDBC panel for `hs_station`;
+    - add a consensus-capable replay arm before the CONSENSUS_SERVE flip;
+    - show the coverage class in the admin;
+    - null and positive (harmful-flag) controls.
+  - Handoff to the director: shared notes `research-lead-handoff-2026-11-18.md`.
+
+- 2026-11-18 00:20 -0500: **Rulings on the helper's isotonic calibration gate v3** (shared notes
+  `isotonic-calibration-gate-proposal-2026-11-18.md`):
+  - The gate waits for L1 E2.
+  - Step 0 (T-reliability, MCB/DSC/UNC of the served deterministic) may run now, as a diagnostic only, on rows outside
+    the L1 TEST window and the held-out weeks. The row window is recorded.
+  - Activation trigger: E2's MCB is ≥ 15% of CRPS on VAL (CI lower bound > 0), OR L1 gate 3 fails.
+  - Harm: L1 gate 2 form, with Holm across leads. DSC tolerance 5% relative. Identity above p99.
+  - Thresholds are frozen in a dated prereg before the first fit.
+
+- 2026-11-18 00:55 -0500: **G1 (guardrail widening) scoped** (helper's read-only code note
+  `g1-guardrail-widening-scope-2026-11-18.md`, origin/dev df658392, plus the lead's find):
+  - **G1a, the consensus guard:**
+    - The chain replay is GFS-only (`replay_one` passes "GFS"), and v0 archives no EURO/ICON marine.
+    - BUT the skill ledger already scores `raw_surf`, `raw_surf:EURO` and `raw_surf:ICON` on identical buoy target
+      hours (`skill_consensus.py`).
+    - So CONSENSUS_SERVE can be judged paired from ledger rows (equal mean vs served GFS), as a new "ledger" coverage
+      class. Do this BEFORE the flip. Check ledger retention ≥ 14 days.
+  - **G1b:** the offshore `hs_station` replay needs a code change: geometry is built for role "nearshore" only, and
+    depth silently defaults to 20 m. Make depth_m required. About 3.6 min at 6 stations now, about 15 min at 25
+    (linear, unmeasured).
+  - **G1c:** the admin coverage class column.
+  - Gate: null control + harmful-flag positive control.
+
+## 2026-11-18 02:09 -0500 Dispatch-ready spec for the archive read (the director asked for it; written before any number exists)
+- **Vehicle (VERIFIED on origin/dev):** extend the existing `scored-rows-gate.yml`; do not add a new job.
+  - It is dispatch-only, holds the monitor's secrets by name, and enforces GET-only in code (`read_only_http`).
+  - It prints aggregates only (n<10 suppressed) and uploads no artifact.
+  - Its last run, 44155289880, read 686,567 rows in 1 min 39 s.
+- **The new reads:** three sections behind a new input, `research_reads`, default `'0'` (the `gates_v2` pattern):
+  - **A, ASK 16:** the gap of the served forecast and of the equal mean to Open-Meteo best_match, split into a bias part
+    and a spread part.
+  - **B, big swell:** served vs the equal mean, with the cohort selected on the EQUAL-MEAN forecast ≥ 3.0 m. Sensitivity
+    at 2.5 and 4.0 m. Split by member tier class. Holm, 1-day block bootstrap.
+  - **C, isotonic Step 0:** a CORP MSE = MCB − DSC + UNC decomposition per lead × basin.
+- **The reading rule** is fixed in the shared note `job-spec-archive-research-reads-2026-11-18.md`:
+  - Window: 7 complete days `[D-8, D-1)`, with halves as replication. The archive starts 2026-08, so it is disjoint from
+    the L1 TRAIN, TEST and held-out weeks.
+  - At +48/+72 h, B is decided on `stored-global_mid` rows. No regional member row exists past 48 h.
+  - C's trigger: MCB ≥ 15% of MSE, CI lower bound > 0, n ≥ 200. It is a screen only.
+- **Asked of David:** one dispatch, after a small lane PR passes the §24 gate. Nothing served changes.
+
+## 2026-11-18 11:19 -0500 Open-Meteo exit plan, re-measured (owner 2026-11-18: "research where we have open-meteo for user data, and how we can use free GRIB or cmem pipeline in place of it")
+Full note: shared notes `open-meteo-exit-plan-2026-11-18.md` (sections A-D), sent to the director in two parts.
+
+- **NEW free source, verified live (AWS `ecmwf-forecasts` listing and .index read):**
+  - ECMWF open data publishes **0.1 deg** (`ifs/0p1/{oper,enfo,wave,waef}`) since 2026-10-20, under CC BY 4.0.
+  - `oper` sfc includes 2t, tp, tcc, 10u/10v, 10fg and msl.
+  - `wave` includes swh, mwd, mwp, pp1d and h1012..h2530, to 360 h.
+  - Our code uses 0.25 deg only.
+  - It is an arm for EURO frames, a EURO wave arm (vs MFWAM; offline test assigned to the SOTA researcher) and the G6
+    fallback.
+- **STOFS-2D-Global** (`noaa-gestofs-pds`): htp/swl/cwl, 180 h, MSL. 2.5 km grids for CONUS, Hawaii and Guam. A US
+  tide and surge source.
+- **CMEMS PHY 001_024** `merged-sl` hourly: whether it includes the tide is UNCONFIRMED.
+- **Still LIVE-PRIMARY on dev:**
+  - tide (`tide.py`);
+  - ICON temp, precip, cloud and water-temp `.om` raster;
+  - `GET /surf-conditions` on its explicit-hour and by-name branches (`surf_conditions.py:269,450`). This is also a
+    one-chain violation.
+- **LIVE-FALLBACK:** the point and viewport fallbacks, and the ingest fallbacks.
+- **DEAD:** four unused `OPEN_METEO_MARINE_URL` constants, plus forecast_ingester.py and weather_worker.py (not
+  imported by any route).
+- **Rank-5 gate drafted for the advisor:**
+  1. a CI host guard with a planted-URL positive control;
+  2. a runtime census showing 0 Open-Meteo requests;
+  3. per-layer parity rows.
+
+## 2026-11-18 13:47 -0500 Open-Meteo WORK LIST v1 (owner ruling 13:13Z: "No user data should be open-meteo"; "widen guardrails yes")
+Full table: shared notes `open-meteo-exit-plan-2026-11-18.md` section E (12 paths: route, field, share, replacement,
+downgrade, owner). Sent to the director.
+
+- **CORRECTION to the 10:45 entry:** browser `.om` covers temperature, rain, fog and water temp for ALL three models.
+  - `ownRasterFrames.js:170` `DEFAULT_ON_LAYERS` = satellite, pressure, gusts, currents.
+  - Own sets are published, but the client does not draw them.
+- **New live paths:**
+  - `spot_conditions.py:386` hub fallback, when any of 11 dates is missed. ICON stores about 7 days.
+  - `forecast_ingester.py` runs every ingest cycle and feeds the last-resort wind cache.
+  - Tide feeds every surf height (SURF_TIDE_DEPTH) and the glyph bake (RATING_TIDE).
+- **Render app logs, 24 h** (read-only; shares pending a count pass):
+  - a 10-minute Open-Meteo point-fetch cycle, GFS waves+wind at 3 points near Mavericks;
+  - a ~20-spot sweep at 11:57Z;
+  - GFS/ICON all_marine grid fetches (Florida bbox).
+- **Keep-minimal Open-Meteo: none needed.** The closest call is the tide residual outside the US (CMEMS merged-sl
+  unconfirmed).
+- **G1a design notes** sent to the rating-band lane: ledger-row guard, tier-class strata, harm rule, null, positive
+  and shuffled controls, and 2-run anti-flap.
+
+## 2026-11-18 14:02 -0500 Open-Meteo shares MEASURED (Render app logs, 24 h, read-only) and ECMWF 0.1 deg wave first read
+- **About 540 Open-Meteo fetches in 24 h.** About 91% come from one synthetic probe (spot-ratings at Mavericks with
+  July-2026 `valid_time`s, sender unknown). The point cache key leaves out `valid_time`, so all of the probe's
+  responses are Open-Meteo-backed.
+- Our own nearshore-validation and surf-spot-panel CI score Open-Meteo-backed coastal points.
+- A real user's EURO-past-240 h wind fell back to GFS through Open-Meteo.
+- The SWR revalidation fetched Open-Meteo grids.
+- Tide is unmeasurable from the logs (they show failures only).
+- New fixes (i)-(v) are in shared note `open-meteo-exit-plan-2026-11-18.md` section F.
+- **ECWAM 0.1 vs 0.25, offline, 8 runs (WEAK):**
+  - 0.1 is better at +48 h (−0.021, CI [−0.038, −0.001]) and +72 h (−0.027, CI [−0.041, −0.012]); it does not win at
+    +24 h.
+  - The gain is coastal.
+  - Next: replication plus the MFWAM arm.
+
+## 2026-11-18 14:55 -0500 RETRACTION: ECWAM 0.1 deg "wins at +48/+72 h" does not replicate; external red-team of the Open-Meteo plan
+- **Replication block** (5 new 00z runs, 11-13..11-17): at +48/+72 h the CIs straddle 0 and the sign disagrees with
+  block 1.
+  - Status: NOT ESTABLISHED. Block 1 is void.
+  - The pooled +24 h edge is post hoc; it will be tested only in a fresh block 3.
+- **Method lesson:**
+  - A +0.1 m additive plant was NOT detected by paired MAE (sign-blind); a +10% amplitude plant was.
+  - Every paired skill test now pre-registers a mean-error test beside MAE, each with its own positive controls (+0.05
+    and +0.1 m additive, +10% amplitude).
+  - Use 3-day or stationary blocks, a buoy × run bootstrap, and an equivalence read for fallback decisions.
+- **External red-team** (LongCat, Reflection, SubQ; shared note `open-meteo-exit-plan-2026-11-18.md` section H):
+  - No user-facing Open-Meteo keep is needed.
+  - New items:
+    1. The point cache key omits `valid_time`: a wrong-hour correctness bug.
+    2. Enforce server-side, not only on the client.
+    3. Persisted artifacts (CDN tiles, glyph bake, SW caches) need a cache-key bump and a rebake.
+    4. The degraded-coastal path must be stored-only.
+    5. Derived outputs (alerts, push, share cards) inherit the source.
+    6. Error paths must end in "unavailable".
+
+## 2026-11-18 15:42 -0500 Tide source RESOLVED: Open-Meteo's sea level IS Copernicus; new step M1-0
+- **Open-Meteo's marine API page** (read today): `sea_level_height_msl` comes from "MeteoFrance SMOC Currents,
+  Tides", i.e. CMEMS GLOBAL_ANALYSISFORECAST_PHY_001_024 at 0.08°, with the warning "Accuracy at coastal areas is
+  limited".
+- **CMEMS QUID 001-024 §II.4:** `cmems_mod_glo_phy_anfc_merged-sl_PT1H-i` (MOWL) holds the FES2014 ocean+load tide,
+  the inverse barometer, steric and mass terms, the GLO12 ssh, and a TOTAL.
+- **M1-0:** read MOWL TOTAL directly, keeping the 72 h de-mean.
+  - Gate: median |Δ| ≤ 0.01 m vs the Open-Meteo series at the 26 CO-OPS stations, with a null control.
+  - Removes Open-Meteo from every surf height with no downgrade.
+  - The G3b SOTA steps then build on it.
+- **No keep-minimal Open-Meteo candidate remains.**
+- **DWD ICON-EU verified on opendata** (t_2m, tot_prec, clct, wind, pmsl). That settles the Europe raster risk.
+
+## 2026-11-18 16:32 -0500 Team digest for all lanes; NOAA OFS and RTOFS verified
+- The one-page digest for every lane is in shared notes `TEAM-DIGEST-sources-and-lessons-2026-11-18.md`: the rule,
+  the verified free sources, where Open-Meteo remains, and 7 method lessons. Sent to the director to distribute.
+- **Verified on AWS today:**
+  - **NOAA NOS OFS** (`noaa-nos-ofs-pds`): 20 US coastal systems (wcofs/wcofs_da, ngofs2, gomofs, necofs, sscofs,
+    sfbofs, ...). Hourly 2-D surface NetCDF, about 2-3 day range. A candidate for nearshore SST, currents and water
+    level in the US.
+  - **NOAA RTOFS** (`noaa-nws-rtofs-pds`): daily HYCOM archives, a second global SST/currents source.
+
+## 2026-11-18 17:16 -0500 Rank-5 gate v2 registered (advisor red-team adopted in full)
+- Text: shared notes `open-meteo-exit-plan-2026-11-18.md` section J. Red-team:
+  `REDTEAM-RANK5-OPEN-METEO-GATE-2026-11-18.md`.
+- **Order:** cache key and refusal, then rebake, then census.
+- **The census counts at one HTTP wrapper** and reports "0 of N" per row.
+  - Each of the 12 rows gets a canary or injected fault; a row without one reads "NOT TESTED".
+  - Positive control: one allow-listed fetch.
+  - The probe vanishing does not count as a pass.
+- **Browser rows** are checked by a CSP connect-src.
+- **Every kill switch on these rows falls back to "unavailable"**, never to Open-Meteo.
+- **Tide M1-0** is scored against observed water level (CO-OPS + UHSLC/GLOSS), not against Open-Meteo (identical by
+  construction).
+- **Parity metrics are defined** (p99 precip peak, cloud MAD 0.10, temp bias + MAD + p95). Planted errors at 1×/2×
+  tolerance.
+
+## 2026-11-18 17:19 -0500 Re-framed under D-082 (#1059): Open-Meteo kept as a fallback until covered; gate v3; retraction
+- **David 19:09Z:** "Keep until covered … use it as a fallback if no better alternative is available/causing a
+  downgrade". This supersedes the 13:13Z "No user data should be open-meteo" framing used above.
+- **The 12 paths re-tagged** (shared note section K):
+  - REPLACE: tide (CMEMS MOWL, M1-0), raster GFS/EURO sets, EURO wind past 240 h (stored GFS), /surf-conditions
+    (one-chain), dead code.
+  - KEEP-AS-FALLBACK until covered: ICON raster, hub days past the horizon, /point manifest miss, /grid viewport/SWR,
+    ingest, the legacy wind cache, WebGL tiles.
+  - MEASURE: the degraded-coastal preference.
+  - The probe: refuse implausible valid_times before fetching.
+- **Gate v3:** the static guard and server refusal are dropped. Kept: census as measurement, parity vs observed truth
+  before each REPLACE, provenance labels, D-080 kill switches (which may fall back to Open-Meteo).
+- **RETRACTION:** the "cache key omits valid_time, so wrong-hour values" bug is not confirmed. The repair lead read
+  `fetch_point`: the series is cached and the hour is picked after it (None beyond 3 h). The claim was a log-agent
+  inference echoed by the external reviewers, never traced in code.
+
+## 2026-11-18 17:27 -0500 Owner word ~23:00Z: full Open-Meteo exit (supersedes 19:09Z / D-082); master sequence owned by the research lead
+- **David, via the director:** "use open agency data providers, and cut out open-meteo all together as a middle man. We
+  can use it for internal testing, but not for user data, as well will need a license".
+- **Rules:**
+  - All paths are REPLACE.
+  - Kill switches fall back to an agency source or "unavailable".
+  - Parity uses MAE + ME vs observed truth.
+  - The static guard is warn-only first, blocking after the proxy and provider removal.
+  - Agency credits (ECMWF, CMEMS, DWD, NOAA).
+- **Master sequence:** 19 rows with owner, PR and status, in shared note `open-meteo-exit-plan-2026-11-18.md`
+  section L. The research lead keeps it current.
+- **Critical path:** census wrapper, then tide M1-0 + raster flips, then small items, then stored-only fallbacks, then
+  ICON-EU, then hub horizon (after #1005), then ingest, then attribution, then proxy removal, then guard blocking.
+
+## 2026-11-18 17:40 -0500 Routing confirmed; #1064 accept-gate note; row 7 same-model replacement; ICON-EU facts
+- **Routing confirmed by the director:**
+  - census wrapper and static guard → repair lead;
+  - ICON-EU → frame-carry;
+  - WebGL tiles → layer-animation;
+  - attribution → tide lane;
+  - ingest → a new ingest lane.
+  Kept current in shared note section L.
+- **#1064 (tide M1-0):** parity vs Open-Meteo is the same CMEMS data, so it proves plumbing only. ACCEPT must score both
+  arms vs observed water level (CO-OPS + UHSLC/GLOSS; median, p95, max, timing; ME; planted 1×/2×). Sent to the tide
+  lane.
+- **Row 7:** `point_resolution.py:418-438` uses the Open-Meteo point only for a degraded GLOBAL-COARSE marine sample.
+  Open-Meteo's GFS wave point is NOAA GFS-Wave 0.25°, so a direct `.idx` byte-range point read from
+  `noaa-gfs-bdp-pds` replaces it with no downgrade. EURO → MFWAM 1/12°, ICON → GWAM.
+- **ICON-EU** (opendata.dwd.de, read today): 8 cycles a day, hourly to +78 h, then 3-hourly to +120 h, about 1 MB per
+  field per step. A 120 h seam to global ICON needs a pre-registered seam check.
+
+## 2026-11-18 17:56 -0500 Global SOTA tide design (owner: "tides to work all around the world SOTA", "free ... no paid plans"); NWPS
+- **Design** (shared note `open-meteo-exit-plan-2026-11-18.md` section M). Per spot:
+  1. local gauge harmonics where representative (CO-OPS; UHSLC after its written OK);
+  2. otherwise FES2022b via pyTMD at 1/30°, with shallow-water constituents, minor-constituent inference and nodal
+     corrections, on a wet node facing the same open water as the spot;
+  3. plus a residual: CMEMS MOWL non-tidal parts globally, STOFS cwl−htp in the US;
+  4. datum: MSL, with MLLW/LAT derived from the constituents.
+  - Validation: a global UHSLC + CO-OPS panel scoring RMSE, p95, max and timing, with ME and planted controls.
+  - All sources are free raw data.
+- **Licences (not legal advice):**
+  - UHSLC: free use and redistribution with a citation; commercial use not addressed, so confirm in writing.
+  - IOC SLSMF: no commercial use, so EXCLUDED.
+  - GESLA-4: unread, so excluded.
+- **NOAA NWPS** (NOMADS, public domain): SWAN at 500 m-1.8 km. 34 coastal offices live today, including JAX/MLB
+  (NE Florida) and LOX/SGX (SoCal). Proposed: an offline paired test vs CDIP/MOP before any use as the US nearshore
+  boundary of the one chain.
+
+## 2026-11-18 18:15 -0500 CORRECTION: exclude the load tide; G4 v2-primary ruling
+- **Load tide:** gauges and surf depth measure the OCEAN tide relative to the seabed. Ocean + load is geocentric
+  (altimetry). My section M "with load tide" was wrong; the v2 arm and the MOWL use must exclude the load tide (check
+  whether MOWL TOTAL includes it).
+- **G4 v2 (pyTMD FES2022b) as PRIMARY before START:** research says YES, with conditions (a timestamped amendment, v1
+  reported only, nodes frozen, power re-check, a shared evaluator with ME, an implementation parity test with planted
+  controls, no embargoed gauges). Sent to the advisor.
+- **#1073 (G1a guard) rulings:**
+  - Hs plants at +0.06 and +0.10 m, with detection rates;
+  - decision classes as specified (mixed rows joined with global_mid for +48/+72);
+  - Holm per quantity × lead across basins, B = 10,000, and an UNDER-RESOLVED check distinct from VOID.
+
+## 2026-11-18 18:47 -0500 Commercial-use licence read: FES2022, EOT20, CMEMS (not legal advice); 15-day residual candidate
+- **FES2022:** AVISO License Issue 20 (effective 2026-08-10), §2.1(B), "for any purpose, including commercial
+  purposes".
+  - Only FES2022 CURRENTS are non-commercial (Annex A).
+  - Conditions: §3.1 attribution, including a LICENCE LINK; §3.2 no re-sharing of the original files via a public API,
+    portal or bucket. Predictions are fine.
+- **EOT20:** CC BY 4.0 (doi 10.17882/79489). Commercial use is OK with attribution.
+- **CMEMS:** free of charge, derivative works "for any purpose".
+  - The credit must be visible where the data is shown, and a use record must be kept.
+  - The commitment runs to 2028-06-30, so it is a planning risk.
+- **Verbatim clauses** are in shared notes `tide-licence-commercial-read-2026-11-18.md`.
+- **15-day residual candidate:** ECMWF `zos` (dynamic sea level, no tide) plus an inverse barometer computed from
+  ECMWF `msl`. Measure it against CMEMS on days 1-10 before any use (shared note, section M update 2).
+
+## 2026-11-18 19:06 -0500 AIFS waves in free ECMWF open data; #1073 statistics PASS-WITH-LIMITS; T8 routed
+- **AIFS ML waves** (verified from the AWS listing): `aifs-single/0p25/wave/` holds swh, mwd, mwp, cdww and
+  h1012..h2530, at 0.25°, to at least +324 h, under CC BY 4.0.
+  - It is a diverse member candidate for the consensus and for L1.
+  - Measure first: paired vs NDBC, MAE + ME, replication, and a consensus with/without arm (shared note section O).
+- **#1073 (G1a guard): research statistics PASS-WITH-LIMITS** at 417c9881 / 144cc28d.
+  - Fixes adopted: a fired null is always VOID; 1.2× plants are reported only; Holm per statistic × lead with
+    B = 10,000 and a resolution floor; report-only for the first 2 runs.
+  - The research lead reads the first real run before the third.
+- **T8** (ECMWF zos + IB residual) is routed to the tide lane. The FES2022 commercial reading is confirmed
+  independently.
+
+## 2026-11-18 19:32 -0500 Step-5 calibration design; agency-teacher review; period/wind as step 3b; AIFS-ENS waef; European truth
+- **Design:** shared notes `step5-calibration-design-and-teacher-review-2026-11-19.md` (design only).
+- **Step 3b (new, before step 4):** period and wind correction vs public-domain station truth (NDBC, C-MAN,
+  ASOS/METAR).
+  - Primary wind metric: the hit rate of the rating's wind class. Reason: level flips come 67% from period + wind and
+    13% from height.
+- **Step 5:** log(H_obs/H_served) = b_region + b_site + g(sector, period), hierarchical and shrunk.
+  - Metric: RPS + mean signed class error.
+  - Leakage: K is fitted on model/teacher data, step 5 on truth (on K's residual); time blocks with a ≥ 10-day gap; 20%
+    of sites held out; a blind check-in sensitivity arm. b_site for verified pins only.
+  - Gate with a shuffled-site null and a planted +30% positive control.
+  - Truth status: CDIP research-only pending David's USACE ruling; FRF excluded; Oahu lifeguard record unconfirmed.
+- **Agency teacher (repair lead's idea): GOOD, for the US and Europe where a teacher passes vs buoys.**
+  - Learn pre-breaking at about 10-20 m and keep our breaking step.
+  - K² = a · W(θ) · S(T), 4-5 params, shrunk, unlit sectors → prior, a coverage threshold.
+  - The teacher archive must start now (NWPS keeps about 5 days).
+  - Sentinel-2 is ordinal only.
+  - No teacher outside the US and Europe (share uncounted).
+- **AIFS-ENS `waef`:** 51 members (cf + 50 pf), swh/mwd/mwp/period bands, 6-hourly to +360 h. A free ML wave
+  ensemble for L1.
+- **European wave truth:** CMEMS In Situ TAC (IBI/NWS/MED) under the CMEMS licence. The station count needs the
+  account.
+
+## 2026-11-18 20:00 -0500 Step 3b pre-registration + Amendment 1; CDIP audit (SURF_NEARSHORE_MOP is ON); ICON rain ruling; step-6 advice
+- **3b pre-registration** (shared notes `step3b-period-wind-preregistration-2026-11-19.md`), with the advisor.
+  - Amendment 1 (the wind lane's build check, pre-data):
+    - class from `offshoreness()` ±0.5 plus 3/12 kt named constants, with the wq·wg MAE co-primary;
+    - window valid 07-01→11-15, TRAIN to 10-06, a 10-day gap, TEST 10-16→11-15;
+    - GFS + EURO only;
+    - plants +30°/+60° judged by signed ME;
+    - local solar hour; leave-station-out excluded from TRAIN.
+  - Includes the "beat the teacher" rule.
+- **CDIP audit:** `SURF_NEARSHORE_MOP` = "1" in production since 2026-11-05. It feeds CDIP MOP nearshore sea into
+  `estimate_surf_at` at California spots, against the new "CDIP is the exam, never the textbook" route. Escalated to
+  David via the director, with options A/B/C; research recommends C.
+  - `SHORE_NORMAL_MOP_CALIBRATED` is off (its file is fitted on CDIP).
+  - `SURF_SPECTRAL_K` is dark.
+- **ICON rain:** keep the area mean. A radar (MRMS) FSS test of three arms runs on a forward collector before any swap
+  (rules on every-day case selection and private storage).
+- **Step 6 advice:** score spread plus position; an input-verified verifying level (not +0-6 h as truth); a 10%
+  threshold with a ±2 report; a sharpness line; phase 0 honest labels, one-chain numbers, a11y, a kill switch.
+- **AIFS-wave pre-registration:** B1-B3 accepted.
+
+## 2026-11-18 20:04 -0500 Owner: "Go with C" (MOP re-judge on non-Scripps truth); the best SOTA path, synthesised from our own evidence
+- **MOP:** it stays ON while it is re-judged against NWPS, the S2 ordinal and NOAA-owned buoys (sanity). The verdict can
+  only say "not worse". Pre-registration: shared notes `mop-rejudge-preregistration-2026-11-19.md`.
+- **Best SOTA path** (shared notes `best-sota-path-synthesis-2026-11-19.md`):
+  0. truth we own (blind check-ins, surf-cam height);
+  1. alignment, the #1 Jacobian term (swell trains, dominant pick, direction bias, exposure windows);
+  2. per-site transfer (MOP in CA, the validated teacher, the physics prior) plus per-site bias;
+  3. the height-physics fix (the ×1.27 double-count, break placement);
+  4. HRRR rating wind, then MOS;
+  5. period = definition, not MOS;
+  6. uncertainty and ensembles (incl. AIFS-ENS);
+  7. STOP tuning consensus weights and interpolation.
+- **Conflict flagged:** the flip split (period 36 / wind 31 / height 13) vs the Jacobian (alignment first). Rerun the
+  flip attribution with direction separate before more step-3b period work.
+
+## 2026-11-18 20:20 -0500 Owner: "Yes, truth first"; 3b Amendment 2 (HRRR); the Raw Surf prediction pre-registration
+- **Truth first** (shared notes `truth-first-plan-2026-11-19.md`):
+  - S1: blind check-ins (seed verified pins in NE Florida, SoCal, Oahu, Europe; ≥ 200 blind reports per region across
+    ≥ 10 blocks);
+  - S2: surf-cam height extraction (licence-clean cams only; CDIP as the exam);
+  - S3: external truth meanwhile.
+  - The step 4/5 gates read "insufficient" until volume exists.
+- **3b Amendment 2:**
+  - the HRRR source arms H0/H1 at +24/+48 h, with lead- and issue-matched primary scoring plus an as-served secondary;
+  - the differences from the failed #728 are written in (power, metric, MOS, cell, its 7 anemometers excluded);
+  - the period arm is demoted pending a flip attribution that treats direction separately.
+- **The Raw Surf prediction** (owner-approved past-horizon blend):
+  - literature check: NBM-consistent; rain arms mean / PM / LPM;
+  - scored vs MRMS / ASOS / GOES CSM; it must beat plain GFS AND the best single ensemble mean;
+  - weights fitted on TRAIN, low-dimensional; a seam metric.
+- **Spent-data notice:** AIFS-wave spends Hs at the 19 L1 buoys for 07-01..10-31. Written into the isotonic proposal.
+
+## 2026-11-18 20:27 -0500 3b Amendments 3-4 (the advisor's five changes; blinding against the hindcast)
+- **Amendment 3:**
+  - marine-exposed stations only for PRIMARY, with ASOS reported;
+  - serve only in regions that passed;
+  - a +42→+48 h HRRR blend with a seam check, and the map-vs-rating disagreement counted;
+  - autumn-only TEST stated; +120 h FRAGILE and reported; G1 = +24/+48/+72;
+  - the leave-out seed, pairing algorithm and selection rule fixed (no tie-breaks).
+- **Amendment 4:** the long-range hindcast score log (truth overlaps 3b TEST) is read ONLY by an independent session
+  (the SOTA researcher), which reports PASS/FAIL only, until 3b is scored. Fallback: keep it closed. The wind lane has
+  attested in writing that it hasn't seen the hindcast truth.
+
+## 2026-11-18 20:34 -0500 Wind-down: designs committed to evidence/2026-11-19-research-lead/
+Copied from the shared notes so they live in the record of memory:
+- `best-sota-path-synthesis`, `truth-first-plan`;
+- `step3b-period-wind-preregistration` (Amendments 1-4), `step5-calibration-design-and-teacher-review`;
+- `mop-rejudge-preregistration`, `icon-rain-radar-test`;
+- `open-meteo-exit-plan` (sections A-P plus the master sequence L), `tide-licence-commercial-read`, `TEAM-DIGEST`;
+- `raw-surf-prediction-review-and-prereg`, marked DRAFT / NOT STARTED (next work).
