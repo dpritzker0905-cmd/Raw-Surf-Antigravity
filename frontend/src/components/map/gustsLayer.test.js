@@ -32,7 +32,7 @@ describe('gusts set and switches', () => {
     const idx = { frames: [{ valid_time: '2026-11-15T06:00:00Z', path: 'a.bin' }] };
     expect(combinedFrames('fog', 'ICON', idx, null)[0].model).toBe('GFS');
     expect(creditFor('gusts', { gusts: 'GFS' }, {}).text).toBe('NOAA GFS · instantaneous');
-    expect(creditFor('gusts', { gusts: 'EURO' }, {}).text).toMatch(/^EURO \(ECMWF\).* · peak since last step$/);
+    expect(creditFor('gusts', { gusts: 'EURO' }, {}).text).toMatch(/^EURO · © ECMWF · CC BY 4\.0 · peak since last step$/);
     expect(creditFor('gusts', { gusts: 'ICON' }, {}).label).toMatch(/VMAX_10M/);
     expect(creditFor('gusts', {}, {}).text).toBe('NOAA GFS');
   });

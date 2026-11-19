@@ -331,6 +331,33 @@ failed read is reported in the response and shown as an alert.
 Tests: backend +4 (frame selection and order without replay inputs; geometry never raises; the route reads cached
 objects only, 404, search; a failed blob read is reported), Jest +3. Route identity guard still passes (18). 103
 admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1030.
+## 2026-11-18 03:47Z Admin: the guardrail's record in the Surf Forecast panel (header from the UTC clock)
+
+David chose guardrail history next. Admin > Surf Forecast > Guardrail (D-065) reads, read-only, the two objects the
+guardrail keeps in the private bucket: the live runtime manifest `control/flags.json` (each entry with state, reason,
+who, when, evidence) and `control/flags-actions.jsonl` (every decision it APPLIED: disable / clear, with the run).
+For a fix the guardrail turned off it says how it comes back: a new fix version in the code (current version shown;
+when the code is already newer than the entry, the view says the next run clears it) or the owner's words through
+the workflow's manual run, with the workflow link and a copyable `gh workflow run` command. That run is deliberately
+not an admin button: the guardrail workflow is the only writer of the manifest. When nothing is recorded the view
+says why (decisions are recorded only in enforce mode; a dry run reports in its GitHub issue).
+Backend: `services/admin_guardrail_view.py` (no write path; a test checks the module has no POST/PUT/upsert) and
+GET /admin/surf-forecast/guardrail (off the event loop). Tests: backend +3, Jest +3; route identity guard passes; 106
+admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1031.
+## 2026-11-18 03:58Z Admin: surf-truth exports and anchor history get their screens (header from the UTC clock)
+
+David chose the last two items from the admin survey. Both backend routes already existed with no screen:
+- Surf truth > Anchors: each anchor row has "History", a dialog reading the append-only event log
+  (GET /admin/surf-truth/anchors/{id}/events): every appointment and change, who and the reason. The route now also
+  returns the actor's name for display (the id stays as the record).
+- Surf truth > Model: accurate facts (the fit is written and pre-registered; reviewed before any run; no fit yet;
+  nothing moves a served height) and "Exports for the model": a "Run an export" dialog that posts
+  /admin/surf-truth/export only after an "the owner has approved exports (retention and consent)" box is ticked
+  (the server still refuses while SURF_TRUTH_EXPORT_KEY is unset, and the refusal is shown), plus the list of past
+  exports from the admin action log (who, when, rows, object). The old placeholder Model tab is removed.
+Tests: backend: the history route returns the actor's name (assertion added, 16 pass); Jest +3 (history dialog, export
+gated by the approval box then posts and shows the run, a refused export shows why). Lint ratchet passes. Not checked
+in a browser (admin login). Base: dev.
 ## 2026-11-18 04:42Z T1 P3 (part 5): go-live photos lose their GPS before they reach the public bucket (header from the UTC clock)
 
 The Surf truth Consent tab had recorded it since anchors C: go-live condition photos go to the PUBLIC `conditions`
@@ -346,6 +373,35 @@ surf-report photo path, which is a different upload route. Already-stored photos
 backfill is decided.
 Tests +6 (each format: GPS gone, pixels identical, orientation kept; the route: public copy clean, private record
 kept, malformed refused); mutation: keeping APP1 fails. 99 related tests (incl. the upload identity suite) pass.
+## 2026-11-18 05:01Z T1 P3 (part 6): go-live videos too: location kept privately for the check, removed from the public copy
+
+David asked whether to keep the photographer's GPS in go-live media to help confirm location. Answer recorded: yes,
+PRIVATELY, which part 5 already did for photos (observation_media keeps the position read from the original; the
+observation checks flag exif_far beyond 1 km and exif_stale beyond 3 h; the app's device GPS is the primary check).
+The gap was video: its location was never read, and stayed in the public copy. Now `services/video_metadata.py`
+(pure Python, no ffmpeg: Render's Python runtime is not known to have it, and installing a binary dependency was not
+done) walks the MP4/MOV boxes, READS the ISO 6709 location (QuickTime ©xyz or Apple's
+com.apple.quicktime.location.ISO6709) and creation date for the private record, then NEUTERS every movie- and
+track-level `udta`/`meta` box in place (type -> `free`, payload zeroed): the length is unchanged so no chunk
+offset moves, the media data is untouched, and the file is patched on disk (no in-memory copy of a large video).
+`write_public_copy` now handles photos and videos for the route, off the event loop; routes/uploads/core.py shrank to
+792 lines. WebM (browser recorder, no GPS) and HEIC remain unstripped and say so (`metadata_stripped` false).
+Tests +3 (read then neuter, length and media unchanged; non-ISO left alone and malformed refused without a file; the
+route keeps the location privately and not publicly); mutation: skipping track-level boxes fails 2; the 53-test
+upload identity suite passes. Stacked on #1035.
+## 2026-11-18 13:42Z T1 P3 (part 6, advisor HOLD fixed): a bounded box walk, and no unstripped file left behind on any error
+
+The advisor held #1038 at fb531cf5b for two defects, both now fixed. (1) Unbounded memory: `strip_video_in_place`
+built `list(_boxes(...))` at three levels, so a 500 MB upload of 8-byte boxes was about 62 million tuples (~11 GB)
+on the one shared server, sendable by any signed-in uploader. The walk is now lazy (neutering keeps every length, so
+no position still to be read can move) and shares one budget of `MAX_BOXES` = 4096 boxes per file; beyond it the
+file is refused with MetadataError and removed. A real phone MP4 has a few dozen boxes at these levels. (2)
+`write_public_copy` removed the written file only on MetadataError; it now removes it on ANY exception, so an
+unexpected error can never leave the unstripped copy where the route would publish it.
+Tests +2 (a flood of 4,106 boxes is refused with no file left while a real-shaped file still strips; an unexpected
+error leaves no file). Mutations: dropping the budget fails 1; catching only MetadataError fails 1.
+Limits the advisor recorded, NOT fixed here: GoPro GPMF / DJI telemetry tracks (a full GPS track inside the media
+data), top-level `uuid` boxes, and the mvhd/tkhd creation times, which stay.
 ## 2026-11-18 13:53Z T1 P3 (part 2, advisor HOLD fixed): the consent text says only what is true
 
 The advisor held #1024 at 6ffd34254: the text said "(with the spot and time, but never your name)" and "from then on,
@@ -355,6 +411,29 @@ codes, distances, EXIF age, app version), and nothing purges exports already mad
 account, says later checks leave out all the person's reports, and says copies made before a withdrawal are not
 changed. A stronger promise belongs only in the change that builds the purge, under a new version. Test +1 pins each
 phrase to the export's FIELDS (guards fragment +8). Still a DRAFT for counsel.
+## 2026-11-18 14:50Z Supabase service-role key moves into the `supabase-service` GitHub Environment (dev/main only)
+
+The key was a repository secret, readable by any workflow run from any branch in this public repo, a pull request
+from a branch pushed here included. David created the environment `supabase-service` (deployment branches dev and
+main, no reviewers so the 4-hourly ingest is not held) and put the key in it (step 1, his action). This change gives
+every job that reads `SUPABASE_SERVICE_ROLE_KEY` that environment: 22 workflow files, 24 jobs. It also drops the
+`pull_request` trigger of `consensus-flip-sweep.yml`, the only key-reading workflow that ran on PRs (it could no
+longer get the key; it stays dispatchable on dev). Nothing breaks before step 3, because the repository copy still
+exists. STEP 3 (David, after merge): delete the REPOSITORY secret `SUPABASE_SERVICE_ROLE_KEY`, then dispatch one
+workflow on dev to confirm. After that, dispatching these workflows from a lane branch is refused by design.
+Checks: all workflow YAML parses; 242 workflow-shape tests pass (4 failures in `test_audit_e2e_trace_override` are a
+Windows bash timeout on the untouched `e2e-tests.yml`).
+## 2026-11-18 15:41Z T1 P3 (part 1 follow-up): a deletion request now reaches the files and the sign-in
+
+The advisor recorded two limits on #1022: a deletion request did not remove the person's photos from the PUBLIC
+`conditions` bucket, and did not stop sign-in to the anonymized profile (the password hash survived; the username `deleted_<id8>` could be guessed). Now `/compliance/delete-my-data` also (1) deletes the person's condition reports and,
+AFTER the commit (storage is not transactional), removes every `conditions/<user_id>/` object plus any other
+`conditions` object a deleted row pointed at, and the local copy `<UPLOAD_DIR>/conditions/<user_id>`: best effort,
+returned as `media` and logged as an error on failure, never hidden; (2) clears the password hash, deletes passkeys,
+TOTP secret, recovery codes and pending MFA challenges, and marks the profile suspended. NOT done, a decision for
+David: a session token already issued stays valid until it expires (`ACCESS_TOKEN_EXPIRE_DAYS` = 30); revoking it needs a
+server-side check on every request (a token version or a deny list). Tests +3 (URL parsing; files and sign-in removed,
+other users untouched; a storage failure is reported and the rows stay deleted). Guards fragment +3.
 ## 2026-11-18 15:21Z T1 P4: the export needs the OWNER'S server switch, not just an admin's tick box
 
 The advisor recorded on #1033 that its approval check box is client-side only. Worse, the export route itself is already
@@ -365,3 +444,18 @@ refuses (403) unless the server's environment has `SURF_TRUTH_EXPORTS_ENABLED` e
 The retention job's fresh export (#1034) is left as is: it only REPLACES exports, and none can exist unless the switch
 allowed the first one. Tests +5 (unset, empty, 0, true, yes all refused with nothing written or logged); removing the
 gate fails 5. Guards fragment +5.
+## 2026-11-18 15:53Z Admin Surf Forecast: the advisor's limits on #1029-#1032
+
+(1) No test pinned the auth of the new admin routes: `tests/test_admin_surf_forecast_auth.py` ENUMERATES every `/admin/surf-forecast` route from the three routers (8 today, GET/POST/DELETE) and requires 401 without a token and 403 for
+a signed-in non-admin, so a later route is covered without editing the test. (2) #1031 scanned every frame x spot ON the
+event loop per click: `frames_for` now runs in a thread. (3) #1032: each open panel polled two private-bucket reads every
+60 s: `cached_guardrail_view` reuses the view for 60 s under one lock (the guardrail runs every 6 h). (4) #1030's
+`thresholds` on the PUBLIC `/api/health/data` are LEFT: they are configuration limits (hours), no secret and already
+implied by the public verdicts; moving them behind auth would need a second endpoint for one admin card. Tests +10
+(estate fragment +10).
+## 2026-11-18 16:40Z #1043 advisor HOLD fixed: a guard that every key-reading job carries the environment
+
+The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull_request` trigger and so failed `test_consensus_flip_sweep` (fixed at bbd7c8fac: the guard now pins the NEW rule, no PR trigger, dispatchable, environment declared, script run); (2) nothing asserted that every job naming the key declares the environment, so the next workflow
+that forgets would silently lose its key once the repository secret is deleted (open PR #1025's `sst-g4-collect.yml` already names the key without it). New `tests/test_workflow_key_environment.py` scans every workflow: each job that reads
+`secrets.SUPABASE_SERVICE_ROLE_KEY` (in the job or the workflow `env`) must declare `environment: supabase-service`, and no
+key-reading workflow may run on `pull_request`. 24 jobs today; tests +26 (estate fragment +26).
