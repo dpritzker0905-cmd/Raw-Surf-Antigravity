@@ -27,10 +27,6 @@ on:
         required: false
         default: 'hawaii'
         type: string
-  pull_request:
-    paths:
-      - 'backend/scripts/consensus_flip_sweep.py'
-      - '.github/workflows/consensus-flip-sweep.yml'
 
 permissions:
   contents: read
@@ -41,6 +37,7 @@ concurrency:
 
 jobs:
   sweep:
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:

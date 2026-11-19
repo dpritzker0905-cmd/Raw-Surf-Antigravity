@@ -377,6 +377,11 @@ SPECS = {
         "source_url": "https://data.marine.copernicus.eu/product/GLOBAL_ANALYSISFORECAST_PHY_001_024",
     },
 }
+try:  # G4 (2026-11-17): Copernicus ocean-model water temp, 1/6 degree; its spec and lattice live in its own module
+    from services import frame_set_raster_sst as _sst
+except ImportError:  # pragma: no cover
+    import frame_set_raster_sst as _sst
+_sst.register(SPECS, GRIDS)
 
 
 def precip_step(f):
@@ -395,11 +400,9 @@ def make_source(spec, session=None):
     if kind == "gfs_precip":
         return GfsPrecipSource(spec, session)
     if kind == "cmems_currents":
-        try:
-            from services.frame_set_raster_currents import CmemsCurrentsSource
-        except ImportError:  # pragma: no cover
-            from frame_set_raster_currents import CmemsCurrentsSource
-        return CmemsCurrentsSource(spec, session)
+        return _sst.CmemsCurrentsSource(spec, session)
+    if kind == "cmems_sst":
+        return _sst.CmemsSstSource(spec, session)
     try:
         from services import frame_set_raster_sources as srcs
     except ImportError:  # pragma: no cover

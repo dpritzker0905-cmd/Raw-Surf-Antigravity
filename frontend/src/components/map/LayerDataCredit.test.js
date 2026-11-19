@@ -111,3 +111,11 @@ test('air temperature drawn terrain-adjusted credits the elevation source, only 
   expect(getByTestId('layer-data-credit').textContent).toBe('© Open-Meteo · CC BY 4.0');
   _resetDownscaleForTest();
 });
+
+test('water temp drawn from the Copernicus ocean model (G4) credits Copernicus and says what the field is; skin-temp models do not', () => {
+  const c = creditFor('water_temp', { water_temp: 'CMEMS' }, {});
+  expect(c.href).toBe('https://doi.org/10.48670/moi-00016');
+  expect(c.text).toBe('© Copernicus Marine · ocean model, top 0.5 m');
+  expect(c.label).toMatch(/top half metre, hourly mean, 1\/6 degree cells \(not a skin temperature\)\. DWD ICON has no sea temperature/);
+  for (const m of ['GFS', 'EURO']) expect(creditFor('water_temp', { water_temp: m }, {}).text).not.toMatch(/ocean model/);
+});
