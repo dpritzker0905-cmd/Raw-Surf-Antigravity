@@ -10,7 +10,6 @@ import { MARINE_ZOOMED_OUT_MAX_ZOOM, alignedCoverFrac } from './marineZoomThresh
 import { keepExactResident, tryExactUpgrade, useMarineExactUpgrade } from './marineExactUpgrade';
 import { useMarineWorldWarmOnSettle } from './marineWorldWarmOnSettle';
 import { frameServesSelectedHour } from './marineHourInstant';
-import { allLandBackoffOn, allLandEpisode, noteAllLand, planAllLandRedrive } from './marineAllLandRedrive';
 import { paintSeriesWhilePending, useSeriesPaintWhilePending } from './marineSeriesWhilePending';   // SERIES_PAINT_WHILE_PENDING (request diet)
 
 // True if the grid bounds fully cover the viewport bounds (small epsilon for float jitter).
@@ -498,7 +497,6 @@ export function useMarineScrubSettle({
     if (!mapInstance) return;
     let blankStreak = 0;
     let lastBackstop = 0;
-    let allLandState = null;   // ALL-LAND BACKOFF (marineAllLandRedrive.js): this view's re-drive budget
     // Stranded-pending tracking (rating plan §8 #1): how long the SAME __MARINE_FETCH_PENDING__ has persisted.
     let pendingSig = null;
     let pendingSince = 0;
@@ -643,18 +641,6 @@ export function useMarineScrubSettle({
       blankStreak++;
       if (blankStreak < 3) return;                   // require ~3s sustained (ignores the brief load gap)
       if (Date.now() - lastBackstop < 6000) return;  // min gap so each refetch can complete
-      // ALL-LAND BACKOFF (2026-11-18): an engine left empty because this view's grid is ALL ZERO (no ocean in view) backs off
-      // (6/12/24/48/96 s) and stops after 5 re-drives until the view, hour, model or layer changes. Other empty engines: unchanged.
-      if (!clamp && !retainedRegionalZoomedOut && !(eng && eng._waveData)) {
-        const _rs = typeof window !== 'undefined' ? window.__MARINE_RENDER_SOURCE_DIAG__ : null;
-        let _vb = null;
-        try { const b = mapInstance.getBounds(); _vb = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() }; } catch (e) { _vb = null; }
-        const _p = planAllLandRedrive({ on: allLandBackoffOn(), allZero: !!(_rs && _rs.renderBlockedReason === 'all_zero_grid'),
-          episode: allLandEpisode({ model: activeModelRef.current, layer: activeMarineLayerRef.current, hour: timeOffsetRef.current, bounds: _vb }),
-          state: allLandState, nowMs: Date.now() });
-        allLandState = _p.next; noteAllLand(_p.reason);
-        if (!_p.fire) { blankStreak = 0; return; }
-      }
       lastBackstop = Date.now();
       blankStreak = 0;
       if (typeof window !== 'undefined') window.__MARINE_BLANK_BACKSTOP_COUNT__ = (window.__MARINE_BLANK_BACKSTOP_COUNT__ || 0) + 1;

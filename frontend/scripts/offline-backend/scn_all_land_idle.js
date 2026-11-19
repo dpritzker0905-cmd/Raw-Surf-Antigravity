@@ -1,4 +1,5 @@
 // ALL-LAND IDLE (2026-11-18; gate L2 of docs/weather-program/log/2026-11-19-opus-all-land-backoff.md). Offline only.
+// 2026-11-18: the backoff this scenario gated was dropped (director, option a); the kill arm is inert. Kept to reproduce the empty-engine case.
 // Opens /map at an inland view (Kansas, z8: no ocean in view), turns Waves on, then sits idle for IDLE_MS and counts the render
 // backstop's re-drives (window.__MARINE_BLANK_BACKSTOP_COUNT__), the all-land planner's tally (window.__RAW_ALL_LAND_REDRIVE__) and every
 // /api/weather/grid and /grid_series request. Arms alternate ON (fix) / KILL (__RAW_DISABLE_ALL_LAND_BACKOFF__); a fixed in-page

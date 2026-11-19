@@ -79,3 +79,17 @@ coastal views behave like reality. LESSONS gets the rule: check the lab fixture 
   run shows that state persisting; (c) find a reproduction of the empty-engine all-zero state first.
 - The backstop-tick counter (`__MARINE_BLANK_BACKSTOP_COUNT__`) over-states re-drives (it counts ticks the clamp cap then skips); any
   instrument reading it reads load that does not happen.
+
+## 2026-11-19 02:29Z: director's decision (a): the backoff code is dropped; KNOWN UNREPRODUCED CASE recorded
+
+- Decision (director, option (a)): this PR carries the lab land-mask fix (`WATER_CUTS` in `serve_synthetic.py`), LESSONS L-P48 and the
+  idle scenario `scn_all_land_idle.js`. The backoff code (`ae0fe0779`: `marineAllLandRedrive.js`, its test, the hook-in in
+  `useMarineScrubSettle.js`, the `__RAW_DISABLE_ALL_LAND_BACKOFF__` inventory entry) is reverted on this branch and does not ship. No served
+  number or client behaviour changes, so no SCOREBOARD row and no floor fragment.
+- **Known unreproduced case:** an EMPTY engine (no coarse world grid resident) over a view whose grid is all zero re-drives the settle
+  check every ~6 s with no cap (the 2026-11-18 "Render backstop: engine empty + idle" lines, 9 in ~60 s). It never occurred in any of the
+  four lab idle runs: once the world grid lands, the backstop takes the clamp branch, which the existing no-progress cap bounds at
+  5 real re-drives per 5 minutes. To reopen it: reproduce the empty-engine all-zero state persisting past the world grid's arrival (for
+  example a world-grid fetch that fails or is withheld), with `scn_all_land_idle.js` counting the "engine empty" console lines; the
+  reverted code at `ae0fe0779` is the starting point.
+- The scenario's `kill` arm now sets an inert flag (the code that read it is gone); both arms measure the same build.
