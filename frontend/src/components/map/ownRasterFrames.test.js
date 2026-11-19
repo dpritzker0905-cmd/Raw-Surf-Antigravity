@@ -254,7 +254,7 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
     expect(DEFAULT_ON_MODELS).toEqual({ temperature: ['ICON'], rain: ['ICON'] });   // ICON air temp + rain, 0.125 deg (2026-11-18)
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(true);  // EURO cloud set since 2026-11-18 (ownRasterEuroCloud.test.js)
-    expect(ownFramesOn('satellite', 'ICON')).toBe(false); // no ICON cloud set: the .om path draws ICON as before
+    expect(ownFramesOn('satellite', 'ICON')).toBe(false); // no ICON cloud set yet: claimed and "unavailable" (ownOnlyModels), never .om
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
     expect(ownFramesOn('rain', 'GFS')).toBe(false);
   });

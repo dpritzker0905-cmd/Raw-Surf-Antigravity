@@ -46,12 +46,12 @@ describe('EURO cloud cover (2026-11-18)', () => {
     expect(OWN_RASTER_SETS.satellite.unit).toBe('%');
   });
 
-  test('ON for EURO with no lever; own frames only for EURO and GFS; ICON has no set (keeps .om until its set publishes)', () => {
+  test('ON for EURO with no lever; own frames only for GFS, EURO and ICON; ICON has no set yet, so it says unavailable', () => {
     expect(ownFramesOn('satellite', 'EURO')).toBe(true);
     expect(ownOnlyFor('satellite', 'EURO')).toBe(true);
     expect(ownOnlyFor('satellite', 'GFS')).toBe(true);
-    expect(ownOnlyFor('satellite', 'ICON')).toBe(false);
-    expect(ownFramesOn('satellite', 'ICON')).toBe(false);
+    expect(ownOnlyFor('satellite', 'ICON')).toBe(true);
+    expect(ownFramesOn('satellite', 'ICON')).toBe(false);   // no set to draw: claimed, nothing drawn, "unavailable"
   });
 
   test('no stand-in past EURO\'s 240 h (the layer has no fallback model): those hours say unavailable', () => {
@@ -72,7 +72,7 @@ describe('EURO cloud cover (2026-11-18)', () => {
         try { expect(omLayersFor(model)).toEqual([]); } finally { delete window[kill]; }
       }
     }
-    expect(omLayersFor('ICON')).toEqual(['satellite']);                 // no ICON cloud set yet: .om until it publishes
+    expect(omLayersFor('ICON')).toEqual([]);                            // no ICON cloud set yet: "unavailable", never .om (2026-11-19)
     staticSetEnabled.mockReturnValue(false);                             // the per-set kills
     expect(omLayersFor('EURO')).toEqual([]);
     expect(omLayersFor('GFS')).toEqual([]);
