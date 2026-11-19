@@ -5,7 +5,8 @@ import AnchorsTab from './AnchorsTab';
 import CoverageTab from './CoverageTab';
 import ObserversTab from './ObserversTab';
 import QualityQueueTab from './QualityQueueTab';
-import { ConsentTab, ModelTab } from './StatusTabs';
+import ModelTab from './ModelTab';
+import { ConsentTab } from './StatusTabs';
 
 export const SURF_TRUTH_TABS = [
   { id: 'anchors', label: 'Anchors', Component: AnchorsTab },
