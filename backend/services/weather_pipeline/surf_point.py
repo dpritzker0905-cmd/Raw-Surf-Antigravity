@@ -259,9 +259,12 @@ _FACE_RANGE_REGIMES = ("shelf", "shoaling", "breaking")   # regimes whose value 
 
 
 def surf_face_range_at(lat: float, lng: float, Hs_m, Tp_s, served_height_m, served_regime, swell_from_deg=None,
-                       geometry: Optional[SurfGeometry] = None, partitions=None, water_level_m: float = 0.0,
-                       nearshore=None):
+                       geometry: Optional[SurfGeometry] = None, partitions=None, nearshore=None,
+                       *, water_level_m: float):
     """(low_m, high_m) of the surf face at a coordinate, or None. ON by default; None when SURF_FACE_RANGE is '0'.
+
+    `water_level_m` is REQUIRED, by name, with no default: a caller that left it out would get a LOW end computed
+    at a different water depth than the HIGH it sits beside, and nothing would say so.
 
     HIGH is DEFINED as the height already served (`served_height_m`, the published H1/10 or the cap): it is passed
     in, never recomputed, so the range can not disagree with the headline. LOW is the SAME chain (`estimate_surf_at`
