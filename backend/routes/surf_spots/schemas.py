@@ -117,6 +117,9 @@ class SurfSpotResponse(BaseModel):
     # Privacy Shield fields
     is_within_geofence: bool = True
     distance_miles: Optional[float] = None
+    # True for a spot added from the holding table whose position no person has verified yet. The map draws it
+    # with a dashed ring and the words "Unverified location" (services/spot_location_status).
+    location_unverified: bool = False
 
 
 class LivePhotographerResponse(BaseModel):
