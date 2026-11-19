@@ -251,3 +251,20 @@ This test differs in five ways:
   - It downloaded only the station list, the land mask and the decoded forecasts of one run, for a mirror check.
   - It did not download the truth snapshot.
   - It is deleting those copies.
+
+## AMENDMENT 5 (2026-11-19, before any fetch): the advisor's conditions for registration
+- **"Rating wind: HRRR" label.**
+  - Where: drawn in the spot rating surfaces that show the rating wind, i.e. the spot card / infobox rating detail and
+    the hub rating row, with a11y text.
+  - If drawing it requires editing a file on the reserved list, the DIRECTOR rules first. The label is not added
+    unilaterally.
+- **Blinding record (advisor, in writing, 2026-11-19).**
+  - The first read of the long-range wind hindcast score log is delegated to the Haiku researcher session.
+    - It reports the verdict line only (PASS, FAIL or VOID, with the run and day counts).
+    - No per-station, per-region or per-lead number goes to anyone until 3b TEST is scored.
+    - The reader takes no part in 3b.
+  - The advisor has read only that run's `mirror_check` log (forecast values, no truth). It will not open the score log
+    or report before 3b is scored.
+  - The research lead has opened neither. The wind lane's attestation is in Amendment 4.
+- **Registration.** This file is REGISTERED when committed to the repository (`evidence/2026-11-19-research-lead/`).
+  Nothing is fetched before that commit is sent to the advisor.

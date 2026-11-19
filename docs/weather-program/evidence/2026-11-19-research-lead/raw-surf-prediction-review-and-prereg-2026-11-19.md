@@ -92,3 +92,12 @@ and (b) the single best ensemble mean, against observations?
 - A violation flags the handover for smoothing. It is not a skill FAIL.
 
 **One scored look.** Ships ON with a kill switch (D-080); the fallback is the current past-horizon layer.
+
+## OPEN before anyone builds (advisor, 2026-11-19)
+- **Locked contract** (BRAIN_RULES, "14-Day Forecast Horizon"): the ICON and EURO extension blends are NEVER rebuilt,
+  and the 14-day scrubber is NEVER capped.
+  - This pre-registration must state how the past-horizon "Raw Surf prediction" sits with that contract: a separate
+    layer source vs replacing the extension blends.
+  - It must also record David's word ("Yes, go with the Raw Surf prediction", about 01:20Z, in the director's session)
+    and whether he intends it to supersede the locked extension blends.
+- Not read by the advisor yet. Still a DRAFT / NOT STARTED.

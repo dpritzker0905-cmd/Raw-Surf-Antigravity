@@ -264,3 +264,15 @@ Europe), plus the step-5 truth-based pooled correction on top, with disjoint dat
   - `SHORE_NORMAL_MOP_CALIBRATED` = "0" (its data file is fitted on CDIP MOP). It must stay off under the route.
   - `SURF_SPECTRAL_K` (#706): dark, CDIP MOP ray K. Not under this route.
   - No ×1.27 or 0.873 constants were found in `services/weather_pipeline`.
+
+## Part G (2026-11-19): the advisor's alignment audit, row 1. CONFIRMED, with a rule added
+- **The finding:** step 5's b_region served at spots with NO truth is, in effect, a region-level debias. 11-02 DROPPED
+  region-level Hs debias.
+- **Research view:** the quantities differ.
+  - 11-02 was an offshore-Hs regional debias, which did not help.
+  - b_region is a breaking-height log-ratio fitted on nearshore truth.
+  - But the risk is the same: a regional mean correction applied where it was never tested.
+- **RULE ADDED:**
+  - b_region is SERVED at no-truth spots ONLY if gate (d) (held-out sites, cold start) shows a significant improvement
+    in that region, not merely "not worse".
+  - Otherwise no-truth spots get NO step-5 correction, and only spots with their own truth (b_site) are corrected.
