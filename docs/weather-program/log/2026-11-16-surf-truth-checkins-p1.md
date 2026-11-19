@@ -366,6 +366,20 @@ says why (decisions are recorded only in enforce mode; a dry run reports in its 
 Backend: `services/admin_guardrail_view.py` (no write path; a test checks the module has no POST/PUT/upsert) and
 GET /admin/surf-forecast/guardrail (off the event loop). Tests: backend +3, Jest +3; route identity guard passes; 106
 admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1031.
+## 2026-11-18 03:58Z Admin: surf-truth exports and anchor history get their screens (header from the UTC clock)
+
+David chose the last two items from the admin survey. Both backend routes already existed with no screen:
+- Surf truth > Anchors: each anchor row has "History", a dialog reading the append-only event log
+  (GET /admin/surf-truth/anchors/{id}/events): every appointment and change, who and the reason. The route now also
+  returns the actor's name for display (the id stays as the record).
+- Surf truth > Model: accurate facts (the fit is written and pre-registered; reviewed before any run; no fit yet;
+  nothing moves a served height) and "Exports for the model": a "Run an export" dialog that posts
+  /admin/surf-truth/export only after an "the owner has approved exports (retention and consent)" box is ticked
+  (the server still refuses while SURF_TRUTH_EXPORT_KEY is unset, and the refusal is shown), plus the list of past
+  exports from the admin action log (who, when, rows, object). The old placeholder Model tab is removed.
+Tests: backend: the history route returns the actor's name (assertion added, 16 pass); Jest +3 (history dialog, export
+gated by the approval box then posts and shows the run, a refused export shows why). Lint ratchet passes. Not checked
+in a browser (admin login). Base: dev.
 ## 2026-11-18 04:26Z T1 P3 (part 4): David's retention rule, enforced daily (header from the UTC clock)
 
 DECISION (David, in chat, 2026-11-18 04:26Z): "Keep the 3 newest exports, purge within 7 days". He also reported that
@@ -495,6 +509,15 @@ refuses (403) unless the server's environment has `SURF_TRUTH_EXPORTS_ENABLED` e
 The retention job's fresh export (#1034) is left as is: it only REPLACES exports, and none can exist unless the switch
 allowed the first one. Tests +5 (unset, empty, 0, true, yes all refused with nothing written or logged); removing the
 gate fails 5. Guards fragment +5.
+## 2026-11-18 15:53Z Admin Surf Forecast: the advisor's limits on #1029-#1032
+
+(1) No test pinned the auth of the new admin routes: `tests/test_admin_surf_forecast_auth.py` ENUMERATES every `/admin/surf-forecast` route from the three routers (8 today, GET/POST/DELETE) and requires 401 without a token and 403 for
+a signed-in non-admin, so a later route is covered without editing the test. (2) #1031 scanned every frame x spot ON the
+event loop per click: `frames_for` now runs in a thread. (3) #1032: each open panel polled two private-bucket reads every
+60 s: `cached_guardrail_view` reuses the view for 60 s under one lock (the guardrail runs every 6 h). (4) #1030's
+`thresholds` on the PUBLIC `/api/health/data` are LEFT: they are configuration limits (hours), no secret and already
+implied by the public verdicts; moving them behind auth would need a second endpoint for one admin card. Tests +10
+(estate fragment +10).
 ## 2026-11-18 16:40Z #1043 advisor HOLD fixed: a guard that every key-reading job carries the environment
 
 The advisor held #1043 at 1cc1ba285: (1) it removed consensus-flip-sweep's `pull_request` trigger and so failed `test_consensus_flip_sweep` (fixed at bbd7c8fac: the guard now pins the NEW rule, no PR trigger, dispatchable, environment declared, script run); (2) nothing asserted that every job naming the key declares the environment, so the next workflow

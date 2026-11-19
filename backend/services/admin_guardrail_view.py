@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import json
 import os
+import threading
+import time
 from typing import Callable, Optional
 
 from services import runtime_flags as _rf
@@ -58,6 +60,24 @@ def parse_actions(text: Optional[str]) -> tuple:
             bad += 1
     rows.sort(key=lambda r: str(r.get("at") or ""), reverse=True)
     return rows[:MAX_ACTIONS], bad
+
+
+CACHE_TTL_S = 60.0
+_cache: dict = {"at": None, "value": None}
+_cache_lock = threading.Lock()
+
+
+def cached_guardrail_view(now: Optional[float] = None) -> dict:
+    """guardrail_view() reused for CACHE_TTL_S (advisor, #1032: each open panel polls every 60 s and each poll made two
+    private-bucket reads). The guardrail runs every 6 h, so a minute of staleness hides nothing; one lock means one
+    read per minute however many admins have the panel open."""
+    now = time.monotonic() if now is None else now
+    with _cache_lock:
+        if _cache["at"] is not None and now - _cache["at"] < CACHE_TTL_S:
+            return _cache["value"]
+        value = guardrail_view()
+        _cache.update(at=now, value=value)
+        return value
 
 
 def guardrail_view(fetch: Optional[Callable[[str], Optional[str]]] = None) -> dict:

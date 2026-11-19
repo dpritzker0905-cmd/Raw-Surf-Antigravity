@@ -95,6 +95,7 @@ async def test_status_change_writes_both_logs(world):
     assert (anchor["profile_id"], anchor["status"], anchor["appointed_by"]) == ("pho", "active", "boss")
     events = (await world.client.get("/api/admin/surf-truth/anchors/pho/events", headers=_token("boss"))).json()
     assert [(e["from_status"], e["to_status"]) for e in events] == [(None, "probation"), ("probation", "active")]
+    assert {(e["actor_id"], e["actor_name"]) for e in events} == {("boss", "boss")}   # the admin's name, for display
     actions = await _actions(world)
     assert sorted(a["detail"]["to"] for a in actions) == ["active", "probation"]
     assert all(a["action"] == "anchor_status" and a["admin_id"] == "boss" and a["reason"] for a in actions)

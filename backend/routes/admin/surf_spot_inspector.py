@@ -89,7 +89,9 @@ async def inspect_spot(spot_id: str, admin: Profile = Depends(get_current_admin)
     try:
         from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached
         obj = await asyncio.to_thread(load_spot_ratings_l2_cached)
-        out["ratings"] = {"generated_at": (obj or {}).get("generated_at"), "frames": frames_for(obj, spot_id)}
+        # The scan walks every frame x every spot, so it runs off the event loop too (advisor, #1031).
+        frames = await asyncio.to_thread(frames_for, obj, spot_id)
+        out["ratings"] = {"generated_at": (obj or {}).get("generated_at"), "frames": frames}
     except Exception as e:
         out["ratings"] = {"error": str(e)}
     try:

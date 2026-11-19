@@ -68,8 +68,10 @@ async def anchor_events(profile_id: str, db: AsyncSession = Depends(get_db),
                         admin: Profile = Depends(get_current_admin)):
     rows = (await db.execute(select(SurfTruthAnchorEvent).where(SurfTruthAnchorEvent.profile_id == profile_id)
                              .order_by(SurfTruthAnchorEvent.at))).scalars().all()
-    return [{"from_status": e.from_status, "to_status": e.to_status, "actor_id": e.actor_id, "reason": e.reason,
-             "at": e.at.isoformat()} for e in rows]
+    ids = {e.actor_id for e in rows}   # names for display; the id stays in the payload as the record
+    names = dict((await db.execute(select(Profile.id, Profile.full_name).where(Profile.id.in_(ids)))).all()) if ids else {}
+    return [{"from_status": e.from_status, "to_status": e.to_status, "actor_id": e.actor_id,
+             "actor_name": names.get(e.actor_id), "reason": e.reason, "at": e.at.isoformat()} for e in rows]
 
 
 @router.get("/admin/surf-truth/actions")
