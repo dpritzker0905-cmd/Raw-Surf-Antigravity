@@ -14,11 +14,14 @@ from core.security import get_current_user_id
 from models import (
     Profile, TosViolation, TosAcknowledgement,
     Post, Comment, Booking, GalleryPurchase, PaymentTransaction,
-    Message, Follow, CheckIn, Review
+    Message, Follow, CheckIn, Review, ConditionReport, ObservationMedia,
+    WebauthnCredential, UserMfa, MfaRecoveryCode, MfaChallenge,
 )
+from services.surf_truth_erasure import erase_surf_truth, export_surf_truth
+import asyncio
 import logging
 
-router = APIRouter(prefix="/compliance", tags=["compliance"])
+router =APIRouter(prefix="/compliance", tags=["compliance"])
 logger = logging.getLogger(__name__)
 
 
@@ -81,10 +84,11 @@ async def export_user_data(
     )
     export["comments"] = [_serialize_row(c) for c in comments_result.scalars().all()]
     
-    # Bookings (as photographer or surfer)
+    # Bookings (as photographer or the surfer who created it). Booking has no surfer_id: the old filter raised
+    # AttributeError, so this export never completed.
     bookings_result = await db.execute(
         select(Booking).where(
-            (Booking.photographer_id == user_id) | (Booking.surfer_id == user_id)
+            (Booking.photographer_id == user_id) | (Booking.creator_id == user_id)
         ).order_by(Booking.created_at.desc())
     )
     export["bookings"] = [_serialize_row(b) for b in bookings_result.scalars().all()]
@@ -121,7 +125,7 @@ async def export_user_data(
     
     # Followers
     followers_result = await db.execute(
-        select(Follow).where(Follow.followed_id == user_id)
+        select(Follow).where(Follow.following_id == user_id)
     )
     export["followers"] = [_serialize_row(f) for f in followers_result.scalars().all()]
     
@@ -132,7 +136,7 @@ async def export_user_data(
     export["reviews_given"] = [_serialize_row(r) for r in reviews_given.scalars().all()]
     
     reviews_received = await db.execute(
-        select(Review).where(Review.reviewed_id == user_id)
+        select(Review).where(Review.reviewee_id == user_id)
     )
     export["reviews_received"] = [_serialize_row(r) for r in reviews_received.scalars().all()]
     
@@ -147,7 +151,10 @@ async def export_user_data(
         select(TosViolation).where(TosViolation.user_id == user_id)
     )
     export["tos_violations"] = [_serialize_row(v) for v in violations_result.scalars().all()]
-    
+
+    # Surf-truth observations, photo facts and observer status (T1 P3)
+    export.update(await export_surf_truth(db, user_id))
+
     # Summary stats
     export["summary"] = {
         "total_posts": len(export["posts"]),
@@ -159,6 +166,7 @@ async def export_user_data(
         "total_check_ins": len(export["check_ins"]),
         "total_following": len(export["following"]),
         "total_followers": len(export["followers"]),
+        "total_surf_observations": len(export["surf_observations"]),
     }
     
     return export
@@ -177,6 +185,12 @@ async def request_data_deletion(
     - Posts, comments, reactions
     - Follows (follower + following)
     - Check-ins, reviews
+    - Surf-truth observations, photo facts and observer status (services/surf_truth_erasure.py)
+    - Condition reports, and their photos/videos in the PUBLIC conditions bucket (after the commit, best effort,
+      reported in `media`: services/account_erasure_media.py)
+    - Sign-in: the password, passkeys and second-factor secrets are removed and the account is marked suspended, so
+      nobody can sign in to the anonymized profile again, and every session token already issued is revoked
+      (core/session_revocation: refused within a minute on every server process, at once on this one).
     - Messages (sender side anonymized)
     - Profile data is anonymized (name, bio, avatar cleared)
 
@@ -204,7 +218,7 @@ async def request_data_deletion(
 
     # 2. Delete social graph
     await db.execute(delete(Follow).where(
-        (Follow.follower_id == user_id) | (Follow.followed_id == user_id)
+        (Follow.follower_id == user_id) | (Follow.following_id == user_id)
     ))
 
     # 3. Delete check-ins
@@ -212,6 +226,23 @@ async def request_data_deletion(
 
     # 4. Delete reviews given
     await db.execute(delete(Review).where(Review.reviewer_id == user_id))
+
+    # 4b. Surf-truth observations (device GPS, photo EXIF), photo facts and observer status (T1 P3). Same
+    # transaction: if this fails the whole request rolls back rather than reporting a partial deletion. The media
+    # URLs are read first, so their files can be removed from public storage after the commit.
+    media_urls = list((await db.execute(select(ObservationMedia.media_url)
+                                        .where(ObservationMedia.user_id == user_id))).scalars().all())
+    media_urls += list((await db.execute(select(ConditionReport.media_url)
+                                         .where(ConditionReport.photographer_id == user_id))).scalars().all())
+    await erase_surf_truth(db, user_id)
+    await db.execute(delete(ConditionReport).where(ConditionReport.photographer_id == user_id))
+
+    # 4c. Sign-in (advisor limit on #1022): no password, passkey or second factor survives, and the account is marked
+    # suspended, which the password and MFA paths already refuse.
+    for model in (WebauthnCredential, MfaRecoveryCode, MfaChallenge, UserMfa):
+        await db.execute(delete(model).where(model.user_id == user_id))
+    from core.session_revocation import note_revoked, revoke
+    revoked_at = await revoke(db, user_id, "account_deleted")
 
     # 5. Anonymize messages (don't delete — recipient still has the conversation)
     await db.execute(
@@ -226,22 +257,36 @@ async def request_data_deletion(
     profile.bio = None
     profile.avatar_url = None
     profile.email = f"deleted_{user_id[:8]}@deleted.rawsurf.app"
-    profile.phone = None
-    profile.instagram_handle = None
-    profile.website = None
     profile.wetsuit_color = None
     profile.rash_guard_color = None
-    profile.board_description = None
     profile.stance = None
-    profile.is_active = False
-    profile.is_deleted = True
+    profile.password_hash = None
+    profile.is_suspended = True
+    profile.suspended_at = datetime.now(timezone.utc)
+    profile.suspended_reason = "account deleted at the user's request"
+    # These are the REAL column names. The old code set phone / instagram_handle / website / board_description /
+    # is_active / is_deleted, none of which is a Profile column, so those assignments silently did nothing, and the
+    # home and on-demand positions below were never cleared. A loop over names catches a future rename loudly.
+    for column in ("instagram_url", "website_url", "portfolio_url", "location",
+                   "home_latitude", "home_longitude", "home_location_name",
+                   "on_demand_latitude", "on_demand_longitude", "on_demand_city"):
+        if column not in Profile.__table__.columns:
+            raise RuntimeError(f"GDPR erasure names a Profile column that does not exist: {column}")
+        setattr(profile, column, None)
 
     await db.commit()
+    note_revoked(user_id, revoked_at)          # this process refuses the user's tokens from now on
+
+    # 7. The files, now that the rows are gone (storage is not transactional; reported, never hidden).
+    from routes.uploads.core import UPLOAD_DIR
+    from services.account_erasure_media import delete_account_media
+    media = await asyncio.to_thread(delete_account_media, user_id, media_urls, UPLOAD_DIR)
 
     logger.info(f"GDPR deletion completed for user {user_id}")
 
     return {
         "success": True,
         "message": "Your account data has been deleted. Profile has been anonymized. Financial records are retained for legal compliance.",
-        "retained": ["payment_transactions", "bookings", "tos_acknowledgements", "tos_violations"]
+        "retained": ["payment_transactions", "bookings", "tos_acknowledgements", "tos_violations"],
+        "media": media,
     }

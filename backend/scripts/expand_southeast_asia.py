@@ -176,4 +176,9 @@ async def run_expansion():
 
 
 if __name__ == "__main__":
+    try:
+        from _legacy_spot_writer import BULK_ADDS, refuse_legacy_spot_write
+    except ImportError:
+        from scripts._legacy_spot_writer import BULK_ADDS, refuse_legacy_spot_write
+    refuse_legacy_spot_write("expand_southeast_asia.py", BULK_ADDS)
     asyncio.run(run_expansion())

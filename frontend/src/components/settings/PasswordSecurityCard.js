@@ -8,6 +8,7 @@ import { Input } from '../ui/input';
 import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
 import { meetsPasswordMinimum, PASSWORD_MINIMUM_MESSAGE } from '../../lib/passwordPolicy';
+import { useAuth } from '../../contexts/AuthContext';
 
 /**
  * PasswordSecurityCard - Allows authenticated users to change their password.
@@ -23,6 +24,7 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const { updateUser } = useAuth() || {};
 
   const getPasswordStrength = (password) => {
     if (!password) return { score: 0, label: '', color: '' };
@@ -51,9 +53,11 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
     if (newPassword === currentPassword) { setError('New password must be different from current password'); return; }
     setSaving(true);
     try {
-      await apiClient.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword });
+      const res = await apiClient.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword });
+      // Changing the password ends every other session; this device keeps working on the fresh token it returns.
+      if (res?.data?.access_token && updateUser) updateUser({ access_token: res.data.access_token });
       setSuccess(true); setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
-      toast.success('Password changed successfully!');
+      toast.success('Password changed. Other devices have been signed out.');
     } catch (err) {
       const detail = err.response?.data?.detail || 'Failed to change password';
       setError(detail); toast.error(detail);

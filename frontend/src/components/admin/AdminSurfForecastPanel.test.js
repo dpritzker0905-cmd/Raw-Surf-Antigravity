@@ -29,7 +29,10 @@ beforeEach(() => {
   apiClient.get.mockReset();
   apiClient.delete.mockReset();
   apiClient.get.mockImplementation((url) => Promise.resolve(
-    { data: url.startsWith('/admin/surf-forecast/status') ? STATUS : { reports: REPORTS } }));
+    { data: url.startsWith('/admin/surf-forecast/status') ? STATUS
+      : url.startsWith('/health/data') ? { status: 'ok', lanes: {}, alerts: [] }
+        : url.startsWith('/admin/surf-forecast/guardrail') ? { entries: {}, actions: [], errors: [], guarded: {} }
+          : { reports: REPORTS } }));
   apiClient.delete.mockResolvedValue({ data: { deleted: 'r1' } });
 });
 

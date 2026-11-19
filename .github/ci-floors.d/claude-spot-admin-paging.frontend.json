@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 14,
+  "files": 1,
+  "branch": "claude/spot-admin-paging",
+  "date": "2026-11-18",
+  "note": "admin spot paging: pager, spots, queue, candidates"
+}

@@ -67,8 +67,10 @@ async def anchor_events(profile_id: str, db: AsyncSession = Depends(get_db),
                         admin: Profile = Depends(get_current_admin)):
     rows = (await db.execute(select(SurfTruthAnchorEvent).where(SurfTruthAnchorEvent.profile_id == profile_id)
                              .order_by(SurfTruthAnchorEvent.at))).scalars().all()
-    return [{"from_status": e.from_status, "to_status": e.to_status, "actor_id": e.actor_id, "reason": e.reason,
-             "at": e.at.isoformat()} for e in rows]
+    ids = {e.actor_id for e in rows}   # names for display; the id stays in the payload as the record
+    names = dict((await db.execute(select(Profile.id, Profile.full_name).where(Profile.id.in_(ids)))).all()) if ids else {}
+    return [{"from_status": e.from_status, "to_status": e.to_status, "actor_id": e.actor_id,
+             "actor_name": names.get(e.actor_id), "reason": e.reason, "at": e.at.isoformat()} for e in rows]
 
 
 @router.get("/admin/surf-truth/actions")
@@ -89,8 +91,13 @@ async def admin_actions(limit: int = 100, db: AsyncSession = Depends(get_db),
 async def export_observations(since: Optional[datetime] = None, db: AsyncSession = Depends(get_db),
                               admin: Profile = Depends(get_current_admin)):
     """Write the pseudonymized blind-observation export to PRIVATE storage for the offline truth model (T1 P4).
-    Fails closed (503) without the pseudonym key or private storage; every export is logged."""
+    Refused (403) unless the owner has switched exports on on the server (SURF_TRUTH_EXPORTS_ENABLED=1); fails closed
+    (503) without the pseudonym key or private storage; every export is logged."""
     from services import surf_truth_export as ste
+    if not ste.exports_enabled():
+        raise HTTPException(status_code=403, detail=(
+            f"Exports are switched off on the server. The owner turns them on with {ste.ENABLE_ENV}=1 once consent, "
+            "retention and the consent wording are in place."))
     try:
         key = ste.export_key()
         rows, manifest = await ste.build_export(db, key, since=since)

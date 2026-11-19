@@ -23,6 +23,9 @@ const K = {
   phase: '__RAW_DISABLE_CREST_LOCAL_PHASE__',
   rank: '__RAW_DISABLE_CREST_TEXEL_RANK__',
   enc: '__RAW_DISABLE_WIND_ENCODER_ROUND__',
+  // 2026-11-18: the Gusts layer's colour splices in the wind draw pass (gustShaderSplice.js) stand down under their own kill, so
+  // EVERY kill together still draws dev 35feaaac6 byte for byte; the motion fixes alone still never touch the colour pass.
+  gust: '__RAW_DISABLE_GUST_PARTICLES__',
 };
 const ALL = Object.fromEntries(Object.values(K).map((k) => [k, true]));
 const load = (levers, mod) => {
@@ -53,7 +56,8 @@ describe('killed before load: the shaders of origin/dev, byte for byte', () => {
     expect(on.wind.ADVECT_FS).not.toBe(DEV.wind.ADVECT_FS);
     expect(on.wind.DRAW_VS).not.toBe(DEV.wind.DRAW_VS);
     expect(on.marine.DRAW_FS).toBe(DEV.marine.DRAW_FS);
-    expect(on.wind.DRAW_FS).toBe(DEV.wind.DRAW_FS);
+    expect(hashes({ [K.gust]: true }).wind.DRAW_FS).toBe(DEV.wind.DRAW_FS);   // the motion fixes leave the colour pass alone
+    expect(on.wind.DRAW_FS).not.toBe(DEV.wind.DRAW_FS);                       // the Gusts colour splice is ON by default
   });
 
   it('each kill stands down only its own splices', () => {

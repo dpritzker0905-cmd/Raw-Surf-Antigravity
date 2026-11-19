@@ -62,7 +62,8 @@ for _table, _grant in _LOCKS.items():
 # Append-only, enforced by the database: any UPDATE, DELETE or TRUNCATE on the log raises (TRUNCATE does not fire
 # row-level triggers, so it has its own statement-level one).
 APPEND_ONLY_FUNCTION = (
-    "CREATE OR REPLACE FUNCTION surf_truth_anchor_events_append_only() RETURNS trigger LANGUAGE plpgsql AS $$ "
+    "CREATE OR REPLACE FUNCTION surf_truth_anchor_events_append_only() RETURNS trigger LANGUAGE plpgsql "
+    "SET search_path = '' AS $$ "
     "BEGIN RAISE EXCEPTION 'surf_truth_anchor_events is append-only'; END; $$"
 )
 APPEND_ONLY_TRIGGER = (

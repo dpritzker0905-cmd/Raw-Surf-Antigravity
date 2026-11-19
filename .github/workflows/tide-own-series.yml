@@ -1,0 +1,99 @@
+name: Tide served series (CMEMS sea level read directly + our harmonic tide; no Open-Meteo in any served tide)
+# WHY: the owner, 2026-11-18 ~23:00Z: no Open-Meteo in user data (licence). Builds the table the served tide reads
+# (services/weather_pipeline/tide_own.py, flags SURF_TIDE_OWN / SURF_TIDE_CMEMS), per 0.1-degree spot key, hourly:
+# CMEMS total_sea_level read directly (only when the repo variable TIDE_CMEMS_PRIMARY=1, set after the M1-0 parity
+# PASS) and our harmonic tide A + M (3 days back to 45 days ahead, the arm the tide gates G3t / G4 measure). PyFES is GPL and runs only here; FES constants never leave
+# this job, only predictions do. M (a fixed constant per key) is cached in the bucket and only missing keys are
+# computed, inside a time budget, so the first fill may span several runs; a key without M is served as unavailable.
+# Credentials, each on its own steps only: AVISO (FES download), Copernicus Marine (M), Supabase service role (the
+# stdlib storage_io.py steps, run as python3 -I -S). Pinned by tests/test_tide_own.py.
+on:
+  schedule:
+    - cron: '41 8 * * *'          # daily 08:41 UTC (CMEMS updates daily): outside the 22:00-00:30 EST quiet window
+  workflow_dispatch: {}            # the FIRST build is a dispatch from dev once this builder has merged (no served
+                                  # change): the service-role key lives in the dev/main-only environment, so a tag
+                                  # or branch run cannot reach it. Dispatch on the owner's word; the advisor reads first.
+permissions:
+  contents: read
+concurrency:
+  group: tide-own-series
+  cancel-in-progress: false
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (pinned as the tide gates)
+        run: pip install "pyfes==2026.5.2" "paramiko==5.1.0" netCDF4 numpy scipy xarray h5netcdf pandas lxml pyyaml
+      - name: Restore FES2022b downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: fes_cache
+          key: fes2022b-own-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            fes2022b-own-
+            fes2022b-g4p-
+            fes2022b-g3t-
+      - name: Download FES2022b (AVISO, pinned host key; cached files skipped)
+        timeout-minutes: 320
+        env:
+          AVISO_USERNAME: ${{ secrets.AVISO_USERNAME }}
+          AVISO_PASSWORD: ${{ secrets.AVISO_PASSWORD }}
+        run: python backend/scripts/tide_own/build_series.py --spots /dev/null --download-fes-only --fes-cache fes_cache
+      - name: Drop partial files before saving
+        if: always()
+        run: |
+          mkdir -p fes_cache
+          rm -f fes_cache/*.part
+      - name: Save FES2022b downloads
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: fes_cache
+          key: fes2022b-own-${{ github.run_id }}-${{ github.run_attempt }}
+  build:
+    needs: download
+    runs-on: ubuntu-latest
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main; #1043)
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (pinned as the tide gates)
+        run: pip install "pyfes==2026.5.2" "pyTMD==3.1.0" "timescale==0.1.3" "paramiko==5.1.0" "copernicusmarine==2.4.1" netCDF4 numpy scipy xarray h5netcdf pandas lxml pyyaml
+      - name: Restore FES2022b downloads (this run's)
+        uses: actions/cache/restore@v4
+        with:
+          path: fes_cache
+          key: fes2022b-own-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+      - name: Read the spot list and the M cache (Supabase; stdlib only)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 -I -S backend/scripts/tide_own/storage_io.py spots spots.json
+          python3 -I -S backend/scripts/tide_own/storage_io.py get m.json tide_own_m.json
+      - name: Build the series (FES + M; Copernicus only here)
+        timeout-minutes: 300
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python backend/scripts/tide_own/build_series.py --spots spots.json --fes-cache fes_cache --m-cache tide_own_m.json --m-budget-min 200 --out tide_own_series.json.gz --cmems "${{ vars.TIDE_CMEMS_PRIMARY || '0' }}"
+      - name: Save the M cache even if the build failed later (Supabase; stdlib only)
+        if: always() && hashFiles('tide_own_m.json') != ''
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 -I -S backend/scripts/tide_own/storage_io.py put tide_own_m.json m.json
+      - name: Publish the series (Supabase; stdlib only)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 -I -S backend/scripts/tide_own/storage_io.py put tide_own_series.json.gz series.json.gz

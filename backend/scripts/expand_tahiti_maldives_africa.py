@@ -40,6 +40,16 @@ TAHITI_SPOTS = [
 
 
 # Maldives - Perfect Indian Ocean atolls
+# WITHHELD 2026-11-18: these two are NOT seeded any more. Malik's was on the wrong atoll and Five Islands about
+# 290 km from the real break; both rows are hidden in production (is_active = false) on the owner's word, and no
+# licence-clean coordinate exists for either. Kept only as a record of what this file used to write. A person adds
+# them back through the admin editor with a real position; a coordinate from a surf site or from OpenStreetMap may
+# not be written.
+MALDIVES_WITHHELD = [
+    {"name": "Malik's", "latitude": 2.7500, "longitude": 73.0000, "why": "wrong atoll"},
+    {"name": "Five Islands", "latitude": 2.8333, "longitude": 72.9500, "why": "about 290 km from the real break"},
+]
+
 MALDIVES_SPOTS = [
     # North Male Atoll
     {"name": "Chickens", "latitude": 4.2667, "longitude": 73.4333, "region": "North Male", "country": "Maldives", "difficulty": "intermediate", "wave_type": "reef", "description": "Long right-hander, Maldives classic"},
@@ -56,10 +66,8 @@ MALDIVES_SPOTS = [
     {"name": "Kandooma Right", "latitude": 3.9167, "longitude": 73.5000, "region": "South Male", "country": "Maldives", "difficulty": "advanced", "wave_type": "reef", "description": "Heavy right barrel"},
     {"name": "Guru's", "latitude": 3.9000, "longitude": 73.5167, "region": "South Male", "country": "Maldives", "difficulty": "intermediate", "wave_type": "reef", "description": "Long left, good for all levels"},
     
-    # Central Atolls (Meemu, Dhaalu, Thaa)
-    {"name": "Malik's", "latitude": 2.7500, "longitude": 73.0000, "region": "Meemu", "country": "Maldives", "difficulty": "advanced", "wave_type": "reef", "description": "Remote atoll right"},
-    {"name": "Five Islands", "latitude": 2.8333, "longitude": 72.9500, "region": "Dhaalu", "country": "Maldives", "difficulty": "intermediate", "wave_type": "reef", "description": "Uncrowded left in central atolls"},
-    
+    # Central Atolls (Meemu, Dhaalu, Thaa): Malik's and Five Islands are WITHHELD, see MALDIVES_WITHHELD below.
+
     # Huvadhoo Atoll (far south)
     {"name": "Beacons", "latitude": 0.5000, "longitude": 73.1667, "region": "Huvadhoo", "country": "Maldives", "difficulty": "advanced", "wave_type": "reef", "description": "Southernmost quality break"},
     {"name": "Tiger Stripes", "latitude": 0.4833, "longitude": 73.1833, "region": "Huvadhoo", "country": "Maldives", "difficulty": "intermediate", "wave_type": "reef", "description": "Long walls with tiger shark sightings"},
@@ -187,4 +195,9 @@ async def main():
 
 
 if __name__ == "__main__":
+    try:
+        from _legacy_spot_writer import BULK_ADDS, refuse_legacy_spot_write
+    except ImportError:
+        from scripts._legacy_spot_writer import BULK_ADDS, refuse_legacy_spot_write
+    refuse_legacy_spot_write("expand_tahiti_maldives_africa.py", BULK_ADDS)
     asyncio.run(main())

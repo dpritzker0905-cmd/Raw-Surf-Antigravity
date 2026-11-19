@@ -216,6 +216,13 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
         status = _worse(status, "critical")
         alerts.append(f"ratings/precomputed: L2 object unreadable ({_re})")
 
+    # The limits the verdicts above were judged against, so a reader (the admin's data-health view) can say what
+    # "stale" means without re-deriving the environment overrides.
+    thresholds = {"stale_h": stale_h, "critical_h": critical_h,
+                  "min_horizon_h": {m: _min_horizon(m) for m in _HORIZON_DEFAULTS},
+                  "euro_short_cycle_reach_h": _f("HEALTH_MIN_HORIZON_HOURS_EURO_SHORT_CYCLE", _EURO_SHORT_CYCLE_REACH_H),
+                  "ratings_warn_h": _f("RATINGS_HEALTH_WARN_H", 3.5),
+                  "ratings_critical_h": _f("SPOT_RATINGS_STALE_TOLERANCE_S", 21600.0) / 3600.0}
     return {"status": status, "generated_at": now.isoformat(),
             "freshest_run_age_h": freshest_age_h, "manifest_written_by": written_by,
-            "lanes": lanes, "alerts": alerts}
+            "lanes": lanes, "alerts": alerts, "thresholds": thresholds}

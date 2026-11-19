@@ -181,6 +181,11 @@ async def add_spots(spots, country):
         return added_count, skipped_count
 
 async def main():
+    try:
+        from _legacy_spot_writer import refuse_legacy_spot_write
+    except ImportError:
+        from scripts._legacy_spot_writer import refuse_legacy_spot_write
+    refuse_legacy_spot_write("spot_sync_april_2026.py")
     print("=" * 60)
     print("SPOT SYNC - April 2026")
     print("=" * 60)

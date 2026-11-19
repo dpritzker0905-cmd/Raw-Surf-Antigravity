@@ -19,9 +19,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
 from database import get_db
-from models import (Profile, RoleEnum, SurfObservation, SurfSpot, SurfTruthAdminAction, SurfTruthAnchor,
-                    SurfTruthAnchorEvent)
+from models import (TosContent, Profile, RoleEnum, SurfObservation, SurfSpot, SurfTruthAdminAction, SurfTruthAnchor,
+                    SurfTruthAnchorEvent, SurfTruthConsentEvent)
 from routes.surf_data import surf_truth_admin
+from services import surf_truth_consent as stc
 from services import surf_truth_export as ste
 
 KEY = "k" * 40
@@ -33,7 +34,7 @@ def _token(sub):
     return {"Authorization": "Bearer " + security.create_access_token({"sub": sub})}
 
 
-def _obs(oid, user, *, flow="blind_v1", at=NOW - timedelta(hours=1), device="dev-hash-raw"):
+def _obs(oid, user, *, flow="blind_v1", at=NOW - timedelta(hours=1), device="dev-hash-raw", consent=True):
     return SurfObservation(
         id=oid, user_id=user, spot_id="s0", observer_role="surfer", flow=flow, surface="checkin",
         entry_screen="checkin_modal", height_value=4.0, height_unit="ft", height_scale="face", set_or_avg="sets",
@@ -42,16 +43,19 @@ def _obs(oid, user, *, flow="blind_v1", at=NOW - timedelta(hours=1), device="dev
         received_at=at, latitude=29.0001, longitude=-80.9001, gps_distance_m=12.0, gps_check="ok",
         media_url="https://cdn.example.test/photo.jpg", exif_check="ok", exif_distance_m=40.0, exif_age_s=60.0,
         flags="range_only", device_hash=device, quality_ok=True, xp_status="granted", corroborated=False,
-        audit_selected=False, client_build="a1b2c3d")
+        audit_selected=False, client_build="a1b2c3d", consent_training=consent,
+        consent_version=stc.CONSENT_VERSION if consent else None)
 
 
 @pytest_asyncio.fixture
 async def world(monkeypatch):
     monkeypatch.setattr(security, "SECRET_KEY", secrets.token_urlsafe(48))
     monkeypatch.setenv(ste.KEY_ENV, KEY)
+    monkeypatch.setenv(ste.ENABLE_ENV, "1")
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
-        for model in (Profile, SurfSpot, SurfObservation, SurfTruthAnchor, SurfTruthAnchorEvent, SurfTruthAdminAction):
+        for model in (Profile, TosContent, SurfSpot, SurfObservation, SurfTruthAnchor, SurfTruthAnchorEvent, SurfTruthAdminAction,
+                      SurfTruthConsentEvent):
             await connection.run_sync(lambda conn, table=model.__table__: table.create(conn))
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as db:
@@ -62,6 +66,9 @@ async def world(monkeypatch):
         db.add(SurfSpot(id="s0", name="Pier", latitude=29.0, longitude=-80.9, country="USA", state_province="Florida"))
         db.add_all([_obs("o1", "ana-profile-id", at=NOW - timedelta(hours=3)), _obs("o2", "ana-profile-id"),
                     _obs("o3", "ana-profile-id", flow="legacy_report")])
+        # Ana opted in before any of her reports (P3: only consented rows are exported)
+        db.add(SurfTruthConsentEvent(profile_id="ana-profile-id", granted=True, version=stc.CONSENT_VERSION,
+                                     source="blind_height_input", at=NOW - timedelta(hours=5)))
         # appointed BETWEEN o1 and o2: o1 was filed by an ordinary observer, o2 by an active anchor
         db.add(SurfTruthAnchorEvent(profile_id="ana-profile-id", from_status=None, to_status="active",
                                     actor_id="boss", reason="r", at=NOW - timedelta(hours=2)))
@@ -206,3 +213,44 @@ def test_status_lookup_uses_each_profiles_own_history():
     assert ste.anchor_status_at(index, "a", t0 + timedelta(hours=1)) == "probation"
     assert ste.anchor_status_at(index, "a", t0 + timedelta(hours=3)) == "active"
     assert ste.anchor_status_at(index, "c", t0 + timedelta(hours=3)) is None
+
+
+async def test_export_needs_consent_when_received_and_at_export(world):
+    """P3: a row leaves only if its observer had opted in when it was made AND is still opted in now."""
+    async with world.maker() as db:
+        db.add(Profile(id="ben", user_id="b", email="ben@example.invalid", full_name="Ben", role=RoleEnum.SURFER))
+        db.add(Profile(id="cy", user_id="c", email="cy@example.invalid", full_name="Cy", role=RoleEnum.SURFER))
+        db.add_all([_obs("b1", "ben", consent=False),          # made while Ben had not opted in
+                    _obs("c1", "cy")])                         # made while Cy had opted in...
+        db.add(SurfTruthConsentEvent(profile_id="ben", granted=True, version=stc.CONSENT_VERSION,
+                                     source="settings", at=NOW))        # Ben opts in AFTER his report
+        db.add(SurfTruthConsentEvent(profile_id="cy", granted=True, version=stc.CONSENT_VERSION,
+                                     source="blind_height_input", at=NOW - timedelta(hours=4)))
+        db.add(SurfTruthConsentEvent(profile_id="cy", granted=False, version=stc.CONSENT_VERSION,
+                                     source="settings", at=NOW - timedelta(minutes=5)))   # ...then withdrew
+        await db.commit()
+    rows, manifest = await _build(world)
+    observers = {r["observer_key"] for r in rows}
+    assert observers == {ste.pseudonym(KEY.encode(), "observer", "ana-profile-id")}       # only Ana's rows
+    assert manifest["rows"] == 2 and manifest["excluded_no_consent"] == 2
+    assert "consent_rule" in manifest
+
+
+@pytest.mark.parametrize("value", [None, "", "0", "true", "yes"])
+async def test_exports_stay_off_unless_the_owner_switched_them_on(world, monkeypatch, value):
+    """The admin screen's approval box is only a reminder; the server refuses unless SURF_TRUTH_EXPORTS_ENABLED is
+    exactly "1" (advisor, #1033: the approval was client-side only)."""
+    written = []
+
+    async def fake_write(rows, manifest, now=None):
+        written.append(rows)
+        return {"run_id": "r", "data_object": "o", "manifest_object": "m", "rows": len(rows)}
+    monkeypatch.setattr(ste, "write_export", fake_write)
+    if value is None:
+        monkeypatch.delenv(ste.ENABLE_ENV, raising=False)
+    else:
+        monkeypatch.setenv(ste.ENABLE_ENV, value)
+    r = await world.client.post("/api/admin/surf-truth/export", headers=_token("boss"))
+    assert r.status_code == 403 and ste.ENABLE_ENV in r.json()["detail"] and written == []
+    async with world.maker() as db:
+        assert (await db.execute(select(SurfTruthAdminAction))).scalars().all() == []
