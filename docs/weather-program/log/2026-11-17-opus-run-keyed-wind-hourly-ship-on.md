@@ -166,3 +166,38 @@ sweeps in a row push the backlog past 60 % of the listing, and it then refuses e
   near the live set), the owner (David) raises the variable (e.g. '0.9') until the object count is back, then unsets it.
 - A test pins both workflow lines.
 - No change to the default behaviour.
+
+## 2026-11-18 15:23Z: the first deleting sweep; what the 6,232 deleted objects were is INFERRED, not shown (the advisor's 07:28Z question)
+
+**What happened.**
+- The advisor asked at 07:28Z for a breakdown of the 6,232 objects marked at 06:28Z, before any delete, because only about 3,650
+  run-keyed twins existed and about 2,600 were unexplained.
+- I made a breakdown between ~07:35Z and ~07:45Z, BEFORE the 08:40:38Z delete (core 44259912726). But it was **by object name and
+  age only**, from `storage.objects`. I could not read the marks blob or the published manifest: no storage key on this machine.
+- I put pause-or-run to David at ~07:40Z. His answer ("Pause one cycle") reached me at 13:15Z, after both deleting sweeps.
+- **I did not send the breakdown to the advisor before the delete.** I sent it at ~13:20Z.
+
+**The breakdown,** top-level product objects created before the 06:28:36Z sweep:
+- 3,040 run-keyed objects and 21,864 legacy objects.
+- Of the legacy objects, **2,908** have a run-keyed twin (the same name minus the run key): superseded in place.
+- **18,956** have no twin. If the head names every run-keyed object, the referenced legacy objects number 18,674 - 3,040 =
+  15,634, so about 3,320 unreferenced legacy objects had no twin. With the 2,908 twins that makes about 6,230, which matches
+  the 6,232 marked.
+- **3,519** no-twin legacy objects had not been written since 2026-11-17 00Z: euro marine swell 1,434, euro marine waves 757,
+  euro marine wind 730, then GFS / ICON layers in tens to about a hundred. **All but 24 had valid times before 2026-11-18.**
+- **The 24** were EURO `global_coarse` `_estimated` tails (valid 11-23 to 11-26, last written 11-14 to 11-16), which native EURO
+  products under non-estimated names have since replaced.
+
+**What that shows and what it does not.** The ~3,320 no-twin objects that were deleted are INFERRED to lie inside those 3,519
+stale, past-valid-time (or replaced-estimate) objects: the counts fit, and the GC only marks names the head does not carry.
+**They were not shown to be those objects:** I never compared the marked set with the marks blob or the manifest. The evidence
+that nothing needed was deleted is:
+- no serving reader lists the products bucket (code: only diagnostics, `sweep_orphaned_l2`, `rollout_675_io` and the GC do;
+  the frames publisher, consensus, precompute and the box read through the manifest);
+- zero "Stored product path not found" in the three runs since, and `referenced` steady at about 18,385.
+That is the absence of errors, not a shown breakdown. Next time a large delete is due, the breakdown comes from a run that can
+read the marks blob, before the first deleting sweep.
+
+**Open, for the log (the advisor, 13:45Z).** The publisher's "rating refused (wind product(s) not on this disk)" lines fell
+from 289 (pilots 44219095846, before the flip) to 104 (44249848808). That is not a regression from run-keyed names, but 104
+rated frames refused a run is worth explaining. Not traced yet.
