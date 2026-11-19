@@ -2919,3 +2919,14 @@ downgrade, owner). Sent to the director.
   - scored vs MRMS / ASOS / GOES CSM; it must beat plain GFS AND the best single ensemble mean;
   - weights fitted on TRAIN, low-dimensional; a seam metric.
 - **Spent-data notice:** AIFS-wave spends Hs at the 19 L1 buoys for 07-01..10-31. Written into the isotonic proposal.
+
+## 2026-11-18 20:27 -0500 3b Amendments 3-4 (the advisor's five changes; blinding against the hindcast)
+- **Amendment 3:**
+  - marine-exposed stations only for PRIMARY, with ASOS reported;
+  - serve only in regions that passed;
+  - a +42→+48 h HRRR blend with a seam check, and the map-vs-rating disagreement counted;
+  - autumn-only TEST stated; +120 h FRAGILE and reported; G1 = +24/+48/+72;
+  - the leave-out seed, pairing algorithm and selection rule fixed (no tie-breaks).
+- **Amendment 4:** the long-range hindcast score log (truth overlaps 3b TEST) is read ONLY by an independent session
+  (the SOTA researcher), which reports PASS/FAIL only, until 3b is scored. Fallback: keep it closed. The wind lane has
+  attested in writing that it hasn't seen the hindcast truth.
