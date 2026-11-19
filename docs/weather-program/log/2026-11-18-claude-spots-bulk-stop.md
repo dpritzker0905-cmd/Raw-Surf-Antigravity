@@ -60,3 +60,22 @@ Environment variables named by this PR: `RAW_ALLOW_LEGACY_SPOT_SCRIPT` (scripts,
 - `POST /seed-florida-spots` in `spot_seeding.py` (a different route) seeds 17 spots only when the table is EMPTY.
   Left as is: it cannot run on a populated catalogue.
 - No frontend calls either gated route (the "Import Spots" button was removed on 2026-07-28).
+
+## 2026-11-19 00:56Z The holding table exists on production: read-only check after #1065 merged
+
+#1065 merged at 2026-11-19T00:35:02Z (ce85ccb62). The backend creates any missing model table when it starts
+(`server.py` `ensure_database_tables`), so the merge and the next deploy created `surf_spot_candidates` on production.
+**Authority for that, as relayed to me by the director** (I did not see it typed; it was given in the director's
+session, not mine): David, "Yes, merge #1065, create the table". The merge was the director's act, not mine.
+
+Two read-only queries at 2026-11-19 00:55:52Z against the production project, nothing written:
+
+- the table exists, with 32 columns;
+- row security is ON, with 0 policies; of the three API roles only `service_role` holds a grant, and it is SELECT;
+- **0 rows**;
+- constraints present: the primary key, the two unique rules (source + source record; one candidate, one spot),
+  and five checks (coordinate, tier, status, proposed pair, promoted); 8 indexes; no foreign key in or out;
+- `surf_spots` is unchanged: 1,776 rows, 1,769 active.
+
+32 columns is #1065's shape. The three `suggested_*` columns arrive when #1074 merges and the backend next starts.
+Not checked: the exact time the table was created (the check only shows that it now exists).
