@@ -359,6 +359,35 @@ surf-report photo path, which is a different upload route. Already-stored photos
 backfill is decided.
 Tests +6 (each format: GPS gone, pixels identical, orientation kept; the route: public copy clean, private record
 kept, malformed refused); mutation: keeping APP1 fails. 99 related tests (incl. the upload identity suite) pass.
+## 2026-11-18 05:01Z T1 P3 (part 6): go-live videos too: location kept privately for the check, removed from the public copy
+
+David asked whether to keep the photographer's GPS in go-live media to help confirm location. Answer recorded: yes,
+PRIVATELY, which part 5 already did for photos (observation_media keeps the position read from the original; the
+observation checks flag exif_far beyond 1 km and exif_stale beyond 3 h; the app's device GPS is the primary check).
+The gap was video: its location was never read, and stayed in the public copy. Now `services/video_metadata.py`
+(pure Python, no ffmpeg: Render's Python runtime is not known to have it, and installing a binary dependency was not
+done) walks the MP4/MOV boxes, READS the ISO 6709 location (QuickTime ©xyz or Apple's
+com.apple.quicktime.location.ISO6709) and creation date for the private record, then NEUTERS every movie- and
+track-level `udta`/`meta` box in place (type -> `free`, payload zeroed): the length is unchanged so no chunk
+offset moves, the media data is untouched, and the file is patched on disk (no in-memory copy of a large video).
+`write_public_copy` now handles photos and videos for the route, off the event loop; routes/uploads/core.py shrank to
+792 lines. WebM (browser recorder, no GPS) and HEIC remain unstripped and say so (`metadata_stripped` false).
+Tests +3 (read then neuter, length and media unchanged; non-ISO left alone and malformed refused without a file; the
+route keeps the location privately and not publicly); mutation: skipping track-level boxes fails 2; the 53-test
+upload identity suite passes. Stacked on #1035.
+## 2026-11-18 13:42Z T1 P3 (part 6, advisor HOLD fixed): a bounded box walk, and no unstripped file left behind on any error
+
+The advisor held #1038 at fb531cf5b for two defects, both now fixed. (1) Unbounded memory: `strip_video_in_place`
+built `list(_boxes(...))` at three levels, so a 500 MB upload of 8-byte boxes was about 62 million tuples (~11 GB)
+on the one shared server, sendable by any signed-in uploader. The walk is now lazy (neutering keeps every length, so
+no position still to be read can move) and shares one budget of `MAX_BOXES` = 4096 boxes per file; beyond it the
+file is refused with MetadataError and removed. A real phone MP4 has a few dozen boxes at these levels. (2)
+`write_public_copy` removed the written file only on MetadataError; it now removes it on ANY exception, so an
+unexpected error can never leave the unstripped copy where the route would publish it.
+Tests +2 (a flood of 4,106 boxes is refused with no file left while a real-shaped file still strips; an unexpected
+error leaves no file). Mutations: dropping the budget fails 1; catching only MetadataError fails 1.
+Limits the advisor recorded, NOT fixed here: GoPro GPMF / DJI telemetry tracks (a full GPS track inside the media
+data), top-level `uuid` boxes, and the mvhd/tkhd creation times, which stay.
 ## 2026-11-18 13:53Z T1 P3 (part 2, advisor HOLD fixed): the consent text says only what is true
 
 The advisor held #1024 at 6ffd34254: the text said "(with the spot and time, but never your name)" and "from then on,
