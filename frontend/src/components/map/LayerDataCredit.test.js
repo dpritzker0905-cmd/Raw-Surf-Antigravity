@@ -102,3 +102,22 @@ test('an own-only model claimed with nothing drawn ("<MODEL>:idle", 2026-11-18) 
   expect(creditFor('satellite').text).toBe('EURO (ECMWF) · CC BY 4.0');          // no "instantaneous" note: nothing is drawn
   act(() => { setEngaged('temperature', false); setEngaged('satellite', false); });
 });
+
+test('ICON rain (2026-11-18) says on screen that it is an area mean whose local peaks can read low; GFS and EURO rain do not', () => {
+  const { setEngaged } = require('./ownRasterFrames');
+  act(() => setEngaged('rain', 'ICON'));
+  const c = creditFor('rain');
+  expect(c.text).toBe('ICON (Deutscher Wetterdienst) · area-averaged; local peaks can read low');
+  expect(c.title).toMatch(/averaged over each 0\.125 degree box \(about 14 km\), so the heaviest local downpours can read lower/);
+  expect(c.label).toMatch(/^ICON rain averaged over each 0\.125 degree box .* Data source: Deutscher Wetterdienst, ICON model/);
+  const { getByTestId } = render(<LayerDataCredit layer="rain" />);
+  const a = getByTestId('layer-data-credit');
+  expect(a.textContent).toBe(c.text);                           // visible text, in the legend's own (theme-aware) muted colour
+  expect(a.getAttribute('aria-label')).toBe(c.label);           // the full sentence for screen readers
+  expect(a.getAttribute('title')).toBe(c.title);
+  act(() => setEngaged('rain', 'GFS'));
+  expect(creditFor('rain').text).toBe('NOAA GFS');              // no note on GFS rain
+  act(() => setEngaged('rain', 'EURO'));
+  expect(creditFor('rain').text).toBe('EURO (ECMWF) · CC BY 4.0');
+  act(() => setEngaged('rain', false));
+});
