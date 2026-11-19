@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
 from database import get_db
-from models import (SurfTruthConsentEvent, CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
+from models import (TosContent, SurfTruthConsentEvent, CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport,
                     SurfSpot, SurfTruthAnchor, SurfTruthAnchorEvent)
 from models import surf_truth_anchors as anchor_models
 from routes.surf_data import observations
@@ -32,7 +32,7 @@ async def world(monkeypatch):
     monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
-        for model in (Profile, SurfTruthConsentEvent, SurfSpot, CheckIn, ConditionReport, SurfReport, SurfObservation, ObservationMedia,
+        for model in (Profile, TosContent, SurfTruthConsentEvent, SurfSpot, CheckIn, ConditionReport, SurfReport, SurfObservation, ObservationMedia,
                       SurfTruthAnchor, SurfTruthAnchorEvent):
             await connection.run_sync(lambda conn, table=model.__table__: table.create(conn))
     maker = async_sessionmaker(engine, expire_on_commit=False)

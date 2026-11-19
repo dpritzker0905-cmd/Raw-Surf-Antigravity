@@ -24,7 +24,9 @@ export function ConsentTab() {
       'Reports are stored in private tables that only the backend can read.',
       'Each report keeps the device position the app sent and, for photos uploaded through go-live, the photo\'s position read from its file. A random install id links one phone across accounts. All private.',
       'Go-live photos are still stored in the PUBLIC conditions bucket with their original file data. P3 strips or blurs them before storage.',
-      'There is no training consent yet. P3 adds a versioned consent, private training copies and deletion. Legal review comes before any training, and that is David\'s decision.',
+      'Consent is opt-in: a report is exported for the forecast model only if its observer had turned the consent on when they sent it AND still has it on. People change it under the report form or in Settings > Legal.',
+      'The consent wording is a legal document: edit it in Compliance > Legal documents > Forecast data consent. Keeping the version is a wording fix; a new version asks everyone again. The current wording is an unreviewed draft until David\'s counsel reviews it.',
+      'A data-deletion request erases the person\'s reports, photo records and observer status; the consent history is kept as proof of consent.',
     ]} />
   );
 }

@@ -278,6 +278,28 @@ then-and-now test. 110 surf-truth backend tests and 89 Jest tests in the touched
 
 For David: the wording (`CONSENT_TITLE`/`CONSENT_TEXT`) and whether internal forecast VALIDATION, as opposed to
 training, needs this consent at all. Today the export treats both as needing it (the safe default).
+## 2026-11-18 02:38Z T1 P3 (part 3): the consent wording is a legal document in the existing admin (header from the UTC clock)
+
+David: the wording must be editable in the admin we already have, in the logical place, with sub-sections, in all
+three themes. The admin already versions the Terms of Service and the Privacy Policy (Compliance tab,
+`tos_content`, `/compliance/tos-content`) and users read them in Settings > Legal. So the consent became a THIRD
+legal document there, not a new table:
+- Compliance > Legal documents, now with three sub-sections (a keyboard tablist): Terms of Service, Privacy Policy,
+  Forecast data consent. The consent sub-section is one checkbox label plus its text, shows counts (opted in under
+  this version / asked again / opted out), and says the version rule in words before publishing.
+- Version rule (the ToS editor's own convention): re-publishing the SAME version is a wording fix and consent stays
+  valid; a NEW version means the meaning changed, so earlier yeses stop counting (`needs_reconsent`) until the person
+  agrees again. The export and every new report use the choice in force under the current version.
+- Users change it in Settings > Legal ("Forecast data") as well as under the report form.
+- The old editor hardcoded light-vs-dark colours (beach rendered as dark), a clickable div header and unlabelled
+  inputs. The replacement (`LegalDocumentsEditor.js`) uses semantic tokens (defined for light, dark and beach in
+  index.css), a real disclosure button, labelled fields and a tablist.
+- The Surf truth > Consent / privacy tab no longer says "no consent yet"; it points to the new home.
+
+Tests: backend +6 (default until published; one-label-one-text; unknown document refused; same version keeps,
+new version asks again, agreeing again restores, counts), Jest +5. Mutation: ignoring the version in the export's
+check fails the version-rule test. 116 surf-truth backend and 468 Jest tests (admin, observations, settings,
+src/tests) pass; the lint ratchet passes (debt down). NOT checked in a browser: the admin needs an admin login.
 ## 2026-11-18 03:03Z Admin: the Surf Forecast panel tells the truth about flags (header from the UTC clock)
 
 David asked for a comprehensive, working admin for the surf sim's logic. A read-only survey of the admin found the
@@ -433,6 +455,16 @@ codes, distances, EXIF age, app version), and nothing purges exports already mad
 account, says later checks leave out all the person's reports, and says copies made before a withdrawal are not
 changed. A stronger promise belongs only in the change that builds the purge, under a new version. Test +1 pins each
 phrase to the export's FIELDS (guards fragment +8). Still a DRAFT for counsel.
+## 2026-11-18 14:08Z T1 P3 (part 3, advisor HOLD fixed): a consent version names one text
+
+The advisor held #1026 at 0a710de3f: `save_tos_content` replaced `sections` in place under the same version, and a grant
+counts when its version matches, so the wording could change under consent already given. Now, for the forecast
+consent only, the save refuses (409) different words under a version already published, or under the built-in
+default's version; re-publishing the same text is allowed. Any change, a typo fix included, is a new version and asks
+everyone again. The admin editor says so in words and disables Publish while new words sit under the old version.
+Also carries #1024's new default text (`draft-2026-11-18b`). Tests: the same-version test now expects the 409, +1 for
+the default's version (estate fragment +7); the editor test shows the lock (Jest 4 pass); ESLint ratchet shrinks.
+Mutation: removing the refusal fails 2.
 ## 2026-11-18 14:50Z Supabase service-role key moves into the `supabase-service` GitHub Environment (dev/main only)
 
 The key was a repository secret, readable by any workflow run from any branch in this public repo, a pull request

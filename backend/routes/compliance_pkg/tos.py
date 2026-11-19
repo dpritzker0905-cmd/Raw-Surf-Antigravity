@@ -16,6 +16,12 @@ from database import get_db
 from deps.admin_auth import get_current_admin
 from models import Profile, TosAcknowledgement, TosContent
 from core.security import get_user_id_from_jwt_or_query, get_current_user_id
+from services import surf_truth_consent
+
+# The legal documents an admin edits (Compliance > Legal documents). 'forecast_consent' is the opt-in wording for using
+# a person's wave reports to improve forecasts: ONE section whose title is the checkbox label and whose body is its
+# description (services/surf_truth_consent.py reads it).
+DOC_TYPES = ('tos', 'privacy', 'forecast_consent')
 
 router = APIRouter(prefix="/compliance", tags=["compliance"])
 
@@ -190,6 +196,9 @@ async def get_current_tos_content(
         }
     
     # Fallback defaults
+    if doc_type == surf_truth_consent.DOC_TYPE:
+        return {"doc_type": doc_type, "version": surf_truth_consent.CONSENT_VERSION,
+                "sections": surf_truth_consent.DEFAULT_SECTIONS, "effective_date": None, "updated_at": None}
     defaults = DEFAULT_TOS_SECTIONS if doc_type == 'tos' else DEFAULT_PRIVACY_SECTIONS
     return {
         "doc_type": doc_type,
@@ -222,6 +231,13 @@ async def list_tos_versions(
             for v in versions]
 
 
+@router.get("/forecast-consent/summary")
+async def forecast_consent_summary(admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
+    """Admin: counts of people opted in under the current consent version, waiting to agree again after a new
+    version, and opted out. No identities."""
+    return await surf_truth_consent.summary(db)
+
+
 @router.put("/tos-content")
 async def save_tos_content(
     data: TosContentRequest,
@@ -230,16 +246,37 @@ async def save_tos_content(
 ):
     """Admin: create or update ToS/Privacy content. If set_active=True,
     deactivates all other versions of the same doc_type."""
-    if data.doc_type not in ('tos', 'privacy'):
-        raise HTTPException(status_code=400, detail="doc_type must be 'tos' or 'privacy'")
-    
+    if data.doc_type not in DOC_TYPES:
+        raise HTTPException(status_code=400, detail="doc_type must be one of: " + ", ".join(DOC_TYPES))
+    if not data.version.strip():
+        raise HTTPException(status_code=400, detail="version is required")
+    if data.doc_type == surf_truth_consent.DOC_TYPE:
+        # The consent is a checkbox label plus its description: exactly one section, both parts filled.
+        ok = (len(data.sections) == 1 and isinstance(data.sections[0], dict)
+              and str(data.sections[0].get('title') or '').strip() and str(data.sections[0].get('body') or '').strip())
+        if not ok:
+            raise HTTPException(status_code=400,
+                                detail="The forecast data consent needs exactly one section with a label and a text")
+
     # Check if this version already exists
     existing = await db.execute(
         select(TosContent)
         .where(TosContent.doc_type == data.doc_type, TosContent.version == data.version)
     )
     content = existing.scalar_one_or_none()
-    
+    if data.doc_type == surf_truth_consent.DOC_TYPE:
+        # People agreed to a TEXT under a version, so a version's text never changes (advisor hold on #1026). Any
+        # change is a new version, which asks everyone again. The built-in default's version is reserved likewise.
+        def _words(sections):
+            return [(str(s.get('title') or '').strip(), str(s.get('body') or '').strip()) for s in sections or []]
+        prior = (content.sections if content else
+                 surf_truth_consent.DEFAULT_SECTIONS if data.version.strip() == surf_truth_consent.CONSENT_VERSION
+                 else None)
+        if prior is not None and _words(prior) != _words(data.sections):
+            raise HTTPException(status_code=409, detail=(
+                f"Version {data.version} is already published with different wording, and people agreed to that text. "
+                "Publish the change as a new version; everyone will be asked again."))
+
     if content:
         # Update existing version
         content.sections = data.sections
