@@ -1,0 +1,61 @@
+name: Gust verification dry run (pull requests; no key, nothing uploaded)
+
+# WHY: a pull request that changes the gust verification code collects and scores real public data once, so a broken
+# collector or scorer shows up before the daily record (gust-verify.yml) runs it with the bucket key. This file never names a
+# credential and writes nothing outside the runner: today's three 00Z runs plus a 7-day GFS / EURO backfill from the public
+# archives (NOAA GFS on AWS, ECMWF open data and its AWS mirror, DWD open data, NDBC), scored, kept as an artifact.
+# Split from gust-verify.yml on the advisor's HOLD on #1063 (2026-11-19): a workflow that reads the key must not run on
+# pull_request (#1043's guard).
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/gust-verify.yml'
+      - '.github/workflows/gust-verify-dry-run.yml'
+      - 'backend/scripts/gust_verify_collect.py'
+      - 'backend/scripts/gust_verify_score.py'
+      - 'backend/scripts/gust_bucket_io.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gust-verify-dry-run-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: '1'
+  GV: ${{ github.workspace }}/gv_data
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r backend/requirements.txt
+      - name: Collect today's runs and a 7-day GFS / EURO backfill (nothing uploaded)
+        working-directory: backend
+        timeout-minutes: 100
+        run: |
+          python scripts/gust_verify_collect.py daily --cache "$GV"
+          python scripts/gust_verify_collect.py backfill --cache "$GV" --start "$(date -u -d '8 days ago' +%F)" --end "$(date -u -d '1 day ago' +%F)"
+      - name: Score (stdlib)
+        if: ${{ always() }}
+        run: python3 -I -S backend/scripts/gust_verify_score.py --dir "$GV" --out "$GV/score_report.json" --md "$GV/score_table.md"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gust-verify-dry-run
+          path: |
+            ${{ env.GV }}/collect_report_*.json
+            ${{ env.GV }}/score_report.json
+            ${{ env.GV }}/score_table.md
+            ${{ env.GV }}/stations.json.new
+            ${{ env.GV }}/cycles/*.new
+            ${{ env.GV }}/obs/*.new
+          if-no-files-found: ignore

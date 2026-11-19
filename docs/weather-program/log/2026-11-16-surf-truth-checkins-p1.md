@@ -344,6 +344,20 @@ says why (decisions are recorded only in enforce mode; a dry run reports in its 
 Backend: `services/admin_guardrail_view.py` (no write path; a test checks the module has no POST/PUT/upsert) and
 GET /admin/surf-forecast/guardrail (off the event loop). Tests: backend +3, Jest +3; route identity guard passes; 106
 admin Jest tests pass; lint ratchet passes. Not checked in a browser (admin login). Stacked on #1031.
+## 2026-11-18 03:58Z Admin: surf-truth exports and anchor history get their screens (header from the UTC clock)
+
+David chose the last two items from the admin survey. Both backend routes already existed with no screen:
+- Surf truth > Anchors: each anchor row has "History", a dialog reading the append-only event log
+  (GET /admin/surf-truth/anchors/{id}/events): every appointment and change, who and the reason. The route now also
+  returns the actor's name for display (the id stays as the record).
+- Surf truth > Model: accurate facts (the fit is written and pre-registered; reviewed before any run; no fit yet;
+  nothing moves a served height) and "Exports for the model": a "Run an export" dialog that posts
+  /admin/surf-truth/export only after an "the owner has approved exports (retention and consent)" box is ticked
+  (the server still refuses while SURF_TRUTH_EXPORT_KEY is unset, and the refusal is shown), plus the list of past
+  exports from the admin action log (who, when, rows, object). The old placeholder Model tab is removed.
+Tests: backend: the history route returns the actor's name (assertion added, 16 pass); Jest +3 (history dialog, export
+gated by the approval box then posts and shows the run, a refused export shows why). Lint ratchet passes. Not checked
+in a browser (admin login). Base: dev.
 ## 2026-11-18 04:42Z T1 P3 (part 5): go-live photos lose their GPS before they reach the public bucket (header from the UTC clock)
 
 The Surf truth Consent tab had recorded it since anchors C: go-live condition photos go to the PUBLIC `conditions`
@@ -445,6 +459,17 @@ avatar has no GPS); estate fragment +13.
 Recorded for #1038 (advisor, PASS-WITH-LIMITS at b6afb3920): a very long fragmented MP4 (more than ~2,000 fragments,
 each a `moof` + `mdat` pair at the top level) now exceeds the 4,096-box budget and is refused with a 400. Accepted: phone
 recordings are not fragmented, and a refused upload is never published unchecked.
+## 2026-11-18 15:41Z T1 P3 (part 1 follow-up): a deletion request now reaches the files and the sign-in
+
+The advisor recorded two limits on #1022: a deletion request did not remove the person's photos from the PUBLIC
+`conditions` bucket, and did not stop sign-in to the anonymized profile (the password hash survived; the username `deleted_<id8>` could be guessed). Now `/compliance/delete-my-data` also (1) deletes the person's condition reports and,
+AFTER the commit (storage is not transactional), removes every `conditions/<user_id>/` object plus any other
+`conditions` object a deleted row pointed at, and the local copy `<UPLOAD_DIR>/conditions/<user_id>`: best effort,
+returned as `media` and logged as an error on failure, never hidden; (2) clears the password hash, deletes passkeys,
+TOTP secret, recovery codes and pending MFA challenges, and marks the profile suspended. NOT done, a decision for
+David: a session token already issued stays valid until it expires (`ACCESS_TOKEN_EXPIRE_DAYS` = 30); revoking it needs a
+server-side check on every request (a token version or a deny list). Tests +3 (URL parsing; files and sign-in removed,
+other users untouched; a storage failure is reported and the rows stay deleted). Guards fragment +3.
 ## 2026-11-18 15:21Z T1 P4: the export needs the OWNER'S server switch, not just an admin's tick box
 
 The advisor recorded on #1033 that its approval check box is client-side only. Worse, the export route itself is already
@@ -455,6 +480,15 @@ refuses (403) unless the server's environment has `SURF_TRUTH_EXPORTS_ENABLED` e
 The retention job's fresh export (#1034) is left as is: it only REPLACES exports, and none can exist unless the switch
 allowed the first one. Tests +5 (unset, empty, 0, true, yes all refused with nothing written or logged); removing the
 gate fails 5. Guards fragment +5.
+## 2026-11-18 15:53Z Admin Surf Forecast: the advisor's limits on #1029-#1032
+
+(1) No test pinned the auth of the new admin routes: `tests/test_admin_surf_forecast_auth.py` ENUMERATES every `/admin/surf-forecast` route from the three routers (8 today, GET/POST/DELETE) and requires 401 without a token and 403 for
+a signed-in non-admin, so a later route is covered without editing the test. (2) #1031 scanned every frame x spot ON the
+event loop per click: `frames_for` now runs in a thread. (3) #1032: each open panel polled two private-bucket reads every
+60 s: `cached_guardrail_view` reuses the view for 60 s under one lock (the guardrail runs every 6 h). (4) #1030's
+`thresholds` on the PUBLIC `/api/health/data` are LEFT: they are configuration limits (hours), no secret and already
+implied by the public verdicts; moving them behind auth would need a second endpoint for one admin card. Tests +10
+(estate fragment +10).
 ## 2026-11-18 16:17Z T1 P3 (part 8): iPhone HEIC photos lose their GPS too, without a decoder
 
 The server has no HEIC decoder (pillow-heif is not installed), so feed, comment, story and general HEIC photos were

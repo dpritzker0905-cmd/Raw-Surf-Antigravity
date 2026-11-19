@@ -1,0 +1,41 @@
+name: ICON rain collector (research, nothing served)
+
+# Saves DWD ICON's native TOT_PREC over the US domain once a day for the MRMS radar test of ICON rain sampling (the research lead's
+# ruling, 2026-11-19). DWD keeps about a day of runs, so the native field is collected forward; MRMS is archived publicly on AWS.
+# Owner: "Yes, start the ICON rain collection" (David, 2026-11-19). The script: backend/scripts/icon_rain_collector.py.
+# - OFF until the repository variable ICON_RAIN_COLLECT is '1' (the director sets it on the owner's word); dispatch also honours it.
+# - Stops by itself after 30 daily runs from the first stored run (the script refuses anything past the window).
+# - Idempotent (a stored run is skipped), size-capped (20 MB an object), bytes in the step summary.
+# - Writes only under research/icon_tot_prec_us/ in the private products bucket. No Render call, no manifest, no served number.
+
+on:
+  schedule:
+    - cron: '40 7 * * *'          # ICON 00Z is complete on opendata.dwd.de by about 04-05Z; yesterday's 00Z is retried too
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: icon-rain-collector
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: ${{ vars.ICON_RAIN_COLLECT == '1' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: supabase-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install (numpy, requests, ECMWF eccodes)
+        run: python -m pip install --quiet numpy requests eccodes
+      - name: Collect ICON 00Z TOT_PREC (US domain)
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/icon_rain_collector.py
