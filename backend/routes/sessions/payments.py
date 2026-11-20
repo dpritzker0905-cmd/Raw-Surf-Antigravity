@@ -5,6 +5,7 @@ import os
 import stripe
 import stripe_mcp_server
 import sqlite3
+from uuid import uuid4
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,6 +67,7 @@ async def complete_session_payment(
     payment_intent_id = None
     refund_attempted = False
     refund_successful = False
+    commit_attempted = False
     
     try:
         if used_emulator:
@@ -84,35 +86,21 @@ async def complete_session_payment(
                 
             metadata = json.loads(tx_record.transaction_metadata)
             
-            # Auto-succeed in stripe_payments cache and retrieve payment_intent_id
-            try:
-                conn = sqlite3.connect(stripe_mcp_server.DB_PATH, timeout=10.0)
-                cursor = conn.cursor()
-                
-                # Check for pending payment to auto-succeed
-                cursor.execute("SELECT payment_intent_id, metadata FROM stripe_payments WHERE status = 'requires_payment_method'")
-                pending_payments = cursor.fetchall()
-                for pi_id, meta_str in pending_payments:
-                    meta = json.loads(meta_str or "{}")
-                    if meta.get("surfer_id") == metadata.get("surfer_id") and meta.get("photographer_id") == metadata.get("photographer_id"):
-                        cursor.execute("UPDATE stripe_payments SET status = 'succeeded' WHERE payment_intent_id = ?", (pi_id,))
-                        conn.commit()
-                        payment_intent_id = pi_id
-                        break
-                
-                # If not found in pending, check succeeded payments
-                if not payment_intent_id:
-                    cursor.execute("SELECT payment_intent_id, metadata FROM stripe_payments WHERE status = 'succeeded'")
-                    succeeded_payments = cursor.fetchall()
-                    for pi_id, meta_str in succeeded_payments:
-                        meta = json.loads(meta_str or "{}")
-                        if meta.get("surfer_id") == metadata.get("surfer_id") and meta.get("photographer_id") == metadata.get("photographer_id"):
-                            payment_intent_id = pi_id
-                            break
-                conn.close()
-            except Exception as e:
-                logger.error(f"Failed to auto-succeed or find mock stripe payment in cache: {e}")
-                
+            payment_intent_id = metadata.get("emulator_payment_intent")
+            if not payment_intent_id:
+                raise HTTPException(status_code=409, detail="Test checkout must be restarted")
+
+            from contextlib import closing
+
+            with closing(sqlite3.connect(stripe_mcp_server.DB_PATH, timeout=10.0)) as conn, conn:
+                settled = conn.execute(
+                    "UPDATE stripe_payments SET status = 'succeeded' WHERE payment_intent_id = ? "
+                    "AND status IN ('requires_payment_method', 'succeeded')",
+                    (payment_intent_id,),
+                )
+                if settled.rowcount != 1:
+                    raise HTTPException(status_code=400, detail="Test payment is unavailable")
+
             payment_verified = True
             
             # Create a mock session object
@@ -148,7 +136,7 @@ async def complete_session_payment(
         tx_result = await db.execute(
             select(PaymentTransaction)
             .where(PaymentTransaction.session_id == data.checkout_session_id)
-            .with_for_update()  # Row-level lock
+            .with_for_update().execution_options(populate_existing=True)
         )
         tx = tx_result.scalar_one_or_none()
         
@@ -160,22 +148,6 @@ async def complete_session_payment(
         if tx and tx.payment_status == 'Refunded':
             refund_attempted = True
             raise HTTPException(status_code=400, detail="Payment has been refunded")
-        
-        # Also check if participant already exists (belt + suspenders)
-        existing_participant_result = await db.execute(
-            select(LiveSessionParticipant)
-            .where(LiveSessionParticipant.surfer_id == surfer_id)
-            .where(LiveSessionParticipant.photographer_id == photographer_id)
-            .where(LiveSessionParticipant.payment_method == 'card')
-            .where(LiveSessionParticipant.status == 'active')
-        )
-        if existing_participant_result.scalar_one_or_none():
-            # Mark transaction as completed if not already
-            if tx and tx.payment_status != 'Completed':
-                tx.payment_status = 'Completed'
-                tx.status = 'Completed'
-                await db.commit()
-            return {"success": True, "message": "Session already activated"}
         
         # Use a nested transaction (savepoint) to isolate mutations while keeping the outer row lock active.
         try:
@@ -199,11 +171,19 @@ async def complete_session_payment(
                 if not surfer or not photographer:
                     raise HTTPException(status_code=404, detail="User or photographer not found")
                 
+                active_seat = await db.scalar(
+                    select(LiveSessionParticipant.id).where(
+                        LiveSessionParticipant.surfer_id == surfer_id,
+                        LiveSessionParticipant.photographer_id == photographer_id,
+                        LiveSessionParticipant.status == 'active',
+                    ).limit(1)
+                )
+                if active_seat is not None:
+                    raise HTTPException(status_code=409, detail="Already in this session")
+
                 # Get selfie_url from our stored transaction
-                selfie_url = None
-                if tx and tx.transaction_metadata:
-                    tx_data = json.loads(tx.transaction_metadata)
-                    selfie_url = tx_data.get('selfie_url')
+                tx_data = json.loads(tx.transaction_metadata) if tx and tx.transaction_metadata else {}
+                selfie_url = tx_data.get('selfie_url')
                 
                 # Find the active live session for this photographer to link the participant
                 active_ls_result = await db.execute(
@@ -234,6 +214,7 @@ async def complete_session_payment(
                 
                 # Create the session participant
                 participant = LiveSessionParticipant(
+                    id=str(uuid4()),
                     surfer_id=surfer_id,
                     photographer_id=photographer_id,
                     spot_id=photographer.current_spot_id,
@@ -254,6 +235,9 @@ async def complete_session_payment(
                 # the delivered media, or after 7 days (services/live_session_escrow.py).
                 live_session_escrow.hold(participant, amount)
                 db.add(participant)
+                if tx:
+                    tx_data["settled_participant_id"] = str(participant.id)
+                    tx.transaction_metadata = json.dumps(tx_data)
 
                 # Notify photographer (card payment path was missing this)
                 card_notification = Notification(
@@ -283,7 +267,10 @@ async def complete_session_payment(
                     if used_emulator:
                         stripe_mcp_server.stripe_refund_payment(payment_intent_id)
                     else:
-                        stripe.Refund.create(payment_intent=payment_intent_id)
+                        stripe.Refund.create(
+                            payment_intent=payment_intent_id,
+                            idempotency_key=f"live-session-refund-{data.checkout_session_id}",
+                        )
                     refund_successful = True
                 except Exception as refund_err:
                     logger.error(f"Stripe refund failed during nested transaction rollback: {refund_err}")
@@ -325,18 +312,39 @@ async def complete_session_payment(
         except Exception as push_err:
             logger.warning(f"Failed to send card session join push: {push_err}")
         
-        # Commit outer transaction
-        await db.commit()
-        
-        return {
+        receipt = {
             "success": True,
             "message": "Successfully joined session",
             "session_id": str(participant.id),
             "photographer_name": photographer.full_name
         }
+        commit_attempted = True
+        try:
+            await db.commit()
+        except Exception as exc:
+            try:
+                await db.rollback()
+                durable_result = await db.execute(
+                    select(PaymentTransaction.payment_status, PaymentTransaction.transaction_metadata).where(
+                        PaymentTransaction.session_id == data.checkout_session_id,
+                        PaymentTransaction.user_id == current_user_id,
+                    )
+                )
+                durable = durable_result.one_or_none()
+                if durable is not None and durable.payment_status == 'Completed':
+                    settled_id = json.loads(durable.transaction_metadata).get("settled_participant_id")
+                    if settled_id:
+                        return {**receipt, "session_id": settled_id}
+            except Exception:
+                logger.exception("Could not confirm the card join transaction")
+            raise HTTPException(
+                status_code=503,
+                detail="Could not confirm the session join. Check your session before retrying.",
+            ) from exc
+        return receipt
         
     except HTTPException as e:
-        if not refund_attempted:
+        if not refund_attempted and not commit_attempted:
             await db.rollback()
             refunded = False
             if payment_verified and payment_intent_id:
@@ -345,7 +353,10 @@ async def complete_session_payment(
                     if used_emulator:
                         stripe_mcp_server.stripe_refund_payment(payment_intent_id)
                     else:
-                        stripe.Refund.create(payment_intent=payment_intent_id)
+                        stripe.Refund.create(
+                            payment_intent=payment_intent_id,
+                            idempotency_key=f"live-session-refund-{data.checkout_session_id}",
+                        )
                     refunded = True
                     refund_successful = True
                 except Exception as refund_err:
@@ -372,7 +383,7 @@ async def complete_session_payment(
         raise e
 
     except stripe.error.StripeError as e:
-        if not refund_attempted:
+        if not refund_attempted and not commit_attempted:
             await db.rollback()
             refunded = False
             if payment_verified and payment_intent_id:
@@ -381,7 +392,10 @@ async def complete_session_payment(
                     if used_emulator:
                         stripe_mcp_server.stripe_refund_payment(payment_intent_id)
                     else:
-                        stripe.Refund.create(payment_intent=payment_intent_id)
+                        stripe.Refund.create(
+                            payment_intent=payment_intent_id,
+                            idempotency_key=f"live-session-refund-{data.checkout_session_id}",
+                        )
                     refunded = True
                     refund_successful = True
                 except Exception as refund_err:
@@ -407,7 +421,7 @@ async def complete_session_payment(
             raise HTTPException(status_code=500, detail=f"Payment verification failed: {str(e)}")
 
     except Exception as e:
-        if not refund_attempted:
+        if not refund_attempted and not commit_attempted:
             await db.rollback()
             refunded = False
             if payment_verified and payment_intent_id:
@@ -416,7 +430,10 @@ async def complete_session_payment(
                     if used_emulator:
                         stripe_mcp_server.stripe_refund_payment(payment_intent_id)
                     else:
-                        stripe.Refund.create(payment_intent=payment_intent_id)
+                        stripe.Refund.create(
+                            payment_intent=payment_intent_id,
+                            idempotency_key=f"live-session-refund-{data.checkout_session_id}",
+                        )
                     refunded = True
                     refund_successful = True
                 except Exception as refund_err:

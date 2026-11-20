@@ -140,7 +140,9 @@ async def test_complete_payment_database_error_refunds_stripe_live(monkeypatch):
         assert "User or photographer not found. Payment refunded." in response.json()["detail"]
         
         mock_retrieve.assert_called_once_with("cs_live_1234")
-        mock_refund.assert_called_once_with(payment_intent="pi_live_1234")
+        mock_refund.assert_called_once_with(
+            payment_intent="pi_live_1234", idempotency_key="live-session-refund-cs_live_1234"
+        )
         mock_db.commit.assert_called_once()
         assert mock_tx.payment_status == "Refunded"
         assert mock_tx.status == "Refunded"
@@ -180,7 +182,8 @@ async def test_complete_payment_database_error_refunds_stripe_mock(monkeypatch):
         "surfer_id": "usr_surfer",
         "photographer_id": "usr_photog",
         "selfie_url": "https://example.com/selfie.jpg",
-        "amount": 25.0
+        "amount": 25.0,
+        "emulator_payment_intent": "pi_test_5678",
     })
 
     async def mock_execute(statement, *args, **kwargs):
