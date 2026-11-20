@@ -8,6 +8,7 @@ through the raw test env, which no deploy or workflow sets); the workflow's cred
 builder never enter the served backend."""
 import asyncio
 import json
+import math
 import re
 import sys
 from datetime import datetime, timedelta, timezone
@@ -199,6 +200,35 @@ def test_served_backend_never_imports_pyfes_or_the_builder():
 
 
 # ---------------------------------------------------------------- workflow
+def test_the_served_delta_keeps_no_file_and_carries_no_credential():
+    """The owner, 2026-11-20: "we dont need to let people download anything". The build measures PR B's before/after in
+    the job and writes ONLY summary numbers to the step summary: no artifact anywhere in the workflow, no secret on the
+    step, and the publish never waits on it."""
+    assert "upload-artifact" not in WF
+    steps = re.split(r"\n      - ", WF)
+    d = [s for s in steps if "served_delta.py" in s]
+    assert len(d) == 1 and "secrets." not in d[0] and "env:" not in d[0]
+    assert "python3 -I -S backend/scripts/tide_own/served_delta.py" in d[0] and '--summary "$GITHUB_STEP_SUMMARY"' in d[0]
+    assert "continue-on-error: true" in d[0]
+
+
+def test_served_delta_metrics_on_a_known_pair():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("served_delta", BACKEND / "scripts" / "tide_own" / "served_delta.py")
+    SD = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(SD)
+    assert SD.decode_i16(OR.encode_i16([1250, None, -7])) == [1250, None, -7]
+    t = [i for i in range(72)]
+    before = [math.sin(2 * math.pi * h / 12.42) for h in t]                     # a pure semidiurnal tide, metres
+    ours = [0.30 + 1.1 * math.sin(2 * math.pi * (h - 1) / 12.42) for h in t]    # +0.30 m, 10% larger, 1 h later
+    r = SD.compare(ours, before)
+    assert abs(r["offset_m"] - 0.30) < 0.02 and abs(r["range_ratio"] - 1.1) < 0.02 and r["timing_h"] == 1
+    assert SD.compare(ours[:10], before[:10]) is None                           # < 24 paired hours: not compared
+    md = SD.summarize([r], 5, 4)
+    assert "keys in today's table: 5" in md and "| +0.3" in md and "| 1.10 |" in md and "Not measured here" in md
+    assert "21.7" not in md                                                     # summary numbers only, no per-key rows
+
+
 def test_workflow_scopes_each_credential_to_its_steps():
     steps = re.split(r"\n      - ", WF)
     for s in steps:

@@ -86,6 +86,14 @@ jobs:
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
           COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
         run: python backend/scripts/tide_own/build_series.py --spots spots.json --fes-cache fes_cache --m-cache tide_own_m.json --m-budget-min 200 --out tide_own_series.json.gz --cmems "${{ vars.TIDE_CMEMS_PRIMARY || '0' }}"
+      - name: Served before/after vs the current tide (summary numbers only; no file kept; no credential)
+        # The owner, 2026-11-20: "we dont need to let people download anything". PR B's delta is measured here, inside
+        # the job, and only medians / 90th percentiles go to this run's step summary. Diagnostic: it never blocks the
+        # publish below (a failure shows as this step's red mark).
+        if: hashFiles('tide_own_series.json.gz') != ''
+        continue-on-error: true
+        timeout-minutes: 15
+        run: python3 -I -S backend/scripts/tide_own/served_delta.py --table tide_own_series.json.gz --summary "$GITHUB_STEP_SUMMARY"
       - name: Save the M cache even if the build failed later (Supabase; stdlib only)
         if: always() && hashFiles('tide_own_m.json') != ''
         env:
