@@ -130,6 +130,42 @@ async def test_card_join_refuses_an_untrusted_return_origin(harness, monkeypatch
     hosted.assert_not_called()
 
 
+@pytest.mark.parametrize("selected_method", ["card", "credits"])
+async def test_subscription_coverage_bypasses_selected_payment_method(harness, monkeypatch, selected_method):
+    hosted = Mock()
+    emulated = Mock()
+    monkeypatch.setattr(session_join, "STRIPE_API_KEY", "test-fixture")
+    monkeypatch.setattr(session_join.stripe.checkout.Session, "create", hosted)
+    monkeypatch.setattr(session_join.stripe_mcp_server, "stripe_create_checkout_session", emulated)
+    async with harness.maker() as db:
+        db.add(SurferPhotoSubscription(
+            id="included-buyin", surfer_id="owner", photographer_id="pro",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+            live_session_buyins_remaining=1, amount_paid=BUYIN, payment_method="credits",
+        ))
+        await db.commit()
+
+    response = await harness.client.post(
+        "/api/sessions/join?surfer_id=owner", headers=bearer("owner"),
+        json={"photographer_id": "pro", "payment_method": selected_method},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["subscription_covered"] is True
+    assert response.json()["amount_paid"] == 0
+    assert not response.json().get("requires_payment")
+    hosted.assert_not_called()
+    emulated.assert_not_called()
+    async with harness.maker() as db:
+        seat = (await db.scalars(select(LiveSessionParticipant))).one()
+        assert seat.payment_method == "subscription"
+        assert seat.payment_credit_transaction_id is None
+        assert seat.escrow_status is None
+        assert (await db.get(SurferPhotoSubscription, "included-buyin")).live_session_buyins_remaining == 0
+        assert (await db.get(Profile, "owner")).credit_balance == 100
+        assert (await db.scalars(select(CreditTransaction))).all() == []
+        assert (await db.scalars(select(PaymentTransaction))).all() == []
+
+
 async def join(h, photographer='pro'):
     response = await h.client.post('/api/sessions/join?surfer_id=owner', headers=bearer('owner'),
                                    json={'photographer_id': photographer, 'payment_method': 'credits'})
