@@ -1,8 +1,0 @@
-{
-  "lane": "chain",
-  "tests": 15,
-  "files": 1,
-  "branch": "claude/noaa-bull-lane",
-  "date": "2026-11-16",
-  "note": "NOAA GFS-Wave station-bulletin reference lane (2026-11-16): +15 test_skill_noaa_bulletin"
-}

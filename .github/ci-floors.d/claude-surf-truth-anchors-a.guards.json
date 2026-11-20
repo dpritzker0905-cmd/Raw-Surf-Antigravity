@@ -1,8 +1,0 @@
-{
-  "lane": "guards",
-  "tests": 9,
-  "files": 1,
-  "branch": "claude/surf-truth-anchors-a",
-  "date": "2026-11-16",
-  "note": "T1 anchors A: table + append-only log"
-}

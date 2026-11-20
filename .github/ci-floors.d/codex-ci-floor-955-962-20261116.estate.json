@@ -1,7 +1,0 @@
-{
-  "lane": "estate",
-  "tests": 1,
-  "branch": "codex/ci-floor-955-962-20261116",
-  "date": "2026-11-16",
-  "note": "Shared floor staleness repair: 3812 vs3815 observed in43945244423; target3813 retains budget2; no new tests"
-}

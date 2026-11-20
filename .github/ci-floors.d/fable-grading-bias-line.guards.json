@@ -1,8 +1,0 @@
-{
-  "lane": "guards",
-  "tests": 6,
-  "files": 0,
-  "branch": "fable/grading-bias-line",
-  "date": "2026-11-15",
-  "note": "accuracy_per_buoy_split: signed bias beside the MAE, its control and null arm (6 tests)"
-}

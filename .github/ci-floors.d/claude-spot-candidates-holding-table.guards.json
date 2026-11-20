@@ -1,8 +1,0 @@
-{
-  "lane": "guards",
-  "tests": 30,
-  "files": 1,
-  "branch": "claude/spot-candidates-holding-table",
-  "date": "2026-11-18",
-  "note": "surf-spot holding table: model, tier logic, loader"
-}
