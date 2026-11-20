@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
+import { getErrorMessage } from '../utils/errors';
 import logger from '../utils/logger';
 
 
@@ -22,7 +23,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
   const [paymentMethod, setPaymentMethod] = useState('credits');
 
   // Pricing calculations
-  const sessionBuyinPrice = photographer?.session_price || photographer?.live_buyin_price || 25;
+  const sessionBuyinPrice = photographer?.live_buyin_price || photographer?.session_price || 25;
   const photosIncluded = photographer?.photo_package_size || 3;
   const galleryPhotoPrice = photographer?.photo_price_standard || 10;
   const savingsAmount = Math.max(0, (photosIncluded * galleryPhotoPrice) - sessionBuyinPrice);
@@ -129,6 +130,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
         photographer_id: photographer.id,
         selfie_url: selfieUrl || null,
         payment_method: paymentMethod,
+        max_buyin_amount: Number(finalPrice.toFixed(2)),
         origin_url: window.location.origin
       });
       
@@ -157,8 +159,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
       }, 2000);
     } catch (error) {
       logger.error('Join session error:', error);
-      const message = error.response?.data?.detail || 'Failed to join session';
-      toast.error(typeof message === 'string' ? message : 'Failed to join session');
+      toast.error(getErrorMessage(error, 'Failed to join session'));
     } finally {
       setLoading(false);
     }
