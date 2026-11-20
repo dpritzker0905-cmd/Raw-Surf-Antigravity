@@ -2716,3 +2716,11 @@ table as a 7-day public artifact) is closed unmerged.
 **Tests:** `test_the_served_delta_keeps_no_file_and_carries_no_credential` and
 `test_served_delta_metrics_on_a_known_pair`. The second is a synthetic semidiurnal pair with a +0.30 m offset, a 1.1
 range and a 1 h lag, all recovered. Chain +2; `tests/test_tide_own.py` 18 pass locally.
+
+
+## 2026-11-20 12:45Z: served_delta guards (the advisor's limits on #1118; local follow-up branch claude/tide-served-delta-guards)
+- **Limit 1:** a chunk that fails all its tries is skipped. The step summary now OPENS with `With a before series: N of M keys`, and marks the numbers NOT TRUSTED below 90%.
+- **Limit 2:** `window_offset` refuses (ValueError) a table that starts after today's 00Z or does not cover the 72-hour window.
+- **Tests:** added to `test_served_delta_metrics_on_a_known_pair` (no new test functions, so floors are unchanged); 18 pass locally.
+- **Next:** open this after #1118 merges.
+

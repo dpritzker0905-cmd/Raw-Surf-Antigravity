@@ -78,11 +78,19 @@ def quantile(xs, q):
     return xs[min(len(xs) - 1, int(round(q * (len(xs) - 1))))]
 
 
+MIN_BEFORE_SHARE = 0.9          # below this share of keys with a before series, the numbers are flagged NOT TRUSTED
+
+
 def summarize(rows, n_table, n_before):
-    """The step-summary markdown: counts and the median / 90th percentile of each metric. No per-key values."""
+    """The step-summary markdown: counts and the median / 90th percentile of each metric. No per-key values. The
+    "with a before series" count comes FIRST and is read before the numbers (a chunk that failed all its tries is
+    skipped, so fewer keys are compared)."""
+    share = (n_before / n_table) if n_table else 0.0
+    trust = ("OK" if share >= MIN_BEFORE_SHARE
+             else f"NOT TRUSTED: only {share:.0%} of keys have a before series (need {MIN_BEFORE_SHARE:.0%})")
     lines = ["## Tide served before/after (summary only; no file kept)", "",
-             f"- keys in today's table: {n_table}; with a before (current served) series: {n_before}; compared: "
-             f"{len(rows)}", "",
+             f"**With a before series: {n_before} of {n_table} keys ({share:.0%}) - {trust}**", "",
+             f"- compared (>= 24 paired hours): {len(rows)}", "",
              "| metric (ours - current) | median | 90th pct |", "|---|---|---|"]
     for name, key, fmt in (("mean level offset, m", "offset_m", "{:+.3f}"), ("|mean level offset|, m", "abs_off", "{:.3f}"),
                            ("shape RMS after the offset, m", "shape_rms_m", "{:.3f}"),
@@ -93,6 +101,17 @@ def summarize(rows, n_table, n_before):
                      f"{fmt.format(p90) if p90 is not None else 'n/a'} |")
     lines += ["", "Not measured here: the rating's tide_fit and the depth-cap moves."]
     return "\n".join(lines) + "\n"
+
+
+def window_offset(start, day0, hours):
+    """The table hour of today's 00Z. Refuses (ValueError) a table that starts AFTER today's 00Z, or that does not
+    cover the whole 72-hour window: slicing it would silently compare the wrong hours."""
+    off = int((day0 - start).total_seconds() // 3600)
+    if (day0 - start).total_seconds() < 0:
+        raise ValueError(f"the table starts at {start:%Y-%m-%dT%H}Z, after today's 00Z ({day0:%Y-%m-%d})")
+    if off + WINDOW_H > hours:
+        raise ValueError(f"the table ({hours} h from {start:%Y-%m-%dT%H}Z) does not cover 72 h from today's 00Z")
+    return off
 
 
 def fetch_before(keys, start):
@@ -132,7 +151,7 @@ def main():
         doc = json.load(fh)
     start = datetime.strptime(doc["start"], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
     day0 = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    off = int((day0 - start).total_seconds() // 3600)
+    off = window_offset(start, day0, int(doc.get("hours", 0)))
     ours = {k: [None if v is None else v / 1000.0 for v in series(s)[off:off + WINDOW_H]] for k, s in doc["keys"].items()}
     before = fetch_before(sorted(ours), day0)
     rows = [r for r in (compare(ours[k], before[k]) for k in ours if k in before) if r]
