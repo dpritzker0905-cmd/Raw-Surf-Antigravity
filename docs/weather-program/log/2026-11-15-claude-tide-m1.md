@@ -2633,3 +2633,10 @@ All 20 keys logged `cmems (...): ValueError`, the result file was 699 bytes, and
 **Not done:**
 - No credentialed run and no tag. The re-run needs David's word, and the advisor reads it before anything moves.
 - TIDE_CMEMS_PRIMARY stays unset.
+
+
+## 2026-11-20 05:50Z: CORRECTION to the entry above headed "about 06:30Z"
+That heading is wrong. The entry was written at about 05:45Z: the ledger line `claude--tide-cmems-reader-fix.jsonl:1`
+says 05:45:51Z and commit 831cab564 is 05:47:03Z. "06:30Z" was about 43 minutes ahead of the clock, the same fault
+#1099 failed audit for. The heading stays as written (the log is append-only); this line corrects it. The advisor
+caught it (relayed by the director, 2026-11-20).
