@@ -46,6 +46,13 @@ import os
 import re
 import sys
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -154,7 +161,7 @@ def _prod_credentials(session):
 
 def _get_json(session, url, svc, what):
     try:
-        return census_get_json(session, url, {"Authorization": f"Bearer {svc}", "apikey": svc}, what)
+        return census_get_json(session, url, _supabase_headers(svc), what)
     except CensusReadError as error:
         raise InfrastructureError(_scrub(str(error))) from None
 

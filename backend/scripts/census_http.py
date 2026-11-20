@@ -10,6 +10,13 @@ import random
 import sys
 import time
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 ATTEMPTS = 3
 MAX_WAIT_SECONDS = 30
 RETRYABLE = {429, 502, 503, 504}
@@ -82,5 +89,5 @@ def fetch_json(url, token, what, timeout=120):
     import requests
 
     with requests.Session() as session:
-        return get_json(session, url, {'Authorization': f'Bearer {token}', 'apikey': token,
+        return get_json(session, url, {**_supabase_headers(token),
                                       'User-Agent': 'calibration-census/2'}, what, timeout)

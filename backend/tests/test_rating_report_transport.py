@@ -57,7 +57,7 @@ def test_utc_cutoff_survives_real_request_preparation(configured, monkeypatch):
     }
     assert kwargs["timeout"] == 20
     assert request.headers["apikey"] == "test-only-key"
-    assert request.headers["Authorization"] == "Bearer test-only-key"
+    assert "Authorization" not in request.headers   # a non-JWT key rides on apikey only
     assert confirmation.report_confirmation(reports["42"], FixedClock.now()) == "epic"
 
 

@@ -18,6 +18,7 @@ import time
 from typing import Callable, Optional
 
 from services import runtime_flags as _rf
+from core.supabase_auth import supabase_headers
 
 ACTIONS_KEY = "control/flags-actions.jsonl"
 WORKFLOW = "flag-guardrail.yml"
@@ -35,7 +36,7 @@ def fetch_object(key: str) -> Optional[str]:
     import requests
     from services.weather_pipeline.store import WEATHER_BUCKET
     r = requests.get(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{key}",
-                     headers={"Authorization": f"Bearer {secret}", "apikey": secret, "Cache-Control": "no-cache"},
+                     headers={**supabase_headers(secret), "Cache-Control": "no-cache"},
                      timeout=10)
     if r.status_code in (400, 404):
         return None

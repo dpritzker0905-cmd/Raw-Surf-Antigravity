@@ -46,6 +46,7 @@ from services.weather_pipeline.spot_ratings import (
     SPOT_RATINGS_SCHEMA_VERSION,
     rate_one_spot,
 )
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -279,7 +280,7 @@ def load_spot_ratings_l2() -> Optional[dict]:
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{SPOT_RATINGS_L2_KEY}?cb={int(_time.time() * 1000)}"
-        resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key,
+        resp = requests.get(url, headers={**supabase_headers(key),
                                           "Cache-Control": "no-cache", "Pragma": "no-cache"}, timeout=10)
         if resp.status_code != 200:
             return None
@@ -308,7 +309,7 @@ def fetch_active_spots_via_rest(limit: int = 5000, page_size: int = 1000) -> lis
         url = (f"{base}/rest/v1/surf_spots?select=id,name,latitude,longitude,accuracy_flag,is_verified_peak,best_tide"
                f"&is_active=eq.true&latitude=not.is.null&longitude=not.is.null"
                f"&order=id&limit={take}&offset={len(out)}")
-        resp = requests.get(url, headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=30)
+        resp = requests.get(url, headers=supabase_headers(key), timeout=30)
         resp.raise_for_status()
         batch = resp.json()
         if not isinstance(batch, list) or not batch:
@@ -322,7 +323,7 @@ def fetch_active_spots_via_rest(limit: int = 5000, page_size: int = 1000) -> lis
     if len(out) >= limit:
         probe = (f"{base}/rest/v1/surf_spots?select=id&is_active=eq.true&latitude=not.is.null"
                  f"&longitude=not.is.null&order=id&limit=1&offset={limit}")
-        resp = requests.get(probe, headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=30)
+        resp = requests.get(probe, headers=supabase_headers(key), timeout=30)
         resp.raise_for_status()
         if resp.json():
             raise SpotCapExceeded(

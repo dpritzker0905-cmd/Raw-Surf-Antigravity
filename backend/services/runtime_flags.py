@@ -30,6 +30,7 @@ import os
 import threading
 import time
 from typing import Callable, Dict, Optional
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +131,7 @@ def _fetch_bucket() -> Optional[dict]:
     import requests
     from services.weather_pipeline.store import WEATHER_BUCKET
     url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{MANIFEST_KEY}?cb={int(time.time() * 1000)}"
-    resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key, "Cache-Control": "no-cache"},
+    resp = requests.get(url, headers={**supabase_headers(key), "Cache-Control": "no-cache"},
                         timeout=_f("RUNTIME_FLAGS_TIMEOUT_S", 2.0))
     if resp.status_code in (400, 404):
         return {"schema": SCHEMA, "flags": {}}           # no manifest yet = nothing overridden (a good read)

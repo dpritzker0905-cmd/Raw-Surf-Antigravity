@@ -34,6 +34,13 @@ from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.weather_pipeline.spot_size_climatology import (  # noqa: E402
@@ -528,7 +535,7 @@ def _upload_inbox_batch(session, url, svc, results, end_date, seq):
     payload = json.dumps({"batch_id": batch_id, "spots": spots_payload},
                          separators=(",", ":")).encode("utf-8")
     target = f"{url}/storage/v1/object/weather-products/{INBOX_PREFIX}{batch_id}.json"
-    headers = {"Authorization": f"Bearer {svc}", "apikey": svc,
+    headers = {**_supabase_headers(svc),
                "Content-Type": "application/json", "x-upsert": "true"}
     last_transport_err = None
     for attempt in range(5):                       # ~1+2+4+8 s of backoff, then give up loudly

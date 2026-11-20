@@ -25,6 +25,13 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 # STANDARD LIBRARY ONLY, on purpose (advisor's condition, 2026-11-16): this is the one process in the job that holds
 # the Storage service-role key, which bypasses row security on the whole project. It imports no project module and no
 # third-party package, so nothing installed by pip earlier in the job runs beside the key. A test pins it.
@@ -64,7 +71,7 @@ def store(path: str, env=None, opener=urllib.request.urlopen) -> str:
         return "PRIVATE_ROWS status=bad_url n=%d" % len(rows)
     req = urllib.request.Request(
         "%s/storage/v1/object/%s/%s" % (base, BUCKET, name), data=json.dumps(obj, separators=(",", ":")).encode("utf-8"),
-        method="POST", headers={"Authorization": "Bearer " + key, "apikey": key, "Content-Type": "application/json",
+        method="POST", headers={**_supabase_headers(key), "Content-Type": "application/json",
                                 "x-upsert": "false"})
     try:
         with opener(req, timeout=60) as resp:

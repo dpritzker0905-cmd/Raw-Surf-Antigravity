@@ -21,6 +21,13 @@ import sys
 import time
 from typing import Iterable, Optional
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 BUCKETS = ("conditions", "feed", "stories", "general", "user-gallery", "gallery", "avatars")
 HEAD_BYTES = 256 * 1024
 IMAGE_EXT = (".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif")
@@ -93,7 +100,7 @@ class Storage:
         self.requests = requests
         self.base = os.environ["SUPABASE_URL"].rstrip("/")
         key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-        self.headers = {"Authorization": f"Bearer {key}", "apikey": key}
+        self.headers = _supabase_headers(key)
 
     def list(self, bucket: str, prefix: str = "", depth: int = 0) -> Iterable[str]:
         offset = 0

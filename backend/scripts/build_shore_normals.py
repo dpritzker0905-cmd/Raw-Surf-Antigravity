@@ -45,6 +45,13 @@ import os
 import sys
 import time
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.shore_normal_fit import (  # noqa: E402
@@ -109,7 +116,7 @@ def fetch_spots(base, key, limit=None):
     """Paginated. PostgREST silently caps at 1000 rows and still returns 200 — it dropped 516 of
     1516 spots undetected on 2026-07-26. Always paginate; verify against a direct count."""
     import requests
-    headers = {"apikey": key, "Authorization": f"Bearer {key}"}
+    headers = _supabase_headers(key)
     out, offset = [], 0
     while True:
         url = (f"{base}/rest/v1/surf_spots?select=id,name,region,latitude,longitude"

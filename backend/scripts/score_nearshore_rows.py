@@ -43,6 +43,13 @@ import sys
 import urllib.parse
 import urllib.request
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 BUCKET = "weather-products"
 PREFIX = "calibration/nearshore/rows/"
 # (first target time, last target time exclusive, seed). The registration's two windows; nothing else is scored.
@@ -558,7 +565,7 @@ def _storage(env):
     parts = urllib.parse.urlparse(base)
     if not key or parts.scheme != "https" or not parts.hostname:
         return None, None
-    return base, {"Authorization": "Bearer " + key, "apikey": key, "Content-Type": "application/json"}
+    return base, {**_supabase_headers(key), "Content-Type": "application/json"}
 
 
 def fetch_objects(days, env=None, opener=urllib.request.urlopen):
