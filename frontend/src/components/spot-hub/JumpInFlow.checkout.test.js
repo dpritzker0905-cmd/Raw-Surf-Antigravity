@@ -30,7 +30,7 @@ const pending = { requires_payment: true, checkout_url: 'https://checkout.stripe
 const joined = { session_id: 'participant-fixture', check_in_created: true, remaining_credits: 75 };
 const recoveryMessage = 'Could not confirm the session join. Check your session before retrying.';
 const recoveryError = {
-  response: { data: { detail: { error: recoveryMessage, recovery_required: true } } },
+  response: { status: 503, data: { detail: recoveryMessage } },
 };
 function setup(Component, method = 'card') {
   const onSuccess = jest.fn();
@@ -107,6 +107,7 @@ describe.each([['hub', HubJumpInFlow], ['drawer', DrawerJumpInFlow]])('%s live c
     const { pay, onSuccess } = setup(Component, 'credits');
     pay();
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith(recoveryMessage));
+    expect(mockUpdateUser).not.toHaveBeenCalled();
     expect(onSuccess).not.toHaveBeenCalled();
   });
 
@@ -161,14 +162,18 @@ it('shows the recovery guidance in the session modal', async () => {
   fireEvent.click(screen.getByRole('button', { name: /skip selfie/i }));
   fireEvent.click(screen.getByText(/pay.*join/i, { selector: 'button' }));
   await waitFor(() => expect(toast.error).toHaveBeenCalledWith(recoveryMessage));
+  expect(mockUpdateUser).not.toHaveBeenCalled();
   expect(onSuccess).not.toHaveBeenCalled();
 });
 
 it('shows the recovery guidance when joining from a spot drawer action', async () => {
   apiClient.post.mockRejectedValue(recoveryError);
   const { result } = renderHook(() => useSpotDrawerActions({
-    user: { id: 'surfer-fixture' }, setJoinLoading: jest.fn(),
+    user: { id: 'surfer-fixture' }, updateUser: mockUpdateUser, setJoinLoading: jest.fn(),
   }));
-  await act(async () => { await result.current.handleJoinSession(photographer.id, 'live'); });
+  await act(async () => {
+    await expect(result.current.handleJoinSession(photographer.id, 'live')).resolves.toBeUndefined();
+  });
   expect(toast.error).toHaveBeenCalledWith(recoveryMessage);
+  expect(mockUpdateUser).not.toHaveBeenCalled();
 });

@@ -10,7 +10,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePersona } from '../../contexts/PersonaContext';
 import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
-import { getErrorMessage } from '../../utils/errors';
 import logger from '../../utils/logger';
 import { getFullUrl } from '../../utils/media';
 import { CAMERA_AUTHORIZED_KEY } from './SpotDrawerHelpers';
@@ -204,7 +203,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
       }, 2000);
     } catch (error) {
       if (!mountedRef.current) return;
-      toast.error(getErrorMessage(error, 'Failed to join session'));
+      toast.error(error.response?.data?.detail || error.message || 'Failed to join session');
     } finally {
       joinInFlightRef.current = false;
       if (mountedRef.current) setLoading(false);

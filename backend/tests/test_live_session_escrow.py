@@ -188,7 +188,9 @@ async def test_join_resolves_an_ambiguous_commit_without_refunding(harness, monk
         assert owner.credit_balance == 100.0 - BUYIN
     else:
         assert response.status_code == 503, response.text
-        assert response.json()["detail"]["recovery_required"] is True
+        assert response.json() == {
+            "detail": "Could not confirm the session join. Check your session before retrying.",
+        }
         assert seats == []
         assert ledger == []
         assert owner.credit_balance == 100.0
