@@ -7,7 +7,7 @@ name: Tide M1-0 parity (CMEMS merged sea level read directly vs the served Open-
 # probe step only, never printed. Pinned by tests/test_tide_cmems.py.
 on:
   push:
-    tags: [tide-cmems-parity]
+    tags: [tide-cmems-parity, tide-cmems-parity-r2]   # r2: the re-run after the depth-dim reader fix (run 44421247650 VOID)
 permissions:
   contents: read
 jobs:

@@ -67,15 +67,15 @@ def cmems_cells(key, start, end, work):
     lats, lons = ds.latitude.values, ds.longitude.values
     times = [datetime.fromtimestamp(t.astype("datetime64[s]").astype(int), timezone.utc) for t in ds.time.values]
     near = PR.nearest_cell(lats, lons, key)
-    tsl = ds["total_sea_level"].values                          # (time, lat, lon)
-    wet = PR.nearest_wet_cell(lats, lons, key, np.isfinite(tsl).any(axis=0))
+    arr = {v: PR.surface_tyx(ds, v) for v in PR.VARIABLES}     # (time, lat, lon); the product adds a 1-level depth
+    wet = PR.nearest_wet_cell(lats, lons, key, np.isfinite(arr["total_sea_level"]).any(axis=0))
     out = {}
     for tag, cell in (("nearest", near), ("nearest_wet", wet)):
         if cell is None:
             continue
         iy, ix = cell
         out[tag] = {"lat": float(lats[iy]), "lon": float(lons[ix]), "times": times,
-                    **{v: ds[v].values[:, iy, ix].astype(float) for v in PR.VARIABLES}}
+                    **{v: arr[v][:, iy, ix].astype(float) for v in PR.VARIABLES}}
     return out
 
 
@@ -90,13 +90,17 @@ def main():
     fc1 = day0 + timedelta(hours=PR.FORECAST_H - 1)
     pairs = {c: {"hindcast": [], "forecast": []} for c in PR.CANDIDATES}
     per_key = {}
+    n_both = 0
     for key in PR.HELD_KEYS:
         om = om_series(key, hind0, fc1)
         try:
             cells = cmems_cells(key, hind0, fc1, Path(args.work))
         except Exception as e:                                   # noqa: BLE001 - per key, recorded
-            log(f"cmems {key}: {type(e).__name__}")
+            log(f"cmems {key}: {type(e).__name__}: {str(e)[:200]}")
             cells = {}
+        prim = cells.get(PR.CANDIDATES[PR.PRIMARY][0])
+        if om and prim is not None and np.isfinite(prim["total_sea_level"]).any():
+            n_both += 1
         per_key[f"{key[0]:.1f},{key[1]:.1f}"] = {t: {"lat": c["lat"], "lon": c["lon"]} for t, c in cells.items()}
         for cand, (cell_tag, terms) in PR.CANDIDATES.items():
             c = cells.get(cell_tag)
@@ -115,12 +119,19 @@ def main():
               "expected_hindcast_pairs": expected, "cells": per_key,
               "candidates": {c: {b: PR.stats(v) for b, v in d.items()} for c, d in pairs.items()}}
     report["verdict"] = PR.verdict(pairs[PR.PRIMARY]["hindcast"], expected)
+    report["keys_with_both_series"] = n_both
+    if not PR.enough_keys(n_both):
+        report["verdict"] = "VOID (too few keys with both series)"
     print(json.dumps(report, indent=1, default=str))
     if args.summary:
         with open(args.summary, "a", encoding="utf-8") as fh:
             fh.write(f"## M1-0 parity (CMEMS merged-sl direct vs served Open-Meteo): **{report['verdict']}**\n\n")
+            fh.write(f"- keys with both series: {n_both} of {len(PR.HELD_KEYS)} (need {PR.MIN_KEYS_BOTH})\n")
             for c, d in report["candidates"].items():
                 fh.write(f"- {c}: hindcast {d['hindcast']}; forecast {d['forecast']}\n")
+    if not PR.enough_keys(n_both):
+        log(f"VOID: only {n_both} of {len(PR.HELD_KEYS)} keys had both series (need {PR.MIN_KEYS_BOTH})")
+        sys.exit(2)
 
 
 if __name__ == "__main__":
