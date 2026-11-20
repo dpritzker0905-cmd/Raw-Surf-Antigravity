@@ -161,13 +161,15 @@ async def join_session(
         db, surfer_id, data.photographer_id, 'live_buyin', for_update=True
     )
     subscription_covered = sub_quota_result.get("used", False)
+    payment_method = data.payment_method
     if subscription_covered:
         final_price = 0.0  # Subscription covers this buy-in
-    elif data.payment_method == 'subscription':
+        payment_method = 'subscription'
+    elif payment_method == 'subscription':
         raise HTTPException(status_code=400, detail="No subscription buy-in is available")
     
     # ============ CARD PAYMENT: Create Stripe Checkout Session ============
-    if data.payment_method == 'card':
+    if payment_method == 'card':
         if not STRIPE_API_KEY:
             raise HTTPException(status_code=500, detail="Payment processing not configured")
         
@@ -251,7 +253,7 @@ async def join_session(
         }
 
     # ============ CREDIT PAYMENT PROCESSING ============
-    payment_debit_id = str(uuid4()) if data.payment_method == 'credits' else None
+    payment_debit_id = str(uuid4()) if payment_method == 'credits' else None
     new_balance = surfer.credit_balance
 
     if payment_debit_id is not None:
@@ -321,7 +323,7 @@ async def join_session(
             live_session_id=active_session.id if active_session else None,
             selfie_url=data.selfie_url,
             amount_paid=final_price,
-            payment_method=data.payment_method,
+            payment_method=payment_method,
             status='active',
             # CaptureSession Unified Fields
             participant_role=participant_role,
@@ -483,7 +485,7 @@ async def join_session(
             "platform_discount_pct": platform_discount * 100,
             "photographer_sub_discount_pct": photo_sub_discount_pct,
             "subscription_covered": subscription_covered,
-            "remaining_credits": new_balance if data.payment_method == 'credits' else surfer.credit_balance,
+            "remaining_credits": new_balance if payment_method == 'credits' else surfer.credit_balance,
             "photos_included": photographer.photo_package_size or 0,
             "price_per_photo": photographer.live_photo_price or 5.0,
             "check_in_created": True,
@@ -500,7 +502,7 @@ async def join_session(
         try:
             await db.rollback()
             if receipt is not None and await _join_committed(
-                db, participant_id, surfer_id, data.photographer_id, data.payment_method, final_price, payment_debit_id,
+                db, participant_id, surfer_id, data.photographer_id, payment_method, final_price, payment_debit_id,
             ):
                 return {**receipt, "recovered": True}
         except Exception:
