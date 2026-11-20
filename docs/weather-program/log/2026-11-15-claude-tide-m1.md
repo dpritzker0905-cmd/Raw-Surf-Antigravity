@@ -2602,3 +2602,34 @@ table (1,800 keys x 1,152 h x 2 series), tracemalloc showed:
 - the gzip size is 2.9 MB.
 
 `tests/test_tide_own.py` now has 16 tests (chain floor +16, +1 file).
+
+
+## 2026-11-20 about 06:30Z: M1-0 run 44421247650 VOID; the CMEMS reader fixed (branch claude/tide-cmems-reader-fix)
+
+**The advisor's reading (relayed by the director):** run 44421247650 (attempt 2) went green but measured nothing.
+All 20 keys logged `cmems (...): ValueError`, the result file was 699 bytes, and the probe exited 0.
+
+**Cause, found with `copernicusmarine.describe` (no credentials):**
+- version 202411 of `cmems_mod_glo_phy_anfc_merged-sl_PT1H-i` serves EVERY variable as
+  (depth, time, latitude, longitude), with one depth level;
+- the probe indexed it as (time, lat, lon). `np.isfinite(tsl).any(axis=0)` gave a 3-D "wet" mask, and
+  `nearest_wet_cell`'s `iy, ix = unravel_index(...)` raised "too many values to unpack": a ValueError at every key;
+- the table builder's `cmems_fill` read the same way (`tsl[:, iy, ix]`), so with TIDE_CMEMS_PRIMARY=1 every tile
+  would have been skipped by its per-tile `except`.
+
+**Fix:**
+- `surface_tyx(ds, var)`, identical in `parity_rules` and `own_rules` (a test pins the two bodies equal), drops the
+  one-level depth dimension and returns (time, lat, lon). It raises on two or more depth levels or on other dims.
+- Both the probe and the builder read through it. Both now log the exception message, not just its type.
+- The probe counts the keys with BOTH series. Below `MIN_KEYS_BOTH` = 18 of 20 (the 90% pair rule's share), the
+  verdict is "VOID (too few keys with both series)" and the probe exits 2.
+- A new one-shot tag `tide-cmems-parity-r2` is added for the re-run; the old tag stays.
+- Tests (`tests/test_tide_cmems.py`, +3, estate +3):
+  - a POSITIVE CONTROL: a depth-shaped synthetic product reproduces the pre-fix ValueError;
+  - the fixed reader gives (time, lat, lon) with or without depth;
+  - the builder and the probe use the same reader;
+  - the probe exits non-zero below 18 keys.
+
+**Not done:**
+- No credentialed run and no tag. The re-run needs David's word, and the advisor reads it before anything moves.
+- TIDE_CMEMS_PRIMARY stays unset.
