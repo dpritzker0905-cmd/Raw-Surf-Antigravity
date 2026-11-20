@@ -1,7 +1,0 @@
-{
-  "lane": "estate",
-  "tests": 5,
-  "branch": "codex/live-session-payment-integrity-20261119",
-  "date": "2026-11-19",
-  "note": "five live-session payment validation and recovery regression cases"
-}

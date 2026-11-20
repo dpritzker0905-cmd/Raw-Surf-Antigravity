@@ -1,8 +1,0 @@
-{
-  "lane": "chain",
-  "tests": 37,
-  "files": 0,
-  "branch": "fable/nwps-teacher-archive",
-  "date": "2026-11-19",
-  "note": "NWPS teacher archive collector: unaltered split, every grid, spectra, caps, idempotence, no credential, workflow gate"
-}
