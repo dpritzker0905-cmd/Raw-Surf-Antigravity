@@ -162,6 +162,18 @@ it('shows the live buy-in when the photographer also has a different session pri
   expect(apiClient.post).not.toHaveBeenCalled();
 });
 
+it.each([
+  [[null, { msg: 'Check the photographer' }], 'Check the photographer'],
+  [{ error: 'Check your session before retrying' }, 'Check your session before retrying'],
+  [{ msg: { invalid: true } }, 'Failed to join session'],
+])('shows a safe message in the session modal for %j', async (detail, message) => {
+  apiClient.post.mockRejectedValueOnce({ response: { data: { detail } } });
+  render(<JumpInSessionModal photographer={photographer} onClose={jest.fn()} onSuccess={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: /skip selfie/i }));
+  fireEvent.click(screen.getByText(/pay .* join/i));
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith(message));
+});
+
 it('shows the recovery guidance in the session modal', async () => {
   apiClient.post.mockRejectedValue(recoveryError);
   const onSuccess = jest.fn();
