@@ -20,6 +20,7 @@ from models import (
     Profile, GalleryItem, Gallery, LiveSession, LiveSessionParticipant,
     SurferGalleryItem, Booking, BookingParticipant, DispatchRequest
 )
+from services.blocks import assert_owner_listed  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter()
 
@@ -245,6 +246,7 @@ async def get_photographer_galleries(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all galleries for a photographer"""
+    await assert_owner_listed(db, photographer_id)
     
     result = await db.execute(
         select(Gallery)

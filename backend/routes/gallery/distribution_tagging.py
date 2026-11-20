@@ -23,6 +23,7 @@ from models import (
     SurferGalleryItem, Notification
 )
 from services.gallery_sync import manually_assign_item_to_surfer
+from services.blocks import assert_owner_listed  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter()
 
@@ -489,6 +490,7 @@ async def get_photographer_public_galleries(
     These show on the photographer's Sessions tab and are browsable by users.
     Returns gallery metadata, cover images, item counts, and session info.
     """
+    await assert_owner_listed(db, photographer_id)
     result = await db.execute(
         select(Gallery)
         .where(

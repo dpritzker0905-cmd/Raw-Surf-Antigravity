@@ -16,6 +16,7 @@ from core.security import get_optional_user_id_from_jwt_or_query
 from models import (
     Profile, Booking, BookingParticipant, RoleEnum
 )
+from services.blocks import listed_clause  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ async def get_photographer_directory(
     # Hobbyists are NOT listed in directory — they're found organically (profile visits, existing conversations)
     photographer_roles = [RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]
     
-    query = select(Profile).where(Profile.role.in_(photographer_roles))
+    query = select(Profile).where(listed_clause(Profile.id)).where(Profile.role.in_(photographer_roles))
     
     # Apply skill level filter
     if skill_level and skill_level != 'all':

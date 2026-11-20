@@ -4,7 +4,6 @@ import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
-import { getErrorMessage } from '../utils/errors';
 import { getFullUrl } from '../utils/media';
 import logger from '../utils/logger';
 
@@ -158,7 +157,8 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
       }, 2000);
     } catch (error) {
       logger.error('Join session error:', error);
-      toast.error(getErrorMessage(error, 'Failed to join session'));
+      const message = error.response?.data?.detail || 'Failed to join session';
+      toast.error(typeof message === 'string' ? message : 'Failed to join session');
     } finally {
       setLoading(false);
     }

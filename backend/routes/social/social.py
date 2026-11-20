@@ -9,6 +9,7 @@ from database import get_db
 from core.security import get_current_user_id
 from models import Profile, Follow, Notification
 from services.blocks import assert_not_blocked
+from services.blocks import listed_clause  # withdrawn accounts (pending deletion) are hidden
 
 # Import OneSignal service for push notifications
 try:
@@ -120,7 +121,7 @@ async def check_follow_status(follower_id: str, following_id: str, db: AsyncSess
 @router.get("/followers/{user_id}")
 async def get_followers(user_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Follow)
+        select(Follow).where(listed_clause(Follow.follower_id), listed_clause(Follow.following_id))
         .where(Follow.following_id == user_id)
         .options(selectinload(Follow.follower))
     )
@@ -137,7 +138,7 @@ async def get_followers(user_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/following/{user_id}")
 async def get_following(user_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Follow)
+        select(Follow).where(listed_clause(Follow.follower_id), listed_clause(Follow.following_id))
         .where(Follow.follower_id == user_id)
         .options(selectinload(Follow.following))
     )
@@ -167,7 +168,7 @@ async def get_friends(user_id: str, db: AsyncSession = Depends(get_db)):
     
     # Get people this user follows
     following_result = await db.execute(
-        select(Follow)
+        select(Follow).where(listed_clause(Follow.follower_id), listed_clause(Follow.following_id))
         .where(Follow.follower_id == user_id)
         .options(selectinload(Follow.following))
     )

@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 1,
+  "branch": "claude/chain-floor-catchup-1090",
+  "date": "2026-11-20",
+  "note": "estate catch-up: #1062's fragment counted one fewer case than it added (advisor 17:46Z)"
+}
