@@ -16,6 +16,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from utils.live_buyin import resolve_live_buyin
 from models import (
     Profile, GalleryItem, Gallery, LiveSession, LiveSessionParticipant,
     SurferGalleryItem, Booking, BookingParticipant, DispatchRequest
@@ -43,7 +44,7 @@ def build_session_settings(gallery):
         settings["photos_included"] = getattr(ls, 'photos_included', 3) or 3
         raw_vid = getattr(ls, 'videos_included', None)
         settings["videos_included"] = raw_vid if raw_vid and raw_vid > 0 else 0
-        settings["buyin_price"] = getattr(ls, 'buyin_price', 25.0) or 25.0
+        settings["buyin_price"] = resolve_live_buyin(ls.buyin_price)
         settings["session_type"] = "live"
     elif gallery.booking_id:
         # Pull from photographer profile defaults for bookings
@@ -79,7 +80,7 @@ def build_photographer_pricing(photographer):
             "photos_included": getattr(p, 'live_session_photos_included', 3) or 3,
             "videos_included": getattr(p, 'live_session_videos_included', 1) or 0,
             "full_gallery": getattr(p, 'live_session_full_gallery', False) or False,
-            "buyin_price": getattr(p, 'live_buyin_price', 25.0) or 25.0,
+            "buyin_price": resolve_live_buyin(p.live_buyin_price, p.session_price),
             "photo": {
                 "web": getattr(p, 'live_price_web', 3.0),
                 "standard": getattr(p, 'live_price_standard', 6.0),
