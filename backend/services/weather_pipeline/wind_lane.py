@@ -33,6 +33,7 @@ import threading
 import time
 from contextvars import ContextVar
 from typing import Optional
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -222,7 +223,7 @@ def _l2_get(key):
     import requests
     from services.weather_pipeline.store import WEATHER_BUCKET
     resp = requests.get(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{key}",
-                        headers={"Authorization": f"Bearer {secret}", "apikey": secret}, timeout=60)
+                        headers=supabase_headers(secret), timeout=60)
     return resp.json() if resp.status_code == 200 else None
 
 

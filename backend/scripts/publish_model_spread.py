@@ -36,6 +36,13 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from services.weather_pipeline import model_spread as ms  # noqa: E402
 from services.weather_pipeline.sampler import PointSampler  # noqa: E402
@@ -99,7 +106,7 @@ class SupabaseSink:
         key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
         if not self.base or not key:
             raise SystemExit("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
-        self.auth = {"Authorization": f"Bearer {key}", "apikey": key}
+        self.auth = _supabase_headers(key)
 
     def read(self, key):
         resp = self.requests.get(f"{self.base}/storage/v1/object/{BUCKET}/{key}?cb={int(time.time() * 1000)}",

@@ -21,6 +21,7 @@ import os
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +203,7 @@ def _load_l2(key) -> Optional[dict]:
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{key}"
-        resp = requests.get(url, headers={"Authorization": f"Bearer {k}", "apikey": k}, timeout=10)
+        resp = requests.get(url, headers=supabase_headers(k), timeout=10)
         return resp.json() if resp.status_code == 200 else None
     except Exception as e:
         logger.debug(f"[report-calibration] L2 load {key} failed: {e}")
@@ -238,7 +239,7 @@ def fetch_recent_reports_via_rest(days: int = ARCHIVE_MAX_AGE_DAYS, limit: int =
     url = (f"{base}/rest/v1/surf_log_entries"
            f"?select=spot_id,session_date,session_time,wave_height,conditions_rating"
            f"&spot_id=not.is.null&session_date=gte.{since}&order=session_date.desc&limit={limit}")
-    resp = requests.get(url, headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=30)
+    resp = requests.get(url, headers=supabase_headers(key), timeout=30)
     resp.raise_for_status()
     return resp.json()
 

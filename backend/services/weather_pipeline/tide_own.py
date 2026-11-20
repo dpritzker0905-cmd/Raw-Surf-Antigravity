@@ -34,6 +34,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from services.weather_pipeline.config_env import env_float
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +122,7 @@ def _fetch_bucket() -> Optional[dict]:
     import requests
     from services.weather_pipeline.store import WEATHER_BUCKET
     url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{SERIES_KEY}"
-    resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=_TIMEOUT_S)
+    resp = requests.get(url, headers=supabase_headers(key), timeout=_TIMEOUT_S)
     if resp.status_code in (400, 404):
         return None
     resp.raise_for_status()

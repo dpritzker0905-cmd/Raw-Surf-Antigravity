@@ -16,6 +16,13 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.weather_pipeline.spot_geometry_db import geometry_row_from_resolution  # noqa: E402
@@ -87,7 +94,7 @@ def main():
     t0 = time.time()
     for sid, row in payloads.items():
         resp = session.patch(f"{url}/rest/v1/surf_spots?id=eq.{sid}",
-                             headers={"Authorization": f"Bearer {svc}", "apikey": svc,
+                             headers={**_supabase_headers(svc),
                                       "Content-Type": "application/json", "Prefer": "return=minimal"},
                              json=row, timeout=30)
         if resp.status_code in (200, 204):

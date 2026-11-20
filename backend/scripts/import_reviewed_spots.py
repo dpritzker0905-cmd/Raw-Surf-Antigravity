@@ -44,6 +44,13 @@ import sys
 import uuid
 from collections import Counter
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # ── THE DEDUPE IS TWO-TIER, AND IT USED TO BE ONE ─────────────────────────────────────────────
@@ -104,7 +111,7 @@ def fetch_live_spots(base, key):
     while True:
         r = requests.get(
             f"{base}/rest/v1/surf_spots",
-            headers={"apikey": key, "Authorization": f"Bearer {key}",
+            headers={**_supabase_headers(key),
                      "Range-Unit": "items", "Range": f"{offset}-{offset + PAGE - 1}"},
             params={"select": "id,name,latitude,longitude,country"}, timeout=60)
         r.raise_for_status()
@@ -211,7 +218,7 @@ def main():
     for i in range(0, len(payload), 200):
         chunk = payload[i:i + 200]
         r = requests.post(f"{base}/rest/v1/surf_spots",
-                          headers={"apikey": key, "Authorization": f"Bearer {key}",
+                          headers={**_supabase_headers(key),
                                    "Content-Type": "application/json",
                                    "Prefer": "return=minimal"},
                           json=chunk, timeout=120)

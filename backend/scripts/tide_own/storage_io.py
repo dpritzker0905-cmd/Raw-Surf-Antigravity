@@ -12,6 +12,13 @@ import sys
 import urllib.error
 import urllib.request
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 BUCKET = "weather-products"
 PREFIX = "tide_own/"
 ALLOWED = {"series.json.gz", "m.json"}
@@ -26,7 +33,7 @@ def _cfg():
 
 
 def _req(url, key, data=None, method="GET", ctype=None):
-    h = {"Authorization": f"Bearer {key}", "apikey": key}
+    h = _supabase_headers(key)
     if ctype:
         h["Content-Type"] = ctype
     if method == "POST":

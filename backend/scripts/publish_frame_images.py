@@ -44,6 +44,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from core.supabase_auth import supabase_headers as _supabase_headers  # noqa: E402
 from services import frame_set as fs  # noqa: E402
 from services import frame_set_bundle as fsb  # noqa: E402
 from services import frame_set_fill as fsf  # noqa: E402
@@ -257,7 +258,7 @@ def supabase_product_fetcher():
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
     if not base or not key:
         raise SystemExit("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
-    auth = {"Authorization": f"Bearer {key}", "apikey": key, "Accept-Encoding": "gzip, deflate"}
+    auth = {**_supabase_headers(key), "Accept-Encoding": "gzip, deflate"}
 
     def fetch(filename):
         # the object endpoint with a cache-buster, never a CDN copy (as frame_set_wind_rebuild.l2_product_fetch reads L2)
@@ -354,7 +355,7 @@ class SupabaseSink:
         key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
         if not self.base or not key:
             raise SystemExit("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
-        self.auth = {"Authorization": f"Bearer {key}", "apikey": key}
+        self.auth = _supabase_headers(key)
         self.order = []
 
     def ensure_bucket(self):

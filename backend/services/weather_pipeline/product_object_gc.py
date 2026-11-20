@@ -47,6 +47,7 @@ import logging
 import os
 import re
 from datetime import datetime, timezone
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,7 @@ def _bulk_delete_rest(names, bucket) -> bool:
     try:
         import requests
         resp = requests.delete(f"{base}/storage/v1/object/{bucket}", json={"prefixes": list(names)}, timeout=60,
-                               headers={"Authorization": f"Bearer {key}", "apikey": key})
+                               headers=supabase_headers(key))
         return resp.status_code in (200, 204)
     except Exception as exc:
         logger.warning("[Product GC] bulk delete failed: %s: %s", type(exc).__name__, exc)

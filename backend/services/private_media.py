@@ -11,6 +11,8 @@ import logging
 import os
 from dataclasses import dataclass
 from typing import AsyncIterator, Optional
+
+from core.supabase_auth import supabase_headers
 from urllib.parse import quote, unquote, urlsplit
 
 import httpx
@@ -43,11 +45,10 @@ def _storage_settings() -> tuple[str, str]:
 def _storage_auth_headers(service_key: str) -> dict[str, str]:
     """Storage auth that works for BOTH key generations.
 
-    A new-style ``sb_secret_`` key is only accepted on the ``apikey`` header — sent as Bearer
-    alone, Storage rejects it ("Invalid Compact JWS"). The Bearer copy keeps legacy JWT keys
-    working until they are disabled.
+    A new-style ``sb_secret_`` key is only accepted on the ``apikey`` header and is rejected as a
+    Bearer token, so the Bearer copy is sent only for a legacy JWT key (``core.supabase_auth``).
     """
-    return {"apikey": service_key, "Authorization": f"Bearer {service_key}"}
+    return supabase_headers(service_key)
 
 
 def make_private_media_ref(bucket: str, object_key: str) -> str:

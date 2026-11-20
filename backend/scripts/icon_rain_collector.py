@@ -33,6 +33,13 @@ import json
 import os
 import sys
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 BASE = "https://opendata.dwd.de/weather/nwp/icon/grib"
 SINGLE = "icon_global_icosahedral_single-level"
 INVAR = "icon_global_icosahedral_time-invariant"
@@ -126,7 +133,7 @@ class Storage:
         self.http, self.base, self.key = http, url.rstrip("/") + "/storage/v1", key
 
     def _h(self, extra=None):
-        h = {"Authorization": f"Bearer {self.key}", "apikey": self.key}
+        h = _supabase_headers(self.key)
         h.update(extra or {})
         return h
 

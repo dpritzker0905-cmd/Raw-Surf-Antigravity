@@ -22,6 +22,13 @@ import json
 import sys
 from pathlib import Path
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.weather_pipeline.buoy_calibration import BUOY_RESIDUAL_ARCHIVE_KEY  # noqa: E402
@@ -41,7 +48,7 @@ def _fetch_archive_from_prod(session):
 def _upload_blob(session, url, svc, blob):
     resp = session.post(
         f"{url}/storage/v1/object/weather-products/{QUANTILE_MAP_L2_KEY}",
-        headers={"Authorization": f"Bearer {svc}", "apikey": svc,
+        headers={**_supabase_headers(svc),
                  "Content-Type": "application/json", "x-upsert": "true"},
         data=json.dumps(blob, separators=(",", ":")).encode("utf-8"), timeout=60,
     )

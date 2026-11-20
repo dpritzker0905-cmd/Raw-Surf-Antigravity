@@ -47,6 +47,13 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.weather_pipeline.buoy_calibration import (  # noqa: E402
@@ -100,7 +107,7 @@ def main(argv=None):
 
     session = requests.Session()
     url, svc, _env = _prod_credentials(session)
-    hdr = {"Authorization": "Bearer " + svc, "apikey": svc}
+    hdr = _supabase_headers(svc)
 
     listing = session.post(url + "/storage/v1/object/list/weather-products", headers=hdr,
                            json={"prefix": HISTORY_PREFIX, "limit": 200}, timeout=90)
