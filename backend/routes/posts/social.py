@@ -13,7 +13,7 @@ from datetime import datetime
 from database import get_db
 from models import Profile, Post, PostLike, PostReaction
 from core.security import get_optional_user_id
-from services.blocks import excluded_user_ids, not_in_ids
+from services.blocks import excluded_user_ids, listed_clause, not_in_ids
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -45,6 +45,7 @@ async def get_recent_locations(
     result = await db.execute(
         select(Post)
         .where(Post.author_id == user_id)
+        .where(listed_clause(Post.author_id))                  # a pending deletion's places are not served
         .where(
             or_(
                 Post.location.isnot(None),
@@ -129,6 +130,7 @@ async def get_share_page(
         select(Post)
         .options(selectinload(Post.author))
         .where(Post.id == post_id)
+        .where(listed_clause(Post.author_id))                  # a pending deletion's post reads as not found
     )
     post = result.scalar_one_or_none()
     

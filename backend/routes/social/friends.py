@@ -18,6 +18,7 @@ from services.guardian_policy import assert_level_allows, notify_guardian_of_tee
 from models import (
     Profile, Friend, FriendshipStatusEnum, PrivacySetting
 )
+from services.blocks import listed_clause  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter(prefix="/friends", tags=["friends"])
 
@@ -186,7 +187,7 @@ async def get_friends_list(
 ):
     """Get user's friends list"""
     result = await db.execute(
-        select(Friend)
+        select(Friend).where(listed_clause(Friend.requester_id), listed_clause(Friend.addressee_id))
         .where(
             or_(
                 Friend.requester_id == user_id,
@@ -227,7 +228,7 @@ async def get_pending_requests(
 ):
     """Get pending friend requests (received)"""
     result = await db.execute(
-        select(Friend)
+        select(Friend).where(listed_clause(Friend.requester_id), listed_clause(Friend.addressee_id))
         .where(
             Friend.addressee_id == user_id,
             Friend.status == FriendshipStatusEnum.PENDING
@@ -392,7 +393,7 @@ async def get_friends_on_map(
     """
     # Get user's friends
     result = await db.execute(
-        select(Friend)
+        select(Friend).where(listed_clause(Friend.requester_id), listed_clause(Friend.addressee_id))
         .where(
             or_(
                 Friend.requester_id == user_id,
@@ -471,7 +472,7 @@ async def get_nearby_friends(
     
     # Get user's accepted friends
     friends_result = await db.execute(
-        select(Friend).where(
+        select(Friend).where(listed_clause(Friend.requester_id), listed_clause(Friend.addressee_id)).where(
             and_(
                 or_(Friend.requester_id == user_id, Friend.addressee_id == user_id),
                 Friend.status == FriendshipStatusEnum.ACCEPTED

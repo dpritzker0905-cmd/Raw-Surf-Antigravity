@@ -40,6 +40,7 @@ from .schemas import (
     PurchaseRequest, GalleryCreate, GalleryUpdate,
     get_quality_price
 )
+from services.blocks import assert_owner_listed  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter()
 
@@ -102,6 +103,7 @@ async def get_surfer_public_gallery(
     Get a surfer's public gallery items (for their Sessions tab).
     These are locker items that the surfer has toggled to public.
     """
+    await assert_owner_listed(db, surfer_id)
     result = await db.execute(
         select(SurferGalleryItem)
         .where(
