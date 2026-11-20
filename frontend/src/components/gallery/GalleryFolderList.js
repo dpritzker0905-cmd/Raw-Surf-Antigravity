@@ -12,8 +12,17 @@ import { Button } from '../ui/button';
 import { SessionRosterCard } from './SessionRosterCard';
 import { getFullUrl } from '../../utils/media';
 
+export const GalleryLoadError = ({ error, loading, onRetry, retryLabel }) => error ? (
+  <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/50 p-3 text-sm text-foreground">
+    <p>{error}</p>
+    <Button aria-label={retryLabel} variant="outline" size="sm" disabled={loading} onClick={onRetry}>Retry</Button>
+  </div>
+) : null;
+
 export const GalleryFolderList = ({
   galleries,
+  galleriesLoading = false,
+  galleriesError = null,
   isGromParent,
   user,
   openGalleryDetail,
@@ -29,14 +38,16 @@ export const GalleryFolderList = ({
   const [brokenCoverImages, setBrokenCoverImages] = useState(new Set());
 
   return (
-    <div className="mb-8">
+    <div className="mb-8" aria-busy={galleriesLoading}>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
           <Folder className="w-5 h-5 text-cyan-400" />
           {isGromParent ? 'Grom Archive' : 'Folders & Albums'}
         </h2>
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-sm">{galleries.length} folders</span>
+          <span className="text-muted-foreground text-sm">
+            {galleries.length ? `${galleries.length} folders` : galleriesError ? 'Folders unavailable' : galleriesLoading ? 'Loading folders…' : '0 folders'}
+          </span>
           <Button aria-label="Add"
             onClick={() => {
               setNewFolderName('');
@@ -52,7 +63,12 @@ export const GalleryFolderList = ({
         </div>
       </div>
       
+      <GalleryLoadError error={galleriesError} loading={galleriesLoading} onRetry={fetchGalleries} retryLabel="Retry folders" />
+      {galleriesLoading && galleries.length === 0 && (
+        <p role="status" aria-label="Loading folders" className="py-8 text-center text-sm text-muted-foreground">Loading folders…</p>
+      )}
       {galleries.length === 0 ? (
+        !galleriesLoading && !galleriesError &&
         <div className="text-center py-8 bg-muted/50 rounded-lg">
           <Folder className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
           <p className="text-muted-foreground text-sm">No folders yet. Create one to organize your photos & videos.</p>

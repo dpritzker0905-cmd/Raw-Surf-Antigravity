@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -35,27 +36,92 @@ export const useGalleryFolderActions = ({
   // Core fetch functions needed from main hook
   fetchGallery
 }) => {
+  const userId = user?.id ?? null;
+  const selectedId = selectedGallery?.id ?? null;
+  const owner = useRef(userId);
+  const [dataOwner, setDataOwner] = useState(userId);
+  const ownerGeneration = useRef(0);
+  const selectedIdRef = useRef(selectedId);
+  const folderRequest = useRef(0);
+  const itemRequest = useRef(0);
+  const mounted = useRef(true);
+  const [folderLoad, setFolderLoad] = useState({ loading: false, error: null });
+  const [galleryItemsError, setGalleryItemsError] = useState(null);
+
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      folderRequest.current += 1;
+      itemRequest.current += 1;
+    };
+  }, []);
+
+  // Reset owner-scoped data before paint and before the page starts its next fetch.
+  useLayoutEffect(() => {
+    if (owner.current === userId) return;
+    owner.current = userId;
+    setDataOwner(userId);
+    ownerGeneration.current += 1;
+    folderRequest.current += 1;
+    itemRequest.current += 1;
+    selectedIdRef.current = null;
+    setGalleries([]);
+    setGalleryItems([]);
+    setSelectedGallery(null);
+    setGalleryItemsLoading(false);
+    setFolderLoad({ loading: Boolean(userId), error: null });
+    setGalleryItemsError(null);
+  }, [userId, setGalleries, setGalleryItems, setSelectedGallery, setGalleryItemsLoading]);
+
+  useLayoutEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
+
+  const canRetainData = error => {
+    const status = error?.response?.status;
+    return !error?.response || status === 408 || status === 429 || (status >= 500 && status <= 599);
+  };
 
   const fetchGalleries = async () => {
+    if (!userId || owner.current !== userId || !mounted.current) return;
+    const generation = ownerGeneration.current;
+    const request = ++folderRequest.current;
+    const isCurrent = () => mounted.current && owner.current === userId
+      && ownerGeneration.current === generation && folderRequest.current === request;
+    setFolderLoad(previous => ({ ...previous, loading: true }));
     try {
-      const response = await apiClient.get(`/galleries/photographer/${user.id}`);
-      setGalleries(response.data || []);
+      const response = await apiClient.get(`/galleries/photographer/${userId}`);
+      if (!isCurrent()) return;
+      if (!Array.isArray(response?.data)) throw new Error('Invalid gallery folders response');
+      setGalleries(response.data);
+      setFolderLoad({ loading: false, error: null });
     } catch (error) {
+      if (!isCurrent()) return;
       logger.error('Error fetching galleries:', error);
-      setGalleries([]);
+      if (!canRetainData(error)) setGalleries([]);
+      setFolderLoad({ loading: false, error: 'Unable to load folders. Please try again.' });
     }
   };
 
   const fetchGalleryItems = async (galleryId) => {
+    if (!userId || owner.current !== userId || !mounted.current || selectedIdRef.current !== galleryId) return;
+    const generation = ownerGeneration.current;
+    const request = ++itemRequest.current;
+    const isCurrent = () => mounted.current && owner.current === userId
+      && ownerGeneration.current === generation && itemRequest.current === request && selectedIdRef.current === galleryId;
     setGalleryItemsLoading(true);
     try {
-      const response = await apiClient.get(`/galleries/${galleryId}/items?viewer_id=${user.id}`);
-      setGalleryItems(response.data || []);
+      const response = await apiClient.get(`/galleries/${galleryId}/items?viewer_id=${userId}`);
+      if (!isCurrent()) return;
+      if (!Array.isArray(response?.data)) throw new Error('Invalid gallery items response');
+      setGalleryItems(response.data);
+      setGalleryItemsError(null);
     } catch (error) {
+      if (!isCurrent()) return;
       logger.error('Error fetching gallery items:', error);
-      setGalleryItems([]);
+      if (!canRetainData(error)) setGalleryItems([]);
+      setGalleryItemsError('Unable to load gallery items. Please try again.');
     } finally {
-      setGalleryItemsLoading(false);
+      if (isCurrent()) setGalleryItemsLoading(false);
     }
   };
 
@@ -114,6 +180,10 @@ export const useGalleryFolderActions = ({
   };
 
   const openGalleryDetail = (gal) => {
+    if (owner.current !== userId || !mounted.current) return;
+    if (selectedIdRef.current !== gal.id) setGalleryItems([]);
+    selectedIdRef.current = gal.id;
+    setGalleryItemsError(null);
     setSelectedGallery(gal);
     fetchGalleryItems(gal.id);
     if (gal.surf_spot_id) {
@@ -124,6 +194,11 @@ export const useGalleryFolderActions = ({
   };
 
   const closeGalleryDetail = () => {
+    if (owner.current !== userId || !mounted.current) return;
+    selectedIdRef.current = null;
+    itemRequest.current += 1;
+    setGalleryItemsLoading(false);
+    setGalleryItemsError(null);
     setSelectedGallery(null);
     setGalleryItems([]);
     setConditionsStatus(null);
@@ -265,6 +340,10 @@ export const useGalleryFolderActions = ({
   };
 
   return {
+    galleriesLoading: folderLoad.loading,
+    galleriesError: folderLoad.error,
+    galleryItemsError,
+    galleryOwnerMatches: dataOwner === userId,
     fetchGalleries,
     fetchGalleryItems,
     handleDeleteFromGallery,
