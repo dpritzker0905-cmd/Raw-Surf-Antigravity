@@ -54,13 +54,15 @@ async def try_use_subscription_quota(
     quota_type: str,  # 'photo', 'video', 'live_buyin', 'session'
     quantity: int = 1,
     *,
-    for_update: bool = False,
+    for_update: bool = True,
 ) -> dict:
     """
     Check if surfer has an active subscription with photographer and decrement quota.
     Returns {"used": True, "remaining": N} if quota was consumed,
     or {"used": False} if no active subscription or no quota remaining.
-    Does NOT commit — caller is responsible for committing the transaction.
+    Locks the subscription row by default so concurrent consumers see committed
+    quota changes. The caller owns the transaction and releases the lock on
+    commit or rollback.
 
     Usage from gallery.py:
         from routes.subscriptions_billing.photo_sub_helpers import try_use_subscription_quota
