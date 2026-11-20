@@ -16,6 +16,7 @@ from models import (
     Profile, LiveSessionParticipant, CreditTransaction,
     GalleryItem, RoleEnum
 )
+from services.blocks import listed_clause  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter()
 
@@ -28,7 +29,7 @@ async def get_live_photographers(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all photographers currently shooting live"""
-    query = select(Profile).where(
+    query = select(Profile).where(listed_clause(Profile.id)).where(
         and_(
             Profile.is_shooting.is_(True),
             Profile.role.in_([RoleEnum.GROM_PARENT, RoleEnum.HOBBYIST, RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO])
@@ -93,7 +94,7 @@ async def get_featured_photographers(
     photographer_roles = [RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]
     
     photographers_result = await db.execute(
-        select(Profile)
+        select(Profile).where(listed_clause(Profile.id))
         .where(Profile.role.in_(photographer_roles))
         .options(selectinload(Profile.current_spot))
     )

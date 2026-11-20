@@ -17,6 +17,7 @@ import logging
 from database import get_db
 from deps.admin_auth import get_current_admin
 from models import Profile, SurfSpot, Post, Hashtag, PostHashtag
+from services.blocks import listed_clause  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -65,7 +66,7 @@ async def global_search(
     # If the user specifically searched a hashtag #, we can skip user search. Otherwise proceed.
     if not is_hashtag_search:
         user_result = await db.execute(
-            select(Profile)
+            select(Profile).where(listed_clause(Profile.id))
             .where(
                 or_(
                     Profile.full_name.ilike(search_term),
@@ -130,7 +131,7 @@ async def global_search(
     # Search posts by caption
     if not is_user_search:
         post_result = await db.execute(
-            select(Post)
+            select(Post).where(listed_clause(Post.author_id))
             .options(selectinload(Post.author))
             .where(
                 or_(
@@ -242,7 +243,7 @@ async def get_posts_by_hashtag(
     try:
         # Get posts via PostHashtag junction table
         result = await db.execute(
-            select(Post)
+            select(Post).where(listed_clause(Post.author_id))
             .options(selectinload(Post.author))
             .join(PostHashtag, Post.id == PostHashtag.post_id)
             .join(Hashtag, PostHashtag.hashtag_id == Hashtag.id)

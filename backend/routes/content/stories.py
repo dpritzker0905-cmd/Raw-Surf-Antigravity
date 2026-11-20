@@ -74,10 +74,23 @@ def calculate_distance_miles(lat1: float, lon1: float, lat2: float, lon2: float)
     c = 2 * math.asin(math.sqrt(a))
     return R * c
 
-async def can_view_story(db: AsyncSession, story: Story, viewer_id: str, following_ids: Optional[set] = None) -> bool:
+async def _withdrawn(db: AsyncSession, profile_id: str) -> bool:
+    from services.blocks import assert_owner_listed
+    try:
+        await assert_owner_listed(db, profile_id)
+    except HTTPException:
+        return True
+    return False
+
+
+async def can_view_story(db: AsyncSession, story: Story, viewer_id: str, following_ids: Optional[set] = None,
+                         withdrawn: Optional[set] = None) -> bool:
     """Apply the same owner/follower/guardian visibility contract to one story."""
     author = story.author
     if not author:
+        return False
+    # Pending deletion: hidden from everyone. List routes pass the withdrawn set fetched ONCE per request.
+    if (author.id in withdrawn) if withdrawn is not None else await _withdrawn(db, author.id):
         return False
     if author.role == RoleEnum.GROM:
         if story.visibility == 'public' and story.guardian_approval_status == 'approved':
@@ -236,6 +249,8 @@ async def get_stories_feed(
         select(Follow.following_id).where(Follow.follower_id == viewer_id)
     )
     following_ids = set(row[0] for row in following_result.fetchall())
+    from services.blocks import withdrawn_user_ids
+    withdrawn = await withdrawn_user_ids(db)                     # once per request, not once per story
     
     # Also include the viewer's own stories
     following_ids.add(viewer_id)
@@ -270,7 +285,7 @@ async def get_stories_feed(
     
     for story in stories:
         author = story.author
-        if not author or not await can_view_story(db, story, viewer_id, following_ids):
+        if not author or not await can_view_story(db, story, viewer_id, following_ids, withdrawn):
             continue
         
         # Calculate distance for location visibility
@@ -407,7 +422,9 @@ async def get_author_stories(
         .options(selectinload(Story.author), selectinload(Story.spot))
         .order_by(Story.created_at.asc())
     )
-    stories = [story for story in result.scalars().all() if await can_view_story(db, story, viewer_id)]
+    from services.blocks import withdrawn_user_ids
+    withdrawn = await withdrawn_user_ids(db)
+    stories = [story for story in result.scalars().all() if await can_view_story(db, story, viewer_id, withdrawn=withdrawn)]
     
     # Get viewed stories
     viewed_result = await db.execute(

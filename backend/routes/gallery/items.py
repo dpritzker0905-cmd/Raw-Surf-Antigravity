@@ -41,6 +41,7 @@ from .schemas import (
     PurchaseRequest, GalleryCreate, GalleryUpdate,
     get_quality_price
 )
+from services.blocks import assert_owner_listed  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter()
 
@@ -137,6 +138,7 @@ async def get_photographer_gallery(
     Privacy: Items from on-demand/booking galleries are PRIVATE and only visible
     to session participants. Live session and manual gallery items are public.
     """
+    await assert_owner_listed(db, photographer_id)
     query = select(GalleryItem)\
         .where(GalleryItem.photographer_id == photographer_id)\
         .where(GalleryItem.is_public == True)\
