@@ -44,7 +44,7 @@ def build_session_settings(gallery):
         settings["photos_included"] = getattr(ls, 'photos_included', 3) or 3
         raw_vid = getattr(ls, 'videos_included', None)
         settings["videos_included"] = raw_vid if raw_vid and raw_vid > 0 else 0
-        settings["buyin_price"] = resolve_live_buyin(ls.buyin_price)
+        settings["buyin_price"] = resolve_live_buyin(getattr(ls, 'buyin_price', None))
         settings["session_type"] = "live"
     elif gallery.booking_id:
         # Pull from photographer profile defaults for bookings
@@ -80,7 +80,7 @@ def build_photographer_pricing(photographer):
             "photos_included": getattr(p, 'live_session_photos_included', 3) or 3,
             "videos_included": getattr(p, 'live_session_videos_included', 1) or 0,
             "full_gallery": getattr(p, 'live_session_full_gallery', False) or False,
-            "buyin_price": resolve_live_buyin(p.live_buyin_price, p.session_price),
+            "buyin_price": resolve_live_buyin(getattr(p, 'live_buyin_price', None), getattr(p, 'session_price', None)),
             "photo": {
                 "web": getattr(p, 'live_price_web', 3.0),
                 "standard": getattr(p, 'live_price_standard', 6.0),
