@@ -1,6 +1,7 @@
 """Sessions join — surfer join flow with payment."""
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, APIRouter
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +17,7 @@ from .schemas import JoinSessionRequest
 from utils.credits import clean_amount, deduct_credits
 from services import live_session_escrow
 import os, stripe, logging
-import stripe_mcp_server, sqlite3
+import stripe_mcp_server
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
 if STRIPE_API_KEY: stripe.api_key = STRIPE_API_KEY
 logger = logging.getLogger(__name__)
@@ -170,79 +171,85 @@ async def join_session(
         if not STRIPE_API_KEY:
             raise HTTPException(status_code=500, detail="Payment processing not configured")
         
-        origin_url = data.origin_url or "https://dev--rawsurf.netlify.app"
-        
-        # Store session data for completion after payment
-        session_data = {
+        from .checkout_origin import checkout_origin
+        from .payments import checkout_emulation_allowed
+
+        origin = checkout_origin(data.origin_url)
+        success_url = f"{origin}/bookings?session_payment=success&checkout_session_id={{CHECKOUT_SESSION_ID}}"
+        cancel_url = f"{origin}/bookings?session_payment=cancelled"
+        final_price = clean_amount(final_price)
+        if final_price is None or final_price <= 0:
+            raise HTTPException(status_code=400, detail="Invalid card checkout amount")
+
+        metadata = {
+            "type": "live_session_join",
             "surfer_id": surfer_id,
             "photographer_id": data.photographer_id,
-            "selfie_url": data.selfie_url,
-            "amount": final_price,
-            "photographer_name": photographer.full_name,
-            "spot_name": photographer.current_spot.name if photographer.current_spot else "Live Session"
+            "amount": str(final_price),
         }
-        
-        # Get or create stripe customer ID mapping in stripe-mcp cache
-        customer_id = None
+        session_data = {**metadata, "selfie_url": data.selfie_url}
+        attempt_id = str(uuid4())
+
         try:
-            conn = sqlite3.connect(stripe_mcp_server.DB_PATH, timeout=10.0)
-            cursor = conn.cursor()
-            cursor.execute("SELECT customer_id FROM stripe_customers WHERE supabase_user_id = ?", (surfer_id,))
-            row = cursor.fetchone()
-            if row:
-                customer_id = row[0]
-            else:
-                import uuid
-                customer_id = f"cus_test_{uuid.uuid4().hex[:12]}"
-                cursor.execute(
-                    "INSERT INTO stripe_customers (customer_id, email, name, supabase_user_id, subscription_status, created_at) VALUES (?, ?, ?, ?, 'inactive', datetime('now'))",
-                    (customer_id, surfer.email, surfer.full_name, surfer_id)
+            if checkout_emulation_allowed():
+                checkout = await run_in_threadpool(
+                    stripe_mcp_server.stripe_create_checkout_session,
+                    customer_id=f"cus_test_{surfer_id}",
+                    amount=final_price,
+                    currency="usd",
+                    success_url=success_url,
+                    cancel_url=cancel_url,
+                    metadata_dict=metadata,
                 )
-                conn.commit()
-            conn.close()
-        except Exception as e:
-            logger.error(f"Failed to lookup/create stripe customer mapping: {e}")
-            customer_id = f"cus_test_fallback_{surfer_id[:8]}"
+                checkout_id, checkout_url = checkout["checkout_session_id"], checkout["url"]
+                session_data["checkout_provider"] = "emulator"
+                session_data["emulator_payment_intent"] = checkout["payment_intent_id"]
+            else:
+                checkout = await run_in_threadpool(
+                    stripe.checkout.Session.create,
+                    mode="payment",
+                    payment_method_types=["card"],
+                    customer_email=surfer.email,
+                    client_reference_id=attempt_id,
+                    line_items=[{
+                        "price_data": {
+                            "currency": "usd",
+                            "unit_amount": int(round(final_price * 100)),
+                            "product_data": {"name": f"Live session with {photographer.full_name}"},
+                        },
+                        "quantity": 1,
+                    }],
+                    success_url=success_url,
+                    cancel_url=cancel_url,
+                    metadata=metadata,
+                    idempotency_key=f"live-session-checkout-{attempt_id}",
+                )
+                checkout_id, checkout_url = checkout.id, checkout.url
+                session_data["checkout_provider"] = "stripe"
+                session_data["checkout_reference"] = attempt_id
+            if not checkout_id or not checkout_url:
+                raise ValueError("Checkout provider did not return an ID and URL")
+        except Exception:
+            logger.exception("Could not create a live session card checkout")
+            raise HTTPException(status_code=502, detail="Payment checkout could not be created")
 
-        try:
-            # Route checkout session creation through stripe-mcp server tool function
-            checkout_session = stripe_mcp_server.stripe_create_checkout_session(
-                customer_id=customer_id,
-                amount=final_price,
-                currency="usd",
-                success_url=f"{origin_url}/bookings?session_payment=success&checkout_session_id={{CHECKOUT_SESSION_ID}}",
-                cancel_url=f"{origin_url}/bookings?session_payment=cancelled",
-                metadata_dict={
-                    "type": "live_session_join",
-                    "surfer_id": surfer_id,
-                    "photographer_id": data.photographer_id,
-                    "amount": str(final_price)
-                }
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Payment error: {str(e)}")
-        
-        session_data["emulator_payment_intent"] = checkout_session["payment_intent_id"]
-
-        # Store pending transaction
-        transaction = PaymentTransaction(
+        db.add(PaymentTransaction(
             user_id=surfer_id,
-            session_id=checkout_session["checkout_session_id"],
+            session_id=checkout_id,
             amount=final_price,
             currency="usd",
             payment_status="Pending",
             status="Pending",
-            transaction_metadata=json.dumps(session_data)
-        )
-        db.add(transaction)
+            transaction_metadata=json.dumps(session_data),
+        ))
         await db.commit()
-        
+
         return {
             "requires_payment": True,
-            "checkout_url": checkout_session["url"],
-            "session_id": checkout_session["checkout_session_id"]
+            "checkout_url": checkout_url,
+            "session_id": checkout_id,
         }
-    
+
     # ============ CREDIT PAYMENT PROCESSING ============
     payment_debit_id = str(uuid4()) if data.payment_method == 'credits' else None
     new_balance = surfer.credit_balance
