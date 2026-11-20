@@ -26,6 +26,7 @@ async def test_complete_payment_stripe_error_triggers_rollback(monkeypatch):
     mock_db.commit = AsyncMock()
     owned_tx = MagicMock(spec=PaymentTransaction)
     owned_tx.user_id = "usr_surfer"
+    owned_tx.transaction_metadata = None
     owned_result = MagicMock()
     owned_result.scalar_one_or_none.return_value = owned_tx
     mock_db.execute = AsyncMock(return_value=owned_result)
