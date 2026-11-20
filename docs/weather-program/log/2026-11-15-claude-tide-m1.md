@@ -2718,6 +2718,29 @@ table as a 7-day public artifact) is closed unmerged.
 range and a 1 h lag, all recovered. Chain +2; `tests/test_tide_own.py` 18 pass locally.
 
 
+## 2026-11-20 12:02Z: storage_io get no longer treats every HTTP error as "absent" (the advisor's minor, 2026-11-20)
+The M-cache read printed "HTTP <code> (treated as absent)" for ANY error, so an auth or request fault would have
+silently recomputed every key's M (the first real build, run 44681599129, was fine). `is_not_found(code, body)` now
+returns True only for 404, or for Supabase Storage's missing-object answer (HTTP 400 with statusCode "404" or error
+"not_found"). Any other error exits the step non-zero. Test: tests/test_tide_own.py +1 (chain +1). Nothing served.
+
+
+
+## 2026-11-20 12:05Z: the real Supabase missing-object body, confirmed; is_not_found tightened (#1116)
+A probe with no key, against this project's public Storage URL, of known-absent paths:
+- missing object (public buckets avatars and general): HTTP 400
+  `{"statusCode":"404","error":"not_found","message":"Object not found","code":"NoSuchKey"}`;
+- weather-products, which the key-less request cannot see: HTTP 400
+  `{"statusCode":"404","error":"Bucket not found",...,"code":"NoSuchBucket"}`.
+
+The second also carries statusCode "404", so the first version of is_not_found would have read a key WITHOUT bucket
+access as "absent": the fault the advisor asked to catch. Now only `code NoSuchKey` or `error not_found` count as
+absent; NoSuchBucket, and statusCode alone, fail the step. The test now pins both real bodies. The authenticated route
+with the service key was NOT probed (no credentialed read); it is the same Storage API, so the missing-object body is
+expected to match.
+
+
+
 ## 2026-11-20 12:45Z: served_delta guards (the advisor's limits on #1118; local follow-up branch claude/tide-served-delta-guards)
 - **Limit 1:** a chunk that fails all its tries is skipped. The step summary now OPENS with `With a before series: N of M keys`, and marks the numbers NOT TRUSTED below 90%.
 - **Limit 2:** `window_offset` refuses (ValueError) a table that starts after today's 00Z or does not cover the 72-hour window.
