@@ -172,6 +172,7 @@ async def get_spot_details(
             "is_on_demand": False,
             "status": "live_shooting",
             "on_demand_hourly_rate": getattr(p, 'on_demand_hourly_rate', None),
+            "live_buyin_price": p.live_buyin_price,
             "session_price": p.session_price,
             "hourly_rate": p.hourly_rate,
             "booking_hourly_rate": getattr(p, 'booking_hourly_rate', None),
