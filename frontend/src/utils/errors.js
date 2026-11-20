@@ -11,7 +11,7 @@
  * Handles the three shapes FastAPI may return for `detail`:
  * - string -- returned as-is
  * - array of objs -- joined msg/message fields
- * - object -- msg, message, or error field
+ * - object -- msg/message field
  *
  * @param {Error|Object} error    Axios error (or anything with response.data.detail)
  * @param {string}       fallback Fallback text when no detail is found
@@ -25,9 +25,7 @@ export const getErrorMessage = (error, fallback = 'An error occurred') => {
     return detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
   }
   if (typeof detail === 'object') {
-    const message = [detail.msg, detail.message, detail.error]
-      .find(value => typeof value === 'string' && value.trim());
-    return message || JSON.stringify(detail);
+    return detail.msg || detail.message || JSON.stringify(detail);
   }
   return fallback;
 };

@@ -496,16 +496,11 @@ async def join_session(
             logger.exception("Could not determine the committed live session join outcome")
         else:
             if receipt is None:
-                raise HTTPException(status_code=500, detail={
-                    "error": "Session join failed before commit.",
-                    "refunded": False,
-                    "recovery_required": False,
-                })
-        raise HTTPException(status_code=503, detail={
-            "error": "Could not confirm the session join. Check your session before retrying.",
-            "session_id": participant_id,
-            "recovery_required": True,
-        })
+                raise HTTPException(status_code=500, detail="Session join failed before commit.")
+        raise HTTPException(
+            status_code=503,
+            detail="Could not confirm the session join. Check your session before retrying.",
+        )
 
     return receipt
 
