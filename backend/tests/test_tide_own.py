@@ -199,6 +199,19 @@ def test_served_backend_never_imports_pyfes_or_the_builder():
 
 
 # ---------------------------------------------------------------- workflow
+def test_the_table_copy_artifact_holds_only_the_series_and_no_credential():
+    """The owner, 2026-11-20 ("Save build copy"): the built table is kept as a 7-day run artifact so PR B's served delta
+    is measured offline. The step carries no secret and uploads ONLY the series (predictions), never FES files or M."""
+    steps = re.split(r"\n      - ", WF)
+    up = [s for s in steps if "upload-artifact" in s]
+    assert len(up) == 1
+    s = up[0]
+    assert "secrets." not in s and "env:" not in s
+    assert "path: tide_own_series.json.gz" in s and "retention-days: 7" in s
+    assert "fes_cache" not in s and "m.json" not in s
+    assert WF.index("upload-artifact") < WF.index("storage_io.py put tide_own_series.json.gz")
+
+
 def test_workflow_scopes_each_credential_to_its_steps():
     steps = re.split(r"\n      - ", WF)
     for s in steps:

@@ -2695,3 +2695,13 @@ and the length rule were already fixed, and LEN_DAYS is not moved.
 
 LEN_DAYS stays unset. Setting it to 56 needs David's word typed in the director's session, and the advisor reads the
 frozen FINAL text before START.
+
+
+## 2026-11-20 12:25Z: the daily tide table build keeps a copy as a 7-day run artifact (the owner: "Save build copy")
+PR B's served before/after delta has to be measured from the stored table, which lives only in the private bucket. This
+machine has no service key, so the owner's one-read approval could not be used. The owner chose instead to have the build
+keep a copy: `tide-own-series.yml` uploads `tide_own_series.json.gz` (artifact `tide-own-series`, 7 days) before it
+publishes it. The step has no credential and uploads only the predictions, never FES files or M. Test
+`test_the_table_copy_artifact_holds_only_the_series_and_no_credential` (+1, chain +1). The next daily build (08:41Z)
+after merge leaves the first copy; the delta is measured offline from it.
+

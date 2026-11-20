@@ -86,6 +86,17 @@ jobs:
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
           COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
         run: python backend/scripts/tide_own/build_series.py --spots spots.json --fes-cache fes_cache --m-cache tide_own_m.json --m-budget-min 200 --out tide_own_series.json.gz --cmems "${{ vars.TIDE_CMEMS_PRIMARY || '0' }}"
+      - name: Keep a copy of the built table as a run artifact (no credential; for offline measurement)
+        # The owner, 2026-11-20 ("Save build copy"): PR B's before/after delta is measured OFFLINE from this file, so no
+        # service key is needed on a workstation. It holds tide PREDICTIONS only (what the served tide shows), never FES
+        # constants or atlas files. Public repo: any signed-in GitHub user can download it.
+        if: hashFiles('tide_own_series.json.gz') != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: tide-own-series
+          path: tide_own_series.json.gz
+          retention-days: 7
+          if-no-files-found: error
       - name: Save the M cache even if the build failed later (Supabase; stdlib only)
         if: always() && hashFiles('tide_own_m.json') != ''
         env:
