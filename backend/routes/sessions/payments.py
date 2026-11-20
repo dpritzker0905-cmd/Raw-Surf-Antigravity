@@ -15,6 +15,7 @@ from core.security import dev_identity_allowed, get_current_user_id
 from models import LiveSession, Notification, Profile
 from models import LiveSessionParticipant, PaymentTransaction
 from services import live_session_escrow
+from utils.credits import clean_amount
 from .join import CompletePaymentRequest
 
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
@@ -62,7 +63,19 @@ async def complete_session_payment(
     if owner_tx.user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot complete another user's payment")
 
-    used_emulator = data.checkout_session_id.startswith("cs_test_") and checkout_emulation_allowed()
+    try:
+        saved_checkout = json.loads(owner_tx.transaction_metadata or "{}")
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=409, detail="Invalid saved checkout")
+    if not isinstance(saved_checkout, dict):
+        raise HTTPException(status_code=409, detail="Invalid saved checkout")
+    provider = saved_checkout.get("checkout_provider")
+    used_emulator = (
+        checkout_emulation_allowed()
+        and (provider == "emulator" or (provider is None and data.checkout_session_id.startswith("cs_test_")))
+    )
+    if provider == "emulator" and not used_emulator:
+        raise HTTPException(status_code=409, detail="Test checkout must be restarted")
     payment_verified = False
     payment_intent_id = None
     refund_attempted = False
@@ -101,8 +114,6 @@ async def complete_session_payment(
                 if settled.rowcount != 1:
                     raise HTTPException(status_code=400, detail="Test payment is unavailable")
 
-            payment_verified = True
-            
             # Create a mock session object
             class MockSession:
                 def __init__(self, metadata, payment_status, payment_intent):
@@ -117,7 +128,6 @@ async def complete_session_payment(
             if checkout_session.payment_status != 'paid':
                 raise HTTPException(status_code=400, detail="Payment not completed")
                 
-            payment_verified = True
             payment_intent_id = getattr(checkout_session, 'payment_intent', None)
             if not payment_intent_id and isinstance(checkout_session, dict):
                 payment_intent_id = checkout_session.get("payment_intent")
@@ -128,7 +138,24 @@ async def complete_session_payment(
         
         surfer_id = metadata.get('surfer_id')
         photographer_id = metadata.get('photographer_id')
-        amount = float(metadata.get('amount', 0))
+        amount = clean_amount(metadata.get('amount'))
+        if surfer_id != current_user_id or not photographer_id or amount is None:
+            raise HTTPException(status_code=409, detail="Payment does not match this checkout")
+        if provider == "stripe":
+            if (
+                checkout_session.id != data.checkout_session_id
+                or checkout_session.mode != "payment"
+                or checkout_session.client_reference_id != saved_checkout.get("checkout_reference")
+                or not saved_checkout.get("checkout_reference")
+                or photographer_id != saved_checkout.get("photographer_id")
+                or checkout_session.amount_total != int(round(amount * 100))
+                or amount != clean_amount(owner_tx.amount)
+                or checkout_session.currency != owner_tx.currency
+                or not isinstance(payment_intent_id, str)
+                or not payment_intent_id
+            ):
+                raise HTTPException(status_code=409, detail="Payment does not match this checkout")
+        payment_verified = True
         
         # ============ ATOMIC IDEMPOTENCY CHECK WITH ROW LOCK ============
         # Use FOR UPDATE to lock the row while we check and update status
