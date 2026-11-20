@@ -13,6 +13,7 @@ from models import AnalyticsEvent, CreditTransaction, LiveSession, LiveSessionPa
 
 from .schemas import JoinSessionRequest
 from utils.credits import clean_amount, deduct_credits
+from utils.live_buyin import resolve_live_buyin
 from services import live_session_escrow
 import os, stripe, logging
 import stripe_mcp_server, sqlite3
@@ -133,7 +134,8 @@ async def join_session(
         raise HTTPException(status_code=400, detail="Already in this session")
     
     # SmugMug-style pricing: buy-in price for the session
-    buyin_price = photographer.live_buyin_price or photographer.session_price or 25.0
+    buyin_price = resolve_live_buyin(photographer.live_buyin_price, photographer.session_price)
+    payment_method = "free" if buyin_price == 0 else data.payment_method
     
     # Apply platform subscription tier discounts
     platform_discount = 0.0
@@ -155,20 +157,22 @@ async def join_session(
     final_price = round(buyin_price * (1 - discount), 2)
     
     # Try to use subscription live_buyin quota (free session if quota available)
-    sub_quota_result = await try_use_subscription_quota(
-        db, surfer_id, data.photographer_id, 'live_buyin', for_update=True
-    )
-    subscription_covered = sub_quota_result.get("used", False)
+    subscription_covered = False
+    if payment_method != 'free':
+        sub_quota_result = await try_use_subscription_quota(
+            db, surfer_id, data.photographer_id, 'live_buyin', for_update=True
+        )
+        subscription_covered = sub_quota_result.get("used", False)
     if subscription_covered:
         final_price = 0.0  # Subscription covers this buy-in
-    elif data.payment_method == 'subscription':
+    elif payment_method == 'subscription':
         raise HTTPException(status_code=400, detail="No subscription buy-in is available")
     
     if data.max_buyin_amount is not None and final_price > data.max_buyin_amount:
         raise HTTPException(status_code=409, detail="The buy-in price changed. Reopen checkout to review the current price.")
 
     # ============ CARD PAYMENT: Create Stripe Checkout Session ============
-    if data.payment_method == 'card':
+    if payment_method == 'card':
         if not STRIPE_API_KEY:
             raise HTTPException(status_code=500, detail="Payment processing not configured")
         
@@ -244,7 +248,7 @@ async def join_session(
         }
     
     # ============ CREDIT PAYMENT PROCESSING ============
-    payment_debit_id = str(uuid4()) if data.payment_method == 'credits' else None
+    payment_debit_id = str(uuid4()) if payment_method == 'credits' else None
     new_balance = surfer.credit_balance
 
     if payment_debit_id is not None:
@@ -314,7 +318,7 @@ async def join_session(
             live_session_id=active_session.id if active_session else None,
             selfie_url=data.selfie_url,
             amount_paid=final_price,
-            payment_method=data.payment_method,
+            payment_method=payment_method,
             status='active',
             # CaptureSession Unified Fields
             participant_role=participant_role,
@@ -492,7 +496,7 @@ async def join_session(
         try:
             await db.rollback()
             if receipt is not None and await _join_committed(
-                db, participant_id, surfer_id, data.photographer_id, data.payment_method, final_price, payment_debit_id,
+                db, participant_id, surfer_id, data.photographer_id, payment_method, final_price, payment_debit_id,
             ):
                 return {**receipt, "recovered": True}
         except Exception:

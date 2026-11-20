@@ -162,6 +162,14 @@ it('shows the live buy-in when the photographer also has a different session pri
   expect(apiClient.post).not.toHaveBeenCalled();
 });
 
+it('offers a free live buy-in despite a paid general session price', () => {
+  render(<JumpInSessionModal photographer={{ ...photographer, live_buyin_price: 0 }} onClose={jest.fn()} onSuccess={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: /skip selfie/i }));
+  expect(screen.getByText('Join for free')).toBeEnabled();
+  expect(screen.queryByRole('button', { name: /credit card/i })).not.toBeInTheDocument();
+  expect(apiClient.post).not.toHaveBeenCalled();
+});
+
 it('shows the recovery guidance in the session modal', async () => {
   apiClient.post.mockRejectedValue(recoveryError);
   const onSuccess = jest.fn();

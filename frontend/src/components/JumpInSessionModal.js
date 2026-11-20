@@ -22,7 +22,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
   const [paymentMethod, setPaymentMethod] = useState('credits');
 
   // Pricing calculations
-  const sessionBuyinPrice = photographer?.live_buyin_price || photographer?.session_price || 25;
+  const sessionBuyinPrice = photographer?.live_buyin_price ?? photographer?.session_price ?? 25;
   const photosIncluded = photographer?.photo_package_size || 3;
   const galleryPhotoPrice = photographer?.photo_price_standard || 10;
   const savingsAmount = Math.max(0, (photosIncluded * galleryPhotoPrice) - sessionBuyinPrice);
@@ -342,9 +342,9 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
             {/* Step: Payment */}
             {step === 'payment' && (
               <div className="space-y-4">
-                <h3 className="text-white font-semibold">Choose Payment Method</h3>
+                <h3 className="text-white font-semibold">{sessionBuyinPrice === 0 ? "Review Free Session" : "Choose Payment Method"}</h3>
                 
-                <div className="space-y-3">
+                <div className="space-y-3" hidden={sessionBuyinPrice === 0}>
                   <button aria-label="Coins"
                     onClick={() => setPaymentMethod('credits')}
                     className={`w-full p-4 rounded-xl border-2 flex items-center gap-3 transition-all ${
@@ -391,7 +391,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
-                    <>Pay ${finalPrice.toFixed(2)} & Join</>
+                    sessionBuyinPrice === 0 ? 'Join for free' : <>Pay ${finalPrice.toFixed(2)} & Join</>
                   )}
                 </Button>
                 

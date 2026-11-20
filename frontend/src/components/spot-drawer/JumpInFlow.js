@@ -40,7 +40,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
   const [checkout, setCheckout] = useState(null);
   
   // Calculate session pricing
-  const sessionBuyinPrice = photographer?.live_buyin_price || photographer?.session_price || 25;
+  const sessionBuyinPrice = photographer?.live_buyin_price ?? photographer?.session_price ?? 25;
   const _sessionPhotoPrice = photographer?.live_photo_price || 5;
   const photosIncluded = photographer?.photo_package_size || 3;
   const galleryPhotoPrice = photographer?.gallery_photo_price || photographer?.photo_price_standard || 10;

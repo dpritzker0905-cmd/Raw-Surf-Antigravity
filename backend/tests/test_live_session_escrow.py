@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from core.security import create_access_token
 from database import Base, get_db
-from models import CreditTransaction, LiveSessionParticipant, Profile, RoleEnum, SurferGalleryItem, SurferPhotoSubscription, SurferSelectionQuota
+from models import CreditTransaction, LiveSessionParticipant, PaymentTransaction, Profile, RoleEnum, SurferGalleryItem, SurferPhotoSubscription, SurferSelectionQuota
 from routes.bookings import booking_lifecycle
 from routes.sessions import join as session_join
 from routes.sessions.schemas import JoinSessionRequest
@@ -132,6 +132,37 @@ async def test_join_refuses_price_above_buyer_limit(harness, method):
     async with harness.maker() as db:
         assert (await db.scalars(select(CreditTransaction))).all() == []
         assert (await db.scalars(select(LiveSessionParticipant))).all() == []
+
+
+@pytest.mark.parametrize("method", ["card", "credits"])
+async def test_free_live_buyin_does_not_charge_or_consume_quota(harness, method):
+    async with harness.maker() as db:
+        photographer = await db.get(Profile, "pro")
+        photographer.session_price = 25
+        photographer.live_buyin_price = 0
+        db.add(SurferPhotoSubscription(
+            id="free-session-quota", surfer_id="owner", photographer_id="pro",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+            live_session_buyins_remaining=1, amount_paid=BUYIN, payment_method="credits",
+        ))
+        await db.commit()
+
+    response = await harness.client.post(
+        "/api/sessions/join?surfer_id=owner", headers=bearer("owner"),
+        json={"photographer_id": "pro", "payment_method": method, "max_buyin_amount": 0},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["amount_paid"] == 0
+    assert not response.json().get("requires_payment")
+    async with harness.maker() as db:
+        seat = (await db.scalars(select(LiveSessionParticipant))).one()
+        assert seat.payment_method == "free"
+        assert seat.payment_credit_transaction_id is None
+        assert seat.escrow_status is None
+        assert (await db.scalars(select(CreditTransaction))).all() == []
+        assert (await db.scalars(select(PaymentTransaction))).all() == []
+        subscription = await db.get(SurferPhotoSubscription, "free-session-quota")
+        assert subscription.live_session_buyins_remaining == 1
 
 
 def test_join_schema_refuses_an_unrecognized_payment_method():
