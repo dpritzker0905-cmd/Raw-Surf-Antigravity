@@ -49,6 +49,13 @@ import os
 import sys
 from datetime import datetime, timedelta, timezone
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.dirname(HERE)
 if BACKEND not in sys.path:
@@ -257,7 +264,7 @@ def _creds():
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
     if not base or not key:
         raise RuntimeError("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not set (the workflow passes them by name)")
-    return base, {"Authorization": f"Bearer {key}", "apikey": key}
+    return base, _supabase_headers(key)
 
 
 def read_manifest() -> dict:

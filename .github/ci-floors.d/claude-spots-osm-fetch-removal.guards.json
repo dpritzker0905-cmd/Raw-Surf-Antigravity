@@ -1,8 +1,0 @@
-{
-  "lane": "guards",
-  "tests": 1,
-  "files": 0,
-  "branch": "claude/spots-osm-fetch-removal",
-  "date": "2026-11-19",
-  "note": "OSM fetch removed from the importer"
-}

@@ -11,6 +11,7 @@ from datetime import datetime
 
 from database import get_db
 from core.security import get_current_user_id
+from core.supabase_auth import supabase_headers
 from models import Notification
 from models import Profile
 
@@ -226,11 +227,7 @@ async def broadcast_realtime_event(
     
     try:
         # Supabase Realtime broadcast via REST API
-        headers = {
-            "apikey": supabase_key,
-            "Authorization": f"Bearer {supabase_key}",
-            "Content-Type": "application/json"
-        }
+        headers = supabase_headers(supabase_key, {"Content-Type": "application/json"})
         
         broadcast_payload = {
             "type": "broadcast",

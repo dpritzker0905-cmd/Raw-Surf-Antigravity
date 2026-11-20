@@ -16,6 +16,7 @@ import time
 import os
 import logging
 
+from core.supabase_auth import supabase_headers
 from database import get_db
 from deps.admin_auth import get_current_admin
 from models import (
@@ -53,10 +54,7 @@ async def _get_app_storage_metrics(db: AsyncSession) -> dict:
 
     # 1. Supabase Storage — use REST API to list buckets and objects
     if supabase_url and supabase_key:
-        headers = {
-            "apikey": supabase_key,
-            "Authorization": f"Bearer {supabase_key}",
-        }
+        headers = supabase_headers(supabase_key)
         try:
             async with aiohttp.ClientSession() as session:
                 # List all buckets

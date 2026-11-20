@@ -1,8 +1,0 @@
-{
-  "lane": "guards",
-  "tests": 1,
-  "files": 0,
-  "branch": "claude/surf-truth-trigger-search-path",
-  "date": "2026-11-18",
-  "note": "surf-truth trigger functions pin search_path"
-}

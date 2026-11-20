@@ -10,6 +10,7 @@ from services.weather_pipeline.copernicus_validator import is_test_environment
 from services.weather_pipeline.product_upload_progress import submit_product_upload
 from services.weather_pipeline.ingestion_frame_validity import grid_frame_save_allowed
 from services.weather_pipeline import product_run_keys as _run_keys
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -399,7 +400,7 @@ def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
                 if base and key:
                     resp = requests.get(
                         manifest_download_url(base, WEATHER_BUCKET),
-                        headers={"Authorization": f"Bearer {key}", "apikey": key,
+                        headers={**supabase_headers(key),
                                  "Cache-Control": "no-cache", "Pragma": "no-cache"},
                         timeout=30,
                     )

@@ -24,6 +24,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from services import frame_entitlement as FE
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/weather")
@@ -48,7 +49,7 @@ def read_paid_index(path: str) -> Optional[dict]:
     if not base or not key:
         return None
     r = requests.get(f"{base}/storage/v1/object/{FE.PRIVATE_BUCKET}/{path}",
-                     headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=10)
+                     headers=supabase_headers(key), timeout=10)
     return r.json() if r.status_code == 200 else None
 
 
@@ -59,7 +60,7 @@ def sign_paths(paths: List[str], expires_s: int) -> Dict[str, str]:
     if not base or not key or not paths:
         return {}
     r = requests.post(f"{base}/storage/v1/object/sign/{FE.PRIVATE_BUCKET}", json={"expiresIn": int(expires_s), "paths": paths},
-                      headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=15)
+                      headers=supabase_headers(key), timeout=15)
     if r.status_code != 200:
         logger.warning("[frame-urls] batch sign HTTP %s", r.status_code)
         return {}

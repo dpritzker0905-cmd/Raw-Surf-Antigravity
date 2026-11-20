@@ -40,6 +40,7 @@ from typing import Any, Callable, Dict, Optional, Tuple
 from services import runtime_flags as _rf
 from services.forecast_tier_window import TIER_FORECAST_DAYS, allowed_models, canonical_tier, tier_horizon_hours
 from services.weather_pipeline import spot_series as SS
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ def _bucket_get(key: str, cache_buster: str) -> Optional[bytes]:
     url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{key}?cb={quote(cache_buster)}"
 
     def read():
-        resp = requests.get(url, headers={"Authorization": f"Bearer {secret}", "apikey": secret}, timeout=10)
+        resp = requests.get(url, headers=supabase_headers(secret), timeout=10)
         if resp.status_code in (400, 404):
             return None
         resp.raise_for_status()

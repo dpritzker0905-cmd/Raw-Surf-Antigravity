@@ -30,6 +30,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 from services import forecast_tier_window as FTW
 from services.weather_pipeline.spot_ratings import SPOT_RATINGS_L2_KEY
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,7 @@ def sign_object(path: str, expires_s: int) -> Optional[str]:
     if not base or not key:
         return None
     r = requests.post(f"{base}/storage/v1/object/sign/{BUCKET}/{path}", json={"expiresIn": int(expires_s)},
-                      headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=10)
+                      headers=supabase_headers(key), timeout=10)
     if r.status_code != 200:
         logger.warning("[spot-ratings-url] sign HTTP %s", r.status_code)
         return None

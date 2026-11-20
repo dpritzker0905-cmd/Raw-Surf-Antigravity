@@ -1,7 +1,0 @@
-{
-  "lane": "estate",
-  "tests": 12,
-  "branch": "opus/filled-masked-rebuild",
-  "date": "2026-11-15",
-  "note": "filled-frame patch path (frame_set_fill_patch)"
-}

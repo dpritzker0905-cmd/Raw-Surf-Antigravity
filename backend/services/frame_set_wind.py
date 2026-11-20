@@ -38,6 +38,7 @@ import logging
 import os
 import time
 from datetime import datetime, timezone
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +193,7 @@ def write_lane_pointer(lane_index, log=print):
         return None
     try:
         import requests
-        auth = {"Authorization": f"Bearer {secret}", "apikey": secret}
+        auth = supabase_headers(secret)
         url = f"{base}/storage/v1/object/{FRAME_BUCKET}/{LANE_POINTER}"
         prev = None
         resp = requests.get(f"{url}?cb={int(time.time() * 1000)}", headers=auth, timeout=30)

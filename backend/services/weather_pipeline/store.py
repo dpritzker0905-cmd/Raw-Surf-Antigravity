@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any, List, Tuple
 from services.weather_pipeline.schemas import (
     NormalizedProduct, PipelineManifest
 )
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 from services.weather_pipeline.copernicus_validator import is_test_environment
@@ -132,7 +133,7 @@ def _fetch_remote_manifest_products() -> Optional[list]:
             import requests
             resp = requests.get(
                 manifest_download_url(base, WEATHER_BUCKET),
-                headers={"Authorization": f"Bearer {key}", "apikey": key,
+                headers={**supabase_headers(key),
                          "Cache-Control": "no-cache", "Pragma": "no-cache"},
                 timeout=15,
             )
@@ -428,8 +429,7 @@ class ProductStore:
             import requests
             url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{filename}"
             headers = {
-                "Authorization": f"Bearer {key}",
-                "apikey": key,
+                **supabase_headers(key),
                 "Content-Type": "application/json",
                 "x-upsert": "true" if overwrite else "false",
                 # CDN cache policy (2026-07-06, the stale-manifest root): manifest.json mutates
@@ -513,8 +513,7 @@ class ProductStore:
             import requests
             url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{filename}"
             headers = {
-                "Authorization": f"Bearer {key}",
-                "apikey": key,
+                **supabase_headers(key),
             }
             resp = requests.delete(url, headers=headers, timeout=30)
             if resp.status_code not in (200, 204):

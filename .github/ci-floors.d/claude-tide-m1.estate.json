@@ -1,7 +1,0 @@
-{
-  "lane": "estate",
-  "tests": 33,
-  "branch": "claude/tide-m1",
-  "date": "2026-11-17",
-  "note": "tide gates G2 guard (10) + G3 rules (11) + G3t rules (12)"
-}

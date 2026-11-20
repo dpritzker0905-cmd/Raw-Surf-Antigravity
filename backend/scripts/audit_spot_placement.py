@@ -49,6 +49,13 @@ import os
 import sys
 from collections import Counter
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 ERDDAP = ("https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.csv"
           "?z%5B({lat}):1:({lat})%5D%5B({lon}):1:({lon})%5D")
 PAGE = 1000
@@ -87,7 +94,7 @@ def haversine_m(lat1, lon1, lat2, lon2):
 def fetch_spots(base, key, limit=None):
     """Paginated — PostgREST silently caps at 1000 and still returns 200."""
     import requests
-    headers = {"apikey": key, "Authorization": f"Bearer {key}"}
+    headers = _supabase_headers(key)
     out, offset = [], 0
     while True:
         url = (f"{base}/rest/v1/surf_spots?select=id,name,region,latitude,longitude"

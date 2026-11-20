@@ -1,8 +1,0 @@
-{
-  "lane": "guards",
-  "tests": 17,
-  "files": 0,
-  "branch": "claude/spots-bulk-stop",
-  "date": "2026-11-19",
-  "note": "bulk adders stopped, two routes gated, OSM import removed"
-}

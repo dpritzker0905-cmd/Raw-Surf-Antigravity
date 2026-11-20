@@ -34,6 +34,8 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 
+from core.supabase_auth import supabase_headers
+
 logger = logging.getLogger(__name__)
 
 POINTER_TABLE = "weather_manifest_pointer"
@@ -143,11 +145,7 @@ def _rest_base_and_headers() -> Tuple[Optional[str], Optional[dict]]:
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not base or not key:
         return None, None
-    return base, {
-        "Authorization": f"Bearer {key}",
-        "apikey": key,
-        "Content-Type": "application/json",
-    }
+    return base, supabase_headers(key, {"Content-Type": "application/json"})
 
 
 def run_keyed_manifest_key(generation: int) -> str:
