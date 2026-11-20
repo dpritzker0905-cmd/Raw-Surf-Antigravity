@@ -269,7 +269,9 @@ _RATING_FLAGS = {"SURF_FACE_RANGE": ("1", "[D-065 ON, owner's typed word 2026-11
     # HIGH regression risk, so the physics ships dark and is enabled deliberately, after a served
     # delta census. ⚠️ NO SERVING CALLER SUPPLIES A WATER LEVEL YET — turning this on alone changes
     # nothing; it gates the term, it does not feed it.
-    "SURF_TIDE_DEPTH":             ("1", "[D-065 default ON; guardrail-watched] Let the tide (sea_level_height_msl) move the depth-limited "
+    "SURF_TIDE_OWN":               ("1", "[D-065 ON; owner 2026-11-18 ~23:00Z: no Open-Meteo in user data (licence); kill '0' = NO tide, never Open-Meteo] the served tide (rating tide_fit, the SURF_TIDE_DEPTH cap, /point-tide, the hub) is our table built in CI (scripts/tide_own, tide-own-series.yml): our FES2022b + altimetry mean-level tide; a missing or stale (> 7 d) table = tide unavailable. services/weather_pipeline/tide_own.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
+    "SURF_TIDE_CMEMS":             ("0", "[held OFF until the r2 parity run is read and passing AND the builder refuses a low CMEMS fill count; kill '0' = our harmonic tide] prefer the CMEMS merged sea level read directly (cmems_mod_glo_phy_anfc_merged-sl_PT1H-i total_sea_level) where the table has it; inert until the builder writes CMEMS (repo variable TIDE_CMEMS_PRIMARY=1). services/weather_pipeline/tide_own.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
+    "SURF_TIDE_DEPTH":             ("1", "[D-065 default ON; guardrail-watched] Let the tide (the served tide, tide_own) move the depth-limited "
                                          "breaking cap — binds only where a shallow break meets surf "
                                          "big enough to feel bottom", "Render env"),
     "SURF_RATING":                 ("1", "Rating overlay (vs raw surf-height band) on surf=1 grids", "Render env"),

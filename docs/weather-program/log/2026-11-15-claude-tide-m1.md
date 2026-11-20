@@ -2747,3 +2747,32 @@ expected to match.
 - **Tests:** added to `test_served_delta_metrics_on_a_known_pair` (no new test functions, so floors are unchanged); 18 pass locally.
 - **Next:** open this after #1118 merges.
 
+
+
+## 2026-11-20 12:15Z: PR B (the served switch) PREPARED on a local branch; not pushed, not opened
+The owner, via the director: "Not yet, but lets open the lane to prepare for after reset on sunday". Branch
+`claude/tide-own-serve` is local only. The director brings it to David after the usage reset.
+
+Built to the advisor's conditions:
+1. **The switch.** `tide.fetch_tide_hourly` and `prewarm_tide_cache` read `tide_own`. `SURF_TIDE_OWN` and
+   `SURF_TIDE_CMEMS` are registered in `runtime_flags.GUARDED` and `_RATING_FLAGS`; the flag-lane parity test is green.
+2. **Ships ON with a kill switch.** `SURF_TIDE_OWN` defaults to "1"; "0" means no tide, never Open-Meteo. A SCOREBOARD
+   row is added (12:14Z). The served before/after delta is NOT yet measured; it is owed before the PR opens.
+3. **What users see when the table cannot answer: NO TIDE ("unavailable"), never an Open-Meteo fallback.** This covers
+   no table, a table older than 7 days, a key not in the table, and the kill switch.
+   - Why: the owner's rule is no Open-Meteo in user data (licence), so falling back to Open-Meteo would break it exactly
+     when something has gone wrong.
+   - Cost: if the daily build fails for more than 7 days, the tide disappears for everyone. The rating then runs
+     without tide_fit, and the SURF_TIDE_DEPTH cap uses still water.
+   - Each case is tested: missing, stale, absent key, killed.
+   - **David to confirm or choose otherwise.**
+4. **The pin test is replaced deliberately, not deleted.** `test_nothing_served_reads_the_table_yet` becomes
+   `test_only_tide_py_reads_the_table` and the dispatch tests, with a comment saying why. A further test pins that no
+   deploy or workflow sets the test-only legacy path (`TIDE_LEGACY_OPEN_METEO`). Only conftest sets it, so the old
+   Open-Meteo unit tests keep running.
+5. **`SURF_TIDE_CMEMS` defaults to "0".** It stays off until the r2 parity run is read and passing AND the builder
+   refuses to publish a low CMEMS fill count. A test pins the default.
+6. **The PR description** is drafted beside the handoff in the session notes.
+
+**Local tests:** 180 tide and flag tests pass. The one failure is xarray, which is missing from the local interpreter;
+that test passed in the venv. The route-level suites need sqlalchemy and were NOT run locally; CI will run them.
