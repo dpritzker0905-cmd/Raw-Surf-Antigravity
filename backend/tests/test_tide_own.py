@@ -248,6 +248,26 @@ def test_workflow_scopes_each_credential_to_its_steps():
     assert cron and not (3 <= int(cron.group(2)) <= 5)
 
 
+def test_storage_io_get_treats_only_a_real_not_found_as_absent():
+    """A missing object is absent (Supabase: HTTP 400 with statusCode "404"); any other error, including a bare 400 or
+    an auth 401/403, must fail the step instead of silently recomputing the M cache."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("storage_io", BACKEND / "scripts" / "tide_own" / "storage_io.py")
+    sio = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sio)
+    real = b'{"statusCode":"404","error":"not_found","message":"Object not found","code":"NoSuchKey"}'  # seen 2026-11-20
+    assert sio.is_not_found(400, real)
+    assert sio.is_not_found(400, b'{"error":"not_found"}') and sio.is_not_found(404, b"")
+    unseen = b'{"statusCode":"404","error":"Bucket not found","message":"Bucket not found","code":"NoSuchBucket"}'
+    assert not sio.is_not_found(400, unseen)                   # a key that cannot see the bucket is a fault
+    assert not sio.is_not_found(400, b'{"statusCode":"404"}')  # statusCode alone is not enough
+    assert not sio.is_not_found(400, b'{"statusCode":"403","error":"Unauthorized","message":"invalid signature"}')
+    assert not sio.is_not_found(400, b"") and not sio.is_not_found(400, b"<html>")
+    assert not sio.is_not_found(401, b'{"statusCode":"404"}') and not sio.is_not_found(403, b"")
+    src = (BACKEND / "scripts" / "tide_own" / "storage_io.py").read_text(encoding="utf-8")
+    assert "treated as absent" not in src and "failing the step" in src
+
+
 def test_storage_io_writes_only_two_names_under_tide_own():
     src = (BACKEND / "scripts" / "tide_own" / "storage_io.py").read_text(encoding="utf-8")
     assert 'ALLOWED = {"series.json.gz", "m.json"}' in src and 'PREFIX = "tide_own/"' in src

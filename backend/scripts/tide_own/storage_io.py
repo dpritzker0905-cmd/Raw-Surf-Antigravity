@@ -60,6 +60,26 @@ def spots(out):
     print(f"spots: {len(rows)}")
 
 
+def is_not_found(code, body):
+    """True only for a real "object does not exist" (the advisor, 2026-11-20: an auth or request fault must fail the
+    step, not silently recompute everything). Observed on this project 2026-11-20, no key, known-absent paths:
+      missing object:  HTTP 400 {"statusCode":"404","error":"not_found","message":"Object not found","code":"NoSuchKey"}
+      bucket unseen:   HTTP 400 {"statusCode":"404","error":"Bucket not found",...,"code":"NoSuchBucket"}
+    The second also says statusCode "404" but means the key cannot see the bucket, so statusCode alone is NOT enough:
+    only NoSuchKey / not_found count, and NoSuchBucket fails."""
+    if code == 404:
+        return True
+    if code != 400:
+        return False
+    try:
+        d = json.loads(body.decode("utf-8", "replace") if isinstance(body, bytes) else body)
+    except ValueError:
+        return False
+    if not isinstance(d, dict) or str(d.get("code", "")) == "NoSuchBucket":
+        return False
+    return str(d.get("code", "")) == "NoSuchKey" or str(d.get("error", "")).lower() == "not_found"
+
+
 def get(name, out):
     if name not in ALLOWED:
         sys.exit("storage_io: name not allowed")
@@ -67,8 +87,14 @@ def get(name, out):
     try:
         body = _req(f"{base}/storage/v1/object/{BUCKET}/{PREFIX}{name}", key).read()
     except urllib.error.HTTPError as e:
-        print(f"get {name}: HTTP {e.code} (treated as absent)")
-        return
+        try:
+            err = e.read()
+        except Exception:                                     # noqa: BLE001 - the body is only used to classify
+            err = b""
+        if is_not_found(e.code, err):
+            print(f"get {name}: HTTP {e.code} not found (absent)")
+            return
+        sys.exit(f"get {name}: HTTP {e.code} (not a not-found; failing the step)")
     with open(out, "wb") as fh:
         fh.write(body)
     print(f"get {name}: {len(body)} bytes")
