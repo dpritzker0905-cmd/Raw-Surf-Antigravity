@@ -2697,6 +2697,27 @@ LEN_DAYS stays unset. Setting it to 56 needs David's word typed in the director'
 frozen FINAL text before START.
 
 
+## 2026-11-20 12:41Z: PR B's before/after is measured INSIDE the build; nothing downloadable (replaces #1117)
+The owner: "YEah we dont need to let people download anything, they can view info within the app". #1117 (keep the
+table as a 7-day public artifact) is closed unmerged.
+
+**Instead:** `backend/scripts/tide_own/served_delta.py` runs in the daily build. It is stdlib only, run as
+`python3 -I -S`, with no credential.
+- It compares today's table with what users see today (Open-Meteo `sea_level_height_msl`, the current served tide;
+  fetched only as the BEFORE side of an internal test, never served).
+- It covers the 72 hours from 00Z, per key: the mean level offset, the shape RMS after that offset, the range ratio, and
+  the high/low timing shift (matched within 3 h).
+- It writes ONLY counts plus medians and 90th percentiles to the run's step summary. No per-key rows, no file, no
+  artifact; a test pins that the workflow has no `upload-artifact` at all.
+- The step is continue-on-error, so a diagnostic never blocks the publish.
+
+**Not measured here:** the rating's tide_fit and the depth-cap moves.
+
+**Tests:** `test_the_served_delta_keeps_no_file_and_carries_no_credential` and
+`test_served_delta_metrics_on_a_known_pair`. The second is a synthetic semidiurnal pair with a +0.30 m offset, a 1.1
+range and a 1 h lag, all recovered. Chain +2; `tests/test_tide_own.py` 18 pass locally.
+
+
 ## 2026-11-20 12:02Z: storage_io get no longer treats every HTTP error as "absent" (the advisor's minor, 2026-11-20)
 The M-cache read printed "HTTP <code> (treated as absent)" for ANY error, so an auth or request fault would have
 silently recomputed every key's M (the first real build, run 44681599129, was fine). `is_not_found(code, body)` now
