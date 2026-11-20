@@ -370,6 +370,7 @@ async def test_spot_details_sends_the_glyph_spot_and_the_tier_window_by_default(
     first.scalar_one_or_none.return_value = spot
     empty = Mock()
     empty.scalars.return_value.all.return_value = []
+    empty.all.return_value = []
     db = SimpleNamespace(execute=AsyncMock(side_effect=[first, empty, empty, empty, empty]))
     rows = [{"date": (NOW.date() + timedelta(days=i)).isoformat(), "wave_height_max": 3.0} for i in range(1, 11)]
     resolver = AsyncMock(return_value={"current_conditions": {"wave_height_ft": 2.0}, "forecast": rows})

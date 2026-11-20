@@ -13,6 +13,7 @@ import logging
 import asyncio
 
 from database import get_db
+from utils.live_buyin import listed_live_buyin
 from models import Profile, SurfSpot, Post, SurfReport
 
 # Weather pipeline point resolution
@@ -146,11 +147,11 @@ async def get_spot_details(
     
     # Get photographers at this spot: live-shooting AND on-demand available
     shooting_result = await db.execute(
-        select(Profile)
+        select(Profile, listed_live_buyin())
         .where(Profile.current_spot_id == spot_id)
         .where(Profile.is_shooting .is_(True))
     )
-    shooting_photographers = shooting_result.scalars().all()
+    shooting_photographers = shooting_result.all()
     
     on_demand_result = await db.execute(
         select(Profile)
@@ -162,7 +163,7 @@ async def get_spot_details(
     
     # Combine with status differentiation
     combined_photographers = []
-    for p in shooting_photographers:
+    for p, live_price in shooting_photographers:
         combined_photographers.append({
             "id": p.id,
             "full_name": p.full_name,
@@ -172,7 +173,7 @@ async def get_spot_details(
             "is_on_demand": False,
             "status": "live_shooting",
             "on_demand_hourly_rate": getattr(p, 'on_demand_hourly_rate', None),
-            "live_buyin_price": p.live_buyin_price,
+            "live_buyin_price": live_price,
             "session_price": p.session_price,
             "hourly_rate": p.hourly_rate,
             "booking_hourly_rate": getattr(p, 'booking_hourly_rate', None),

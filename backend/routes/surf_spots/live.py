@@ -13,6 +13,7 @@ import logging
 from database import get_db
 from models import Profile, SurfSpot, RoleEnum, LiveSession
 from utils.grom_parent import is_grom_parent_eligible
+from utils.live_buyin import listed_live_buyin
 from .schemas import LivePhotographerResponse, GoLiveRequest, StopLiveRequest, SpotImageUpdate
 from core.security import get_current_user_id
 from deps.admin_auth import get_current_admin
@@ -24,12 +25,12 @@ logger = logging.getLogger(__name__)
 
 @router.get("/live-photographers", response_model=List[LivePhotographerResponse])
 async def get_live_photographers(spot_id: Optional[str] = None, db: AsyncSession = Depends(get_db)):
-    query = select(Profile).where(listed_clause(Profile.id)).where(Profile.is_shooting.is_(True))
+    query = select(Profile, listed_live_buyin()).where(listed_clause(Profile.id)).where(Profile.is_shooting.is_(True))
     if spot_id:
         query = query.where(Profile.current_spot_id == spot_id)
     
     result = await db.execute(query.options(selectinload(Profile.current_spot)))
-    photographers = result.scalars().all()
+    photographers = result.all()
     
     return [LivePhotographerResponse(
         id=p.id, full_name=p.full_name, avatar_url=p.avatar_url,
@@ -40,10 +41,10 @@ async def get_live_photographers(spot_id: Optional[str] = None, db: AsyncSession
         session_price=p.session_price,
         latitude=p.current_spot.latitude if p.current_spot else None,
         longitude=p.current_spot.longitude if p.current_spot else None,
-        live_buyin_price=p.live_buyin_price, live_photo_price=p.live_photo_price,
+        live_buyin_price=live_price, live_photo_price=p.live_photo_price,
         photo_package_size=p.photo_package_size, photo_price_standard=p.photo_price_standard,
         gallery_photo_price=p.photo_price_standard
-    ) for p in photographers]
+    ) for p, live_price in photographers]
 
 
 @router.post("/photographers/{profile_id}/go-live")

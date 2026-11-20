@@ -174,7 +174,7 @@ const useSessionActions = ({
           setSessionSettings(prev => ({
             ...prev,
             location: activeRes.data.location || '',
-            price_per_join: activeRes.data.price_per_join || prev.price_per_join
+            price_per_join: activeRes.data.price_per_join ?? prev.price_per_join
           }));
         } else {
           setIsLive(false);

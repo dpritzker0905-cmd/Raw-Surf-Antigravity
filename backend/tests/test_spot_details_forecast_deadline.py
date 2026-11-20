@@ -16,6 +16,7 @@ def database(spot_exists=True):
     first.scalar_one_or_none.return_value = spot if spot_exists else None
     empty = Mock()
     empty.scalars.return_value.all.return_value = []
+    empty.all.return_value = []
     return SimpleNamespace(execute=AsyncMock(side_effect=[first, empty, empty, empty, empty]))
 
 

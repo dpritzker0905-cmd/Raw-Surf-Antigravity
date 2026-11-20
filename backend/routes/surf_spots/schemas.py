@@ -1,7 +1,7 @@
 """
 Surf spots schemas — Pydantic models, helper functions, and shared utilities.
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 import math
@@ -147,7 +147,7 @@ class GoLiveRequest(BaseModel):
     spot_id: Optional[str] = None
     location: Optional[str] = None
     is_streaming: bool = False
-    price_per_join: float = 25.0
+    price_per_join: float = Field(25.0, ge=0, allow_inf_nan=False)
     max_surfers: int = 10
     auto_accept: bool = True
     # Live Session Rates
@@ -177,13 +177,13 @@ class SimulateLiveRequest(BaseModel):
     photographer_id: str
     spot_id: str
     is_live: bool
-    session_price: float = 25.0
+    session_price: float = Field(25.0, ge=0, allow_inf_nan=False)
 
 
 class ForceStartSessionRequest(BaseModel):
     photographer_id: str
     spot_id: str
-    session_price: float = 25.0
+    session_price: float = Field(25.0, ge=0, allow_inf_nan=False)
     condition_media: Optional[str] = None
     condition_media_type: Optional[str] = None
     spot_notes: Optional[str] = None

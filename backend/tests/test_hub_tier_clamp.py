@@ -132,6 +132,7 @@ def _db():
     first.scalar_one_or_none.return_value = spot
     empty = Mock()
     empty.scalars.return_value.all.return_value = []
+    empty.all.return_value = []
     return SimpleNamespace(execute=AsyncMock(side_effect=[first, empty, empty, empty, empty]))
 
 

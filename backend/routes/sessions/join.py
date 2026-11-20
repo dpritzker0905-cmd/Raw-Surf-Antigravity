@@ -9,11 +9,12 @@ from uuid import uuid4
 from core.security import get_current_user_id
 from datetime import datetime, timedelta, timezone
 import json
-from models import AnalyticsEvent, CreditTransaction, LiveSession, LiveSessionParticipant, Notification, PaymentTransaction, Post, Profile, RoleEnum, XPTransaction
+from math import isfinite
+from models import AnalyticsEvent, CreditTransaction, LiveSessionParticipant, Notification, PaymentTransaction, Post, Profile, RoleEnum, XPTransaction
 
 from .schemas import JoinSessionRequest
 from utils.credits import clean_amount, deduct_credits
-from utils.live_buyin import resolve_live_buyin
+from utils.live_buyin import current_live_session, session_buyin
 from services import live_session_escrow
 import os, stripe, logging
 import stripe_mcp_server, sqlite3
@@ -134,7 +135,10 @@ async def join_session(
         raise HTTPException(status_code=400, detail="Already in this session")
     
     # SmugMug-style pricing: buy-in price for the session
-    buyin_price = resolve_live_buyin(photographer.live_buyin_price, photographer.session_price)
+    active_session = await db.scalar(current_live_session(photographer.id))
+    buyin_price = session_buyin(photographer, active_session)
+    if not isfinite(buyin_price) or buyin_price < 0:
+        raise HTTPException(status_code=409, detail="The session price is unavailable.")
     payment_method = "free" if buyin_price == 0 else data.payment_method
     
     # Apply platform subscription tier discounts
@@ -276,17 +280,6 @@ async def join_session(
     try:
         # Determine participant role (grom_buyer if parent is buying for child)
         participant_role = 'grom_buyer' if actual_role == RoleEnum.GROM_PARENT else 'participant'
-        
-        # Get photos included from session or photographer settings
-        # Get the most recent active session (there might be multiple due to data issues)
-        live_session_result = await db.execute(
-            select(LiveSession)
-            .where(LiveSession.photographer_id == data.photographer_id)
-            .where(LiveSession.status == 'active')
-            .order_by(LiveSession.created_at.desc())
-            .limit(1)
-        )
-        active_session = live_session_result.scalar_one_or_none()
         
         # CaptureSession Core: Photos included in buy-in
         photos_included = 0
