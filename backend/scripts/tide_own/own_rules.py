@@ -130,6 +130,21 @@ def nearest_cell(lats, lons, key):
     return iy, ix
 
 
+def surface_tyx(ds, var):
+    """`var` as a (time, latitude, longitude) array. The merged-sl product (version 202411) serves every variable as
+    (depth, time, latitude, longitude) with ONE depth level; indexing that as (time, lat, lon) raised the ValueError that
+    voided run 44421247650. MUST equal scripts/tide_cmems/parity_rules.surface_tyx (pinned by a test)."""
+    da = ds[var]
+    if "depth" in da.dims:
+        if da.sizes["depth"] != 1:
+            raise ValueError(f"{var}: expected one depth level, got {da.sizes['depth']}")
+        da = da.isel(depth=0, drop=True)
+    out = da.transpose("time", "latitude", "longitude").values
+    if out.ndim != 3:
+        raise ValueError(f"{var}: expected (time, latitude, longitude), got dims {da.dims}")
+    return out
+
+
 def hour_index(start, epoch_s):
     """The table hour index of a UTC epoch second, or None if it is not on the hour."""
     d = int(epoch_s) - int(start.timestamp())

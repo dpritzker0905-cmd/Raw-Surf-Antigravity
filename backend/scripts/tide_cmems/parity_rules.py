@@ -56,6 +56,29 @@ def nearest_wet_cell(lats, lons, key, wet):
     return int(iy), int(ix)
 
 
+MIN_KEYS_BOTH = 18                       # of the 20 held keys, how many must have BOTH series; fewer = probe exits 2
+
+
+def surface_tyx(ds, var):
+    """`var` as a (time, latitude, longitude) array. The merged-sl product (version 202411) serves every variable as
+    (depth, time, latitude, longitude) with ONE depth level; indexing that as (time, lat, lon) raised the ValueError that
+    voided run 44421247650. MUST equal scripts/tide_own/own_rules.surface_tyx (pinned by a test)."""
+    da = ds[var]
+    if "depth" in da.dims:
+        if da.sizes["depth"] != 1:
+            raise ValueError(f"{var}: expected one depth level, got {da.sizes['depth']}")
+        da = da.isel(depth=0, drop=True)
+    out = da.transpose("time", "latitude", "longitude").values
+    if out.ndim != 3:
+        raise ValueError(f"{var}: expected (time, latitude, longitude), got dims {da.dims}")
+    return out
+
+
+def enough_keys(n_both):
+    """True when enough held keys had both a CMEMS and an Open-Meteo series for the run to measure anything."""
+    return n_both >= MIN_KEYS_BOTH
+
+
 def combine(cell, terms):
     """The signed sum of the named variables' series at one cell ('-name' subtracts; NaN wherever any term is NaN)."""
     out = None

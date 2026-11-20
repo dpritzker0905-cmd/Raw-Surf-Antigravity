@@ -226,5 +226,6 @@ def test_compact_folds_every_fragment_into_the_bases_and_keeps_the_effective_flo
         got = R.effective(lane, ci2, mp2, str(d))
         assert (got["files"], got["passed"], got["set_from"]) == (want[lane]["eff_files"], want[lane]["eff_passed"],
                                                                   want[lane]["eff_set_from"]), lane
-    assert ci2.count("(rederive_floor.py, compact ") == 3            # one line per lane that had fragments
+    # One NEW line per lane that had fragments; the copied ci.yml may already carry earlier compact lines.
+    assert ci2.count("(rederive_floor.py, compact ") - ci.count("(rederive_floor.py, compact ") == 3
     assert R.main(["--compact"]) == 0 and root.joinpath(*R.CI_REL.split("/")).read_text(encoding="utf-8") == ci2

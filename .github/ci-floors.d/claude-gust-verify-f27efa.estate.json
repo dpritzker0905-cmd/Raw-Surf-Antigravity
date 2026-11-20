@@ -1,7 +1,0 @@
-{
-  "lane": "estate",
-  "tests": 21,
-  "branch": "claude/gust-verify-f27efa",
-  "date": "2026-11-18",
-  "note": "gust verification record: scorer, collector parsing and retry, storage, workflow"
-}
