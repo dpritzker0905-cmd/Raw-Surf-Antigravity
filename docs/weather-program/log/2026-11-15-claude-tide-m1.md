@@ -2642,6 +2642,61 @@ says 05:45:51Z and commit 831cab564 is 05:47:03Z. "06:30Z" was about 43 minutes 
 caught it (relayed by the director, 2026-11-20).
 
 
+## 2026-11-20 06:26Z: G4 power run 44419701002, the panel record (the advisor's ruling 06:08Z: NO RE-RUN; the share stands)
+
+**(1) The panel, recomputed AFTER the run, from public data.**
+- Script: `backend/scripts/tide_g4/g4_power_panel.py`, run as `python backend/scripts/tide_g4/g4_power_panel.py`.
+- Output: `docs/weather-program/evidence/g4-power-panel-2026-11-20.json`, the 26-gauge table.
+- It uses the run's own functions:
+  - `g4_power.d_reference` for reference D;
+  - `g3t_gate.coops_obs_pred` for observed water, on G3t's SEEN window;
+  - `g3t_rules.excluded_gauges` for the 95% coverage rule.
+- P (A+M) is taken as complete: FES is defined at every gauge, and the run logged no "m ... unavailable" stage.
+- **Result:** 24 included, the same count as the artifact's `n_gauges` 24.
+  - Each included gauge has D and observed coverage of 1.0 and 191.0 gauge-days: 4,584 gauge-days in all, in a
+    191-day window.
+- **Excluded, both for STRUCTURAL reasons:**
+  - 8443970 (Boston): "coverage < 95%: D". D coverage is 0.0 because Open-Meteo returns no sea level for that cell.
+    Boston can never be scored against D.
+  - 8771510 (Galveston Pleasure Pier): "coverage < 95%: observed". Observed coverage is 0.0: no water level in the
+    window.
+
+**(2) The rules the share relies on, cited.** The run was created 2026-11-18 23:19:12Z; its first attempt was cancelled
+unrun, and attempt 2 started 2026-11-19 07:47:08Z.
+- **The 95% coverage exclusion** (`g3t_rules.COVERAGE_MIN = 0.95`, `excluded_gauges`): on dev in 413b0edfe (#1027),
+  committed 2026-11-18 08:16:07Z.
+- **"share >= 0.8 gives LEN_DAYS 56, else 84":**
+  - first committed in the M1 log in 7e31cc29f ("G4 addendum 1"), 2026-11-18 04:41:55Z;
+  - on dev in 413b0edfe (#1027), 08:16:07Z;
+  - in code (`g4_rules.POWER_SHARE_MIN = 0.8`, `window_length`) in 27314a5f7 (#1046), 23:18:23Z, the commit the run
+    executed.
+- Both rules predate the run, and no share existed before 07:47Z on 11-19. So LEN_DAYS 56 follows from a registered
+  rule; it is not a post-hoc choice.
+
+**(3) Correction to the advisor's 05:36Z note (in the advisor's gate file).** No gauge was lost to transport.
+- The six Open-Meteo "GET failed" lines were first tries. `g4_power` imports `g3t_gate`, which replaces
+  `sources.get_json` with a 5-try retry, and each address logged exactly one failure.
+- The nine NOAA 403 lines (stations 9435380 and 8720030) were for the PREDICTIONS product.
+  - `g3t_gate.coops_obs_pred` fetches it alongside observed water, but the power check never uses it.
+  - Both gauges are in the panel with full observed water.
+  - Asking for a product the script does not need is a wart; it is noted here, not changed (the method is frozen).
+- The panel is 24 for the two structural reasons in (1).
+
+**For G4 FINAL, before START:**
+- state the panel (these 24 United States gauges);
+- state the minimum panel below which the test is VOID;
+- state that Boston can never be scored against D, and that Galveston is scored only if it reports during the window.
+- The share is a DESIGN number on seen data: a 56-day test would have reached its line in 44 of 48 stretches. It is not
+  evidence about the tide model, and "worldwide" remains unmeasured.
+
+**Disclosure.** The lane downloaded and opened the run's artifact (`g4_power.json`) at 05:42:59Z on 11-20 (the download's file time), before the
+advisor had read it. The standing rule was that the advisor reads first. Nothing was changed because of it: the share
+and the length rule were already fixed, and LEN_DAYS is not moved.
+
+LEN_DAYS stays unset. Setting it to 56 needs David's word typed in the director's session, and the advisor reads the
+frozen FINAL text before START.
+
+
 ## 2026-11-20 12:02Z: storage_io get no longer treats every HTTP error as "absent" (the advisor's minor, 2026-11-20)
 The M-cache read printed "HTTP <code> (treated as absent)" for ANY error, so an auth or request fault would have
 silently recomputed every key's M (the first real build, run 44681599129, was fine). `is_not_found(code, body)` now
