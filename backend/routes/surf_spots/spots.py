@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import logging
 
 from database import get_db
+from utils.live_buyin import listed_live_buyin
 from models import Profile, SurfSpot, Booking
 from core.security import get_optional_user_id_from_jwt_or_query
 from utils.geo import haversine_distance
@@ -364,15 +365,16 @@ async def get_surf_spot(
     
     if within_geofence:
         photog_result = await db.execute(
-            select(Profile)
+            select(Profile, listed_live_buyin())
             .where(Profile.current_spot_id == spot.id)
             .where(Profile.is_shooting.is_(True))
         )
-        photographers = photog_result.scalars().all()
-        for p in photographers:
+        photographers = photog_result.all()
+        for p, live_price in photographers:
             active_photographers.append({
                 "id": p.id, "full_name": p.full_name,
                 "avatar_url": p.avatar_url, "session_price": p.session_price,
+                "live_buyin_price": live_price,
                 "is_streaming": p.is_streaming
             })
         

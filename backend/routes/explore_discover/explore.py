@@ -13,6 +13,7 @@ import hashlib
 import json
 
 from database import get_db
+from utils.live_buyin import listed_live_buyin
 from models import Profile, SurfSpot, Post, ConditionReport, SurfReport, CheckIn, RoleEnum
 from core.security import get_optional_user_id
 
@@ -507,11 +508,11 @@ async def get_surf_spots_with_conditions(
     # Fetch active photographers for all spots
     # Two separate queries: live-shooting AND on-demand available
     shooting_result = await db.execute(
-        select(Profile).where(listed_clause(Profile.id))
+        select(Profile, listed_live_buyin()).where(listed_clause(Profile.id))
         .where(Profile.current_spot_id.in_(spot_ids))
         .where(Profile.is_shooting .is_(True))
     )
-    shooting_photographers = shooting_result.scalars().all()
+    shooting_photographers = shooting_result.all()
     
     on_demand_result = await db.execute(
         select(Profile).where(listed_clause(Profile.id))
@@ -523,16 +524,16 @@ async def get_surf_spots_with_conditions(
     
     # Group all photographers by spot_id with status flag
     photographers_by_spot = {}
-    for p in shooting_photographers:
+    for p, live_price in shooting_photographers:
         if p.current_spot_id not in photographers_by_spot:
             photographers_by_spot[p.current_spot_id] = []
         if len(photographers_by_spot[p.current_spot_id]) < 10:
-            photographers_by_spot[p.current_spot_id].append((p, 'live_shooting'))
+            photographers_by_spot[p.current_spot_id].append((p, 'live_shooting', live_price))
     for p in on_demand_photographers:
         if p.current_spot_id not in photographers_by_spot:
             photographers_by_spot[p.current_spot_id] = []
         if len(photographers_by_spot[p.current_spot_id]) < 10:
-            photographers_by_spot[p.current_spot_id].append((p, 'on_demand'))
+            photographers_by_spot[p.current_spot_id].append((p, 'on_demand', None))
     
     # ============ Fetch spot thumbnails from tagged posts (BATCHED - not N+1) ============
     thumbnails_by_spot = {}
@@ -643,9 +644,10 @@ async def get_surf_spots_with_conditions(
             "is_on_demand": status == 'on_demand',
             "status": status,  # 'live_shooting' or 'on_demand'
             "session_price": p.session_price,
+            "live_buyin_price": live_price,
             "on_demand_hourly_rate": getattr(p, 'on_demand_hourly_rate', None),
             "role": p.role.value if p.role else 'photographer'
-        } for p, status in spot_photographers]
+        } for p, status, live_price in spot_photographers]
         
         enriched_spots.append(spot_data)
     
