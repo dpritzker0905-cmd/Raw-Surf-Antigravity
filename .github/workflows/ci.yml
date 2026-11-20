@@ -1809,7 +1809,10 @@ jobs:
     # 30 min (2026-10-26, lead): the suite itself runs ~12-19 min, but on a loaded runner the job crossed 20 min AFTER
     # pytest finished (#580: estate passed 3355 tests, then timed out at 20:00, twice), failing green PRs. A hang still
     # dies here; pytest's own per-test timeouts remain the first backstop.
-    timeout-minutes: 30
+    # 45 min (2026-11-20, director): the estate grew to ~4230 tests and pytest alone now takes ~28.5 min (#1106 run
+    # 44671450508: 1708 s), so green PRs died at 30:00 with no estate.xml (#1097, twice). Splitting the lane is the
+    # durable fix; this keeps it from cancelling green PRs meanwhile.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
 
