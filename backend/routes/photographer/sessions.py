@@ -13,6 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from database import get_db
+from utils.live_buyin import resolve_live_buyin
 from core.security import get_current_user_id
 from models import (
     Profile, LiveSession, LiveSessionParticipant, Notification,
@@ -370,7 +371,7 @@ async def end_live_session(
         live_session = LiveSession(
             photographer_id=photographer_id, surf_spot_id=spot_id,
             location_name=spot_name or "Live Session",
-            buyin_price=photographer.live_buyin_price or 25.0,
+            buyin_price=resolve_live_buyin(photographer.live_buyin_price, photographer.session_price),
             photo_price=photographer.live_photo_price or 5.0,
             participant_count=len(participants), total_earnings=total_earnings,
             started_at=session_date, ended_at=datetime.now(timezone.utc),

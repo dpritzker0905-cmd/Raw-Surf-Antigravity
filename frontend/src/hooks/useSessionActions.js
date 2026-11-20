@@ -130,7 +130,7 @@ const useSessionActions = ({
         // Sync session settings with pricing
         setSessionSettings(prev => ({
           ...prev,
-          price_per_join: pricingRes.data.live_buyin_price || 25,
+          price_per_join: pricingRes.data.live_buyin_price ?? 25,
           live_photo_price: pricingRes.data.live_photo_price || 5,
           photos_included: pricingRes.data.photo_package_size || 3
         }));

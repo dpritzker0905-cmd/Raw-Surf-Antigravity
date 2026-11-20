@@ -73,7 +73,7 @@ export const PhotographerProfileContent = React.memo(({ photographer }) => {
         <h4 className="text-gray-400 text-xs uppercase tracking-wider mb-3">Session Pricing</h4>
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
-            <p className="text-green-400 text-xl font-bold">${photographer?.live_buyin_price || photographer?.session_price || 25}</p>
+            <p className="text-green-400 text-xl font-bold">${photographer?.live_buyin_price ?? photographer?.session_price ?? 25}</p>
             <p className="text-gray-500 text-xs">Buy-in</p>
           </div>
           <div>

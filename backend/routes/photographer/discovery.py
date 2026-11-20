@@ -12,6 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from database import get_db
+from utils.live_buyin import resolve_live_buyin
 from models import (
     Profile, LiveSessionParticipant, CreditTransaction,
     GalleryItem, RoleEnum
@@ -54,7 +55,7 @@ async def get_live_photographers(
             "avatar_url": p.avatar_url,
             "location": p.location or (p.current_spot.name if p.current_spot else None),
             "spot_name": p.current_spot.name if p.current_spot else None,
-            "session_price": p.session_price or 25.0,
+            "session_price": resolve_live_buyin(p.live_buyin_price, p.session_price),
             "active_participants": active_count,
             "is_verified": p.is_verified,
             "distance": None
@@ -137,7 +138,7 @@ async def get_featured_photographers(
             "is_live": p.is_shooting,
             "location": p.location or (p.current_spot.name if p.current_spot else None),
             "current_spot": p.current_spot.name if p.current_spot else None,
-            "session_price": p.live_buyin_price or p.session_price or 25.0,
+            "session_price": resolve_live_buyin(p.live_buyin_price, p.session_price),
             "total_earnings": total_earnings,
             "total_sessions": total_sessions,
             "gallery_count": gallery_count,

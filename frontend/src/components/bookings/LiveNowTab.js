@@ -89,6 +89,7 @@ export const LiveNowTab = ({
         <>
           {livePhotographers.map((photographer) => {
             // Calculate savings
+            const buyinPrice = photographer.live_buyin_price ?? photographer.session_price ?? 25;
             const livePhotoPrice = photographer.live_photo_price || photographer.session_photo_price || 5;
             const generalPhotoPrice = photographer.general_photo_price || photographer.gallery_photo_price || 10;
             const hasSavings = generalPhotoPrice > livePhotoPrice;
@@ -107,7 +108,7 @@ export const LiveNowTab = ({
                         <LiveSavingsBadge generalPrice={generalPhotoPrice} livePrice={livePhotoPrice} />
                       </div>
                       <p className="text-gray-400 text-xs mt-1">
-                        ${photographer.session_price || 25} buy-in ? ${livePhotoPrice}/photo vs ${generalPhotoPrice} gallery
+                        ${buyinPrice} buy-in ? ${livePhotoPrice}/photo vs ${generalPhotoPrice} gallery
                       </p>
                     </div>
                   )}
@@ -133,7 +134,7 @@ export const LiveNowTab = ({
                       </div>
                       <div className={`flex items-center gap-3 mt-1 text-sm ${textSecondaryClass}`}>
                         <span>{photographer.distance ? `${photographer.distance.toFixed(1)} mi away` : 'Within range'}</span>
-                        <span className="text-yellow-400 font-medium">${photographer.session_price || 25}/session</span>
+                        <span className="text-yellow-400 font-medium">${buyinPrice}/session</span>
                       </div>
                       {/* Star rating if available */}
                       {photographer.avg_rating && (
