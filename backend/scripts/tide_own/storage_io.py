@@ -61,9 +61,12 @@ def spots(out):
 
 
 def is_not_found(code, body):
-    """True only for a real "object does not exist". Supabase Storage answers a missing object with HTTP 400 and a
-    JSON body whose statusCode is "404" (or error "not_found"), so a bare 400 is NOT enough: an auth or request fault
-    also comes back as 400/401/403 and must fail the step, not silently recompute everything (the advisor, 2026-11-20)."""
+    """True only for a real "object does not exist" (the advisor, 2026-11-20: an auth or request fault must fail the
+    step, not silently recompute everything). Observed on this project 2026-11-20, no key, known-absent paths:
+      missing object:  HTTP 400 {"statusCode":"404","error":"not_found","message":"Object not found","code":"NoSuchKey"}
+      bucket unseen:   HTTP 400 {"statusCode":"404","error":"Bucket not found",...,"code":"NoSuchBucket"}
+    The second also says statusCode "404" but means the key cannot see the bucket, so statusCode alone is NOT enough:
+    only NoSuchKey / not_found count, and NoSuchBucket fails."""
     if code == 404:
         return True
     if code != 400:
@@ -72,7 +75,9 @@ def is_not_found(code, body):
         d = json.loads(body.decode("utf-8", "replace") if isinstance(body, bytes) else body)
     except ValueError:
         return False
-    return isinstance(d, dict) and (str(d.get("statusCode")) == "404" or str(d.get("error", "")).lower() == "not_found")
+    if not isinstance(d, dict) or str(d.get("code", "")) == "NoSuchBucket":
+        return False
+    return str(d.get("code", "")) == "NoSuchKey" or str(d.get("error", "")).lower() == "not_found"
 
 
 def get(name, out):
