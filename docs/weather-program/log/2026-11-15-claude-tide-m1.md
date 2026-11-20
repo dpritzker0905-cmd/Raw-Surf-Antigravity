@@ -2776,3 +2776,37 @@ Built to the advisor's conditions:
 
 **Local tests:** 180 tide and flag tests pass. The one failure is xarray, which is missing from the local interpreter;
 that test passed in the venv. The route-level suites need sqlalchemy and were NOT run locally; CI will run them.
+
+
+## 2026-11-20 12:37Z: PR B, the advisor's licence conditions (a) and (b) (local branch claude/tide-own-serve)
+**(a) The AVISO licence, read in full** (Issue 20, effective 10 Aug 2026; copy in the session notes,
+`aviso-license-issue20.txt`). The derived-products clause:
+- s.1(d) "Derivative Work: A product derived from AVISO Data Products that does not retain the original pixel/data
+  structure." Tide predictions at a point, computed from the FES2022 constituents, are this.
+- s.2.1 grants the right to "B. produce, reproduce, and Share Adapted Material (Value-Added Products or Derivative
+  Works), for any purpose, including commercial purposes, subject to Section 3".
+- s.3.2, the mass-distribution restriction, "does not restrict Sharing Adapted Material (Value-Added Products or
+  Derivative Works)".
+- s.3.1 attribution: the creators and CNES as licensor, a citation, a licence link, and an indication of modification.
+- Annex A restricts only FES2022 CURRENTS (non-commercial); we use elevations only.
+
+The clause is clear for serving predictions to every user, so no question to AVISO is drafted. One duty to note:
+s.7.3 asks for "reasonable records of AVISO Data Product usage where distribution is at scale". The daily build logs
+and the ledger are that record.
+
+**(b) The exact attribution, served and stored.**
+- `services/weather_pipeline/tide_credits.py` holds the one text. It is the AVISO acknowledgement verbatim ("The
+  FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available by AVISO"),
+  plus "Mean sea level: Generated using E.U. Copernicus Marine Service Information" and the licence link.
+- **Served:** every series carries it as its `credit`. /point-tide's full credit uses the same acknowledgement.
+- **Spot hub:** `/tides/{id}` now reports `station_id: raw-surf:tide-own:<source>` with the credit, and the hub's
+  source line shows it. It never shows an Open-Meteo line for our tide.
+- **Stored:** every table gets a `credits` field (`own_rules.encode_table`), pinned equal to the served text.
+- **Tests:** backend `test_the_exact_attribution_is_served_and_stored_with_every_series` (chain fragment now +7);
+  frontend `our own tide shows its exact attribution` (frontend +1).
+- **Local results:** Jest 135 pass (spot-hub and tide readout suites); `check_eslint` passes; tests/test_tide_own.py
+  23 pass.
+
+**For David when PR B comes up:** #1117 keeps the built table as a 7-day public artifact. If he would rather the table
+never leave the bucket, the before/after delta can instead be computed inside the workflow, uploading only summary
+numbers.
