@@ -2640,3 +2640,11 @@ That heading is wrong. The entry was written at about 05:45Z: the ledger line `c
 says 05:45:51Z and commit 831cab564 is 05:47:03Z. "06:30Z" was about 43 minutes ahead of the clock, the same fault
 #1099 failed audit for. The heading stays as written (the log is append-only); this line corrects it. The advisor
 caught it (relayed by the director, 2026-11-20).
+
+
+## 2026-11-20 12:02Z: storage_io get no longer treats every HTTP error as "absent" (the advisor's minor, 2026-11-20)
+The M-cache read printed "HTTP <code> (treated as absent)" for ANY error, so an auth or request fault would have
+silently recomputed every key's M (the first real build, run 44681599129, was fine). `is_not_found(code, body)` now
+returns True only for 404, or for Supabase Storage's missing-object answer (HTTP 400 with statusCode "404" or error
+"not_found"). Any other error exits the step non-zero. Test: tests/test_tide_own.py +1 (chain +1). Nothing served.
+

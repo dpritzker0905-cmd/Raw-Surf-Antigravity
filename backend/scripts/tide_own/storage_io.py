@@ -60,6 +60,21 @@ def spots(out):
     print(f"spots: {len(rows)}")
 
 
+def is_not_found(code, body):
+    """True only for a real "object does not exist". Supabase Storage answers a missing object with HTTP 400 and a
+    JSON body whose statusCode is "404" (or error "not_found"), so a bare 400 is NOT enough: an auth or request fault
+    also comes back as 400/401/403 and must fail the step, not silently recompute everything (the advisor, 2026-11-20)."""
+    if code == 404:
+        return True
+    if code != 400:
+        return False
+    try:
+        d = json.loads(body.decode("utf-8", "replace") if isinstance(body, bytes) else body)
+    except ValueError:
+        return False
+    return isinstance(d, dict) and (str(d.get("statusCode")) == "404" or str(d.get("error", "")).lower() == "not_found")
+
+
 def get(name, out):
     if name not in ALLOWED:
         sys.exit("storage_io: name not allowed")
@@ -67,8 +82,14 @@ def get(name, out):
     try:
         body = _req(f"{base}/storage/v1/object/{BUCKET}/{PREFIX}{name}", key).read()
     except urllib.error.HTTPError as e:
-        print(f"get {name}: HTTP {e.code} (treated as absent)")
-        return
+        try:
+            err = e.read()
+        except Exception:                                     # noqa: BLE001 - the body is only used to classify
+            err = b""
+        if is_not_found(e.code, err):
+            print(f"get {name}: HTTP {e.code} not found (absent)")
+            return
+        sys.exit(f"get {name}: HTTP {e.code} (not a not-found; failing the step)")
     with open(out, "wb") as fh:
         fh.write(body)
     print(f"get {name}: {len(body)} bytes")
