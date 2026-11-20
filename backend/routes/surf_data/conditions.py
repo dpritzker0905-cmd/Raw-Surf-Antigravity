@@ -440,13 +440,21 @@ async def get_spot_tides(spot_id: str, db: AsyncSession = Depends(get_db)):
                     "type": e["type"],
                 } for e in events if e["time"] >= now_utc - timedelta(hours=6)]
                 if tides:
-                    return {
+                    # PR B: the series names its own source and carries its exact attribution (tide_credits); the
+                    # hub shows it. A series without `source` is the test-only legacy Open-Meteo path.
+                    src = series.get("source")
+                    out = {
                         "spot_id": spot_id,
-                        "station_id": "open-meteo:sea_level_height_msl",
+                        "station_id": f"raw-surf:tide-own:{src}" if src else "open-meteo:sea_level_height_msl",
                         "source": "global",
                         "tides": tides,
                         "current_status": tide_trend_at(events, now_utc),
                     }
+                    if src:
+                        from services.weather_pipeline.tide_credits import FES_LICENCE
+                        out.update(tide_source=src, tide_label=series.get("label"), credit=series.get("credit"),
+                                   licence_url=FES_LICENCE if src == "am" else "https://doi.org/10.48670/moi-00016")
+                    return out
             # No usable series -> say so. NEVER fall through to another region's tides: serving
             # Florida to a spot in Portugal is what this change exists to stop.
             logger.info(f"[tides] no global tide series for spot {spot_id} "

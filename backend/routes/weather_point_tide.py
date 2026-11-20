@@ -34,9 +34,7 @@ SOURCE = "model-msl"
 # of it and the client shows it as the link's title and accessible name.
 FES_CITATION = ("CNES, 2024. FES2022 (Finite Element Solution) Tidal model (Version 2024). CNES. "
                 "https://doi.org/10.24400/527896/A01-2024.004")
-FES_ACK = ("The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available "
-           "by AVISO")
-FES_LICENCE = "https://www.aviso.altimetry.fr/fileadmin/documents/data/License_Aviso.pdf"   # the text read in full, issue 2.0
+from services.weather_pipeline.tide_credits import FES_ACK, FES_LICENCE    # noqa: E402  (ONE copy of the text)
 _FES = ("FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine", "https://doi.org/10.24400/527896/A01-2024.004",
         f"{FES_ACK}. {FES_CITATION}. Licence: {FES_LICENCE}. Modified: tide predictions computed at this point from the "
         "FES2022 constituents, plus the 2016-2025 mean sea level from E.U. Copernicus Marine Service Information.")

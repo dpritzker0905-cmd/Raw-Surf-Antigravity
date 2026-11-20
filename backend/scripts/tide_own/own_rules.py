@@ -192,7 +192,21 @@ def encode_table(doc):
     if "cmems" in doc:
         out["cmems"] = {k: encode_i16(v) for k, v in doc["cmems"].items()}
     out["encoding"] = "i16le-base64"
+    out["credits"] = dict(CREDITS)                  # the attribution is STORED with every table (advisor, PR B (b))
     return out
+
+
+# MUST equal services/weather_pipeline/tide_credits.CREDITS (pinned by tests/test_tide_own.py); kept as a copy because
+# this CI script never imports the served backend.
+_FES_ACK = ("The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available "
+            "by AVISO")
+_FES_LICENCE = "https://www.aviso.altimetry.fr/fileadmin/documents/data/License_Aviso.pdf"
+_CMEMS_CREDIT = "Generated using E.U. Copernicus Marine Service Information"
+CREDITS = {
+    "am": (f"{_FES_ACK}. Mean sea level: {_CMEMS_CREDIT} (altimetry, SEALEVEL_GLO_PHY_L4). "
+           f"Licence: {_FES_LICENCE}"),
+    "cmems": f"{_CMEMS_CREDIT} (Global Ocean Physics Analysis and Forecast, https://doi.org/10.48670/moi-00016).",
+}
 
 
 def utc(*a):

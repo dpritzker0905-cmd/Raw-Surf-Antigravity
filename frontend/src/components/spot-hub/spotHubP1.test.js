@@ -129,6 +129,17 @@ describe('tides', () => {
     expect(tideSourceLabel({ station_id: '8721604' })).toBe('Data from NOAA Tides & Currents');
   });
 
+  test('our own tide shows its exact attribution, never an Open-Meteo line (PR B)', () => {
+    const credit = 'The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely '
+      + 'available by AVISO. Mean sea level: Generated using E.U. Copernicus Marine Service Information.';
+    const line = tideSourceLabel({ source: 'global', station_id: 'raw-surf:tide-own:am', credit,
+      tide_label: 'Tide: astronomical prediction + average sea level (no storm surge)' });
+    expect(line).toContain('funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available by AVISO');
+    expect(line).toContain('Copernicus Marine');
+    expect(line).not.toMatch(/Open-Meteo/);
+    expect(tideSourceLabel({ source: 'global', station_id: 'raw-surf:tide-own:am', credit: '' })).not.toMatch(/Open-Meteo/);
+  });
+
   const RESPONSE = { source: 'precomputed', rating: { score: 60, level: 'good', tide: { height_m: 0.4, norm: 0.7, trend: 'rising' } } };
 
   test('pointRatingClient passes rating.tide through; no tide, no key', () => {

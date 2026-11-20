@@ -222,6 +222,26 @@ def test_only_tide_py_reads_the_table():
     assert users == ["tide.py"]
 
 
+def test_the_exact_attribution_is_served_and_stored_with_every_series():
+    """The advisor's PR B condition (b): the AVISO acknowledgement, verbatim, plus the Copernicus credit for M, are
+    STORED in every table (own_rules.encode_table) and SERVED with every series; one text, pinned equal."""
+    from services.weather_pipeline import tide_credits as TC
+    exact = "funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available by AVISO"
+    assert exact in TC.CREDITS["am"] and "Copernicus Marine" in TC.CREDITS["am"] and TC.FES_LICENCE in TC.CREDITS["am"]
+    assert "Copernicus Marine" in TC.CREDITS["cmems"]
+    assert OR.CREDITS == TC.CREDITS                                        # the CI copy equals the served text
+    now = datetime(2026, 11, 20, tzinfo=UTC)
+    stored = OR.encode_table(_table(now, {"21.7,-158.0": [250] * (48 * 24)}))
+    assert stored["credits"] == TC.CREDITS
+    s = tide_own.series_from_table(tide_own.validate(stored), (21.7, -158.0), 3, now)
+    assert s["credit"] == TC.CREDITS["am"] and exact in s["credit"]
+    import importlib.util                                                  # the readout's full text uses the same ack
+    spec = importlib.util.spec_from_file_location("wpt_credit_check", BACKEND / "routes" / "weather_point_tide.py")
+    WPT = importlib.util.module_from_spec(spec)                            # by path: not the whole routes package
+    spec.loader.exec_module(WPT)
+    assert WPT.FES_ACK == TC.FES_ACK and exact in WPT.provider_for({"source": "am"})[2]
+
+
 def test_served_default_is_our_harmonic_tide_and_never_open_meteo(served):
     """SURF_TIDE_OWN ON, SURF_TIDE_CMEMS held OFF (condition 5): every key with a table row serves A+M."""
     from services.runtime_flags import GUARDED
