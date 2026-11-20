@@ -1,5 +1,5 @@
 """Live sessions, participants, condition reports, and live streams."""
-from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Date, Enum, Text, Index, JSON
+from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Date, Enum, Text, Index, JSON, text
 from sqlalchemy.orm import relationship, backref
 from database import Base
 from datetime import datetime, timezone
@@ -19,6 +19,13 @@ class LiveSessionParticipant(Base):
     - They CANNOT create sessions (that's handled in go_live permission check)
     """
     __tablename__ = 'live_session_participants'
+    __table_args__ = (
+        Index(
+            'uq_live_session_active_seat', 'photographer_id', 'surfer_id', unique=True,
+            postgresql_where=text("status = 'active'"),
+            sqlite_where=text("status = 'active'"),
+        ),
+    )
 
     payment_credit_transaction_id = Column(String(36), nullable=True)
     

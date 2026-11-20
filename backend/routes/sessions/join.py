@@ -2,6 +2,7 @@
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
@@ -221,6 +222,8 @@ async def join_session(
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Payment error: {str(e)}")
         
+        session_data["emulator_payment_intent"] = checkout_session["payment_intent_id"]
+
         # Store pending transaction
         transaction = PaymentTransaction(
             user_id=surfer_id,
@@ -326,6 +329,7 @@ async def join_session(
             live_session_escrow.hold(participant, final_price)
 
         db.add(participant)
+        await db.flush()
 
         # Notify photographer
         notification = Notification(
@@ -439,9 +443,6 @@ async def join_session(
         db.add(analytics)
         
         # ============ GAMIFICATION: Award XP ============
-        # Flush to get participant.id before creating XP transactions
-        await db.flush()
-        
         # Surfer gets XP for joining a session (25 XP)
         surfer_xp = XPTransaction(
             user_id=surfer_id,
@@ -484,7 +485,10 @@ async def join_session(
         }
     
         await db.commit()
-    except Exception:
+    except Exception as exc:
+        if isinstance(exc, IntegrityError) and getattr(exc.orig.__cause__, 'constraint_name', None) == 'uq_live_session_active_seat':
+            await db.rollback()
+            raise HTTPException(status_code=409, detail="Already in this session") from exc
         logger.exception("Live session join failed")
         try:
             await db.rollback()
