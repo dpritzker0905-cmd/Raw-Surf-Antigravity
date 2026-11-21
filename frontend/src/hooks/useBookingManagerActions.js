@@ -25,7 +25,7 @@ const useBookingManagerActions = ({
   setGeneratedSplitLink,
   setGridDragMode,
   setIsGridDragging,
-  setLoading,
+  fetchBookings,
   setNewAvailability,
   setNewBooking,
   setNewCrewInput,
@@ -196,7 +196,6 @@ const useBookingManagerActions = ({
 
   useEffect(() => {
     if (user?.id) {
-      fetchBookings();
       fetchBookingPricing();
       fetchAvailability();
     }
@@ -386,19 +385,6 @@ const useBookingManagerActions = ({
       }));
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to update pricing');
-    }
-  };
-
-  const fetchBookings = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get(`/photographer/${user?.id}/bookings`);
-      setBookings(response.data || []);
-    } catch (error) {
-      logger.error('Error fetching bookings:', error);
-      setBookings([]);
-    } finally {
-      setLoading(false);
     }
   };
 
