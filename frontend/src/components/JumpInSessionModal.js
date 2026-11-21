@@ -22,7 +22,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
   const [paymentMethod, setPaymentMethod] = useState('credits');
 
   // Pricing calculations
-  const sessionBuyinPrice = photographer?.session_price || photographer?.live_buyin_price || 25;
+  const sessionBuyinPrice = photographer?.live_buyin_price || photographer?.session_price || 25;
   const photosIncluded = photographer?.photo_package_size || 3;
   const galleryPhotoPrice = photographer?.photo_price_standard || 10;
   const savingsAmount = Math.max(0, (photosIncluded * galleryPhotoPrice) - sessionBuyinPrice);
@@ -129,6 +129,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
         photographer_id: photographer.id,
         selfie_url: selfieUrl || null,
         payment_method: paymentMethod,
+        max_buyin_amount: Number(finalPrice.toFixed(2)),
         origin_url: window.location.origin
       });
       

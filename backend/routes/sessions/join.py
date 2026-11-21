@@ -152,7 +152,7 @@ async def join_session(
     # Combined discount: platform + photographer subscription (capped at 50%)
     discount = min(platform_discount + photo_sub_discount, 0.50)
     
-    final_price = buyin_price * (1 - discount)
+    final_price = round(buyin_price * (1 - discount), 2)
     
     # Try to use subscription live_buyin quota (free session if quota available)
     sub_quota_result = await try_use_subscription_quota(
@@ -164,6 +164,9 @@ async def join_session(
     elif data.payment_method == 'subscription':
         raise HTTPException(status_code=400, detail="No subscription buy-in is available")
     
+    if data.max_buyin_amount is not None and final_price > data.max_buyin_amount:
+        raise HTTPException(status_code=409, detail="The buy-in price changed. Reopen checkout to review the current price.")
+
     # ============ CARD PAYMENT: Create Stripe Checkout Session ============
     if data.payment_method == 'card':
         if not STRIPE_API_KEY:

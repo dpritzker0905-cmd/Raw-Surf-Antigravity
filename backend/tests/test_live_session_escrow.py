@@ -122,6 +122,18 @@ async def test_join_holds_the_share_and_pays_nothing_yet(harness, photographer):
 
 
 
+@pytest.mark.parametrize("method", ["credits", "card"])
+async def test_join_refuses_price_above_buyer_limit(harness, method):
+    response = await harness.client.post(
+        "/api/sessions/join?surfer_id=owner", headers=bearer("owner"),
+        json={"photographer_id": "pro", "payment_method": method, "max_buyin_amount": BUYIN - 1},
+    )
+    assert response.status_code == 409
+    async with harness.maker() as db:
+        assert (await db.scalars(select(CreditTransaction))).all() == []
+        assert (await db.scalars(select(LiveSessionParticipant))).all() == []
+
+
 def test_join_schema_refuses_an_unrecognized_payment_method():
     with pytest.raises(ValidationError, match="payment_method"):
         JoinSessionRequest(photographer_id="pro", payment_method="unrecognized")
