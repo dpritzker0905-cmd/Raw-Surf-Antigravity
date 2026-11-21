@@ -9,6 +9,7 @@ import {
   MapPin, Camera, User, Navigation, Check, Square, Eye, MessageCircle, Mic
 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
+import RequesterProfileLink from './RequesterProfileLink';
 import { Button } from '../ui/button';
 import { getFullUrl } from '../../utils/media';
 import { formatDuration } from '../../utils/formatTime';
@@ -96,14 +97,7 @@ const ActiveSessionCard = ({
           </div>
           <div className="flex-1">
             <p className={`font-bold text-lg ${textPrimary}`}>{session.requester_name || 'Surfer'}</p>
-            {session.requester_username && (
-              <button
-                onClick={(e) => { e.stopPropagation(); window.open(`/profile/${session.requester_username}`, '_blank'); }}
-                className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline transition-colors"
-              >
-                @{session.requester_username}
-              </button>
-            )}
+            <RequesterProfileLink id={session.requester_id} username={session.requester_username} />
             <div className="flex items-center gap-2 mt-1">
               <MapPin className="w-4 h-4 text-cyan-400" />
               <span className={`text-sm ${textSecondary}`}>{session.location_name || 'Meeting Point'}</span>
