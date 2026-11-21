@@ -48,6 +48,7 @@ function setup() {
   return {
     visit: id => act(async () => { fireEvent.click(screen.getByText(id)); }),
     changeViewer: () => act(async () => { viewer = { ...viewer, id: 'second-reader' }; view.rerender(app()); }),
+    refreshViewer: () => act(async () => { viewer = { ...viewer }; view.rerender(app()); }),
     deliver: (id, index, n) => act(async () => {
       const data = {
         [`/streak/${id}`]: { current_streak: n },
@@ -63,6 +64,15 @@ function setup() {
 }
 
 const stats = () => JSON.parse(screen.getByTestId('stats').textContent);
+
+test('a slower refresh cannot overwrite newer stats during the same visit', async () => {
+  const { refreshViewer, deliver } = setup();
+  await refreshViewer();
+  await deliver('A', 1, 10);
+  expect(stats()).toEqual(['A', 10, 10, 11, 12, 13, 14]);
+  await deliver('A', 0, 2);
+  expect(stats()).toEqual(['A', 10, 10, 11, 12, 13, 14]);
+});
 
 test('stat setters stay stable within a visit and expire when the visit changes', () => {
   const { result, rerender } = renderHook(id => useProfileStats(id, 'reader'), { initialProps: 'A' });

@@ -161,17 +161,19 @@ export const Profile = () => {
     if (authLoading) return;
     
     if (profileUserId) {
+      const statsController = new AbortController();
       fetchProfile();
-      fetchStreak();
-      fetchSocialStats();
-      fetchContentStats();
-      fetchImpactScore();
-      fetchGamificationStats();
+      fetchStreak(statsController.signal);
+      fetchSocialStats(statsController.signal);
+      fetchContentStats(statsController.signal);
+      fetchImpactScore(statsController.signal);
+      fetchGamificationStats(statsController.signal);
       notesHook.fetchUserNote(); // Fetch the profile user's note
       if (!isOwnProfile && user) {
         checkFollowStatus();
         blockHook.checkBlockStatus();
       }
+      return () => statsController.abort();
     }
   }, [profileUserId, isOwnProfile, authLoading, user]);
 
