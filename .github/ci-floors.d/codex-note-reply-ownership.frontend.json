@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 5,
+  "files": 1,
+  "branch": "codex/note-reply-ownership",
+  "date": "2026-11-21",
+  "note": "Note reply drafts, delayed responses and explicit retry"
+}
