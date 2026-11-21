@@ -89,21 +89,22 @@ const useProfileActions = ({
     }
   };
 
-  const fetchStreak = async () => {
+  const fetchStreak = async (signal) => {
     try {
-      const response = await apiClient.get(`/streak/${profileUserId}`);
-      setStreak(response.data);
+      const response = await apiClient.get(`/streak/${profileUserId}`, { signal });
+      if (!signal.aborted) setStreak(response.data);
     } catch (error) {
-      logger.error('Error fetching streak:', error);
+      if (!signal.aborted) logger.error('Error fetching streak:', error);
     }
   };
 
-  const fetchSocialStats = async () => {
+  const fetchSocialStats = async (signal) => {
     try {
       const [followersRes, followingRes] = await Promise.all([
-        apiClient.get(`/followers/${profileUserId}`).catch(() => ({ data: [] })),
-        apiClient.get(`/following/${profileUserId}`).catch(() => ({ data: [] }))
+        apiClient.get(`/followers/${profileUserId}`, { signal }).catch(() => ({ data: [] })),
+        apiClient.get(`/following/${profileUserId}`, { signal }).catch(() => ({ data: [] }))
       ]);
+      if (signal.aborted) return;
       setSocialStats({
         followers: followersRes.data?.length || 0,
         following: followingRes.data?.length || 0
@@ -113,30 +114,30 @@ const useProfileActions = ({
     }
   };
 
-  const fetchContentStats = async () => {
+  const fetchContentStats = async (signal) => {
     try {
-      const response = await apiClient.get(`/profile/${profileUserId}/stats`);
-      setContentStats(response.data);
+      const response = await apiClient.get(`/profile/${profileUserId}/stats`, { signal });
+      if (!signal.aborted) setContentStats(response.data);
     } catch (error) {
-      logger.error('Error fetching content stats:', error);
+      if (!signal.aborted) logger.error('Error fetching content stats:', error);
     }
   };
 
-  const fetchImpactScore = async () => {
+  const fetchImpactScore = async (signal) => {
     try {
-      const response = await apiClient.get(`/impact/public/${profileUserId}`);
-      setImpactScore(response.data);
+      const response = await apiClient.get(`/impact/public/${profileUserId}`, { signal });
+      if (!signal.aborted) setImpactScore(response.data);
     } catch (error) {
-      logger.error('Error fetching impact score:', error);
+      if (!signal.aborted) logger.error('Error fetching impact score:', error);
     }
   };
 
-  const fetchGamificationStats = async () => {
+  const fetchGamificationStats = async (signal) => {
     try {
-      const response = await apiClient.get(`/gamification/user/${profileUserId}`);
-      setGamificationStats(response.data);
+      const response = await apiClient.get(`/gamification/user/${profileUserId}`, { signal });
+      if (!signal.aborted) setGamificationStats(response.data);
     } catch (error) {
-      logger.error('Error fetching gamification stats:', error);
+      if (!signal.aborted) logger.error('Error fetching gamification stats:', error);
     }
   };
 
