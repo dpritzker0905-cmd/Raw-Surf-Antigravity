@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from core.security import create_access_token
 from database import Base, get_db
 from models import CreditTransaction, LiveSession, LiveSessionParticipant, PaymentTransaction, Profile, RoleEnum, SurferGalleryItem, SurferPhotoSubscription, SurferSelectionQuota
+from routes.admin import support
 from routes.bookings import booking_lifecycle
 from routes.sessions import join as session_join
 from routes.sessions import payments
@@ -59,6 +60,7 @@ async def harness(tmp_path):
 
     app = FastAPI()
     app.include_router(session_join.router, prefix='/api')
+    app.include_router(support.router, prefix='/api')
     app.include_router(payments.router, prefix='/api')
     app.include_router(booking_lifecycle.router, prefix='/api')
 

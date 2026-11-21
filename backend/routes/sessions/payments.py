@@ -1,4 +1,4 @@
-"""Sessions payments — complete payment flow."""
+"""Sessions payments â€” complete payment flow."""
 import json
 import logging
 import os
@@ -7,6 +7,7 @@ import stripe_mcp_server
 import sqlite3
 from uuid import uuid4
 from fastapi import Depends, HTTPException, APIRouter
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -14,10 +15,12 @@ from database import get_db
 from core.security import dev_identity_allowed, get_current_user_id
 from models import Notification, Profile
 from models import LiveSessionParticipant, PaymentTransaction
+from services.support_tickets import is_paid_seat_review, paid_seat_ticket
 from services import live_session_escrow
 from utils.credits import clean_amount
 from .join import CompletePaymentRequest
-from .card_session import active_card_session, REVIEW_MESSAGE
+from utils.live_buyin import current_live_session
+from .card_session import REVIEW_MESSAGE
 
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
 if STRIPE_API_KEY:
@@ -25,6 +28,15 @@ if STRIPE_API_KEY:
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def save_paid_seat_review(db, tx):
+    try:
+        ticket_id = await paid_seat_ticket(db, tx)
+        await db.commit()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Could not confirm the payment review. Check with support before paying again.") from exc
+    return JSONResponse(status_code=409, content={"detail": REVIEW_MESSAGE, "support_ticket_id": ticket_id})
 
 
 def checkout_emulation_allowed() -> bool:
@@ -186,6 +198,8 @@ async def complete_session_payment(
             refund_attempted = True
             raise HTTPException(status_code=400, detail="Payment has been refunded")
         if tx.status == 'review_required':
+            if is_paid_seat_review(tx, locked_checkout):
+                return await save_paid_seat_review(db, tx)
             raise HTTPException(status_code=409, detail=REVIEW_MESSAGE)
         if locked_checkout.get("live_session_id") != bound_session_id:
             raise HTTPException(status_code=409, detail="Could not confirm the saved session binding")
@@ -199,7 +213,7 @@ async def complete_session_payment(
         )
         photographer = photographer_result.scalar_one_or_none()
         if surfer and photographer:
-            active_live_session = await db.scalar(active_card_session(photographer_id).with_for_update(read=True))
+            active_live_session = await db.scalar(current_live_session(photographer_id).with_for_update(read=True))
             if (
                 not bound_session_id or not photographer.is_shooting
                 or active_live_session is None or active_live_session.id != bound_session_id
@@ -208,11 +222,7 @@ async def complete_session_payment(
                 tx.payment_status = 'paid'
                 tx.status = 'review_required'
                 tx.transaction_metadata = json.dumps({**locked_checkout, "review_reason": reason})
-                try:
-                    await db.commit()
-                except Exception as exc:
-                    raise HTTPException(status_code=503, detail="Could not confirm the payment review. Check with support before paying again.") from exc
-                raise HTTPException(status_code=409, detail=REVIEW_MESSAGE)
+                return await save_paid_seat_review(db, tx)
         payment_verified = True
         
         # Use a nested transaction (savepoint) to isolate mutations while keeping the outer row lock active.

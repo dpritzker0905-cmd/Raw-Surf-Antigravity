@@ -13,7 +13,6 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
-import secrets
 import re
 import hashlib
 import json
@@ -24,6 +23,7 @@ from models import (
     Profile, SupportTicket, TicketMessage, 
     TicketCategoryEnum, TicketPriorityEnum, TicketStatusEnum
 )
+from services.support_tickets import generate_ticket_number, calculate_sla_due
 from services.support_delivery import save_support_message, queue_support_reply_notice, queue_support_creation_notice, support_request_id
 
 
@@ -61,20 +61,6 @@ class UpdateTicketRequest(BaseModel):
 
 
 # --- Helper Functions ---
-async def generate_ticket_number(db: AsyncSession) -> str:
-    return f"TKT-{secrets.token_hex(8).upper()}"
-
-def calculate_sla_due(priority: TicketPriorityEnum, origin=None) -> datetime:
-    origin = origin if origin is not None else datetime.now(timezone.utc)
-    hours = {
-        TicketPriorityEnum.URGENT: 1,
-        TicketPriorityEnum.HIGH: 4,
-        TicketPriorityEnum.MEDIUM: 24,
-        TicketPriorityEnum.LOW: 72
-    }
-    return origin + timedelta(hours=hours.get(priority, 24))
-
-
 def creation_request_fingerprint(user_id, request, category, priority):
     """Version-one exact creation intent, independent of later staff edits."""
     intent = [1, user_id, request.subject, request.description, category.value, priority.value,
@@ -134,6 +120,10 @@ async def get_support_tickets(
             assignee_info = assignee.fetchone()
             assignee_name = assignee_info[0] if assignee_info else None
         
+        # SQLite returns UTC timestamps without a timezone.
+        due = t.sla_due_at
+        if due and due.tzinfo is None:
+            due = due.replace(tzinfo=timezone.utc)
         ticket_data.append({
             "id": t.id,
             "ticket_number": t.ticket_number,
@@ -147,7 +137,7 @@ async def get_support_tickets(
             "assigned_to": t.assigned_to,
             "assignee_name": assignee_name,
             "sla_due_at": t.sla_due_at.isoformat() if t.sla_due_at else None,
-            "is_sla_breached": t.sla_due_at and datetime.now(timezone.utc) > t.sla_due_at and t.status not in [TicketStatusEnum.RESOLVED, TicketStatusEnum.CLOSED],
+            "is_sla_breached": due and datetime.now(timezone.utc) > due and t.status not in [TicketStatusEnum.RESOLVED, TicketStatusEnum.CLOSED],
             "first_response_at": t.first_response_at.isoformat() if t.first_response_at else None,
             "tags": t.tags or [],
             "created_at": t.created_at.isoformat() if t.created_at else None
@@ -224,6 +214,7 @@ async def get_ticket_detail(
         "csat_feedback": ticket.csat_feedback,
         "tags": ticket.tags or [],
         "related_booking_id": ticket.related_booking_id,
+        "related_transaction_id": ticket.related_transaction_id,
         "messages": message_data,
         "created_at": ticket.created_at.isoformat() if ticket.created_at else None
     }

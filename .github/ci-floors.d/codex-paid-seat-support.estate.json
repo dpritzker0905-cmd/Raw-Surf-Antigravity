@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 1,
+  "branch": "codex/paid-seat-support",
+  "date": "2026-11-21",
+  "note": "Reconcile previously verified paid live-seat reviews"
+}
