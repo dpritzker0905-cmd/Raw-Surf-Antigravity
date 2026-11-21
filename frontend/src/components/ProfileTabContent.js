@@ -15,6 +15,7 @@ import { CrewLeaderboard } from './CrewLeaderboard';
 import { SurfboardsTab } from './SurfboardsTab';
 import { ProfileReviewsSection } from './ProfileReviewsSection';
 import { MediaGridItem } from './MediaGridItem';
+import { ProfileBadgeTile } from './GamificationUI';
 
 const ProfileTabContent = ({
   activeTab,
@@ -94,16 +95,7 @@ const ProfileTabContent = ({
             </div>
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
               {gamificationStats.badges.map((badge, idx) => (
-                <div 
-                  key={badge.id || idx}
-                  className="flex flex-col items-center p-2 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/50 transition-colors"
-                  title={badge.description}
-                >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
-                    {badge.icon_emoji || <Award className="w-5 h-5 text-white" aria-hidden="true" />}
-                  </div>
-                  <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
-                </div>
+                <ProfileBadgeTile key={badge.id || idx} badge={badge} />
               ))}
             </div>
           </div>
@@ -207,16 +199,7 @@ const ProfileTabContent = ({
             {gamificationStats.badges?.length > 0 && (
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
                 {gamificationStats.badges.map((badge, idx) => (
-                  <div 
-                    key={badge.id || idx}
-                    className="flex flex-col items-center p-2 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/50 transition-colors"
-                    title={badge.description}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
-                    {badge.icon_emoji || <Award className="w-5 h-5 text-white" aria-hidden="true" />}
-                    </div>
-                    <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
-                  </div>
+                  <ProfileBadgeTile key={badge.id || idx} badge={badge} />
                 ))}
               </div>
             )}

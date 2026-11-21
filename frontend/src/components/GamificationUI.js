@@ -58,6 +58,23 @@ export const XPDisplay = ({ xp = 0, size = 'md', showLabel = true }) => {
   );
 };
 
+// Profile grids use the same badge metadata as the profile header.
+export const ProfileBadgeTile = ({ badge }) => {
+  const config = BADGE_CONFIG[badge.badge_type];
+  const Icon = config?.icon || Award;
+  return (
+    <div
+      className="flex flex-col items-center p-2 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/50 transition-colors"
+      title={badge.description || config?.description}
+    >
+      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
+        {badge.icon_emoji || <Icon className="w-5 h-5 text-white" aria-hidden="true" />}
+      </div>
+      <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name || config?.label || 'Badge'}</span>
+    </div>
+  );
+};
+
 // Single Badge Icon Component
 export const BadgeIcon = ({ badgeType, tier = 'bronze', size = 'md', showTooltip = true }) => {
   const config = BADGE_CONFIG[badgeType];
