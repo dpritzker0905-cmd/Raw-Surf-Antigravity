@@ -19,8 +19,7 @@ const useMessagesActions = ({
   conversations,
   replyingTo,
   fromProfileId,
-  activeFolderRef,
-  setLoading,
+  fetchConversations,
   setConversations,
   setFolderCounts,
   setSelectedConversation,
@@ -41,7 +40,6 @@ const useMessagesActions = ({
   setShowVoiceRecorder,
   setIsComposeModalOpen,
   setSearchParams,
-  fetchAbortRef,
 }) => {
 
   const loadConversationById = async (convId) => {
@@ -96,61 +94,6 @@ const useMessagesActions = ({
       setConversationDetail(null);
       setNewChatRecipient(null);
       navigate('/messages');
-    }
-  };
-
-  const fetchConversations = async () => {
-    if (fetchAbortRef.current) {
-      fetchAbortRef.current.abort();
-    }
-    const abortController = new AbortController();
-    fetchAbortRef.current = abortController;
-
-    try {
-      const currentFolder = activeFolderRef.current;
-      const isGromZone = currentFolder === 'grom_zone';
-      const isFamily = currentFolder === 'family';
-      
-      let path;
-      if (isGromZone) {
-        path = `/messages/conversations/${user.id}?inbox_type=primary&grom_zone=true`;
-      } else if (isFamily) {
-        path = `/messages/conversations/${user.id}/family`;
-      } else {
-        path = `/messages/conversations/${user.id}?inbox_type=${currentFolder}`;
-      }
-      
-      const [response, countsResp, familyCountResp] = await Promise.all([
-        apiClient.get(path, { signal: abortController.signal }),
-        apiClient.get(`/messages/unread-counts/${user.id}`, { signal: abortController.signal }).catch(() => ({ data: { primary: 0, requests: 0, grom_zone: 0 } })),
-        apiClient.get(`/messages/conversations/${user.id}/family`, { signal: abortController.signal }).catch(() => ({ data: [] }))
-      ]);
-      
-      if (activeFolderRef.current !== currentFolder) {
-        return;
-      }
-
-      setConversations(response.data);
-      
-      const unreadData = countsResp.data;
-      const familyUnread = (familyCountResp.data || []).filter(c => c.unread_count > 0).length;
-      
-      setFolderCounts({
-        primary: unreadData.primary || 0,
-        requests: unreadData.requests || 0,
-        grom_zone: unreadData.grom_zone || 0,
-        family: familyUnread,
-        pro_lounge: currentFolder === 'pro_lounge' ? (response.data || []).filter(c => c.unread_count > 0).length : 0,
-        channel: currentFolder === 'channel' ? (response.data || []).filter(c => c.unread_count > 0).length : 0,
-        hidden: 0
-      });
-    } catch (error) {
-      if (error?.name === 'AbortError' || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
-        return;
-      }
-      logger.error('Failed to fetch conversations:', error);
-    } finally {
-      setLoading(false);
     }
   };
 

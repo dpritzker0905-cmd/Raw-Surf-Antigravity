@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import logger from '../utils/logger';
 import useMessagesActions from '../hooks/useMessagesActions';
+import useConversationList from '../hooks/useConversationList';
 import ComposeModal from './messages/ComposeModal';
 import usePullToRefresh from '../hooks/usePullToRefresh';
 import CreateNoteModal from './messages/CreateNoteModal';
@@ -42,12 +43,14 @@ export const MessagesPage = () => {
   
   // State
   const [activeFolder, setActiveFolder] = useState('primary');
-  const [conversations, setConversations] = useState([]);
-  const [folderCounts, setFolderCounts] = useState({ official: 0, primary: 0, requests: 0, hidden: 0 });
+  const { conversations, setConversations, folderCounts, setFolderCounts, loading,
+    error: conversationListError, fetchConversations } = useConversationList({
+    userId: user?.id, activeFolder,
+    ownerKey: JSON.stringify([user?.role, user?.is_admin, user?.is_grom_parent, effectiveRole, isMasked, isGodMode, activePersona]),
+  });
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [conversationDetail, setConversationDetail] = useState(null);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [showVideoCapture, setShowVideoCapture] = useState(false);
@@ -78,12 +81,6 @@ export const MessagesPage = () => {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-
-  // Ref to track current activeFolder - prevents stale-closure bugs in polling
-  // intervals that capture an old fetchConversations and overwrite channel/pro-lounge
-  // conversations with primary ones.
-  const activeFolderRef = useRef(activeFolder);
-  useEffect(() => { activeFolderRef.current = activeFolder; }, [activeFolder]);
 
   // Pull-to-refresh for mobile - triggers conversation list refresh on swipe-down
   const { pullRef: msgPullRef, isPulling: msgPulling, pullProgress: msgPullProgress, isRefreshing: msgPtrRefreshing } = usePullToRefresh(
@@ -163,23 +160,15 @@ export const MessagesPage = () => {
       setActiveFolder('primary');
     }
     
-    // Refetch conversations for current folder
-    fetchConversations();
+    // The scoped list effect below refetches when the persona changes.
   }, [effectiveRole, isGodMode, activePersona]);
 
-  // Fetch conversations on folder change
+  // List scope includes identity, persona and folder; notes keep their existing refresh schedule.
   useEffect(() => {
-    if (user?.id) {
-      fetchConversations();
-      fetchStories();
-    }
-
-    // Cleanup: abort in-flight fetch if the folder changes before it completes
-    return () => {
-      if (fetchAbortRef.current) {
-        fetchAbortRef.current.abort();
-      }
-    };
+    if (user?.id) fetchConversations();
+  }, [user?.id, fetchConversations]);
+  useEffect(() => {
+    if (user?.id) fetchStories();
   }, [user?.id, activeFolder]);
 
   // Fetch conversation detail when selected
@@ -254,8 +243,7 @@ export const MessagesPage = () => {
   // The conversations channel was monitoring ALL conversation updates for ALL users,
   // generating massive shared pooler egress. Polling every 10s is sufficient for sidebar.
   // NOTE: activeFolder in deps ensures the interval restarts with the correct folder
-  // when the user switches tabs. Combined with activeFolderRef inside fetchConversations,
-  // this provides belt-and-suspenders protection against stale-closure overwrites.
+  // when the user switches tabs. The list hook also rejects stale request/scope responses.
   useEffect(() => {
     if (!user?.id) return;
 
@@ -264,7 +252,7 @@ export const MessagesPage = () => {
     }, 10000); // Poll every 10 seconds
 
     return () => clearInterval(pollInterval);
-  }, [user?.id, activeFolder]);
+  }, [user?.id, activeFolder, fetchConversations]);
 
   // Typing indicator polling
   useEffect(() => {
@@ -335,16 +323,11 @@ export const MessagesPage = () => {
     });
   };
 
-  // AbortController ref - cancels in-flight conversation fetches when the user
-  // switches folders. This prevents stale responses from overwriting fresh data.
-  const fetchAbortRef = useRef(null);
-
   // ============ HANDLERS EXTRACTED TO hooks/useMessagesActions.js ============
   const {
     loadConversationById,
     startNewConversation,
     handleBackNavigation,
-    fetchConversations,
     fetchConversationDetail,
     fetchStories,
     createNote,
@@ -366,8 +349,8 @@ export const MessagesPage = () => {
     handleComposeSelectUser,
   } = useMessagesActions({
     user, navigate, selectedConversation, conversationDetail, conversations,
-    replyingTo, fromProfileId, activeFolderRef, fetchAbortRef,
-    setLoading, setConversations, setFolderCounts,
+    replyingTo, fromProfileId, fetchConversations,
+    setConversations, setFolderCounts,
     setSelectedConversation, setConversationDetail, setNewMessage,
     setSendingMessage, setReplyingTo, setNewChatRecipient,
     setStories, setMyNote, setNotesFeed, setActiveFolder,
@@ -543,6 +526,7 @@ export const MessagesPage = () => {
       selectedConversation={selectedConversation} setSelectedConversation={setSelectedConversation}
       searchQuery={searchQuery} setSearchQuery={setSearchQuery}
       stories={stories} loading={loading}
+      conversationListError={conversationListError} onRetryConversations={fetchConversations}
       showMobileTools={showMobileTools} setShowMobileTools={setShowMobileTools}
       crewChats={crewChats} crewChatsLoading={crewChatsLoading}
       isOnline={isOnline}
