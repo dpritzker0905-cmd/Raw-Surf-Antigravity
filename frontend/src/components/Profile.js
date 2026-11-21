@@ -690,6 +690,9 @@ export const Profile = () => {
         userNote={notesHook.userNote}
         noteText={notesHook.noteText}
         setNoteText={notesHook.setNoteText}
+        noteReadStatus={notesHook.noteReadStatus}
+        canCreateNote={notesHook.canCreateNote}
+        onRetry={notesHook.fetchUserNote}
         noteSubmitting={notesHook.noteSubmitting}
         onCreateNote={notesHook.handleCreateNote}
         onDeleteNote={notesHook.handleDeleteNote}

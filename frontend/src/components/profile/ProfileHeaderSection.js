@@ -9,6 +9,7 @@ import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 import { getExpandedRoleInfo } from '../../contexts/PersonaContext';
 import { XPDisplay, BadgeRow } from '../GamificationUI';
+import ProfileNoteReadError from './ProfileNoteReadError';
 import TrustSignalBadges from '../ui/TrustSignalBadges';
 
 const ProfileRoleBadge = ({ role }) => {
@@ -142,8 +143,11 @@ const ProfileHeaderSection = ({
       )}
     </div>
 
-    {/* Add Note button */}
-    {isOwnProfile && !notesHook.userNote && (
+    {/* Note lookup and creation */}
+    {notesHook.noteReadStatus === 'error' && !notesHook.showNoteModal && (
+      <ProfileNoteReadError onRetry={notesHook.fetchUserNote} />
+    )}
+    {isOwnProfile && notesHook.canCreateNote && (
       <button
         onClick={() => { notesHook.setNoteText(''); notesHook.setShowNoteModal(true); }}
         className="mb-2"

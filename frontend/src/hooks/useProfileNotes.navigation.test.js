@@ -29,6 +29,9 @@ function Fixture({ profile, viewer = 'reader', refresh = 0 }) {
     <ProfileNoteModal isOpen={notes.showNoteModal} isOwnProfile={profile === viewer}
       profileName={profile} userNote={notes.userNote} onClose={notes.setShowNoteModal}
       noteText={notes.noteText} setNoteText={notes.setNoteText} onCreateNote={notes.handleCreateNote}
+      noteReadStatus={notes.noteReadStatus}
+      canCreateNote={notes.canCreateNote}
+      onRetry={notes.fetchUserNote}
       onDeleteNote={notes.handleDeleteNote} />
   </>;
 }
@@ -126,4 +129,67 @@ test('a read started before deletion cannot restore a deleted note', async () =>
   await finish(refresh, 'My note');
   expect(apiClient.delete).toHaveBeenCalledTimes(1);
   expect(bubble()).toBeNull();
+});
+
+const addNote = () => screen.queryByTestId('add-note-btn');
+const retry = () => screen.getByRole('button', { name: 'Retry note' });
+const fail = request => act(async () => request.reject(new Error('Read interrupted')));
+
+test('the owner can add a note only after a successful empty read', async () => {
+  const first = read(), recovery = read();
+  render(<Fixture profile="reader" />);
+  expect(addNote()).toBeNull();
+  await fail(first);
+  expect(addNote()).toBeNull();
+  fireEvent.click(retry());
+  expect(addNote()).toBeNull();
+  await finish(recovery, null);
+  expect(addNote()).toBeEnabled();
+  expect(apiClient.post).not.toHaveBeenCalled();
+});
+
+test('a failed read can recover an existing note without offering to replace it', async () => {
+  const first = read(), recovery = read();
+  render(<Fixture profile="reader" />);
+  await fail(first);
+  expect(addNote()).toBeNull();
+  fireEvent.click(retry());
+  await finish(recovery, 'Existing note');
+  expect(bubble()).toHaveTextContent('Existing note');
+  expect(addNote()).toBeNull();
+  expect(apiClient.post).not.toHaveBeenCalled();
+  expect(apiClient.delete).not.toHaveBeenCalled();
+});
+
+test('a malformed success response is recoverable and cannot enable creation', async () => {
+  const first = read();
+  render(<Fixture profile="reader" />);
+  await act(async () => first.resolve({ data: {} }));
+  expect(addNote()).toBeNull();
+  expect(retry()).toBeEnabled();
+});
+
+test('an open editor preserves the draft through a failed refresh and a read-only retry', async () => {
+  const initial = read(), refresh = read(), recovery = read();
+  const view = render(<Fixture profile="reader" />);
+  await finish(initial, null);
+  fireEvent.click(addNote());
+  fireEvent.change(screen.getByTestId('note-input'), { target: { value: 'My draft' } });
+  view.rerender(<Fixture profile="reader" refresh={1} />);
+  await fail(refresh);
+  expect(screen.queryByTestId('submit-note-btn')).toBeNull();
+  fireEvent.click(retry());
+  await finish(recovery, null);
+  expect(screen.getByTestId('note-input')).toHaveValue('My draft');
+  expect(apiClient.post).not.toHaveBeenCalled();
+});
+
+test('a visitor can retry a failed note lookup without seeing owner controls', async () => {
+  const first = read(), recovery = read();
+  render(<Fixture profile="Mara" />);
+  await fail(first);
+  fireEvent.click(retry());
+  await finish(recovery, 'Mara note');
+  expect(bubble()).toHaveTextContent('Mara note');
+  expect(addNote()).toBeNull();
 });

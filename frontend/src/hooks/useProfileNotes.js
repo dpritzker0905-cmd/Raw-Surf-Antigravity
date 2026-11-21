@@ -11,6 +11,7 @@ import { toast } from 'sonner';
  * @param {string|null} viewerId - The current authenticated user's ID
  */
 export function useProfileNotes(profileUserId, viewerId) {
+  const [noteReadStatus, setNoteReadStatus] = useState('loading');
   const [userNote, setUserNote] = useState(null);
   const [isMutualFollower, setIsMutualFollower] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -22,6 +23,7 @@ export function useProfileNotes(profileUserId, viewerId) {
   // A return to the same profile is a new visit, even for the same viewer.
   useLayoutEffect(() => {
     activeVisit.current = { latestRead: 0 };
+    setNoteReadStatus('loading');
     setUserNote(null);
     setIsMutualFollower(false);
     setShowNoteModal(false);
@@ -34,23 +36,33 @@ export function useProfileNotes(profileUserId, viewerId) {
     const visit = activeVisit.current;
     if (!visit || !profileUserId || !viewerId) return;
     const read = ++visit.latestRead;
+    setNoteReadStatus('loading');
     const isCurrent = () => activeVisit.current === visit && read === visit.latestRead;
     try {
       const response = await apiClient.get(`/notes/user/${profileUserId}?viewer_id=${viewerId}`);
       if (!isCurrent()) return;
-      setUserNote(response.data.note);
-      setIsMutualFollower(response.data.is_mutual_follower);
+      const { note, is_mutual_follower: mutual } = response.data ?? {};
+      if (typeof mutual !== 'boolean' || (note !== null && typeof note?.content !== 'string')) {
+        throw new Error('Invalid profile note response');
+      }
+      setUserNote(note);
+      setIsMutualFollower(mutual);
+      setNoteReadStatus('ready');
     } catch (error) {
       if (!isCurrent()) return;
       logger.error('Error fetching user note:', error);
+      setNoteReadStatus('error');
       setUserNote(null);
       setIsMutualFollower(false);
     }
   };
 
+  const canCreateNote = Boolean(viewerId) && viewerId === profileUserId &&
+    noteReadStatus === 'ready' && userNote === null && isMutualFollower;
+
   const handleCreateNote = async () => {
     const visit = activeVisit.current;
-    if (!visit || !noteText.trim() || noteSubmitting) return;
+    if (!visit || !canCreateNote || !noteText.trim() || noteSubmitting) return;
     setNoteSubmitting(true);
     try {
       await apiClient.post(`/notes/create`, { content: noteText.trim() });
@@ -73,6 +85,7 @@ export function useProfileNotes(profileUserId, viewerId) {
       await apiClient.delete(`/notes/delete`);
       if (activeVisit.current !== visit) return;
       visit.latestRead += 1;
+      setNoteReadStatus('ready');
       setUserNote(null);
       setShowNoteModal(false);
       toast.success('Note deleted');
@@ -82,7 +95,7 @@ export function useProfileNotes(profileUserId, viewerId) {
   };
 
   return {
-    userNote,
+    userNote, canCreateNote, noteReadStatus,
     isMutualFollower,
     showNoteModal, setShowNoteModal,
     noteText, setNoteText,
