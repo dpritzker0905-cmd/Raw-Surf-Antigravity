@@ -225,8 +225,17 @@ def test_served_delta_metrics_on_a_known_pair():
     assert abs(r["offset_m"] - 0.30) < 0.02 and abs(r["range_ratio"] - 1.1) < 0.02 and r["timing_h"] == 1
     assert SD.compare(ours[:10], before[:10]) is None                           # < 24 paired hours: not compared
     md = SD.summarize([r], 5, 4)
-    assert "keys in today's table: 5" in md and "| +0.3" in md and "| 1.10 |" in md and "Not measured here" in md
+    assert "| +0.3" in md and "| 1.10 |" in md and "Not measured here" in md
     assert "21.7" not in md                                                     # summary numbers only, no per-key rows
+    # the advisor's limit 1: the "with a before series" count comes first and flags a thin comparison
+    assert md.index("With a before series: 4 of 5 keys (80%)") < md.index("| metric")
+    assert "NOT TRUSTED" in md and "NOT TRUSTED" not in SD.summarize([r], 10, 9)
+    # the advisor's limit 2: the table must start at or before today's 00Z and cover the 72-hour window
+    day0 = datetime(2026, 11, 20, tzinfo=UTC)
+    assert SD.window_offset(day0 - timedelta(days=3), day0, 48 * 24) == 72
+    for bad_start, hours in ((day0 + timedelta(hours=1), 48 * 24), (day0 - timedelta(days=3), 100)):
+        with pytest.raises(ValueError):
+            SD.window_offset(bad_start, day0, hours)
 
 
 def test_workflow_scopes_each_credential_to_its_steps():

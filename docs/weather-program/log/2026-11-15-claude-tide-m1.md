@@ -2739,3 +2739,11 @@ absent; NoSuchBucket, and statusCode alone, fail the step. The test now pins bot
 with the service key was NOT probed (no credentialed read); it is the same Storage API, so the missing-object body is
 expected to match.
 
+
+
+## 2026-11-20 12:45Z: served_delta guards (the advisor's limits on #1118; local follow-up branch claude/tide-served-delta-guards)
+- **Limit 1:** a chunk that fails all its tries is skipped. The step summary now OPENS with `With a before series: N of M keys`, and marks the numbers NOT TRUSTED below 90%.
+- **Limit 2:** `window_offset` refuses (ValueError) a table that starts after today's 00Z or does not cover the 72-hour window.
+- **Tests:** added to `test_served_delta_metrics_on_a_known_pair` (no new test functions, so floors are unchanged); 18 pass locally.
+- **Next:** open this after #1118 merges.
+
