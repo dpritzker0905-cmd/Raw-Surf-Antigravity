@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePersona } from '../../contexts/PersonaContext';
 import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
+import { getErrorMessage } from '../../utils/errors';
 import logger from '../../utils/logger';
 import { getFullUrl } from '../../utils/media';
 import { CAMERA_AUTHORIZED_KEY } from './SpotDrawerHelpers';
@@ -39,7 +40,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
   const [checkout, setCheckout] = useState(null);
   
   // Calculate session pricing
-  const sessionBuyinPrice = photographer?.session_price || photographer?.live_buyin_price || 25;
+  const sessionBuyinPrice = photographer?.live_buyin_price ?? photographer?.session_price ?? 25;
   const _sessionPhotoPrice = photographer?.live_photo_price || 5;
   const photosIncluded = photographer?.photo_package_size || 3;
   const galleryPhotoPrice = photographer?.gallery_photo_price || photographer?.photo_price_standard || 10;
@@ -178,6 +179,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
         photographer_id: photographer.id,
         selfie_url: uploadedSelfieUrl,
         payment_method: paymentMethod,
+        max_buyin_amount: Number(finalPrice.toFixed(2)),
         effective_role: isGodMode && activePersona ? effectiveRole : null
       });
 
@@ -203,7 +205,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
       }, 2000);
     } catch (error) {
       if (!mountedRef.current) return;
-      toast.error(error.response?.data?.detail || error.message || 'Failed to join session');
+      toast.error(getErrorMessage(error, 'Failed to join session'));
     } finally {
       joinInFlightRef.current = false;
       if (mountedRef.current) setLoading(false);

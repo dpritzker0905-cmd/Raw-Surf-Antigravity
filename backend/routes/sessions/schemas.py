@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Literal, Optional
 from datetime import datetime, timezone
 import json
@@ -33,6 +33,7 @@ class JoinSessionRequest(BaseModel):
     photographer_id: str
     selfie_url: Optional[str] = None
     payment_method: Literal["credits", "card", "subscription"] = "credits"
+    max_buyin_amount: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
     effective_role: Optional[str] = None  # For God Mode persona masking
     resolution: Optional[str] = 'standard'  # CaptureSession: 'web', 'standard', 'high'
     use_account_credits: bool = False  # CaptureSession: Use account credits first

@@ -4,6 +4,7 @@
  */
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
+import { getErrorMessage } from '../utils/errors';
 import logger from '../utils/logger';
 
 const useSpotDrawerActions = ({
@@ -97,7 +98,7 @@ const useSpotDrawerActions = ({
       toast.success('Successfully joined session!');
       return response.data;
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to join session');
+      toast.error(getErrorMessage(error, 'Failed to join session'));
     } finally {
       setJoinLoading(false);
     }
