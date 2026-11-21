@@ -11,7 +11,7 @@
  * - Theme-aware (light/dark/beach)
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useLayoutEffect } from 'react';
 import {
   Star,
   Camera,
@@ -168,6 +168,30 @@ export const ReviewModal = ({
   const isBeach = theme === 'beach';
   
   // Single review state
+  // Each committed dialog context owns its delayed close, including pending POSTs.
+  const closeScope = useRef(null);
+  const revieweeId = reviewee?.id;
+  const participantIds = JSON.stringify(participants.map(p => p.counterpart_id || p.id));
+  useLayoutEffect(() => {
+    if (!isOpen) return undefined;
+    const scope = { timer: null, onClose: null };
+    closeScope.current = scope;
+    return () => {
+      clearTimeout(scope.timer);
+      if (closeScope.current === scope) closeScope.current = null;
+    };
+  }, [isOpen, reviewerId, sessionId, sessionType, revieweeId, participantIds]);
+  useLayoutEffect(() => {
+    if (closeScope.current) closeScope.current.onClose = onClose;
+  });
+  const scheduleClose = useCallback(scope => {
+    if (!scope || closeScope.current !== scope) return;
+    clearTimeout(scope.timer);
+    scope.timer = setTimeout(() => {
+      if (closeScope.current === scope) scope.onClose();
+    }, 1500);
+  }, []);
+
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [photoQualityRating, setPhotoQualityRating] = useState(0);
@@ -216,6 +240,7 @@ export const ReviewModal = ({
       return;
     }
     
+    const scope = closeScope.current;
     setSubmitting(true);
     try {
       const sessionPayload = getSessionPayload();
@@ -232,12 +257,10 @@ export const ReviewModal = ({
       
       setSubmitted(true);
       toast.success('Review submitted! +10 XP ' + String.fromCodePoint(0x1F929));
-      onReviewSubmitted?.();
+      onReviewSubmitted?.(rating);
       
       // Auto-close after brief delay
-      setTimeout(() => {
-        onClose();
-      }, 1500);
+      scheduleClose(scope);
       
     } catch (error) {
       const detail = error?.response?.data?.detail;
@@ -257,7 +280,7 @@ export const ReviewModal = ({
     } finally {
       setSubmitting(false);
     }
-  }, [rating, comment, photoQualityRating, communicationRating, punctualityRating, reviewerId, reviewee, getSessionPayload, onReviewSubmitted, onClose]);
+  }, [rating, comment, photoQualityRating, communicationRating, punctualityRating, reviewerId, reviewee, getSessionPayload, onReviewSubmitted, onClose, scheduleClose]);
   
   // Update multi-review item
   const handleUpdateMultiReview = useCallback((index, field, value) => {
@@ -277,6 +300,7 @@ export const ReviewModal = ({
       return;
     }
     
+    const scope = closeScope.current;
     setMultiSubmitting(true);
     const sessionPayload = getSessionPayload();
     let successCount = 0;
@@ -304,8 +328,8 @@ export const ReviewModal = ({
     }
     
     setMultiSubmitting(false);
-    setTimeout(() => onClose(), 1500);
-  }, [multiReviews, reviewerId, getSessionPayload, onReviewSubmitted, onClose]);
+    scheduleClose(scope);
+  }, [multiReviews, reviewerId, getSessionPayload, onReviewSubmitted, scheduleClose]);
   
   // Skip handler
   const handleSkip = useCallback(() => {
