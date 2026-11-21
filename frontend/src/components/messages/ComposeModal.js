@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import apiClient from '../../lib/apiClient';
 import { isProLevelRole, isBusinessRole, getExpandedRoleInfo } from '../../contexts/PersonaContext';
 import { Check, X, Users, Star, Camera, Briefcase, Store, Shield, Trophy } from 'lucide-react';
@@ -41,82 +41,59 @@ const getRoleIcon = (role, isAdmin = false) => {
   }
 };
 
-const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
+async function loadRecentContacts(userId, signal) {
+  const response = await apiClient.get(`/messages/conversations/${userId}?inbox_type=all`, { signal });
+  return response.data.slice(0, 10).map(c => ({
+    id: c.other_user_id, name: c.other_user_name, username: c.other_username,
+    avatar: c.other_user_avatar, role: c.other_user_role, isRecent: true,
+  }));
+}
+
+async function searchRecipients(term, signal) {
+  const response = await apiClient.get(`/profiles/search?q=${encodeURIComponent(term)}&limit=20`, { signal });
+  return response.data.map(u => ({
+    id: u.id, name: u.full_name, username: u.username, avatar: u.avatar_url, role: u.role,
+    isAdmin: u.is_admin, isPro: isProRole(u.role), isBusiness: isBusinessRole(u.role),
+    isFollowing: u.is_following, followsYou: u.follows_you, isMutual: u.is_mutual,
+  }));
+}
+
+function useRecipientRead(key, load) {
+  const [result, setResult] = useState(null);
+  const [attempt, setAttempt] = useState(0);
+
+  // The same search text can be entered twice with different requests in flight.
+  const request = useMemo(() => ({ key, attempt }), [key, attempt]);
+
+  useEffect(() => {
+    if (!request.key) return;
+    const controller = new AbortController();
+    load(request.key, controller.signal).then(users => {
+      if (!controller.signal.aborted) setResult({ request, users });
+    }).catch(error => {
+      if (controller.signal.aborted) return;
+      logger.error('Failed to load message recipients:', error);
+      setResult({ request, failed: true });
+    });
+    return () => controller.abort();
+  }, [request, load]);
+
+  return {
+    result: result?.request === request ? result : null,
+    retry: () => setAttempt(previous => previous + 1),
+  };
+}
+
+const RecipientComposer = ({ onClose, onSelectUser, currentUserId }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [_suggestedUsers, setSuggestedUsers] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
-  const [recentContacts, setRecentContacts] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const inputRef = useRef(null);
-
-  // Fetch suggested users on mount
-  useEffect(() => {
-    if (isOpen && currentUserId) {
-      fetchSuggestedUsers();
-      // Focus input on open
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-  }, [isOpen, currentUserId]);
-
-  // Search users when term changes
-  useEffect(() => {
-    if (searchTerm.trim()) {
-      searchUsers(searchTerm);
-    } else {
-      setSearchResults([]);
-    }
-  }, [searchTerm]);
-
-  const fetchSuggestedUsers = async () => {
-    setLoading(true);
-    try {
-      // Fetch recent conversations for frequent contacts
-      const convResponse = await apiClient.get(`/messages/conversations/${currentUserId}?inbox_type=all`);
-      const recentUsers = convResponse.data.slice(0, 10).map(c => ({
-        id: c.other_user_id,
-        name: c.other_user_name,
-        username: c.other_username,  // Use actual username from API
-        avatar: c.other_user_avatar,
-        role: c.other_user_role,
-        isRecent: true
-      }));
-      setRecentContacts(recentUsers);
-
-      // Top 3 frequent contacts for horizontal row
-      setSuggestedUsers(recentUsers.slice(0, 3));
-    } catch (error) {
-      logger.error('Failed to fetch suggested users:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const searchUsers = async (term) => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get(`/profiles/search?q=${encodeURIComponent(term)}&limit=20`);
-      
-      // Results are already sorted by backend: God Mode > Pros > Photographers > Businesses > Users
-      setSearchResults(response.data.map(u => ({
-        id: u.id,
-        name: u.full_name,
-        username: u.username,  // Use actual username from API (no fallback)
-        avatar: u.avatar_url,
-        role: u.role,
-        isAdmin: u.is_admin,
-        isPro: isProRole(u.role),
-        isBusiness: isBusinessRole(u.role),
-        isFollowing: u.is_following,
-        followsYou: u.follows_you,
-        isMutual: u.is_mutual
-      })));
-    } catch (error) {
-      logger.error('Search failed:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const term = searchTerm.trim();
+  const recents = useRecipientRead(currentUserId, loadRecentContacts);
+  const search = useRecipientRead(term, searchRecipients);
+  const { result, retry } = term ? search : recents;
+  const loading = !result;
+  const displayUsers = result?.users ?? [];
 
   const _handleSelectUser = (user) => {
     setSelectedUsers([user]);
@@ -137,13 +114,8 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
 
   const clearSearch = () => {
     setSearchTerm('');
-    setSearchResults([]);
     inputRef.current?.focus();
   };
-
-  if (!isOpen) return null;
-
-  const displayUsers = searchTerm.trim() ? searchResults : recentContacts;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
@@ -166,6 +138,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
             <span className="text-muted-foreground text-sm">To:</span>
             <div className="flex-1 relative">
               <input aria-label="Search..."
+                autoFocus
                 ref={inputRef}
                 type="text"
                 value={searchTerm}
@@ -197,7 +170,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
           {/* Loading State */}
           {loading && (
             <div className="flex items-center justify-center py-8">
-              <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+              <div role="status" aria-label="Loading recipients" className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
             </div>
           )}
 
@@ -277,8 +250,15 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
             );
           })}
 
+          {result?.failed && (
+            <div className="px-4 py-6 text-center">
+              <p role="alert">{term ? 'Could not search for people.' : 'Could not load recent contacts.'}</p>
+              <Button type="button" variant="outline" className="mt-2" onClick={retry}>Retry</Button>
+            </div>
+          )}
+
           {/* Empty State */}
-          {!loading && displayUsers.length === 0 && searchTerm.trim() && (
+          {result?.users?.length === 0 && term && (
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
               <p>No users found</p>
             </div>
@@ -300,5 +280,9 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
     </div>
   );
 };
+
+const ComposeModal = ({ isOpen, currentUserId, ...props }) => (
+  isOpen && currentUserId ? <RecipientComposer key={currentUserId} currentUserId={currentUserId} {...props} /> : null
+);
 
 export default ComposeModal;
