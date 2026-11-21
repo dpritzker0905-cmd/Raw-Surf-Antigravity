@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 4,
+  "branch": "codex/estate-floor-4247",
+  "date": "2026-11-21",
+  "note": "Reconcile the DEV estate floor with 4249 passed in CI run 44931404838; retain the two-test margin."
+}
