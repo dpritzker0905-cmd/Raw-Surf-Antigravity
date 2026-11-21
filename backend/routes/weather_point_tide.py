@@ -9,6 +9,7 @@ Its own module because `routes/weather.py` sits at the 800-line cap.
 """
 import logging
 import math
+import time
 from datetime import datetime, timedelta, timezone
 
 from typing import Optional
@@ -135,12 +136,53 @@ def _with_location_time(out, lat, lng, now):
     return out
 
 
+# The map Tides overlay asks for up to 12 cells per settled view, by default for every tier. A COLD cell costs an
+# Open-Meteo call, and a 429 there starts tide.py's PROCESS-WIDE cooldown, during which the rating's tide and eta drop
+# out and served surf heights at capped spots move (advisor red-team, 2026-11-15). So display-only overlay requests
+# (purpose=overlay) are served from the warm cache freely, but a cold cell is fetched only while this budget has a
+# token and no cooldown runs; otherwise the answer is a non-cached "deferred" the client retries later.
+OVERLAY_COLD_PER_MIN = 12.0
+# A per-minute bucket does not bound the DAY (12/min saturated = 17,280/day, above Open-Meteo's 10,000/day free tier):
+# the daily ceiling leaves most of the day's quota to the rating's tide, the prewarm and the infobox (advisor, #923).
+OVERLAY_COLD_PER_DAY = 2000
+_overlay_bucket = {"tokens": OVERLAY_COLD_PER_MIN, "t": time.monotonic()}
+_overlay_day = {"day": None, "count": 0}
+
+
+def _overlay_may_go_cold() -> bool:
+    today = datetime.now(timezone.utc).date()
+    if _overlay_day["day"] != today:
+        if _overlay_day["day"] is not None:
+            logger.info("[point-tide] overlay cold cells %s: %d/%d", _overlay_day["day"], _overlay_day["count"],
+                        OVERLAY_COLD_PER_DAY)
+        _overlay_day.update(day=today, count=0)
+    if _overlay_day["count"] >= OVERLAY_COLD_PER_DAY:
+        return False
+    now = time.monotonic()
+    b = _overlay_bucket
+    b["tokens"] = min(OVERLAY_COLD_PER_MIN, b["tokens"] + (now - b["t"]) * OVERLAY_COLD_PER_MIN / 60.0)
+    b["t"] = now
+    if b["tokens"] >= 1.0:
+        b["tokens"] -= 1.0
+        _overlay_day["count"] += 1
+        if _overlay_day["count"] % 100 == 0 or _overlay_day["count"] == OVERLAY_COLD_PER_DAY:
+            logger.info("[point-tide] overlay cold cells today: %d/%d", _overlay_day["count"], OVERLAY_COLD_PER_DAY)
+        return True
+    return False
+
+
 @router.get("/point-tide")
 async def get_point_tide(response: Response,
                          lat: float = Query(..., ge=-90, le=90),
-                         lng: float = Query(..., ge=-180, le=180)):
+                         lng: float = Query(..., ge=-180, le=180),
+                         purpose: Optional[str] = Query(None, max_length=16)):
     response.headers["Cache-Control"] = "public, max-age=300"
     now = datetime.now(timezone.utc)
+    if purpose == "overlay":
+        state = _tide.acquisition_state(lat, lng)
+        if state != "warm" and (state == "cooling" or not _overlay_may_go_cold()):
+            response.headers["Cache-Control"] = "no-store"
+            return {"available": False, "reason": "overlay_deferred", "source": SOURCE, "cell_km": CELL_KM}
     try:
         series = await _tide.fetch_tide_hourly(lat, lng)
         out = build_point_tide(series, lat, lng, now)

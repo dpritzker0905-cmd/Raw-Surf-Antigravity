@@ -17,7 +17,48 @@ const isFresh = entry => !!entry && Date.now() - entry.ts < (entry.value ? TTL_M
 const _cache = new Map();   // cell -> { ts, value }
 const _inflight = new Map();
 
-export function clearPointTideCache() { _cache.clear(); _inflight.clear(); }
+export function clearPointTideCache() { _cache.clear(); _inflight.clear(); _overlayInflight.clear(); }
+
+/** The ONE /point-tide acquisition, shared by the infobox and the map tide overlay (tideOverlayModel.js): same
+ * cell key, same cache, same in-flight dedupe, so both surfaces evaluate the SAME payload. Never rejects. */
+export function loadPointTide(cell) { return load(cell); }
+
+/** Synchronous fresh-cache read: the payload, null (fresh miss), or undefined (never fetched / expired). */
+export function peekPointTide(cell) {
+  const hit = _cache.get(cell);
+  return isFresh(hit) ? hit.value : undefined;
+}
+
+const _overlayInflight = new Map();
+
+/**
+ * The map Tides overlay's acquisition (display only). A fresh cache entry or an infobox request already in flight is
+ * shared; otherwise it asks /point-tide?purpose=overlay, which serves warm cells and DEFERS cold ones while the server's
+ * overlay budget is spent or an upstream cooldown runs (so the overlay never spends the quota the rating's tide and eta
+ * need). A deferral is never written to the shared cache (the infobox must not read it as "no tide"): it resolves
+ * undefined and the overlay retries later. Never rejects.
+ */
+export function loadPointTideForOverlay(cell) {
+  const hit = _cache.get(cell);
+  if (isFresh(hit)) return Promise.resolve(hit.value);
+  if (_inflight.has(cell)) return _inflight.get(cell);
+  if (_overlayInflight.has(cell)) return _overlayInflight.get(cell);
+  const [cellLat, cellLng] = cell.split(',');
+  const p = Promise.resolve()
+    .then(() => (typeof fetch === 'function'
+      ? fetch(`${POINT_TIDE_URL}?lat=${cellLat}&lng=${cellLng}&purpose=overlay`) : Promise.reject(new Error('no fetch'))))
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null)
+    .then((j) => {
+      _overlayInflight.delete(cell);
+      if (j && j.reason === 'overlay_deferred') return undefined;
+      const value = j && j.available ? j : null;
+      _cache.set(cell, { ts: Date.now(), value });
+      return value;
+    });
+  _overlayInflight.set(cell, p);
+  return p;
+}
 
 function load(cell) {
   const hit = _cache.get(cell);
