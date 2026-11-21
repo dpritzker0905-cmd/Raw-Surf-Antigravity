@@ -12,11 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
 from core.security import dev_identity_allowed, get_current_user_id
-from models import LiveSession, Notification, Profile
+from models import Notification, Profile
 from models import LiveSessionParticipant, PaymentTransaction
 from services import live_session_escrow
 from utils.credits import clean_amount
 from .join import CompletePaymentRequest
+from .card_session import active_card_session, REVIEW_MESSAGE
 
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
 if STRIPE_API_KEY:
@@ -141,6 +142,9 @@ async def complete_session_payment(
         amount = clean_amount(metadata.get('amount'))
         if surfer_id != current_user_id or not photographer_id or amount is None:
             raise HTTPException(status_code=409, detail="Payment does not match this checkout")
+        bound_session_id = saved_checkout.get("live_session_id")
+        if bound_session_id != metadata.get("live_session_id"):
+            raise HTTPException(status_code=409, detail="Payment does not match the original live session")
         if provider == "stripe":
             if (
                 checkout_session.id != data.checkout_session_id
@@ -155,7 +159,6 @@ async def complete_session_payment(
                 or not payment_intent_id
             ):
                 raise HTTPException(status_code=409, detail="Payment does not match this checkout")
-        payment_verified = True
         
         # ============ ATOMIC IDEMPOTENCY CHECK WITH ROW LOCK ============
         # Use FOR UPDATE to lock the row while we check and update status
@@ -166,34 +169,60 @@ async def complete_session_payment(
             .with_for_update().execution_options(populate_existing=True)
         )
         tx = tx_result.scalar_one_or_none()
+        if tx is None:
+            raise HTTPException(status_code=409, detail="Could not confirm the saved checkout")
+        locked_checkout = json.loads(tx.transaction_metadata or "{}")
         
         # If already completed, return success (idempotent)
-        if tx and tx.payment_status == 'Completed':
-            return {"success": True, "message": "Session already activated"}
+        if tx.payment_status == 'Completed':
+            receipt = {"success": True, "message": "Session already activated"}
+            participant_id = locked_checkout.get("settled_participant_id")
+            if participant_id:
+                receipt["session_id"] = participant_id
+            return receipt
             
         # If already refunded, raise error
-        if tx and tx.payment_status == 'Refunded':
+        if tx.payment_status == 'Refunded':
             refund_attempted = True
             raise HTTPException(status_code=400, detail="Payment has been refunded")
+        if tx.status == 'review_required':
+            raise HTTPException(status_code=409, detail=REVIEW_MESSAGE)
+        if locked_checkout.get("live_session_id") != bound_session_id:
+            raise HTTPException(status_code=409, detail="Could not confirm the saved session binding")
+
+        # Lock in the same order on each completion: checkout, photographer, session.
+        # Until the binding can be checked, a database failure is retryable.
+        surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
+        surfer = surfer_result.scalar_one_or_none()
+        photographer_result = await db.execute(
+            select(Profile).where(Profile.id == photographer_id).options(selectinload(Profile.current_spot)).with_for_update()
+        )
+        photographer = photographer_result.scalar_one_or_none()
+        if surfer and photographer:
+            active_live_session = await db.scalar(active_card_session(photographer_id).with_for_update(read=True))
+            if (
+                not bound_session_id or not photographer.is_shooting
+                or active_live_session is None or active_live_session.id != bound_session_id
+            ):
+                reason = "original_session_unavailable" if bound_session_id else "missing_original_session"
+                tx.payment_status = 'paid'
+                tx.status = 'review_required'
+                tx.transaction_metadata = json.dumps({**locked_checkout, "review_reason": reason})
+                try:
+                    await db.commit()
+                except Exception as exc:
+                    raise HTTPException(status_code=503, detail="Could not confirm the payment review. Check with support before paying again.") from exc
+                raise HTTPException(status_code=409, detail=REVIEW_MESSAGE)
+        payment_verified = True
         
         # Use a nested transaction (savepoint) to isolate mutations while keeping the outer row lock active.
         try:
             async with db.begin_nested():
                 # ============ CLAIM THE TRANSACTION IMMEDIATELY ============
                 # Mark as Completed BEFORE creating participant to win any race
-                if tx:
-                    tx.payment_status = 'Completed'
-                    tx.status = 'Completed'
-                    await db.flush()  # Flush immediately - other concurrent requests will now see 'Completed'
-                
-                # Get surfer and photographer
-                surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
-                surfer = surfer_result.scalar_one_or_none()
-                
-                photographer_result = await db.execute(
-                    select(Profile).where(Profile.id == photographer_id).options(selectinload(Profile.current_spot)).with_for_update()
-                )
-                photographer = photographer_result.scalar_one_or_none()
+                tx.payment_status = 'Completed'
+                tx.status = 'Completed'
+                await db.flush()
                 
                 if not surfer or not photographer:
                     raise HTTPException(status_code=404, detail="User or photographer not found")
@@ -209,43 +238,27 @@ async def complete_session_payment(
                     raise HTTPException(status_code=409, detail="Already in this session")
 
                 # Get selfie_url from our stored transaction
-                tx_data = json.loads(tx.transaction_metadata) if tx and tx.transaction_metadata else {}
-                selfie_url = tx_data.get('selfie_url')
-                
-                # Find the active live session for this photographer to link the participant
-                active_ls_result = await db.execute(
-                    select(LiveSession)
-                    .where(LiveSession.photographer_id == photographer_id)
-                    .where(LiveSession.status == 'active')
-                    .order_by(LiveSession.created_at.desc())
-                    .limit(1)
-                )
-                active_live_session = active_ls_result.scalar_one_or_none()
+                selfie_url = locked_checkout.get('selfie_url')
                 
                 # CaptureSession: Calculate photos included in buy-in
                 photos_included = 0
-                if active_live_session and active_live_session.photos_included:
+                if active_live_session.photos_included:
                     photos_included = active_live_session.photos_included
                 else:
                     photos_included = photographer.live_session_photos_included or 3
                 
                 # Lock pricing at join time (same as credit path)
-                if active_live_session:
-                    locked_web = active_live_session.session_price_web or photographer.photo_price_web or photographer.live_photo_price_web or 3.0
-                    locked_standard = active_live_session.session_price_standard or photographer.photo_price_standard or photographer.live_photo_price_standard or 5.0
-                    locked_high = active_live_session.session_price_high or photographer.photo_price_high or photographer.live_photo_price_high or 10.0
-                else:
-                    locked_web = photographer.photo_price_web or photographer.live_photo_price_web or 3.0
-                    locked_standard = photographer.photo_price_standard or photographer.live_photo_price_standard or 5.0
-                    locked_high = photographer.photo_price_high or photographer.live_photo_price_high or 10.0
+                locked_web = active_live_session.session_price_web or photographer.photo_price_web or photographer.live_photo_price_web or 3.0
+                locked_standard = active_live_session.session_price_standard or photographer.photo_price_standard or photographer.live_photo_price_standard or 5.0
+                locked_high = active_live_session.session_price_high or photographer.photo_price_high or photographer.live_photo_price_high or 10.0
                 
                 # Create the session participant
                 participant = LiveSessionParticipant(
                     id=str(uuid4()),
                     surfer_id=surfer_id,
                     photographer_id=photographer_id,
-                    spot_id=photographer.current_spot_id,
-                    live_session_id=active_live_session.id if active_live_session else None,
+                    spot_id=active_live_session.surf_spot_id,
+                    live_session_id=bound_session_id,
                     selfie_url=selfie_url,
                     participant_role='participant',
                     status='active',
@@ -262,9 +275,7 @@ async def complete_session_payment(
                 # the delivered media, or after 7 days (services/live_session_escrow.py).
                 live_session_escrow.hold(participant, amount)
                 db.add(participant)
-                if tx:
-                    tx_data["settled_participant_id"] = str(participant.id)
-                    tx.transaction_metadata = json.dumps(tx_data)
+                tx.transaction_metadata = json.dumps({**locked_checkout, "settled_participant_id": str(participant.id)})
 
                 # Notify photographer (card payment path was missing this)
                 card_notification = Notification(

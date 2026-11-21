@@ -183,8 +183,16 @@ async def join_session(
         if final_price is None or final_price <= 0:
             raise HTTPException(status_code=400, detail="Invalid card checkout amount")
 
+        from .card_session import active_card_session
+        checkout_target = await db.scalar(active_card_session(photographer.id))
+        if checkout_target is None:
+            raise HTTPException(status_code=409, detail="The live session is unavailable. Refresh before checking out.")
+        if checkout_target.buyin_price is not None and checkout_target.buyin_price != buyin_price:
+            raise HTTPException(status_code=409, detail="The live session price changed. Refresh before checking out.")
+
         metadata = {
             "type": "live_session_join",
+            "live_session_id": checkout_target.id,
             "surfer_id": surfer_id,
             "photographer_id": data.photographer_id,
             "amount": str(final_price),
