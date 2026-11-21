@@ -36,7 +36,7 @@ class LiveSessionParticipant(Base):
     live_session_id = Column(String(36), ForeignKey('live_sessions.id', ondelete='SET NULL'), nullable=True, index=True)
     selfie_url = Column(Text, nullable=True)  # Surfer's selfie for identification (base64 can be large)
     amount_paid = Column(Float, default=0.0)
-    payment_method = Column(String(50), nullable=True)  # 'credits', 'card', 'subscription'
+    payment_method = Column(String(50), nullable=True)  # 'credits', 'card', 'subscription', 'free'
     status = Column(String(50), default='active')  # active, completed, cancelled
     joined_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime(timezone=True), nullable=True)

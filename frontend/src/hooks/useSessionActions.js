@@ -130,7 +130,7 @@ const useSessionActions = ({
         // Sync session settings with pricing
         setSessionSettings(prev => ({
           ...prev,
-          price_per_join: pricingRes.data.live_buyin_price || 25,
+          price_per_join: pricingRes.data.live_buyin_price ?? 25,
           live_photo_price: pricingRes.data.live_photo_price || 5,
           photos_included: pricingRes.data.photo_package_size || 3
         }));
@@ -174,7 +174,7 @@ const useSessionActions = ({
           setSessionSettings(prev => ({
             ...prev,
             location: activeRes.data.location || '',
-            price_per_join: activeRes.data.price_per_join || prev.price_per_join
+            price_per_join: activeRes.data.price_per_join ?? prev.price_per_join
           }));
         } else {
           setIsLive(false);

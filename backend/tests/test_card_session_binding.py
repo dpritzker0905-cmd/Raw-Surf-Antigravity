@@ -114,7 +114,7 @@ async def test_card_checkout_requires_a_matching_live_offer(harness, monkeypatch
     monkeypatch.setattr(join.stripe.checkout.Session, "create", create)
     response = await harness.client.post(
         "/api/sessions/join?surfer_id=owner", headers=bearer("owner"),
-        json={"photographer_id": "pro", "payment_method": "card", "origin_url": "https://dev--rawsurf.netlify.app"},
+        json={"photographer_id": "pro", "payment_method": "card", "max_buyin_amount": BUYIN, "origin_url": "https://dev--rawsurf.netlify.app"},
     )
     assert response.status_code == 409, response.text
     create.assert_not_called()

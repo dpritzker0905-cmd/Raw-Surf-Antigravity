@@ -36,7 +36,7 @@ const BookingTypeModal = ({ isOpen, onClose, photographer, spotId, spotName, onS
       color: 'from-green-500 to-emerald-500',
       textColor: 'text-green-400',
       available: isCurrentlyShooting,
-      price: photographer?.session_price ? `$${photographer.session_price}/session` : null
+      price: `$${photographer?.live_buyin_price ?? photographer?.session_price ?? 25}/session`
     },
     {
       id: 'on_demand',

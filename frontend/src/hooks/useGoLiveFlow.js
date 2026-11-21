@@ -156,7 +156,7 @@ export const useGoLiveFlow = ({ userId, onGoLiveSuccess, onEndSessionSuccess }) 
         condition_media_type: mediaType,
         spot_notes: spotNotes,
         // Include session settings
-        price_per_join: goLiveSessionSettings.price_per_join || 25,
+        price_per_join: goLiveSessionSettings.price_per_join ?? 25,
         max_surfers: goLiveSessionSettings.max_surfers || 10,
         auto_accept: goLiveSessionSettings.auto_accept !== false,
         estimated_duration: goLiveSessionSettings.estimated_duration || 2,

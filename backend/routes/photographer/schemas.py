@@ -1,7 +1,7 @@
 """
 Photographer package — Pydantic schemas and shared helpers.
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Union
 from datetime import datetime
 import secrets
@@ -93,7 +93,7 @@ class GoLiveRequest(BaseModel):
     location: Optional[str] = None  # Can be derived from spot if not provided
     spot_id: Optional[str] = None
     spot_name: Optional[str] = None  # Spot name for display
-    price_per_join: float = 25.0
+    price_per_join: float = Field(25.0, ge=0, allow_inf_nan=False)
     max_surfers: int = 10
     auto_accept: bool = True
     latitude: Optional[float] = None

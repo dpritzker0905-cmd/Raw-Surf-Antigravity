@@ -11,10 +11,12 @@ from uuid import uuid4
 from core.security import get_current_user_id
 from datetime import datetime, timedelta, timezone
 import json
-from models import AnalyticsEvent, CreditTransaction, LiveSession, LiveSessionParticipant, Notification, PaymentTransaction, Post, Profile, RoleEnum, XPTransaction
+from math import isfinite
+from models import AnalyticsEvent, CreditTransaction, LiveSessionParticipant, Notification, PaymentTransaction, Post, Profile, RoleEnum, XPTransaction
 
 from .schemas import JoinSessionRequest
 from utils.credits import clean_amount, deduct_credits
+from utils.live_buyin import current_live_session, session_buyin
 from services import live_session_escrow
 import os, stripe, logging
 import stripe_mcp_server
@@ -135,7 +137,11 @@ async def join_session(
         raise HTTPException(status_code=400, detail="Already in this session")
     
     # SmugMug-style pricing: buy-in price for the session
-    buyin_price = photographer.live_buyin_price or photographer.session_price or 25.0
+    active_session = await db.scalar(current_live_session(photographer.id))
+    buyin_price = session_buyin(photographer, active_session)
+    if not isfinite(buyin_price) or buyin_price < 0:
+        raise HTTPException(status_code=409, detail="The session price is unavailable.")
+    payment_method = "free" if buyin_price == 0 else data.payment_method
     
     # Apply platform subscription tier discounts
     platform_discount = 0.0
@@ -154,20 +160,24 @@ async def join_session(
     # Combined discount: platform + photographer subscription (capped at 50%)
     discount = min(platform_discount + photo_sub_discount, 0.50)
     
-    final_price = buyin_price * (1 - discount)
+    final_price = round(buyin_price * (1 - discount), 2)
     
     # Try to use subscription live_buyin quota (free session if quota available)
-    sub_quota_result = await try_use_subscription_quota(
-        db, surfer_id, data.photographer_id, 'live_buyin', for_update=True
-    )
-    subscription_covered = sub_quota_result.get("used", False)
-    payment_method = data.payment_method
+    subscription_covered = False
+    if payment_method != 'free':
+        sub_quota_result = await try_use_subscription_quota(
+            db, surfer_id, data.photographer_id, 'live_buyin', for_update=True
+        )
+        subscription_covered = sub_quota_result.get("used", False)
     if subscription_covered:
         final_price = 0.0  # Subscription covers this buy-in
-        payment_method = 'subscription'
+        payment_method = "subscription"
     elif payment_method == 'subscription':
         raise HTTPException(status_code=400, detail="No subscription buy-in is available")
     
+    if data.max_buyin_amount is not None and final_price > data.max_buyin_amount:
+        raise HTTPException(status_code=409, detail="The buy-in price changed. Reopen checkout to review the current price.")
+
     # ============ CARD PAYMENT: Create Stripe Checkout Session ============
     if payment_method == 'card':
         if not STRIPE_API_KEY:
@@ -183,16 +193,12 @@ async def join_session(
         if final_price is None or final_price <= 0:
             raise HTTPException(status_code=400, detail="Invalid card checkout amount")
 
-        from .card_session import active_card_session
-        checkout_target = await db.scalar(active_card_session(photographer.id))
-        if checkout_target is None:
+        if active_session is None:
             raise HTTPException(status_code=409, detail="The live session is unavailable. Refresh before checking out.")
-        if checkout_target.buyin_price is not None and checkout_target.buyin_price != buyin_price:
-            raise HTTPException(status_code=409, detail="The live session price changed. Refresh before checking out.")
 
         metadata = {
             "type": "live_session_join",
-            "live_session_id": checkout_target.id,
+            "live_session_id": active_session.id,
             "surfer_id": surfer_id,
             "photographer_id": data.photographer_id,
             "amount": str(final_price),
@@ -289,17 +295,6 @@ async def join_session(
     try:
         # Determine participant role (grom_buyer if parent is buying for child)
         participant_role = 'grom_buyer' if actual_role == RoleEnum.GROM_PARENT else 'participant'
-        
-        # Get photos included from session or photographer settings
-        # Get the most recent active session (there might be multiple due to data issues)
-        live_session_result = await db.execute(
-            select(LiveSession)
-            .where(LiveSession.photographer_id == data.photographer_id)
-            .where(LiveSession.status == 'active')
-            .order_by(LiveSession.created_at.desc())
-            .limit(1)
-        )
-        active_session = live_session_result.scalar_one_or_none()
         
         # CaptureSession Core: Photos included in buy-in
         photos_included = 0

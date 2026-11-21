@@ -12,6 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from database import get_db
+from utils.live_buyin import listed_live_buyin, resolve_live_buyin
 from models import (
     Profile, LiveSessionParticipant, CreditTransaction,
     GalleryItem, RoleEnum
@@ -29,7 +30,7 @@ async def get_live_photographers(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all photographers currently shooting live"""
-    query = select(Profile).where(listed_clause(Profile.id)).where(
+    query = select(Profile, listed_live_buyin()).where(listed_clause(Profile.id)).where(
         and_(
             Profile.is_shooting.is_(True),
             Profile.role.in_([RoleEnum.GROM_PARENT, RoleEnum.HOBBYIST, RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO])
@@ -37,10 +38,10 @@ async def get_live_photographers(
     ).options(selectinload(Profile.current_spot))
     
     result = await db.execute(query)
-    photographers = result.scalars().all()
+    photographers = result.all()
     
     response = []
-    for p in photographers:
+    for p, live_price in photographers:
         participants_result = await db.execute(
             select(func.count(LiveSessionParticipant.id))
             .where(LiveSessionParticipant.photographer_id == p.id)
@@ -54,7 +55,7 @@ async def get_live_photographers(
             "avatar_url": p.avatar_url,
             "location": p.location or (p.current_spot.name if p.current_spot else None),
             "spot_name": p.current_spot.name if p.current_spot else None,
-            "session_price": p.session_price or 25.0,
+            "session_price": resolve_live_buyin(live_price, p.session_price),
             "active_participants": active_count,
             "is_verified": p.is_verified,
             "distance": None
@@ -94,14 +95,14 @@ async def get_featured_photographers(
     photographer_roles = [RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]
     
     photographers_result = await db.execute(
-        select(Profile).where(listed_clause(Profile.id))
+        select(Profile, listed_live_buyin()).where(listed_clause(Profile.id))
         .where(Profile.role.in_(photographer_roles))
         .options(selectinload(Profile.current_spot))
     )
-    photographers = photographers_result.scalars().all()
+    photographers = photographers_result.all()
     
     featured = []
-    for p in photographers:
+    for p, live_price in photographers:
         earnings_result = await db.execute(
             select(func.sum(CreditTransaction.amount))
             .where(CreditTransaction.user_id == p.id)
@@ -137,7 +138,7 @@ async def get_featured_photographers(
             "is_live": p.is_shooting,
             "location": p.location or (p.current_spot.name if p.current_spot else None),
             "current_spot": p.current_spot.name if p.current_spot else None,
-            "session_price": p.live_buyin_price or p.session_price or 25.0,
+            "session_price": resolve_live_buyin(live_price, p.session_price),
             "total_earnings": total_earnings,
             "total_sessions": total_sessions,
             "gallery_count": gallery_count,
