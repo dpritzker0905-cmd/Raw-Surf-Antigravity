@@ -2,7 +2,7 @@
 Test Suite for Iteration 182: Notes UI, Southeast Asia Spots, Offline Mode
 
 Features tested:
-1. Notes API endpoint GET /api/notes/user/{user_id}?viewer_id={viewer_id}
+1. Profile note sign-in requirement
 2. Southeast Asia surf spots (Thailand, Sri Lanka, Philippines)
 3. Total spots count (should be 1447)
 4. Notes create/delete endpoints
@@ -21,22 +21,10 @@ TEST_USER_ID = "d3eb9019-d16f-4374-b432-4d168a96a00f"  # kelly@surf.com
 class TestNotesAPI:
     """Test Notes API endpoints"""
     
-    def test_get_user_note_own_profile(self):
-        """Test GET /api/notes/user/{user_id} for own profile"""
-        response = requests.get(
-            f"{BASE_URL}/api/notes/user/{TEST_USER_ID}",
-            params={"viewer_id": TEST_USER_ID}
-        )
-        assert response.status_code == 200
-        data = response.json()
-        
-        # Should return note (or null) and is_mutual_follower flag
-        assert "note" in data
-        assert "is_mutual_follower" in data
-        # Own profile should always show as mutual follower
-        assert data["is_mutual_follower"] == True
-        print(f"SUCCESS: Notes API returns note={data['note'] is not None}, is_mutual_follower={data['is_mutual_follower']}")
-    
+    def test_profile_note_requires_sign_in(self):
+        response = requests.get(f"{BASE_URL}/api/notes/user/synthetic-profile", timeout=10)
+        assert response.status_code == 401
+
     def test_get_notes_feed(self):
         """Test GET /api/notes/feed for notes from mutual followers"""
         response = requests.get(
