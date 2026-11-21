@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 3,
+  "files": 1,
+  "branch": "codex/profile-block-accessibility",
+  "date": "2026-11-21",
+  "note": "Mounted profile block dialog confirmation, field labels and reporting notice"
+}

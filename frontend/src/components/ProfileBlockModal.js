@@ -9,7 +9,7 @@ export const ProfileBlockModal = ({
   blockLoading, onBlock,
 }) => (
   <Dialog open={isOpen} onOpenChange={onClose}>
-    <DialogContent className="bg-zinc-900 border-zinc-700 text-white max-w-md">
+    <DialogContent aria-describedby={undefined} className="bg-zinc-900 border-zinc-700 text-white max-w-md">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2 text-lg text-red-400">
           <Ban className="w-5 h-5" />
@@ -32,8 +32,8 @@ export const ProfileBlockModal = ({
             </div>
           </div>
         </div>
-        <div>
-          <label className="text-sm font-medium text-zinc-300 mb-2 block">Reason (optional)</label>
+        <label className="block">
+          <span className="text-sm font-medium text-zinc-300 mb-2 block">Reason (optional)</span>
           <select value={blockReason} onChange={(e) => setBlockReason(e.target.value)}
             className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white"
             data-testid="block-reason-select">
@@ -44,27 +44,27 @@ export const ProfileBlockModal = ({
             <option value="scam">Scam/Fraud</option>
             <option value="other">Other</option>
           </select>
-        </div>
-        <div>
-          <label className="text-sm font-medium text-zinc-300 mb-2 block">Additional notes (private, optional)</label>
+        </label>
+        <label className="block">
+          <span className="text-sm font-medium text-zinc-300 mb-2 block">Additional notes (private, optional)</span>
           <textarea value={blockNotes} onChange={(e) => setBlockNotes(e.target.value)}
             placeholder="Add any notes about why you're blocking this user..."
             className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white resize-none h-20"
             data-testid="block-notes-input" />
-        </div>
-        {(blockReason === 'harassment' || blockReason === 'scam') && (
-          <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-            <p className="text-xs text-amber-400 flex items-center gap-2">
-              <Flag className="w-4 h-4" /> This will also report the user to our safety team
+        </label>
+        <div role="status" className="empty:sr-only">
+          {(blockReason === 'harassment' || blockReason === 'scam') && (
+            <p className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-400 flex items-center gap-2">
+              <Flag aria-hidden="true" className="w-4 h-4" /> This will also report the user to our safety team
             </p>
-          </div>
-        )}
+          )}
+        </div>
         <div className="flex gap-3 pt-2">
           <Button onClick={() => { onClose(false); setBlockReason(''); setBlockNotes(''); }}
             variant="outline" className="flex-1 border-zinc-700">Cancel</Button>
-          <Button aria-label="Loader2" onClick={onBlock} disabled={blockLoading}
+          <Button onClick={onBlock} disabled={blockLoading}
             className="flex-1 bg-red-500 hover:bg-red-600 text-white" data-testid="confirm-block-btn">
-            {blockLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Ban className="w-4 h-4 mr-2" />}
+            {blockLoading ? <Loader2 aria-hidden="true" className="w-4 h-4 animate-spin mr-2" /> : <Ban aria-hidden="true" className="w-4 h-4 mr-2" />}
             Block User
           </Button>
         </div>
