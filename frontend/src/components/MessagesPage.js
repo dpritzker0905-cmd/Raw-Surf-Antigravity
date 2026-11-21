@@ -639,6 +639,7 @@ export const MessagesPage = () => {
         note={selectedNote}
         currentUserId={user?.id}
         onReply={replyToNote}
+        onOpenConversation={id => navigate(`/messages/${id}`)}
       />
     </div>
   );
