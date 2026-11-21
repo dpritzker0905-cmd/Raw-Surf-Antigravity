@@ -1,6 +1,6 @@
 import React from 'react';
 import { Ban, AlertTriangle, Flag, Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 
 export const ProfileBlockModal = ({
@@ -8,7 +8,13 @@ export const ProfileBlockModal = ({
   blockReason, setBlockReason, blockNotes, setBlockNotes,
   blockLoading, onBlock,
 }) => (
-  <Dialog open={isOpen} onOpenChange={onClose}>
+  <Dialog open={isOpen} onOpenChange={open => {
+    if (!open) {
+      setBlockReason('');
+      setBlockNotes('');
+    }
+    onClose(open);
+  }}>
     <DialogContent aria-describedby={undefined} className="bg-zinc-900 border-zinc-700 text-white max-w-md">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2 text-lg text-red-400">
@@ -60,8 +66,9 @@ export const ProfileBlockModal = ({
           )}
         </div>
         <div className="flex gap-3 pt-2">
-          <Button onClick={() => { onClose(false); setBlockReason(''); setBlockNotes(''); }}
-            variant="outline" className="flex-1 border-zinc-700">Cancel</Button>
+          <DialogClose asChild>
+            <Button variant="outline" className="flex-1 border-zinc-700">Cancel</Button>
+          </DialogClose>
           <Button onClick={onBlock} disabled={blockLoading}
             className="flex-1 bg-red-500 hover:bg-red-600 text-white" data-testid="confirm-block-btn">
             {blockLoading ? <Loader2 aria-hidden="true" className="w-4 h-4 animate-spin mr-2" /> : <Ban aria-hidden="true" className="w-4 h-4 mr-2" />}
