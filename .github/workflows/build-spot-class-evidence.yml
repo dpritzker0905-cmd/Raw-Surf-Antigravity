@@ -1,0 +1,58 @@
+# B2 spot classes (docs/weather-program/log/2026-11-16-claude-surf-spot-classes.md): the catalogue snapshot and the per-spot
+# OpenStreetMap evidence the classifier (backend/scripts/build_spot_class.py) reads. Uploaded as an ARTIFACT, never committed by
+# the job (read-only permissions); a person commits the two files after reading them. Re-run when spots are added or moved.
+#
+# The Supabase credential exists ONLY in the snapshot step, which runs a standard-library script as `python3 -I -S` and only GETs.
+# The OSM step holds no credential. Serves nothing; nothing on the Render box.
+name: Build Spot Class Evidence
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - backend/scripts/spot_class_snapshot.py
+      - backend/scripts/spot_class_osm.py
+      - .github/workflows/build-spot-class-evidence.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-spot-class-evidence
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Catalogue snapshot (read-only; the only step with the credential)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 -I -S scripts/spot_class_snapshot.py --out data/spot_catalogue_snapshot.json
+      - name: Upload the snapshot at once (a later timeout must not lose it)
+        uses: actions/upload-artifact@v4
+        with:
+          name: spot-catalogue-snapshot
+          path: backend/data/spot_catalogue_snapshot.json
+          retention-days: 14
+      - name: OpenStreetMap evidence (no credential; stops at its budget and writes what is done)
+        timeout-minutes: 100
+        run: python3 -I scripts/spot_class_osm.py --snapshot data/spot_catalogue_snapshot.json --out data/spot_osm_evidence.json --budget-s 5400
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: spot-class-evidence
+          path: |
+            backend/data/spot_catalogue_snapshot.json
+            backend/data/spot_osm_evidence.json
+          if-no-files-found: warn
+          retention-days: 14

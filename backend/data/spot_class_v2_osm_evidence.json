@@ -1,0 +1,1867 @@
+{
+"evidence": {
+"008aefd8-cb93-4c49-acae-4c68c7c00e2e": {
+"cape_m": 16100,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 15964,
+"structure_m": 278
+},
+"02006643-7ec4-4f27-8da3-36c3e9cef65c": {
+"cape_m": null,
+"pier_m": 11391,
+"reef_m": 165,
+"river_mouth_m": 9655,
+"structure_m": 11203
+},
+"0243f8dd-e51a-4777-aa63-2a3751b479f1": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"0262f6f9-c9df-4371-8eeb-5749f2c13e99": {
+"cape_m": 792,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 606,
+"structure_m": null
+},
+"02d23963-4c2c-4292-9184-464dfef6b0f6": {
+"cape_m": 655,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 14183,
+"structure_m": 808
+},
+"03237204-3268-484e-a13a-5e9d27c9202a": {
+"cape_m": null,
+"pier_m": 683,
+"reef_m": 14622,
+"river_mouth_m": 581,
+"structure_m": 667
+},
+"03b70850-c8ea-437c-ba6b-9baf9b95a809": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 1685,
+"structure_m": null
+},
+"03c67a2b-486a-458f-a4af-bdd8cc39edb5": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"043c051f-2e48-4666-9cd2-f0c4ec729ecb": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"044e3862-d673-4eff-a5ea-67cee6e1a635": {
+"cape_m": 542831,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"0813d781-ce10-4153-91df-e5057fbd1009": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"0830fc98-29dd-46b5-a401-d8c09fbdbf04": {
+"cape_m": null,
+"pier_m": 314,
+"reef_m": 806,
+"river_mouth_m": 1415,
+"structure_m": 440
+},
+"0b23405f-a285-4eb0-b1ed-2f2c658baaf8": {
+"cape_m": 860,
+"pier_m": 461,
+"reef_m": 362,
+"river_mouth_m": 730,
+"structure_m": 337
+},
+"0b775e46-715f-491d-87d7-09a0aa0f3247": {
+"cape_m": 927,
+"pier_m": 473,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 379
+},
+"0be471ce-d880-48b3-9cca-0f4a09633490": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"0cda0aa7-ff03-4c93-883e-75f83f532bfe": {
+"cape_m": 827,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"0d7092ff-f4b9-42b2-a4c7-bf3d7fd570ad": {
+"cape_m": 45760,
+"pier_m": 44274,
+"reef_m": 1794,
+"river_mouth_m": null,
+"structure_m": 44277
+},
+"0e2df60f-5a6d-4f2a-8574-c04dcf76cb63": {
+"cape_m": null,
+"pier_m": 151,
+"reef_m": 481,
+"river_mouth_m": 1708,
+"structure_m": 350
+},
+"0f7ee945-82cc-4388-97c6-2a62004791f5": {
+"cape_m": 328,
+"pier_m": 648,
+"reef_m": 1121,
+"river_mouth_m": null,
+"structure_m": 466
+},
+"12961e41-9262-4b03-aae4-61f64797e36a": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 3343,
+"structure_m": 3914
+},
+"12f73bf7-839e-4685-bdd3-1dd029d07698": {
+"cape_m": null,
+"pier_m": 13603,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 13668
+},
+"13d7075b-6328-4995-b471-2bb12f327545": {
+"cape_m": 652,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"1407854f-7c9e-4196-9c97-6df012086d1d": {
+"cape_m": 16083,
+"pier_m": 10861,
+"reef_m": null,
+"river_mouth_m": 9451,
+"structure_m": null
+},
+"142c049d-8933-4c70-91f2-6b0a047332cf": {
+"cape_m": null,
+"pier_m": 41118,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 41283
+},
+"143e764e-942d-41e2-b97c-0ea4be4701c5": {
+"cape_m": null,
+"pier_m": 3232,
+"reef_m": null,
+"river_mouth_m": 3723,
+"structure_m": null
+},
+"146967fa-73f4-4041-a61a-048a8eb0b8da": {
+"cape_m": null,
+"pier_m": 229,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"163a467f-8b3a-4790-b200-003eae19350f": {
+"cape_m": null,
+"pier_m": 116,
+"reef_m": null,
+"river_mouth_m": 347,
+"structure_m": 708
+},
+"16d3098c-7798-4f7b-b397-4dc9709bcade": {
+"cape_m": null,
+"pier_m": 267,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 288
+},
+"185ec798-97f0-428d-9e89-c5c1483bd324": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"18bd33c7-1213-44e2-9c6b-8d8c610566f1": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"1971201b-9c39-49e0-a07b-e1c24e4ae39c": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 71
+},
+"1a1c3d9d-b1ff-4a66-a4ba-c49876f0bee5": {
+"cape_m": 2162,
+"pier_m": 6197,
+"reef_m": null,
+"river_mouth_m": 18941,
+"structure_m": null
+},
+"1ac2b42d-af68-4601-9d47-88ddf0c1d855": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 2150,
+"structure_m": null
+},
+"1b28220d-90ec-4148-b460-44a78bcc7fa1": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": 4874,
+"river_mouth_m": 5090,
+"structure_m": 4698
+},
+"1c97d807-9e46-4de1-8592-bb03a3205d30": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"1d30a099-6c6f-4157-b2d8-56b0d6ee750d": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 697
+},
+"1e43cd9a-12e1-44b5-9d9a-9d5a65b760aa": {
+"cape_m": 751,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 365,
+"structure_m": null
+},
+"1e4f2087-5ac1-446f-a47d-921393f38e0e": {
+"cape_m": null,
+"pier_m": 8087,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"213582fb-fe6f-4f40-b5e8-a4c2a5b4358a": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"21487696-9201-4148-8a1b-0a4cda612e98": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"2181160e-5fc5-4a5a-99d9-a72a693d41fa": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"21c0180a-13b3-45ab-bc82-a735a2e9be1b": {
+"cape_m": null,
+"pier_m": 3420,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"228c340b-c1cd-4b95-96e6-21baa6a8ae4d": {
+"cape_m": null,
+"pier_m": 1986,
+"reef_m": 804,
+"river_mouth_m": 1945,
+"structure_m": null
+},
+"23358d1c-e7ee-4876-b509-cd37c4b5fe7f": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"241d8ac1-59ff-408f-8625-ce2e25e0d242": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 9294
+},
+"24340718-5822-45b2-bdf3-cf05ba46586b": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"2447cd65-4f05-47aa-88af-ee4fcb852d1c": {
+"cape_m": null,
+"pier_m": 1437,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"24856cc2-2aee-4e9a-869c-532ba0e6df27": {
+"cape_m": null,
+"pier_m": 39306,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 39445
+},
+"268b8fee-9dd3-4887-bb8a-0aae072b2e80": {
+"cape_m": 486336,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 11172,
+"structure_m": 271
+},
+"26e601f6-3867-4de0-882b-3ec431f86161": {
+"cape_m": 29991,
+"pier_m": 1307,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 411
+},
+"27295b4c-69fc-413f-a0fd-8a229eff3457": {
+"cape_m": 493474,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 5284,
+"structure_m": 4527
+},
+"27e6e0c3-ff99-4f39-b809-7e1526c1185d": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 1135,
+"structure_m": null
+},
+"283f2286-21b8-4c60-b912-f49264dfeb30": {
+"cape_m": null,
+"pier_m": 48514,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"2907de61-b965-403a-9beb-5eb7959de49a": {
+"cape_m": 31682,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 17994,
+"structure_m": 31855
+},
+"29947ee5-f797-4fd6-82c8-165a571b8c7f": {
+"cape_m": null,
+"pier_m": 34,
+"reef_m": null,
+"river_mouth_m": 4021,
+"structure_m": 608
+},
+"2b57615c-02ec-4512-9bdf-c93c40093ea9": {
+"cape_m": 1369,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"2b7fb749-5a3f-4697-a319-daec02076242": {
+"cape_m": 2766,
+"pier_m": 5693,
+"reef_m": 6227,
+"river_mouth_m": 3006,
+"structure_m": 17016
+},
+"2c5cbd0f-3ab3-48f2-a056-c638b36252b2": {
+"cape_m": 548745,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"2c78c606-1bee-4daf-8d34-1c1d54a4b2ac": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"2d286b7e-83e6-4cd0-aa3d-9ff6839422a7": {
+"cape_m": null,
+"pier_m": 2154,
+"reef_m": null,
+"river_mouth_m": 946,
+"structure_m": null
+},
+"2e101c3f-25de-460e-a253-bd529aff3836": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"2e5b18ae-ab50-4a6c-b645-6f63c58e4b72": {
+"cape_m": 397,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"2eaed218-4f31-4aeb-a4f5-9e6444fb3626": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 6556,
+"structure_m": null
+},
+"2f9a7579-a55c-423f-b065-6642b2816b32": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 1416,
+"structure_m": null
+},
+"2ff65312-69d5-4e75-9cee-23a46616f40d": {
+"cape_m": null,
+"pier_m": 790,
+"reef_m": null,
+"river_mouth_m": 908,
+"structure_m": 832
+},
+"325372b9-564c-4dd1-9f37-f6a307ef569b": {
+"cape_m": 441,
+"pier_m": 42,
+"reef_m": 45,
+"river_mouth_m": null,
+"structure_m": 45
+},
+"32af7c48-f16d-40d9-985d-6fde7d0f8c5f": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 228,
+"structure_m": null
+},
+"33025083-0f8d-482f-9e59-225053daac31": {
+"cape_m": null,
+"pier_m": 1464,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"3586b5b9-6a97-41b5-a636-5ec6994718ac": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"360ce62e-f663-4d3a-9d9e-2d601e0fc746": {
+"cape_m": null,
+"pier_m": 838,
+"reef_m": 13838,
+"river_mouth_m": 252,
+"structure_m": 131
+},
+"3672071d-318f-4c9b-ab32-334e48d6db53": {
+"cape_m": null,
+"pier_m": 99,
+"reef_m": 408,
+"river_mouth_m": 1582,
+"structure_m": 306
+},
+"37b354d8-64bd-4c08-8b44-c1996aacaefb": {
+"cape_m": null,
+"pier_m": 1090,
+"reef_m": null,
+"river_mouth_m": 1187,
+"structure_m": 932
+},
+"394140c5-2e5f-457b-9367-e58ea17c4807": {
+"cape_m": null,
+"pier_m": 645,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 1702
+},
+"39576b0b-9312-4a9c-aa4a-44843216ceb1": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 825,
+"structure_m": 8013
+},
+"39a12113-3441-463d-91e9-fb1bb94c010d": {
+"cape_m": null,
+"pier_m": 1431,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"39c75de4-a1e1-4cc4-9c6f-f02dfce756cb": {
+"cape_m": null,
+"pier_m": 957,
+"reef_m": null,
+"river_mouth_m": 975,
+"structure_m": 539
+},
+"39d2ea01-9fa2-47ba-b302-a83dd2b0cc44": {
+"cape_m": null,
+"pier_m": 2308,
+"reef_m": null,
+"river_mouth_m": 1942,
+"structure_m": null
+},
+"39e8a9a9-a60b-4af4-83f6-9d29c211345d": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"3abcca47-3e43-420b-8931-35f783739796": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 884,
+"structure_m": 676
+},
+"3cc2ebca-f140-48e9-8a74-c59974d7e9fa": {
+"cape_m": 1637,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"3f940f35-3ba8-4d83-99da-a4db712e9652": {
+"cape_m": 6540,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 26763
+},
+"40dd60d3-1eba-4627-a615-b67e14aa0144": {
+"cape_m": 495836,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 491,
+"structure_m": 1016
+},
+"422f8489-8180-44cd-873e-8d4b0da76489": {
+"cape_m": null,
+"pier_m": 5091,
+"reef_m": 4682,
+"river_mouth_m": null,
+"structure_m": null
+},
+"4324a4fd-61b4-40da-bb7a-a440b611ba9b": {
+"cape_m": 926,
+"pier_m": 1070,
+"reef_m": 13028,
+"river_mouth_m": null,
+"structure_m": null
+},
+"443c4948-b313-42a2-96a4-802894559781": {
+"cape_m": 20074,
+"pier_m": 58,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 19600
+},
+"44f4340d-14d0-487c-847b-10ee906e8034": {
+"cape_m": null,
+"pier_m": 21631,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"457e2ab2-9930-4b42-bc98-a5c37bc27b36": {
+"cape_m": null,
+"pier_m": 1178,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"460c213c-eb2b-414b-97c8-0e4a6aab18e0": {
+"cape_m": 519,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"4822e6c8-0f86-4c9d-a2d2-6d98158458ab": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 2080
+},
+"49180a0a-a435-4159-9212-4a337e362df5": {
+"cape_m": null,
+"pier_m": 717,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 9
+},
+"49798d44-ff18-482f-9f8c-113a5c1b05ff": {
+"cape_m": 540,
+"pier_m": 143,
+"reef_m": 14,
+"river_mouth_m": null,
+"structure_m": 457
+},
+"497f490e-16b0-43c1-afaf-b62e2c8f440b": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 3258,
+"structure_m": null
+},
+"4a9d47fe-ee3a-4fa7-9d4e-44f7f488ee1e": {
+"cape_m": null,
+"pier_m": 886,
+"reef_m": 1475,
+"river_mouth_m": null,
+"structure_m": null
+},
+"4b3da386-fcb7-49b6-be3c-81c5e1b9542e": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 715,
+"structure_m": null
+},
+"4c4d6741-3540-44c5-8245-59330ff95bab": {
+"cape_m": 360,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"4cd52360-36b5-4028-b434-1c666f33a783": {
+"cape_m": null,
+"pier_m": 259,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 39
+},
+"4cf66e0b-3481-4a69-8739-1589a4173269": {
+"cape_m": null,
+"pier_m": 17760,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"4eb03749-8042-48dc-b383-1f743bf029cf": {
+"cape_m": null,
+"pier_m": 14743,
+"reef_m": null,
+"river_mouth_m": 5043,
+"structure_m": null
+},
+"4fdea78b-8c3a-43b0-b6c0-124914d52ffc": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"50772f8b-c8b5-484d-858a-ea7d4fae0a8f": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": 2303,
+"river_mouth_m": 2458,
+"structure_m": 2206
+},
+"531f7a49-baaf-48e3-af9d-eaeea8cef3e7": {
+"cape_m": 381,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"54193635-ea48-4978-9a07-a1d04c854c91": {
+"cape_m": 239,
+"pier_m": 2120,
+"reef_m": null,
+"river_mouth_m": 5780,
+"structure_m": null
+},
+"54c4a1e8-a980-431b-9d47-f748b2eb8b17": {
+"cape_m": 84,
+"pier_m": 449,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 87
+},
+"558f9a90-383e-4c56-b615-03a190116d06": {
+"cape_m": 550578,
+"pier_m": 99,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 162
+},
+"56045778-75ad-4b1b-8df6-bef63000e25c": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 8380,
+"structure_m": null
+},
+"5794d3d6-0573-41f8-9f05-bed054091ca0": {
+"cape_m": null,
+"pier_m": 1298,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"5a6ddc69-0b01-44e8-8b8f-c9fb42f6047c": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"5b7cbbaf-f2fa-4381-ac39-89b9e622c9b6": {
+"cape_m": null,
+"pier_m": 1640,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 29168
+},
+"5d1c301c-5eb6-4ce1-9f9b-a6cba28504c3": {
+"cape_m": null,
+"pier_m": 35692,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"5d53c4e6-f956-45c2-bb2d-12b526d0ce39": {
+"cape_m": null,
+"pier_m": 1095,
+"reef_m": 7811,
+"river_mouth_m": 1037,
+"structure_m": null
+},
+"5f54fee4-61ff-40bc-9fe8-bb179cd30963": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"5fdab898-b1b6-41d3-9852-7e0dbbda5a78": {
+"cape_m": 982033,
+"pier_m": 12105,
+"reef_m": null,
+"river_mouth_m": 1088,
+"structure_m": null
+},
+"5ffb87e0-ec7b-42eb-812b-7537ee7ee571": {
+"cape_m": 8848,
+"pier_m": 3599,
+"reef_m": 8319,
+"river_mouth_m": 8526,
+"structure_m": null
+},
+"617e8f6e-e555-490f-8953-b897fd3e9f98": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"678b5a22-38b6-446d-9483-3118b818d4e9": {
+"cape_m": 21640,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"68b6e9e3-8e6b-40cf-b90e-a1a08d3f49f9": {
+"cape_m": null,
+"pier_m": 11164,
+"reef_m": null,
+"river_mouth_m": 2818,
+"structure_m": null
+},
+"690e7e8d-ab8c-4155-aa24-a62ada3b8801": {
+"cape_m": null,
+"pier_m": 462,
+"reef_m": null,
+"river_mouth_m": 773,
+"structure_m": 258
+},
+"6996fcca-8e7b-4500-9fd8-642e69d60241": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"69e17066-3f15-41b9-9ff6-3220e3767b49": {
+"cape_m": 16850,
+"pier_m": 16317,
+"reef_m": 16645,
+"river_mouth_m": null,
+"structure_m": 16375
+},
+"6bda6313-0108-4f8b-adfb-b8a2fa506bd9": {
+"cape_m": null,
+"pier_m": 43068,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 43245
+},
+"6d0f00ba-6674-42ce-ae0a-a9ce724ea812": {
+"cape_m": null,
+"pier_m": 899,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 1727
+},
+"6dc27542-f1c2-469d-b988-4024205c79bc": {
+"cape_m": null,
+"pier_m": 445,
+"reef_m": 2134,
+"river_mouth_m": null,
+"structure_m": null
+},
+"71b39e18-2611-41c0-9d63-1ee4b777a5a9": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 1274,
+"structure_m": null
+},
+"71c4097c-5d66-4fae-99d6-9477ffa7f16d": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": 15180,
+"river_mouth_m": null,
+"structure_m": null
+},
+"774d5ec0-654b-4713-8558-30d81e273e61": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"79820ec1-022b-44d5-a59d-610c59d60fae": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": 8315,
+"river_mouth_m": 8453,
+"structure_m": 8225
+},
+"7b16b145-d60d-47f8-a500-87cb3d7e1242": {
+"cape_m": 557,
+"pier_m": 34872,
+"reef_m": null,
+"river_mouth_m": 1343,
+"structure_m": 27018
+},
+"7c993304-1d44-472d-81e5-ab0c603f4bd5": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 2220,
+"structure_m": null
+},
+"7d4ad851-d859-47b9-a466-7ce8d6391d4e": {
+"cape_m": 31187,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 31500,
+"structure_m": 40866
+},
+"80fd7d82-c4cf-4dbf-b57e-c8e4357bb4bf": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"81d8cecf-d027-47ff-a301-0081059833ec": {
+"cape_m": 17036,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"8277023c-1371-4ff7-829f-6c979b819639": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"8404eb33-25bb-451c-a00e-68cf12ecd2fb": {
+"cape_m": null,
+"pier_m": 93,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 1271
+},
+"889d1473-88ac-4ec8-8c77-3c82e05eb3e0": {
+"cape_m": 283,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"89894d37-2383-45f0-a5a2-b7f56bed2738": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 5692,
+"structure_m": null
+},
+"89d61956-0e6a-4440-a80f-9ea97f0eee3b": {
+"cape_m": 4079,
+"pier_m": 772,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 86
+},
+"8dad56d5-04da-4a29-b37d-03594de621ea": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"8e759fdf-01ce-4a4c-b467-149998f89ff4": {
+"cape_m": null,
+"pier_m": 41609,
+"reef_m": 22804,
+"river_mouth_m": 2202,
+"structure_m": 23119
+},
+"8e9790ee-406e-45ac-85b5-2ca1bc826324": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"902f826a-fb16-40d8-b0f3-db5708a516a2": {
+"cape_m": null,
+"pier_m": 187,
+"reef_m": null,
+"river_mouth_m": 154,
+"structure_m": null
+},
+"9147b30c-8214-4a78-b06f-4b9877992a34": {
+"cape_m": null,
+"pier_m": 1488,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"92189423-601d-4bb2-864a-905ba954aaa9": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"92e79a5d-4a99-48ce-ab9c-d5a48e4498b8": {
+"cape_m": null,
+"pier_m": 1143,
+"reef_m": null,
+"river_mouth_m": 544,
+"structure_m": 737
+},
+"93566203-5bc2-4afc-8bcb-c6b87b59aa9b": {
+"cape_m": 204,
+"pier_m": 106,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 59
+},
+"948d2c73-afdd-4280-aad7-08f078935c70": {
+"cape_m": null,
+"pier_m": 284,
+"reef_m": null,
+"river_mouth_m": 1908,
+"structure_m": 1151
+},
+"9536bf06-9cc4-4e12-b773-034a80ab2ab9": {
+"cape_m": null,
+"pier_m": 826,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 1047
+},
+"95857803-7758-4dc9-9f99-5f1944f0dc86": {
+"cape_m": null,
+"pier_m": 31520,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"9796d279-ca44-4f58-8117-9e7a37586945": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": 2524,
+"river_mouth_m": null,
+"structure_m": null
+},
+"981d82c5-cd71-4c10-a148-561006477991": {
+"cape_m": 585,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 1998
+},
+"998c272f-12f3-4c7e-a59a-5de9260fff4b": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 3296,
+"structure_m": null
+},
+"9b4373eb-95e9-4eb2-b1ce-73e14c48e53b": {
+"cape_m": null,
+"pier_m": 598,
+"reef_m": null,
+"river_mouth_m": 896,
+"structure_m": 821
+},
+"9bccefe8-3b1c-462c-bd95-2676c9be63be": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"9c0be666-4a0f-4029-a5d5-1a9a095d1714": {
+"cape_m": 4903,
+"pier_m": 5107,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 4976
+},
+"9da91888-82bb-4922-8308-4fd7cae4e270": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"a0024805-3c52-4ddf-b0c2-b2bc5bfca58c": {
+"cape_m": 31109,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 608
+},
+"a2f7e1e5-e9e9-49db-b9c3-15888d7a6dac": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 5138,
+"structure_m": null
+},
+"a3431282-37d9-46d9-befb-b79a8d5aa40c": {
+"cape_m": null,
+"pier_m": 13428,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 13304
+},
+"a388d01f-a3ca-436e-b033-6509d2b320c2": {
+"cape_m": 13669,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 106,
+"structure_m": 13850
+},
+"a3f5eac6-207a-4dbe-a4ac-489dbeeab795": {
+"cape_m": 579,
+"pier_m": 661,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"a40e9ace-8799-429b-a387-1362259cfb00": {
+"cape_m": null,
+"pier_m": 767,
+"reef_m": 2938,
+"river_mouth_m": 781,
+"structure_m": null
+},
+"a543da97-45fb-4579-939d-e7fa8ac2c1bd": {
+"cape_m": 977722,
+"pier_m": 398,
+"reef_m": null,
+"river_mouth_m": 167,
+"structure_m": null
+},
+"a7c1d052-f038-4375-a678-75c55d283fc7": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 1432,
+"structure_m": null
+},
+"a96da035-ca2f-4197-ae41-983f9150d70c": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 1518,
+"structure_m": 190
+},
+"a9fd8f19-7761-441c-b71d-8c35022e539b": {
+"cape_m": 16854,
+"pier_m": 22101,
+"reef_m": 16674,
+"river_mouth_m": 1874,
+"structure_m": null
+},
+"aad2cf55-b503-4671-98f0-6e05141d124f": {
+"cape_m": 554121,
+"pier_m": 19131,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 17873
+},
+"ab363fc2-bb64-4bbd-9df0-0162fd86b2d4": {
+"cape_m": null,
+"pier_m": 748,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 787
+},
+"abd7a2b7-54b3-454e-9f6f-30afd3261ce4": {
+"cape_m": 1882,
+"pier_m": 6660,
+"reef_m": 1528,
+"river_mouth_m": 2879,
+"structure_m": null
+},
+"afb6e932-11d3-441d-886a-f8e148f94ce4": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 727,
+"structure_m": null
+},
+"b09c548e-65b2-49b3-821a-cfb12aaba769": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": 7891,
+"river_mouth_m": null,
+"structure_m": null
+},
+"b0a59348-4265-4a3b-84ce-5bcb57b9c96b": {
+"cape_m": 502732,
+"pier_m": 985,
+"reef_m": null,
+"river_mouth_m": 690,
+"structure_m": 651
+},
+"b0a7aa03-f786-4a17-abc9-e2ab3ac5e75f": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"b0dbef94-5e72-4c10-9959-8f320295aa39": {
+"cape_m": null,
+"pier_m": 1006,
+"reef_m": 23,
+"river_mouth_m": null,
+"structure_m": 82
+},
+"b0e63c82-85fc-4b85-a8ec-37adecde9603": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"b1e32082-1c32-4bdb-a0cf-3c20c70f815b": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 1909,
+"structure_m": null
+},
+"b2bfd397-e996-48f1-9deb-fef5bf8ba08c": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 732,
+"structure_m": 1251
+},
+"b44be3ed-7125-4674-afa1-dc7b4363121f": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"b49c0bbc-7b05-493f-84e7-059f5a8a632a": {
+"cape_m": 546,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"b4f87d7e-62ab-4f2b-9bb7-52cb6fc0bb6c": {
+"cape_m": null,
+"pier_m": 1244,
+"reef_m": null,
+"river_mouth_m": 5036,
+"structure_m": null
+},
+"b52b597f-c32d-4b18-ab54-93371316d402": {
+"cape_m": null,
+"pier_m": 197,
+"reef_m": null,
+"river_mouth_m": 761,
+"structure_m": 615
+},
+"b541aa20-7647-41f4-b20d-e7926b0485c2": {
+"cape_m": 24,
+"pier_m": 7854,
+"reef_m": null,
+"river_mouth_m": 1190,
+"structure_m": 5
+},
+"b5c65219-bd50-4169-a431-5c66d04dfcf3": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": 1123,
+"river_mouth_m": null,
+"structure_m": null
+},
+"b7048810-7cf2-45ae-abaa-2f4fa4452a96": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 1241,
+"structure_m": 1315
+},
+"b7e069c8-c2b6-4e50-8673-0843ce09310d": {
+"cape_m": null,
+"pier_m": 35971,
+"reef_m": 686,
+"river_mouth_m": 2408,
+"structure_m": 708
+},
+"b8c2f32d-c7e0-490a-8809-c5f2fa949c8a": {
+"cape_m": null,
+"pier_m": 8538,
+"reef_m": 7614,
+"river_mouth_m": null,
+"structure_m": null
+},
+"baf18c7d-a3bf-4ed4-a9a0-6923ba10316e": {
+"cape_m": 5265,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"bb5b8fab-1157-4f38-a00d-1a2ebebe3a57": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"bb5fc2a2-96da-4df4-9ab9-08be6f24c8f1": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"bd26a8cd-28e9-4000-b4d1-c5b672de2adb": {
+"cape_m": 89,
+"pier_m": 1384,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"bd84b6d6-e7ec-4afb-bb47-ad4ffc2a46ab": {
+"cape_m": null,
+"pier_m": 572,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 419
+},
+"bfb64695-2dc0-4d82-abb7-f50d96fafc38": {
+"cape_m": 603,
+"pier_m": 682,
+"reef_m": 724,
+"river_mouth_m": null,
+"structure_m": null
+},
+"c14aa91a-b18b-4093-8f94-4e9bd1150060": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": 5016,
+"river_mouth_m": null,
+"structure_m": null
+},
+"c22caf3a-4329-470b-9082-e0d760751f3f": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"c2ac6ca3-2c3b-499a-b83f-332221e2069e": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"c3160511-c47d-43cd-bac5-f6619fae3e5d": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 1473,
+"structure_m": 71
+},
+"c342cc01-d89d-418f-9cb2-fa4da1853380": {
+"cape_m": null,
+"pier_m": 967,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 966
+},
+"c361f600-7f7a-49c6-9d42-6c5115c8dcce": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"c380e3f1-28d6-4321-a613-6ed3cc78a039": {
+"cape_m": 4594,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"c47a9302-857d-42b8-8344-e1186d8c6c14": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"c4efeaf4-f749-4060-9988-f1f96e444eb2": {
+"cape_m": 1011,
+"pier_m": 1168,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 27
+},
+"c53d9a3c-ed1f-40bc-9354-b370b7c0c6d1": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"c558f01b-efe7-45c0-aaaf-a37fd574d884": {
+"cape_m": 3378,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 521
+},
+"c6173625-bb02-4592-a4a3-7b04a745f469": {
+"cape_m": null,
+"pier_m": 2914,
+"reef_m": 2763,
+"river_mouth_m": 2389,
+"structure_m": null
+},
+"c6a25a54-3f5e-4e2f-bae1-1b35d377b479": {
+"cape_m": 520143,
+"pier_m": 199,
+"reef_m": null,
+"river_mouth_m": 961,
+"structure_m": 960
+},
+"c86a46d0-696d-4c5a-afd6-95e0d8ec0375": {
+"cape_m": null,
+"pier_m": 455,
+"reef_m": null,
+"river_mouth_m": 150,
+"structure_m": null
+},
+"c8fc2295-6314-4005-8706-dce11397aaab": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"c977a030-d9f6-45c7-97be-27c6cf783549": {
+"cape_m": null,
+"pier_m": 15805,
+"reef_m": null,
+"river_mouth_m": 6068,
+"structure_m": null
+},
+"c9fe7ac2-0bb2-442c-af1b-aa97c81f2a59": {
+"cape_m": null,
+"pier_m": 589,
+"reef_m": 1549,
+"river_mouth_m": null,
+"structure_m": 1892
+},
+"ca0604bb-8e53-4c07-bb32-60b7bf829bde": {
+"cape_m": 555593,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"ca4693fb-80d0-4a6c-b6ac-1210bfe73f41": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"caad7dc8-9e57-4292-ac4e-dd6d3a1545d3": {
+"cape_m": null,
+"pier_m": 342,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 155
+},
+"cc4cd662-ce09-4a24-b0bb-16d1370cbdd5": {
+"cape_m": null,
+"pier_m": 192,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 662
+},
+"cd713122-11a2-48e1-a48d-1c12979a9661": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 3324,
+"structure_m": null
+},
+"ce101f62-ad23-4b1b-8b2e-7f10ea5acba5": {
+"cape_m": null,
+"pier_m": 85,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"ce1567c7-24f0-4877-bbbd-6abab27d4bcf": {
+"cape_m": null,
+"pier_m": 96,
+"reef_m": 33,
+"river_mouth_m": 1326,
+"structure_m": 24
+},
+"ce66b99a-0f85-4b04-8375-1e2f5d2eca50": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"cf0e3a19-a72e-4b75-b02a-c6de466874cd": {
+"cape_m": 530893,
+"pier_m": 1122,
+"reef_m": null,
+"river_mouth_m": 3098,
+"structure_m": 1195
+},
+"d0443e13-9689-4536-a410-43ccb813c650": {
+"cape_m": 559284,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"d1a58a0a-f3df-48f2-aaf5-d2c7ac125a90": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"d1a9a0fc-a727-49b6-b853-72be6645f449": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 2053,
+"structure_m": null
+},
+"d1d5cdb4-78bb-49e9-b485-8fa6daab7bc5": {
+"cape_m": 430,
+"pier_m": 4543,
+"reef_m": 2982,
+"river_mouth_m": 4443,
+"structure_m": null
+},
+"d20a54a8-84dd-4e2c-8a39-ac694ef9ba4c": {
+"cape_m": null,
+"pier_m": 10572,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 1010
+},
+"d2350f58-49fd-4d68-8717-e1e79849a44c": {
+"cape_m": null,
+"pier_m": 1328,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"d2b319c4-ec85-419d-9a2b-d8f2f189025a": {
+"cape_m": null,
+"pier_m": 114,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 376
+},
+"d3b052c7-570a-4c97-b45c-a15a6ef62c12": {
+"cape_m": 985,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 1585
+},
+"d40070d3-c020-4538-910c-b4041981b7a2": {
+"cape_m": null,
+"pier_m": 4917,
+"reef_m": 14018,
+"river_mouth_m": 2461,
+"structure_m": 9974
+},
+"d542492b-e627-401b-80fe-ee328b2484d0": {
+"cape_m": 22813,
+"pier_m": 22125,
+"reef_m": 22260,
+"river_mouth_m": null,
+"structure_m": 32
+},
+"d552d46f-36db-4c90-9821-7075feeb725c": {
+"cape_m": 581,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 1488,
+"structure_m": 16624
+},
+"d76f545a-c474-4a14-bf80-35fe99ad7068": {
+"cape_m": 5410,
+"pier_m": 5608,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 5499
+},
+"d78c2f36-1c23-4e32-afe8-2bc3e51288fc": {
+"cape_m": null,
+"pier_m": 1200,
+"reef_m": 794,
+"river_mouth_m": 735,
+"structure_m": 519
+},
+"d979b41c-0989-4682-8c52-b3b9059b53e6": {
+"cape_m": null,
+"pier_m": 271,
+"reef_m": 795,
+"river_mouth_m": 11797,
+"structure_m": 254
+},
+"db2cae28-81a5-4181-ab44-dc80e9cf0899": {
+"cape_m": null,
+"pier_m": 953,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 484
+},
+"dc4e8fea-f08a-455d-a9e0-a8fa72b76437": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"ddb5c119-82d3-4ccc-b2e4-8dd4b8eae1d3": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 938
+},
+"ddebd1a2-273f-4711-b6a3-ed4b165d9c6a": {
+"cape_m": null,
+"pier_m": 33187,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"de43d26a-dbe9-4239-ba03-db6fb45c402a": {
+"cape_m": null,
+"pier_m": 262,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 13
+},
+"df801e28-22e9-4970-a315-6af6a5adb950": {
+"cape_m": 1121,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"e00383c2-4488-4b1a-8bfd-21714e398aad": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"e199d7f9-5f32-4fda-95d3-4477c33f84dd": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 2465,
+"structure_m": null
+},
+"e1cb9b88-1ee9-432f-92d3-be88fa1d214a": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"e25e2940-5340-44d6-a88e-b9c0f9676f28": {
+"cape_m": 59950,
+"pier_m": 59843,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 59459
+},
+"e31b71ef-951f-472c-9b77-101f48622934": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": 1269,
+"river_mouth_m": 1368,
+"structure_m": 1231
+},
+"e40a9a9e-494f-40bf-b9c0-02a5a22dcf34": {
+"cape_m": 3021,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 366
+},
+"e4259b3d-a3a8-4736-8850-65d75888e2fe": {
+"cape_m": null,
+"pier_m": 5294,
+"reef_m": null,
+"river_mouth_m": 3765,
+"structure_m": 3951
+},
+"e5d099f7-96c5-4043-8f5e-7f3d6a48319f": {
+"cape_m": 547113,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"e72ce015-d3e5-4071-8a0c-739b17c11dd2": {
+"cape_m": null,
+"pier_m": 91,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 7636
+},
+"e83f5575-1324-4bb3-999d-9c660259cfe9": {
+"cape_m": null,
+"pier_m": 36605,
+"reef_m": 538,
+"river_mouth_m": 1067,
+"structure_m": 167
+},
+"e8b4b42b-8988-4528-bb49-0f85182a5d23": {
+"cape_m": 6983,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"e9922d39-f971-4f4a-8869-11d68e46f5f5": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": 1812,
+"structure_m": null
+},
+"eacd01db-429a-4725-a16f-4c0c02ba80ee": {
+"cape_m": null,
+"pier_m": 3427,
+"reef_m": 13114,
+"river_mouth_m": 1234,
+"structure_m": 8416
+},
+"eaef8d71-ed6b-4e0b-8da8-17057a268e9f": {
+"cape_m": null,
+"pier_m": 591,
+"reef_m": 446,
+"river_mouth_m": 1076,
+"structure_m": 465
+},
+"ee59da52-a277-4909-b48b-843fe7c7b30e": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"f1a9e458-df66-4dbf-9786-9c37ab2caa37": {
+"cape_m": 21772,
+"pier_m": 21086,
+"reef_m": 21220,
+"river_mouth_m": null,
+"structure_m": 1125
+},
+"f1b07f66-d6a6-4d41-86c7-6494a39e690a": {
+"cape_m": null,
+"pier_m": 490,
+"reef_m": 14611,
+"river_mouth_m": 528,
+"structure_m": 610
+},
+"f4f1d15f-0485-4e80-af41-32005b2bd09a": {
+"cape_m": 905,
+"pier_m": 655,
+"reef_m": 206,
+"river_mouth_m": null,
+"structure_m": 745
+},
+"f5af3f61-ca23-4f3e-9179-987933899553": {
+"cape_m": null,
+"pier_m": 1191,
+"reef_m": null,
+"river_mouth_m": 736,
+"structure_m": 782
+},
+"f5f6220d-40ab-4320-ba3a-a75482bd0746": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"f68f3a1f-ccd7-49c4-a3d4-64c51e456c92": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"f6a79438-f083-44be-b755-b460a2e84e7b": {
+"cape_m": 622,
+"pier_m": 3492,
+"reef_m": 4339,
+"river_mouth_m": 4626,
+"structure_m": 3639
+},
+"f81d9eb0-21e4-49ca-b1c7-867a34dc0906": {
+"cape_m": 5337,
+"pier_m": 7032,
+"reef_m": 5242,
+"river_mouth_m": 5989,
+"structure_m": null
+},
+"f893ac4e-7c23-41d3-8e2f-e4c4abddf859": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"f954c3f5-34ec-4827-8b38-8fe630303c1a": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"fa408d6c-2a91-41cd-975c-d42b6d606bed": {
+"cape_m": 1221,
+"pier_m": 586,
+"reef_m": null,
+"river_mouth_m": 1477,
+"structure_m": null
+},
+"fa78256a-d281-4d08-878c-8c53f538e1b4": {
+"cape_m": null,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"fc544721-52b8-4453-bf9a-ac9896dbc198": {
+"cape_m": 660,
+"pier_m": 30836,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": 29858
+},
+"fceb0325-4431-4661-9440-f2ccff21a6ca": {
+"cape_m": 248,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+},
+"fd9c02ad-4fb9-4926-a793-42f4605c0ac9": {
+"cape_m": 1376,
+"pier_m": null,
+"reef_m": null,
+"river_mouth_m": null,
+"structure_m": null
+}
+},
+"source": "OpenStreetMap (ODbL) via Overpass"
+}
