@@ -1,8 +1,9 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Profile } from './Profile';
 import apiClient from '../lib/apiClient';
+import useProfileStats from '../hooks/useProfileStats';
 
 jest.mock('react-router-dom', () => jest.requireActual('react-router'), { virtual: true });
 jest.mock('../lib/apiClient', () => ({ get: jest.fn() }));
@@ -62,6 +63,19 @@ function setup() {
 }
 
 const stats = () => JSON.parse(screen.getByTestId('stats').textContent);
+
+test('stat setters stay stable within a visit and expire when the visit changes', () => {
+  const { result, rerender } = renderHook(id => useProfileStats(id, 'reader'), { initialProps: 'A' });
+  const first = result.current;
+  act(() => first.setSocialStats(prev => ({ ...prev, following: 1 })));
+  expect(result.current.socialStats.following).toBe(1);
+  const setters = ['setStreak', 'setSocialStats', 'setContentStats', 'setImpactScore', 'setGamificationStats'];
+  for (const name of setters) expect(result.current[name]).toBe(first[name]);
+  rerender('B');
+  for (const name of setters) expect(result.current[name]).not.toBe(first[name]);
+  act(() => first.setSocialStats({ followers: 8, following: 9 }));
+  expect(result.current.socialStats).toEqual({ followers: 0, following: 0 });
+});
 
 test('late stats for A cannot replace the stats shown for B', async () => {
   const { visit, deliver } = setup();

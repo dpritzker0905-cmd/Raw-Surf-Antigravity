@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 const initialStats = {
   streak: { current_streak: 0, longest_streak: 0, total_check_ins: 0 },
@@ -18,18 +18,19 @@ export default function useProfileStats(profileId, viewerId) {
 
   // Each reader or optimistic follow update retains the visit that started it.
   // Object identity also distinguishes two visits to the same profile.
-  const setter = key => update => setState(current => {
-    if (current.visit !== visit) return current;
-    const value = typeof update === 'function' ? update(current.stats[key]) : update;
-    return { visit, stats: { ...current.stats, [key]: value } };
-  });
-
-  return {
-    ...state.stats,
-    setStreak: setter('streak'),
-    setSocialStats: setter('socialStats'),
-    setContentStats: setter('contentStats'),
-    setImpactScore: setter('impactScore'),
-    setGamificationStats: setter('gamificationStats'),
-  };
+  const setters = useMemo(() => {
+    const setter = key => update => setState(current => {
+      if (current.visit !== visit) return current;
+      const value = typeof update === 'function' ? update(current.stats[key]) : update;
+      return { visit, stats: { ...current.stats, [key]: value } };
+    });
+    return {
+      setStreak: setter('streak'),
+      setSocialStats: setter('socialStats'),
+      setContentStats: setter('contentStats'),
+      setImpactScore: setter('impactScore'),
+      setGamificationStats: setter('gamificationStats'),
+    };
+  }, [visit]);
+  return { ...state.stats, ...setters };
 }

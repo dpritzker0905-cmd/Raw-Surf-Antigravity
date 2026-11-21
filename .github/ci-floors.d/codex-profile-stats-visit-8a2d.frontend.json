@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 2,
+  "tests": 3,
   "files": 1,
   "branch": "codex/profile-stats-visit-8a2d",
   "date": "2026-11-21",
-  "note": ""
+  "note": "Profile visit statistics and setter identity regressions"
 }
