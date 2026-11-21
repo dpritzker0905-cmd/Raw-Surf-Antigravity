@@ -6,7 +6,7 @@ from models import LiveSession
 
 REVIEW_MESSAGE = (
     "Payment received. We couldn't confirm your original live session. "
-    "Contact support about this payment before paying again."
+    "Check your support inbox before paying again."
 )
 
 

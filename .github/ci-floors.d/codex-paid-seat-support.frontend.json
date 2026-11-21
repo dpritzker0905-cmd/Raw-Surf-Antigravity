@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 1,
+  "files": 0,
+  "branch": "codex/paid-seat-support",
+  "date": "2026-11-21",
+  "note": "Buyer opens verified live-seat support ticket from checkout"
+}
