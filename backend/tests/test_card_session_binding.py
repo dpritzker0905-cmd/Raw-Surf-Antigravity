@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import LiveSession, LiveSessionParticipant, PaymentTransaction, Profile, SupportTicket
-from services.support_tickets import reconcile_paid_seat_tickets
+from scripts.reconcile_paid_seat_tickets import reconcile_paid_seat_tickets
 from routes.sessions import join, payments
 from routes.notifications import push_payloads
 from tests.test_live_session_escrow import BUYIN, bearer, harness

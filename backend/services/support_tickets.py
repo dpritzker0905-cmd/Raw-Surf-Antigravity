@@ -1,12 +1,10 @@
 """Ticket creation for support requests and verified live-seat reviews."""
-import json
 import secrets
 from datetime import datetime, timezone, timedelta
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import PaymentTransaction, SupportTicket, TicketCategoryEnum, TicketPriorityEnum
+from models import SupportTicket, TicketCategoryEnum, TicketPriorityEnum
 from services.support_delivery import queue_support_creation_notice, support_request_id
 
 
@@ -55,38 +53,3 @@ def is_paid_seat_review(tx, metadata):
         and isinstance(metadata, dict) and metadata.get("type") == "live_session_join"
         and metadata.get("review_reason") in ("original_session_unavailable", "missing_original_session")
     )
-
-
-async def reconcile_paid_seat_tickets(maker, apply=False):
-    """Visit existing paid reviews in small pages. Recheck each payment under its checkout lock."""
-    missing = created = unreadable = 0
-    cursor = ""
-    while True:
-        async with maker() as db:
-            ids = (await db.scalars(select(PaymentTransaction.id).where(
-                PaymentTransaction.id > cursor, PaymentTransaction.status == "review_required",
-                PaymentTransaction.payment_status == "paid",
-            ).order_by(PaymentTransaction.id).limit(100))).all()
-        if not ids:
-            return {"missing": missing, "created": created, "unreadable": unreadable}
-        for tx_id in ids:
-            async with maker() as db:
-                query = select(PaymentTransaction).where(PaymentTransaction.id == tx_id)
-                tx = await db.scalar(query.with_for_update() if apply else query)
-                if tx is None:
-                    continue
-                try:
-                    metadata = json.loads(tx.transaction_metadata or "{}")
-                except ValueError:
-                    unreadable += 1
-                    continue
-                if not is_paid_seat_review(tx, metadata):
-                    continue
-                ticket_id = support_request_id("paid-seat", tx.user_id, tx.id)
-                if await db.get(SupportTicket, ticket_id) is None:
-                    missing += 1
-                    if apply:
-                        await paid_seat_ticket(db, tx)
-                        await db.commit()
-                        created += 1
-        cursor = ids[-1]
