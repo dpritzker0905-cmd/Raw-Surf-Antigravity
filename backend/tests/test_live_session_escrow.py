@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from core.security import create_access_token
 from database import Base, get_db
-from models import CreditTransaction, LiveSessionParticipant, PaymentTransaction, Profile, RoleEnum, SurferGalleryItem, SurferPhotoSubscription, SurferSelectionQuota
+from models import CreditTransaction, LiveSession, LiveSessionParticipant, PaymentTransaction, Profile, RoleEnum, SurferGalleryItem, SurferPhotoSubscription, SurferSelectionQuota
 from routes.bookings import booking_lifecycle
 from routes.sessions import join as session_join
 from routes.sessions import payments
@@ -59,6 +59,7 @@ async def harness(tmp_path):
 
     app = FastAPI()
     app.include_router(session_join.router, prefix='/api')
+    app.include_router(payments.router, prefix='/api')
     app.include_router(booking_lifecycle.router, prefix='/api')
 
     async def dependency():
@@ -74,6 +75,9 @@ async def harness(tmp_path):
 
 @pytest.mark.parametrize("emulate", [False, True])
 async def test_card_join_creates_checkout_with_configured_provider(harness, monkeypatch, emulate):
+    async with harness.maker() as db:
+        db.add(LiveSession(id="checkout-original", photographer_id="pro", buyin_price=BUYIN))
+        await db.commit()
     provider_url = "https://checkout.stripe.com/c/pay/fixture"
     hosted = Mock(return_value=SimpleNamespace(id="cs_test_hosted_fixture", url=provider_url))
     emulated = Mock(return_value={
@@ -99,16 +103,19 @@ async def test_card_join_creates_checkout_with_configured_provider(harness, monk
         assert payment.amount == BUYIN and payment.currency == "usd"
         assert payment.payment_status == "Pending"
         saved = json.loads(payment.transaction_metadata)
+        assert saved["live_session_id"] == "checkout-original"
         assert (await db.scalars(select(LiveSessionParticipant))).all() == []
     if emulate:
         hosted.assert_not_called()
         emulated.assert_called_once()
+        assert emulated.call_args.kwargs["metadata_dict"]["live_session_id"] == saved["live_session_id"]
         assert saved["checkout_provider"] == "emulator"
         assert saved["emulator_payment_intent"] == "pi_test_fixture"
     else:
         emulated.assert_not_called()
         hosted.assert_called_once()
         request = hosted.call_args.kwargs
+        assert request["metadata"]["live_session_id"] == saved["live_session_id"]
         assert request["line_items"][0]["price_data"]["unit_amount"] == 2500
         assert request["mode"] == "payment"
         assert request["success_url"].endswith("checkout_session_id={CHECKOUT_SESSION_ID}")
