@@ -3,10 +3,13 @@ Test Reviews API and XP Transaction System
 Tests the two-way review system (surfer↔photographer) with AI vulgar word filtering
 and XP transactions for gamification engine
 """
+import secrets
 import pytest
 import requests
 import os
 import uuid
+
+_POLICY_TEST_PASSWORD = secrets.token_urlsafe(16)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL')
 if BASE_URL:
@@ -40,7 +43,7 @@ def test_surfer_id(api_client):
     # Create a test surfer
     signup_data = {
         "email": TEST_SURFER_EMAIL,
-        "password": "testpass123",
+        "password": _POLICY_TEST_PASSWORD,
         "full_name": "TEST_ReviewSurfer",
         "role": "Surfer"
     }

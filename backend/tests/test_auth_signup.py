@@ -3,10 +3,13 @@ Backend tests for Raw Surf OS - Auth and Signup flows
 Tests all signup categories: Surfer, Photographer, Business
 Validates proper redirect_path and subscription_tier routing
 """
+import secrets
 import pytest
 import requests
 import os
 import uuid
+
+_POLICY_TEST_PASSWORD = secrets.token_urlsafe(16)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
@@ -36,7 +39,7 @@ class TestSurferSignup:
         parent_email = generate_test_email()
         parent_response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": parent_email,
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Parent Surfer",
             "role": "Surfer"
         })
@@ -46,7 +49,7 @@ class TestSurferSignup:
         grom_email = generate_test_email()
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": grom_email,
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Grom",
             "role": "Grom",
             "parent_email": parent_email
@@ -64,7 +67,7 @@ class TestSurferSignup:
         """Test Grom signup without parent email fails"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Grom",
             "role": "Grom"
         })
@@ -75,7 +78,7 @@ class TestSurferSignup:
         """Test regular Surfer signup redirects to surfer-subscription"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Surfer",
             "role": "Surfer"
         })
@@ -91,7 +94,7 @@ class TestSurferSignup:
         """Test Competitive Surfer signup redirects to surfer-subscription"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Comp Surfer",
             "role": "Comp Surfer"
         })
@@ -107,7 +110,7 @@ class TestSurferSignup:
         """Test Pro surfer signup redirects to surfer-subscription"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Pro Surfer",
             "role": "Pro"
         })
@@ -127,7 +130,7 @@ class TestPhotographerSignup:
         """Test Photographer signup redirects to photographer-subscription"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Photographer",
             "role": "Photographer"
         })
@@ -143,7 +146,7 @@ class TestPhotographerSignup:
         """Test Approved Pro signup redirects to pro-onboarding"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Approved Pro",
             "role": "Approved Pro"
         })
@@ -159,7 +162,7 @@ class TestPhotographerSignup:
         """Test Grom Parent signup skips subscription and goes to feed"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Grom Parent",
             "role": "Grom Parent"
         })
@@ -176,7 +179,7 @@ class TestPhotographerSignup:
         """Test Hobbyist signup skips subscription and goes to feed"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Hobbyist",
             "role": "Hobbyist"
         })
@@ -197,7 +200,7 @@ class TestBusinessSignup:
         """Test Surf School signup skips subscription"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test School Owner",
             "role": "School",
             "company_name": "Test Surf School"
@@ -214,7 +217,7 @@ class TestBusinessSignup:
         """Test Surf Coach signup skips subscription"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Coach",
             "role": "Coach",
             "company_name": "Test Coaching"
@@ -231,7 +234,7 @@ class TestBusinessSignup:
         """Test Resort signup skips subscription"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Resort Owner",
             "role": "Resort",
             "company_name": "Test Surf Resort"
@@ -248,7 +251,7 @@ class TestBusinessSignup:
         """Test Destination signup skips subscription"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Destination Owner",
             "role": "Destination",
             "company_name": "Test Surf Destination"
@@ -265,7 +268,7 @@ class TestBusinessSignup:
         """Test Shop signup skips subscription"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Shop Owner",
             "role": "Shop",
             "company_name": "Test Surf Shop"
@@ -282,7 +285,7 @@ class TestBusinessSignup:
         """Test Shaper signup skips subscription"""
         response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": generate_test_email(),
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Shaper",
             "role": "Shaper",
             "company_name": "Test Surfboards"
@@ -305,7 +308,7 @@ class TestSubscriptionEndpoints:
         email = generate_test_email()
         signup_response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": email,
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Surfer",
             "role": "Surfer"
         })
@@ -337,7 +340,7 @@ class TestProOnboarding:
         email = generate_test_email()
         signup_response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": email,
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Pro",
             "role": "Approved Pro"
         })
@@ -361,7 +364,7 @@ class TestProOnboarding:
         email = generate_test_email()
         signup_response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": email,
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Photographer",
             "role": "Photographer"
         })
@@ -386,7 +389,7 @@ class TestDuplicateEmail:
         # First signup
         response1 = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": email,
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test User",
             "role": "Surfer"
         })
@@ -395,7 +398,7 @@ class TestDuplicateEmail:
         # Second signup with same email should fail
         response2 = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": email,
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test User 2",
             "role": "Photographer"
         })

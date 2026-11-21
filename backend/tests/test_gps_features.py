@@ -5,11 +5,14 @@ Test GPS Check-in and Surf Spot Image Features
 - Verify surf spots have Unsplash images after seeding
 """
 
+import secrets
 import pytest
 import requests
 import os
 import uuid
 import math
+
+_POLICY_TEST_PASSWORD = secrets.token_urlsafe(16)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
@@ -73,7 +76,7 @@ class TestGPSCheckIn:
         unique_email = f"gps_test_{uuid.uuid4().hex[:8]}@rawsurf.com"
         signup_response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": unique_email,
-            "password": "Test123!",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "GPS Test User",
             "role": "surfer"
         })
@@ -108,7 +111,7 @@ class TestGPSCheckIn:
         unique_email = f"gps_test_{uuid.uuid4().hex[:8]}@rawsurf.com"
         signup_response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": unique_email,
-            "password": "Test123!",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "GPS Far User",
             "role": "surfer"
         })
@@ -146,7 +149,7 @@ class TestGPSCheckIn:
         unique_email = f"manual_test_{uuid.uuid4().hex[:8]}@rawsurf.com"
         signup_response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": unique_email,
-            "password": "Test123!",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Manual Check-in User",
             "role": "surfer"
         })
@@ -239,7 +242,7 @@ class TestHaversineDistanceCalculation:
         unique_email = f"haversine_test_{uuid.uuid4().hex[:8]}@rawsurf.com"
         signup_response = requests.post(f"{BASE_URL}/api/auth/signup", json={
             "email": unique_email,
-            "password": "Test123!",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Haversine Test",
             "role": "surfer"
         })

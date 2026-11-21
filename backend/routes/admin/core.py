@@ -9,6 +9,7 @@ import json
 
 from database import get_db
 from deps.admin_auth import get_current_admin
+from core.password_policy import validate_new_password
 from core.security import get_current_user_id
 from models import Profile, Post, GalleryItem, Story, PaymentTransaction, AdminLog, RoleEnum
 
@@ -386,8 +387,7 @@ async def admin_reset_password(
 ):
     """Admin-only: manually reset a user's password"""
 
-    if len(data.new_password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    validate_new_password(data.new_password)
 
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()

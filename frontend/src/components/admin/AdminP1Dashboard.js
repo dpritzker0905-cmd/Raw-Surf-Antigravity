@@ -99,7 +99,7 @@ export const AdminP1Dashboard = () => {
   // Test Accounts state
   const [testAccounts, setTestAccounts] = useState([]);
   const [seedingAccounts, setSeedingAccounts] = useState(false);
-  const [testAccountPassword, setTestAccountPassword] = useState('Test123!');
+  const [testAccountPassword, setTestAccountPassword] = useState('');
   
   // Form states
   const [reviewStatus, setReviewStatus] = useState('');

@@ -12,6 +12,7 @@ from database import get_db
 from models import Profile, RoleEnum
 from core.security import create_access_token, get_current_user_id, get_user_id_from_jwt_or_query, verify_token
 from core.login_throttle import LoginThrottle
+from core.password_policy import validate_new_password
 from core.rate_limiter import rate_limit_check
 from models import Notification
 
@@ -138,9 +139,7 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
     from datetime import date
     
     try:
-        # Validate password length
-        if len(data.password) < 8:
-            raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+        validate_new_password(data.password)
 
         # GUARDIAN PROGRAM: a child under 13 never self-registers. Answered before ANY query or write, so nothing
         # about the child is stored. Only the parent-first flow (feature-flagged hook, services/guardian_policy.py)
@@ -628,8 +627,7 @@ async def change_password(
         raise HTTPException(status_code=401, detail="Current password is incorrect")
 
     # ── Validate new password ─────────────────────────────────────────────
-    if len(data.new_password) < 6:
-        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    validate_new_password(data.new_password)
 
     if len(data.new_password) > 128:
         raise HTTPException(status_code=400, detail="Password exceeds maximum length")

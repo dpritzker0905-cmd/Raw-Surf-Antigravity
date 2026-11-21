@@ -6,10 +6,13 @@ Tests:
 - Admin dashboard endpoints
 - Annual subscription plans with 20% discount
 """
+import secrets
 import pytest
 import requests
 import os
 import uuid
+
+_POLICY_TEST_PASSWORD = secrets.token_urlsafe(16)
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
@@ -108,7 +111,7 @@ class TestGalleryEndpoints:
         email = f"test_surfer_{uuid.uuid4().hex[:8]}@rawsurf.test"
         signup_resp = api_client.post(f"{BASE_URL}/api/auth/signup", json={
             "email": email,
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Surfer",
             "role": "Surfer"
         })
@@ -138,7 +141,7 @@ class TestGalleryEndpoints:
         email = f"test_photo_{uuid.uuid4().hex[:8]}@rawsurf.test"
         signup_resp = api_client.post(f"{BASE_URL}/api/auth/signup", json={
             "email": email,
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Gallery Photographer",
             "role": "Photographer"
         })
@@ -188,7 +191,7 @@ class TestGalleryEndpoints:
         buyer_email = f"test_buyer_{uuid.uuid4().hex[:8]}@rawsurf.test"
         buyer_signup = api_client.post(f"{BASE_URL}/api/auth/signup", json={
             "email": buyer_email,
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Test Buyer",
             "role": "Surfer"
         })
@@ -239,7 +242,7 @@ class TestGalleryEndpoints:
         photo_email = f"test_photo2_{uuid.uuid4().hex[:8]}@rawsurf.test"
         photo_signup = api_client.post(f"{BASE_URL}/api/auth/signup", json={
             "email": photo_email,
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Photographer 2",
             "role": "Photographer"
         })
@@ -264,7 +267,7 @@ class TestGalleryEndpoints:
         broke_email = f"test_broke_{uuid.uuid4().hex[:8]}@rawsurf.test"
         broke_signup = api_client.post(f"{BASE_URL}/api/auth/signup", json={
             "email": broke_email,
-            "password": "testpass123",
+            "password": _POLICY_TEST_PASSWORD,
             "full_name": "Broke Buyer",
             "role": "Surfer"
         })
