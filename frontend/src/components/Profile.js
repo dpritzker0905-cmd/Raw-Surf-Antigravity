@@ -165,7 +165,8 @@ export const Profile = () => {
     if (authLoading) return;
     
     if (profileUserId) {
-      fetchProfile();
+      const controller = new AbortController();
+      fetchProfile(controller.signal);
       fetchStreak();
       fetchSocialStats();
       fetchContentStats();
@@ -176,6 +177,7 @@ export const Profile = () => {
         checkFollowStatus();
         blockHook.checkBlockStatus();
       }
+      return () => controller.abort();
     }
   }, [profileUserId, isOwnProfile, authLoading, user]);
 
