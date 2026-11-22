@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 7,
+  "tests": 10,
   "files": 0,
   "branch": "claude/tide-never-missing",
   "date": "2026-11-22",
-  "note": ""
+  "note": "never-missing tide + single-flight loader fixes T1-T3"
 }
