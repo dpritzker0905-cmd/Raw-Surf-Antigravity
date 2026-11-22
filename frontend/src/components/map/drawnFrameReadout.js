@@ -69,6 +69,12 @@ export const ESTIMATE_WORDS = {
   gfs_derived_fallback: 'GFS stand-in',
   ecmwf_ifs_derived_fallback: 'ECMWF stand-in',
   open_meteo_fallback: 'Open-Meteo stand-in',
+  // THE RASTER GAP FILL (2026-11-22, ownRasterGapFill.js; the owner: no blanks, no Open-Meteo, a labelled prediction).
+  icon_coarser_set: 'ICON’s own 0.5° frames (its 0.125° frames are missing)',
+  icon_anchored_gfs: 'ICON prediction: NOAA GFS trend anchored to ICON’s last frame',
+  euro_anchored_gfs: 'EURO prediction: NOAA GFS trend anchored to EURO’s last frame',
+  icon_gfs_gap_fill: 'no ICON frame for this hour, NOAA GFS shown',
+  euro_gfs_gap_fill: 'no EURO frame for this hour, NOAA GFS shown',
 };
 // A basis with no words of its own reads "Estimated forecast", never "Estimated forecast: estimated" (the doubled word).
 // Kill: window.__RAW_DISABLE_DRAWN_ESTIMATE_WORDS__ = true (the words above and the rating-frame rule in marineDrawnFrame).

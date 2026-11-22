@@ -9,7 +9,8 @@ import { getDownscaled, subscribeDownscaled } from './ownRasterDownscale';
 //    attribution names the same link);
 //  - RainViewer asks for "Rain Viewer" with a link (radar's observed frames and the nowcast built from them).
 // One small link, in the legend's own muted text colour (theme-aware: light, dark and beach), a real <a> with an accessible
-// name, opening in a new tab. Kill: window.__RAW_DISABLE_LAYER_DATA_CREDIT__ = true.
+// name, opening in a new tab. It WRAPS (min-w-0, break-words) rather than run past the legend panel's edge (the desktop
+// legend cut "ICON · Datenbasis: Deutscher Wetterd…", 2026-11-22), and a gap-fill credit's tooltip carries the full sentence. Kill: window.__RAW_DISABLE_LAYER_DATA_CREDIT__ = true.
 export const LAYER_CREDITS = {
   rain: 'open-meteo', satellite: 'open-meteo', pressure: 'open-meteo', temperature: 'open-meteo', water_temp: 'open-meteo',
   fog: 'open-meteo', radar: 'rainviewer',
@@ -60,7 +61,32 @@ const OWN_NOTE = {
     : { text: ' · peak since last step', label: model === 'EURO'
       ? 'ECMWF 10fg / 10fg3: the strongest 10 m gust over the past 1 h (to 90 h), 3 h (to 144 h) or 6 h (to 240 h).'
       : 'ICON VMAX_10M: the strongest 10 m gust since the previous output (1 h to 78 h, then 3 h).' }),
+  // ICON rain (2026-11-18, the advisor's suggestion on #1075, ordered by the director): our 0.125-degree set is an AREA MEAN of
+  // DWD's model cells (G2: the median cell peak keeps 92-96 %, the sharpest ~10 % keep 74-85 %), so a local downpour can read
+  // lower than the model's own cell. Said on screen; GFS and EURO rain carry no note.
+  rain: (model) => (model === 'ICON'
+    ? { text: ' · area-averaged; local peaks can read low', label: 'ICON rain averaged over each 0.125 degree box (about 14 km), so the heaviest local downpours can read lower than in the model\'s own cells.' }
+    : null),
 };
+// GAP FILL (2026-11-22, ownRasterGapFill.js): a frame drawn where the picked model has none, '<MODEL(S)>:fill:<PICKED>'. Every
+// source in the field is credited (an anchored prediction holds the picked model's own field: ECMWF's CC BY needs its credit), and
+// the visible text says it is an estimate, so the source is never colour or position alone. The status line says why.
+// SHORT LABELS (the director's call, 2026-11-22, David leaving it to him): the visible text leads with WHAT IS DRAWN, "ICON" for
+// our own frames (the plain credit), "ICON → GFS" for the anchored blend, "GFS (stand-in)" for a pure GFS frame; the picked
+// agency's own attribution follows where its data is in the field (DWD's "Datenbasis", ECMWF's CC BY). The full sentence is
+// the accessible name and the tooltip; the status line under the timeline keeps the long words.
+const ATTRIB = { dwd: 'Datenbasis: Deutscher Wetterdienst', ecmwf: '© ECMWF · CC BY 4.0' };
+export function fillCredit(models, picked) {
+  const srcs = models.map((m) => SOURCES[OWN_SOURCE[m] || 'noaa']);
+  const anchored = models.length > 1;
+  const why = anchored
+    ? `${picked} prediction where ${picked}'s own frames end: NOAA GFS's trend, anchored to ${picked}'s last frame.`
+    : `NOAA GFS shown where ${picked} has no frame of its own.`;
+  const own = anchored ? ATTRIB[OWN_SOURCE[models[0]]] : null;
+  const text = anchored ? `${models[0]} → GFS${own ? ` · ${own}` : ''}` : 'GFS (stand-in)';
+  const label = `Estimated: ${why} ${srcs.map((x) => x.label).join(' ')}`;
+  return { text, href: srcs[0].href, label, title: label };
+}
 // While air temperature is drawn terrain-adjusted (ownRasterDownscale.js): the elevation source is credited too.
 const DOWNSCALE_NOTE = {
   temperature: { text: ' · terrain-adjusted', label: 'Adjusted to the real terrain height with NOAA ETOPO 2022 elevation (public domain), 6.5 C per km.' },
@@ -69,10 +95,16 @@ const DOWNSCALE_NOTE = {
 export function creditFor(layer, engaged = getEngaged(), downscaled = getDownscaled()) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_LAYER_DATA_CREDIT__ === true) return null;
   if (engaged && engaged[layer]) {
-    const s = SOURCES[OWN_SOURCE[engaged[layer]] || 'noaa'];   // the model of the frame on screen
+    // '<MODEL>:idle' (2026-11-18): an own-only model claimed with nothing drawn (killed, unpublished, pre-index). Its own source,
+    // no note (nothing is drawn for a note to describe), and never "© Open-Meteo", which no longer draws it.
+    const [models, state, picked] = String(engaged[layer]).split(':');
+    const model = models.split('+')[0];
+    const s = SOURCES[OWN_SOURCE[model] || 'noaa'];   // the model of the frame on screen
+    if (state === 'idle') return s;
+    if (state === 'fill') return fillCredit(models.split('+'), picked);
     // A note keyed `<layer>_<source>` (currents_giops) describes that source's field; otherwise the layer's own note.
-    const note = OWN_NOTE[`${layer}_${String(engaged[layer]).toLowerCase()}`] || OWN_NOTE[layer];
-    const own = typeof note === 'function' ? note(engaged[layer]) : note;
+    const note = OWN_NOTE[`${layer}_${model.toLowerCase()}`] || OWN_NOTE[layer];
+    const own = typeof note === 'function' ? note(model) : note;
     const n = own || (downscaled && downscaled[layer] ? DOWNSCALE_NOTE[layer] : null);
     return n ? { ...s, text: s.text + n.text, label: `${n.label} ${s.label}`, title: n.label } : s;
   }
@@ -93,7 +125,7 @@ export default function LayerDataCredit({ layer }) {
   if (!c) return null;
   return (
     <a href={c.href} target="_blank" rel="noopener noreferrer" aria-label={c.label} title={c.title} data-testid="layer-data-credit"
-      className="ml-2 shrink-0 normal-case tracking-normal font-normal underline decoration-dotted underline-offset-2 opacity-80 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500 rounded-sm">
+      className="ml-2 min-w-0 text-right break-words normal-case tracking-normal font-normal underline decoration-dotted underline-offset-2 opacity-80 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500 rounded-sm">
       {c.text}
     </a>
   );
