@@ -94,6 +94,12 @@ describe('ForecastTimeStatus on a raster layer', () => {
       expect(s.getAttribute('aria-live')).toBe('polite');
       expect(s.className).toContain(tone);   // words first; the tone (the held line's) only adds to them
     });
+  test('loading an anchored gap-fill frame says "ICON prediction", never "ICON+GFS"', () => {
+    const shown = { url: 'a', dataMs: 1, model: 'ICON' };
+    const want = { url: 'b', dataMs: 2, model: 'ICON+GFS', estimated: 'icon_anchored_gfs', fill: true };
+    expect(describeRasterFrame({ layer: 'temperature', shown, want }, 'temperature', 2).text)
+      .toBe('Loading ICON prediction Air Temp… still showing ICON Air Temp');
+  });
   test('an instant step (shown == wanted) never flashes a line; the marine record is never read for rasters', () => {
     jest.useFakeTimers();
     const e = end('ncep_gfs013', 11);

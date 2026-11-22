@@ -90,8 +90,10 @@ export function describeRasterFrame(rec, layer, requestedMs) {
   if (!shown) return { state: 'pending', text: `Loading ${name} ${fmt(want.dataMs)}…` };
   if (shown.url !== want.url) {
     const models = shown.model && want.model && shown.model !== want.model;
+    // A gap fill's anchored frame carries '<MODEL>+GFS': said as "<MODEL> prediction" (ownRasterGapFill.js), never "ICON+GFS".
+    const said = (m) => (String(m).includes('+') ? `${String(m).split('+')[0]} prediction` : m);
     return { state: 'pending', text: models
-      ? `Loading ${want.model} ${name}… still showing ${shown.model} ${name}`
+      ? `Loading ${said(want.model)} ${name}… still showing ${said(shown.model)} ${name}`
       : `Loading ${fmt(want.dataMs)}… still showing ${fmt(shown.dataMs)}` };
   }
   // A stand-in past the picked model's range (own frames: GFS beyond EURO's 240 h / ICON's 180 h): the wave layers' words.

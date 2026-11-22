@@ -78,3 +78,5 @@ more strategy past the horizon when its sets publish, and has to pass its own ga
 ## 2026-11-22 later: the advisor's HOLD at `03d7f3b5f` and the fixes
 - Same-phase anchor (above), with a test where the ICON - GFS difference flips sign between day (12Z) and night (00Z).
 - SCOREBOARD row added: the move from .om to own frames (G1-G3 parity reads cited) and the new past-horizon values, unscored.
+- Pending wording: a loading anchored frame reads "Loading ICON prediction Air Temp...", never "ICON+GFS" (seen in the browser look).
+- Browser look (local dev build, backend at a dead port, frames from the public bucket): shots and notes in the shared notes folder `PR1136-seam-shots-2026-11-22/`. The seam's drop to GFS's 0.5-degree grid is visible; the desktop legend truncates the long credit; the phone's collapsed sheet does not show the status line (as for every raster line today).
