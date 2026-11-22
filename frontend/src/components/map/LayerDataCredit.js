@@ -50,6 +50,12 @@ const OWN_NOTE = {
     : { text: ' · peak since last step', label: model === 'EURO'
       ? 'ECMWF 10fg / 10fg3: the strongest 10 m gust over the past 1 h (to 90 h), 3 h (to 144 h) or 6 h (to 240 h).'
       : 'ICON VMAX_10M: the strongest 10 m gust since the previous output (1 h to 78 h, then 3 h).' }),
+  // ICON rain (2026-11-18, the advisor's suggestion on #1075, ordered by the director): our 0.125-degree set is an AREA MEAN of
+  // DWD's model cells (G2: the median cell peak keeps 92-96 %, the sharpest ~10 % keep 74-85 %), so a local downpour can read
+  // lower than the model's own cell. Said on screen; GFS and EURO rain carry no note.
+  rain: (model) => (model === 'ICON'
+    ? { text: ' · area-averaged; local peaks can read low', label: 'ICON rain averaged over each 0.125 degree box (about 14 km), so the heaviest local downpours can read lower than in the model\'s own cells.' }
+    : null),
 };
 // While air temperature is drawn terrain-adjusted (ownRasterDownscale.js): the elevation source is credited too.
 const DOWNSCALE_NOTE = {
@@ -59,8 +65,12 @@ const DOWNSCALE_NOTE = {
 export function creditFor(layer, engaged = getEngaged(), downscaled = getDownscaled()) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_LAYER_DATA_CREDIT__ === true) return null;
   if (engaged && engaged[layer]) {
-    const s = SOURCES[OWN_SOURCE[engaged[layer]] || 'noaa'];   // the model of the frame on screen
-    const own = typeof OWN_NOTE[layer] === 'function' ? OWN_NOTE[layer](engaged[layer]) : OWN_NOTE[layer];
+    // '<MODEL>:idle' (2026-11-18): an own-only model claimed with nothing drawn (killed, unpublished, pre-index). Its own source,
+    // no note (nothing is drawn for a note to describe), and never "© Open-Meteo", which no longer draws it.
+    const [model, state] = String(engaged[layer]).split(':');
+    const s = SOURCES[OWN_SOURCE[model] || 'noaa'];   // the model of the frame on screen
+    if (state === 'idle') return s;
+    const own = typeof OWN_NOTE[layer] === 'function' ? OWN_NOTE[layer](model) : OWN_NOTE[layer];
     const n = own || (downscaled && downscaled[layer] ? DOWNSCALE_NOTE[layer] : null);
     return n ? { ...s, text: s.text + n.text, label: `${n.label} ${s.label}`, title: n.label } : s;
   }

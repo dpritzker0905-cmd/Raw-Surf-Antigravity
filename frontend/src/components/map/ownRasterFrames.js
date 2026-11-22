@@ -18,7 +18,9 @@
  * owner: "Yes, publish pressure"; kill window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true). Every other layer is DARK:
  * window.__RAW_RASTER_OWN_FRAMES__ = true (or localStorage '__RAW_RASTER_OWN_FRAMES__' = 'true') turns it on;
  * window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true, the static-frames global kill or the per-set kill
- * (__RAW_DISABLE_STATIC_FRAMES_SETS__) turn it off. Any miss (no set published, no index) falls back to the .om path.
+ * (__RAW_DISABLE_STATIC_FRAMES_SETS__) turn it off. Any miss (no set published, no index) falls back to the .om path, EXCEPT for
+ * an own-only layer or model (ownOnlyFor; 2026-11-18, the owner: no Open-Meteo in user data), where a miss or a kill says
+ * "unavailable" and the .om copy is never drawn.
  * Telemetry: window.__RAW_OWN_RASTER__.
  */
 import { fetchFrameBytes, getPinnedIndex, loadFrameParsed, markStaticPinStale, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
@@ -52,9 +54,17 @@ export const OWN_RASTER_SETS = {
   // PER MODEL since 2026-11-14 (the overnight instant lane): ECMWF 2t and DWD ICON T_2M sets, as pressure. A model whose set is
   // not published yet misses (no index) and stays on the .om path, which draws that model as before.
   temperature: {
-    // EURO at 0.25 deg (ECMWF 2t, every point: the .om ifs025 grid, #888); GFS and ICON at 0.5 deg.
-    models: { GFS: 'GFS/weather/temperature/global_0p5', EURO: 'EURO/weather/temperature/global_0p25', ICON: 'ICON/weather/temperature/global_0p5' },
-    fallback: null, field: TEMP_FIELD, unit: '°C',
+    // EURO at 0.25 deg (ECMWF 2t, every point: the .om ifs025 grid, #888); GFS at 0.5 deg.
+    // ICON at 0.125 deg since 2026-11-18 (#957's set `temperature_icon_0p125`: DWD ICON T_2M, nearest icosahedral cell onto DWD's
+    // own 0.125-degree map, 2880 x 1441, f000-f180 every 3 h): as fine as the .om dwd_icon grid it replaces, so ICON air temperature
+    // leaves Open-Meteo (the owner, 2026-11-18: "No user data should be open-meteo"; the director assigned this flip).
+    models: { GFS: 'GFS/weather/temperature/global_0p5', EURO: 'EURO/weather/temperature/global_0p25', ICON: 'ICON/weather/temperature/global_0p125' },
+    // `workerDecode`: decode the one drawn field off the main thread (ownRasterDecode), as the own-only layers do. A 0.125-degree
+    // frame is 4.15 M nodes, four times a 0.25-degree one; the shared path would parse every field to Float64 on the main thread.
+    // `ownOnlyModels` (2026-11-18, the owner via the director: "cut Open-Meteo out of all user data", NO .om fallback): with ICON
+    // picked the layer is drawn from our frames or not at all. A missing set, index or hour shows "unavailable" on the status line
+    // (the gusts / currents rule), never the .om copy.
+    fallback: null, field: TEMP_FIELD, unit: '°C', workerDecode: true, ownOnlyModels: ['ICON'],
   },
   // FOG (2026-11-14): GFS surface visibility, the field the .om path draws for EVERY model (it pins ncep_gfs025 for fog,
   // openMeteoEndpoints.js), so every model reads the GFS set here too: the same field under the same label as before.
@@ -77,8 +87,16 @@ export const OWN_RASTER_SETS = {
   satellite: {
     // 0.25 deg (the owner, 2026-10-25: "Go with your recommendation if that is state of the art"): 1440 x 721, so cloud
     // edges are not one-cell 0.5-degree steps. The shader and the wrap test take the grid from each frame.
-    models: { GFS: 'GFS/weather/cloud_cover/global_0p25' },
-    fallback: null, field: CLOUD_FIELD, unit: '%',
+    // EURO (2026-11-18, the owner: "cut Open-Meteo out of all user data"): ECMWF open data `tcc` x 100 at 0.25 deg, every point
+    // (#955's set `cloud_cover_euro`; G3: all 1,038,240 nodes within 0.5 pp of ECMWF's own field, i.e. quantisation), hours 0-144
+    // by 3 and 150-240 by 6: the same grid as the .om ecmwf_ifs025 it replaces. ON (satellite is a default-on layer) with NO .om
+    // fallback (`ownOnlyModels`): a miss, or past 240 h, says "unavailable".
+    // GFS too (2026-11-18, the director relaying the owner's rule: no Open-Meteo in user data): GFS cloud was already drawn from
+    // our frames by default, but a kill or a miss fell back to the .om copy; now it says "unavailable".
+    // ICON too (2026-11-19, the director relaying the owner: "cut out open-meteo all together"): ICON has NO cloud set yet, so ICON
+    // cloud says "unavailable" until the gfs-flux lane's ICON cloud set publishes and its key is added here; never the .om copy.
+    models: { GFS: 'GFS/weather/cloud_cover/global_0p25', EURO: 'EURO/weather/cloud_cover/global_0p25' },
+    fallback: null, field: CLOUD_FIELD, unit: '%', ownOnlyModels: ['GFS', 'EURO', 'ICON'],
   },
   // PRECIPITATION (2026-11-12, the owner: "Yes, build it"): the app's 'rain' layer from GFS APCP (frame_set_raster.py,
   // set `precipitation`): mm/h in the hour before the frame (the 3-hour mean past f120), the same meaning as the .om field,
@@ -88,9 +106,14 @@ export const OWN_RASTER_SETS = {
   // 3-hour step to 144 h and 6-hour step to 240 h (set `precipitation_euro`), on the same grid. Past EURO's last frame the GFS
   // frame stands in, labelled as an estimate, as pressure does (the 14-day scrubber is never cut to a model's own range).
   // ICON has no set: with ICON picked the layer stays on the .om path.
+  // ICON (2026-11-18, the owner: "cut Open-Meteo out of all user data"): DWD TOT_PREC differenced to a rate (mm/h in the step
+  // before the hour: hourly to 78 h, 3-hourly to 180 h), area-averaged with 3 x 3 sampled sub-points onto 0.125 deg (#956's set
+  // `precipitation_icon_0p125`; G2: global mass within 0.1 %, median cell peak kept 92-96 %). ON for ICON with NO .om fallback
+  // (`ownOnlyModels`): a miss says "unavailable". Past ICON's 180 h the GFS frame stands in, labelled as an estimate (this
+  // layer's rule since 2026-11-12). GFS and EURO rain are unchanged (behind the lever, .om by default).
   rain: {
-    models: { GFS: 'GFS/weather/precipitation/global_0p25', EURO: 'EURO/weather/precipitation/global_0p25' },
-    fallback: 'GFS', field: PRECIP_FIELD, unit: 'mm/h',
+    models: { GFS: 'GFS/weather/precipitation/global_0p25', EURO: 'EURO/weather/precipitation/global_0p25', ICON: 'ICON/weather/precipitation/global_0p125' },
+    fallback: 'GFS', field: PRECIP_FIELD, unit: 'mm/h', workerDecode: true, ownOnlyModels: ['ICON'],
   },
   // GUSTS (2026-11-15, the owner approved Gusts as a new picker layer; "these lanes need to serve instantly from real GFS, EURO,
   // and ICON lanes from GRIB"): EACH MODEL'S OWN gust, in KNOTS (the wind layer's unit), 0.25 deg (frame_set_raster.py sets
@@ -129,6 +152,12 @@ export function endNoteText(layer, model, lastMs, runMs) {
 }
 /** Layers drawn ONLY from our own frames (no .om path behind them): the picker shows them, a miss shows nothing. */
 export const OWN_ONLY_LAYERS = Object.freeze(Object.keys(OWN_RASTER_SETS).filter((l) => OWN_RASTER_SETS[l].ownOnly));
+/** Is this layer drawn ONLY from our frames for this model? Own-only layers for every model; a layer that lists `ownOnlyModels`
+ *  for those models (ICON air temperature, 2026-11-18: no Open-Meteo fallback). A miss then shows "unavailable", not the .om. */
+export function ownOnlyFor(layer, model = 'GFS') {
+  const set = OWN_RASTER_SETS[layer];
+  return !!set && (!!set.ownOnly || (set.ownOnlyModels || []).includes(up(model)));
+}
 // Who the frames come from, for the legend credit and the status line.
 export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON', CMEMS: 'Copernicus Marine' };
 const up = (m) => String(m || 'GFS').toUpperCase();
@@ -155,7 +184,8 @@ const W = () => (typeof window !== 'undefined' ? window : {});
 /** Layers whose own frames draw with no lever set; each is its own owner decision (D-052, 2026-10-26, the owner: "Flip both: the
  *  MARINE_GULF_FILL_MID_TARGETED repo variable and cloud 0.25 deg (repo var, then the client key after one publish)").
  *  Kill one layer: window.__RAW_DISABLE_RASTER_OWN_<LAYER>__ = true (cloud: __RAW_DISABLE_RASTER_OWN_SATELLITE__); kill all:
- *  __RAW_DISABLE_RASTER_OWN_FRAMES__. A miss (set not in latest.json, no index) still falls back to the .om path. */
+ *  __RAW_DISABLE_RASTER_OWN_FRAMES__. A miss (set not in latest.json, no index) still falls back to the .om path, except for an
+ *  own-only layer or model (ownOnlyFor), which says "unavailable" instead. */
 // PRESSURE (2026-11-12): the owner, "Yes, publish pressure", answering "Turn on pressure frame publishing in the ingest so I can
 // flip pressure on?". GFS, EURO and ICON each draw their own published set (a scrub step rebinds a resident texture instead of
 // decoding a whole-world .om hour), with the labelled isobars and H/L markers that ride the own-frames field.
@@ -179,10 +209,19 @@ export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'gusts'
 //  - water_temp GFS: OFF (the .om gfs013, 0.117 deg, is finer than the 0.25 deg set).
 //  - temperature EURO: ECMWF 2t at 0.25 deg = the .om ifs025 (#888): built, DEFAULT-OFF pending the owner (as fog).
 //  - temperature GFS: OFF until a pre-registered visual-parity comparison at z5 / z7 / z9 (desktop + phone) shows the 0.5 deg set +
-//    ETOPO downscale no coarser than the .om gfs013. ICON: OFF (0.5 deg vs dwd_icon ~0.125 deg; a 0.125 deg set is not built).
-// Kills: __RAW_DISABLE_RASTER_OWN_TEMPERATURE__, __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ (each the .om path, as before).
+//    ETOPO downscale no coarser than the .om gfs013.
+//  - temperature ICON: ON since 2026-11-18. The 0.125 deg set (#957) matches the .om dwd_icon grid, so the no-regression rule holds;
+//    the owner's "No user data should be open-meteo" (2026-11-18) and the director's assignment. Own frames ONLY for ICON
+//    (`ownOnlyModels`): window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true stops our frames and the layer says "unavailable";
+//    no kill returns ICON to the .om path (the director, relaying the owner, 2026-11-18). Past ICON's 180 h: unavailable.
+// Kills for the models still on .om by default (GFS / EURO temperature, every water_temp): __RAW_DISABLE_RASTER_OWN_TEMPERATURE__,
+// __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ return them to the .om path, as before.
 // Turning them on: { temperature: ['EURO'], water_temp: ['EURO'] } here. The lever reaches every model meanwhile.
-export const DEFAULT_ON_MODELS = Object.freeze({ water_temp: ['ICON'] });   // G4 (David 2026-11-17: start on, with a test and kill)
+// rain ICON (2026-11-18): the 0.125 deg set above, ON with no .om fallback (gap fill below); kill __RAW_DISABLE_RASTER_OWN_RAIN__.
+export const DEFAULT_ON_MODELS = Object.freeze({
+  water_temp: Object.freeze(['ICON']),   // G4 (David 2026-11-17: start on, with a test and kill)
+  temperature: Object.freeze(['ICON']), rain: Object.freeze(['ICON']),   // ICON 0.125 deg (2026-11-18)
+});
 
 /** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
  *  stays on the .om path, which draws that model as before (never another model's frames under its label). */
@@ -382,9 +421,23 @@ export function getField(path) {
   return f || null;
 }
 
+// PHONE MEMORY (2026-11-18, the 0.125-degree ICON air temperature): the LRU counts frames, and six 0.125-degree Float32 fields are
+// ~100 MB. On a handheld it also keeps the held nodes under HANDHELD_NODE_BUDGET (four 0.125-degree frames, ~66 MB): the +-1 window
+// (3 frames) always fits, and 0.25-degree sets (1.04 M nodes) never reach it, so their behaviour is unchanged.
+export const HANDHELD_NODE_BUDGET = 4 * 2880 * 1441;
+const nodesOf = (f) => (f && f.values ? f.values.length : 0);
+
 function keep(path, field) {
   _fields.set(path, field);
   while (_fields.size > LRU_MAX) _fields.delete(_fields.keys().next().value);
+  if (!isHandheldDevice()) return;
+  let held = 0;
+  for (const f of _fields.values()) held += nodesOf(f);
+  while (_fields.size > 1 && held > HANDHELD_NODE_BUDGET) {
+    const oldest = _fields.keys().next().value;
+    held -= nodesOf(_fields.get(oldest));
+    _fields.delete(oldest);
+  }
 }
 
 /** Load (fetch + inflate + parse + field) one frame; null on any failure. Shared per path; never aborted once started (a
@@ -403,7 +456,7 @@ export function loadField(layer, frame, priority) {
       t.loads += 1;
       // OWN-ONLY LAYERS (gusts, currents; 2026-11-15): fetch + inflate in staticFrames' worker, then decode ONLY the drawn field
       // to Float32 in ownRasterDecode's worker (no main-thread parse of every field). The live lanes keep the shared path.
-      if (set.ownOnly && !decodeWorkerKilled()) return loadOwnOnly(key, frame, priority, set, t);
+      if ((set.ownOnly || set.workerDecode) && !decodeWorkerKilled()) return loadOwnOnly(key, frame, priority, set, t);
       // Fetch priority (staticFrames, #479): 'high' for the frame the step wants, 'low' for the rest of the window.
       const got = await loadFrameParsed(key, frame, undefined, priority ? { priority } : undefined);
       if (!got) { t.loadErrors += 1; noteMiss('load_failed'); noteFailed(frame.path); return null; }
