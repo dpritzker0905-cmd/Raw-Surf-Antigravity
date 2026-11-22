@@ -109,17 +109,109 @@ def _table():
                                                                  freqs=np.array([0.08, 0.1, 0.12, 0.14, 0.16, 0.2])), {}))
 
 
-def test_chain_and_lite_read_the_same_partition_inputs_byte_for_byte(monkeypatch):
-    row = {"target": "T1", "lead_h": 3, "partitions": TRAINS, "basis": "partitions"}
-    seen = {}
+TOTAL = {"h": 1.2, "tp": 11.0, "dir": 275.0}
+
+
+def test_lite_and_chain_part_read_the_same_partition_object_and_chain_served_reads_the_total(monkeypatch):
+    row = {"target": "T1", "lead_h": 3, "partitions": TRAINS, "basis": "partitions", "total": TOTAL}
+    calls = []
     real_chain, real_lite = arms.chain_buoy_hs, arms.lite_buoy_hs
-    monkeypatch.setattr(arms, "chain_buoy_hs", lambda parts, *a, **k: seen.setdefault("chain", parts) and real_chain(parts, *a, **k))
-    monkeypatch.setattr(arms, "lite_buoy_hs", lambda t, parts, *a, **k: seen.setdefault("lite", parts) and real_lite(t, parts, *a, **k))
+    monkeypatch.setattr(arms, "chain_buoy_hs", lambda parts, *a, **k: calls.append(("chain", parts)) or real_chain(parts, *a, **k))
+    monkeypatch.setattr(arms, "lite_buoy_hs", lambda t, parts, *a, **k: calls.append(("lite", parts)) or real_lite(t, parts, *a, **k))
     out = arms.arms_at_buoy(row, _table(), 20.0, shore_normal_deg=270.0)
-    assert seen["chain"] is seen["lite"]                                  # the SAME object
-    assert json.dumps(seen["chain"], sort_keys=True) == json.dumps(seen["lite"], sort_keys=True)
-    assert out["input_hash"] == arms.input_hash(arms.partition_inputs(row)) and len(out["input_hash"]) == 64
-    assert out["CHAIN"] > 0 and out["LITE"] > 0 and out["OFFSHORE"] == pytest.approx((1.0 ** 2 + 0.5 ** 2) ** 0.5)
+    (_, served), (_, part), (_, lite) = calls                              # CHAIN_SERVED, CHAIN_PART, LITE, in that order
+    assert part is lite                                                    # the SAME object: byte-identical partition inputs
+    assert json.dumps(part, sort_keys=True) == json.dumps(lite, sort_keys=True) == json.dumps(arms.partition_inputs(row), sort_keys=True)
+    assert served == [dict(TOTAL, kind="swell")] and served != part        # CHAIN_SERVED is the TOTAL field, not the partitions
+    assert out["input_hash"] == arms.input_hash(arms.partition_inputs(row)) and out["total_hash"] == arms.input_hash(served)
+    assert out["CHAIN_SERVED"] > 0 and out["CHAIN_PART"] > 0 and out["LITE"] > 0
+    assert out["OFFSHORE"] == pytest.approx((1.0 ** 2 + 0.5 ** 2) ** 0.5)
+
+
+def test_with_total_basis_rows_chain_served_and_chain_part_coincide():
+    """No partitions resolved: the served chain and the partitioned chain are the same total train, so any gap is not a partition effect."""
+    row = {"target": "T1", "lead_h": 0, "basis": "total", "total": TOTAL, "partitions": [dict(TOTAL, kind="swell")]}
+    out = arms.arms_at_buoy(row, _table(), 20.0, shore_normal_deg=270.0)
+    assert out["CHAIN_SERVED"] == pytest.approx(out["CHAIN_PART"]) and out["input_hash"] == out["total_hash"]
+
+
+def test_the_gated_comparator_is_chain_served_and_chain_part_is_report_only():
+    from services.weather_pipeline.nearshore_lite import scorer
+    assert scorer.COMPARATOR == "CHAIN_SERVED" and scorer.REPORTED_CHAIN == "CHAIN_PART"
+    import random
+    rng = random.Random(3)
+    rows = []
+    for i in range(40):
+        t = 1.0 + rng.random()
+        rows.append({"date": f"2027-02-{(i % 28) + 1:02d}", "buoy": f"b{i % 5}", "region": "US West", "obs_hs": t,
+                     "arms": {"CHAIN_SERVED": t + 0.4, "CHAIN_PART": t + 0.25, "LITE": t + 0.1}})
+    d = scorer.decompose(rows, B=200)
+    assert d["total_effect"]["delta"] < 0 and d["partition_effect"]["delta"] < 0 and d["refraction_effect"]["delta"] < 0
+    # the effects add: total = partition + refraction (RMSE of constant offsets)
+    assert d["total_effect"]["delta"] == pytest.approx(d["partition_effect"]["delta"] + d["refraction_effect"]["delta"], abs=1e-9)
+
+
+def test_stored_only_guard_blocks_the_live_copernicus_fetch_and_restores_it():
+    cms = pytest.importorskip("services.copernicus_marine_service")
+    real = cms.fetch_euro_marine
+    with ps.stored_only_guard():
+        with pytest.raises(ps.StoredOnlyError, match="fetch_euro_marine"):
+            run(cms.fetch_euro_marine(latitudes=[0.0], longitudes=[0.0], forecast_days=1, variables=["wave_height"], valid_time="x"))
+    assert cms.fetch_euro_marine is real
+
+
+def test_build_service_routes_every_read_through_the_stored_only_provider(monkeypatch, tmp_path):
+    """The service build_service returns holds a StoredOnlyProvider as its ONLY provider, and resolving a point the empty store
+    cannot answer (a) reaches the provider, which refuses, (b) never reaches the lazily imported live CMEMS fetch, (c) makes no
+    network attempt (name resolution and connection creation are blocked and counted)."""
+    import socket
+    from services.weather_pipeline import dynamic_index as di
+    from services.weather_pipeline import store as st
+    attempts = []
+
+    def blocked(*a, **k):
+        attempts.append(a)
+        raise AssertionError("network attempt")
+    monkeypatch.setattr(socket, "getaddrinfo", blocked)
+    monkeypatch.setattr(socket, "create_connection", blocked)
+    monkeypatch.setattr(st.ProductStore, "restore_from_supabase", lambda self, *a, **k: (0, []))
+    orig_init = di.DynamicProductIndex.__init__
+    monkeypatch.setattr(di.DynamicProductIndex, "__init__", lambda self, cache_dir=None: orig_init(self, tmp_path))
+    svc = ps.build_service()
+    assert isinstance(svc.provider, ps.StoredOnlyProvider)
+    cms = pytest.importorskip("services.copernicus_marine_service")
+    live = []
+
+    async def spy_live(*a, **k):
+        live.append(1)
+        raise AssertionError("live fetch reached")
+    seen_provider = []
+    real_getattr = ps.StoredOnlyProvider.__getattr__
+
+    def tracing(self, name):
+        seen_provider.append(name)
+        return real_getattr(self, name)
+    monkeypatch.setattr(ps.StoredOnlyProvider, "__getattr__", tracing)
+    monkeypatch.setattr(cms, "fetch_euro_marine", spy_live)                     # what the guard must replace, not reach
+    src = ps.ServedPartitionSource(svc, leads_h=[0])
+    rows = src.rows(INIT, [{"id": "T1", "lat": 33.0, "lon": -118.0, "region": "California"}])
+    assert rows[0]["basis"] == "unavailable" and rows[0]["partitions"] is None and rows[0]["total"] is None
+    assert live == [] and attempts == []                                         # no live CMEMS call, no network
+    assert "fetch_point" in seen_provider                                        # the miss went THROUGH the provider
+
+
+def test_tripwire_the_live_fetch_names_in_the_served_resolution_files_are_the_known_ones():
+    """Narrows what the first dry run must show: a NEW live-fetch name in the resolution path makes this fail until it is reviewed."""
+    import re
+    root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "services", "weather_pipeline")
+    known = {"point_resolution.py": {"fetch_euro_marine", "self.provider.fetch_point"}}
+    pat = re.compile(r"fetch_euro_marine|self\.provider\.\w+|\brequests\.(?:get|post)|\bhttpx\.|urllib\.request|aiohttp|\.subprocess")
+    text = open(os.path.join(root, "point_resolution.py"), encoding="utf-8").read()
+    found = set()
+    for m in pat.finditer(text):
+        s = m.group(0)
+        found.add("self.provider.fetch_point" if s.startswith("self.provider.") else s)
+    assert found <= known["point_resolution.py"] | {"self.provider.fetch_point"}, sorted(found - known["point_resolution.py"])
 
 
 def test_chain_arm_is_todays_constants_without_the_cap():
@@ -133,7 +225,7 @@ def test_chain_arm_is_todays_constants_without_the_cap():
 def test_arms_do_not_invent_inputs_for_a_row_without_partitions():
     row = {"target": "T1", "lead_h": 0, "partitions": None, "basis": "unavailable"}
     out = arms.arms_at_buoy(row, _table(), 20.0)
-    assert out["CHAIN"] is None and out["LITE"] is None and out["OFFSHORE"] is None
+    assert out["CHAIN_SERVED"] is None and out["CHAIN_PART"] is None and out["LITE"] is None and out["OFFSHORE"] is None
 
 
 # ---- the job writes the source's provenance into the archive meta ----------------------------------------------------

@@ -15,6 +15,10 @@ import numpy as np
 from . import coefficients as coef
 
 SEED = 20261122
+# GATED comparator (advisor ruling, pre-data amendment to #1148 section 3): today's chain on the TOTAL field as production
+# serves it. CHAIN_PART (the registered partitioned chain) is REPORTED only; see `decompose`.
+COMPARATOR = "CHAIN_SERVED"
+REPORTED_CHAIN = "CHAIN_PART"
 B_DEFAULT = 10000
 BLOCK_DAYS = 7
 DIR_BINS = ((0, 30), (30, 60), (60, 90), (90, 181))
@@ -125,6 +129,16 @@ def california_report_text(ctx):
             + f"ME(LITE) = {ctx['me_lite']:+.3f} m; ME(MOP) = {ctx['me_mop']:+.3f} m")
 
 
+def decompose(rows, B=B_DEFAULT, seed=SEED):
+    """Report-only split of the gated LITE - CHAIN_SERVED effect (RMSE; negative = LITE better) into the PARTITION effect
+    (CHAIN_PART - CHAIN_SERVED: what resolving partitions alone does) and the REFRACTION effect (LITE - CHAIN_PART: what the
+    ray-traced factor adds on the same partitions). Pooled over non-California rows. Never gating."""
+    non_ca = [r for r in rows if r["region"] != "California"]
+    pairs = {"total_effect": ("LITE", COMPARATOR), "partition_effect": (REPORTED_CHAIN, COMPARATOR),
+             "refraction_effect": ("LITE", REPORTED_CHAIN)}
+    return {k: paired_bootstrap(non_ca, a, b, B=B, seed=seed) for k, (a, b) in pairs.items()}
+
+
 # ---- strata and direction bins ---------------------------------------------------------------------------------
 def _sel(rows, **kw):
     out = rows
@@ -166,13 +180,13 @@ def evaluate_f1(rows, regions, B=B_DEFAULT, seed=SEED):
         sel = [r for r in non_ca if tag in row_tags(r)]
         if sel:
             lines[tag] = sel
-    res = {k: paired_bootstrap(v, "LITE", "CHAIN", B=B, seed=seed) for k, v in lines.items()}
+    res = {k: paired_bootstrap(v, "LITE", COMPARATOR, B=B, seed=seed) for k, v in lines.items()}
     keys = list(res)
     adj = holm([res[k]["p"] for k in keys])
     for k, a in zip(keys, adj):
         res[k]["p_holm"] = a
     # the worse-direction lines form their own family
-    worse = {k: paired_bootstrap(v, "CHAIN", "LITE", B=B, seed=seed) for k, v in lines.items()}
+    worse = {k: paired_bootstrap(v, COMPARATOR, "LITE", B=B, seed=seed) for k, v in lines.items()}
     wadj = holm([worse[k]["p"] for k in keys])
     for k, a in zip(keys, wadj):
         res[k]["p_holm_worse"] = a
@@ -193,8 +207,8 @@ def pass_rule(rows, regions, alpha=0.05, B=B_DEFAULT, seed=SEED):
     f1 = evaluate_f1(rows, regions, B=B, seed=seed)
     non_ca = [r for r in rows if r["region"] != "California"]
     h1, h2 = halves(non_ca)
-    d1 = paired_bootstrap(h1, "LITE", "CHAIN", B=B, seed=seed)["delta"]
-    d2 = paired_bootstrap(h2, "LITE", "CHAIN", B=B, seed=seed)["delta"]
+    d1 = paired_bootstrap(h1, "LITE", COMPARATOR, B=B, seed=seed)["delta"]
+    d2 = paired_bootstrap(h2, "LITE", COMPARATOR, B=B, seed=seed)["delta"]
     pooled = f1["pooled"]["delta"]
     both_halves = bool(pooled < 0 and d1 < 0 and d2 < 0 and abs(d1) >= 0.5 * abs(pooled) and abs(d2) >= 0.5 * abs(pooled))
     better = lambda k: bool(f1[k]["p_holm"] < alpha and f1[k]["delta"] < 0)           # noqa: E731
@@ -241,8 +255,8 @@ def ship_decision(rows, regions, alpha=0.05, B=B_DEFAULT, seed=SEED):
 
 # ---- controls --------------------------------------------------------------------------------------------------
 def control_null(rows):
-    """CHAIN - CHAIN must be exactly 0."""
-    r = paired_bootstrap(rows, "CHAIN", "CHAIN", B=200)
+    """COMPARATOR - COMPARATOR must be exactly 0."""
+    r = paired_bootstrap(rows, COMPARATOR, COMPARATOR, B=200)
     return abs(r["delta"]) == 0.0 and r["lo"] == 0.0 and r["hi"] == 0.0
 
 

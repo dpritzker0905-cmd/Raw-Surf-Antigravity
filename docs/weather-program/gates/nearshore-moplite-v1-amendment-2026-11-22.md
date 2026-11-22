@@ -27,6 +27,29 @@ Build: PR #1150, `backend/services/weather_pipeline/nearshore_lite/`. Question t
 - In the build: the `LITE_EC` arm and the TOST function are removed from the scorer; `scorer.california_context` returns this wording with the RMSE ratio and ME
   labelled context only (`tost: None`), and `scorer.california_report_text` prints it.
 
+## Section 3 comparator: CHAIN_SERVED is gated, CHAIN_PART is reported (pre-data method reading, advisor 2026-11-22)
+Reading the served path showed that `_resolve_partitions` is gated on `SURF_PARTITIONS`, declared '0' in `forecast-ingest.yml` and `precompute.yml`:
+production rates the TOTAL field. The ship question is "better than what users get", so section 3's arms are read as:
+
+| Arm | What | Role |
+|---|---|---|
+| `CHAIN_SERVED` | today's chain on the TOTAL field, as served at freeze, no cap at the buoy depth | **GATED comparator** (every F1/F2 line, the pass rule, the ship rule) |
+| `CHAIN_PART` | the registered partitioned chain on the same served partitions as `LITE` | **REPORTED**: separates the partition effect from the refraction effect (`scorer.decompose`) |
+| `LITE` | the ray-traced factor on the partitions where they resolve, else the total as ONE partition (`basis` per row) | gated |
+| `OFFSHORE` | the boundary partitions summed | reported floor |
+
+- Options "always the total" and "partitions only" are rejected. `LITE` takes the partitions where they resolve; every row records its `basis`
+  (`partitions` / `total` / `unavailable`) and the archive meta records that the partitions flag was forced on for the read
+  (`partitions_flag_forced_on`), the model per target and the source per region.
+- **Consequence stated now, before any data:** if `LITE` passes, shipping it ALSO turns partition resolution on for the covered spots (the gated
+  comparator ran with it off). That is a served-number change of its own: it ships with its own SCOREBOARD row, its own kill switch, and the
+  D-065 guardrail, not as a side effect of the refraction flag.
+- The archive carries the TOTAL train for every row (`total`), so `CHAIN_SERVED` is computed from exactly what production rates.
+- **Stored products only.** The served read goes through a stored-only provider that refuses any live fetch, and the one known bypass
+  (`copernicus_marine_service.fetch_euro_marine`, a lazily imported native CMEMS request) is blocked for the read. A tripwire test names the live-fetch
+  tokens in the resolution file. **Nothing is archived until the first dry run has been read for any remaining network path that bypasses the provider,
+  and that read is logged.** The dry run needs the bucket secrets, so it is a dispatch and needs David's word.
+
 ## LITE_ETA input (read-only)
 `LITE_ETA` reads OUR tide table, series `am` (FES2022b+M, mean-sea-level frame), from `tide_own/series.json.gz` in the weather bucket (schema `raw-surf/tide-own/2`),
 never `cmems` (a different frame) and never Open-Meteo. The table rolls (about 3 days back), so eta is read AT each init and its slice is hashed into the

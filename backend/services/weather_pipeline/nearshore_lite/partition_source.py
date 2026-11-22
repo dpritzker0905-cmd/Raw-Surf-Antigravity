@@ -35,6 +35,29 @@ class StoredOnlyProvider:
 
 
 @contextmanager
+def stored_only_guard():
+    """Block the one KNOWN live-fetch path that bypasses `provider`: point_resolution lazily imports
+    `services.copernicus_marine_service.fetch_euro_marine` (a native CMEMS request) for EURO marine points the store cannot answer.
+    The name is replaced for the duration of the read, so that import-at-call picks up the refusing stub. If the module is
+    not installed there is no such path, and the guard is a no-op."""
+    try:
+        import services.copernicus_marine_service as cms
+    except ImportError:
+        yield
+        return
+    prev = getattr(cms, "fetch_euro_marine", None)
+
+    async def _refuse(*_a, **_k):
+        raise StoredOnlyError("stored products only: copernicus_marine_service.fetch_euro_marine refused")
+    cms.fetch_euro_marine = _refuse
+    try:
+        yield
+    finally:
+        if prev is not None:
+            cms.fetch_euro_marine = prev
+
+
+@contextmanager
 def partitions_flag_on():
     prev = os.environ.get("SURF_PARTITIONS")
     os.environ["SURF_PARTITIONS"] = "1"
@@ -74,26 +97,27 @@ class ServedPartitionSource:
             resp = await self.service._resolve_point_internal(model=model, domain="marine", layer="waves",
                                                               lat=target["lat"], lng=target["lon"], valid_time_str=vt)
         except Exception:                                                  # StoredOnlyError or a stored-grid miss
-            return {"target": target["id"], "lead_h": lead, "partitions": None, "basis": "unavailable"}
+            return {"target": target["id"], "lead_h": lead, "partitions": None, "basis": "unavailable", "total": None}
         p = getattr(resp, "point", None)
         h, tp = (getattr(p, "speed", None), getattr(p, "period", None)) if p is not None else (None, None)
         if not (h and tp and h == h and tp == tp and h > 0 and tp > 0):
-            return {"target": target["id"], "lead_h": lead, "partitions": None, "basis": "unavailable"}
+            return {"target": target["id"], "lead_h": lead, "partitions": None, "basis": "unavailable", "total": None}
         self._sources.setdefault(target.get("region", "unspecified"), {})[repr(sorted(_src(resp).items()))] = _src(resp)
         try:
             parts = await self.service._resolve_partitions(model, "waves", target["lat"], target["lon"], vt, h, tp)
         except Exception:
             parts = None
-        if parts:
-            return {"target": target["id"], "lead_h": lead, "partitions": parts, "basis": "partitions"}
         d = getattr(p, "direction", None)
         d = None if (d is not None and d != d) else d
-        return {"target": target["id"], "lead_h": lead, "basis": "total",
-                "partitions": [{"h": float(h), "tp": float(tp), "dir": d, "kind": "swell"}]}
+        total = {"h": float(h), "tp": float(tp), "dir": d}               # always archived: it IS what production rates (CHAIN_SERVED)
+        if parts:
+            return {"target": target["id"], "lead_h": lead, "partitions": parts, "basis": "partitions", "total": total}
+        return {"target": target["id"], "lead_h": lead, "basis": "total", "total": total,
+                "partitions": [dict(total, kind="swell")]}
 
     async def rows_async(self, init, targets):
         out = []
-        with partitions_flag_on():
+        with partitions_flag_on(), stored_only_guard():
             for t in targets:
                 self._models[t["id"]] = self.model_for(t)
                 for lead in self.leads_h:

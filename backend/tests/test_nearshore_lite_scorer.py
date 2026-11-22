@@ -22,7 +22,7 @@ def make_rows(lite_noise, chain_noise, n_dates=90, seed=1, with_ca=False):
         for b in range(10):
             region = REGIONS[b % 2]
             truth = 1.0 + rng.random() * 2.0
-            arms = {"CHAIN": truth + rng.normal(0, chain_noise), "LITE": truth + rng.normal(0, lite_noise),
+            arms = {"CHAIN_SERVED": truth + rng.normal(0, chain_noise), "LITE": truth + rng.normal(0, lite_noise),
                     "OFFSHORE": truth * 1.2}
             rows.append({"date": date, "buoy": f"b{b}", "region": region, "sheltered": b < 4,
                          "stratum": "FINE" if b < 8 else "COARSE", "obs_hs": truth, "lead_h": 24,
@@ -34,7 +34,7 @@ def make_rows(lite_noise, chain_noise, n_dates=90, seed=1, with_ca=False):
                 truth = 1.0 + rng.random()
                 rows.append({"date": date, "buoy": f"ca{b}", "region": "California", "sheltered": False,
                              "stratum": "FINE", "obs_hs": truth, "lead_h": 24, "inc_rel_deg": 20.0,
-                             "arms": {"CHAIN": truth, "LITE": truth + rng.normal(0, 0.1),
+                             "arms": {"CHAIN_SERVED": truth, "LITE": truth + rng.normal(0, 0.1),
                                       "MOP": truth + rng.normal(0, 0.1)}})
     return rows
 
@@ -65,8 +65,8 @@ def test_holm_is_monotone_and_capped():
 
 def test_bootstrap_is_deterministic_under_the_registered_seed():
     rows = make_rows(0.1, 0.3, n_dates=40)
-    a = scorer.paired_bootstrap(rows, "LITE", "CHAIN", B=300)
-    b = scorer.paired_bootstrap(rows, "LITE", "CHAIN", B=300)
+    a = scorer.paired_bootstrap(rows, "LITE", "CHAIN_SERVED", B=300)
+    b = scorer.paired_bootstrap(rows, "LITE", "CHAIN_SERVED", B=300)
     assert a == b and scorer.SEED == 20261122 and scorer.BLOCK_DAYS == 7 and scorer.B_DEFAULT == 10000
 
 
@@ -74,7 +74,7 @@ def test_the_same_rows_feed_every_arm_missing_run_rule():
     rows = make_rows(0.1, 0.3, n_dates=20)
     for r in rows[:10]:
         r["arms"]["LITE"] = None
-    r = scorer.paired_bootstrap(rows, "LITE", "CHAIN", B=100)
+    r = scorer.paired_bootstrap(rows, "LITE", "CHAIN_SERVED", B=100)
     assert r["n"] == len(rows) - 10
 
 
@@ -230,7 +230,7 @@ def test_coarse_plus_seam_target_with_one_tag_merely_not_worse_keeps_chain():
             r["arms"]["LITE"] = r["obs_hs"] + rng.normal(0, 0.10)
         if r["buoy"] in ("b8", "b0"):                       # SEAM: b8 (also COARSE) and b0
             r["tags"] = ["SEAM"]
-            r["arms"]["LITE"] = r["arms"]["CHAIN"]          # exactly CHAIN: not worse, not better
+            r["arms"]["LITE"] = r["arms"]["CHAIN_SERVED"]          # exactly CHAIN: not worse, not better
     res = scorer.ship_decision(rows, REGIONS, B=B)
     assert res["better"]["COARSE"] is True and res["better"]["SEAM"] is False
     assert res["ships"]["b9"] is True                       # COARSE only, better
