@@ -60,7 +60,7 @@ The method and the measurements are in `research/tide-mllw-us-method-2026-11-22.
 David's choice was put to him through the director on 2026-11-22: ON with guardrails, or staged dark. The code
 default is "0" until his word comes; the SCOREBOARD row records which.
 
-## 19:30Z: shipped ON, advisor fixes
+## 17:02Z: shipped ON, advisor fixes
 
 **Owner's word, relayed by the director: "Ship it on".** `SURF_TIDE_MLLW_US` now defaults to `"1"` in `runtime_flags`
 and `_RATING_FLAGS`, with the D-065 guardrails:

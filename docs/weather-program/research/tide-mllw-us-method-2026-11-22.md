@@ -129,7 +129,7 @@ on both sides in `tests/test_tide_datum.py`:
 
 The AVISO/FES2022 and Copernicus credit stays on every surface that carried it.
 
-## Rollout and later changes (19:30Z)
+## Rollout and later changes (17:02Z)
 
 - **Shipped ON** on the owner's "Ship it on" (relayed by the director), with D-065 guardrails. The frame stays A + D
   until David answers; the director and advisor both recommend it.
