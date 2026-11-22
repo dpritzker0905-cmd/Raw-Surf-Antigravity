@@ -92,7 +92,7 @@ describe('ICON air temperature at 0.125 deg (2026-11-18)', () => {
     const got = await loadField('temperature', frame(0), 'high');
     expect(got.values.length).toBe(NODES_0P125);
     expect(fetchFrameBytes).toHaveBeenCalledTimes(1);
-    expect(decodeOwnField).toHaveBeenCalledWith(expect.any(ArrayBuffer), TEMP_FIELD, expect.any(Number));
+    expect(decodeOwnField).toHaveBeenCalledWith(expect.any(ArrayBuffer), TEMP_FIELD, expect.any(Number), undefined);   // no direction field (#1137)
     expect(loadFrameParsed).not.toHaveBeenCalled();
     decodeWorkerKilled.mockReturnValue(true);
     loadFrameParsed.mockResolvedValue(null);
