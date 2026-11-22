@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 3,
+  "branch": "claude/currents-animation",
+  "date": "2026-11-22",
+  "note": "currents direction byte: +1 published-frame case, anchors, workflow kill"
+}

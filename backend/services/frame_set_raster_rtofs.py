@@ -1,6 +1,7 @@
 """NOAA Global RTOFS surface currents for the raster frames (2026-11-22): the Currents layer's GFS picker reads NOAA's own ocean
 model instead of Copernicus (the set `currents`, which EURO and ICON keep). Publishes DARK (FRAME_RASTER_CURRENTS_RTOFS=1 turns it
-on); the client reads it only behind its own lever (ownRasterFrames.js, RTOFS_CURRENTS).
+on); the client reads it only behind its own lever (ownRasterFrames.js, currents.modelSets.GFS). Joins through
+frame_set_raster_plugins.
 
 SOURCE. NCEP Global RTOFS (HYCOM, 1/12 degree, 41 hybrid layers; one 00Z cycle a day, files written ~13 UTC), the 2-D surface
 "prog" files `rtofs.YYYYMMDD/rtofs_glo_2ds_fHHH_prog.nc` on NOMADS: `u_velocity` / `v_velocity` (standard names
@@ -49,6 +50,7 @@ LAST_HOUR = 192
 SPEC = {
     "target": {"model": "RTOFS", "domain": "marine", "layer": "currents", "region_id": "global_0p25"},
     "field": fb.SPEED, "fields": (fb.SPEED, fb.DIRECTION), "band_field": fb.CURRENT_KN_BAND, "uv_convention": 1,
+    "dir_byte_field": fb.FLOW_DIR_BYTE,   # the one-byte flow direction beside the band, for the particles (#1137; kill FRAME_RASTER_DIR_BYTE=0)
     "idx": ("u_velocity", "v_velocity"), "grid": "0p25",
     "frame_plane": True, "convert": lambda a: a, "valid": (0.0, 20.0), "clip": None,
     "env": "FRAME_RASTER_CURRENTS_RTOFS", "default_on": False,
@@ -62,9 +64,10 @@ SPEC = {
 }
 
 
-def register(specs, grids):
-    """Add the set to frame_set_raster's table (kept here: that module is at its line limit). It uses the 0.25-deg lattice."""
+def register(specs, grids, sources):
+    """Add the set and its source kind (frame_set_raster_plugins; frame_set_raster is at its line limit). 0.25-deg lattice."""
     specs.setdefault("currents_rtofs", SPEC)
+    sources.setdefault(SPEC["source"], RtofsCurrentsSource)
 
 
 def node_index(lat, lon):

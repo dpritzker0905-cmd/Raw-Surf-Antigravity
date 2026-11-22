@@ -364,6 +364,7 @@ SPECS = {
     "currents": {
         "target": {"model": "CMEMS", "domain": "marine", "layer": "currents", "region_id": "global_0p25"},
         "field": fb.SPEED, "fields": (fb.SPEED, fb.DIRECTION), "band_field": fb.CURRENT_KN_BAND, "uv_convention": 1,
+        "dir_byte_field": fb.FLOW_DIR_BYTE,   # the one-byte frame keeps the flow direction for the particles (effective_spec)
         "idx": ("uo", "vo"), "grid": "0p25",
         "frame_plane": True, "convert": lambda a: a, "valid": (0.0, 20.0), "clip": None,
         "env": "FRAME_RASTER_CURRENTS", "default_on": False,
@@ -377,16 +378,11 @@ SPECS = {
         "source_url": "https://data.marine.copernicus.eu/product/GLOBAL_ANALYSISFORECAST_PHY_001_024",
     },
 }
-try:  # G4 (2026-11-17): Copernicus ocean-model water temp, 1/6 degree; its spec and lattice live in its own module
-    from services import frame_set_raster_sst as _sst
-except ImportError:  # pragma: no cover
-    import frame_set_raster_sst as _sst
-_sst.register(SPECS, GRIDS)
-try:  # 2026-11-22: NOAA Global RTOFS surface currents (the Currents layer's GFS picker), dark; spec + source in their own module
-    from services import frame_set_raster_rtofs as _rtofs
-except ImportError:  # pragma: no cover
-    import frame_set_raster_rtofs as _rtofs
-_rtofs.register(SPECS, GRIDS)
+try:  # sets in their own modules (Copernicus water temp G4, Canada GIOPS currents, ...): frame_set_raster_plugins loads them
+    from services import frame_set_raster_plugins as _plugins
+except ImportError:  # pragma: no cover - by path, where services is not a package (the sibling-import rule)
+    import frame_set_raster_plugins as _plugins
+PLUGIN_SOURCES = _plugins.register(SPECS, GRIDS)   # their specs and lattices into SPECS / GRIDS; {source kind: class}
 
 
 def precip_step(f):
@@ -404,12 +400,8 @@ def make_source(spec, session=None):
         return GfsGribSource(spec, session)
     if kind == "gfs_precip":
         return GfsPrecipSource(spec, session)
-    if kind == "cmems_currents":
-        return _sst.CmemsCurrentsSource(spec, session)
-    if kind == "cmems_sst":
-        return _sst.CmemsSstSource(spec, session)
-    if kind == "rtofs_currents":
-        return _rtofs.RtofsCurrentsSource(spec, session)
+    if kind in PLUGIN_SOURCES:                        # cmems_currents, cmems_sst, giops_currents (frame_set_raster_plugins)
+        return PLUGIN_SOURCES[kind](spec, session)
     try:
         from services import frame_set_raster_sources as srcs
     except ImportError:  # pragma: no cover
@@ -601,13 +593,18 @@ def one_byte_on():
 
 
 def effective_spec(sp):
-    """The spec as published now: a spec with a `band_field` publishes it (alone) while one_byte_on(), else as before."""
+    """The spec as published now: a spec with a `band_field` publishes it while one_byte_on(), else as before. A spec with a
+    `dir_byte_field` (currents) publishes that one-byte direction beside it for the client's particles (2026-11-22); its kill
+    (the band speed alone, the frames before): repo variable FRAME_RASTER_DIR_BYTE=0."""
     if not sp or "band_field" not in sp or not one_byte_on():
         return sp
     out = dict(sp, field=sp["band_field"])
-    if sp.get("fields"):                               # currents: the band speed alone (direction returns as u / v with particles)
+    if sp.get("fields"):                               # currents: the band speed (+ the one-byte flow direction)
         out["fields"] = (sp["band_field"],)
         out["plane_alias"] = {sp["band_field"]: sp["field"]}
+        if sp.get("dir_byte_field") is not None and os.environ.get("FRAME_RASTER_DIR_BYTE", "1") != "0":
+            out["fields"] = (sp["band_field"], sp["dir_byte_field"])
+            out["plane_alias"][sp["dir_byte_field"]] = fb.DIRECTION
     return out
 
 
@@ -621,7 +618,10 @@ def build_frame_multi(planes, valid, run, sp):
     p = {fid: np.asarray(planes[fid] if fid in planes else planes[alias[fid]], dtype=float) for fid in sp["fields"]}
     bad_main = ~((p[main] >= sp["valid"][0]) & (p[main] <= sp["valid"][1]))
     for fid in p:
-        p[fid] = np.where(bad_main, np.nan, p[fid])
+        if fid != fb.FLOW_DIR_BYTE:
+            p[fid] = np.where(bad_main, np.nan, p[fid])
+    if fb.FLOW_DIR_BYTE in p:   # per 2 x 2 block at its anchor (frame_binary ANCHORS); the block's water, not the anchor, decides
+        p[fb.FLOW_DIR_BYTE] = fb.flow_dir_anchors(np.where(bad_main, np.nan, p[main]), p[fb.FLOW_DIR_BYTE])
     raw = fb.encode_planes(p, grid_of(sp)["bounds"], iso(valid), iso(run), uv_convention=sp.get("uv_convention", 0))
     gz = fb.gzip_frame(raw)
     _head, fields = fb.decode_plane(gz)
@@ -632,7 +632,7 @@ def build_frame_multi(planes, valid, run, sp):
     for fid in p:
         cmp = ok & ~sat
         d = np.abs(fields[fid][cmp] - p[fid][cmp])
-        if fid == fb.DIRECTION:
+        if fid in fb.CIRCULAR_FIELDS:
             d = np.minimum(d, 360.0 - d)
         if d.size:
             err = max(err, float(d.max()))

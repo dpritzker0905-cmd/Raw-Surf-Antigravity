@@ -18,7 +18,7 @@ export const GUST_RAMP_MAX_KN = 75;
  * (gustModeBlank), so wind is never shown under the Gusts label; the gust raster's own status line says loading / unavailable.
  */
 export function setGustMode(engine, on) {
-  if (engine) engine._gustMode = !!on;
+  if (engine) { engine._gustMode = !!on; engine._colourKind = on ? (on === 'current' ? 'current' : 'gust') : null; }
 }
 
 /** True while the engine colours by gust: Gusts picked AND a gust texture resident. */
@@ -33,14 +33,17 @@ export function gustModeBlank(engine) {
 
 /** The ramp's top speed for this frame: the gust ramp's in gust mode, the wind's own otherwise. */
 export function rampMaxFor(engine) {
-  return gustColourActive(engine) ? GUST_RAMP_MAX_KN : engine._maxWindSpeed;
+  if (!gustColourActive(engine)) return engine._maxWindSpeed;
+  return engine._gust.maxKn || GUST_RAMP_MAX_KN;   // gusts: 75 kn; currents: their palette's 4 kn in engine knots (currentParticles.js)
 }
 
 /** Upload (or clear, with null) the gust field the raster layer has on screen. Re-uses the texture when the size matches. */
-export function setGustField(engine, gl, field) {
+export function setGustField(engine, gl, field, opts) {
   if (!engine || !gl) return;
   if (!field) { clearGustField(engine, gl); return; }
-  const enc = encodeGustTexture(field, GUST_RAMP_MAX_KN);
+  // CURRENTS (currentParticles.js): `opts.encoded` is the field already as bytes (encodeCurrentColour); `opts.sea` hides marks
+  // over no-data cells (land), so the current's particles stay on the water.
+  const enc = (opts && opts.encoded) || encodeGustTexture(field, GUST_RAMP_MAX_KN);
   if (!enc) { clearGustField(engine, gl); return; }
   const prev = gl.getParameter(gl.TEXTURE_BINDING_2D);
   const prevAlign = gl.getParameter(gl.UNPACK_ALIGNMENT);
@@ -65,7 +68,7 @@ export function setGustField(engine, gl, field) {
   gl.bindTexture(gl.TEXTURE_2D, prev);
   const b = enc.bounds;
   engine._gust = { ...g, bounds: { west: b.west, south: b.south, east: b.east, north: b.north }, maxKn: enc.maxKn,
-    validMs: field.validMs };
+    validMs: field.validMs, sea: !!(opts && opts.sea) };
 }
 
 export function clearGustField(engine, gl) {
@@ -93,7 +96,9 @@ export function bindGustColour(gl, program, engine) {
   gl.uniform2f(gl.getUniformLocation(program, 'u_gust_size'), g.cols, g.rows);
   gl.uniform1f(gl.getUniformLocation(program, 'u_gust_max'), g.maxKn);
   const fl = gustFlicker();
-  gl.uniform4f(gl.getUniformLocation(program, 'u_gust_flick'), fl.on ? 1 : 0, fl.seconds, fl.hz, fl.depth);
+  // The flicker is the GUST cue (gust factor G / W); a current's colour field is its own speed, so it never flickers.
+  gl.uniform4f(gl.getUniformLocation(program, 'u_gust_flick'), fl.on && !g.sea ? 1 : 0, fl.seconds, fl.hz, fl.depth);
+  gl.uniform1f(gl.getUniformLocation(program, 'u_gust_sea'), g.sea ? 1 : 0);
 }
 
 /**

@@ -93,3 +93,21 @@ nodes only RTOFS fills, 8,662 only Copernicus (coastlines differ). n = 1 valid t
 | Storage key only through the supabase-service environment | the step lives in the pilots job (`environment: supabase-service`); the key is `secrets.SUPABASE_SERVICE_ROLE_KEY` there only |
 | Failures turn the run red | no continue-on-error on the step; `publish_raster_frames.py` exits 1 on a failed publish (`test_a_failed_publish_exits_1_and_no_cycle_exits_0`, and the workflow pin) |
 | Size per run | PULLED 2.99 GB per new cycle (seconds of HEADs otherwise); KEPT 14.3 MB per set, at most ~29 MB in the bucket (retention keeps the current and the previous run's frames) |
+
+## Hand rebuild on dev after #1137 (currents particles) and #1135 (GIOPS) (director's order)
+
+`dev` (5f216851a) merged into #1134 by hand, keeping all three currents sources:
+- Backend: `frame_set_raster.py` is `dev`'s, untouched (798 lines). RTOFS joins through `frame_set_raster_plugins.py` alone
+  (one import on each branch, one `register` line); `frame_set_raster_rtofs.register(specs, grids, sources)` adds its spec
+  and the `rtofs_currents` source kind. GIOPS's plugin pin now lists `rtofs_currents` too.
+- Field-14 direction byte (#1137): the RTOFS spec carries `dir_byte_field: fb.FLOW_DIR_BYTE`, so it publishes the band speed
+  (13) + the one-byte flow direction (14); its step passes `FRAME_RASTER_DIR_BYTE` (the particles lane's kill).
+- Workflows: the GIOPS step and the RTOFS step both kept, each whole; the monitor passes both switches. The RTOFS comment no
+  longer contains the literal flag name (GIOPS's step test reads the text after its step).
+- Client: RTOFS is `OWN_RASTER_SETS.currents.modelSets.GFS` ({ key, on: false, lever `__RAW_RTOFS_CURRENTS__`, kill
+  `__RAW_DISABLE_RTOFS_CURRENTS__` }) in GIOPS's shape; the special case in `setKey` is gone; `RTOFS_CURRENTS_KEY`,
+  `RTOFS_CURRENTS_DEFAULT_ON` and `rtofsCurrentsOn` are thin wrappers, so `rtofsCurrents.test.js` is unchanged and green. The
+  credit note is `currents_rtofs` (GIOPS's `<layer>_<source>` pattern). `dev`'s model-neutral pre-frame note closes the
+  advisor's limit (b). STATIC_SETS 45 -> 46.
+- Checks: backend RTOFS + GIOPS + raster guards 81 passed; Jest `src/components/map` + `src/tests` 528 suites / 7,367 tests
+  passed; ESLint ratchet exit 0; both workflow files only gained lines against `dev` and parse as YAML.
