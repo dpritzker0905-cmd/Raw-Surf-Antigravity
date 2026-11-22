@@ -25,9 +25,10 @@ import { v2FieldTint } from './WebGLWindUtils';
 import { CURRENTS_LUT, currentsScale } from './currentsPalette';
 import { loadDownscale, setDownscaled } from './ownRasterDownscale';
 import {
-  OWN_ONLY_LAYERS, ownOnlyFor, endNoteText, sourceModel, combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
+  OWN_ONLY_LAYERS, ownOnlyFor, gapFillFor, gapFillIndex, setKey, endNoteText, sourceModel, combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
   planWindow, setEngaged, setWanted, tel, ownWindowRadius,
 } from './ownRasterFrames';
+import { FILL_MODEL } from './ownRasterGapFill';
 
 export const ownLayerId = (layer) => `own-raster-${layer}`;
 
@@ -85,14 +86,20 @@ const handoverLayer = (layer) => HANDOVER_LAYERS.includes(layer);
 
 export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffsetHours, theme, beforeId }) {
   const M = String(model || 'GFS').toUpperCase();
-  const FB = (OWN_RASTER_SETS[layer] && OWN_RASTER_SETS[layer].fallback) || null;
+  // GAP FILL (2026-11-22, ownRasterGapFill.js): the picked model's gaps are filled from GFS's own set (and ICON air temperature's
+  // coarser ICON set), labelled; read whether or not GFS's own layer is on by default.
+  const fill = gapFillFor(layer, M);
+  const hasFill = !!fill;
+  const fillCoarse = fill ? fill.coarse || null : null;
+  const FB = fill ? FILL_MODEL : ((OWN_RASTER_SETS[layer] && OWN_RASTER_SETS[layer].fallback) || null);
   const wanted = !!active && ownFramesOn(layer, M);
   const [failed, setFailed] = useState(false);
   const [index, setIndex] = useState(null);
   const [fbIndex, setFbIndex] = useState(null);      // the stand-in past the model's range (GFS), when another model is picked
   const [gen, setGen] = useState(0);          // bumps each time the GL layer is (re)added: the step effect re-offers fields
   const ref = useRef({ layerObj: null, prevOffset: null, dir: 1, shownRec: null, wantRec: null, byPath: new Map() });
-  const engaged = wanted && !failed;
+  // With a gap fill, a missing own set still draws (the fill covers every hour): only a fill that is missing too disengages.
+  const engaged = wanted && (!failed || (hasFill && !!fbIndex));
   const useStepEffect = useRef(handoverLayer(layer) && sameFrameOn() ? useLayoutEffect : useEffect).current;
   // HANDOVER (2026-11-14): the .om path keeps drawing until OUR layer has drawn a frame of this engagement; only then does the
   // hook report it (MapWebGL drops the layer from the .om list on that report). A cold toggle, an unpublished set or a slow
@@ -104,15 +111,17 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   useEffect(() => { setFailed(false); }, [M]);        // a model without a published set fails alone: switching back retries
   // The legend credit names the source only once a frame set is pinned (before that nothing is drawn from it), and then the
   // model of the frame ON SCREEN (a GFS stand-in past EURO's range is NOAA's data): set from onShown below.
-  const drawing = engaged && !!index;
+  const drawing = engaged && (!!index || (hasFill && !!fbIndex));
+  // Drawing from the gap fill alone (no own set of the picked model, or it failed): the credit is the fill's from the start.
+  const fillOnly = drawing && (!index || failed || !setKey(layer, M));
   // An own-only model that is claimed with nothing drawn (killed, unpublished, pre-index; 2026-11-18) reports '<MODEL>:idle': the
   // credit names that model's own source with no note and never "© Open-Meteo" (Open-Meteo no longer draws it); the status line
   // keeps its "unavailable" readout (rasterDrawnFrame reads the value as truthy).
   const claimed = !!active && ownOnlyFor(layer, M);
   useEffect(() => {
-    setEngaged(layer, drawing ? sourceModel(layer, M) : (claimed ? `${sourceModel(layer, M)}:idle` : false));
+    setEngaged(layer, drawing ? (fillOnly ? `${FILL_MODEL}:fill:${M}` : sourceModel(layer, M)) : (claimed ? `${sourceModel(layer, M)}:idle` : false));
     return () => setEngaged(layer, false);
-  }, [layer, drawing, claimed, M]);
+  }, [layer, drawing, fillOnly, claimed, M]);
   // RETRY (2026-11-18, the advisor's HOLD on #1071): with no .om fallback, one failed index read must not latch "unavailable" for
   // the session. An own-only model retries every OWN_ONLY_RETRY_MS while the layer is on (a read of latest.json only when it is
   // due, staticFrames' pin rules). Kill: window.__RAW_DISABLE_RASTER_OWN_RETRY__ = true (the latch, as before).
@@ -152,12 +161,18 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     let alive = true;
     const memo = lastIndex(layer, M);
     setIndex(memo && framesOf(memo).length ? memo : null);   // a model switch never keeps the other model's index
-    ownIndex(layer, M).then((idx) => {
+    ownIndex(layer, M).then(async (idx) => {
       if (!alive) return;
-      if (idx && framesOf(idx).length) { if (idx !== memo) setIndex(idx); } else if (!memo) { noteMiss('no_index'); setFailed(true); }
+      if (idx && framesOf(idx).length) { if (idx !== memo) setIndex(idx); return; }
+      if (memo) return;
+      noteMiss('no_index');
+      // ICON air temperature: its own coarser set before any GFS (ownRasterGapFill.js, fill a).
+      const coarse = fillCoarse ? await gapFillIndex(layer, M, 'coarse') : null;
+      if (!alive) return;
+      if (coarse) setIndex(coarse); else setFailed(true);
     });
     return () => { alive = false; };
-  }, [wanted, layer, M, retry]);
+  }, [wanted, layer, M, retry, fillCoarse]);
 
   // 1b. The stand-in's index (GFS) for hours past the picked model's last frame: never capped, labelled as an estimate.
   useEffect(() => {
@@ -165,9 +180,10 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     let alive = true;
     const memo = lastIndex(layer, FB);
     setFbIndex(memo && framesOf(memo).length ? memo : null);
-    ownIndex(layer, FB).then((idx) => { if (alive && idx && framesOf(idx).length && idx !== memo) setFbIndex(idx); });
+    (hasFill ? gapFillIndex(layer, M, 'fill') : ownIndex(layer, FB))
+      .then((idx) => { if (alive && idx && framesOf(idx).length && idx !== memo) setFbIndex(idx); });
     return () => { alive = false; };
-  }, [wanted, layer, M, FB]);
+  }, [wanted, layer, M, FB, hasFill, retry]);
 
   // The status line under the timeline (rasterDrawnFrame, #471): the shown and the wanted frame, in the .om pairs' shape, so the
   // same words apply ("Loading 3 PM... still showing 12 PM", "Showing 3 PM: the nearest stored forecast" between 3-hourly frames).
@@ -213,11 +229,14 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
           // the entry the step asked for when it is this file (two entries may share one file)
           const e = st.wantEntry && st.wantEntry.path === path ? st.wantEntry : st.byPath.get(path);
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
-            nearestMaxHours: st.nearestMaxHours || 1, drawnFactor: drawnFactor || 1 };
+            fill: !!(e && e.gap), coarse: !!(e && e.coarse), nearestMaxHours: st.nearestMaxHours || 1, drawnFactor: drawnFactor || 1 };
           emitOwnShown(layer, path);                     // synchronous: the isobars cut with the field, in the same frame
           if (layer === 'gusts') setShownGustField(field || null);   // the wind particles take their colour from it (gustParticles.js)
           if (path && st.widen) Promise.resolve().then(() => { if (st.widen) st.widen(); });   // first frame on screen: prefetch now
-          Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : sourceModel(layer, M)); if (path) setShown(true); });
+          // A gap-fill frame reports '<MODEL(S)>:fill:<PICKED>': the credit names every source in it and says it is an estimate.
+          const rec = st.shownRec;
+          const eng = rec ? (rec.fill ? `${rec.model}:fill:${M}` : rec.model) : sourceModel(layer, M);
+          Promise.resolve().then(() => { publish(); setEngaged(layer, eng); if (path) setShown(true); });
         });
         const before = beforeId && mapInstance.getLayer(beforeId) ? beforeId : undefined;
         mapInstance.addLayer(st.layerObj, before);
@@ -284,8 +303,8 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   useStepEffect(() => {
     const st = ref.current;
     const L = st.layerObj;
-    if (!engaged || !index || !L) return;
-    const frames = combinedFrames(layer, M, index, fbIndex);
+    if (!engaged || (!index && !(hasFill && fbIndex)) || !L) return;
+    const frames = combinedFrames(layer, M, failed ? null : index, fbIndex);
     st.byPath = new Map(frames.slice().reverse().map((x) => [x.path, x]));   // a file's own-model entry wins over a stand-in entry
     const offset = Number(timeOffsetHours) || 0;
     if (st.prevOffset !== null && offset !== st.prevOffset) st.dir = offset > st.prevOffset ? 1 : -1;
@@ -298,7 +317,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       st.wantRec = null;
       if (ownOnly && !rasterReadoutKilled()) {   // own-only: nothing else draws this hour (past the set's last frame)
         const last = frames.length ? Date.parse(frames[frames.length - 1].valid_time) : NaN;
-        const runMs = Date.parse(index.run_time || index.run || '');
+        const runMs = index ? Date.parse(index.run_time || index.run || '') : NaN;
         const end = validMs > last ? endNoteText(layer, M, last, runMs) : null;   // past the model's range: say whose range ended
         publishRasterDrawn({ layer, shown: null, want: null, unavailable: end || `${RASTER_NAMES[layer] || layer}: no forecast for this hour` });
       } else publish();
@@ -321,7 +340,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     const seam = !!(frames[cur + 1] && frames[cur + 1].estimated && !frames[cur].estimated);
     if ((cur === 0 || cur === frames.length - 1 || seam) && edgeNoteOn()) st.nearestMaxHours = Math.max(st.nearestMaxHours, 3);
     st.wantEntry = f;
-    st.wantRec = { url: f.path, dataMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, nearestMaxHours: st.nearestMaxHours };
+    st.wantRec = { url: f.path, dataMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, fill: !!f.gap, coarse: !!f.coarse, nearestMaxHours: st.nearestMaxHours };
     if (st.shownRec) st.shownRec = { ...st.shownRec, nearestMaxHours: st.shownRec.url === f.path ? st.nearestMaxHours : st.shownRec.nearestMaxHours };
     publish();
     const full = planWindow(cur, frames.length, st.dir, ownWindowRadius(layer)).map((i) => frames[i]);
@@ -341,7 +360,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     tel().want = { validMs, path: f.path, frameMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, at: Date.now() };
     st.onFieldCb = (path, field) => { const now = ref.current.layerObj; if (now) now.offerField(path, field); if (iso) iso(path, field); };
     setWanted(layer, win, st.onFieldCb);
-  }, [engaged, index, fbIndex, timeOffsetHours, layer, M, gen]);
+  }, [engaged, index, fbIndex, failed, timeOffsetHours, layer, M, gen]);
 
   // NO .om FALLBACK for an own-only model of a handover layer (ICON air temperature, 2026-11-18): while the layer is on, it stays
   // claimed, so MapWebGL never draws (or asks Open-Meteo for) the .om copy: not on a cold toggle, not on a missing set, index or

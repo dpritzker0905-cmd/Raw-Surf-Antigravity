@@ -23,6 +23,7 @@
  * "unavailable" and the .om copy is never drawn.
  * Telemetry: window.__RAW_OWN_RASTER__.
  */
+import { FILL_MODEL, anchoredField, gapFillFrameAt, gapFillFrames, gapFillOn } from './ownRasterGapFill';
 import { fetchFrameBytes, getPinnedIndex, loadFrameParsed, markStaticPinStale, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 import { decodeOwnField, decodeWorkerKilled } from './ownRasterDecode';
 import { pickIndexFrame } from './staticFrameCodec';
@@ -62,9 +63,12 @@ export const OWN_RASTER_SETS = {
     // `workerDecode`: decode the one drawn field off the main thread (ownRasterDecode), as the own-only layers do. A 0.125-degree
     // frame is 4.15 M nodes, four times a 0.25-degree one; the shared path would parse every field to Float64 on the main thread.
     // `ownOnlyModels` (2026-11-18, the owner via the director: "cut Open-Meteo out of all user data", NO .om fallback): with ICON
-    // picked the layer is drawn from our frames or not at all. A missing set, index or hour shows "unavailable" on the status line
-    // (the gusts / currents rule), never the .om copy.
+    // picked the layer is drawn from our frames or not at all, never the .om copy.
+    // `gapFill` (2026-11-22, the owner's ruling on #1071: no blanks, no Open-Meteo, a labelled prediction): where ICON's own frames
+    // have a gap, our ICON 0.5-degree set (a whole-set miss), then the ICON-anchored GFS prediction, then a labelled GFS stand-in
+    // (ownRasterGapFill.js). Kill: __RAW_DISABLE_RASTER_OWN_GAP_FILL__ (gaps then say "unavailable").
     fallback: null, field: TEMP_FIELD, unit: '°C', workerDecode: true, ownOnlyModels: ['ICON'],
+    gapFill: { ICON: { coarse: 'ICON/weather/temperature/global_0p5', anchored: true } },
   },
   // FOG (2026-11-14): GFS surface visibility, the field the .om path draws for EVERY model (it pins ncep_gfs025 for fog,
   // openMeteoEndpoints.js), so every model reads the GFS set here too: the same field under the same label as before.
@@ -93,10 +97,12 @@ export const OWN_RASTER_SETS = {
     // fallback (`ownOnlyModels`): a miss, or past 240 h, says "unavailable".
     // GFS too (2026-11-18, the director relaying the owner's rule: no Open-Meteo in user data): GFS cloud was already drawn from
     // our frames by default, but a kill or a miss fell back to the .om copy; now it says "unavailable".
-    // ICON too (2026-11-19, the director relaying the owner: "cut out open-meteo all together"): ICON has NO cloud set yet, so ICON
-    // cloud says "unavailable" until the gfs-flux lane's ICON cloud set publishes and its key is added here; never the .om copy.
+    // ICON too (2026-11-19, the director relaying the owner: "cut out open-meteo all together"): ICON has NO cloud set yet; never the
+    // .om copy. GAP FILL (2026-11-22, ownRasterGapFill.js): EURO past 240 h (or a hole) draws the EURO-anchored GFS prediction,
+    // clamped to 0-100 %; ICON, with no set, draws GFS cloud labelled "no ICON frames: NOAA GFS shown" until its own set publishes.
     models: { GFS: 'GFS/weather/cloud_cover/global_0p25', EURO: 'EURO/weather/cloud_cover/global_0p25' },
     fallback: null, field: CLOUD_FIELD, unit: '%', ownOnlyModels: ['GFS', 'EURO', 'ICON'],
+    gapFill: { EURO: { anchored: true, clamp: [0, 100] }, ICON: { anchored: false } },
   },
   // PRECIPITATION (2026-11-12, the owner: "Yes, build it"): the app's 'rain' layer from GFS APCP (frame_set_raster.py,
   // set `precipitation`): mm/h in the hour before the frame (the 3-hour mean past f120), the same meaning as the .om field,
@@ -113,7 +119,10 @@ export const OWN_RASTER_SETS = {
   // layer's rule since 2026-11-12). GFS and EURO rain are unchanged (behind the lever, .om by default).
   rain: {
     models: { GFS: 'GFS/weather/precipitation/global_0p25', EURO: 'EURO/weather/precipitation/global_0p25', ICON: 'ICON/weather/precipitation/global_0p125' },
+    // GAP FILL for ICON (2026-11-22): a labelled GFS stand-in past 180 h, in a hole or for a whole-set miss, loaded whether or not
+    // GFS rain is on by default (the advisor's HOLD on #1075: the stand-in never loaded without the lever). Rain is never offset.
     fallback: 'GFS', field: PRECIP_FIELD, unit: 'mm/h', workerDecode: true, ownOnlyModels: ['ICON'],
+    gapFill: { ICON: { anchored: false } },
   },
   // GUSTS (2026-11-15, the owner approved Gusts as a new picker layer; "these lanes need to serve instantly from real GFS, EURO,
   // and ICON lanes from GRIB"): EACH MODEL'S OWN gust, in KNOTS (the wind layer's unit), 0.25 deg (frame_set_raster.py sets
@@ -226,7 +235,8 @@ export const DEFAULT_ON_MODELS = Object.freeze({
 /** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
  *  stays on the .om path, which draws that model as before (never another model's frames under its label). */
 export function ownFramesOn(layer, model = 'GFS') {
-  const key = setKey(layer, model);
+  // A model with NO set of its own but a gap fill (ICON cloud, 2026-11-22) is on through its fill set: the fill draws every hour.
+  const key = setKey(layer, model) || (gapFillFor(layer, model) ? setKey(layer, FILL_MODEL) : null);
   if (!key) return false;
   const w = W();
   if (w.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true) return false;
@@ -262,12 +272,34 @@ export const lastIndex = (layer, model = 'GFS') => _lastIndex[`${layer}/${up(mod
 
 /** The pinned index for a layer's set of one model (async; null when none is published or the path is off). */
 export async function ownIndex(layer, model = 'GFS') {
-  if (!ownFramesOn(layer, model)) return null;
+  if (!setKey(layer, model) || !ownFramesOn(layer, model)) return null;
   try {
     const idx = await getPinnedIndex(setKey(layer, model));
     if (idx) _lastIndex[`${layer}/${up(model)}`] = idx;
     if (idx) tel().pin = { layer, model: up(model), index: idx.path || null, run: idx.run || null, frames: idx.frames.length, validMs: framesOf(idx).map((f) => Date.parse(f.valid_time)) };
     return idx || null;
+  } catch (e) { return null; }
+}
+
+/** The gap fill for a layer and model ({ coarse?, anchored, clamp? }), or null: none configured, or its kill is set. */
+export function gapFillFor(layer, model = 'GFS') {
+  const set = OWN_RASTER_SETS[layer];
+  const f = set && set.gapFill && set.gapFill[up(model)];
+  return f && gapFillOn() ? f : null;
+}
+/** A gap fill's own index, read whether or not that set is on by default (it is part of the picked model's layer): the fill
+ *  model's set ('fill') or the picked model's coarser set ('coarse'). The global, layer, static-frames and per-set kills apply.
+ *  A coarse index comes back flagged `__coarse` (a shallow copy; the pinned index is never mutated). */
+export async function gapFillIndex(layer, model, which) {
+  const fill = gapFillFor(layer, model);
+  const key = !fill ? null : (which === 'coarse' ? fill.coarse : setKey(layer, FILL_MODEL));
+  const w = W();
+  if (!key || w.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true || w[`__RAW_DISABLE_RASTER_OWN_${String(layer).toUpperCase()}__`] === true) return null;
+  if (!staticFramesEnabled() || !staticFramesBase() || !staticSetEnabled(key)) return null;
+  try {
+    const idx = await getPinnedIndex(key);
+    if (!idx || !framesOf(idx).length) return null;
+    return which === 'coarse' ? { ...idx, __coarse: true } : idx;
   } catch (e) { return null; }
 }
 
@@ -278,6 +310,11 @@ export async function ownIndex(layer, model = 'GFS') {
  */
 export function combinedFrames(layer, model, index, fallbackIndex) {
   const m = up(model);
+  const fill = gapFillFor(layer, m);
+  if (fill) {
+    return gapFillFrames({ ownIndex: index, fillIndex: fallbackIndex, model: m, sourceModel: sourceModel(layer, m), anchored: !!fill.anchored, clamp: fill.clamp || null,
+      keys: { own: setKey(layer, m), coarse: fill.coarse || null, fill: setKey(layer, FILL_MODEL) }, framesOf });
+  }
   const own = framesOf(index).map((f) => ({ ...f, setKey: setKey(layer, m), model: sourceModel(layer, m), estimated: null }));
   const set = OWN_RASTER_SETS[layer] || {};
   const fb = set.fallback;
@@ -301,6 +338,7 @@ export const BEYOND = {
 /** The entry to show for an asked time in a combined list: the nearest within 3 h of the model's own, else (past its range)
  *  of the stand-in tail. pickIndexFrame's rule on each part, so own frames always win inside the model's range. */
 export function combinedFrameAt(frames, validMs) {
+  if (frames.some((x) => x.gap || x.coarse)) return gapFillFrameAt(frames, validMs);   // a gap-filled list (ownRasterGapFill.js)
   const own = frames.filter((f) => !f.estimated);
   const f = pickIndexFrame({ frames: own }, validMs);
   if (f && f.path) return f;
@@ -450,6 +488,10 @@ export function loadField(layer, frame, priority) {
   if (!set) return Promise.resolve(null);
   const key = frame.setKey || setKey(layer, 'GFS');
   let p = _inflight.get(frame.path);
+  if (!p && frame.parts) {
+    p = loadAnchored(layer, frame, priority).finally(() => _inflight.delete(frame.path));
+    _inflight.set(frame.path, p);
+  }
   if (!p) {
     p = (async () => {
       const t = tel();
@@ -475,6 +517,33 @@ export function loadField(layer, frame, priority) {
     _inflight.set(frame.path, p);
   }
   return p;
+}
+
+// The anchors of the gap fill's prediction (the model's last frame and GFS at that hour) are shared by every hour past it: held
+// here (at most ANCHOR_PINS fields), not in the window's LRU, so a scrub through the tail never re-fetches them.
+const ANCHOR_PINS = 4;
+const _anchors = new Map();
+async function anchorInput(layer, entry, priority) {
+  if (_anchors.has(entry.path)) return _anchors.get(entry.path);
+  const f = await loadField(layer, entry, priority);
+  if (f) {
+    _fields.delete(entry.path);
+    _anchors.set(entry.path, f);
+    while (_anchors.size > ANCHOR_PINS) _anchors.delete(_anchors.keys().next().value);
+  }
+  return f;
+}
+/** A gap fill's anchored prediction (ownRasterGapFill.anchoredField): GFS at the hour, offset by the model's own difference from
+ *  GFS at its last frame, the offset weighted down over five days. Null when any input fails (the hold rule keeps the last frame). */
+async function loadAnchored(layer, frame, priority) {
+  const { now, fillAnchor, modelAnchor, weight, clamp } = frame.parts;
+  const [a, b, c] = await Promise.all([loadField(layer, now, priority), anchorInput(layer, fillAnchor, 'low'), anchorInput(layer, modelAnchor, 'low')]);
+  if (!a || !b || !c) { noteMiss('anchor_input_missing'); noteFailed(frame.path); return null; }
+  const field = anchoredField(a, b, c, weight, clamp || null);
+  if (getField(now.path) === a) _fields.delete(now.path);   // the composed field replaces its GFS input in the window
+  _failedAt.delete(frame.path);
+  keep(frame.path, field);
+  return field;
 }
 
 /** The own-only layers' load: worker fetch + inflate, worker decode of the one field; the same checks and telemetry as the
@@ -562,6 +631,7 @@ export function noteStep(path, hit, at = Date.now()) {
 
 export function _resetOwnRasterFramesForTest() {
   _fields.clear();
+  _anchors.clear();
   _inflight.clear();
   _failedAt.clear();
   clearRetryTimers();

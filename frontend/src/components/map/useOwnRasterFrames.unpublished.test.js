@@ -175,7 +175,7 @@ describe('a layer whose set is not published yet falls back to .om (lever on)', 
     getPinnedIndex.mockResolvedValue(null);
     run('temperature', 'ICON');
     await waitFor(() => expect(getEngaged().temperature).toBe('ICON:idle'));
-    expect(creditFor('temperature').text).toBe('ICON (Deutscher Wetterdienst)');   // its own source, no note, not Open-Meteo
+    expect(creditFor('temperature').text).toBe('ICON · Datenbasis: Deutscher Wetterdienst');   // its own source, no note, not Open-Meteo
     _resetOwnRasterFramesForTest();
     window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true;
     try {
@@ -217,7 +217,7 @@ describe('a layer whose set is not published yet falls back to .om (lever on)', 
     getPinnedIndex.mockResolvedValue(null);
     run('rain', 'ICON');
     await waitFor(() => expect(getEngaged().rain).toBe('ICON:idle'));
-    expect(creditFor('rain').text).toBe('ICON (Deutscher Wetterdienst)');   // no area-averaged note: nothing is drawn
+    expect(creditFor('rain').text).toBe('ICON · Datenbasis: Deutscher Wetterdienst');   // no area-averaged note: nothing is drawn
   });
 });
 

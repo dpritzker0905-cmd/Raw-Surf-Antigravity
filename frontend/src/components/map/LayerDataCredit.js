@@ -57,6 +57,19 @@ const OWN_NOTE = {
     ? { text: ' · area-averaged; local peaks can read low', label: 'ICON rain averaged over each 0.125 degree box (about 14 km), so the heaviest local downpours can read lower than in the model\'s own cells.' }
     : null),
 };
+// GAP FILL (2026-11-22, ownRasterGapFill.js): a frame drawn where the picked model has none, '<MODEL(S)>:fill:<PICKED>'. Every
+// source in the field is credited (an anchored prediction holds the picked model's own field: ECMWF's CC BY needs its credit), and
+// the visible text says it is an estimate, so the source is never colour or position alone. The status line says why.
+export function fillCredit(models, picked) {
+  const srcs = models.map((m) => SOURCES[OWN_SOURCE[m] || 'noaa']);
+  const anchored = models.length > 1;
+  const note = anchored ? `${picked} prediction` : `stand-in for ${picked}`;
+  const why = anchored
+    ? `${picked} prediction where ${picked}'s own frames end: NOAA GFS's trend, anchored to ${picked}'s last frame.`
+    : `NOAA GFS shown where ${picked} has no frame of its own.`;
+  return { text: `${srcs.map((x) => x.text).join(' + ')} · ${note}`, href: srcs[0].href,
+    label: `Estimated: ${why} ${srcs.map((x) => x.label).join(' ')}`, title: why };
+}
 // While air temperature is drawn terrain-adjusted (ownRasterDownscale.js): the elevation source is credited too.
 const DOWNSCALE_NOTE = {
   temperature: { text: ' · terrain-adjusted', label: 'Adjusted to the real terrain height with NOAA ETOPO 2022 elevation (public domain), 6.5 C per km.' },
@@ -67,9 +80,11 @@ export function creditFor(layer, engaged = getEngaged(), downscaled = getDownsca
   if (engaged && engaged[layer]) {
     // '<MODEL>:idle' (2026-11-18): an own-only model claimed with nothing drawn (killed, unpublished, pre-index). Its own source,
     // no note (nothing is drawn for a note to describe), and never "© Open-Meteo", which no longer draws it.
-    const [model, state] = String(engaged[layer]).split(':');
+    const [models, state, picked] = String(engaged[layer]).split(':');
+    const model = models.split('+')[0];
     const s = SOURCES[OWN_SOURCE[model] || 'noaa'];   // the model of the frame on screen
     if (state === 'idle') return s;
+    if (state === 'fill') return fillCredit(models.split('+'), picked);
     const own = typeof OWN_NOTE[layer] === 'function' ? OWN_NOTE[layer](model) : OWN_NOTE[layer];
     const n = own || (downscaled && downscaled[layer] ? DOWNSCALE_NOTE[layer] : null);
     return n ? { ...s, text: s.text + n.text, label: `${n.label} ${s.label}`, title: n.label } : s;

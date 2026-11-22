@@ -254,7 +254,7 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
     expect(DEFAULT_ON_MODELS).toEqual({ water_temp: ['ICON'], temperature: ['ICON'], rain: ['ICON'] });   // G4 water temp; ICON air temp + rain, 0.125 deg
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(true);  // EURO cloud set since 2026-11-18 (ownRasterEuroCloud.test.js)
-    expect(ownFramesOn('satellite', 'ICON')).toBe(false); // no ICON cloud set yet: claimed and "unavailable" (ownOnlyModels), never .om
+    expect(ownFramesOn('satellite', 'ICON')).toBe(true);  // no ICON cloud set yet: on through its labelled GFS gap fill (2026-11-22), never .om
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
     expect(ownFramesOn('rain', 'GFS')).toBe(false);
   });

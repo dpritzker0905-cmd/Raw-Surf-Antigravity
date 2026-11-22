@@ -83,6 +83,17 @@ describe('ForecastTimeStatus on a raster layer', () => {
     expect(s.textContent).toMatch(/still showing/);
     expect(s.getAttribute('aria-live')).toBe('polite');
   });
+  test.each([['light', 'text-amber-800'], ['dark', 'text-amber-200'], ['beach', 'text-amber-200']])(
+    'a GAP-FILL frame (2026-11-22) is said in words, in the warning tone, on the %s theme', (theme, tone) => {
+      const e = { ...end('ncep_gfs013', 11), model: 'ICON+GFS', estimated: 'icon_anchored_gfs', fill: true };
+      act(() => { publishRasterDrawn({ layer: 'temperature', shown: e, want: e }); });
+      render(<ForecastTimeStatus model="ICON" layer="temperature" hour={Math.round((e.dataMs - Date.now()) / 3600000)} theme={theme} />);
+      const s = screen.getByRole('status');
+      expect(s.textContent).toBe('Estimated forecast: ICON prediction: NOAA GFS trend anchored to ICON’s last frame');
+      expect(s.getAttribute('data-gap-fill')).toBe('on');
+      expect(s.getAttribute('aria-live')).toBe('polite');
+      expect(s.className).toContain(tone);   // words first; the tone (the held line's) only adds to them
+    });
   test('an instant step (shown == wanted) never flashes a line; the marine record is never read for rasters', () => {
     jest.useFakeTimers();
     const e = end('ncep_gfs013', 11);

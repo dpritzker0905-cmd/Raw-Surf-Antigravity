@@ -121,6 +121,7 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_OWN_WATER_TEMP__',
   '__RAW_DISABLE_RASTER_OWN_HANDOVER__',
   '__RAW_DISABLE_RASTER_OWN_SAME_FRAME__',
+  '__RAW_DISABLE_RASTER_OWN_GAP_FILL__',   // 2026-11-22: the own-only gap fill (ownRasterGapFill.test.js, the kill)
   '__RAW_DISABLE_RASTER_OWN_RETRY__',   // 2026-11-18: own-only index retry (useOwnRasterFrames.unpublished.test.js, RETRY)
   // components/map/ownRasterDownscale.test.js ("OFF PATH: __RAW_DISABLE_DZ_UNPUBLISHED_CACHE__ asks on every call"; 2026-11-14)
   '__RAW_DISABLE_DZ_UNPUBLISHED_CACHE__',

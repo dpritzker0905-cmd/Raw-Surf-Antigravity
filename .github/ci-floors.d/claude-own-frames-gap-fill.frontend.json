@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 44,
+  "files": 4,
+  "branch": "claude/own-frames-gap-fill",
+  "date": "2026-11-22",
+  "note": "own-frames gap fill + ICON temp/rain 0.125 + EURO cloud (supersedes #1071/#1075/#1078)"
+}

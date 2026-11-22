@@ -95,7 +95,8 @@ export function describeRasterFrame(rec, layer, requestedMs) {
       : `Loading ${fmt(want.dataMs)}… still showing ${fmt(shown.dataMs)}` };
   }
   // A stand-in past the picked model's range (own frames: GFS beyond EURO's 240 h / ICON's 180 h): the wave layers' words.
-  if (shown.estimated) return { state: 'estimated', text: `Estimated forecast: ${ESTIMATE_WORDS[shown.estimated] || 'estimated'}` };
+  // A gap-fill frame (ownRasterGapFill.js) carries `fill` (`coarse`: the model's own coarser set): the status line draws it in the warning tone (ForecastTimeStatus).
+  if (shown.estimated) return { state: 'estimated', ...(shown.fill || shown.coarse ? { fill: true } : {}), text: `Estimated forecast: ${ESTIMATE_WORDS[shown.estimated] || 'estimated'}` };
   if (layer !== 'radar' && Number.isFinite(requestedMs)) {
     const dh = Math.round((shown.dataMs - requestedMs) / 3600000);
     if (dh !== 0 && Math.abs(dh) <= (shown.nearestMaxHours || 0)) return { state: 'nearest', text: `Showing ${fmt(shown.dataMs)}: the nearest stored forecast` };

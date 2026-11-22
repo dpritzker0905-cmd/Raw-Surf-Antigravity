@@ -46,19 +46,23 @@ describe('EURO cloud cover (2026-11-18)', () => {
     expect(OWN_RASTER_SETS.satellite.unit).toBe('%');
   });
 
-  test('ON for EURO with no lever; own frames only for GFS, EURO and ICON; ICON has no set yet, so it says unavailable', () => {
+  test('ON for EURO with no lever; own frames only for GFS, EURO and ICON; ICON has no set yet, so it draws the labelled GFS fill', () => {
     expect(ownFramesOn('satellite', 'EURO')).toBe(true);
     expect(ownOnlyFor('satellite', 'EURO')).toBe(true);
     expect(ownOnlyFor('satellite', 'GFS')).toBe(true);
     expect(ownOnlyFor('satellite', 'ICON')).toBe(true);
-    expect(ownFramesOn('satellite', 'ICON')).toBe(false);   // no set to draw: claimed, nothing drawn, "unavailable"
+    expect(ownFramesOn('satellite', 'ICON')).toBe(true);    // no ICON set: on through its gap fill (GFS cloud, labelled; 2026-11-22)
   });
 
-  test('no stand-in past EURO\'s 240 h (the layer has no fallback model): those hours say unavailable', () => {
+  test('past EURO\'s 240 h: the EURO-anchored GFS prediction, labelled (the 2026-11-22 gap fill), never blank and never .om', () => {
     const t = (h) => new Date(Date.UTC(2026, 10, 18, 12) + h * 3600e3).toISOString();
     const euro = { frames: [{ valid_time: t(234), path: 'e234' }, { valid_time: t(240), path: 'e240' }] };
-    const gfs = { frames: [{ valid_time: t(243), path: 'g243' }] };
-    expect(combinedFrames('satellite', 'EURO', euro, gfs).map((f) => f.path)).toEqual(['e234', 'e240']);
+    const gfs = { frames: [{ valid_time: t(240), path: 'g240' }, { valid_time: t(246), path: 'g246' }] };
+    const c = combinedFrames('satellite', 'EURO', euro, gfs);
+    expect(c.map((f) => f.estimated)).toEqual([null, null, 'euro_anchored_gfs']);
+    expect(c[2]).toMatchObject({ model: 'EURO+GFS', gap: true });
+    expect(c[2].parts).toMatchObject({ fillAnchor: { path: 'g240' }, modelAnchor: { path: 'e240' }, clamp: [0, 100] });
+    expect(c[2].parts.weight).toBeCloseTo(1 - 6 / 120);
   });
 
   test('THE KILL NEVER REQUESTS .om: with EURO or GFS picked the .om list drops cloud under every kill and on a miss', () => {
@@ -72,7 +76,7 @@ describe('EURO cloud cover (2026-11-18)', () => {
         try { expect(omLayersFor(model)).toEqual([]); } finally { delete window[kill]; }
       }
     }
-    expect(omLayersFor('ICON')).toEqual([]);                            // no ICON cloud set yet: "unavailable", never .om (2026-11-19)
+    expect(omLayersFor('ICON')).toEqual([]);                            // no ICON cloud set yet: the labelled GFS fill, never .om
     staticSetEnabled.mockReturnValue(false);                             // the per-set kills
     expect(omLayersFor('EURO')).toEqual([]);
     expect(omLayersFor('GFS')).toEqual([]);
