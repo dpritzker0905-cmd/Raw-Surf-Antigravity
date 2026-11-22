@@ -1,12 +1,5 @@
-import {
-  tideCellKey, tideStateFromSeries, getCachedTideState, ensureTideState, _resetTideClientForTest,
-  formatTideLine, trendArrow,
-} from './tideClient';
-
-// A clean half-day curve: high at 04:00 (1.0 m), low at 10:00 (-0.6 m) — the backend test fixture.
-const TIMES = Array.from({ length: 13 }, (_, h) => `2026-06-29T${String(h).padStart(2, '0')}:00`);
-const LEVELS = [0.0, 0.3, 0.6, 0.9, 1.0, 0.9, 0.6, 0.3, 0.0, -0.3, -0.6, -0.3, 0.0];
-const atHour = (h) => Date.parse(`2026-06-29T${String(h).padStart(2, '0')}:00:00Z`);
+import * as tideClientModule from './tideClient';
+import { tideCellKey, formatTideLine, trendArrow } from './tideClient';
 
 describe('tideCellKey', () => {
   it('rounds to ~0.1° so nearby spots share a fetch (backend cache parity)', () => {
@@ -19,64 +12,14 @@ describe('tideCellKey', () => {
   });
 });
 
-describe('tideStateFromSeries', () => {
-  it('reads height at the nearest sample with the trend from the next delta', () => {
-    expect(tideStateFromSeries(TIMES, LEVELS, atHour(2))).toEqual({ height_m: 0.6, trend: 'rising' });
-    expect(tideStateFromSeries(TIMES, LEVELS, atHour(6))).toEqual({ height_m: 0.6, trend: 'falling' });
-  });
-
-  it('reports slack inside the ±0.02 m band and at a flat tail', () => {
-    expect(tideStateFromSeries(['2026-06-29T00:00', '2026-06-29T01:00'], [0.5, 0.51], atHour(0)).trend).toBe('slack');
-  });
-
-  it('skips null samples and rejects unusable series', () => {
-    expect(tideStateFromSeries(TIMES, LEVELS.map(() => null), atHour(2))).toBeNull();
-    expect(tideStateFromSeries([], [], atHour(2))).toBeNull();
-    expect(tideStateFromSeries(TIMES, LEVELS.slice(1), atHour(2))).toBeNull();   // length mismatch
-    expect(tideStateFromSeries(null, null, atHour(2))).toBeNull();
-  });
-});
-
-describe('ensureTideState / getCachedTideState', () => {
-  afterEach(() => {
-    _resetTideClientForTest();
-    delete global.fetch;
-  });
-
-  it('fetches once per cell, caches, and dedupes concurrent callers', async () => {
-    let calls = 0;
-    global.fetch = jest.fn(() => {
-      calls += 1;
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ hourly: { time: TIMES, sea_level_height_msl: LEVELS } }),
-      });
-    });
-    const [a, b] = await Promise.all([ensureTideState(28.4, -80.6), ensureTideState(28.41, -80.59)]);
-    expect(calls).toBe(1);                                    // same ~0.1° cell → one request
-    expect(a).toEqual(b);
-    expect(a.height_m).not.toBeNull();
-    expect(getCachedTideState(28.4, -80.6)).toEqual(a);       // render path reads it synchronously
-    await ensureTideState(28.4, -80.6);
-    expect(calls).toBe(1);                                    // cache-fresh → no refetch
-  });
-
-  it('never rejects — a failed fetch caches null and the render path shows nothing', async () => {
-    global.fetch = jest.fn(() => Promise.reject(new Error('offline')));
-    await expect(ensureTideState(28.4, -80.6)).resolves.toBeNull();
-    expect(getCachedTideState(28.4, -80.6)).toBeNull();       // null (fetched, unusable), not undefined
-  });
-
-  it('requests the rounded cell coords (byte-parity with the backend fetch)', async () => {
-    let seenUrl = null;
-    global.fetch = jest.fn((url) => {
-      seenUrl = url;
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
-    });
-    await ensureTideState(28.44, -80.56);
-    expect(seenUrl).toContain('latitude=28.4');
-    expect(seenUrl).toContain('longitude=-80.6');
-    expect(seenUrl).toContain('sea_level_height_msl');
+describe('no browser-side tide source (D-082, 2026-11-22)', () => {
+  it('the Open-Meteo fallback is gone: no fetcher, no cache, no Open-Meteo URL in the module', () => {
+    expect(tideClientModule.ensureTideState).toBeUndefined();
+    expect(tideClientModule.getCachedTideState).toBeUndefined();
+    const fs = require('fs');
+    const path = require('path');
+    const text = fs.readFileSync(path.join(__dirname, 'tideClient.js'), 'utf8');
+    expect(text).not.toMatch(/marine-api\.open-meteo\.com|sea_level_height_msl/);
   });
 });
 

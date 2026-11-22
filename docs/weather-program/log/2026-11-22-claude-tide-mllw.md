@@ -59,3 +59,53 @@ The method and the measurements are in `research/tide-mllw-us-method-2026-11-22.
 
 David's choice was put to him through the director on 2026-11-22: ON with guardrails, or staged dark. The code
 default is "0" until his word comes; the SCOREBOARD row records which.
+
+## 19:30Z: shipped ON, advisor fixes
+
+**Owner's word, relayed by the director: "Ship it on".** `SURF_TIDE_MLLW_US` now defaults to `"1"` in `runtime_flags`
+and `_RATING_FLAGS`, with the D-065 guardrails:
+- the kill switch `"0"`;
+- the client kill `window.__RAW_DISABLE_TIDE_MLLW__`;
+- the MSL figure kept as the second line;
+- COVERAGE declared BLIND (display only).
+
+Ledger: `ledger.d/claude--tide-mllw-us.jsonl:2`.
+
+**Frame.** The display stays A + D, as the director and advisor recommend; David has not answered yet. The long label
+now says the number is built the way NOAA's predictions are, so it should match a NOAA tide table. It also says the
+water typically runs M cm higher at that point (the point's own M), which the MSL line shows. If David picks A + M + D,
+only `offset_m`, the long label, `mean_level_removed_m` and the row numbers change.
+
+**Director asks:**
+- **The browser Open-Meteo tide fallback is removed (D-082).** `tideClient.ensureTideState`, `getCachedTideState` and
+  `tideStateFromSeries` are deleted. The glyph card shows the payload tide only; with no payload tide there is no tide
+  line. A test pins that the module has no Open-Meteo URL.
+- **One label set:** "above local MSL" / "above local mean sea level", and "above MLLW" / "above MLLW (NOAA chart
+  datum)". The readout footer, the card note and its aria, and the chart caption are unified.
+- **The post composer's tide field reads "ft above MLLW"** (the auto-fill is NOAA MLLW). No backfill of stored posts.
+  A stored datum column would need a schema change and is a follow-up.
+- **The sim:** nothing renders `height_m`, so it is left as it is.
+
+**Advisor asks:**
+- **Interpolation that disagrees now falls back to MSL with the named reason `interpolation-disagrees`.**
+- **Parity instrument.** It compares our hourly display (served event finder) with CO-OPS MLLW hilo predictions at
+  the 26 G3t gauges over 7 days, in two D variants (model and sheet). Built as `scripts/tide_datum/parity_coops.py`
+  and `.github/workflows/tide-mllw-parity.yml`, a one-shot run started by a tag `tide-mllw-parity-*`. **Not yet run:**
+  it needs the director's or owner's word to push the tag. The CO-OPS read was smoke-tested locally on 9410660 (Los
+  Angeles): its next-day predictions include a −0.319 m low, a real minus tide.
+- **Shift at the actual spot keys, measured offline.** `spot_shift.py` ran on the committed catalogue snapshot (no
+  live call). M is the nearest G3t gauge's value, and no model D exists yet. Of 253 US keys, 152 shift now; 101 stay
+  on MSL until the model D fills. Median shift:
+
+  | Region | Shift (m) |
+  |---|---|
+  | West | +0.78 |
+  | East | +0.53 |
+  | Gulf | +0.18 |
+  | Hawaii | +0.16 |
+  | Caribbean | +0.09 |
+
+  The exact per-key line prints in every `tide-own-series` build summary after merge (new step, no credential).
+- **CO-OPS datums are never read per request.** They are a committed table carrying its source URL and `built_at`
+  date. They are refreshed by the read-only script `fetch_coops_datums.py`, not by a scheduled CI job; datums change
+  only on NOAA's epoch updates.

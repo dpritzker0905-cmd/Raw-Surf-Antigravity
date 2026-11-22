@@ -84,7 +84,9 @@ def test_interpolated_when_no_model_and_neighbours_agree():
 def test_interpolation_refused_when_neighbours_disagree():
     s = dict(AM, model_d_ntde_m=None)
     b = TD.datum_for(35.05, -120.60, s, enabled=True, stations=ST)
-    assert b["datum"] == "MSL" and b["reason"] == "no-datum-source"
+    assert b["datum"] == "MSL" and b["reason"] == "interpolation-disagrees"
+    lone = TD.datum_for(35.0, -125.5, s, enabled=True, stations=ST)            # open Pacific, no station in reach
+    assert lone["datum"] == "MSL" and lone["reason"] == "no-datum-source"
 
 
 @pytest.mark.parametrize("enabled,lat,lng,series,reason", [
@@ -117,12 +119,13 @@ def test_negative_values_are_valid_and_explained():
     assert TD.display_m(None, b) is None and TD.display_m(float("nan"), b) is None
 
 
-def test_flag_registered_dark_until_owner_word():
+def test_flag_registered_on_by_owner_word():
+    """D-065 ON: the owner, 2026-11-22, typed in the director session: "Ship it on"."""
     from services.runtime_flags import GUARDED
     from routes.admin.surf_forecast import _RATING_FLAGS
     sys.path.insert(0, os.path.join(HERE, "..", "scripts"))
     import flag_guardrail as fg
-    assert TD.FLAG in GUARDED and TD.FLAG in _RATING_FLAGS and GUARDED[TD.FLAG] == _RATING_FLAGS[TD.FLAG][0]
+    assert TD.FLAG in GUARDED and TD.FLAG in _RATING_FLAGS and GUARDED[TD.FLAG] == _RATING_FLAGS[TD.FLAG][0] == "1"
     assert fg.coverage(TD.FLAG)[0] == fg.BLIND and TD.FLAG not in fg.NEVER_AUTO_DISABLE
 
 
@@ -222,3 +225,28 @@ async def test_tide_state_outside_us_carries_no_display_fields(monkeypatch):
     monkeypatch.setenv(TD.FLAG, "1")
     st = await tide.tide_norm_at(39.6, -9.08, "2026-11-22T05:00:00Z")
     assert set(st) == {"height_m", "norm", "trend"}
+
+
+# ------------------------------------------------------------------ instruments: CO-OPS parity and the spot-key shift
+def test_parity_match_and_summary_are_honest():
+    sys.path.insert(0, os.path.join(HERE, "..", "scripts", "tide_datum"))
+    import parity_coops as P
+    t0 = datetime(2026, 11, 23, 3, 59, tzinfo=timezone.utc)
+    noaa = [(t0, "High", 1.23), (t0.replace(hour=8, minute=53), "Low", 0.542)]
+    from datetime import timedelta
+    ours = [{"type": "High", "time": t0 + timedelta(minutes=12), "level_m": 1.26},
+            {"type": "High", "time": t0.replace(hour=9), "level_m": 0.5}]          # wrong type: Low stays unmatched
+    m = P.match(noaa, ours)
+    assert m[0][0] == pytest.approx(0.03) and m[0][1] == pytest.approx(12.0) and m[1] == (None, None)
+    s = P.summarize(m)
+    assert s == {"n": 2, "unmatched": 1, "height_median_abs_m": 0.03, "height_max_abs_m": 0.03,
+                 "time_median_min": 12.0, "time_max_min": 12.0}
+
+
+def test_spot_shift_uses_exact_m_and_model_d_when_given():
+    sys.path.insert(0, os.path.join(HERE, "..", "scripts", "tide_datum"))
+    import spot_shift as SS
+    spots = [[34.10, -118.85], [39.6, -9.08]]                                     # one US (west), one Portugal
+    rep = SS.run(spots, {"34.1,-118.8": {"m": 0.08, "d_ntde": 0.85}}, stations=ST)
+    assert set(rep) == {"west", "_all_us"} and rep["west"]["source"] == {"model": 1}
+    assert rep["west"]["shift_median_m"] == pytest.approx(0.77) and rep["_all_us"]["m_source"].startswith("build")

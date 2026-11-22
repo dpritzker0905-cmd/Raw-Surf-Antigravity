@@ -192,12 +192,17 @@ def datum_for(lat, lng, series, enabled=None, stations=None) -> dict:
         return _msl("no-mean-level", region)
     got = resolve_d(lat, lng, s.get("model_d_ntde_m"), stations)
     if got is None:
-        return _msl("no-datum-source", region)
+        # Named: neighbours exist but disagree beyond INTERP_MAX_SPREAD (a varied coast), or none are in reach.
+        near = neighbours(lat, lng, INTERP_KM, stations)[:INTERP_MAX_N]
+        return _msl("interpolation-disagrees" if len(near) >= 2 else "no-datum-source", region)
     d, source, source_label, refs, epoch = got
     return {"datum": "MLLW", "label": MLLW_SHORT, "offset_m": round(d - float(m), 4),
             "msl_minus_mllw_m": round(d, 4), "mean_level_removed_m": round(float(m), 4),
             "source": source, "source_label": source_label, "stations": refs, "epoch": epoch, "region": region,
-            "long_label": (f"Tide height above MLLW (NOAA chart datum, {epoch} epoch), as a NOAA tide table shows it. "
+            "long_label": (f"Tide height above MLLW (NOAA chart datum, {epoch} epoch), built the way NOAA's own "
+                           f"predictions are, so it should match a NOAA tide table. Like NOAA's predictions it leaves out "
+                           f"sea-level rise since the epoch: the water here typically runs about "
+                           f"{round(float(m) * 100):d} cm higher, which the mean-sea-level line shows. "
                            f"Datum from {source_label}."),
             "negative_note": NEGATIVE_NOTE}
 

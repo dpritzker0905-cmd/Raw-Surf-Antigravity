@@ -12,9 +12,6 @@ jest.mock('react-router-dom', () => jest.requireActual('react-router'), { virtua
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-jest.mock('./tideClient', () => ({
-  ...jest.requireActual('./tideClient'), getCachedTideState: jest.fn(() => null),
-}));
 jest.mock('../../lib/apiClient', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn(), put: jest.fn() } }));
 jest.mock('../../utils/logger', () => ({ __esModule: true, default: { error: jest.fn() } }));
 

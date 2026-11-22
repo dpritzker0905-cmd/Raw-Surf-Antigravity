@@ -13,7 +13,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 // (MapLibre's wrapper role=button around it was axe nested-interactive, W-10 R5).
 import { ContentMarker as Marker } from './ContentMarker';
 import { getHeightUnit, formatHeightFromMeters } from './heightUnits';
-import { getCachedTideState, ensureTideState, formatTideLine, trendArrow } from './tideClient';
+import { formatTideLine, trendArrow } from './tideClient';
 import { MapPersonContextCard, useExplorePinContext } from './MapPersonContext';
 import {
   UNVERIFIED_LOCATION_TEXT, UNVERIFIED_RING_STYLE, isLocationUnverified, withUnverifiedLocation,
@@ -115,14 +115,6 @@ var MapMarkerLayers = ({
     window.addEventListener('rawsurf:height-unit', onUnit);
     return () => window.removeEventListener('rawsurf:height-unit', onUnit);
   }, []);
-  // Client-side tide FALLBACK (tideClient.js): a version bump re-renders after a hover's fetch
-  // resolves, so the card's tide line pops in even before the baked payload carries tide.
-  const [, setTideFetchVersion] = useState(0);
-  const requestFallbackTide = (lat, lng) => {
-    if (typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_FALLBACK__) return;
-    if (getCachedTideState(lat, lng) !== undefined) return;
-    ensureTideState(lat, lng).then(() => setTideFetchVersion((v) => v + 1));
-  };
   return (
     <>
       {/* Spot Clusters */}
@@ -174,12 +166,9 @@ var MapMarkerLayers = ({
         // Rating mode: this spot becomes a surf-quality glyph (colour = 7-level rating sampled from the grid).
         const rating = surfMode && spotRatings ? spotRatings[cluster.id] : null;
         // Tide for the card + aria label — RIDES THE RATING TOGGLE (`rating` exists only in Rating
-        // mode): baked payload first (authoritative — it shaped the score), else the client-side
-        // fallback cell (display-only). Null when Rating is off / no data yet.
-        const tideState = rating
-          ? (rating.tide || (typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_FALLBACK__
-              ? null : getCachedTideState(lat, lng)) || null)
-          : null;
+        // mode): the baked payload only (it shaped the score). No payload tide = no tide line, never a
+        // browser Open-Meteo fetch (removed 2026-11-22, D-082). Null when Rating is off / no data yet.
+        const tideState = rating ? (rating.tide || null) : null;
         const tideLine = tideState ? formatTideLine(tideState, heightUnit) : null;
         // A spot whose position nobody has verified: hollow pin, dashed ring, and the words (unverifiedLocation.js).
         const unverified = isLocationUnverified(cluster);
@@ -200,9 +189,9 @@ var MapMarkerLayers = ({
               style={{ position: 'relative', width: 32, height: 32 }}
               aria-label={withUnverifiedLocation(spotGlyphAriaLabel(cluster, rating, tideLine, heightUnit), unverified)}
               data-location-unverified={unverified ? 'true' : undefined}
-              onMouseEnter={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}
+              onMouseEnter={() => { setHoveredSpotId(cluster.id); }}
               onMouseLeave={() => setHoveredSpotId(null)}
-              onFocus={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}
+              onFocus={() => { setHoveredSpotId(cluster.id); }}
               onBlur={() => setHoveredSpotId(null)}
               onContextMenuCapture={exploreContextEnabled == null ? undefined : event => {
                 event.preventDefault(); event.stopPropagation(); onSpotClick?.(cluster.spot);

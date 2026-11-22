@@ -61,9 +61,10 @@ GUARDED = {
     "SURF_TIDE_OWN": "1",               # owner 2026-11-18 ~23:00Z: no Open-Meteo in user data (licence). The served tide is
                                         # our table (tide_own); a missing/stale table or kill '0' = NO tide (honest
                                         # unavailable), never Open-Meteo. Moves tide_fit and the SURF_TIDE_DEPTH cap
-    "SURF_TIDE_MLLW_US": "0",           # US tide DISPLAY above MLLW (NOAA chart datum), tide_datum.py; display only (the
-                                        # rating, the depth cap and water_level_m stay on MSL). Default set by the owner's
-                                        # rollout word; kill '0' = every point above local mean sea level, as before
+    "SURF_TIDE_MLLW_US": "1",           # D-065 ON (owner 2026-11-22 "Ship it on", via the director): US tide DISPLAY above
+                                        # MLLW (NOAA chart datum), tide_datum.py; display only (the
+                                        # rating, the depth cap and water_level_m stay on MSL). D-065 guardrails;
+                                        # kill '0' = every point above local mean sea level, as before
     "SURF_TIDE_CMEMS": "0",             # held OFF: the CMEMS sea level read directly, where the table has it. ON only after
                                         # the r2 parity run is read and passing AND the builder refuses a low fill count
     "RATING_REF_PRIOR": "0",            # JAC-2 (#771): held OFF: -17.9 pt mean rating move on reference-less

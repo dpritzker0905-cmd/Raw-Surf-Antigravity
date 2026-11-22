@@ -129,10 +129,21 @@ on both sides in `tests/test_tide_datum.py`:
 
 The AVISO/FES2022 and Copernicus credit stays on every surface that carried it.
 
+## Rollout and later changes (19:30Z)
+
+- **Shipped ON** on the owner's "Ship it on" (relayed by the director), with D-065 guardrails. The frame stays A + D
+  until David answers; the director and advisor both recommend it.
+- **The browser Open-Meteo fallback on the glyph card is removed (D-082).**
+- **One MSL label set** across the readout, card, chart and glyph.
+- **The composer's tide field reads "ft above MLLW".**
+- **Interpolation that disagrees falls back to MSL**, named `interpolation-disagrees`.
+- **Parity instrument:** `parity_coops.py` and `tide-mllw-parity.yml` (a one-shot tag run) compare against CO-OPS
+  MLLW predictions. Not yet run.
+- **Shift at the spot keys:** `spot_shift.py`, offline on the catalogue snapshot (`tide-mllw-spot-shift-2026-11-22.json`),
+  and every build summary after merge.
+
 ## Not done here (follow-ups)
 
-- The glyph card's client fallback (`tideClient.ensureTideState`) still fetches Open-Meteo directly in the browser.
-  It is labelled "above local MSL", but it is an Open-Meteo number in user data.
-- The post composer's NOAA auto-fill (`services/surf_conditions.py`, already MLLW) is still unlabelled, and stored
-  posts carry a tide height whose datum is unknown.
+- Stored posts carry a tide height whose datum is unknown. A datum column for new posts needs a schema change.
 - Tide overlay #923 (not on dev) must read `datum_info` from `/point-tide` when it lands.
+- The CO-OPS datum table is refreshed by hand with the read-only script, not by a scheduled job.

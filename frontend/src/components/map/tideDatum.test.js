@@ -66,7 +66,7 @@ describe('card row, hub line, chart', () => {
     expect(n.label).toMatch(/above MLLW, NOAA chart datum, datum from NOAA gauge/);
     const msl = sanitizePointTide({ height_m: 0.4, trend: 'rising' });
     expect(Object.keys(msl).sort()).toEqual(['heightFt', 'heightM', 'trend']);
-    expect(pointTideNote(msl).note).toBe('model estimate, mean sea level');
+    expect(pointTideNote(msl).note).toBe('model estimate, above local MSL');
   });
   test('hub source line swaps the MSL wording for the MLLW long label and keeps the credit', () => {
     const s = tideSourceLabel({ station_id: 'raw-surf:tide-own:am', tide_label: 'heights above local mean sea level',

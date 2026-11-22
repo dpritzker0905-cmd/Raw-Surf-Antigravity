@@ -32,7 +32,7 @@ export function displayDirection(deg, period) {
 }
 
 // ── Tides ───────────────────────────────────────────────────────────────────────────────────────
-export const TIDE_MODEL_LABEL = 'Tide (model estimate, mean sea level)';
+export const TIDE_MODEL_LABEL = 'Tide (model estimate, above local MSL)';   // ONE label set with map/tideDatum.js
 const TREND_WORD = { rising: 'Rising', falling: 'Falling', slack: 'Slack' };
 const M_TO_FT = 3.28084;
 
@@ -54,7 +54,7 @@ export function sanitizePointTide(tide) {
 /** The card row's note and accessible label for a sanitized tide: the datum is always named. */
 export function pointTideNote(t) {
   const datum = (t && t.datum) || tideDatumOf(null);
-  if (!datum.isMllw) return { note: 'model estimate, mean sea level', label: TIDE_MODEL_LABEL };
+  if (!datum.isMllw) return { note: 'model estimate, above local MSL', label: TIDE_MODEL_LABEL };
   const src = datum.sourceShort ? `, datum from ${datum.sourceShort}` : '';
   return { note: `model estimate, above MLLW${t && t.minus ? ` (${t.minus})` : ''}`,
     label: `Tide (model estimate, above MLLW, NOAA chart datum${src})` };

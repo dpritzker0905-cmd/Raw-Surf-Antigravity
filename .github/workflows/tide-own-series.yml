@@ -94,6 +94,13 @@ jobs:
         continue-on-error: true
         timeout-minutes: 15
         run: python3 -I -S backend/scripts/tide_own/served_delta.py --table tide_own_series.json.gz --summary "$GITHUB_STEP_SUMMARY"
+      - name: US tide above MLLW - the displayed shift at the spot keys (summary numbers only; no credential)
+        # SURF_TIDE_MLLW_US (#1149): per region, the US keys' datum source (model / gauge / interpolated / MSL) and the
+        # shift the display adds (D - M), from this build's exact per-key M and d_ntde. Diagnostic: never blocks.
+        if: hashFiles('tide_own_m.json') != ''
+        continue-on-error: true
+        timeout-minutes: 10
+        run: python backend/scripts/tide_datum/spot_shift.py --spots spots.json --m tide_own_m.json --summary "$GITHUB_STEP_SUMMARY"
       - name: Save the M cache even if the build failed later (Supabase; stdlib only)
         if: always() && hashFiles('tide_own_m.json') != ''
         env:

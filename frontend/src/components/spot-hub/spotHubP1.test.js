@@ -158,8 +158,8 @@ describe('tides', () => {
     const list = cards(mapPointRatingResponse(RESPONSE));
     const i = list.findIndex((c) => c.label === 'Tide');
     expect(list[i - 1].label).toBe('Rating');
-    expect(list[i]).toMatchObject({ value: '+1.3 ft, Rising', note: 'model estimate, mean sea level',
-      ariaLabel: 'Tide (model estimate, mean sea level): +1.3 feet, Rising' });
+    expect(list[i]).toMatchObject({ value: '+1.3 ft, Rising', note: 'model estimate, above local MSL',
+      ariaLabel: 'Tide (model estimate, above local MSL): +1.3 feet, Rising' });
   });
 
   test('no tide in the answer: no Tide row at all', () => {
