@@ -43,10 +43,10 @@ At 8-14 days the day-by-day wind has little skill over climatology. The honest b
 - The test must be unreadable at registration time, and the earlier hindcast showed that a retrospective window leaks through attention: this is forward. 2026-12-01 to 2027-01-14 inits avoid every blinded window (valid >= 2026-12-08, 3b TEST ends 2026-11-15).
 - FIT ends 2026-09-30 so no FIT truth overlaps 3b TEST; the coefficient files are hashed before the first TEST init.
 - The old C1 control (a +48 h shift must lose to climatology) is replaced, because a shrunk arm sits at climatology in B3 and cannot satisfy it; the replacement controls are in the gate.
-- Two gated arms, not eight, so the Holm family is small.
+- Three gated arms (two calibrated plus the labelled-climatology arm), not eight, so the Holm family stays small.
 
 ## Open questions (owner/advisor)
-1. If nothing beats climatology in B1-B2: serve a labelled climatology (not a loop)? Owner decision, not made here.
+1. If nothing beats climatology in B1-B2: serve a labelled climatology (not a loop)? ANSWERED 2026-11-22 (owner via director): yes. Registered as the third gated arm `CLIM_SERVE` (G1, G2, G4, G6; no G3), served labelled as climatology only where no calibrated arm passes. Holm families updated (F1 30 lines, F3 6, F6 over three arms).
 2. The hard hand-off (no taper) interacts with shrinkage: a calibrated field is smoother than the native one, so the seam test may fail. A taper is a new decision for the owner.
 3. The wait for a forward test (first score on or after ~2027-02-01) is the price of an unreadable test. A cheaper but weaker alternative is a retrospective winter window; this lane did not register one because it cannot be unread.
 4. Gust: AIGEFS has none, so its gust is derived; the gust gates are reported only.
