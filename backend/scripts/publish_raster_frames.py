@@ -36,8 +36,9 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out-dir", help="offline: write the public objects here instead of the bucket")
     ap.add_argument("--set", default="pressure", choices=sorted(fsr.SPECS), help="which raster set (default: pressure)")
-    ap.add_argument("--bundle", choices=("sflux",), help="publish every set of a bundle from one read of each hour's file "
-                    "(sflux: GFS 0.117 deg temperature, water temperature and rain; services/frame_set_raster_sflux.py)")
+    ap.add_argument("--bundle", choices=("sflux", "currents_native"), help="publish every set of a bundle from one read of each "
+                    "hour (sflux: GFS 0.117 deg temperature, water temperature and rain, services/frame_set_raster_sflux.py; "
+                    "currents_native: Copernicus currents at 1/12 deg on every surf box, services/frame_set_raster_currents_native.py)")
     args = ap.parse_args(argv)
     if args.bundle or fsr.spec_for(args.set).get("bundle"):
         return _bundle(args)
@@ -58,6 +59,8 @@ def main(argv=None):
 
 def _bundle(args):
     """The sflux bundle (--bundle sflux, or --set naming one of its sets): one read of each hour feeds every set switched on."""
+    if (args.bundle or fsr.spec_for(args.set).get("bundle")) == "currents_native":
+        return _native(args)
     from services import frame_set_raster_sflux as sflux
     names = [args.set] if not args.bundle else list(sflux.SPECS)
     on = [n for n in names if fsr.enabled(n)]
@@ -67,6 +70,23 @@ def _bundle(args):
         return 0
     sink = _sink(args)
     reports = sflux.publish_bundle(sflux.SfluxSource(), sink, pub._uploader(sink), names=on, log=print)
+    print(json.dumps(reports, indent=1, sort_keys=True))
+    return max([_status(n, r) for n, r in reports.items()] or [0])
+
+
+def _native(args):
+    """The native 1/12-degree currents sets (--bundle currents_native, or --set naming one box): one read of each hour, every box."""
+    from services import frame_set_raster_currents_native as native
+    names = [args.set] if not args.bundle else native.names()
+    on = [n for n in names if fsr.enabled(n)]
+    if not on:
+        print(f"[raster] currents_native: off ({native.ENV}); skipped")
+        return 0
+    sink = _sink(args)
+    reports, pulled = native.publish_all(sink, pub._uploader(sink), on, log=print)
+    kept = sum(r.get("bytes", 0) or 0 for r in reports.values())
+    print(f"::notice title=Raster set currents_native size::pulled {pulled / 1e6:.1f} MB, kept {kept / 1e6:.1f} MB "
+          f"({len(on)} boxes; {', '.join(sorted({str(r.get('status')) for r in reports.values()}))})")
     print(json.dumps(reports, indent=1, sort_keys=True))
     return max([_status(n, r) for n, r in reports.items()] or [0])
 
