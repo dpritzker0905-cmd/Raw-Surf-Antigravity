@@ -197,6 +197,51 @@ def pass_rule(rows, regions, alpha=0.05, B=B_DEFAULT, seed=SEED):
             "coarse_ships": bool(better("COARSE")), "f1": f1}
 
 
+# ---- ship decision: stratified tags (advisor ruling 2026-11-22) -------------------------------------------------
+# SEAM and DATUM_1M targets are computed and SCORED as registered (stratify only: no source swap, no exclusion).
+# At SHIP time LITE applies to a tagged target only if that stratum's own line is also BETTER; a multi-tagged target
+# needs EVERY tag's line better. COARSE is the same rule (gate section 6). ONE switch point: `tag_rule`.
+SHIP_TAGS = ("COARSE", "SEAM", "DATUM_1M")
+
+
+def row_tags(row):
+    """All stratum tags of a row: its COARSE stratum plus any extra tags (SEAM, DATUM_1M)."""
+    tags = set(row.get("tags") or [])
+    if row.get("stratum") == "COARSE":
+        tags.add("COARSE")
+    return tags
+
+
+def tag_rule(target_tags, better_by_tag):
+    """THE SWITCH POINT. A target ships iff every one of its tags has a line that is also better."""
+    return all(bool(better_by_tag.get(t, False)) for t in target_tags if t in SHIP_TAGS)
+
+
+def evaluate_tag_lines(rows, alpha=0.05, B=B_DEFAULT, seed=SEED):
+    """LITE - CHAIN per ship tag (California excluded), one-sided, Holm over the tag family. {tag: line + better}."""
+    non_ca = [r for r in rows if r["region"] != "California"]
+    lines = {t: [r for r in non_ca if t in row_tags(r)] for t in SHIP_TAGS}
+    res = {t: paired_bootstrap(v, "LITE", "CHAIN", B=B, seed=seed) for t, v in lines.items() if v}
+    keys = list(res)
+    for k, a in zip(keys, holm([res[k]["p"] for k in keys])):
+        res[k]["p_holm"] = a
+        res[k]["better"] = bool(a < alpha and res[k]["delta"] < 0)
+    return res
+
+
+def ship_decision(rows, regions, alpha=0.05, B=B_DEFAULT, seed=SEED):
+    """{gate_pass, tag_lines, ships: {target: bool}}. Untagged targets ship on a gate pass; tagged ones per tag_rule.
+    A gate that does not pass ships nothing."""
+    gate = pass_rule(rows, regions, alpha=alpha, B=B, seed=seed)
+    lines = evaluate_tag_lines(rows, alpha=alpha, B=B, seed=seed)
+    better = {t: v["better"] for t, v in lines.items()}
+    tags_by_target = {}
+    for r in rows:
+        tags_by_target.setdefault(r["buoy"], set()).update(row_tags(r))
+    ships = {t: bool(gate["pass"] and tag_rule(tags, better)) for t, tags in tags_by_target.items()}
+    return {"gate_pass": gate["pass"], "tag_lines": lines, "ships": ships, "gate": gate}
+
+
 # ---- controls --------------------------------------------------------------------------------------------------
 def control_null(rows):
     """CHAIN - CHAIN must be exactly 0."""

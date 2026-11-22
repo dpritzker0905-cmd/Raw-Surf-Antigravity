@@ -165,3 +165,50 @@ def test_archive_is_hashed_immutable_and_detects_tampering(tmp_path):
     with open(p, "ab") as f:
         f.write(b" ")
     assert any("mismatch" in x for x in archive.verify_archive(d))
+
+
+# ---- ship decision on stratified tags (advisor ruling) -----------------------------------------------------------
+def _tagged_rows(seam_noise, dm_noise):
+    rows = make_rows(lite_noise=0.10, chain_noise=0.35, seed=7)
+    rng = np.random.default_rng(11)
+    for r in rows:
+        if r["buoy"] in ("b0", "b1"):          # SEAM targets
+            r["tags"] = ["SEAM"]
+            r["arms"]["LITE"] = r["obs_hs"] + rng.normal(0, seam_noise)
+        if r["buoy"] in ("b1", "b2"):          # b1 is multi-tagged; b2 is DATUM_1M only
+            r["tags"] = sorted(set(r.get("tags", [])) | {"DATUM_1M"})
+            r["arms"]["LITE"] = r["obs_hs"] + rng.normal(0, dm_noise)
+    return rows
+
+
+def test_tag_rule_is_every_tag_better():
+    assert scorer.tag_rule(set(), {}) is True
+    assert scorer.tag_rule({"SEAM"}, {"SEAM": True}) is True
+    assert scorer.tag_rule({"SEAM"}, {"SEAM": False}) is False
+    assert scorer.tag_rule({"SEAM", "DATUM_1M"}, {"SEAM": True, "DATUM_1M": False}) is False
+    assert scorer.tag_rule({"SEAM"}, {}) is False                 # no line = not better
+
+
+def test_seam_and_datum_targets_are_scored_but_keep_chain_unless_their_own_line_is_better():
+    rows = _tagged_rows(seam_noise=0.60, dm_noise=0.10)           # SEAM line worse than CHAIN, DATUM_1M line better
+    res = scorer.ship_decision(rows, REGIONS, B=B)
+    assert res["gate_pass"] is True                               # pooled/FINE/sheltered still pass: stratify only
+    assert res["ships"]["b5"] is True                             # untagged
+    assert res["ships"]["b0"] is False                            # SEAM only, its line is not better
+    assert res["ships"]["b2"] is True                             # DATUM_1M only, its line is better
+    assert res["ships"]["b1"] is False                            # multi-tagged: SEAM line fails => keeps CHAIN
+
+
+def test_every_tag_better_ships_the_multi_tagged_target():
+    res = scorer.ship_decision(_tagged_rows(seam_noise=0.10, dm_noise=0.10), REGIONS, B=B)
+    assert res["ships"]["b0"] and res["ships"]["b1"] and res["ships"]["b2"]
+
+
+def test_a_gate_that_does_not_pass_ships_nothing():
+    rows = make_rows(lite_noise=0.30, chain_noise=0.30, seed=3)
+    assert not any(scorer.ship_decision(rows, REGIONS, B=B)["ships"].values())
+
+
+def test_coarse_stratum_counts_as_a_tag():
+    r = {"stratum": "COARSE", "tags": ["SEAM"]}
+    assert scorer.row_tags(r) == {"COARSE", "SEAM"}
