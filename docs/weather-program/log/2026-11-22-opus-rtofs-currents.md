@@ -28,7 +28,8 @@ credited as Copernicus; ICON (no DWD ocean model) is a separate decision.
   (33 frames). Regrid: each ocean source cell to its nearest 0.25-degree node, the node takes the mean of u and of v (a vector
   mean, as the Copernicus set's 3 x 3 mean); fill (1.27e30), NaN and |u| or |v| > 10 m/s excluded. Each file's own `MT` must equal
   cycle + f, else the hour is refused. NOMADS politeness: two files in flight, requests spaced 0.4 s (all threads).
-- Pilots workflow: one step, `if vars.FRAME_RASTER_CURRENTS_RTOFS == '1'`, continue-on-error, timeout 20 min, budget 900 s,
+- Pilots workflow: one step, `if vars.FRAME_RASTER_CURRENTS_RTOFS == '1'`, NO continue-on-error (a failed publish exits 1
+  and turns the run red; every later step's `!cancelled()` still runs; no cycle yet exits 0), timeout 20 min, budget 900 s,
   service-role key from the job's `environment: supabase-service`. The data-health monitor passes the switch by name.
 - Client: `setKey('currents', 'GFS')` returns the RTOFS set only while `rtofsCurrentsOn()`: the lever
   `window.__RAW_RTOFS_CURRENTS__ = true` (or localStorage), default `RTOFS_CURRENTS_DEFAULT_ON = false`; the kill
@@ -80,3 +81,13 @@ nodes only RTOFS fills, 8,662 only Copernicus (coastlines differ). n = 1 valid t
   reads the `models` table, which still lists Copernicus for GFS. Fine for a dark lever; fold RTOFS into availability when the
   default flips.
 - ICON's ocean source (Canada GIOPS or other) is the director's separate discussion with David.
+
+## The advisor's pass conditions (relayed by the director, 2026-11-22), as built
+
+| condition | where |
+|---|---|
+| Dark: no served change | publisher off unless `FRAME_RASTER_CURRENTS_RTOFS=1`; client off unless the lever; kill wins |
+| Credit and licence in every index | `make_index` writes the spec's `credit`, `license`, `source_url`; pinned in `test_a_published_rtofs_frame` |
+| Storage key only through the supabase-service environment | the step lives in the pilots job (`environment: supabase-service`); the key is `secrets.SUPABASE_SERVICE_ROLE_KEY` there only |
+| Failures turn the run red | no continue-on-error on the step; `publish_raster_frames.py` exits 1 on a failed publish (`test_a_failed_publish_exits_1_and_no_cycle_exits_0`, and the workflow pin) |
+| Size per run | PULLED 2.99 GB per new cycle (seconds of HEADs otherwise); KEPT 14.3 MB per set, at most ~29 MB in the bucket (retention keeps the current and the previous run's frames) |

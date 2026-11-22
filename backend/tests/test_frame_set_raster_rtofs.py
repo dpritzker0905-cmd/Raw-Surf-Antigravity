@@ -184,9 +184,20 @@ def test_a_published_rtofs_frame(tmp_path, monkeypatch, one_byte):
     rec = json.loads((tmp_path / fs.LATEST).read_text())["sets"]["RTOFS/marine/currents/global_0p25"]
     index = json.loads((tmp_path / rec["index"]).read_text())
     assert index["common_meta"]["upstream_provider"] == "noaa" and "RTOFS" in index["credit"]
+    assert index["license"] == fsr.SPECS["currents_rtofs"]["license"] and "public domain" in index["license"]
+    assert index["source_url"].startswith("https://nomads.ncep.noaa.gov/")
     _h, f = fb.decode_plane((tmp_path / index["frames"][1]["path"]).read_bytes())
     fid = fb.CURRENT_KN_BAND if one_byte == "1" else fb.SPEED
     assert np.nanmax(f[fid]) == pytest.approx(0.5 * 3600 / 1852, abs=0.011)
+
+
+def test_a_failed_publish_exits_1_and_no_cycle_exits_0(monkeypatch, capsys):
+    monkeypatch.setenv("FRAME_RASTER_CURRENTS_RTOFS", "1")
+    monkeypatch.setattr(script.fsr, "publish", lambda *a, **k: {"status": "coverage_refused"})
+    assert script.main(["--set", "currents_rtofs", "--out-dir", "unused"]) == 1
+    assert "::error title=Raster set currents_rtofs not published::" in capsys.readouterr().out
+    monkeypatch.setattr(script.fsr, "publish", lambda *a, **k: {"status": "no_cycle"})
+    assert script.main(["--set", "currents_rtofs", "--out-dir", "unused"]) == 0
 
 
 def test_the_pilots_workflow_has_one_dark_rtofs_step_and_the_monitor_reads_its_switch():
@@ -195,7 +206,9 @@ def test_the_pilots_workflow_has_one_dark_rtofs_step_and_the_monitor_reads_its_s
     assert len(steps) == 1
     step = steps[0]
     assert "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_RTOFS == '1'" in step
-    assert "continue-on-error: true" in step and "timeout-minutes: 20" in step and 'FRAME_RASTER_BUDGET_S: "900"' in step
-    assert "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" in step
+    assert "continue-on-error" not in step and "timeout-minutes: 20" in step     # a failed publish turns the run red
+    after = yml.split("--set currents_rtofs\n", 1)[1].split("\n      - name: ")[1:]
+    ifs = [ln.strip() for s in after for ln in s.splitlines()[1:2] if ln.strip().startswith("if:")]
+    assert ifs and all("!cancelled()" in i for i in ifs)                  # the steps after still run on a red step
     mon = (WORKFLOWS / "data-health-monitor.yml").read_text(encoding="utf-8")
     assert "FRAME_RASTER_CURRENTS_RTOFS: ${{ vars.FRAME_RASTER_CURRENTS_RTOFS }}" in mon

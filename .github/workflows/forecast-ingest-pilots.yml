@@ -610,10 +610,10 @@ jobs:
       # mirror holds only barotropic velocity), every 6 h to f192, nearest-node mean onto 0.25 deg. Once a day: a run whose cycle
       # is already published reads only two HEADs. Measured offline per new cycle: see docs/weather-program/log/
       # 2026-11-22-opus-rtofs-currents.md. DARK: off unless FRAME_RASTER_CURRENTS_RTOFS=1 (the client reads it only behind its
-      # own lever, ownRasterFrames.js).
+      # own lever, ownRasterFrames.js). NO continue-on-error (the advisor's gate, 2026-11-22): a failed publish (exit 1) turns the
+      # run red; every later step's `!cancelled()` still runs it. Upstream not ready yet (no cycle) exits 0.
       - name: Publish raster static frames (NOAA RTOFS currents; off unless FRAME_RASTER_CURRENTS_RTOFS=1)
         if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_RTOFS == '1' }}
-        continue-on-error: true
         timeout-minutes: 20
         working-directory: backend
         env:
