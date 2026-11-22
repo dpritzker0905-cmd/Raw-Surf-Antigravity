@@ -26,7 +26,7 @@ CYCLE = datetime(2026, 11, 15, tzinfo=timezone.utc)
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
-    for k in ("FRAME_RASTER_CURRENTS", "FRAME_RASTER_BUDGET_S", "FRAME_MIN_COVERAGE", "FRAME_RASTER_ONE_BYTE"):
+    for k in ("FRAME_RASTER_CURRENTS", "FRAME_RASTER_BUDGET_S", "FRAME_MIN_COVERAGE", "FRAME_RASTER_ONE_BYTE", "FRAME_RASTER_DIR_BYTE"):
         monkeypatch.delenv(k, raising=False)
 
 
@@ -173,10 +173,12 @@ def test_no_cycle_when_the_bulletin_is_short():
     assert src.complete_cycle(CYCLE) is None
 
 
-@pytest.mark.parametrize("one_byte", ["1", "0"])
-def test_a_published_currents_frame(tmp_path, monkeypatch, one_byte):
-    """Lever A: by default the band speed alone (0.02 kn); the kill (FRAME_RASTER_ONE_BYTE=0) the old speed + direction."""
+@pytest.mark.parametrize("one_byte,dir_byte", [("1", "1"), ("1", "0"), ("0", "1")])
+def test_a_published_currents_frame(tmp_path, monkeypatch, one_byte, dir_byte):
+    """Lever A: by default the band speed (0.02 kn) + the one-byte flow direction (the Currents particles, 2026-11-22); its kill
+    (FRAME_RASTER_DIR_BYTE=0) the band speed alone; lever A's kill (FRAME_RASTER_ONE_BYTE=0) the old speed + direction."""
     monkeypatch.setenv("FRAME_RASTER_ONE_BYTE", one_byte)
+    monkeypatch.setenv("FRAME_RASTER_DIR_BYTE", dir_byte)
     sp = dict(fsr.SPECS["currents"], hours=(0, 6))
     http = _store()
     sink = pub.LocalSink(tmp_path)
@@ -188,8 +190,59 @@ def test_a_published_currents_frame(tmp_path, monkeypatch, one_byte):
     raw = (tmp_path / index["frames"][1]["path"]).read_bytes()
     _h, f = fb.decode_plane(raw)
     if one_byte == "1":
-        assert set(f) == {fb.CURRENT_KN_BAND}
+        assert set(f) == ({fb.CURRENT_KN_BAND, fb.FLOW_DIR_BYTE} if dir_byte == "1" else {fb.CURRENT_KN_BAND})
         assert np.nanmax(f[fb.CURRENT_KN_BAND]) == pytest.approx(0.5 * cur.KN_PER_MS, abs=0.01)
+        if dir_byte == "1":   # the eastward jet flows TOWARD 90 deg, written at the anchor cells (even row, even column)
+            jet = np.isfinite(f[fb.CURRENT_KN_BAND]) & (f[fb.CURRENT_KN_BAND] > 0.5)
+            anchor = np.zeros(jet.shape, dtype=bool)
+            anchor[::fb.FLOW_DIR_STRIDE, ::fb.FLOW_DIR_STRIDE] = True
+            assert (jet & anchor).any() and np.allclose(f[fb.FLOW_DIR_BYTE][jet & anchor], 90.0)
+            assert not f[fb.FLOW_DIR_BYTE][~anchor].any()
     else:
         assert set(f) == {fb.SPEED, fb.DIRECTION}
         assert np.nanmax(f[fb.SPEED]) == pytest.approx(0.5 * cur.KN_PER_MS, abs=0.006)
+
+
+def test_the_one_byte_flow_direction_wraps_on_the_circle_and_round_trips():
+    """FLOW_DIR_BYTE: code = round(d / 1.40625) mod 256, so 359.5 deg stores as 0 deg (0.5 deg away on the circle, never 358.6);
+    every direction decodes within half a step on the circle; NaN (no data) writes code 0, its validity on the speed band."""
+    d = np.array([[0.0, 90.0, 180.0, 359.5, 359.2, 0.7, 271.3, np.nan]])
+    s = np.where(np.isfinite(d), 1.0, np.nan)
+    raw = fb.encode_planes({fb.CURRENT_KN_BAND: s, fb.FLOW_DIR_BYTE: d}, (0.0, 0.0, 7.0, 0.0), "2026-11-22T00:00:00Z",
+                           "2026-11-22T00:00:00Z", uv_convention=1)
+    _h, f = fb.decode_plane(raw)
+    got = f[fb.FLOW_DIR_BYTE][0]
+    ok = np.isfinite(d[0])
+    err = np.abs(got[ok] - d[0][ok])
+    err = np.minimum(err, 360.0 - err)
+    assert err.max() <= fb.TOLERANCE[fb.FLOW_DIR_BYTE]
+    assert got[3] == 0.0 and got[-1] == 0.0
+    assert fb.FIELD_SPECS[fb.FLOW_DIR_BYTE][0] == 1 and fb.FLOW_DIR_BYTE in fb.CIRCULAR_FIELDS
+
+
+def test_the_currents_step_carries_the_direction_kill():
+    wf = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
+    step = wf.split("--set currents")[0].rsplit("- name:", 1)[1]
+    assert "FRAME_RASTER_DIR_BYTE: ${{ vars.FRAME_RASTER_DIR_BYTE }}" in step
+
+
+def test_flow_dir_anchors_is_the_block_vector_mean_in_64_steps():
+    """One direction per 2 x 2 block at its south-west cell: the VECTOR mean of the block's water (opposed flows cancel to the
+    remainder), in 5.625-deg steps; an anchor over land keeps its block's direction; a block of land is 0; elsewhere 0."""
+    nan = np.nan
+    speed = np.array([[1.0, 1.0, nan, nan, 2.0],
+                      [nan, 1.0, nan, nan, 2.0],
+                      [1.0, 1.0, 1.0, 1.0, nan]])
+    dirn = np.array([[90.0, 270.0, 0.0, 0.0, 10.0],
+                     [0.0, 90.0, 0.0, 0.0, 10.0],
+                     [44.0, 46.0, 180.0, 180.0, 0.0]])
+    out = fb.flow_dir_anchors(speed, dirn)
+    assert out.shape == speed.shape
+    assert out[0, 0] == 90.0                         # (+1 - 1 + 1) east
+    assert out[0, 2] == 0.0                          # an all-land block
+    assert out[0, 4] == pytest.approx(11.25)         # 10 deg -> the nearest 5.625-deg step
+    assert out[2, 0] == 45.0 and out[2, 2] == 180.0  # the last (half) row of blocks
+    mask = np.ones(out.shape, dtype=bool)
+    mask[::2, ::2] = False
+    assert not out[mask].any()
+    assert set(np.unique(np.round(out / (360 / fb.FLOW_DIR_LEVELS), 9) % 1)) == {0.0}
