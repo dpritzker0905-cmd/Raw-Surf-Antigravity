@@ -43,7 +43,8 @@ SERIES_KEY = "tide_own/series.json.gz"
 SCHEMA = "raw-surf/tide-own/2"   # /2 (2026-11-18): int16 mm series in base64; a reader of /1 refuses a /2 table
 LABELS = {                       # (label, credit): the credit is the exact attribution (tide_credits), carried by every series
     "cmems": ("Tide: ocean model sea level (tide + currents; no storm-surge guarantee)", CREDITS["cmems"]),
-    "am": ("Tide: astronomical prediction + average sea level (no storm surge)", CREDITS["am"]),
+    "am": ("Tide: astronomical prediction + average sea level (no storm surge); heights above local mean sea level",
+           CREDITS["am"]),
 }
 _TTL_S = env_float("TIDE_OWN_TTL_S", 3600.0)
 _FAIL_COOLDOWN_S = 300.0

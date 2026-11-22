@@ -2824,3 +2824,11 @@ numbers.
 - **SCOREBOARD:** a new row is appended; the earlier 12:14Z row stays as written.
 - **Merge:** only on David's word, together with his pick on the missing-table behaviour (no tide vs Open-Meteo).
 
+
+
+## 2026-11-22 13:55Z: #1132 HOLD fixes (the advisor)
+1. **Citation.** The FES2022 citation (CNES, 2024 ... https://doi.org/10.24400/527896/A01-2024.004), licence s.3.1, is now in `tide_credits.CREDITS['am']` and the `own_rules` copy. The spot hub shows it, not only /point-tide. The route imports `FES_CITATION` from the one module, and the pin test is extended.
+2. **Datum.** The 'am' label says `heights above local mean sea level`. The measured SCOREBOARD row now says users will see heights above local MSL: hub heights move about 1.2 ft typical, 2 ft at p90, either way. It also lists the depth cap AND the face-range low end as unmeasured (both add the height directly), with tide_fit expected unaffected.
+
+Tests: test_tide_own + flag parity pass 51 locally.
+

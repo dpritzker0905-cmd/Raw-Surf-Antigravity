@@ -11,12 +11,15 @@ Material". Tide predictions computed from the FES2022 constituents are Derivativ
 """
 FES_ACK = ("The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available "
            "by AVISO")
+FES_CITATION = ("CNES, 2024. FES2022 (Finite Element Solution) Tidal model (Version 2024). CNES. "
+                "https://doi.org/10.24400/527896/A01-2024.004")
 FES_LICENCE = "https://www.aviso.altimetry.fr/fileadmin/documents/data/License_Aviso.pdf"
 CMEMS_CREDIT = "Generated using E.U. Copernicus Marine Service Information"
 
-# per served source: the credit carried with every series and stored in every table
+# per served source: the credit carried with every series and stored in every table (licence s.3.1: the creators and
+# CNES, the CITATION with its DOI, and a link to the licence)
 CREDITS = {
-    "am": (f"{FES_ACK}. Mean sea level: {CMEMS_CREDIT} (altimetry, SEALEVEL_GLO_PHY_L4). "
+    "am": (f"{FES_ACK}. {FES_CITATION}. Mean sea level: {CMEMS_CREDIT} (altimetry, SEALEVEL_GLO_PHY_L4). "
            f"Licence: {FES_LICENCE}"),
     "cmems": f"{CMEMS_CREDIT} (Global Ocean Physics Analysis and Forecast, https://doi.org/10.48670/moi-00016).",
 }

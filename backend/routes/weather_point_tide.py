@@ -32,9 +32,7 @@ SOURCE = "model-msl"
 # Licensor, the citation with its DOI, a link to the licence, and a note that the material was modified; the release page
 # asks for its acknowledgement sentence too. The visible text is short (the infobox footer); `credit_detail` carries all
 # of it and the client shows it as the link's title and accessible name.
-FES_CITATION = ("CNES, 2024. FES2022 (Finite Element Solution) Tidal model (Version 2024). CNES. "
-                "https://doi.org/10.24400/527896/A01-2024.004")
-from services.weather_pipeline.tide_credits import FES_ACK, FES_LICENCE    # noqa: E402  (ONE copy of the text)
+from services.weather_pipeline.tide_credits import FES_ACK, FES_CITATION, FES_LICENCE  # noqa: E402  (ONE copy of the text)
 _FES = ("FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine", "https://doi.org/10.24400/527896/A01-2024.004",
         f"{FES_ACK}. {FES_CITATION}. Licence: {FES_LICENCE}. Modified: tide predictions computed at this point from the "
         "FES2022 constituents, plus the 2016-2025 mean sea level from E.U. Copernicus Marine Service Information.")

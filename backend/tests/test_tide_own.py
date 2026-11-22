@@ -228,8 +228,12 @@ def test_the_exact_attribution_is_served_and_stored_with_every_series():
     from services.weather_pipeline import tide_credits as TC
     exact = "funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available by AVISO"
     assert exact in TC.CREDITS["am"] and "Copernicus Marine" in TC.CREDITS["am"] and TC.FES_LICENCE in TC.CREDITS["am"]
+    cite = ("CNES, 2024. FES2022 (Finite Element Solution) Tidal model (Version 2024). CNES. "
+            "https://doi.org/10.24400/527896/A01-2024.004")                # licence s.3.1: the citation, in the hub too
+    assert TC.FES_CITATION == cite and cite in TC.CREDITS["am"]
     assert "Copernicus Marine" in TC.CREDITS["cmems"]
     assert OR.CREDITS == TC.CREDITS                                        # the CI copy equals the served text
+    assert "heights above local mean sea level" in tide_own.LABELS["am"][0]   # the datum users now see, stated
     now = datetime(2026, 11, 20, tzinfo=UTC)
     stored = OR.encode_table(_table(now, {"21.7,-158.0": [250] * (48 * 24)}))
     assert stored["credits"] == TC.CREDITS

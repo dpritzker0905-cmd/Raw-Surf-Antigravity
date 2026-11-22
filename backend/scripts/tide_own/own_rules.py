@@ -200,10 +200,12 @@ def encode_table(doc):
 # this CI script never imports the served backend.
 _FES_ACK = ("The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available "
             "by AVISO")
+_FES_CITATION = ("CNES, 2024. FES2022 (Finite Element Solution) Tidal model (Version 2024). CNES. "
+                 "https://doi.org/10.24400/527896/A01-2024.004")
 _FES_LICENCE = "https://www.aviso.altimetry.fr/fileadmin/documents/data/License_Aviso.pdf"
 _CMEMS_CREDIT = "Generated using E.U. Copernicus Marine Service Information"
 CREDITS = {
-    "am": (f"{_FES_ACK}. Mean sea level: {_CMEMS_CREDIT} (altimetry, SEALEVEL_GLO_PHY_L4). "
+    "am": (f"{_FES_ACK}. {_FES_CITATION}. Mean sea level: {_CMEMS_CREDIT} (altimetry, SEALEVEL_GLO_PHY_L4). "
            f"Licence: {_FES_LICENCE}"),
     "cmems": f"{_CMEMS_CREDIT} (Global Ocean Physics Analysis and Forecast, https://doi.org/10.48670/moi-00016).",
 }

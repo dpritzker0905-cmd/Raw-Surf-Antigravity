@@ -133,7 +133,7 @@ describe('tides', () => {
     const credit = 'The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely '
       + 'available by AVISO. Mean sea level: Generated using E.U. Copernicus Marine Service Information.';
     const line = tideSourceLabel({ source: 'global', station_id: 'raw-surf:tide-own:am', credit,
-      tide_label: 'Tide: astronomical prediction + average sea level (no storm surge)' });
+      tide_label: 'Tide: astronomical prediction + average sea level (no storm surge); heights above local mean sea level' });
     expect(line).toContain('funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available by AVISO');
     expect(line).toContain('Copernicus Marine');
     expect(line).not.toMatch(/Open-Meteo/);
