@@ -191,6 +191,10 @@ def test_the_pilots_step_is_dark_and_the_monitor_reads_its_switch():
     assert len(steps) == 1
     step = steps[0]
     assert "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_NATIVE == '1'" in step
-    assert "FRAME_RASTER_CURRENTS_NATIVE: ${{ vars.FRAME_RASTER_CURRENTS_NATIVE }}" in step and "continue-on-error: true" in step
+    assert "FRAME_RASTER_CURRENTS_NATIVE: ${{ vars.FRAME_RASTER_CURRENTS_NATIVE }}" in step
+    # A failed publish turns the run red (the advisor's gate on #1145): no continue-on-error, and the next step still runs.
+    assert "continue-on-error" not in step.split("\n      # ")[0]
+    i = wf.index("--bundle currents_native")
+    assert "if: ${{ !cancelled()" in wf[i:i + 3000].split("\n      - name: ")[1]
     mon = (ROOT / ".github" / "workflows" / "data-health-monitor.yml").read_text(encoding="utf-8")
     assert "FRAME_RASTER_CURRENTS_NATIVE: ${{ vars.FRAME_RASTER_CURRENTS_NATIVE }}" in mon

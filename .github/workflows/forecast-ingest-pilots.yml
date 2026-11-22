@@ -652,10 +652,11 @@ jobs:
       # SIZE PER RUN (measured offline 2026-11-22, the 22 Nov 00Z bulletin): PULLS 1.34 GB (only the store chunks the boxes
       # touch, one read per hour for every box) and KEEPS 7.0 MB (574 frames), 49 s; a run whose bulletin is published reads the
       # time axis and stops. The step prints both numbers as a notice. The client reads it only for the Currents particles, and
-      # only behind its own lever (currentNative.js). DARK: off unless FRAME_RASTER_CURRENTS_NATIVE = '1'.
+      # only behind its own lever (currentNative.js). DARK: off unless FRAME_RASTER_CURRENTS_NATIVE = '1'. The step never continues
+      # on error (the advisor's gate on #1145, as RTOFS and GIOPS): a failed publish (exit 1) turns the run red; every later step's
+      # `!cancelled()` still runs it. Upstream not ready yet (no bulletin) exits 0.
       - name: Publish raster static frames (native 1/12-deg Copernicus currents on the surf boxes; off unless FRAME_RASTER_CURRENTS_NATIVE=1)
         if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_NATIVE == '1' }}
-        continue-on-error: true
         timeout-minutes: 15
         working-directory: backend
         env:
