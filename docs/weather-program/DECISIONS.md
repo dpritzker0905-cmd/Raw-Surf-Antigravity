@@ -2378,7 +2378,8 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   revision.
 - **Reopen if** counsel says that a corrected name or link under an unchanged consent version is not valid consent.
 
-### D-086 · A guarded flag whose kill REMOVES a service is reported, never auto-disabled (amends D-065 for ONE named flag: SURF_TIDE_OWN) (2026-11-22, PENDING David's word; NOT decided)
+### D-086 · A guarded flag whose kill REMOVES a service is reported, never auto-disabled (amends D-065 for ONE named flag: SURF_TIDE_OWN) (2026-11-22, decided by the owner)
+- **Owner, typed in the tide lane's session (2026-11-22 about 15:09Z):** "Yes, approve D-086".
 - **Proposed by:** the tide lane in #1132, at the advisor's direction, relayed by the director on 2026-11-22. The advisor
   judged it justified in substance, but it is the owner's decision.
 - **The rule as written:** a flag qualifies ONLY when its kill switch removes a service rather than restoring an older

@@ -2848,3 +2848,8 @@ Tests: test_tide_own + flag parity pass 51 locally.
 - **(b) SURF_TIDE_DEPTH's COVERAGE is now PARTIAL.** The replay drives the cap with Open-Meteo's tide, about 0.35 m median from the served local-MSL level. The cap's response is scored; the served levels are not.
 - **Tests:** 76 pass locally.
 
+
+
+## 2026-11-22 15:09Z: D-086 DECIDED by the owner
+David, typed in this session: "Yes, approve D-086". The DECISIONS entry is updated from PENDING to decided, with his words. NEVER_AUTO_DISABLE stays for SURF_TIDE_OWN only. Still open before #1132 merges: David's word to merge and his pick on the missing-table behaviour.
+
