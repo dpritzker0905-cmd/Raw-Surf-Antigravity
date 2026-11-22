@@ -8,8 +8,9 @@
 import React, { useEffect, useState } from 'react';
 import { usePointTide } from './usePointTide';
 import { responsiveWeatherOn } from './useMapChromeLayout';
+import { tideDatumOf, pointTideForDisplay, minusTideWord } from './tideDatum';
 import {
-  TIDE_FOOTER, TIDE_SOLAR_NOTE, TIDE_UNAVAILABLE, tideAt, tideCredit, tideUsesSolar, infoboxTideDisabled, trendWord, trendGlyph, formatTideHeight,
+  tideFooter, TIDE_SOLAR_NOTE, TIDE_UNAVAILABLE, tideAt, tideCredit, tideUsesSolar, infoboxTideDisabled, trendWord, trendGlyph, formatTideHeight,
   formatTideEvent, formatTideRate, tideAriaLabel, tideCurve,
 } from './tideReadoutFormat';
 
@@ -24,7 +25,8 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
     return () => clearInterval(id);
   }, [atTime]);
   const atMs = atTime != null ? Number(atTime instanceof Date ? atTime.getTime() : atTime) : tick;
-  const { status, data: payload } = usePointTide(lat, lng);
+  const { status, data: served } = usePointTide(lat, lng);
+  const payload = served ? pointTideForDisplay(served) : served;   // heights in the datum the label names
   const data = payload ? tideAt(payload, atMs) : null;
   if (infoboxTideDisabled() || status === 'off') return null;
   const textClass = isLight ? 'text-gray-900' : 'text-white';
@@ -46,13 +48,19 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
   const hi = formatTideEvent('high', d.next_high, unit, d.tz_offset_h, undefined, atMs);
   const lo = formatTideEvent('low', d.next_low, unit, d.tz_offset_h, undefined, atMs);
   const credit = tideCredit(payload);
+  const datum = tideDatumOf(payload.datum_info);
+  const minus = minusTideWord(d.height_m, datum);
+  const mslNow = datum.isMllw && Number.isFinite(d.height_m) ? d.height_m - datum.offsetM : null;
   const curveHeight = responsiveWeatherOn() ? 56 : 40;
   const curve = tideCurve(d, d.now, 176, curveHeight);
   return (
     <div className={wrap} data-testid="tide-readout" role="group" aria-label="Tide">
-      <div className="flex items-baseline gap-1.5">
+      <div className="flex items-baseline gap-1.5 flex-wrap">
         <span className={`text-[10px] ${muted}`}>Tide</span>
         <span className={`text-xs font-bold ${textClass}`}>{formatTideHeight(d.height_m, unit)}</span>
+        <span className={`text-[9px] ${muted}`} data-testid="tide-datum" title={datum.long}>
+          {datum.short}{minus ? ` (${minus})` : ''}
+        </span>
         <span className={`text-[10px] font-semibold ${accent}`}>
           <span aria-hidden="true">{trendGlyph(d.trend)} </span>{trendWord(d.trend)}
         </span>
@@ -72,8 +80,18 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
       )}
       {hi && <div className={`text-[10px] ${textClass}`}>{hi}</div>}
       {lo && <div className={`text-[10px] ${textClass}`}>{lo}</div>}
+      {mslNow != null && (
+        <div className={`text-[9px] leading-tight ${muted}`} data-testid="tide-msl-line">
+          ≈ {formatTideHeight(mslNow, unit)} above local mean sea level
+        </div>
+      )}
+      {datum.isMllw && (
+        <div className={`text-[9px] leading-tight ${muted}`} data-testid="tide-datum-source">
+          {datum.source ? `MLLW from ${datum.source}. ` : ''}{datum.negativeNote}
+        </div>
+      )}
       <div className={`text-[10px] leading-tight mt-1 ${muted}`}>
-        {TIDE_FOOTER}
+        {tideFooter(datum)}
         {credit && <>
           {' · '}
           {credit.href

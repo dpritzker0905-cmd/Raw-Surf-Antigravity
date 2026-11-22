@@ -12,6 +12,7 @@
  * coast costs at most one request per cell per session. Kill: window.__RAW_DISABLE_TIDE_FALLBACK__.
  */
 import { formatHeightFromMeters } from './heightUnits';
+import { ratingTide, minusTideWord } from './tideDatum';
 
 const OPEN_METEO_MARINE_API = 'https://marine-api.open-meteo.com/v1/marine';
 const TTL_OK_MS = 3 * 3600 * 1000;    // a tide series is stable for hours (backend parity)
@@ -129,7 +130,12 @@ export function trendArrow(trend) {
  */
 export function formatTideLine(tide, heightUnit) {
   if (!tide || tide.height_m == null || Number.isNaN(Number(tide.height_m))) return null;
-  const height = formatHeightFromMeters(tide.height_m, heightUnit, { withUnit: true });
+  // The display datum (tide_datum, one composition): a US rating tide carries display_height_m above MLLW; the
+  // payload-less fallback above is an MSL level. Either way the datum is NAMED, never left for the reader to guess.
+  const { heightM, datum } = ratingTide(tide);
+  const height = formatHeightFromMeters(heightM, heightUnit, { withUnit: true });
+  const minus = minusTideWord(heightM, datum);
   const trend = TREND_ARROW[tide.trend] ? tide.trend : null;
-  return trend ? `${height} ${trend}` : height;
+  const base = `${height} ${datum.short}${minus ? ` (${minus})` : ''}`;
+  return trend ? `${base} ${trend}` : base;
 }

@@ -14,6 +14,7 @@ import React from 'react';
 import { ArrowUp, ArrowDown, Droplets } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { spotHubP1Enabled, tideSourceLabel } from './spotHubP1Format';
+import { tideDatumOf, MINUS_TIDE } from '../map/tideDatum';
 
 function trendPillClass(rising, p1, isLight, isBeach) {
   if (!p1) return rising ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400';
@@ -33,11 +34,21 @@ export default function SpotTideBlock({ tideData, t, containerBorder, testId = '
   const p1 = spotHubP1Enabled();
   const { isLight, isBeach } = t;
   const rising = tideData.current_status === 'Rising';
+  // ONE display datum (tide_datum): `height` is above MLLW at a US spot, else above local MSL; the client kill
+  // (window.__RAW_DISABLE_TIDE_MLLW__) shows `height_msl`, the served level, and tideDatumOf then says MSL.
+  const datum = tideDatumOf(tideData.datum);
+  const mllwSent = tideData.datum && tideData.datum.datum === 'MLLW';
+  const heightFt = (tide) => parseFloat(mllwSent && !datum.isMllw && tide.height_msl != null ? tide.height_msl : tide.height);
   return (
     <div className={`border-t ${containerBorder} p-4`} data-testid={testId}>
       <div className="flex items-center gap-2 mb-3">
         <Droplets aria-hidden={p1 ? 'true' : undefined} className="w-5 h-5 text-cyan-400" />
         <h4 className={`font-bold ${t.textPrimary} text-sm`}>Today's Tides</h4>
+        {p1 && tideData.datum && (
+          <span className={`text-[10px] ${t.textMuted}`} data-testid="tide-datum-short" title={datum.long}>
+            heights {datum.short}
+          </span>
+        )}
         {tideData.current_status && (
           <Badge className={`text-[10px] ${trendPillClass(rising, p1, isLight, isBeach)}`}>
             {rising ? (
@@ -71,9 +82,17 @@ export default function SpotTideBlock({ tideData, t, containerBorder, testId = '
                   {tideTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
                 <span className={`text-xs ${t.textSecondary}`}>
-                  {parseFloat(tide.height).toFixed(1)}ft
+                  {heightFt(tide).toFixed(1)}ft
                 </span>
               </div>
+              {datum.isMllw && heightFt(tide) < -0.05 && (
+                <div className={`text-[10px] ${t.textMuted}`} data-testid="tide-minus">{MINUS_TIDE}</div>
+              )}
+              {datum.isMllw && Number.isFinite(Number(tide.height_msl)) && (
+                <div className={`text-[10px] ${t.textMuted}`} data-testid="tide-msl-ft">
+                  ≈ {Number(tide.height_msl).toFixed(1)}ft above local MSL
+                </div>
+              )}
             </div>
           );
         })}

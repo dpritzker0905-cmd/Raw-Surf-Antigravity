@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 63,
+  "files": 1,
+  "branch": "claude/tide-mllw-us",
+  "date": "2026-11-22",
+  "note": "US tide display above MLLW (test_tide_datum)"
+}

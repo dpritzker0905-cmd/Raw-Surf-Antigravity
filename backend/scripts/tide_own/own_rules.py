@@ -84,7 +84,31 @@ def table(now, start, hours, out_keys, m_cache):
     return {"schema": SCHEMA, "generated_at": now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "start": start.strftime("%Y-%m-%dT%H:%M:%S"), "hours": hours, "step_h": 1, "units": "mm above mean sea level",
             "source": SOURCE, "keys": keys,
-            "m": {k: (m_cache.get(k) or {}).get("m") for k in keys}}
+            "m": {k: (m_cache.get(k) or {}).get("m") for k in keys},
+            # MSL - MLLW of A over the 1983-2001 NTDE (d_ntde, below), US keys only, null until computed: the US display
+            # datum's "model" source (services/weather_pipeline/tide_datum.py). Never used by the served level itself.
+            "d": {k: (m_cache.get(k) or {}).get("d_ntde") for k in keys}}
+
+
+# ---------------------------------------------------------------- MSL - MLLW over the NTDE (the US display datum)
+TIDAL_DAY_H = 24.8412                    # NOAA's tidal day (scripts/tide_fes/metrics.TIDAL_DAY_H)
+NTDE_STEP_MIN = 10                       # the G3t item-4 sampling (fes_gate.NTDE_STEP_MIN): measured 0.0135 m median
+
+
+def d_ntde(values, step_h):
+    """MSL minus MLLW (m) of a uniformly sampled tide series covering the NTDE: the series mean minus the mean of each
+    FULL tidal day's lowest value, NOAA's definition of MLLW (the method scripts/tide_fes/metrics.mllw_offset gives
+    G3t's item 4, measured 0.0135 m median |error| against the CO-OPS datum sheets at the US gauges). None when the
+    series holds no full tidal day or any value is not finite."""
+    v = np.asarray(values, float)
+    n_day = TIDAL_DAY_H / float(step_h)
+    if v.size == 0 or not np.all(np.isfinite(v)) or n_day > v.size:
+        return None
+    lows, k = [], 0
+    while (k + 1) * n_day <= v.size:
+        lows.append(float(v[int(round(k * n_day)):int(round((k + 1) * n_day))].min()))
+        k += 1
+    return round(float(v.mean()) - float(np.mean(lows)), 4)
 
 
 # ---------------------------------------------------------------- M by tile (one altimetry download per tile)

@@ -164,6 +164,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CADENCE_STEP__',
   // components/map/TideReadout.test.js
   '__RAW_DISABLE_INFOBOX_TIDE__',
+  // components/map/tideDatum.test.js (the US tide display above MLLW: the served MSL level is shown back)
+  '__RAW_DISABLE_TIDE_MLLW__',
   // hudResidentTruth.test.js
   '__RAW_DISABLE_HUD_RESIDENT_TRUTH__',
   // marineSeriesFrame.killSwitch.test.js

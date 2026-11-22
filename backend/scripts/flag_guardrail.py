@@ -103,6 +103,12 @@ COVERAGE = {
     "SURF_TIDE_OWN": (BLIND, "the replay fetches its tide from Open-Meteo by date and never reads our table; no "
                              "instrument scores the served tide yet (G4 will). Evidence: the tide-own-series build's "
                              "served_delta summary and tests/test_tide_own.py"),
+    # The US display datum: it adds a per-point constant to the DISPLAYED tide only. The replay scores surf height and
+    # rating, which read tide_state.height_m (MSL) and never the display, so flipping it changes nothing scored. Its
+    # kill restores the old MSL display (not a removed service), so it is not in NEVER_AUTO_DISABLE.
+    "SURF_TIDE_MLLW_US": (BLIND, "display only: the rating, the depth cap and water_level_m stay on MSL, so the replay "
+                                 "cannot see it. Evidence: the station leave-one-out and epoch checks "
+                                 "(scripts/tide_datum) and tests/test_tide_datum.py"),
     "SURF_TIDE_CMEMS": (BLIND, "the CMEMS sea level read directly, inert until the build writes it (TIDE_CMEMS_PRIMARY); "
                                "the replay never reads our table. Evidence: the M1-0 parity run (r2) and served_delta"),
     "SURF_EXPOSURE_RECONCILED": (REPLAY, "the height exposure factor at the anchors"),

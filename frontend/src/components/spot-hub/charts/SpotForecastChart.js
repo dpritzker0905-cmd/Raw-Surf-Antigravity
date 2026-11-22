@@ -285,11 +285,11 @@ export default function SpotForecastChart({ body, resolverHours, selectedOffsetH
           {levelWord(cur.level)}
         </span>
         {cur.windKt != null && ` · ${cur.windKt} kt ${cur.windWord || ''}`}
-        {cur.tideM != null && ` · tide ${cur.tideM.toFixed(1)} m`}
+        {cur.tideM != null && ` · tide ${cur.tideM.toFixed(1)} m ${cur.tideMllw ? 'above MLLW' : 'above local MSL'}`}
       </p>
       <p className={`text-[10px] ${t.textSecondary}`}>
         Bar colour and word = surf rating. Arrows: ↑ offshore · ↔ cross-shore · ↓ onshore (kt).
-        {series.hasTide ? ' Line = tide (model estimate, mean sea level).' : ' No tide forecast for this spot.'}
+        {series.hasTide ? (series.tideMllw ? ' Line = tide (model estimate, above MLLW, NOAA chart datum).' : ' Line = tide (model estimate, mean sea level).') : ' No tide forecast for this spot.'}
         {series.tideUntilMs != null && series.tideUntilMs < series.frames[series.frames.length - 1].ms ? ' Tide forecast reaches +72 h.' : ''}
       </p>
       <DailyRow series={series} selectedDate={cur.date} onPickDay={pickDay} onUpgrade={onUpgrade} t={t} theme={theme}

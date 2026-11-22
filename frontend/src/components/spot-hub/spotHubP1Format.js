@@ -4,6 +4,7 @@
  * Kill switch: window.__RAW_DISABLE_SPOT_HUB_P1__ = true.
  */
 import { formatWaveDirection } from '../spotConditionsFormat';
+import { tideDatumOf, ratingTide, minusTideWord } from '../map/tideDatum';
 
 export function spotHubP1Enabled() {
   return !(typeof window !== 'undefined' && window.__RAW_DISABLE_SPOT_HUB_P1__ === true);
@@ -41,10 +42,22 @@ const M_TO_FT = 3.28084;
  */
 export function sanitizePointTide(tide) {
   if (!tide || typeof tide !== 'object' || tide.height_m == null) return null;
-  const m = Number(tide.height_m);
-  if (!Number.isFinite(m)) return null;
+  // The DISPLAY height (tide_datum): `display_height_m` above MLLW at a US point, else `height_m` above local MSL.
+  const { heightM: m, datum } = ratingTide({ ...tide, height_m: Number(tide.height_m),
+    display_height_m: tide.display_height_m == null ? undefined : Number(tide.display_height_m) });
+  if (m == null) return null;
   const trend = TREND_WORD[String(tide.trend || '').toLowerCase()] || null;
-  return { heightM: m, heightFt: Math.round(m * M_TO_FT * 10) / 10, trend };
+  const base = { heightM: m, heightFt: Math.round(m * M_TO_FT * 10) / 10, trend };
+  return datum.isMllw ? { ...base, datum, minus: minusTideWord(m, datum) } : base;   // MSL keeps its old shape
+}
+
+/** The card row's note and accessible label for a sanitized tide: the datum is always named. */
+export function pointTideNote(t) {
+  const datum = (t && t.datum) || tideDatumOf(null);
+  if (!datum.isMllw) return { note: 'model estimate, mean sea level', label: TIDE_MODEL_LABEL };
+  const src = datum.sourceShort ? `, datum from ${datum.sourceShort}` : '';
+  return { note: `model estimate, above MLLW${t && t.minus ? ` (${t.minus})` : ''}`,
+    label: `Tide (model estimate, above MLLW, NOAA chart datum${src})` };
 }
 
 /** "+1.3 ft, Rising" (signed: mean sea level is the datum, so a low tide reads below zero). */
@@ -66,6 +79,12 @@ export function tideSourceLabel(tideData) {
   // FES2022 acknowledgement + the Copernicus Marine credit); show that text, never an Open-Meteo line.
   if (tideData && String(tideData.station_id || '').startsWith('raw-surf:tide-own:')) {
     const credit = typeof tideData.credit === 'string' ? tideData.credit.trim() : '';
+    // A US point above MLLW (tide_datum): the datum line replaces the series label, whose "above local mean sea level"
+    // would contradict the numbers; it names the MLLW source and keeps the attribution.
+    const datum = tideDatumOf(tideData.datum);
+    if (datum.isMllw) {
+      return `${datum.long} ${datum.negativeNote} ${credit ? `${credit} ` : ''}Times in your time zone.`;
+    }
     const label = typeof tideData.tide_label === 'string' && tideData.tide_label.trim() ? `${tideData.tide_label.trim()}. ` : '';
     return `${label}${credit ? `${credit} ` : ''}Times in your time zone.`;
   }

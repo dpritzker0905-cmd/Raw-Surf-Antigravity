@@ -82,13 +82,19 @@ describe('ensureTideState / getCachedTideState', () => {
 
 describe('formatTideLine', () => {
   it('formats in ft/m with the trend as a word (screen-reader safe)', () => {
-    expect(formatTideLine({ height_m: -0.06, trend: 'falling' }, 'ft')).toBe('-0.2 ft falling');
-    expect(formatTideLine({ height_m: 0.62, trend: 'rising' }, 'm')).toBe('0.6 m rising');
+    // The datum is always named (tideDatum, 2026-11-22): an MSL level says so ...
+    expect(formatTideLine({ height_m: -0.06, trend: 'falling' }, 'ft')).toBe('-0.2 ft above local MSL falling');
+    expect(formatTideLine({ height_m: 0.62, trend: 'rising' }, 'm')).toBe('0.6 m above local MSL rising');
+    // ... and a US rating tide shows its display height above MLLW, with "minus tide" below zero.
+    expect(formatTideLine({ height_m: 0.1, display_height_m: 0.9, datum: 'MLLW', datum_src: 'model', trend: 'rising' }, 'm'))
+      .toBe('0.9 m above MLLW rising');
+    expect(formatTideLine({ height_m: -0.6, display_height_m: -0.1, datum: 'MLLW', datum_src: 'gauge', trend: 'falling' }, 'ft'))
+      .toBe('-0.3 ft above MLLW (minus tide) falling');
   });
 
   it('omits an unknown trend but keeps the height', () => {
-    expect(formatTideLine({ height_m: 0.5, trend: 'weird' }, 'ft')).toBe('1.6 ft');
-    expect(formatTideLine({ height_m: 0.5 }, 'ft')).toBe('1.6 ft');
+    expect(formatTideLine({ height_m: 0.5, trend: 'weird' }, 'ft')).toBe('1.6 ft above local MSL');
+    expect(formatTideLine({ height_m: 0.5 }, 'ft')).toBe('1.6 ft above local MSL');
   });
 
   it('returns null for unusable payloads', () => {

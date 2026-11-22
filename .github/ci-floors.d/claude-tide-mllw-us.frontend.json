@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 12,
+  "files": 1,
+  "branch": "claude/tide-mllw-us",
+  "date": "2026-11-22",
+  "note": "tideDatum.test.js"
+}
