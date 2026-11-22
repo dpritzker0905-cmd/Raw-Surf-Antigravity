@@ -3,7 +3,7 @@ Stamp: 2026-11-22 (written by the research lead; DRAFT until the advisor's line 
 Candidate: per-picker ocean-current sources as served (ECCC GIOPS under ICON, NOAA Global RTOFS under GFS, Copernicus GLO-PHY at native 1/12°), each against the default Copernicus GLO-PHY 0.25° set, scored against independent HF-radar and drifter truth.
 Metric: M1 = vector RMSE (m/s) of the 25 h low-passed surface current against HF-radar totals, per region × lead day. M2 = 72 h Lagrangian separation (km) of virtual particles against drifters, per zone. Full definitions in section 4.
 Pass threshold: section 6 (better = Holm-significant one-sided improvement over the default; comparable = a TOST equivalence test with a ±10% margin on the paired ratio, Holm per arm; "skill" = beating the arm's own persistence, defined in section 1).
-Controls: section 7 (null, shuffled valid time, +0.05 m/s speed plants at 1× and 2×, +30° / +60° direction plants, 1-cell field shift). A control that misbehaves makes the run VOID.
+Controls: section 7 (null, shuffled valid time, +0.05 m/s speed plants at 1× and 2×, +30° / +60° direction plants, Lagrangian velocity-scale plants ×0.7 / ×0.5). A control that misbehaves makes the run VOID.
 Decision rule: per (source, region, lead day) cell, a label of BETTER / COMPARABLE / NOT SHOWN is allowed in the picker credit only where section 6 holds. Every cell that is not measured, or misses a floor, is NOT SHOWN.
 Unmeasured items: surf-zone currents (rips, longshore flow; no source resolves them); regions without HF radar or drifter floors; leads past day 7; the open-ocean SMOC product (reported only).
 Served change: none from this gate. Any skill wording in the credit is an owner decision, taken after the verdict.
@@ -28,6 +28,7 @@ Each arm is what the map serves (the frame-set publisher's output), unless marke
 | `CMEMS_083` | the same Copernicus source at native 1/12°, no block mean (collected beside the served set) | gated (it answers "does the 0.25° down-sampling cost skill near coasts?") |
 | `PERSIST_<src>` | the arm's EARLIEST served step of the same init, held fixed for every later lead. For the 6-hourly sets this is the 6 h step: the served sets start at 6 h because P000 holds no currents (`frame_set_raster_giops.py` HOURS). It is low-passed and advected exactly like the arm | the G3 baseline for the word "skill" |
 | `PERSIST_OBS` | the HF-radar 25 h mean ending at the init time, held fixed (M1 only) | reported only: a stricter baseline, never gating |
+| `CMEMS_1H` | Copernicus `cmems_mod_glo_phy_anfc_0.083deg_PT1H-m` hourly means, truth regions only | reported only: measures how much the 6-hourly sampling costs (section 4) |
 | `SMOC` | `cmems_mod_glo_phy_anfc_merged-uv_PT1H-i` (utotal incl. tides + Stokes) | reported only, drifters only |
 
 ## 2. Window and collection (forward only)
@@ -90,7 +91,10 @@ Each arm is what the map serves (the frame-set publisher's output), unless marke
 
 M1 uses **25 h low-passed** values on both sides:
 - truth: a centred 25 h running mean of hourly values, requiring ≥ 20 of 25 hours;
-- forecast: the mean of the source's steps inside the same 25 h window, using every step present (6-hourly sets: 4 or 5 steps; GIOPS's 3 h means count as steps at their valid times).
+- forecast: the arm's steps are first interpolated linearly in time to hourly values (GIOPS's 3 h means count as values at their valid times). Then the SAME centred 25 h mean is taken over exactly the hours where the truth cell is valid (a shared hour mask). Filter and mask are identical on both sides (Reflection review, 2026-11-22).
+- **Known limit, not fixable here:** the served 6-hourly instantaneous sets sample inertial oscillations (period about 17-24 h at mid-latitudes) too sparsely, and that motion aliases into the 25 h mean.
+  - It is reported, not corrected.
+  - A reported-only arm `CMEMS_1H` (Copernicus `cmems_mod_glo_phy_anfc_0.083deg_PT1H-m` hourly means, truth regions only) measures how much skill the 6-hourly sampling costs.
 The **unfiltered** comparison at each served step is REPORTED (it is what a user sees), never gated.
 
 Metric definitions:
@@ -102,21 +106,31 @@ Metric definitions:
   - **Truth track:** each drifter's hourly positions, after the QC flags, are converted to a local east/north offset and smoothed with a centred 25 h running mean, requiring ≥ 20 of 25 good hours. Tidal and inertial loops average out; the residual drift stays.
   - **Seed and end:** the smoothed position at the init time and at init + 72 h. Both need the ≥ 20 h rule, else the drifter-init is not used.
   - **Forecast:** advect one particle from the smoothed init position through the arm's **25 h low-passed velocity field**. That is a centred running mean over the arm's steps, using the same window rule as M1, recomputed at each hour by linear interpolation in time. Integration is RK4 with a 1 h step, bilinear in space.
+  - The particle's velocity at every step comes ONLY from the arm's field. No drifter velocity enters the forecast; the drifter supplies only the start and end positions (LongCat review, clarified).
   - Score the great-circle distance from the advected particle to the smoothed +72 h position.
+  - Also reported: `STILL`, a particle that never moves (separation = the drifter's own smoothed 72 h displacement). This is the floor any field must beat.
   - The unsmoothed separation (raw track, raw field) is REPORTED, never gated.
-  - A particle that reaches land drops the row for all arms.
+  - **Beaching is scored, not dropped.**
+    - A particle that enters a land cell of the ARM's own grid stops at its last wet position. Its separation is measured from there.
+    - Dropping beached rows would hide the coastal error of coarser land masks, which is exactly what `CMEMS_025` vs `CMEMS_083` tests (Reflection review).
+    - Beaching counts per arm and zone are reported.
+    - A drifter-init is dropped for all arms only when the OBSERVED smoothed track lacks the ≥ 20 h rule.
   - Also reported: separation at 24 h, and the M2 normalised by the drifter's own path length (the Liu-Weisberg skill score).
 - **Reported, not gated:** speed ME (m/s); signed and circular direction error (rows with observed speed ≥ 0.1 m/s); complex correlation; the per-region D0 (analysis) RMSE.
 
 ## 5. Statistics, families, floors
-- **Bootstrap:** paired moving-block bootstrap over VALID DATES, 3-day blocks, B = 10,000, seed 20261122, 95% percentile intervals. A one-sided line is significant if its Holm-adjusted p < 0.025.
+- **Bootstrap:** paired moving-block bootstrap over VALID DATES, **5-day blocks**, B = 10,000, seed 20261122, 95% percentile intervals.
+  - Whole dates are resampled, with every cell and drifter of a date kept together, so spatial correlation among radar cells is carried inside the block.
+  - Current errors persist longer than weather errors (mesoscale), which is why the blocks are 5 days (Reflection review). The verdict uses 5 days; 3-day and 10-day blocks are REPORTED as a sensitivity check and never change a label.
+  - A one-sided line is significant if its Holm-adjusted p < 0.025.
+  - **Row coverage:** M1 rows are identical across arms (a radar cell-day missing in any arm's grid is dropped for all). Each arm's own count of dropped rows is reported beside its label, so a patchy arm is visible.
 - **Lines:**
   - F-M1: gated arm in {GIOPS_025, RTOFS_025, CMEMS_083} × region in {US West, US East + Gulf, Hawaii} × lead day {D1, D3, D5, D7}, each "arm minus `CMEMS_025`". One Holm family per arm (so an absent RTOFS does not change the others' power).
   - F-M2: gated arm × zone {COAST50, SHELF, WBC, EQ, OPEN}, "arm minus `CMEMS_025`" on M2. One Holm family per arm.
 - **Floors (VOID if not met, never failed):**
   - ≥ 50 kept TEST inits;
-  - ≥ 45 distinct valid days per lead day;
-  - ≥ 12 three-day blocks.
+  - ≥ 50 distinct valid days per lead day;
+  - ≥ 10 five-day blocks, counted over the ordered list of kept valid dates (gaps are skipped, not padded), so 50 days is the minimum that can yield them (LongCat review).
   - Per region (M1): ≥ 100 qualifying HF-radar cells. Per zone (M2): ≥ 200 drifter-inits.
   - A region or zone below its floor is "insufficient" (NOT SHOWN for every arm there); it never fails a source.
   - More than 15% of the 60 inits dropped after pass 2 VOIDS the whole run.
@@ -132,11 +146,17 @@ Metric definitions:
   - **COMPARABLE** if the cell is not BETTER and its TOST p, Holm-adjusted across that arm's equivalence family, is < 0.05.
   - The equivalence family is every cell of the arm on that metric: F-M1-EQ and F-M2-EQ, each one Holm family per arm.
   - The ±10% margin is the only margin; it is not changed after data.
-- **WORSE:** the reverse one-sided line holds after Holm (reported in the same family).
+- **WORSE:** the reverse one-sided line holds after Holm. The worse-direction lines form their own family per arm and metric (F-M1-W, F-M2-W).
+- **Units:** every label is reported beside the absolute difference in physical units (m/s for M1, km for M2) and its CI, so a COMPARABLE on a ratio can be read against the size of the errors (Reflection review). The ratio margin stays the rule.
+- **Persistence is per arm by design.** "Skill" means "better than holding its own first field". Every arm's first served step has the same valid time (6 h), so no arm's baseline is ahead of another's.
 - **NOT SHOWN:** everything else, including insufficient cells.
 - **G3, the word "forecast skill" at a lead:**
   - A source may be described as having skill at lead day Dn in a region (or zone) only if it beats its own `PERSIST_<src>` there. `PERSIST_<src>` is defined in section 1: the earliest served step of the same init, held, then low-passed and advected the same way.
   - The test is the same one-sided bootstrap, with its own Holm family per arm and metric.
+  - It applies to BOTH metrics:
+    - M1: the held field, low-passed like the arm;
+    - M2: particles advected through the held field.
+  - For M2 the lead is fixed at 72 h, so the M2 skill claim reads "skilful at 3 days" per zone.
   - Without that, the credit may compare sources but must not say "skilful at day n".
   - `PERSIST_OBS` lines are reported beside it and never decide the wording.
 - **What may ship from this gate:** the credit text per picker, e.g. "NOAA RTOFS: comparable to Copernicus on US West Coast, days 1-3". The wording is an owner decision after the verdict.
@@ -149,8 +169,12 @@ Metric definitions:
 - **Null:** `CMEMS_025` vs itself gives exactly 0 on every line.
 - **Shuffled valid time:** pair each arm's D1 forecast with truth 7 days later. Its advantage over `PERSIST_<src>` must vanish (CI includes 0 or is positive) in every region with a floor. If it still wins, the pairing leaks: VOID.
 - **Speed plants:** +0.05 m/s (1×) and +0.10 m/s (2×) added along the forecast vector of `GIOPS_025` on all rows. The speed-ME test must catch 2× (CI excludes 0 and contains the planted value); 1× is reported.
-- **Direction plants:** forecast vectors rotated +30° (1×) and +60° (2×) on the same random 15% of rows (seed 20261122). The signed direction-error test must catch 2×.
-- **Lagrangian plant:** `CMEMS_025`'s field shifted by one grid cell east. M2 must be significantly worse than unshifted in OPEN and WBC.
+- **Direction plants:** the forecast (u, v) vectors themselves are rotated +30° (1×) and +60° (2×), before the low-pass, on the same random 15% of rows (seed 20261122).
+  - The signed direction-error test must catch 2×.
+  - M1 vector RMSE must also rise at 2× (CI of the difference excludes 0). Both conditions are required, else VOID.
+- **Lagrangian plants:** `CMEMS_025`'s velocity scaled by 0.7 (1×) and by 0.5 (2×).
+  - M2 must be significantly worse than unscaled at 2× in OPEN and WBC; 1× is reported.
+  - A one-cell (0.25°) eastward shift is REPORTED only. In smooth open-ocean flow it may barely change a 72 h track, so making it a VOID condition could void a sound run (SubQ ranking, 2026-11-22).
 - **Leak / freeze:** the collector hashes match the committed manifest; no TEST valid time precedes the freeze commit.
 
 ## 8. One look, stop rule, reader
