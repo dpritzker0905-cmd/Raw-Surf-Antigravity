@@ -13,6 +13,8 @@ from typing import Callable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
+import wind_lr2_runs as R
+
 ERDDAP = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.csv"
 SHORE_KM = 1.0              # "within 1 km of the open-ocean shoreline"
 SECTOR_DEG = 60.0           # the onshore sector: shore normal +-60 deg
@@ -167,6 +169,7 @@ def pair_list(stations: List[dict], spots: List[dict], mask: EtopoMask) -> dict:
     for st in stations:
         sp = T.pair_station_to_spot(st, spots, lambda a, b, c, d: segment_crosses_land(mask.is_land, a, b, c, d))
         sn = sp.get("shore_normal") if sp else None
+        lake = R.region_of(st["lat"], st["lon"]) in R.EXCLUDED_REGIONS       # Great Lakes buoys are not the open sea
         out[str(st["id"])] = {"spot": str(sp["id"]) if sp else None, "shore_normal": sn,
-                              "marine": bool(marine_exposed(st, sn, mask.is_land))}
+                              "marine": bool(marine_exposed(st, sn, mask.is_land)) and not lake}
     return out

@@ -231,3 +231,14 @@ def test_a_leaky_shuffle_control_voids(skilled_doc):
     assert not ctl["shuffled"]["ok"]
     unshifted = dict(rows, o_s_p48=rows["o_s"])
     assert not SC.controls(unshifted, reps=200)["shifted"]["ok"]
+
+
+def test_great_lakes_buoys_are_never_marine_exposed():
+    lats = np.arange(41.5, 42.3, 0.002)
+    lons = np.arange(-88.2, -87.0, 0.002)
+    elev = np.where(lons[None, :] > -87.5, 10.0, -50.0) * np.ones((len(lats), 1))       # a lake west of a shore at -87.5
+    mask = G.EtopoMask([(elev, lats, lons)])
+    buoy = {"id": "45007", "kind": "ndbc", "type": "buoy", "lat": 41.9, "lon": -87.8}
+    assert G.marine_exposed(buoy, None, mask.is_land)                                    # the buoy branch alone would pass it
+    spots = [{"id": "s", "lat": 41.9, "lon": -87.79, "shore_normal": 270.0}]
+    assert G.pair_list([buoy], spots, mask)["45007"]["marine"] is False                  # the region rule excludes the lake
