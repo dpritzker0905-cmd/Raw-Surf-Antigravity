@@ -2840,3 +2840,11 @@ Tests: test_tide_own + flag parity pass 51 locally.
 - **CMEMS not exempt.** `SURF_TIDE_CMEMS` is NOT in the set: its kill restores our harmonic tide, a safe fallback.
 - **Test:** `test_the_served_tide_is_blind_and_never_auto_disabled`, with a control: the same breach still disables SURF_FACE_RANGE. Chain floor now +8; 76 pass locally.
 
+
+
+## 2026-11-22 14:31Z: #1132, the advisor's follow-ups to the guardrail exemption
+- **DECISIONS D-086 drafted, PENDING David's word and NOT decided.** It amends D-065 for ONE named flag (SURF_TIDE_OWN), with the rule as written: a flag qualifies only when its kill removes a service rather than restoring an older one. If David declines, NEVER_AUTO_DISABLE is removed.
+- **(a) A report now stands out.** It is its own action, `report`, not `none`. `main()` prints a `::warning` annotation per reported flag and puts `<flag>(reported-not-disabled)` in acted.txt, so the workflow opens or appends the guardrail issue. Nothing is written to the manifest; a test pins `apply` writing nothing.
+- **(b) SURF_TIDE_DEPTH's COVERAGE is now PARTIAL.** The replay drives the cap with Open-Meteo's tide, about 0.35 m median from the served local-MSL level. The cap's response is scored; the served levels are not.
+- **Tests:** 76 pass locally.
+

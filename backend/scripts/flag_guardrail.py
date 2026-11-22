@@ -90,7 +90,12 @@ COVERAGE = {
     "SAMPLER_UNRESOLVED_STATIONS": (BLIND, "one named buoy coordinate (NDBC 46267); no surf spot is within 0.6 deg, so "
                                            "the replay cannot exercise it. Evidence: the per-buoy split's no-served-row "
                                            "count (accuracy_per_buoy_split.unanswered)"),
-    "SURF_TIDE_DEPTH": (REPLAY, "the replay carries the served tide (eval_replay tide)"),
+    # PARTIAL since PR B (#1132): the replay's tide is Open-Meteo's (by date), on a reference about 0.35 m (median, per
+    # key) from the served tide's local mean sea level, so it exercises the depth cap's response to a tide, not the
+    # served levels themselves.
+    "SURF_TIDE_DEPTH": (REPLAY, "PARTIAL: the replay drives the cap with Open-Meteo's tide (eval_replay tide), not the "
+                                "served table, whose level differs by about 0.35 m median; the cap's response is "
+                                "scored, the served levels are not"),
     # PR B (#1132): the replay's tide is Open-Meteo sea_level_height_msl fetched BY DATE (eval_replay.TideSeries); it
     # never reads our table (tide_own), so flipping either flag changes nothing it scores. Nothing scores the served
     # tide against observed water yet (that is the G4 gate). Both are honestly BLIND. Evidence: the daily build's
@@ -205,7 +210,7 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
                     "watch": {"strikes": n, "first_worse_at": first}}
     if (result.get("verdict") == gs.WORSE or breach) and flag in NEVER_AUTO_DISABLE:
         why = "; ".join((result.get("reasons") if result.get("verdict") == gs.WORSE else []) + breach)
-        return {"action": "none", "reason": (f"REPORTED, NOT disabled: {flag}'s kill removes the service entirely "
+        return {"action": "report", "reason": (f"REPORTED, NOT disabled: {flag}'s kill removes the service entirely "
                                              f"({NEVER_AUTO_DISABLE[flag]}); only the owner turns it off. Signal: {why}")[:900]}
     if result.get("verdict") == gs.WORSE or breach:
         why = "; ".join((result.get("reasons") if result.get("verdict") == gs.WORSE else []) + breach)
@@ -547,8 +552,13 @@ def main(argv=None) -> int:
         f.write(md)
     print(md)
     acted = [f for f, d in report.get("decisions", {}).items() if d["action"] == "disable"]
+    reported = [f for f, d in report.get("decisions", {}).items() if d["action"] == "report"]
+    for f in reported:                                  # a breach the guardrail may not act on must still reach someone
+        print(f"::warning title=Flag guardrail: {f} reported, NOT disabled::"
+              f"{report['decisions'][f]['reason'][:300]}")
     with open(os.path.join(a.out, "acted.txt"), "w", encoding="utf-8") as f:
-        f.write(" ".join(acted))
+        # the workflow opens or appends the guardrail issue whenever this is non-empty
+        f.write(" ".join(acted + [f"{x}(reported-not-disabled)" for x in reported]))
     return 0
 
 
