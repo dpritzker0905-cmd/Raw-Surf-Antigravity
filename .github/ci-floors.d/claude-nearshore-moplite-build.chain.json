@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 58,
-  "files": 4,
+  "tests": 65,
+  "files": 5,
   "branch": "claude/nearshore-moplite-build",
   "date": "2026-11-22",
-  "note": "MOP-lite offline package"
+  "note": "MOP-lite offline package + NetCDF driver"
 }
