@@ -6,7 +6,11 @@
  * On, they add: v_cspeed (the speed a mark is COLOURED by: the gust at its position in gust mode, else the wind's v_speed) and
  * v_flick (the gust flicker, 1.0 outside gust mode). Motion, size, keep and dash keep reading v_speed in every case.
  */
-const killed = typeof window !== 'undefined' && window.__RAW_DISABLE_GUST_PARTICLES__ === true;
+// CURRENTS (2026-11-22, currentParticles.js) ride the same splices (their colour / sea texture is this path's u_gust): the text is
+// present unless BOTH layers' particle kills are set, so either kill alone leaves the other layer working, and every kill
+// together still draws dev's shaders byte for byte.
+const killed = typeof window !== 'undefined' && window.__RAW_DISABLE_GUST_PARTICLES__ === true
+  && window.__RAW_DISABLE_CURRENT_PARTICLES__ === true;
 const on = !killed;
 
 const VS_DECL = `
@@ -15,17 +19,19 @@ const VS_DECL = `
 uniform float u_gust_on; uniform sampler2D u_gust; uniform vec4 u_gust_box; uniform vec2 u_gust_size; uniform float u_gust_max; varying float v_cspeed;
 // GUST FLICKER (windGustColour.gustFlicker): where the gust runs well above the mean wind, the mark's light pulses on its own
 // phase, a non-colour cue for gustiness; motion is untouched. u_gust_flick = (on, seconds, Hz, depth); v_flick multiplies alpha.
-uniform vec4 u_gust_flick; varying float v_flick;`;
+uniform vec4 u_gust_flick; varying float v_flick;
+// CURRENTS (currentParticles.js): u_gust_sea = 1 hides a mark where the colour texture has no data (land): ocean only.
+uniform float u_gust_sea;`;
 
 const VS_COLOUR = `
-  v_cspeed = v_speed;
+  v_cspeed = v_speed; float gb = 255.0;
   if (u_gust_on > 0.5) {
     // Cell-centred lattice: node 0 at the box's west/south edge, node (n-1) at its east/north edge.
     float gspan = max(u_gust_box.z - u_gust_box.x, 1e-3);
     float gfx = clamp(mod(lng - u_gust_box.x + 720.0, 360.0) / gspan, 0.0, 1.0);
     float gfy = clamp((lat - u_gust_box.y) / max(u_gust_box.w - u_gust_box.y, 1e-3), 0.0, 1.0);
     vec2 guv = (vec2(gfx, gfy) * (u_gust_size - 1.0) + 0.5) / u_gust_size;
-    float gb = texture2D(u_gust, guv).r * 255.0;
+    gb = texture2D(u_gust, guv).r * 255.0;
     if (gb >= 1.0) v_cspeed = (gb - 1.0) / 254.0 * u_gust_max;   // byte 0 = no gust there: keep the wind's speed
   }
   v_flick = 1.0;
@@ -34,7 +40,8 @@ const VS_COLOUR = `
     float gusty = smoothstep(1.3, 2.2, v_cspeed / max(v_speed, 2.0));
     float phase = rand(uv + vec2(0.711, 0.239)) * 6.2831853;
     v_flick = 1.0 - u_gust_flick.w * gusty * (0.5 + 0.5 * sin(u_gust_flick.y * 6.2831853 * u_gust_flick.z + phase));
-  }`;
+  }
+  if (u_gust_on > 0.5 && u_gust_sea > 0.5 && gb < 1.0) v_flick = 0.0;   // currents: no water here (land), no mark`;
 
 const FS_DECL = `
 varying float v_cspeed;      // the colour speed (DRAW_VS): the gust in gust mode, else v_speed

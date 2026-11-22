@@ -1024,7 +1024,7 @@ WebGLWindEngine.prototype.dispose = function(gl) {
   disposeEngine(this, gl);
 };
 /** Gusts (gustParticles.js): the gust field on screen colours the marks; null returns the engine to the Wind layer exactly. */
-WebGLWindEngine.prototype.setGustField = function(gl, field) { setGustField(this, gl, field); };
+WebGLWindEngine.prototype.setGustField = function(gl, field, opts) { setGustField(this, gl, field, opts); };   // opts: currents (currentParticles.js)
 WebGLWindEngine.prototype.setGustMode = function(on) { setGustMode(this, on); };   // Gusts picked (true) or not: keyed on the selected layer, not a loaded texture (windGustColour.setGustMode)
 /**
  * v3.11.2r1: Clear all framebuffers called on layer deactivation

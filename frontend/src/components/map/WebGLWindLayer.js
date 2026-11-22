@@ -13,6 +13,7 @@
 import { memo, useEffect, useRef } from 'react';
 import WebGLWindEngine, { windGridsCompatible } from './WebGLWindEngine';
 import { getShownGustField, subscribeGustField } from './gustParticles';
+import { encodeCurrentColour } from './currentParticles';
 import { coalesceOn, coalesceWindDeliveries, refreshWindSpeedScale } from './windDeliveryCoalesce';
 import { windLayerBeforeId, windCoastlineLayer, windCoastlineWanted, WIND_COASTLINE } from './WebGLWindUtils';
 import { syncWindBasemapMute, windBasemapMuteStale } from './windBasemapMute';
@@ -220,11 +221,21 @@ export function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, 
   };
 }
 
+// The currents colour / sea bytes, once per decoded field (a scrub back to a frame reuses them).
+const _curColour = new WeakMap();
+function currentColourOf(field) {
+  let enc = _curColour.get(field);
+  if (!enc) { enc = encodeCurrentColour(field); _curColour.set(field, enc); }
+  return enc;
+}
+
 // memo (2026-07-07, chip task_c5366c79 slice 3): MapWebGL re-renders per radar frame step;
 // all props here are primitives or stable refs once the caller hoists onError. Skipping
 // renders on equal props is behavior-identical (effects key on the same prop values).
-function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revision, onError, theme, gustColour = false }) {
-  const gustColourRef = useRef(gustColour);   // Gusts picked: read by the engine-creation effect (setGustMode)
+function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revision, onError, theme, gustColour = false, currentFlow = false }) {
+  // Gusts picked (true), or Currents flowing ('current', currentParticles.js): read by the engine-creation effect (setGustMode)
+  const colourMode = gustColour ? true : (currentFlow ? 'current' : false);
+  const gustColourRef = useRef(colourMode);
   const engineRef = useRef(null);
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
@@ -437,7 +448,7 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
         if (q) q.length = 0; // drained (scrub drops intermediates by design)
 
         console.log(`[WebGLWind] setWindData triggered by effect: delivering ${grids.length} grid(s), last ${data.vectors.length} vectors`);
-        publishWindDrawn(data);   // W-1 for wind: what is about to be on screen (marineDrawnFrame.js)
+        if (!data.isCurrentFlow) publishWindDrawn(data);   // W-1 for wind: what is about to be on screen (never a current grid: its knots are scaled)
 
         const getLongitudeSpan = (b) => {
           const crosses = b.west > b.east;
@@ -539,25 +550,43 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
 
   // GUSTS (gustParticles.js): with Gusts picked the marks move on the wind and take their colour from the gust field the gust
   // raster has ON SCREEN, so a scrub recolours them in the frame that changes the field. Off = the Wind layer exactly.
-  gustColourRef.current = gustColour;
+  // CURRENTS (currentParticles.js): the same path with the shown currents field as the colour / sea texture (ocean only); the
+  // grid the marks advect on arrives as `data` (MapWebGL), so the motion is the current's own.
+  gustColourRef.current = colourMode;
+  // Currents: the colour / sea texture is the field the grid was built from (grid.colourField), so the marks and the ocean mask
+  // they respect always change together: the world field, or a box's native 1/12-deg field (currentNative.js).
+  const curColourField = colourMode === 'current' && data && data.isCurrentFlow ? (data.colourField || null) : null;
+  const curColourRef = useRef(curColourField);
+  curColourRef.current = curColourField;
+  const applyColourRef = useRef(null);
   useEffect(() => {
     if (!mapInstance) return undefined;
+    const isCurrent = colourMode === 'current';
     const apply = (field) => {
       const engine = engineRef.current;
       const gl = glRef.current || mapInstance?.painter?.context?.gl;
       if (!engine || !gl || typeof engine.setGustField !== 'function') return false;
-      if (typeof engine.setGustMode === 'function') engine.setGustMode(gustColour);   // keyed on the PICKED layer, not on a loaded texture
-      try { engine.setGustField(gl, gustColour ? field : null); } catch (e) { /* GL lost: the next field retries */ }
+      if (typeof engine.setGustMode === 'function') engine.setGustMode(colourMode);   // keyed on the PICKED layer, not on a loaded texture
+      try {
+        if (isCurrent) engine.setGustField(gl, field || null, field ? { encoded: currentColourOf(field), sea: true } : undefined);
+        else engine.setGustField(gl, colourMode ? field : null);
+      } catch (e) { /* GL lost: the next field retries */ }
       mapInstance.triggerRepaint();
       return true;
     };
-    if (!gustColour) { apply(null); return undefined; }
+    const shownNow = () => (isCurrent ? curColourRef.current : getShownGustField());
+    if (!colourMode) { apply(null); return undefined; }
     // GL comes up with the custom layer: until then, retry on the map's next render.
-    const onRender = () => { if (apply(getShownGustField())) mapInstance.off('render', onRender); };
-    if (!apply(getShownGustField())) mapInstance.on('render', onRender);
-    const unsub = subscribeGustField((f) => { apply(f); });
-    return () => { unsub(); try { mapInstance.off('render', onRender); } catch (e) { /* map gone */ } apply(null); };
-  }, [gustColour, mapInstance]);
+    const onRender = () => { if (apply(shownNow())) mapInstance.off('render', onRender); };
+    if (!apply(shownNow())) mapInstance.on('render', onRender);
+    applyColourRef.current = isCurrent ? apply : null;
+    const unsub = isCurrent ? () => {} : subscribeGustField((f) => { apply(f); });
+    return () => {
+      applyColourRef.current = null; unsub(); try { mapInstance.off('render', onRender); } catch (e) { /* map gone */ } apply(null);
+    };
+  }, [colourMode, mapInstance]);
+  // A new current grid (a scrub step, a box frame, back to the world grid): its own colour field.
+  useEffect(() => { if (applyColourRef.current) applyColourRef.current(curColourField); }, [curColourField]);
 
  // No DOM element this renders directly into MapLibre's WebGL context
   return null;

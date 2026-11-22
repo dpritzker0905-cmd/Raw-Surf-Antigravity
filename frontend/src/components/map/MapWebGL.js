@@ -9,6 +9,8 @@ import MapMarkerLayers from './MapMarkerLayers';
 import { WindParticleOverlay } from './WindParticleOverlay';
 import { WebGLWindLayer } from './WebGLWindLayer';
 import { windParticlesWanted, gustColourMode } from './gustParticles';
+import { currentFlowMode } from './currentParticles';
+import { useCurrentFlowGrid } from './currentNative';
 import { WebGLMarineLayer } from './WebGLMarineLayer';
 import { OceanMask } from './OceanMask';
 import { useWeatherEngine } from './WeatherEngine';
@@ -280,6 +282,11 @@ const MapWebGL = ({
     activeModel,
     forecastDays
   });
+  // CURRENTS (currentParticles.js): with Currents picked (and neither Wind nor Gusts) the wind engine flows on the current field
+  // on screen. Kill: window.__RAW_DISABLE_CURRENT_PARTICLES__ = true. Inside a surf box, with the native sets on (DARK,
+  // currentNative.js: window.__RAW_CURRENTS_NATIVE__), the box's own 1/12-deg Copernicus cells instead of the world grid.
+  const currentFlow = currentFlowMode(activeLayers);
+  const currentGrid = useCurrentFlowGrid(currentFlow, mapInstance);
 
   // Shared Marine Orchestrator
   const { marineData } = useMarineOrchestrator({
@@ -1058,10 +1065,11 @@ const MapWebGL = ({
         {!webglWindFailed ? (
           <WebGLWindLayer
             mapInstance={mapInstance}
-            active={windParticlesWanted(activeLayers)}
+            active={windParticlesWanted(activeLayers) || currentFlow}
             gustColour={gustColourMode(activeLayers)}
-            data={windData}
-            deliveryQueue={windDeliveryQueue}
+            currentFlow={currentFlow}
+            data={currentFlow ? currentGrid : windData}
+            deliveryQueue={currentFlow ? null : windDeliveryQueue}
             revision={windRevision?.current || 0}
             theme={theme}
             onError={onWindWebglError}

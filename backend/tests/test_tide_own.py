@@ -55,7 +55,7 @@ def test_fes_box_wraps_across_the_seam_and_stays_monotonic():
 
 def test_window_and_levels_never_serve_tide_alone():
     start, hours = OR.window(datetime(2026, 11, 18, 15, tzinfo=UTC))
-    assert start == datetime(2026, 11, 15, tzinfo=UTC) and hours == 48 * 24
+    assert start == datetime(2026, 11, 15, tzinfo=UTC) and hours == 24 * (3 + 90)       # 3 days back, 90 ahead
     a = np.array([0.5, np.nan, -0.25])
     assert OR.levels_mm(a, 0.1) == [600, None, -150]
     assert OR.levels_mm(a, None) == [None, None, None]
@@ -93,8 +93,11 @@ def test_series_slices_from_00z_today_in_metres_and_truncates():
     s16 = tide_own.series_from_table(t, (21.7, -158.0), 60, now)
     assert len(s16["time"]) == 48 * 24 - 72              # truncated to the table's end
     assert tide_own.series_from_table(t, (1.0, 1.0), 3, now) is None
+    # NEVER MISSING: the harmonic tide is deterministic, so an old table still serves for as long as it covers today
     old = tide_own.validate(_table(now, {"21.7,-158.0": vals}, generated=now - timedelta(days=8)))
-    assert tide_own.series_from_table(old, (21.7, -158.0), 3, now) is None
+    assert tide_own.series_from_table(old, (21.7, -158.0), 3, now)["source"] == "am"
+    ended = tide_own.validate(_table(now, {"21.7,-158.0": vals}, back_days=60))        # its axis ended before today
+    assert tide_own.series_from_table(ended, (21.7, -158.0), 3, now) is None
     assert tide_own.series_from_table(None, (21.7, -158.0), 3, now) is None
     nulls = tide_own.validate(_table(now, {"21.7,-158.0": [None] * (48 * 24)}))
     assert tide_own.series_from_table(nulls, (21.7, -158.0), 3, now) is None
@@ -183,14 +186,274 @@ def test_cmems_fill_helpers_place_hours_and_pick_the_parity_cell():
     assert "vars.TIDE_CMEMS_PRIMARY || '0'" in WF
 
 
-def test_nothing_served_reads_the_table_yet():
-    """PR A (the builder and the loader) changes no served number: no served module imports tide_own until the
-    served switch (PR B) wires tide.fetch_tide_hourly to it, after the first table is in the bucket."""
+# ---------------------------------------------------------------- the served switch (PR B)
+# REPLACES PR A's `test_nothing_served_reads_the_table_yet` deliberately (the advisor's condition 4): that pin held the
+# served path off the table until a real table existed (run 44681599129 stored the first one, 1,061 keys, 2026-11-20).
+# PR B wires tide.fetch_tide_hourly to it, so the pin becomes the opposite guarantee: ONLY tide.py reaches tide_own, and
+# no served path reaches Open-Meteo for the tide.
+class _NoClient:
+    async def get(self, url):                            # the owner: no Open-Meteo in any user-facing number
+        raise AssertionError(f"Open-Meteo requested: {url}")
+
+
+@pytest.fixture
+def served(monkeypatch):
+    monkeypatch.delenv("TIDE_LEGACY_OPEN_METEO", raising=False)
+    monkeypatch.delenv("SURF_TIDE_OWN", raising=False)
+    monkeypatch.delenv("SURF_TIDE_CMEMS", raising=False)
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    tide._reset_tide_cache_for_test()
+    yield
+    tide_own._reset_for_tests()
+    tide._reset_tide_cache_for_test()
+
+
+def _two_source_table(now, generated=None):
+    t = _table(now, {"21.7,-158.0": [250] * (48 * 24), "10.0,10.0": [400] * (48 * 24)}, generated=generated)
+    cm = [None] * (48 * 24)
+    for i in range(72, 72 + 9 * 24):                     # CMEMS covers today .. +9 days, as the product does
+        cm[i] = 1300
+    t["cmems"] = {"21.7,-158.0": cm}
+    return t
+
+
+def test_only_tide_py_reads_the_table():
     pat = re.compile(r"^\s*(from|import)\s+.*\btide_own\b", re.M)
     served = [BACKEND / "server.py", *(BACKEND / "services").rglob("*.py"), *(BACKEND / "routes").rglob("*.py")]
     users = [p.name for p in served if p.is_file() and p.name != "tide_own.py"
              and pat.search(p.read_text(encoding="utf-8", errors="ignore"))]
-    assert users == []
+    assert users == ["tide.py"]
+
+
+def test_the_exact_attribution_is_served_and_stored_with_every_series():
+    """The advisor's PR B condition (b): the AVISO acknowledgement, verbatim, plus the Copernicus credit for M, are
+    STORED in every table (own_rules.encode_table) and SERVED with every series; one text, pinned equal."""
+    from services.weather_pipeline import tide_credits as TC
+    exact = "funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available by AVISO"
+    assert exact in TC.CREDITS["am"] and "Copernicus Marine" in TC.CREDITS["am"] and TC.FES_LICENCE in TC.CREDITS["am"]
+    cite = ("CNES, 2024. FES2022 (Finite Element Solution) Tidal model (Version 2024). CNES. "
+            "https://doi.org/10.24400/527896/A01-2024.004")                # licence s.3.1: the citation, in the hub too
+    assert TC.FES_CITATION == cite and cite in TC.CREDITS["am"]
+    assert "Copernicus Marine" in TC.CREDITS["cmems"]
+    assert OR.CREDITS == TC.CREDITS                                        # the CI copy equals the served text
+    assert "heights above local mean sea level" in tide_own.LABELS["am"][0]   # the datum users now see, stated
+    now = datetime(2026, 11, 20, tzinfo=UTC)
+    stored = OR.encode_table(_table(now, {"21.7,-158.0": [250] * (48 * 24)}))
+    assert stored["credits"] == TC.CREDITS
+    s = tide_own.series_from_table(tide_own.validate(stored), (21.7, -158.0), 3, now)
+    assert s["credit"] == TC.CREDITS["am"] and exact in s["credit"]
+    import importlib.util                                                  # the readout's full text uses the same ack
+    spec = importlib.util.spec_from_file_location("wpt_credit_check", BACKEND / "routes" / "weather_point_tide.py")
+    WPT = importlib.util.module_from_spec(spec)                            # by path: not the whole routes package
+    spec.loader.exec_module(WPT)
+    assert WPT.FES_ACK == TC.FES_ACK and exact in WPT.provider_for({"source": "am"})[2]
+
+
+def test_served_default_is_our_harmonic_tide_and_never_open_meteo(served):
+    """SURF_TIDE_OWN ON, SURF_TIDE_CMEMS held OFF (condition 5): every key with a table row serves A+M."""
+    from services.runtime_flags import GUARDED
+    assert GUARDED["SURF_TIDE_OWN"] == "1" and GUARDED["SURF_TIDE_CMEMS"] == "0"
+    now = datetime.now(UTC)
+    tide_own._reset_for_tests(lambda: _two_source_table(now))
+    assert tide.tide_source() == "own"
+    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient()))
+    assert s["source"] == "am" and s["level"][0] == 0.25 and "FES2022" in s["credit"]
+    assert asyncio.run(tide.fetch_tide_hourly(-5.0, -5.0, client=_NoClient())) is None   # no row: unavailable
+    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04), (10.0, 10.0), (-5.0, -5.0)],
+                                               client=_NoClient())) == 2
+
+
+def test_cmems_on_prefers_the_cmems_level_where_the_table_has_it(served, monkeypatch):
+    monkeypatch.setenv("SURF_TIDE_CMEMS", "1")
+    now = datetime.now(UTC)
+    tide_own._reset_for_tests(lambda: _two_source_table(now))
+    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient()))
+    assert s["source"] == "cmems" and s["level"][0] == 1.3 and "Copernicus" in s["credit"]
+    h = asyncio.run(tide.fetch_tide_hourly(10.0, 10.0, client=_NoClient()))          # no CMEMS series for this key
+    assert h["source"] == "am" and h["level"][0] == 0.4
+
+
+def test_a_missing_table_is_unavailable_not_open_meteo(served):
+    """Condition 3, the owner's choice to confirm: no table (before a build, or a failed first read) = NO tide shown."""
+    tide_own._reset_for_tests(lambda: None)
+    assert asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient())) is None
+    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04)], client=_NoClient())) == 0
+
+
+# ---------------------------------------------------------------- never missing (the owner, 2026-11-22)
+def _guard():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("publish_guard", BACKEND / "scripts" / "tide_own" / "publish_guard.py")
+    PG = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(PG)
+    return PG
+
+
+def test_build_failed_for_weeks_the_tide_still_serves(served, monkeypatch):
+    """BUILD FAILED: a table generated 30 days ago still serves the harmonic tide (deterministic) for as long as its
+    axis covers today; its CMEMS forecast does NOT serve (it ages past _CMEMS_MAX_AGE_S)."""
+    monkeypatch.setenv("SURF_TIDE_CMEMS", "1")
+    now = datetime.now(UTC)
+    t = _two_source_table(now, generated=now - timedelta(days=30))
+    tide_own._reset_for_tests(lambda: t)
+    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient()))
+    assert s["source"] == "am" and s["level"][0] == 0.25                     # not the aged CMEMS 1.3
+    assert OR.AHEAD_DAYS >= 90                                               # the build publishes months ahead
+
+
+def test_storage_down_falls_back_to_previous_then_memory_then_disk(served, tmp_path):
+    """STORAGE DOWN: the published table unreadable -> the previous good one; both down -> the in-memory table;
+    a cold start with both down -> the copy on local disk. Only with all four gone is the tide unavailable."""
+    now = datetime.now(UTC)
+    good = OR.encode_table(_two_source_table(now))
+
+    def down():
+        raise OSError("storage down")
+    disk = str(tmp_path / "series.json.gz")
+    tide_own._reset_for_tests(down, prev_fetcher=lambda: good, disk_path=disk)       # previous good table
+    assert tide_own._load_sync(1000.0) is not None
+    assert (tmp_path / "series.json.gz").exists()                                     # and kept on disk
+    tide_own._reset_for_tests(down, prev_fetcher=down, disk_path=disk)               # cold start, all storage down
+    t = tide_own._load_sync(2000.0)
+    assert t is not None and "21.7,-158.0" in t["am"]                                 # served from the disk copy
+    tide_own._reset_for_tests(down, prev_fetcher=down, disk_path=str(tmp_path / "none.json.gz"))
+    assert tide_own._load_sync(3000.0) is None                                        # nothing anywhere: unavailable
+
+
+def gzip_bytes(doc):
+    import gzip as _gz
+    return _gz.compress(json.dumps(doc).encode("utf-8"))
+
+
+def test_single_flight_one_fetch_however_many_callers(served):
+    """The advisor on #1138: during a reload (warm) or a cold start, N concurrent callers cause exactly ONE download
+    and decode; warm callers get the current table without waiting."""
+    import threading
+    import time as _t
+    now = datetime.now(UTC)
+    calls = {"n": 0}
+
+    def slow():
+        calls["n"] += 1
+        _t.sleep(0.3)
+        return _two_source_table(now)
+    for warm in (False, True):
+        tide_own._reset_for_tests(slow)
+        if warm:
+            tide_own._load_sync(1000.0)                                   # a table in memory, then its TTL lapses
+        calls["n"] = 0
+        t_req = 1000.0 + 10 * tide_own._TTL_S
+        out, started = [], _t.monotonic()
+        ths = [threading.Thread(target=lambda: out.append(tide_own._load_sync(t_req))) for _ in range(10)]
+        for th in ths:
+            th.start()
+        for th in ths:
+            th.join()
+        assert calls["n"] == 1, f"warm={warm}: {calls['n']} fetches"
+        assert len(out) == 10 and all(t is not None for t in out)
+        assert _t.monotonic() - started < 2.0
+
+
+def test_conditional_get_skips_an_unchanged_table(served, monkeypatch):
+    """If-None-Match with the last ETag: a 304 refreshes the TTL without downloading or decoding the table again."""
+    import requests
+    monkeypatch.setenv("SUPABASE_URL", "https://example.invalid")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-key")
+    body = gzip_bytes(OR.encode_table(_two_source_table(datetime.now(UTC))))
+    seen = []
+
+    class R:
+        def __init__(self, code, content=b"", etag=None):
+            self.status_code, self.content, self.headers = code, content, ({"ETag": etag} if etag else {})
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise requests.HTTPError(str(self.status_code))
+
+    def fake_get(url, headers=None, timeout=None):
+        seen.append(dict(headers or {}))
+        if headers and headers.get("If-None-Match") == '"v1"':
+            return R(304)
+        return R(200, body, '"v1"') if "prev" not in url else R(404)
+    monkeypatch.setattr(requests, "get", fake_get)
+    tide_own._reset_for_tests(None, prev_fetcher=lambda: None)
+    decodes = {"n": 0}
+    real = tide_own.validate
+    monkeypatch.setattr(tide_own, "validate", lambda d: (decodes.__setitem__("n", decodes["n"] + 1), real(d))[1])
+    first = tide_own._load_sync(1000.0)
+    again = tide_own._load_sync(1000.0 + 10 * tide_own._TTL_S)
+    assert first is not None and again is first
+    assert seen[-1].get("If-None-Match") == '"v1"' and decodes["n"] == 1
+
+
+def test_an_older_table_never_replaces_a_newer_one(served):
+    now = datetime.now(UTC)
+    new, old = _two_source_table(now), _two_source_table(now, generated=now - timedelta(days=3))
+    seq = iter([new, None])
+    tide_own._reset_for_tests(lambda: next(seq), prev_fetcher=lambda: old)
+    first = tide_own._load_sync(1000.0)
+    second = tide_own._load_sync(1000.0 + 10 * tide_own._TTL_S)                      # published gone, prev is older
+    assert second["generated_at"] == first["generated_at"]
+
+
+def test_partial_short_or_shrunken_tables_are_never_published():
+    """PARTIAL BUILD: the publish guard refuses a table that is short, has lost keys, or has keys with no values."""
+    PG = _guard()
+    assert PG.SCHEMA == OR.SCHEMA == tide_own.SCHEMA
+    now = datetime.now(UTC)
+    hours = 24 * (OR.BACK_DAYS + OR.AHEAD_DAYS)
+    full = OR.encode_table(_table(now, {f"{i}.0,1.0": [100] * hours for i in range(40)}, hours=hours))
+    assert PG.check(full, full, now) == [] and PG.check(full, None, now) == []
+    short = OR.encode_table(_table(now, {f"{i}.0,1.0": [100] * (30 * 24) for i in range(40)}, hours=30 * 24))
+    assert any("days ahead" in w for w in PG.check(short, full, now))
+    shrunk = OR.encode_table(_table(now, {f"{i}.0,1.0": [100] * hours for i in range(30)}, hours=hours))
+    assert any("fewer than 95%" in w for w in PG.check(shrunk, full, now))
+    empty_vals = {f"{i}.0,1.0": ([100] * hours if i < 30 else [None] * hours) for i in range(40)}
+    hollow = OR.encode_table(_table(now, empty_vals, hours=hours))
+    assert any("have a value" in w for w in PG.check(hollow, full, now))
+    assert PG.check(dict(full, schema="raw-surf/tide-own/1"), full, now)
+
+
+def test_the_horizon_alert_fires_below_30_days(tmp_path, capsys):
+    import gzip as _gz
+    PG = _guard()
+    now = datetime.now(UTC)
+    p = tmp_path / "t.json.gz"
+    p.write_bytes(_gz.compress(json.dumps(_table(now, {"1.0,1.0": [1] * (20 * 24)}, hours=20 * 24)).encode()))
+    assert PG.main(["horizon", str(p), "--min-days", "30"]) == 1 and "::error" in capsys.readouterr().out
+    p.write_bytes(_gz.compress(json.dumps(_table(now, {"1.0,1.0": [1] * (60 * 24)}, hours=60 * 24)).encode()))
+    assert PG.main(["horizon", str(p), "--min-days", "30"]) == 0
+    assert PG.main(["horizon", str(tmp_path / "missing.json.gz")]) == 1          # no table at all also alerts
+
+
+def test_the_workflow_guards_keeps_the_previous_table_and_always_checks_the_horizon():
+    i_guard = WF.index("publish_guard.py guard tide_own_series.json.gz")
+    i_prev = WF.index("put current_series.json.gz series.prev.json.gz")
+    i_pub = WF.index("put tide_own_series.json.gz series.json.gz")
+    assert i_guard < i_prev < i_pub                                  # guard first; the old table kept before the swap
+    horizon = WF.split("\n  horizon:")[1]
+    assert "needs: build" in horizon and "if: always()" in horizon and "publish_guard.py horizon" in horizon
+    steps = re.split(r"\n      - ", WF)
+    assert all("secrets." not in s for s in steps if "publish_guard.py" in s)
+
+
+def test_tide_kill_serves_no_tide_and_never_reads_or_requests(served, monkeypatch):
+    monkeypatch.setenv("SURF_TIDE_OWN", "0")
+    tide_own._reset_for_tests(lambda: pytest.fail("the table must not be read when killed"))
+    assert tide.tide_source() == "off"
+    assert asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient())) is None
+    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04)], client=_NoClient())) == 0
+
+
+def test_no_deploy_or_workflow_sets_the_legacy_open_meteo_path():
+    files = [*(REPO / ".github" / "workflows").glob("*.yml"), *REPO.glob("render*.y*ml"), *REPO.glob("netlify.toml"),
+             *BACKEND.glob("*.env.example"), *REPO.glob("*.env.example")]
+    hits = [p.name for p in files if "TIDE_LEGACY_OPEN_METEO" in p.read_text(encoding="utf-8", errors="ignore")]
+    assert hits == []
+    src = (BACKEND / "services" / "weather_pipeline" / "tide.py").read_text(encoding="utf-8")
+    assert 'os.environ.get("TIDE_LEGACY_OPEN_METEO") == "1"' in src         # raw env only: never the manifest
+    from services.runtime_flags import GUARDED
+    assert "TIDE_LEGACY_OPEN_METEO" not in GUARDED
 
 
 def test_served_backend_never_imports_pyfes_or_the_builder():
@@ -248,7 +511,7 @@ def test_workflow_scopes_each_credential_to_its_steps():
         if "SUPABASE_SERVICE_ROLE_KEY" in s:
             runs = re.findall(r"python3? [^\n]*", s)
             assert runs and all(r.startswith("python3 -I -S backend/scripts/tide_own/storage_io.py") for r in runs)
-    assert WF.count("secrets.SUPABASE_SERVICE_ROLE_KEY") == 3 and WF.count("secrets.AVISO_PASSWORD") == 1
+    assert WF.count("secrets.SUPABASE_SERVICE_ROLE_KEY") == 5 and WF.count("secrets.AVISO_PASSWORD") == 1
     code = "\n".join(ln.split("#")[0] for ln in WF.splitlines())
     assert "tags:" not in code and "workflow_dispatch" in code and "contents: read" in WF and "contents: write" not in WF
     build = WF.split("\n  build:")[1]
@@ -277,8 +540,84 @@ def test_storage_io_get_treats_only_a_real_not_found_as_absent():
     assert "treated as absent" not in src and "failing the step" in src
 
 
-def test_storage_io_writes_only_two_names_under_tide_own():
+def test_storage_io_writes_only_three_names_under_tide_own():
     src = (BACKEND / "scripts" / "tide_own" / "storage_io.py").read_text(encoding="utf-8")
-    assert 'ALLOWED = {"series.json.gz", "m.json"}' in src and 'PREFIX = "tide_own/"' in src
+    assert 'ALLOWED = {"series.json.gz", "series.prev.json.gz", "m.json"}' in src and 'PREFIX = "tide_own/"' in src
     assert re.findall(r"^\s*(?:import|from)\s+(\w+)", src, re.M) == ["json", "os", "sys", "urllib", "urllib"]
     assert "print(key" not in src and "print(base" not in src
+
+
+def test_t1_cold_waiters_after_a_failed_load_do_not_rerun_the_fetch_chain(served):
+    """T1 (the advisor on #1138): cold callers waiting on the gate while the one loader FAILS get the (absent) table
+    inside the cooldown; they never re-run the published / previous / disk chain one after another."""
+    import threading
+    import time as _t
+    calls = {"pub": 0, "prev": 0}
+
+    def down():
+        calls["pub"] += 1
+        _t.sleep(0.3)
+        return None
+
+    def prev_down():
+        calls["prev"] += 1
+        return None
+    tide_own._reset_for_tests(down, prev_fetcher=prev_down)
+    out = []
+    ths = [threading.Thread(target=lambda: out.append(tide_own._load_sync(1000.0))) for _ in range(6)]
+    for th in ths:
+        th.start()
+    for th in ths:
+        th.join()
+    assert calls == {"pub": 1, "prev": 1}, calls                    # one chain, not one per waiter
+    assert out == [None] * 6
+    assert tide_own._state["fail_until"] == 1000.0 + tide_own._FAIL_COOLDOWN_S
+
+
+def test_t2_an_etag_is_adopted_only_with_a_valid_published_table(served):
+    """T2 (the advisor on #1138): the published read records its ETag before validate; when that table is refused and
+    the previous one serves, the refused table's ETag is dropped, never adopted (the next read is unconditional)."""
+    now = datetime.now(UTC)
+
+    def refused():
+        tide_own._state["pending_etag"] = '"refused"'              # what _fetch_bucket does on a 200
+        return {"schema": "not-ours"}                               # ...for a table validate refuses
+    tide_own._reset_for_tests(refused, prev_fetcher=lambda: _two_source_table(now))
+    got = tide_own._load_sync(1000.0)
+    assert got is not None                                          # the previous good table serves
+    assert tide_own._state["etag"] is None and "pending_etag" not in tide_own._state
+
+    def valid():
+        tide_own._state["pending_etag"] = '"v2"'
+        return _two_source_table(now)
+    tide_own._reset_for_tests(valid)
+    tide_own._load_sync(1000.0)
+    assert tide_own._state["etag"] == '"v2"' and "pending_etag" not in tide_own._state   # adopted on the published branch
+
+
+def test_t3_the_load_runs_on_its_own_single_worker_and_warm_callers_never_queue(served, monkeypatch):
+    """T3 (the advisor on #1138): the load never takes a default-executor thread (on 1 CPU those could all park for
+    the timeout); it runs on a dedicated one-worker executor, and a caller holding a table while a load runs answers
+    at once without the executor."""
+    import threading
+    assert tide_own._EXECUTOR._max_workers == 1
+    monkeypatch.setattr(asyncio, "to_thread", lambda *a, **k: pytest.fail("the default executor must not be used"))
+    now = datetime.now(UTC)
+    ran_on = []
+
+    def fetch():
+        ran_on.append(threading.current_thread().name)
+        return _two_source_table(now)
+    tide_own._reset_for_tests(fetch)
+    s = asyncio.run(tide_own.fetch_series((21.7, -158.0), 3, prefer_cmems=False))
+    assert s is not None and s["source"] == "am"
+    assert ran_on and ran_on[0].startswith("tide-own-load")         # the dedicated worker, not the default pool
+    with tide_own._lock:
+        tide_own._state["read_at"] = 0.0                              # the table is now stale...
+    assert tide_own._load_gate.acquire(blocking=False)               # ...and a reload is in progress
+    try:
+        monkeypatch.setattr(tide_own._EXECUTOR, "submit", lambda *a, **k: pytest.fail("a warm caller must not queue"))
+        s2 = asyncio.run(tide_own.fetch_series((21.7, -158.0), 3, prefer_cmems=False))
+        assert s2 is not None and s2["source"] == "am" and len(ran_on) == 1
+    finally:
+        tide_own._load_gate.release()
