@@ -273,3 +273,26 @@ def test_fetch_from_many_threads_at_once_is_safe(tmp_path):
     assert len(got) == len(hours) and all(held) and len(held) == 2 * len(hours)
     for planes in got:
         assert np.nanmax(planes[fb.SPEED]) == pytest.approx(0.4 * 3600 / 1852, abs=1e-6)
+
+
+def test_a_default_giops_frame_carries_the_band_speed_and_the_flow_direction_byte(tmp_path):
+    """After #1137 (currents animate like Wind): by default a currents frame is the one-byte band speed plus field 14, the
+    one-byte direction the water flows TOWARD, which the particles read. GIOPS inherits it from the Copernicus spec."""
+    u = np.full((gi.SRC_ROWS, gi.SRC_COLS), 0.5)
+    ub, vb = _nc_bytes(tmp_path, "vozocrtx", u), _nc_bytes(tmp_path, "vomecrty", np.zeros_like(u))
+    sp = dict(fsr.SPECS["currents_giops"], hours=(6,))
+    assert sp["dir_byte_field"] == fb.FLOW_DIR_BYTE == fsr.SPECS["currents"]["dir_byte_field"]
+    files = {gi.file_url(CYCLE, 6, var): (ub if var == "vozocrtx" else vb) for var in gi.VARS}
+    sink = pub.LocalSink(tmp_path / "out")
+    report = fsr.publish(gi.GiopsCurrentsSource(sp, session=_Datamart(files)), sink, pub._uploader(sink), log=print,
+                         spec=sp, now=CYCLE + timedelta(hours=7))
+    assert report["status"] == "published" and report["built"] == 1
+    rec = json.loads((tmp_path / "out" / fs.LATEST).read_text())["sets"][KEY]
+    index = json.loads((tmp_path / "out" / rec["index"]).read_text())
+    _h, f = fb.decode_plane((tmp_path / "out" / index["frames"][0]["path"]).read_bytes())
+    assert set(f) == {fb.CURRENT_KN_BAND, fb.FLOW_DIR_BYTE}
+    st = fb.FLOW_DIR_STRIDE                                # the byte sits at each stride x stride block's first cell
+    wet = np.isfinite(f[fb.CURRENT_KN_BAND])[::st, ::st]
+    d = f[fb.FLOW_DIR_BYTE][::st, ::st][wet]
+    assert d.size > 0.8 * wet.size
+    assert np.allclose(np.minimum(np.abs(d - 90.0), 360.0 - np.abs(d - 90.0)), 0.0, atol=1.41)   # one byte: 1.40625 deg steps

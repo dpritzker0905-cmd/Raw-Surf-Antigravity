@@ -221,3 +221,18 @@ attribution that licence requires, and the OGL sentence the GIOPS catalogue reco
   under the lock and that every plane is right (estate fragment +18).
 - **Lesson** (for LESSONS when this merges): any C-library reader called from `build_set`'s worker threads (netCDF4, HDF5,
   ecCodes) needs a lock, or one decode thread. ecCodes already has one, in `frame_set_raster.py`'s pygrib note.
+
+## 12. Addendum: rebuilt on dev after #1137 (merged as 709db9b78)
+
+- **The merge.** dev was merged into this branch with no conflicts.
+  - `frame_set_raster.py` is **798 / 800** lines (`check_file_size`: 0 violations).
+  - `STATIC_SETS` is **45**: the dev pin plus GIOPS.
+- **What GIOPS inherits from #1137.** `dir_byte_field` = 14. A default GIOPS frame is the band speed (13) plus the one-byte
+  flow direction (14) at the 2 × 2 block anchors.
+- **New test.** It publishes a frame and reads the anchors back: an eastward current gives 90° within one byte step (estate
+  fragment +19).
+- **Local results.**
+  - Backend: raster / frame / freshness / import suites, 306 passed + the new test.
+  - Frontend: `src/components/map` + `src/tests`, 7347 passed. The 5 suites that read `../backend` cannot run in the
+    scratch copy (as before).
+  - ESLint gate: passes.
