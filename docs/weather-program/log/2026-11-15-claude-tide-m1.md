@@ -2747,3 +2747,150 @@ expected to match.
 - **Tests:** added to `test_served_delta_metrics_on_a_known_pair` (no new test functions, so floors are unchanged); 18 pass locally.
 - **Next:** open this after #1118 merges.
 
+
+
+## 2026-11-20 12:15Z: PR B (the served switch) PREPARED on a local branch; not pushed, not opened
+The owner, via the director: "Not yet, but lets open the lane to prepare for after reset on sunday". Branch
+`claude/tide-own-serve` is local only. The director brings it to David after the usage reset.
+
+Built to the advisor's conditions:
+1. **The switch.** `tide.fetch_tide_hourly` and `prewarm_tide_cache` read `tide_own`. `SURF_TIDE_OWN` and
+   `SURF_TIDE_CMEMS` are registered in `runtime_flags.GUARDED` and `_RATING_FLAGS`; the flag-lane parity test is green.
+2. **Ships ON with a kill switch.** `SURF_TIDE_OWN` defaults to "1"; "0" means no tide, never Open-Meteo. A SCOREBOARD
+   row is added (12:14Z). The served before/after delta is NOT yet measured; it is owed before the PR opens.
+3. **What users see when the table cannot answer: NO TIDE ("unavailable"), never an Open-Meteo fallback.** This covers
+   no table, a table older than 7 days, a key not in the table, and the kill switch.
+   - Why: the owner's rule is no Open-Meteo in user data (licence), so falling back to Open-Meteo would break it exactly
+     when something has gone wrong.
+   - Cost: if the daily build fails for more than 7 days, the tide disappears for everyone. The rating then runs
+     without tide_fit, and the SURF_TIDE_DEPTH cap uses still water.
+   - Each case is tested: missing, stale, absent key, killed.
+   - **David to confirm or choose otherwise.**
+4. **The pin test is replaced deliberately, not deleted.** `test_nothing_served_reads_the_table_yet` becomes
+   `test_only_tide_py_reads_the_table` and the dispatch tests, with a comment saying why. A further test pins that no
+   deploy or workflow sets the test-only legacy path (`TIDE_LEGACY_OPEN_METEO`). Only conftest sets it, so the old
+   Open-Meteo unit tests keep running.
+5. **`SURF_TIDE_CMEMS` defaults to "0".** It stays off until the r2 parity run is read and passing AND the builder
+   refuses to publish a low CMEMS fill count. A test pins the default.
+6. **The PR description** is drafted beside the handoff in the session notes.
+
+**Local tests:** 180 tide and flag tests pass. The one failure is xarray, which is missing from the local interpreter;
+that test passed in the venv. The route-level suites need sqlalchemy and were NOT run locally; CI will run them.
+
+
+## 2026-11-20 12:37Z: PR B, the advisor's licence conditions (a) and (b) (local branch claude/tide-own-serve)
+**(a) The AVISO licence, read in full** (Issue 20, effective 10 Aug 2026; copy in the session notes,
+`aviso-license-issue20.txt`). The derived-products clause:
+- s.1(d) "Derivative Work: A product derived from AVISO Data Products that does not retain the original pixel/data
+  structure." Tide predictions at a point, computed from the FES2022 constituents, are this.
+- s.2.1 grants the right to "B. produce, reproduce, and Share Adapted Material (Value-Added Products or Derivative
+  Works), for any purpose, including commercial purposes, subject to Section 3".
+- s.3.2, the mass-distribution restriction, "does not restrict Sharing Adapted Material (Value-Added Products or
+  Derivative Works)".
+- s.3.1 attribution: the creators and CNES as licensor, a citation, a licence link, and an indication of modification.
+- Annex A restricts only FES2022 CURRENTS (non-commercial); we use elevations only.
+
+The clause is clear for serving predictions to every user, so no question to AVISO is drafted. One duty to note:
+s.7.3 asks for "reasonable records of AVISO Data Product usage where distribution is at scale". The daily build logs
+and the ledger are that record.
+
+**(b) The exact attribution, served and stored.**
+- `services/weather_pipeline/tide_credits.py` holds the one text. It is the AVISO acknowledgement verbatim ("The
+  FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available by AVISO"),
+  plus "Mean sea level: Generated using E.U. Copernicus Marine Service Information" and the licence link.
+- **Served:** every series carries it as its `credit`. /point-tide's full credit uses the same acknowledgement.
+- **Spot hub:** `/tides/{id}` now reports `station_id: raw-surf:tide-own:<source>` with the credit, and the hub's
+  source line shows it. It never shows an Open-Meteo line for our tide.
+- **Stored:** every table gets a `credits` field (`own_rules.encode_table`), pinned equal to the served text.
+- **Tests:** backend `test_the_exact_attribution_is_served_and_stored_with_every_series` (chain fragment now +7);
+  frontend `our own tide shows its exact attribution` (frontend +1).
+- **Local results:** Jest 135 pass (spot-hub and tide readout suites); `check_eslint` passes; tests/test_tide_own.py
+  23 pass.
+
+**For David when PR B comes up:** #1117 keeps the built table as a 7-day public artifact. If he would rather the table
+never leave the bucket, the before/after delta can instead be computed inside the workflow, uploading only summary
+numbers.
+
+
+## 2026-11-22 13:51Z: PR B opened after the usage reset (the director, with David: "resume everything toward SOTA")
+- **Rebased** onto dev 5bbf5ee25; only log-only conflicts, resolved by appending in time order.
+- **Before/after**, from build 44924244129 (served_delta, 2026-11-21 16:22Z):
+  - coverage: 1,061 of 1,061 keys (100%);
+  - mean offset: median +0.001 m, size median 0.353 m (p90 0.613 m), the known datum difference;
+  - shape RMS after the offset: 0.128 m (p90 0.269 m);
+  - range ratio: 0.99 (1.04);
+  - high/low timing: 1 h (the hourly resolution).
+- **Not measured:** tide_fit and the depth-cap moves.
+- **SCOREBOARD:** a new row is appended; the earlier 12:14Z row stays as written.
+- **Merge:** only on David's word, together with his pick on the missing-table behaviour (no tide vs Open-Meteo).
+
+
+
+## 2026-11-22 13:55Z: #1132 HOLD fixes (the advisor)
+1. **Citation.** The FES2022 citation (CNES, 2024 ... https://doi.org/10.24400/527896/A01-2024.004), licence s.3.1, is now in `tide_credits.CREDITS['am']` and the `own_rules` copy. The spot hub shows it, not only /point-tide. The route imports `FES_CITATION` from the one module, and the pin test is extended.
+2. **Datum.** The 'am' label says `heights above local mean sea level`. The measured SCOREBOARD row now says users will see heights above local MSL: hub heights move about 1.2 ft typical, 2 ft at p90, either way. It also lists the depth cap AND the face-range low end as unmeasured (both add the height directly), with tide_fit expected unaffected.
+
+Tests: test_tide_own + flag parity pass 51 locally.
+
+
+
+## 2026-11-22 14:27Z: #1132 red on test_every_guarded_flag_says_what_can_see_it; guardrail coverage for the tide flags
+- **BLIND, both flags.** `SURF_TIDE_OWN` and `SURF_TIDE_CMEMS` are declared BLIND in `flag_guardrail.COVERAGE`. The replay fetches its tide from Open-Meteo by date (`eval_replay.TideSeries`) and never reads our table, so flipping either flag changes nothing it scores. No instrument scores the served tide against observed water yet; G4 will. Evidence: served_delta and tests.
+- **Never auto-disabled.** A BLIND flag's sanity breach still disabled it in `decide()`. `SURF_TIDE_OWN`'s kill serves NO tide, so it joins a new `NEVER_AUTO_DISABLE`: a WORSE verdict or a breach is REPORTED (`action: none`, reason 'REPORTED, NOT disabled') and never written as 'off'. Only the owner turns it off.
+- **CMEMS not exempt.** `SURF_TIDE_CMEMS` is NOT in the set: its kill restores our harmonic tide, a safe fallback.
+- **Test:** `test_the_served_tide_is_blind_and_never_auto_disabled`, with a control: the same breach still disables SURF_FACE_RANGE. Chain floor now +8; 76 pass locally.
+
+
+
+## 2026-11-22 14:31Z: #1132, the advisor's follow-ups to the guardrail exemption
+- **DECISIONS D-086 drafted, PENDING David's word and NOT decided.** It amends D-065 for ONE named flag (SURF_TIDE_OWN), with the rule as written: a flag qualifies only when its kill removes a service rather than restoring an older one. If David declines, NEVER_AUTO_DISABLE is removed.
+- **(a) A report now stands out.** It is its own action, `report`, not `none`. `main()` prints a `::warning` annotation per reported flag and puts `<flag>(reported-not-disabled)` in acted.txt, so the workflow opens or appends the guardrail issue. Nothing is written to the manifest; a test pins `apply` writing nothing.
+- **(b) SURF_TIDE_DEPTH's COVERAGE is now PARTIAL.** The replay drives the cap with Open-Meteo's tide, about 0.35 m median from the served local-MSL level. The cap's response is scored; the served levels are not.
+- **Tests:** 76 pass locally.
+
+
+
+## 2026-11-22 15:09Z: D-086 DECIDED by the owner
+David, typed in this session: "Yes, approve D-086". The DECISIONS entry is updated from PENDING to decided, with his words. NEVER_AUTO_DISABLE stays for SURF_TIDE_OWN only. Still open before #1132 merges: David's word to merge and his pick on the missing-table behaviour.
+
+
+
+## 2026-11-22 15:40Z: the tide table is never missing or stale (David: "we should have something else in place that is more SOTA, where we don't have missing tide tables ever")
+Branch claude/tide-never-missing, stacked on #1132.
+- **Long horizon.** `own_rules.AHEAD_DAYS` goes 45 -> 90. The harmonic tide (A + M) is deterministic, so the server
+  now serves a table for as long as its axis covers today; the 7-day age cut is gone. Only CMEMS ages: it is served from
+  a table generated within 2 days.
+- **Never publish a bad table.** `publish_guard.py` (stdlib, no credential) refuses a table that:
+  - covers fewer than 60 days ahead;
+  - has fewer than 95% of the published table's keys;
+  - has fewer than 95% of its keys with a value in the next 16 days;
+  - or has the wrong schema.
+  The workflow reads the published table, guards, then keeps the old one as `series.prev.json.gz` and publishes. A
+  refusal stops before the publish.
+- **Survive outages.** The server tries the published table, then the previous one, then its in-memory copy, then a
+  copy on local disk (written atomically after each good read). An older table never replaces a newer one.
+- **Alert.** A `horizon` job (`if: always()`, so it runs even when the build failed) goes red when the published
+  table covers fewer than 30 days ahead or is missing. The server also logs a warning below 30.
+- **Not done: a server-side harmonic compute.** PyFES is GPL and the FES constants must never be exposed (AVISO s.3.2),
+  so the served backend cannot compute FES. The 90-day horizon plus the fallbacks cover the same failure.
+- **Memory**, synthetic table at 1,800 keys x 2,232 h, compact form: 17.6 MB retained, 55.1 MB peak, 2.8 MB gzip (the
+  48-day table: 9.3 / 28.1 MB). Expect about 10 MB retained at today's 1,061 keys.
+- **Tests:** one per failure: build failed for weeks; storage down (previous, then memory, then disk); an older table
+  never replacing a newer one; partial, short or shrunken tables refused; the horizon alert; the workflow wiring.
+  Chain +5. Locally 81 pass.
+
+
+## 2026-11-22 15:42Z: the owner's words on the interim and the path (relayed by the director, typed in its session)
+- On the missing-table behaviour (with D-086's record): "Yes, but with that said we should have something else in place that is more SOTA, where we don't have missing tide tables ever". So #1132 merges as built (missing/stale = tide unavailable, never Open-Meteo), and this PR is the something else.
+- On the path: "move forward on the best SOTA path. We dont have real users yet, keep that in mind".
+- **Carry check for #1132:** after the dev merge (a1879ef79), all 20 of the PR's own files are blob-identical to 20247b635. Only the merge commit changed.
+
+
+
+## 2026-11-22 15:44Z: #1138 HOLD fixes (the advisor)
+1. **Single-flight.** `_load_gate`: one download and decode at a time. During a reload, other callers get the current table at once; at a cold start they wait (bounded by the timeout) for the one loader instead of starting their own. Test `test_single_flight_one_fetch_however_many_callers`: 10 threads, warm and cold, exactly 1 fetch each.
+2. **Conditional GET.** The published table is requested with `If-None-Match` (the last ETag). A 304 refreshes the TTL with no download or decode. Test `test_conditional_get_skips_an_unchanged_table`: second read sends the ETag, gets 304, and decodes once in total.
+3. **SCOREBOARD.** A row of its own for the changed availability: an any-age harmonic tide while the axis covers today, CMEMS only within 2 days, and the fallbacks. Users now see a tide after failed builds. Numbers are unchanged when fresh; nothing was re-measured.
+
+Chain fragment for this branch is now +7; `tests/test_tide_own.py` passes 33 locally.
+

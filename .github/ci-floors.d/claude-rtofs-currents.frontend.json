@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 5,
+  "files": 1,
+  "branch": "claude/rtofs-currents",
+  "date": "2026-11-22",
+  "note": "rtofsCurrents.test.js: GFS currents lever, kill, credit"
+}

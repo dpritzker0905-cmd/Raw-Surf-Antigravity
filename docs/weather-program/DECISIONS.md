@@ -2377,3 +2377,23 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Supersedes** D-084's "the consent's served version names the FILLED words". It now names the Company details
   revision.
 - **Reopen if** counsel says that a corrected name or link under an unchanged consent version is not valid consent.
+
+### D-086 · A guarded flag whose kill REMOVES a service is reported, never auto-disabled (amends D-065 for ONE named flag: SURF_TIDE_OWN) (2026-11-22, decided by the owner)
+- **Owner, typed in the tide lane's session (2026-11-22 about 15:09Z):** "Yes, approve D-086".
+- **Proposed by:** the tide lane in #1132, at the advisor's direction, relayed by the director on 2026-11-22. The advisor
+  judged it justified in substance, but it is the owner's decision.
+- **The rule as written:** a flag qualifies ONLY when its kill switch removes a service rather than restoring an older
+  one.
+  - For a qualifying flag, the live guardrail (`flag-guardrail.yml`) REPORTS a WORSE verdict or a sanity breach.
+  - The report shows as action `report`, a `::warning` annotation, and the guardrail issue opened or appended.
+  - It never writes 'off' to `control/flags.json`. Only the owner turns the flag off.
+- **The one flag:** `SURF_TIDE_OWN` (`flag_guardrail.NEVER_AUTO_DISABLE`). Its kill serves NO tide at all, not the old
+  Open-Meteo tide (D-082 removed that fallback).
+- **Why:** the flag is BLIND to the replay, which fetches Open-Meteo's tide by date and never reads our table. A breach
+  the guardrail cannot attribute to the flag would otherwise take the tide away from every user.
+- **What D-065 keeps:** every other flag, `SURF_TIDE_CMEMS` included (its kill restores our harmonic tide), is still
+  disabled on WORSE (two strikes) or on a sanity breach.
+- **If David declines:** remove `NEVER_AUTO_DISABLE`, which restores D-065 unchanged for this flag. Its test,
+  `test_the_served_tide_is_blind_and_never_auto_disabled`, changes with it.
+- **Reopen if:** an instrument that scores the served tide against observed water exists (G4), so the flag can be
+  judged on evidence that can see it.

@@ -7,9 +7,11 @@ import numpy as np
 
 SCHEMA = "raw-surf/tide-own/2"           # must equal services/weather_pipeline/tide_own.SCHEMA (pinned by a test)
 BOX_DEG = 0.5
-BACK_DAYS, AHEAD_DAYS = 3, 45            # served window: 3 days back (tide_state_at looks back) to 45 days ahead; the job
-                                         # runs daily and the server refuses a table older than 7 days, so at least 38
-                                         # days ahead of A+M are always served (the 14-day horizon contract needs 16)
+BACK_DAYS, AHEAD_DAYS = 3, 90            # served window: 3 days back (tide_state_at looks back) to 90 days ahead. The
+                                         # harmonic tide (A + M) is DETERMINISTIC, so the server keeps serving a table for
+                                         # as long as it covers today (the owner, 2026-11-22: "we don't have missing tide
+                                         # tables ever"): a missed build loses nothing for months, the publish guard
+                                         # refuses < 60 days and the horizon check alerts below 30 (publish_guard.py)
 SOURCE = ("A = FES2022b ocean tide + long-period equilibrium (AVISO/CNES/LEGOS/NOVELTIS); M = 2016-2025 mean altimetry "
           "sea-level anomaly at the G3t cell rule (Copernicus Marine SEALEVEL_GLO_PHY_L4). No storm surge.")
 
@@ -192,7 +194,23 @@ def encode_table(doc):
     if "cmems" in doc:
         out["cmems"] = {k: encode_i16(v) for k, v in doc["cmems"].items()}
     out["encoding"] = "i16le-base64"
+    out["credits"] = dict(CREDITS)                  # the attribution is STORED with every table (advisor, PR B (b))
     return out
+
+
+# MUST equal services/weather_pipeline/tide_credits.CREDITS (pinned by tests/test_tide_own.py); kept as a copy because
+# this CI script never imports the served backend.
+_FES_ACK = ("The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available "
+            "by AVISO")
+_FES_CITATION = ("CNES, 2024. FES2022 (Finite Element Solution) Tidal model (Version 2024). CNES. "
+                 "https://doi.org/10.24400/527896/A01-2024.004")
+_FES_LICENCE = "https://www.aviso.altimetry.fr/fileadmin/documents/data/License_Aviso.pdf"
+_CMEMS_CREDIT = "Generated using E.U. Copernicus Marine Service Information"
+CREDITS = {
+    "am": (f"{_FES_ACK}. {_FES_CITATION}. Mean sea level: {_CMEMS_CREDIT} (altimetry, SEALEVEL_GLO_PHY_L4). "
+           f"Licence: {_FES_LICENCE}"),
+    "cmems": f"{_CMEMS_CREDIT} (Global Ocean Physics Analysis and Forecast, https://doi.org/10.48670/moi-00016).",
+}
 
 
 def utc(*a):

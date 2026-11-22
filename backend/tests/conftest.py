@@ -18,6 +18,10 @@ os.environ.setdefault("JWT_SECRET", "test-secret-key-for-ci")
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
 os.environ.setdefault("SUPABASE_SERVICE_KEY", "test-service-key")
 os.environ.setdefault("TESTING", "1")
+# The served tide is our own table (services/weather_pipeline/tide_own.py, SURF_TIDE_OWN). The pre-existing tide suites
+# exercise the old Open-Meteo acquisition with mocked clients, so the TEST process keeps that path; tests of the served
+# source remove this with monkeypatch.delenv (tests/test_tide_own.py, which also pins that no deploy or workflow sets it).
+os.environ.setdefault("TIDE_LEGACY_OPEN_METEO", "1")
 
 
 def pytest_collection_modifyitems(config, items):
