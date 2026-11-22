@@ -183,14 +183,128 @@ def test_cmems_fill_helpers_place_hours_and_pick_the_parity_cell():
     assert "vars.TIDE_CMEMS_PRIMARY || '0'" in WF
 
 
-def test_nothing_served_reads_the_table_yet():
-    """PR A (the builder and the loader) changes no served number: no served module imports tide_own until the
-    served switch (PR B) wires tide.fetch_tide_hourly to it, after the first table is in the bucket."""
+# ---------------------------------------------------------------- the served switch (PR B)
+# REPLACES PR A's `test_nothing_served_reads_the_table_yet` deliberately (the advisor's condition 4): that pin held the
+# served path off the table until a real table existed (run 44681599129 stored the first one, 1,061 keys, 2026-11-20).
+# PR B wires tide.fetch_tide_hourly to it, so the pin becomes the opposite guarantee: ONLY tide.py reaches tide_own, and
+# no served path reaches Open-Meteo for the tide.
+class _NoClient:
+    async def get(self, url):                            # the owner: no Open-Meteo in any user-facing number
+        raise AssertionError(f"Open-Meteo requested: {url}")
+
+
+@pytest.fixture
+def served(monkeypatch):
+    monkeypatch.delenv("TIDE_LEGACY_OPEN_METEO", raising=False)
+    monkeypatch.delenv("SURF_TIDE_OWN", raising=False)
+    monkeypatch.delenv("SURF_TIDE_CMEMS", raising=False)
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    tide._reset_tide_cache_for_test()
+    yield
+    tide_own._reset_for_tests()
+    tide._reset_tide_cache_for_test()
+
+
+def _two_source_table(now, generated=None):
+    t = _table(now, {"21.7,-158.0": [250] * (48 * 24), "10.0,10.0": [400] * (48 * 24)}, generated=generated)
+    cm = [None] * (48 * 24)
+    for i in range(72, 72 + 9 * 24):                     # CMEMS covers today .. +9 days, as the product does
+        cm[i] = 1300
+    t["cmems"] = {"21.7,-158.0": cm}
+    return t
+
+
+def test_only_tide_py_reads_the_table():
     pat = re.compile(r"^\s*(from|import)\s+.*\btide_own\b", re.M)
     served = [BACKEND / "server.py", *(BACKEND / "services").rglob("*.py"), *(BACKEND / "routes").rglob("*.py")]
     users = [p.name for p in served if p.is_file() and p.name != "tide_own.py"
              and pat.search(p.read_text(encoding="utf-8", errors="ignore"))]
-    assert users == []
+    assert users == ["tide.py"]
+
+
+def test_the_exact_attribution_is_served_and_stored_with_every_series():
+    """The advisor's PR B condition (b): the AVISO acknowledgement, verbatim, plus the Copernicus credit for M, are
+    STORED in every table (own_rules.encode_table) and SERVED with every series; one text, pinned equal."""
+    from services.weather_pipeline import tide_credits as TC
+    exact = "funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available by AVISO"
+    assert exact in TC.CREDITS["am"] and "Copernicus Marine" in TC.CREDITS["am"] and TC.FES_LICENCE in TC.CREDITS["am"]
+    cite = ("CNES, 2024. FES2022 (Finite Element Solution) Tidal model (Version 2024). CNES. "
+            "https://doi.org/10.24400/527896/A01-2024.004")                # licence s.3.1: the citation, in the hub too
+    assert TC.FES_CITATION == cite and cite in TC.CREDITS["am"]
+    assert "Copernicus Marine" in TC.CREDITS["cmems"]
+    assert OR.CREDITS == TC.CREDITS                                        # the CI copy equals the served text
+    assert "heights above local mean sea level" in tide_own.LABELS["am"][0]   # the datum users now see, stated
+    now = datetime(2026, 11, 20, tzinfo=UTC)
+    stored = OR.encode_table(_table(now, {"21.7,-158.0": [250] * (48 * 24)}))
+    assert stored["credits"] == TC.CREDITS
+    s = tide_own.series_from_table(tide_own.validate(stored), (21.7, -158.0), 3, now)
+    assert s["credit"] == TC.CREDITS["am"] and exact in s["credit"]
+    import importlib.util                                                  # the readout's full text uses the same ack
+    spec = importlib.util.spec_from_file_location("wpt_credit_check", BACKEND / "routes" / "weather_point_tide.py")
+    WPT = importlib.util.module_from_spec(spec)                            # by path: not the whole routes package
+    spec.loader.exec_module(WPT)
+    assert WPT.FES_ACK == TC.FES_ACK and exact in WPT.provider_for({"source": "am"})[2]
+
+
+def test_served_default_is_our_harmonic_tide_and_never_open_meteo(served):
+    """SURF_TIDE_OWN ON, SURF_TIDE_CMEMS held OFF (condition 5): every key with a table row serves A+M."""
+    from services.runtime_flags import GUARDED
+    assert GUARDED["SURF_TIDE_OWN"] == "1" and GUARDED["SURF_TIDE_CMEMS"] == "0"
+    now = datetime.now(UTC)
+    tide_own._reset_for_tests(lambda: _two_source_table(now))
+    assert tide.tide_source() == "own"
+    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient()))
+    assert s["source"] == "am" and s["level"][0] == 0.25 and "FES2022" in s["credit"]
+    assert asyncio.run(tide.fetch_tide_hourly(-5.0, -5.0, client=_NoClient())) is None   # no row: unavailable
+    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04), (10.0, 10.0), (-5.0, -5.0)],
+                                               client=_NoClient())) == 2
+
+
+def test_cmems_on_prefers_the_cmems_level_where_the_table_has_it(served, monkeypatch):
+    monkeypatch.setenv("SURF_TIDE_CMEMS", "1")
+    now = datetime.now(UTC)
+    tide_own._reset_for_tests(lambda: _two_source_table(now))
+    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient()))
+    assert s["source"] == "cmems" and s["level"][0] == 1.3 and "Copernicus" in s["credit"]
+    h = asyncio.run(tide.fetch_tide_hourly(10.0, 10.0, client=_NoClient()))          # no CMEMS series for this key
+    assert h["source"] == "am" and h["level"][0] == 0.4
+
+
+def test_a_missing_table_is_unavailable_not_open_meteo(served):
+    """Condition 3, the owner's choice to confirm: no table (before a build, or a failed first read) = NO tide shown."""
+    tide_own._reset_for_tests(lambda: None)
+    assert asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient())) is None
+    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04)], client=_NoClient())) == 0
+
+
+def test_a_stale_table_is_unavailable_not_open_meteo(served):
+    """Condition 3: a table older than tide_own._MAX_AGE_S (7 days; the build runs daily) = NO tide shown."""
+    now = datetime.now(UTC)
+    old = now - timedelta(seconds=tide_own._MAX_AGE_S + 3600)
+    tide_own._reset_for_tests(lambda: _two_source_table(now, generated=old))
+    assert asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient())) is None
+    fresh = now - timedelta(seconds=tide_own._MAX_AGE_S - 3600)
+    tide_own._reset_for_tests(lambda: _two_source_table(now, generated=fresh))
+    assert asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient()))["source"] == "am"
+
+
+def test_tide_kill_serves_no_tide_and_never_reads_or_requests(served, monkeypatch):
+    monkeypatch.setenv("SURF_TIDE_OWN", "0")
+    tide_own._reset_for_tests(lambda: pytest.fail("the table must not be read when killed"))
+    assert tide.tide_source() == "off"
+    assert asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient())) is None
+    assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04)], client=_NoClient())) == 0
+
+
+def test_no_deploy_or_workflow_sets_the_legacy_open_meteo_path():
+    files = [*(REPO / ".github" / "workflows").glob("*.yml"), *REPO.glob("render*.y*ml"), *REPO.glob("netlify.toml"),
+             *BACKEND.glob("*.env.example"), *REPO.glob("*.env.example")]
+    hits = [p.name for p in files if "TIDE_LEGACY_OPEN_METEO" in p.read_text(encoding="utf-8", errors="ignore")]
+    assert hits == []
+    src = (BACKEND / "services" / "weather_pipeline" / "tide.py").read_text(encoding="utf-8")
+    assert 'os.environ.get("TIDE_LEGACY_OPEN_METEO") == "1"' in src         # raw env only: never the manifest
+    from services.runtime_flags import GUARDED
+    assert "TIDE_LEGACY_OPEN_METEO" not in GUARDED
 
 
 def test_served_backend_never_imports_pyfes_or_the_builder():
