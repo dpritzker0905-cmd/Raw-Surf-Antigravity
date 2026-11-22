@@ -3,10 +3,13 @@
 Scope: research note for the director's question on the tide lane (#1132 / #1138). Read-only. No served change, no merge.
 Status: **partial**. The CO-OPS datum check is measured; the FES-vs-TPXO head-to-head is **not** found in the sources reached here.
 
-## 1. What our code does (from the M1 log, `docs/weather-program/log/2026-11-15-claude-tide-m1.md`)
+## 1. What the served code does
 
-- Serve order: CO-OPS harmonic station → FES2022b (offline, PyFES) → EOT20 → unavailable. No model sea level.
-- Predictions are zero-mean about MSL by construction. MLLW / LAT are computed offline and labelled.
+**Served path (#1132, per the director's correction 2026-11-22):** the tide lane serves our **A+M table** (the table built in #1132 and its follow-ups). It has **no CO-OPS path and no EOT20 path**. Water levels are labelled **"heights above local mean sea level"** (commit `ff2bf46b1`).
+
+The CO-OPS → FES2022b → EOT20 → unavailable order, with MLLW/LAT computed offline, is the **M1 design plan** in `docs/weather-program/log/2026-11-15-claude-tide-m1.md`. It is not what #1132 serves. Do not read that order as the served behaviour.
+
+- Predictions are zero-mean about MSL by construction (plan and served table alike).
 - The M1 gate (G-M1a parity vs CO-OPS predictions, MSL) was **VOID**. Its diagnosis: a per-station **mean-level offset**
   of 0.02–0.15 m (largest on the Atlantic and Gulf), not a shape error. The positive control's de-meaned median was 0.0089 m.
   Item 4 (|MSL − MLLW| offset error ≤ 0.05 m) held at median 0.0135 m in the first run.
@@ -65,8 +68,9 @@ Honest answer: **not established by these searches.**
 
 1. Keep **MSL as the internal and model reference**. It is what FES, EOT20 and the altimetry products are zero-mean about, and
    the eta cap for the breaking height is defined against it.
-2. For **display on US gauges**, show **MLLW** (NOAA's chart datum) with the MSL offset stated, because that is what a
-   surfer or a tide table reads. Our existing M1 label already does this ("US display MLLW, elsewhere LAT"). Keep the label.
+2. **PROPOSAL, not a change:** an MLLW display at US points would be its own PR, with a SCOREBOARD row and an owner
+   decision. Served labels today stay "heights above local mean sea level". The MLLW wording exists only in the M1 design
+   plan, not in #1132.
 3. Do not claim surf apps use MSL. We have not verified it, so state our own convention and cite NOAA, not the apps.
 4. The M1 void stands. The Boston datum sheet and one week of predictions do not change that verdict.
 

@@ -2,6 +2,8 @@
 
 Scope: check access only. **No data collected. No CDS request dispatched.** Read-only.
 
+**Plan status (amendment-2):** the wind plan now uses the **CMEMS L4 wind** as its primary source. **ERA5 is the fallback only.** Everything below is about the fallback path.
+
 ## 1. The CDS API path (cdsapi, checked with context7 `/ecmwf/cdsapi`)
 
 Credential lookup, in the order the client resolves it:
@@ -9,7 +11,7 @@ Credential lookup, in the order the client resolves it:
 - `~/.cdsapirc` takes `url:` and `key:` lines. `key` is `<UID>:<APIKEY>` for the current client (a bare token is the legacy form).
 - The client asserts the key splits into exactly two parts on `:`.
 
-**Name correction:** the variable the library reads is **`CDSAPI_KEY`**, not `CDS_API_KEY`. The `CDS_API_KEY` name in the
+**Name correction (amendment-1 used the wrong name):** the client reads **`CDSAPI_KEY`**, not `CDS_API_KEY`. The `CDS_API_KEY` name in the
 brief would not be picked up. Report the name by its real value: `CDSAPI_KEY` (env) or the `key:` line in `~/.cdsapirc`.
 Never write the value into a file or message.
 
