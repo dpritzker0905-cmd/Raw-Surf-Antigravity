@@ -27,7 +27,9 @@ credited as Copernicus; ICON (no DWD ocean model) is a separate decision.
   frame layout: speed kn + direction toward, uv_convention 1, the one-byte band under FRAME_RASTER_ONE_BYTE), every 6 h f000-f192
   (33 frames). Regrid: each ocean source cell to its nearest 0.25-degree node, the node takes the mean of u and of v (a vector
   mean, as the Copernicus set's 3 x 3 mean); fill (1.27e30), NaN and |u| or |v| > 10 m/s excluded. Each file's own `MT` must equal
-  cycle + f, else the hour is refused. NOMADS politeness: two files in flight, requests spaced 0.4 s (all threads).
+  cycle + f, else the hour is refused. NOMADS politeness: two files in flight, requests spaced 0.6 s, HEADs included, across all threads: at most 100 a
+  minute (the advisor's fix, 2026-11-22; NOMADS blocks above ~120 and runner addresses are shared). The measured build below
+  ran at 0.4 s; at 0.6 s its 371 requests take at least 223 s, so expect about 4-5 min a cycle, inside the 900 s budget.
 - Pilots workflow: one step, `if vars.FRAME_RASTER_CURRENTS_RTOFS == '1'`, NO continue-on-error (a failed publish exits 1
   and turns the run red; every later step's `!cancelled()` still runs; no cycle yet exits 0), timeout 20 min, budget 900 s,
   service-role key from the job's `environment: supabase-service`. The data-health monitor passes the switch by name.

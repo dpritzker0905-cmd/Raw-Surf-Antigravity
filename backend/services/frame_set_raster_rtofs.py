@@ -11,7 +11,8 @@ depth mean, not the surface), so the source is NOMADS. One frame reads ~75 MB of
 of u and v plus the metadata, measured), the grid once a run. NOAA data: public domain.
 
 NOMADS politeness: it blocks an address that sends too many requests a minute, so this source holds at most MAX_INFLIGHT
-files open at once and spaces every request by MIN_GAP_S (8 MB ranges: about 12 requests a frame).
+files open at once and spaces every request, HEADs included, by MIN_GAP_S = 0.6 s: at most 100 a minute, under NOMADS'
+~120 (the advisor's gate, 2026-11-22; runner addresses are shared). 8 MB ranges: about 11 requests a frame.
 
 REGRID. Every ocean source cell goes to its nearest node of the 0.25-degree lattice (row 0 = 90S, column 0 = 180W), and the node
 takes the mean of u and of v over its cells (a vector mean, as the Copernicus set's 3 x 3 mean). The 1/12-degree source puts
@@ -41,7 +42,8 @@ MAX_MS = 10.0                                                    # no surface cu
 ROWS, COLS = 721, 1440
 BLOCK = 8 << 20                                                  # one range request reads 8 MB
 MAX_INFLIGHT = 2                                                 # files read at once (build_set runs 6 hours in parallel)
-MIN_GAP_S = 0.4                                                  # at most ~150 requests a minute from this run, all threads
+MIN_GAP_S = 0.6                                                  # at most 100 requests a minute, HEADs included, all threads
+#                                                                  (NOMADS blocks above ~120 a minute and runner addresses are shared)
 LAST_HOUR = 192
 
 SPEC = {

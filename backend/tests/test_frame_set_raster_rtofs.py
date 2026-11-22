@@ -93,6 +93,20 @@ def _world(hours, u0=0.5, v0=0.0):
             rtofs_file(lat, lon, u, v, CYCLE + timedelta(hours=f)) for f in hours}
 
 
+def test_nomads_is_asked_at_most_100_times_a_minute(monkeypatch):
+    # The advisor's gate (2026-11-22): NOMADS blocks above ~120 hits a minute and runner addresses are shared.
+    assert rt.MIN_GAP_S >= 0.6 and rt.MAX_INFLIGHT <= 2               # >= 0.5 keeps it under 120 a minute; 0.6 = 100
+    import inspect                                                    # the class takes the module's gap (the fixture zeroes it)
+    assert "BASE, MAX_INFLIGHT, MIN_GAP_S = BASE, MAX_INFLIGHT, MIN_GAP_S" in inspect.getsource(rt.RtofsCurrentsSource)
+    slept = []
+    monkeypatch.setattr(rt.time, "sleep", slept.append)
+    monkeypatch.setattr(rt.time, "monotonic", lambda: 100.0)      # every call at the same instant: each waits its turn
+    p = rt._Pacer(rt.MIN_GAP_S)
+    for _ in range(4):
+        p.wait()
+    assert slept == pytest.approx([0.6, 1.2, 1.8])
+
+
 def test_the_rtofs_set_contract():
     sp = fsr.spec_for("currents_rtofs")
     assert fs.set_key(sp["target"]) == "RTOFS/marine/currents/global_0p25"
