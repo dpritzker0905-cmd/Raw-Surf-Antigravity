@@ -76,15 +76,17 @@ export const FLOW_DIR_STRIDE = 2;
 
 /**
  * The wind-shaped grid the engine advects on, in engine knots (x CURRENT_SPEED_GAIN), south-first rows and west-first columns
- * (the wind texture's own orientation). One node per `stride` x `stride` cells (stride = a multiple of FLOW_DIR_STRIDE: 2 =
- * 0.5 deg, 4 = 1 deg), at its first cell: the vector mean, over the direction anchors in its block that have water, of
+ * (the wind texture's own orientation). One node per `stride` x `stride` cells (stride = a multiple of the anchor spacing: on the
+ * world sets 2 = 0.5 deg, 4 = 1 deg; on a native box set 1 = 1/12 deg), at its first cell: the vector mean, over the direction anchors in its block that have water, of
  * (the mean band speed of the anchor's own block) x (the anchor's direction). Land / no data = u = v = 0. Returns null without
  * a direction (a frame published before the direction byte) or without water. PURE apart from the arrays it allocates.
  */
 export function buildCurrentGrid(field, source, stride = FLOW_DIR_STRIDE) {
   if (!field || !field.values || !field.dirCodes || !(field.cols > 1) || !(field.rows > 1) || !field.bounds) return null;
   const { cols, rows, values, dirCodes, bounds } = field;
-  const A = FLOW_DIR_STRIDE;
+  // The anchor spacing: one direction per 2 x 2 block on the world sets; every cell on the native 1/12-deg box sets
+  // (currentNative.js sets field.dirStride from the index's grid.flow_dir_stride).
+  const A = Math.max(1, Math.round(Number(field.dirStride) || FLOW_DIR_STRIDE));
   const k = Math.max(1, Math.round((Number(stride) || A) / A)); const s = A * k;
   const oc = Math.ceil(cols / s); const or = Math.ceil(rows / s);
   const dLon = (bounds.east - bounds.west) / (cols - 1);
@@ -122,6 +124,7 @@ export function buildCurrentGrid(field, source, stride = FLOW_DIR_STRIDE) {
     coverage_scope: 'global', source: src, valid_time: validTime, product_id: `${src}@${validTime}`,
     truthTag: { model: src, layer: 'currents', product: `${src}@${validTime}` },
     isCurrentFlow: true,
+    colourField: field,   // the colour / sea texture travels WITH the grid (WebGLWindLayer): marks and coastline from one field
   };
 }
 

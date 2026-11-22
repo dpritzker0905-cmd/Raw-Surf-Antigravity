@@ -2853,3 +2853,44 @@ Tests: test_tide_own + flag parity pass 51 locally.
 ## 2026-11-22 15:09Z: D-086 DECIDED by the owner
 David, typed in this session: "Yes, approve D-086". The DECISIONS entry is updated from PENDING to decided, with his words. NEVER_AUTO_DISABLE stays for SURF_TIDE_OWN only. Still open before #1132 merges: David's word to merge and his pick on the missing-table behaviour.
 
+
+
+## 2026-11-22 15:40Z: the tide table is never missing or stale (David: "we should have something else in place that is more SOTA, where we don't have missing tide tables ever")
+Branch claude/tide-never-missing, stacked on #1132.
+- **Long horizon.** `own_rules.AHEAD_DAYS` goes 45 -> 90. The harmonic tide (A + M) is deterministic, so the server
+  now serves a table for as long as its axis covers today; the 7-day age cut is gone. Only CMEMS ages: it is served from
+  a table generated within 2 days.
+- **Never publish a bad table.** `publish_guard.py` (stdlib, no credential) refuses a table that:
+  - covers fewer than 60 days ahead;
+  - has fewer than 95% of the published table's keys;
+  - has fewer than 95% of its keys with a value in the next 16 days;
+  - or has the wrong schema.
+  The workflow reads the published table, guards, then keeps the old one as `series.prev.json.gz` and publishes. A
+  refusal stops before the publish.
+- **Survive outages.** The server tries the published table, then the previous one, then its in-memory copy, then a
+  copy on local disk (written atomically after each good read). An older table never replaces a newer one.
+- **Alert.** A `horizon` job (`if: always()`, so it runs even when the build failed) goes red when the published
+  table covers fewer than 30 days ahead or is missing. The server also logs a warning below 30.
+- **Not done: a server-side harmonic compute.** PyFES is GPL and the FES constants must never be exposed (AVISO s.3.2),
+  so the served backend cannot compute FES. The 90-day horizon plus the fallbacks cover the same failure.
+- **Memory**, synthetic table at 1,800 keys x 2,232 h, compact form: 17.6 MB retained, 55.1 MB peak, 2.8 MB gzip (the
+  48-day table: 9.3 / 28.1 MB). Expect about 10 MB retained at today's 1,061 keys.
+- **Tests:** one per failure: build failed for weeks; storage down (previous, then memory, then disk); an older table
+  never replacing a newer one; partial, short or shrunken tables refused; the horizon alert; the workflow wiring.
+  Chain +5. Locally 81 pass.
+
+
+## 2026-11-22 15:42Z: the owner's words on the interim and the path (relayed by the director, typed in its session)
+- On the missing-table behaviour (with D-086's record): "Yes, but with that said we should have something else in place that is more SOTA, where we don't have missing tide tables ever". So #1132 merges as built (missing/stale = tide unavailable, never Open-Meteo), and this PR is the something else.
+- On the path: "move forward on the best SOTA path. We dont have real users yet, keep that in mind".
+- **Carry check for #1132:** after the dev merge (a1879ef79), all 20 of the PR's own files are blob-identical to 20247b635. Only the merge commit changed.
+
+
+
+## 2026-11-22 15:44Z: #1138 HOLD fixes (the advisor)
+1. **Single-flight.** `_load_gate`: one download and decode at a time. During a reload, other callers get the current table at once; at a cold start they wait (bounded by the timeout) for the one loader instead of starting their own. Test `test_single_flight_one_fetch_however_many_callers`: 10 threads, warm and cold, exactly 1 fetch each.
+2. **Conditional GET.** The published table is requested with `If-None-Match` (the last ETag). A 304 refreshes the TTL with no download or decode. Test `test_conditional_get_skips_an_unchanged_table`: second read sends the ETag, gets 304, and decodes once in total.
+3. **SCOREBOARD.** A row of its own for the changed availability: an any-age harmonic tide while the axis covers today, CMEMS only within 2 days, and the fallbacks. Users now see a tide after failed builds. Numbers are unchanged when fresh; nothing was re-measured.
+
+Chain fragment for this branch is now +7; `tests/test_tide_own.py` passes 33 locally.
+

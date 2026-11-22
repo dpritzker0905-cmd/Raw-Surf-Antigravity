@@ -100,8 +100,37 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python3 -I -S backend/scripts/tide_own/storage_io.py put tide_own_m.json m.json
-      - name: Publish the series (Supabase; stdlib only)
+      # NEVER MISSING (the owner, 2026-11-22): the new table replaces the published one only if the guard passes, and
+      # the one it replaces is kept as series.prev.json.gz (the server falls back to it). A refused or failed build
+      # leaves the last good table served; it covers months ahead, so users see no gap.
+      - name: Read the published table (Supabase; stdlib only)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python3 -I -S backend/scripts/tide_own/storage_io.py put tide_own_series.json.gz series.json.gz
+        run: python3 -I -S backend/scripts/tide_own/storage_io.py get series.json.gz current_series.json.gz
+      - name: Guard - never publish a short, shrunken or partial table (no credential)
+        run: python3 -I -S backend/scripts/tide_own/publish_guard.py guard tide_own_series.json.gz --current current_series.json.gz
+      - name: Publish the series, keeping the previous one (Supabase; stdlib only)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -f current_series.json.gz ]; then python3 -I -S backend/scripts/tide_own/storage_io.py put current_series.json.gz series.prev.json.gz; fi
+          python3 -I -S backend/scripts/tide_own/storage_io.py put tide_own_series.json.gz series.json.gz
+  horizon:
+    # Runs even when the build failed: alerts (a red run) when the PUBLISHED table covers fewer than 30 days ahead,
+    # long before users could see a gap.
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Read the published table (Supabase; stdlib only)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 -I -S backend/scripts/tide_own/storage_io.py get series.json.gz published.json.gz
+      - name: Alert when the published table's horizon is short (no credential)
+        run: python3 -I -S backend/scripts/tide_own/publish_guard.py horizon published.json.gz --min-days 30

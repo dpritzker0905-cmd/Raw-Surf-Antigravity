@@ -90,12 +90,15 @@ export function describeRasterFrame(rec, layer, requestedMs) {
   if (!shown) return { state: 'pending', text: `Loading ${name} ${fmt(want.dataMs)}…` };
   if (shown.url !== want.url) {
     const models = shown.model && want.model && shown.model !== want.model;
+    // A gap fill's anchored frame carries '<MODEL>+GFS': said as "<MODEL> prediction" (ownRasterGapFill.js), never "ICON+GFS".
+    const said = (m) => (String(m).includes('+') ? `${String(m).split('+')[0]} prediction` : m);
     return { state: 'pending', text: models
-      ? `Loading ${want.model} ${name}… still showing ${shown.model} ${name}`
+      ? `Loading ${said(want.model)} ${name}… still showing ${said(shown.model)} ${name}`
       : `Loading ${fmt(want.dataMs)}… still showing ${fmt(shown.dataMs)}` };
   }
   // A stand-in past the picked model's range (own frames: GFS beyond EURO's 240 h / ICON's 180 h): the wave layers' words.
-  if (shown.estimated) return { state: 'estimated', text: `Estimated forecast: ${ESTIMATE_WORDS[shown.estimated] || 'estimated'}` };
+  // A gap-fill frame (ownRasterGapFill.js) carries `fill` (`coarse`: the model's own coarser set): the status line draws it in the warning tone (ForecastTimeStatus).
+  if (shown.estimated) return { state: 'estimated', ...(shown.fill || shown.coarse ? { fill: true } : {}), text: `Estimated forecast: ${ESTIMATE_WORDS[shown.estimated] || 'estimated'}` };
   if (layer !== 'radar' && Number.isFinite(requestedMs)) {
     const dh = Math.round((shown.dataMs - requestedMs) / 3600000);
     if (dh !== 0 && Math.abs(dh) <= (shown.nearestMaxHours || 0)) return { state: 'nearest', text: `Showing ${fmt(shown.dataMs)}: the nearest stored forecast` };
