@@ -627,6 +627,25 @@ jobs:
           FRAME_RASTER_DIR_BYTE: ${{ vars.FRAME_RASTER_DIR_BYTE }}   # the currents particles' direction byte (its own lane's kill)
           FRAME_RASTER_BUDGET_S: "300"
         run: python scripts/publish_raster_frames.py --set currents_giops
+      # NOAA GLOBAL RTOFS SURFACE CURRENTS (2026-11-22): the Currents layer's GFS picker reads NOAA's own ocean model, not
+      # Copernicus (services/frame_set_raster_rtofs.py). Top-layer u/v of the 00Z cycle from the NOMADS 2-D prog files (the AWS
+      # mirror holds only barotropic velocity), every 6 h to f192, nearest-node mean onto 0.25 deg. Once a day: a run whose cycle
+      # is already published reads only two HEADs. Measured offline per new cycle: see docs/weather-program/log/
+      # 2026-11-22-opus-rtofs-currents.md. DARK: off unless FRAME_RASTER_CURRENTS_RTOFS=1 (the client reads it only behind its
+      # own lever, ownRasterFrames.js). The step never continues on error (the advisor's gate, 2026-11-22): a failed publish (exit 1) turns the
+      # run red; every later step's `!cancelled()` still runs it. Upstream not ready yet (no cycle) exits 0.
+      - name: Publish raster static frames (NOAA RTOFS currents; off unless FRAME_RASTER_CURRENTS_RTOFS=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_RTOFS == '1' }}
+        timeout-minutes: 20
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CURRENTS_RTOFS: ${{ vars.FRAME_RASTER_CURRENTS_RTOFS }}
+          FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}   # kill '0': the old two-byte frames (log §12)
+          FRAME_RASTER_DIR_BYTE: ${{ vars.FRAME_RASTER_DIR_BYTE }}   # the currents particles' direction byte (its own lane's kill)
+          FRAME_RASTER_BUDGET_S: "900"
+        run: python scripts/publish_raster_frames.py --set currents_rtofs
       # NATIVE 1/12-DEG COPERNICUS CURRENTS ON THE SURF BOXES (2026-11-22; the research lead's Q3 note, red flag 1): the world
       # set's 3 x 3 mean onto 0.25 deg drops the model's coastal detail, so each marine pilot box also gets the source cells
       # themselves (services/frame_set_raster_currents_native.py; CMEMS/marine/currents/<box>_0p083, 14 sets x 41 frames).
