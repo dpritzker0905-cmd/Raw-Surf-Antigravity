@@ -2,7 +2,7 @@
 Stamp: 2026-11-22 (written by the research lead; DRAFT until the advisor's line on the commit that freezes it. Nothing in TEST exists at writing time.)
 Candidate: per-picker ocean-current sources as served (ECCC GIOPS under ICON, NOAA Global RTOFS under GFS, Copernicus GLO-PHY at native 1/12°), each against the default Copernicus GLO-PHY 0.25° set, scored against independent HF-radar and drifter truth.
 Metric: M1 = vector RMSE (m/s) of the 25 h low-passed surface current against HF-radar totals, per region × lead day. M2 = 72 h Lagrangian separation (km) of virtual particles against drifters, per zone. Full definitions in section 4.
-Pass threshold: section 6 (better = Holm-significant one-sided improvement over the default; comparable = 90% CI inside ±10% of the default's own metric).
+Pass threshold: section 6 (better = Holm-significant one-sided improvement over the default; comparable = a TOST equivalence test with a ±10% margin on the paired ratio, Holm per arm; "skill" = beating the arm's own persistence, defined in section 1).
 Controls: section 7 (null, shuffled valid time, +0.05 m/s speed plants at 1× and 2×, +30° / +60° direction plants, 1-cell field shift). A control that misbehaves makes the run VOID.
 Decision rule: per (source, region, lead day) cell, a label of BETTER / COMPARABLE / NOT SHOWN is allowed in the picker credit only where section 6 holds. Every cell that is not measured, or misses a floor, is NOT SHOWN.
 Unmeasured items: surf-zone currents (rips, longshore flow; no source resolves them); regions without HF radar or drifter floors; leads past day 7; the open-ocean SMOC product (reported only).
@@ -26,7 +26,8 @@ Each arm is what the map serves (the frame-set publisher's output), unless marke
 | `GIOPS_025` | ECCC GIOPS 0.2° lat-lon, 0.5 m, 3 h mean, bilinear onto 0.25° (`frame_set_raster_giops.py`) | gated |
 | `RTOFS_025` | NOAA Global RTOFS surface u/v as published by its frame set (lane in build) | gated **only if** its set has published ≥ 7 consecutive daily runs before the freeze commit. Otherwise ABSENT, stated, not failed |
 | `CMEMS_083` | the same Copernicus source at native 1/12°, no block mean (collected beside the served set) | gated (it answers "does the 0.25° down-sampling cost skill near coasts?") |
-| `PERSIST_<src>` | each source's own lead-0 field held fixed for all leads | reported; used in G3 |
+| `PERSIST_<src>` | the arm's EARLIEST served step of the same init, held fixed for every later lead. For the 6-hourly sets this is the 6 h step: the served sets start at 6 h because P000 holds no currents (`frame_set_raster_giops.py` HOURS). It is low-passed and advected exactly like the arm | the G3 baseline for the word "skill" |
+| `PERSIST_OBS` | the HF-radar 25 h mean ending at the init time, held fixed (M1 only) | reported only: a stricter baseline, never gating |
 | `SMOC` | `cmems_mod_glo_phy_anfc_merged-uv_PT1H-i` (utotal incl. tides + Stokes) | reported only, drifters only |
 
 ## 2. Window and collection (forward only)
@@ -39,21 +40,38 @@ Each arm is what the map serves (the frame-set publisher's output), unless marke
 - **Collection passes:**
   - Pass 1: daily.
   - Pass 2 (ONE, pre-declared): re-fetches only the inits missing because of source throttling or outage, logged by cause.
-  - A TEST init is KEPT only if every gated arm present at freeze has all its steps to 168 h. A missing step drops the init for every arm (listed, never filled).
+  - **Pairing is per arm.** An arm's lines use the inits where BOTH that arm and `CMEMS_025` have every step to 168 h. A missing step drops that init from that arm's lines only (listed by cause, never filled). An init with `CMEMS_025` incomplete is dropped for all arms.
+  - **Missing-run rule (RTOFS and GIOPS alike, after the wind gate's).**
+    - If a source stops publishing mid-TEST, its lines use the inits it has.
+    - If it has fewer than 50 kept inits, that arm is VOID. The other arms are unaffected.
+    - Pass 2 may recover a missed run only from the same source's own archive, and only within the pass-2 rule above. A missed run is never filled from another source or by persistence.
+  - **Model change mid-TEST.**
+    - Every source's version or release notes are listed in the result.
+    - If a release inside TEST alters the system (judged from the release notes before any score is read), that arm's inits from the change onward are VOID. Its earlier inits stand only if they still meet the floors.
 - **No FIT exists.** Nothing is fitted. The only tunables (the low-pass width, the particle integrator, the margins) are fixed here.
 
 ## 3. Truth
 **T1, HF radar (Eulerian; primary for coasts).**
-- HFRNet 6 km hourly RTV totals:
-  - US West Coast via NDBC THREDDS `hfradar_uswc_6km` (CoastWatch ERDDAP `ucsdHfrW6`, verified 2026-11-22: 6 km, hourly, upper ~2.4 m, rolling ~90-day window);
-  - US East + Gulf `hfradar_usegc_6km` and Hawaii `hfradar_ushi_6km` (dataset names confirmed at freeze; a region without a live dataset is "insufficient");
-  - Puerto Rico / USVI `ucsdHfrP6` (reported).
+- HFRNet 6 km hourly RTV totals ("HFRNet v1r0"; NDBC THREDDS is the source of every mirror):
+
+| Region | NDBC OPeNDAP (source of record) | ERDDAP mirror used to read it | Checked |
+|---|---|---|---|
+| US West Coast | `https://dods.ndbc.noaa.gov/thredds/dodsC/hfradar_uswc_6km` | CoastWatch `ucsdHfrW6` | metadata read 2026-11-22 (6 km, hourly, upper ~2.4 m, rolling window 2026-08-22 to now) |
+| US East + Gulf | `.../dodsC/hfradar_usegc_6km` | CoastWatch `ucsdHfrE6` | listed in CoastWatch and upwell ERDDAP, 2026-11-22 search |
+| Hawaii | `.../dodsC/hfradar_ushi_6km` | PacIOOS ERDDAP `hfradar_ushi_6km` | listed in NDBC and PacIOOS, 2026-11-22 search |
+| Puerto Rico / USVI (reported) | `.../dodsC/hfradar_usprvi_6km` (name confirmed at freeze) | CoastWatch `ucsdHfrP6` | metadata listed 2026-11-22 |
+
+- **Licence line (HF radar):** HFRNet totals are U.S. Government (NOAA / U.S. IOOS) data with no use restriction. The result copies verbatim each dataset's `license` and `acknowledgement` attributes as read at freeze. A dataset whose attribute restricts commercial use is reported, never gated.
+- HFRNet's own 25 h-average RTV product (`HFR/<region>/6km/25hr/RTV` on hfrnet-tds.ucsd.edu) is REPORTED as a cross-check on our low-pass, never gated.
 - **Snapshots:** the ERDDAP window is rolling, so the collector saves a weekly snapshot of every region (the scorer reads what was saved).
 - **Cell use:** cells with `number_of_sites ≥ 2` and `hdop ≤ 1.25`. A cell enters a region's score only if ≥ 70% of TEST hours are present (checked at SCORE time and reported; no cell is chosen or removed by skill).
 - **Europe:** HF radar totals from Copernicus `INSITU_GLO_PHY_UV_DISCRETE_NRT_013_048` (radar totals subset). REPORTED, never gated: few sites, and the network's licences are per operator.
 
 **T2, drifters (Lagrangian; primary for open ocean).**
-- Near-real-time GDP drifter positions and raw velocities from Copernicus `INSITU_GLO_PHY_UV_DISCRETE_NRT_013_048` (drifter subset, "latest"/"monthly"), which carries the DBCP Global Drifter Program.
+- Near-real-time GDP drifter positions and raw velocities from Copernicus product `INSITU_GLO_PHY_UV_DISCRETE_NRT_013_048`, dataset `cmems_obs-ins_glo_phy-cur_nrt_drifter_irr`, which carries the DBCP Global Drifter Program.
+  - Source: the product user manual, issue 2.5.
+  - The subset is the "latest" one, plus "monthly" for pass 2. The exact subset names and the product version are copied from the Copernicus Marine catalogue at freeze into the result's first line.
+- **Licence line (drifters):** Copernicus Marine Service licence, free including commercial use, with the attribution "Generated using E.U. Copernicus Marine Service Information".
 - Only positions with good QC flags.
 - **Drogue status:** in NRT it is unreliable, so the drogue flag is reported, not used for selection. Every drifter row is scored once, labelled drogued / undrogued / unknown, and SMOC is reported beside (undrogued drifters feel windage and Stokes drift; QUID table 6).
 - **Zones** (fixed now; QUID's spirit):
@@ -64,7 +82,13 @@ Each arm is what the map serves (the frame-set publisher's output), unless marke
   - `OPEN`: everything else.
 
 ## 4. Metrics
-**Tides and inertial motion.** None of the gated sources carries tides (GLO12 and GIOPS are tide-free; RTOFS is tide-free). HF radar and drifters see tides and inertial oscillations. So the primary scores use **25 h low-passed** values on both sides:
+**Tides and inertial motion.**
+- Copernicus uo/vo and GIOPS are tide-free. The Copernicus QUID adds tides only in the merged SMOC product.
+- Whether operational Global RTOFS v2 carries tidal forcing is NOT documented in what we found (searched 2026-11-22). Its release notes list GFS surface forcing and HYCOM restarts, no tides; only the older Atlantic RTOFS listed tidal constituents.
+- HF radar and drifters see tides and inertial oscillations.
+- So **every arm, whether or not it carries tides, and every truth series is low-passed the same way**. The RTOFS question decides nothing; its answer is recorded at freeze.
+
+M1 uses **25 h low-passed** values on both sides:
 - truth: a centred 25 h running mean of hourly values, requiring ≥ 20 of 25 hours;
 - forecast: the mean of the source's steps inside the same 25 h window, using every step present (6-hourly sets: 4 or 5 steps; GIOPS's 3 h means count as steps at their valid times).
 The **unfiltered** comparison at each served step is REPORTED (it is what a user sees), never gated.
@@ -74,10 +98,12 @@ Metric definitions:
   - Lead days: D1 = valid centre 24 h, D3 = 72 h, D5 = 120 h, D7 = 168 h.
   - The forecast is bilinear from the arm's own grid to the HF-radar cell centre.
   - An arm cell that is land or missing drops that row for **all** arms (identical rows).
-- **M2 (drifters):** 72 h separation, km.
-  - For each drifter with a good position within ±1 h of an init (00Z) and a good position at init + 72 h (±1 h), seed one particle at the init position.
-  - Advect it through the arm's field: RK4, 1 h step, linear interpolation in time between steps, bilinear in space.
-  - Score the great-circle distance to the observed +72 h position.
+- **M2 (drifters):** 72 h separation, km, on **low-passed tracks**.
+  - **Truth track:** each drifter's hourly positions, after the QC flags, are converted to a local east/north offset and smoothed with a centred 25 h running mean, requiring ≥ 20 of 25 good hours. Tidal and inertial loops average out; the residual drift stays.
+  - **Seed and end:** the smoothed position at the init time and at init + 72 h. Both need the ≥ 20 h rule, else the drifter-init is not used.
+  - **Forecast:** advect one particle from the smoothed init position through the arm's **25 h low-passed velocity field**. That is a centred running mean over the arm's steps, using the same window rule as M1, recomputed at each hour by linear interpolation in time. Integration is RK4 with a 1 h step, bilinear in space.
+  - Score the great-circle distance from the advected particle to the smoothed +72 h position.
+  - The unsmoothed separation (raw track, raw field) is REPORTED, never gated.
   - A particle that reaches land drops the row for all arms.
   - Also reported: separation at 24 h, and the M2 normalised by the drifter's own path length (the Liu-Weisberg skill score).
 - **Reported, not gated:** speed ME (m/s); signed and circular direction error (rows with observed speed ≥ 0.1 m/s); complex correlation; the per-region D0 (analysis) RMSE.
@@ -97,10 +123,22 @@ Metric definitions:
 
 ## 6. Labels (per arm × region-or-zone × lead day; each cell decided on its own)
 - **BETTER:** the Holm-adjusted one-sided line holds (arm minus `CMEMS_025` < 0), AND the same sign with at least half the pooled effect in both halves of TEST (first 30 / last 30 inits; descriptive).
-- **COMPARABLE:** not BETTER, and the 90% CI of (arm − `CMEMS_025`) / `CMEMS_025`'s metric lies inside [−10%, +10%].
+- **COMPARABLE: an equivalence test (TOST), fixed now.**
+  - For the cell, let `r = metric(arm) / metric(CMEMS_025) − 1`, from the paired rows. Each bootstrap replicate recomputes both metrics on the same resampled blocks.
+  - Two one-sided tests:
+    - H0a: `r ≤ −0.10`;
+    - H0b: `r ≥ +0.10`.
+  - Each one-sided p-value is the bootstrap proportion of replicates on the null side of its margin. The TOST p-value is the larger of the two.
+  - **COMPARABLE** if the cell is not BETTER and its TOST p, Holm-adjusted across that arm's equivalence family, is < 0.05.
+  - The equivalence family is every cell of the arm on that metric: F-M1-EQ and F-M2-EQ, each one Holm family per arm.
+  - The ±10% margin is the only margin; it is not changed after data.
 - **WORSE:** the reverse one-sided line holds after Holm (reported in the same family).
 - **NOT SHOWN:** everything else, including insufficient cells.
-- **G3, the word "forecast skill" at a lead:** a source may be described as having skill at lead day Dn in a region only if it is BETTER than its own `PERSIST_<src>` there (same test, its own Holm family per arm). Without that, the credit may compare sources but must not say "skilful at day n".
+- **G3, the word "forecast skill" at a lead:**
+  - A source may be described as having skill at lead day Dn in a region (or zone) only if it beats its own `PERSIST_<src>` there. `PERSIST_<src>` is defined in section 1: the earliest served step of the same init, held, then low-passed and advected the same way.
+  - The test is the same one-sided bootstrap, with its own Holm family per arm and metric.
+  - Without that, the credit may compare sources but must not say "skilful at day n".
+  - `PERSIST_OBS` lines are reported beside it and never decide the wording.
 - **What may ship from this gate:** the credit text per picker, e.g. "NOAA RTOFS: comparable to Copernicus on US West Coast, days 1-3". The wording is an owner decision after the verdict.
   - The default does not change from this gate.
   - A source that is WORSE in a region keeps its label, and that cell's measured result is shown on request.
@@ -121,8 +159,11 @@ Metric definitions:
 - The first reader is the advisor (or a reader they name in writing in the log). The report artifact stays unopened by everyone else until the verdict line is in the log.
 
 ## 9. Open before freeze
-- Confirm the HFRNet East + Gulf and Hawaii dataset names, and the Copernicus in-situ drifter subset ID and its NRT latency (product page: data.marine.copernicus.eu/product/INSITU_GLO_PHY_UV_DISCRETE_NRT_013_048).
-- Confirm from each source's documentation that its served surface current is tide-free (section 4 assumes it). A source with tides is scored on the same 25 h low-pass, and the fact is stated.
+- At freeze, read and record in the result's first line:
+  - the four HFRNet datasets' `license` / `acknowledgement` attributes and their live time ranges (the IDs are named in section 3);
+  - the drifter subset names, the product version and the NRT latency (data.marine.copernicus.eu/product/INSITU_GLO_PHY_UV_DISCRETE_NRT_013_048).
+  - A dataset that is not live at freeze makes its region "insufficient".
+- Record whether Global RTOFS carries tidal forcing (asked of the RTOFS documentation or the NCEP PMB contact). Scoring does not depend on the answer: every arm is low-passed (section 4).
 - RTOFS lane: whether its set publishes ≥ 7 daily runs before freeze (else ABSENT).
 - Collector build PR (Actions job + evidence artifact + scorer) goes to the advisor before any dispatch; fetches and dispatches need David's word.
 - Storage: native 1/12° subsets for the three US radar regions only (not global) to keep artifacts small.
