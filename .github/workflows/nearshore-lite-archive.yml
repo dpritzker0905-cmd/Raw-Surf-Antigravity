@@ -2,8 +2,8 @@
 # ⚠️ DISPATCH ONLY. No schedule, no push trigger: nothing runs until David says so. `owner_word_ref` is REQUIRED and must cite his
 #    word (who, when, where); the job refuses a placeholder. The reference is echoed into the run summary and into the archive meta.
 # ⚠️ GitHub-hosted runner only, never the Render box. Reads our tide table (series `am`) from the weather bucket and snapshots NDBC realtime2.
-# ⚠️ The offshore PARTITION SOURCE is an unbuilt interface until the advisor rules the EC input (total-sea vs MFWAM vs period bands). Until
-#    then a run writes the aux files (ETA slice, truth snapshots) and exits 3 INCOMPLETE; it writes NO archive init. Do not add a fetcher here.
+# ⚠️ partition_source=served reads the served chain's partitions from OUR STORED products only (a stored-only provider refuses any live fetch).
+#    With the default `none` a run writes the aux files (ETA slice, truth snapshots) and exits 3 INCOMPLETE; it writes NO archive init.
 # Secrets by NAME only: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (the same two the tide-own-series workflow uses). No value is in this file.
 name: Nearshore-lite forward archive (dispatch only)
 run-name: "MOP-lite archive ${{ inputs.init }}: ${{ inputs.go == '1' && 'WRITE' || 'dry run' }}"
@@ -24,6 +24,14 @@ on:
         description: "Comma-separated NDBC station ids to snapshot (truth)."
         required: false
         default: ''
+      partition_source:
+        description: "none (default: aux files only, exit 3) or served (the served chain's partitions from OUR stored products, never a live fetch)."
+        required: false
+        default: 'none'
+      model:
+        description: "Model member the served chain uses for these targets (default EURO)."
+        required: false
+        default: 'EURO'
       go:
         description: "1 = write files. Anything else = dry run (reads the tide table, prints the plan, writes nothing)."
         required: false
@@ -52,15 +60,16 @@ jobs:
           TARGETS: ${{ inputs.targets_path }}
           STATIONS: ${{ inputs.stations }}
           GO: ${{ inputs.go }}
+          PARTITION_SOURCE: ${{ inputs.partition_source }}
+          MODEL: ${{ inputs.model }}
         run: |
           set -uo pipefail
           { echo '### MOP-lite forward archive'; echo "owner word: \`$OWNER_WORD_REF\`"; echo "init: \`$INIT\` (go=$GO)"; } >> "$GITHUB_STEP_SUMMARY"
-          args=(--init "$INIT" --targets "$TARGETS" --stations "$STATIONS" --out nearshore_lite_archive_out --owner-word-ref "$OWNER_WORD_REF")
+          args=(--init "$INIT" --targets "$TARGETS" --stations "$STATIONS" --out nearshore_lite_archive_out --owner-word-ref "$OWNER_WORD_REF" --partition-source "$PARTITION_SOURCE" --model "$MODEL")
           if [ "$GO" = "1" ]; then args+=(--go); fi
-          cd backend
-          python scripts/nearshore_lite_archive.py "${args[@]/#nearshore_lite_archive_out/..\/nearshore_lite_archive_out}" | tee ../plan.json
+          python backend/scripts/nearshore_lite_archive.py "${args[@]}" | tee plan.json
           code=${PIPESTATUS[0]}
-          { echo '```json'; cat ../plan.json; echo '```'; echo "exit code: $code (0 archived, 3 INCOMPLETE: no partition source)"; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '```json'; cat plan.json; echo '```'; echo "exit code: $code (0 archived, 3 INCOMPLETE: no partition source)"; } >> "$GITHUB_STEP_SUMMARY"
           exit "$code"
       - name: Upload the aux files, truth snapshots and any archive
         if: ${{ always() && inputs.go == '1' }}

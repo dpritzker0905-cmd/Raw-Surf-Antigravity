@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 12,
+  "files": 1,
+  "branch": "claude/nearshore-moplite-partitions",
+  "date": "2026-11-22",
+  "note": "MOP-lite served PartitionSource + arms"
+}
