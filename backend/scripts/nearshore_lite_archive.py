@@ -80,6 +80,8 @@ def run(init, targets, stations, out_dir, owner_word_ref, tide_table, ndbc_opene
     meta = {"owner_word_ref": owner_word_ref, "eta_slice_sha256": {k: v["slice_sha256"] for k, v in etas.items()},
             "tide_table_generated_at": tide_table["generated_at"].isoformat(), "tide_source": eta.SOURCE,
             "truth_sha256": snaps}
+    if hasattr(partition_source, "meta"):
+        meta.update(partition_source.meta())                 # per-region source, model per target, basis counts, stored-only
     _, sha = archive.archive_init(os.path.join(out_dir, "archive"), iso, member, rows, meta=meta)
     summary["archive_sha256"] = sha
     summary["status"] = "ARCHIVED"
@@ -101,6 +103,14 @@ def _load_tide_table():
     return table
 
 
+def _partition_source(a):
+    """None until asked for; `served` builds the stored-only service lazily (never on a dry run's import path)."""
+    if a.partition_source != "served":
+        return None
+    from services.weather_pipeline.nearshore_lite import partition_source as ps
+    return ps.ServedPartitionSource(ps.build_service(), default_model=a.model)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--init", required=True, help="00Z init, ISO e.g. 2027-01-15T00:00Z")
@@ -108,6 +118,9 @@ def main(argv=None):
     ap.add_argument("--stations", default="", help="comma-separated NDBC station ids")
     ap.add_argument("--out", default="nearshore_lite_archive_out")
     ap.add_argument("--owner-word-ref", default="")
+    ap.add_argument("--partition-source", choices=("none", "served"), default="none",
+                    help="served = the served chain's partitions from our STORED products only (CI, needs the bucket secrets)")
+    ap.add_argument("--model", default="EURO", help="model member the served chain uses for these targets")
     ap.add_argument("--go", action="store_true", help="write (default: dry run)")
     a = ap.parse_args(argv)
     try:
@@ -116,7 +129,7 @@ def main(argv=None):
             targets = json.load(f)
         stations = [s for s in a.stations.split(",") if s]
         code, summary = run(init, targets, stations, a.out, a.owner_word_ref, _load_tide_table(), _urlopen_ndbc,
-                            partition_source=None, dry_run=not a.go)
+                            partition_source=_partition_source(a), dry_run=not a.go)
     except ValueError as e:
         print(f"REFUSED: {e}", file=sys.stderr)
         return EXIT_REFUSED
