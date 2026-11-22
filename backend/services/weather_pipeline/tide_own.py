@@ -31,6 +31,7 @@ import math
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -63,6 +64,10 @@ _DISK_PATH = os.environ.get("TIDE_OWN_DISK_CACHE") or os.path.join(
 _state = {"table": None, "read_at": 0.0, "fail_until": 0.0, "disk_gen": None, "etag": None}
 _lock = threading.Lock()           # guards _state (held only briefly)
 _load_gate = threading.Lock()      # single-flight: at most one download + decode at a time
+# T3 (the advisor on #1138): the tide load runs on its OWN one-worker executor, never the default one. On the 1-CPU box
+# the default executor's few threads could all park on this load (up to the timeout each) and starve every other
+# to_thread caller. With one worker, a second cold caller queues behind the one load instead of taking a thread.
+_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="tide-own-load")
 _fetcher = None                   # tests inject callables returning the decoded table (or None, or raising)
 _prev_fetcher = None
 
@@ -224,13 +229,22 @@ def _load_sync(now: float) -> Optional[dict]:
         with _lock:                                       # another loader may have finished while we waited
             if _state["table"] is not None and now - _state["read_at"] < _TTL_S:
                 return _state["table"]
+            # T1 (the advisor on #1138): ...or FAILED while we waited. A cold waiter must not re-run the whole fetch
+            # chain inside the cooldown (that defeats it during a storage outage): it gets the current table.
+            if now < _state["fail_until"]:
+                return _state["table"]
             table = _state["table"]
         got = _try("published", _fetcher or _fetch_bucket)
+        published = got is not None and got != NOT_MODIFIED
         if got == NOT_MODIFIED:                           # unchanged since the last read: nothing to decode
             with _lock:
                 _state["read_at"] = now
                 return _state["table"]
         if got is None:
+            # T2 (the advisor on #1138): an ETag is adopted only with a VALID published table. The published read set
+            # pending_etag before validate; it failed or was refused here, so its ETag must not outlive it.
+            with _lock:
+                _state.pop("pending_etag", None)
             got = _try("previous", _prev_fetcher or (lambda: _fetch_bucket(PREV_KEY)))
             got = None if got == NOT_MODIFIED else got
         if got is None and table is None:
@@ -241,8 +255,9 @@ def _load_sync(now: float) -> Optional[dict]:
                 if cur is None or got[1]["generated_at"] >= cur["generated_at"]:
                     _state["table"] = got[1]
                 _state["read_at"] = now
-                if _state.get("pending_etag"):
+                if published and _state.get("pending_etag"):  # T2: only the published branch carries an ETag
                     _state["etag"] = _state.pop("pending_etag")
+                _state.pop("pending_etag", None)
             else:
                 _state["fail_until"] = now + _FAIL_COOLDOWN_S
             served = _state["table"]
@@ -309,8 +324,16 @@ def series_from_table(table: Optional[dict], key, forecast_days: int, now: datet
 
 async def fetch_series(key, forecast_days: int = 3, prefer_cmems: bool = True) -> Optional[dict]:
     """The served tide series for a rounded key, or None (tide unavailable). Never raises; bounded by the timeout."""
+    now = time.time()
+    with _lock:
+        table, read_at, fail_until = _state["table"], _state["read_at"], _state["fail_until"]
+    # T3's fast path: a fresh table, a cooldown, or a load already running with a table in hand answers at once, with
+    # no executor hop (warm callers never queue behind the one worker).
+    if table is not None and (now - read_at < _TTL_S or now < fail_until or _load_gate.locked()):
+        return series_from_table(table, key, forecast_days, datetime.now(timezone.utc), prefer_cmems)
     try:
-        table = await asyncio.wait_for(asyncio.to_thread(_load_sync, time.time()), _TIMEOUT_S + 1.0)
+        loop = asyncio.get_running_loop()
+        table = await asyncio.wait_for(loop.run_in_executor(_EXECUTOR, _load_sync, now), _TIMEOUT_S + 1.0)
     except (asyncio.TimeoutError, TimeoutError):
         logger.warning("[tide-own] table load exceeded its budget")
         with _lock:

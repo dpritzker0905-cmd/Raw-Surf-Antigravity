@@ -13,7 +13,7 @@
 import { memo, useEffect, useRef } from 'react';
 import WebGLWindEngine, { windGridsCompatible } from './WebGLWindEngine';
 import { getShownGustField, subscribeGustField } from './gustParticles';
-import { getShownCurrentField, subscribeCurrentField, encodeCurrentColour } from './currentParticles';
+import { encodeCurrentColour } from './currentParticles';
 import { coalesceOn, coalesceWindDeliveries, refreshWindSpeedScale } from './windDeliveryCoalesce';
 import { windLayerBeforeId, windCoastlineLayer, windCoastlineWanted, WIND_COASTLINE } from './WebGLWindUtils';
 import { syncWindBasemapMute, windBasemapMuteStale } from './windBasemapMute';
@@ -553,6 +553,12 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
   // CURRENTS (currentParticles.js): the same path with the shown currents field as the colour / sea texture (ocean only); the
   // grid the marks advect on arrives as `data` (MapWebGL), so the motion is the current's own.
   gustColourRef.current = colourMode;
+  // Currents: the colour / sea texture is the field the grid was built from (grid.colourField), so the marks and the ocean mask
+  // they respect always change together: the world field, or a box's native 1/12-deg field (currentNative.js).
+  const curColourField = colourMode === 'current' && data && data.isCurrentFlow ? (data.colourField || null) : null;
+  const curColourRef = useRef(curColourField);
+  curColourRef.current = curColourField;
+  const applyColourRef = useRef(null);
   useEffect(() => {
     if (!mapInstance) return undefined;
     const isCurrent = colourMode === 'current';
@@ -568,14 +574,19 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
       mapInstance.triggerRepaint();
       return true;
     };
-    const shownNow = () => (isCurrent ? (getShownCurrentField() || {}).field || null : getShownGustField());
+    const shownNow = () => (isCurrent ? curColourRef.current : getShownGustField());
     if (!colourMode) { apply(null); return undefined; }
     // GL comes up with the custom layer: until then, retry on the map's next render.
     const onRender = () => { if (apply(shownNow())) mapInstance.off('render', onRender); };
     if (!apply(shownNow())) mapInstance.on('render', onRender);
-    const unsub = isCurrent ? subscribeCurrentField((rec) => { apply(rec ? rec.field : null); }) : subscribeGustField((f) => { apply(f); });
-    return () => { unsub(); try { mapInstance.off('render', onRender); } catch (e) { /* map gone */ } apply(null); };
+    applyColourRef.current = isCurrent ? apply : null;
+    const unsub = isCurrent ? () => {} : subscribeGustField((f) => { apply(f); });
+    return () => {
+      applyColourRef.current = null; unsub(); try { mapInstance.off('render', onRender); } catch (e) { /* map gone */ } apply(null);
+    };
   }, [colourMode, mapInstance]);
+  // A new current grid (a scrub step, a box frame, back to the world grid): its own colour field.
+  useEffect(() => { if (applyColourRef.current) applyColourRef.current(curColourField); }, [curColourField]);
 
  // No DOM element this renders directly into MapLibre's WebGL context
   return null;

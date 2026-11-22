@@ -646,6 +646,27 @@ jobs:
           FRAME_RASTER_DIR_BYTE: ${{ vars.FRAME_RASTER_DIR_BYTE }}   # the currents particles' direction byte (its own lane's kill)
           FRAME_RASTER_BUDGET_S: "900"
         run: python scripts/publish_raster_frames.py --set currents_rtofs
+      # NATIVE 1/12-DEG COPERNICUS CURRENTS ON THE SURF BOXES (2026-11-22; the research lead's Q3 note, red flag 1): the world
+      # set's 3 x 3 mean onto 0.25 deg drops the model's coastal detail, so each marine pilot box also gets the source cells
+      # themselves (services/frame_set_raster_currents_native.py; CMEMS/marine/currents/<box>_0p083, 14 sets x 41 frames).
+      # SIZE PER RUN (measured offline 2026-11-22, the 22 Nov 00Z bulletin): PULLS 1.34 GB (only the store chunks the boxes
+      # touch, one read per hour for every box) and KEEPS 7.0 MB (574 frames), 49 s; a run whose bulletin is published reads the
+      # time axis and stops. The step prints both numbers as a notice. The client reads it only for the Currents particles, and
+      # only behind its own lever (currentNative.js). DARK: off unless FRAME_RASTER_CURRENTS_NATIVE = '1'. The step never continues
+      # on error (the advisor's gate on #1145, as RTOFS and GIOPS): a failed publish (exit 1) turns the run red; every later step's
+      # `!cancelled()` still runs it. Upstream not ready yet (no bulletin) exits 0.
+      - name: Publish raster static frames (native 1/12-deg Copernicus currents on the surf boxes; off unless FRAME_RASTER_CURRENTS_NATIVE=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_NATIVE == '1' }}
+        timeout-minutes: 15
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CURRENTS_NATIVE: ${{ vars.FRAME_RASTER_CURRENTS_NATIVE }}
+          FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}   # kill '0': the old two-byte frames (log §12)
+          FRAME_RASTER_DIR_BYTE: ${{ vars.FRAME_RASTER_DIR_BYTE }}   # kill '0': no flow direction (the box particles stop)
+          FRAME_RASTER_BUDGET_S: "600"
+        run: python scripts/publish_raster_frames.py --bundle currents_native
       # G4 (2026-11-17): Copernicus ocean-model water temperature, the WORLD half of arm R2: 1/6 deg, 3-hourly, f000-f237 from the
       # hourly-mean thetao top level (the same CMEMS store family as currents). Offline cost: 80 frames, 71.6 MB, 47 s
       # (docs/weather-program/log/2026-11-17-opus-g4-copernicus-sst.md). ON by default (David 2026-11-17); kill: the repository

@@ -545,3 +545,79 @@ def test_storage_io_writes_only_three_names_under_tide_own():
     assert 'ALLOWED = {"series.json.gz", "series.prev.json.gz", "m.json"}' in src and 'PREFIX = "tide_own/"' in src
     assert re.findall(r"^\s*(?:import|from)\s+(\w+)", src, re.M) == ["json", "os", "sys", "urllib", "urllib"]
     assert "print(key" not in src and "print(base" not in src
+
+
+def test_t1_cold_waiters_after_a_failed_load_do_not_rerun_the_fetch_chain(served):
+    """T1 (the advisor on #1138): cold callers waiting on the gate while the one loader FAILS get the (absent) table
+    inside the cooldown; they never re-run the published / previous / disk chain one after another."""
+    import threading
+    import time as _t
+    calls = {"pub": 0, "prev": 0}
+
+    def down():
+        calls["pub"] += 1
+        _t.sleep(0.3)
+        return None
+
+    def prev_down():
+        calls["prev"] += 1
+        return None
+    tide_own._reset_for_tests(down, prev_fetcher=prev_down)
+    out = []
+    ths = [threading.Thread(target=lambda: out.append(tide_own._load_sync(1000.0))) for _ in range(6)]
+    for th in ths:
+        th.start()
+    for th in ths:
+        th.join()
+    assert calls == {"pub": 1, "prev": 1}, calls                    # one chain, not one per waiter
+    assert out == [None] * 6
+    assert tide_own._state["fail_until"] == 1000.0 + tide_own._FAIL_COOLDOWN_S
+
+
+def test_t2_an_etag_is_adopted_only_with_a_valid_published_table(served):
+    """T2 (the advisor on #1138): the published read records its ETag before validate; when that table is refused and
+    the previous one serves, the refused table's ETag is dropped, never adopted (the next read is unconditional)."""
+    now = datetime.now(UTC)
+
+    def refused():
+        tide_own._state["pending_etag"] = '"refused"'              # what _fetch_bucket does on a 200
+        return {"schema": "not-ours"}                               # ...for a table validate refuses
+    tide_own._reset_for_tests(refused, prev_fetcher=lambda: _two_source_table(now))
+    got = tide_own._load_sync(1000.0)
+    assert got is not None                                          # the previous good table serves
+    assert tide_own._state["etag"] is None and "pending_etag" not in tide_own._state
+
+    def valid():
+        tide_own._state["pending_etag"] = '"v2"'
+        return _two_source_table(now)
+    tide_own._reset_for_tests(valid)
+    tide_own._load_sync(1000.0)
+    assert tide_own._state["etag"] == '"v2"' and "pending_etag" not in tide_own._state   # adopted on the published branch
+
+
+def test_t3_the_load_runs_on_its_own_single_worker_and_warm_callers_never_queue(served, monkeypatch):
+    """T3 (the advisor on #1138): the load never takes a default-executor thread (on 1 CPU those could all park for
+    the timeout); it runs on a dedicated one-worker executor, and a caller holding a table while a load runs answers
+    at once without the executor."""
+    import threading
+    assert tide_own._EXECUTOR._max_workers == 1
+    monkeypatch.setattr(asyncio, "to_thread", lambda *a, **k: pytest.fail("the default executor must not be used"))
+    now = datetime.now(UTC)
+    ran_on = []
+
+    def fetch():
+        ran_on.append(threading.current_thread().name)
+        return _two_source_table(now)
+    tide_own._reset_for_tests(fetch)
+    s = asyncio.run(tide_own.fetch_series((21.7, -158.0), 3, prefer_cmems=False))
+    assert s is not None and s["source"] == "am"
+    assert ran_on and ran_on[0].startswith("tide-own-load")         # the dedicated worker, not the default pool
+    with tide_own._lock:
+        tide_own._state["read_at"] = 0.0                              # the table is now stale...
+    assert tide_own._load_gate.acquire(blocking=False)               # ...and a reload is in progress
+    try:
+        monkeypatch.setattr(tide_own._EXECUTOR, "submit", lambda *a, **k: pytest.fail("a warm caller must not queue"))
+        s2 = asyncio.run(tide_own.fetch_series((21.7, -158.0), 3, prefer_cmems=False))
+        assert s2 is not None and s2["source"] == "am" and len(ran_on) == 1
+    finally:
+        tide_own._load_gate.release()

@@ -107,6 +107,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CURRENT_PARTICLES__',
   // currentParticles.test.js ("its kill, the particles kill, reduced motion or no direction: no prewarm"; 2026-11-22)
   '__RAW_DISABLE_CURRENT_GRID_PREWARM__',
+  // currentNative.test.js ("off by default; the lever ... turns it on; its kill and the particles' gates win"; 2026-11-22)
+  '__RAW_DISABLE_CURRENTS_NATIVE__',
   // gustParticles.test.js ("the flicker: on by default, off under its kill and under prefers-reduced-motion"; 2026-11-18)
   '__RAW_DISABLE_GUST_FLICKER__',
   // gustParticles.test.js ("the gust field tints like the wind field on light and beach; both kills turn it off"; 2026-11-18)
@@ -128,6 +130,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_OWN_WATER_TEMP__',
   '__RAW_DISABLE_RASTER_OWN_HANDOVER__',
   '__RAW_DISABLE_RASTER_OWN_SAME_FRAME__',
+  '__RAW_DISABLE_RASTER_OWN_GAP_FILL__',   // 2026-11-22: the own-only gap fill (ownRasterGapFill.test.js, the kill)
+  '__RAW_DISABLE_RASTER_OWN_RETRY__',   // 2026-11-18: own-only index retry (useOwnRasterFrames.unpublished.test.js, RETRY)
   // components/map/ownRasterDownscale.test.js ("OFF PATH: __RAW_DISABLE_DZ_UNPUBLISHED_CACHE__ asks on every call"; 2026-11-14)
   '__RAW_DISABLE_DZ_UNPUBLISHED_CACHE__',
   // components/map/ownRasterLayer.test.js ("OFF PATH: the kill is the hard cut, as before"; the value blend, 2026-11-12)
