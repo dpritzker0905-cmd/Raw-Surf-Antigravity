@@ -1,3 +1,4 @@
+import BuyInPriceInput from './BuyInPriceInput';
 import React from 'react';
 import {
   DollarSign, Clock, Users, Zap, ChevronDown, Heart, Video, Tag, Percent,
@@ -104,18 +105,10 @@ const SessionSettingsModal = ({
                     <Label className={textSecondaryClass}>Buy-in Price (to join session)</Label>
                     <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
                       <span className={`text-2xl font-bold ${textPrimaryClass}`}>$</span>
-                      <Input
-                        aria-label="Session buy-in price"
-                        type="number"
-                        step="0.01"
-                        value={sessionSettings.price_per_join}
-                        onChange={(e) => {
-                          const price = Number(e.target.value);
-                          setSessionSettings(prev => ({ ...prev, price_per_join: price }));
-                        }}
+                      <BuyInPriceInput
+                        price={sessionSettings.price_per_join}
+                        onPriceChange={price => setSessionSettings(prev => ({ ...prev, price_per_join: price }))}
                         className={`${inputBgClass} ${textPrimaryClass} text-2xl font-bold h-12 text-center`}
-                        min="0"
-                        max="500"
                       />
                       <span className={`text-sm whitespace-nowrap ${textSecondaryClass}`}>per surfer</span>
                     </div>

@@ -49,7 +49,10 @@ async def paid_seat_ticket(db, tx):
 
 def is_paid_seat_review(tx, metadata):
     return (
-        tx.status == "review_required" and tx.payment_status == "paid"
+        tx.status == "review_required" and tx.payment_status in ("Paid", "paid")
         and isinstance(metadata, dict) and metadata.get("type") == "live_session_join"
-        and metadata.get("review_reason") in ("original_session_unavailable", "missing_original_session")
+        and metadata.get("review_reason") in (
+            "original_session_unavailable", "missing_original_session", "refund_unconfirmed",
+            "checkout_mismatch", "unverified_binding",
+        )
     )

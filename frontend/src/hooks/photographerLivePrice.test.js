@@ -32,6 +32,10 @@ it.each([SpotSetupPanel, SessionSettingsModal])('keeps cents and zero when editi
   }
   render(<Settings />);
   const input = screen.getByRole('spinbutton', { name: 'Session buy-in price' });
+  fireEvent.change(input, { target: { value: '' } });
+  expect(input).toHaveValue(null);
+  fireEvent.blur(input);
+  expect(input).toHaveValue(25);
   for (const value of ['17.50', '0']) {
     fireEvent.change(input, { target: { value } });
     expect(input).toHaveValue(Number(value));

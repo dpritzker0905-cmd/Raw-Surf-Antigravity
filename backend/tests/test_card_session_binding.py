@@ -18,7 +18,7 @@ from tests.test_live_session_escrow import BUYIN, bearer, harness
 
 @pytest.mark.parametrize("case", [
     "completed_retry", "ended", "replacement", "overlapping", "stopped", "legacy",
-    "provider_mismatch", "newer_on_demand", "review_commit_durable", "review_commit_rolled_back",
+    "provider_mismatch", "unknown_provider", "refund_unconfirmed", "refund_pending", "newer_on_demand", "review_commit_durable", "review_commit_rolled_back",
 ])
 async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
     target_id = "original-live"
@@ -30,6 +30,8 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
     if case == "legacy":
         del metadata["live_session_id"]
     saved = {**metadata, "checkout_provider": "stripe", "checkout_reference": "attempt-fixture"}
+    if case == "unknown_provider":
+        del saved["checkout_provider"]
     async with harness.maker() as db:
         db.add(LiveSession(
             id=target_id, photographer_id="pro", buyin_price=BUYIN,
@@ -62,6 +64,12 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
     refund = Mock()
     monkeypatch.setattr(payments.stripe.Refund, "create", refund)
     monkeypatch.setattr(push_payloads, "notify_session_join", AsyncMock())
+    if case in ("refund_unconfirmed", "refund_pending"):
+        monkeypatch.setattr(payments.live_session_escrow, "hold", Mock(side_effect=RuntimeError("seat write failed")))
+        if case == "refund_unconfirmed":
+            refund.side_effect = RuntimeError("refund unavailable")
+        else:
+            refund.return_value = SimpleNamespace(status="pending")
     request = {"headers": bearer("owner"), "json": {"checkout_session_id": checkout_id}}
     with monkeypatch.context() as first_attempt:
         if case in ("review_commit_durable", "review_commit_rolled_back"):
@@ -80,13 +88,16 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
             db.add(LiveSession(id="next", photographer_id="pro", status="active"))
             await db.commit()
     again = await harness.client.post("/api/sessions/complete-payment", **request)
-    refund.assert_not_called()
+    if case in ("refund_unconfirmed", "refund_pending"):
+        refund.assert_called_once()
+    else:
+        refund.assert_not_called()
 
     async with harness.maker() as db:
         tx = (await db.scalars(select(PaymentTransaction))).one()
         seats = (await db.scalars(select(LiveSessionParticipant))).all()
         tickets = (await db.scalars(select(SupportTicket))).all()
-        if case in ("completed_retry", "newer_on_demand", "provider_mismatch"):
+        if case in ("completed_retry", "newer_on_demand"):
             assert tickets == []
         else:
             [ticket] = tickets
@@ -104,13 +115,16 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
             assert first.status_code == (503 if case.startswith("review_commit_") else 409), first.text
             assert again.status_code == 409
             assert seats == []
+            assert (tx.payment_status, tx.status) == ("Paid", "review_required")
+            reason = json.loads(tx.transaction_metadata)["review_reason"]
             if case == "provider_mismatch":
-                assert tx.payment_status == "Pending" and tx.status == "Pending"
+                assert reason == "checkout_mismatch"
+            elif case in ("refund_unconfirmed", "refund_pending"):
+                assert reason == "refund_unconfirmed"
+            elif case == "unknown_provider":
+                assert reason == "unverified_binding"
             else:
-                assert (tx.payment_status, tx.status) == ("paid", "review_required")
-                assert json.loads(tx.transaction_metadata)["review_reason"] in (
-                    "missing_original_session", "original_session_unavailable",
-                )
+                assert reason in ("missing_original_session", "original_session_unavailable")
 
 
     if case == "ended":

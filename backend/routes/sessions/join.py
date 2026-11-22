@@ -498,7 +498,7 @@ async def join_session(
     
         await db.commit()
     except Exception as exc:
-        if isinstance(exc, IntegrityError) and getattr(exc.orig.__cause__, 'constraint_name', None) == 'uq_live_session_active_seat':
+        if isinstance(exc, IntegrityError) and getattr(getattr(exc.orig, '__cause__', None), 'constraint_name', None) == 'uq_live_session_active_seat':
             await db.rollback()
             raise HTTPException(status_code=409, detail="Already in this session") from exc
         logger.exception("Live session join failed")

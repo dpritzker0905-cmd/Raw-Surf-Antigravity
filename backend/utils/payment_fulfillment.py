@@ -26,6 +26,8 @@ def wallet_credit_amount(transaction):
     if not isinstance(metadata, dict):
         raise ValueError('Invalid payment metadata')
     kind = metadata.get('type')
+    if kind == 'live_session_join':
+        raise ValueError('Live session payments require seat fulfillment')
     if kind in ('subscription', 'photo_subscription', 'grom_subscription', 'crew_share'):
         return None  # Dedicated handlers own these entitlements.
     if kind == 'wallet_credit_pack':

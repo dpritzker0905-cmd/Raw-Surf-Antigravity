@@ -19,7 +19,7 @@ async def reconcile_paid_seat_tickets(maker, apply=False):
         async with maker() as db:
             ids = (await db.scalars(select(PaymentTransaction.id).where(
                 PaymentTransaction.id > cursor, PaymentTransaction.status == "review_required",
-                PaymentTransaction.payment_status == "paid",
+                PaymentTransaction.payment_status.in_(("Paid", "paid")),
             ).order_by(PaymentTransaction.id).limit(100))).all()
         if not ids:
             return {"missing": missing, "created": created, "unreadable": unreadable}

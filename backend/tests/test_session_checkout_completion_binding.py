@@ -89,7 +89,7 @@ def test_hosted_checkout_requires_exact_stripe_payment(owned_checkout, monkeypat
     tx.amount = 25.0
     tx.currency = "usd"
     tx.transaction_metadata = json.dumps({
-        "checkout_provider": "stripe", "checkout_reference": "fixture-attempt",
+        "type": "live_session_join", "checkout_provider": "stripe", "checkout_reference": "fixture-attempt",
         "photographer_id": "usr_photog",
     })
     monkeypatch.setattr(payments, "checkout_emulation_allowed", lambda: True)
@@ -103,6 +103,7 @@ def test_hosted_checkout_requires_exact_stripe_payment(owned_checkout, monkeypat
         },
         **changed,
     })
+    monkeypatch.setattr(payments, "paid_seat_ticket", AsyncMock(return_value="fixture-ticket"))
     with patch("stripe.checkout.Session.retrieve", return_value=checkout) as retrieve, \
             patch("stripe.Refund.create") as refund:
         response = client.post(
@@ -112,7 +113,9 @@ def test_hosted_checkout_requires_exact_stripe_payment(owned_checkout, monkeypat
     assert response.status_code == 409
     retrieve.assert_called_once_with("cs_test_abc")
     refund.assert_not_called()
-    owned_checkout.commit.assert_not_called()
+    owned_checkout.commit.assert_awaited_once()
+    assert response.json()["support_ticket_id"] == "fixture-ticket"
+    assert json.loads(tx.transaction_metadata)["review_reason"] == "checkout_mismatch"
 
 
 @pytest.mark.parametrize("dev_ok, key, expected", [

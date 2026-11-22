@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 2,
+  "tests": 6,
   "branch": "codex/pricing-seat-integration",
-  "date": "2026-11-21",
-  "note": "Live card quote through original seat recovery or paid support"
+  "date": "2026-11-22",
+  "note": "Two original quote-to-seat cases, three paid review scenarios, and one live-seat wallet exclusion"
 }

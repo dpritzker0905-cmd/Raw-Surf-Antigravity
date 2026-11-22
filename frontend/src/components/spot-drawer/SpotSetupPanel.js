@@ -1,3 +1,4 @@
+import BuyInPriceInput from '../sessions/BuyInPriceInput';
 /**
  * SpotSetupPanel -- Extracted from UnifiedSpotDrawer.js (v79)
  *
@@ -76,17 +77,10 @@ const SpotSetupPanel = ({
         </label>
         <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-xl">
           <span className="text-2xl font-bold text-white">$</span>
-          <Input aria-label="Session buy-in price"
-            type="number"
-            step="0.01"
-            value={sessionSettings.price_per_join}
-            onChange={(e) => {
-              const price = Number(e.target.value);
-              setSessionSettings(prev => ({ ...prev, price_per_join: price }));
-            }}
+          <BuyInPriceInput
+            price={sessionSettings.price_per_join}
+            onPriceChange={price => setSessionSettings(prev => ({ ...prev, price_per_join: price }))}
             className="bg-transparent border-none text-2xl font-bold text-white text-center"
-            min="0"
-            max="500"
           />
           <span className="text-gray-400 text-sm whitespace-nowrap">per surfer</span>
         </div>

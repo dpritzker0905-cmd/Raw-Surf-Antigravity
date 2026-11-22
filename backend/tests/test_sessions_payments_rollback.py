@@ -51,7 +51,7 @@ async def test_complete_payment_stripe_error_triggers_rollback(monkeypatch):
         )
         
     assert response.status_code == 500
-    assert "Payment verification failed: Mock Stripe Error" in response.json()["detail"]
+    assert response.json()["detail"] == "Payment verification failed"
     
     # Assert rollback was called
     mock_db.rollback.assert_called_once()
@@ -119,6 +119,17 @@ async def test_complete_payment_database_error_refunds_stripe_live(monkeypatch):
     
     # Mock retrieve to return paid session
     mock_checkout_session = MagicMock()
+    mock_tx.amount = 25.0
+    mock_tx.currency = "usd"
+    mock_tx.transaction_metadata = json.dumps({
+        **json.loads(mock_tx.transaction_metadata), "checkout_provider": "stripe",
+        "checkout_reference": "fixture-ref",
+    })
+    mock_checkout_session.id = "cs_live_1234"
+    mock_checkout_session.mode = "payment"
+    mock_checkout_session.client_reference_id = "fixture-ref"
+    mock_checkout_session.amount_total = 2500
+    mock_checkout_session.currency = "usd"
     mock_checkout_session.payment_status = "paid"
     mock_checkout_session.payment_intent = "pi_live_1234"
     mock_checkout_session.metadata = {
@@ -129,7 +140,7 @@ async def test_complete_payment_database_error_refunds_stripe_live(monkeypatch):
     }
     
     with patch("stripe.checkout.Session.retrieve", return_value=mock_checkout_session) as mock_retrieve, \
-         patch("stripe.Refund.create") as mock_refund:
+         patch("stripe.Refund.create", return_value=MagicMock(status="succeeded")) as mock_refund:
         
         response = client.post(
             "/api/sessions/complete-payment",
