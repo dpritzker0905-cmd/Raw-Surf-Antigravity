@@ -69,6 +69,15 @@ describe('the box under the view', () => {
     expect(boxFor({ west: NaN, south: 0, east: 1, north: 1 })).toBe(null);
   });
 
+  test('a view on a wrapped world copy finds its box (the longitudes are brought back into -180..180)', () => {
+    const fl = { west: -80.8, south: 26.3, east: -79.1, north: 27.5 };
+    expect(boxFor(fl)).toBe('florida_east_coast');
+    expect(boxFor({ ...fl, west: fl.west + 360, east: fl.east + 360 })).toBe('florida_east_coast');
+    expect(boxFor({ ...fl, west: fl.west - 720, east: fl.east - 720 })).toBe('florida_east_coast');
+    expect(boxFor({ ...fl, west: fl.east, east: fl.west })).toBe(null);                     // west not below east: no box
+    expect(boxFor({ west: 179.5, south: 20, east: 180.5, north: 21 })).toBe(null);           // across the antimeridian: no box
+  });
+
   test('the key is the publisher\'s set and the box table is the snapped pilot boxes (the backend test pins the numbers)', () => {
     expect(nativeKey('hawaii')).toBe('CMEMS/marine/currents/hawaii_0p083');
     expect(Object.keys(NATIVE_BOXES)).toHaveLength(14);

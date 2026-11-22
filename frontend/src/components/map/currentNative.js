@@ -55,9 +55,13 @@ export function currentsNativeOn(win = W()) {
   return lever === true || lever === '1' || lever === 'true';
 }
 
-/** The box that holds the WHOLE view ({west, south, east, north}), the smallest if several; null otherwise. PURE. */
-export function boxFor(view) {
-  if (!view || ![view.west, view.south, view.east, view.north].every(Number.isFinite)) return null;
+/** The box that holds the WHOLE view ({west, south, east, north}), the smallest if several; null otherwise. PURE.
+ *  A view on a wrapped world copy (MapLibre's getBounds gives e.g. west -520) is shifted by the multiple of 360 that brings its
+ *  centre into -180..180 first; a view whose west is not below its east is no box. */
+export function boxFor(raw) {
+  if (!raw || ![raw.west, raw.south, raw.east, raw.north].every(Number.isFinite) || !(raw.west < raw.east)) return null;
+  const shift = 360 * Math.round(((raw.west + raw.east) / 2) / 360);
+  const view = { west: raw.west - shift, east: raw.east - shift, south: raw.south, north: raw.north };
   let best = null; let area = Infinity;
   for (const [box, [w, s, e, n]] of Object.entries(NATIVE_BOXES)) {
     if (view.west >= w && view.east <= e && view.south >= s && view.north <= n) {
