@@ -209,3 +209,58 @@ def test_the_seam_table_reports_unpaired_segments():
     row.unpaired = 3
     text, _ = seam.to_csv([row])
     assert text.splitlines()[0].endswith("unpaired_segments") and text.splitlines()[1].endswith(",3")
+
+
+# ---- advisor limits on #1154: total pairs per target; freeze reads the CURRENT seam-table format ----------------------
+def _row(target, join, n, med, p95, tag="", unpaired=0):
+    from services.weather_pipeline.nearshore_lite import seam
+    return seam.SeamRow(target, join, "a,b", n, med, p95, tag, med > 0.3, unpaired)
+
+
+def test_the_summary_reports_total_pairs_per_target_beside_median_and_p95(tmp_path):
+    from services.weather_pipeline.nearshore_lite import seam
+    rows = [_row("T1", "A|B", 1, 0.1, 0.1), _row("T1", "A|C", 4, 0.4, 1.3, "SEAM", 2), _row("T2", "A|B", 0, float("nan"), float("nan"))]
+    s = seam.target_summary(rows)
+    assert s["T1"]["pairs"] == 5 and s["T1"]["joins"] == 2 and s["T1"]["max_p95_m"] == 1.3 and s["T1"]["unpaired"] == 2
+    assert s["T1"]["tag"] == "SEAM" and s["T2"]["pairs"] == 0
+    p, sha = freeze.commit_seam_table(str(tmp_path), rows)
+    text = (tmp_path / "seam_table.summary.csv").read_text(encoding="utf-8")
+    assert text.splitlines()[0] == "target,joins,pairs,max_median_m,max_p95_m,unpaired_segments,tag"
+    assert text.splitlines()[1].startswith("T1,2,5,")
+
+
+def test_read_table_round_trips_the_current_format(tmp_path):
+    from services.weather_pipeline.nearshore_lite import seam
+    rows = [_row("T1", "A|B", 3, 0.2, 0.5, "", 1)]
+    p, _ = freeze.commit_seam_table(str(tmp_path), rows)
+    back = seam.read_table(p)
+    assert back[0].target == "T1" and back[0].n_cells == 3 and back[0].unpaired == 1 and back[0].p95_m == pytest.approx(0.5)
+
+
+def _plain_target(tags=None):
+    from services.weather_pipeline.nearshore_lite import datum
+    from services.weather_pipeline.nearshore_lite.ray_trace import DepthGrid
+    x = np.arange(60) * 25.0
+    h = np.tile((0.02 * (1250.0 - x))[None, :], (60, 1))
+    h[h < 0.5] = np.nan
+    return {"id": "T1", "grid": DepthGrid(h, 25.0), "xy": (400.0, 750.0), "stratum": "FINE", "tags": tags or [],
+            "datum_records": [datum.resolve("CUDEM", "t", "NAVD88", 0.1, "vdatum", "v").as_dict()], "sources": ["CUDEM"]}
+
+
+def test_freeze_refuses_a_seam_table_in_the_old_format(tmp_path):
+    import hashlib
+    old = tmp_path / "old.csv"
+    old.write_text("target,join,sources,n_cells,median_m,p95_m,tag,median_over_0.3m\nT1,A|B,a,b,5,0.1,0.2,,0\n", encoding="utf-8")
+    sha = hashlib.sha256(old.read_bytes()).hexdigest()
+    with pytest.raises(freeze.FreezeOrderError, match="current format"):
+        freeze.freeze_targets(str(tmp_path / "c"), [_plain_target()], str(old), sha)
+
+
+def test_freeze_refuses_a_target_whose_seam_tag_disagrees_with_the_table(tmp_path):
+    p, sha = freeze.commit_seam_table(str(tmp_path / "s"), [_row("T1", "A|B", 4, 0.4, 1.3, "SEAM")])
+    with pytest.raises(freeze.FreezeOrderError, match="SEAM tag"):
+        freeze.freeze_targets(str(tmp_path / "c"), [_plain_target(tags=[])], p, sha)
+    freeze.freeze_targets(str(tmp_path / "c"), [_plain_target(tags=["SEAM"])], p, sha)        # consistent: freezes
+    p2, sha2 = freeze.commit_seam_table(str(tmp_path / "s2"), [_row("T1", "A|B", 4, 0.1, 0.2)])
+    with pytest.raises(freeze.FreezeOrderError, match="SEAM tag"):
+        freeze.freeze_targets(str(tmp_path / "c2"), [_plain_target(tags=["SEAM"])], p2, sha2)

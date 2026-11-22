@@ -93,3 +93,50 @@ def to_csv(rows):
 def target_tags(rows):
     """{target: SEAM} for every target with at least one SEAM join."""
     return {r.target: SEAM for r in rows if r.tag == SEAM}
+
+
+def read_table(path):
+    """Parse a committed seam table (the CURRENT format, with `unpaired_segments`). Raises ValueError on any other header,
+    so the freeze step can never read an old-format table as if it were current."""
+    with open(path, encoding="utf-8", newline="") as f:
+        reader = csv.reader(f)
+        header = next(reader, None)
+        if header != HEADER:
+            raise ValueError(f"seam table header {header} != {HEADER}")
+        rows = []
+        for r in reader:
+            if len(r) != len(HEADER):
+                raise ValueError(f"seam table row has {len(r)} columns, expected {len(HEADER)}: {r}")
+            rows.append(SeamRow(r[0], r[1], r[2], int(r[3]), float(r[4]), float(r[5]), r[6], r[7] == "1", int(r[8])))
+    return rows
+
+
+SUMMARY_HEADER = ["target", "joins", "pairs", "max_median_m", "max_p95_m", "unpaired_segments", "tag"]
+
+
+def target_summary(rows):
+    """Per target: join count, TOTAL PAIRS (one pair per segment for non-overlapping joins, so the count matters),
+    the worst median and p95 beside it, unpaired segments, and the SEAM tag. Sorted by target."""
+    out = {}
+    for r in rows:
+        t = out.setdefault(r.target, {"joins": 0, "pairs": 0, "max_median_m": float("nan"), "max_p95_m": float("nan"),
+                                      "unpaired": 0, "tag": ""})
+        t["joins"] += 1
+        t["pairs"] += r.n_cells
+        t["unpaired"] += r.unpaired
+        if r.n_cells > 0:
+            t["max_median_m"] = r.median_m if t["max_median_m"] != t["max_median_m"] else max(t["max_median_m"], r.median_m)
+            t["max_p95_m"] = r.p95_m if t["max_p95_m"] != t["max_p95_m"] else max(t["max_p95_m"], r.p95_m)
+        if r.tag:
+            t["tag"] = r.tag
+    return dict(sorted(out.items()))
+
+
+def summary_csv(rows):
+    buf = io.StringIO(newline="")
+    w = csv.writer(buf, lineterminator="\n")
+    w.writerow(SUMMARY_HEADER)
+    for k, v in target_summary(rows).items():
+        w.writerow([k, v["joins"], v["pairs"], f"{v['max_median_m']:.4f}", f"{v['max_p95_m']:.4f}", v["unpaired"], v["tag"]])
+    text = buf.getvalue()
+    return text, hashlib.sha256(text.encode("utf-8")).hexdigest()
