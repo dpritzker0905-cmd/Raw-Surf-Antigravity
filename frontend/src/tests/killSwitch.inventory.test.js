@@ -98,6 +98,7 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_OWN_GUSTS__',
   // currentsLayer.test.js ("ships ON, and its kill turns it off"; 2026-11-15, the new Currents layer)
   '__RAW_DISABLE_RASTER_OWN_CURRENTS__',
+  '__RAW_DISABLE_RTOFS_CURRENTS__',   // 2026-11-22: GFS currents back to Copernicus (rtofsCurrents.test.js)
   // gustParticles.test.js ("ships ON: Gusts runs the wind particles; the kill returns it to the heatmap alone"; 2026-11-18)
   '__RAW_DISABLE_GUST_PARTICLES__',
   // gustParticles.test.js ("the flicker: on by default, off under its kill and under prefers-reduced-motion"; 2026-11-18)

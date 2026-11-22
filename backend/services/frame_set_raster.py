@@ -382,6 +382,11 @@ try:  # G4 (2026-11-17): Copernicus ocean-model water temp, 1/6 degree; its spec
 except ImportError:  # pragma: no cover
     import frame_set_raster_sst as _sst
 _sst.register(SPECS, GRIDS)
+try:  # 2026-11-22: NOAA Global RTOFS surface currents (the Currents layer's GFS picker), dark; spec + source in their own module
+    from services import frame_set_raster_rtofs as _rtofs
+except ImportError:  # pragma: no cover
+    import frame_set_raster_rtofs as _rtofs
+_rtofs.register(SPECS, GRIDS)
 
 
 def precip_step(f):
@@ -403,6 +408,8 @@ def make_source(spec, session=None):
         return _sst.CmemsCurrentsSource(spec, session)
     if kind == "cmems_sst":
         return _sst.CmemsSstSource(spec, session)
+    if kind == "rtofs_currents":
+        return _rtofs.RtofsCurrentsSource(spec, session)
     try:
         from services import frame_set_raster_sources as srcs
     except ImportError:  # pragma: no cover

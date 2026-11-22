@@ -117,6 +117,21 @@ export const OWN_RASTER_SETS = {
     fallback: null, field: [CURRENT_BAND_FIELD, SPEED_FIELD], unit: 'kn', ownOnly: true,
   },
 };
+// NOAA GLOBAL RTOFS CURRENTS (2026-11-22): with GFS picked, Currents can read NOAA's own ocean model (frame_set_raster_rtofs.py,
+// set `currents_rtofs`) instead of Copernicus; EURO and ICON keep Copernicus, and the credit names whichever is drawn. DARK until
+// the owner's word: the lever window.__RAW_RTOFS_CURRENTS__ = true (or localStorage) turns it on; flipping the default is
+// RTOFS_CURRENTS_DEFAULT_ON. Kill (wins over both): window.__RAW_DISABLE_RTOFS_CURRENTS__ = true sends GFS back to Copernicus.
+export const RTOFS_CURRENTS_KEY = 'RTOFS/marine/currents/global_0p25';
+export const RTOFS_CURRENTS_DEFAULT_ON = false;
+export function rtofsCurrentsOn() {
+  const w = W();
+  if (w.__RAW_DISABLE_RTOFS_CURRENTS__ === true) return false;
+  let lever = w.__RAW_RTOFS_CURRENTS__;
+  if (lever === undefined || lever === null) {
+    try { lever = w.localStorage ? w.localStorage.getItem('__RAW_RTOFS_CURRENTS__') : null; } catch (e) { lever = null; }
+  }
+  return RTOFS_CURRENTS_DEFAULT_ON || lever === true || lever === 'true';
+}
 /** The status line past a model's own frames for a layer with `endNote` (gusts): "ICON gusts end at day 7.5; ensemble estimate
  *  coming" (the owner's word, 2026-11-15 19:27 EST; the director's wording). `lastMs` = the model's last frame, `runMs` its run. */
 export function endNoteText(layer, model, lastMs, runMs) {
@@ -130,7 +145,7 @@ export function endNoteText(layer, model, lastMs, runMs) {
 /** Layers drawn ONLY from our own frames (no .om path behind them): the picker shows them, a miss shows nothing. */
 export const OWN_ONLY_LAYERS = Object.freeze(Object.keys(OWN_RASTER_SETS).filter((l) => OWN_RASTER_SETS[l].ownOnly));
 // Who the frames come from, for the legend credit and the status line.
-export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON', CMEMS: 'Copernicus Marine' };
+export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON', CMEMS: 'Copernicus Marine', RTOFS: 'NOAA RTOFS' };
 const up = (m) => String(m || 'GFS').toUpperCase();
 /** The model whose data a layer's set for `model` really holds (the set key's first part): GFS for fog and gusts under any picked
  *  model, so the credit and the status line never name ECMWF or DWD over NOAA's field. */
@@ -140,6 +155,7 @@ export function sourceModel(layer, model = 'GFS') {
 }
 /** The set key for a layer and model, or null when that model has no own set. */
 export function setKey(layer, model = 'GFS') {
+  if (layer === 'currents' && up(model) === 'GFS' && rtofsCurrentsOn()) return RTOFS_CURRENTS_KEY;
   const set = OWN_RASTER_SETS[layer];
   return (set && set.models[up(model)]) || null;
 }
