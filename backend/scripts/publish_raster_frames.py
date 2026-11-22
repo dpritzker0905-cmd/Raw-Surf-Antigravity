@@ -104,7 +104,8 @@ def _offset(args):
     sink = _sink(args)
     reports, pulled = fso.publish_all(sink, pub._uploader(sink), log=print)
     kept = sum(r.get("bytes", 0) or 0 for r in reports.values())
-    states = ", ".join(f"{n}: {r.get('status')}, update {r.get('updates')}" for n, r in reports.items())
+    states = ", ".join(f"{n}: {r.get('status')}, updates per phase {r.get('updates')}, restarted {r.get('restarted_phases') or 'none'}"
+                       for n, r in reports.items())
     print(f"::notice title=Gap-fill offset sets size::read {pulled / 1e6:.1f} MB, kept {kept / 1e6:.2f} MB ({states})")
     print(json.dumps(reports, indent=1, sort_keys=True, default=str))
     return max([_status(n, r) for n, r in reports.items()] or [0])

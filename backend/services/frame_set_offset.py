@@ -21,7 +21,8 @@ THE FILTER (PRE-REGISTERED, docs/weather-program/log/2026-11-22-claude-gapfill-o
   * S_new = S_prev + a * (d - S_prev), a = max(1 / n, ALPHA_FLOOR), n = the number of updates so far including this one
     (a plain mean while n < 20, then an exponential filter with weight 0.05: an e-folding memory of ~20 runs, 5-10 days);
   * a node with no previous S takes d; a node with no d keeps S_prev.
-  The update count rides in each frame entry's source url ('...;updates=N'), so the next run can read it back.
+  The update count is kept PER PHASE and rides in each frame entry's source url ('...;updates=N'), so the next run reads
+  it back; a phase whose previous S frame cannot be read restarts at 1, marked ';restart=unreadable_previous'.
 
 FLAG: FRAME_OFFSET_PRODUCT (registered in routes/admin/surf_forecast.py _RATING_FLAGS), default '0'. The client uses S only
 behind its own dark lever (window.__RAW_RASTER_GAPFILL_OFFSET__), so nothing users see moves until a pre-registered score
@@ -140,7 +141,8 @@ class OffsetSource:
         self.bytes_pulled = 0
         self.model_index = self.gfs_index = None
         self.prev = {}            # phase -> previous S plane
-        self.n = 1                # this update's number
+        self.n_prev = {}          # phase -> that phase's previous update count (from its own frame's url)
+        self.restarted = set()    # phases whose previous S frame could not be read: restarted at n = 1, said so
 
     def _json(self, path):
         raw = self.sink.read(path)
@@ -169,22 +171,37 @@ class OffsetSource:
             return None
         own = sets.get(fs.set_key(self.pair["spec"]["target"]))
         prev_index = self._json(own["index"]) if own and own.get("index") else None
-        n_prev = 0
+        # PER PHASE (the advisor's HOLD on #1158): each phase's count comes from ITS OWN previous frame. A phase whose previous S
+        # cannot be read restarts at n = 1 from this run alone, and says so in its index entry (';restart=unreadable_previous')
+        # and as a warning annotation on the step; it never keeps another phase's high n with a one-run S.
         for f in (prev_index or {}).get("frames", []):
             got = _UPDATES.search(str((f.get("source") or {}).get("url", "")))
-            if got and f.get("path"):
-                n_prev = max(n_prev, int(got.group(1)))
-                try:
-                    self.prev[_parse(f["valid_time"]).hour] = self._plane(f["path"])
-                except Exception as e:                      # noqa: BLE001 - a missing previous frame restarts that phase
-                    self.log(f"[offset] {self.name}: previous S for {f.get('valid_time')} unreadable ({type(e).__name__})")
-        self.n = n_prev + 1
+            if not (got and f.get("path")):
+                continue
+            phase = _parse(f["valid_time"]).hour
+            try:
+                self.prev[phase] = self._plane(f["path"])
+                self.n_prev[phase] = int(got.group(1))
+            except Exception as e:                          # noqa: BLE001 - a missing previous frame restarts that phase
+                self.restarted.add(phase)
+                self.log(f"::warning title=Gap-fill offset {self.name} phase {phase:02d}Z restarted::previous S unreadable "
+                         f"({type(e).__name__}); this phase restarts at update 1")
         # The set's run is the model run read (one update per model run); phases 0..21 h after it cover every UTC hour of day.
         return _parse(self.model_index.get("run") or self.model_index["run_time"])
 
+    def n_for(self, phase):
+        """This run's update number for a phase: its own previous count + 1, or 1 (new, or restarted)."""
+        return 1 if phase in self.restarted else self.n_prev.get(phase, 0) + 1
+
+    @property
+    def n(self):
+        """{phase: update number} for this run (the publish report)."""
+        return {h: self.n_for(h) for h in PHASES}
+
     def url(self, cycle, f):
         h = (cycle + timedelta(hours=f)).hour
-        return f"derived:{self.pair['model_key']}-minus-{self.pair['gfs_key']};phase={h:02d}Z;updates={self.n}"
+        tail = ";restart=unreadable_previous" if h in self.restarted else ""
+        return f"derived:{self.pair['model_key']}-minus-{self.pair['gfs_key']};phase={h:02d}Z;updates={self.n_for(h)}{tail}"
 
     def pairs_for(self, cycle, phase):
         """(model frame path, GFS frame path) for every model frame at leads 24-48 h whose valid hour is `phase`."""
@@ -212,7 +229,7 @@ class OffsetSource:
             diffs.append(np.where((d >= lo) & (d <= hi), d, np.nan))
         with np.errstate(invalid="ignore"):
             d = np.nanmean(np.stack(diffs), axis=0) if len(diffs) > 1 else diffs[0]
-        return update(self.prev.get(phase), d, self.n)
+        return update(None if phase in self.restarted else self.prev.get(phase), d, self.n_for(phase))
 
 
 def publish_all(sink, uploader, names=None, log=print):
@@ -224,5 +241,6 @@ def publish_all(sink, uploader, names=None, log=print):
         reports[name] = fsr.publish(src, sink, uploader, log=log, spec=PAIRS[name]["spec"])
         reports[name]["bytes_pulled"] = src.bytes_pulled
         reports[name]["updates"] = src.n
+        reports[name]["restarted_phases"] = sorted(src.restarted)
         pulled += src.bytes_pulled
     return reports, pulled

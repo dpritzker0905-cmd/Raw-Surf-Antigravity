@@ -84,7 +84,7 @@ def test_publish_end_to_end_one_update_per_model_run(tmp_path):
     _publish_sources(sink, run1, 60.0, 50.0)                              # EURO - GFS = +10 % points at every hour
     reports, pulled = fso.publish_all(sink, pub._uploader(sink), names=["cloud_euro_offset"], log=lambda *a: None)
     r = reports["cloud_euro_offset"]
-    assert r["status"] == "published" and r["updates"] == 1 and pulled > 0
+    assert r["status"] == "published" and r["updates"] == {h: 1 for h in fso.PHASES} and pulled > 0
     idx, vals = _offset_values(sink)
     assert sorted(vals) == list(fso.PHASES)                               # one frame per UTC hour of day
     assert all(abs(v - 10.0) < 0.06 and "updates=1" in u for v, u in vals.values())
@@ -94,9 +94,37 @@ def test_publish_end_to_end_one_update_per_model_run(tmp_path):
     run2 = run1 + timedelta(hours=12)
     _publish_sources(sink, run2, 70.0, 50.0)                              # the next run says +20
     reports, _ = fso.publish_all(sink, pub._uploader(sink), names=["cloud_euro_offset"], log=lambda *a: None)
-    assert reports["cloud_euro_offset"]["updates"] == 2
+    assert reports["cloud_euro_offset"]["updates"] == {h: 2 for h in fso.PHASES}
     _idx, vals = _offset_values(sink)
     assert all(abs(v - 15.0) < 0.06 and "updates=2" in u for v, u in vals.values())   # the mean of the two runs
+
+
+def test_one_unreadable_phase_restarts_alone_at_update_1_and_says_so(tmp_path):
+    """The advisor's HOLD on #1158: the update count is PER PHASE. A phase whose previous S frame cannot be read restarts at
+    n = 1 from this run alone, marked in its index entry; every other phase keeps its own count and its two-run mean."""
+    import publish_frame_images as pub
+    sink = pub.LocalSink(tmp_path)
+    run1 = datetime(2026, 11, 20, 0, tzinfo=UTC)
+    _publish_sources(sink, run1, 60.0, 50.0)
+    quiet = lambda *a: None                                               # noqa: E731
+    fso.publish_all(sink, pub._uploader(sink), names=["cloud_euro_offset"], log=quiet)
+    idx, _ = _offset_values(sink)
+    lost = next(f for f in idx["frames"] if datetime.fromisoformat(f["valid_time"].replace("Z", "+00:00")).hour == 6)
+    sink.delete([lost["path"]])                                           # the 06Z S frame is gone
+    run2 = run1 + timedelta(hours=12)
+    _publish_sources(sink, run2, 70.0, 50.0)
+    said = []
+    reports, _ = fso.publish_all(sink, pub._uploader(sink), names=["cloud_euro_offset"], log=said.append)
+    r = reports["cloud_euro_offset"]
+    assert r["status"] == "published" and r["restarted_phases"] == [6]
+    assert r["updates"] == {h: (1 if h == 6 else 2) for h in fso.PHASES}
+    assert any("::warning" in m and "06Z restarted" in m for m in said)    # visible on the step
+    _idx, vals = _offset_values(sink)
+    v6, u6 = vals[6]
+    assert abs(v6 - 20.0) < 0.06 and "updates=1" in u6 and "restart=unreadable_previous" in u6   # run 2 alone, said so
+    for h in fso.PHASES:
+        if h != 6:
+            assert abs(vals[h][0] - 15.0) < 0.06 and "updates=2" in vals[h][1] and "restart" not in vals[h][1]
 
 
 def test_the_flag_is_dark_by_default_and_registered(monkeypatch):
