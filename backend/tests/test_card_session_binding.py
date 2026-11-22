@@ -18,7 +18,7 @@ from tests.test_live_session_escrow import BUYIN, bearer, harness
 
 @pytest.mark.parametrize("case", [
     "completed_retry", "ended", "replacement", "overlapping", "stopped", "legacy",
-    "provider_mismatch", "unknown_provider", "refund_unconfirmed", "refund_pending", "newer_on_demand", "review_commit_durable", "review_commit_rolled_back",
+    "provider_mismatch", "unknown_provider", "refund_unconfirmed", "refund_pending", "refund_commit_lost", "unpaid_mismatch", "newer_on_demand", "review_commit_durable", "review_commit_rolled_back",
 ])
 async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
     target_id = "original-live"
@@ -52,7 +52,7 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
         await db.commit()
 
     provider_metadata = dict(metadata)
-    if case == "provider_mismatch":
+    if case in ("provider_mismatch", "unpaid_mismatch"):
         provider_metadata["live_session_id"] = "different"
     receipt = SimpleNamespace(
         id=checkout_id, mode="payment", client_reference_id="attempt-fixture", amount_total=int(BUYIN * 100),
@@ -62,6 +62,8 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
     monkeypatch.setattr(payments, "checkout_emulation_allowed", lambda: False)
     monkeypatch.setattr(payments.stripe.checkout.Session, "retrieve", Mock(return_value=receipt))
     refund = Mock()
+    refund_history = []
+    monkeypatch.setattr(payments.stripe.Refund, "list", Mock(return_value=SimpleNamespace(data=refund_history)))
     monkeypatch.setattr(payments.stripe.Refund, "create", refund)
     monkeypatch.setattr(push_payloads, "notify_session_join", AsyncMock())
     if case in ("refund_unconfirmed", "refund_pending"):
@@ -70,9 +72,20 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
             refund.side_effect = RuntimeError("refund unavailable")
         else:
             refund.return_value = SimpleNamespace(status="pending")
+    if case == "unpaid_mismatch":
+        receipt.payment_status = "unpaid"
     request = {"headers": bearer("owner"), "json": {"checkout_session_id": checkout_id}}
     with monkeypatch.context() as first_attempt:
-        if case in ("review_commit_durable", "review_commit_rolled_back"):
+        if case == "refund_commit_lost":
+            first_attempt.setattr(payments.live_session_escrow, "hold", Mock(side_effect=RuntimeError("seat write failed")))
+
+            def record_refund(**kwargs):
+                completed = SimpleNamespace(status="succeeded")
+                refund_history.append(completed)
+                return completed
+
+            refund.side_effect = record_refund
+        if case in ("review_commit_durable", "review_commit_rolled_back", "refund_commit_lost"):
             commit = AsyncSession.commit
 
             async def uncertain_commit(db):
@@ -88,7 +101,7 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
             db.add(LiveSession(id="next", photographer_id="pro", status="active"))
             await db.commit()
     again = await harness.client.post("/api/sessions/complete-payment", **request)
-    if case in ("refund_unconfirmed", "refund_pending"):
+    if case in ("refund_unconfirmed", "refund_pending", "refund_commit_lost"):
         refund.assert_called_once()
     else:
         refund.assert_not_called()
@@ -97,6 +110,11 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
         tx = (await db.scalars(select(PaymentTransaction))).one()
         seats = (await db.scalars(select(LiveSessionParticipant))).all()
         tickets = (await db.scalars(select(SupportTicket))).all()
+        if case == "unpaid_mismatch":
+            assert first.status_code == again.status_code == 400
+            assert tx.payment_status == tx.status == "Pending"
+            assert seats == tickets == []
+            return
         if case in ("completed_retry", "newer_on_demand"):
             assert tickets == []
         else:
@@ -112,14 +130,14 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
             assert seat.live_session_id == target_id and seat.amount_paid == BUYIN
             assert tx.payment_status == "Completed"
         else:
-            assert first.status_code == (503 if case.startswith("review_commit_") else 409), first.text
+            assert first.status_code == (503 if case.startswith("review_commit_") or case == "refund_commit_lost" else 409), first.text
             assert again.status_code == 409
             assert seats == []
             assert (tx.payment_status, tx.status) == ("Paid", "review_required")
             reason = json.loads(tx.transaction_metadata)["review_reason"]
             if case == "provider_mismatch":
                 assert reason == "checkout_mismatch"
-            elif case in ("refund_unconfirmed", "refund_pending"):
+            elif case in ("refund_unconfirmed", "refund_pending", "refund_commit_lost"):
                 assert reason == "refund_unconfirmed"
             elif case == "unknown_provider":
                 assert reason == "unverified_binding"
@@ -213,6 +231,7 @@ async def test_card_quote_through_seat_or_support(harness, monkeypatch, replaced
     monkeypatch.setattr(payments, "STRIPE_API_KEY", "fixture")
     monkeypatch.setattr(payments, "checkout_emulation_allowed", lambda: False)
     monkeypatch.setattr(join.stripe.checkout.Session, "create", create)
+    monkeypatch.setattr(payments.stripe.Refund, "list", Mock(return_value=SimpleNamespace(data=[])))
     monkeypatch.setattr(payments.stripe.Refund, "create", refund)
     monkeypatch.setattr(push_payloads, "notify_session_join", AsyncMock())
     auth = bearer("owner")

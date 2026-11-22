@@ -208,6 +208,13 @@ async def complete_session_payment(
         ):
             return await mark_paid_seat_review(db, tx, locked_checkout, "checkout_mismatch")
 
+        if not used_emulator:
+            # A paid Checkout Session stays paid even after a refund. Recheck the
+            # intent under the checkout lock before granting a fresh seat.
+            refunds = stripe.Refund.list(payment_intent=payment_intent_id, limit=1)
+            if refunds.data:
+                return await mark_paid_seat_review(db, tx, locked_checkout, "refund_unconfirmed")
+
         # Lock in the same order on each completion: checkout, photographer, session.
         # Until the binding can be checked, a database failure is retryable.
         surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))

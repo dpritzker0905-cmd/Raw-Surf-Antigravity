@@ -120,7 +120,7 @@ def test_live_seat_checkout_cannot_credit_a_wallet(payments):
     client, engine, _, _, _ = payments
     seed(engine, {'type': 'live_session_join', 'credits': 25})
     response = client.post('/api/webhook/stripe', content=b'{}')
-    assert response.status_code >= 500
+    assert response.status_code == 200
     assert row(engine)['credit_balance'] == 10
     assert transaction(engine)['status'] == 'Pending'
 

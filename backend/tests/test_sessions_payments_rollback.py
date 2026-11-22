@@ -119,6 +119,7 @@ async def test_complete_payment_database_error_refunds_stripe_live(monkeypatch):
     
     # Mock retrieve to return paid session
     mock_checkout_session = MagicMock()
+    monkeypatch.setattr(stripe.Refund, "list", MagicMock(return_value=MagicMock(data=[])))
     mock_tx.amount = 25.0
     mock_tx.currency = "usd"
     mock_tx.transaction_metadata = json.dumps({
