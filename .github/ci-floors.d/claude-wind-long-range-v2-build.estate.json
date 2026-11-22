@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 42,
+  "tests": 62,
   "branch": "claude/wind-long-range-v2-build",
   "date": "2026-11-22",
-  "note": "wind long-range v2 build PR 1"
+  "note": "wind long-range v2 build PR 1 (+A3 region tests)"
 }
