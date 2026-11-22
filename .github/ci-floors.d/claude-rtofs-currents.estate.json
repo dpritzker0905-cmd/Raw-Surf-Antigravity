@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 13,
+  "branch": "claude/rtofs-currents",
+  "date": "2026-11-22",
+  "note": "RTOFS currents set: tests/test_frame_set_raster_rtofs.py"
+}
