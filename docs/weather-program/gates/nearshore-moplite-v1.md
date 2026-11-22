@@ -29,6 +29,21 @@ Served change: none from this gate.
   - Hence: the California reproduction check (section 6), a separate `COARSE` stratum, and the bathymetry-swap control (section 7).
 - Every downloaded tile is frozen with its sha256 before the coefficients are computed.
 
+## 1a. Vertical datum: every depth is converted to MSL before ray tracing (advisor limit, 2026-11-22)
+| Source | Native vertical reference (as documented) | Conversion to MSL |
+|---|---|---|
+| CUDEM | NAVD 88, metres (NCEI metadata, read 2026-11-22) | NOAA VDatum, NAVD 88 → LMSL, per tile; the VDatum grid version is recorded |
+| Coastal Relief Model | EGM2008 or mean sea level for the newer volumes. The pre-2013 volumes kept each source's datum (bathymetry at MLLW or MLW), and NCEI states the vertical uncertainty is > 1 m, larger than the datum differences (NCEI CRM FAQ, read 2026-11-22) | treated as MSL. Each target that uses a pre-2013 volume is tagged `DATUM_1M` and reported as its own stratum |
+| EMODnet DTM | Lowest Astronomical Tide (LAT; tile metadata, read 2026-11-22); an MSL variant is published | the MSL variant is downloaded. If it is unavailable for a tile: MSL depth = LAT depth + (MSL − LAT) from the EMODnet tide model, recorded |
+| GEBCO_2024 | nominally mean sea level (NOT verified in this session) | treated as MSL; these targets are `COARSE` already |
+
+- **Why it matters:** in water under about 10 m, a 0.5-1 m datum error is a 5-20% depth error. That moves the shoaling and the breaking-limited heights, and bends the shallowest rays.
+- **Water level during TEST:** rays are traced on the MSL surface, as the stationary linear method assumes.
+  - The tide (FES η about MSL) is NOT added to the ray depth in `LITE`.
+  - A reported arm `LITE_ETA` adds the hourly η to the target depth for shoaling only.
+  - The breaking cap in serving already takes η (PR B), in the same MSL frame.
+- **MLLW** (chart datum) is display-only and never enters this computation.
+
 ## 2. The coefficients (computed once, before TEST; nothing fitted to buoys)
 - **Target:**
   - each truth buoy's position and charted depth (for the test);
@@ -46,7 +61,7 @@ Served change: none from this gate.
   - **Spectral-shape sensitivity (reported, never gating):**
     - `LITE_S10` and `LITE_S40` use swell spreading s = 10 and s = 40.
     - `LITE_G1` uses JONSWAP γ = 1.0 for swell.
-    - SubQ ranked the fixed parametric shape as the most likely failure mode (p = 0.53), and judged fixed spreading acceptable for a first test (p = 0.80). These arms show how much the verdict depends on the choice.
+    - SubQ ranked the fixed parametric shape as the most likely failure mode (model confidence 0.53 in that ranking), and judged fixed spreading acceptable for a first test (model confidence 0.80). These are a model's confidence in its own ranking, NOT statistics. These arms show how much the verdict depends on the choice.
 - **Frozen artifacts:** a coefficient file per target (f × θ table plus its sha256), committed before the first TEST init. A scorer that finds a hash mismatch refuses to run.
 - **Serving form (after a pass):**
   - `LITE` gives Hs at the transfer point.
@@ -124,3 +139,17 @@ Served change: none from this gate.
 - The NDBC and Copernicus coastal buoy list at 10-40 m, with depths. CDIP list (EXAM).
 - MOP forecast point availability and horizon for the California check (D-069's open item).
 - Compute budget: CI only, offline, once per target. Nothing runs on the Render box.
+
+## 10. How the evidence behind this gate was read (advisor limit, 2026-11-22)
+- The literature motivating this gate is in `research/q8-nearshore-transform-sota-2026-11-22.md`.
+- Its references are **Consensus search records (abstract level)** unless marked below.
+- **O'Reilly, Olfe, Thomas, Seymour and Guza (2016)**, Coastal Engineering 116, 118-132, doi:10.1016/j.coastaleng.2016.06.005:
+  - full-text re-read ATTEMPTED 2026-11-22 and NOT reached (no open copy);
+  - the bibliographic record and the abstract-level claims (a buoy-driven linear spectral refraction model to ~20 m depth; skilful at most sites; large errors for individual events; low skill in the Santa Barbara Channel and southern Monterey Bay) were confirmed from the paper's record and CDIP's model documentation page.
+  - Abstract-level.
+- **Ricondo, Cagigal, Rueda, Hoeke, Storlazzi and Menéndez (2023)**, Ocean Modelling 184, 102210, doi:10.1016/j.ocemod.2023.102210:
+  - full text NOT reached;
+  - the bibliographic record confirmed via the USGS publications page (70244145), which lists an open-access version at the publisher.
+  - Abstract-level: per-partition hybrid downscaling validated at Samoa, American Samoa, Majuro and Kwajalein; one summary notes Tp skill weaker than Hs.
+- **Datum facts** in section 1a: from NCEI metadata (CUDEM), the NCEI CRM FAQ, and EMODnet tile metadata, as read via search on 2026-11-22. The GEBCO datum is not verified.
+- **SubQ and Reflection outputs** are advisory model opinions. A SubQ number is a model's confidence in its own ranking, NOT a statistic.
