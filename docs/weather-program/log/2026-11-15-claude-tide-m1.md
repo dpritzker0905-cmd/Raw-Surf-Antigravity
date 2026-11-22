@@ -2810,3 +2810,17 @@ and the ledger are that record.
 **For David when PR B comes up:** #1117 keeps the built table as a 7-day public artifact. If he would rather the table
 never leave the bucket, the before/after delta can instead be computed inside the workflow, uploading only summary
 numbers.
+
+
+## 2026-11-22 13:51Z: PR B opened after the usage reset (the director, with David: "resume everything toward SOTA")
+- **Rebased** onto dev 5bbf5ee25; only log-only conflicts, resolved by appending in time order.
+- **Before/after**, from build 44924244129 (served_delta, 2026-11-21 16:22Z):
+  - coverage: 1,061 of 1,061 keys (100%);
+  - mean offset: median +0.001 m, size median 0.353 m (p90 0.613 m), the known datum difference;
+  - shape RMS after the offset: 0.128 m (p90 0.269 m);
+  - range ratio: 0.99 (1.04);
+  - high/low timing: 1 h (the hourly resolution).
+- **Not measured:** tide_fit and the depth-cap moves.
+- **SCOREBOARD:** a new row is appended; the earlier 12:14Z row stays as written.
+- **Merge:** only on David's word, together with his pick on the missing-table behaviour (no tide vs Open-Meteo).
+
