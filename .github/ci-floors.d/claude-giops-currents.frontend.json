@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 5,
+  "files": 0,
+  "branch": "claude/giops-currents",
+  "date": "2026-11-22",
+  "note": "ICON currents from Canada GIOPS (currentsLayer.test.js)"
+}

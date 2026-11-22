@@ -378,11 +378,11 @@ SPECS = {
         "source_url": "https://data.marine.copernicus.eu/product/GLOBAL_ANALYSISFORECAST_PHY_001_024",
     },
 }
-try:  # G4 (2026-11-17): Copernicus ocean-model water temp, 1/6 degree; its spec and lattice live in its own module
-    from services import frame_set_raster_sst as _sst
-except ImportError:  # pragma: no cover
-    import frame_set_raster_sst as _sst
-_sst.register(SPECS, GRIDS)
+try:  # sets in their own modules (Copernicus water temp G4, Canada GIOPS currents, ...): frame_set_raster_plugins loads them
+    from services import frame_set_raster_plugins as _plugins
+except ImportError:  # pragma: no cover - by path, where services is not a package (the sibling-import rule)
+    import frame_set_raster_plugins as _plugins
+PLUGIN_SOURCES = _plugins.register(SPECS, GRIDS)   # their specs and lattices into SPECS / GRIDS; {source kind: class}
 
 
 def precip_step(f):
@@ -400,10 +400,8 @@ def make_source(spec, session=None):
         return GfsGribSource(spec, session)
     if kind == "gfs_precip":
         return GfsPrecipSource(spec, session)
-    if kind == "cmems_currents":
-        return _sst.CmemsCurrentsSource(spec, session)
-    if kind == "cmems_sst":
-        return _sst.CmemsSstSource(spec, session)
+    if kind in PLUGIN_SOURCES:                        # cmems_currents, cmems_sst, giops_currents (frame_set_raster_plugins)
+        return PLUGIN_SOURCES[kind](spec, session)
     try:
         from services import frame_set_raster_sources as srcs
     except ImportError:  # pragma: no cover

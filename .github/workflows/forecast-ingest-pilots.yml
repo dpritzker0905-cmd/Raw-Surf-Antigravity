@@ -606,6 +606,27 @@ jobs:
           FRAME_RASTER_DIR_BYTE: ${{ vars.FRAME_RASTER_DIR_BYTE }}   # kill '0': no one-byte flow direction (Currents particles stop)
           FRAME_RASTER_BUDGET_S: "600"
         run: python scripts/publish_raster_frames.py --set currents
+      # CANADA GIOPS SURFACE CURRENTS (2026-11-22): the Currents layer's own source under the ICON picker (DWD runs no ocean model).
+      # ECCC's GIOPS 0.2-deg 3 h-mean u/v at 0.5 m from the MSC Datamart, 00Z run, every 6 h to 240 h, bilinear onto 0.25 deg
+      # (services/frame_set_raster_giops.py). SIZE PER RUN (measured offline 2026-11-22): a new 00Z cycle PULLS ~200 MB (80
+      # GETs) and KEEPS 14.4 MB (40 frames), 13-21 s; a run whose cycle is already published does 4 HEADs and stops (1 s). The
+      # step prints both numbers as a notice every run. The 00Z files land ~04:45Z, so the 11:45 run publishes it: one cycle a
+      # day. Licence: Open Government Licence - Canada (the GIOPS catalogue record) + ECCC Data Servers End-use Licence; both
+      # statements ride in every index. FAILURES TURN THE RUN RED (the advisor's condition): no continue-on-error, and the set
+      # is strict (any failed frame, or no complete run in 3 days, exits 1); later steps still run (!cancelled()). The key
+      # comes only from this job's supabase-service environment. DARK: off unless FRAME_RASTER_CURRENTS_GIOPS = '1'.
+      - name: Publish raster static frames (Canada GIOPS currents; off unless FRAME_RASTER_CURRENTS_GIOPS=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_GIOPS == '1' }}
+        timeout-minutes: 10
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CURRENTS_GIOPS: ${{ vars.FRAME_RASTER_CURRENTS_GIOPS }}
+          FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}   # kill '0': the old two-byte frames (log §12)
+          FRAME_RASTER_DIR_BYTE: ${{ vars.FRAME_RASTER_DIR_BYTE }}   # the currents particles' direction byte (its own lane's kill)
+          FRAME_RASTER_BUDGET_S: "300"
+        run: python scripts/publish_raster_frames.py --set currents_giops
       # G4 (2026-11-17): Copernicus ocean-model water temperature, the WORLD half of arm R2: 1/6 deg, 3-hourly, f000-f237 from the
       # hourly-mean thetao top level (the same CMEMS store family as currents). Offline cost: 80 frames, 71.6 MB, 47 s
       # (docs/weather-program/log/2026-11-17-opus-g4-copernicus-sst.md). ON by default (David 2026-11-17); kill: the repository

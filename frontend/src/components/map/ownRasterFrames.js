@@ -117,6 +117,15 @@ export const OWN_RASTER_SETS = {
   // window.__RAW_DISABLE_RASTER_OWN_CURRENTS__ = true. Past day 10 there is no frame: the status line says so.
   currents: {
     models: { GFS: 'CMEMS/marine/currents/global_0p25', EURO: 'CMEMS/marine/currents/global_0p25', ICON: 'CMEMS/marine/currents/global_0p25' },
+    // PER-PICKER OCEAN MODELS (2026-11-22): GFS, EURO and ICON have no open surface-current forecast, so each picker gets its own
+    // independent ocean model, credited under its OWN name (sourceModel -> MODEL_SOURCE / LayerDataCredit): ICON -> Canada GIOPS
+    // (ECCC; DWD runs no ocean model), GFS -> NOAA Global RTOFS (its own lane), EURO stays Copernicus. An entry replaces the
+    // `models` key while it is on: `on` (its default) unless `kill` is set, or the `lever` opts in. DARK until the set has a
+    // published run (a miss on an own-only layer draws nothing): flip `on` after the first publish. A killed or off entry reads
+    // `models` (Copernicus) again.
+    modelSets: {
+      ICON: { key: 'GIOPS/marine/currents/global_0p25', on: false, lever: '__RAW_GIOPS_CURRENTS__', kill: '__RAW_DISABLE_GIOPS_CURRENTS__' },
+    },
     fallback: null, field: [CURRENT_BAND_FIELD, SPEED_FIELD], unit: 'kn', ownOnly: true,
     // CURRENTS PARTICLES (2026-11-22, currentParticles.js): the flow direction decoded beside the speed (the one-byte field the
     // publisher adds, else the two-byte frames' field 1) so the wind engine can advect on the current's own u / v. A frame
@@ -137,7 +146,7 @@ export function endNoteText(layer, model, lastMs, runMs) {
 /** Layers drawn ONLY from our own frames (no .om path behind them): the picker shows them, a miss shows nothing. */
 export const OWN_ONLY_LAYERS = Object.freeze(Object.keys(OWN_RASTER_SETS).filter((l) => OWN_RASTER_SETS[l].ownOnly));
 // Who the frames come from, for the legend credit and the status line.
-export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON', CMEMS: 'Copernicus Marine' };
+export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON', CMEMS: 'Copernicus Marine', GIOPS: 'Canada GIOPS (ECCC)' };
 const up = (m) => String(m || 'GFS').toUpperCase();
 /** The model whose data a layer's set for `model` really holds (the set key's first part): GFS for fog and gusts under any picked
  *  model, so the credit and the status line never name ECMWF or DWD over NOAA's field. */
@@ -148,7 +157,21 @@ export function sourceModel(layer, model = 'GFS') {
 /** The set key for a layer and model, or null when that model has no own set. */
 export function setKey(layer, model = 'GFS') {
   const set = OWN_RASTER_SETS[layer];
-  return (set && set.models[up(model)]) || null;
+  if (!set) return null;
+  const alt = set.modelSets && set.modelSets[up(model)];
+  if (alt && modelSetOn(alt)) return alt.key;
+  return set.models[up(model)] || null;
+}
+/** Is a per-picker `modelSets` entry on? Its kill wins; then its lever (window, or localStorage for a phone); then its default. */
+export function modelSetOn(alt) {
+  const w = W();
+  if (w[alt.kill] === true) return false;
+  let lever = w[alt.lever];
+  if (lever === undefined || lever === null) {
+    try { lever = w.localStorage ? w.localStorage.getItem(alt.lever) : null; } catch (e) { lever = null; }
+  }
+  if (lever === true || lever === '1' || lever === 'true') return true;
+  return alt.on === true;
 }
 // What a no-data node becomes in the uploaded field: far below every real value of every layer (air temperatures are negative,
 // so the shader's no-data test is `< NO_DATA_BELOW`, never `< 0`).
