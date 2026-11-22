@@ -26,6 +26,31 @@ def test_parse_reads_hs_tp_dir_and_drops_missing_sentinels():
     assert rows[3]["hs_m"] is None and rows[3]["dir_deg"] is None                 # 99.00 / 999 sentinels
 
 
+def _one(wvht="1.20", dpd="10.0", mwd="280"):
+    lines = ["#YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD",
+             "#yr  mo dy hr mn degT m/s  m/s     m   sec   sec degT",
+             f"2027 01 16 12 00 270  5.0  6.0   {wvht}  {dpd}   7.5 {mwd}"]
+    return chr(10).join(lines) + chr(10)
+
+
+def test_per_field_sentinels_a_valid_99_degree_direction_is_kept():
+    """Advisor hold on #1155: a shared numeric sentinel set made MWD 99 deg (a real bearing) None, a hole in one direction bin."""
+    assert truth.parse_ndbc_stdmet(_one(mwd="99"))[0]["dir_deg"] == 99.0
+    assert truth.parse_ndbc_stdmet(_one(mwd="999"))[0]["dir_deg"] is None            # the MWD fill value, by its range
+    assert truth.parse_ndbc_stdmet(_one(mwd="0"))[0]["dir_deg"] == 0.0 and truth.parse_ndbc_stdmet(_one(mwd="360"))[0]["dir_deg"] == 360.0
+    assert truth.parse_ndbc_stdmet(_one(wvht="99.00"))[0]["hs_m"] is None            # WVHT fill value, by its range (<= 30)
+    assert truth.parse_ndbc_stdmet(_one(dpd="99.00"))[0]["tp_s"] is None             # DPD fill value, by its range (<= 40)
+    assert truth.parse_ndbc_stdmet(_one(wvht="MM", dpd="MM", mwd="MM"))[0] == {
+        "time": utc(2027, 1, 16, 12), "hs_m": None, "tp_s": None, "dir_deg": None}
+    assert truth.parse_ndbc_stdmet(_one(wvht="0.00"))[0]["hs_m"] == 0.0              # calm is a value, not a hole
+
+
+def test_every_valid_direction_survives_the_parse():
+    """No whole-degree bearing 0..360 is lost to a sentinel: the direction-bin scoring depends on it."""
+    lost = [d for d in range(0, 361) if truth.parse_ndbc_stdmet(_one(mwd=str(d)))[0]["dir_deg"] != float(d)]
+    assert lost == []
+
+
 def test_a_file_without_a_header_is_refused():
     with pytest.raises(ValueError):
         truth.parse_ndbc_stdmet("2027 01 16 12 00 1 2 3\n")

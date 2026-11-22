@@ -18,7 +18,10 @@ import os
 from datetime import datetime, timezone
 
 NDBC_HOST = "www.ndbc.noaa.gov"
-MISSING_TOKENS = {"MM", "99.00", "99.0", "999", "999.0", "9999", "99", "999.00"}
+# Only the textual sentinel is global. NDBC's numeric fill values (WVHT/DPD 99.00, MWD 999) are NOT listed: a shared numeric
+# set would turn a valid 99 deg MWD into a hole in one direction bin. The per-field RANGES below exclude every numeric sentinel
+# (WVHT <= 30, DPD <= 40, MWD <= 360), so each field rejects only its own fill value.
+MISSING_TOKENS = {"MM"}
 SHELTER_LINE_KM = 50.0
 SHELTER_MIN_DEPTH_M = 50.0
 SHELTERED_WINDOW_DEG = 90.0

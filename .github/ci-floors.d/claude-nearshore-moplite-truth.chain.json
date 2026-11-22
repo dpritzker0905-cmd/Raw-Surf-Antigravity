@@ -1,6 +1,6 @@
 {
   "lane": "chain",
-  "tests": 10,
+  "tests": 12,
   "files": 1,
   "branch": "claude/nearshore-moplite-truth",
   "date": "2026-11-22",
