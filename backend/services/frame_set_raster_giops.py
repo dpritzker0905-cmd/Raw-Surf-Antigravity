@@ -18,10 +18,12 @@ COMPONENTS. vozocrtx / vomecrty are named "sea_water_x/y_velocity" on the lat-lo
 checked 2026-11-22 against Copernicus at the same valid time, band by band including north of 60N where GIOPS's native ORCA
 grid is rotated (log 2026-11-22-opus-giops-currents.md); grid-relative components would decorrelate there.
 
-LICENCE (the live page, 2026-11-22): Environment and Climate Change Canada Data Servers End-use Licence, version 2.1.1
-(August 2026), https://eccc-msc.github.io/open-data/licence/readme_en/ : free, including commercial use; attribute the data
-to the originator ("Data Source: Environment and Climate Change Canada"); no ECCC names / logos as endorsement, nothing that
-suggests official status or that ECCC endorses the use.
+LICENCE (checked 2026-11-22). The GIOPS record in the Government of Canada open-data catalogue (open.canada.ca dataset
+dc3a7022-95e8-45a7-bf63-3d45b6cda0dc, publisher ECCC) is under the Open Government Licence - Canada, whose attribution
+statement is "Contains information licensed under the Open Government Licence - Canada." The MSC Datamart's own page names
+the ECCC Data Servers End-use Licence v2.1.1 (Aug 2026), which asks for "Data Source: Environment and Climate Change Canada".
+Both: free incl. commercial use, attribution required, no ECCC names / logos and nothing suggesting endorsement. Every index
+carries both statements (CREDIT, LICENSE; the advisor's pass condition).
 
 REGRID. Bilinear onto the 0.25-degree lattice, u and v separately (a vector interpolation), weights renormalised over the
 ocean corners only; a node with no ocean corner, or south of 80S / north of 89.8N, is no data. Same frame layout as the
@@ -43,17 +45,21 @@ LAND = 1e19                                    # the fill value is 1e20
 VARS = ("vozocrtx", "vomecrty")
 HOURS = tuple(range(6, 241, 6))                # the Copernicus cadence; P000 holds no currents
 RETRY_WAITS_S = (2.0, 6.0)                     # back-offs between the three tries of one file GET
-CREDIT = ("Data Source: Environment and Climate Change Canada (GIOPS); modified (3 h mean currents at 0.5 m, "
+OGL = "Contains information licensed under the Open Government Licence – Canada."   # the licence's own statement
+CREDIT = (f"{OGL} Data Source: Environment and Climate Change Canada (GIOPS); modified (3 h mean currents at 0.5 m, "
           "bilinear onto 0.25 deg, knots)")
-LICENSE = ("Environment and Climate Change Canada Data Servers End-use Licence v2.1.1 (Aug 2026): free incl. commercial, "
-           "attribution to ECCC required, no endorsement implied (https://eccc-msc.github.io/open-data/licence/readme_en/)")
+LICENSE = ("Open Government Licence – Canada (https://open.canada.ca/en/open-government-licence-canada), the licence of "
+           "the GIOPS record in the Government of Canada open-data catalogue "
+           "(https://open.canada.ca/data/en/dataset/dc3a7022-95e8-45a7-bf63-3d45b6cda0dc); served from the MSC Datamart under "
+           "the ECCC Data Servers End-use Licence v2.1.1 (https://eccc-msc.github.io/open-data/licence/readme_en/). Both: free "
+           "incl. commercial, attribution required, no endorsement implied")
 SET = "currents_giops"
 SPEC = {
     "target": {"model": "GIOPS", "domain": "marine", "layer": "currents", "region_id": "global_0p25"},
     "field": None, "fields": None, "band_field": None,      # filled from frame_binary in register()
     "uv_convention": 1, "idx": VARS, "grid": "0p25",
     "frame_plane": True, "convert": lambda a: a, "valid": (0.0, 20.0), "clip": None,
-    "env": "FRAME_RASTER_CURRENTS_GIOPS", "default_on": False,
+    "env": "FRAME_RASTER_CURRENTS_GIOPS", "default_on": False, "strict": True,   # strict: any failed frame turns the run red
     "value_kind": "sea_surface_current_3h_mean", "value_unit": "kn",
     "source_dataset": "ECCC GIOPS 10 lat_lon 0.2 deg 2d vozocrtx/vomecrty at 0.5 m (3 h mean ending at the valid time), "
                       "bilinear onto 0.25 deg; speed kn + direction toward",
@@ -70,6 +76,8 @@ def register(specs, grids, sources):
     except ImportError:
         from services import frame_binary as fb
     sp = dict(SPEC, field=fb.SPEED, fields=(fb.SPEED, fb.DIRECTION), band_field=fb.CURRENT_KN_BAND)
+    base = specs.get("currents") or {}                 # the frame layout follows the Copernicus set's (its band, a direction byte)
+    sp.update({k: base[k] for k in ("field", "fields", "band_field", "uv_convention", "dir_byte_field") if k in base})
     specs.setdefault(SET, sp)
     sources.setdefault(SPEC["source"], GiopsCurrentsSource)
 
@@ -143,6 +151,7 @@ class GiopsCurrentsSource:
                 from _fetch_common import http_session
             session = http_session()
         self.http = session
+        self.bytes_pulled = 0                          # bytes read from the Datamart this run (the advisor's stated size)
 
     def _exists(self, url):
         try:
@@ -175,6 +184,7 @@ class GiopsCurrentsSource:
                 if r.status_code == 404 or wait is None:
                     r.raise_for_status()
                 if r.status_code == 200:
+                    self.bytes_pulled += len(r.content)
                     return r.content
             except Exception as e:  # noqa: BLE001 - connection drops, 5xx
                 if wait is None or "404" in str(e):

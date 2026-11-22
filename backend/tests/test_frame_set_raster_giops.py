@@ -80,6 +80,10 @@ def test_the_giops_set_contract_is_dark_and_credits_eccc_not_icon():
     assert tuple(sp["hours"]) == tuple(range(6, 241, 6))                  # the Copernicus cadence; P000 has no currents
     assert sp["env"] == "FRAME_RASTER_CURRENTS_GIOPS" and sp["default_on"] is False and not fsr.enabled("currents_giops")
     assert "Environment and Climate Change Canada" in sp["credit"] and "End-use Licence" in sp["license"]
+    assert sp["credit"].startswith("Contains information licensed under the Open Government Licence – Canada.")
+    assert "open.canada.ca/en/open-government-licence-canada" in sp["license"] and sp["strict"] is True
+    base = fsr.SPECS["currents"]                          # the frame layout follows the Copernicus set's
+    assert all(sp[k] == base[k] for k in ("field", "fields", "band_field", "uv_convention") if k in base)
     assert "ICON" not in sp["credit"] + sp["license"] + sp["source_dataset"] and sp["upstream_provider"] == "eccc"
     assert isinstance(fsr.make_source(sp, session=object()), gi.GiopsCurrentsSource)
 
@@ -90,7 +94,7 @@ def test_dark_until_its_variable_is_1(monkeypatch, capsys):
     assert fsr.enabled("currents_giops")
 
 
-def test_the_pilots_workflow_has_one_dark_giops_step():
+def test_the_pilots_workflow_has_one_dark_giops_step_that_turns_the_run_red():
     path = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml"
     yml = path.read_text(encoding="utf-8")
     assert len(yml) > 10000, "the pilots workflow file is missing or emptied"
@@ -99,7 +103,9 @@ def test_the_pilots_workflow_has_one_dark_giops_step():
     assert len(steps) == 1
     step = steps[0]
     assert "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_GIOPS == '1'" in step
-    assert "continue-on-error: true" in step and "timeout-minutes: 10" in step and 'FRAME_RASTER_BUDGET_S: "300"' in step
+    assert "continue-on-error" not in step                # the advisor's condition: a failure turns the run red
+    assert "timeout-minutes: 10" in step and 'FRAME_RASTER_BUDGET_S: "300"' in step
+    assert "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" in step
 
 
 def test_datamart_file_names():
@@ -185,10 +191,43 @@ def test_a_published_giops_frame_is_eastward_speed_in_knots(tmp_path, monkeypatc
     assert report["status"] == "published" and report["built"] == 2 and report["refused"] == 0
     rec = json.loads((tmp_path / "out" / fs.LATEST).read_text())["sets"][KEY]
     index = json.loads((tmp_path / "out" / rec["index"]).read_text())
-    assert "Environment and Climate Change Canada" in json.dumps(index)
+    text = json.dumps(index, ensure_ascii=False)
+    assert "Contains information licensed under the Open Government Licence – Canada." in text
+    assert "Environment and Climate Change Canada" in text and "open-government-licence-canada" in text
     _h, f = fb.decode_plane((tmp_path / "out" / index["frames"][0]["path"]).read_bytes())
     assert set(f) == {fb.SPEED, fb.DIRECTION}
     assert np.nanmax(f[fb.SPEED]) == pytest.approx(0.5 * 3600 / 1852, abs=0.006)
     wet = np.isfinite(f[fb.SPEED])                         # direction has no no-data code (0 there): mask by speed
     assert wet.sum() > 0.8 * wet.size and (~wet).any()     # south of 80S and the land patch are no data
     assert np.allclose(f[fb.DIRECTION][wet], 90.0, atol=0.01)
+
+
+@pytest.mark.parametrize("report, code", [
+    ({"status": "published", "failed": 0}, 0),
+    ({"status": "unchanged"}, 0),
+    ({"status": "published", "failed": 1}, 1),            # strict: one failed frame is red
+    ({"status": "no_cycle"}, 1),                          # strict: no complete run in the look-back is red
+    ({"status": "coverage_refused"}, 1),
+])
+def test_strict_status_turns_the_run_red(report, code):
+    assert script._status("currents_giops", report, strict=True) == code
+    if report.get("status") in ("published", "no_cycle"):
+        assert script._status("currents", report) == 0     # other sets keep their old rule
+
+
+def test_the_run_states_its_size_pulled_and_kept(tmp_path, monkeypatch, capsys):
+    """The advisor's condition: every run says how many MB it pulled from the Datamart and kept in the bucket."""
+    monkeypatch.setenv("FRAME_RASTER_CURRENTS_GIOPS", "1")
+    u = np.full((gi.SRC_ROWS, gi.SRC_COLS), 0.3)
+    ub = _nc_bytes(tmp_path, "vozocrtx", u)
+    vb = _nc_bytes(tmp_path, "vomecrty", np.zeros_like(u))
+    sp = fsr.SPECS["currents_giops"]
+    files = {gi.file_url(CYCLE, f, var): (ub if var == "vozocrtx" else vb) for f in sp["hours"] for var in gi.VARS}
+    dm = _Datamart(files)
+    monkeypatch.setattr(fsr, "make_source", lambda spec, session=None: gi.GiopsCurrentsSource(spec, session=dm))
+    done = {"status": "published", "failed": 0, "bytes": 2_500_000}
+    monkeypatch.setattr(fsr, "publish", lambda source, *a, **k: (source.fetch(CYCLE, 6), done)[1])
+    assert script.main(["--set", "currents_giops", "--out-dir", str(tmp_path / "o")]) == 0
+    out = capsys.readouterr().out
+    pulled = len(ub) + len(vb)
+    assert f"pulled {pulled / 1e6:.1f} MB, kept 2.5 MB" in out and f'"bytes_pulled": {pulled}' in out

@@ -27,9 +27,10 @@ const SOURCES = {
   dwd: { text: 'ICON · Datenbasis: Deutscher Wetterdienst', href: 'https://www.dwd.de/EN/service/copyright/copyright_node.html', label: 'Data source: Deutscher Wetterdienst (Datenbasis: Deutscher Wetterdienst), ICON model (opens in a new tab)' },
   // Ocean currents (2026-11-15): the Copernicus Marine licence (s. 2.4) asks for this credit, with the product's DOI.
   cmems: { text: '© Copernicus Marine', href: 'https://doi.org/10.48670/moi-00016', label: 'Generated using E.U. Copernicus Marine Service Information (opens in a new tab)' },
-  // Currents under ICON (2026-11-22): Canada's GIOPS ocean model. The ECCC Data Servers End-use Licence (v2.1.1) asks for the
-  // data to be attributed to ECCC and nothing to suggest endorsement: named as ECCC's model, never as ICON's.
-  eccc: { text: 'Canada GIOPS (ECCC)', href: 'https://eccc-msc.github.io/open-data/licence/readme_en/', label: 'Data Source: Environment and Climate Change Canada, GIOPS ocean model; ECCC Data Servers End-use Licence (opens in a new tab)' },
+  // Currents under ICON (2026-11-22): Canada's GIOPS ocean model, under the Open Government Licence - Canada (its catalogue
+  // record) and the ECCC Data Servers End-use Licence (the Datamart): the OGL statement, the data attributed to ECCC, nothing
+  // suggesting endorsement. Named as ECCC's model, never as ICON's.
+  eccc: { text: 'Canada GIOPS (ECCC) · OGL-Canada', href: 'https://open.canada.ca/en/open-government-licence-canada', label: 'Data Source: Environment and Climate Change Canada, GIOPS ocean model. Contains information licensed under the Open Government Licence – Canada (opens in a new tab).' },
 };
 const OWN_SOURCE = { GFS: 'noaa', EURO: 'ecmwf', ICON: 'dwd', CMEMS: 'cmems', GIOPS: 'eccc' };
 // What a layer drawn from our own frames IS, where a reader could take it for something else (2026-10-25). Our cloud cover

@@ -123,3 +123,45 @@ ICON → Environment and Climate Change Canada's GIOPS. Credit GIOPS under its o
    Not done (the brief asked for one cycle a day).
 3. **`rtofs-currents`:** that lane was told the shared shape (`modelSets` per picker; `PLUGIN_SOURCES` on the backend).
    Its GFS entry is one line in each table.
+
+## 8. Addendum: built to the advisor's pass conditions (relayed by the director, 2026-11-22)
+
+1. **Dark, no served change:** unchanged.
+   - The publisher step runs only when `FRAME_RASTER_CURRENTS_GIOPS=1`.
+   - The client's ICON override is `on: false`.
+2. **OGL–Canada credit and licence text in every index.** §2 is superseded on this point. The Government of Canada open-data
+   catalogue (API `package_search?q=GIOPS`, read 2026-11-22) lists **"Global Ice-Ocean Prediction System"**:
+   - publisher Environment and Climate Change Canada;
+   - licence **Open Government Licence – Canada**;
+   - dataset `dc3a7022-95e8-45a7-bf63-3d45b6cda0dc`.
+
+   So the OGL statement is true, and it is carried alongside the Datamart's own End-use Licence attribution:
+   - The index credit begins with the OGL licence's own statement: "Contains information licensed under the Open Government
+     Licence – Canada."
+   - Next comes "Data Source: Environment and Climate Change Canada (GIOPS); modified (…)".
+   - The licence string names both licences with their URLs and the catalogue record.
+   - A test reads the PUBLISHED index for the statement and the licence URL.
+   - On screen the credit reads "Canada GIOPS (ECCC) · OGL-Canada" and links the OGL page. Its accessible name carries both
+     statements.
+3. **The storage key only through `supabase-service`:**
+   - the pilots job declares `environment: supabase-service`;
+   - the step reads `secrets.SUPABASE_SERVICE_ROLE_KEY` from it;
+   - tests pin both.
+4. **Failures turn the run red:**
+   - The GIOPS step has no `continue-on-error`.
+   - The set is `strict`: any failed frame, or `no_cycle` (no complete run in its 3-day look-back, i.e. a moved or renamed
+     upstream), exits 1 with an `::error` annotation. The frames that did build are still published.
+   - Later steps still run (`!cancelled()`).
+   - Other sets keep their old exit rule (tested).
+5. **A stated size per run:**
+   - The source counts the bytes it pulls from the Datamart.
+   - The script adds `bytes_pulled` to the report and prints `::notice title=Raster set currents_giops size::pulled X MB, kept Y MB`
+     on every run.
+   - Measured offline, a new cycle **pulls ~200 MB and keeps 14.4 MB**; a published cycle pulls ~0 and keeps 0.
+
+**Also:**
+- The data-health freshness monitor now passes `FRAME_RASTER_CURRENTS_GIOPS`, so it can page if the set goes stale once on.
+- The step passes `FRAME_RASTER_DIR_BYTE` for the currents-particles lane's direction byte.
+- The GIOPS spec inherits the Copernicus set's frame layout keys (including a future `dir_byte_field`), so the particles
+  lane's change reaches GIOPS without another edit here.
+- Backend tests: 10 → 16 (estate fragment updated to +16).

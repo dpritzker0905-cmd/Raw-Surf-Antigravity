@@ -75,9 +75,10 @@ describe('ICON currents from Canada GIOPS', () => {
   });
   test('credits ECCC by name and licence, never ICON', () => {
     const c = creditFor('currents', { currents: 'GIOPS' }, {});
-    expect(c.text).toBe('Canada GIOPS (ECCC) · open-ocean current; no tides, not a nearshore / rip current');
-    expect(c.href).toBe('https://eccc-msc.github.io/open-data/licence/readme_en/');
+    expect(c.text).toBe('Canada GIOPS (ECCC) · OGL-Canada · open-ocean current; no tides, not a nearshore / rip current');
+    expect(c.href).toBe('https://open.canada.ca/en/open-government-licence-canada');
     expect(c.label).toMatch(/Data Source: Environment and Climate Change Canada/);
+    expect(c.label).toContain('Contains information licensed under the Open Government Licence – Canada');
     expect(c.label).toMatch(/GIOPS model \(half a metre down, 3-hour mean/);
     expect(`${c.text} ${c.label}`).not.toMatch(/ICON|Copernicus/);
   });

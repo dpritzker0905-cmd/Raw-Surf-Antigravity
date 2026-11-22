@@ -46,9 +46,14 @@ def main(argv=None):
         print(f"[raster] {args.set}: off ({spec['env']}); skipped")
         return 0
     sink = _sink(args)
-    report = fsr.publish(fsr.make_source(spec), sink, pub._uploader(sink), log=print, spec=spec)
+    source = fsr.make_source(spec)
+    report = fsr.publish(source, sink, pub._uploader(sink), log=print, spec=spec)
+    if hasattr(source, "bytes_pulled"):            # a source that counts its reads states the run's size (GIOPS, 2026-11-22)
+        report["bytes_pulled"] = source.bytes_pulled
+        print(f"::notice title=Raster set {args.set} size::pulled {source.bytes_pulled / 1e6:.1f} MB, "
+              f"kept {report.get('bytes', 0) / 1e6:.1f} MB ({report.get('status')})")
     print(json.dumps(report, indent=1, sort_keys=True))
-    return _status(args.set, report)
+    return _status(args.set, report, strict=spec.get("strict", False))
 
 
 def _bundle(args):
@@ -76,8 +81,14 @@ def _sink(args):
     return sink
 
 
-def _status(name, report):
+def _status(name, report, strict=False):
     status = report.get("status")
+    if strict and status not in FAILED and (report.get("failed") or status == "no_cycle"):
+        # A strict set (spec "strict": GIOPS, the advisor's condition) turns the run red on ANY failed frame, and when no
+        # complete run is found over its whole look-back (a moved or renamed upstream), not only on a refused index. The
+        # frames that did build are still published.
+        print(f"::error title=Raster set {name} incomplete::status {status}, {report.get('failed', 0)} frame(s) failed")
+        return 1
     if status in FAILED:
         # A failed publish KEEPS the published index (the map draws the last good run), so say so where it is seen: an error
         # annotation on the step (continue-on-error keeps the cycle going) and a non-zero exit; raster_set_freshness.py on the
