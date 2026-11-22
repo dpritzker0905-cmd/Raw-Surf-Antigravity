@@ -113,7 +113,7 @@ Served change: none from this gate.
 ## 6. Statistics and pass rules
 - **Bootstrap:** paired moving-block bootstrap over valid dates, **7-day blocks**, B = 10,000, seed 20261122. Whole dates are resampled with all buoys together. 5-day and 14-day blocks are reported only.
 - **Families:**
-  - F1: `LITE − CHAIN` on M1 per region (excluding California) + pooled + sheltered + `FINE` + `COARSE`. One Holm family, one-sided "better".
+  - F1: `LITE − CHAIN` on M1 per region (excluding California) + pooled + sheltered + `FINE` + `COARSE` + `SEAM` + `DATUM_1M`. One Holm family, one-sided "better". A tag stratum with no targets has no line.
   - F2: `LITE − CHAIN` on M2 per direction bin (|incoming − shore normal| in 0-30°, 30-60°, 60-90°, > 90°). One Holm family.
   - The worse-direction lines of F1 form their own family.
 - **Pass (all):**
@@ -123,6 +123,9 @@ Served change: none from this gate.
   - no region Holm-worse;
   - same sign with at least half the pooled effect in both halves of TEST.
   - **`COARSE`:** `LITE` ships on `COARSE` targets only if the `COARSE` line is also better. If it is merely not worse, those targets keep `CHAIN`.
+  - **`SEAM` and `DATUM_1M` (the same rule; advisor, 2026-11-22):** `LITE` ships on `SEAM`- or `DATUM_1M`-tagged targets only if that stratum's own F1 line is also BETTER. If it is merely not worse, those targets keep `CHAIN`.
+    - A target with several tags (`COARSE`, `SEAM`, `DATUM_1M`) ships `LITE` only if EVERY one of its tags' lines is BETTER.
+    - For the test itself, tagged targets are computed as registered and only stratified. Nothing is swapped or excluded per seam after the look.
 - **California reproduction:** a TOST on `r = RMSE(LITE_EC)/RMSE(MOP) − 1`, margins ±0.10, at California buoys. Same ECMWF forcing on both sides.
   - Equivalent → the public-bathymetry method reproduces MOP where it can be checked.
   - Not equivalent and worse → report it as the bathymetry risk realised. `LITE` may still pass elsewhere on F1, but the result says so.
