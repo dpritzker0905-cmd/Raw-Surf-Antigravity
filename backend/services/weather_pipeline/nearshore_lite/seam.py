@@ -29,10 +29,11 @@ class SeamRow:
     p95_m: float
     tag: str                 # "SEAM" or ""
     median_over_report: bool
+    unpaired: int = 0        # join segments with < 6 valid cells on a side: no pair (amendment A9)
 
     def cells(self):
         return [self.target, self.join, self.sources, self.n_cells, f"{self.median_m:.4f}", f"{self.p95_m:.4f}",
-                self.tag, "1" if self.median_over_report else "0"]
+                self.tag, "1" if self.median_over_report else "0", self.unpaired]
 
 
 def stats(depth_a_msl, depth_b_msl):
@@ -75,7 +76,7 @@ def check_join(target, join, sources, depth_a_msl, depth_b_msl):
     return SeamRow(target, join, sources, n, med, p95, tag, bool(n > 0 and med > MEDIAN_REPORT_M))
 
 
-HEADER = ["target", "join", "sources", "n_cells", "median_m", "p95_m", "tag", "median_over_0.3m"]
+HEADER = ["target", "join", "sources", "n_cells", "median_m", "p95_m", "tag", "median_over_0.3m", "unpaired_segments"]
 
 
 def to_csv(rows):

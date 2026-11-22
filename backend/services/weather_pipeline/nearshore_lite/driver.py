@@ -6,7 +6,7 @@ For one target:
   2. convert to MSL with the recorded `DatumConversion` (gate 1a);
   3. resample onto a local metric grid centred on the target (equirectangular; fine for a ~50 km domain), bilinear, numpy only;
   4. seam-check EVERY join in the composed grid (4-adjacent layer pairs, whatever their priority order), over the
-     overlap where layers share cells, else across the join; layers are keyed by (source, volume/tile);
+     overlap where layers share cells, else the de-sloped across-the-join pairing (A9); layers are keyed by (source, volume/tile);
   5. compose the finest source cell by cell and tag FINE / COARSE;
   6. return a `freeze.freeze_targets` target dict and the seam rows.
 
@@ -137,6 +137,86 @@ def compose_layers(layers):
     return depth, which
 
 
+BAND_CELLS = 3
+MIN_BAND_CELLS = 6
+
+
+def _adjacent_pairs(which, i, j):
+    """4-adjacent cell pairs (cell of layer i, cell of layer j), as lists of (r, c) for each side."""
+    ci, cj = [], []
+    for da, db in ((0, 1), (1, 0)):
+        a = which[: which.shape[0] - da, : which.shape[1] - db]
+        b = which[da:, db:]
+        for m, n, ci_, cj_ in ((i, j, ci, cj), (j, i, cj, ci)):
+            ys, xs = np.nonzero((a == m) & (b == n))
+            ci_.extend(zip(ys.tolist(), xs.tolist()))
+            cj_.extend(zip((ys + da).tolist(), (xs + db).tolist()))
+    return ci, cj
+
+
+def _components(cells):
+    """8-connected components of a set of (r, c) cells, each as a list."""
+    todo, comps = set(cells), []
+    while todo:
+        seed = todo.pop()
+        comp, stack = [seed], [seed]
+        while stack:
+            r, c = stack.pop()
+            for dr in (-1, 0, 1):
+                for dc in (-1, 0, 1):
+                    n = (r + dr, c + dc)
+                    if n in todo:
+                        todo.remove(n)
+                        comp.append(n)
+                        stack.append(n)
+        comps.append(comp)
+    return comps
+
+
+def _dilate(mask, k):
+    out = mask.copy()
+    p = np.pad(mask, k)
+    h, w = mask.shape
+    for dr in range(-k, k + 1):
+        for dc in range(-k, k + 1):
+            out |= p[k + dr:k + dr + h, k + dc:k + dc + w]
+    return out
+
+
+def _plane_at(depth, band, r0, c0):
+    """Least-squares plane over the band cells, evaluated at (r0, c0)."""
+    ys, xs = np.nonzero(band)
+    A = np.column_stack([np.ones(len(ys)), xs - c0, ys - r0])
+    coef, *_ = np.linalg.lstsq(A, depth[ys, xs], rcond=None)
+    return float(coef[0])
+
+
+def deslope_pairs(layers, which, i, j, band=BAND_CELLS, min_cells=MIN_BAND_CELLS, shallow=seam_mod.SHALLOW_M):
+    """DE-SLOPED pairing for a join between layers that share no cells (amendment A9; advisor ruling 2026-11-22).
+    Per join SEGMENT (an 8-connected set of join cells): fit a least-squares plane per side over a `band`-cell band of
+    water shallower than `shallow`, evaluate both planes at the shared edge (the segment's centroid) and pair those two
+    values. A side with fewer than `min_cells` valid cells gives NO pair (the segment is counted as unpaired).
+    Returns (values_i, values_j, unpaired_segments). Neighbouring-cell pairing is not used: it adds slope x cell size."""
+    ci, cj = _adjacent_pairs(which, i, j)
+    gi, gj = layers[i][1], layers[j][1]
+    vi, vj, unpaired = [], [], 0
+    for comp in _components(set(ci) | set(cj)):
+        cm = np.zeros(which.shape, dtype=bool)
+        rr, cc = zip(*comp)
+        cm[list(rr), list(cc)] = True
+        sides = []
+        for lid, g in ((i, gi), (j, gj)):
+            b = _dilate(cm & (which == lid), band) & (which == lid) & np.isfinite(g) & (g > 0) & (g < shallow)
+            sides.append((g, b))
+        if any(int(b.sum()) < min_cells for _, b in sides):
+            unpaired += 1
+            continue
+        r0, c0 = float(np.mean(rr)), float(np.mean(cc))
+        vi.append(_plane_at(sides[0][0], sides[0][1], r0, c0))
+        vj.append(_plane_at(sides[1][0], sides[1][1], r0, c0))
+    return vi, vj, unpaired
+
+
 def _label(key):
     return f"{key[0]}:{key[1]}"
 
@@ -161,14 +241,8 @@ def seam_rows(target_id, layers, which):
         if overlap.any():
             rows.append(seam_mod.check_join(target_id, label, srcs, gi[overlap], gj[overlap]))
             continue
-        vi, vj = [], []
-        for da, db in ((0, 1), (1, 0)):
-            a = which[: which.shape[0] - da, : which.shape[1] - db]
-            b = which[da:, db:]
-            for m, n in ((i, j), (j, i)):
-                sel = (a == m) & (b == n)
-                ys, xs = np.nonzero(sel)
-                vi.extend(layers[m][1][ys, xs].tolist())
-                vj.extend(layers[n][1][ys + da, xs + db].tolist())
-        rows.append(seam_mod.check_join(target_id, label, srcs, np.asarray(vi), np.asarray(vj)))
+        vi, vj, unpaired = deslope_pairs(layers, which, i, j)
+        row = seam_mod.check_join(target_id, label, srcs, np.asarray(vi), np.asarray(vj))
+        row.unpaired = unpaired
+        rows.append(row)
     return rows

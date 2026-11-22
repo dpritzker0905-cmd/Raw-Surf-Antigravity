@@ -1,6 +1,6 @@
 {
   "lane": "chain",
-  "tests": 12,
+  "tests": 16,
   "files": 1,
   "branch": "claude/nearshore-moplite-driver",
   "date": "2026-11-22",

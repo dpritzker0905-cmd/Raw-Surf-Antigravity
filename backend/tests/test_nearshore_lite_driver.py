@@ -153,15 +153,59 @@ def test_duplicate_source_volume_inputs_are_refused(tmp_path):
         driver.build_target("D", LAT0, LON0, [s, dict(s)], half_extent_m=3000.0, dx_m=50.0)
 
 
-def test_documented_limit_across_the_join_pairing_includes_the_bed_slope(tmp_path):
-    """Amendment question A9: where sources do not overlap, the registered rule pairs the nearest cells on each side, and
-    neighbouring cells differ by slope x cell size even with PERFECT datums (1:50 x 50 m = 1 m). Pinned here so the
-    ruling shows up as a changed test, not a silent drift."""
+def _two_volumes(tmp_path, tag, step_m=0.0, dx_m=100.0):
+    """Two non-overlapping CRM volumes of one PERFECT 1:50 plane beach; volume A is stored `step_m` deeper (a datum error)."""
     west = {"lon_rng": (-0.05, 0.0), "lat_rng": (-0.05, 0.05)}
     east = {"lon_rng": (0.0, 0.05), "lat_rng": (-0.05, 0.05)}
-    va = _plane(tmp_path, "sA", 0.002, 0.002, shore_m=1000.0, **west)
-    vb = _plane(tmp_path, "sB", 0.002, 0.002, shore_m=1000.0, **east)
+    va = _plane(tmp_path, f"{tag}A", 0.001, 0.001, offset=step_m, shore_m=1000.0, **west)
+    vb = _plane(tmp_path, f"{tag}B", 0.001, 0.001, shore_m=1000.0, **east)
     srcs = [{"name": "CRM", "volume": "A", "path": va, "var": "elevation", "native_datum": "EGM2008"},
             {"name": "CRM", "volume": "B", "path": vb, "var": "elevation", "native_datum": "EGM2008"}]
-    _, rows = driver.build_target("S1", LAT0, LON0, srcs, half_extent_m=3000.0, dx_m=50.0)
-    assert rows[0].p95_m == pytest.approx(0.02 * 50.0, abs=0.05)          # slope x cell, with zero datum error
+    return driver.build_target(tag, LAT0, LON0, srcs, half_extent_m=3000.0, dx_m=dx_m)
+
+
+def test_a_perfect_1_in_50_slope_at_100_m_cells_is_not_a_seam(tmp_path):
+    """Amendment A9 (de-sloped pairing): neighbouring-cell pairing would give slope x cell = 2 m here."""
+    target, rows = _two_volumes(tmp_path, "perfect")
+    assert len(rows) == 1 and rows[0].n_cells >= 1 and rows[0].unpaired == 0
+    assert rows[0].tag == "" and rows[0].p95_m < 0.15 and "SEAM" not in target["tags"]
+
+
+def test_a_2_m_datum_step_on_that_slope_is_caught(tmp_path):
+    target, rows = _two_volumes(tmp_path, "stepped", step_m=2.0)
+    assert rows[0].tag == "SEAM" and rows[0].p95_m == pytest.approx(2.0, abs=0.3) and "SEAM" in target["tags"]
+
+
+def _layers(h, w, left_cols, depth_fn):
+    """Two layers split at column `left_cols`; layer 0 = west, layer 1 = east. Returns (layers, which)."""
+    yy, xx = np.mgrid[0:h, 0:w].astype(float)
+    d = depth_fn(yy, xx)
+    g0, g1 = np.where(xx < left_cols, d, np.nan), np.where(xx >= left_cols, d, np.nan)
+    which = np.where(xx < left_cols, 0, 1).astype(np.int16)
+    return [(("CRM", "A"), g0), (("CRM", "B"), g1)], which
+
+
+def test_a_side_with_fewer_than_six_valid_cells_gives_no_pair_and_is_counted():
+    layers, which = _layers(20, 20, 10, lambda yy, xx: 5.0 + 0.1 * xx)
+    vi, vj, n_unpaired = driver.deslope_pairs(layers, which, 0, 1)
+    assert len(vi) == 1 and n_unpaired == 0                          # enough cells: one pair, the planes agree
+    assert vi[0] == pytest.approx(vj[0], abs=1e-6)
+    thin = layers[1][1].copy()
+    thin[:, 11:] = np.nan                                            # the east side keeps ONE column of cells inside the band
+    thin[4:, :] = np.nan                                             # ...and only 4 rows: 4 valid cells < 6
+    vi, vj, n_unpaired = driver.deslope_pairs([layers[0], (layers[1][0], thin)], which, 0, 1)
+    assert vi == [] and vj == [] and n_unpaired == 1
+
+
+def test_deep_water_joins_are_not_paired():
+    layers, which = _layers(20, 20, 10, lambda yy, xx: 80.0 + 0.1 * xx)
+    vi, vj, n_unpaired = driver.deslope_pairs(layers, which, 0, 1)
+    assert vi == [] and n_unpaired == 1                              # nothing shallower than 30 m: counted, not silently dropped
+
+
+def test_the_seam_table_reports_unpaired_segments():
+    from services.weather_pipeline.nearshore_lite import seam
+    row = seam.check_join("t", "A|B", "A,B", np.array([]), np.array([]))
+    row.unpaired = 3
+    text, _ = seam.to_csv([row])
+    assert text.splitlines()[0].endswith("unpaired_segments") and text.splitlines()[1].endswith(",3")
