@@ -9,7 +9,8 @@ import { getDownscaled, subscribeDownscaled } from './ownRasterDownscale';
 //    attribution names the same link);
 //  - RainViewer asks for "Rain Viewer" with a link (radar's observed frames and the nowcast built from them).
 // One small link, in the legend's own muted text colour (theme-aware: light, dark and beach), a real <a> with an accessible
-// name, opening in a new tab. Kill: window.__RAW_DISABLE_LAYER_DATA_CREDIT__ = true.
+// name, opening in a new tab. It WRAPS (min-w-0, break-words) rather than run past the legend panel's edge (the desktop
+// legend cut "ICON · Datenbasis: Deutscher Wetterd…", 2026-11-22), and a gap-fill credit's tooltip carries the full sentence. Kill: window.__RAW_DISABLE_LAYER_DATA_CREDIT__ = true.
 export const LAYER_CREDITS = {
   rain: 'open-meteo', satellite: 'open-meteo', pressure: 'open-meteo', temperature: 'open-meteo', water_temp: 'open-meteo',
   fog: 'open-meteo', radar: 'rainviewer',
@@ -60,15 +61,21 @@ const OWN_NOTE = {
 // GAP FILL (2026-11-22, ownRasterGapFill.js): a frame drawn where the picked model has none, '<MODEL(S)>:fill:<PICKED>'. Every
 // source in the field is credited (an anchored prediction holds the picked model's own field: ECMWF's CC BY needs its credit), and
 // the visible text says it is an estimate, so the source is never colour or position alone. The status line says why.
+// SHORT LABELS (the director's call, 2026-11-22, David leaving it to him): the visible text leads with WHAT IS DRAWN, "ICON" for
+// our own frames (the plain credit), "ICON → GFS" for the anchored blend, "GFS (stand-in)" for a pure GFS frame; the picked
+// agency's own attribution follows where its data is in the field (DWD's "Datenbasis", ECMWF's CC BY). The full sentence is
+// the accessible name and the tooltip; the status line under the timeline keeps the long words.
+const ATTRIB = { dwd: 'Datenbasis: Deutscher Wetterdienst', ecmwf: '© ECMWF · CC BY 4.0' };
 export function fillCredit(models, picked) {
   const srcs = models.map((m) => SOURCES[OWN_SOURCE[m] || 'noaa']);
   const anchored = models.length > 1;
-  const note = anchored ? `${picked} prediction` : `stand-in for ${picked}`;
   const why = anchored
     ? `${picked} prediction where ${picked}'s own frames end: NOAA GFS's trend, anchored to ${picked}'s last frame.`
     : `NOAA GFS shown where ${picked} has no frame of its own.`;
-  return { text: `${srcs.map((x) => x.text).join(' + ')} · ${note}`, href: srcs[0].href,
-    label: `Estimated: ${why} ${srcs.map((x) => x.label).join(' ')}`, title: why };
+  const own = anchored ? ATTRIB[OWN_SOURCE[models[0]]] : null;
+  const text = anchored ? `${models[0]} → GFS${own ? ` · ${own}` : ''}` : 'GFS (stand-in)';
+  const label = `Estimated: ${why} ${srcs.map((x) => x.label).join(' ')}`;
+  return { text, href: srcs[0].href, label, title: label };
 }
 // While air temperature is drawn terrain-adjusted (ownRasterDownscale.js): the elevation source is credited too.
 const DOWNSCALE_NOTE = {
@@ -102,7 +109,7 @@ export default function LayerDataCredit({ layer }) {
   if (!c) return null;
   return (
     <a href={c.href} target="_blank" rel="noopener noreferrer" aria-label={c.label} title={c.title} data-testid="layer-data-credit"
-      className="ml-2 shrink-0 normal-case tracking-normal font-normal underline decoration-dotted underline-offset-2 opacity-80 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500 rounded-sm">
+      className="ml-2 min-w-0 text-right break-words normal-case tracking-normal font-normal underline decoration-dotted underline-offset-2 opacity-80 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500 rounded-sm">
       {c.text}
     </a>
   );

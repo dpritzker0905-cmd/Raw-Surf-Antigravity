@@ -1,6 +1,6 @@
 {
   "lane": "frontend",
-  "tests": 46,
+  "tests": 52,
   "files": 4,
   "branch": "claude/own-frames-gap-fill",
   "date": "2026-11-22",

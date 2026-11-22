@@ -146,16 +146,20 @@ describe('the label: status line and legend credit, every source named, never Op
       .toEqual({ state: 'estimated', fill: true, text: 'Estimated forecast: ICON prediction: NOAA GFS trend anchored to ICON’s last frame' });
   });
 
-  test('the credit names DWD and NOAA for an ICON prediction, ECMWF (CC BY) and NOAA for a EURO one, NOAA for a stand-in', () => {
+  test('the short legend label names what is drawn (ICON → GFS, GFS (stand-in)); the full sentence names every source', () => {
     setEngaged('temperature', 'ICON+GFS:fill:ICON');
     const c = creditFor('temperature');
-    expect(c.text).toBe('ICON · Datenbasis: Deutscher Wetterdienst + NOAA GFS · ICON prediction');
+    expect(c.text).toBe('ICON → GFS · Datenbasis: Deutscher Wetterdienst');
     expect(c.label).toMatch(/^Estimated: ICON prediction where ICON's own frames end/);
     expect(c.label).toMatch(/Deutscher Wetterdienst.*NOAA NCEP Global Forecast System/);
+    expect(c.title).toBe(c.label);
     setEngaged('satellite', 'EURO+GFS:fill:EURO');
-    expect(creditFor('satellite').text).toBe('EURO · © ECMWF · CC BY 4.0 + NOAA GFS · EURO prediction');
+    expect(creditFor('satellite').text).toBe('EURO → GFS · © ECMWF · CC BY 4.0');   // ECMWF's CC BY stays visible
     setEngaged('rain', 'GFS:fill:ICON');
-    expect(creditFor('rain').text).toBe('NOAA GFS · stand-in for ICON');
+    expect(creditFor('rain').text).toBe('GFS (stand-in)');
+    expect(creditFor('rain').label).toMatch(/NOAA GFS shown where ICON has no frame of its own/);
+    setEngaged('rain', 'ICON');
+    expect(creditFor('rain').text).toMatch(/^ICON · Datenbasis: Deutscher Wetterdienst/);   // own frames: plain "ICON"
     for (const l of ['temperature', 'satellite', 'rain']) expect(creditFor(l).text).not.toMatch(/Open-Meteo/);
   });
 });
@@ -191,7 +195,7 @@ describe('through the hook (the advisor\'s HOLD on #1075: the stand-in must load
     getPinnedIndex.mockImplementation(async (key) => (key === GFS_T ? idx('g', [0, 3]) : null));
     run('temperature', 'ICON');
     await waitFor(() => expect(getEngaged().temperature).toBe('GFS:fill:ICON'));
-    expect(creditFor('temperature').text).toBe('NOAA GFS · stand-in for ICON');
+    expect(creditFor('temperature').text).toBe('GFS (stand-in)');
   });
 
   test('THE KILL: __RAW_DISABLE_RASTER_OWN_GAP_FILL__ restores the gaps as "unavailable", and still never requests .om', async () => {
