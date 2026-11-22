@@ -58,13 +58,15 @@ jobs:
         working-directory: backend
         env:
           EVID: ../docs/weather-program/evidence/wind-long-range-v2
+          OWNER_WORD_REF: ${{ github.event.inputs.owner_word_ref }}
+          COMMAND: ${{ github.event.inputs.command }}
         run: |
-          test -n "${{ github.event.inputs.owner_word_ref }}" || exit 1
+          test -n "$OWNER_WORD_REF" || exit 1
           C="$RUNNER_TEMP/wlr2"; mkdir -p "$C/runs_fit" "$C/runs_test"
           for f in wind_lr2_stations.json wind_lr2_pairing.json wind_lr2_clim_stations.npz wind_lr2_coef_*.json; do cp "$EVID"/$f "$C"/ 2>/dev/null || true; done
           find "$C/downloaded" -name '*.npz' -path '*runs-fit*' -exec cp {} "$C/runs_fit/" \; 2>/dev/null || true
           find "$C/downloaded" -name '*.npz' -path '*runs-test*' -exec cp {} "$C/runs_test/" \; 2>/dev/null || true
-          case "${{ github.event.inputs.command }}" in
+          case "$COMMAND" in
             stations) python scripts/wind_lr_hindcast.py stations --cache "$C" && cp "$C/wind_lr_stations.json" "$C/wind_lr2_stations.json" ;;
             pair)     python scripts/wind_lr2_run.py pair --cache "$C" --spots "$EVID/spots.json" ;;
             fit)      python scripts/wind_lr2_run.py fit --cache "$C" ;;
@@ -78,3 +80,28 @@ jobs:
           path: |
             ${{ runner.temp }}/wlr2/*.json
             ${{ runner.temp }}/wlr2/*.npz
+
+  archive:
+    # Artifacts expire after 90 days and TEST scoring is February 2027 or later: copy every artifact and its sha256 to the
+    # weather bucket (calibration/ prefix) and log the hashes. Secrets by NAME, in the supabase-service environment only.
+    needs: [analyse]
+    if: ${{ always() && needs.analyse.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install requests==2.31.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wind-lr2-*
+          path: ${{ runner.temp }}/art
+      - name: Copy to the weather bucket with sha256
+        working-directory: backend
+        env:
+          RUN_ID: ${{ github.run_id }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/wind_lr2_archive.py --src "$RUNNER_TEMP/art" --prefix "calibration/wind-lr2/$RUN_ID"

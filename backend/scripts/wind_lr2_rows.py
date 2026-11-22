@@ -51,7 +51,8 @@ def ifs_gust_median(z, step: int):
 
 
 def wind_factor(speed, from_deg, shore_normal):
-    """The rating's wind factor wq * wg, IMPORTED from surf_rating (never re-coded). NaN without a shore normal."""
+    """The rating's wind factor wq * wg, IMPORTED from surf_rating (never re-coded). NaN without a shore normal. The gate is
+    PINNED ON (`enabled=True`), so M2 never depends on the CI environment's RATING_WIND_GATE."""
     from services.weather_pipeline import surf_rating as SR
     s = np.asarray(speed, float)
     d = np.asarray(from_deg, float)
@@ -60,7 +61,7 @@ def wind_factor(speed, from_deg, shore_normal):
     for i in range(s.size):
         if math.isfinite(s.flat[i]) and math.isfinite(d.flat[i]) and math.isfinite(n.flat[i]):
             out.flat[i] = SR.wind_quality(float(s.flat[i]), float(d.flat[i]), float(n.flat[i])) * \
-                SR.wind_gate(float(s.flat[i]), float(d.flat[i]), float(n.flat[i]))
+                SR.wind_gate(float(s.flat[i]), float(d.flat[i]), float(n.flat[i]), enabled=True)
     return out
 
 

@@ -160,9 +160,9 @@ def g6(rows, arm: str, tail: str, errs: dict, reps: int = S.REPS) -> dict:
 
 
 # ---------------------------------------------------------------------------------------------- controls
-def controls(rows, arms=S.CAL_ARMS, reps: int = 2000) -> Dict[str, dict]:
-    """Registration section 7 on the real row table. Each entry: {'ok': bool, ...}. `reps` is lower than the gate B only
-    for runtime of the many control lines; every control rule is a sign/containment test, not a gate."""
+def controls(rows, arms=S.CAL_ARMS, reps: int = S.REPS) -> Dict[str, dict]:
+    """Registration section 7 on the real row table. Each entry: {'ok': bool, ...}. `reps` defaults to the registered
+    B = 10,000 (the same bootstrap as the gates); tests pass a smaller number explicitly."""
     pop = _population(rows)
     out: Dict[str, dict] = {}
     # null: an arm identical to its comparator gives exactly zero with a zero-width CI
@@ -220,7 +220,7 @@ def fit_test_disjoint(fit_inits: List, test_inits: List) -> dict:
 
 # ---------------------------------------------------------------------------------------------- the one scored look
 def score_rows(rows: Dict[str, np.ndarray], native_changes: np.ndarray, kept_runs: int, stations_by_region: Dict[str, int],
-               freeze_mismatches: List[str], fit_test: dict, reps: int = S.REPS, control_reps: int = 2000) -> dict:
+               freeze_mismatches: List[str], fit_test: dict, reps: int = S.REPS, control_reps: int = S.REPS) -> dict:
     """The whole registered decision from a row table. Never reads data; deterministic for a given input."""
     doc: dict = {"n_rows": int(len(rows["lead"])), "reps": reps}
     void: List[str] = list(S.check_floors(kept_runs, rows["vday"], stations_by_region))

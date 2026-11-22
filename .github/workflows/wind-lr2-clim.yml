@@ -35,8 +35,9 @@ jobs:
         env:
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
           COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+          OWNER_WORD_REF: ${{ github.event.inputs.owner_word_ref }}
         run: |
-          test -n "${{ github.event.inputs.owner_word_ref }}" || exit 1
+          test -n "$OWNER_WORD_REF" || exit 1
           mkdir -p "$RUNNER_TEMP/wlr2"
           cp ../docs/weather-program/evidence/wind-long-range-v2/wind_lr2_stations.json "$RUNNER_TEMP/wlr2/"
           python scripts/wind_lr2_cmems.py build --cache "$RUNNER_TEMP/wlr2"
@@ -46,8 +47,9 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OWNER_WORD_REF: ${{ github.event.inputs.owner_word_ref }}
         run: |
-          test -n "${{ github.event.inputs.owner_word_ref }}" || exit 1
+          test -n "$OWNER_WORD_REF" || exit 1
           mkdir -p "$RUNNER_TEMP/wlr2"
           python scripts/wind_lr2_spots.py export --out "$RUNNER_TEMP/wlr2/spots.json"
       - uses: actions/upload-artifact@v4
@@ -58,3 +60,28 @@ jobs:
             ${{ runner.temp }}/wlr2/wind_lr2_clim_stations.npz
             ${{ runner.temp }}/wlr2/wind_lr2_clim_report.json
             ${{ runner.temp }}/wlr2/spots.json
+
+  archive:
+    # Artifacts expire after 90 days and TEST scoring is February 2027 or later: copy every artifact and its sha256 to the
+    # weather bucket (calibration/ prefix) and log the hashes. Secrets by NAME, in the supabase-service environment only.
+    needs: [run]
+    if: ${{ always() && needs.run.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install requests==2.31.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wind-lr2-*
+          path: ${{ runner.temp }}/art
+      - name: Copy to the weather bucket with sha256
+        working-directory: backend
+        env:
+          RUN_ID: ${{ github.run_id }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/wind_lr2_archive.py --src "$RUNNER_TEMP/art" --prefix "calibration/wind-lr2/$RUN_ID"

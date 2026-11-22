@@ -45,10 +45,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Frozen station list exists; a TEST run needs the committed freeze manifest
+        env:
+          OWNER_WORD_REF: ${{ github.event.inputs.owner_word_ref }}
+          KIND: ${{ github.event.inputs.kind }}
         run: |
-          test -n "${{ github.event.inputs.owner_word_ref }}" || { echo "owner_word_ref is required"; exit 1; }
+          test -n "$OWNER_WORD_REF" || { echo "owner_word_ref is required"; exit 1; }
           test -f "$EVID/wind_lr2_stations.json" || { echo "freeze the station list first"; exit 1; }
-          if [ "${{ github.event.inputs.kind }}" = "test" ]; then
+          if [ "$KIND" = "test" ]; then
             test -f "$EVID/freeze-manifest.json" || { echo "TEST needs the committed freeze manifest"; exit 1; }
           fi
 
@@ -69,14 +72,44 @@ jobs:
       - run: pip install numpy requests==2.31.0 eccodes==2.50.0
       - name: Collect this shard (a missing step drops the run; nothing is filled)
         working-directory: backend
+        env:
+          KIND: ${{ github.event.inputs.kind }}
+          SHARD: ${{ matrix.shard }}
+          FREEZE_TIME: ${{ github.event.inputs.freeze_time }}
         run: |
           mkdir -p "$RUNNER_TEMP/wlr2"
           cp "../$EVID/wind_lr2_stations.json" "$RUNNER_TEMP/wlr2/"
-          python scripts/wind_lr2_collect.py collect --kind "${{ github.event.inputs.kind }}" --cache "$RUNNER_TEMP/wlr2" \
-            --shard ${{ matrix.shard }}/12 ${{ github.event.inputs.freeze_time != '' && format('--freeze-time {0}', github.event.inputs.freeze_time) || '' }}
+          extra=()
+          if [ -n "$FREEZE_TIME" ]; then extra=(--freeze-time "$FREEZE_TIME"); fi
+          python scripts/wind_lr2_collect.py collect --kind "$KIND" --cache "$RUNNER_TEMP/wlr2" --shard "$SHARD/12" "${extra[@]}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: wind-lr2-runs-${{ github.event.inputs.kind }}-${{ matrix.shard }}
           retention-days: 90
           path: ${{ runner.temp }}/wlr2/runs_${{ github.event.inputs.kind }}/
+
+  archive:
+    # Artifacts expire after 90 days and TEST scoring is February 2027 or later: copy every artifact and its sha256 to the
+    # weather bucket (calibration/ prefix) and log the hashes. Secrets by NAME, in the supabase-service environment only.
+    needs: [collect]
+    if: ${{ always() && needs.collect.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install requests==2.31.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wind-lr2-*
+          path: ${{ runner.temp }}/art
+      - name: Copy to the weather bucket with sha256
+        working-directory: backend
+        env:
+          RUN_ID: ${{ github.run_id }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/wind_lr2_archive.py --src "$RUNNER_TEMP/art" --prefix "calibration/wind-lr2/$RUN_ID"

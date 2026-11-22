@@ -239,6 +239,21 @@ def test_great_lakes_buoys_are_never_marine_exposed():
     elev = np.where(lons[None, :] > -87.5, 10.0, -50.0) * np.ones((len(lats), 1))       # a lake west of a shore at -87.5
     mask = G.EtopoMask([(elev, lats, lons)])
     buoy = {"id": "45007", "kind": "ndbc", "type": "buoy", "lat": 41.9, "lon": -87.8}
-    assert G.marine_exposed(buoy, None, mask.is_land)                                    # the buoy branch alone would pass it
+    assert not G.marine_exposed(buoy, None, mask.is_land)                                # a lake buoy never qualifies
+    assert G.marine_exposed(dict(buoy, lat=34.0, lon=-120.5), None, _coast().is_land)    # the same buoy type at sea does
     spots = [{"id": "s", "lat": 41.9, "lon": -87.79, "shore_normal": 270.0}]
     assert G.pair_list([buoy], spots, mask)["45007"]["marine"] is False                  # the region rule excludes the lake
+
+
+def test_wind_factor_does_not_depend_on_the_ci_environment(monkeypatch):
+    args = (np.array([8.0, 3.0]), np.array([270.0, 90.0]), np.array([270.0, 270.0]))
+    monkeypatch.delenv("RATING_WIND_GATE", raising=False)
+    on = W.wind_factor(*args)
+    monkeypatch.setenv("RATING_WIND_GATE", "0")                                          # a CI environment that disables the veto
+    assert np.array_equal(W.wind_factor(*args), on)
+
+
+def test_controls_default_to_the_registered_bootstrap_size():
+    import inspect
+    assert inspect.signature(SC.controls).parameters["reps"].default == S.REPS == 10_000
+    assert inspect.signature(SC.score_rows).parameters["control_reps"].default == 10_000

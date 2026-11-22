@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 30,
+  "tests": 43,
   "branch": "claude/wind-long-range-v2-build2",
   "date": "2026-11-22",
-  "note": "wind long-range v2 build PR 2 (amendment 2: CMEMS clim, descriptive checks, spots export)"
+  "note": "wind long-range v2 build PR 2 (hold fixes: archive, env-only inputs, B=10000, gate pin)"
 }

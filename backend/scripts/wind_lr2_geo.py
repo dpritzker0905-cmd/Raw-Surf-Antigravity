@@ -103,6 +103,8 @@ def marine_exposed(station: dict, shore_normal_deg: Optional[float], is_land: Ca
     """Registered rule: a buoy, OR within 1 km of the shoreline AND the whole onshore sector (the paired spot's shore
     normal +-60 deg) is water for >= 5 km. No paired spot (no shore normal) means the sector rule cannot be met for a
     non-buoy: not marine-exposed."""
+    if R.region_of(station["lat"], station["lon"]) in R.EXCLUDED_REGIONS:       # the Great Lakes are not the open sea,
+        return False                                                            # whatever the station type
     if station.get("kind") == "ndbc" and station.get("type") == "buoy":
         return True
     if shore_normal_deg is None:
