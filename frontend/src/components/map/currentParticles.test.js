@@ -171,7 +171,7 @@ describe('one engine: the gust colour path in current mode', () => {
     const l = src('WebGLWindLayer.js');
     expect(l).toContain('if (!data.isCurrentFlow) publishWindDrawn(data);');
     expect(l).toContain('engine.setGustField(gl, field || null, field ? { encoded: currentColourOf(field), sea: true } : undefined);');
-    expect(l).toContain('subscribeCurrentField((rec) => { apply(rec ? rec.field : null); })');
+    expect(l).toContain('const shownNow = () => (isCurrent ? curColourRef.current : getShownGustField());');   // the grid's own field (currentNative.test.js)
   });
 });
 
