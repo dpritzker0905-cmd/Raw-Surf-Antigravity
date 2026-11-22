@@ -245,3 +245,31 @@ def test_own_module_sets_load_by_path_too():
     assert "['cmems_currents', 'cmems_sst', 'giops_currents']" in out.stdout and "currents_giops" in out.stdout
     assert out.stdout.strip().endswith("False")
     assert {k for k in ("cmems_currents", "cmems_sst", "giops_currents")} <= set(fsr.PLUGIN_SOURCES)
+
+
+def test_fetch_from_many_threads_at_once_is_safe(tmp_path):
+    """netCDF4 / HDF5 is not thread-safe (hosted CI segfaulted with six fetches in flight, 2026-11-22). build_set runs
+    fetch() in worker threads, so drive it the same way: 8 threads x 3 rounds of concurrent opens must all decode, and
+    the decode must actually run under NC_LOCK. A regression crashes here, in CI, not in the ingest."""
+    from concurrent.futures import ThreadPoolExecutor
+    u = np.full((gi.SRC_ROWS, gi.SRC_COLS), 0.4)
+    ub, vb = _nc_bytes(tmp_path, "vozocrtx", u), _nc_bytes(tmp_path, "vomecrty", np.zeros_like(u))
+    hours = tuple(range(6, 6 * 25, 6))
+    files = {gi.file_url(CYCLE, f, var): (ub if var == "vozocrtx" else vb) for f in hours for var in gi.VARS}
+    src = gi.GiopsCurrentsSource(dict(fsr.SPECS["currents_giops"], hours=hours), session=_Datamart(files))
+    held = []
+    real = gi._read_field
+
+    def spy(content, var):
+        held.append(gi.NC_LOCK.locked())
+        return real(content, var)
+
+    gi._read_field = spy
+    try:
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            got = list(pool.map(lambda f: src.fetch(CYCLE, f), hours))
+    finally:
+        gi._read_field = real
+    assert len(got) == len(hours) and all(held) and len(held) == 2 * len(hours)
+    for planes in got:
+        assert np.nanmax(planes[fb.SPEED]) == pytest.approx(0.4 * 3600 / 1852, abs=1e-6)

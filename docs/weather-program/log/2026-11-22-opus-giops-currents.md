@@ -202,3 +202,22 @@ attribution that licence requires, and the OGL sentence the GIOPS catalogue reco
 - **Test.** A new test loads the plugins module by path, with `services` not importable, and checks every source kind is
   registered (estate fragment +17).
 - **Merge.** dev goes into this branch once #1137 is on dev; that head goes to the director for a new advisor line.
+
+## 11. Addendum: the netCDF4 / HDF5 thread-safety crash (the advisor, on CI for 005537af3)
+
+- **The crash.** `backend-estate-coverage` segfaulted (exit 139) in `read_field`'s `netCDF4.Dataset(memory=...)`.
+- **Cause.** `build_set` runs `fetch` in six worker threads, and HDF5 is not thread-safe. Production would have crashed the
+  same way. The earlier local publishes (§5) survived by luck.
+- **Fix.** A module-level `NC_LOCK` serialises only the decode (open + read, about 0.1 s a file). The GETs and the regrid
+  stay parallel.
+- **Control (local, Windows, HDF5 1.14.6, the real Datamart files):**
+
+| run | decodes | result |
+|---|---|---|
+| 8 threads, lock replaced by a null context | 32 × 5 rounds | HDF5-DIAG errors, then `IndexError: vomecrty not found` (state corrupted across threads) |
+| the same, with `NC_LOCK` | 160 | all succeed |
+
+- **Test.** A new test drives `fetch` from 8 threads over 24 hours of full-size fixtures. It checks that every decode ran
+  under the lock and that every plane is right (estate fragment +18).
+- **Lesson** (for LESSONS when this merges): any C-library reader called from `build_set`'s worker threads (netCDF4, HDF5,
+  ecCodes) needs a lock, or one decode thread. ecCodes already has one, in `frame_set_raster.py`'s pygrib note.

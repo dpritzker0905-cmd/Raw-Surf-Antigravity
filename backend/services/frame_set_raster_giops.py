@@ -31,6 +31,7 @@ Copernicus set (frame_set_raster_currents.speed_direction): speed in KNOTS + dir
 """
 from __future__ import annotations
 
+import threading
 from datetime import timedelta, timezone
 
 try:
@@ -121,8 +122,20 @@ def regrid_quarter(a):
     return out
 
 
+# netCDF4 / HDF5 is NOT thread-safe: build_set fetches six hours at once, and two concurrent in-memory opens segfaulted hosted
+# CI (exit 139 in netCDF4.Dataset(memory=...), the advisor on 005537af3, 2026-11-22). The GETs stay parallel; only the decode
+# (open + read, ~0.1 s a file) is serialised. One lock for the module: nothing else opens NetCDF in the publisher's process.
+NC_LOCK = threading.Lock()
+
+
 def read_field(content, var):
-    """(850, 1800) float field from one GIOPS NetCDF file's bytes; land (fill) is NaN. Checks the grid it was promised."""
+    """(850, 1800) float field from one GIOPS NetCDF file's bytes; land (fill) is NaN. Checks the grid it was promised.
+    Thread-safe: the HDF5 work runs under NC_LOCK."""
+    with NC_LOCK:
+        return _read_field(content, var)
+
+
+def _read_field(content, var):
     import numpy as np
     import netCDF4
     with netCDF4.Dataset("giops.nc", mode="r", memory=bytes(content)) as d:
