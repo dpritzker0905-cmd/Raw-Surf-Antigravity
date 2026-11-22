@@ -26,6 +26,7 @@ import { decodeOwnField, decodeWorkerKilled } from './ownRasterDecode';
 import { pickIndexFrame } from './staticFrameCodec';
 import { isHandheldDevice } from './deviceTier';
 import { applyWaterTempLandFill } from './waterTempLandFill';
+import { currentParticlesOn, prewarmCurrentGrid, setOfPath } from './currentParticles';
 
 export const PRESSURE_FIELD = 6;
 export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
@@ -36,6 +37,8 @@ export const PRECIP_FIELD = 10;   // precip_mm_h: u16, value = code * 0.01 - 0.0
 // order, so frames published before the change (field 4) still decode during the rollout.
 export const GUST_BAND_FIELD = 12;     // gusts, 0.5 kn bands
 export const CURRENT_BAND_FIELD = 13;  // ocean current speed, 0.02 kn bands
+export const DIRECTION_FIELD = 1;  // direction_deg: u16, 0.01 deg, no missing code (the two-byte currents frames: toward)
+export const FLOW_DIR_BYTE_FIELD = 14;  // flow direction toward, one byte (1.40625 deg; backend frame_binary.FLOW_DIR_BYTE, 2026-11-22)
 export const SPEED_FIELD = 4;     // speed: u16, value = code * 0.01 - 0.01 (code 0 = no data); knots (gusts; the wind frames' field)
 export const FOG_FIELD = 11;     // visibility_m: u16, value = code - 1 (code 0 = no data); surface visibility, metres (GFS VIS)
 // PER-MODEL (2026-10-24; the owner, 2026-10-23 20:13 EDT: "Yes start it", answering "start the per-model pressure route?" after
@@ -124,6 +127,10 @@ export const OWN_RASTER_SETS = {
       ICON: { key: 'GIOPS/marine/currents/global_0p25', on: false, lever: '__RAW_GIOPS_CURRENTS__', kill: '__RAW_DISABLE_GIOPS_CURRENTS__' },
     },
     fallback: null, field: [CURRENT_BAND_FIELD, SPEED_FIELD], unit: 'kn', ownOnly: true,
+    // CURRENTS PARTICLES (2026-11-22, currentParticles.js): the flow direction decoded beside the speed (the one-byte field the
+    // publisher adds, else the two-byte frames' field 1) so the wind engine can advect on the current's own u / v. A frame
+    // without it (published before) draws the speed raster alone; the particles wait for the next run.
+    dirField: [FLOW_DIR_BYTE_FIELD, DIRECTION_FIELD],
   },
 };
 /** The status line past a model's own frames for a layer with `endNote` (gusts): "ICON gusts end at day 7.5; ensemble estimate
@@ -360,8 +367,12 @@ export async function landFill(field) {
   field.min = min; field.max = max;
 }
 
+/** The direction field a set decodes beside its drawn field: only while the Currents particles are on (their kill or reduced
+ *  motion saves the byte a cell). */
+function dirFieldFor(set) { return set && set.dirField && currentParticlesOn() ? set.dirField : undefined; }
+
 /** A decoded frame's one field as the renderer uploads it: Float32 values, MISSING for no data. */
-export function toField(parsed, fieldId) {
+export function toField(parsed, fieldId, dirFieldId) {
   const ids = Array.isArray(fieldId) ? fieldId : [fieldId];   // preference order (a band field first, then its two-byte form)
   const fid = ids.find((id) => parsed && parsed.fields && parsed.fields[id]);
   const src = fid !== undefined ? parsed.fields[fid] : null;
@@ -372,10 +383,19 @@ export function toField(parsed, fieldId) {
     const v = src[i];
     if (Number.isFinite(v)) { values[i] = v; if (v < min) min = v; if (v > max) max = v; } else values[i] = MISSING;
   }
-  return {
+  const out = {
     cols: parsed.cols, rows: parsed.rows, bounds: parsed.bounds, values, min, max,
     validMs: parsed.validEpoch * 1000, runMs: Number.isFinite(parsed.runEpoch) ? parsed.runEpoch * 1000 : null,
   };
+  // The flow direction as one byte a cell (ownRasterDecode.decodeFieldCore's dirCodes; currentParticles.js reads it).
+  const dids = dirFieldId === undefined || dirFieldId === null ? [] : (Array.isArray(dirFieldId) ? dirFieldId : [dirFieldId]);
+  const did = dids.find((id) => parsed.fields[id] && parsed.fields[id].length === src.length);
+  if (did !== undefined) {
+    const d = parsed.fields[did]; const codes = new Uint8Array(d.length);
+    for (let i = 0; i < d.length; i++) codes[i] = Number.isFinite(d[i]) ? ((Math.round(d[i] * 256 / 360) % 256) + 256) % 256 : 0;
+    out.dirCodes = codes;
+  }
+  return out;
 }
 
 // ── decoded fields: one load per path, shared; an LRU over the window ────────────────────────────────────────────
@@ -431,7 +451,7 @@ export function loadField(layer, frame, priority) {
       const got = await loadFrameParsed(key, frame, undefined, priority ? { priority } : undefined);
       if (!got) { t.loadErrors += 1; noteMiss('load_failed'); noteFailed(frame.path); return null; }
       const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-      const field = toField(got.parsed, set.field);
+      const field = toField(got.parsed, set.field, dirFieldFor(set));
       if (field && set.landFill) await landFill(field);
       const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       if (!field) { noteMiss('no_field'); noteFailed(frame.path); return null; }
@@ -440,6 +460,7 @@ export function loadField(layer, frame, priority) {
       t.decodeMs.push(Math.round((t1 - t0) * 10) / 10);
       if (t.decodeMs.length > 50) t.decodeMs.shift();
       keep(frame.path, field);
+      if (set.dirField) prewarmCurrentGrid(field, setOfPath(frame.path));   // the particle grid, built in idle time (currentParticles.js)
       return field;
     })().finally(() => _inflight.delete(frame.path));
     _inflight.set(frame.path, p);
@@ -457,7 +478,7 @@ async function loadOwnOnly(key, frame, priority, set, t) {
   }
   const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
   let field = null;
-  try { field = await decodeOwnField(got.buffer, set.field, MISSING); } catch (e) { field = null; }
+  try { field = await decodeOwnField(got.buffer, set.field, MISSING, dirFieldFor(set)); } catch (e) { field = null; }
   const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
   if (!field || Math.abs(field.validMs - Date.parse(frame.valid_time)) > 1000) {
     noteMiss(field ? 'valid_time_mismatch' : 'no_field'); noteFailed(frame.path); return null;
@@ -469,6 +490,7 @@ async function loadOwnOnly(key, frame, priority, set, t) {
   t.decodeOffThread = (t.decodeOffThread || 0) + (field.offThread ? 1 : 0);
   delete field.offThread;
   keep(frame.path, field);
+  if (set.dirField) prewarmCurrentGrid(field, setOfPath(frame.path));   // the particle grid, built in idle time (currentParticles.js)
   return field;
 }
 
