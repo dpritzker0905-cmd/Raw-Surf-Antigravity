@@ -1,0 +1,85 @@
+name: Currents skill v1 score (the ONE look; offline, serves nothing)
+
+# Registration: docs/weather-program/gates/currents-skill-v1.md section 8. Scored ONCE, after pass 2 and the last weekly
+# HF-radar snapshot. Downloads every archive under calibration/currents-skill/, verifies each SHA256SUMS, scores, and uploads
+# the report as an artifact (and archives it with sha256). The report stays unopened by everyone but the advisor (or the
+# reader they name in writing in the log) until the verdict line is in the log.
+# DISPATCH-ONLY with the owner's typed word (`owner_word_ref`). Secrets by NAME, in the supabase-service environment only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner_word_ref:
+        description: 'Where the owner typed the dispatch word (session or message reference). Required.'
+        required: true
+      freeze_time:
+        description: 'Committer timestamp (ISO UTC) of the freeze commit: TEST starts at the first 00Z init at or after it'
+        required: true
+      rtofs_absent:
+        description: 'true if RTOFS_025 had fewer than 7 consecutive daily runs before the freeze (section 1: ABSENT)'
+        required: true
+        type: choice
+        options: ['false', 'true']
+
+permissions:
+  contents: read
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0 numcodecs netCDF4==1.7.4
+      - name: Download every archive and verify each SHA256SUMS
+        working-directory: backend
+        env:
+          OWNER_WORD_REF: ${{ github.event.inputs.owner_word_ref }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          test -n "$OWNER_WORD_REF" || { echo "owner_word_ref is required"; exit 1; }
+          python scripts/currents_skill_archive.py --prefix calibration/currents-skill --download-to "$RUNNER_TEMP/evidence"
+      - name: Score once (no credentials in this step)
+        working-directory: backend
+        env:
+          FREEZE_TIME: ${{ github.event.inputs.freeze_time }}
+          RTOFS_ABSENT: ${{ github.event.inputs.rtofs_absent }}
+        run: |
+          extra=()
+          if [ "$RTOFS_ABSENT" = "true" ]; then extra=(--absent RTOFS_025); fi
+          mkdir -p "$RUNNER_TEMP/report"
+          python scripts/currents_skill_score.py --evidence "$RUNNER_TEMP/evidence" --freeze-time "$FREEZE_TIME" --out "$RUNNER_TEMP/report/currents-skill-v1-report.json" "${extra[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: currents-skill-report-${{ github.run_id }}
+          retention-days: 90
+          path: ${{ runner.temp }}/report/
+
+  archive:
+    needs: [score]
+    if: ${{ always() && needs.score.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install requests==2.31.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: currents-skill-report-*
+          path: ${{ runner.temp }}/art
+      - name: Copy the report to the weather bucket with sha256
+        working-directory: backend
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/currents_skill_archive.py --src "$RUNNER_TEMP/art" --prefix "calibration/currents-skill-report/$RUN_ID-$RUN_ATTEMPT"

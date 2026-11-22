@@ -1,0 +1,118 @@
+name: Currents skill v1 collection (offline evidence, serves nothing)
+
+# Registration: docs/weather-program/gates/currents-skill-v1.md (sections 2, 3, 9). Reads the PUBLIC frames bucket (each arm's
+# published set), the Copernicus ARCO store (native 1/12 subset), HFRNet via ERDDAP and Copernicus NRT drifters; never calls
+# the Raw Surf backend; writes no Storage object except the archive copy (calibration/ prefix) and no manifest or product.
+# DISPATCH-ONLY, and only with the owner's typed word in the dispatching session (registration section 9: "fetches and
+# dispatches need David's word"): `owner_word_ref` records where that word was given. Secrets by NAME, only in the jobs that
+# need them, in the supabase-service environment.
+#   daily     after each 00Z init's sets are published: frames (CMEMS_025, GIOPS_025, RTOFS_025) + native 1/12 (CMEMS_083)
+#   hfr       weekly HF-radar snapshot (the ERDDAP window rolls)
+#   drifters  Copernicus NRT drifters (subset latest for pass 1, monthly for the ONE pass 2)
+
+on:
+  workflow_dispatch:
+    inputs:
+      what:
+        description: 'daily (frames + native), hfr (weekly snapshot) or drifters'
+        required: true
+        type: choice
+        options: ['daily', 'hfr', 'drifters']
+      owner_word_ref:
+        description: 'Where the owner typed the dispatch word (session or message reference). Required.'
+        required: true
+      cycle:
+        description: 'daily only: the 00Z init (YYYY-MM-DD) for the native subset; empty = today'
+        required: false
+        default: ''
+      drifter_subset:
+        description: 'drifters only: latest (pass 1) or monthly (pass 2)'
+        required: false
+        default: 'latest'
+        type: choice
+        options: ['latest', 'monthly']
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+concurrency:
+  group: currents-skill-collect-${{ github.event.inputs.what }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: The owner's word is required
+        env:
+          OWNER_WORD_REF: ${{ github.event.inputs.owner_word_ref }}
+        run: |
+          test -n "$OWNER_WORD_REF" || { echo "owner_word_ref is required"; exit 1; }
+
+  collect:
+    needs: [guard]
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0 numcodecs netCDF4==1.7.4 "copernicusmarine==2.4.1"
+      - name: Frames (every arm's published set) and the native 1/12 subset
+        if: ${{ github.event.inputs.what == 'daily' }}
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          CYCLE: ${{ github.event.inputs.cycle }}
+        run: |
+          python scripts/currents_skill_collect.py frames --out "$RUNNER_TEMP/cs/frames-run"
+          python scripts/currents_skill_collect.py native --out "$RUNNER_TEMP/cs/native-run" --cycle "$CYCLE"
+      - name: HF radar snapshot (all regions)
+        if: ${{ github.event.inputs.what == 'hfr' }}
+        working-directory: backend
+        run: python scripts/currents_skill_collect.py hfr --out "$RUNNER_TEMP/cs/hfr-run"
+      - name: Copernicus NRT drifters (credentials by name, read by the toolbox)
+        if: ${{ github.event.inputs.what == 'drifters' }}
+        working-directory: backend
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+          SUBSET: ${{ github.event.inputs.drifter_subset }}
+        run: python scripts/currents_skill_collect.py drifters --out "$RUNNER_TEMP/cs/drifters-run" --subset "$SUBSET"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: currents-skill-${{ github.event.inputs.what }}-${{ github.run_id }}
+          retention-days: 90
+          path: ${{ runner.temp }}/cs/
+
+  archive:
+    # Artifacts expire after 90 days: copy every artifact and its sha256 to the weather bucket (calibration/ prefix) and log the
+    # hashes. SHA256SUMS is written LAST (no SUMS = an incomplete archive, never read as evidence).
+    needs: [collect]
+    if: ${{ always() && needs.collect.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install requests==2.31.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: currents-skill-*
+          path: ${{ runner.temp }}/art
+      - name: Copy to the weather bucket with sha256
+        working-directory: backend
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/currents_skill_archive.py --src "$RUNNER_TEMP/art" --prefix "calibration/currents-skill/$RUN_ID-$RUN_ATTEMPT"
