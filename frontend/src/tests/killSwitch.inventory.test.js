@@ -55,6 +55,7 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_LOCAL_RUN_TIME__',
   '__RAW_DISABLE_STALE_CHIP__',
   // components/map/marineLateWash.test.js (the late wash, 2026-11-15): a seed that repairs a refused wash waits 150 ms, not 1 s
+  '__RAW_DISABLE_UNVERIFIED_PIN_MARK__',   // unverifiedLocation.test.js (spots marking, #1087)
   '__RAW_DISABLE_URGENT_WASH_SEED__',
   // tests/weatherAuthFetch.test.js ("kill switch: never a token, never a retry") and tests/sessionExpiredPrompt.test.js
   // ("kill switch and the auth page itself raise nothing"): #782, accounts only
@@ -97,6 +98,25 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_OWN_GUSTS__',
   // currentsLayer.test.js ("ships ON, and its kill turns it off"; 2026-11-15, the new Currents layer)
   '__RAW_DISABLE_RASTER_OWN_CURRENTS__',
+  // currentsLayer.test.js ("the kill switch sends ICON back to Copernicus, even over the lever..."; 2026-11-22, Canada GIOPS)
+  '__RAW_DISABLE_GIOPS_CURRENTS__',
+  '__RAW_DISABLE_RTOFS_CURRENTS__',   // 2026-11-22: GFS currents back to Copernicus (rtofsCurrents.test.js)
+  // gustParticles.test.js ("ships ON: Gusts runs the wind particles; the kill returns it to the heatmap alone"; 2026-11-18)
+  '__RAW_DISABLE_GUST_PARTICLES__',
+  // currentParticles.test.js ("ships ON: Currents flows the wind engine on the current; the kill returns the raster alone"; 2026-11-22)
+  '__RAW_DISABLE_CURRENT_PARTICLES__',
+  // currentParticles.test.js ("its kill, the particles kill, reduced motion or no direction: no prewarm"; 2026-11-22)
+  '__RAW_DISABLE_CURRENT_GRID_PREWARM__',
+  // currentNative.test.js ("off by default; the lever ... turns it on; its kill and the particles' gates win"; 2026-11-22)
+  '__RAW_DISABLE_CURRENTS_NATIVE__',
+  // gustParticles.test.js ("the flicker: on by default, off under its kill and under prefers-reduced-motion"; 2026-11-18)
+  '__RAW_DISABLE_GUST_FLICKER__',
+  // gustParticles.test.js ("the gust field tints like the wind field on light and beach; both kills turn it off"; 2026-11-18)
+  '__RAW_DISABLE_GUST_FIELD_TINT__',
+  // gustsLayer.test.js ("the kill returns light to the wind field exactly; the legend follows the same rows"; 2026-11-18)
+  '__RAW_DISABLE_GUST_LIGHT_FASTBAND__',
+  // gustsLayer.test.js ("dark keeps the table's alpha; the kill returns light and beach to it"; 2026-11-18)
+  '__RAW_DISABLE_GUST_WIND_ALPHA__',
   // currentsLayer.test.js ("its kill restores the handheld radius"; 2026-11-15, own-only phone prefetch)
   '__RAW_DISABLE_OWN_ONLY_PREFETCH2__',
   // ownRasterDecode.test.js ("without a Worker (and under its kill) the same function runs on the main thread"; 2026-11-15)
@@ -110,6 +130,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_OWN_WATER_TEMP__',
   '__RAW_DISABLE_RASTER_OWN_HANDOVER__',
   '__RAW_DISABLE_RASTER_OWN_SAME_FRAME__',
+  '__RAW_DISABLE_RASTER_OWN_GAP_FILL__',   // 2026-11-22: the own-only gap fill (ownRasterGapFill.test.js, the kill)
+  '__RAW_DISABLE_RASTER_OWN_RETRY__',   // 2026-11-18: own-only index retry (useOwnRasterFrames.unpublished.test.js, RETRY)
   // components/map/ownRasterDownscale.test.js ("OFF PATH: __RAW_DISABLE_DZ_UNPUBLISHED_CACHE__ asks on every call"; 2026-11-14)
   '__RAW_DISABLE_DZ_UNPUBLISHED_CACHE__',
   // components/map/ownRasterLayer.test.js ("OFF PATH: the kill is the hard cut, as before"; the value blend, 2026-11-12)

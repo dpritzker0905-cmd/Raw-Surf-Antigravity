@@ -11,6 +11,7 @@ back and compared by sha256 either way (rollout_675.snapshot).
 import json
 import logging
 import os
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class SupabaseIO:
         if not base or not secret:
             raise RuntimeError("L2 storage is not configured")
         resp = requests.get(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{key}",
-                            headers={"Authorization": f"Bearer {secret}", "apikey": secret, "Cache-Control": "no-cache"},
+                            headers={**supabase_headers(secret), "Cache-Control": "no-cache"},
                             timeout=60)
         if resp.status_code == 200:
             return resp.content

@@ -30,6 +30,7 @@ import os
 import threading
 import time
 from typing import Callable, Dict, Optional
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +53,17 @@ GUARDED = {
     "ALERTS_FORECAST_WINDOWS": "0",     # D-065: up to 5 alerts/day before the cap fix (claude/alerts-dedupe-cap)
     "SURF_BIGHT_HS_CONSENSUS": "1",     # #707: hs_station +0.099 m [two-way 0.038, 0.182]; round-7 history +0.155, ON
     "SPOT_HUB_RATE_ONE_SPOT": "1",      # spot-hub phase 2 (#710): the hub on rate_one_spot; kill '0' = the old chain
+    "SURF_NEARSHORE_LITE": "0",         # MOP-lite (gate nearshore-moplite-v1): DARK until the gate passes; replaces only Kr + exposure
     "SURF_NEARSHORE_MOP": "1",          # CDIP MOP nearshore sea at California spots: nearshore judge 86/86 runs better,
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
+    "SURF_FACE_RANGE": "1",             # ON by the owner's typed word 2026-11-17 ("it needs to be on, not dark"): adds the
+                                        # H1/3-H1/10 face range beside the height. NOT SCORED: its gate needs physical breaker
+                                        # truth and is NOT RUNNABLE (log 2026-11-16-fable-surf-face-range-gate.md); kill '0'
+    "SURF_TIDE_OWN": "1",               # owner 2026-11-18 ~23:00Z: no Open-Meteo in user data (licence). The served tide is
+                                        # our table (tide_own); a missing/stale table or kill '0' = NO tide (honest
+                                        # unavailable), never Open-Meteo. Moves tide_fit and the SURF_TIDE_DEPTH cap
+    "SURF_TIDE_CMEMS": "0",             # held OFF: the CMEMS sea level read directly, where the table has it. ON only after
+                                        # the r2 parity run is read and passing AND the builder refuses a low fill count
     "RATING_REF_PRIOR": "0",            # JAC-2 (#771): held OFF: -17.9 pt mean rating move on reference-less
                                         # spot-hours (480/480 moved, 414 level changes), no rating truth yet
     "FRAME_ENTITLEMENT": "0",           # O6 accounts only: EVERY static frame private + signed URLs. Held OFF: needs the
@@ -127,7 +137,7 @@ def _fetch_bucket() -> Optional[dict]:
     import requests
     from services.weather_pipeline.store import WEATHER_BUCKET
     url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{MANIFEST_KEY}?cb={int(time.time() * 1000)}"
-    resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key, "Cache-Control": "no-cache"},
+    resp = requests.get(url, headers={**supabase_headers(key), "Cache-Control": "no-cache"},
                         timeout=_f("RUNTIME_FLAGS_TIMEOUT_S", 2.0))
     if resp.status_code in (400, 404):
         return {"schema": SCHEMA, "flags": {}}           # no manifest yet = nothing overridden (a good read)

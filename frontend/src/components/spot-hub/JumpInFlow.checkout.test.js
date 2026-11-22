@@ -1,7 +1,9 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import HubJumpInFlow from './JumpInFlow';
 import DrawerJumpInFlow from '../spot-drawer/JumpInFlow';
+import { JumpInSessionModal } from '../JumpInSessionModal';
+import useSpotDrawerActions from '../../hooks/useSpotDrawerActions';
 import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 
@@ -26,6 +28,10 @@ jest.mock('../../utils/liveSessionCheckout', () => ({
 const photographer = { id: 'pro-fixture', full_name: 'Fixture Pro', session_price: 25 };
 const pending = { requires_payment: true, checkout_url: 'https://checkout.stripe.com/c/pay/fixture', session_id: 'cs_fixture' };
 const joined = { session_id: 'participant-fixture', check_in_created: true, remaining_credits: 75 };
+const recoveryMessage = 'Could not confirm the session join. Check your session before retrying.';
+const recoveryError = {
+  response: { status: 503, data: { detail: recoveryMessage } },
+};
 function setup(Component, method = 'card') {
   const onSuccess = jest.fn();
   const view = render(<Component photographer={photographer} onBack={jest.fn()} onSuccess={onSuccess} />);
@@ -96,6 +102,15 @@ describe.each([['hub', HubJumpInFlow], ['drawer', DrawerJumpInFlow]])('%s live c
     expect(apiClient.post).toHaveBeenCalledTimes(2);
   });
 
+  it('shows the recovery guidance as text after an uncertain join', async () => {
+    apiClient.post.mockRejectedValue(recoveryError);
+    const { pay, onSuccess } = setup(Component, 'credits');
+    pay();
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(recoveryMessage));
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
   it('does not navigate a cancelled view when an in-flight request resolves', async () => {
     let resolve;
     apiClient.post.mockReturnValue(new Promise(r => { resolve = r; }));
@@ -138,4 +153,42 @@ describe.each([['hub', HubJumpInFlow], ['drawer', DrawerJumpInFlow]])('%s live c
     act(() => { jest.advanceTimersByTime(2000); });
     expect(onSuccess).not.toHaveBeenCalled();
   });
+});
+
+it('shows the live buy-in when the photographer also has a different session price', () => {
+  render(<JumpInSessionModal photographer={{ ...photographer, live_buyin_price: 40 }} onClose={jest.fn()} onSuccess={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: /skip selfie/i }));
+  expect(screen.getByText('Pay $40.00 & Join')).toBeEnabled();
+  expect(apiClient.post).not.toHaveBeenCalled();
+});
+
+it('offers a free live buy-in despite a paid general session price', () => {
+  render(<JumpInSessionModal photographer={{ ...photographer, live_buyin_price: 0 }} onClose={jest.fn()} onSuccess={jest.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: /skip selfie/i }));
+  expect(screen.getByText('Join for free')).toBeEnabled();
+  expect(screen.queryByRole('button', { name: /credit card/i })).not.toBeInTheDocument();
+  expect(apiClient.post).not.toHaveBeenCalled();
+});
+
+it('shows the recovery guidance in the session modal', async () => {
+  apiClient.post.mockRejectedValue(recoveryError);
+  const onSuccess = jest.fn();
+  render(<JumpInSessionModal photographer={photographer} onClose={jest.fn()} onSuccess={onSuccess} />);
+  fireEvent.click(screen.getByRole('button', { name: /skip selfie/i }));
+  fireEvent.click(screen.getByText(/pay.*join/i, { selector: 'button' }));
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith(recoveryMessage));
+  expect(mockUpdateUser).not.toHaveBeenCalled();
+  expect(onSuccess).not.toHaveBeenCalled();
+});
+
+it('shows the recovery guidance when joining from a spot drawer action', async () => {
+  apiClient.post.mockRejectedValue(recoveryError);
+  const { result } = renderHook(() => useSpotDrawerActions({
+    user: { id: 'surfer-fixture' }, updateUser: mockUpdateUser, setJoinLoading: jest.fn(),
+  }));
+  await act(async () => {
+    await expect(result.current.handleJoinSession(photographer.id, 'live')).resolves.toBeUndefined();
+  });
+  expect(toast.error).toHaveBeenCalledWith(recoveryMessage);
+  expect(mockUpdateUser).not.toHaveBeenCalled();
 });

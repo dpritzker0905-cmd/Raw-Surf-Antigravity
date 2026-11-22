@@ -67,6 +67,13 @@ export function formatPointTide(t, unit = 'ft') {
  * NOAA line true.
  */
 export function tideSourceLabel(tideData) {
+  // PR B: our own tide table names its source and carries the exact attribution its licences ask for (the AVISO
+  // FES2022 acknowledgement + the Copernicus Marine credit); show that text, never an Open-Meteo line.
+  if (tideData && String(tideData.station_id || '').startsWith('raw-surf:tide-own:')) {
+    const credit = typeof tideData.credit === 'string' ? tideData.credit.trim() : '';
+    const label = typeof tideData.tide_label === 'string' && tideData.tide_label.trim() ? `${tideData.tide_label.trim()}. ` : '';
+    return `${label}${credit ? `${credit} ` : ''}Times in your time zone.`;
+  }
   const global = tideData && (tideData.source === 'global'
     || String(tideData.station_id || '').startsWith('open-meteo'));
   return global

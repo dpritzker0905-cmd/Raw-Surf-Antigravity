@@ -6,6 +6,7 @@ import os
 import time
 from datetime import datetime, timezone
 from utils.sqlite_helpers import get_sqlite_connection, get_db_path
+from core.supabase_auth import supabase_headers
 
 # SQLite Event Bus Database Path
 DB_PATH = get_db_path("event_bus.db")
@@ -149,12 +150,10 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
         def push_to_supabase_worker():
             try:
                 import httpx
-                headers = {
-                    "apikey": SUPABASE_SERVICE_KEY,
-                    "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                headers = supabase_headers(SUPABASE_SERVICE_KEY, {
                     "Content-Type": "application/json",
                     "Prefer": "return=minimal"
-                }
+                })
                 db_payload = {
                     "event_id": event_id,
                     "event_type": event_type,

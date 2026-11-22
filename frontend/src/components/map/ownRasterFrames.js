@@ -18,14 +18,18 @@
  * owner: "Yes, publish pressure"; kill window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true). Every other layer is DARK:
  * window.__RAW_RASTER_OWN_FRAMES__ = true (or localStorage '__RAW_RASTER_OWN_FRAMES__' = 'true') turns it on;
  * window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true, the static-frames global kill or the per-set kill
- * (__RAW_DISABLE_STATIC_FRAMES_SETS__) turn it off. Any miss (no set published, no index) falls back to the .om path.
+ * (__RAW_DISABLE_STATIC_FRAMES_SETS__) turn it off. Any miss (no set published, no index) falls back to the .om path, EXCEPT for
+ * an own-only layer or model (ownOnlyFor; 2026-11-18, the owner: no Open-Meteo in user data), where a miss or a kill says
+ * "unavailable" and the .om copy is never drawn.
  * Telemetry: window.__RAW_OWN_RASTER__.
  */
+import { FILL_MODEL, anchoredField, gapFillFrameAt, gapFillFrames, gapFillOn } from './ownRasterGapFill';
 import { fetchFrameBytes, getPinnedIndex, loadFrameParsed, markStaticPinStale, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 import { decodeOwnField, decodeWorkerKilled } from './ownRasterDecode';
 import { pickIndexFrame } from './staticFrameCodec';
 import { isHandheldDevice } from './deviceTier';
 import { applyWaterTempLandFill } from './waterTempLandFill';
+import { currentParticlesOn, prewarmCurrentGrid, setOfPath } from './currentParticles';
 
 export const PRESSURE_FIELD = 6;
 export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
@@ -36,6 +40,8 @@ export const PRECIP_FIELD = 10;   // precip_mm_h: u16, value = code * 0.01 - 0.0
 // order, so frames published before the change (field 4) still decode during the rollout.
 export const GUST_BAND_FIELD = 12;     // gusts, 0.5 kn bands
 export const CURRENT_BAND_FIELD = 13;  // ocean current speed, 0.02 kn bands
+export const DIRECTION_FIELD = 1;  // direction_deg: u16, 0.01 deg, no missing code (the two-byte currents frames: toward)
+export const FLOW_DIR_BYTE_FIELD = 14;  // flow direction toward, one byte (1.40625 deg; backend frame_binary.FLOW_DIR_BYTE, 2026-11-22)
 export const SPEED_FIELD = 4;     // speed: u16, value = code * 0.01 - 0.01 (code 0 = no data); knots (gusts; the wind frames' field)
 export const FOG_FIELD = 11;     // visibility_m: u16, value = code - 1 (code 0 = no data); surface visibility, metres (GFS VIS)
 // PER-MODEL (2026-10-24; the owner, 2026-10-23 20:13 EDT: "Yes start it", answering "start the per-model pressure route?" after
@@ -52,9 +58,20 @@ export const OWN_RASTER_SETS = {
   // PER MODEL since 2026-11-14 (the overnight instant lane): ECMWF 2t and DWD ICON T_2M sets, as pressure. A model whose set is
   // not published yet misses (no index) and stays on the .om path, which draws that model as before.
   temperature: {
-    // EURO at 0.25 deg (ECMWF 2t, every point: the .om ifs025 grid, #888); GFS and ICON at 0.5 deg.
-    models: { GFS: 'GFS/weather/temperature/global_0p5', EURO: 'EURO/weather/temperature/global_0p25', ICON: 'ICON/weather/temperature/global_0p5' },
-    fallback: null, field: TEMP_FIELD, unit: '°C',
+    // EURO at 0.25 deg (ECMWF 2t, every point: the .om ifs025 grid, #888); GFS at 0.5 deg.
+    // ICON at 0.125 deg since 2026-11-18 (#957's set `temperature_icon_0p125`: DWD ICON T_2M, nearest icosahedral cell onto DWD's
+    // own 0.125-degree map, 2880 x 1441, f000-f180 every 3 h): as fine as the .om dwd_icon grid it replaces, so ICON air temperature
+    // leaves Open-Meteo (the owner, 2026-11-18: "No user data should be open-meteo"; the director assigned this flip).
+    models: { GFS: 'GFS/weather/temperature/global_0p5', EURO: 'EURO/weather/temperature/global_0p25', ICON: 'ICON/weather/temperature/global_0p125' },
+    // `workerDecode`: decode the one drawn field off the main thread (ownRasterDecode), as the own-only layers do. A 0.125-degree
+    // frame is 4.15 M nodes, four times a 0.25-degree one; the shared path would parse every field to Float64 on the main thread.
+    // `ownOnlyModels` (2026-11-18, the owner via the director: "cut Open-Meteo out of all user data", NO .om fallback): with ICON
+    // picked the layer is drawn from our frames or not at all, never the .om copy.
+    // `gapFill` (2026-11-22, the owner's ruling on #1071: no blanks, no Open-Meteo, a labelled prediction): where ICON's own frames
+    // have a gap, our ICON 0.5-degree set (a whole-set miss), then the ICON-anchored GFS prediction, then a labelled GFS stand-in
+    // (ownRasterGapFill.js). Kill: __RAW_DISABLE_RASTER_OWN_GAP_FILL__ (gaps then say "unavailable").
+    fallback: null, field: TEMP_FIELD, unit: '°C', workerDecode: true, ownOnlyModels: ['ICON'],
+    gapFill: { ICON: { coarse: 'ICON/weather/temperature/global_0p5', anchored: true, offset: 'ICON/weather/temperature_offset/global_0p5' } },
   },
   // FOG (2026-11-14): GFS surface visibility, the field the .om path draws for EVERY model (it pins ncep_gfs025 for fog,
   // openMeteoEndpoints.js), so every model reads the GFS set here too: the same field under the same label as before.
@@ -66,8 +83,10 @@ export const OWN_RASTER_SETS = {
   // (DWD ICON has no skin temperature; the .om path makes the same cross-fall), ECMWF skt for EURO when its set is published.
   // Land is covered as on the .om path: an ocean fill against the Natural Earth land mask at decode (landFill), and the layer
   // anchored below the ocean mask's land fill (MapWebGL).
+  // ICON (G4, 2026-11-17): the Copernicus ocean model's top-layer temperature (1/6 deg world set, hourly mean every 3 h), not
+  // GFS's skin under ICON's name: the credit and status line say Copernicus (sourceModel). ON by default (DEFAULT_ON_MODELS).
   water_temp: {
-    models: { GFS: 'GFS/weather/water_temp/global_0p25', EURO: 'EURO/weather/water_temp/global_0p25', ICON: 'GFS/weather/water_temp/global_0p25' },
+    models: { GFS: 'GFS/weather/water_temp/global_0p25', EURO: 'EURO/weather/water_temp/global_0p25', ICON: 'CMEMS/marine/water_temp/global_1p6' },
     fallback: null, field: TEMP_FIELD, unit: '°C', landFill: true,
   },
   // CLOUD COVER (2026-10-24): the app's 'satellite' layer draws forecast total cloud cover (Satellite IR was discontinued,
@@ -75,8 +94,18 @@ export const OWN_RASTER_SETS = {
   satellite: {
     // 0.25 deg (the owner, 2026-10-25: "Go with your recommendation if that is state of the art"): 1440 x 721, so cloud
     // edges are not one-cell 0.5-degree steps. The shader and the wrap test take the grid from each frame.
-    models: { GFS: 'GFS/weather/cloud_cover/global_0p25' },
-    fallback: null, field: CLOUD_FIELD, unit: '%',
+    // EURO (2026-11-18, the owner: "cut Open-Meteo out of all user data"): ECMWF open data `tcc` x 100 at 0.25 deg, every point
+    // (#955's set `cloud_cover_euro`; G3: all 1,038,240 nodes within 0.5 pp of ECMWF's own field, i.e. quantisation), hours 0-144
+    // by 3 and 150-240 by 6: the same grid as the .om ecmwf_ifs025 it replaces. ON (satellite is a default-on layer) with NO .om
+    // fallback (`ownOnlyModels`): a miss, or past 240 h, says "unavailable".
+    // GFS too (2026-11-18, the director relaying the owner's rule: no Open-Meteo in user data): GFS cloud was already drawn from
+    // our frames by default, but a kill or a miss fell back to the .om copy; now it says "unavailable".
+    // ICON too (2026-11-19, the director relaying the owner: "cut out open-meteo all together"): ICON has NO cloud set yet; never the
+    // .om copy. GAP FILL (2026-11-22, ownRasterGapFill.js): EURO past 240 h (or a hole) draws the EURO-anchored GFS prediction,
+    // clamped to 0-100 %; ICON, with no set, draws GFS cloud labelled "no ICON frames: NOAA GFS shown" until its own set publishes.
+    models: { GFS: 'GFS/weather/cloud_cover/global_0p25', EURO: 'EURO/weather/cloud_cover/global_0p25' },
+    fallback: null, field: CLOUD_FIELD, unit: '%', ownOnlyModels: ['GFS', 'EURO', 'ICON'],
+    gapFill: { EURO: { anchored: true, clamp: [0, 100], offset: 'EURO/weather/cloud_cover_offset/global_0p5' }, ICON: { anchored: false } },
   },
   // PRECIPITATION (2026-11-12, the owner: "Yes, build it"): the app's 'rain' layer from GFS APCP (frame_set_raster.py,
   // set `precipitation`): mm/h in the hour before the frame (the 3-hour mean past f120), the same meaning as the .om field,
@@ -86,9 +115,17 @@ export const OWN_RASTER_SETS = {
   // 3-hour step to 144 h and 6-hour step to 240 h (set `precipitation_euro`), on the same grid. Past EURO's last frame the GFS
   // frame stands in, labelled as an estimate, as pressure does (the 14-day scrubber is never cut to a model's own range).
   // ICON has no set: with ICON picked the layer stays on the .om path.
+  // ICON (2026-11-18, the owner: "cut Open-Meteo out of all user data"): DWD TOT_PREC differenced to a rate (mm/h in the step
+  // before the hour: hourly to 78 h, 3-hourly to 180 h), area-averaged with 3 x 3 sampled sub-points onto 0.125 deg (#956's set
+  // `precipitation_icon_0p125`; G2: global mass within 0.1 %, median cell peak kept 92-96 %). ON for ICON with NO .om fallback
+  // (`ownOnlyModels`): a miss says "unavailable". Past ICON's 180 h the GFS frame stands in, labelled as an estimate (this
+  // layer's rule since 2026-11-12). GFS and EURO rain are unchanged (behind the lever, .om by default).
   rain: {
-    models: { GFS: 'GFS/weather/precipitation/global_0p25', EURO: 'EURO/weather/precipitation/global_0p25' },
-    fallback: 'GFS', field: PRECIP_FIELD, unit: 'mm/h',
+    models: { GFS: 'GFS/weather/precipitation/global_0p25', EURO: 'EURO/weather/precipitation/global_0p25', ICON: 'ICON/weather/precipitation/global_0p125' },
+    // GAP FILL for ICON (2026-11-22): a labelled GFS stand-in past 180 h, in a hole or for a whole-set miss, loaded whether or not
+    // GFS rain is on by default (the advisor's HOLD on #1075: the stand-in never loaded without the lever). Rain is never offset.
+    fallback: 'GFS', field: PRECIP_FIELD, unit: 'mm/h', workerDecode: true, ownOnlyModels: ['ICON'],
+    gapFill: { ICON: { anchored: false } },
   },
   // GUSTS (2026-11-15, the owner approved Gusts as a new picker layer; "these lanes need to serve instantly from real GFS, EURO,
   // and ICON lanes from GRIB"): EACH MODEL'S OWN gust, in KNOTS (the wind layer's unit), 0.25 deg (frame_set_raster.py sets
@@ -112,9 +149,31 @@ export const OWN_RASTER_SETS = {
   // window.__RAW_DISABLE_RASTER_OWN_CURRENTS__ = true. Past day 10 there is no frame: the status line says so.
   currents: {
     models: { GFS: 'CMEMS/marine/currents/global_0p25', EURO: 'CMEMS/marine/currents/global_0p25', ICON: 'CMEMS/marine/currents/global_0p25' },
+    // PER-PICKER OCEAN MODELS (2026-11-22): GFS, EURO and ICON have no open surface-current forecast, so each picker gets its own
+    // independent ocean model, credited under its OWN name (sourceModel -> MODEL_SOURCE / LayerDataCredit): ICON -> Canada GIOPS
+    // (ECCC; DWD runs no ocean model), GFS -> NOAA Global RTOFS (its own lane), EURO stays Copernicus. An entry replaces the
+    // `models` key while it is on: `on` (its default) unless `kill` is set, or the `lever` opts in. DARK until the set has a
+    // published run (a miss on an own-only layer draws nothing): flip `on` after the first publish. A killed or off entry reads
+    // `models` (Copernicus) again.
+    modelSets: {
+      ICON: { key: 'GIOPS/marine/currents/global_0p25', on: false, lever: '__RAW_GIOPS_CURRENTS__', kill: '__RAW_DISABLE_GIOPS_CURRENTS__' },
+      // NOAA Global RTOFS (frame_set_raster_rtofs.py, set `currents_rtofs`): NOAA's own ocean model under GFS. Dark until the owner's word.
+      GFS: { key: 'RTOFS/marine/currents/global_0p25', on: false, lever: '__RAW_RTOFS_CURRENTS__', kill: '__RAW_DISABLE_RTOFS_CURRENTS__' },
+    },
     fallback: null, field: [CURRENT_BAND_FIELD, SPEED_FIELD], unit: 'kn', ownOnly: true,
+    // CURRENTS PARTICLES (2026-11-22, currentParticles.js): the flow direction decoded beside the speed (the one-byte field the
+    // publisher adds, else the two-byte frames' field 1) so the wind engine can advect on the current's own u / v. A frame
+    // without it (published before) draws the speed raster alone; the particles wait for the next run.
+    dirField: [FLOW_DIR_BYTE_FIELD, DIRECTION_FIELD],
   },
 };
+// NOAA GLOBAL RTOFS CURRENTS (2026-11-22): GFS's entry in currents.modelSets above. These names stay as thin wrappers over it
+// (rtofsCurrents.test.js). DARK: the lever window.__RAW_RTOFS_CURRENTS__ = true (or localStorage) turns it on; the default is the
+// entry's `on`. Kill (wins over both): window.__RAW_DISABLE_RTOFS_CURRENTS__ = true sends GFS back to Copernicus.
+const RTOFS_ENTRY = OWN_RASTER_SETS.currents.modelSets.GFS;
+export const RTOFS_CURRENTS_KEY = RTOFS_ENTRY.key;
+export const RTOFS_CURRENTS_DEFAULT_ON = RTOFS_ENTRY.on;
+export function rtofsCurrentsOn() { return modelSetOn(RTOFS_ENTRY); }
 /** The status line past a model's own frames for a layer with `endNote` (gusts): "ICON gusts end at day 7.5; ensemble estimate
  *  coming" (the owner's word, 2026-11-15 19:27 EST; the director's wording). `lastMs` = the model's last frame, `runMs` its run. */
 export function endNoteText(layer, model, lastMs, runMs) {
@@ -127,8 +186,14 @@ export function endNoteText(layer, model, lastMs, runMs) {
 }
 /** Layers drawn ONLY from our own frames (no .om path behind them): the picker shows them, a miss shows nothing. */
 export const OWN_ONLY_LAYERS = Object.freeze(Object.keys(OWN_RASTER_SETS).filter((l) => OWN_RASTER_SETS[l].ownOnly));
+/** Is this layer drawn ONLY from our frames for this model? Own-only layers for every model; a layer that lists `ownOnlyModels`
+ *  for those models (ICON air temperature, 2026-11-18: no Open-Meteo fallback). A miss then shows "unavailable", not the .om. */
+export function ownOnlyFor(layer, model = 'GFS') {
+  const set = OWN_RASTER_SETS[layer];
+  return !!set && (!!set.ownOnly || (set.ownOnlyModels || []).includes(up(model)));
+}
 // Who the frames come from, for the legend credit and the status line.
-export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON', CMEMS: 'Copernicus Marine' };
+export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON', CMEMS: 'Copernicus Marine', GIOPS: 'Canada GIOPS (ECCC)', RTOFS: 'NOAA RTOFS' };
 const up = (m) => String(m || 'GFS').toUpperCase();
 /** The model whose data a layer's set for `model` really holds (the set key's first part): GFS for fog and gusts under any picked
  *  model, so the credit and the status line never name ECMWF or DWD over NOAA's field. */
@@ -139,7 +204,21 @@ export function sourceModel(layer, model = 'GFS') {
 /** The set key for a layer and model, or null when that model has no own set. */
 export function setKey(layer, model = 'GFS') {
   const set = OWN_RASTER_SETS[layer];
-  return (set && set.models[up(model)]) || null;
+  if (!set) return null;
+  const alt = set.modelSets && set.modelSets[up(model)];
+  if (alt && modelSetOn(alt)) return alt.key;
+  return set.models[up(model)] || null;
+}
+/** Is a per-picker `modelSets` entry on? Its kill wins; then its lever (window, or localStorage for a phone); then its default. */
+export function modelSetOn(alt) {
+  const w = W();
+  if (w[alt.kill] === true) return false;
+  let lever = w[alt.lever];
+  if (lever === undefined || lever === null) {
+    try { lever = w.localStorage ? w.localStorage.getItem(alt.lever) : null; } catch (e) { lever = null; }
+  }
+  if (lever === true || lever === '1' || lever === 'true') return true;
+  return alt.on === true;
 }
 // What a no-data node becomes in the uploaded field: far below every real value of every layer (air temperatures are negative,
 // so the shader's no-data test is `< NO_DATA_BELOW`, never `< 0`).
@@ -153,7 +232,8 @@ const W = () => (typeof window !== 'undefined' ? window : {});
 /** Layers whose own frames draw with no lever set; each is its own owner decision (D-052, 2026-10-26, the owner: "Flip both: the
  *  MARINE_GULF_FILL_MID_TARGETED repo variable and cloud 0.25 deg (repo var, then the client key after one publish)").
  *  Kill one layer: window.__RAW_DISABLE_RASTER_OWN_<LAYER>__ = true (cloud: __RAW_DISABLE_RASTER_OWN_SATELLITE__); kill all:
- *  __RAW_DISABLE_RASTER_OWN_FRAMES__. A miss (set not in latest.json, no index) still falls back to the .om path. */
+ *  __RAW_DISABLE_RASTER_OWN_FRAMES__. A miss (set not in latest.json, no index) still falls back to the .om path, except for an
+ *  own-only layer or model (ownOnlyFor), which says "unavailable" instead. */
 // PRESSURE (2026-11-12): the owner, "Yes, publish pressure", answering "Turn on pressure frame publishing in the ingest so I can
 // flip pressure on?". GFS, EURO and ICON each draw their own published set (a scrub step rebinds a resident texture instead of
 // decoding a whole-world .om hour), with the labelled isobars and H/L markers that ride the own-frames field.
@@ -171,20 +251,31 @@ export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'gusts'
 // PER-MODEL DEFAULTS (2026-11-14, the director), under the no-regression rule: a layer moves to own frames by default only where its
 // set is at least as fine as what the .om path draws today.
 //  - water_temp EURO: ECMWF skt at 0.25 deg = the .om ifs025: built, DEFAULT-OFF pending the owner (vote split 08:31Z, as fog).
-//  - water_temp ICON (today blank: DWD ICON has no skin temperature; the GFS 0.25 deg set would fill it): built, OFF until the
-//    director's overnight question (screenshot pair, attribution label, scrub numbers). The lever reaches it.
+//  - water_temp ICON (DWD ICON has no sea temperature): the Copernicus ocean-model set (G4), ON (David 2026-11-17: "make them
+//    start on, with a test and kill switch"); the section 11 observation check runs after, as its guardrail. Until the set is
+//    published a miss keeps ICON on the .om path (GFS skin, as before). Kill: __RAW_DISABLE_RASTER_OWN_WATER_TEMP__.
 //  - water_temp GFS: OFF (the .om gfs013, 0.117 deg, is finer than the 0.25 deg set).
 //  - temperature EURO: ECMWF 2t at 0.25 deg = the .om ifs025 (#888): built, DEFAULT-OFF pending the owner (as fog).
 //  - temperature GFS: OFF until a pre-registered visual-parity comparison at z5 / z7 / z9 (desktop + phone) shows the 0.5 deg set +
-//    ETOPO downscale no coarser than the .om gfs013. ICON: OFF (0.5 deg vs dwd_icon ~0.125 deg; a 0.125 deg set is not built).
-// Kills: __RAW_DISABLE_RASTER_OWN_TEMPERATURE__, __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ (each the .om path, as before).
+//    ETOPO downscale no coarser than the .om gfs013.
+//  - temperature ICON: ON since 2026-11-18. The 0.125 deg set (#957) matches the .om dwd_icon grid, so the no-regression rule holds;
+//    the owner's "No user data should be open-meteo" (2026-11-18) and the director's assignment. Own frames ONLY for ICON
+//    (`ownOnlyModels`): window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true stops our frames and the layer says "unavailable";
+//    no kill returns ICON to the .om path (the director, relaying the owner, 2026-11-18). Past ICON's 180 h: unavailable.
+// Kills for the models still on .om by default (GFS / EURO temperature, every water_temp): __RAW_DISABLE_RASTER_OWN_TEMPERATURE__,
+// __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ return them to the .om path, as before.
 // Turning them on: { temperature: ['EURO'], water_temp: ['EURO'] } here. The lever reaches every model meanwhile.
-export const DEFAULT_ON_MODELS = Object.freeze({});
+// rain ICON (2026-11-18): the 0.125 deg set above, ON with no .om fallback (gap fill below); kill __RAW_DISABLE_RASTER_OWN_RAIN__.
+export const DEFAULT_ON_MODELS = Object.freeze({
+  water_temp: Object.freeze(['ICON']),   // G4 (David 2026-11-17: start on, with a test and kill)
+  temperature: Object.freeze(['ICON']), rain: Object.freeze(['ICON']),   // ICON 0.125 deg (2026-11-18)
+});
 
 /** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
  *  stays on the .om path, which draws that model as before (never another model's frames under its label). */
 export function ownFramesOn(layer, model = 'GFS') {
-  const key = setKey(layer, model);
+  // A model with NO set of its own but a gap fill (ICON cloud, 2026-11-22) is on through its fill set: the fill draws every hour.
+  const key = setKey(layer, model) || (gapFillFor(layer, model) ? setKey(layer, FILL_MODEL) : null);
   if (!key) return false;
   const w = W();
   if (w.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true) return false;
@@ -220,7 +311,7 @@ export const lastIndex = (layer, model = 'GFS') => _lastIndex[`${layer}/${up(mod
 
 /** The pinned index for a layer's set of one model (async; null when none is published or the path is off). */
 export async function ownIndex(layer, model = 'GFS') {
-  if (!ownFramesOn(layer, model)) return null;
+  if (!setKey(layer, model) || !ownFramesOn(layer, model)) return null;
   try {
     const idx = await getPinnedIndex(setKey(layer, model));
     if (idx) _lastIndex[`${layer}/${up(model)}`] = idx;
@@ -229,13 +320,45 @@ export async function ownIndex(layer, model = 'GFS') {
   } catch (e) { return null; }
 }
 
+/** The gap fill for a layer and model ({ coarse?, anchored, clamp? }), or null: none configured, or its kill is set. */
+export function gapFillFor(layer, model = 'GFS') {
+  const set = OWN_RASTER_SETS[layer];
+  const f = set && set.gapFill && set.gapFill[up(model)];
+  return f && gapFillOn() ? f : null;
+}
+/** A gap fill's own index, read whether or not that set is on by default (it is part of the picked model's layer): the fill
+ *  model's set ('fill') or the picked model's coarser set ('coarse'). The global, layer, static-frames and per-set kills apply.
+ *  A coarse index comes back flagged `__coarse` (a shallow copy; the pinned index is never mutated). */
+/** The gap fill's S + residual split (ownRasterGapFill b'): DARK, default off. The ingest's MODEL - GFS offset set is read only
+ *  with window.__RAW_RASTER_GAPFILL_OFFSET__ = true (no skill is claimed until its pre-registered score passes). */
+export const gapFillOffsetOn = () => W().__RAW_RASTER_GAPFILL_OFFSET__ === true;
+export async function gapFillIndex(layer, model, which) {
+  const fill = gapFillFor(layer, model);
+  if (which === 'offset' && (!fill || !fill.offset || !gapFillOffsetOn())) return null;
+  const key = !fill ? null : (which === 'coarse' ? fill.coarse : which === 'offset' ? fill.offset : setKey(layer, FILL_MODEL));
+  const w = W();
+  if (!key || w.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true || w[`__RAW_DISABLE_RASTER_OWN_${String(layer).toUpperCase()}__`] === true) return null;
+  if (!staticFramesEnabled() || !staticFramesBase() || !staticSetEnabled(key)) return null;
+  try {
+    const idx = await getPinnedIndex(key);
+    if (!idx || !framesOf(idx).length) return null;
+    return which === 'coarse' ? { ...idx, __coarse: true } : idx;
+  } catch (e) { return null; }
+}
+
 /**
  * The frames a scrub walks for one model: its own, then (when it has a fallback and the fallback's index is given) the
  * fallback's frames past its last one, flagged `estimated` (the basis the status line names). Each entry is a shallow copy
  * carrying the set key it loads from (`setKey`) and the model it shows (`model`); the indexes are never mutated.
  */
-export function combinedFrames(layer, model, index, fallbackIndex) {
+export function combinedFrames(layer, model, index, fallbackIndex, offsetIndex = null) {
   const m = up(model);
+  const fill = gapFillFor(layer, m);
+  if (fill) {
+    return gapFillFrames({ ownIndex: index, fillIndex: fallbackIndex, model: m, sourceModel: sourceModel(layer, m), anchored: !!fill.anchored, clamp: fill.clamp || null,
+      keys: { own: setKey(layer, m), coarse: fill.coarse || null, fill: setKey(layer, FILL_MODEL), offset: fill.offset || null }, framesOf,
+      offsetIndex: gapFillOffsetOn() ? offsetIndex : null });
+  }
   const own = framesOf(index).map((f) => ({ ...f, setKey: setKey(layer, m), model: sourceModel(layer, m), estimated: null }));
   const set = OWN_RASTER_SETS[layer] || {};
   const fb = set.fallback;
@@ -259,6 +382,7 @@ export const BEYOND = {
 /** The entry to show for an asked time in a combined list: the nearest within 3 h of the model's own, else (past its range)
  *  of the stand-in tail. pickIndexFrame's rule on each part, so own frames always win inside the model's range. */
 export function combinedFrameAt(frames, validMs) {
+  if (frames.some((x) => x.gap || x.coarse)) return gapFillFrameAt(frames, validMs);   // a gap-filled list (ownRasterGapFill.js)
   const own = frames.filter((f) => !f.estimated);
   const f = pickIndexFrame({ frames: own }, validMs);
   if (f && f.path) return f;
@@ -334,8 +458,12 @@ export async function landFill(field) {
   field.min = min; field.max = max;
 }
 
+/** The direction field a set decodes beside its drawn field: only while the Currents particles are on (their kill or reduced
+ *  motion saves the byte a cell). */
+function dirFieldFor(set) { return set && set.dirField && currentParticlesOn() ? set.dirField : undefined; }
+
 /** A decoded frame's one field as the renderer uploads it: Float32 values, MISSING for no data. */
-export function toField(parsed, fieldId) {
+export function toField(parsed, fieldId, dirFieldId) {
   const ids = Array.isArray(fieldId) ? fieldId : [fieldId];   // preference order (a band field first, then its two-byte form)
   const fid = ids.find((id) => parsed && parsed.fields && parsed.fields[id]);
   const src = fid !== undefined ? parsed.fields[fid] : null;
@@ -346,10 +474,19 @@ export function toField(parsed, fieldId) {
     const v = src[i];
     if (Number.isFinite(v)) { values[i] = v; if (v < min) min = v; if (v > max) max = v; } else values[i] = MISSING;
   }
-  return {
+  const out = {
     cols: parsed.cols, rows: parsed.rows, bounds: parsed.bounds, values, min, max,
     validMs: parsed.validEpoch * 1000, runMs: Number.isFinite(parsed.runEpoch) ? parsed.runEpoch * 1000 : null,
   };
+  // The flow direction as one byte a cell (ownRasterDecode.decodeFieldCore's dirCodes; currentParticles.js reads it).
+  const dids = dirFieldId === undefined || dirFieldId === null ? [] : (Array.isArray(dirFieldId) ? dirFieldId : [dirFieldId]);
+  const did = dids.find((id) => parsed.fields[id] && parsed.fields[id].length === src.length);
+  if (did !== undefined) {
+    const d = parsed.fields[did]; const codes = new Uint8Array(d.length);
+    for (let i = 0; i < d.length; i++) codes[i] = Number.isFinite(d[i]) ? ((Math.round(d[i] * 256 / 360) % 256) + 256) % 256 : 0;
+    out.dirCodes = codes;
+  }
+  return out;
 }
 
 // ── decoded fields: one load per path, shared; an LRU over the window ────────────────────────────────────────────
@@ -379,9 +516,23 @@ export function getField(path) {
   return f || null;
 }
 
+// PHONE MEMORY (2026-11-18, the 0.125-degree ICON air temperature): the LRU counts frames, and six 0.125-degree Float32 fields are
+// ~100 MB. On a handheld it also keeps the held nodes under HANDHELD_NODE_BUDGET (four 0.125-degree frames, ~66 MB): the +-1 window
+// (3 frames) always fits, and 0.25-degree sets (1.04 M nodes) never reach it, so their behaviour is unchanged.
+export const HANDHELD_NODE_BUDGET = 4 * 2880 * 1441;
+const nodesOf = (f) => (f && f.values ? f.values.length : 0);
+
 function keep(path, field) {
   _fields.set(path, field);
   while (_fields.size > LRU_MAX) _fields.delete(_fields.keys().next().value);
+  if (!isHandheldDevice()) return;
+  let held = 0;
+  for (const f of _fields.values()) held += nodesOf(f);
+  while (_fields.size > 1 && held > HANDHELD_NODE_BUDGET) {
+    const oldest = _fields.keys().next().value;
+    held -= nodesOf(_fields.get(oldest));
+    _fields.delete(oldest);
+  }
 }
 
 /** Load (fetch + inflate + parse + field) one frame; null on any failure. Shared per path; never aborted once started (a
@@ -394,18 +545,22 @@ export function loadField(layer, frame, priority) {
   if (!set) return Promise.resolve(null);
   const key = frame.setKey || setKey(layer, 'GFS');
   let p = _inflight.get(frame.path);
+  if (!p && frame.parts) {
+    p = loadAnchored(layer, frame, priority).finally(() => _inflight.delete(frame.path));
+    _inflight.set(frame.path, p);
+  }
   if (!p) {
     p = (async () => {
       const t = tel();
       t.loads += 1;
       // OWN-ONLY LAYERS (gusts, currents; 2026-11-15): fetch + inflate in staticFrames' worker, then decode ONLY the drawn field
       // to Float32 in ownRasterDecode's worker (no main-thread parse of every field). The live lanes keep the shared path.
-      if (set.ownOnly && !decodeWorkerKilled()) return loadOwnOnly(key, frame, priority, set, t);
+      if ((set.ownOnly || set.workerDecode) && !decodeWorkerKilled()) return loadOwnOnly(key, frame, priority, set, t);
       // Fetch priority (staticFrames, #479): 'high' for the frame the step wants, 'low' for the rest of the window.
       const got = await loadFrameParsed(key, frame, undefined, priority ? { priority } : undefined);
       if (!got) { t.loadErrors += 1; noteMiss('load_failed'); noteFailed(frame.path); return null; }
       const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-      const field = toField(got.parsed, set.field);
+      const field = toField(got.parsed, set.field, dirFieldFor(set));
       if (field && set.landFill) await landFill(field);
       const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       if (!field) { noteMiss('no_field'); noteFailed(frame.path); return null; }
@@ -414,11 +569,41 @@ export function loadField(layer, frame, priority) {
       t.decodeMs.push(Math.round((t1 - t0) * 10) / 10);
       if (t.decodeMs.length > 50) t.decodeMs.shift();
       keep(frame.path, field);
+      if (set.dirField) prewarmCurrentGrid(field, setOfPath(frame.path));   // the particle grid, built in idle time (currentParticles.js)
       return field;
     })().finally(() => _inflight.delete(frame.path));
     _inflight.set(frame.path, p);
   }
   return p;
+}
+
+// The anchors of the gap fill's prediction (the model's last frame and GFS at that hour) are shared by every hour past it: held
+// here (at most ANCHOR_PINS fields), not in the window's LRU, so a scrub through the tail never re-fetches them.
+const ANCHOR_PINS = 4;
+const _anchors = new Map();
+async function anchorInput(layer, entry, priority) {
+  if (_anchors.has(entry.path)) return _anchors.get(entry.path);
+  const f = await loadField(layer, entry, priority);
+  if (f) {
+    _fields.delete(entry.path);
+    _anchors.set(entry.path, f);
+    while (_anchors.size > ANCHOR_PINS) _anchors.delete(_anchors.keys().next().value);
+  }
+  return f;
+}
+/** A gap fill's anchored prediction (ownRasterGapFill.anchoredField): GFS at the hour, offset by the model's own difference from
+ *  GFS at its last frame, the offset weighted down over five days. Null when any input fails (the hold rule keeps the last frame). */
+async function loadAnchored(layer, frame, priority) {
+  const { now, fillAnchor, modelAnchor, weight, clamp, offset } = frame.parts;
+  const [a, b, c, s] = await Promise.all([loadField(layer, now, priority), anchorInput(layer, fillAnchor, 'low'), anchorInput(layer, modelAnchor, 'low'),
+    offset ? anchorInput(layer, offset, 'low') : null]);
+  if (!a || !b || !c) { noteMiss('anchor_input_missing'); noteFailed(frame.path); return null; }
+  if (offset && !s) noteMiss('offset_missing');           // b' without its S: the plain anchored offset (the label is the same)
+  const field = anchoredField(a, b, c, weight, clamp || null, s || null);
+  if (getField(now.path) === a) _fields.delete(now.path);   // the composed field replaces its GFS input in the window
+  _failedAt.delete(frame.path);
+  keep(frame.path, field);
+  return field;
 }
 
 /** The own-only layers' load: worker fetch + inflate, worker decode of the one field; the same checks and telemetry as the
@@ -431,7 +616,7 @@ async function loadOwnOnly(key, frame, priority, set, t) {
   }
   const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
   let field = null;
-  try { field = await decodeOwnField(got.buffer, set.field, MISSING); } catch (e) { field = null; }
+  try { field = await decodeOwnField(got.buffer, set.field, MISSING, dirFieldFor(set)); } catch (e) { field = null; }
   const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
   if (!field || Math.abs(field.validMs - Date.parse(frame.valid_time)) > 1000) {
     noteMiss(field ? 'valid_time_mismatch' : 'no_field'); noteFailed(frame.path); return null;
@@ -443,6 +628,7 @@ async function loadOwnOnly(key, frame, priority, set, t) {
   t.decodeOffThread = (t.decodeOffThread || 0) + (field.offThread ? 1 : 0);
   delete field.offThread;
   keep(frame.path, field);
+  if (set.dirField) prewarmCurrentGrid(field, setOfPath(frame.path));   // the particle grid, built in idle time (currentParticles.js)
   return field;
 }
 
@@ -506,6 +692,7 @@ export function noteStep(path, hit, at = Date.now()) {
 
 export function _resetOwnRasterFramesForTest() {
   _fields.clear();
+  _anchors.clear();
   _inflight.clear();
   _failedAt.clear();
   clearRetryTimers();

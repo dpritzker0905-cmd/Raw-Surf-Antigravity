@@ -1,0 +1,84 @@
+name: NWPS teacher archive (offline collection, serves nothing)
+
+# WHY: NOAA's Nearshore Wave Prediction System (NWPS) publishes a nearshore wave forecast per coastal forecast
+# office and keeps it for about FIVE DAYS. It is the teacher for the per-spot nearshore transfer (step 4 of the path
+# the owner approved on 2026-11-19): we learn from it and never serve it. A teacher needs a season of history, so
+# something has to keep it. Owner, 2026-11-19, typed in the director's session and relayed: "start the NWPS archive,
+# but if we can be more SOTA than NOAA, we need to use their forecast to help us, not just parrot what they say".
+#
+# Reads PUBLIC data only (NOAA's operational server). It never calls the Raw Surf backend and writes no manifest or
+# product: only create-only objects under calibration/nwps_teacher/v1/ in the weather bucket.
+#
+# NOT SELF-STARTING. The schedule does nothing until the repository variable NWPS_TEACHER_ARCHIVE is '1'. Merging this
+# file starts no run. The director sets the variable (or dispatches by hand) on the owner's word. Setting it back to
+# anything else stops the schedule; NWPS_TEACHER_ARCHIVE=0 in the collector's environment also makes it exit at once.
+#
+# CREDENTIALS (the #948 / #951 pattern, as wind-emos-collect.yml): the service-role key exists ONLY in the two storage
+# steps, which run the standard-library script nwps_archive_bucket_io.py as `python3 -I -S`. The collector step has no
+# credential in its environment, installs nothing, and imports only the standard library.
+#
+# WHAT IS KEPT: every grid an office publishes (the outer grid and the nested, finer ones), leads 0 to 12 h, whole
+# GRIB2 messages byte for byte; and the 2-D spectra at buoy points, whole, gzipped.
+#
+# BOUNDED, PROVISIONALLY: at most 200 MB added to the bucket and 2,500 MB pulled from NOAA per run (the collector's own
+# caps), one request at a time. Those two numbers are placeholders. The FIRST run is a manual dispatch of ONE office
+# with everything; its report gives bytes per grid and for the spectra, and the caps and the projected size per season
+# are set from that. If the total is too large, offices with no spots are dropped (the `offices` input), never the
+# nested grids. Daily at 13:23 UTC, clear of the ingest (:15), pilots (:45), precompute (:45) and EMOS (10:07) minutes.
+
+on:
+  schedule:
+    - cron: '23 13 * * *'
+  workflow_dispatch:
+    inputs:
+      keep_hours:
+        description: 'lead hours kept from each cycle'
+        default: '12'
+      max_kept_mb:
+        description: 'cap on MB added to the bucket this run'
+        default: '200'
+      offices:
+        description: 'comma-separated office codes (empty = every office NOAA lists)'
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nwps-teacher-archive
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.NWPS_TEACHER_ARCHIVE == '1' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: List what is already stored (storage only, stdlib, the only step with the key before collection)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 -I -S backend/scripts/nwps_archive_bucket_io.py fetch --dir "$RUNNER_TEMP/nwps" --days-back 3
+      - name: Collect (no credential, standard library only)
+        env:
+          PYTHONUNBUFFERED: '1'
+          KEEP_HOURS: ${{ github.event.inputs.keep_hours || '12' }}
+          MAX_KEPT_MB: ${{ github.event.inputs.max_kept_mb || '200' }}
+          OFFICES: ${{ github.event.inputs.offices || '' }}
+        run: >-
+          python3 -I -S backend/scripts/nwps_teacher_archive.py --cache "$RUNNER_TEMP/nwps" --days-back 3
+          --keep-hours "$KEEP_HOURS" --max-kept-mb "$MAX_KEPT_MB" --offices "$OFFICES"
+      - name: Upload new objects (storage only, stdlib, create-only)
+        if: ${{ !cancelled() }}   # store the good files even when the collector went red; the job stays red
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 -I -S backend/scripts/nwps_archive_bucket_io.py upload --dir "$RUNNER_TEMP/nwps"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nwps-teacher-archive-report
+          path: ${{ runner.temp }}/nwps/collect_report_nwps.json
+          if-no-files-found: ignore

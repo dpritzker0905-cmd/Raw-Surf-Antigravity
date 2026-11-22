@@ -35,13 +35,26 @@ a test fails when a new guarded flag has none:
   * volume   judged by its send-volume cap (ALERTS_FORECAST_WINDOWS);
   * blind    the replay cannot exercise it: an input v0 does not archive (`eval_replay.UNREPLAYABLE`) or a surface
              other than the glyph (the hub, the map band, the multi-model consensus build). It is reported BLIND with
-             where its evidence lives instead, never NO_CHANGE; only the sanity sweep and the owner can turn it off.
+             where its evidence lives instead, never NO_CHANGE; only the sanity sweep and the owner can turn it off;
+  * ledger   (G1a, 2026-11-18) judged on the skill ledger's SCORED rows instead of the replay: the built consensus
+             shadow against the served lane at the same buoys, hours and observation
+             (`weather_pipeline.consensus_ledger_guard`, its controls and its lines). A FIRE is a WORSE strike, so the
+             same 2 strikes over >= 24 h disable it; VOID or INSUFFICIENT never strikes. The archive is read GET-only
+             (`scored_rows_gate.read_only_http`). CONSENSUS_SERVE's cells are printed as READINESS only: it is not a
+             guarded flag (every rating lane sets it '0' explicitly), so nothing is ever written for it.
 """
 import argparse
 import json
 import os
 import sys
 from datetime import datetime, timedelta, timezone
+
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.dirname(HERE)
@@ -63,21 +76,48 @@ VOLUME_FLAGS = {"ALERTS_FORECAST_WINDOWS": "surf_alert"}
 # look, not independent evidence). A non-worse run in between resets the count. Sanity breaches act at once.
 STRIKES = 2
 STRIKE_SPAN_H = 24
+# Flags whose kill switch REMOVES a service instead of restoring an older one. The guardrail reports a WORSE verdict or
+# a sanity breach for them but never writes 'off': a breach from a replay that cannot see the flag (they are BLIND)
+# must not take a whole service away from every user. Only the owner turns them off (#1132, the director 2026-11-22).
+NEVER_AUTO_DISABLE = {
+    "SURF_TIDE_OWN": "SURF_TIDE_OWN=0 serves NO tide at all, not the old Open-Meteo tide",
+}
 
-REPLAY, RATING, VOLUME, BLIND = "replay", "rating", "volume", "blind"
+REPLAY, RATING, VOLUME, BLIND, LEDGER = "replay", "rating", "volume", "blind", "ledger"
 # Every GUARDED flag (and the ones open PRs add) with what can see it. Flags in eval_replay.UNREPLAYABLE are BLIND
 # automatically (their reason is the replay's own). Pre-declared names cost nothing until they are guarded.
 COVERAGE = {
     "SAMPLER_UNRESOLVED_STATIONS": (BLIND, "one named buoy coordinate (NDBC 46267); no surf spot is within 0.6 deg, so "
                                            "the replay cannot exercise it. Evidence: the per-buoy split's no-served-row "
                                            "count (accuracy_per_buoy_split.unanswered)"),
-    "SURF_TIDE_DEPTH": (REPLAY, "the replay carries the served tide (eval_replay tide)"),
+    # PARTIAL since PR B (#1132): the replay's tide is Open-Meteo's (by date), on a reference about 0.35 m (median, per
+    # key) from the served tide's local mean sea level, so it exercises the depth cap's response to a tide, not the
+    # served levels themselves.
+    "SURF_TIDE_DEPTH": (REPLAY, "PARTIAL: the replay drives the cap with Open-Meteo's tide (eval_replay tide), not the "
+                                "served table, whose level differs by about 0.35 m median; the cap's response is "
+                                "scored, the served levels are not"),
+    # PR B (#1132): the replay's tide is Open-Meteo sea_level_height_msl fetched BY DATE (eval_replay.TideSeries); it
+    # never reads our table (tide_own), so flipping either flag changes nothing it scores. Nothing scores the served
+    # tide against observed water yet (that is the G4 gate). Both are honestly BLIND. Evidence: the daily build's
+    # served_delta step summary (level, shape, timing vs the previous served tide) and tests/test_tide_own.py.
+    "SURF_TIDE_OWN": (BLIND, "the replay fetches its tide from Open-Meteo by date and never reads our table; no "
+                             "instrument scores the served tide yet (G4 will). Evidence: the tide-own-series build's "
+                             "served_delta summary and tests/test_tide_own.py"),
+    "SURF_TIDE_CMEMS": (BLIND, "the CMEMS sea level read directly, inert until the build writes it (TIDE_CMEMS_PRIMARY); "
+                               "the replay never reads our table. Evidence: the M1-0 parity run (r2) and served_delta"),
     "SURF_EXPOSURE_RECONCILED": (REPLAY, "the height exposure factor at the anchors"),
+    # MOP-lite: the replay has neither the per-spot coefficient tables nor archived partitions, so it cannot exercise the
+    # flag. HONESTLY BLIND (never "inert"): the gate's own forward-archive scorer is the instrument.
+    "SURF_NEARSHORE_LITE": (BLIND, "needs the per-spot ray-traced coefficient tables and archived served partitions, "
+                                   "neither of which the replay holds; covered spots only. Evidence: the gate "
+                                   "nearshore-moplite-v1 scorer (LITE vs CHAIN at buoys, forward archive), not yet run"),
     "SHORE_NORMAL_MOP_CALIBRATED": (REPLAY, "the height exposure normal at the calibrated anchors (#780)"),
     "RATING_LOCAL_SIZE": (RATING, "the quality score's size reference; no observed rating exists"),
     "RATING_BREAKER_TYPE": (RATING, "the quality score's breaker-type term; no observed rating exists"),
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": (RATING, "the quality score's oversize gate reads the height cap's depth "
                                                  "(CMP-3); the height is unchanged, no observed rating exists"),
+    "SURF_FACE_RANGE": (BLIND, "adds two fields beside the served height; no height, rating or glyph reads them. Evidence: "
+                               "test_surf_face_range.py (height, score and level byte-identical, flag on or off)"),
     "RATING_REF_PRIOR": (RATING, "the quality score's size reference for spots with no climatology (JAC-2, #771); no "
                                  "observed rating exists. Evidence: MOP size-category agreement (#839)"),
     "ALERTS_FORECAST_WINDOWS": (VOLUME, "sent-alert volume per user-day against its cap"),
@@ -91,8 +131,10 @@ COVERAGE = {
                                         "the replay rates rate_one_spot. Evidence: test_side_paths_through_chain.py"),
     "MANIFEST_PRUNE_TOMBSTONES": (BLIND, "moves which products the manifest lists, not a forecast number (#770). "
                                          "Evidence: the manifest chain harness (pruned entries stay pruned)"),
-    "CONSENSUS_DIRECTION_VECTOR": (BLIND, "acts only inside a multi-model consensus build; the replay is GFS only. "
-                                          "Evidence: the held-out NDBC MWD comparison that turned it on"),
+    "CONSENSUS_DIRECTION_VECTOR": (LEDGER, "acts only inside the multi-model consensus build, which the GFS-only replay "
+                                           "cannot see; judged on the scored ledger instead: the CONSENSUS shadow's "
+                                           "direction error against the served lane's, paired on the same NDBC MWD "
+                                           "(G1a, consensus_ledger_guard)"),
     "WIND_LANE_SKILL_WEIGHTS": (BLIND, "moves only the drawn /grid wind map (the HRRR lane's weight); no spot height or "
                                        "rating reads the lane. Evidence: grade_wind_lane_ndbc.py + sweep_wind_lane_weight.py "
                                        "(held-out NDBC vector RMSE by region x lead)"),
@@ -121,6 +163,8 @@ BLIND_EVIDENCE = {
 def coverage(flag: str):
     """(class, why) for a guarded flag; None when it has no declared coverage (a test forbids that)."""
     from services.weather_pipeline import eval_replay as rp
+    if (COVERAGE.get(flag) or ("",))[0] == LEDGER:       # the ledger sees what the replay cannot
+        return COVERAGE[flag]
     if flag in rp.UNREPLAYABLE:
         why = rp.UNREPLAYABLE[flag]
         if flag in BLIND_EVIDENCE:
@@ -169,6 +213,10 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
             return {"action": "strike", "reason": f"WORSE, strike {n} (needs {STRIKES} over >= {STRIKE_SPAN_H} h; "
                                                   f"first {first}): {'; '.join(result.get('reasons') or [])}"[:600],
                     "watch": {"strikes": n, "first_worse_at": first}}
+    if (result.get("verdict") == gs.WORSE or breach) and flag in NEVER_AUTO_DISABLE:
+        why = "; ".join((result.get("reasons") if result.get("verdict") == gs.WORSE else []) + breach)
+        return {"action": "report", "reason": (f"REPORTED, NOT disabled: {flag}'s kill removes the service entirely "
+                                             f"({NEVER_AUTO_DISABLE[flag]}); only the owner turns it off. Signal: {why}")[:900]}
     if result.get("verdict") == gs.WORSE or breach:
         why = "; ".join((result.get("reasons") if result.get("verdict") == gs.WORSE else []) + breach)
         reason = (f"auto-disabled: {flag} measured {'WORSE' if result.get('verdict') == gs.WORSE else 'in breach'} "
@@ -245,7 +293,7 @@ def _creds():
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
     if not base or not key:
         raise RuntimeError("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not set (the workflow passes them by name)")
-    return base, {"Authorization": f"Bearer {key}", "apikey": key}
+    return base, _supabase_headers(key)
 
 
 def read_manifest() -> dict:
@@ -305,8 +353,38 @@ def alert_daily_counts(ntype: str, since: datetime) -> dict:
     return {f"user-day #{i + 1} ({k[1]})": v for i, (k, v) in enumerate(sorted(counts.items(), key=lambda kv: -kv[1]))}
 
 
+def ledger_report(now: datetime, fetch=None) -> dict:
+    """G1a: the scored archive's trailing window, read GET-only (scored_rows_gate's guard: any non-GET, any body or any
+    other host raises), judged by consensus_ledger_guard. {flag: verdict}."""
+    from urllib.parse import urlparse
+    import scored_rows_gate as srg
+    from services.weather_pipeline import consensus_ledger_guard as clg
+    since = now - timedelta(days=clg.WINDOW_DAYS + 1)
+    host = urlparse(os.environ.get("SUPABASE_URL", "")).hostname
+    with srg.read_only_http(host):
+        _read, rows = srg.load_rows(srg.months_between(since, now), (now + timedelta(days=1)).date(), fetch)
+    return clg.evaluate(rows, now)
+
+
+LEDGER_VERDICT = {"FIRE": gs.WORSE, "NO_FIRE": gs.NOT_WORSE}       # VOID / INSUFFICIENT -> UNTESTABLE (never a strike)
+PLANT_KEY = "__g1a_plants__"         # in the job's watch cache beside the strike counters; never a flag name
+PLANT_HISTORY = 28                   # 7 days of 6-hourly runs
+# REPORT-ONLY UNTIL RELEASED (the research lead's limit 2026-11-18, made explicit on the advisor's HOLD 2026-11-19): the
+# guard was built on synthetic rows only, so a ledger FIRE is printed but never counts as a strike until someone has READ a
+# real run and released it. The release is the repository variable LEDGER_GUARD_RELEASED='1' (the workflow passes it by
+# name; default '0'), set on the research lead's READ line. A run counter would release itself after two scheduled runs
+# whether or not anyone read them (the advisor's finding), so there is none. The job only COUNTS runs that reached a real
+# verdict (FIRE / NO_FIRE), for the report.
+LEDGER_RELEASE_ENV = "LEDGER_GUARD_RELEASED"
+LEDGER_RUNS_KEY = "__g1a_real_verdicts__"
+
+
+def ledger_released() -> bool:
+    return os.environ.get(LEDGER_RELEASE_ENV, "0") == "1"
+
+
 # ---- one run --------------------------------------------------------------------------------------------------------
-def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None, replay=None) -> dict:
+def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None, replay=None, ledger=None) -> dict:
     import default_on_filter as dof
     end = now - timedelta(hours=SETTLE_H)
     start = end - timedelta(days=ROLLING_DAYS)
@@ -314,7 +392,15 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
               "leads": "24,48,72", "step_h": 12, "cache_dir": cache_dir, "max_range_downloads": 900,
               "max_bytes": 3_000_000_000}
     results = {}
-    seen = [f for f in flags if (coverage(f) or (REPLAY, ""))[0] != BLIND]
+    seen = [f for f in flags if (coverage(f) or (REPLAY, ""))[0] not in (BLIND, LEDGER)]
+    led = None
+    try:                                     # once per run; also carries CONSENSUS_SERVE's readiness cells for the report
+        led = (ledger or ledger_report)(now)
+        results["__ledger__"] = led
+    except Exception as e:                   # noqa: BLE001 - an unreadable archive leaves the ledger flags UNTESTABLE
+        # Exception, not BaseException: scored_rows_gate.ReadOnlyViolation is a BaseException ON PURPOSE (a write attempt
+        # inside the read-only guard must stop the job, never read as "unavailable").
+        print(f"scored ledger unavailable this run ({type(e).__name__}); ledger flags are UNTESTABLE")
     ctx = None
     if seen:
         try:
@@ -323,7 +409,12 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
             print(f"history scoring unavailable this run ({type(e).__name__}: {e}); sanity checks still run")
     for f in flags:
         cls, why = coverage(f) or (REPLAY, "no declared coverage")
-        if cls == BLIND:
+        if cls == LEDGER:
+            v = (led or {}).get(f)
+            r = {"verdict": LEDGER_VERDICT.get((v or {}).get("state"), gs.UNTESTABLE),
+                 "reasons": (v or {}).get("why") or [f"ledger {(v or {}).get('state') or 'unavailable'}: {why}"],
+                 "ledger_state": (v or {}).get("state")}
+        elif cls == BLIND:
             # Never replay a blind flag: it would run as the baseline and read NO_CHANGE. The sanity sweep still runs.
             r = dof.evaluate(f, None) if replay is None else replay(f, None)
             r.update({"verdict": gs.UNTESTABLE, "reasons": [f"BLIND to this replay: {why}"]})
@@ -353,6 +444,7 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
                or ((manifest.get("flags") or {}).get(f) or {}).get("set_by") == SET_BY]
     on_now = [f for f in watched if effective_on(f, manifest)]
     results = (scorer or score_flags)(on_now, now, args.cache_dir, args.out)
+    ledger = results.pop("__ledger__", None)
     for f, ntype in VOLUME_FLAGS.items():
         if f in results:
             try:
@@ -362,6 +454,25 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
             except Exception as e:                               # noqa: BLE001 - recorded
                 results[f].setdefault("notes", []).append(f"alert volume unreadable: {type(e).__name__}")
     watch = load_watch(args.cache_dir) if watch is None else watch
+    plant_rates = {}
+    if ledger:                               # G1a: the 1.2x plants' rolling detection over the last PLANT_HISTORY runs
+        hist = dict(watch.get(PLANT_KEY) or {})
+        for flag, r in ledger.items():
+            for name, ok in (r.get("reported") or {}).items():
+                k = f"{flag} | {name}"
+                hist[k] = (list(hist.get(k) or []) + [bool(ok)])[-PLANT_HISTORY:]
+                plant_rates[k] = (sum(hist[k]), len(hist[k]))
+        watch = dict(watch, **{PLANT_KEY: hist})
+        real = sum(1 for r in ledger.values() if r.get("role") == "guard" and r.get("state") in ("FIRE", "NO_FIRE"))
+        seen_real = int(watch.get(LEDGER_RUNS_KEY) or 0) + (1 if real else 0)
+        watch = dict(watch, **{LEDGER_RUNS_KEY: seen_real})
+        if not ledger_released():
+            for f, r in results.items():
+                if r.get("coverage") == LEDGER and r.get("verdict") == gs.WORSE:
+                    r["verdict"] = gs.UNTESTABLE
+                    r["reasons"] = list(r.get("reasons") or []) + [
+                        f"REPORT-ONLY until released ({LEDGER_RELEASE_ENV}=1 after the research lead's READ of a real run; "
+                        f"runs with a real verdict so far: {seen_real}): a FIRE is printed, not a strike"]
     decisions, new = {}, manifest
     for f in watched:
         d = decide(f, results.get(f, {"verdict": "UNTESTABLE", "reasons": ["not scored (held off)"]}),
@@ -375,7 +486,7 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
         print(f"strike counter not saved ({e}): the next run starts its count again")
     changed = new != manifest
     report = {"mode": "enforce" if enforce else "dry-run", "generated_utc": iso(now), "decisions": decisions,
-              "results": results, "changed": changed, "watch": watch,
+              "results": results, "changed": changed, "watch": watch, "ledger": ledger, "plant_rates": plant_rates,
               "ledger_commands": [ledger_command(f, d, args.run_url) for f, d in decisions.items()
                                   if d["action"] == "disable"]}
     if enforce and changed:
@@ -414,6 +525,13 @@ def markdown(report: dict) -> str:
     if blind:
         lines += ["", f"BLIND to the replay (no evidence can turn these off here; sanity and the owner can): "
                   f"{', '.join('`' + f + '`' for f in blind)}."]
+    if report.get("ledger"):
+        from services.weather_pipeline import consensus_ledger_guard as clg
+        lines += ["", clg.render(report["ledger"])]
+        rates = report.get("plant_rates") or {}
+        if rates:
+            lines += ["1.2x plants, rolling detection over this job's recent runs (required >= 80 % on synthetic rows): "
+                      + "; ".join(f"{k} {a}/{n}" for k, (a, n) in sorted(rates.items())), ""]
     for c in report.get("ledger_commands", []):
         lines += ["", "Ledger line owed (BRAIN_RULES section 23), for the next session's fragment:", "```", c, "```"]
     return "\n".join(lines) + "\n"
@@ -439,8 +557,13 @@ def main(argv=None) -> int:
         f.write(md)
     print(md)
     acted = [f for f, d in report.get("decisions", {}).items() if d["action"] == "disable"]
+    reported = [f for f, d in report.get("decisions", {}).items() if d["action"] == "report"]
+    for f in reported:                                  # a breach the guardrail may not act on must still reach someone
+        print(f"::warning title=Flag guardrail: {f} reported, NOT disabled::"
+              f"{report['decisions'][f]['reason'][:300]}")
     with open(os.path.join(a.out, "acted.txt"), "w", encoding="utf-8") as f:
-        f.write(" ".join(acted))
+        # the workflow opens or appends the guardrail issue whenever this is non-empty
+        f.write(" ".join(acted + [f"{x}(reported-not-disabled)" for x in reported]))
     return 0
 
 

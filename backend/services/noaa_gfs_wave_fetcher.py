@@ -410,6 +410,7 @@ def fetch_global_coarse(payload):
     series_by = {rid: [{om: [] for om in series_keys} for _ in range(len(la) * len(lo))]
                  for rid, (la, lo) in axes.items()}
     idx_by = None  # rid -> [(row, col), ...] per coarse point, built from the first decoded grid
+    band_census_due = True  # coastal band (D-082): one logging-only count per pass, off the first decoded field
     times = []
     steps_ok = 0
     steps_failed = 0
@@ -479,6 +480,13 @@ def fetch_global_coarse(payload):
             for mi, om in enumerate(OM_ORDER):
                 vals = msgs[mi].values  # masked array (land/missing masked)
                 arrs[om] = np.ma.filled(np.ma.asarray(vals, dtype=float), np.nan)
+            if band_census_due:      # logging only (stderr); never raises; kill COASTAL_BAND_CENSUS=0
+                band_census_due = False
+                try:
+                    from _coastal_band import log_census            # script-by-path
+                except ImportError:
+                    from services._coastal_band import log_census   # package context
+                log_census("GFS", "waves", arrs["wave_height"], lat1d, lon1d)
             # blockmean/total_field/export_confidence hoisted above the hour loop (env-constant).
             # total_field default ON (third pass, 2026-07-02): in tri-modal water the partition vectors
             # cancel and the blend lands on a minority system (Baja block 20,-120 read TO≈257 while DIRPW

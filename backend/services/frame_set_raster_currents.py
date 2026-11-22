@@ -67,7 +67,10 @@ def speed_direction(u, v):
 
 
 class CmemsCurrentsSource:
-    """One CMEMS surface-current time step per frame, read from the ARCO Zarr by chunk (module docstring)."""
+    """One CMEMS surface-current time step per frame, read from the ARCO Zarr by chunk (module docstring). The store and its
+    top level are class attributes, so another CMEMS field on the same 1/12-degree grid subclasses it (frame_set_raster_sst)."""
+
+    ARCO, SURFACE, SURFACE_M = ARCO, SURFACE, SURFACE_M
 
     def __init__(self, spec, session=None):
         self.spec = spec
@@ -83,7 +86,7 @@ class CmemsCurrentsSource:
 
     def _zarray(self, name):
         if name not in self._meta:
-            r = self.http.get(f"{ARCO}/{name}/.zarray", timeout=60)
+            r = self.http.get(f"{self.ARCO}/{name}/.zarray", timeout=60)
             r.raise_for_status()
             self._meta[name] = r.json()
         return self._meta[name]
@@ -93,7 +96,7 @@ class CmemsCurrentsSource:
         import numpy as np
         from numcodecs import get_codec
         meta = self._zarray(name)
-        r = self.http.get(f"{ARCO}/{name}/{key}", timeout=120)
+        r = self.http.get(f"{self.ARCO}/{name}/{key}", timeout=120)
         if r.status_code == 404:
             return None
         r.raise_for_status()
@@ -117,8 +120,8 @@ class CmemsCurrentsSource:
     def check_surface(self):
         import numpy as np
         el = self._coord("elevation")
-        if not np.isclose(el[SURFACE], SURFACE_M, atol=0.01):
-            raise RuntimeError(f"elevation[{SURFACE}] = {el[SURFACE]}, not the top level {SURFACE_M} m")
+        if not np.isclose(el[self.SURFACE], self.SURFACE_M, atol=0.01):
+            raise RuntimeError(f"elevation[{self.SURFACE}] = {el[self.SURFACE]}, not the top level {self.SURFACE_M} m")
 
     def complete_cycle(self, now):
         """The newest 00Z day whose whole 0-240 h span is in the store (the day's bulletin), or None."""
@@ -137,7 +140,7 @@ class CmemsCurrentsSource:
 
     def url(self, cycle, f):
         t = self.times().get(cycle + timedelta(hours=f))
-        return f"{ARCO}/{{uo,vo}}/{t}.{SURFACE}.*.*"
+        return f"{self.ARCO}/{{uo,vo}}/{t}.{self.SURFACE}.*.*"
 
     def _field(self, name, t):
         import numpy as np
@@ -146,11 +149,11 @@ class CmemsCurrentsSource:
         ny, nx = (SRC_ROWS + cy - 1) // cy, (SRC_COLS + cx - 1) // cx
         keys = [(y, x) for y in range(ny) for x in range(nx)]
         with ThreadPoolExecutor(max_workers=CHUNK_FETCHERS) as pool:
-            got = list(pool.map(lambda yx: self._chunk(name, f"{t}.{SURFACE}.{yx[0]}.{yx[1]}"), keys))
+            got = list(pool.map(lambda yx: self._chunk(name, f"{t}.{self.SURFACE}.{yx[0]}.{yx[1]}"), keys))
         out = np.full((ny * cy, nx * cx), np.nan)
         for (y, x), flat in zip(keys, got):
             if flat is None:
-                raise RuntimeError(f"{name} chunk {t}.{SURFACE}.{y}.{x} missing")
+                raise RuntimeError(f"{name} chunk {t}.{self.SURFACE}.{y}.{x} missing")
             out[y * cy:(y + 1) * cy, x * cx:(x + 1) * cx] = flat.reshape(cy, cx)
         out = out[:SRC_ROWS, :SRC_COLS]
         out[~(np.abs(out) < LAND)] = np.nan

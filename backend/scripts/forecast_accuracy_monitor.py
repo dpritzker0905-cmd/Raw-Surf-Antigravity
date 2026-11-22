@@ -61,6 +61,12 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
 try:
     from _service_auth import service_headers   # the forecast clamp's job key (flip blocker 1)
 except ImportError:
@@ -630,7 +636,7 @@ def _fetch_l2(key, timeout=30):
         try:
             req = urllib.request.Request(
                 "%s/storage/v1/object/weather-products/%s" % (base, key),
-                headers={"Authorization": "Bearer %s" % tok, "apikey": tok})
+                headers=_supabase_headers(tok))
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return json.load(r)
         except urllib.error.HTTPError as e:

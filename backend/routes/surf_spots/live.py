@@ -16,6 +16,7 @@ from utils.grom_parent import is_grom_parent_eligible
 from .schemas import LivePhotographerResponse, GoLiveRequest, StopLiveRequest, SpotImageUpdate
 from core.security import get_current_user_id
 from deps.admin_auth import get_current_admin
+from services.blocks import listed_clause  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/live-photographers", response_model=List[LivePhotographerResponse])
 async def get_live_photographers(spot_id: Optional[str] = None, db: AsyncSession = Depends(get_db)):
-    query = select(Profile).where(Profile.is_shooting.is_(True))
+    query = select(Profile).where(listed_clause(Profile.id)).where(Profile.is_shooting.is_(True))
     if spot_id:
         query = query.where(Profile.current_spot_id == spot_id)
     

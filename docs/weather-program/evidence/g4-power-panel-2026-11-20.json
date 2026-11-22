@@ -1,0 +1,218 @@
+{
+ "record_of": "G4 power check run 44419701002 (attempt 2)",
+ "window": "G3t's seen window",
+ "window_days": 191.0,
+ "n_gauges": 26,
+ "n_included": 24,
+ "gauge_days_included": 4584.0,
+ "rows": [
+  {
+   "gauge": "1612340",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "1615680",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "1617760",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "1611400",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "9410230",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "9410660",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "9413450",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "9415020",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "9419750",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "9435380",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "9443090",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "8443970",
+   "included": false,
+   "reason": "coverage < 95%: D",
+   "D_coverage": 0.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 0.0
+  },
+  {
+   "gauge": "8452660",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "8531680",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "8534720",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "8651370",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "8658163",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "8665530",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "8720030",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "8722670",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "8723214",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "8726724",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "8729840",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "8771510",
+   "included": false,
+   "reason": "coverage < 95%: observed",
+   "D_coverage": 1.0,
+   "observed_coverage": 0.0,
+   "gauge_days_D_and_observed": 0.0
+  },
+  {
+   "gauge": "9755371",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  },
+  {
+   "gauge": "9751639",
+   "included": true,
+   "reason": null,
+   "D_coverage": 1.0,
+   "observed_coverage": 1.0,
+   "gauge_days_D_and_observed": 191.0
+  }
+ ]
+}

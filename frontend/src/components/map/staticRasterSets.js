@@ -11,13 +11,19 @@ export const RASTER_SET_KEYS = Object.freeze([
   'EURO/weather/pressure/global_0p5', 'ICON/weather/pressure/global_0p5',
   'GFS/weather/temperature/global_0p5',   // GFS 2 m air temperature (2026-10-24, #515's set)
   'GFS/weather/cloud_cover/global_0p25',   // GFS total cloud cover (2026-10-24, the 'satellite' layer; #515's set)
+  'EURO/weather/cloud_cover/global_0p25',   // 2026-11-18: ECMWF tcc (#955's set), ON for EURO, no .om fallback
   'GFS/weather/precipitation/global_0p25', 'EURO/weather/precipitation/global_0p25',   // 2026-11-12: mm/h, the 'rain' layer
+  'ICON/weather/precipitation/global_0p125',   // 2026-11-18: ICON rain at 0.125 deg (#956's set), ON for ICON
   // 2026-11-14 (the fog / air temp / water temp instant lane, #888's sets): per-model air temperature, GFS surface visibility
   // (fog) and model skin temperature (water temp).
   'EURO/weather/temperature/global_0p25', 'ICON/weather/temperature/global_0p5',
+  'ICON/weather/temperature/global_0p125',   // 2026-11-18: ICON air temperature at 0.125 deg (#957's set), ON for ICON
   'GFS/weather/fog/global_0p25',
   'GFS/weather/water_temp/global_0p25', 'EURO/weather/water_temp/global_0p25',
   // 2026-11-15: per-model gusts in knots (the new 'gusts' layer; FRAME_RASTER_GUST, _GUST_EURO, _GUST_ICON)
   'GFS/weather/gust/global_0p25', 'EURO/weather/gust/global_0p25', 'ICON/weather/gust/global_0p25',
   'CMEMS/marine/currents/global_0p25',   // 2026-11-15: Copernicus surface currents, speed kn + direction (FRAME_RASTER_CURRENTS)
+  'GIOPS/marine/currents/global_0p25',   // 2026-11-22: Canada GIOPS (ECCC) surface currents under ICON (FRAME_RASTER_CURRENTS_GIOPS)
+  'RTOFS/marine/currents/global_0p25',   // 2026-11-22: NOAA Global RTOFS surface currents, GFS's (FRAME_RASTER_CURRENTS_RTOFS; dark)
+  'CMEMS/marine/water_temp/global_1p6',   // 2026-11-17 (G4): Copernicus top-layer sea temperature, 1/6 deg (FRAME_RASTER_WATER_TEMP_CMEMS)
 ]);

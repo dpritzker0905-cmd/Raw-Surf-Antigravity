@@ -1,7 +1,7 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
   combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, PRECIP_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
-  _resetOwnRasterFramesForTest, FAIL_BACKOFF_MS, FOG_FIELD, landFill, tel, DEFAULT_ON_MODELS,
+  _resetOwnRasterFramesForTest, FAIL_BACKOFF_MS, FOG_FIELD, landFill, tel, DEFAULT_ON_MODELS, sourceModel,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 
@@ -187,14 +187,15 @@ describe('air temperature (2026-10-24)', () => {
   test('per model since 2026-11-14: GFS, EURO and ICON each read their own set (no stand-in); an unpublished set stays on .om', () => {
     expect(setKey('temperature', 'GFS')).toBe('GFS/weather/temperature/global_0p5');
     expect(setKey('temperature', 'EURO')).toBe('EURO/weather/temperature/global_0p25');
-    expect(setKey('temperature', 'ICON')).toBe('ICON/weather/temperature/global_0p5');
+    expect(setKey('temperature', 'ICON')).toBe('ICON/weather/temperature/global_0p125');   // 2026-11-18 (ownRasterIconTemp.test.js)
     expect(OWN_RASTER_SETS.temperature.field).toBe(TEMP_FIELD);
     expect(TEMP_FIELD).toBe(7);
     expect(OWN_RASTER_SETS.temperature.fallback).toBeNull();
-    // default: OFF for every model (EURO pending the owner, vote split 08:31Z; GFS and ICON: finer .om grids); the lever reaches all
+    // default: OFF for GFS and EURO (EURO pending the owner, vote split 08:31Z; GFS: a finer .om grid); ICON ON since 2026-11-18
+    // (its 0.125-degree set matches the .om dwd_icon grid); the lever reaches all
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
     expect(ownFramesOn('temperature', 'EURO')).toBe(false);
-    expect(ownFramesOn('temperature', 'ICON')).toBe(false);
+    expect(ownFramesOn('temperature', 'ICON')).toBe(true);
     window.__RAW_RASTER_OWN_FRAMES__ = 'temperature';
     for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('temperature', m)).toBe(true);
     staticSetEnabled.mockImplementation((key) => key !== 'EURO/weather/temperature/global_0p25');
@@ -235,24 +236,34 @@ describe('air temperature (2026-10-24)', () => {
 
 describe('cloud cover, the satellite layer (2026-10-24)', () => {
   afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_SATELLITE__; });
-  test('the cloud set is GFS only, field 8; its own kill', () => {
+  test('the cloud sets are GFS and EURO (2026-11-18), field 8; ICON has none; its own kill', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = 'satellite';
     expect(setKey('satellite', 'GFS')).toBe('GFS/weather/cloud_cover/global_0p25');
+    expect(setKey('satellite', 'EURO')).toBe('EURO/weather/cloud_cover/global_0p25');
+    expect(setKey('satellite', 'ICON')).toBeNull();
     expect(OWN_RASTER_SETS.satellite.field).toBe(CLOUD_FIELD);
     expect(CLOUD_FIELD).toBe(8);
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
-    expect(ownFramesOn('satellite', 'EURO')).toBe(false);
+    expect(ownFramesOn('satellite', 'EURO')).toBe(true);
     expect(ownFramesOn('rain', 'GFS')).toBe(false);
     window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;
     expect(ownFramesOn('satellite', 'GFS')).toBe(false);
   });
   test('ON by default (D-052; pressure 2026-11-12): no lever needed; rain stays dark; fog / EURO air + water temp OFF pending the owner', () => {
     expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure', 'gusts', 'currents']);   // gusts, currents: new own-only layers, ON (2026-11-15)
-    expect(DEFAULT_ON_MODELS).toEqual({});
+    expect(DEFAULT_ON_MODELS).toEqual({ water_temp: ['ICON'], temperature: ['ICON'], rain: ['ICON'] });   // G4 water temp; ICON air temp + rain, 0.125 deg
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
-    expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
+    expect(ownFramesOn('satellite', 'EURO')).toBe(true);  // EURO cloud set since 2026-11-18 (ownRasterEuroCloud.test.js)
+    expect(ownFramesOn('satellite', 'ICON')).toBe(true);  // no ICON cloud set yet: on through its labelled GFS gap fill (2026-11-22), never .om
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
     expect(ownFramesOn('rain', 'GFS')).toBe(false);
+  });
+  test('G4: ICON water temp draws the Copernicus set by DEFAULT; GFS / EURO keep their skin temp; the kill restores the .om path', () => {
+    expect(ownFramesOn('water_temp', 'ICON')).toBe(true);
+    expect(ownFramesOn('water_temp', 'GFS')).toBe(false);
+    expect(ownFramesOn('water_temp', 'EURO')).toBe(false);
+    window.__RAW_DISABLE_RASTER_OWN_WATER_TEMP__ = true;
+    try { expect(ownFramesOn('water_temp', 'ICON')).toBe(false); } finally { delete window.__RAW_DISABLE_RASTER_OWN_WATER_TEMP__; }
   });
   test('pressure is ON by default for each model with its own set', () => {
     for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('pressure', m)).toBe(true);
@@ -290,26 +301,28 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
 describe('precipitation, the rain layer (2026-11-12): GFS and EURO, dark until the lever names it', () => {
   afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_RAIN__; });
 
-  test('the set keys and field match the publisher contract; ICON has no set', () => {
+  test('the set keys and field match the publisher contract; ICON at 0.125 deg since 2026-11-18', () => {
     expect(setKey('rain', 'GFS')).toBe('GFS/weather/precipitation/global_0p25');
     expect(setKey('rain', 'EURO')).toBe('EURO/weather/precipitation/global_0p25');
-    expect(setKey('rain', 'ICON')).toBeNull();
+    expect(setKey('rain', 'ICON')).toBe('ICON/weather/precipitation/global_0p125');
     expect(OWN_RASTER_SETS.rain.field).toBe(PRECIP_FIELD);
     expect(PRECIP_FIELD).toBe(10);
     expect(OWN_RASTER_SETS.rain.unit).toBe('mm/h');
     expect(OWN_RASTER_SETS.rain.fallback).toBe('GFS');
   });
 
-  test('dark: off with no lever, and not one of the default-on layers', () => {
+  test('dark for GFS and EURO: off with no lever, and not one of the default-on layers; ICON ON (2026-11-18)', () => {
     expect(DEFAULT_ON_LAYERS).not.toContain('rain');
     expect(ownFramesOn('rain')).toBe(false);
+    expect(ownFramesOn('rain', 'EURO')).toBe(false);
+    expect(ownFramesOn('rain', 'ICON')).toBe(true);
   });
 
-  test('on when the lever names it, for GFS and EURO; ICON stays on the .om path', () => {
+  test('on when the lever names it, for GFS and EURO (ICON is on without it)', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = 'rain';
     expect(ownFramesOn('rain', 'GFS')).toBe(true);
     expect(ownFramesOn('rain', 'EURO')).toBe(true);
-    expect(ownFramesOn('rain', 'ICON')).toBe(false);
+    expect(ownFramesOn('rain', 'ICON')).toBe(true);
     expect(leverCovers('rain', 'temperature')).toBe(false);  // the lever named rain only
   });
 
@@ -425,16 +438,19 @@ describe('fog and water temperature (2026-11-14)', () => {
     expect(OWN_RASTER_SETS.fog.unit).toBe('m');
   });
 
-  test('water temp: GFS skin temperature for GFS and ICON (ICON has none; the .om cross-fall), EURO its own; land filled', () => {
+  test('water temp: GFS skin temperature for GFS, EURO its own, ICON the Copernicus ocean model (G4; ICON has none); land filled', () => {
     expect(setKey('water_temp', 'GFS')).toBe('GFS/weather/water_temp/global_0p25');
-    expect(setKey('water_temp', 'ICON')).toBe('GFS/weather/water_temp/global_0p25');
+    expect(setKey('water_temp', 'ICON')).toBe('CMEMS/marine/water_temp/global_1p6');
+    expect(sourceModel('water_temp', 'ICON')).toBe('CMEMS');   // the credit says Copernicus, never DWD or NOAA
     expect(setKey('water_temp', 'EURO')).toBe('EURO/weather/water_temp/global_0p25');
     expect(OWN_RASTER_SETS.water_temp.field).toBe(TEMP_FIELD);
     expect(OWN_RASTER_SETS.water_temp.landFill).toBe(true);
   });
 
-  test('DEFAULT-OFF pending the owner (vote split 08:31Z): no lever, every model on the .om path; the lever reaches each', () => {
-    for (const m of ['GFS', 'EURO', 'ICON']) { expect(ownFramesOn('fog', m)).toBe(false); expect(ownFramesOn('water_temp', m)).toBe(false); }
+  test('DEFAULT-OFF pending the owner (vote split 08:31Z): no lever, every model on the .om path (but ICON water temp, G4); the lever reaches each', () => {
+    for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('fog', m)).toBe(false);
+    for (const m of ['GFS', 'EURO']) expect(ownFramesOn('water_temp', m)).toBe(false);
+    expect(ownFramesOn('water_temp', 'ICON')).toBe(true);   // G4: ICON's Copernicus water temp is ON by default (David 2026-11-17)
     window.__RAW_RASTER_OWN_FRAMES__ = 'fog,water_temp';
     for (const m of ['GFS', 'EURO', 'ICON']) { expect(ownFramesOn('fog', m)).toBe(true); expect(ownFramesOn('water_temp', m)).toBe(true); }
   });

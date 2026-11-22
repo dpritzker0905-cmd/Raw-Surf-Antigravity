@@ -156,3 +156,12 @@ of the day's free-tier quota to the rating, the prewarm and the infobox) with a 
 (`[point-tide] overlay cold cells today: N/2000`, every 100 and at the ceiling, and the day's total at rollover) so the
 first live day can be read. Test: the ceiling defers even with minute tokens. **Licence (for the owner, not solved
 here):** Open-Meteo's free tier is non-commercial; that is a licence question whatever the volume.
+
+
+## 2026-11-22 23:57Z: #923 rebuilt on dev after PR B (#1132), reading our own tide; the Open-Meteo rationing removed
+David released the Codex-reserved files (MapWeatherControls.js, usePointTide.js; Codex PR #755 touches both): "Yes, release them" (2026-11-22). The advisor's conditions for clearing #923 are PR B merged, the rebuild on it, the rationing removed or justified, green checks, and the advisor's read.
+- **Removed.** The `purpose=overlay` cold-cell budget (12/min, 2,000/day) and its deferral in `routes/weather_point_tide.py`; `tide.acquisition_state`; `tests/test_point_tide_overlay_budget.py`; and `usePointTide.loadPointTideForOverlay` with its deferral and retry (`DEFERRED_RETRY_MS`). Since PR B every cell is answered from our own table, so an overlay cell costs no upstream call.
+- **The overlay now uses** the infobox's own `loadPointTide`: one request per cell and one shared cache.
+- **Kept.** Shared acquisition with the infobox, words not colour, three themes, the kill switch (`__RAW_DISABLE_TIDE_OVERLAY__`), the LayerAccessResolver tier gate, SETTLE_MS, zero fetches on scrub, and tide heights following the ft/m button.
+- **Tests.** The two deferral tests are replaced by one: the overlay and the infobox share ONE request per cell, and no `purpose=` path remains. Jest: 190 pass in 10 suites (overlay parity, toggle, usePointTide, TideReadout, spot hub, kill-switch inventory). `check_eslint` passes. Frontend fragment +27 tests, +2 files; the guards fragment for the removed backend test is dropped.
+

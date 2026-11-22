@@ -30,6 +30,10 @@ sweep, and say why in the log line:
   * FUSE B, too much at once: everything DUE (marked by an earlier sweep past the grace and still unreferenced), counted BEFORE
     the cap, exceeds PRODUCT_GC_MAX_DELETE_SHARE (0.6) of the listed product objects. In steady state about a third is due. A
     writer that publishes names its objects do not have makes most of the bucket due at once; that stops here, not at the cap.
+    It also trips after a BACKLOG: about three missed sweeps in a row (the head unavailable for ~12 h) push what is due past 60 %,
+    and it then refuses every sweep while the bucket grows. RELEASE: once a person has checked that the head is complete (its
+    referenced count near the live set), the owner (David) raises the repository variable PRODUCT_GC_MAX_DELETE_SHARE (e.g. '0.9')
+    until the object count is back, then unsets it. Both GC lanes pass the variable (default '0.6').
   * The per-object fallback (a failed bulk batch) is capped at PRODUCT_GC_MAX_SINGLE_DELETE (500) a sweep; what is left keeps
     its mark for the next sweep, so a broken bulk call cannot turn into 25,000 sequential DELETEs inside the ingest job.
   * A refusal, or a capped fallback, is printed as a GitHub ::warning:: annotation and a line in the step summary, besides the
@@ -43,6 +47,7 @@ import logging
 import os
 import re
 from datetime import datetime, timezone
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +129,7 @@ def _bulk_delete_rest(names, bucket) -> bool:
     try:
         import requests
         resp = requests.delete(f"{base}/storage/v1/object/{bucket}", json={"prefixes": list(names)}, timeout=60,
-                               headers={"Authorization": f"Bearer {key}", "apikey": key})
+                               headers=supabase_headers(key))
         return resp.status_code in (200, 204)
     except Exception as exc:
         logger.warning("[Product GC] bulk delete failed: %s: %s", type(exc).__name__, exc)

@@ -255,6 +255,46 @@ def _swell_exposure_normal(lat, lng):
         return None
 
 
+_FACE_RANGE_REGIMES = ("shelf", "shoaling", "breaking")   # regimes whose value is surf, so a face range means something
+
+
+def surf_face_range_at(lat: float, lng: float, Hs_m, Tp_s, served_height_m, served_regime, swell_from_deg=None,
+                       geometry: Optional[SurfGeometry] = None, partitions=None, nearshore=None,
+                       *, water_level_m: float):
+    """(low_m, high_m) of the surf face at a coordinate, or None. ON by default; None when SURF_FACE_RANGE is '0'.
+
+    `water_level_m` is REQUIRED, by name, with no default: a caller that left it out would get a LOW end computed
+    at a different water depth than the HIGH it sits beside, and nothing would say so.
+
+    HIGH is DEFINED as the height already served (`served_height_m`, the published H1/10 or the cap): it is passed
+    in, never recomputed, so the range can not disagree with the headline. LOW is the SAME chain (`estimate_surf_at`
+    with the same inputs, each passed by name: bearing, geometry, partitions, the hour's water level, the nearshore
+    sea) with the highest-tenth factor at 1.0, through the same cap, and never above HIGH. Additive: nothing here
+    changes a served height or a rating.
+    NOT SCORED: the gate that would test the range needs physical breaker truth and is NOT RUNNABLE today
+    (docs/weather-program/log/2026-11-16-fable-surf-face-range-gate.md). It is on by the owner's typed word of
+    2026-11-17, not on evidence that the range is right. Kill: SURF_FACE_RANGE=0."""
+    from services import runtime_flags as _rf
+    if _rf.flag("SURF_FACE_RANGE") != "1":
+        return None
+    if served_height_m is None or served_regime not in _FACE_RANGE_REGIMES:
+        return None
+    high = float(served_height_m)
+    if not high > 0.0:                      # also rejects NaN
+        return None
+    from services.weather_pipeline import surf_height_convention as _conv
+    # Keep this block to ONE synchronous call. The ContextVar is per task, so the switch does not reach another
+    # request on its own. The hazards are: a cache keyed without the convention (it would store a significant height
+    # and serve it later), work handed to a thread or task that inherits this context and whose result is then served,
+    # and a callee that reads the convention once and keeps it. None exists in the chain today (checked 2026-11-16).
+    with _conv.significant_statistic():
+        low, _regime = estimate_surf_at(lat, lng, Hs_m, Tp_s, swell_from_deg=swell_from_deg, geometry=geometry,
+                                        partitions=partitions, water_level_m=water_level_m, nearshore=nearshore)
+    if low is None or not float(low) > 0.0:
+        return None
+    return min(float(low), high), high
+
+
 def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
                      geometry: Optional[SurfGeometry] = None, partitions=None,
                      water_level_m: float = 0.0, nearshore=None):

@@ -32,6 +32,7 @@ concurrency:
 
 jobs:
   ingest:
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
     runs-on: ubuntu-latest
     timeout-minutes: 165  # core ~57 min + calibration ~12; raised from 120 so the WORLDWIDE coastal pilot
                           # (runs LAST) actually COMPLETES instead of being starved — that starvation is why
@@ -78,6 +79,8 @@ jobs:
           PRODUCT_RUN_KEYED_NAMES: ${{ vars.PRODUCT_RUN_KEYED_NAMES || '1' }}
           # The product GC's FUSE A release (product_object_gc.py): the owner sets '0' for ONE run after a real shrink, then unsets it.
           PRODUCT_GC_MIN_REFERENCED_RATIO: ${{ vars.PRODUCT_GC_MIN_REFERENCED_RATIO || '0.8' }}
+          # FUSE B's release (product_object_gc.py): after a backlog (missed sweeps) the owner raises it, e.g. '0.9', until the count is back, then unsets it.
+          PRODUCT_GC_MAX_DELETE_SHARE: ${{ vars.PRODUCT_GC_MAX_DELETE_SHARE || '0.6' }}
           NODE_ENV: production          # real ingestion, not the test mock
           RENDER: 'true'                # match the production grid resolution + fetch paths
           FORECAST_JOB_STAGGER_SEC: '0' # runner has no 1-CPU contention -> skip the inter-job staggers

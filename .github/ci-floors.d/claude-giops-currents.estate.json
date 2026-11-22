@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 19,
+  "branch": "claude/giops-currents",
+  "date": "2026-11-22",
+  "note": "Canada GIOPS currents raster set (test_frame_set_raster_giops.py)"
+}

@@ -238,9 +238,7 @@ const useMessagesActions = ({
   const replyToNote = async (noteId, replyText) => {
     try {
       const response = await apiClient.post(`/notes/${noteId}/reply`, { reply_text: replyText });
-      if (response.data.conversation_id) {
-        navigate(`/messages/${response.data.conversation_id}`);
-      }
+      return response.data.conversation_id;
     } catch (error) {
       logger.error('Failed to reply to note:', error);
       throw error;

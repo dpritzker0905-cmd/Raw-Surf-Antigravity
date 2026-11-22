@@ -31,6 +31,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from typing import List, Optional
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ def fetch_alert_spot_ids_via_rest(page_size: int = 1000, limit: int = 20000) -> 
     while offset < limit:
         url = (f"{base}/rest/v1/surf_alerts?select=spot_id&is_active=eq.true"
                f"&order=id&limit={page_size}&offset={offset}")
-        resp = requests.get(url, headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=30)
+        resp = requests.get(url, headers=supabase_headers(key), timeout=30)
         resp.raise_for_status()
         batch = resp.json()
         if not isinstance(batch, list) or not batch:
@@ -186,7 +187,7 @@ def load_alert_horizon() -> Optional[dict]:
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{ALERT_HORIZON_L2_KEY}?cb={int(time.time() * 1000)}"
-        resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key,
+        resp = requests.get(url, headers={**supabase_headers(key),
                                           "Cache-Control": "no-cache"}, timeout=10)
         if resp.status_code != 200:
             logger.warning("[alert-horizon] L2 read HTTP %s", resp.status_code)

@@ -7,6 +7,8 @@ import uuid
 import aiohttp
 import logging
 
+from core.supabase_auth import supabase_headers
+
 logger = logging.getLogger(__name__)
 
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
@@ -38,14 +40,12 @@ async def upload_to_supabase_storage(
     if SUPABASE_URL and SUPABASE_SERVICE_KEY:
         try:
             async with aiohttp.ClientSession() as session:
-                # `apikey` is what authenticates a new-style sb_secret_ key; the Bearer copy is
-                # only understood for legacy JWT keys (Storage answers "Invalid Compact JWS" without it).
-                headers = {
-                    'apikey': SUPABASE_SERVICE_KEY,
-                    'Authorization': f'Bearer {SUPABASE_SERVICE_KEY}',
+                # `apikey` is what authenticates a new-style sb_secret_ key, which is rejected as
+                # Bearer; the Bearer copy is added only for a legacy JWT key (core.supabase_auth).
+                headers = supabase_headers(SUPABASE_SERVICE_KEY, {
                     'Content-Type': content_type,
                     'x-upsert': 'true'
-                }
+                })
                 
                 upload_url = f"{SUPABASE_URL}/storage/v1/object/{bucket}/{filename}"
                 

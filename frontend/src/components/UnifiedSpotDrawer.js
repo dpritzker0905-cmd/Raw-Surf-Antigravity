@@ -7,6 +7,7 @@ import { Drawer, DrawerContent } from './ui/drawer';
 import { Badge } from './ui/badge';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { UNVERIFIED_LOCATION_TEXT, isLocationUnverified } from './map/unverifiedLocation';
 import { getThemeTokens } from '../utils/themeTokens';
 import { JumpInSessionModal } from './JumpInSessionModal';
 import { LockerSelfieModal } from './LockerSelfieModal';
@@ -255,7 +256,7 @@ const UnifiedSpotDrawer = ({
       
       setSessionSettings(prev => ({
         ...prev,
-        price_per_join: pricingRes.data.live_buyin_price || 25,
+        price_per_join: pricingRes.data.live_buyin_price ?? 25,
         live_photo_price: pricingRes.data.live_photo_price || 5,
         photos_included: pricingRes.data.photo_package_size || 3,
         general_photo_price: generalPrice
@@ -490,7 +491,7 @@ const UnifiedSpotDrawer = ({
                   data-testid="jump-in-session-btn"
                 >
                   <Users className="w-5 h-5 mr-2" />
-                  Jump In - ${selectedPhotographer?.live_buyin_price || selectedPhotographer?.session_price || 25}
+                  Jump In - ${selectedPhotographer?.live_buyin_price ?? selectedPhotographer?.session_price ?? 25}
                 </Button>
               </div>
             </div>
@@ -541,6 +542,16 @@ const UnifiedSpotDrawer = ({
                       )}
                     </div>
                     <p className={`${textSecondary} text-xs`}>{spot.region}</p>
+                    {/* A spot added from the holding table whose position nobody has verified. Words, not colour:
+                        the dashed outline is decoration (map/unverifiedLocation.js). */}
+                    {isLocationUnverified(spot) && (
+                      <p
+                        className={`${textSecondary} text-xs mt-1 inline-block rounded px-1.5 py-0.5 border border-dashed border-current`}
+                        data-testid="unverified-location-note"
+                      >
+                        {UNVERIFIED_LOCATION_TEXT}: the pin may not be on the break
+                      </p>
+                    )}
                   </div>
                 </div>
 

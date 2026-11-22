@@ -15,6 +15,7 @@ import asyncio
 from contextlib import asynccontextmanager
 import logging
 import math
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -85,16 +86,6 @@ def _cooling_down(key):
     if until <= now:
         _TIDE_FAILURE_UNTIL.pop(key, None)
     return now < max(until, _TIDE_RATE_LIMIT_UNTIL)
-
-
-def acquisition_state(lat, lng, forecast_days: int = 3) -> str:
-    """'warm' = served from this process's cache (no upstream call); 'cooling' = acquisition refused (a cell or the
-    process-wide 429 cooldown); 'cold' = serving it would call Open-Meteo. Lets a DISPLAY-only caller (the map Tides
-    overlay, /point-tide?purpose=overlay) avoid spending the quota that the rating's tide and eta depend on."""
-    key = _round_key(lat, lng)
-    if _cached_series(key, forecast_days, time.time()) is not None:
-        return "warm"
-    return "cooling" if _cooling_down(key) else "cold"
 
 
 def _record_failure(keys, response=None):
@@ -358,11 +349,38 @@ def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dic
     return {"height_m": round(height, 3), "norm": round(norm, 3), "trend": trend}
 
 
+def tide_source() -> str:
+    """'own' (the served default: our table, `tide_own`: our FES2022b + altimetry mean-level tide, and the CMEMS sea
+    level read directly where SURF_TIDE_CMEMS is on), 'off' (the kill switch SURF_TIDE_OWN=0: no tide, an honest
+    "unavailable") or 'legacy' (the raw test env TIDE_LEGACY_OPEN_METEO=1 ONLY: the old Open-Meteo acquisition, kept so
+    its unit tests run until it is deleted).
+
+    The owner, 2026-11-18 ~23:00Z (via the director): no Open-Meteo in any user data (licence); internal testing only.
+    No served path reaches Open-Meteo: 'legacy' is never read from the runtime manifest, and tests/test_tide_own.py
+    pins that no deploy or workflow sets it. A missing or stale table is "unavailable", NOT an Open-Meteo fallback.
+    """
+    if os.environ.get("TIDE_LEGACY_OPEN_METEO") == "1":
+        return "legacy"
+    from services.runtime_flags import on
+    return "own" if on("SURF_TIDE_OWN") else "off"
+
+
+def _prefer_cmems() -> bool:
+    from services.runtime_flags import on
+    return on("SURF_TIDE_CMEMS")
+
+
 async def fetch_tide_hourly(lat, lng, client=None, forecast_days: int = 3) -> Optional[dict]:
-    """Fetch the hourly tide series (sea_level_height_msl) for (lat,lng) from Open-Meteo Marine, TTL-cached by
-    rounded coords. Returns {"time":[...], "level":[...]} or None. Uses an injected async client when given
-    (tests). Unavailable data returns None; caller cancellation propagates."""
+    """The hourly tide series for (lat,lng): {"time":[...], "level":[m...], "source": "cmems"|"am", "label", "credit"}
+    or None (tide unavailable: no table, a stale table, a key the table lacks, or the kill switch). Never Open-Meteo
+    outside the test-only legacy path. Caller cancellation propagates."""
     key = _round_key(lat, lng)
+    source = tide_source()
+    if source == "own":
+        from services.weather_pipeline import tide_own
+        return await tide_own.fetch_series(key, forecast_days, _prefer_cmems())
+    if source == "off":
+        return None
     return await _within_budget(_fetch_point(key, client, forecast_days), [key],
                                 _TIDE_POINT_TIMEOUT_S, None)
 
@@ -421,9 +439,20 @@ async def prewarm_tide_cache(latlngs, client=None, forecast_days: int = 3, chunk
     cold-fetch ~900 spot-cells one request at a time inside rate_one_spot (quota + tail latency); batched
     it's ~10 requests for ~1500 spots. Requests use the ROUNDED key coords, exactly what fetch_tide_hourly
     would request, so the seeded entries have the same values as the per-spot path. Failures cool down
-    without seeding data; cancellation propagates. Returns the number of cells seeded."""
+    without seeding data; cancellation propagates. Returns the number of cells seeded.
+    On the served source one table read covers every key and nothing is fetched from Open-Meteo; the batch request
+    below runs only on the test-only legacy path."""
     keys = _prewarm_keys(latlngs, forecast_days=forecast_days)
     seeded = 0
+    source = tide_source()
+    if source != "legacy":                           # served: one table read covers every key; never Open-Meteo
+        if source == "off":
+            return 0
+        from services.weather_pipeline import tide_own
+        prefer = _prefer_cmems()
+        for k in keys:
+            seeded += int(await tide_own.fetch_series(k, forecast_days, prefer) is not None)
+        return seeded
     for i in range(0, len(keys), chunk_size):
         chunk = keys[i:i + chunk_size]
         if time.monotonic() < _TIDE_RATE_LIMIT_UNTIL:

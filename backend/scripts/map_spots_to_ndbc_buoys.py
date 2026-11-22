@@ -47,6 +47,13 @@ import os
 import sys
 from typing import Optional
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 NDBC_LATEST_OBS_URL = "https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt"
 
 # 100 km chosen from MEASURED coverage against the live spot table (2026-07-26, 189 wave-reporting
@@ -132,7 +139,7 @@ def nearest_buoy(lat, lon, buoys, max_km):
 # ── I/O ────────────────────────────────────────────────────────────────────────────────────────
 def _rest(base, key):
     import requests
-    return requests, {"apikey": key, "Authorization": f"Bearer {key}",
+    return requests, {**_supabase_headers(key),
                       "Content-Type": "application/json"}
 
 

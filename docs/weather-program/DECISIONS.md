@@ -2126,6 +2126,10 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - A CI guard is to fail any served route or browser bundle that references an Open-Meteo host (tests, scripts and
     grading modules allow-listed).
 - **Rollback:** none needed for the rule. Each migration step carries its own kill switch.
+- **Update 2026-11-18: read D-082 before acting on this entry.** This rule STANDS as the end state (the owner
+  briefly allowed Open-Meteo as a user-facing fallback that afternoon, then withdrew it on the licence finding).
+  D-082 says how each existing user-facing call is retired: replaced by an agency source, never by Open-Meteo, and
+  not blanked by default.
 
 ### D-075 · Long-range wind and gusts: ECMWF ensemble members past the native end, hard hand-off, no loop (2026-11-15, decided)
 - **Owner, verbatim:**
@@ -2216,3 +2220,180 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
     low-load read (never a load test), with `/api/health` read before and after.
   - If the check fails, the kill switch is used (runtime manifest, no deploy) and the failure is written to the log.
   - This is item 8 of the contract suite.
+
+### D-081 · The partitioned cap's period rule is UNDECIDED; no partition lane turns ON before a gate decides it (2026-11-18)
+- **What the rule is today** (`surf_transform.estimate_surf_partitioned`): when swell trains are transformed separately
+  and recombined, the cap on the combined height uses the LONGEST period among the LISTED trains, whatever that
+  train's share of the energy and whether or not it transformed to anything.
+- **Why it is a decision and not a fact:** the alternative, the period of the MOST ENERGETIC transformed train, gave a
+  different served height on 31 of 1,089 capped spot-steps in an offline replay of one ECMWF run (27 of 253 on the US
+  east coast). Neither rule has been scored against any observation.
+- **Rule:** neither `SURF_PARTITIONS` nor `ECMWF_PERIOD_BANDS` turns ON until a pre-registered gate has chosen the
+  cap period rule. Under D-080 a merged lane ships ON, so this entry is a condition on MERGING a change that turns
+  either lane on, not on a flip afterwards.
+- **Nothing live is affected:** both lanes are off, and no served number moves with this entry.
+- **Pinned by** `backend/tests/test_cap_period_rule_pin.py`. A deliberate change of rule changes that file in the same
+  PR as its gate.
+- **Owner:** "Yes, after #1009" (the pin), then "Start the cap period rule pin", typed in the repair lead's session.
+- Record: `log/2026-11-18-fable-cap-period-rule-pin.md`.
+- **Update 2026-11-18 (the alternatives include, not "the alternative is"):** the two rules named above are not the
+  only candidates. A third is an ENERGY-WEIGHTED period across the transformed trains (each train's period weighted
+  by its share of the energy), which sits between the two. It has not been replayed or scored. The gate that chooses
+  the rule registers every candidate it will compare before it reads a result. The rule and its pin are unchanged.
+
+### D-082 · Open-Meteo leaves the user path: agency data replaces every fallback; internal testing only (2026-11-18, decided by the owner, AMENDED the same day)
+- **AMENDMENT, 2026-11-18 evening. THIS BLOCK GOVERNS; the text below it is the afternoon's version, kept as history.**
+  - **Owner:**
+    - Typed in the repair lead's session, after being told the licence finding below and offered "cover with agency
+      data", "take a paid plan" or "self-host": "Cover with agency data, start the coastal band".
+    - Relayed by the director, quoted as typed in the director's session (a relay, not witnessed by the session
+      writing this; the director gave the time as about 23:00Z, and this session's clock read 22:26Z after the relay
+      arrived, so the time is an estimate): "Ok we've decided to use open agency data providers, and cut out open-meteo all
+      together as a middle man. We can use it for internal testing, but not for user data, as well will need a license".
+  - **Why it changed in one afternoon: the licence.** Open-Meteo's published terms, read 2026-11-18
+    (open-meteo.com/en/terms, /pricing, /licence): the free API is for non-commercial use only; an app with
+    subscriptions is listed as commercial use; commercial use needs a paid plan and a separate customer endpoint; the
+    free API is limited to 10,000 calls a day per IP. Raw Surf has subscription tiers and calls only the free
+    endpoints. So "fallback for users" and D-074's "not on a basis that would require us to pay" cannot both hold.
+    An engineer's reading of published terms, not legal advice.
+  - **Rule (end state, same as D-074):** nothing a user sees comes from Open-Meteo, not even as a fallback.
+    Open-Meteo is for internal tests, research scripts and grading benchmarks only.
+  - **How each existing user-facing call is retired:** it is REPLACED by an agency source (NOAA, ECMWF open data, DWD
+    open data, Copernicus), not by "no data". Where no agency source can cover a case, the answer is an honest
+    "unavailable" with a reason, and that is decided per case with a count, not by default.
+  - **Kill switches:** a change made under this entry ships ON (D-080) and its kill switch falls back to a stored
+    agency product or to "unavailable". Never to Open-Meteo.
+  - **No new call site.** No new Open-Meteo reference on a served route or in the browser bundle, from today.
+  - **Transition, stated plainly:** until its agency cover ships, an existing fallback keeps answering, and that use
+    is outside Open-Meteo's terms. The owner was told this before choosing. The order of work is therefore by exposure:
+    the tide level (the largest caller in the precompute log), the wave point fallback (the coastal band), the raster
+    layers, then wind and pressure. Owners and the full inventory: the research lead's exit plan and `SOTA-ROADMAP.md`.
+  - **Attribution** is owed wherever Open-Meteo data is still shown during the transition (CC BY 4.0, credit and
+    link). The research lead's client search found a linked credit only on the map's raster legend. Not fixed here.
+  - **Copernicus under the EURO name:** Copernicus Marine's wave model is Meteo-France MFWAM. It is an agency source,
+    and it must not be labelled EURO. The label change is its own PR.
+  - **Figures to quote** (the #1015 counter, precompute run 44374022005, 2026-11-18, two rated hours): wave answers
+    not from a stored product: GFS 5.5%, ICON 7.8%, EURO 7.9% (of which just over half is Copernicus); wind 0.0%.
+    728 of 1,769 active spots (41.2%) lie outside every 0.25 degree regional tile.
+- **Owner, verbatim, typed in the repair lead's session:**
+  - 14:09 EST (19:09Z, the session's stamp), to the question "keep Open-Meteo until agency data covers them, or
+    blank them now?": "Keep until
+    covered. But we need to modify my rules from only using Open-Meteo for test only, to we can use it as a fallback
+    if no better alternative is available/causing a downgrade of our services."
+  - Earlier the same day: "We have a rule to use open-meteo only where if we didn't have another better path, so
+    check if this is the case".
+- **Rule:**
+  - The first choice for everything a user sees is still an agency source: NOAA, ECMWF open data, DWD open data or
+    Copernicus (D-074, unchanged).
+  - Open-Meteo may answer a user ONLY as a fallback, when both hold: no agency source that is stored or reachable
+    covers that point and hour at comparable quality, AND leaving Open-Meteo out would downgrade the service (no data,
+    or a coarser or land-smeared number).
+  - It is never the first choice, and it never replaces an agency answer that exists.
+  - **Keep until covered.** Each fallback is temporary. It is removed when agency data covers its case, not before.
+    D-074's migrations (M1-M6, G1-G8) continue and are how the fallbacks shrink.
+  - A fallback answer says what it is: the response names the real provider and upstream model, and is not presented
+    as the agency's own feed.
+  - A NEW Open-Meteo call site on a served route needs a line in this file saying which case it covers and why
+    nothing better exists.
+- **What this changes in D-074:** the line "Open-Meteo may serve tests, research scripts and grading benchmarks only"
+  and the CI guard as written there (fail ANY served route that references an Open-Meteo host). The guard, when it is
+  built, allow-lists the named fallback sites and fails a new, unlisted one.
+- **What it supersedes from today:** the instruction relayed by the director earlier that afternoon, quoting the
+  owner at 13:13Z ("No user data should be open-meteo"), under which the point path was to answer "no data" in place of the
+  fallback. That build is NOT started. The later typed word above governs.
+- **Unchanged condition from D-074** (the owner, 2026-11-15 21:09 EST): not "on a basis that would require us to pay
+  for its use". Whether today's served use fits Open-Meteo's terms is NOT checked in this entry.
+- **Where the point path stands against this rule** (read of `services/weather_pipeline/point_resolution.py` on dev
+  `c66d8c055`, 2026-11-18): the marine branch reaches Open-Meteo only after the stored lookups miss, or return a
+  land-masked or nearest-ocean sample from a world grid, and it keeps that stored sample as the last resort. So it is a
+  fallback in this rule's sense. A better SOURCE exists and is not wired in: the agencies' 0.25 degree wave fields are
+  stored at that resolution only inside the 14 regional tiles. NOT checked: the wind and pressure/precipitation
+  branches, and whether the 2 degree world grid counts as a world grid in the degraded test.
+- **Size, one run only:** in precompute run 44132744032 (2026-11-17) about 4 to 12 percent of rated spots per model
+  took waves this way, at the two rated hours. The #1015 count is the instrument; the direction is down.
+- **No served number moves with this entry.**
+- Record: `log/2026-11-18-fable-open-meteo-fallback-rule.md`.
+
+### D-083 · T1 append-only logs: minimal content now, retention by per-subject keys + monthly partitions (2026-11-18, PROPOSED; periods await counsel)
+- **Asked by:** David, 2026-11-18, routed the legal follow-ups (consent wording, California precise geolocation, and
+  whether erasure must reach the append-only logs) to their own lane. Research by the director's session, which is
+  not legal advice; counsel has reviewed nothing.
+- **Decided by engineering (reversible, no served number):**
+  - The anchor and admin logs hold REASON CODES only, never free text.
+  - The admin log's `detail` takes allow-listed keys only.
+  - The export sends distances only as bands of 1 km or wider (schema 2), and no longer sends the 500 m `gps_check`.
+  - The consent default is draft `draft-2026-11-18d`, with `[COMPANY]` / `[PRIVACY NOTICE LINK]` placeholders that
+    refuse every grant until they are filled in.
+- **Proposed, NOT decided:** crypto-shredding with per-subject keys plus monthly partitions dropped at the end of
+  each period. Design: `T1-LOG-RETENTION-DESIGN-2026-11-18.md`.
+- **Open (named constants in `services/surf_truth_log_retention.py`, all None):**
+  - the claims period for consent records after erasure (counsel);
+  - anchor events, 6-12 months, and whether they are shredded at erasure (David);
+  - admin actions, 6-12 months (David or counsel);
+  - whether to build the mechanism before those answers (David).
+- **Reopen if:** counsel's review changes a per-table basis, or the EDPB pinpoints (05/2020 ¶107) read differently
+  in the English text.
+- Numbered D-083 (first drafted as D-082): #1059 holds D-082 (the Open-Meteo rule). Order proposed by this lane on
+  2026-11-18, at the advisor's request, and sent to the director and the repair lead: #1059 keeps D-082, and this
+  lane's three entries are D-083, D-084 and D-085.
+
+### D-084 · Forecast-data consent: one switch; the controller is Raw Surf Adventures Inc., editable in the admin (2026-11-18, decided by the owner)
+- **Owner, typed in this lane's session (2026-11-18):**
+  - "one switch, entity is Raw Surf Adventures Inc."
+  - "we need these settings to be changed in the appropriate admin area"
+  - "privacy notice URL is our in-app /privacy page I believe, check" (checked: no such page existed); "if /privacy
+    exists use it, then build it"
+  - "don't overwrite, just append, if we have one already"
+  - "yes put it next to the terms of service"
+- **Rule:**
+  - ONE consent switch covers "measure and improve". "Improve" is defined narrowly in the text.
+  - The legal entity name, the privacy-notice link and an optional privacy contact are **Company details**: a
+    versioned legal document in Compliance > Legal documents, right after the Terms of Service.
+  - The Terms, the Privacy Policy and the consent use `{company}` / `{privacy_url}` / `{privacy_contact}`. These are
+    filled when the text is served, and the admin edits the template.
+  - The consent's served version names the FILLED words, so renaming the company asks everyone again. Retention
+    treats it as a revocation.
+  - The privacy notice is a new public page, `/privacy`, which renders the active Privacy Policy.
+  - The default Privacy Policy keeps sections 1-9 unchanged. "10. Who We Are" and "11. Forecast Data From Your Wave
+    Reports" are appended after them.
+- **Supersedes** the `[COMPANY]` / `[PRIVACY NOTICE LINK]` default placeholders of D-083. The markers still refuse a
+  published text that carries them.
+- **Still DRAFT:** counsel has reviewed no wording.
+
+### D-085 · Company details: only a real change re-asks; corrections keep consents, with an append-only record (2026-11-18, decided by the owner)
+- **Owner:**
+  - "Only real name changes" (typed in this lane's session, answering whether a company-details typo fix should
+    re-ask everyone and empty the export);
+  - "Yes, correction option" (typed in the T1 session, relayed with the details below).
+- **Rule:**
+  - A Company details publish is either a CHANGE or a CORRECTION, and the admin must say which.
+    - A CHANGE (a different company or privacy notice) starts a new consent revision. Everyone who opted in is asked
+      again, and retention replaces the exports.
+    - A CORRECTION (a typo, same meaning) keeps the revision. Every consent and export stands.
+  - A publish that leaves the consent's filled words untouched never re-asks anyone.
+  - Every publish appends a row to `company_details_changes` (append-only on Postgres) holding the old and new
+    details, the filled consent words before and after, who published it and when. The record therefore still shows
+    exactly what each person saw.
+- **Supersedes** D-084's "the consent's served version names the FILLED words". It now names the Company details
+  revision.
+- **Reopen if** counsel says that a corrected name or link under an unchanged consent version is not valid consent.
+
+### D-086 · A guarded flag whose kill REMOVES a service is reported, never auto-disabled (amends D-065 for ONE named flag: SURF_TIDE_OWN) (2026-11-22, decided by the owner)
+- **Owner, typed in the tide lane's session (2026-11-22 about 15:09Z):** "Yes, approve D-086".
+- **Proposed by:** the tide lane in #1132, at the advisor's direction, relayed by the director on 2026-11-22. The advisor
+  judged it justified in substance, but it is the owner's decision.
+- **The rule as written:** a flag qualifies ONLY when its kill switch removes a service rather than restoring an older
+  one.
+  - For a qualifying flag, the live guardrail (`flag-guardrail.yml`) REPORTS a WORSE verdict or a sanity breach.
+  - The report shows as action `report`, a `::warning` annotation, and the guardrail issue opened or appended.
+  - It never writes 'off' to `control/flags.json`. Only the owner turns the flag off.
+- **The one flag:** `SURF_TIDE_OWN` (`flag_guardrail.NEVER_AUTO_DISABLE`). Its kill serves NO tide at all, not the old
+  Open-Meteo tide (D-082 removed that fallback).
+- **Why:** the flag is BLIND to the replay, which fetches Open-Meteo's tide by date and never reads our table. A breach
+  the guardrail cannot attribute to the flag would otherwise take the tide away from every user.
+- **What D-065 keeps:** every other flag, `SURF_TIDE_CMEMS` included (its kill restores our harmonic tide), is still
+  disabled on WORSE (two strikes) or on a sanity breach.
+- **If David declines:** remove `NEVER_AUTO_DISABLE`, which restores D-065 unchanged for this flag. Its test,
+  `test_the_served_tide_is_blind_and_never_auto_disabled`, changes with it.
+- **Reopen if:** an instrument that scores the served tide against observed water exists (G4), so the flag can be
+  judged on evidence that can see it.

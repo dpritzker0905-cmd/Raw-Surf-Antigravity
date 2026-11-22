@@ -24,6 +24,7 @@ import json
 
 from services import frame_set as fs
 from services import frame_set_wind as fsw
+from core.supabase_auth import supabase_headers
 
 WIND_SET_KEY = fs.set_key(fsw.WIND_TARGET)
 
@@ -113,7 +114,7 @@ def l2_product_fetch(filename):
     if not base or not secret:
         return None
     resp = requests.get(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{filename}?cb={int(time.time() * 1000)}",
-                        headers={"Authorization": f"Bearer {secret}", "apikey": secret}, timeout=120)
+                        headers=supabase_headers(secret), timeout=120)
     return resp.content if resp.status_code == 200 else None
 
 

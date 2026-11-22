@@ -23,6 +23,7 @@ from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoPro
 from services.conditions_labels import get_conditions_label
 from services.weather_tier_clamp import SIGNED_OUT, withhold_signed_out
 from services.forecast_tier_window import apply_tier_window, days_allowed
+from services.blocks import listed_clause  # withdrawn accounts (pending deletion) are hidden
 
 point_sampler = PointSampler()
 open_meteo_provider = OpenMeteoProvider()
@@ -136,7 +137,7 @@ async def explore_search(
     
     if search_type in ["all", "people"]:
         user_result = await db.execute(
-            select(Profile)
+            select(Profile).where(listed_clause(Profile.id))
             .where(
                 or_(
                     Profile.full_name.ilike(search_term),
@@ -215,7 +216,7 @@ async def explore_search(
     
     if search_type in ["all", "posts"]:
         post_result = await db.execute(
-            select(Post)
+            select(Post).where(listed_clause(Post.author_id))
             .options(selectinload(Post.author))
             .where(
                 or_(
@@ -252,7 +253,7 @@ async def get_trending(
     # Social Live Users - Users who are broadcasting live to followers (Instagram Live style)
     # This is DIFFERENT from photographers who are actively shooting at spots
     social_live_result = await db.execute(
-        select(Profile)
+        select(Profile).where(listed_clause(Profile.id))
         .where(Profile.is_live .is_(True))  # SOCIAL LIVE broadcasting, not is_shooting
         .limit(10)
     )
@@ -267,7 +268,7 @@ async def get_trending(
     
     # Fetch top 50 recent posts with media for algorithmic ranking
     posts_result = await db.execute(
-        select(Post)
+        select(Post).where(listed_clause(Post.author_id))
         .options(selectinload(Post.author))
         .where(
             Post.media_url.isnot(None),
@@ -341,7 +342,7 @@ async def get_trending(
         # Single batched query: Get the most recent post with media for all spots at once
         # Uses a window function (ROW_NUMBER) to rank posts per spot, then filters to top 1
         post_result = await db.execute(
-            select(Post)
+            select(Post).where(listed_clause(Post.author_id))
             .options(selectinload(Post.author))
             .where(
                 Post.spot_id.in_(spot_ids),
@@ -506,14 +507,14 @@ async def get_surf_spots_with_conditions(
     # Fetch active photographers for all spots
     # Two separate queries: live-shooting AND on-demand available
     shooting_result = await db.execute(
-        select(Profile)
+        select(Profile).where(listed_clause(Profile.id))
         .where(Profile.current_spot_id.in_(spot_ids))
         .where(Profile.is_shooting .is_(True))
     )
     shooting_photographers = shooting_result.scalars().all()
     
     on_demand_result = await db.execute(
-        select(Profile)
+        select(Profile).where(listed_clause(Profile.id))
         .where(Profile.current_spot_id.in_(spot_ids))
         .where(Profile.on_demand_available .is_(True))
         .where(Profile.is_shooting .is_(False))  # NOT already in live session
@@ -539,7 +540,7 @@ async def get_surf_spots_with_conditions(
     if spot_ids:
         # Single batched query: Get recent posts with media for ALL spots at once
         post_result = await db.execute(
-            select(Post)
+            select(Post).where(listed_clause(Post.author_id))
             .options(selectinload(Post.author))
             .where(
                 Post.spot_id.in_(spot_ids),

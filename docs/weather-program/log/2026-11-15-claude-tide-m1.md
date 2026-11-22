@@ -726,3 +726,2171 @@ Sequence:
 4. The owner's word for the run, through the same one-shot tag mechanism under a new tag `tide-gate-G3`.
 
 #926 and #931 stay held.
+
+## 16:54 EST 2026-11-16 (`date`) - G3 ADDENDUM: the research lead's read; a truth-only surge count (before any arm)
+The research lead read the 15:59 draft (its points 1-2 of (b) and the bootstrap were already in the FINAL). Added now,
+BEFORE any arm is computed:
+
+- **STOFS-3D-Atlantic, a REPORTED regional arm (Atlantic/Gulf strata only).** SCHISM, with rivers and estuaries; the
+  free model most likely to help the estuary gauges. Confirmed kept as issued: `noaa-nos-stofs3d-pds`,
+  `STOFS-3D-Atl/stofs_3d_atl.YYYYMMDD/`, a daily 12Z cycle with `fcast.station.profile.nc` and conus.east `cwl` GRIB2
+  (2026-08-25 listed). Not chosen; US-only.
+- **N2 non-tidal, both forms:** P1 uses `swl` (as registered). `cwl - htp` (which includes STOFS's anomaly term) is
+  reported as N2'.
+- **S1 at the nearest valid OFFSHORE cell** (altimetry degrades in the last ~10 km): the nearest cell >= 10 km from
+  the coast with a complete daily record over the 2016-2025 base.
+- **Every score also split into mean bias and standard deviation** (reported), so a datum offset cannot pass for
+  surge skill.
+- **D is not in-sample:** D's datum is the Open-Meteo mean over the 365 days before each window, and #926's held-out
+  weeks (from 2025-12-15, 2026-03-15, 06-15, 09-15) do not touch 2026-08-25 .. 09-07.
+- **+24 h shift control:** read on the surge-hour subset (as item 3), not pooled.
+
+**Item 3: surge hours are defined on the de-meaned residual.** Truth-only check (research lead), recorded before any
+arm. Observed minus CO-OPS predictions, 25 h low-pass, at the 26 gauges over the window (notes
+`g3-truth-surge-count-*.json`, script `g3_surge_count.py`):
+- **As drafted** (|residual| > 0.15 m): 2242 surge hours at 15 gauges. But La Jolla and Los Angeles counted 329 and
+  336 of 336 hours. That is a PERSISTENT MEAN OFFSET of observed over the 1983-2001-epoch predictions, not surge: the
+  residual's mean over the 30 days before the window is **+0.05 .. +0.20 m** at nearly every gauge (largest on the
+  Atlantic). As drafted, item 3 would test mean level, not surge.
+- **Registered now (before any arm):** a surge hour is |residual - its own mean over the 30 days BEFORE the window
+  (2026-07-26 .. 08-24)| > 0.15 m. Event = >= 12 consecutive surge hours.
+- **Counts under that definition:** **439 surge hours at 9 gauges; 11 events of >= 12 h in 2 regions (Atlantic 9,
+  Pacific 2); 5 gauges with >= 48 h.**
+- **Minimums (both required, else item 3 is NOT RUNNABLE and G3 is INCONCLUSIVE):** the advisor's (>= 3 events in >= 2
+  regions) AND the research lead's (>= 48 surge hours on >= 5 gauges). **The window meets both, so it is kept.**
+- The pre-window mean offset itself is the datum term the registration already requires S1 to carry (the present
+  mean level against the 1993-2012 altimetry reference); the bias/SD split will show whether it does.
+
+Also: the G2 result is recorded on dev in its own docs-only PR #987 (director).
+
+## 16:57 EST 2026-11-16 (`date`) - advisor accepts the G3 FINAL (21:30Z); three clarifications (no rule changes)
+**Advisor (21:30Z):** "the G3 FINAL registration at dabe5b7d7 is acceptable from me as the test design".
+
+Added before code:
+1. **Named outcome for the datum.** Observed water sits on the gauge's 1983-2001 mean, S1 on altimetry's 1993-2012
+   mean, and gauges move with the land (Gulf subsidence: millimetres a year). A **raw FAIL beside a mean-removed
+   PASS** is called **"a datum finding: the level needs a per-place reference"**. It is NOT read as the non-tidal
+   term failing, and the verdict stays the raw one (raw gates).
+2. **If N3 (STOFS total water level) beats P1:** nothing changes in this run. N3 is a reported line, and switching
+   the primary to it would be a NEW registration on a NEW unseen window.
+3. **Item 2 is deliberately strict:** a point value at each of 26 gauges, so one noisy gauge can fail the gate.
+   That strictness is intended.
+
+**Before the owner's word is used:** the code head (the new workflow with the one-shot `tide-gate-G3` tag) goes to the
+advisor first. Its checklist:
+- the trigger is that tag only;
+- the Copernicus and AVISO credentials are set only on the steps that fetch, and are never echoed;
+- the log shows stages and memory, never a score;
+- versions are pinned;
+- the S1 preflight runs before any truth fetch;
+- every lead L at valid hour t is built only from cycles issued at or before t - L.
+
+## 17:03 EST 2026-11-16 (`date`) - advisor accepts the G3 addendum (21:58Z); storms, not gauge-events; what was seen
+1. **Events are grouped into storms (registered now; no new data, counted from the file already fetched).** Gauge-events
+   in the same region that overlap in time, or start within 48 h of each other (single-linkage), are ONE storm.
+   Item 3 and its +24 h shift control resample BY STORM. **Storm count: 3 storms in 2 regions:**
+   - Atlantic 2026-08-28T13 -> 08-29T10: one gauge (8658163), one gauge-event.
+   - Atlantic 2026-09-02T02 -> 09-08T00: 6 gauges (8534720 8651370 8658163 8665530 8722670 8723214), 8 gauge-events.
+   - Pacific 2026-09-02T04 -> 09-06T23: 2 gauges (9435380 9443090), 2 gauge-events.
+
+   That meets the >= 3 storms in >= 2 regions minimum exactly, so item 3 is RUNNABLE. With 3 storm units its interval
+   will be wide, which is honest. The window, the 48 h rule and the thresholds do NOT move after this count. Had it
+   come out short, item 3 would have been NOT RUNNABLE, and items 1, 2, 4 and 5 still report.
+2. **What was seen (this line is carried into the result):** the window's OBSERVED water and CO-OPS predictions were
+   read for a truth-only count (no arm scored). Item 3's surge-hour definition was changed after that look (to the
+   pre-window-demeaned residual), and the window was kept because the counts met the minimums. That truth was fetched
+   BEFORE the S1 preflight; the P1 / P1' choice stays mechanical, by S1 availability only. **No further truth-only
+   looks at this window before the run.**
+
+## 17:06 EST 2026-11-16 (`date`) - G3 registration closed (advisor 22:07Z: no open point at beab9f76c)
+- **Label carried, not a condition:** with 3 storm units, the bootstrap has only 27 possible resamples, and one storm is
+  a single gauge for 21 h. Whatever item 3 returns is reported as **"on 3 storms, low power"**, in the result and in
+  the scoreboard row, and is never cited alone as evidence about surge skill.
+- Remaining before the owner's word: build the code (the owner's call), then send its head to the advisor with the
+  21:30Z checklist.
+
+## 20:58 EST 2026-11-16 (`date`) - G3 code built (owner, 18:23 EST: "Yes, build it"); nothing run on the window
+- **Code:** `backend/scripts/tide_g3/`
+  - `g3_metrics.py`: the pure rules (surge/calm hours on the pre-window-demeaned residual, storm grouping, paired
+    block bootstrap on precomputed sums, items, controls, verdict, the datum label, the low-power label).
+  - `g3_sources.py`: STOFS-2D and STOFS-3D as issued by lead; altimetry S1 with its preflight; GLO12 analysis;
+    Open-Meteo previous runs.
+  - `g3_gate.py`: runs the registered order (S1 preflight -> sources -> truth -> score) and reuses `tide_fes` for
+    FES, CO-OPS and the NOAA-constants control.
+- **Workflow:** `.github/workflows/tide-g3-gate.yml`.
+  - The one-shot tag `tide-gate-G3` is the only start.
+  - AVISO credentials are on the FES download step only; Copernicus credentials on the gate step only.
+  - Pins: pyfes 2026.5.2, pyTMD 3.1.0, timescale 0.1.3, copernicusmarine 2.4.1.
+  - FES caches are saved even on failure and pruned only after success.
+  - The log carries stages and memory only.
+- **Tests:** `tests/test_tide_g3_rules.py` (9; 19 with the G2 file), pinning:
+  - storm linking;
+  - the minimums;
+  - bootstrap direction and identity;
+  - verdict precedence;
+  - the datum label;
+  - the 24 h shift;
+  - "a value at t for lead L never comes from a cycle issued after t - L";
+  - the one-shot trigger, credential scoping and pins;
+  - preflight before truth;
+  - no score in the log;
+  - the served backend never imports `tide_g3`.
+
+  flake8 clean, sizes within cap.
+- **Smoke tests: public data or credentials only, dates OUTSIDE the window, no truth, nothing scored:**
+  - STOFS-2D swl as issued at 2 gauges for 2026-11-10: 13 of 13 cycles, all lead bins filled.
+  - STOFS-3D-Atl: 4 of 4 Atlantic/Gulf test gauges matched within 3 km.
+  - Open-Meteo previous runs: 72 h per lead bin at Honolulu. Boston's served 0.1 deg cell is land, as in G2.
+  - Copernicus (run 43985791566 on the check branch, one gauge, Honolulu):
+    - S1 preflight ok;
+    - altimetry climatology from an offshore cell 14 km away, 366 day-of-year values;
+    - GLO12 zos + inverse barometer analysis, 48 h read.
+  - `score()` on SYNTHETIC data: runs end to end (its VOID there is an artefact of identical synthetic tides).
+- **Known before any run:** the constant-non-tidal control (VOID if a constant non-tidal term ties the real one on the
+  item-1 median) is strict. If STOFS's surge adds skill at only a few gauges, the run can come out VOID on it. That is
+  the registered rule; it is written here so it is not a surprise.
+- **Not done:** no run of the gate. The advisor reads the code head first; then the owner's word.
+
+## 21:31 EST 2026-11-16 (`date`) - advisor read the G3 code (02:22Z): ACCEPTABLE against the registration; B done, A open
+**Advisor:** "THE SIX CHECKLIST ITEMS HOLD ... ACCEPTABLE AGAINST THE REGISTRATION" at 7b454153c. Review only; nothing run.
+
+**B - the armed smoke workflow (done).**
+- Run 43985791566 (`tide-g3-cm-smoke.yml`, Copernicus credentials, ONE gauge, dates outside the window, no truth) was
+  started by MY push to `claude/tide-m1-eot20-check` at 00:12Z, as part of building, under the owner's "Yes, build it"
+  (18:23 EST). There was no separate word for that credentialed run. Recorded as such.
+- Both check-branch workflows (`tide-g3-cm-smoke.yml`, `tide-eot20-convention.yml`) were then DELETED from that branch
+  in a commit that starts nothing; the listing shows 0, and no new run started. No stray push can run them again.
+
+**Labels for the result (added to the code; no rule changed):**
+- The lead table carries: leads are by CYCLE time, not publication time, so the "0-24 h" bin includes forecasts 0-6 h
+  old that a live product could not yet have had.
+- `pip freeze --all` goes into the artifact (numpy, scipy, xarray, pandas and netCDF4 are unpinned).
+- The result prints the gauges where S1 failed and how many count against P1 in item 2.
+- The summary and artifact are public the moment the run ends: I read the verdict line first and tell the owner in
+  this session; the advisor reads the log and the JSON before anything goes into a decision.
+
+**A - two controls that can VOID for lack of power (OPEN; the owner's / director's decision, written BEFORE the run):**
+- "Constant non-tidal loses item 1" reads the MEDIAN-gauge difference. With surge at about 9 of 26 gauges, the median
+  can tie.
+- "+24 h shift loses item 3" needs a lower bound above 0 from a bootstrap over 3 storms (27 resamples).
+- **Option 1 - amend** (comes after the truth-only look; stated as such):
+  - the constant control is read on POOLED squared error over all gauge-hours (gauge x 2-day blocks);
+  - a failed shift control makes ITEM 3 inconclusive, not the run VOID;
+  - the positive and label-swap controls stay VOID controls.
+- **Option 2 - run as registered:** a VOID from either control is recorded as "no measurable effect of the non-tidal
+  term on this window", with no re-run on it.
+
+## 21:38 EST 2026-11-16 (`date`) - G3 AMENDMENT A: the two low-power controls (owner: "Amend them", 21:37 EST)
+**This amendment comes AFTER the truth-only look at the window** (the surge-hour count, 16:2x-16:5x EST). It comes BEFORE
+any arm has been computed on the window; no G3 gate run exists. It changes no threshold and no arm.
+1. **"Constant non-tidal loses item 1"** is read on POOLED squared error over ALL gauge-hours (the arm minus its
+   non-tidal term vs the real arm). Bootstrap units are gauge x 2-day blocks; 2000 draws, seed 20260825. It must lose:
+   the interval of (constant - real) has its LOWER end > 0. A VOID from it still means the instrument shows no
+   information in the non-tidal term. Before this amendment it read the median-gauge difference, which surge at only
+   ~9 of 26 gauges could tie.
+2. **"+24 h shift loses item 3"** is no longer a VOID control. If it fails (lower end not > 0, by storm), **ITEM 3 is
+   INCONCLUSIVE**, treated exactly as "item 3 not runnable": G3 cannot PASS, and its verdict is INCONCLUSIVE. Items 1,
+   2, 4 and 5 still report.
+3. The positive control (NOAA's constants <= 0.01 m) and the label swap (> 0.3 m) STAY VOID controls, unchanged.
+
+Advisor (02:22Z) found either choice acceptable "provided it says it comes after the truth-only look". The code follows
+this entry, then goes to the advisor; then the owner's word for the run.
+
+## 22:00 EST 2026-11-16 (`date`) - advisor: G3 ACCEPTABLE TO START at c26af8597 (02:56Z); no open point
+- Possible results, fixed now: PASS, FAIL, INCONCLUSIVE (item 3 not runnable, or its shift check failed; the other
+  items still report) or VOID (positive control, label swap, or the pooled constant control). Whatever it is stays
+  recorded, and the window is spent either way.
+- After the run: the verdict line goes first to the owner in this session. The advisor then reads the job log and the
+  JSON and recomputes the medians from the per-gauge rows before any decision.
+- The start is the owner's word typed in this session (tag `tide-gate-G3` on c26af8597).
+
+## 22:16 EST 2026-11-16 (`date`) - G3 fix BEFORE any run: STOFS changed file format inside the pre-window
+- **Found** (by reading only the first 4 bytes of each file, while checking the archive for G3b): STOFS-2D point files
+  are **HDF5 / netCDF-4 through 2026-08-15** and **netCDF-3 from 2026-08-16** (all four cycles each side checked).
+- **Effect on the code accepted at c26af8597:** its reader was netCDF-3 only. It would have silently dropped every
+  pre-window cycle from 07-26 to 08-15 and built the registered 30-day swl reference from 9 days (08-16..08-24). That
+  still clears the 60-hour minimum, so it would not have failed loudly.
+- **Fix (plumbing; no rule, arm or threshold changed):** `g3_sources._nc_points` reads through the `netCDF4` library
+  (already installed in the workflow), which reads both formats. Checked: a 2025-06-01 HDF5 file and a 2026-08-25
+  netCDF-3 file each give all 5 test gauges, 1860 values each; the STOFS-3D file gives 3 of 3 gauges matched by
+  lat/lon.
+- **Reported (not gating):** the swl reference before and after 2026-08-16, per gauge, because a format change may
+  mark a model upgrade. The registered reference stays the full 30 days.
+- Tests: 20 pass; synthetic `score()` runs end to end.
+
+## 22:24 EST 2026-11-16 (`date`) - G3b PRE-REGISTRATION DRAFT: the POWERED gate that decides serving (before G3's result exists)
+Owner, 21:58 EST (relayed by the research lead and the director; to be confirmed in this session): "as long as its the
+SOTA path". G3 runs as a PILOT only: 3 storms is low power, and its surge result does not decide serving. **G3b is
+registered BEFORE G3 has run**, so no G3 number can shape it. It is a draft for the advisor's and the research lead's
+read. Nothing is built or run before that, and the run is the owner's word typed in this session.
+
+### Archive checks (done 22:0x EST; nothing scored, no truth fetched)
+- **STOFS-2D point files** (\`points.swl/htp/cwl.nc\`) are present on every day checked: 2025-06-01, 09-01, 12-01 and
+  2026-03-01.
+  - **Format: HDF5 / netCDF-4 through 2026-08-15, netCDF-3 from 2026-08-16.** The G3 reader now handles both
+    (32788fa95).
+  - A 2025-06-01 file holds all 5 test gauges; all 26 are to be confirmed by the code's first stage.
+- **Open-Meteo previous runs** (\`sea_level_height_msl_previous_day1/2\`) **begin 2025-11-19** (none on 2025-11-18, by
+  bisection). The references C and D cannot be scored as forecasts before that date, which bounds the window's start.
+- **CMEMS GLO12** keeps a sliding two-year analysis, so N1 stays an ANALYSIS upper bound, as in G3.
+
+### Window (the director's frame 2025-06..2026-03, adjusted for the archives and the seen dates)
+**2026-01-01 00Z .. 2026-07-24 23Z, hourly, MINUS 2026-03-15 .. 03-21 and 2026-06-15 .. 06-21.**
+- **Start 2026-01-01, not 2025-06-01:**
+  - C and D need Open-Meteo previous runs, which begin 2025-11-19.
+  - Calendar 2025 is excluded as SEEN (P against CO-OPS predictions at all 26 gauges; arm B's evaluator identity at
+    all 26).
+  - Nov 19 .. Dec 31 2025 is also excluded with it, to keep the rule simple. That costs ~6 weeks.
+- **End 2026-07-24:**
+  - 2026-07-25 .. 09-08 is SEEN: G3's truth-only count read observed water from 07-25.
+  - G3's window is 08-25 .. 09-07.
+  - Later dates (G2, M1, #926's November windows) are seen too.
+- **Holes:** the #926/#931 held-out weeks (7 days from 2026-03-15 and from 2026-06-15) are removed. The 2025-12-15 week
+  is already outside the window.
+- **Length:** about 7 months (~190 days after the holes), across winter and spring storm seasons on all coasts.
+
+### Same as G3 (unchanged)
+- Arms and leads as issued: P1 = A + S1 + N2_swl (primary; P1' = A + N2 by the S1 preflight); the same reported arms.
+- **Cycles:** 00Z and 12Z only (halves a ~64 GB download), still "the latest cycle at or before t - L".
+- **References:** C and D from Open-Meteo previous runs at the same leads.
+- **Truth:** T2 OBSERVED water gates; T1 is reported.
+- **Datum rule:**
+  - S1 base 2016-01-01 .. 2025-12-31 (it ends before the window);
+  - N2 / N3 referenced to their own mean over the 30 days before the window (2025-12-02 .. 12-31, from the 00Z
+    nowcasts; HDF5 files);
+  - N1 over the 365 days before;
+  - D's mean over the 365 days before the window.
+- Raw gates; mean-removed and bias/SD are reported; the datum label as in G3.
+- **Pass lines (THRESHOLDS UNCHANGED from G3):**
+  1. P1 - D upper end <= -0.02 m AND P1 - C upper end < 0 (paired per gauge).
+  2. No gauge worse than D by > 0.05 m (point; a gauge P1 cannot score counts against it).
+  3. Surge hours: P1 - A upper end < 0, resampled by STORM.
+  4. Calm hours: P1 - A upper end <= +0.01 m.
+  5. Tide shape: median High/Low time <= 20 min, median |MLLW err| <= 0.05 m.
+
+### What differs from G3 (power, and the ORIGINAL strict controls)
+- **Surge hours on a ROLLING reference.** Over 7 months a single pre-window mean would drift with the season and
+  register seasonal level as surge. A surge hour is |residual - its own mean over the 30 days ending 24 h before that
+  hour| > 0.15 m (residual = 25 h low-pass of observed - CO-OPS predictions). Calm hours: < 0.05 m on the same basis.
+  Event = >= 12 consecutive hours; storm = same-region events that overlap or start within 48 h (single-linkage).
+- **Minimum for item 3: >= 20 storms in >= 3 regions** (director and research lead), AND >= 48 surge hours on >= 5
+  gauges. Below it, item 3 is NOT RUNNABLE and G3b is INCONCLUSIVE (it cannot PASS). **No truth-only count is taken
+  before the run** (unlike G3), so the minimum is tested blind.
+- **Bootstrap:** item 1 and the per-gauge CI vs D use gauge x 2-day blocks; items 3 and the shift control use a
+  storm-block bootstrap (resampling storms). 2000 draws, seed 20260101.
+- **Controls: the ORIGINAL strict set, all VOID-capable:**
+  - positive (NOAA's constants <= 0.01 m);
+  - label swap (> 0.3 m);
+  - constant non-tidal must lose item 1 on the MEDIAN-gauge paired difference (lower end > 0);
+  - +24 h shift must lose item 3 (lower end > 0, by storm).
+
+  With ~7 months and >= 20 storms these have power; a VOID here means the instrument shows nothing.
+
+### What a G3b PASS decides
+The served tide for M1 (FES + S1 + STOFS surge, or P1' by availability) goes **DARK behind a kill switch** with a
+SCOREBOARD row, and ships only on the owner's word. A FAIL or INCONCLUSIVE keeps today's tide. VOID is recorded; no
+re-run on the window.
+
+### Order relative to G3
+1. This draft is pushed alone, BEFORE the G3 tag. G3's result cannot change it.
+2. The advisor and the research lead read it.
+3. G3 runs as a pilot (owner's word).
+4. G3b code (G3 code parameterised by window, rolling surge reference, original controls), then the advisor, then the
+   owner's word.
+
+## 22:36 EST 2026-11-16 (`date`) - G3 PILOT STARTED on the owner's word (recorded before any output is opened)
+- **Owner, typed in this session, 22:33 EST: "Yes, start G3".** G3 is a PILOT: 3 storms is low power, and serving is
+  decided by G3b (registered as a draft at 9f01ca7eb BEFORE this start).
+- Tag **`tide-gate-G3`** -> **9f01ca7eba3f26a21f7912131be05dbc1414fe53** (absent before; pushed 03:34:23Z). Its trigger
+  is the tag only (checked). It carries the code of 32788fa95; only docs changed after it.
+- Run **44011150843**, created 03:34:21Z.
+- **Pending at start:** the advisor accepted c26af8597 (02:56Z); its re-check of the reader fix 32788fa95 (STOFS
+  HDF5/netCDF-3) had not arrived. The owner chose to start; the fix is plumbing only, verified on real files of both
+  formats.
+- Reading order: verdict line first, to the owner in this session; then the run id, log and JSON to the advisor
+  before any decision. Possible results: PASS / FAIL / INCONCLUSIVE / VOID, as fixed at 22:00 EST.
+
+## 22:40 EST 2026-11-16 (`date`) - advisor (03:36Z) accepts 32788fa95; clearance carries; one outcome named (run in progress, NO output opened)
+- **Advisor:** "ACCEPTABLE; my 02:56Z clearance to start on David's word CARRIES to this code". The tag sits on
+  9f01ca7eb, whose `backend/scripts/tide_g3` and workflow are identical to 32788fa95 (checked before the push: no
+  code diff). The messages crossed: run 44011150843 started at 03:34Z, two minutes before this read.
+- **Named before any output is opened:** a large difference between the swl reference before and after 2026-08-16 (the
+  reported per-gauge line) is called **"a datum finding on the surge reference: the STOFS format switch may mark a
+  model change, so the registered 30-day reference straddles two models"**. It belongs to the same family as the named
+  raw-FAIL-beside-mean-removed-PASS outcome and is NOT read as a failure of the non-tidal term. The reference is NOT
+  switched after seeing it.
+- **Cycle count:** the running code's stage line `stofs2d <kind>: N cycles` prints the total cycles read per kind
+  (window + pre-window; ~70 window cycles + ~30 pre-window 00Z cycles expected, about 100). A count near 70 would mean
+  the pre-window was not read. An explicit pre-window count per kind is added to G3b's code (it cannot go into a run
+  already started).
+
+## 22:42 EST 2026-11-16 (`date`) - G3b DRAFT addendum: the research lead's five edits (before any G3b code; G3 output not opened)
+1. **What a G3b PASS decides (owner rule, 22:09 EST, relayed verbatim by the research lead and recorded as relayed:**
+   "It needs to ship on, not off. With kill switch. I get confused and forget to turn things on once they are merged.
+   Make special tests to test and kill switch it."; this matches D-065, "fixes ship ON, with guardrails"). A PASS means
+   **the owner's word to MERGE, and the change ships ON by default with a kill switch**, plus kill-switch contract
+   tests:
+   - (a) switch OFF is byte-identical to the current tide path;
+   - (b) switch ON changes only the tide fields;
+   - (c) a runtime-manifest kill (`control/flags.json`) works with no deploy;
+   - (d) the flag guardrail can auto-disable it;
+   - (e) registry parity (`_RATING_FLAGS` / `test_flag_lane_parity`).
+
+   This replaces "dark + kill switch".
+2. **ONE primary arm, named now:** P1 = A + S1 + N2_swl (FES tide + altimetry seasonal + STOFS-2D surge). The fallback
+   P1' = A + N2_swl applies ONLY by S1 preflight availability, decided before any truth is fetched. Every other arm is
+   reported. No best-of-arms choice after scoring.
+3. **The surge reference is CAUSAL:**
+   - For each valid hour t, the reference is the mean of the residual over the trailing 30 days ending at t - 24 h,
+     never centred and never containing t.
+   - The residual is the 25 h low-pass of (CO-OPS observed - CO-OPS predictions) AT THE GAUGE.
+   - No arm sees it: it is used only to classify surge and calm hours for items 3 and 4.
+4. **Coverage assertion (so a silent reader failure cannot recur):**
+   - Per gauge and per arm, the result prints hours read vs hours expected over the window, and for STOFS the
+     pre-window cycles read per kind.
+   - A gauge below **95%** coverage on P1, D or observed water is EXCLUDED from scoring and counted in the result.
+   - **If more than 20% of gauges are excluded, the run is VOID.**
+5. **Item 3 bootstrap is STRATIFIED BY REGION:** storms are resampled within each region (the region counts are kept),
+   so one large Atlantic event cannot dominate. Shift control likewise. The 48 h single-linkage storm rule is
+   unchanged.
+
+Unchanged: the window (2026-01-01 .. 07-24 minus the held-out weeks), thresholds, the original strict controls,
+>= 20 storms in >= 3 regions tested blind, and Open-Meteo previous runs for C and D. The draft goes to the advisor
+with these edits; then code; then the owner's word.
+
+## 22:52 EST 2026-11-16 (`date`) - G3b DRAFT addendum 2: the advisor's seven changes (03:46Z); #987 already merged
+**#987** passed by the advisor (03:46Z, no open condition). It was already MERGED at 00:57Z (merge commit `ee0041370`)
+by the director's sweep, so there was nothing for this lane to merge.
+
+**G3b changes (before any G3b code; G3's output not opened):**
+1. **Score only what could have been served.**
+   - A cycle is AVAILABLE at the `LastModified` time of its `points.swl.nc` in the archive.
+   - Measured on 10 cycles across the window (2026-01-10, 02-15, 04-01, 05-20, 07-10; 00Z and 12Z): published
+     **6 h 29 m - 6 h 32 m** after the nominal cycle time, every time.
+   - The value at valid hour t, lead L, comes from the latest cycle AVAILABLE at or before t - L; a missing timestamp
+     falls back to a fixed 7 h delay.
+   - C and D: Open-Meteo's previous_dayN runs have no archive timestamp, so they are scored with the same leads,
+     reading previous_day1 as at least 24 h old; that this treats the references generously is stated.
+   - The real age (hours since availability) of every value is printed per lead bin. With 00Z / 12Z cycles only, the
+     bins are 12 h wide.
+2. **What a PASS decides (restated under the owner's ship-ON rule; relayed via the research lead, 22:09 EST, and the
+   director, 22:23 EST; CONFIRMED in this session below):**
+   - A PASS means the owner's word to MERGE.
+   - The change ships **ON by default** with a kill switch, plus CI tests that the kill restores the old behaviour
+     byte for byte, plus the contract tests of addendum 1.
+   - **Automatic trip:** if the newest STOFS cycle is missing or older than 18 h, the served level falls back to the
+     tide alone (FES + S1) and the screen says so.
+3. **Scope:**
+   - A PASS licenses the water level on **US coasts as tested** (26 CO-OPS gauges).
+   - Everywhere else it is UNVERIFIED and labelled so in the product until its own gate passes. Non-US
+     fast-delivery gauges (UHSLC) are the planned rows of that later gate (with the spot-level gate).
+4. **Storms cannot chain:**
+   - Regions are the strata already used: Hawaii, Pacific, Atlantic, Gulf, PR, by station id.
+   - A storm ENDS at the first 24 h with no surge hour at any gauge in the region, even when the 48 h single-linkage
+     would link further.
+5. **Constant control:** stays POOLED (gauge x 2-day blocks) as the VOID control; the median-gauge reading is
+   REPORTED. This replaces the draft's "original" median-gauge control: "does the instrument see the non-tidal term at
+   all" is a pooled question, and "does it help the typical gauge" is item 1's.
+6. **N2's reference is ROLLING and causal:**
+   - Primary: the mean of STOFS swl nowcasts over the 30 days ending at the cycle used (needs no truth; it is what a
+     served product can compute).
+   - The fixed 2025-12-02 .. 12-31 reference is reported.
+7. **What the pilot may change:** G3b may be amended after G3, each amendment labelled **POST-PILOT** with the G3 fact
+   that prompted it, and only before any G3b data (truth or arm) is fetched. **The thresholds and the primary arm do
+   not move.**
+
+**Smaller points:**
+- D may be in-sample on parts of this window if #926 was tuned on observed water there; that only makes the gate
+  harder, and it is stated.
+- Truth is fetched last, as in G3.
+- Real lead ages are printed.
+
+## 22:58 EST 2026-11-16 (`date`) - OWNER CONFIRMS the ship-ON rule for a G3b PASS, in this session
+- **Owner, typed in this session, 22:57 EST: "Yes, ship ON"**, answering: "if G3b passes, the new tide ships ON by default
+  with a kill switch once you approve the merge?"
+- **G3b addendum 2, item 2, is confirmed (no longer only relayed):** a PASS means the owner's word to MERGE, and the
+  change ships ON by default with a kill switch, CI kill-switch contract tests, and the automatic fall-back to the tide
+  alone when STOFS is missing or stale.
+
+## 23:13 EST 2026-11-16 (`date`) - the TRUE ORDER around the G3 start (advisor 04:13Z); G3b draft has no open point from the advisor
+**What happened, in order (UTC):**
+- ~03:31Z: I asked the advisor to read the reader fix (32788fa95) "before the G3 start".
+- 03:33Z (22:33 EST): the owner said "Yes, start G3".
+- 03:34:23Z: I pushed the tag; run 44011150843 was created at 03:34:21Z.
+- 03:36Z: the advisor accepted the fix; its clearance carries.
+
+**So the start came two minutes BEFORE the read it was waiting for.** The code is byte-identical to the accepted code
+(the advisor verified it), and the advisor's earlier clearance (c26af8597) predated the fix. The log line "advisor
+accepts the reader fix (clearance carries)" (37763ad0e) sits AFTER the start.
+
+**Consequences:**
+- **The pre-window-cycles stage line is not in the running code.** The count is taken instead from the result's own
+  fields: `stofs2d <kind>: N cycles` in the stage log (~100 expected per kind; ~70 would mean the pre-window was not
+  read), and the before/after-08-16 reference line (a missing "before" value means those cycles were not read).
+- **The naming of the swl before/after difference** (37763ad0e, 03:40Z) came AFTER the start but BEFORE any execution:
+  the advisor saw the run still QUEUED at 04:13Z (Actions backlog). It therefore stands as written "before any result".
+
+**G3b DRAFT (64772904a + owner confirmation 316e3e8e7):** the advisor reports NO OPEN POINT. It becomes FINAL with the
+research lead's read, and then the code goes to the advisor before any G3b data is fetched. One addition for the final
+text: the **18 h trip is intended as "one missed cycle"**. With a 6.5 h publication delay and 6-hourly cycles, the
+normal age tops out near 12.5 h. The CI test covers the trip itself (stale STOFS input gives the tide-only level and
+the on-screen words), not only the manual kill.
+
+**#987** merged at 00:57Z (director's sweep), ~3 h BEFORE the advisor's pass at 03:46Z. The pass found nothing wrong;
+the advisor is raising the merge-before-verdict with the director.
+
+## 03:33 EST 2026-11-17 (`date`) - G3 pilot run 44011150843: CRASHED in the gate step - NO verdict, window still unseen
+- **Job 06:10-08:29Z.** The FES download succeeded (2 h 16 m) and its cache is saved under the tag.
+- **The gate step aborted at 08:29:06Z** with exit 134 and **"double free or corruption (out)"**. Last stage lines:
+  "s1 preflight ok -> primary P1", "fes subset", "arm A". The crash came in the STOFS fetch that follows.
+- The artifact holds an EMPTY `g3_gate.json` and `pip_freeze.txt`. **No score and no truth were fetched** (truth is
+  fetched last), so the window is NOT seen. The S1 preflight passed (primary P1), and that choice is mechanical.
+- **Cause:** my reader fix (32788fa95) moved STOFS reads to netCDF4/HDF5, which is not thread-safe in the Linux wheel.
+  The fetch reads files in 6 threads, and the pre-window cycles are HDF5. Windows did not reproduce it (12/12 HDF5
+  cycles read in 6 threads), because thread safety is build-dependent.
+- **Fix (plumbing; no rule, arm, threshold or trigger changed):**
+  - every station-file read now holds one lock (`g3_sources._NC_LOCK`); downloads stay parallel;
+  - the S1 and N1 Copernicus loops, which also open netCDF through xarray, now run serially (1 worker);
+  - test `test_netcdf_reads_are_serialised_across_fetch_threads`; 21 pass.
+- A re-run needs the tag moved (deleted and pushed again) on the owner's word. The tag's FES cache makes the download
+  step quick.
+
+## 03:38 EST 2026-11-17 (`date`) - run 44011150843 recorded as NO VERDICT; advisor's clearance carries to the fix (08:39Z); time check
+- **Name: NO VERDICT (not VOID).** Run 44011150843 is never counted as a look. The advisor read the job log through
+  the API, and so did I (nothing downloaded beyond the empty artifact).
+  - **The stage lines read by both:** "stage start" (42 MB); "s1 preflight ok -> primary P1" (318 MB); "fes subset"
+    (382 MB); "arm A" (564 MB); then "double free or corruption (out)", exit 134.
+  - No STOFS, reference, truth or "scored" stage. No score-shaped text; only the two masked credential env lines.
+  - **No truth and no reference was fetched: the window is unseen.**
+- **Advisor (08:39Z):** "YES, MY CLEARANCE CARRIES" to 323b3b36f (one lock around every station-file read, the two
+  Copernicus loops serial, one test, the floor; no rule, arm, threshold or trigger changed).
+- **(a) Lock coverage, checked in the code:**
+  - The STOFS-2D fetch (6 threads) and the STOFS-3D fetch (4 threads) both read through `g3_sources._nc_points`,
+    which holds `_NC_LOCK`.
+  - The only other netCDF opens in the gate are `xr.open_dataset` in S1 and N1, now serial (1 worker).
+  - The one other thread pool is the FES AVISO SFTP download (`tide_fes.sources.download_fes`), which opens no netCDF.
+  - FES subsetting is serial.
+- **(b) The FES cache:** saved under the tag's ref (`fes2022b-g3-44011150843`). A moved tag keeps the same ref name,
+  so the restore should hit and the download step should be quick. If the restore misses, the step downloads again
+  (~2 h 16 m), which is not a reason to stop.
+- **Time check (advisor):** measured on the Honolulu smoke run (43985791566): S1 ~10 s/gauge (two altimetry subsets,
+  ~3-4 s each, plus overhead); N1 ~10 s over 2 days, allowing 10-30 s for G3's full year.
+  - S1 + N1 serial x 26 gauges ~ 10-20 min.
+  - STOFS ~300 files of ~25 MB with locked reads ~ 10 min.
+  - STOFS-3D, references and truth (with retries) ~ 10 min.
+  - Bootstraps a few minutes.
+  - **Estimate ~45 min.** The gate step's timeout is raised from 120 to **180 min** in the same commit (plumbing; the
+    trigger block is untouched). A cache miss (2 h 16 m) + 180 min still fits the 355 min job limit.
+
+## 08:43 EST 2026-11-17 (`date`) - G3 PILOT RE-RUN on the owner's word (recorded before any output is opened)
+- **Owner, typed in this session, 08:36 EST: "Yes, re-run G3".** Advisor (08:41Z): clearance carries to 4815f4eee.
+- **The previous run produced nothing:** 44011150843 was NO VERDICT (aborted before any STOFS, reference or truth
+  stage; the window is unseen).
+- `tide-gate-G3` was deleted on the remote and re-created on **4815f4eee4472818c207c90537f21d93e3746f7f** (pushed
+  13:39:55Z). Checked before the push: the branch head IS that commit, its trigger is the tag only, and the gate step
+  has 180 min.
+- Run **44094955892**, created 13:39:43Z.
+- Reading order as fixed: verdict line to the owner first, then the run id to the advisor, who reads the log and the
+  JSON and recomputes before any decision. If it aborts before the truth stage, it is NO VERDICT again, with the stage
+  lines.
+
+## 09:33 EST 2026-11-17 (`date`) - G3 PILOT RESULT, run 44094955892 at 4815f4eee: **VOID** (the pooled constant-non-tidal control)
+Job 13:39-14:26Z; gate step 45 min; peak RSS 7907 MB; the FES cache restored. The artifact copy is in notes
+`tide-overlay-2026-11-15/g3-result-run-44094955892.json`. Primary P1 (the S1 preflight passed).
+**Read in the fixed order: controls first. VOID means nothing else in the output is quoted.**
+- Positive control (NOAA's constants): **0.0015 m**, behaved.
+- Label swap: **0.540 m**, behaved.
+- **Pooled constant-non-tidal control: FAILED.**
+  - Constant minus real = **-0.0369 m** (95% interval -0.0481 .. -0.0258).
+  - The arm with the STOFS non-tidal term REPLACED by its pre-window mean (zero) was BETTER pooled over all gauge-hours
+    than P1 with the term. The control needs the real term to win (lower end > 0); the interval lies wholly the other
+    way.
+- Item 3 status: "inconclusive: shift check failed". The shift-minus-real interval spans zero (-0.0257 .. +0.0089).
+  4 storms.
+
+**The record:**
+- G3 (pilot) is VOID.
+- On this window, the STOFS-2D swl term, as the registration defines and references it, degraded P1 against observed
+  water instead of adding information.
+- Not interpreted further before the advisor's read; the window is spent.
+- Any G3b change it prompts is a POST-PILOT amendment, labelled with this fact, made before any G3b data, with
+  thresholds and the primary unmoved.
+
+## 09:48 EST 2026-11-17 (`date`) - G3 pilot: advisor read (14:44Z); a DATUM FINDING ON THE SURGE REFERENCE, confirmed by NOAA's own notice
+- **Advisor (14:44Z) read and recomputed** from my JSON copy:
+  - median of the 24 per-gauge P1 - D differences = -0.0756 m;
+  - one gauge over the item-2 limit (8722670, +0.070 m);
+  - "VERDICT AS REGISTERED: VOID".
+- **Named outcome (written before the run executed, 37763ad0e): "a datum finding on the surge reference".**
+  - The STOFS swl reference stepped at 2026-08-16: median -0.03 m before, +0.16 m after (median step +0.21 m, range
+    -0.12 .. +0.36).
+  - The window lies wholly after the step; the 30-day reference lies mostly before it.
+  - The primary's median bias is +0.080 m, against -0.013 m for tide + seasonal alone.
+  - The level-free variant (cwl - htp) has bias -0.003 m and the lowest error of any model arm (0.090 vs 0.104 for
+    A+S1 and 0.114 for P1).
+  - Not shown: that surge adds skill in time (median error SD 0.064 m with and without it).
+- **NOAA's own record** (SCN 26-51 Updated, issued 2026-07-08):
+  - "Upgrade of the Surge and Tide Operational Forecast System (STOFS) to Version 3.1 Effective Aug 11, 2026",
+    beginning with the 12Z cycle. The archive's format switch on 2026-08-16 is the deployment.
+  - For STOFS-2D-Global: "Station netCDF output will now be referenced to local mean sea level (LMSL) (no longer
+    NAVD88)". The point files the gate reads CHANGED VERTICAL DATUM, which accounts for the step.
+  - Also: "a gridded bias correction" that extends the existing station bias correction, which "removes the bias
+    between the observed water levels at NOS/CO-OPS stations and most recent 5 days of" model nowcast. So STOFS
+    station output is partly corrected with the same gauges we score against. Its skill at gauges likely overstates
+    its skill away from them.
+- **Discrepancy 1, storm count (4 in the result vs 3 in the truth-only count):**
+  - Both run the same rule (overlap OR start within 48 h). The truth series differed slightly between the two fetches.
+  - At 8723214 the count saw two events (09-02T02 26 h, 09-03T11 20 h) and the gate one run (66 surge hours).
+  - The count's second start was 47 h before the next Atlantic event (linked); the gate's single start was 80 h before
+    it (not linked).
+  - Start-to-start linking is fragile when events merge. G3b's added rule (a storm ends at the first 24 h with no
+    surge hour in the region) removes the sensitivity.
+- **Discrepancy 2, 24 paired gauges, not 26:**
+  - Boston 8443970: its served 0.1 deg Open-Meteo cell is land, so D and C are undefined (as in G2).
+  - Galveston 8771510: its cell HAS data (checked 2026-09-01: 24 values), so it dropped through the run's Open-Meteo
+    timeouts (8 logged).
+  - Neither counted against P1 in item 2, since D was undefined at both.
+- **G3b - an open decision for the research lead, the director and the owner (no G3b data fetched):**
+  - G3b's window (2026-01-01 .. 07-24) is entirely STOFS **v2.1**, so there is no step inside it (path (a) is safe in
+    that narrow sense).
+  - But the product that would be SERVED runs **v3.1** (new station datum, gridded bias correction). A G3b PASS would
+    certify a retired version.
+  - Unseen v3.1 dates are fragments of ~2 weeks (since 08-16, outside the seen list), far below >= 20 storms.
+  - Options:
+    - (i) G3b on v2.1 as registered, plus a v3.1 confirmation later;
+    - (ii) a PROSPECTIVE G3b on v3.1 from now on (truly unseen, live as issued, months for storms);
+    - (iii) re-register the primary level-free (cwl - htp), the advisor's path (b).
+
+## 10:01 EST 2026-11-17 (`date`) - OWNER DECISION: G3b becomes a PROSPECTIVE test on STOFS v3.1 (DRAFT amendment, no data fetched)
+**Owner, typed in this session at 09:59 EST: "Prospective v3.1 test".** This supersedes the 2026-11-16 G3b window
+(2026-01-01 .. 07-24, STOFS v2.1). The reason is in the entry above: serving would run v3.1, and a pass on v2.1 would
+certify a retired version. The thresholds, pass lines and controls of the G3b draft are unchanged except as listed here.
+This is a DRAFT for the research lead's and the advisor's read; it becomes FINAL only on their read, and the run is the
+owner's word typed in this session.
+
+### What changes
+- **Window: prospective.** It starts at the first 00Z cycle at least 24 h after the commit that makes this FINAL. It ends at
+  **2027-03-31 23Z**, which covers the US winter storm season on every coast. No forecast or truth inside the window is read
+  before the end, except under the truth-only counting rule below.
+  - The STOFS point files stay on noaa-gestofs-pds, so "as issued" is fetched after the end from the archive. Each cycle is
+    used at the availability time it had (S3 LastModified, ~6.5 h after the cycle), not at the cycle time.
+- **Primary: level-free (stated plainly as post-pilot).** P1 = A + S1 + N2' with N2' = (cwl - htp), the STOFS non-tidal
+  part. Its own level is removed causally: the mean over the 30 days ending 24 h before the forecast's availability time.
+  - N2 (swl, the v3.1 LMSL level) is REPORTED and never gates. P1' = A + N2' if the S1 preflight fails.
+  - The constant non-tidal control, the label swap, the positive control and the +24 h shift control keep the G3b form.
+- **Version guard:** the window is defined by STOFS-2D-Global v3.1. Any later NOAA notice (SCN) that changes STOFS-2D
+  station output, its datum or its bias correction ENDS the window at that change's first cycle. If the storm minimum is
+  then unmet, the result is INCONCLUSIVE; a new window needs a new registration.
+- **Truth-only storm count (allowed, with limits).** At most once a month, observed water and CO-OPS predictions alone may
+  be fetched to count storms, under the G3b rules: rolling reference, events >= 12 h, storms ending at the first 24 h with
+  no surge hour in the region.
+  - No arm, forecast or reference value is fetched or scored in a count, and the count is logged.
+  - **It cannot end the window early**: the end date is fixed.
+  - If >= 20 storms in >= 3 regions are not met by 2027-03-31, the gate is INCONCLUSIVE, and an extension needs a
+    registered amendment written before any arm data.
+- **Independence caveat (reported, not gated):** STOFS bias-corrects against observed CO-OPS water over the last 5 days
+  (station correction, plus the v3.1 gridded correction on the open boundaries). That is the same network we score
+  against, so the gate measures skill AT gauges.
+  - The spot-level gate (UHSLC and other non-CO-OPS gauges) is the independent check before any claim away from gauges.
+  - Leads are counted from availability time, so the correction uses only data a live product would have had.
+- **References C and D** (Open-Meteo previous runs, test only) as in G3b, at the same availability-based leads.
+- **Seen list:** every date up to the FINAL commit is seen, so the window is wholly unseen by construction.
+
+### Retrospective v2.1 run (Jan .. Jul 2026): supporting evidence only
+It may run under the G3b draft as registered. It is labelled "v2.1 retrospective", it cannot PASS or FAIL serving, and it
+is not a look at the prospective window. The research lead to say whether it is worth its ~64 GB of downloads.
+
+### What a PASS decides (unchanged from the owner's "Yes, ship ON")
+- On the owner's word to merge, the served tide ships ON by default behind a kill switch, with a SCOREBOARD row.
+- Contract tests come with it, plus an auto-trip when STOFS is more than 18 h old.
+- FAIL or INCONCLUSIVE keeps today's tide. VOID is recorded, with no re-run on the window.
+
+### Meanwhile (no gate data)
+- The code (G3 parameterised: availability leads, a causal rolling reference, the version guard, the 18 h auto-trip test)
+  can be built and reviewed now.
+- The served path can be built DARK, behind its flag, so a PASS turns into a merge without new code.
+
+## 10:20 EST 2026-11-17 (`date`) - Advisor read of the prospective draft (15:16Z): the level-free primary is WITHDRAWN; an independence question; a proposed SPLIT
+- **Option (b), the level-free primary, is WITHDRAWN by the advisor, and the 10:01 draft's primary is therefore NOT
+  proposed for FINAL.**
+  - Reason: STOFS station output is bias-corrected against OBSERVED CO-OPS water over the last 5 nowcast days, so at a
+    CO-OPS gauge the combined level partly contains the truth.
+  - cwl - htp would carry that correction. Its pilot result (bias -0.003 m, lowest error) is what truth leaking in looks
+    like, close in kind to the "yesterday's residual" yardstick (0.039 m). It is not evidence of surge skill.
+  - The station correction already existed in v2.1, so the same doubt applies to the pilot and to any v2.1 retrospective.
+- **Independence.** A surge gate scored at CO-OPS gauges, on output corrected with CO-OPS gauges, measures skill at
+  CORRECTED STATIONS. The served value is at surf spots, away from gauges.
+  - Before any surge gate is registered again, settle from documents (no data) which products carry the correction and
+    which stations feed it.
+  - Then take truth from gauges OUTSIDE that set (other agencies, island networks such as UHSLC), or score the gridded
+    field and say plainly what the gate cannot certify.
+- **Documentary check, done now (no data):** the NCEP STOFS-2D-Global portal (polar.ncep.noaa.gov/estofs/glo.htm) says:
+  - The station correction "corrects the station water level forecast guidance biases by removing the bias between the
+    observed water levels at NOS/CO-OPS stations and most recent 5 days of nowcast water levels".
+  - In v3.1 it is "propagated across the entire global grid using a graph diffusion approach. The result is that both
+    station and gridded output is bias corrected." Feeding stations named: NOS/CO-OPS only.
+  - **Operational date: the 12 UTC cycle on 2026-08-17** (the notice planned Aug 11; the archive's file format switched
+    08-16).
+  - NOT stated anywhere found: WHICH variable carries the correction (swl, cwl or both; htp is harmonic prediction only),
+    and whether any non-CO-OPS gauge feeds it.
+  - The noaa-gestofs-pds README defines cwl = tides + surge, htp = harmonic tides, swl = surge only. Point/GRIB2 water
+    levels are in "m, MSL" and SHEF files in MLLW, with no word on bias correction.
+  - Consequence: since v3.1, the GRIDDED field is corrected too, so scoring the grid near a CO-OPS gauge is not
+    independent either. Independence needs gauges far from (or outside) the CO-OPS network.
+- **The advisor's proposal, for the research lead, the director and the owner:** SPLIT THE QUESTION.
+  1. **Tide + seasonal (A + S1), NO surge, its own RETROSPECTIVE gate now** on the untouched 2026-01-01 .. 07-24 window
+     (minus the held-out weeks).
+     - It is a new registration with A + S1 as primary, chosen after the pilot and saying so; the datum and per-gauge
+       rules are carried over.
+     - It needs no surge archive and depends on nothing NOAA can re-version. In the pilot it halved the error and beat
+       both references.
+     - A PASS ships ON under D-080 in weeks.
+  2. **Surge: its own PROSPECTIVE gate on v3.1**, registered before any truth, with the independence question settled
+     first (truth gauges outside the CO-OPS set, or the gridded field with its limits stated).
+     - Archiving as-issued cycles now (no truth, no scoring) is collection, not a look.
+     - Note: noaa-gestofs-pds held files back to at least 2025-06-01 on checks, so the archive may already persist. A
+       mirror is insurance, not a need.
+  - Using Jan .. Jul 2026 for gate 1 spends that window for surge, which is fine if surge goes prospective.
+- **The advisor accepts both discrepancy answers** (storm count; Boston and Galveston).
+- **Standing:** no G3b data, truth or arm, is fetched until this is decided and written. The decision belongs to the
+  research lead, the director and David.
+
+## 10:25 EST 2026-11-17 (`date`) - Advisor read (15:25Z) of 79ef6f014 + 95c2c5409: the surge draft is NOT ready for FINAL; conditions for its replacement
+- The advisor confirms both entries are accurate. The owner's 09:59 choice was typed in this session and recorded here (the
+  advisor did not witness it).
+- **The 10:01 draft does not go FINAL:** its primary is withdrawn, and the truth set is undecided.
+- **Conditions for whichever surge registration replaces it:**
+  1. **Monthly truth-only storm count: acceptable**, with four limits:
+     - it prints a storm count per region and nothing else, and its script is committed with its hash before the first
+       count;
+     - no rule (thresholds, storm definition, minimum, gauge list) changes after ANY count; a change is a new registration;
+     - the session that runs a count fetches no forecast, arm or reference, and says so in the log;
+     - an extension past 2027-03-31 is decided from the count alone and registered before any arm data.
+  2. **S3 LastModified as the lead clock: sound only if recorded AS IT HAPPENS.** A re-upload would move LastModified and may
+     change the content.
+     - Fix: a scheduled job that only LISTS the bucket (no file read, no truth) and logs, per cycle's point files, the first
+       time seen, LastModified, size and ETag.
+     - At the end, a cycle whose ETag or size changed is excluded and counted.
+     - This is collection, not a look. It needs a scheduled workflow, so it needs the owner's word.
+  3. **Truth set:** with the grid corrected too, a CO-OPS gauge is never independent truth for a v3.1 surge arm. Either:
+     - the GATING truth is non-CO-OPS gauges, with CO-OPS reported only; or
+     - the PASS line says in words that it certifies skill at corrected stations only and licenses nothing away from them.
+  4. A version-guard trip is decided from a NOAA notice's date, never from looking at data.
+  5. Open-Meteo references have no issue timestamps; keep that stated.
+  6. **Correction to my 10:01 entry:** under D-080 nothing MERGES dark. The served path is built on a branch and merged only
+     after a PASS.
+- **The advisor's proposed order** (for the research lead, the director and the owner):
+  1. register the tide + seasonal gate first, which needs none of this;
+  2. start the listing job;
+  3. settle the surge truth set from documents;
+  4. register the surge gate.
+
+  Nothing in Jan .. Jul 2026 is fetched until the first registration is FINAL.
+
+## 10:34 EST 2026-11-17 (`date`) - Research lead's read (10:40 EST log on #985): independent truth exists on surf beaches
+- **The research lead verified SCN 26-51 from its PDF:** effective 2026-08-11 12Z; the bias correction uses observed water at
+  NOS/CO-OPS stations over the last 5 days, so CO-OPS scoring is contaminated.
+  - Their extraction did not surface the LMSL sentence; they rely on this log and the advisor for it.
+  - The NCEP portal gives the operational date as 2026-08-17 12Z. Both dates are recorded; the window logic does not depend
+    on which is right.
+- **New finding: about 60 non-CO-OPS water-level gauges on erddap.sensors.ioos.us, mostly Hohonu, ON SURF BEACHES.**
+  - NC: Duck, Surf City, Topsail, Emerald Isle, Ocean Isle, Holden, Bald Head.
+  - SC: Kiawah, Isle of Palms, Folly, Edisto, Hilton Head.
+  - FL: Fernandina, Sanibel, Captiva, John's Pass, Mexico Beach, Dania.
+  - IOC/UHSLC island gauges are the wrong population; these are the right one.
+- **The research lead's recommended path (the decision is the director's and David's):**
+  1. Close G3 as VOID.
+  2. Run G3b on v2.1 as registered, as supporting evidence only.
+  3. Register a prospective G3c on v3.1 now:
+     - level-free primary (A + S1 + cwl - htp);
+     - PRIMARY truth = the independent IOOS beach gauges, de-meaned over a pre-window period, with QC and coverage rules
+       (watch for decommissioned ones);
+     - CO-OPS gauges as a near-gauge upper bound, by distance and lead;
+     - the window starts strictly after registration and runs >= 12 months for bulk skill;
+     - storm claims rest on a pre-registered, event-based power calculation, with G3b errors as the surrogate;
+     - FIRST confirm that the STOFS correction uses only CO-OPS stations.
+  4. The persistence blend is a separate gate: e-foldings fitted on TRAIN at independent gauges, freshness defined by
+     latency. Real-time Hohonu data makes an at-spot nowcast possible.
+- **Reconciling this with the advisor (my reading, for them to confirm):**
+  - The advisor withdrew the level-free primary because CO-OPS TRUTH leaks into it, not because the arm is invalid.
+  - Scored on gauges that do NOT feed the correction, cwl - htp is a fair as-issued arm: the CO-OPS-based correction is
+    information a live product would have, so it is skill, not leakage. The withdrawal and the research lead's primary are
+    compatible once the truth set is independent.
+  - The remaining difference is how to use Jan .. Jul 2026:
+    - the advisor proposes a tide + seasonal gate (no STOFS) that can ship in weeks;
+    - the research lead proposes G3b v2.1 as supporting evidence.
+  - A G3b v2.1 scored at CO-OPS gauges carries the same station-correction doubt, so its value as evidence for surge is
+    small.
+  - The tide + seasonal gate can be scored at CO-OPS gauges: no surge arm, so no leakage. It can also be scored at the
+    beach gauges where they have pre-window data.
+  - Both uses can't take the same unseen window cleanly; the choice is the owner's.
+
+## 10:41 EST 2026-11-17 (`date`) - Research lead AGREES with the advisor's split: the reviewers converge (owner's word pending)
+The research lead's later message supersedes their earlier path (it now drops the G3b v2.1 run):
+1. **Tide + seasonal (A + S1): a RETROSPECTIVE gate now** on the untouched 2026-01-01 .. 07-24 window (minus the held-out
+   weeks), labelled "chosen post-pilot". It ships ON under D-080 if it passes.
+2. **Surge: PROSPECTIVE on v3.1, after independence is settled.**
+   - Truth: the ~60 non-CO-OPS IOOS beach gauges (mostly Hohonu). Because v3.1 diffuses the correction across the grid, the
+     gauges are STRATIFIED by distance to the nearest CO-OPS station, and the FAR stratum is primary.
+   - Each gauge is de-meaned on a pre-window period, with QC and coverage rules (several are decommissioned).
+   - The end is >= 12 months from the start, not 2027-03-31. Storm claims need pooled-event power; otherwise INCONCLUSIVE.
+3. **The G3b v2.1 retrospective (~64 GB): SKIP.** CO-OPS scoring is contaminated, and v2.1 is not what would be served.
+4. **The level-free primary stays withdrawn**, as the advisor said; the surge primary will be re-chosen when the surge gate is
+   registered. My 10:34 reconciliation (cwl - htp fair at non-feeding gauges) stands as a question for that registration,
+   not as a choice.
+
+**Status:**
+- The advisor and the research lead both recommend the split; the owner's word is pending.
+- Order (the advisor's):
+  1. tide + seasonal registration DRAFT, then both reads, then FINAL;
+  2. the bucket-listing job (owner's word: a scheduled workflow);
+  3. confirm from documents that only CO-OPS feeds the correction, and draw up the surge truth set;
+  4. surge registration.
+- No data has been fetched.
+
+## 10:52 EST 2026-11-17 (`date`) - DIRECTOR DECISION on the tide path; G3t PRE-REGISTRATION DRAFT (tide + seasonal, no surge; written before any G3t data)
+**The director's decision (message, 10:46 EST), combining the advisor's and the research lead's advice:**
+1. G3 is closed as VOID.
+2. A new RETROSPECTIVE gate, **G3t**: tide + seasonal climatology, NO surge model, on the untouched Jan .. Jul 2026
+   window, with its primary stated as chosen after the pilot. If it passes, it ships ON under D-080.
+3. Surge becomes a SEPARATE prospective gate on v3.1, scored on the independent IOOS/Hohonu beach gauges, not CO-OPS, with
+   a version guard and a run of >= 12 months.
+4. The near-gauge persistence nowcast gets its own gate, later.
+5. G3b on v2.1 is dropped.
+
+Also: fetch no data until the advisor has read each registration; build the G3t served path meanwhile.
+
+**Two points held for the owner and the reviewers, not settled by me:**
+- **Surge items:**
+  - The director names the level-free primary and a "registered interim look".
+  - The advisor (15:16Z) and the research lead (10:40 EST) keep the level-free primary WITHDRAWN until the surge
+    registration re-chooses it.
+  - The advisor's condition is that nothing can end the window early. An interim look must therefore be registered as
+    a truth-only count, or as a look that cannot stop or change the gate.
+  - These are settled in the surge registration, not here.
+- **"Build the dark served path":** under D-080 nothing merges dark (the advisor, 15:25Z). The served path is built on
+  a branch and merged ON with its kill switch only after a G3t PASS and the owner's word.
+
+The owner's own word on the split is asked for in this session; this draft fetches nothing and runs nothing without it.
+
+### G3t - what is measured
+Served water level = **FES2022b tide (arm A, unchanged from G2/G3) + S1 (altimetry seasonal climatology)** against
+OBSERVED water at the 26 CO-OPS gauges.
+- With no surge arm, there is no STOFS input. The CO-OPS bias-correction question does not arise, and CO-OPS observed
+  water is fair truth.
+- **Disclosure (post-pilot):** this primary was chosen after the G3 pilot, where A + S1 had median RMSE 0.104 m against
+  0.195 m for D on 2026-08-25 .. 09-07. The thresholds below are G3's/G3b's, unchanged, and reference C and D measured
+  anew on the G3t window, not those numbers.
+
+**Arms:**
+- **PRIMARY (one, named now): P = A + S1.** If the S1 preflight fails, the gate is NO VERDICT (the S1 term is the
+  hypothesis; A alone already FAILED G2). That is decided before any truth is fetched.
+- Reported: A (tide only); A + S1 at the 20 open-coast-like gauges; S1 by region.
+- TEST-ONLY references C (Open-Meteo, 72 h de-mean) and D (#926 datum), from Open-Meteo PREVIOUS runs
+  (`sea_level_height_msl_previous_day1/2`).
+  - P is a forecast with no issue time: tide and climatology are known in advance. So P has the same value at every
+    lead.
+  - C and D are scored at leads 24-48 h (previous_day1) and 48-72 h (previous_day2). The gate reads those leads pooled;
+    each is printed.
+  - Open-Meteo has no archive timestamps, so previous_day1 is read as at least 24 h old. This treats the references
+    generously, and that is stated.
+
+**Window:** 2026-01-01 00Z .. 2026-07-24 23Z, hourly, MINUS 2026-03-15 .. 03-21 and 2026-06-15 .. 06-21 (the #926/#931
+held-out weeks).
+- Unseen: calendar 2025 and Nov 19 .. Dec 31 2025 are seen or excluded; 2026-07-25 onward is seen (G3's truth-only count
+  and window, G2, M1, #926).
+- No G3b data was ever fetched on it.
+- C and D previous runs exist from 2025-11-19.
+
+**Datum rule (carried from G3; it is the product's rule):**
+- FES2022b is zero-mean.
+- S1 = the day-of-year mean of CMEMS SLA (`SEALEVEL_GLO_PHY_L4_MY_008_047`, relative to 1993-2012) over the fixed base
+  2016-01-01 .. 2025-12-31, at the nearest offshore cell at least 10 km from the gauge. It carries the seasonal cycle
+  AND the present mean level.
+- Observed water is CO-OPS `water_level` on station MSL (1983-2001 epoch). That station MSL datum is OLDER than S1's
+  reference, so the difference (sea-level rise since the epoch) is part of what S1 must supply. It is not removed.
+- D is referenced as #926 does; C is de-meaned over 72 h as registered.
+- Raw scores GATE; mean-removed scores and bias / SD are printed for every arm and gauge.
+
+**Truth:**
+- T2 CO-OPS OBSERVED water gates; T1 (CO-OPS predictions) is reported.
+- Truth is fetched LAST, after the S1 preflight, FES, and C/D.
+
+### Pass lines (P; all must hold)
+**Statistics:**
+- Every comparison is a PAIRED per-gauge difference with a 95% interval from a block bootstrap: 2000 draws, seed
+  20260101, resampling gauges and 2-day blocks.
+- A line is met only by the interval's END.
+
+**Items:**
+1. **Level:** median paired RMSE difference vs observed. P - D has its upper end <= -0.02 m, AND P - C has its upper end
+   < 0.
+2. **No gauge much worse:** at every gauge, P - D <= +0.05 m (point). A gauge where P cannot score (S1 unavailable)
+   counts AGAINST P. A gauge where D is undefined (Boston 8443970, a land cell) is not paired and is listed.
+3. **The seasonal term must earn its place:** P - A has its upper end < 0 (paired, median over gauges).
+4. **Tide shape (unchanged from G2):** median High/Low time error <= 20 min; median |MLLW err| <= 0.05 m.
+
+G3's surge items (3: surge hours; 4: calm hours) do not apply: there is no non-tidal arm.
+
+**Coverage (G3b addendum 1, item 4):**
+- Hours read vs expected are printed per gauge and arm.
+- A gauge below 95% on P, D or observed water is EXCLUDED and counted.
+- More than 20% of gauges excluded makes the run VOID.
+
+**Controls (any misbehaving means VOID):**
+- **Positive:** NOAA's constants vs NOAA's predictions <= 0.01 m (G2's).
+- **Label swap:** 200 derangements of gauges; median vs observed > 0.3 m.
+- **Seasonal phase control (new; replaces the surge controls):** S1 shifted by six months (day-of-year + 182, wrapped)
+  must LOSE item 3 to the real S1: the interval of (A + S1_shifted) - P has its lower end > 0.
+  - If the instrument cannot tell a seasonal cycle from its opposite, the result is VOID.
+  - Over ~6.5 months spanning the seasonal swing, this has power.
+- **Oracle yardstick (reported, never gating):** CO-OPS predictions + the observed residual held from the day before.
+
+### Reported, not gating
+- The 20 open-coast-like gauges (the 26 minus Fernandina, Pensacola, South Beach, Duck, Sandy Hook, Virginia Key).
+- Region and month strata.
+- **Independent beach gauges (IOOS / Hohonu, erddap.sensors.ioos.us), if they have the window:**
+  - The same arms, de-meaned on each gauge's own pre-window month.
+  - A gauge-local datum differs, so only the mean-removed score is meaningful there.
+  - Reported as the first look at surf-beach water level.
+  - Their list and QC rule are fixed in the code review, BEFORE any truth is fetched.
+
+### What a PASS decides (owner's ship-ON rule, 22:57 EST 2026-11-16, carried)
+- A PASS means the owner's word to MERGE.
+- The served tide becomes FES2022b (offline output only; PyFES is GPL and never imported into the served backend) + S1.
+- It ships ON by default with a kill switch, a SCOREBOARD row, and the kill-switch contract tests (G3b addendum 1,
+  item 1: OFF byte-identical, ON changes only tide fields, manifest kill, guardrail auto-disable, registry parity).
+- No staleness trip is needed, since S1 is a static climatology. S1 is refreshed yearly only by a new registration.
+- FAIL or INCONCLUSIVE keeps today's tide. VOID is recorded, with no re-run on the window.
+
+### Scope
+- A PASS licenses the water level (tide + seasonal mean level, no weather surge) at the 26 US gauges as tested.
+- It certifies NOTHING about storm surge. Away from gauges it is UNVERIFIED and labelled so, except as the reported
+  beach-gauge rows show.
+- The served product must say "tide + seasonal level, no storm surge" until the surge gate passes.
+
+### Sequence
+1. This draft is pushed alone.
+2. The advisor and the research lead read it.
+3. FINAL.
+4. Code (G3 code parameterised: no STOFS stages, the seasonal phase control, the S1 NO VERDICT rule), then the advisor's
+   read of the code.
+5. The owner's word for the run under a new one-shot tag `tide-gate-G3t`.
+
+Meanwhile the served path (FES + S1 behind a flag, ON by default, kill switch) is built on a branch and not merged.
+
+## 11:04 EST 2026-11-17 (`date`) - Advisor (15:50Z, written before the G3t draft at 755115a37 was pushed): reconciliation CONFIRMED; six conditions for the SURGE registration; one note on Jan .. Jul
+- **Confirmed:** cwl - htp is a fair arm at gauges that do not feed NOAA's correction. The right shape is non-CO-OPS gauges
+  as the gating truth, with CO-OPS reported as a near-gauge upper bound.
+- **Six conditions before the SURGE registration (none needs data):**
+  1. **Feed:** confirm in writing, from NOAA or the provider, that only NOS/CO-OPS stations feed the correction, and that
+     no truth gauge is ingested by CO-OPS or co-located with a CO-OPS station (same pier = not independent).
+  2. **Distance:** fix now the distance from every truth gauge to the nearest CO-OPS station, and report the score by
+     distance band. That curve, registered before any result, is the answer for surf spots.
+  3. **Datum, per gauge, from its metadata:** either a surveyed datum (raw level gates), or "level unknown, scored after
+     a causal mean removal", stated as not certifying absolute level there.
+  4. **Quality rule before any value:**
+     - provider flags, minimum completeness, and spike and flat-line exclusion;
+     - a positive control fitted to these gauges (e.g. a nearby CO-OPS station's predicted tide, shifted).
+  5. **Scope and power:** NC/SC/FL is one coast. Restate the storm minimum for this truth set, and say a PASS licenses that
+     coast only (nor'easters and fronts).
+  6. **Seen:** list any values anyone has read from these gauges, with their dates. Nothing may come from the prospective
+     window.
+- **Jan .. Jul:** the advisor offers a single-registration option: G3t's tide + seasonal primary, with the v2.1 surge
+  arms REPORTED in the same run on the same truth, labelled "retired version, CO-OPS truth, near-gauge upper bound".
+  - That is one fetch of truth and one look. What must NOT happen is two runs on that window one after the other.
+  - Status: the research lead (10:40 EST) and the director (10:46 EST) both DROP the v2.1 run, and the research lead
+    judges the ~64 GB not worth it.
+  - The G3t draft therefore carries no v2.1 arms. If the owner wants them, they must be added to G3t BEFORE FINAL; they
+    can never be a second run on the window.
+
+## 11:07 EST 2026-11-17 (`date`) - G3t DRAFT addendum 1: the research lead's read; a beach-gauge NO-HARM GUARD (before any read)
+- **The research lead read 755115a37:** CO-OPS truth is fine for G3t, since FES2022b + S1 is not corrected with CO-OPS
+  data and nothing leaks. The design and the 6-month seasonal phase control are accepted.
+- **ADDED to G3t as pass item 5, a NO-HARM GUARD on the independent beach gauges** (registered now, before any beach-gauge
+  value is read):
+  - **Qualifying gauges:** IOOS non-CO-OPS water-level gauges with >= 80% hourly coverage in the window after QC. QC
+    applies the provider's flags, excludes spikes and flat lines (exact rule fixed in the code review, before truth), and
+    excludes decommissioned gauges.
+  - **Score:** each series (observed, P, C) is mean-removed per gauge over the window. Local datums are then irrelevant:
+    the guard scores shape and seasonal variation, not level.
+  - **Line:** the median over qualifying gauges of RMSE(P) - RMSE(C) must be <= +0.02 m (point).
+  - **Fewer than 5 qualifying gauges:** the guard is NOT RUNNABLE and does not block. That status is printed.
+  - It can only FAIL G3t; it can never make it PASS. Every other beach-gauge row stays reported.
+  - C is the Open-Meteo reference (test only), as everywhere in this gate.
+- **For the SURGE registration (the research lead, on the director's approved interim look):**
+  - Any interim look is pre-registered with an alpha-spending rule, e.g. O'Brien-Fleming boundaries for one interim and
+    one final.
+  - Its timing is fixed in advance (e.g. 6 months, or N pooled storm events).
+  - The interim may stop for FUTILITY or REPORT only. It can NEVER declare a PASS on a lenient boundary.
+  - The advisor's no-early-stop condition must be reconciled with "stop for futility" in that registration.
+
+## 11:11 EST 2026-11-17 (`date`) - Surge interim reconciled: REPORT-ONLY (the research lead, agreeing with the advisor)
+- The research lead withdraws the futility-stop option. **The surge gate's interim look is REPORT-ONLY**, so no alpha is
+  spent and the final keeps the full alpha (no O'Brien-Fleming needed).
+- Registered with the surge gate:
+  1. the interim cannot end the window, change a threshold, or start serving;
+  2. any amendment after the interim look is a NEW registration on new data;
+  3. the interim's timing is fixed in advance.
+- This satisfies the advisor's no-early-stop condition and the director's approved interim. To be written into the surge
+  registration.
+
+## 11:40 EST 2026-11-17 (`date`) - G3t DRAFT addendum 2: the advisor's read (16:26Z), six changes ADOPTED; the licence texts, read
+The advisor read 755115a37, 9d56192d1 and 3352b895c: the split is right and the draft is close. The report-only surge
+interim satisfies the advisor's condition. All six changes are adopted below, none needs data, and nothing has been
+fetched.
+
+### 1. Licence: the FES and altimetry products may be served commercially (texts read in full, not summarised)
+**FES2022b heights: SERVABLE.** The AVISO License Agreement, Issue 20, "ACCEPTED - August 2026", effective 2026-08-10
+(https://www.aviso.altimetry.fr/fileadmin/documents/data/License_Aviso.pdf), read in full on 2026-11-17:
+- **The grant (2.1):** the license allows "produce, reproduce, and Share Adapted Material (Value-Added Products or
+  Derivative Works), for any purpose, including commercial purposes".
+- **The exception (3.3, Annex A):** the only FES restriction is on "Currents from the latest released version of the
+  FES ocean tide model (currently FES2022)", which are "Non-commercial use only". Tidal HEIGHTS are not listed. Annex A:
+  "All other AVISO Data Products ... are licensed under the full terms of Section 2.1(A)-(B), including for Commercial
+  Use".
+- **Agreeing source:** the FES2022 release page says "The heights products can be used for any purpose (scientific,
+  commercial,...)".
+- **Distribution (3.2):** it forbids Sharing the ORIGINAL, unmodified product "through any operational platform intended
+  for onward mass distribution" without CNES's written authorisation. It "does not restrict Sharing Adapted Material"
+  or internal use.
+  - **Consequence for the build:** the served backend may hold the constants internally and serve PREDICTIONS (a
+    derivative work).
+  - It must NEVER expose the FES constants or atlas files through an API or a public bucket.
+- **Attribution (3.1), required wherever predictions are shown:**
+  - the creators and CNES as Licensor;
+  - the citation "CNES, 2024. FES2022 (Finite Element Solution) Tidal model (Version 2024). CNES.
+    https://doi.org/10.24400/527896/A01-2024.004" (the release page also asks for "The FES2022 Tide product was funded by
+    CNES, produced by LEGOS, NOVELTIS and CLS and made freely available by AVISO");
+  - a link to the License;
+  - a note that the material was modified (we compute predictions at spots).
+- **Records (7.3):** keep "reasonable records of AVISO Data Product usage where distribution is at scale".
+- **Code:** PyFES is GPL, so it stays offline (gate and constant extraction only). The served path evaluates the stored
+  constants with non-GPL code. Change 5 below makes that path match the gate.
+
+**Altimetry climatology (S1, CMEMS `SEALEVEL_GLO_PHY_L4_MY_008_047`): SERVABLE.** The "Licence to use the Copernicus
+Marine Service products" (https://marine.copernicus.eu/user-corner/service-commitments-and-licence; no version or date
+stated; read 2026-11-17):
+- **The grant (2.1-2.2):** free of charge, worldwide, perpetual. It covers to "modify, adapt, develop, create and
+  distribute Value Added Products or Derivative Work" "for any purpose".
+- **Credit (2.3-2.4):** the credit must be "clearly visible" on the home page or the product access page, worded
+  "Generated using E.U. Copernicus Marine Service Information;" plus the product DOI.
+- **Records (2.6):** keep records of use.
+
+**The owner's call:** the licence texts are above, and the PDF's extracted text is in the shared notes folder
+(`tide-overlay-2026-11-15/aviso-license-issue20.txt`).
+- On these texts, P = FES2022b + S1 can ship, so the primary does not change.
+- EOT20 (CC BY 4.0) is NOT needed as a licence fallback and stays out of G3t.
+
+### 2. Item 3 split: the mean level and the seasonal cycle are tested separately
+S1 = M + S:
+- **M** = the gauge cell's mean SLA over the base 2016-01-01 .. 2025-12-31 (one constant per gauge: the present mean
+  level against 1993-2012).
+- **S** = the day-of-year mean minus M (the seasonal anomaly, zero-mean over the year).
+
+Arms (all reported; one primary):
+- A;
+- A + M;
+- **P = A + M + S (primary, unchanged in substance)**.
+
+Item 3 becomes:
+- **3a:** (A + M) - A has its upper end < 0 (the mean level helps).
+- **3b:** P - (A + M) has its upper end < 0 (the seasonal cycle earns its place).
+
+Both must hold. The 2-day block bootstrap is unchanged.
+
+### 3. The phase control can no longer VOID
+- **A + M + S_shifted** (S shifted 182 days, wrapped) is a REPORTED line beside 3b. It is also folded into 3b as a
+  condition: the shifted arm must not beat P (the point of (A + M + S_shifted) - P must be > 0).
+- A seasonal term that adds little is a FAIL of 3b, a finding about the term, not a broken instrument.
+- The VOID controls are the positive control (NOAA's constants vs NOAA's predictions <= 0.01 m) and the label swap
+  (> 0.3 m).
+
+### 4. Named datum outcome (as in G3)
+- Observed water is on the 1983-2001 station datum, and gauges move with the land; altimetry does not see subsidence
+  (Gulf: centimetres per decade).
+- **If item 1 or 2 FAILS on the raw score while PASSING mean-removed, the outcome is named "a datum finding: the level
+  needs a per-place reference".**
+- The VERDICT STAYS THE RAW ONE (FAIL). Per-gauge raw and mean-removed bias is printed so the gauges responsible are
+  named.
+
+### 5. Parity: the served path must equal the gated arm (a merge condition, registered now)
+- Before any merge after a PASS, the served code (stored FES constants evaluated without PyFES, plus M + S) is evaluated
+  at the 26 gauge positions for every hour of the window. It is compared with the gate's arm P.
+- **The line:**
+  - max |served - gated| <= 0.010 m;
+  - RMS <= 0.003 m;
+  - every High/Low time within 6 min.
+- It needs no truth. It is a CI test that ships with the served path.
+- A miss blocks the merge until the served path is fixed. The gate is not re-run.
+
+### 6. Scope against what ships
+**The on-screen label, until a gate covers the place:**
+- "Tide + seasonal level (no storm surge). Checked against NOAA gauges on US coasts; unverified elsewhere."
+- The credit line (change 1) sits with it.
+- On spots outside the US, "unverified elsewhere" is shown.
+
+**Non-US gauges, REPORTED in this same run** (one fetch, one look):
+- The UHSLC fast-delivery network's hourly gauges outside the US, with >= 80% coverage in the window.
+- Mean-removed and raw printed; no gating.
+- The station list is fixed in the code review before any truth.
+
+### Smaller (adopted)
+- **Item 5 (the beach-gauge no-harm guard)** is a POINT value on as few as 5 gauges, with no interval. This is
+  DELIBERATE (the research lead's and mine): it protects the served surface, and the strictness is accepted.
+- **Sheltered-water exclusion for item 5, fixed from metadata before any value is read:**
+  - a gauge is excluded if its station name or provider metadata places it in a harbour, marina, canal, river, sound or
+    back-bay;
+  - or if it lies more than 1 km inside an inlet mouth, measured on the coastline used for the land mask.
+  - The excluded list is printed with reasons in the code review.
+- **C and D at the latest run** (Open-Meteo's current forecast) are printed as REPORTED rows beside 24-48 h and 48-72 h
+  ("what a user sees today").
+- **Trend variant (reported only):** M carried forward by the base period's linear SLA trend at the cell, to the window's
+  mid-date.
+
+### Unchanged
+- The window and the truth.
+- Items 1, 2 and 4.
+- Item 5 (now with its exclusion rule).
+- Coverage and VOID rules; seed and bootstrap.
+- Ship-ON on PASS plus the owner's merge (D-080).
+- The sequence: FINAL, then the code to the advisor, then the owner's word under the one-shot tag `tide-gate-G3t`.
+- No v2.1 arms unless the owner adds them before FINAL.
+
+## 11:41 EST 2026-11-17 (`date`) - Correction to the G3t addendum 2 header (L-P10); the advisor: design READY FOR FINAL
+- **Correction:** the addendum 2 header reads "11:40 EST", but its commit 24eee6b51 is 11:29:00 -0500. The header was
+  written ahead of the clock. The true time is the commit's, 11:29 EST. The header is left as written.
+- **The advisor (16:42Z) read addendum 2:** all six changes and the smaller points are adopted as asked. The DESIGN is
+  ready for FINAL from the advisor's side.
+- **The advisor has not read the licences.** The licence reading is mine, quoted from the texts, and goes to the owner
+  with the text.
+- **Hard build rules (from the licences):**
+  - a test asserts that NO route or public bucket returns FES constants or atlas files;
+  - the FES and Copernicus credit lines appear wherever a prediction is shown, in all three themes, on desktop and
+    phone.
+- **Tightening, adopted:** 3b's folded condition (the shifted arm must not beat P) is a POINT value BY CHOICE, as item 5
+  is.
+- **Still needed for FINAL:** the research lead's read of addendum 2, and the owner's word on the v2.1 arms (default:
+  none). FINAL will be its own commit, its header read from the clock.
+- **After FINAL, the code goes to the advisor before any fetch:** the trigger, credentials on single steps, no score in
+  the log, the S1 preflight and NO VERDICT rule, the three arms, truth last, and the parity test's skeleton.
+
+## 11:47 EST 2026-11-17 (`date`) - Research lead: G3t READY FOR FINAL, no conditions; both reviewers clear
+- **The research lead read addendum 2** (24eee6b51 + f1e48bc50): ready for FINAL with no conditions.
+- **v2.1 arms:** the research lead recommends NONE (the default), since they are contaminated and not what would be served.
+- **Two non-blocking notes, adopted into FINAL:**
+  1. **Scope:** the window is Jan .. Jul, so the seasonal term is checked over about half a cycle. The scope says
+     "seasonal term verified for the months tested (Jan-Jul)". After shipping, the approved daily scorecard (F2) watches
+     Aug .. Dec at the gauges, and the flag guardrail can trip if that half misbehaves.
+  2. **Records of use** (AVISO 7.3, CMEMS 2.6) join the served-path checklist beside the credit lines and the
+     no-constants-exposed test.
+- **Status:** the advisor (16:42Z) and the research lead are both clear. FINAL waits only on the owner's word on the v2.1
+  arms (default none). FINAL will be its own commit.
+
+## 13:52 EST 2026-11-17 (`date`) - Research note (owner asked: "What is the best path toward SOTA here?"); no data fetched
+A web literature pass, all public sources. The surfer's water level has four parts.
+
+**1. Tide.**
+- Global atlases sit near 11 cm RSS for 8 constituents at coastal gauges: FES2022 11.26 cm, EOT20 11.68 cm (Fu et al.
+  2025, 164 gauges). EOT20 ranked best in Wang & He 2025 (East China seas).
+- A station's own harmonic constants are millimetre-good AT the station (our G2 positive control: 0.0015 m).
+- SOTA practice is therefore a HYBRID: station harmonics (NOAA CO-OPS, public domain) near a harmonic station, with
+  subordinate-station adjustments; the atlas elsewhere.
+- This is the #931 harmonics line. Its gate should be the distance-decay at INDEPENDENT beach gauges.
+
+**2. Mean + seasonal level.**
+- Altimetry climatology is G3t.
+- NOAA's Coastal Ocean Reanalysis (CORA, ADCIRC+SWAN, 1979-2021, ~400 m coastal mesh) beats GLORYS12 on monthly and
+  seasonal variability at NWLON gauges (Rose et al. 2024). Its public release was not confirmed.
+
+**3. Surge.**
+- Operational physics: STOFS-2D/3D; GTSM/GLOSSIS 10-day forecasts, 4 a day, whose validation reports accuracy
+  "comparable to data-assimilated global tide models". GLOSSIS's free access is not confirmed.
+- Hybrid ML residual correction, gauge + model: a North Sea 2026 preprint reports RMSE 0.055 m vs 0.164 m for the physics
+  model at 2 h, but a reviewer notes the tide cancels in that metric and the model uses no wind forecast. Gauge-only got
+  0.061 m.
+- This matches our pilot's oracle: yesterday's residual 0.039 m beat every model near gauges.
+- Away from gauges, physics is needed. The ML literature mostly benchmarks against weak baselines (preprints).
+
+**4. Wave setup and runup.**
+- The USGS/NOAA Total Water Level & Coastal Change forecast (operational, >4,700 km of sandy US coast, via NWPS) adds
+  Stockdon setup + swash to tide + surge.
+- In Hurricane Isaias, wave-driven level was 52% of forecast TWL at the peak; earlier validation shows under-prediction.
+- **Consequence for our surge gate:** the Hohonu beach gauges sit in the surf zone and measure SETUP. Without a setup arm
+  or a wave-height stratum, setup will be scored as surge error. This must be registered in the surge gate.
+
+**Truth.**
+- Hohonu publishes QARTOD-based QC (vendor document, Aug 2025) and NAVD88-labelled ERDDAP series.
+- No independent accuracy or benchmark-tie evaluation was found. Datum stability is unverified (the advisor's
+  condition 3).
+
+Sources:
+- tide models: mdpi.com/2077-1312/13/3/395; frontiersin.org 10.3389/fmars.2025.1592765
+- GTSM: os.copernicus.org/preprints/os-2018-63
+- ML: egusphere-2026-4129 + RC2; Tiggeloven et al. 2021, Sci. Rep.
+- TWL&CC: pubs.usgs.gov/publication/70259350; usgs.gov spcmsc news
+- CORA: doi 10.3389/fmars.2024.1381228
+- Hohonu QC: hohonu.notion.site/quality-control-procedures
+
+## 13:55 EST 2026-11-17 (`date`) - G3t PRE-REGISTRATION, FINAL (written before any G3t data; supersedes nothing, consolidates the draft and its addenda)
+**Basis:**
+- The draft 755115a37.
+- Addendum 1, 9d56192d1 (beach no-harm guard, item 5).
+- Addendum 2, 24eee6b51, with the header corrected in f1e48bc50 (licences; the M/S split; phase line; named datum outcome;
+  parity; scope label; non-US reported rows; smaller points).
+- The research lead's notes, 08bf79992 (scope "seasonal term verified for the months tested (Jan-Jul)"; records of use on
+  the build checklist).
+- The point-value tightening of 3b's folded condition, f1e48bc50.
+
+Where an addendum changed the draft, the addendum governs.
+
+**Reviews:** the advisor, READY FOR FINAL (16:42Z); the research lead, READY FOR FINAL with no conditions (11:46 EST).
+
+**v2.1 arms: NONE.**
+- The owner's word, typed in the research lead's session at 13:52 EST and RELAYED here by the research lead: "Ok , no
+  old-version runs it is..... keep researching toward SOTA".
+- This is also the registered default (the director, the research lead and the advisor).
+- It is recorded as relayed. Any different word the owner types in this session governs until the code is read.
+
+**The rules, in one place:**
+- **Primary:** P = A + M + S (FES2022b + mean SLA 2016-2025 + day-of-year seasonal anomaly). If the S1 preflight
+  fails, the result is NO VERDICT.
+- **Window:** 2026-01-01 00Z .. 2026-07-24 23Z, minus 03-15..03-21 and 06-15..06-21.
+- **Truth:** CO-OPS observed water at the 26 gauges, fetched last.
+- **Items (all must hold):**
+  1. P - D upper end <= -0.02 m AND P - C upper end < 0.
+  2. Per gauge, P - D <= +0.05 m.
+  3. 3a: (A + M) - A upper end < 0. 3b: P - (A + M) upper end < 0, AND the shifted arm's point must not beat P.
+  4. Tide shape: High/Low median <= 20 min; |MLLW err| median <= 0.05 m.
+  5. Beach no-harm guard (point; NOT RUNNABLE below 5 qualifying gauges).
+- **VOID controls:** the positive control (<= 0.01 m) and the label swap (> 0.3 m); coverage (more than 20% of gauges
+  excluded).
+- **Named outcome:** a raw FAIL with a mean-removed PASS is "a datum finding: the level needs a per-place reference",
+  and the verdict stays raw.
+- **Reported:** A, A + M, the shifted arm, the trend-carried M, C/D at the latest run, the 20 open-coast gauges, strata,
+  IOOS beach rows, UHSLC non-US rows.
+- **On PASS:** the owner's word to merge; ships ON with a kill switch, plus:
+  - the SCOREBOARD row;
+  - the kill-switch contract tests;
+  - the served-vs-gated parity CI (max <= 0.010 m, RMS <= 0.003 m, High/Low within 6 min);
+  - a test that no route or bucket exposes FES constants or atlas files;
+  - the FES and CMEMS credit lines wherever a prediction shows (3 themes, desktop and phone);
+  - records of use;
+  - the screen label "Tide + seasonal level (no storm surge). Checked against NOAA gauges on US coasts; unverified
+    elsewhere".
+- **Seed:** 20260101, 2000 draws, gauge x 2-day blocks.
+
+**Next:**
+1. The code (G3 parameterised), to the advisor before any fetch: the trigger, credentials on single steps, no score in
+   the log, the S1 preflight and NO VERDICT rule, the three arms, truth last, the parity test skeleton.
+2. The owner's word, typed in this session, under the one-shot tag `tide-gate-G3t`.
+
+## 14:09 EST 2026-11-17 (`date`) - FINDING (metadata and maps only; NO water value read): the Hohonu "beach" gauges are BACK-BARRIER, not surf beaches
+**What was read:**
+- The IOOS ERDDAP `allDatasets` listing: id, title, position and time range.
+- The info page of 3 datasets.
+- Mapbox street maps at 8 gauge positions.
+
+**What was not read:** no water-level value. The only value-like field seen is Duck's `actual_range` attribute (-8.1 ..
+1.88 m over its whole record), a metadata min/max that is not window-specific. Recorded as seen.
+
+**The finding:**
+- 52 Hohonu datasets are listed (some are SECOORA duplicates; 7 are marked decommissioned). The variable is
+  `water_surface_above_navd88` (vertical_datum NAVD88), with QARTOD qc_agg / qc_tests.
+- **Every one of the 8 named "beach" gauges sits on the SHELTERED side of its barrier island, not the ocean:**
+  - Duck (Currituck Sound side);
+  - Surf City (ICW / Topsail Sound, at the bridge);
+  - Sanibel (San Carlos Bay, at the causeway);
+  - Isle of Palms (back-barrier marsh creek);
+  - Ocean Isle (ICW / canal side);
+  - Kiawah (Kiawah River marsh);
+  - Edisto (Big Bay Creek, back side);
+  - Captiva (Pine Island Sound side).
+- Many other titles name bridges, boat ramps, rivers, docks or estuaries. These are dock and bridge air-gap sensors.
+
+**Consequences:**
+1. **G3t (FINAL, unchanged):** item 5's registered sheltered-water exclusion will remove most or all of these. With
+   fewer than 5 qualifying gauges, item 5 is NOT RUNNABLE and does not block, as registered. The beach rows are reported
+   as "back-barrier" rows.
+2. **Surge gate:** the research lead's premise (independent truth ON surf beaches) does not hold for Hohonu.
+   - They are independent of CO-OPS, but back-barrier: inlet friction damps and lags tide and surge there.
+   - They are a Tier-3 "inland attenuation" set, not open-coast truth.
+   - Open-coast independent truth must be found BEFORE the surge registration.
+
+**Second opinion (Reflection Beam, asked per the owner's instruction; SubQ chat refused: the key lacks subq-preview).**
+Advisory only; its specifics are to be verified:
+- The candidates are USACE FRF Duck's own sensors (NOT CO-OPS 8651370 on the same pier), CDIP / nearshore bottom-pressure
+  records (wave-contaminated; mean water level must be derived), USGS STN (event-based only), GNSS-IR coastal sites
+  (independent but sparse), and SWOT KaRIn (independent spatial snapshots on a ~21-day repeat, degraded within a few km of
+  the coast; not hourly truth).
+- Its suggestion is a tiered truth set: Tier 1 open-coast (FRF, QC'd pressure records, GNSS-IR, SWOT snapshots, STN
+  peaks); Tier 2 inlets; Tier 3 back-barrier (Hohonu) for attenuation. Results stratified by exposure and distance.
+
+## 14:35 EST 2026-11-17 (`date`) - G3t CODE built (nothing run; no window value read); goes to the advisor before any fetch
+Owner, 13:56 EST: "Move forward on the best path toward SOTA". The code is built on the G3 code, with no rule changed
+from FINAL b6eb66fa6.
+
+**Files:**
+- `backend/scripts/tide_g3t/g3t_rules.py`: pure and tested.
+- `g3t_gate.py`: the pipeline.
+- `g3t_stations.json`: lists fixed before truth.
+- `.github/workflows/tide-g3t-gate.yml`.
+- `backend/tests/test_tide_g3t_rules.py`: 12 tests.
+- `g3_sources.s1_climatology` is refactored over a new `s1_cell_series` with identical output. G3's 11 tests and the
+  G2 guard's 10 tests still pass.
+- The estate floor fragment is now +33.
+
+**Order in the code:**
+1. The S1 preflight. A failure prints NO VERDICT and returns before any truth.
+2. FES at every point.
+3. S1 = M + S per point (serial).
+4. C and D from Open-Meteo previous_day1/2 (gate bins), plus the latest run (reported).
+5. TRUTH LAST: CO-OPS, UHSLC, any open-coast IOOS gauge.
+6. Score.
+
+The log carries stage names only (pinned by a test). The held-out weeks are cut from every truth REQUEST
+(`R.segments()`), so no held-out hour is ever fetched.
+
+**Code-review decisions (fixed before any truth; for the advisor's read):**
+- **Item 5 QC rule:**
+  - provider flag `qc_agg == 1`;
+  - spikes: |x - the centred 5 h median| > 0.5 m (centred windows only, so a 3 m-range tide is never flagged);
+  - flat lines: >= 6 identical consecutive hours.
+
+  The first draft used a 25 h median, which flagged good tidal peaks; it was caught by a test and changed before any read.
+- **Item 5 qualifying list:** **NONE.**
+  - All 43 unique Hohonu stations are classified in `g3t_stations.json`: 21 map-checked as sheltered, 15 sheltered by
+    the name rule or as an inlet pass, 7 decommissioned.
+  - **Item 5 is therefore NOT RUNNABLE by construction**, as registered.
+- **UHSLC non-US reported rows:** 19 stations, the lowest uhslc_id in each of 19 listed surf countries (deterministic,
+  metadata only). One per country keeps the run inside the job limit. They are scored mean-removed only (station zero).
+- **Workflow:**
+  - Two jobs: `download` (FES, AVISO credentials only there) and `gate` (needs download; restores THIS run's cache with
+    fail-on-cache-miss; Copernicus credentials only on the gate step).
+  - Each job has 340 min.
+  - A timeout before scoring is NO VERDICT (no score is ever printed before the end).
+- **Trend variant (reported):** M plus the base-period linear SLA slope times the days from 2021-01-01 to the window
+  mid-date.
+
+**Smoke check (synthetic arrays only, no network):** `score()` runs end to end and prints every item, control,
+coverage line, the item 3 split, the item 5 status, the UHSLC rows and the markdown.
+
+**Next:**
+1. The advisor reads the code.
+2. The owner's word, typed in this session, for the tag `tide-gate-G3t`.
+
+## 14:37 EST 2026-11-17 (`date`) - G3t item-5 classification, FIXED before any value (advisor 19:14Z); item 5 WILL BE NOT RUNNABLE
+- The advisor (19:14Z) has NO OBJECTION to G3t FINAL b6eb66fa6. The run still needs the owner's word typed in this session.
+- The list below is the one in `backend/scripts/tide_g3t/g3t_stations.json` (committed at 97208d9b4). It is the FIXED item-5
+  classification, decided from maps and metadata only. No value has been read.
+- **Not runnable:** no gauge is ocean-facing, so fewer than 5 gauges qualify and **item 5 will be NOT RUNNABLE**.
+- **For the owner, with the verdict:** the beach no-harm guard is EMPTY, and the result will carry NO evidence at surf
+  beaches. A PASS is a PASS at the 26 CO-OPS harbour, pier and bay gauges only (plus reported UHSLC rows abroad). The
+  screen label "Checked against NOAA gauges on US coasts; unverified elsewhere" stays as written.
+- **Duck's `actual_range` minimum of -8.1 m is not water;** expect QC work on that feed if it is ever used.
+
+| dataset id | title | exposure | evidence |
+|---|---|---|---|
+| `hohonu_10057_bald_head_island` | Bald Head Island | sheltered | map-checked: Cape Fear River side marina |
+| `hohonu_10048_cape_lookout_nation` | Cape Lookout National Seashore (decommissioned) | excluded | decommissioned |
+| `hohonu_10036_captiva_island_fl` | Captiva Island, FL | sheltered | map-checked: Pine Island Sound side |
+| `hohonu_10047_city_of_beaufort_sc` | City of Beaufort SC | sheltered | name rule: Beaufort |
+| `coastal-studies-institute-wanche` | Coastal Studies Institute, Wanchese, NC (decommissioned) | excluded | decommissioned |
+| `collington-creek-inn-dock-kill-d` | Collington Creek Inn Dock, Kill Devil Hills, NC (decommissioned) | excluded | decommissioned |
+| `hohonu-93_currituck_co` | Currituck Co | sheltered | name rule: Currituck |
+| `hohonu_174_debordieu_colony_sc` | DeBordieu Colony, SC | sheltered | map-checked: back-barrier creek |
+| `hohonu_10015_duck_nc` | Duck, NC | sheltered | map-checked: Currituck Sound (back-barrier) |
+| `hohonu_199_edisto_beach_sc` | Edisto Beach, SC | sheltered | map-checked: Big Bay Creek, back side |
+| `hohonu-187_emerald_isle` | Emerald Isle | sheltered | map-checked: Bogue Sound side |
+| `fernandina-beach-1-fl` | Fernandina Beach 1, FL | sheltered | map-checked: Amelia River |
+| `fernandina-beach-2-fl` | Fernandina Beach 2, FL | sheltered | map-checked: Amelia River |
+| `hohonu_10008_folly_river_bridge_` | Folly River Bridge, SC | sheltered | name rule: River |
+| `hohonu_10120_fort_raleigh_nation` | Fort Raleigh National Historic Site | sheltered | name rule: Historic |
+| `hohonu_10046_fripp_island` | Fripp Island, SC | sheltered | map-checked: back-barrier inlet creek |
+| `hohonu_10007_georgetown_county_h` | Georgetown County Hwy 701 Bridge, SC | sheltered | name rule: Georgetown |
+| `hohonu_10153_georgetown_south_ca` | Georgetown, South Carolina | sheltered | name rule: Georgetown |
+| `hohonu_10116_hammocks_beach_stat` | Hammocks Beach State Park, NC | sheltered | name rule: Hammocks |
+| `hohonu_10040_hilton_head` | Hilton Head, SC | sheltered | map-checked: back-island creek (Broad Creek area) |
+| `hohonu_10021_holden_beach_brunsw` | Holden Beach, Brunswick County, NC | sheltered | map-checked: ICW at the bridge |
+| `hwy-64-little-bridge-dare-county` | Hwy 64, Little Bridge, Dare County, NC (decommissioned) | excluded | decommissioned |
+| `hohonu_069_isle_of_palms-_sc` | Isle of Palms, SC | sheltered | map-checked: back-barrier marsh creek |
+| `hohonu_10041_john-s_pass` | John's Pass | sheltered | inside an inlet pass (map not checked; name rule: pass) |
+| `hohonu_138_kiawah_island_sc` | Kiawah Island, SC | sheltered | map-checked: Kiawah River marsh |
+| `hohonu-141_marine_corp_recruit_d` | Marine Corp Recruit Depot Parris Island | sheltered | name rule: Depot |
+| `hohonu-85_mexico_beach` | Mexico Beach | sheltered | map-checked: canal behind the beach |
+| `hohonu_10126_new_bern_nc` | New Bern, NC | sheltered | name rule: New Bern |
+| `hohonu_10059_north_myrtle_beach_` | North Myrtle Beach, Cherry Grove | sheltered | map-checked: Cherry Grove marsh channel |
+| `hohonu-152_north_topsail_beach` | North Topsail Beach | sheltered | map-checked: sound side (New River Inlet Rd) |
+| `hohonu_10060_ocean_isle_beach` | Ocean Isle Beach | sheltered | map-checked: ICW / canal side |
+| `hohonu_10069_oyster_landing_n_in` | Oyster Landing (N Inlet Estuary), SC | sheltered | name rule: Landing |
+| `hohonu_10033_pawleys_island_sc` | Pawleys Island, SC (decommissioned) | excluded | decommissioned |
+| `hohonu_10044_port_royal_sound_fo` | Port Royal Sound Foundation SC | sheltered | name rule: Sound |
+| `hohonu_10043_sanibel` | Sanibel | sheltered | map-checked: San Carlos Bay at the causeway |
+| `hohonu_173_seabrook_island_sc` | Seabrook Island, SC | sheltered | map-checked: back-island creek |
+| `hohonu_10125_snow-s_cut_bridge` | Snow's Cut Bridge, NC (decommissioned) | excluded | decommissioned |
+| `hohonu_10020_southern_shores_nc` | Southern Shores, NC (decommissioned) | excluded | decommissioned |
+| `hohonu_10027_sullivan-s_island_s` | Sullivan's Island, SC | sheltered | map-checked: harbour / Cove side |
+| `hohonu_10037_surf_city` | Surf City | sheltered | map-checked: ICW / Topsail Sound at the bridge |
+| `hohonu-104_the_citadel_ashley_ri` | The Citadel, Ashley River, SC | sheltered | name rule: Citadel |
+| `hohonu_10032_topsail_beach_nc` | Topsail Beach, NC | sheltered | map-checked: sound side |
+| `hohonu-124_washington_acres_boat` | Washington Acres Boat Ramp | sheltered | name rule: Ramp |
+
+**For the surge registration (the advisor):** independence is about PLACE, not only the instrument.
+- USACE FRF's own Duck sensors sit in the same water as CO-OPS 8651370, which feeds the correction. They are the
+  corrected station seen twice, so they are not independent truth.
+- (a) Every truth site's distance to the nearest CO-OPS station used by the correction is fixed in advance. Results are
+  stratified by it, with a stated minimum distance for the gating set.
+- (b) STOFS-2D has no wave setup. Either truth is still water OUTSIDE the surf zone, or setup is a separate named arm.
+  This is decided in the registration.
+- The tiered set (open coast, inlets, back-barrier) is the right shape; back-barrier is reported for attenuation only.
+
+## 14:46 EST 2026-11-17 (`date`) - Measured, MODEL FILES ONLY (no observation read): STOFS v3.1's station correction is a near-constant OFFSET carried in swl, and an UNCORRECTED total is published
+**Question (the research lead):** is the v3.1 correction an offset, or does it vary within a cycle? A NOAA technical note
+was not found (web search; only the portal text). It was checked directly instead.
+
+**Data:** one cycle, 2026-11-16 00Z, files `points.cwl.nc`, `points.cwl.noanomaly.nc`, `points.htp.nc` and
+`points.swl.nc` (1,687 points, 6-min, -6 h .. +180 h). These are model outputs only; no truth was fetched. The scripts
+are in the scratchpad (`stofs_offset*.py`).
+
+**Findings:**
+- **cwl = htp + swl exactly at every point** (median |cwl - htp - swl| = 0.0000 m). Whatever correction exists is
+  INSIDE swl.
+- **`cwl - cwl.noanomaly` (the "anomaly" term) is non-zero at 208 of 1,687 points, all of them NOAA stations** (the
+  SOUS41 CO-OPS ids: Eastport, Bar Harbor, Portland, Boston, Woods Hole, Nantucket ...).
+  - Its size: median |mean| 0.278 m.
+  - **It is NEAR-CONSTANT through the forecast:** within-cycle SD median 0.0065 m after the 6 h nowcast (max 0.066 m),
+    following a short ramp in the nowcast.
+  - Example values (first / mid / last): Boston 0.258 / 0.280 / 0.280; Fall River 0.532 / 0.280 / 0.280.
+- **Consequence 1:** at a CO-OPS station the correction behaves as an offset. A causal trailing-mean high-pass (the
+  research lead's storm band) removes almost all of it. The leak is about 0.0065 m median and up to about 0.07 m at the
+  worst station, which must be reported.
+- **Consequence 2, a new candidate arm:** `cwl.noanomaly - htp` is STOFS's surge WITHOUT the station correction, issued
+  operationally. At CO-OPS stations it is not pulled toward the gauge's last 5 days.
+  - Caveat: the v3.1 GRIDDED correction is described as applied through the open boundary conditions. If so, it lives
+    inside the model run, and noanomaly cannot remove it. Its station-level independence is therefore partial, to be
+    stated.
+- These numbers are from ONE cycle. A registration would fix a multi-cycle check (no truth) before relying on them.
+
+## 14:52 EST 2026-11-17 (`date`) - Advisor's G3t code read (19:45Z): implements FINAL; two fixes made; the FAILURE RULE written before the tag
+The advisor read 97208d9b4 in full: "the code implements FINAL as registered". It found the 15 name-rule gauges acceptable
+(their keys are weak, but each one's position is in a river, sound or estuary). **The name rule is recorded as backed by
+position.**
+
+**Fix 1 (a registered claim was false by one hour), now true:**
+- UHSLC is hourly and requested with `time<=` the segment's last hour (no +1 h).
+- IOOS is sub-hourly and requested with a STRICT `time<` the segment end + 30 min.
+- Neither ever requests 03-15 00:00 or 06-15 00:00. The case is pinned in the segments test.
+
+**FAILURE RULE (fix 2), written BEFORE the tag:**
+- A run that ends with NO SCORE WRITTEN is **NO VERDICT**: a download failure, an S1 timeout or failure, a crash, or the
+  320-min step / 340-min job limit before `report = score(` returns and is printed.
+- Nobody has seen a number in that case. The tag may be pushed again ONLY once the cause is fixed AND recorded here, and
+  only on the owner's word typed again in this session.
+- **A run that wrote a score is FINAL.** No re-run, whatever it says.
+
+**Also fixed:**
+- The FES cache key is now `fes2022b-g3t-<run_id>-<run_attempt>` (restore-keys: the run prefix, then the gate prefix),
+  so "re-run failed jobs" never restores a partial cache.
+- Non-blocking (a): `workflow_dispatch` is REMOVED. The tag is the only trigger, even if the file ever reaches dev.
+- Non-blocking (c): IOOS values are labelled with their NEAREST hour (the mean of h-30 .. h+30 min sits on h). This is
+  unused today, since the open list is empty.
+- Non-blocking (d): the C reference's 72 h means are computed once per day (identical values, checked against the old
+  definition at 3 hours on synthetic runs).
+
+**Recorded, not changed:**
+- (b) Item 3b's "shifted minus P > 0": an exact tie fails. This is stricter than "must not beat", and deliberate.
+- (e) **The step summary is PUBLIC the moment the run ends (public repo): the run publishes its own verdict.**
+
+**Tests:** 33 tide tests pass; flake8 is clean.
+
+## 15:09 EST 2026-11-17 (`date`) - Advisor: G3t code CLEARED BY DIFF at 92f31a70c (20:08Z); waiting on the owner's word
+- **Cleared by diff:** fix 1, fix 2 (all three cache keys carry run_attempt), workflow_dispatch removed, nearest-hour
+  labels and the once-per-day 72 h mean. The advisor finds them equivalent to what it read.
+- **Operational note (not blocking):** after a gate-only failure, "re-run failed jobs" misses the exact-attempt cache and
+  fails at once (safe). Use "re-run all jobs" instead: the download job finds the files by prefix and saves them under the
+  new attempt.
+- **Put before the owner with the request:**
+  - item 5 cannot run, so a PASS covers 26 harbour and pier gauges and says nothing about surf beaches;
+  - the run summary publishes the verdict on GitHub (public) when the run ends;
+  - a run that writes a score is FINAL, whatever it says.
+- **The tag `tide-gate-G3t`** is pushed only on the owner's word typed in this session.
+
+## 15:11 EST 2026-11-17 (`date`) - G3t STARTED on the owner's word (recorded before any output is opened)
+- **Owner, typed in this session at 15:11 EST: "Yes, start G3t".** It answers the request that set out the three
+  points (a PASS says nothing about surf beaches; the verdict is published publicly; a scored run is final).
+- The tag `tide-gate-G3t` is pushed at 55080566d (code cleared at 92f31a70c; later commits are log-only).
+- The failure rule (written 14:53 EST) applies.
+- **Run 44166851340** (push event at 139f76142) is in progress since 20:12:37Z.
+
+## 22:10 EST 2026-11-17 (`date`) - G3t RESULT (run 44166851340, tag at 139f76142): FAIL as registered, not VOID; read by the advisor first (02:25Z)
+The advisor recomputed the verdict from the JSON's items, controls and coverage, and it agrees. The public log carries
+stage lines only. The JSON is in the shared notes (`tide-overlay-2026-11-15/g3t-result-run-44166851340.json`); the
+advisor's read is `advisor-tide-g3t-read-2026-11-18.md`.
+
+**Controls (both hold):**
+- positive control (NOAA's constants vs NOAA's predictions): 0.0029 m (line <= 0.01);
+- label swap: 0.509 m (line > 0.3).
+
+**Coverage:** 24 gauges scored. Excluded: 8443970 (D < 95%) and 8771510 (observed < 95%). Not void.
+
+**Items** (point [lo, hi], m):
+- **1 PASS:**
+  - P - D: -0.0533 [-0.0685, -0.0411];
+  - P - C: -0.0636 [-0.0776, -0.0510];
+  - mean-removed P - D: -0.0164 [-0.0411, -0.0022].
+- **2 PASS:** no gauge on the raw score. One gauge mean-removed (8726724, +0.0547), reported only.
+- **3a PASS:** (A+M) - A = -0.0413 [-0.0506, -0.0271].
+- **3b FAIL:** P - (A+M) = +0.0003 [-0.0108, +0.0079]; the upper end is >= 0. (The shifted-arm point, +0.0190, did not
+  beat P.)
+- **4 PASS:** High/Low timing median 8.58 min; |MLLW| median 0.0135 m.
+- **5 NOT RUNNABLE:** all 43 Hohonu gauges are back-barrier or excluded.
+- **Datum label:** none.
+
+**Reported rows** (median RMSE, m):
+- tide alone (A): 0.146;
+- tide + mean level (A+M): 0.121;
+- P: 0.127;
+- D: 0.147;
+- served C: 0.178;
+- oracle: 0.065.
+
+The mean level is the gain: per-gauge bias goes from -0.099 to +0.008. The seasonal term nets to zero over Jan-Jul and
+hurts a little from April. UHSLC (reported only): 12 of 19 scored; P beats C at 11 of 12.
+
+**Meaning:**
+- The registered product (tide + mean level + seasonal) does NOT ship on this.
+- A + M READS 0.057 m better than served C on these gauges. That is a reported row on a window now seen, not a pass.
+- No evidence at surf beaches.
+
+**Not allowed:**
+- no re-run;
+- no dropping S and calling this window a pass;
+- no threshold change.
+
+The score is final.
+
+**Next (the owner's choice):** a NEW registration with A + M as the primary and S as a reported arm, on unseen data:
+2026-07-25 onward plus the two held-out weeks. The advisor's three conditions:
+1. the window and the gauges are fixed before any fetch;
+2. item 3 is rewritten so the reported seasonal arm can neither rescue nor sink the primary;
+3. the same failure rule and a one-shot tag.
+
+Nothing served changes; #926 and #931 stay held.
+
+## 22:22 EST 2026-11-17 (`date`) - G4 PRE-REGISTRATION DRAFT: tide + mean level, PROSPECTIVE (owner: "Yes, keep moving forward toward SOTA", typed here 22:1x EST, answering "draft the new registration?")
+Written before any G4 code or data. Nothing has been fetched for G4.
+
+**Why prospective, not the advisor's retrospective window.**
+- The proposed window (2026-07-25 onward plus the two held-out weeks) is NOT unseen at these gauges. The G3t
+  registration records "2026-07-25 onward is seen":
+  - G3's truth-only count and window (07-26 .. 09-07);
+  - #926's held-out week 09-15;
+  - G2 (09-29 .. 10-12);
+  - the M1 lead's window (10-15 .. 10-28).
+- The held-out weeks 03-15 and 06-15 were #926/#931's TEST weeks, so they are seen too.
+- What is left are fragments (for example 10-29 onward), and their status can be argued. A prospective window is the
+  only one that is unseen by construction.
+
+**Primary (P4):** A + M.
+- A = FES2022b (as in G3t; the same PyFES pin and constituents).
+- M = the gauge cell's mean SLA over 2016-01-01 .. 2025-12-31 (CMEMS SEALEVEL_GLO_PHY_L4_MY_008_047, the same cell rule
+  as G3t). It is one constant per gauge, computed in the gate from model files only, and written to the log before any
+  truth is fetched.
+
+**Window:** prospective, hourly.
+- It starts at the first 00Z at least 24 h after the tag push.
+- It ends 56 days later (8 weeks, at least 28 independent 2-day blocks).
+- It crosses the end of the US East Coast seasonal high (Sep-Nov) into the winter low, so dropping S is tested where S
+  is largest.
+- The tag is pushed only on the owner's word after FINAL.
+- The gate runs ONCE, after the window closes plus 3 days (CO-OPS verified data lag). Nothing is read before then.
+
+**Gauges:** the same 26 CO-OPS stations as G3t, fixed now. The 95% coverage exclusion and > 20% void rule are
+unchanged.
+
+**References:**
+- C = the served Open-Meteo tide, the latest run, as served (test reference only, per the owner's rule);
+- D = Open-Meteo previous_day1 / previous_day2 with the 365-day-mean datum, as in G3t.
+
+**Items (all must hold):**
+1. P4 - D upper end <= -0.02 m AND P4 - C upper end < 0 (2-day block bootstrap, 2000 draws, seed 20261119).
+2. No gauge worse than D by > 0.05 m (point), and none that D scores and P4 cannot.
+3. (A + M) - A upper end < 0 (the mean level still earns its place out of sample).
+4. Tide shape: High/Low timing median <= 20 min; |MLLW| median <= 0.05 m.
+5. Beach no-harm guard: carried, NOT RUNNABLE (no open-coast independent gauge exists; 2026-11-17 survey in the
+   shared notes).
+
+**Seasonal term S, REPORTED ONLY:**
+- The arm A + M + S and its difference from P4 are printed with an interval.
+- They enter no item, cannot rescue a failed item and cannot sink a passed one (the advisor's condition 2).
+- If S beats P4 here, that is a finding for a later registration, not a pass.
+
+**Controls (VOID):** unchanged from G3t:
+- positive control (NOAA's constants vs NOAA's predictions) <= 0.01 m;
+- label swap > 0.3 m;
+- coverage.
+
+**Failure rule and start (the advisor's condition 3):**
+- Same as G3t, with a one-shot tag `tide-gate-G4`, no workflow_dispatch, and credentials on their steps only.
+- A run with no score may be re-run only once the cause is fixed and recorded, and only on the owner's word again.
+- A scored run is FINAL.
+
+**Datum label, parity and scope label:** as G3t.
+
+**On PASS:** ship-ON under D-080 with the owner's merge, the parity CI, the credits, and records of use.
+
+**Open for the advisor:**
+- (a) the 56-day length;
+- (b) whether to add the 3 uncorrected-but-active CO-OPS gauges as reported rows;
+- (c) whether M should be the base mean or the base trend carried to the window mid-date. G3t reported both, and the
+  trend variant was not opened as a selection criterion.
+
+## 23:41 EST 2026-11-17 (`date`) - G4 DRAFT addendum 1: the advisor's read (04:30Z) ADOPTED; a limit on "one shot" once the gates are on dev
+**The limit (advisor 04:12Z, recorded as asked):**
+- The three gate workflows (G2, G3, G3t) are tag-triggered. Once on dev, deleting and re-pushing a tag would start a
+  scored gate again.
+- "One shot" therefore rests on nobody doing that. No session may delete or re-push `tide-gate-G2`, `-G3` or `-G3t`.
+
+**G4 changes, all adopted (nothing fetched):**
+1. **Length by a power check, not by feel** (advisor (a)).
+   - On G3t's seen window, used for DESIGN only (declared): take every 56-day stretch, score A+M against D with item 1's
+     statistic and bootstrap, and count how often the upper end is <= -0.02.
+   - If the share is below 0.8, the window is 84 days.
+   - The check needs G3t's hourly series, which the artifact does not hold. It runs as a CI design job on the owner's
+     word.
+   - The length is fixed in FINAL and does not move after.
+2. **Reported rows, fixed by id now, entering no item** (advisor (b)): the 3 uncorrected-but-active CO-OPS gauges:
+   8679598 Kings Bay, 8760922 Pilots Station East, 8770822 Texas Point.
+3. **M = the base mean (2016-2025), ONE choice** (advisor (c)).
+   - The trend-carried M is a reported arm.
+   - The 26 per-gauge M values (or their sha256) are committed in FINAL before the start. They are computed from model
+     files only.
+4. **The two moments** (advisor 1):
+   - The START is a committed UTC timestamp in FINAL, not a tag push.
+   - SCORING starts with the one-shot tag `tide-gate-G4`, pushed after window end + 3 days and only on the owner's word.
+   - Nothing is fetched between the two, except item 6's reference archive if it is needed.
+5. **The embargo** (advisor 2).
+   - From the window start until the scored run, no session reads OBSERVED water at the 26 gauges for any part of the
+     window, for any purpose: not the surge lane (which uses CO-OPS gauges), not a monitor, not a quick look.
+   - A read is a recorded contamination. If it touches one gauge, that gauge leaves the gating set. If it touches the
+     panel (more than 1 gauge), the gate is VOID.
+6. **References** (advisor 4).
+   - G3t itself fetched Open-Meteo previous_day1/2 for January 2026 in November, so a retention of at least 10 months is
+     demonstrated.
+   - FINAL will cite Open-Meteo's documented retention as well. If the documentation is silent, D and C are archived
+     daily from the start (a reference fetch, not truth).
+7. **Scope sentence** (advisor 3).
+   - A late-November window tests the mean level in winter only.
+   - On a PASS the label reads "mean level verified November to January".
+   - Dropping S at the seasonal high (Sep-Oct) stays OPEN for a later window. S stays reported, with an interval, in no
+     item.
+
+**Unchanged:**
+- the 26 gauges;
+- item 3 = (A+M) - A only;
+- the failure rule; no dispatch;
+- the parity line;
+- the "no surge" label;
+- item 5 NOT RUNNABLE unless an open-coast gauge is found before the start.
+
+**Owner's word:** the tag and the run each need it again.
+
+## 23:59 EST 2026-11-17 (`date`) - G4 item 6 settled: Open-Meteo documents NO retention, so C and D are ARCHIVED daily from the start
+- **Previous Runs API page (read today):**
+  - "Most models are archived from January 2024".
+  - It states no retention or expiry policy.
+- **Marine API page (read today):**
+  - It does not document previous runs for marine variables.
+  - `past_days` is limited to 0-92.
+- **G3t's fetch of January 2026 previous_day1/2 in November** shows that at least 10 months is retrievable today. That
+  is not a promise.
+- **=> G4 FINAL includes a daily reference-archive job from the start timestamp:** C (latest) and D (previous_day1/2) at
+  the 26 gauge positions, written to a private artifact.
+  - It fetches references only, never observed water, and so does not break the embargo.
+  - It needs the owner's word, because it is a scheduled workflow.
+  - Scoring uses the archive. If the archive misses a day and the API still serves it at scoring time, the API value is
+    used, and that substitution is recorded.
+
+## 09:51 EST 2026-11-18 (`date`) - G4: the advisor's three FINAL edits ADOPTED; the power check and the daily reference archive BUILT on the owner's word (nothing run; no G4 value read)
+**Owner's word** (typed in this session, 2026-11-18, answering "Do you approve the archive workflow and the power-check
+job now?"): "Yes, move forward on the path toward SOTA". It covers building BOTH jobs and the power check's one run (tag
+`tide-g4-power`). The G4 tag and the G4 scored run still each need the owner's word again.
+
+**The advisor's FINAL edits (07:25Z), adopted. They supersede the draft where they differ:**
+1. **The draft's window sentence is withdrawn**: "It crosses the end of the US East Coast seasonal high (Sep-Nov) into the
+   winter low, so dropping S is tested where S is largest". Addendum 1's sentence stands instead: a late-November window
+   tests the mean level in WINTER only. Whether S can be dropped at the seasonal high stays OPEN.
+2. **The reference archive is a plain Actions artifact, NOT "private"** (item 6 said "private"; that word is withdrawn).
+   In a public repo any signed-in user can download it, and Open-Meteo values are not sensitive.
+   - Repo artifact retention, measured 2026-11-18: 90 days (the maximum).
+   - The longest window (84 d) + 3 d = 87 d fits, but tightly. So the job re-uploads the CUMULATIVE archive daily with
+     retention 90; the newest artifact always holds everything.
+3. **The power check uses G3t's SEEN hourly series, for design only.**
+   - Its ONLY output is the pass share (the fraction of 56-day stretches whose (A+M) - D upper end is <= -0.02), printed.
+   - No arm other than A+M against D is scored in it.
+
+**Built (branch `claude/tide-g4-final`, nothing run yet):**
+- `backend/scripts/tide_g4/g4_rules.py`: pure rules, tested.
+  - **Stretches:** 56 consecutive CALENDAR days from each 00Z, a 1-day step, never bridging a held-out week. On G3t's
+    window that gives 48 stretches: 18 in Jan 1 .. Mar 15, 30 in Mar 22 .. Jun 15, and none in Jun 22 .. Jul 24 (33
+    days).
+  - **The pass line:** the upper end <= -0.02 m. A non-finite upper end is a miss.
+  - **The length it fixes:** 56 days if the share >= 0.8, else 84.
+  - **The archive's phases:** nothing before START; archiving until window end + 3 days; then complete.
+  - **Archive rules:**
+    - the last 3 UTC days are asked for on each run;
+    - the FIRST value seen for an hour is kept;
+    - a new archive may start only within 3 days of START (later, a missing previous archive fails the run rather than
+      replacing history with a part of it).
+  - `START = None` and `LEN_DAYS = None` until G4 FINAL commits them, so the archive does nothing until then.
+- `backend/scripts/tide_g4/g4_power.py` with `.github/workflows/tide-g4-power.yml`:
+  - **Trigger:** one-shot tag `tide-g4-power`, no workflow_dispatch.
+  - **Credentials:** AVISO on the FES download only, Copernicus on the check only.
+  - **Steps:** S1 preflight first; A from FES2022b; M as the base mean (2016-2025) of the G3t cell; D only (C, S and A
+    alone are never computed); CO-OPS observed water on G3t's seen window.
+  - **Scoring:** `paired_median_diff(A+M, D)` per stretch: 2000 draws, seed 20261119 (G4's), 2-day blocks.
+  - **Output:** printed with nothing else: the share, the stretch and gauge counts, and the length.
+- `backend/scripts/tide_g4/g4_archive.py` with `.github/workflows/tide-g4-reference-archive.yml`:
+  - **Schedule:** daily at 07:17 UTC (outside the quiet window); workflow_dispatch for a missed day only.
+  - **Secrets:** none. **Permissions:** `contents: read`, plus `actions: read` to download the previous artifact.
+  - **What it saves at the 26 gauge positions** (as G3t asked: CO-OPS metadata rounded to 0.1 degree):
+    - Open-Meteo `sea_level_height_msl` (C) and `_previous_day1` / `_previous_day2` (D);
+    - once, the 365 days of previous_day1 before START (D's datum).
+  - **What it never fetches:** observed water. The embargo holds; a test pins it.
+- `backend/tests/test_tide_g4_rules.py`: 11 tests (also pins: nothing served imports these, the 26 gauges equal G3t's,
+  the 3 reported rows are separate).
+
+**Dry run of the archive, references only, run locally:**
+- 2 gauges, with START temporarily set to 2026-11-16 in a scratch script (not committed).
+- 48 hourly values for each of C, D1 and D2 at each gauge.
+- 8712 datum hours (363 days; G3t's rule needs >= 330 x 24).
+- Phase output: `archiving`.
+
+**Next, in order:**
+1. The advisor reads this branch's head.
+2. On a PASS line, push the tag `tide-g4-power` (the owner's word above) and read the share. The advisor reads it
+   first; I do not open the JSON before the advisor does.
+3. G4 FINAL commits LEN_DAYS, the 26 per-gauge M values and the START timestamp (at least 24 h after the commit, at
+   00Z), and sets `START`/`LEN_DAYS` in `g4_rules.py`, which arms the archive.
+## 17:20 EST 2026-11-18 (`date`) - M1-0 PARITY PROBE REGISTERED and built (branch `claude/tide-m1-0-parity`); nothing run, no value read
+**Why (the director, from the research lead's verified finding):**
+- Open-Meteo's `sea_level_height_msl`, the level every served tide reads today, IS CMEMS
+  `cmems_mod_glo_phy_anfc_merged-sl_PT1H-i`.
+- So M1-0 reads that dataset directly and proves parity, then switches the served level to the direct read. That would
+  remove the Open-Meteo dependency with no change in numbers.
+- The rule update (David, 19:09Z, via the director): Open-Meteo stays as the fallback, behind the kill switch.
+
+**The dataset, from the public catalogue (no credentials):**
+- GLOBAL_ANALYSISFORECAST_PHY_001_024, hourly, 1/12-degree grid, 2022-09-01 to about 9 days ahead.
+- Variables:
+  - `total_sea_level` (sea_surface_height_above_geoid);
+  - `ocean_tide`;
+  - `sea_surface_height` (dynamic);
+  - `invert_barometer`;
+  - `tide_loading`;
+  - two global-mean terms.
+
+**THE RULE, fixed in `backend/scripts/tide_cmems/parity_rules.py` before any run:**
+- **Held set:** 20 served 0.1-degree keys: 10 US gauges and breaks, plus 10 surf spots worldwide (the tuple in the
+  file).
+- **Pairs:** every hour of the 48 h before the run's 00Z. These are hindcast hours, so the forecast run cannot differ.
+- **Primary:** CMEMS `total_sea_level` at the grid cell NEAREST the key, against Open-Meteo `sea_level_height_msl` at
+  the same key (the request the served tide makes).
+- **PASS:** p99 |delta| <= 0.01 m, with >= 90% of the 960 expected pairs present.
+- **Reported only:** the other candidates (nearest WET cell; tide+ssh; tide+ssh+ib; tide alone) and the 96 forecast
+  hours.
+- **On a MISS:** no switch. Find the cause and register again.
+
+**Workflow:** `tide-cmems-parity.yml`.
+- It starts only on the one-shot tag `tide-cmems-parity`, with no dispatch.
+- Copernicus credentials are on the probe step only.
+- It reads model values only: CMEMS and Open-Meteo, no observed water. Nothing is served and nothing is written to the
+  bucket.
+- 8 tests in `tests/test_tide_cmems.py`; estate floor fragment +8.
+
+**Next:**
+1. The advisor reads the head.
+2. The tag runs it (the owner's or director's word).
+3. The advisor reads the verdict first.
+4. On PASS, the served switch is the next PR:
+   - built on #1061's table machinery;
+   - the table is filled from CMEMS `total_sea_level`;
+   - Open-Meteo is the fallback behind the kill switch;
+   - SCOREBOARD row "expected about no change";
+   - a post-deploy check.
+5. #1061's A+M stays a candidate for after G4.
+
+## 18:00 EST 2026-11-18 (`date`) - M1-0 amended before any run: the parity probe is a PLUMBING check; ACCEPT is a separate registered read against OBSERVED water (the research lead's gate note, adopted)
+**Why the amendment.** From the research lead's gate note:
+- Open-Meteo's marine page says `sea_level_height_msl` comes from "MeteoFrance SMOC", which is CMEMS
+  GLOBAL_ANALYSISFORECAST_PHY_001_024.
+- CMEMS's QUID section II.4 says `cmems_mod_glo_phy_anfc_merged-sl_PT1H-i` is FES2014 tide + inverse barometer + steric
+  + mass + GLO12 ssh, with a total.
+- **=> The two arms are the same data underneath, so parity is about 0 by construction.**
+- The 17:20 probe therefore proves PLUMBING only: datum, time zone, the cell and interpolation. It does not prove
+  quality.
+- It is renamed as such. Its rule and line are unchanged.
+
+**ACCEPT (registered now, before any value; built only after the advisor reads this design):**
+- **Arms, both scored against OBSERVED water:**
+  - the served Open-Meteo level (O);
+  - CMEMS `total_sea_level` read directly at the nearest cell (K).
+- **Truth:**
+  - the 26 CO-OPS stations of G3t;
+  - non-US UHSLC fast-delivery gauges (G3t's `uhslc_non_us` list) and IOC/GLOSS gauges with >= 80% coverage after QC.
+  - These are fixed by id in the code before the run.
+- **Window:**
+  - the 28 days ending at the run's 00Z minus 3 days (the CO-OPS verified-data lag);
+  - **it must END before G4's committed START.** The G4 embargo (addendum 1, change 5) forbids reading observed water
+    at the 26 gauges inside the G4 window;
+  - if G4 has started, ACCEPT uses only the non-US gauges.
+- **Each series is mean-removed per gauge over the window.** O and K sit above the geoid, the gauges on their own
+  datums, so the gauges' level is not comparable. A separate MEAN-ERROR row is reported beside it, because MAE is blind
+  to small constant offsets.
+- **Metrics per arm:**
+  - median, p95 and max |error|;
+  - high- and low-water TIMING error (minutes, from 6-minute or hourly extrema as available).
+- **ACCEPT iff ALL of these hold:**
+  - K - O <= +0.01 m on median |error| and on p95 |error| (point, and the upper end of a 2-day block bootstrap, 2000
+    draws);
+  - K - O <= +10 min on the median timing error;
+  - the plumbing check PASSes.
+- **Controls (VOID if any fails):**
+  - **null:** O against itself gives 0 on every metric;
+  - **planted errors on K:** +0.01 m and +0.02 m offsets, and 10- and 20-minute time shifts. The 1x plants must be
+    DETECTED, by the mean-error row for the offset and the timing row for the shift.
+- **Credentials:** Copernicus on the probe step only. Observed water comes from public CO-OPS, UHSLC and IOC services.
+  One-shot tag.
+- **On ACCEPT:** the repo variable `TIDE_CMEMS_PRIMARY=1` (#1066's builder fills CMEMS), with the kill switch to the
+  FES harmonic or "unavailable", never Open-Meteo (owner, about 23:00Z).
+
+## 18:20 EST 2026-11-18 (`date`) - Data credits follow provenance (branch `claude/credits-provenance`; the research lead's row 16 of the Open-Meteo exit); no served number changes
+**Why.**
+- The owner, about 23:00Z: open agency providers, and every source is credited where its data is shown.
+- The research lead routed row 16 here.
+
+**What changes:**
+- **The tide readout credits the agency of the series actually served.**
+  - `routes/weather_point_tide.py` now picks `provider` and `source_url` from the served series' `source`:
+    - `cmems` -> "E.U. Copernicus Marine Service Information";
+    - `am` / `own` -> "FES2022 (AVISO) + Copernicus Marine";
+    - absent or unknown -> "Open-Meteo Marine", which is what dev serves today.
+  - It adds `series_source`. The old `source: model-msl` field keeps its meaning.
+  - `TideReadout.js` shows the credit after "Modeled sea level · MSL":
+    - as a real link with an accessible name, in light, dark and beach (the infobox has one layout for desktop and
+      mobile);
+    - only `https://` URLs become links;
+    - with no provider, the footer is unchanged.
+  - This is forward-compatible with #1061 (step 1, "own" / "open-meteo") and #1066 (step 2, "cmems" / "am").
+- **Raster legend credits:** each agency's own wording.
+  - ECMWF: "EURO · © ECMWF · CC BY 4.0".
+  - DWD: "ICON · Datenbasis: Deutscher Wetterdienst", linked to DWD's copyright page.
+  - The Copernicus currents credit keeps the director's text; its accessible label already reads "Generated using E.U.
+    Copernicus Marine Service Information".
+  - `LayerDataCredit.creditFor` already followed provenance: an engaged own frame set gets its agency, and the `.om` path
+    gets Open-Meteo. That is pinned by the existing tests.
+- **Left as is, because they are true today:**
+  - "Forecast from Open-Meteo Marine API" (`SpotConditions`, non-p1 branch);
+  - "Auto-filled from Open-Meteo" (`CreatePostModal`; `/surf-conditions` reads Open-Meteo).
+  - They change when those paths are replaced with agency sources (other rows of the exit plan).
+
+**Tests:**
+- backend `test_point_tide.py` +1: the credit follows provenance for every source, and the old field is unchanged
+  (guards +1);
+- frontend `TideReadout.test.js` +2: the helper, plus the link in three themes (frontend +2);
+- two credit-string pins updated (`LayerDataCredit.test.js`, `gustsLayer.test.js`);
+- the ESLint ratchet passes.
+## 18:35 EST 2026-11-18 (`date`) - M1-0 ACCEPT amendment 1 (before any run): IOC SLSMF REMOVED from the gauge panel; free raw data only
+**The owner, verbatim (relayed by the research lead and the director):**
+- "Its free SOTA , no paid plans, raw free data for SOTA tides".
+- "We need the tides to work all around the world SOTA".
+
+**The research lead's licence finding (section M, update 1):**
+- IOC SLSMF data "may not be used for any commercial purposes", and that includes validation.
+- **=> The 18:00 ACCEPT registration's "IOC/GLOSS gauges" are WITHDRAWN.**
+
+**The ACCEPT panel is now:**
+- the CO-OPS stations (public domain), outside the G4 window as already registered;
+- UHSLC fast-delivery gauges (validation use is allowed) on every surf coast.
+  - The ids are fixed in code before any run.
+  - The list grows from G3t's `uhslc_non_us` to cover the surf coasts listed in `open-meteo-exit-plan-2026-11-18.md`
+    section M.
+
+**Also scored, separately:**
+- astronomical-only and total water;
+- high- and low-water timing;
+- mean error.
+
+**Not used:** GESLA-4, until its licence is read. Nothing else in the registration changes.
+
+## 18:45 EST 2026-11-18 (`date`) - Tide table BUILDER split out as PR A (branch `claude/tide-table-builder`): no served change; the served switch follows as PR B
+**Why the split.**
+- The advisor HELD #1061 and #1066 (23:23Z). Merging either would switch every served tide before a CMEMS table
+  existed (point 1).
+- The service-role key now lives only in the dev/main `supabase-service` environment (#1043), so the first table cannot
+  be built from a tag before merge (point 2).
+
+**PR A carries only:**
+- the builder: `scripts/tide_own/`, and `tide-own-series.yml` with `environment: supabase-service`;
+- the loader module `services/weather_pipeline/tide_own.py`, which NO served module imports yet (a test pins that);
+- the builder and loader tests.
+
+**What happens after merge:**
+- One dispatch, on David's word with the advisor reading first, builds the first table. It includes CMEMS if M1-0
+  passes, with the load tide taken out if TOTAL carries it.
+- PR B, the served switch, then merges against a real table:
+  - it replaces #1061 and #1066 (tide.py's dispatch, the flags and the dispatch tests);
+  - it carries the coverage counts, the before/after, and the days-10-14 options with numbers.
+
+**Measured (point 4).** The loader holds int16 arrays decoded from the builder's base64 form. On a synthetic full-size
+table (1,800 keys x 1,152 h x 2 series), tracemalloc showed:
+- 9.3 MB retained;
+- a 28.1 MB peak while loading (lists of ints: 103 MB retained, a 122 MB peak);
+- gzip size 2.9 MB.
+
+**Tests:**
+- `tests/test_tide_own.py` has 14 tests in PR A: the builder rules, the loader, the compact round trip, the CMEMS fill
+  helpers, "nothing served reads it yet", and the credential scoping.
+- 100 tests pass with the tide, flag and acquisition suites.
+- Lint is clean.
+
+## 18:50 EST 2026-11-18 (`date`) - M1-0 amendment 2 (before any run): load tide is OUT of the gauge-comparable level; two REPORTED diagnostic candidates added
+**The research lead's correction (section M):**
+- Tide gauges, and the water depth that matters for surf, measure the OCEAN (elastic) tide relative to the seabed and
+  land.
+- Ocean + load is the geocentric tide that altimetry sees. The load tide reaches several cm in places.
+- **=> No served level or gauge score may include `tide_loading`.**
+
+**Added to `parity_rules.CANDIDATES` (REPORTED ONLY; the primary and the PASS rule are unchanged):**
+- `parts_with_load@nearest` = ocean_tide + sea_surface_height + invert_barometer + tide_loading. If it equals TOTAL, the
+  load tide is inside TOTAL.
+- `total_minus_load@nearest` = TOTAL - tide_loading, the gauge-comparable level.
+
+**Consequences:**
+- If the run shows that TOTAL carries the load tide, then:
+  - the served CMEMS series (#1066) becomes TOTAL - tide_loading, documented, with its own SCOREBOARD row (it then
+    differs from the old Open-Meteo level by the load tide);
+  - ACCEPT scores that arm.
+- T3's harmonic v2 is ocean tide only (pyTMD, load excluded).
+- `combine()` now takes `-name` to subtract (tested).
+## 19:05 EST 2026-11-18 (`date`) - PR A (#1077): the advisor's four conditions met (split ACCEPTED, 23:4xZ)
+1. **Nothing served reads the table.** `test_nothing_served_reads_the_table_yet` pins that no module in server.py,
+   services/ or routes/ imports `tide_own` (the loader itself excepted).
+2. **The first build is a dispatch from dev**, on David's word typed in this session, with the advisor reading the build
+   log first.
+   - It writes only `tide_own/series.json.gz` and `tide_own/m.json` (the `storage_io.py` allow-list).
+   - The product clean-up sweep (`product_object_gc`, #1005) lists only TOP-LEVEL objects, and it touches only names in
+     its product grammar (`_PRODUCT_NAME`).
+   - `test_the_product_cleanup_sweep_cannot_touch_the_table` pins that neither name, nor its bare file name, is a
+     product object.
+3. **If M1-0 has not passed when A merges, the table is built WITHOUT CMEMS, and PR B must wait for a table that has
+   it.** PR B never merges on a harmonic-only table. This is stated in #1077 and will be a gate check in B.
+4. **int16 millimetres.**
+   - The range is +-32.767 m, and -32768 is the missing sentinel.
+   - `encode_i16` REFUSES an out-of-range value at write (ValueError, tested). It never clips.
+   - The schema is bumped to `raw-surf/tide-own/2`, so a `/1` table is refused rather than misread (tested).
+
+**Memory measurement method (repeated on the first real table):**
+- a synthetic full-size table: 1,800 keys x 1,152 hourly values x 2 series, A+M full and CMEMS for 12 days;
+- gzip JSON in the builder's form;
+- `tracemalloc` around `tide_own.validate(json.loads(gzip.decompress(raw)))`, with `gc.collect()` before reading
+  current and peak.
+
+**Result:**
+- 9.3 MB retained and a 28.1 MB peak in the compact form;
+- 103 MB retained and a 122 MB peak in the list-of-ints form;
+- the gzip size is 2.9 MB.
+
+`tests/test_tide_own.py` now has 16 tests (chain floor +16, +1 file).
+
+
+## 2026-11-20 about 06:30Z: M1-0 run 44421247650 VOID; the CMEMS reader fixed (branch claude/tide-cmems-reader-fix)
+
+**The advisor's reading (relayed by the director):** run 44421247650 (attempt 2) went green but measured nothing.
+All 20 keys logged `cmems (...): ValueError`, the result file was 699 bytes, and the probe exited 0.
+
+**Cause, found with `copernicusmarine.describe` (no credentials):**
+- version 202411 of `cmems_mod_glo_phy_anfc_merged-sl_PT1H-i` serves EVERY variable as
+  (depth, time, latitude, longitude), with one depth level;
+- the probe indexed it as (time, lat, lon). `np.isfinite(tsl).any(axis=0)` gave a 3-D "wet" mask, and
+  `nearest_wet_cell`'s `iy, ix = unravel_index(...)` raised "too many values to unpack": a ValueError at every key;
+- the table builder's `cmems_fill` read the same way (`tsl[:, iy, ix]`), so with TIDE_CMEMS_PRIMARY=1 every tile
+  would have been skipped by its per-tile `except`.
+
+**Fix:**
+- `surface_tyx(ds, var)`, identical in `parity_rules` and `own_rules` (a test pins the two bodies equal), drops the
+  one-level depth dimension and returns (time, lat, lon). It raises on two or more depth levels or on other dims.
+- Both the probe and the builder read through it. Both now log the exception message, not just its type.
+- The probe counts the keys with BOTH series. Below `MIN_KEYS_BOTH` = 18 of 20 (the 90% pair rule's share), the
+  verdict is "VOID (too few keys with both series)" and the probe exits 2.
+- A new one-shot tag `tide-cmems-parity-r2` is added for the re-run; the old tag stays.
+- Tests (`tests/test_tide_cmems.py`, +3, estate +3):
+  - a POSITIVE CONTROL: a depth-shaped synthetic product reproduces the pre-fix ValueError;
+  - the fixed reader gives (time, lat, lon) with or without depth;
+  - the builder and the probe use the same reader;
+  - the probe exits non-zero below 18 keys.
+
+**Not done:**
+- No credentialed run and no tag. The re-run needs David's word, and the advisor reads it before anything moves.
+- TIDE_CMEMS_PRIMARY stays unset.
+
+
+## 2026-11-20 05:50Z: CORRECTION to the entry above headed "about 06:30Z"
+That heading is wrong. The entry was written at about 05:45Z: the ledger line `claude--tide-cmems-reader-fix.jsonl:1`
+says 05:45:51Z and commit 831cab564 is 05:47:03Z. "06:30Z" was about 43 minutes ahead of the clock, the same fault
+#1099 failed audit for. The heading stays as written (the log is append-only); this line corrects it. The advisor
+caught it (relayed by the director, 2026-11-20).
+
+
+## 2026-11-20 06:26Z: G4 power run 44419701002, the panel record (the advisor's ruling 06:08Z: NO RE-RUN; the share stands)
+
+**(1) The panel, recomputed AFTER the run, from public data.**
+- Script: `backend/scripts/tide_g4/g4_power_panel.py`, run as `python backend/scripts/tide_g4/g4_power_panel.py`.
+- Output: `docs/weather-program/evidence/g4-power-panel-2026-11-20.json`, the 26-gauge table.
+- It uses the run's own functions:
+  - `g4_power.d_reference` for reference D;
+  - `g3t_gate.coops_obs_pred` for observed water, on G3t's SEEN window;
+  - `g3t_rules.excluded_gauges` for the 95% coverage rule.
+- P (A+M) is taken as complete: FES is defined at every gauge, and the run logged no "m ... unavailable" stage.
+- **Result:** 24 included, the same count as the artifact's `n_gauges` 24.
+  - Each included gauge has D and observed coverage of 1.0 and 191.0 gauge-days: 4,584 gauge-days in all, in a
+    191-day window.
+- **Excluded, both for STRUCTURAL reasons:**
+  - 8443970 (Boston): "coverage < 95%: D". D coverage is 0.0 because Open-Meteo returns no sea level for that cell.
+    Boston can never be scored against D.
+  - 8771510 (Galveston Pleasure Pier): "coverage < 95%: observed". Observed coverage is 0.0: no water level in the
+    window.
+
+**(2) The rules the share relies on, cited.** The run was created 2026-11-18 23:19:12Z; its first attempt was cancelled
+unrun, and attempt 2 started 2026-11-19 07:47:08Z.
+- **The 95% coverage exclusion** (`g3t_rules.COVERAGE_MIN = 0.95`, `excluded_gauges`): on dev in 413b0edfe (#1027),
+  committed 2026-11-18 08:16:07Z.
+- **"share >= 0.8 gives LEN_DAYS 56, else 84":**
+  - first committed in the M1 log in 7e31cc29f ("G4 addendum 1"), 2026-11-18 04:41:55Z;
+  - on dev in 413b0edfe (#1027), 08:16:07Z;
+  - in code (`g4_rules.POWER_SHARE_MIN = 0.8`, `window_length`) in 27314a5f7 (#1046), 23:18:23Z, the commit the run
+    executed.
+- Both rules predate the run, and no share existed before 07:47Z on 11-19. So LEN_DAYS 56 follows from a registered
+  rule; it is not a post-hoc choice.
+
+**(3) Correction to the advisor's 05:36Z note (in the advisor's gate file).** No gauge was lost to transport.
+- The six Open-Meteo "GET failed" lines were first tries. `g4_power` imports `g3t_gate`, which replaces
+  `sources.get_json` with a 5-try retry, and each address logged exactly one failure.
+- The nine NOAA 403 lines (stations 9435380 and 8720030) were for the PREDICTIONS product.
+  - `g3t_gate.coops_obs_pred` fetches it alongside observed water, but the power check never uses it.
+  - Both gauges are in the panel with full observed water.
+  - Asking for a product the script does not need is a wart; it is noted here, not changed (the method is frozen).
+- The panel is 24 for the two structural reasons in (1).
+
+**For G4 FINAL, before START:**
+- state the panel (these 24 United States gauges);
+- state the minimum panel below which the test is VOID;
+- state that Boston can never be scored against D, and that Galveston is scored only if it reports during the window.
+- The share is a DESIGN number on seen data: a 56-day test would have reached its line in 44 of 48 stretches. It is not
+  evidence about the tide model, and "worldwide" remains unmeasured.
+
+**Disclosure.** The lane downloaded and opened the run's artifact (`g4_power.json`) at 05:42:59Z on 11-20 (the download's file time), before the
+advisor had read it. The standing rule was that the advisor reads first. Nothing was changed because of it: the share
+and the length rule were already fixed, and LEN_DAYS is not moved.
+
+LEN_DAYS stays unset. Setting it to 56 needs David's word typed in the director's session, and the advisor reads the
+frozen FINAL text before START.
+
+
+## 2026-11-20 12:41Z: PR B's before/after is measured INSIDE the build; nothing downloadable (replaces #1117)
+The owner: "YEah we dont need to let people download anything, they can view info within the app". #1117 (keep the
+table as a 7-day public artifact) is closed unmerged.
+
+**Instead:** `backend/scripts/tide_own/served_delta.py` runs in the daily build. It is stdlib only, run as
+`python3 -I -S`, with no credential.
+- It compares today's table with what users see today (Open-Meteo `sea_level_height_msl`, the current served tide;
+  fetched only as the BEFORE side of an internal test, never served).
+- It covers the 72 hours from 00Z, per key: the mean level offset, the shape RMS after that offset, the range ratio, and
+  the high/low timing shift (matched within 3 h).
+- It writes ONLY counts plus medians and 90th percentiles to the run's step summary. No per-key rows, no file, no
+  artifact; a test pins that the workflow has no `upload-artifact` at all.
+- The step is continue-on-error, so a diagnostic never blocks the publish.
+
+**Not measured here:** the rating's tide_fit and the depth-cap moves.
+
+**Tests:** `test_the_served_delta_keeps_no_file_and_carries_no_credential` and
+`test_served_delta_metrics_on_a_known_pair`. The second is a synthetic semidiurnal pair with a +0.30 m offset, a 1.1
+range and a 1 h lag, all recovered. Chain +2; `tests/test_tide_own.py` 18 pass locally.
+
+
+## 2026-11-20 12:02Z: storage_io get no longer treats every HTTP error as "absent" (the advisor's minor, 2026-11-20)
+The M-cache read printed "HTTP <code> (treated as absent)" for ANY error, so an auth or request fault would have
+silently recomputed every key's M (the first real build, run 44681599129, was fine). `is_not_found(code, body)` now
+returns True only for 404, or for Supabase Storage's missing-object answer (HTTP 400 with statusCode "404" or error
+"not_found"). Any other error exits the step non-zero. Test: tests/test_tide_own.py +1 (chain +1). Nothing served.
+
+
+
+## 2026-11-20 12:05Z: the real Supabase missing-object body, confirmed; is_not_found tightened (#1116)
+A probe with no key, against this project's public Storage URL, of known-absent paths:
+- missing object (public buckets avatars and general): HTTP 400
+  `{"statusCode":"404","error":"not_found","message":"Object not found","code":"NoSuchKey"}`;
+- weather-products, which the key-less request cannot see: HTTP 400
+  `{"statusCode":"404","error":"Bucket not found",...,"code":"NoSuchBucket"}`.
+
+The second also carries statusCode "404", so the first version of is_not_found would have read a key WITHOUT bucket
+access as "absent": the fault the advisor asked to catch. Now only `code NoSuchKey` or `error not_found` count as
+absent; NoSuchBucket, and statusCode alone, fail the step. The test now pins both real bodies. The authenticated route
+with the service key was NOT probed (no credentialed read); it is the same Storage API, so the missing-object body is
+expected to match.
+
+
+
+## 2026-11-20 12:45Z: served_delta guards (the advisor's limits on #1118; local follow-up branch claude/tide-served-delta-guards)
+- **Limit 1:** a chunk that fails all its tries is skipped. The step summary now OPENS with `With a before series: N of M keys`, and marks the numbers NOT TRUSTED below 90%.
+- **Limit 2:** `window_offset` refuses (ValueError) a table that starts after today's 00Z or does not cover the 72-hour window.
+- **Tests:** added to `test_served_delta_metrics_on_a_known_pair` (no new test functions, so floors are unchanged); 18 pass locally.
+- **Next:** open this after #1118 merges.
+
+
+
+## 2026-11-20 12:15Z: PR B (the served switch) PREPARED on a local branch; not pushed, not opened
+The owner, via the director: "Not yet, but lets open the lane to prepare for after reset on sunday". Branch
+`claude/tide-own-serve` is local only. The director brings it to David after the usage reset.
+
+Built to the advisor's conditions:
+1. **The switch.** `tide.fetch_tide_hourly` and `prewarm_tide_cache` read `tide_own`. `SURF_TIDE_OWN` and
+   `SURF_TIDE_CMEMS` are registered in `runtime_flags.GUARDED` and `_RATING_FLAGS`; the flag-lane parity test is green.
+2. **Ships ON with a kill switch.** `SURF_TIDE_OWN` defaults to "1"; "0" means no tide, never Open-Meteo. A SCOREBOARD
+   row is added (12:14Z). The served before/after delta is NOT yet measured; it is owed before the PR opens.
+3. **What users see when the table cannot answer: NO TIDE ("unavailable"), never an Open-Meteo fallback.** This covers
+   no table, a table older than 7 days, a key not in the table, and the kill switch.
+   - Why: the owner's rule is no Open-Meteo in user data (licence), so falling back to Open-Meteo would break it exactly
+     when something has gone wrong.
+   - Cost: if the daily build fails for more than 7 days, the tide disappears for everyone. The rating then runs
+     without tide_fit, and the SURF_TIDE_DEPTH cap uses still water.
+   - Each case is tested: missing, stale, absent key, killed.
+   - **David to confirm or choose otherwise.**
+4. **The pin test is replaced deliberately, not deleted.** `test_nothing_served_reads_the_table_yet` becomes
+   `test_only_tide_py_reads_the_table` and the dispatch tests, with a comment saying why. A further test pins that no
+   deploy or workflow sets the test-only legacy path (`TIDE_LEGACY_OPEN_METEO`). Only conftest sets it, so the old
+   Open-Meteo unit tests keep running.
+5. **`SURF_TIDE_CMEMS` defaults to "0".** It stays off until the r2 parity run is read and passing AND the builder
+   refuses to publish a low CMEMS fill count. A test pins the default.
+6. **The PR description** is drafted beside the handoff in the session notes.
+
+**Local tests:** 180 tide and flag tests pass. The one failure is xarray, which is missing from the local interpreter;
+that test passed in the venv. The route-level suites need sqlalchemy and were NOT run locally; CI will run them.
+
+
+## 2026-11-20 12:37Z: PR B, the advisor's licence conditions (a) and (b) (local branch claude/tide-own-serve)
+**(a) The AVISO licence, read in full** (Issue 20, effective 10 Aug 2026; copy in the session notes,
+`aviso-license-issue20.txt`). The derived-products clause:
+- s.1(d) "Derivative Work: A product derived from AVISO Data Products that does not retain the original pixel/data
+  structure." Tide predictions at a point, computed from the FES2022 constituents, are this.
+- s.2.1 grants the right to "B. produce, reproduce, and Share Adapted Material (Value-Added Products or Derivative
+  Works), for any purpose, including commercial purposes, subject to Section 3".
+- s.3.2, the mass-distribution restriction, "does not restrict Sharing Adapted Material (Value-Added Products or
+  Derivative Works)".
+- s.3.1 attribution: the creators and CNES as licensor, a citation, a licence link, and an indication of modification.
+- Annex A restricts only FES2022 CURRENTS (non-commercial); we use elevations only.
+
+The clause is clear for serving predictions to every user, so no question to AVISO is drafted. One duty to note:
+s.7.3 asks for "reasonable records of AVISO Data Product usage where distribution is at scale". The daily build logs
+and the ledger are that record.
+
+**(b) The exact attribution, served and stored.**
+- `services/weather_pipeline/tide_credits.py` holds the one text. It is the AVISO acknowledgement verbatim ("The
+  FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available by AVISO"),
+  plus "Mean sea level: Generated using E.U. Copernicus Marine Service Information" and the licence link.
+- **Served:** every series carries it as its `credit`. /point-tide's full credit uses the same acknowledgement.
+- **Spot hub:** `/tides/{id}` now reports `station_id: raw-surf:tide-own:<source>` with the credit, and the hub's
+  source line shows it. It never shows an Open-Meteo line for our tide.
+- **Stored:** every table gets a `credits` field (`own_rules.encode_table`), pinned equal to the served text.
+- **Tests:** backend `test_the_exact_attribution_is_served_and_stored_with_every_series` (chain fragment now +7);
+  frontend `our own tide shows its exact attribution` (frontend +1).
+- **Local results:** Jest 135 pass (spot-hub and tide readout suites); `check_eslint` passes; tests/test_tide_own.py
+  23 pass.
+
+**For David when PR B comes up:** #1117 keeps the built table as a 7-day public artifact. If he would rather the table
+never leave the bucket, the before/after delta can instead be computed inside the workflow, uploading only summary
+numbers.
+
+
+## 2026-11-22 13:51Z: PR B opened after the usage reset (the director, with David: "resume everything toward SOTA")
+- **Rebased** onto dev 5bbf5ee25; only log-only conflicts, resolved by appending in time order.
+- **Before/after**, from build 44924244129 (served_delta, 2026-11-21 16:22Z):
+  - coverage: 1,061 of 1,061 keys (100%);
+  - mean offset: median +0.001 m, size median 0.353 m (p90 0.613 m), the known datum difference;
+  - shape RMS after the offset: 0.128 m (p90 0.269 m);
+  - range ratio: 0.99 (1.04);
+  - high/low timing: 1 h (the hourly resolution).
+- **Not measured:** tide_fit and the depth-cap moves.
+- **SCOREBOARD:** a new row is appended; the earlier 12:14Z row stays as written.
+- **Merge:** only on David's word, together with his pick on the missing-table behaviour (no tide vs Open-Meteo).
+
+
+
+## 2026-11-22 13:55Z: #1132 HOLD fixes (the advisor)
+1. **Citation.** The FES2022 citation (CNES, 2024 ... https://doi.org/10.24400/527896/A01-2024.004), licence s.3.1, is now in `tide_credits.CREDITS['am']` and the `own_rules` copy. The spot hub shows it, not only /point-tide. The route imports `FES_CITATION` from the one module, and the pin test is extended.
+2. **Datum.** The 'am' label says `heights above local mean sea level`. The measured SCOREBOARD row now says users will see heights above local MSL: hub heights move about 1.2 ft typical, 2 ft at p90, either way. It also lists the depth cap AND the face-range low end as unmeasured (both add the height directly), with tide_fit expected unaffected.
+
+Tests: test_tide_own + flag parity pass 51 locally.
+
+
+
+## 2026-11-22 14:27Z: #1132 red on test_every_guarded_flag_says_what_can_see_it; guardrail coverage for the tide flags
+- **BLIND, both flags.** `SURF_TIDE_OWN` and `SURF_TIDE_CMEMS` are declared BLIND in `flag_guardrail.COVERAGE`. The replay fetches its tide from Open-Meteo by date (`eval_replay.TideSeries`) and never reads our table, so flipping either flag changes nothing it scores. No instrument scores the served tide against observed water yet; G4 will. Evidence: served_delta and tests.
+- **Never auto-disabled.** A BLIND flag's sanity breach still disabled it in `decide()`. `SURF_TIDE_OWN`'s kill serves NO tide, so it joins a new `NEVER_AUTO_DISABLE`: a WORSE verdict or a breach is REPORTED (`action: none`, reason 'REPORTED, NOT disabled') and never written as 'off'. Only the owner turns it off.
+- **CMEMS not exempt.** `SURF_TIDE_CMEMS` is NOT in the set: its kill restores our harmonic tide, a safe fallback.
+- **Test:** `test_the_served_tide_is_blind_and_never_auto_disabled`, with a control: the same breach still disables SURF_FACE_RANGE. Chain floor now +8; 76 pass locally.
+
+
+
+## 2026-11-22 14:31Z: #1132, the advisor's follow-ups to the guardrail exemption
+- **DECISIONS D-086 drafted, PENDING David's word and NOT decided.** It amends D-065 for ONE named flag (SURF_TIDE_OWN), with the rule as written: a flag qualifies only when its kill removes a service rather than restoring an older one. If David declines, NEVER_AUTO_DISABLE is removed.
+- **(a) A report now stands out.** It is its own action, `report`, not `none`. `main()` prints a `::warning` annotation per reported flag and puts `<flag>(reported-not-disabled)` in acted.txt, so the workflow opens or appends the guardrail issue. Nothing is written to the manifest; a test pins `apply` writing nothing.
+- **(b) SURF_TIDE_DEPTH's COVERAGE is now PARTIAL.** The replay drives the cap with Open-Meteo's tide, about 0.35 m median from the served local-MSL level. The cap's response is scored; the served levels are not.
+- **Tests:** 76 pass locally.
+
+
+
+## 2026-11-22 15:09Z: D-086 DECIDED by the owner
+David, typed in this session: "Yes, approve D-086". The DECISIONS entry is updated from PENDING to decided, with his words. NEVER_AUTO_DISABLE stays for SURF_TIDE_OWN only. Still open before #1132 merges: David's word to merge and his pick on the missing-table behaviour.
+
+
+
+## 2026-11-22 15:40Z: the tide table is never missing or stale (David: "we should have something else in place that is more SOTA, where we don't have missing tide tables ever")
+Branch claude/tide-never-missing, stacked on #1132.
+- **Long horizon.** `own_rules.AHEAD_DAYS` goes 45 -> 90. The harmonic tide (A + M) is deterministic, so the server
+  now serves a table for as long as its axis covers today; the 7-day age cut is gone. Only CMEMS ages: it is served from
+  a table generated within 2 days.
+- **Never publish a bad table.** `publish_guard.py` (stdlib, no credential) refuses a table that:
+  - covers fewer than 60 days ahead;
+  - has fewer than 95% of the published table's keys;
+  - has fewer than 95% of its keys with a value in the next 16 days;
+  - or has the wrong schema.
+  The workflow reads the published table, guards, then keeps the old one as `series.prev.json.gz` and publishes. A
+  refusal stops before the publish.
+- **Survive outages.** The server tries the published table, then the previous one, then its in-memory copy, then a
+  copy on local disk (written atomically after each good read). An older table never replaces a newer one.
+- **Alert.** A `horizon` job (`if: always()`, so it runs even when the build failed) goes red when the published
+  table covers fewer than 30 days ahead or is missing. The server also logs a warning below 30.
+- **Not done: a server-side harmonic compute.** PyFES is GPL and the FES constants must never be exposed (AVISO s.3.2),
+  so the served backend cannot compute FES. The 90-day horizon plus the fallbacks cover the same failure.
+- **Memory**, synthetic table at 1,800 keys x 2,232 h, compact form: 17.6 MB retained, 55.1 MB peak, 2.8 MB gzip (the
+  48-day table: 9.3 / 28.1 MB). Expect about 10 MB retained at today's 1,061 keys.
+- **Tests:** one per failure: build failed for weeks; storage down (previous, then memory, then disk); an older table
+  never replacing a newer one; partial, short or shrunken tables refused; the horizon alert; the workflow wiring.
+  Chain +5. Locally 81 pass.
+
+
+## 2026-11-22 15:42Z: the owner's words on the interim and the path (relayed by the director, typed in its session)
+- On the missing-table behaviour (with D-086's record): "Yes, but with that said we should have something else in place that is more SOTA, where we don't have missing tide tables ever". So #1132 merges as built (missing/stale = tide unavailable, never Open-Meteo), and this PR is the something else.
+- On the path: "move forward on the best SOTA path. We dont have real users yet, keep that in mind".
+- **Carry check for #1132:** after the dev merge (a1879ef79), all 20 of the PR's own files are blob-identical to 20247b635. Only the merge commit changed.
+
+
+
+## 2026-11-22 15:44Z: #1138 HOLD fixes (the advisor)
+1. **Single-flight.** `_load_gate`: one download and decode at a time. During a reload, other callers get the current table at once; at a cold start they wait (bounded by the timeout) for the one loader instead of starting their own. Test `test_single_flight_one_fetch_however_many_callers`: 10 threads, warm and cold, exactly 1 fetch each.
+2. **Conditional GET.** The published table is requested with `If-None-Match` (the last ETag). A 304 refreshes the TTL with no download or decode. Test `test_conditional_get_skips_an_unchanged_table`: second read sends the ETag, gets 304, and decodes once in total.
+3. **SCOREBOARD.** A row of its own for the changed availability: an any-age harmonic tide while the axis covers today, CMEMS only within 2 days, and the fallbacks. Users now see a tide after failed builds. Numbers are unchanged when fresh; nothing was re-measured.
+
+Chain fragment for this branch is now +7; `tests/test_tide_own.py` passes 33 locally.
+

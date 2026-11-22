@@ -72,6 +72,7 @@ PUBLIC_WRITES = {
     ("POST", "/api/auth/signup"): "account creation: the caller has no token yet",
     ("POST", "/api/auth/forgot-password"): "password reset request: the caller cannot sign in",
     ("POST", "/api/auth/reset-password"): "authorised by the emailed reset token in the body",
+    ("POST", "/api/compliance/restore-account"): "restore after a deletion request: authorised by the emailed token (no session can exist)",
     ("POST", "/api/auth/verify-reset-token"): "checks the emailed reset token in the body",
     ("POST", "/api/auth/login/mfa"): "second step of sign-in: authorised by the single-use challenge from a correct password",
     ("POST", "/api/auth/login/passkey/options"): "starts a passkey sign-in: the caller has no token yet; issues only a random challenge",

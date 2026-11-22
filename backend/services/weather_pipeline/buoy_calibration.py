@@ -18,6 +18,7 @@ import math
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -494,7 +495,7 @@ def fetch_buoy_spots_via_rest(limit: int = 5000) -> list:
     url = (f"{base}/rest/v1/surf_spots?select=id,name,latitude,longitude,noaa_buoy_id"
            f"&is_active=eq.true&noaa_buoy_id=not.is.null"
            f"&latitude=not.is.null&longitude=not.is.null&limit={limit}")
-    resp = requests.get(url, headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=30)
+    resp = requests.get(url, headers=supabase_headers(key), timeout=30)
     resp.raise_for_status()
     return resp.json()
 
@@ -539,7 +540,6 @@ def load_calibration_l2(l2_key: str = None, *, strict: bool = False):
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{l2_key or BUOY_CALIBRATION_L2_KEY}"
-        headers = {"Authorization": f"Bearer {key}", "apikey": key}
         if strict:
             # A15-19 (audit 15.0): the precompute job reads calibration/skill/pending.json (~20k rows)
             # while its own prefetch is being throttled (429 too_many_connections), and one
@@ -548,10 +548,10 @@ def load_calibration_l2(l2_key: str = None, *, strict: bool = False):
             # "SKILL LEDGER DEAD". A GET is idempotent, so transient answers are retried with the
             # same jittered backoff the upload path uses (l2_retry.py), with room for a large object.
             from services.weather_pipeline.l2_retry import is_missing_object, post_with_retry
-            resp, _retries = post_with_retry(lambda: requests.get(url, headers=headers, timeout=30),
+            resp, _retries = post_with_retry(lambda: requests.get(url, headers=supabase_headers(key), timeout=30),
                                              l2_key or BUOY_CALIBRATION_L2_KEY)
         else:
-            resp = requests.get(url, headers=headers, timeout=10)
+            resp = requests.get(url, headers=supabase_headers(key), timeout=10)
         if resp.status_code == 200:
             obj = resp.json()
             if strict and obj is None:

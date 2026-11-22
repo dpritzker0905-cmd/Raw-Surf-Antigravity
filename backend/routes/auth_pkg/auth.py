@@ -10,7 +10,7 @@ import logging
 
 from database import get_db
 from models import Profile, RoleEnum
-from core.security import create_access_token, get_current_user_id, get_user_id_from_jwt_or_query
+from core.security import create_access_token, get_current_user_id, get_user_id_from_jwt_or_query, verify_token
 from core.login_throttle import LoginThrottle
 from core.rate_limiter import rate_limit_check
 from models import Notification
@@ -485,6 +485,10 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     
     # Check if suspended
     if profile.is_suspended:
+        from services.account_deletion import is_pending
+        if await is_pending(db, profile.id):
+            raise HTTPException(status_code=403, detail=(
+                "This account is scheduled for deletion. Use the restore link we emailed you to restore it."))
         raise HTTPException(status_code=403, detail="Account suspended")
 
     # A second factor is owed (or must be set up) before any session token exists: see routes/auth_pkg/mfa.py.
@@ -634,10 +638,28 @@ async def change_password(
         raise HTTPException(status_code=400, detail="New password must be different from current password")
 
     # ── Update password hash ──────────────────────────────────────────────
+    # The sign-in methods behind the CURRENT token (MFA evidence) carry over to the fresh one; read it before the
+    # commit, which revokes it.
+    prior_amr = None
+    auth_header = request.headers.get("authorization") or ""
+    if auth_header.startswith("Bearer "):
+        try:
+            prior_amr = verify_token(auth_header.split(" ", 1)[1]).get("amr")
+        except HTTPException:
+            prior_amr = None
     profile.password_hash = hash_password(data.new_password)
-    await db.commit()
+    await db.commit()               # the database hook revokes every session issued before this moment
 
+    # This device stays signed in: a fresh token minted past the new cutoff (`rv`); every other session ends.
+    from core.session_revocation import cutoff_for
+    claims = {"sub": profile.id, "role": profile.role.value}
+    if prior_amr:
+        claims["amr"] = prior_amr
+    cutoff = cutoff_for(profile.id)
+    if cutoff is not None:
+        claims["rv"] = cutoff
     return {
         "success": True,
-        "message": "Password changed successfully.",
+        "message": "Password changed. Other devices have been signed out.",
+        "access_token": create_access_token(claims),
     }

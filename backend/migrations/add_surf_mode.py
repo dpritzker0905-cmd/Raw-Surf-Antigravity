@@ -6,9 +6,10 @@ SUPABASE_KEY = "sb_publishable_JozrdGtw9LTs58w8BAiXKg_k06DoHww"
 
 # Use the Supabase SQL endpoint (requires service role key for DDL)
 # We'll use the rpc endpoint with a raw SQL call
+# sb_ keys are not JWTs and are rejected as Bearer: send apikey, plus Bearer only for a legacy JWT key.
 headers = {
     "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
+    **({"Authorization": "Bearer " + SUPABASE_KEY} if SUPABASE_KEY.startswith("eyJ") else {}),
     "Content-Type": "application/json"
 }
 

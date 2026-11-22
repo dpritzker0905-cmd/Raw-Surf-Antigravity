@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AlertTriangle, MapPin, Check, X, Loader2, RefreshCw, ExternalLink, MessageSquare } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useAuth } from '../../contexts/AuthContext';
 import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
+import { AdminPager } from './AdminPager';
+import { AdminSpotCandidates } from './AdminSpotCandidates';
+import { DEFAULT_PAGE_SIZE, adminSpotPagingDisabled, pageWindow } from './adminSpotPaging';
 
 
 /**
@@ -23,23 +26,39 @@ export const AdminPrecisionQueue = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('queue'); // 'queue' | 'suggestions'
   const [processing, setProcessing] = useState(null);
+  // ★ PAGED (owner, 2026-11-18). The queue held about 1,700 spots and this screen showed the first 20, with the
+  // tab reading "Flagged (20)". It now pages through all of them and the tab shows the true total. Kill switch:
+  // `window.__RAW_DISABLE_ADMIN_SPOT_PAGING__ = true` (adminSpotPaging.js) restores the old first-20 view.
+  const [pagingOff] = useState(adminSpotPagingDisabled);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [queueTotal, setQueueTotal] = useState(0);
+  const [candidateCounts, setCandidateCounts] = useState(null);
+  const loadedOnceRef = useRef(false);
 
   // Fetch queue
   const fetchQueue = useCallback(async () => {
     try {
-      setLoading(true);
+      // The full-screen spinner is for the first load; turning a page keeps the list (and the pager) on screen.
+      if (!loadedOnceRef.current) setLoading(true);
       const [queueRes, suggestionsRes] = await Promise.all([
-        apiClient.get(`/admin/spots/queue`),
+        apiClient.get(`/admin/spots/queue`, pagingOff ? undefined : { params: { page, limit: pageSize } }),
         apiClient.get(`/admin/spots/suggestions`)
       ]);
-      setQueue(queueRes.data.queue);
+      const rows = queueRes.data.queue || [];
+      const total = queueRes.data.total ?? rows.length;
+      setQueue(rows);
+      setQueueTotal(total);
       setSuggestions(suggestionsRes.data.suggestions);
+      // The page emptied (its last spots were fixed): step back to the last page that still has rows.
+      if (!pagingOff && rows.length === 0 && total > 0 && page > 1) setPage(pageWindow(page, pageSize, total).page);
     } catch (error) {
       toast.error('Failed to load queue');
     } finally {
+      loadedOnceRef.current = true;
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, pagingOff, page, pageSize]);
 
   useEffect(() => {
     if (user?.id) {
@@ -138,8 +157,10 @@ export const AdminPrecisionQueue = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
+          type="button"
+          aria-pressed={activeTab === 'queue'}
           onClick={() => setActiveTab('queue')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             activeTab === 'queue'
@@ -147,9 +168,11 @@ export const AdminPrecisionQueue = () => {
               : 'bg-muted text-muted-foreground hover:text-foreground'
           }`}
         >
-          Flagged ({queue.length})
+          Flagged ({(pagingOff ? queue.length : queueTotal).toLocaleString()})
         </button>
         <button
+          type="button"
+          aria-pressed={activeTab === 'suggestions'}
           onClick={() => setActiveTab('suggestions')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             activeTab === 'suggestions'
@@ -159,7 +182,25 @@ export const AdminPrecisionQueue = () => {
         >
           Suggestions ({suggestions.length})
         </button>
+        {!pagingOff && (
+          <button
+            type="button"
+            aria-pressed={activeTab === 'candidates'}
+            onClick={() => setActiveTab('candidates')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'candidates'
+                ? 'bg-cyan-500 text-white'
+                : 'bg-muted text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Candidates{candidateCounts?.by_status
+              ? ` (${Number(candidateCounts.by_status.pending || 0).toLocaleString()} waiting)` : ''}
+          </button>
+        )}
       </div>
+
+      {/* Candidates Tab: the holding table (not surf spots), read only */}
+      {activeTab === 'candidates' && !pagingOff && <AdminSpotCandidates onCounts={setCandidateCounts} />}
 
       {/* Queue Tab */}
       {activeTab === 'queue' && (
@@ -177,8 +218,8 @@ export const AdminPrecisionQueue = () => {
                 className="bg-muted rounded-xl p-4 flex items-center justify-between"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 font-bold">
-                    {index + 1}
+                  <div className="min-w-[2.5rem] h-10 px-2 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 font-bold">
+                    {(pagingOff ? 0 : (page - 1) * pageSize) + index + 1}
                   </div>
                   <div>
                     <h4 className="text-foreground font-medium">{spot.name}</h4>
@@ -226,6 +267,16 @@ export const AdminPrecisionQueue = () => {
                 </div>
               </div>
             ))
+          )}
+          {!pagingOff && queueTotal > 0 && (
+            <AdminPager
+              label="flagged spots"
+              page={page}
+              pageSize={pageSize}
+              total={queueTotal}
+              onPage={setPage}
+              onPageSize={(size) => { setPageSize(size); setPage(1); }}
+            />
           )}
         </div>
       )}

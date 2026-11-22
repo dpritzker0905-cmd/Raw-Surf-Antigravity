@@ -26,6 +26,7 @@ import logging
 import math
 import os
 from typing import Optional
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -418,7 +419,7 @@ def list_inbox_keys() -> list:
         from services.weather_pipeline.store import WEATHER_BUCKET
         resp = requests.post(
             f"{base}/storage/v1/object/list/{WEATHER_BUCKET}",
-            headers={"Authorization": f"Bearer {key}", "apikey": key},
+            headers=supabase_headers(key),
             json={"prefix": INBOX_PREFIX, "limit": 100}, timeout=15)
         if resp.status_code != 200:
             return []
@@ -437,7 +438,7 @@ def delete_inbox_key(l2_key: str) -> bool:
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         resp = requests.delete(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{l2_key}",
-                               headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=15)
+                               headers=supabase_headers(key), timeout=15)
         return resp.status_code in (200, 204)
     except Exception:
         return False
@@ -539,7 +540,7 @@ def load_size_climatology_l2_status(l2_key: str = None) -> tuple:
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{l2_key or SIZE_CLIMATOLOGY_L2_KEY}"
-        resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=10)
+        resp = requests.get(url, headers=supabase_headers(key), timeout=10)
     except Exception as e:
         logger.warning(f"[size-climatology] L2 load failed: {type(e).__name__}: {str(e)[:160]}")
         return None, "unavailable"

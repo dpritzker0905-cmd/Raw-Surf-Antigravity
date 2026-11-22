@@ -1,0 +1,100 @@
+name: Tide M1 gate G3t (tide + mean level + seasonal vs observed; no surge)
+# WHY: the pre-registered G3t gate (docs/weather-program/log/2026-11-15-claude-tide-m1.md, G3t FINAL b6eb66fa6):
+# FES2022b tide + altimetry mean level + seasonal anomaly, scored against OBSERVED water at 26 CO-OPS gauges against
+# test-only Open-Meteo references, on 2026-01-01 .. 07-24 minus the held-out weeks; UHSLC non-US and any open-coast IOOS
+# gauge reported. Measurement only: no bucket write, nothing served, no live backend. PyFES is GPL and runs only here.
+# ONE-SHOT START: only a push of the tag `tide-gate-G3t` (on the owner's word typed in the session that runs it) starts
+# it; no branch push, schedule or manual dispatch can (no workflow_dispatch: the file must stay one-shot even on dev).
+# Credentials: AVISO only on the FES download step, Copernicus Marine only on the gate step; read from the environment
+# by the scripts and never printed. The log carries stage names and memory only; scores reach the summary and artifact.
+# Pinned by tests/test_tide_g3t_rules.py.
+on:
+  push:
+    tags: [tide-gate-G3t]
+permissions:
+  contents: read
+  actions: write        # only to prune superseded G3t FES caches (repo cache limit is 10 GB, shared)
+concurrency:
+  group: tide-g3t-gate
+  cancel-in-progress: false
+jobs:
+  # Two jobs so the first-run FES download (~3h40 on 2 connections) and the gate each get a full job limit; the gate
+  # job restores the cache the download job saved in this same run.
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (offline-only dependencies, pinned)
+        run: pip install "pyfes==2026.5.2" "pyTMD==3.1.0" "timescale==0.1.3" "paramiko==5.1.0" "copernicusmarine==2.4.1" netCDF4 numpy scipy xarray h5netcdf pandas lxml pyyaml
+      - name: Restore FES2022b downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: fes_cache
+          key: fes2022b-g3t-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            fes2022b-g3t-${{ github.run_id }}-
+            fes2022b-g3t-
+      - name: Download FES2022b (AVISO, pinned host key)
+        timeout-minutes: 320
+        env:
+          AVISO_USERNAME: ${{ secrets.AVISO_USERNAME }}
+          AVISO_PASSWORD: ${{ secrets.AVISO_PASSWORD }}
+        run: python backend/scripts/tide_g3t/g3t_gate.py --download-fes-only --fes-cache fes_cache
+      - name: Drop partial files before saving
+        if: always()
+        run: |
+          mkdir -p fes_cache
+          rm -f fes_cache/*.part
+      - name: Save FES2022b downloads
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: fes_cache
+          key: fes2022b-g3t-${{ github.run_id }}-${{ github.run_attempt }}
+  gate:
+    needs: download
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (offline-only dependencies, pinned)
+        run: |
+          pip install "pyfes==2026.5.2" "pyTMD==3.1.0" "timescale==0.1.3" "paramiko==5.1.0" "copernicusmarine==2.4.1" netCDF4 numpy scipy xarray h5netcdf pandas lxml pyyaml
+          python -m pip freeze --all > pip_freeze.txt   # exact versions of the unpinned libraries, into the artifact
+      - name: Restore FES2022b downloads (this run's)
+        uses: actions/cache/restore@v4
+        with:
+          path: fes_cache
+          key: fes2022b-g3t-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+      # The gate: S1 preflight FIRST (a failure is NO VERDICT, before any truth), then FES, S1, references, truth LAST.
+      - name: Run the G3t gate
+        timeout-minutes: 320     # S1 serial at 45 points + 7 months of truth; a timeout is NO VERDICT (scores never printed)
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python backend/scripts/tide_g3t/g3t_gate.py --fes-cache fes_cache --work g3t_work > g3t_gate.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tide-g3t-gate
+          path: |
+            g3t_gate.json
+            pip_freeze.txt
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Prune superseded G3t FES caches
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh cache list --key fes2022b-g3t- --limit 50 --json key -q '.[].key' \
+            | grep -v -- "-${{ github.run_id }}-${{ github.run_attempt }}$" | xargs -r -n1 gh cache delete || true

@@ -31,6 +31,13 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.weather_pipeline.spot_size_climatology import (  # noqa: E402
@@ -45,7 +52,7 @@ def pending_inbox_spot_ids(session, url, svc, marker_key: str, version: int) -> 
     out = set()
     try:
         resp = session.post(f"{url}/storage/v1/object/list/weather-products",
-                            headers={"Authorization": f"Bearer {svc}", "apikey": svc},
+                            headers=_supabase_headers(svc),
                             json={"prefix": INBOX_PREFIX, "limit": 100}, timeout=30)
         if resp.status_code != 200:
             return out
@@ -54,7 +61,7 @@ def pending_inbox_spot_ids(session, url, svc, marker_key: str, version: int) -> 
             if not name.endswith(".json"):
                 continue
             g = session.get(f"{url}/storage/v1/object/weather-products/{INBOX_PREFIX}{name}",
-                            headers={"Authorization": f"Bearer {svc}", "apikey": svc}, timeout=60)
+                            headers=_supabase_headers(svc), timeout=60)
             if g.status_code != 200:
                 continue
             batch = g.json()
@@ -161,7 +168,7 @@ def load_live_blob(session, url, svc):
 def upload_blob(session, url, svc, blob):
     resp = session.post(
         f"{url}/storage/v1/object/weather-products/{SIZE_CLIMATOLOGY_L2_KEY}",
-        headers={"Authorization": f"Bearer {svc}", "apikey": svc,
+        headers={**_supabase_headers(svc),
                  "Content-Type": "application/json", "x-upsert": "true"},
         data=json.dumps(blob, separators=(",", ":")).encode("utf-8"), timeout=120,
     )
@@ -264,7 +271,7 @@ def main():
     }
     resp = session.post(
         f"{url}/storage/v1/object/weather-products/{INBOX_PREFIX}{batch_id}.json",
-        headers={"Authorization": f"Bearer {svc}", "apikey": svc,
+        headers={**_supabase_headers(svc),
                  "Content-Type": "application/json", "x-upsert": "true"},
         data=json.dumps({"batch_id": batch_id, "spots": spots_payload},
                         separators=(",", ":")).encode("utf-8"), timeout=120)

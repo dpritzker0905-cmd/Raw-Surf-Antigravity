@@ -22,6 +22,7 @@ from .schemas import (
     OnDemandToggleRequest, OnDemandStatusResponse,
     PhotographerStatsResponse,
 )
+from services.blocks import listed_clause  # withdrawn accounts (pending deletion) are hidden
 
 router = APIRouter()
 
@@ -34,7 +35,7 @@ async def get_on_demand_photographers(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all photographers available for on-demand requests."""
-    query = select(Profile).where(
+    query = select(Profile).where(listed_clause(Profile.id)).where(
         and_(
             Profile.on_demand_available.is_(True),
             Profile.role.in_([RoleEnum.PHOTOGRAPHER, RoleEnum.PRO, RoleEnum.APPROVED_PRO])

@@ -1,8 +1,0 @@
-{
-  "lane": "guards",
-  "tests": 7,
-  "files": 0,
-  "branch": "docs/learning-loop-lint",
-  "date": "2026-11-17",
-  "note": "control-char guard test (guards lane)"
-}

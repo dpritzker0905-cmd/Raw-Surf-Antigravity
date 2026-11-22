@@ -52,6 +52,7 @@ from typing import Optional
 from services.weather_pipeline.spot_size_climatology import (
     merge_samples, reference_from_hist, hist_count,
 )
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -199,7 +200,7 @@ def load_grid_size_climatology_l2() -> Optional[dict]:
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{GRID_SIZE_CLIMATOLOGY_L2_KEY}"
-        resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=10)
+        resp = requests.get(url, headers=supabase_headers(key), timeout=10)
         if resp.status_code != 200:
             return None
         return resp.json()

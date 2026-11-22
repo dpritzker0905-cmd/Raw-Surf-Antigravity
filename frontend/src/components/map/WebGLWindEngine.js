@@ -26,6 +26,7 @@ import {
 } from './WebGLWindEngineInit';
 import { recordTruthStage } from './weatherTruthTracker'; import { refreshWindSpeedScale } from './windDeliveryCoalesce';
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { advTeardownNeeded } from './advFboSync';
+import { setGustField, clearGustField, setGustMode, gustColourActive, gustModeBlank, rampMaxFor, bindGustColour, GUST_UNIT } from './windGustColour';   // Gusts: wind motion, gust colour (gustParticles.js)
 
 function latToMercatorY(lat) {
   var latClamped = Math.max(-85.051129, Math.min(85.051129, lat));
@@ -332,6 +333,7 @@ WebGLWindEngine.prototype.clearWindData = function(gl) {
 
 WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom, theme, worldOffsets, viewportBounds) {
   if (!this._initialized || this._programBatch || !this._windData) return;   // _programBatch: shaders still compiling
+  if (gustModeBlank(this)) return;   // Gusts picked, no gust frame resident: draw nothing, never wind under the Gusts label (windGustColour.js)
 
   const windGrid = this._windData?.windGrid;
   if (windGrid) {
@@ -374,9 +376,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // Update color ramp when theme changes or if texture is not yet created
   // v3.15: Use _currentTheme (set by setTheme) as fallback when theme param not passed
   var activeTheme = theme || this._currentTheme || 'dark', lookKey = windLookKey(activeTheme);   // the light-look lever and dark's rules (WindColorRamp.js): a change rebuilds at once
-  if (activeTheme !== this._currentTheme || !this._colorRamp || lookKey !== this._lookKey) {
-    this._currentTheme = activeTheme; this._lookKey = lookKey;
-    var rampData = drawnMarkRampData(this._maxWindSpeed, activeTheme);   // two rows, over land and over sea: equal unless dark's rules draw rows of their own
+  var rampMax = rampMaxFor(this);   // Gusts: the gust heatmap's 0-75 kn span, so a knot is one colour in marks and field (windGustColour.js)
+  if (activeTheme !== this._currentTheme || !this._colorRamp || lookKey !== this._lookKey || rampMax !== this._rampMax) {
+    this._currentTheme = activeTheme; this._lookKey = lookKey; this._rampMax = rampMax;
+    var rampData = gustColourActive(this) ? drawnMarkRampData(rampMax, activeTheme) : drawnMarkRampData(this._maxWindSpeed, activeTheme);   // two rows, over land and over sea: equal unless dark's rules draw rows of their own
     if (this._colorRamp) gl.deleteTexture(this._colorRamp);
     this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 2); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
     console.log('[WebGLWind] Color ramp updated for theme:', activeTheme);
@@ -570,6 +573,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
 
   // Step 0: Draw live wind-speed heatmap from the same forecast grid used by particles.
+  // GUSTS: the gust raster under the particles IS the field (gustParticles.js), so this pass is skipped and never stacks on it.
+  if (!gustColourActive(this)) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.enable(gl.BLEND);
@@ -690,6 +695,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
       if (heatUVLoc !== -1) gl.disableVertexAttribArray(heatUVLoc);
     }
+  }   // end Step 0 (skipped in gust mode)
 
   // Step 1: Advect particles (ping-pong). The state format follows its kill (particleState.js; a flip reseeds, trails kept).
   syncParticleStateFormat(gl, this, () => this.reinitParticles(gl, { keepTrails: true }));
@@ -820,7 +826,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_wind'), 1);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_color_ramp'), 2); bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme), effectiveTheme); bindCalmAir(gl, this.drawProgram, effectiveTheme, z);   // dark's rules: land and sea rows, and the white's strength over each (D-022), and its fall in near-calm air (D-030)
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_max_speed'), this._maxWindSpeed);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_max_speed'), this._maxWindSpeed); bindGustColour(gl, this.drawProgram, this);   // Gusts: colour from the gust field (u_gust_on); the motion and size path keep the wind's u_max_speed
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_ramp_max'), this._rampMax || this._maxWindSpeed);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]); applyParticleStateUniforms(gl, this.drawProgram, this);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
@@ -921,6 +928,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     var idxLoc = gl.getAttribLocation(this.drawProgram, 'a_index');
     if (idxLoc !== -1) gl.disableVertexAttribArray(idxLoc);
   }
+  if (gustColourActive(this)) bindTexture(gl, null, GUST_UNIT);   // gust mode: free unit 6 again (MapLibre's own texture cache)
 
   // Copy screenB screenA
   gl.useProgram(this.screenProgram);
@@ -1012,8 +1020,12 @@ var deleteAttachedShaders = function(gl, prog) {
 };
 
 WebGLWindEngine.prototype.dispose = function(gl) {
+  clearGustField(this, gl);
   disposeEngine(this, gl);
 };
+/** Gusts (gustParticles.js): the gust field on screen colours the marks; null returns the engine to the Wind layer exactly. */
+WebGLWindEngine.prototype.setGustField = function(gl, field, opts) { setGustField(this, gl, field, opts); };   // opts: currents (currentParticles.js)
+WebGLWindEngine.prototype.setGustMode = function(on) { setGustMode(this, on); };   // Gusts picked (true) or not: keyed on the selected layer, not a loaded texture (windGustColour.setGustMode)
 /**
  * v3.11.2r1: Clear all framebuffers called on layer deactivation
  * to prevent stale trails from persisting across layer switches.
@@ -1045,9 +1057,10 @@ WebGLWindEngine.prototype.reinitParticles = function(gl, opts) {
 WebGLWindEngine.prototype.setTheme = function(gl, theme) {
   if (!gl || !this._initialized) return;
   var activeTheme = theme || 'dark', lookKey = windLookKey(activeTheme);
-  if (activeTheme !== this._currentTheme || !this._colorRamp || lookKey !== this._lookKey) {
-    this._currentTheme = activeTheme; this._lookKey = lookKey;
-    var rampData = drawnMarkRampData(this._maxWindSpeed, activeTheme);
+  var rampMax = rampMaxFor(this);   // the same ramp key as render(): gust mode keeps the gust ramp across a theme switch
+  if (activeTheme !== this._currentTheme || !this._colorRamp || lookKey !== this._lookKey || rampMax !== this._rampMax) {
+    this._currentTheme = activeTheme; this._lookKey = lookKey; this._rampMax = rampMax;
+    var rampData = gustColourActive(this) ? drawnMarkRampData(rampMax, activeTheme) : drawnMarkRampData(this._maxWindSpeed, activeTheme);
     if (this._colorRamp) gl.deleteTexture(this._colorRamp);
     this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 2); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
     console.log('[WebGLWind] Theme set to:', activeTheme);

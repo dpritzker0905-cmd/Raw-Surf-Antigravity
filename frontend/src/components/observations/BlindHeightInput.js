@@ -14,6 +14,7 @@
  */
 import React from 'react';
 import { useThemeName } from '../../contexts/ThemeContext';
+import TrainingConsent from './TrainingConsent';
 
 export const HEIGHT_BUCKETS = ['Flat', '1-2ft', '2-3ft', '3-4ft', '4-6ft', '6-8ft', '8ft+'];
 
@@ -88,7 +89,7 @@ function Segmented({ name, legend, options, value, onChange, help }) {
   );
 }
 
-const BlindHeightInput = ({ value, onChange, idPrefix = 'obs', defaultScale = 'face' }) => {
+const BlindHeightInput = ({ value, onChange, idPrefix = 'obs', defaultScale = 'face', showConsent = true }) => {
   const obs = value || emptyObservation(defaultScale);
   const set = (patch) => onChange({ ...obs, ...patch });
   const inputId = `${idPrefix}-height-value`;
@@ -142,6 +143,8 @@ const BlindHeightInput = ({ value, onChange, idPrefix = 'obs', defaultScale = 'f
       <Segmented name={`${idPrefix}-sets`} legend="Is that the typical wave or the sets?"
         value={obs.set_or_avg} onChange={(v) => set({ set_or_avg: v })}
         options={[{ value: 'typical', label: 'Typical wave' }, { value: 'sets', label: 'The sets' }]} />
+
+      {showConsent && <TrainingConsent idPrefix={idPrefix} />}
     </section>
   );
 };

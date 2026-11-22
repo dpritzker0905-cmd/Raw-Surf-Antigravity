@@ -30,17 +30,20 @@ def subscription_access_filters(now=None):
             SurferPhotoSubscription.expires_at > (now or datetime.now(timezone.utc)))
 
 
-async def select_access_subscription(db, surfer_id, photographer_id):
+async def select_access_subscription(db, surfer_id, photographer_id, *, for_update=False):
     # Historical overlaps are not settled here. Preserve active access first,
     # then choose the newest record consistently; never aggregate its quotas.
-    result = await db.execute(select(SurferPhotoSubscription).where(
+    query = select(SurferPhotoSubscription).where(
         SurferPhotoSubscription.surfer_id == surfer_id,
         SurferPhotoSubscription.photographer_id == photographer_id,
         *subscription_access_filters()
     ).order_by(
         case((SurferPhotoSubscription.status == 'active', 0), else_=1),
         SurferPhotoSubscription.started_at.desc(), SurferPhotoSubscription.id.desc()
-    ).limit(1))
+    ).limit(1)
+    if for_update:
+        query = query.with_for_update().execution_options(populate_existing=True)
+    result = await db.execute(query)
     return result.scalar_one_or_none()
 
 
@@ -50,12 +53,16 @@ async def try_use_subscription_quota(
     photographer_id: str,
     quota_type: str,  # 'photo', 'video', 'live_buyin', 'session'
     quantity: int = 1,
+    *,
+    for_update: bool = True,
 ) -> dict:
     """
     Check if surfer has an active subscription with photographer and decrement quota.
     Returns {"used": True, "remaining": N} if quota was consumed,
     or {"used": False} if no active subscription or no quota remaining.
-    Does NOT commit — caller is responsible for committing the transaction.
+    Locks the subscription row by default so concurrent consumers see committed
+    quota changes. The caller owns the transaction and releases the lock on
+    commit or rollback.
 
     Usage from gallery.py:
         from routes.subscriptions_billing.photo_sub_helpers import try_use_subscription_quota
@@ -63,7 +70,7 @@ async def try_use_subscription_quota(
         if result["used"]:
             # Photo is free for subscriber — skip credit deduction
     """
-    sub = await select_access_subscription(db, surfer_id, photographer_id)
+    sub = await select_access_subscription(db, surfer_id, photographer_id, for_update=for_update)
     if not sub:
         return {"used": False, "subscription_active": False}
 

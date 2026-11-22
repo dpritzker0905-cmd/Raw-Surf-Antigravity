@@ -18,6 +18,7 @@ import math
 import os
 import time
 from datetime import datetime
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ def _load_blob():
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         resp = requests.get(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{LATEST_KEY}",
-                            headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=30)
+                            headers=supabase_headers(key), timeout=30)
         if resp.status_code != 200:
             return blob
         fresh = json.loads(gzip.decompress(resp.content).decode("utf-8"))

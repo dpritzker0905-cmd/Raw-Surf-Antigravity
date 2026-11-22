@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core.security import create_access_token, get_user_id_from_jwt_or_query
 from database import get_db
-from models import Profile, RoleEnum, UserBlock
+from models import AccountDeletion, Profile, RoleEnum, UserBlock
 
 
 @pytest.fixture
@@ -31,6 +31,7 @@ def accounts(tmp_path, monkeypatch):
     engine = create_engine(f'sqlite:///{dbfile}')
     Profile.__table__.create(engine)
     UserBlock.__table__.create(engine)  # profile views now consult user_blocks (F-09)
+    AccountDeletion.__table__.create(engine)  # and hide accounts with a pending deletion (#1082)
     with engine.begin() as conn:
         conn.execute(Profile.__table__.insert(), [dict(
             id=actor, user_id=actor, email=f'{actor}@example.invalid',

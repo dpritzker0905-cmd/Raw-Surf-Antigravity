@@ -104,3 +104,86 @@ def test_fill_mode_skips_runs_the_reused_run_already_has(tmp_path, monkeypatch):
     got = H.collect_run(None, datetime(2026, 10, 1, tzinfo=timezone.utc), np.zeros(1), np.zeros(1),
                         str(tmp_path), prior_dir=str(prior))
     assert got == "prior"
+
+
+def test_named_run_mode_takes_only_the_listed_runs_and_refuses_outside_ones():
+    pool = H.runs_in_window()
+    got = H.named_runs("2026101300, 2026100112,2026103100", pool)
+    assert [f"{r:%Y%m%d%H}" for r in got] == ["2026100112", "2026101300", "2026103100"]
+    import pytest
+    with pytest.raises(SystemExit):
+        H.named_runs("2026110100", pool)
+
+
+def test_mirror_is_s3_by_default_and_only_known_mirrors_are_allowed(monkeypatch):
+    import importlib
+    import pytest
+    monkeypatch.delenv("WLR_ENS_BASE", raising=False)
+    assert importlib.reload(H).ENS_BASE == H.ef.AWS_BASE
+    monkeypatch.setenv("WLR_ENS_BASE", "https://storage.googleapis.com/ecmwf-open-data")
+    assert importlib.reload(H).ENS_BASE.startswith("https://storage.googleapis.com/")
+    monkeypatch.setenv("WLR_ENS_BASE", "https://example.com/x")
+    with pytest.raises(SystemExit):
+        importlib.reload(H)
+    monkeypatch.delenv("WLR_ENS_BASE")
+    importlib.reload(H)
+
+
+def test_collect_reads_the_chosen_mirror(tmp_path, monkeypatch):
+    monkeypatch.setattr(H, "ENS_BASE", "https://storage.googleapis.com/ecmwf-open-data")
+    seen = {}
+
+    def fake_available(session, run, step, base=None):
+        seen["base"] = base
+        return False
+    monkeypatch.setattr(H.ef, "run_available", fake_available)
+    assert H.collect_run(None, datetime(2026, 10, 13, tzinfo=timezone.utc), np.zeros(1), np.zeros(1),
+                         str(tmp_path)) == "missing"
+    assert seen["base"] == "https://storage.googleapis.com/ecmwf-open-data"
+
+
+def _mirror_check_setup(tmp_path, monkeypatch):
+    """A held run file and a station freeze on disk; the mirror reads are faked (option b: no S3 read at all)."""
+    import json
+    import wind_lr_hindcast as H
+    import wind_lr_mirror_check as M
+    import types
+    import wind_lr_obs as obs
+    monkeypatch.setitem(sys.modules, "requests", types.SimpleNamespace(Session=lambda: None))
+    held = {"ens_10u_336": np.array([[1.0, np.nan]], np.float32), "hres_10u_240": np.array([2.0, 3.0], np.float32)}
+    (tmp_path / "prior").mkdir()
+    np.savez_compressed(tmp_path / "prior" / "2026100200.npz", **held)
+    json.dump({"ndbc": [], "asos": []}, open(tmp_path / "wind_lr_stations.json", "w"))
+    monkeypatch.setattr(obs, "gfs_land", lambda s, cache: (None, None))
+    monkeypatch.setattr(H, "sample_points", lambda st, land, meta: ([0.0, 1.0], [0.0, 1.0]))
+    good_index = ("idx", "a", "a")
+    argv = ["--cache", str(tmp_path), "--prior", str(tmp_path / "prior")]
+    return M, held, good_index, argv
+
+
+def test_mirror_sameness_control_passes_on_identical_values_and_stops_on_any_difference(tmp_path, monkeypatch):
+    M, held, good_index, argv = _mirror_check_setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(M, "index_row", lambda s: good_index)
+    monkeypatch.setattr(M, "mirror_values", lambda s, run, la, lo: {k: v.copy() for k, v in held.items()})
+    assert M.main(argv) == 0
+    changed = {k: v.copy() for k, v in held.items()}
+    changed["hres_10u_240"][1] = np.nextafter(np.float32(3.0), np.float32(4.0))
+    monkeypatch.setattr(M, "mirror_values", lambda s, run, la, lo: changed)
+    assert M.main(argv) == 1
+    monkeypatch.setattr(M, "mirror_values", lambda s, run, la, lo: {k: v.copy() for k, v in held.items()})
+    monkeypatch.setattr(M, "index_row", lambda s: ("idx", "a", "b"))       # index differs from the hand measurement
+    assert M.main(argv) == 1
+
+
+def test_mirror_sameness_control_never_passes_on_a_failed_or_throttled_read(tmp_path, monkeypatch):
+    M, held, good_index, argv = _mirror_check_setup(tmp_path, monkeypatch)
+
+    def throttled(*a, **k):
+        raise RuntimeError("HTTP 503 SlowDown")
+    monkeypatch.setattr(M, "index_row", throttled)
+    assert M.main(argv) == 2
+    monkeypatch.setattr(M, "index_row", lambda s: good_index)
+    monkeypatch.setattr(M, "mirror_values", throttled)
+    assert M.main(argv) == 2
+    monkeypatch.setattr(M, "mirror_values", lambda s, run, la, lo: {"aifs_10u_336": np.zeros(2, np.float32)})
+    assert M.main(argv) == 2                                                # a key the held file lacks: not completed

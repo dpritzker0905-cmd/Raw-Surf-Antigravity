@@ -1,7 +1,0 @@
-{
-  "lane": "estate",
-  "tests": 28,
-  "branch": "codex/staged-loc-repair-20261114",
-  "date": "2026-11-14",
-  "note": "28 staged-index LOC guard regression cases"
-}

@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.security import get_current_user_id
 from database import get_db
 from models import CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport, SurfSpot
-from services import observation_rewards, surf_truth_anchors
+from services import observation_rewards, surf_truth_anchors, surf_truth_consent
 from services.surf_observation_scale import SCALE_VERSION, ObservationError, normalise, region_default_scale
 
 router = APIRouter()
@@ -221,6 +221,7 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
                 flags.add("duplicate_media")
     if overridden and exif_check in ("none", "no_record"):
         flags.add("scale_override_no_photo")
+    consent = await surf_truth_consent.current(db, user_id)   # P3: the choice in force at receipt, kept on the row
 
     obs = SurfObservation(
         user_id=user_id, observer_role=observer_role(anchor, role), flow=FLOW, spot_id=spot_id, surface=surface,
@@ -234,7 +235,7 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
         media_url=media_url, media_sha256=sha, exif_distance_m=exif_distance, exif_age_s=exif_age,
         exif_check=exif_check, duplicate_of=duplicate_of, flags=",".join(sorted(flags)),
         device_hash=observation_rewards.device_hash(data.device_id), xp_status="none", corroborated=False,
-        audit_selected=False,
+        audit_selected=False, consent_training=consent["granted"], consent_version=consent["version"],
     )
     db.add(obs)
     try:
@@ -248,6 +249,40 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
     # The reply names the stored row and its scale only. Quality flags, the converted height and the provenance
     # verdicts stay server-side: returning them would tell anyone gaming the checks which one fired.
     return {"id": obs.id, "height_scale": obs.height_scale, "scale_default": scale_default}
+
+
+class ConsentIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    granted: bool
+    source: Literal["blind_height_input", "settings"] = "blind_height_input"
+
+
+async def _consent_reply(db: AsyncSession, user_id: str) -> dict:
+    words = await surf_truth_consent.wording(db)
+    state = await surf_truth_consent.current(db, user_id, version=words["version"])
+    return {**state, "current_version": words["version"], "title": words["title"], "text": words["text"],
+            "final": words["final"], "privacy_url": words["privacy_url"]}
+
+
+@router.get("/surf-observations/consent")
+async def get_consent(db: AsyncSession = Depends(get_db), user_id: str = Depends(get_current_user_id)):
+    """The caller's own forecast-improvement consent in force, with the current wording to show (opt-in: no choice
+    = off; a grant under an older wording version is not in force and `needs_reconsent` is true)."""
+    return await _consent_reply(db, user_id)
+
+
+@router.put("/surf-observations/consent")
+async def put_consent(data: ConsentIn, db: AsyncSession = Depends(get_db),
+                      user_id: str = Depends(get_current_user_id)):
+    """Record the caller's choice under the current wording (append-only history; the newest choice is in force).
+    A grant under a wording that still has draft placeholders is refused with 409; a withdrawal always succeeds."""
+    try:
+        await surf_truth_consent.record(db, user_id, data.granted, data.source)
+    except surf_truth_consent.WordingNotFinal as exc:
+        raise HTTPException(status_code=409, detail="This option is not available yet.") from exc
+    await db.commit()
+    return await _consent_reply(db, user_id)
 
 
 @router.get("/surf-observations/scale-default/{spot_id}")

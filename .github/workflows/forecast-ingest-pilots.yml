@@ -34,6 +34,7 @@ concurrency:
 
 jobs:
   ingest-pilots:
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
     runs-on: ubuntu-latest
     # 165 → 200 (2026-07-13): measured phase ledger from run 29249603524 (cancelled at the old
     # wire): GFS mid 32m + ICON mid 17m + EURO mid 4m + GFS marine pilot 51m (was ~21m at the
@@ -84,6 +85,8 @@ jobs:
           PRODUCT_RUN_KEYED_NAMES: ${{ vars.PRODUCT_RUN_KEYED_NAMES || '1' }}
           # The product GC's FUSE A release (product_object_gc.py): the owner sets '0' for ONE run after a real shrink, then unsets it.
           PRODUCT_GC_MIN_REFERENCED_RATIO: ${{ vars.PRODUCT_GC_MIN_REFERENCED_RATIO || '0.8' }}
+          # FUSE B's release (product_object_gc.py): after a backlog (missed sweeps) the owner raises it, e.g. '0.9', until the count is back, then unsets it.
+          PRODUCT_GC_MAX_DELETE_SHARE: ${{ vars.PRODUCT_GC_MAX_DELETE_SHARE || '0.6' }}
           NODE_ENV: production
           RENDER: 'true'
           MANIFEST_IMMUTABLE_PUBLICATION: '0' # Dark: same publication contract as core writer
@@ -99,7 +102,7 @@ jobs:
           COPERNICUS_PEAK_PERIOD: '0'   # DECLARED AT DEFAULT (2026-10-20, dark; served periods): '1' fetches CMEMS VTPK (spectral PEAK period, what surf_transform/period_quality are written for) as the total wave_period instead of VTM10 (energy period, kept as wave_period_tm10). services/cmems_period_map.py. Moves served heights and ratings: flip ONLY on the owner's word, in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml, precompute.yml AND the Render env together.
           ICON_PEAK_PERIOD: '0'         # DECLARED AT DEFAULT (2026-10-20, dark; served periods): '1' fetches DWD GWAM partition PEAK periods ppts/ppww (were mean mpts/mpww) and serves a smooth blended total peak period (was tm10, kept as wave_period_tm10). services/gwam_peak_period.py. Moves served heights and ratings: flip ONLY on the owner's word, in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml AND precompute.yml together (not a Render flag).
           ICON_PEAK_PERIOD_SHARPNESS: '2'  # DECLARED AT DEFAULT (2026-10-20): blend exponent for ICON_PEAK_PERIOD (w ~ (H^2 Tp)^p). Inert while ICON_PEAK_PERIOD is '0'. Same value in all three lanes.
-          CONSENSUS_DIRECTION_VECTOR: '1'  # D-065 (2026-11-04): DEFAULT ON under default-on-with-guardrails (history: better, not worse; the flag guardrail watches it; kill: '0' here). Was DECLARED AT DEFAULT (2026-11-03, dark; HYBRID per the owner's word ~15:34Z): '1' makes the CONSENSUS product's total wave direction the unweighted unit-vector mean of the GFS/EURO/ICON directions where the members DISAGREE (0.2 <= R < 0.92; u/v rebuilt), and GFS's own where they agree (R >= 0.92), where R < 0.2 or where a member has none; R on the cell as dir_agreement. Offline vs NDBC MWD, held out: +5.6 deg [4.9, 6.3] vs GFS, no band worse. consensus_product.direction_mode / R_AGREE. This is the only lane that builds the consensus; serves nothing unless CONSENSUS_SERVE is '1'. Flip on the owner's word after the flip gate (log 2026-11-03-claude-consensus-direction-vector) (D-001).
+          CONSENSUS_DIRECTION_VECTOR: ''  # G1a (2026-11-18): '' (unset) hands this flag to runtime_flags.flag(): the manifest control/flags.json, else the code default '1' (still ON). An explicit '1' here outranked the manifest, so a flag-guardrail 'off' could not reach the one lane that builds the consensus. Kill: '0' here. Before G1a: '1'. D-065 (2026-11-04): DEFAULT ON under default-on-with-guardrails (history: better, not worse; the flag guardrail watches it; kill: '0' here). Was DECLARED AT DEFAULT (2026-11-03, dark; HYBRID per the owner's word ~15:34Z): '1' makes the CONSENSUS product's total wave direction the unweighted unit-vector mean of the GFS/EURO/ICON directions where the members DISAGREE (0.2 <= R < 0.92; u/v rebuilt), and GFS's own where they agree (R >= 0.92), where R < 0.2 or where a member has none; R on the cell as dir_agreement. Offline vs NDBC MWD, held out: +5.6 deg [4.9, 6.3] vs GFS, no band worse. consensus_product.direction_mode / R_AGREE. This is the only lane that builds the consensus; serves nothing unless CONSENSUS_SERVE is '1'. Flip on the owner's word after the flip gate (log 2026-11-03-claude-consensus-direction-vector) (D-001).
           CONSENSUS_PERIOD_MEDIAN: '0'  # DECLARED AT DEFAULT (2026-11-02, dark): '1' makes the CONSENSUS product's total wave period the MEDIAN of the GFS/EURO/ICON periods where all three answer (else GFS's); Hs stays the equal mean, direction GFS's. Takes effect ONLY while ICON_PEAK_PERIOD is also '1' in this lane (the tm10 median is worse than GFS alone on DPD > 12 s). consensus_product.period_mode. This is the only lane that builds the consensus. Flip ICON_PEAK_PERIOD first; then this, on the owner's word (D-001).
           REGRID_NATIVE_CELL: '1'       # FLIPPED by the owner's merge of the flip PR (D-010; declared '0' by #171, made coast-safe by #173: real GRIB run 36626767710 on its final code lost 0 total-height values). '1' makes every 0.25-deg regional wave tile (GFS, ICON and EURO) read its EXACT native cell; at '0' each node is the 2x2 block NORTH-WEST of it (half = max(1, round(0.25/0.25/2)) = 1), a mean placed half a cell (~14 km) south-east of its water, found by same_model_parity_probe (node = Open-Meteo's NW 2x2 to 1 cm on 72% of rows). Coarser tiers are untouched. Moves served heights and directions on every regional tile: flip ONLY on the owner's word, and in BOTH fetch lanes together (forecast-ingest.yml, forecast-ingest-pilots.yml), never one, or the same coast is regridded two ways by cycle. See services/_fetch_native_cell.py.
           GFS_MARINE_STAGE_B: '1'       # FLIPPED by the owner (2026-09-29: 'flip the Stage B PNW box'; D-011; declared '0' by #177). '1' adds the F-08 Stage B GFS-only box us_pacific_northwest (38-49N, 128-122W: NorCal, Oregon, Washington, 23 spots) to the GFS marine pass. Measured first: the 2-deg tier those spots use today reads +0.097 m vs the same model (46244 Humboldt +0.50 m). Flip in BOTH fetch lanes together.
@@ -411,20 +414,6 @@ jobs:
           FRAME_RASTER_PRECIP_ICON_0P125: ${{ vars.FRAME_RASTER_PRECIP_ICON_0P125 || '1' }}
         run: python scripts/publish_raster_frames.py --set precipitation_icon_0p125
 
-      # ICON total cloud cover at 0.125 deg (G3, 2026-11-16): DWD clct by the same sub-point area mean. Off unless
-      # FRAME_RASTER_CLOUD_ICON_0P125=1.
-      - name: Publish raster static frames (ICON cloud cover 0.125 deg; off unless FRAME_RASTER_CLOUD_ICON_0P125=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD_ICON_0P125 == '1' }}
-        continue-on-error: true
-        timeout-minutes: 30
-        working-directory: backend
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          FRAME_RASTER_CLOUD_ICON_0P125: ${{ vars.FRAME_RASTER_CLOUD_ICON_0P125 }}
-          FRAME_RASTER_BUDGET_S: "900"
-        run: python scripts/publish_raster_frames.py --set cloud_cover_icon_0p125
-
       # PER-MODEL PRESSURE (2026-10-23; the owner, 20:13 EDT: "Yes start it", answering "start the per-model pressure route?"
       # after "We want each models pressure showing"). EURO = ECMWF IFS open data msl (CC BY 4.0, attribution required), the
       # same stream the box's ecmwf_opendata_fetcher reads, 00/12Z cycles (0-240 h; 3-hourly to 144 h, then 6-hourly), onto
@@ -614,5 +603,115 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RASTER_CURRENTS: ${{ vars.FRAME_RASTER_CURRENTS }}
           FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}   # kill '0': the old two-byte frames (log §12)
+          FRAME_RASTER_DIR_BYTE: ${{ vars.FRAME_RASTER_DIR_BYTE }}   # kill '0': no one-byte flow direction (Currents particles stop)
           FRAME_RASTER_BUDGET_S: "600"
         run: python scripts/publish_raster_frames.py --set currents
+      # CANADA GIOPS SURFACE CURRENTS (2026-11-22): the Currents layer's own source under the ICON picker (DWD runs no ocean model).
+      # ECCC's GIOPS 0.2-deg 3 h-mean u/v at 0.5 m from the MSC Datamart, 00Z run, every 6 h to 240 h, bilinear onto 0.25 deg
+      # (services/frame_set_raster_giops.py). SIZE PER RUN (measured offline 2026-11-22): a new 00Z cycle PULLS ~200 MB (80
+      # GETs) and KEEPS 14.4 MB (40 frames), 13-21 s; a run whose cycle is already published does 4 HEADs and stops (1 s). The
+      # step prints both numbers as a notice every run. The 00Z files land ~04:45Z, so the 11:45 run publishes it: one cycle a
+      # day. Licence: Open Government Licence - Canada (the GIOPS catalogue record) + ECCC Data Servers End-use Licence; both
+      # statements ride in every index. FAILURES TURN THE RUN RED (the advisor's condition): no continue-on-error, and the set
+      # is strict (any failed frame, or no complete run in 3 days, exits 1); later steps still run (!cancelled()). The key
+      # comes only from this job's supabase-service environment. DARK: off unless FRAME_RASTER_CURRENTS_GIOPS = '1'.
+      - name: Publish raster static frames (Canada GIOPS currents; off unless FRAME_RASTER_CURRENTS_GIOPS=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_GIOPS == '1' }}
+        timeout-minutes: 10
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CURRENTS_GIOPS: ${{ vars.FRAME_RASTER_CURRENTS_GIOPS }}
+          FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}   # kill '0': the old two-byte frames (log §12)
+          FRAME_RASTER_DIR_BYTE: ${{ vars.FRAME_RASTER_DIR_BYTE }}   # the currents particles' direction byte (its own lane's kill)
+          FRAME_RASTER_BUDGET_S: "300"
+        run: python scripts/publish_raster_frames.py --set currents_giops
+      # NOAA GLOBAL RTOFS SURFACE CURRENTS (2026-11-22): the Currents layer's GFS picker reads NOAA's own ocean model, not
+      # Copernicus (services/frame_set_raster_rtofs.py). Top-layer u/v of the 00Z cycle from the NOMADS 2-D prog files (the AWS
+      # mirror holds only barotropic velocity), every 6 h to f192, nearest-node mean onto 0.25 deg. Once a day: a run whose cycle
+      # is already published reads only two HEADs. Measured offline per new cycle: see docs/weather-program/log/
+      # 2026-11-22-opus-rtofs-currents.md. DARK: off unless FRAME_RASTER_CURRENTS_RTOFS=1 (the client reads it only behind its
+      # own lever, ownRasterFrames.js). The step never continues on error (the advisor's gate, 2026-11-22): a failed publish (exit 1) turns the
+      # run red; every later step's `!cancelled()` still runs it. Upstream not ready yet (no cycle) exits 0.
+      - name: Publish raster static frames (NOAA RTOFS currents; off unless FRAME_RASTER_CURRENTS_RTOFS=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_RTOFS == '1' }}
+        timeout-minutes: 20
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CURRENTS_RTOFS: ${{ vars.FRAME_RASTER_CURRENTS_RTOFS }}
+          FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}   # kill '0': the old two-byte frames (log §12)
+          FRAME_RASTER_DIR_BYTE: ${{ vars.FRAME_RASTER_DIR_BYTE }}   # the currents particles' direction byte (its own lane's kill)
+          FRAME_RASTER_BUDGET_S: "900"
+        run: python scripts/publish_raster_frames.py --set currents_rtofs
+      # NATIVE 1/12-DEG COPERNICUS CURRENTS ON THE SURF BOXES (2026-11-22; the research lead's Q3 note, red flag 1): the world
+      # set's 3 x 3 mean onto 0.25 deg drops the model's coastal detail, so each marine pilot box also gets the source cells
+      # themselves (services/frame_set_raster_currents_native.py; CMEMS/marine/currents/<box>_0p083, 14 sets x 41 frames).
+      # SIZE PER RUN (measured offline 2026-11-22, the 22 Nov 00Z bulletin): PULLS 1.34 GB (only the store chunks the boxes
+      # touch, one read per hour for every box) and KEEPS 7.0 MB (574 frames), 49 s; a run whose bulletin is published reads the
+      # time axis and stops. The step prints both numbers as a notice. The client reads it only for the Currents particles, and
+      # only behind its own lever (currentNative.js). DARK: off unless FRAME_RASTER_CURRENTS_NATIVE = '1'. The step never continues
+      # on error (the advisor's gate on #1145, as RTOFS and GIOPS): a failed publish (exit 1) turns the run red; every later step's
+      # `!cancelled()` still runs it. Upstream not ready yet (no bulletin) exits 0.
+      - name: Publish raster static frames (native 1/12-deg Copernicus currents on the surf boxes; off unless FRAME_RASTER_CURRENTS_NATIVE=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_NATIVE == '1' }}
+        timeout-minutes: 15
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CURRENTS_NATIVE: ${{ vars.FRAME_RASTER_CURRENTS_NATIVE }}
+          FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}   # kill '0': the old two-byte frames (log §12)
+          FRAME_RASTER_DIR_BYTE: ${{ vars.FRAME_RASTER_DIR_BYTE }}   # kill '0': no flow direction (the box particles stop)
+          FRAME_RASTER_BUDGET_S: "600"
+        run: python scripts/publish_raster_frames.py --bundle currents_native
+      # G4 (2026-11-17): Copernicus ocean-model water temperature, the WORLD half of arm R2: 1/6 deg, 3-hourly, f000-f237 from the
+      # hourly-mean thetao top level (the same CMEMS store family as currents). Offline cost: 80 frames, 71.6 MB, 47 s
+      # (docs/weather-program/log/2026-11-17-opus-g4-copernicus-sst.md). ON by default (David 2026-11-17); kill: the repository
+      # variable FRAME_RASTER_WATER_TEMP_CMEMS = '0'.
+      - name: Publish raster static frames (Copernicus water temp 1/6 deg; on, kill FRAME_RASTER_WATER_TEMP_CMEMS=0)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_WATER_TEMP_CMEMS || '1') != '0' }}
+        continue-on-error: true
+        timeout-minutes: 20
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_WATER_TEMP_CMEMS: ${{ vars.FRAME_RASTER_WATER_TEMP_CMEMS }}
+          FRAME_RASTER_BUDGET_S: "900"
+        run: python scripts/publish_raster_frames.py --set water_temp_cmems
+
+      # GFS AT 0.117 DEG FROM NOAA'S SURFACE FLUX FILES (2026-11-18, the Open-Meteo exit; services/frame_set_raster_sflux.py): air
+      # temperature, water temperature and rain on the native T1534 Gaussian points (Open-Meteo's ncep_gfs013 grid), f000-f384, ONE
+      # read of each hour's file feeding all three sets. Gate and costs: docs/weather-program/log/2026-11-18-opus-gfs-sflux-frames.md
+      # (about 10-12 min, about 1.17 GB a run for the three). ON; each set's kill is its variable '0'; the step runs while any is on.
+      - name: Publish raster static frames (GFS 0.117 deg sflux temperature, water temp, rain; ON, kill each FRAME_RASTER_*_0P117=0)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && ((vars.FRAME_RASTER_TEMPERATURE_0P117 || '1') != '0' || (vars.FRAME_RASTER_WATER_TEMP_0P117 || '1') != '0' || (vars.FRAME_RASTER_PRECIP_0P117 || '1') != '0') }}
+        continue-on-error: true
+        timeout-minutes: 35
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_TEMPERATURE_0P117: ${{ vars.FRAME_RASTER_TEMPERATURE_0P117 || '1' }}
+          FRAME_RASTER_WATER_TEMP_0P117: ${{ vars.FRAME_RASTER_WATER_TEMP_0P117 || '1' }}
+          FRAME_RASTER_PRECIP_0P117: ${{ vars.FRAME_RASTER_PRECIP_0P117 || '1' }}
+          FRAME_RASTER_BUDGET_S: "1500"
+        run: python scripts/publish_raster_frames.py --bundle sflux
+
+      # The gap fill's MODEL - GFS offset sets (2026-11-22, the director: an ingest-side product, DARK): a running mean of ICON - GFS
+      # 2 m temperature and EURO - GFS cloud per UTC hour on 0.5 deg, read back from the frames this run just published (so it runs
+      # after the raster steps; one latest.json writer at a time). Off unless FRAME_OFFSET_PRODUCT=1 (registered in _RATING_FLAGS);
+      # the client reads it only behind its own dark lever. services/frame_set_offset.py.
+      - name: Publish the gap-fill offset sets (off unless FRAME_OFFSET_PRODUCT=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_OFFSET_PRODUCT == '1' }}
+        continue-on-error: true
+        timeout-minutes: 12
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_OFFSET_PRODUCT: ${{ vars.FRAME_OFFSET_PRODUCT || '0' }}
+        run: python scripts/publish_raster_frames.py --offset

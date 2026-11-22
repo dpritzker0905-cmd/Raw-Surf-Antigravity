@@ -207,19 +207,6 @@ SPECS = {
         "license": "DWD open data, free use with source attribution (GeoNutzV)",
         "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
     },
-    # ICON TOTAL CLOUD COVER AT 0.125 DEG (G3, 2026-11-16; the director: ICON clct by area mean on the 0.125 module): DWD `clct`
-    # (%), the 3 x 3 sub-point area mean (frame_set_raster_sources.IconArea0p125Source), the resolution of today's .om dwd_icon.
-    "cloud_cover_icon_0p125": {
-        "target": {"model": "ICON", "domain": "weather", "layer": "cloud_cover", "region_id": "global_0p125"},
-        "field": fb.CLOUD_PCT, "idx": ("clct", ("CLCT",)), "convert": lambda a: a, "grid": "0p125",
-        "valid": (-0.5, 100.5), "clip": (0.0, 100.0), "env": "FRAME_RASTER_CLOUD_ICON_0P125", "default_on": False,
-        "frame_plane": True, "value_kind": "cloud_cover", "value_unit": "%",
-        "source_dataset": "DWD ICON global (icosahedral R3B7) CLCT, area mean onto 0.125 deg (3 x 3 sub-points, nearest cell each)",
-        "hours": tuple(range(0, 79)) + tuple(range(81, 181, 3)), "source": "icon_area_0p125", "upstream_provider": "dwd",
-        "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (area-averaged (sampled) to 0.125 deg, quantised to 1 %)",
-        "license": "DWD open data, free use with source attribution (GeoNutzV)",
-        "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
-    },
     # FOG, WATER TEMPERATURE, PER-MODEL AIR TEMPERATURE (2026-11-14; the owner, 23:35 EST 11-13: "make fog, air temp and water
     # temp instant", relayed by the director to the move-3 lane). Each set is DARK until its own repo variable is '1'.
     # FOG: NCEP's own surface visibility (VIS, m; the field the layer drew from Open-Meteo ncep_gfs025), every point of the
@@ -377,6 +364,7 @@ SPECS = {
     "currents": {
         "target": {"model": "CMEMS", "domain": "marine", "layer": "currents", "region_id": "global_0p25"},
         "field": fb.SPEED, "fields": (fb.SPEED, fb.DIRECTION), "band_field": fb.CURRENT_KN_BAND, "uv_convention": 1,
+        "dir_byte_field": fb.FLOW_DIR_BYTE,   # the one-byte frame keeps the flow direction for the particles (effective_spec)
         "idx": ("uo", "vo"), "grid": "0p25",
         "frame_plane": True, "convert": lambda a: a, "valid": (0.0, 20.0), "clip": None,
         "env": "FRAME_RASTER_CURRENTS", "default_on": False,
@@ -390,6 +378,11 @@ SPECS = {
         "source_url": "https://data.marine.copernicus.eu/product/GLOBAL_ANALYSISFORECAST_PHY_001_024",
     },
 }
+try:  # sets in their own modules (Copernicus water temp G4, Canada GIOPS currents, ...): frame_set_raster_plugins loads them
+    from services import frame_set_raster_plugins as _plugins
+except ImportError:  # pragma: no cover - by path, where services is not a package (the sibling-import rule)
+    import frame_set_raster_plugins as _plugins
+PLUGIN_SOURCES = _plugins.register(SPECS, GRIDS)   # their specs and lattices into SPECS / GRIDS; {source kind: class}
 
 
 def precip_step(f):
@@ -407,12 +400,8 @@ def make_source(spec, session=None):
         return GfsGribSource(spec, session)
     if kind == "gfs_precip":
         return GfsPrecipSource(spec, session)
-    if kind == "cmems_currents":
-        try:
-            from services.frame_set_raster_currents import CmemsCurrentsSource
-        except ImportError:  # pragma: no cover
-            from frame_set_raster_currents import CmemsCurrentsSource
-        return CmemsCurrentsSource(spec, session)
+    if kind in PLUGIN_SOURCES:                        # cmems_currents, cmems_sst, giops_currents (frame_set_raster_plugins)
+        return PLUGIN_SOURCES[kind](spec, session)
     try:
         from services import frame_set_raster_sources as srcs
     except ImportError:  # pragma: no cover
@@ -604,13 +593,18 @@ def one_byte_on():
 
 
 def effective_spec(sp):
-    """The spec as published now: a spec with a `band_field` publishes it (alone) while one_byte_on(), else as before."""
+    """The spec as published now: a spec with a `band_field` publishes it while one_byte_on(), else as before. A spec with a
+    `dir_byte_field` (currents) publishes that one-byte direction beside it for the client's particles (2026-11-22); its kill
+    (the band speed alone, the frames before): repo variable FRAME_RASTER_DIR_BYTE=0."""
     if not sp or "band_field" not in sp or not one_byte_on():
         return sp
     out = dict(sp, field=sp["band_field"])
-    if sp.get("fields"):                               # currents: the band speed alone (direction returns as u / v with particles)
+    if sp.get("fields"):                               # currents: the band speed (+ the one-byte flow direction)
         out["fields"] = (sp["band_field"],)
         out["plane_alias"] = {sp["band_field"]: sp["field"]}
+        if sp.get("dir_byte_field") is not None and os.environ.get("FRAME_RASTER_DIR_BYTE", "1") != "0":
+            out["fields"] = (sp["band_field"], sp["dir_byte_field"])
+            out["plane_alias"][sp["dir_byte_field"]] = fb.DIRECTION
     return out
 
 
@@ -624,7 +618,10 @@ def build_frame_multi(planes, valid, run, sp):
     p = {fid: np.asarray(planes[fid] if fid in planes else planes[alias[fid]], dtype=float) for fid in sp["fields"]}
     bad_main = ~((p[main] >= sp["valid"][0]) & (p[main] <= sp["valid"][1]))
     for fid in p:
-        p[fid] = np.where(bad_main, np.nan, p[fid])
+        if fid != fb.FLOW_DIR_BYTE:
+            p[fid] = np.where(bad_main, np.nan, p[fid])
+    if fb.FLOW_DIR_BYTE in p:   # per 2 x 2 block at its anchor (frame_binary ANCHORS); the block's water, not the anchor, decides
+        p[fb.FLOW_DIR_BYTE] = fb.flow_dir_anchors(np.where(bad_main, np.nan, p[main]), p[fb.FLOW_DIR_BYTE], sp.get("dir_stride", 2))
     raw = fb.encode_planes(p, grid_of(sp)["bounds"], iso(valid), iso(run), uv_convention=sp.get("uv_convention", 0))
     gz = fb.gzip_frame(raw)
     _head, fields = fb.decode_plane(gz)
@@ -635,7 +632,7 @@ def build_frame_multi(planes, valid, run, sp):
     for fid in p:
         cmp = ok & ~sat
         d = np.abs(fields[fid][cmp] - p[fid][cmp])
-        if fid == fb.DIRECTION:
+        if fid in fb.CIRCULAR_FIELDS:
             d = np.minimum(d, 360.0 - d)
         if d.size:
             err = max(err, float(d.max()))
@@ -710,7 +707,8 @@ def make_index(cycle, frames, stats, spec=None):
         "set": fs.set_key(sp["target"]), **sp["target"], "run": iso(cycle), "cycle": iso(cycle), "runs": [iso(cycle)], "run_time": iso(cycle),
         "grid": {"cols": grid_of(sp)["cols"], "rows": grid_of(sp)["rows"],
                  "bounds": dict(zip(("west", "south", "east", "north"), grid_of(sp)["bounds"])),
-                 "row0": "south", "col0": "west", "wrap_column": False},
+                 "row0": "south", "col0": "west", "wrap_column": False,
+                 **({"flow_dir_stride": sp["dir_stride"]} if fb.FLOW_DIR_BYTE in (sp.get("fields") or ()) and sp.get("dir_stride") else {})},
         "coverage": round(len(built) / len(frames), 4) if frames else 0.0,
         "coverage_authoritative": round(len(built) / len(frames), 4) if frames else 0.0,
         "selection": "the frame whose valid_time equals the hour; none within 3 h -> no frame (no time interpolation)",
@@ -731,8 +729,10 @@ def make_index(cycle, frames, stats, spec=None):
     return index
 
 
-def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=time.monotonic, coverage_floor=None, spec=None):
-    """One raster set's publish. Returns a report dict; never raises for a missing cycle or a coverage refusal."""
+def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=time.monotonic, coverage_floor=None, spec=None,
+            built=None):
+    """One raster set's publish. Returns a report dict; never raises for a missing cycle or a coverage refusal. `built` = the
+    set's (frames, uploads, stats) already built from `source`'s cycle (frame_set_raster_sflux: one read feeds three sets)."""
     sp = effective_spec(spec or SPECS["pressure"])
     key, prefix = fs.set_key(sp["target"]), fs.set_prefix(sp["target"])
     budget = float(os.environ.get("FRAME_RASTER_BUDGET_S", "420")) if budget_s is None else budget_s
@@ -752,8 +752,8 @@ def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=ti
     if entry and entry.get("run") == iso(cycle):
         log(f"[raster] {key}: cycle {iso(cycle)} already published")
         return {"status": "unchanged", "run": iso(cycle), "index": entry.get("index")}
-    frames, uploads, stats = build_set(source, cycle, log=log, deadline=started + budget, clock=clock, spec=sp)
-    stats["seconds_build"] = round(clock() - started, 1)
+    frames, uploads, stats = built or build_set(source, cycle, log=log, deadline=started + budget, clock=clock, spec=sp)
+    stats.setdefault("seconds_build", round(clock() - started, 1))
     hours = sp.get("hours", F_HOURS)
     coverage = stats["built"] / len(hours)
     if coverage < floor:
@@ -792,3 +792,8 @@ def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=ti
         deleted = len(gone)
     return {"status": "published", "run": iso(cycle), "index": index["path"], "uploaded": len(uploads), "deleted": deleted,
             "seconds": round(clock() - started, 1), **stats}
+
+
+# GFS at 0.117 deg from NOAA's surface flux files (2026-11-18): three sets fed by one read of each hour (their own module).
+from services import frame_set_raster_sflux as _sflux  # noqa: E402
+_sflux.register(SPECS, GRIDS)

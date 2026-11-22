@@ -27,6 +27,7 @@ import math
 import os
 from datetime import datetime, timezone
 from typing import Optional
+from core.supabase_auth import supabase_headers
 
 logger = logging.getLogger(__name__)
 
@@ -314,7 +315,7 @@ def fetch_recent_reports_via_rest(fresh_h: float = REPORT_FRESH_H, limit: int = 
         params = {"select": "spot_id,rating,created_at", "created_at": f"gte.{cutoff}",
                   "rating": "not.is.null", "limit": limit}
         resp = requests.get(f"{base}/rest/v1/surf_reports", params=params,
-                            headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=20)
+                            headers=supabase_headers(key), timeout=20)
         resp.raise_for_status()
         by_spot = {}
         for row in resp.json():

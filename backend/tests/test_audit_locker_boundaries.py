@@ -131,4 +131,5 @@ def test_public_preview_route_remains_anonymous_and_filters_paid_public_items():
     assert response.status_code == 200 and response.json() == {"items": [], "count": 0}
     sql = str(db.queries[0])
     assert "is_public = true" in sql and "is_paid = true" in sql
-    assert db.commits == 0
+    assert "account_deletions" in sql and "NOT IN" in sql  # an account with a pending deletion shows nothing (#1082)
+    assert len(db.queries) == 1 and db.commits == 0
