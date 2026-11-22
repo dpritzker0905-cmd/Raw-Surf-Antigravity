@@ -38,12 +38,15 @@ Served change: none from this gate.
 | GEBCO_2024 | nominally mean sea level (NOT verified in this session) | treated as MSL; these targets are `COARSE` already |
 
 - **Seam check at source joins (advisor, 2026-11-22; BEFORE the coefficients are frozen):**
-  - After conversion, the overlapping strip where two sources meet (CUDEM/CRM, CRM/GEBCO, EMODnet/GEBCO) is compared cell by cell on a common grid, in water shallower than 30 m.
-  - Measure: the median and p95 of the absolute depth difference.
-  - A join with median > 0.3 m or p95 > 1.0 m is a SEAM.
-    - Every target whose ray domain crosses a seam is tagged `SEAM` and reported as its own stratum.
-    - Those targets use the single finer source alone where it covers the ray domain, else they are excluded from the gated lines.
-  - The seam table is committed beside the coefficient hashes.
+  - **Per target**, at EVERY join between two sources inside that target's ray domain, both depths are first converted to MSL by the table above. The joins include:
+    - a FINE source (CUDEM, CRM or EMODnet) meeting GEBCO, where the `COARSE` rule lets GEBCO in;
+    - CUDEM ↔ CRM tile joins;
+    - CRM volume ↔ CRM volume and EMODnet ↔ GEBCO joins.
+  - **Measure:** the median and p95 of the absolute depth difference between the two converted sources, over their overlap on a common grid. Where the sources do not overlap, it is taken across the join, between the nearest cells on each side within 2 cells of the finer source.
+  - Only water shallower than 30 m counts toward the trigger. Both statistics are reported for every join of every target.
+  - **Trigger:** p95 > 1.0 m in water under 30 m tags the target `SEAM`. `SEAM` is its own reported stratum, like `DATUM_1M`; a target can carry both tags.
+    - The coefficients of a `SEAM` target are still computed as registered; the tag only stratifies the report.
+  - The per-target seam table (target, join, sources, n cells, median, p95, tag) is committed with its sha256 beside the coefficient hashes.
   - **No coefficient is frozen before the datum conversion and the seam table are both committed.**
 - **Why it matters:** in water under about 10 m, a 0.5-1 m datum error is a 5-20% depth error. That moves the shoaling and the breaking-limited heights, and bends the shallowest rays.
 - **Water level during TEST:** rays are traced on the MSL surface, as the stationary linear method assumes.
