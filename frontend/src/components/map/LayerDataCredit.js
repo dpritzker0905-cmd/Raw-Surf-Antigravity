@@ -26,13 +26,15 @@ const SOURCES = {
   ecmwf: { text: 'EURO · © ECMWF · CC BY 4.0', href: 'https://www.ecmwf.int/en/forecasts/datasets/open-data', label: 'Data source: © ECMWF open data, licence CC BY 4.0 (opens in a new tab)' },
   dwd: { text: 'ICON · Datenbasis: Deutscher Wetterdienst', href: 'https://www.dwd.de/EN/service/copyright/copyright_node.html', label: 'Data source: Deutscher Wetterdienst (Datenbasis: Deutscher Wetterdienst), ICON model (opens in a new tab)' },
   // Ocean currents (2026-11-15): the Copernicus Marine licence (s. 2.4) asks for this credit, with the product's DOI.
+  // NOAA Global RTOFS (2026-11-22, the Currents layer under GFS): NOAA data, public domain, credited as a courtesy.
+  rtofs: { text: 'NOAA RTOFS', href: 'https://polar.ncep.noaa.gov/global/', label: 'Data source: NOAA NCEP Global Real-Time Ocean Forecast System (RTOFS), public domain (opens in a new tab)' },
   cmems: { text: '© Copernicus Marine', href: 'https://doi.org/10.48670/moi-00016', label: 'Generated using E.U. Copernicus Marine Service Information (opens in a new tab)' },
   // Currents under ICON (2026-11-22): Canada's GIOPS ocean model, under the Open Government Licence - Canada (its catalogue
   // record) and the ECCC Data Servers End-use Licence (the Datamart): the OGL statement, the data attributed to ECCC, nothing
   // suggesting endorsement. Named as ECCC's model, never as ICON's.
   eccc: { text: 'Canada GIOPS (ECCC) · OGL-Canada', href: 'https://open.canada.ca/en/open-government-licence-canada', label: 'Data Source: Environment and Climate Change Canada, GIOPS ocean model. Contains information licensed under the Open Government Licence – Canada (opens in a new tab).' },
 };
-const OWN_SOURCE = { GFS: 'noaa', EURO: 'ecmwf', ICON: 'dwd', CMEMS: 'cmems', GIOPS: 'eccc' };
+const OWN_SOURCE = { GFS: 'noaa', EURO: 'ecmwf', ICON: 'dwd', CMEMS: 'cmems', GIOPS: 'eccc', RTOFS: 'rtofs' };
 // What a layer drawn from our own frames IS, where a reader could take it for something else (2026-10-25). Our cloud cover
 // (the satellite layer) is GFS's INSTANTANEOUS field at the valid time. Open-Meteo's, on the .om path, is an hourly backward
 // mean, and the two differ by definition: 7.0 points of percentage on average, 1.5 on the same definition (the a/b/c read,
@@ -47,6 +49,8 @@ const OWN_NOTE = {
   currents: { text: ' · open-ocean current; no tides, not a nearshore / rip current', label: 'Open-ocean current from the Copernicus global model (half a metre down, every 6 hours, about 28 km cells): no tides, and not a nearshore or rip current.' },
   // GIOPS (2026-11-22): its own description; the files are 3-hour means ending at the valid time, on 0.2 degree cells.
   currents_giops: { text: ' · open-ocean current; no tides, not a nearshore / rip current', label: "Open-ocean current from Canada's GIOPS model (half a metre down, 3-hour mean, every 6 hours, about 22 km cells): no tides, and not a nearshore or rip current." },
+  // NOAA RTOFS (2026-11-22, the GFS picker): its top model layer, every 6 hours, mapped to 0.25 deg; the same caveats.
+  currents_rtofs: { text: ' · open-ocean current; no tides, not a nearshore / rip current', label: "Open-ocean current from NOAA's global RTOFS model (its top layer, every 6 hours, about 28 km cells): no tides, and not a nearshore or rip current." },
   // Water temp from the Copernicus ocean model (G4, 2026-11-17): a bulk temperature of the top half metre, not a skin temperature.
   water_temp: (model) => (model === 'CMEMS'
     ? { text: ' · ocean model, top 0.5 m', label: 'Copernicus ocean model sea temperature: the top half metre, hourly mean, 1/6 degree cells (not a skin temperature). DWD ICON has no sea temperature of its own.' }
