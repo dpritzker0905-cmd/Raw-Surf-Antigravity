@@ -107,3 +107,42 @@ def test_target_on_land_is_refused():
     g, x0 = plane_beach()
     with pytest.raises(ValueError):
         trace_target(g, x0 + 100.0, NY * DX / 2.0, freqs=FREQS)
+
+
+def test_halving_the_step_converges_on_the_plane_beach():
+    from services.weather_pipeline.nearshore_lite.ray_trace import convergence
+    g, x0 = plane_beach()
+    xt, yt = target(g, x0)
+    full = trace_target(g, xt, yt, freqs=FREQS)
+    half = trace_target(g, xt, yt, freqs=FREQS, step_factor=0.5)
+    c = convergence(full, half)
+    assert c["ok"] and c["median"] < 0.01 and c["p95"] < 0.03 and c["n"] > 100
+
+
+def test_truncated_share_counts_lateral_shallow_exits_and_flags_over_20_percent():
+    from services.weather_pipeline.nearshore_lite.ray_trace import TRUNCATED_FLAG_SHARE, truncated_share
+    g, x0 = plane_beach()
+    xt, yt = target(g, x0)
+    wide = trace_target(g, xt, yt, freqs=FREQS)
+    narrow_grid = DepthGrid(g.h[190:250, :], DX)                  # a 1.5 km wide strip: oblique rays leave the sides
+    narrow = trace_target(narrow_grid, xt, 30 * DX, freqs=FREQS)
+    assert truncated_share(narrow) > truncated_share(wide)
+    assert truncated_share(narrow) > TRUNCATED_FLAG_SHARE == 0.20
+
+
+def test_band_loss_is_reported_for_short_period_seas():
+    from services.weather_pipeline.nearshore_lite import spectrum as sp
+    assert sp.band_loss(14.0, 3.3) < 0.01          # groundswell sits inside 0.04-0.25 Hz
+    assert sp.band_loss(3.0, 1.0) > 0.30           # a 3 s sea loses its tail above 0.25 Hz
+
+
+def test_lite_arm_at_a_buoy_scores_in_the_serving_form():
+    from services.weather_pipeline import surf_transform as st
+    g, x0 = plane_beach()
+    xt, yt = target(g, x0)
+    tab = coef.Table(coef.build_payload("plane", trace_target(g, xt, yt, freqs=FREQS), {}))
+    parts = [{"h": 2.0, "tp": 10.0, "dir": 270.0, "kind": "swell"}]
+    at_target = coef.lite_buoy_hs(tab, parts, tab.depth_t_m, st.shoaling_coefficient)
+    assert at_target == pytest.approx(tab.apply_partition(2.0, 10.0, 270.0, "swell")["hs_t_m"], rel=1e-9)
+    deeper = coef.lite_buoy_hs(tab, parts, 30.0, st.shoaling_coefficient)
+    assert 0 < deeper < at_target                  # same refraction factor, the chain's shoaling to the buoy depth

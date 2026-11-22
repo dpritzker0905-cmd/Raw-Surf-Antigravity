@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 49,
+  "tests": 58,
   "files": 4,
   "branch": "claude/nearshore-moplite-build",
   "date": "2026-11-22",
-  "note": "MOP-lite offline package: ray trace, seam/freeze, scorer, ship rule, flag"
+  "note": "MOP-lite offline package"
 }

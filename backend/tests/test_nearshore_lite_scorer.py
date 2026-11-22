@@ -169,13 +169,14 @@ def test_archive_is_hashed_immutable_and_detects_tampering(tmp_path):
 
 # ---- ship decision on stratified tags (advisor ruling) -----------------------------------------------------------
 def _tagged_rows(seam_noise, dm_noise):
+    """Tagged buoys sit OUTSIDE the sheltered subset (b < 4) so a bad tag line cannot sink the sheltered line."""
     rows = make_rows(lite_noise=0.10, chain_noise=0.35, seed=7)
     rng = np.random.default_rng(11)
     for r in rows:
-        if r["buoy"] in ("b0", "b1"):          # SEAM targets
+        if r["buoy"] in ("b5", "b6"):          # SEAM targets
             r["tags"] = ["SEAM"]
             r["arms"]["LITE"] = r["obs_hs"] + rng.normal(0, seam_noise)
-        if r["buoy"] in ("b1", "b2"):          # b1 is multi-tagged; b2 is DATUM_1M only
+        if r["buoy"] in ("b6", "b7"):          # b6 is multi-tagged; b7 is DATUM_1M only
             r["tags"] = sorted(set(r.get("tags", [])) | {"DATUM_1M"})
             r["arms"]["LITE"] = r["obs_hs"] + rng.normal(0, dm_noise)
     return rows
@@ -193,15 +194,15 @@ def test_seam_and_datum_targets_are_scored_but_keep_chain_unless_their_own_line_
     rows = _tagged_rows(seam_noise=0.60, dm_noise=0.10)           # SEAM line worse than CHAIN, DATUM_1M line better
     res = scorer.ship_decision(rows, REGIONS, B=B)
     assert res["gate_pass"] is True                               # pooled/FINE/sheltered still pass: stratify only
-    assert res["ships"]["b5"] is True                             # untagged
-    assert res["ships"]["b0"] is False                            # SEAM only, its line is not better
-    assert res["ships"]["b2"] is True                             # DATUM_1M only, its line is better
-    assert res["ships"]["b1"] is False                            # multi-tagged: SEAM line fails => keeps CHAIN
+    assert res["ships"]["b0"] is True                             # untagged
+    assert res["ships"]["b5"] is False                            # SEAM only, its line is not better
+    assert res["ships"]["b7"] is True                             # DATUM_1M only, its line is better
+    assert res["ships"]["b6"] is False                            # multi-tagged: SEAM line fails => keeps CHAIN
 
 
 def test_every_tag_better_ships_the_multi_tagged_target():
     res = scorer.ship_decision(_tagged_rows(seam_noise=0.10, dm_noise=0.10), REGIONS, B=B)
-    assert res["ships"]["b0"] and res["ships"]["b1"] and res["ships"]["b2"]
+    assert res["ships"]["b5"] and res["ships"]["b6"] and res["ships"]["b7"]
 
 
 def test_a_gate_that_does_not_pass_ships_nothing():
@@ -212,3 +213,44 @@ def test_a_gate_that_does_not_pass_ships_nothing():
 def test_coarse_stratum_counts_as_a_tag():
     r = {"stratum": "COARSE", "tags": ["SEAM"]}
     assert scorer.row_tags(r) == {"COARSE", "SEAM"}
+
+
+def test_coarse_plus_seam_target_with_one_tag_merely_not_worse_keeps_chain():
+    """b6 is COARSE+SEAM. COARSE line clearly better; SEAM line only EQUAL to CHAIN (not worse, not better) => CHAIN."""
+    rows = make_rows(lite_noise=0.10, chain_noise=0.35, seed=21)
+    rng = np.random.default_rng(5)
+    for r in rows:
+        if r["buoy"] in ("b8", "b9"):                       # the COARSE stratum (stratum == COARSE for b >= 8)
+            r["arms"]["LITE"] = r["obs_hs"] + rng.normal(0, 0.10)
+        if r["buoy"] in ("b8", "b0"):                       # SEAM: b8 (also COARSE) and b0
+            r["tags"] = ["SEAM"]
+            r["arms"]["LITE"] = r["arms"]["CHAIN"]          # exactly CHAIN: not worse, not better
+    res = scorer.ship_decision(rows, REGIONS, B=B)
+    assert res["better"]["COARSE"] is True and res["better"]["SEAM"] is False
+    assert res["ships"]["b9"] is True                       # COARSE only, better
+    assert res["ships"]["b8"] is False                      # COARSE + SEAM: SEAM not better => CHAIN
+    assert res["ships"]["b0"] is False                      # SEAM only, not better => CHAIN
+
+
+def test_a_tag_with_no_targets_has_no_line():
+    res = scorer.pass_rule(make_rows(0.1, 0.35, seed=2), REGIONS, B=B)
+    assert "SEAM" not in res["f1"] and "DATUM_1M" not in res["f1"] and "COARSE" in res["f1"]
+
+
+def test_tag_lines_join_the_f1_holm_family():
+    rows = _tagged_rows(0.10, 0.10)
+    f1 = scorer.pass_rule(rows, REGIONS, B=B)["f1"]
+    assert {"SEAM", "DATUM_1M"} <= set(f1) and all("p_holm" in v for v in f1.values())
+
+
+def test_control_plants_default_to_the_registered_B():
+    import inspect
+    assert inspect.signature(scorer.control_height_plants).parameters["B"].default == 10000
+    assert inspect.signature(scorer.control_direction_plants).parameters["B"].default == 10000
+
+
+def test_void_is_printed_explicitly():
+    void, text = scorer.verdict({"ok": False, "inits": 30}, {"null": True, "direction": False})
+    assert void and text.startswith("VOID:") and "direction" in text and "floors unmet" in text
+    void, text = scorer.verdict({"ok": True}, {"null": True})
+    assert not void and text.startswith("VALID")

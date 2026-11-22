@@ -67,8 +67,10 @@ def _vec_to_from(ux, uy):
     return np.degrees(np.arctan2(-ux, -uy)) % 360.0
 
 
-def trace_target(grid, x_t, y_t, freqs=FREQS_HZ, theta_step_deg=THETA_STEP_DEG):
+def trace_target(grid, x_t, y_t, freqs=FREQS_HZ, theta_step_deg=THETA_STEP_DEG, step_factor=1.0):
     """Transfer table for ONE target point.
+
+    `step_factor` scales the ray step (0.5 = the freeze-time convergence check, amendment A7).
 
     Returns a dict: freqs_hz (nf), theta_t_from_deg (nth), theta_b_from_deg (nf, nth), R (nf, nth; 0 = blocked),
     blocked (bool, nf x nth), reached (int8 codes DEEP/EDGE/LAND), depth_t_m."""
@@ -114,7 +116,7 @@ def trace_target(grid, x_t, y_t, freqs=FREQS_HZ, theta_step_deg=THETA_STEP_DEG):
         lo = np.maximum(h - dh, 1e-3)
         dcdh = (phase_speed(fa, h + dh) - phase_speed(fa, lo)) / (h + dh - lo)
         dcdx, dcdy = dcdh * dhdx, dcdh * dhdy
-        ds = np.minimum((c / fa) / 10.0, grid.dx / 2.0)         # <= lambda/10 (gate) and sub-cell
+        ds = step_factor * np.minimum((c / fa) / 10.0, grid.dx / 2.0)   # <= lambda/10 (gate) and sub-cell; step_factor < 1 = convergence check
         dtheta_ds = (dcdx * np.sin(tha) - dcdy * np.cos(tha)) / c
         # BACKWARD: step against the travel direction and un-turn
         x[idx] = xa - ds * np.cos(tha)
@@ -134,3 +136,27 @@ def trace_target(grid, x_t, y_t, freqs=FREQS_HZ, theta_step_deg=THETA_STEP_DEG):
         "truncated": truncated.reshape(nf, nth),
         "depth_b_m": h_b.reshape(nf, nth), "depth_t_m": float(h_t),
     }
+
+
+def truncated_share(table):
+    """Share of NON-LAND rays that were truncated at a lateral domain edge (amendment A3). Flag a target above
+    TRUNCATED_FLAG_SHARE (20%) in its report."""
+    t = np.asarray(table["truncated"], dtype=bool)
+    live = ~np.asarray(table["blocked"], dtype=bool)
+    n = int(live.sum())
+    return float(t[live].sum()) / n if n else 0.0
+
+
+TRUNCATED_FLAG_SHARE = 0.20
+
+
+def convergence(table_full, table_half, med_max=0.01, p95_max=0.03):
+    """Step-halving check (amendment A7): relative change of R over rays carrying energy in both, median < 1% and p95 < 3%."""
+    a = np.asarray(table_full["R"], dtype=float)
+    b = np.asarray(table_half["R"], dtype=float)
+    ok = (a > 0) & (b > 0)
+    if not ok.any():
+        return {"n": 0, "median": float("nan"), "p95": float("nan"), "ok": False}
+    d = np.abs(b[ok] - a[ok]) / a[ok]
+    med, p95 = float(np.median(d)), float(np.percentile(d, 95))
+    return {"n": int(ok.sum()), "median": med, "p95": p95, "ok": bool(med < med_max and p95 < p95_max)}

@@ -50,6 +50,16 @@ def _df(f):
     return float(f[1] - f[0]) if len(f) > 1 else 1.0
 
 
+def band_loss(tp_s, gamma, f_lo=0.04, f_hi=0.25):
+    """Fraction of a partition's energy OUTSIDE the table's frequency band (amendment A5: reported, never hidden)."""
+    f = np.arange(0.02, 0.60, 0.001)
+    s = jonswap_shape(f, tp_s, gamma)
+    if s is None:
+        return None
+    inside = (f >= f_lo - 1e-9) & (f <= f_hi + 1e-9)
+    return float(1.0 - np.sum(s[inside]) / np.sum(s))
+
+
 def spreading(theta_from_deg, mean_from_deg, s):
     """cos^(2s) directional density per RADIAN, unit area over the circle, evaluated at theta (compass 'from')."""
     d = np.radians(((np.asarray(theta_from_deg, dtype=float) - float(mean_from_deg) + 180.0) % 360.0) - 180.0)

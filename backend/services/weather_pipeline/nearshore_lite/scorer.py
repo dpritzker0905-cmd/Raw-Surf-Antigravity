@@ -157,7 +157,10 @@ def evaluate_f1(rows, regions, B=B_DEFAULT, seed=SEED):
     lines["pooled"] = non_ca
     lines["sheltered"] = [r for r in non_ca if r.get("sheltered")]
     lines["FINE"] = _sel(non_ca, stratum="FINE")
-    lines["COARSE"] = _sel(non_ca, stratum="COARSE")
+    for tag in SHIP_TAGS:                      # COARSE, SEAM, DATUM_1M: a line only when the tag has targets
+        sel = [r for r in non_ca if tag in row_tags(r)]
+        if sel:
+            lines[tag] = sel
     res = {k: paired_bootstrap(v, "LITE", "CHAIN", B=B, seed=seed) for k, v in lines.items()}
     keys = list(res)
     adj = holm([res[k]["p"] for k in keys])
@@ -194,7 +197,7 @@ def pass_rule(rows, regions, alpha=0.05, B=B_DEFAULT, seed=SEED):
     ok = better("pooled") and better("FINE") and better("sheltered") and no_region_worse and both_halves
     return {"pass": bool(ok), "pooled": better("pooled"), "FINE": better("FINE"), "sheltered": better("sheltered"),
             "no_region_worse": no_region_worse, "both_halves": both_halves, "half_deltas": [d1, d2],
-            "coarse_ships": bool(better("COARSE")), "f1": f1}
+            "coarse_ships": bool(better("COARSE")) if "COARSE" in f1 else False, "f1": f1}
 
 
 # ---- ship decision: stratified tags (advisor ruling 2026-11-22) -------------------------------------------------
@@ -217,29 +220,18 @@ def tag_rule(target_tags, better_by_tag):
     return all(bool(better_by_tag.get(t, False)) for t in target_tags if t in SHIP_TAGS)
 
 
-def evaluate_tag_lines(rows, alpha=0.05, B=B_DEFAULT, seed=SEED):
-    """LITE - CHAIN per ship tag (California excluded), one-sided, Holm over the tag family. {tag: line + better}."""
-    non_ca = [r for r in rows if r["region"] != "California"]
-    lines = {t: [r for r in non_ca if t in row_tags(r)] for t in SHIP_TAGS}
-    res = {t: paired_bootstrap(v, "LITE", "CHAIN", B=B, seed=seed) for t, v in lines.items() if v}
-    keys = list(res)
-    for k, a in zip(keys, holm([res[k]["p"] for k in keys])):
-        res[k]["p_holm"] = a
-        res[k]["better"] = bool(a < alpha and res[k]["delta"] < 0)
-    return res
-
-
 def ship_decision(rows, regions, alpha=0.05, B=B_DEFAULT, seed=SEED):
-    """{gate_pass, tag_lines, ships: {target: bool}}. Untagged targets ship on a gate pass; tagged ones per tag_rule.
-    A gate that does not pass ships nothing."""
+    """{gate_pass, better, ships: {target: bool}}. The tag lines live in the F1 Holm family (a line exists only when
+    the tag has targets). Untagged targets ship on a gate pass; a tagged target ships only if EVERY tag's line is
+    BETTER (merely not worse = CHAIN); a gate that does not pass ships nothing."""
     gate = pass_rule(rows, regions, alpha=alpha, B=B, seed=seed)
-    lines = evaluate_tag_lines(rows, alpha=alpha, B=B, seed=seed)
-    better = {t: v["better"] for t, v in lines.items()}
+    f1 = gate["f1"]
+    better = {t: bool(f1[t]["p_holm"] < alpha and f1[t]["delta"] < 0) for t in SHIP_TAGS if t in f1}
     tags_by_target = {}
     for r in rows:
         tags_by_target.setdefault(r["buoy"], set()).update(row_tags(r))
     ships = {t: bool(gate["pass"] and tag_rule(tags, better)) for t, tags in tags_by_target.items()}
-    return {"gate_pass": gate["pass"], "tag_lines": lines, "ships": ships, "gate": gate}
+    return {"gate_pass": gate["pass"], "better": better, "ships": ships, "gate": gate}
 
 
 # ---- controls --------------------------------------------------------------------------------------------------
@@ -260,14 +252,14 @@ def plant_height(rows, arm, factor):
     return out
 
 
-def control_height_plants(rows, arm="LITE", B=2000):
+def control_height_plants(rows, arm="LITE", B=B_DEFAULT):
     """The ME test must catch the 2x plant (+20%): its ME CI vs the unplanted arm excludes 0."""
     p = plant_height(rows, arm, 1.20)
     r = paired_bootstrap(p, f"{arm}_x1.2", arm, metric="me", B=B)
     return {"caught_2x": bool(r["lo"] > 0 or r["hi"] < 0), "delta_me": r["delta"]}
 
 
-def control_direction_plants(base_rows, plant2_rows, B=2000):
+def control_direction_plants(base_rows, plant2_rows, B=B_DEFAULT):
     """Sheltered subset: LITE with every direction rotated +40 deg must be significantly WORSE than unrotated.
     `plant2_rows` carry the rotated arm as `LITE_ROT40` (computed by the caller through the frozen tables)."""
     sh = [r for r in base_rows if r.get("sheltered")]
@@ -291,3 +283,15 @@ def control_leak(coef_dir, target_ids, freeze_time_utc, valid_times_utc):
 def verify_frozen_or_refuse(coef_dir, target_ids):
     """Called before any scoring: a hash mismatch refuses to run (raises)."""
     return {t: coef.load_verified(coef_dir, t) for t in target_ids}
+
+
+def verdict(floor_result, controls):
+    """The result text. VOID is printed EXPLICITLY (advisor A8): a floor unmet or any control misbehaving voids the run.
+    `controls` = {name: bool ok}. Returns (is_void, text)."""
+    reasons = []
+    if not floor_result.get("ok"):
+        reasons.append(f"floors unmet {floor_result}")
+    reasons += [f"control '{k}' misbehaved" for k, ok in controls.items() if not ok]
+    if reasons:
+        return True, "VOID: " + "; ".join(reasons)
+    return False, "VALID: floors met and every control behaved"

@@ -139,7 +139,8 @@ class Table:
         dir_t = (math.degrees(math.atan2(vx, vy)) % 360.0) if tot > 0 else None
         ef = np.sum(e_t, axis=1)
         tp_t = (1.0 / float(self.f[int(np.argmax(ef))])) if tot > 0 else None
-        return {"hs_t_m": float(hs_m) * ratio, "ratio": ratio, "dir_t_from_deg": dir_t, "tp_t_s": tp_t}
+        return {"hs_t_m": float(hs_m) * ratio, "ratio": ratio, "dir_t_from_deg": dir_t, "tp_t_s": tp_t,
+                "band_loss": sp.band_loss(tp_s, gamma, float(self.f[0]), float(self.f[-1]))}
 
     def apply(self, partitions, variant="base", rotate_deg=0.0, scale=1.0):
         """Sum partitions in quadrature. Returns dict(hs_t_m, hs_b_m, dir_t_from_deg, tp_t_s) or None."""
@@ -169,6 +170,21 @@ class Table:
         return {"hs_t_m": scale * math.sqrt(e_t), "hs_b_m": math.sqrt(e_b),
                 "dir_t_from_deg": (math.degrees(math.atan2(vx, vy)) % 360.0) if e_t > 0 else None,
                 "tp_t_s": best[1]}
+
+
+def lite_buoy_hs(table, partitions, buoy_depth_m, shoaling_fn):
+    """The LITE test arm at a buoy, scored in the SAME FORM as serving (amendment A2): per partition
+    Hs x Kr_refraction x Ks(Tp, buoy depth), the chain's own shoaling, no breaking cap; quadrature sum.
+    `shoaling_fn(tp, depth)` is the chain's shoaling_coefficient. Partitions the table cannot transfer are skipped."""
+    e = 0.0
+    for p in partitions or []:
+        if not isinstance(p, dict) or not p.get("h") or not p.get("tp"):
+            continue
+        kr = partition_kr(table, p["h"], p["tp"], p.get("dir"), p.get("kind"), shoaling_fn(p["tp"], table.depth_t_m))
+        if kr is None:
+            continue
+        e += (float(p["h"]) * kr * shoaling_fn(p["tp"], buoy_depth_m)) ** 2
+    return math.sqrt(e) if e > 0 else None
 
 
 def partition_kr(table, hs_m, tp_s, dir_from_deg, kind, shoaling_to_target):
