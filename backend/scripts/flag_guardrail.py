@@ -76,6 +76,12 @@ VOLUME_FLAGS = {"ALERTS_FORECAST_WINDOWS": "surf_alert"}
 # look, not independent evidence). A non-worse run in between resets the count. Sanity breaches act at once.
 STRIKES = 2
 STRIKE_SPAN_H = 24
+# Flags whose kill switch REMOVES a service instead of restoring an older one. The guardrail reports a WORSE verdict or
+# a sanity breach for them but never writes 'off': a breach from a replay that cannot see the flag (they are BLIND)
+# must not take a whole service away from every user. Only the owner turns them off (#1132, the director 2026-11-22).
+NEVER_AUTO_DISABLE = {
+    "SURF_TIDE_OWN": "SURF_TIDE_OWN=0 serves NO tide at all, not the old Open-Meteo tide",
+}
 
 REPLAY, RATING, VOLUME, BLIND, LEDGER = "replay", "rating", "volume", "blind", "ledger"
 # Every GUARDED flag (and the ones open PRs add) with what can see it. Flags in eval_replay.UNREPLAYABLE are BLIND
@@ -85,6 +91,15 @@ COVERAGE = {
                                            "the replay cannot exercise it. Evidence: the per-buoy split's no-served-row "
                                            "count (accuracy_per_buoy_split.unanswered)"),
     "SURF_TIDE_DEPTH": (REPLAY, "the replay carries the served tide (eval_replay tide)"),
+    # PR B (#1132): the replay's tide is Open-Meteo sea_level_height_msl fetched BY DATE (eval_replay.TideSeries); it
+    # never reads our table (tide_own), so flipping either flag changes nothing it scores. Nothing scores the served
+    # tide against observed water yet (that is the G4 gate). Both are honestly BLIND. Evidence: the daily build's
+    # served_delta step summary (level, shape, timing vs the previous served tide) and tests/test_tide_own.py.
+    "SURF_TIDE_OWN": (BLIND, "the replay fetches its tide from Open-Meteo by date and never reads our table; no "
+                             "instrument scores the served tide yet (G4 will). Evidence: the tide-own-series build's "
+                             "served_delta summary and tests/test_tide_own.py"),
+    "SURF_TIDE_CMEMS": (BLIND, "the CMEMS sea level read directly, inert until the build writes it (TIDE_CMEMS_PRIMARY); "
+                               "the replay never reads our table. Evidence: the M1-0 parity run (r2) and served_delta"),
     "SURF_EXPOSURE_RECONCILED": (REPLAY, "the height exposure factor at the anchors"),
     "SHORE_NORMAL_MOP_CALIBRATED": (REPLAY, "the height exposure normal at the calibrated anchors (#780)"),
     "RATING_LOCAL_SIZE": (RATING, "the quality score's size reference; no observed rating exists"),
@@ -188,6 +203,10 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
             return {"action": "strike", "reason": f"WORSE, strike {n} (needs {STRIKES} over >= {STRIKE_SPAN_H} h; "
                                                   f"first {first}): {'; '.join(result.get('reasons') or [])}"[:600],
                     "watch": {"strikes": n, "first_worse_at": first}}
+    if (result.get("verdict") == gs.WORSE or breach) and flag in NEVER_AUTO_DISABLE:
+        why = "; ".join((result.get("reasons") if result.get("verdict") == gs.WORSE else []) + breach)
+        return {"action": "none", "reason": (f"REPORTED, NOT disabled: {flag}'s kill removes the service entirely "
+                                             f"({NEVER_AUTO_DISABLE[flag]}); only the owner turns it off. Signal: {why}")[:900]}
     if result.get("verdict") == gs.WORSE or breach:
         why = "; ".join((result.get("reasons") if result.get("verdict") == gs.WORSE else []) + breach)
         reason = (f"auto-disabled: {flag} measured {'WORSE' if result.get('verdict') == gs.WORSE else 'in breach'} "

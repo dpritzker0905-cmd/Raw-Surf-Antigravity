@@ -2832,3 +2832,11 @@ numbers.
 
 Tests: test_tide_own + flag parity pass 51 locally.
 
+
+
+## 2026-11-22 14:27Z: #1132 red on test_every_guarded_flag_says_what_can_see_it; guardrail coverage for the tide flags
+- **BLIND, both flags.** `SURF_TIDE_OWN` and `SURF_TIDE_CMEMS` are declared BLIND in `flag_guardrail.COVERAGE`. The replay fetches its tide from Open-Meteo by date (`eval_replay.TideSeries`) and never reads our table, so flipping either flag changes nothing it scores. No instrument scores the served tide against observed water yet; G4 will. Evidence: served_delta and tests.
+- **Never auto-disabled.** A BLIND flag's sanity breach still disabled it in `decide()`. `SURF_TIDE_OWN`'s kill serves NO tide, so it joins a new `NEVER_AUTO_DISABLE`: a WORSE verdict or a breach is REPORTED (`action: none`, reason 'REPORTED, NOT disabled') and never written as 'off'. Only the owner turns it off.
+- **CMEMS not exempt.** `SURF_TIDE_CMEMS` is NOT in the set: its kill restores our harmonic tide, a safe fallback.
+- **Test:** `test_the_served_tide_is_blind_and_never_auto_disabled`, with a control: the same breach still disables SURF_FACE_RANGE. Chain floor now +8; 76 pass locally.
+

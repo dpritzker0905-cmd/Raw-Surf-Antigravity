@@ -163,6 +163,20 @@ def test_synthetic_controls_at_the_recorded_effect_sizes(seed):
 
 
 # ---- coverage -----------------------------------------------------------------------------------------------------
+def test_the_served_tide_is_blind_and_never_auto_disabled():
+    """#1132: the replay never reads our tide table, so both tide flags are BLIND. SURF_TIDE_OWN's kill serves NO tide,
+    so a breach (from a replay that cannot see it) is REPORTED, never written as 'off'. An ordinary ON flag with the
+    same breach is still disabled (the control)."""
+    assert fg.coverage("SURF_TIDE_OWN")[0] == fg.BLIND and fg.coverage("SURF_TIDE_CMEMS")[0] == fg.BLIND
+    breach = {"verdict": gs.UNTESTABLE, "reasons": ["BLIND"], "sanity": ["breaking height out of range"]}
+    d = fg.decide("SURF_TIDE_OWN", breach, fg.empty_manifest(), "v", T0)
+    assert d["action"] == "none" and "REPORTED, NOT disabled" in d["reason"] and "entry" not in d
+    worse = {"verdict": gs.WORSE, "reasons": ["worse"], "sanity": []}
+    m = dict(fg.empty_manifest(), watch={"SURF_TIDE_OWN": {"strikes": 5, "first_worse_at": "2026-09-01T00:00:00Z"}})
+    assert fg.decide("SURF_TIDE_OWN", worse, m, "v", T0)["action"] in ("none", "strike")
+    assert fg.decide("SURF_FACE_RANGE", breach, fg.empty_manifest(), "v", T0)["action"] == "disable"
+
+
 def test_every_guarded_flag_says_what_can_see_it():
     missing = [f for f in rf.GUARDED if fg.coverage(f) is None]
     assert not missing, f"declare COVERAGE in flag_guardrail.py for {missing}"
