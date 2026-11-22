@@ -21,7 +21,7 @@ jest.mock('./FollowersModal', () => ({ FollowersModal: () => null }));
 jest.mock('./ProfileEditModal', () => ({ ProfileEditModal: () => null }));
 jest.mock('./AvatarCropModal', () => () => null);
 jest.mock('./profile/ProfileHeaderSection', () => ({ profile, streak, socialStats, contentStats, impactScore, gamificationStats }) => (
-  <output data-testid="stats">{JSON.stringify([profile.id, streak.current_streak, socialStats.followers,
+  <output data-testid="stats" data-name={profile.full_name}>{JSON.stringify([profile.id, streak.current_streak, socialStats.followers,
     socialStats.following, contentStats.posts, impactScore?.score ?? null, gamificationStats.total_xp])}</output>
 ));
 
@@ -51,7 +51,7 @@ function setup({ deferProfiles = false } = {}) {
     changeViewer: () => act(async () => { viewer = { ...viewer, id: 'second-reader' }; view.rerender(app()); }),
     refreshViewer: () => act(async () => { viewer = { ...viewer }; view.rerender(app()); }),
     deliver: (id, index, n) => act(async () => {
-      if (deferProfiles) requests.get(`/profiles/${id}`)[index]({ id, role: 'Surfer' });
+      if (deferProfiles) requests.get(`/profiles/${id}`)[index]({ id, full_name: `Name ${n}`, role: 'Surfer' });
       const data = {
         [`/streak/${id}`]: { current_streak: n },
         [`/followers/${id}`]: Array(n).fill({}),
@@ -67,12 +67,14 @@ function setup({ deferProfiles = false } = {}) {
 
 const stats = () => JSON.parse(screen.getByTestId('stats').textContent);
 
-test('a slower refresh cannot overwrite newer stats during the same visit', async () => {
-  const { refreshViewer, deliver } = setup();
+test('a slower refresh cannot overwrite the newer name or stats during the same visit', async () => {
+  const { refreshViewer, deliver } = setup({ deferProfiles: true });
   await refreshViewer();
   await deliver('A', 1, 10);
+  expect(screen.getByTestId('stats').dataset.name).toBe('Name 10');
   expect(stats()).toEqual(['A', 10, 10, 11, 12, 13, 14]);
   await deliver('A', 0, 2);
+  expect(screen.getByTestId('stats').dataset.name).toBe('Name 10');
   expect(stats()).toEqual(['A', 10, 10, 11, 12, 13, 14]);
 });
 
