@@ -2878,3 +2878,10 @@ Branch claude/tide-never-missing, stacked on #1132.
 - **Tests:** one per failure: build failed for weeks; storage down (previous, then memory, then disk); an older table
   never replacing a newer one; partial, short or shrunken tables refused; the horizon alert; the workflow wiring.
   Chain +5. Locally 81 pass.
+
+
+## 2026-11-22 15:42Z: the owner's words on the interim and the path (relayed by the director, typed in its session)
+- On the missing-table behaviour (with D-086's record): "Yes, but with that said we should have something else in place that is more SOTA, where we don't have missing tide tables ever". So #1132 merges as built (missing/stale = tide unavailable, never Open-Meteo), and this PR is the something else.
+- On the path: "move forward on the best SOTA path. We dont have real users yet, keep that in mind".
+- **Carry check for #1132:** after the dev merge (a1879ef79), all 20 of the PR's own files are blob-identical to 20247b635. Only the merge commit changed.
+
