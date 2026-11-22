@@ -76,7 +76,11 @@ export function creditFor(layer, engaged = getEngaged(), downscaled = getDownsca
   const always = base && ALWAYS_NOTE[layer];   // a caveat that holds whether or not a frame is drawn yet
   return always ? { ...base, text: base.text + always.text, label: `${always.label} ${base.label}`, title: always.label } : base;
 }
-const ALWAYS_NOTE = { currents: OWN_NOTE.currents };
+// Before a frame is drawn the picked model's ocean source is not known here (Copernicus, Canada GIOPS or NOAA RTOFS, per picker;
+// the advisor's limit (d) on #1135), so the caveat names no model: what holds for every one of them.
+const ALWAYS_NOTE = {
+  currents: { text: OWN_NOTE.currents.text, label: 'Open-ocean current from a global ocean model (half a metre down, every 6 hours, cells of about 20 to 30 km): no tides, and not a nearshore or rip current.' },
+};
 
 export default function LayerDataCredit({ layer }) {
   const engaged = useSyncExternalStore(subscribeEngaged, getEngaged, getEngaged);

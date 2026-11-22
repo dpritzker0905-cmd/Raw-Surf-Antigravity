@@ -165,3 +165,25 @@ ICON → Environment and Climate Change Canada's GIOPS. Credit GIOPS under its o
 - The GIOPS spec inherits the Copernicus set's frame layout keys (including a future `dir_byte_field`), so the particles
   lane's change reaches GIOPS without another edit here.
 - Backend tests: 10 → 16 (estate fragment updated to +16).
+
+## 9. Addendum: the advisor's limits on GATE|1135|a98107a8c|PASS-WITH-LIMITS
+
+**(a) Plugin import fallback.**
+- `frame_set_raster.py` now loads the GIOPS module in the same `try / except ImportError` block as the SST module (the
+  sibling-import rule). The `importlib` loop and its import are gone.
+- The file stays at 797 lines.
+- RTOFS joins by adding its module to both import lines and to the `(_giops,)` tuple.
+
+**(b) Rebase with #1134.** Agreed with the RTOFS lane: whichever PR merges second rebuilds by hand. Its special case folds
+into `modelSets.GFS`, and its register hook into the plugin tuple.
+
+**(c) Monitor.** Done in head `3da35afba`:
+- `data-health-monitor.yml` passes `FRAME_RASTER_CURRENTS_GIOPS`;
+- the GIOPS step has no `continue-on-error`;
+- the set is strict.
+
+**(d) Pre-draw caveat.** Before a frame is drawn, the caveat names no ocean model: "a global ocean model … cells of about 20
+to 30 km". A new frontend test covers it (fragment +5).
+
+**Licence.** The advisor and the director settle on the ECCC End-use Licence. The index carries both statements: the ECCC
+attribution that licence requires, and the OGL sentence the GIOPS catalogue record supports (§8).

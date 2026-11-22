@@ -82,6 +82,11 @@ describe('ICON currents from Canada GIOPS', () => {
     expect(c.label).toMatch(/GIOPS model \(half a metre down, 3-hour mean/);
     expect(`${c.text} ${c.label}`).not.toMatch(/ICON|Copernicus/);
   });
+  test('before a frame is drawn, the caveat names no ocean model (any picker may be on any source)', () => {
+    const c = creditFor('currents', {}, {});
+    expect(c.title).toBe('Open-ocean current from a global ocean model (half a metre down, every 6 hours, cells of about 20 to 30 km): no tides, and not a nearshore or rip current.');
+    expect(c.title).not.toMatch(/Copernicus|GIOPS|RTOFS|ICON/);
+  });
 });
 
 describe('currents palette', () => {
