@@ -59,8 +59,9 @@ _HORIZON_WARN_DAYS = 30.0
 _DISK_PATH = os.environ.get("TIDE_OWN_DISK_CACHE") or os.path.join(
     __import__("tempfile").gettempdir(), "raw-surf-tide-own-series.json.gz")
 
-_state = {"table": None, "read_at": 0.0, "fail_until": 0.0, "disk_gen": None}
-_lock = threading.Lock()
+_state = {"table": None, "read_at": 0.0, "fail_until": 0.0, "disk_gen": None, "etag": None}
+_lock = threading.Lock()           # guards _state (held only briefly)
+_load_gate = threading.Lock()      # single-flight: at most one download + decode at a time
 _fetcher = None                   # tests inject callables returning the decoded table (or None, or raising)
 _prev_fetcher = None
 
@@ -129,7 +130,12 @@ def _decode(raw: bytes) -> dict:
     return json.loads(raw.decode("utf-8"))
 
 
-def _fetch_bucket(object_key: str = SERIES_KEY) -> Optional[dict]:
+NOT_MODIFIED = "not-modified"     # a fetcher's answer when the published table has not changed (HTTP 304)
+
+
+def _fetch_bucket(object_key: str = SERIES_KEY):
+    """The decoded table, None (absent), or NOT_MODIFIED. The published table is asked for conditionally
+    (If-None-Match with the last ETag), so a table that changes once a day is not re-downloaded or re-decoded hourly."""
     base = os.environ.get("SUPABASE_URL", "").rstrip("/")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not base or not key:
@@ -137,17 +143,27 @@ def _fetch_bucket(object_key: str = SERIES_KEY) -> Optional[dict]:
     import requests
     from services.weather_pipeline.store import WEATHER_BUCKET
     url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{object_key}"
-    resp = requests.get(url, headers=supabase_headers(key), timeout=_TIMEOUT_S)
+    headers = dict(supabase_headers(key))
+    conditional = object_key == SERIES_KEY and _state.get("etag") and _state.get("table") is not None
+    if conditional:
+        headers["If-None-Match"] = _state["etag"]
+    resp = requests.get(url, headers=headers, timeout=_TIMEOUT_S)
+    if resp.status_code == 304 and conditional:
+        return NOT_MODIFIED
     if resp.status_code in (400, 404):
         return None
     resp.raise_for_status()
+    if object_key == SERIES_KEY:
+        _state["pending_etag"] = resp.headers.get("ETag")
     return _decode(resp.content)
 
 
-def _try(source, fetch) -> Optional[tuple]:
-    """(doc, validated table) from one source, or None; never raises."""
+def _try(source, fetch):
+    """(doc, validated table) from one source, NOT_MODIFIED, or None; never raises."""
     try:
         doc = fetch()
+        if doc == NOT_MODIFIED:
+            return NOT_MODIFIED
         fresh = validate(doc) if doc is not None else None
     except Exception as e:                                  # noqa: BLE001 - fail safe: the next source is tried
         logger.warning("[tide-own] %s table unreadable (%s)", source, type(e).__name__)
@@ -176,32 +192,55 @@ def _write_disk(doc: dict, generated) -> None:
 
 def _load_sync(now: float) -> Optional[dict]:
     """The served table. Order: the published table, then the previous good one (the build keeps it), then this
-    process's in-memory copy, then the copy on local disk. A table is replaced only by a valid NEWER one."""
+    process's in-memory copy, then the copy on local disk. A table is replaced only by a valid NEWER one.
+
+    SINGLE-FLIGHT (the advisor on #1138): one loader at a time. While a reload runs, other callers get the current
+    table at once (no second download or decode on the 1-CPU box); with no table yet (cold start) they wait for the
+    one loader, bounded by the timeout, instead of starting their own."""
     with _lock:
         table, read_at, fail_until = _state["table"], _state["read_at"], _state["fail_until"]
     if table is not None and now - read_at < _TTL_S:
         return table
     if now < fail_until:
         return table
-    got = _try("published", _fetcher or _fetch_bucket) or _try("previous", _prev_fetcher or (lambda: _fetch_bucket(PREV_KEY)))
-    if got is None and table is None:
-        got = _try("disk", _read_disk)                    # cold start during a storage outage
-    with _lock:
-        if got is not None:
-            cur = _state["table"]
-            if cur is None or got[1]["generated_at"] >= cur["generated_at"]:
-                _state["table"] = got[1]
-            _state["read_at"] = now
-        else:
-            _state["fail_until"] = now + _FAIL_COOLDOWN_S
-        served = _state["table"]
-    if got is not None:                                   # outside the lock: requests never wait on the disk write
-        _write_disk(got[0], got[1]["generated_at"])
-        h = horizon_days(served, datetime.now(timezone.utc))
-        if h < _HORIZON_WARN_DAYS:
-            logger.warning("[tide-own] the served table covers only %.1f days ahead (warn below %.0f)",
-                           h, _HORIZON_WARN_DAYS)
-    return served
+    if not _load_gate.acquire(blocking=table is None, timeout=_TIMEOUT_S if table is None else -1):
+        with _lock:
+            return _state["table"]
+    try:
+        with _lock:                                       # another loader may have finished while we waited
+            if _state["table"] is not None and now - _state["read_at"] < _TTL_S:
+                return _state["table"]
+            table = _state["table"]
+        got = _try("published", _fetcher or _fetch_bucket)
+        if got == NOT_MODIFIED:                           # unchanged since the last read: nothing to decode
+            with _lock:
+                _state["read_at"] = now
+                return _state["table"]
+        if got is None:
+            got = _try("previous", _prev_fetcher or (lambda: _fetch_bucket(PREV_KEY)))
+            got = None if got == NOT_MODIFIED else got
+        if got is None and table is None:
+            got = _try("disk", _read_disk)                # cold start during a storage outage
+        with _lock:
+            if got is not None:
+                cur = _state["table"]
+                if cur is None or got[1]["generated_at"] >= cur["generated_at"]:
+                    _state["table"] = got[1]
+                _state["read_at"] = now
+                if _state.get("pending_etag"):
+                    _state["etag"] = _state.pop("pending_etag")
+            else:
+                _state["fail_until"] = now + _FAIL_COOLDOWN_S
+            served = _state["table"]
+        if got is not None:                               # outside the lock: requests never wait on the disk write
+            _write_disk(got[0], got[1]["generated_at"])
+            h = horizon_days(served, datetime.now(timezone.utc))
+            if h < _HORIZON_WARN_DAYS:
+                logger.warning("[tide-own] the served table covers only %.1f days ahead (warn below %.0f)",
+                               h, _HORIZON_WARN_DAYS)
+        return served
+    finally:
+        _load_gate.release()
 
 
 def horizon_days(table: Optional[dict], now: datetime) -> float:
@@ -270,4 +309,5 @@ def _reset_for_tests(fetcher=None, prev_fetcher=None, disk_path=None) -> None:
     import tempfile                                     # a fresh, empty disk slot per reset: no test sees another's
     _DISK_PATH = disk_path or os.path.join(tempfile.mkdtemp(prefix="tide-own-test-"), "series.json.gz")
     with _lock:
-        _state.update(table=None, read_at=0.0, fail_until=0.0, disk_gen=None)
+        _state.update(table=None, read_at=0.0, fail_until=0.0, disk_gen=None, etag=None)
+        _state.pop("pending_etag", None)

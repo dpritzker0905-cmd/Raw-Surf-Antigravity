@@ -320,6 +320,72 @@ def test_storage_down_falls_back_to_previous_then_memory_then_disk(served, tmp_p
     assert tide_own._load_sync(3000.0) is None                                        # nothing anywhere: unavailable
 
 
+def gzip_bytes(doc):
+    import gzip as _gz
+    return _gz.compress(json.dumps(doc).encode("utf-8"))
+
+
+def test_single_flight_one_fetch_however_many_callers(served):
+    """The advisor on #1138: during a reload (warm) or a cold start, N concurrent callers cause exactly ONE download
+    and decode; warm callers get the current table without waiting."""
+    import threading
+    import time as _t
+    now = datetime.now(UTC)
+    calls = {"n": 0}
+
+    def slow():
+        calls["n"] += 1
+        _t.sleep(0.3)
+        return _two_source_table(now)
+    for warm in (False, True):
+        tide_own._reset_for_tests(slow)
+        if warm:
+            tide_own._load_sync(1000.0)                                   # a table in memory, then its TTL lapses
+        calls["n"] = 0
+        t_req = 1000.0 + 10 * tide_own._TTL_S
+        out, started = [], _t.monotonic()
+        ths = [threading.Thread(target=lambda: out.append(tide_own._load_sync(t_req))) for _ in range(10)]
+        for th in ths:
+            th.start()
+        for th in ths:
+            th.join()
+        assert calls["n"] == 1, f"warm={warm}: {calls['n']} fetches"
+        assert len(out) == 10 and all(t is not None for t in out)
+        assert _t.monotonic() - started < 2.0
+
+
+def test_conditional_get_skips_an_unchanged_table(served, monkeypatch):
+    """If-None-Match with the last ETag: a 304 refreshes the TTL without downloading or decoding the table again."""
+    import requests
+    monkeypatch.setenv("SUPABASE_URL", "https://example.invalid")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-key")
+    body = gzip_bytes(OR.encode_table(_two_source_table(datetime.now(UTC))))
+    seen = []
+
+    class R:
+        def __init__(self, code, content=b"", etag=None):
+            self.status_code, self.content, self.headers = code, content, ({"ETag": etag} if etag else {})
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise requests.HTTPError(str(self.status_code))
+
+    def fake_get(url, headers=None, timeout=None):
+        seen.append(dict(headers or {}))
+        if headers and headers.get("If-None-Match") == '"v1"':
+            return R(304)
+        return R(200, body, '"v1"') if "prev" not in url else R(404)
+    monkeypatch.setattr(requests, "get", fake_get)
+    tide_own._reset_for_tests(None, prev_fetcher=lambda: None)
+    decodes = {"n": 0}
+    real = tide_own.validate
+    monkeypatch.setattr(tide_own, "validate", lambda d: (decodes.__setitem__("n", decodes["n"] + 1), real(d))[1])
+    first = tide_own._load_sync(1000.0)
+    again = tide_own._load_sync(1000.0 + 10 * tide_own._TTL_S)
+    assert first is not None and again is first
+    assert seen[-1].get("If-None-Match") == '"v1"' and decodes["n"] == 1
+
+
 def test_an_older_table_never_replaces_a_newer_one(served):
     now = datetime.now(UTC)
     new, old = _two_source_table(now), _two_source_table(now, generated=now - timedelta(days=3))

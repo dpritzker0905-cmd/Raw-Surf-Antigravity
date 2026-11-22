@@ -2885,3 +2885,12 @@ Branch claude/tide-never-missing, stacked on #1132.
 - On the path: "move forward on the best SOTA path. We dont have real users yet, keep that in mind".
 - **Carry check for #1132:** after the dev merge (a1879ef79), all 20 of the PR's own files are blob-identical to 20247b635. Only the merge commit changed.
 
+
+
+## 2026-11-22 15:44Z: #1138 HOLD fixes (the advisor)
+1. **Single-flight.** `_load_gate`: one download and decode at a time. During a reload, other callers get the current table at once; at a cold start they wait (bounded by the timeout) for the one loader instead of starting their own. Test `test_single_flight_one_fetch_however_many_callers`: 10 threads, warm and cold, exactly 1 fetch each.
+2. **Conditional GET.** The published table is requested with `If-None-Match` (the last ETag). A 304 refreshes the TTL with no download or decode. Test `test_conditional_get_skips_an_unchanged_table`: second read sends the ETag, gets 304, and decodes once in total.
+3. **SCOREBOARD.** A row of its own for the changed availability: an any-age harmonic tide while the axis covers today, CMEMS only within 2 days, and the fallbacks. Users now see a tide after failed builds. Numbers are unchanged when fresh; nothing was re-measured.
+
+Chain fragment for this branch is now +7; `tests/test_tide_own.py` passes 33 locally.
+
