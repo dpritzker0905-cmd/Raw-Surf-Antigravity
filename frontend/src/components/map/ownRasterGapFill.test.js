@@ -41,23 +41,41 @@ beforeEach(() => {
 afterEach(() => { _resetOwnRasterFramesForTest(); getPinnedIndex.mockReset(); delete window[KILL]; });
 
 describe('what counts as a gap and what fills it', () => {
+  const every3 = (from, to) => Array.from({ length: (to - from) / 3 + 1 }, (_, k) => from + k * 3);
+
   test('RANGE: past ICON\'s 180 h, air temperature draws the ICON-anchored GFS prediction, weighted down to GFS over 5 days', () => {
-    const c = combinedFrames('temperature', 'ICON', idx('i', [174, 177, 180]), idx('g', [177, 180, 183, 240, 300, 303]));
-    expect(c.map((f) => f.estimated)).toEqual([null, null, null, 'icon_anchored_gfs', 'icon_anchored_gfs', 'gfs_estimated_fallback', 'gfs_estimated_fallback']);
-    const p183 = c[3];
-    expect(p183).toMatchObject({ model: 'ICON+GFS', gap: true, setKey: GFS_T });
-    expect(p183.parts).toMatchObject({ now: { path: 'g183' }, fillAnchor: { path: 'g180' }, modelAnchor: { path: 'i180', setKey: ICON_T } });
-    expect(p183.parts.weight).toBeCloseTo(1 - 3 / ANCHOR_DECAY_HOURS);
-    expect(c[4].parts.weight).toBeCloseTo(1 - 60 / ANCHOR_DECAY_HOURS);
-    expect(c[5]).toMatchObject({ path: 'g300', model: 'GFS', gap: true });   // 120 h on, the offset has decayed: GFS, said so
+    const c = combinedFrames('temperature', 'ICON', idx('i', every3(0, 180)), idx('g', every3(0, 336)));
+    const at = (h) => c.find((f) => f.valid_time === t(h));
+    expect(at(180)).toMatchObject({ path: 'i180', estimated: null });
+    const p183 = at(183);
+    expect(p183).toMatchObject({ model: 'ICON+GFS', gap: true, setKey: GFS_T, estimated: 'icon_anchored_gfs' });
+    // anchored at the same UTC hour of day (183 h = 03Z): ICON's 159 h frame and GFS at 159 h, not the 15Z frame at 180 h
+    expect(p183.parts).toMatchObject({ now: { path: 'g183' }, fillAnchor: { path: 'g159' }, modelAnchor: { path: 'i159', setKey: ICON_T } });
+    expect(p183.parts.weight).toBeCloseTo(1 - 3 / ANCHOR_DECAY_HOURS);           // the decay still runs from the seam (180 h)
+    expect(at(240).parts.modelAnchor.path).toBe('i168');
+    expect(at(240).parts.weight).toBeCloseTo(1 - 60 / ANCHOR_DECAY_HOURS);
+    expect(at(300)).toMatchObject({ path: 'g300', model: 'GFS', estimated: 'gfs_estimated_fallback' });   // 120 h on: GFS, said so
+  });
+
+  test('DAY / NIGHT: a difference that flips sign between day and night is carried at its own phase, never the other', () => {
+    const grid1 = (v) => ({ cols: 2, rows: 1, bounds: { west: 0, south: 0, east: 1, north: 0 }, values: Float32Array.from([v, v]) });
+    // ICON warmer than GFS by 3 C at 12Z (day) and colder by 3 C at 00Z (night); ICON ends at 180 h = 12Z.
+    const fields = { i168: grid1(7), g168: grid1(10), i180: grid1(23), g180: grid1(20), g192: grid1(11), g204: grid1(21) };
+    const c = combinedFrames('temperature', 'ICON', idx('i', every3(0, 180)), idx('g', every3(0, 336)));
+    const value = (h) => {
+      const p = c.find((f) => f.valid_time === t(h)).parts;
+      return anchoredField(fields[p.now.path], fields[p.fillAnchor.path], fields[p.modelAnchor.path], p.weight, null).values[0];
+    };
+    expect(value(192)).toBeCloseTo(11 + (1 - 12 / 120) * -3);   // 00Z night: the night offset (-3), not the 12Z +3
+    expect(value(204)).toBeCloseTo(21 + (1 - 24 / 120) * 3);    // 12Z day: the day offset
   });
 
   test('every hour of the 14 days has a frame: own inside ICON\'s range, the fill past it (never null, never .om)', () => {
     const c = combinedFrames('temperature', 'ICON', idx('i', [0, 3, 6, 180]), idx('g', Array.from({ length: 113 }, (_, k) => k * 3)));
     for (let h = 0; h <= 336; h += 1) expect(combinedFrameAt(c, T0 + h * 3600e3)).not.toBeNull();
     expect(combinedFrameAt(c, T0 + 2 * 3600e3).path).toBe('i3');          // own wins within 3 h
-    expect(combinedFrameAt(c, T0 + 90 * 3600e3).estimated).toBe('icon_anchored_gfs');   // a HOLE inside the range: anchored to i6
-    expect(combinedFrameAt(c, T0 + 90 * 3600e3).parts.modelAnchor.path).toBe('i6');
+    expect(combinedFrameAt(c, T0 + 90 * 3600e3).estimated).toBe('icon_gfs_gap_fill');   // a HOLE with no same-phase ICON frame: GFS, said so
+    expect(combinedFrameAt(c, T0 + 27 * 3600e3)).toMatchObject({ estimated: 'icon_anchored_gfs', parts: { modelAnchor: { path: 'i3' } } });
   });
 
   test('HOLE in ICON rain: a labelled GFS frame, never an offset (rain is not added to)', () => {
@@ -71,11 +89,11 @@ describe('what counts as a gap and what fills it', () => {
   test('SET: no ICON index at all draws GFS for every hour, labelled; a coarse ICON set is preferred where it exists', () => {
     const none = combinedFrames('rain', 'ICON', null, idx('g', [0, 3]));
     expect(none.map((f) => [f.path, f.estimated])).toEqual([['g0', 'icon_gfs_gap_fill'], ['g3', 'icon_gfs_gap_fill']]);
-    const coarse = { ...idx('c', [0, 3, 180]), __coarse: true };
-    const c = combinedFrames('temperature', 'ICON', coarse, idx('g', [180, 186]));
+    const coarse = { ...idx('c', [0, 3, 162, 180]), __coarse: true };
+    const c = combinedFrames('temperature', 'ICON', coarse, idx('g', [162, 180, 186]));
     expect(c[0]).toMatchObject({ path: 'c0', setKey: ICON_T_COARSE, estimated: 'icon_coarser_set', coarse: true });
     expect(combinedFrameAt(c, T0)).toMatchObject({ path: 'c0', estimated: 'icon_coarser_set' });
-    expect(c[3].parts.modelAnchor).toMatchObject({ path: 'c180', setKey: ICON_T_COARSE });
+    expect(c[4].parts.modelAnchor).toMatchObject({ path: 'c162', setKey: ICON_T_COARSE });   // 186 h: the same-phase 162 h frame
   });
 
   test('ICON cloud has no set of its own: on through the GFS fill, every frame labelled', () => {

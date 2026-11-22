@@ -56,13 +56,13 @@ describe('EURO cloud cover (2026-11-18)', () => {
 
   test('past EURO\'s 240 h: the EURO-anchored GFS prediction, labelled (the 2026-11-22 gap fill), never blank and never .om', () => {
     const t = (h) => new Date(Date.UTC(2026, 10, 18, 12) + h * 3600e3).toISOString();
-    const euro = { frames: [{ valid_time: t(234), path: 'e234' }, { valid_time: t(240), path: 'e240' }] };
-    const gfs = { frames: [{ valid_time: t(240), path: 'g240' }, { valid_time: t(246), path: 'g246' }] };
+    const euro = { frames: [{ valid_time: t(222), path: 'e222' }, { valid_time: t(234), path: 'e234' }, { valid_time: t(240), path: 'e240' }] };
+    const gfs = { frames: [{ valid_time: t(222), path: 'g222' }, { valid_time: t(240), path: 'g240' }, { valid_time: t(246), path: 'g246' }] };
     const c = combinedFrames('satellite', 'EURO', euro, gfs);
-    expect(c.map((f) => f.estimated)).toEqual([null, null, 'euro_anchored_gfs']);
-    expect(c[2]).toMatchObject({ model: 'EURO+GFS', gap: true });
-    expect(c[2].parts).toMatchObject({ fillAnchor: { path: 'g240' }, modelAnchor: { path: 'e240' }, clamp: [0, 100] });
-    expect(c[2].parts.weight).toBeCloseTo(1 - 6 / 120);
+    expect(c.map((f) => f.estimated)).toEqual([null, null, null, 'euro_anchored_gfs']);
+    expect(c[3]).toMatchObject({ model: 'EURO+GFS', gap: true });
+    expect(c[3].parts).toMatchObject({ fillAnchor: { path: 'g222' }, modelAnchor: { path: 'e222' }, clamp: [0, 100] });   // same UTC hour
+    expect(c[3].parts.weight).toBeCloseTo(1 - 6 / 120);
   });
 
   test('THE KILL NEVER REQUESTS .om: with EURO or GFS picked the .om list drops cloud under every kill and on a miss', () => {

@@ -18,8 +18,10 @@ per-set kill, or a failed read; the retry from #1071 keeps asking every 60 s).
 **What fills it, in order** (`frontend/src/components/map/ownRasterGapFill.js`):
 1. The same model's coarser own set where one exists: ICON air temperature's 0.5° set when the 0.125° set is missing whole.
 2. The model-anchored prediction (air temperature and cloud): `GFS(t) + w(t) * (MODEL(t0) - GFS(t0))`, `t0` = the model's
-   last own frame at or before the hour, `w` falling linearly from 1 to 0 over 120 h. It equals the model's own field at the
-   seam (no jump) and is GFS five days on. This is the decaying-average bias handover of NOAA's National Blend of Models and
+   last own frame at or before the hour AT THE SAME UTC HOUR OF DAY (the advisor's hold on #1136 at `03d7f3b5f`: the 2 m
+   temperature difference has a strong daily cycle over land, so a 15Z offset carried to 03Z can be off by several degrees),
+   `w` falling linearly from 1 to 0 over 120 h from the model's last own frame (the seam). It is GFS five days on. The decay is
+   a labelled bridge and a design choice, justified only by analogy; it is not shown to be skilful (unscored). This is the decaying-average bias handover of NOAA's National Blend of Models and
    the 14-day contract's own ICON marine rule ("ICON@168 + GFS@168 anchor trend-extrapolation, persistence -> GFS weight
    shift over 5 days"). Computed on the GFS frame's grid; a finer model anchor is box-averaged onto it. Cloud clamped 0-100 %.
 3. A plain NOAA GFS stand-in where there is no anchor: a whole set missing, rain (never offset: adding rain where GFS has
@@ -72,3 +74,7 @@ more strategy past the horizon when its sets publish, and has to pass its own ga
 - Owner's call to confirm: a GFS stand-in for ICON cloud (no ICON cloud set) and for ICON rain past 180 h. David's 2026-11-15
   word on gusts was "no GFS past 7.5 days, a scientific estimate"; these are labelled and can be killed, but the wording
   "ICON prediction" is reserved here for the anchored field, not a plain GFS frame.
+
+## 2026-11-22 later: the advisor's HOLD at `03d7f3b5f` and the fixes
+- Same-phase anchor (above), with a test where the ICON - GFS difference flips sign between day (12Z) and night (00Z).
+- SCOREBOARD row added: the move from .om to own frames (G1-G3 parity reads cited) and the new past-horizon values, unscored.

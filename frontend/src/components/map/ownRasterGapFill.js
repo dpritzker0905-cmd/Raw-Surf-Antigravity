@@ -15,8 +15,9 @@
  *      set is missing whole): labelled "ICON's own 0.5° frames";
  *   b. the MODEL-ANCHORED PREDICTION (air temperature and cloud): NOAA GFS's field at the hour, plus the picked model's own offset
  *      from GFS at the model's last frame before the hour, decaying linearly to zero over ANCHOR_DECAY_HOURS (5 days):
- *          value = GFS(t) + w(t) * (MODEL(t0) - GFS(t0)),  w = 1 - (t - t0) / 120 h,  t0 = the model's last own frame <= t.
- *      At the seam (t = t0) it equals the model's own field (no jump); by five days on it is GFS. This is the decaying-average bias
+ *          value = GFS(t) + w(t) * (MODEL(t0) - GFS(t0)),  w = 1 - (t - tL) / 120 h,
+ *      tL = the model's last own frame <= t (the seam), t0 = its last own frame <= t at the SAME UTC hour of day (the 2 m
+ *      temperature offset has a daily cycle over land; the advisor's hold on #1136). Five days past the seam it is GFS. This is the decaying-average bias
  *      handover of NOAA's National Blend of Models, and the house rule for ICON's marine extension ("ICON@168 + GFS@168 anchor
  *      trend-extrapolation, persistence -> GFS weight shift over 5 days", BRAIN_RULES' 14-day contract). Cloud is clamped to
  *      0-100 %. Labelled "<MODEL> prediction: NOAA GFS trend anchored to <MODEL>'s last frame";
@@ -38,6 +39,10 @@ export const ANCHOR_DECAY_HOURS = 120;
 export const PICK_WINDOW_MS = 3 * 3600000;   // pickIndexFrame's window: an hour within it of an own frame is not a gap
 const MISSING = -9999;
 const NO_DATA_BELOW = -9000;
+
+const DAY_MS = 86400000;
+/** Two instants at the same UTC hour of day (the anchor's phase rule). */
+export const samePhase = (a, b) => (((a - b) % DAY_MS) + DAY_MS) % DAY_MS === 0;
 
 export const gapFillOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_GAP_FILL__ === true);
 
@@ -77,11 +82,20 @@ export function gapFillFrames({ ownIndex, fillIndex, keys, model, sourceModel, a
       estimated: ms > lastOwn && ownMs.length ? basisFor.range(model) : basisFor.hole(model) };
     let entry = plain;
     if (anchored) {
-      let a = -1;   // the model's last own frame at or before the hour
-      for (let i = 0; i < own.length; i++) if (ownMs[i] <= ms) a = i;
-      const w = a >= 0 ? 1 - (ms - ownMs[a]) / (ANCHOR_DECAY_HOURS * 3600000) : 0;
-      const gA = a >= 0 ? fbAt(ownMs[a]) : null;
-      if (w > 0 && gA) {
+      // SAME PHASE (the advisor's hold on #1136, 2026-11-22): the 2 m temperature difference between two models has a strong daily
+      // cycle over land, so a 15Z offset carried to 03Z can be off by several degrees. The anchor is the model's last own frame at
+      // or before the hour at the SAME UTC hour of day, with a GFS frame at that time. The 120 h decay still runs from the
+      // model's last own frame before the hour (the seam), so the weight is the drafts' and only the anchor's phase changed.
+      let last = -1;
+      let a = -1;
+      let gA = null;
+      for (let i = 0; i < own.length; i++) {
+        if (ownMs[i] > ms) break;
+        last = i;
+        if (samePhase(ownMs[i], ms)) { const f = fbAt(ownMs[i]); if (f) { a = i; gA = f; } }
+      }
+      const w = last >= 0 ? 1 - (ms - ownMs[last]) / (ANCHOR_DECAY_HOURS * 3600000) : 0;
+      if (w > 0 && a >= 0 && gA) {
         entry = {
           ...plain,
           path: `anchored:${g.path}|${gA.path}|${own[a].path}|${Math.round(w * 1000) / 1000}`,
