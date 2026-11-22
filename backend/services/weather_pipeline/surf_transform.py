@@ -383,7 +383,7 @@ _MIN_CAP_DEPTH_M = 0.3
 
 def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: float = 0.0,
                   swell_from_deg=None, shore_normal_deg=None, magnet_factor: float = 1.0,
-                  break_depth_m=None, water_level_m: float = 0.0):
+                  break_depth_m=None, water_level_m: float = 0.0, lite_kr=None):
     """SURF (breaking) height estimate in metres + regime, from offshore Hs/Tp, the representative shelf depth,
     the shelf WIDTH, and whether the point is near a coast. Worldwide — every input comes from the global
     bathymetry, so the same physics applies on any coast.
@@ -512,7 +512,12 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
             else shoaling_coefficient(Tp_s, depth_m) * Hs_surviving
     else:
         H = shoaling_coefficient(Tp_s, depth_m) * Hs_surviving   # legacy v2 chain
-    H *= _height_exposure_factor(swell_from_deg, shore_normal_deg)
+    # MOP-lite (gate nearshore-moplite-v1, DARK): a per-spot, partition-resolved refraction factor REPLACES exactly the
+    # global REFRACTION_KR and the cosine exposure factor, nothing else (shoaling, cap, rating unchanged). Only when the
+    # default-OFF flag SURF_NEARSHORE_LITE is on AND the caller passes a factor from a hash-verified coefficient table.
+    _lite = (lite_kr is not None and lite_kr >= 0 and _rf.on("SURF_NEARSHORE_LITE"))   # 0.0 = fully sheltered: zero energy
+    if not _lite:
+        H *= _height_exposure_factor(swell_from_deg, shore_normal_deg)
     # ★ REFRACTION (2026-08-05). Applied to the TRANSFORMED height, BEFORE the depth cap: a refracted
     # wave carries less energy to the break, so it may no longer reach the cap at all. Applying it to
     # the offshore input instead would be wrong AND smaller than intended — Komar is non-linear.
@@ -521,7 +526,9 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
         _kr = float(os.environ.get("SURF_REFRACTION_KR", REFRACTION_KR))
     except (TypeError, ValueError):
         _kr = REFRACTION_KR
-    if _kr > 0:
+    if _lite:
+        H *= float(lite_kr)
+    elif _kr > 0:
         H *= _kr
     if magnet_factor and magnet_factor != 1.0 and _v3("SURF_V3_MAGNETS"):
         H *= float(magnet_factor)                  # per-spot wave-magnet focusing (surf_magnets.py)
@@ -546,9 +553,22 @@ def effective_cap_depth(depth_m, break_depth_m, water_level_m=0.0):
     return cap_depth
 
 
+def _lite_partition_kr(lite_table, p):
+    """MOP-lite refraction factor for one partition, or None (flag off, no table, or the partition cannot be
+    transferred: the chain then keeps its constants for that train). Table = a hash-verified nearshore_lite Table."""
+    if lite_table is None or not _rf.on("SURF_NEARSHORE_LITE"):
+        return None
+    from .nearshore_lite.coefficients import partition_kr
+    tp = p.get("tp")
+    if not tp or tp <= 0:
+        return None
+    return partition_kr(lite_table, p.get("h"), tp, p.get("dir"), p.get("kind"),
+                        shoaling_coefficient(tp, lite_table.depth_t_m))
+
+
 def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_width_km: float = 0.0,
                               shore_normal_deg=None, magnet_factor: float = 1.0, break_depth_m=None,
-                              water_level_m: float = 0.0):
+                              water_level_m: float = 0.0, lite_table=None):
     """SPECTRAL surf estimate: transform EACH swell train on its own, then recombine energetically.
 
     ``partitions`` is a list of {h, tp, dir, kind} (kind 'swell'|'windsea'; every key None-safe) —
@@ -592,10 +612,11 @@ def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_w
             continue
         # ⚠️ `water_level_m` MUST be threaded here: every partition breaks in the SAME water at the
         # same hour, and dropping it here would be a second forecast path (the sim's twice-shipped defect).
+        _lkr = _lite_partition_kr(lite_table, p)
         hp, regime = estimate_surf(h, tp, depth_m, coastal=coastal, shelf_width_km=shelf_width_km,
                                    swell_from_deg=p.get("dir"), shore_normal_deg=shore_normal_deg,
                                    magnet_factor=magnet_factor, break_depth_m=break_depth_m,
-                                   water_level_m=water_level_m)
+                                   water_level_m=water_level_m, lite_kr=_lkr)
         if hp is None or hp <= 0:
             continue
         energy += float(hp) * float(hp)

@@ -1,0 +1,55 @@
+# MOP-lite bathymetry tile fetch (gate docs/weather-program/gates/nearshore-moplite-v1.md, section 1 and 9).
+# ⚠️ DISPATCH ONLY. No schedule, no push trigger: nothing runs until David says so (the gate: "These are offline
+#    fetches; dispatch needs David's word").
+# ⚠️ GitHub-hosted runner only, never the Render box. DRY RUN by default: prints the plan and the TOTAL SIZE and
+#    downloads nothing. `go = 1` downloads, and only if the declared total is under `max_total_mb`.
+# The tile list is the gate's open item: supply it as a JSON manifest path in the repo (see scripts/nearshore_lite_fetch.py).
+# Output: an artifact with the tiles and TILES.sha256 (frozen BEFORE any coefficient is computed).
+name: Nearshore-lite bathymetry fetch (dispatch only)
+run-name: "MOP-lite bathymetry: ${{ inputs.go == '1' && 'DOWNLOAD' || 'dry run (nothing downloaded)' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      manifest:
+        description: "Repo path of the tile manifest JSON (id, source, url, bytes, native_datum, license per tile)."
+        required: true
+      max_total_mb:
+        description: "Refuse a manifest whose declared total size exceeds this many MB (state the expected size here)."
+        required: true
+        default: '2000'
+      go:
+        description: "1 = download. Anything else = dry run: plan and total size only."
+        required: false
+        default: '0'
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Plan (and download when go = 1)
+        env:
+          MANIFEST: ${{ inputs.manifest }}
+          MAX_MB: ${{ inputs.max_total_mb }}
+          GO: ${{ inputs.go }}
+        run: |
+          set -euo pipefail
+          args=(--manifest "$MANIFEST" --max-total-mb "$MAX_MB" --out nearshore_lite_tiles)
+          if [ "$GO" = "1" ]; then args+=(--go); fi
+          python backend/scripts/nearshore_lite_fetch.py "${args[@]}" | tee plan.txt
+          { echo '### MOP-lite bathymetry fetch'; echo '```'; cat plan.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload tiles and sha256 table
+        if: ${{ inputs.go == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nearshore-lite-tiles
+          path: nearshore_lite_tiles
+          if-no-files-found: error
