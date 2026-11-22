@@ -7,12 +7,12 @@ Zones (fixed by the registration, checked in its listed order, first match wins)
   WBC     Gulf Stream box 30-45N 80-50W, Kuroshio box 25-40N 125E-160E
   EQ      |lat| < 5
   OPEN    everything else
-The registration states "not COAST50" for SHELF only; reading the list order as the precedence for WBC and EQ too is
-AMENDMENT QUESTION A4 (a Gulf Stream point 30 km off Cape Hatteras is COAST50 here, not WBC). The coast and depth come from an injected `Bathy`; the
-default is the repo's ETOPO1 0.25-degree depth asset (services/weather_pipeline/data/etopo_depth_0p25.npy), NOT ETOPO 2022
-as the registration names (AMENDMENT QUESTION A5).
+The listed order is the precedence (amendment 1, A4: a Gulf Stream point 30 km off Cape Hatteras is COAST50, not WBC).
+The coast and depth come from ETOPO 2022 15 arc-second (`Etopo2022`, the registration's source; amendment 1, A5: the 0.25 deg
+ETOPO1 asset misplaces the 50 km line by up to ~14 km). Its tiles are fetched from ERDDAP (ETOPO_2022_v1_15s, CC0) once and
+cached; `fetch_tile` is the only network edge and the tests inject a fake. `Bathy` (a regular depth grid) remains as the
+same interface for synthetic tests.
 """
-import json
 import math
 import os
 from typing import Optional
@@ -67,13 +67,6 @@ class Bathy:
         self.depth = np.asarray(depth, dtype=float)
         self.lat0, self.lon0, self.d = lat0, lon0, d
 
-    @classmethod
-    def from_repo_asset(cls):
-        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        data = os.path.join(here, "services", "weather_pipeline", "data")
-        meta = json.load(open(os.path.join(data, "etopo_depth_0p25.meta.json"), encoding="utf-8"))
-        return cls(np.load(os.path.join(data, "etopo_depth_0p25.npy")), meta["lat0"], meta["lon0"], meta["dlat"])
-
     def _ij(self, lat, lon):
         i = int(round((lat - self.lat0) / self.d))
         j = int(round((float(wrap_lon(lon)) - self.lon0) / self.d)) % self.depth.shape[1]
@@ -101,7 +94,86 @@ class Bathy:
         return best if best <= max_km else None
 
 
-def zone_of(lat, lon, bathy: Bathy) -> str:
+ETOPO_ERDDAP = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s"
+ETOPO_STEP = 1.0 / 240.0            # 15 arc-seconds
+TILE_DEG = 1
+
+
+def fetch_tile(get, lat0: int, lon0: int):
+    """(z[lat, lon] metres positive up, lats asc, lons asc) of the 1 x 1 degree tile with south-west corner (lat0, lon0)."""
+    import netCDF4
+    url = (f"{ETOPO_ERDDAP}.nc?z[({lat0}):1:({lat0 + TILE_DEG})][({lon0}):1:({lon0 + TILE_DEG})]")
+    data = get(url)
+    with netCDF4.Dataset("mem.nc", memory=data) as ds:
+        z = np.ma.filled(np.ma.asarray(ds.variables["z"][:], dtype=float), np.nan)
+        lats = np.asarray(ds.variables["latitude"][:], float)
+        lons = np.asarray(ds.variables["longitude"][:], float)
+    if lats[0] > lats[-1]:
+        lats, z = lats[::-1], z[::-1]
+    return z, lats, lons
+
+
+class Etopo2022:
+    """ETOPO 2022 15 arc-second relief by 1-degree tiles (fetched once, cached on disk when `cache_dir` is given). Land is
+    z > 0 (the wind-lr2 EtopoMask rule); depth = -z where z < 0, else 0 (land)."""
+
+    def __init__(self, get=None, cache_dir=None, fetch=fetch_tile):
+        self.get, self.cache_dir, self.fetch, self.tiles, self.has_land = get, cache_dir, fetch, {}, {}
+
+    def tile(self, lat0, lon0):
+        key = (int(lat0), int(lon0))
+        if key not in self.tiles:
+            path = os.path.join(self.cache_dir, f"etopo_{key[0]}_{key[1]}.npz") if self.cache_dir else None
+            if path and os.path.exists(path):
+                z = np.load(path)
+                self.tiles[key] = (z["z"], z["lat"], z["lon"])
+            else:
+                if self.get is None and self.fetch is fetch_tile:
+                    raise LookupError(f"ETOPO tile {key} not cached and no fetcher")
+                self.tiles[key] = self.fetch(self.get, *key)
+                if path:
+                    os.makedirs(self.cache_dir, exist_ok=True)
+                    np.savez_compressed(path, z=self.tiles[key][0], lat=self.tiles[key][1], lon=self.tiles[key][2])
+        return self.tiles[key]
+
+    def _cells(self, lat0, lat1, lon0, lon1, land_only=False):
+        """(z, lat, lon) flat over every cell of the tiles covering the box (longitudes may cross the antimeridian)."""
+        zs, las, los = [np.zeros(0)], [np.zeros(0)], [np.zeros(0)]
+        for ti in range(int(math.floor(max(lat0, -90))), int(math.floor(min(lat1, 89.999))) + 1):
+            for tj in range(int(math.floor(lon0)), int(math.floor(lon1)) + 1):
+                tw = ((tj + 180) % 360) - 180
+                z, la, lo = self.tile(ti, tw)
+                if (ti, tw) not in self.has_land:
+                    self.has_land[(ti, tw)] = bool((z > 0).any())
+                if land_only and not self.has_land[(ti, tw)]:          # open-ocean tiles hold no coast: skipped (most queries)
+                    continue
+                LA, LO = np.meshgrid(la, lo + (tj - tw), indexing="ij")
+                zs.append(z.ravel())
+                las.append(LA.ravel())
+                los.append(LO.ravel())
+        return np.concatenate(zs), np.concatenate(las), np.concatenate(los)
+
+    def depth_m(self, lat, lon) -> float:
+        lon = float(wrap_lon(lon))
+        z, la, lo = self.tile(math.floor(lat), math.floor(lon))
+        i, j = int(np.abs(la - lat).argmin()), int(np.abs(lo - lon).argmin())
+        v = float(z[i, j])
+        return max(-v, 0.0) if math.isfinite(v) else 0.0
+
+    def coast_km(self, lat, lon, max_km=COAST_KM * 2) -> Optional[float]:
+        lon = float(wrap_lon(lon))
+        dlat = max_km / KM_PER_DEG
+        dlon = min(max_km / (KM_PER_DEG * max(math.cos(math.radians(lat)), 0.05)), 180.0)
+        z, la, lo = self._cells(lat - dlat, lat + dlat, lon - dlon, lon + dlon, land_only=True)
+        land = z > 0
+        if not land.any():
+            return None
+        d = distance_km(lat, lon, la[land], lo[land])
+        best = float(d.min())
+        return best if best <= max_km else None
+
+
+def zone_of(lat, lon, bathy) -> str:
     lon = float(wrap_lon(lon))
     ck = bathy.coast_km(lat, lon)
     if ck is not None and ck <= COAST_KM:

@@ -5,11 +5,11 @@ evaluated (its region or zone below the floor) is reported "not evaluable" and v
   null        CMEMS_025 against itself: exactly 0 on every line (diff and its CI).
   shuffled    each gated arm's D1 forecast paired with truth 7 days later: its advantage over PERSIST_<src> must vanish
               (the CI of arm minus persistence includes 0 or is positive) in every region with a floor.
-  speed       +0.05 (1x) / +0.10 m/s (2x) along GIOPS_025's forecast vector on all rows: the speed-ME difference must catch 2x
+  speed       +0.05 (1x) / +0.10 m/s (2x) along the plant arm's forecast vector on all rows: the speed-ME difference must catch 2x
               (CI excludes 0 and contains 0.10); 1x reported.
-  direction   GIOPS_025's step vectors rotated +30 (1x) / +60 deg (2x) on the same random 15% of rows before the low-pass:
-              at 2x the signed direction error AND the M1 vector RMSE must both rise (CIs exclude 0). The registration does not
-              name the arm for the direction plants; GIOPS_025 (the speed plants' arm) is AMENDMENT QUESTION A10.
+  direction   the plant arm's step vectors rotated +30 (1x) / +60 deg (2x) on the same random 15% of rows before the
+              low-pass: at 2x the signed direction error AND the M1 vector RMSE must both rise (CIs exclude 0).
+  The plant arm (amendment 1, A10): GIOPS_025 if it has rows, else CMEMS_083, else CMEMS_025 against its own unplanted self.
   lagrangian  CMEMS_025 scaled 0.7 (1x) / 0.5 (2x): M2 significantly worse at 2x in OPEN and WBC; 1x reported.
   leak/freeze every archive's SHA256SUMS and every collector MANIFEST.json match the files; no TEST valid time precedes the
               freeze commit.
@@ -40,7 +40,7 @@ def null_control(m1_cols: Dict, m2_rows: List[dict], B=S.B_DEFAULT) -> dict:
         if line.get("dates") and not (line["diff"] == 0 and line["diff_ci"] == [0.0, 0.0]):
             bad.append(f"M1 {region} D{lead}: {line['diff']} {line['diff_ci']}")
     sep = [r["sep_km"].get(BASE) for r in m2_rows]
-    dates = [r["init_h"] // 24 for r in m2_rows]
+    dates = [r.get("valid_h", r["init_h"]) // 24 for r in m2_rows]
     vals = np.array([np.nan if x is None else x for x in sep], float)
     if np.isfinite(vals).any():
         line = S.paired_line(dates, vals, vals, "mean", B=B)
@@ -134,7 +134,7 @@ def lagrangian_control(m2_rows: List[dict], zones_with_floor: List[str], B=S.B_D
                 continue
             a = np.array([np.nan if r["sep_km"].get(name) is None else r["sep_km"][name] for r in rows])
             b = np.array([np.nan if r["sep_km"].get(BASE) is None else r["sep_km"][BASE] for r in rows])
-            line = S.paired_line([r["init_h"] // 24 for r in rows], a, b, "mean", B=B)
+            line = S.paired_line([r.get("valid_h", r["init_h"]) // 24 for r in rows], a, b, "mean", B=B)
             caught = line.get("dates", 0) > 0 and line["p_worse"] < S.ALPHA_ONE_SIDED
             res[f"{zone}/{k}"] = {"diff_km": line.get("diff"), "diff_ci": line.get("diff_ci"), "p_worse": line.get("p_worse"),
                                   "caught": caught}

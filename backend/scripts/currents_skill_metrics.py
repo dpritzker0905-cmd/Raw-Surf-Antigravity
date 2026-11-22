@@ -22,6 +22,10 @@ import currents_skill_truth as T
 
 LEAD_DAYS = (1, 3, 5, 7)
 M2_HOURS = 72
+# Amendment 1 (A3): M2 seeds after the init so the >= 20 of 25 rule holds for every arm's field and for the truth track.
+# The advisor's ruling says +12 h; with the first scored step at 6 h, the window at +12 h (0..24 h) holds 19 defined hours
+# (6..24), one short, so the first lead that meets the rule, +13 h, is used. Stated in the amendment; one constant.
+M2_SEED_H = 13
 DIR_MIN_SPEED = 0.1          # m/s: rows entering the direction error
 PLANT_FRACTION = 0.15
 PLANT_SEED = 20261122
@@ -99,8 +103,8 @@ def m1_rows(truth: T.HfrTruth, cells, init_h: int, init_index: int, arms: Dict[s
     return out
 
 
-def advect(vel: Callable, lat, lon, hours=M2_HOURS, is_land: Optional[Callable] = None):
-    """RK4, 1 h steps from lead hour 0, every particle at once. Returns {"lat", "lon": [hour 0..hours, particle],
+def advect(vel: Callable, lat, lon, hours=M2_HOURS, is_land: Optional[Callable] = None, t0=0.0):
+    """RK4, 1 h steps from lead hour t0, every particle at once. Returns {"lat", "lon": [hour 0..hours, particle],
     "beached", "stalled": [particle]}. A step that would put a particle on the arm's land mask stops it at its last wet
     position (beached); a step where the field has no value (off the arm's grid) stops it too (stalled)."""
     dt = 3600.0
@@ -109,10 +113,11 @@ def advect(vel: Callable, lat, lon, hours=M2_HOURS, is_land: Optional[Callable] 
     n = la.size
     beached, stalled = np.zeros(n, bool), np.zeros(n, bool)
     tla, tlo = [la.copy()], [lo.copy()]
-    for h in range(hours):
+    for step_k in range(hours):
         live = ~(beached | stalled)
         if live.any():
             a, b = la[live], lo[live]
+            h = t0 + step_k
             k1 = vel(a, b, h)
             p2 = _step(a, b, k1[0], k1[1], dt / 2)
             k2 = vel(p2[0], p2[1], h + 0.5)
@@ -141,29 +146,34 @@ def _step(lat, lon, u, v, dt_s):
     return lat2, G.wrap_lon(lon + u * dt_s / 1000.0 / (G.KM_PER_DEG * coslat))
 
 
-def m2_rows(tracks, init_h: int, arms: Dict[str, A.ArmField], bathy=None, raw=False, vel_fns=None):
+def m2_rows(tracks, init_h: int, arms: Dict[str, A.ArmField], bathy=None, raw=False, vel_fns=None, stats=None,
+            seed_h=M2_SEED_H):
     """Every drifter-init of one init: list of {"platform", "drogue", "zone", "still_km", "sep_km": {arm}, "sep24_km": {arm},
     "lw_skill": {arm}, "beached": {arm}, "stalled": {arm}}. A drifter whose observed (smoothed) track misses the >= 20 h rule
-    at the init or at +72 h is not used (for any arm). `raw`: the unsmoothed track and the unfiltered field (reported)."""
+    at the seed (init + seed_h) or 72 h later is not used (for any arm), and counted in `stats["excluded"]` when it has any fix
+    in that span (amendment 1, A6: reported). `raw`: the unsmoothed track and the unfiltered field (reported)."""
     pick = (lambda tr, h: tr.raw(h)) if raw else (lambda tr, h: tr.smoothed(h))
+    t0 = init_h + seed_h
     rows, seeds, obs = [], [], []
     for tr in tracks:
-        s, e = pick(tr, init_h), pick(tr, init_h + M2_HOURS)
+        s, e = pick(tr, t0), pick(tr, t0 + M2_HOURS)
         if s is None or e is None:
+            if stats is not None and any(t0 - A.HALF_WINDOW_H <= h <= t0 + M2_HOURS + A.HALF_WINDOW_H for h in tr.hourly):
+                stats["excluded"] = stats.get("excluded", 0) + 1
             continue
-        hourly = [pick(tr, init_h + h) for h in range(M2_HOURS + 1)]
-        rows.append({"init_h": init_h, "platform": tr.platform, "drogue": tr.drogue,
+        hourly = [pick(tr, t0 + h) for h in range(M2_HOURS + 1)]
+        rows.append({"init_h": init_h, "valid_h": t0 + M2_HOURS, "platform": tr.platform, "drogue": tr.drogue,
                      "zone": G.zone_of(s[0], s[1], bathy) if bathy is not None else None,
                      "still_km": float(G.distance_km(s[0], s[1], e[0], e[1])), "end": e, "end24": hourly[24],
                      "sep_km": {}, "sep24_km": {}, "lw_skill": {}, "beached": {}, "stalled": {}})
         seeds.append(s)
-        obs.append((hourly, tr.path_km(init_h, init_h + M2_HOURS, smooth=not raw)))
+        obs.append((hourly, tr.path_km(t0, t0 + M2_HOURS, smooth=not raw)))
     if not rows:
         return rows
     sla, slo = np.array([s[0] for s in seeds]), np.array([s[1] for s in seeds])
     for name, arm in arms.items():
         vel = (vel_fns or {}).get(name) or (A.unfiltered_velocity_fn(arm) if raw else A.lowpassed_velocity_fn(arm))
-        res = advect(vel, sla, slo, M2_HOURS, is_land=arm.is_land)
+        res = advect(vel, sla, slo, M2_HOURS, is_land=arm.is_land, t0=seed_h)
         for k, row in enumerate(rows):
             e, e24 = row["end"], row["end24"]
             if res["stalled"][k] and res["lat"][1, k] == sla[k] and res["lon"][1, k] == slo[k]:

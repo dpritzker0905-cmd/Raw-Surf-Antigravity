@@ -53,7 +53,7 @@ jobs:
           extra=()
           if [ "$RTOFS_ABSENT" = "true" ]; then extra=(--absent RTOFS_025); fi
           mkdir -p "$RUNNER_TEMP/report"
-          python scripts/currents_skill_score.py --evidence "$RUNNER_TEMP/evidence" --freeze-time "$FREEZE_TIME" --out "$RUNNER_TEMP/report/currents-skill-v1-report.json" "${extra[@]}"
+          python scripts/currents_skill_score.py --evidence "$RUNNER_TEMP/evidence" --freeze-time "$FREEZE_TIME" --out "$RUNNER_TEMP/report/currents-skill-v1-report.json" --etopo-cache "$RUNNER_TEMP/etopo" "${extra[@]}"
       - uses: actions/upload-artifact@v4
         with:
           name: currents-skill-report-${{ github.run_id }}

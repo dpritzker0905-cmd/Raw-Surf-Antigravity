@@ -107,11 +107,14 @@ def test_hourly_and_window_weights_known_answers():
     assert A.window_weights(range(6, 181, 6), 6)[0] is None                  # only 13 defined hours at the first step
 
 
-def test_lowpassed_velocity_of_a_constant_field_is_that_field():
+def test_lowpassed_velocity_of_a_constant_field_is_that_field_and_the_20h_rule_is_never_truncated():
     arm = arm_const(0.3, -0.2)
     vel = A.lowpassed_velocity_fn(arm)
-    u, v = vel(np.array([31.0]), np.array([-118.0]), 0.5)
+    u, v = vel(np.array([31.0]), np.array([-118.0]), 13.5)
     assert u[0] == pytest.approx(0.3, abs=1e-3) and v[0] == pytest.approx(-0.2, abs=1e-3)
+    assert np.isnan(vel(np.array([31.0]), np.array([-118.0]), 12.0)[0][0])      # 6..24 h = 19 hours < 20 (amendment 1, A3)
+    assert A.window_weights(arm.steps_h, 12)[1] == 19 and A.window_weights(arm.steps_h, 13)[1] == 20
+    assert M.M2_SEED_H == 13                                                    # the first lead the rule allows
 
 
 # ---- truth ------------------------------------------------------------------------------------------------------------
@@ -215,10 +218,13 @@ def _drifter(u_ms, hours, lat0=31.0, lon0=-118.5, missing=()):
 
 def test_m2_perfect_field_still_and_the_20h_rule():
     hours = list(range(INIT - 30, INIT + 110))
-    tracks = [_drifter(0.2, hours), _drifter(0.2, hours, missing=set(range(INIT + 60, INIT + 66)))]
+    end = INIT + M.M2_SEED_H + 72
+    tracks = [_drifter(0.2, hours), _drifter(0.2, hours, missing=set(range(end - 12, end - 6)))]
     arms = {"CMEMS_025": arm_const(0.2, 0.0), "GIOPS_025": arm_const(0.0, 0.0)}
-    rows = M.m2_rows(tracks, INIT, arms)
-    assert len(rows) == 1                                  # the second drifter has 19 of 25 hours around +72 h
+    stats = {}
+    rows = M.m2_rows(tracks, INIT, arms, stats=stats)
+    assert len(rows) == 1 and stats["excluded"] == 1       # the second has 19 of 25 hours around the end: excluded, counted
+    assert rows[0]["valid_h"] == end
     r = rows[0]
     assert r["still_km"] == pytest.approx(0.2 * 72 * 3.6, rel=0.01)
     assert r["sep_km"]["CMEMS_025"] < 0.5                  # the field moves the particle with the drifter
@@ -230,6 +236,37 @@ def test_m2_seed_off_an_arms_grid_scores_missing_not_still():
     hours = list(range(INIT - 30, INIT + 110))
     rows = M.m2_rows([_drifter(0.2, hours, lat0=10.0)], INIT, {"CMEMS_083": arm_const(0.2, 0.0)})
     assert rows[0]["sep_km"]["CMEMS_083"] is None and rows[0]["stalled"]["CMEMS_083"]
+
+
+class _FakeTiles:
+    """ETOPO 2022 tiles: ocean at -3000 m except a land strip (z = 10 m) west of lon -70.3 in the 35N tile, and 150 m deep
+    water in the 10N tile."""
+
+    def __call__(self, get, lat0, lon0):
+        lats = lat0 + (np.arange(241) / 240.0)
+        lons = lon0 + (np.arange(241) / 240.0)
+        z = np.full((241, 241), -3000.0)
+        if lat0 == 35:
+            z[:, lons < -70.3] = 10.0
+        if lat0 == 10:
+            z[:] = -150.0
+        return z, lats, lons
+
+
+def test_etopo2022_coast_depth_and_zones_with_fetched_tiles(tmp_path):
+    fake = _FakeTiles()
+    et = G.Etopo2022(get=lambda u: b"", cache_dir=str(tmp_path), fetch=fake)
+    assert et.coast_km(35.5, -70.0) == pytest.approx(G.distance_km(35.5, -70.0, 35.5, -70.30417), abs=0.5)
+    assert G.zone_of(35.5, -70.0, et) == "COAST50"                       # 27 km from land: COAST50 before WBC (A4)
+    assert G.zone_of(35.5, -69.0, et) == "WBC"                           # 117 km: the Gulf Stream box
+    assert et.depth_m(10.5, -140.5) == pytest.approx(150.0) and G.zone_of(10.5, -140.5, et) == "SHELF"
+    assert G.zone_of(2.0, -140.0, et) == "EQ" and G.zone_of(-30.0, -140.0, et) == "OPEN"
+    assert os.path.exists(tmp_path / "etopo_35_-71.npz")                 # tiles cached once
+    again = G.Etopo2022(cache_dir=str(tmp_path), fetch=lambda *a: (_ for _ in ()).throw(AssertionError("refetched")))
+    assert again.coast_km(35.5, -70.0) == pytest.approx(et.coast_km(35.5, -70.0))
+    with pytest.raises(LookupError):
+        G.Etopo2022().depth_m(0.0, 0.0)                                  # no cache and no fetcher: never a guess
+    assert G.ETOPO_ERDDAP.endswith("ETOPO_2022_v1_15s") and G.ETOPO_STEP == pytest.approx(15 / 3600)
 
 
 def test_zone_order_and_boxes():

@@ -39,8 +39,9 @@ def _fb():
     return fb
 
 
-def decode_frame_uv(data: bytes):
-    """(lats asc, lons asc, u m/s, v m/s, valid_epoch_s, run_epoch_s) from one served currents frame (module docstring)."""
+def decode_frame_uv(data: bytes, with_kind=False):
+    """(lats asc, lons asc, u m/s, v m/s, valid_epoch_s, run_epoch_s) from one served currents frame (module docstring);
+    with_kind adds the encoding: "two_byte" (0.01 kn, 0.01 deg per node) or "one_byte" (0.02 kn band, 5.625 deg per block)."""
     head, planes = _fb().decode_plane(data)
     rows, cols = head["rows"], head["cols"]
     west, south, east, north = head["bounds"]
@@ -48,10 +49,12 @@ def decode_frame_uv(data: bytes):
     lons = np.linspace(west, east, cols)
     if SPEED in planes and DIRECTION in planes:
         spd, to = planes[SPEED], planes[DIRECTION]
+        kind = "two_byte"
     elif CURRENT_KN_BAND in planes and FLOW_DIR_BYTE in planes:
         spd = planes[CURRENT_KN_BAND]
         anchors = planes[FLOW_DIR_BYTE][::FLOW_DIR_STRIDE, ::FLOW_DIR_STRIDE]
         to = np.repeat(np.repeat(anchors, FLOW_DIR_STRIDE, 0), FLOW_DIR_STRIDE, 1)[:rows, :cols]
+        kind = "one_byte"
     else:
         raise ValueError(f"frame has fields {sorted(planes)}: no current vector (speed and direction both needed)")
     s = spd * KN_TO_MS
@@ -59,7 +62,8 @@ def decode_frame_uv(data: bytes):
     u, v = s * np.sin(rad), s * np.cos(rad)                      # uv_convention 1: toward
     u = np.where(np.isfinite(spd), u, np.nan)
     v = np.where(np.isfinite(spd), v, np.nan)
-    return lats, lons, u, v, head["valid_epoch"], head["run_epoch"]
+    out = (lats, lons, u, v, head["valid_epoch"], head["run_epoch"])
+    return out + (kind,) if with_kind else out
 
 
 class ArmField:
@@ -74,21 +78,25 @@ class ArmField:
         if global_lon is None:
             global_lon = (self.lons[-1] - self.lons[0]) + (self.lons[1] - self.lons[0]) >= 359.99
         self.global_lon = bool(global_lon)
+        self.encoding = None
 
     @classmethod
     def from_frames(cls, name, frames: Dict[int, bytes], first_h=FIRST_STEP_H, last_h=None):
         hours = sorted(h for h in frames if h >= first_h and (last_h is None or h <= last_h))
         if not hours:
             raise ValueError(f"{name}: no step at or after {first_h} h")
-        us, vs, lats, lons = [], [], None, None
+        us, vs, lats, lons, kinds = [], [], None, None, set()
         for h in hours:
-            la, lo, u, v, _valid, _run = decode_frame_uv(frames[h])
+            la, lo, u, v, _valid, _run, kind = decode_frame_uv(frames[h], with_kind=True)
+            kinds.add(kind)
             if lats is not None and (la.shape != lats.shape or lo.shape != lons.shape):
                 raise ValueError(f"{name}: step {h} h has another grid")
             lats, lons = la, lo
             us.append(u)
             vs.append(v)
-        return cls(name, hours, lats, lons, np.stack(us), np.stack(vs), global_lon=None)
+        arm = cls(name, hours, lats, lons, np.stack(us), np.stack(vs), global_lon=None)
+        arm.encoding = "+".join(sorted(kinds))
+        return arm
 
     @classmethod
     def from_native_npz(cls, name, path, first_h=FIRST_STEP_H, last_h=None):
@@ -98,7 +106,9 @@ class ArmField:
 
     def map_fields(self, fn, name):
         u, v = fn(self.u.copy(), self.v.copy())
-        return ArmField(name, self.steps_h, self.lats, self.lons, u, v, self.global_lon)
+        out = ArmField(name, self.steps_h, self.lats, self.lons, u, v, self.global_lon)
+        out.encoding = self.encoding
+        return out
 
     # ---- space -------------------------------------------------------------------------------------------------------
     def _frac(self, lat, lon):
@@ -226,11 +236,11 @@ def _vel_from_weights(arm, w, lat, lon):
     return np.where(bad, np.nan, u), np.where(bad, np.nan, v)
 
 
-def lowpassed_velocity_fn(arm: ArmField, need=1):
+def lowpassed_velocity_fn(arm: ArmField, need=NEED_HOURS):
     """vel(lat[], lon[], t) -> (u[], v[]) m/s of the arm's 25 h low-passed field at lead hour t (float): filter weights at
     the two whole hours around t, linearly interpolated (section 4, M2: "recomputed at each hour by linear interpolation in
-    time"), bilinear in space over the wet corners. Near the first step fewer than 20 hours of the field exist; `need` is the
-    hours the edge may use (AMENDMENT QUESTION A3; 1 = the window is truncated to the defined hours, the same for every arm)."""
+    time"), bilinear in space over the wet corners. The registered >= 20 of 25 rule holds (amendment 1, A3): no truncation;
+    where fewer hours exist the velocity is NaN, which is why M2 seeds at M2_SEED_H."""
     cache = {}
 
     def weights(h):

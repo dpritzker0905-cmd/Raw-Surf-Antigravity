@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 57,
+  "tests": 62,
   "branch": "claude/currents-skill-collector",
   "date": "2026-11-22",
-  "note": "currents-skill-v1 collector + scorer: tests/test_currents_skill_{stats,rows,io,score,workflows}.py"
+  "note": "currents-skill-v1 collector + scorer (+ amendment 1): tests/test_currents_skill_{stats,rows,io,score,workflows}.py"
 }

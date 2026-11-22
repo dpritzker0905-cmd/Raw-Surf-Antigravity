@@ -23,14 +23,29 @@ def test_the_two_workflows_exist():
 
 
 @pytest.mark.parametrize("path", FILES)
-def test_dispatch_only_owner_word_and_read_only_token(path):
+def test_owner_word_and_read_only_token(path):
     text = open(path, encoding="utf-8").read()
     doc = _doc(path)
     on = doc.get(True, doc.get("on"))
-    assert list(on) == ["workflow_dispatch"], "no schedule, push or pull_request: every run needs the owner's word"
+    allowed = ["workflow_dispatch", "schedule"] if path.endswith("collect.yml") else ["workflow_dispatch"]
+    assert list(on) == allowed, "no push or pull_request; the score is dispatch-only"
     assert on["workflow_dispatch"]["inputs"]["owner_word_ref"]["required"] is True
     assert 'test -n "$OWNER_WORD_REF"' in text
     assert doc["permissions"] == {"contents": "read"}
+
+
+def test_the_optional_schedule_is_off_by_default_and_needs_the_word_and_an_end_date():
+    """Amendment 1 (A11): one owner word may cover the TEST window through repo variables; unset (the default) = skipped."""
+    doc = _doc(os.path.join(WF, "currents-skill-collect.yml"))
+    guard = doc["jobs"]["guard"]
+    assert guard["if"] == "${{ github.event_name == 'workflow_dispatch' || vars.CURRENTS_SKILL_SCHEDULE == '1' }}"
+    step = guard["steps"][0]
+    assert 'test -n "$SCHEDULE_WORD_REF"' in step["run"] and 'test -n "$UNTIL"' in step["run"] and "what=none" in step["run"]
+    assert step["env"]["SCHEDULE_WORD_REF"] == "${{ vars.CURRENTS_SKILL_OWNER_WORD_REF }}"
+    assert step["env"]["UNTIL"] == "${{ vars.CURRENTS_SKILL_UNTIL }}"
+    assert doc["jobs"]["collect"]["if"] == "${{ needs.guard.outputs.what != 'none' }}"
+    gated = [st for st in doc["jobs"]["collect"]["steps"] if "run" in st and "currents_skill_collect.py" in st["run"]]
+    assert len(gated) == 3 and all("needs.guard.outputs.what" in st["if"] for st in gated)
 
 
 @pytest.mark.parametrize("path", FILES)
@@ -58,11 +73,11 @@ def test_secrets_by_name_only_in_supabase_service_jobs(path):
 def test_collect_archives_every_artifact_with_sha256_and_never_cancels_a_running_collection():
     doc = _doc(os.path.join(WF, "currents-skill-collect.yml"))
     job = doc["jobs"]["archive"]
-    assert job["environment"] == "supabase-service" and "always()" in job["if"]
+    assert job["environment"] == "supabase-service" and "always()" in job["if"] and "skipped" not in job["if"]
     run = job["steps"][-1]["run"]
     assert "currents_skill_archive.py" in run and "calibration/currents-skill/$RUN_ID-$RUN_ATTEMPT" in run
     assert doc["concurrency"]["cancel-in-progress"] is False
-    assert set(doc["on"if "on" in doc else True]["workflow_dispatch"]["inputs"]["what"]["options"]) == {"daily", "hfr", "drifters"}
+    assert set(doc.get(True, doc.get("on"))["workflow_dispatch"]["inputs"]["what"]["options"]) == {"daily", "hfr", "drifters"}
 
 
 def test_score_downloads_verified_archives_and_keeps_its_report_apart():

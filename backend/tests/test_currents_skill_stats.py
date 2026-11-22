@@ -92,6 +92,12 @@ def test_labels_with_holm_per_family():
     assert out["c"]["worse_significant"] is True
 
 
+def test_comparable_but_measurably_worse_is_worded_so():
+    out = S.label_family({"a": _cell(p_tost=0.001, p_worse=0.001), "b": _cell(p_tost=0.001)})
+    assert out["a"]["label"] == "COMPARABLE" and out["a"]["wording"] == "within 10%, measurably worse"     # amendment 1, A7
+    assert "wording" not in out["b"]
+
+
 def test_holm_can_remove_a_marginal_cell():
     cells = {k: _cell(p_better=0.02) for k in "abc"}            # 0.02 alone would pass 0.025; Holm x3 = 0.06 does not
     assert all(v["label"] == "NOT SHOWN" for v in S.label_family(cells).values())

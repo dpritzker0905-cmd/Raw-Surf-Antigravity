@@ -64,6 +64,21 @@ def test_pairing_rule_cmems_incomplete_drops_for_all_arm_incomplete_for_that_arm
     assert dropped["GIOPS_025"] == {1: "CMEMS_025 no run saved", 2: "missing steps [6]"}
 
 
+def test_plant_arm_falls_back_so_controls_stay_evaluable_while_giops_is_dark():
+    assert SC.plant_arm({"GIOPS_025": [0], "CMEMS_083": [0]}) == "GIOPS_025"
+    assert SC.plant_arm({"GIOPS_025": [], "CMEMS_083": [0]}) == "CMEMS_083"
+    assert SC.plant_arm({"GIOPS_025": [], "CMEMS_083": []}) == "CMEMS_025"
+    assert SC.plant_arm({"GIOPS_025": [0], "CMEMS_083": [0]}, absent=("GIOPS_025",)) == "CMEMS_083"
+
+
+def test_controls_evaluate_on_cmems_025_when_no_gated_arm_has_rows(tmp_path):
+    ev = _evidence(tmp_path)
+    rep = SC.score(ev, FREEZE, absent=("GIOPS_025", "RTOFS_025", "CMEMS_083"), B=50, bathy=None, log=lambda s: None)
+    by = {c["control"]: c for c in rep["controls"]}
+    assert rep["plant_arm"] == "CMEMS_025" and by["speed"]["ok"] and by["direction"]["ok"]
+    assert rep["void"]["controls"] is None
+
+
 @pytest.fixture(scope="module")
 def report(tmp_path_factory):
     ev = _evidence(tmp_path_factory.mktemp("cs"))
@@ -92,6 +107,9 @@ def test_end_to_end_controls_behave(report):
     assert by["lagrangian"]["ok"] is None                  # no drifters: not evaluable, voids nothing
     assert report["void"]["controls"] is None
     assert set(report["not_built"]) >= {"PERSIST_OBS", "CMEMS_1H", "SMOC"}
+    assert report["plant_arm"] == "GIOPS_025" and report["m2_seed_h"] == 13
+    assert report["quantisation"]["GIOPS_025"]["encodings"] == ["two_byte"]                    # amendment 1, A1
+    assert report["drifter_inits_excluded_20h_rule"] == 0
     json.dumps(report, default=str)                        # the report serialises
 
 

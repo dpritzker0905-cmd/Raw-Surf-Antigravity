@@ -14,8 +14,8 @@ Holm (step-down) within each family; one-sided significance at Holm p < 0.025, e
 
 LABELS. BETTER (Holm p_better < 0.025 AND both halves of TEST show the same sign with at least half the pooled effect),
 else COMPARABLE (Holm TOST < 0.05), else WORSE (Holm p_worse < 0.025), else NOT SHOWN. A cell can hold both an equivalence and
-a significant worse line; the order COMPARABLE before WORSE and the `worse_significant` flag reported beside every label are
-AMENDMENT QUESTION A7.
+a significant worse line: COMPARABLE before WORSE, `worse_significant` beside every label, and such a cell worded "within 10%,
+measurably worse" (amendment 1, A7).
 """
 import math
 from typing import Dict, List, Optional, Sequence
@@ -152,6 +152,8 @@ def label_family(cells: Dict[str, dict]) -> Dict[str, dict]:
             c["label"] = "BETTER"
         elif he[k] < ALPHA_TOST:
             c["label"] = "COMPARABLE"
+            if c["worse_significant"]:              # amendment 1 (A7): the credit words it this way
+                c["wording"] = "within 10%, measurably worse"
         elif hw[k] < ALPHA_ONE_SIDED:
             c["label"] = "WORSE"
         else:

@@ -116,3 +116,15 @@ Gates:
    - GIOPS is dark too (`FRAME_RASTER_CURRENTS_GIOPS` unset). The collector copies only PUBLISHED sets, so GIOPS_025 has no
      rows until its publisher is switched on. That is an owner decision: it publishes frames, though it changes no served number.
 4. David's word for each dispatch.
+
+## Advisor HOLD at 626b37680, and the fix (2026-11-22)
+
+The rulings are recorded in `gates/currents-skill-v1-amendment-1.md`. The code changed in these places:
+- **A3:** no truncation; M2 seeds at **+13 h**, not +12 h. At +12 h the window holds 19 hours (6-24); +13 h is the first lead that meets the ≥ 20 rule. The seed is one constant, `M2_SEED_H`.
+- **A5:** ETOPO 2022 15″, read by 1° ERDDAP tiles and cached (`geo.Etopo2022`).
+- **A10:** the plant arm falls back from GIOPS_025 to CMEMS_083 to CMEMS_025.
+- **A7:** a cell that is COMPARABLE and also significantly worse is worded "within 10%, measurably worse".
+- **A1 / A6 reporting:** each arm's frame encodings, and the drifter-inits excluded by the 20 h rule.
+- **A11:** the optional schedule is built and OFF until three repo variables are set. Manual dispatch still works.
+
+Tests: 62, up from 57. The new ones cover the ETOPO tiles and zones, the "measurably worse" wording, the plant fallback, controls evaluable with only CMEMS_025, and the schedule guard. The floor fragment is re-derived to +62.

@@ -36,6 +36,8 @@ SERVED = ("CMEMS_025", "GIOPS_025", "RTOFS_025")
 GATED_REGIONS = ("uswc", "usegc", "ushi")
 REPORTED_REGIONS = ("usprvi",)
 SCORED_STEPS = tuple(range(A.FIRST_STEP_H, 169, 6))       # "every step to 168 h" (section 2) from the 6 h step
+QUANT_NOTE = ("two_byte: speed 0.01 kn, direction 0.01 deg per node; one_byte: speed band 0.02 kn, one direction per 2 x 2 "
+              "block in 5.625 deg steps (what the map's particles use)")
 NOT_BUILT = ["PERSIST_OBS", "CMEMS_1H", "SMOC", "complex correlation", "D0 analysis RMSE",
              "HFRNet 25 h RTV cross-check", "European HF radar totals (INSITU radar subset)"]
 
@@ -106,6 +108,15 @@ def pairing(per_init_causes: Dict[int, Dict[str, str]]):
     return kept, dropped
 
 
+def plant_arm(kept, absent=()):
+    """Amendment 1 (A10): the control plants go on GIOPS_025 if it has rows, else CMEMS_083, else CMEMS_025 (planted against
+    its own unplanted self), so the controls stay evaluable while GIOPS is dark."""
+    for a in ("GIOPS_025", "CMEMS_083"):
+        if a not in absent and kept.get(a):
+            return a
+    return "CMEMS_025"
+
+
 def regional(arms, region):
     """The arms valid in a radar region: the global served arms, CMEMS_083's subset of that region, and every PERSIST."""
     out = {}
@@ -136,7 +147,15 @@ def score(evidence, freeze: datetime, absent=(), B=S.B_DEFAULT, bathy=None, veri
     gated = [a for a in GATED_ARMS if a not in absent and not arm_void[a]]
     report["void"] = {"run": run_void, "arms": arm_void}
     all_names = ["CMEMS_025", *GATED_ARMS, *[f"PERSIST_{a}" for a in ("CMEMS_025",) + GATED_ARMS]]
-    rot = {f"{K.PLANT_ARM}_rot{d:g}": (K.PLANT_ARM, d) for d in K.DIR_PLANTS.values()}
+    plant = plant_arm(kept, absent)
+    report["plant_arm"] = plant
+    rot = {f"{plant}_rot{d:g}": (plant, d) for d in K.DIR_PLANTS.values()}
+    enc = {}
+    for k in kept["CMEMS_025"]:
+        for a, f in per_init[k].items():
+            if getattr(f, "encoding", None):
+                enc.setdefault(a, set()).add(f.encoding)
+    report["quantisation"] = {a: {"encodings": sorted(v), "note": QUANT_NOTE} for a, v in enc.items()}       # amendment 1, A1
     # ---- M1 ---------------------------------------------------------------------------------------------------------
     m1, shuffled, cells_by_region = {}, {}, {}
     test_hours = np.arange(ih[0] - A.HALF_WINDOW_H, ih[-1] + 181)
@@ -163,7 +182,7 @@ def score(evidence, freeze: datetime, absent=(), B=S.B_DEFAULT, bathy=None, veri
     report["cells"] = cells_by_region
     # ---- M2 ---------------------------------------------------------------------------------------------------------
     tracks = T.load_tracks(evidence)
-    m2 = []
+    m2, m2_stats = [], {"excluded": 0}
     for k in kept["CMEMS_025"]:
         arms = {a: f for a, f in per_init[k].items() if a == "CMEMS_025" or k in kept.get(a, [])}
         flat = {a: f for a, f in arms.items() if a != "CMEMS_083"}
@@ -171,7 +190,7 @@ def score(evidence, freeze: datetime, absent=(), B=S.B_DEFAULT, bathy=None, veri
             flat[f"PERSIST_{a}"] = A.persistence(flat[a])
         for f in K.LAG_PLANTS.values():
             flat[f"CMEMS_025_x{f:g}"] = A.scaled(arms["CMEMS_025"], f)
-        rows = M.m2_rows(tracks, ih[k], flat, bathy=bathy)
+        rows = M.m2_rows(tracks, ih[k], flat, bathy=bathy, stats=m2_stats)
         if "CMEMS_083" in arms:                        # native subsets: each drifter uses the box it starts in (else missing)
             for reg, fld in arms["CMEMS_083"].items():
                 for r, r2 in zip(rows, M.m2_rows(tracks, ih[k], {"CMEMS_083": fld, "PERSIST_CMEMS_083": A.persistence(fld)},
@@ -184,13 +203,16 @@ def score(evidence, freeze: datetime, absent=(), B=S.B_DEFAULT, bathy=None, veri
             r["init_index"] = k
         m2 += rows
     report["drifter_inits"] = len(m2)
+    report["drifter_inits_excluded_20h_rule"] = m2_stats["excluded"]           # amendment 1, A6 (reported)
+    report["m2_seed_h"] = M.M2_SEED_H
     report["m1"], report["m2"] = lines_m1(m1, kept, gated, cells_by_region, B), lines_m2(m2, kept, gated, B)
     report["reported"] = reported(m1, m2, B)
     # ---- controls ---------------------------------------------------------------------------------------------------
     regions_floor = [r for r in GATED_REGIONS if cells_by_region.get(r, 0) >= S.FLOOR_CELLS]
     zones_floor = [z for z in G.ZONES if sum(1 for r in m2 if r["zone"] == z) >= S.FLOOR_DRIFTER_INITS]
     controls = [K.null_control(m1, m2, B), K.shuffled_control(shuffled, gated, regions_floor, B),
-                K.speed_control(m1, B=B), K.direction_control(m1, B=B), K.lagrangian_control(m2, zones_floor, B),
+                K.speed_control(m1, arm=plant, B=B), K.direction_control(m1, arm=plant, B=B),
+                K.lagrangian_control(m2, zones_floor, B),
                 K.leak_freeze(evidence, [ih[k] for k in range(len(inits))], freeze.timestamp() / 3600, verify)]
     report["controls"] = controls
     report["void"]["controls"] = K.verdict(controls)
@@ -230,7 +252,7 @@ def lines_m2(m2, kept, gated, B):
         fam, skill = {}, {}
         for zone in G.ZONES:
             rows = [r for r in m2 if r["zone"] == zone]
-            d = [(r["init_h"] + M.M2_HOURS) // 24 for r in rows]
+            d = [r["valid_h"] // 24 for r in rows]
             ii = [r["init_index"] for r in rows]
             a, b, p = (np.array([val(r, x) for r in rows]) for x in (arm, "CMEMS_025", f"PERSIST_{arm}"))
             n_units = int((np.isfinite(a) & np.isfinite(b)).sum())
@@ -253,7 +275,7 @@ def reported(m1, m2, B):
     for (region, lead), col in m1.items():
         r = {}
         for arm in col["fc"]:
-            if arm.startswith(("PERSIST_", K.PLANT_ARM + "_rot")):
+            if arm.startswith("PERSIST_") or "_rot" in arm:
                 continue
             e = M.err2(col, arm)
             if not np.isfinite(e).any():
@@ -286,6 +308,7 @@ def main(argv=None):
     ap.add_argument("--absent", action="append", default=[], choices=list(GATED_ARMS))
     ap.add_argument("--first-line", default="", help="JSON of the facts read at freeze (section 9), copied verbatim")
     ap.add_argument("--B", type=int, default=S.B_DEFAULT)
+    ap.add_argument("--etopo-cache", default="", help="directory for the ETOPO 2022 15 arc-second tiles (fetched once)")
     a = ap.parse_args(argv)
     freeze = datetime.fromisoformat(a.freeze_time.replace("Z", "+00:00")).astimezone(timezone.utc)
     try:
@@ -293,7 +316,8 @@ def main(argv=None):
         verify = AR.verify
     except ImportError:  # pragma: no cover
         verify = None
-    rep = score(a.evidence, freeze, tuple(a.absent), a.B, G.Bathy.from_repo_asset(), verify)
+    bathy = G.Etopo2022(get=C.http_get(gap_s=0.2), cache_dir=a.etopo_cache or None)
+    rep = score(a.evidence, freeze, tuple(a.absent), a.B, bathy, verify)
     if a.first_line:
         rep = {"first_line": json.load(open(a.first_line, encoding="utf-8")), **rep}
     with open(a.out, "w", encoding="utf-8") as fh:
