@@ -26,7 +26,7 @@ import { v2FieldTint } from './WebGLWindUtils';
 import { CURRENTS_LUT, currentsScale } from './currentsPalette';
 import { loadDownscale, setDownscaled } from './ownRasterDownscale';
 import {
-  OWN_ONLY_LAYERS, ownOnlyFor, gapFillFor, gapFillIndex, setKey, endNoteText, sourceModel, combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
+  OWN_ONLY_LAYERS, ownOnlyFor, gapFillFor, gapFillIndex, gapFillOffsetOn, setKey, endNoteText, sourceModel, combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
   planWindow, setEngaged, setWanted, tel, ownWindowRadius,
 } from './ownRasterFrames';
 import { FILL_MODEL } from './ownRasterGapFill';
@@ -96,7 +96,8 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   const wanted = !!active && ownFramesOn(layer, M);
   const [failed, setFailed] = useState(false);
   const [index, setIndex] = useState(null);
-  const [fbIndex, setFbIndex] = useState(null);      // the stand-in past the model's range (GFS), when another model is picked
+  const [fbIndex, setFbIndex] = useState(null);
+  const [offIndex, setOffIndex] = useState(null);    // the gap fill's S (ownRasterGapFill b'), only behind its dark lever      // the stand-in past the model's range (GFS), when another model is picked
   const [gen, setGen] = useState(0);          // bumps each time the GL layer is (re)added: the step effect re-offers fields
   const ref = useRef({ layerObj: null, prevOffset: null, dir: 1, shownRec: null, wantRec: null, byPath: new Map() });
   // With a gap fill, a missing own set still draws (the fill covers every hour): only a fill that is missing too disengages.
@@ -185,6 +186,15 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       .then((idx) => { if (alive && idx && framesOf(idx).length && idx !== memo) setFbIndex(idx); });
     return () => { alive = false; };
   }, [wanted, layer, M, FB, hasFill, retry]);
+
+  // 1b'. The gap fill's MODEL - GFS offset set (b', DARK: window.__RAW_RASTER_GAPFILL_OFFSET__ = true; null otherwise).
+  const offsetLever = gapFillOffsetOn();
+  useEffect(() => {
+    if (!wanted || !hasFill || !offsetLever) { setOffIndex(null); return undefined; }
+    let alive = true;
+    gapFillIndex(layer, M, 'offset').then((idx) => { if (alive) setOffIndex(idx || null); });
+    return () => { alive = false; };
+  }, [wanted, layer, M, hasFill, offsetLever]);
 
   // The status line under the timeline (rasterDrawnFrame, #471): the shown and the wanted frame, in the .om pairs' shape, so the
   // same words apply ("Loading 3 PM... still showing 12 PM", "Showing 3 PM: the nearest stored forecast" between 3-hourly frames).
@@ -307,7 +317,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     const st = ref.current;
     const L = st.layerObj;
     if (!engaged || (!index && !(hasFill && fbIndex)) || !L) return;
-    const frames = combinedFrames(layer, M, failed ? null : index, fbIndex);
+    const frames = combinedFrames(layer, M, failed ? null : index, fbIndex, offIndex);
     st.byPath = new Map(frames.slice().reverse().map((x) => [x.path, x]));   // a file's own-model entry wins over a stand-in entry
     const offset = Number(timeOffsetHours) || 0;
     if (st.prevOffset !== null && offset !== st.prevOffset) st.dir = offset > st.prevOffset ? 1 : -1;
@@ -364,7 +374,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     tel().want = { validMs, path: f.path, frameMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, at: Date.now() };
     st.onFieldCb = (path, field) => { const now = ref.current.layerObj; if (now) now.offerField(path, field); if (iso) iso(path, field); };
     setWanted(layer, win, st.onFieldCb);
-  }, [engaged, index, fbIndex, failed, timeOffsetHours, layer, M, gen]);
+  }, [engaged, index, fbIndex, offIndex, failed, timeOffsetHours, layer, M, gen]);
 
   // NO .om FALLBACK for an own-only model of a handover layer (ICON air temperature, 2026-11-18): while the layer is on, it stays
   // claimed, so MapWebGL never draws (or asks Open-Meteo for) the .om copy: not on a cold toggle, not on a missing set, index or

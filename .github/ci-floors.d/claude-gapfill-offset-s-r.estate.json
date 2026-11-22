@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 5,
+  "branch": "claude/gapfill-offset-s-r",
+  "date": "2026-11-22",
+  "note": "gap-fill offset product (frame_set_offset)"
+}

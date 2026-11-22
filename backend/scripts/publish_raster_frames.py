@@ -39,7 +39,11 @@ def main(argv=None):
     ap.add_argument("--bundle", choices=("sflux", "currents_native"), help="publish every set of a bundle from one read of each "
                     "hour (sflux: GFS 0.117 deg temperature, water temperature and rain, services/frame_set_raster_sflux.py; "
                     "currents_native: Copernicus currents at 1/12 deg on every surf box, services/frame_set_raster_currents_native.py)")
+    ap.add_argument("--offset", action="store_true", help="publish the gap fill's MODEL - GFS offset sets (services/"
+                    "frame_set_offset.py), read back from the frames just published; off unless FRAME_OFFSET_PRODUCT=1")
     args = ap.parse_args(argv)
+    if args.offset:
+        return _offset(args)
     if args.bundle or fsr.spec_for(args.set).get("bundle"):
         return _bundle(args)
     spec = fsr.spec_for(args.set)
@@ -88,6 +92,22 @@ def _native(args):
     print(f"::notice title=Raster set currents_native size::pulled {pulled / 1e6:.1f} MB, kept {kept / 1e6:.1f} MB "
           f"({len(on)} boxes; {', '.join(sorted({str(r.get('status')) for r in reports.values()}))})")
     print(json.dumps(reports, indent=1, sort_keys=True))
+    return max([_status(n, r) for n, r in reports.items()] or [0])
+
+
+def _offset(args):
+    """The offset sets (--offset): one update per new model run, DARK behind FRAME_OFFSET_PRODUCT (default '0')."""
+    from services import frame_set_offset as fso
+    if not fso.enabled():
+        print(f"[raster] offset sets: off ({fso.FLAG}); skipped")
+        return 0
+    sink = _sink(args)
+    reports, pulled = fso.publish_all(sink, pub._uploader(sink), log=print)
+    kept = sum(r.get("bytes", 0) or 0 for r in reports.values())
+    states = ", ".join(f"{n}: {r.get('status')}, updates per phase {r.get('updates')}, restarted {r.get('restarted_phases') or 'none'}"
+                       for n, r in reports.items())
+    print(f"::notice title=Gap-fill offset sets size::read {pulled / 1e6:.1f} MB, kept {kept / 1e6:.2f} MB ({states})")
+    print(json.dumps(reports, indent=1, sort_keys=True, default=str))
     return max([_status(n, r) for n, r in reports.items()] or [0])
 
 
