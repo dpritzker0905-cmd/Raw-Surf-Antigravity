@@ -130,6 +130,8 @@ def build_rows(runs: Dict[datetime, dict], stations: List[dict], pairing: Dict[s
                 gu, gv = np.asarray(z[f"cmp_gfs_u_{step}"], float), np.asarray(z[f"cmp_gfs_v_{step}"], float)
                 arms["GFS"] = (gu, gv, np.hypot(gu, gv), np.asarray(z[f"cmp_gfs_g_{step}"], float))
             for i, st in enumerate(stations):
+                if not np.isfinite(c_s[i]):
+                    continue                # no ocean cell within 25 km: no CLIM, dropped from every line, never filled
                 tr = truth_fn(i, valid)
                 if tr is None:
                     continue
@@ -203,7 +205,7 @@ def fit_rows(runs: Dict[datetime, dict], stations: List[dict], systems: Sequence
     """Rows for the calibration fit of one arm (pooled over `systems`): the columns wind_lr2_fit.fit_all reads. A row needs
     truth at the valid time; the station and valid-day ordinals feed the station-day count and the 5-day CV blocks."""
     cols: Dict[str, list] = {k: [] for k in ("m_u", "m_v", "s", "c_u", "c_v", "c_s", "o_u", "o_v", "o_s", "o_gust", "block",
-                                           "day", "station", "lead", "region")}
+                                           "day", "station", "lead", "region", "month")}
     regions = [R.region_of(s["lat"], s["lon"]) for s in stations]
     for init in sorted(runs):
         z = runs[init]
@@ -212,13 +214,15 @@ def fit_rows(runs: Dict[datetime, dict], stations: List[dict], systems: Sequence
             c_u, c_v, c_s = clim_at(valid)
             mu, mv, s = pool(z, systems, step)
             for i in range(len(stations)):
+                if not np.isfinite(c_s[i]):
+                    continue
                 tr = truth_fn(i, valid)
                 if tr is None:
                     continue
                 for k, v in (("m_u", mu[i]), ("m_v", mv[i]), ("s", s[i]), ("c_u", c_u[i]), ("c_v", c_v[i]), ("c_s", c_s[i]),
                              ("o_u", tr[0]), ("o_v", tr[1]), ("o_s", tr[2]), ("o_gust", tr[4]),
                              ("block", valid.toordinal() // R_BLOCK), ("day", valid.toordinal()), ("station", i),
-                             ("lead", step), ("region", regions[i])):
+                             ("lead", step), ("region", regions[i]), ("month", valid.month)):
                     cols[k].append(v)
     return {k: np.array(v) for k, v in cols.items()}
 

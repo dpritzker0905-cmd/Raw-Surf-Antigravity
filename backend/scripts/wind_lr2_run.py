@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import wind_lr2_clim as C  # noqa: E402
+import wind_lr2_descr as D  # noqa: E402
 import wind_lr2_fit as F  # noqa: E402
 import wind_lr2_rows as W  # noqa: E402
 import wind_lr2_runs as R  # noqa: E402
@@ -84,7 +85,10 @@ def cmd_fit(a):
         rows = W.fit_rows(runs, stations, systems, clim_at, fn)
         coefs = F.fit_all(rows, arm)
         json.dump(coefs, open(os.path.join(a.cache, f"wind_lr2_coef_{arm}.json"), "w"), sort_keys=True, indent=1)
+        json.dump(D.descriptive_report(rows), open(os.path.join(a.cache, f"wind_lr2_descr_{arm}.json"), "w"), indent=1, default=float)
         print(arm, "rows", len(rows["s"]))
+    json.dump(D.spread_skill(runs, stations, fn), open(os.path.join(a.cache, "wind_lr2_descr_spread_skill.json"), "w"), indent=1,
+              default=float)
     return 0
 
 
