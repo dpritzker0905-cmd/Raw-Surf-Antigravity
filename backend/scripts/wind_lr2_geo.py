@@ -99,24 +99,33 @@ def near_shoreline(is_land: Callable[[float, float], bool], lat: float, lon: flo
     return False
 
 
+def sector_is_water(station: dict, shore_normal_deg: Optional[float], is_land: Callable[[float, float], bool]) -> bool:
+    """Water for >= 5 km along every ray of the onshore sector (shore normal +-60 deg, every 10 deg); with no paired spot
+    (no shore normal) the test is ALL-AROUND: every bearing every 10 deg."""
+    if shore_normal_deg is None:
+        bearings = [float(b) for b in range(0, 360, int(SECTOR_STEP_DEG))]
+    else:
+        bearings, a = [], -SECTOR_DEG
+        while a <= SECTOR_DEG + 1e-9:
+            bearings.append((shore_normal_deg + a) % 360.0)
+            a += SECTOR_STEP_DEG
+    return all(ray_is_water(is_land, station["lat"], station["lon"], b) for b in bearings)
+
+
 def marine_exposed(station: dict, shore_normal_deg: Optional[float], is_land: Callable[[float, float], bool]) -> bool:
-    """Registered rule: a buoy, OR within 1 km of the shoreline AND the whole onshore sector (the paired spot's shore
-    normal +-60 deg) is water for >= 5 km. No paired spot (no shore normal) means the sector rule cannot be met for a
-    non-buoy: not marine-exposed."""
-    if R.region_of(station["lat"], station["lon"]) in R.EXCLUDED_REGIONS:       # the Great Lakes are not the open sea,
-        return False                                                            # whatever the station type
+    """Registered rule as amended (A7): a buoy that passes the 5 km water test, OR a station within 1 km of the shoreline
+    whose onshore sector is water for >= 5 km. The Great Lakes are excluded outright. A buoy no longer qualifies by type
+    alone: estuarine and lake buoys (Chesapeake, Lake Champlain) fail the water test. A non-buoy with no paired spot
+    (no shore normal) cannot meet the sector rule: not marine-exposed."""
+    if R.region_of(station["lat"], station["lon"]) in R.EXCLUDED_REGIONS:
+        return False
     if station.get("kind") == "ndbc" and station.get("type") == "buoy":
-        return True
+        return sector_is_water(station, shore_normal_deg, is_land)
     if shore_normal_deg is None:
         return False
     if not near_shoreline(is_land, station["lat"], station["lon"]):
         return False
-    a = -SECTOR_DEG
-    while a <= SECTOR_DEG + 1e-9:
-        if not ray_is_water(is_land, station["lat"], station["lon"], (shore_normal_deg + a) % 360.0):
-            return False
-        a += SECTOR_STEP_DEG
-    return True
+    return sector_is_water(station, shore_normal_deg, is_land)
 
 
 def fetch_window(lat: float, lon: float, half: float = 0.12, retries: int = 4):

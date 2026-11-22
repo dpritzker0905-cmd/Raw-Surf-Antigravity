@@ -50,7 +50,7 @@ def test_every_workflow_archives_its_artifacts_with_sha256_to_the_weather_bucket
     job = doc["jobs"]["archive"]
     assert job["environment"] == "supabase-service"
     text = open(os.path.join(WF, name), encoding="utf-8").read()
-    assert "wind_lr2_archive.py" in text and 'calibration/wind-lr2/$RUN_ID' in text
+    assert "wind_lr2_archive.py" in text and 'calibration/wind-lr2/$RUN_ID-$RUN_ATTEMPT' in text      # a re-run keeps the run id: the attempt keeps keys unique
 
 
 def test_a_test_collection_needs_the_committed_freeze_manifest():

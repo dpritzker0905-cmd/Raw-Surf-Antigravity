@@ -11,11 +11,14 @@ import argparse
 import hashlib
 import mimetypes
 import os
+import re
 import sys
 from typing import Callable, Dict, List, Optional
 
 BUCKET = "weather-products"
 PREFIX_ROOT = "calibration/"
+KEY_OK = re.compile(r"^[A-Za-z0-9._/-]+$")          # object keys: nothing else is ever uploaded
+SUMS = "SHA256SUMS"
 
 
 def sha256_of(path: str) -> str:
@@ -28,14 +31,17 @@ def sha256_of(path: str) -> str:
 
 def plan(src: str, prefix: str) -> List[dict]:
     """Every file under src: {path, key, sha256, size}. Keys keep the relative path under `prefix`."""
-    if not prefix.startswith(PREFIX_ROOT) or ".." in prefix:
+    if not prefix.startswith(PREFIX_ROOT) or ".." in prefix or not KEY_OK.match(prefix):
         raise ValueError(f"prefix must live under {PREFIX_ROOT!r}: {prefix!r}")
     out = []
     for root, _dirs, files in os.walk(src):
         for f in sorted(files):
             p = os.path.join(root, f)
             rel = os.path.relpath(p, src).replace(os.sep, "/")
-            out.append({"path": p, "key": f"{prefix.rstrip('/')}/{rel}", "sha256": sha256_of(p), "size": os.path.getsize(p)})
+            key = f"{prefix.rstrip('/')}/{rel}"
+            if not KEY_OK.match(key):
+                raise ValueError(f"object key has characters outside [A-Za-z0-9._/-]: {key!r}")
+            out.append({"path": p, "key": key, "sha256": sha256_of(p), "size": os.path.getsize(p)})
     return sorted(out, key=lambda r: r["key"])
 
 
@@ -61,9 +67,34 @@ def archive(src: str, prefix: str, put: Callable[[str, bytes, str], None], log: 
         put(r["key"], open(r["path"], "rb").read(), ctype)
         log(f"{r['sha256']}  {r['key']}  ({r['size']} bytes)")
     text = sums_text(items, prefix)
-    put(f"{prefix.rstrip('/')}/SHA256SUMS", text.encode(), "text/plain")
+    put(f"{prefix.rstrip('/')}/{SUMS}", text.encode(), "text/plain")        # written LAST: no SUMS file = INCOMPLETE archive
     log(f"archived {len(items)} files; SHA256SUMS sha256 {hashlib.sha256(text.encode()).hexdigest()}")
     return items
+
+
+def verify(directory: str) -> List[str]:
+    """Problems with an archive copy downloaded to `directory` (empty = complete). An archive WITHOUT its SHA256SUMS file is
+    INCOMPLETE (the job died before finishing) and is never read as evidence; a listed file that is missing or whose sha256
+    differs is a problem; a file not listed is a problem."""
+    sums_path = os.path.join(directory, SUMS)
+    if not os.path.exists(sums_path):
+        return ["INCOMPLETE: no SHA256SUMS"]
+    listed, bad = {}, []
+    for line in open(sums_path, encoding="utf-8").read().splitlines():
+        h, _, name = line.partition("  ")
+        listed[name] = h
+    for name, h in listed.items():
+        p = os.path.join(directory, name)
+        if not os.path.exists(p):
+            bad.append(f"missing {name}")
+        elif sha256_of(p) != h:
+            bad.append(f"sha256 differs {name}")
+    for root, _d, files in os.walk(directory):
+        for f in files:
+            rel = os.path.relpath(os.path.join(root, f), directory).replace(os.sep, "/")
+            if rel != SUMS and rel not in listed:
+                bad.append(f"unlisted {rel}")
+    return bad
 
 
 def main(argv=None):

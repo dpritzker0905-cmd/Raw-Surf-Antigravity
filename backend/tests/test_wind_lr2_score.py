@@ -43,6 +43,10 @@ def test_marine_exposed_rule():
     assert G.marine_exposed(pier, 270.0, m.is_land)                                 # on the shoreline, sea to the west
     assert not G.marine_exposed(pier, 90.0, m.is_land)                              # sector pointing at the land
     assert not G.marine_exposed(pier, None, m.is_land)                              # no paired spot: sector rule unmet
+    estuary = {"id": "e", "kind": "ndbc", "type": "buoy", "lat": 34.0, "lon": -120.03}            # a buoy 3 km off a shore
+    assert not G.marine_exposed(estuary, None, m.is_land)                           # A7: unpaired buoy needs 5 km of water all round
+    assert G.marine_exposed(estuary, 270.0, m.is_land)                              # paired: only the onshore sector must be water
+    assert not G.marine_exposed(estuary, 90.0, m.is_land)                           # sector toward the land fails
     inland = {"id": "i", "kind": "asos", "lat": 34.0, "lon": -119.85}
     assert not G.marine_exposed(inland, 270.0, m.is_land)                           # not within 1 km of the shoreline
 

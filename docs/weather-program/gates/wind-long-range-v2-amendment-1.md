@@ -29,3 +29,9 @@ Build PR 1 (#1139) holds run lists, collectors, truth readers, the fit, hashes, 
 - **Snapshots:** the earliest snapshot that holds a record wins; a published monthly stdmet record replaces it.
 - **Reported-only arm `LAG24`** is not built (it needs the previous cycle at L+24); it is reported-only and does not affect any verdict. `IFS_RAW`, `IFS_CAL`, `GEFS_CAL`, `GRAND_RAW` are built.
 - **G6 stations:** a region needs >= 10 marine-exposed stations in the bin's rows for its line; fewer is listed as insufficient.
+
+## A7. Buoys must also pass the water test (dated 2026-11-22, BEFORE any data; sent to the advisor)
+The registration (via the 3b Amendment 3 rule) says "a buoy" qualifies as marine-exposed by type alone. That lets estuarine and lake buoys in (the Chesapeake Bay CBIBS buoys, Lake Champlain). Amended reading: **a buoy qualifies only if it also passes the 5 km water test**: water for >= 5 km along every 10 deg ray of the paired spot's onshore sector (shore normal +-60 deg) when the station is paired, or **water for >= 5 km along every 10 deg bearing all round** when it is not. Non-buoy stations are unchanged (within 1 km of the shoreline AND the sector test; no paired spot means not marine-exposed). The Great Lakes stay excluded outright (A3). Code `wind_lr2_geo.marine_exposed`, tests included. This changes the primary population only by removing enclosed-water buoys; it is made before any station list is frozen or any data read.
+
+## A3 addendum: where the edges land (documented, not recoded)
+Longitude is normalised to -180..180 on entry (203 E is -157). The Maritimes (Halifax) and Bermuda fall in US_ATLANTIC_GULF (inside its 24-48 N, 98-60 W box); the Azores (38.7 N, 27.2 W) are OTHER (west of the 25 W edge of EUROPE_ATLANTIC); the Sea of Marmara is inside the BLACK_SEA box. Each is a named-point test.

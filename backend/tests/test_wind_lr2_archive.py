@@ -41,3 +41,27 @@ def test_an_upload_failure_stops_the_job_without_echoing_the_response(tmp_path):
         raise RuntimeError("upload x: HTTP 409")
     with pytest.raises(RuntimeError, match="HTTP 409"):
         A.archive(_tree(tmp_path), "calibration/wind-lr2/1", boom, lambda s: None)
+
+
+def test_sums_file_is_written_last_and_a_missing_one_means_incomplete(tmp_path):
+    order = []
+    A.archive(_tree(tmp_path), "calibration/wind-lr2/777-1", lambda k, d, c: order.append(k), lambda s: None)
+    assert order[-1] == "calibration/wind-lr2/777-1/SHA256SUMS" and order.count("calibration/wind-lr2/777-1/SHA256SUMS") == 1
+    dl = tmp_path / "dl"
+    dl.mkdir()
+    (dl / "a.txt").write_text("x")
+    assert A.verify(str(dl)) == ["INCOMPLETE: no SHA256SUMS"]                    # never read as evidence
+    (dl / "SHA256SUMS").write_text(A.sha256_of(str(dl / "a.txt")) + "  a.txt" + chr(10))
+    assert A.verify(str(dl)) == []
+    (dl / "a.txt").write_text("changed")
+    assert A.verify(str(dl)) == ["sha256 differs a.txt"]
+    (dl / "b.txt").write_text("y")
+    assert "unlisted b.txt" in A.verify(str(dl))
+
+
+def test_object_keys_are_restricted_to_a_safe_alphabet(tmp_path):
+    (tmp_path / "bad name$.txt").write_text("x")
+    with pytest.raises(ValueError, match="outside"):
+        A.plan(str(tmp_path), "calibration/wind-lr2/1-1")
+    with pytest.raises(ValueError):
+        A.plan(".", "calibration/wind lr2/1")
