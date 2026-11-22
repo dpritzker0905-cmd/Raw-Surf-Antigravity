@@ -61,20 +61,29 @@ def snapshot_end(runs: List[datetime]) -> datetime:
     return last_valid(runs).replace(hour=0, minute=0) + timedelta(days=7)
 
 
-# Regions (the registration names five; the boxes are fixed HERE, before any data, by amendment 1)
+# Regions (the registration names five; the rules are fixed HERE, before any data, by amendment 1 A3 as corrected by the
+# advisor's hold on #1139). Ordered rules, not first-box-wins over overlapping boxes.
 REGIONS = ["US_PACIFIC", "US_ATLANTIC_GULF", "HAWAII", "EUROPE_ATLANTIC", "MEDITERRANEAN"]
+EXCLUDED_REGIONS = ("GREAT_LAKES",)       # lakes are not the open sea: never marine-exposed, never in a gated region
 
 
-def region_of(lat: float, lon: float) -> Optional[str]:
-    """Rule-based; stations outside every box are 'OTHER' (reported, borrow pooled coefficients)."""
+def region_of(lat: float, lon: float) -> str:
+    """Region of a station. GREAT_LAKES is EXCLUDED (its NDBC buoys pass the buoy branch of the marine-exposed rule, so the
+    flag is forced off in wind_lr2_geo.pair_list). BLACK_SEA is not one of the five registered regions: it is handled as
+    OTHER (pooled coefficients, reported, no G6 line). The Mediterranean is the sea east of Gibraltar: the Atlantic Iberian,
+    Biscay and French/Spanish Atlantic surf coasts (Hossegor, Mundaka, Santander) belong to EUROPE_ATLANTIC."""
+    if 41.3 <= lat <= 49.5 and -92.5 <= lon <= -76.0:
+        return "GREAT_LAKES"
     if 18.0 <= lat <= 23.0 and -161.0 <= lon <= -154.0:
         return "HAWAII"
     if 30.0 <= lat <= 50.0 and -135.0 <= lon <= -117.0:
         return "US_PACIFIC"
+    if 40.5 <= lat <= 47.5 and 27.0 <= lon <= 42.0:
+        return "BLACK_SEA"
+    if 30.0 <= lat <= 46.5 and -5.6 <= lon <= 37.0 and (lat < 42.0 or lon >= 2.5):
+        return "MEDITERRANEAN"
     if 24.0 <= lat <= 48.0 and -98.0 <= lon <= -60.0:
         return "US_ATLANTIC_GULF"
-    if 30.0 <= lat <= 46.0 and -6.0 <= lon <= 37.0:
-        return "MEDITERRANEAN"
     if 35.0 <= lat <= 62.0 and -25.0 <= lon <= 10.0:
         return "EUROPE_ATLANTIC"
     return "OTHER"

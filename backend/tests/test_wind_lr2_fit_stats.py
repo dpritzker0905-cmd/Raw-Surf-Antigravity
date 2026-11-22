@@ -61,6 +61,25 @@ def test_bins_and_regions():
     assert R.region_of(-30.0, 150.0) == "OTHER"
 
 
+@pytest.mark.parametrize("name,lat,lon,want", [
+    ("Hossegor", 43.67, -1.44, "EUROPE_ATLANTIC"), ("Mundaka", 43.41, -2.70, "EUROPE_ATLANTIC"),
+    ("Biarritz", 43.48, -1.56, "EUROPE_ATLANTIC"), ("Santander", 43.46, -3.80, "EUROPE_ATLANTIC"),
+    ("Peniche", 39.36, -9.38, "EUROPE_ATLANTIC"), ("Newquay", 50.41, -5.08, "EUROPE_ATLANTIC"),
+    ("Marseille", 43.30, 5.37, "MEDITERRANEAN"), ("Malaga", 36.72, -4.42, "MEDITERRANEAN"),
+    ("Genoa", 44.40, 8.93, "MEDITERRANEAN"), ("Venice", 45.44, 12.33, "MEDITERRANEAN"), ("Haifa", 32.82, 34.99, "MEDITERRANEAN"),
+    ("Varna (Black Sea)", 43.20, 27.92, "BLACK_SEA"),
+    ("Chicago (Lake Michigan)", 41.88, -87.63, "GREAT_LAKES"), ("Duluth (Lake Superior)", 46.79, -92.10, "GREAT_LAKES"),
+    ("Buffalo (Lake Erie)", 42.88, -78.88, "GREAT_LAKES"),
+    ("Montauk", 41.04, -71.95, "US_ATLANTIC_GULF"), ("Cape Hatteras", 35.25, -75.53, "US_ATLANTIC_GULF"),
+    ("Galveston", 29.30, -94.80, "US_ATLANTIC_GULF"), ("Huntington Beach", 33.66, -118.0, "US_PACIFIC")])
+def test_named_points_land_in_the_right_region(name, lat, lon, want):
+    assert R.region_of(lat, lon) == want, name
+
+
+def test_great_lakes_are_excluded_and_black_sea_is_not_a_gated_region():
+    assert "GREAT_LAKES" in R.EXCLUDED_REGIONS and "GREAT_LAKES" not in R.REGIONS and "BLACK_SEA" not in R.REGIONS
+
+
 # ------------------------------------------------------------------------------------------------ fit
 def _rows(n=600, alpha_true=0.4, seed=1, days=60, noise=0.5):
     rng = np.random.default_rng(seed)
