@@ -17,15 +17,16 @@ def _canon(obj):
     return (json.dumps(obj, sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n").encode("utf-8")
 
 
-def archive_init(dirpath, init_iso, member, rows):
-    """rows: list of dict(target, lead_h, partitions=[{h,tp,dir,kind}]). Returns (path, sha256).
+def archive_init(dirpath, init_iso, member, rows, meta=None):
+    """rows: list of dict(target, lead_h, partitions=[{h,tp,dir,kind}], eta_m optional). `meta` carries the per-init
+    provenance (eta slice hashes, the tide table's generated_at). Returns (path, sha256).
     The file name is the init time; re-archiving an existing init is REFUSED (immutable)."""
     os.makedirs(dirpath, exist_ok=True)
     name = f"{init_iso.replace(':', '').replace('-', '')}.json"
     path = os.path.join(dirpath, name)
     if os.path.exists(path):
         raise FileExistsError(f"{name} is already archived: archives are immutable")
-    b = _canon({"format": FORMAT, "init": init_iso, "member": member,
+    b = _canon({"format": FORMAT, "init": init_iso, "member": member, "meta": meta or {},
                 "rows": sorted(rows, key=lambda r: (r["target"], r["lead_h"]))})
     with open(path, "wb") as f:
         f.write(b)

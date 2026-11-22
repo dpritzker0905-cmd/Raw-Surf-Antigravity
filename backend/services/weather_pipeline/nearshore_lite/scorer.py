@@ -5,7 +5,7 @@ obs_hs, inc_rel_deg (|incoming - shore normal|), arms {name: hs_m or None}). The
 
   * paired moving-block bootstrap over dates, 7-day blocks, B = 10,000, seed 20261122
   * Holm over each family; one-sided "better"
-  * California TOST on r = RMSE(LITE_EC)/RMSE(MOP) - 1 at +/-10%
+  * California: REPORTED, context only (LITE_EC is NOT RUN; no TOST is computed; see `california_context`)
   * controls: null, height plants, direction plants, bathymetry swap (reported), leak
 """
 import math
@@ -17,7 +17,6 @@ from . import coefficients as coef
 SEED = 20261122
 B_DEFAULT = 10000
 BLOCK_DAYS = 7
-TOST_MARGIN = 0.10
 DIR_BINS = ((0, 30), (30, 60), (60, 90), (90, 181))
 FLOORS = {"inits": 75, "blocks": 10, "buoys": 25, "buoys_per_region": 4, "buoys_sheltered": 6, "ca_buoys": 3}
 
@@ -101,23 +100,29 @@ def holm(pvals):
     return adj
 
 
-def tost_ratio(rows, a="LITE_EC", b="MOP", margin=TOST_MARGIN, block=BLOCK_DAYS, B=B_DEFAULT, seed=SEED):
-    """r = RMSE(a)/RMSE(b) - 1; equivalent when the 90% CI (two one-sided 5% tests) lies inside +/-margin."""
-    rows = _paired(rows, a, b)
-    da, db = _by_date(rows, a), _by_date(rows, b)
-    dates = sorted(da)
-    if len(dates) < 2:
-        return {"r": float("nan"), "lo": float("nan"), "hi": float("nan"), "equivalent": False, "worse": False}
-    sa = np.array([da[d][0] for d in dates])
-    sb = np.array([db[d][0] for d in dates])
-    n = np.array([da[d][1] for d in dates], dtype=float)
-    idx = block_indices(len(dates), block, B, np.random.default_rng(seed))
-    N = n[idx].sum(axis=1)
-    rr = np.sqrt(sa[idx].sum(axis=1) / N) / np.sqrt(sb[idx].sum(axis=1) / N) - 1.0
-    r0 = math.sqrt(sa.sum() / n.sum()) / math.sqrt(sb.sum() / n.sum()) - 1.0
-    lo, hi = float(np.percentile(rr, 5)), float(np.percentile(rr, 95))
-    return {"r": float(r0), "lo": lo, "hi": hi, "equivalent": bool(lo > -margin and hi < margin),
-            "worse": bool(lo > margin)}
+LITE_EC_NOT_RUN_TEXT = (
+    "LITE_EC is NOT RUN (no free ECMWF directional partitions). The California comparison is REPORTED as LITE, driven by the "
+    "same served partitions as CHAIN (CMEMS MFWAM), against MOP (ECMWF-driven). Because the forcing differs, it does NOT "
+    "measure bathymetry quality; no TOST conclusion is drawn; the RMSE ratio and ME are context only.")
+
+
+def california_context(rows, b="MOP", a="LITE"):
+    """The California comparison, CONTEXT ONLY (advisor ruling 2026-11-22). There is no LITE_EC arm and no TOST here:
+    `a` (LITE, on the served MFWAM partitions) is compared with `b` (MOP, ECMWF-driven), so the two sides have DIFFERENT
+    forcing and the ratio says nothing about bathymetry quality. Returns the verbatim wording, the numbers labelled
+    context only, and `tost: None` (no conclusion is drawn, ever)."""
+    ca = _paired([r for r in rows if r["region"] == "California"], a, b)
+    ra, rb = rmse(ca, a), rmse(ca, b)
+    ratio = (ra / rb - 1.0) if (rb and math.isfinite(ra) and math.isfinite(rb)) else float("nan")
+    return {"text": LITE_EC_NOT_RUN_TEXT, "context_only": True, "tost": None, "n": len(ca),
+            "rmse_ratio_minus_1": ratio, "me_lite": mean_error(ca, a), "me_mop": mean_error(ca, b)}
+
+
+def california_report_text(ctx):
+    """What the report prints for the California line: the ruling's wording first, then the numbers marked context only."""
+    return (ctx["text"] + chr(10)
+            + f"  context only (n={ctx['n']}): RMSE(LITE)/RMSE(MOP) - 1 = {ctx['rmse_ratio_minus_1']:+.3f}; "
+            + f"ME(LITE) = {ctx['me_lite']:+.3f} m; ME(MOP) = {ctx['me_mop']:+.3f} m")
 
 
 # ---- strata and direction bins ---------------------------------------------------------------------------------

@@ -1,0 +1,71 @@
+# MOP-lite forward archive, ONE 00Z init per dispatch (gate docs/weather-program/gates/nearshore-moplite-v1.md, section 5).
+# ⚠️ DISPATCH ONLY. No schedule, no push trigger: nothing runs until David says so. `owner_word_ref` is REQUIRED and must cite his
+#    word (who, when, where); the job refuses a placeholder. The reference is echoed into the run summary and into the archive meta.
+# ⚠️ GitHub-hosted runner only, never the Render box. Reads our tide table (series `am`) from the weather bucket and snapshots NDBC realtime2.
+# ⚠️ The offshore PARTITION SOURCE is an unbuilt interface until the advisor rules the EC input (total-sea vs MFWAM vs period bands). Until
+#    then a run writes the aux files (ETA slice, truth snapshots) and exits 3 INCOMPLETE; it writes NO archive init. Do not add a fetcher here.
+# Secrets by NAME only: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (the same two the tide-own-series workflow uses). No value is in this file.
+name: Nearshore-lite forward archive (dispatch only)
+run-name: "MOP-lite archive ${{ inputs.init }}: ${{ inputs.go == '1' && 'WRITE' || 'dry run' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner_word_ref:
+        description: "REQUIRED. Where David authorised this run (e.g. 'David, chat, 2027-01-15 08:02 EST: run the first archive')."
+        required: true
+      init:
+        description: "The 00Z init to archive, e.g. 2027-01-15T00:00Z."
+        required: true
+      targets_path:
+        description: "Repo path of the JSON target list ([{id, lat, lon}])."
+        required: true
+      stations:
+        description: "Comma-separated NDBC station ids to snapshot (truth)."
+        required: false
+        default: ''
+      go:
+        description: "1 = write files. Anything else = dry run (reads the tide table, prints the plan, writes nothing)."
+        required: false
+        default: '0'
+
+permissions:
+  contents: read
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install backend requirements
+        run: pip install -r backend/requirements.txt
+      - name: Archive one init (partitions: unbuilt interface; exit 3 = INCOMPLETE, aux only)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OWNER_WORD_REF: ${{ inputs.owner_word_ref }}
+          INIT: ${{ inputs.init }}
+          TARGETS: ${{ inputs.targets_path }}
+          STATIONS: ${{ inputs.stations }}
+          GO: ${{ inputs.go }}
+        run: |
+          set -uo pipefail
+          { echo '### MOP-lite forward archive'; echo "owner word: \`$OWNER_WORD_REF\`"; echo "init: \`$INIT\` (go=$GO)"; } >> "$GITHUB_STEP_SUMMARY"
+          args=(--init "$INIT" --targets "$TARGETS" --stations "$STATIONS" --out nearshore_lite_archive_out --owner-word-ref "$OWNER_WORD_REF")
+          if [ "$GO" = "1" ]; then args+=(--go); fi
+          cd backend
+          python scripts/nearshore_lite_archive.py "${args[@]/#nearshore_lite_archive_out/..\/nearshore_lite_archive_out}" | tee ../plan.json
+          code=${PIPESTATUS[0]}
+          { echo '```json'; cat ../plan.json; echo '```'; echo "exit code: $code (0 archived, 3 INCOMPLETE: no partition source)"; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+      - name: Upload the aux files, truth snapshots and any archive
+        if: ${{ always() && inputs.go == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nearshore-lite-archive
+          path: nearshore_lite_archive_out
+          if-no-files-found: ignore

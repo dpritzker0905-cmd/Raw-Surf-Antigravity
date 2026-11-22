@@ -18,6 +18,20 @@ Build: PR #1150, `backend/services/weather_pipeline/nearshore_lite/`. Question t
 | A8 | A run that misses a floor or whose control misbehaves prints **VOID** explicitly. | `scorer.verdict` |
 | A9 | **Across-the-join pairing is DE-SLOPED.** Where two sources share no cells, pairing neighbouring cells adds bed slope x cell size (1:50 x 50 m = 1.0 m, the p95 trigger), so a clean join could tag SEAM. Overlap-only would leave non-overlapping joins unchecked, against the registered rule. Per join segment (8-connected join cells): fit a least-squares plane per side over a 3-cell band of water < 30 m, evaluate both planes at the shared edge (the segment centroid) and pair those two values. A side with fewer than 6 valid cells gives no pair; the number of such segments is reported per join (`unpaired_segments` in the seam table). Where sources overlap, the overlap is measured as before. | `driver.deslope_pairs`, `seam.SeamRow.unpaired` |
 
+## LITE_EC is NOT RUN (advisor ruling 2026-11-22)
+> LITE_EC is NOT RUN (no free ECMWF directional partitions). The California comparison is REPORTED as LITE, driven by the same served partitions as CHAIN (CMEMS MFWAM), against MOP (ECMWF-driven). Because the forcing differs, it does NOT measure bathymetry quality; no TOST conclusion is drawn; the RMSE ratio and ME are context only.
+
+- Why: the stored open-data ECMWF waves are total sea only (swh, mwp, pp1d, mwd); the six period bands carry no per-band direction, so enabling them
+  would not give directional partitions (`ECMWF_PERIOD_BANDS` is left alone, no ingest change); the stored swell partitions are MFWAM's, which is not MOP's forcing.
+- Nothing gating changes: the primary gate is LITE vs CHAIN on the same served partitions. #1148 sections 1 and 6 already call the California TOST reported, not gating.
+- In the build: the `LITE_EC` arm and the TOST function are removed from the scorer; `scorer.california_context` returns this wording with the RMSE ratio and ME
+  labelled context only (`tost: None`), and `scorer.california_report_text` prints it.
+
+## LITE_ETA input (read-only)
+`LITE_ETA` reads OUR tide table, series `am` (FES2022b+M, mean-sea-level frame), from `tide_own/series.json.gz` in the weather bucket (schema `raw-surf/tide-own/2`),
+never `cmems` (a different frame) and never Open-Meteo. The table rolls (about 3 days back), so eta is read AT each init and its slice is hashed into the
+forward archive (`nearshore_lite.eta`, `archive_init(meta=...)`).
+
 ## Ship rule for tagged targets (section 6, COARSE rule generalised)
 - `SEAM` and `DATUM_1M` targets are computed and scored as registered: stratify only, no source swap, no exclusion.
 - Tags per target: `COARSE`, `SEAM`, `DATUM_1M`; several may apply. Each tag with at least one target gets its own line in the F1 Holm
