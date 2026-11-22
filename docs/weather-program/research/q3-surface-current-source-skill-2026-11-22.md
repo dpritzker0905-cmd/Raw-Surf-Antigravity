@@ -92,7 +92,8 @@ Choosing a source by its picker is a labelling decision, not a skill claim. Say 
 **Licences:** all clean.
 - Copernicus Marine: free with attribution.
 - RTOFS, GDP and HFRNet: US public domain.
-- GIOPS: ECCC open data licence, with attribution.
+- GIOPS: Open Government Licence – Canada plus the ECCC End-use Licence, with attribution (corrected 2026-11-22, director).
+- The pre-registration for this check is `gates/currents-skill-v1.md`.
 
 ## References
 1. Aijaz et al. (2023). Verification and intercomparison of global ocean Eulerian near-surface currents. *Ocean Modelling* (abstract via Consensus, earlier in this programme; the ScienceDirect full text returned 403).

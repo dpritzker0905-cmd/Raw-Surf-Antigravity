@@ -48,7 +48,9 @@ But #1133's calibration is a **regression on the pooled ensemble MEAN** (MOS wit
    - **Check:** report FIT-winter-only (Dec-Feb) coefficients next to the full-FIT ones, descriptively. A large gap explains a fail; it does not change the verdict.
 3. **AI-member dispersion.**
    - AIFS-family dispersion errors flip sign with latitude [7], and AIGEFS's are unknown.
-   - Equal-member pooling gives AIGEFS 31/113 of the mean's weight. This is not a flaw for the served mean, but the reported spread-skill and ±1 SD reliability will mix two dispersion regimes.
+   - #1133 weights SYSTEMS equally (its explicit choice), so AIGEFS carries 1/3 of the mean.
+     - Under member weights the shares would instead be IFS 51/113, GEFS 31/113 and AIGEFS 31/113 (corrected 2026-11-22, director).
+     - Either way, this is not a flaw for the served mean, but the reported spread-skill and ±1 SD reliability will mix two dispersion regimes.
    - **Check:** report spread-skill per system before pooling.
 4. **Only the speed is rescaled.**
    - Pooling vectors shrinks speed (the vector-mean speed is below the mean speed). #1133 rescales `f` to `f_s`, which is correct.
