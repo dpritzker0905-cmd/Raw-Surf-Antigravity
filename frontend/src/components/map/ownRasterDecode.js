@@ -17,7 +17,7 @@
  * Kill: window.__RAW_DISABLE_RASTER_DECODE_WORKER__ = true (decode on the main thread, same function).
  */
 
-export function decodeFieldCore(buf, fieldId, missingValue) {
+export function decodeFieldCore(buf, fieldId, missingValue, dirFieldId) {
   const bytes = new Uint8Array(buf);
   const dv = new DataView(buf);
   if (bytes.length < 72 || bytes[0] !== 82 || bytes[1] !== 83 || bytes[2] !== 87 || bytes[3] !== 70) throw new Error('raster frame: bad magic');
@@ -34,6 +34,11 @@ export function decodeFieldCore(buf, fieldId, missingValue) {
   for (let f = 0; f < fieldCount; f++) present.push(dv.getUint8(72 + f * 24));
   const pick = wanted.find((id) => present.indexOf(id) >= 0);
   if (pick === undefined) return null;
+  // CURRENTS PARTICLES (2026-11-22, currentParticles.js): `dirFieldId` (one id or a preference list) also decodes the flow
+  // direction, as one byte a cell (dirCodes: round(deg / 1.40625) mod 256), wherever the drawn field has data; absent = none.
+  const dirWanted = dirFieldId === undefined || dirFieldId === null ? [] : (Array.isArray(dirFieldId) ? dirFieldId : [dirFieldId]);
+  const dirPick = dirWanted.find((id) => present.indexOf(id) >= 0);
+  let out = null; let dirCodes = null;
   let pos = headerBytes;
   for (let f = 0; f < fieldCount; f++) {
     const d = 72 + f * 24;
@@ -42,6 +47,14 @@ export function decodeFieldCore(buf, fieldId, missingValue) {
     if (dtype !== 1 && dtype !== 2 && dtype !== 4) throw new Error(`raster frame: unsupported dtype ${dtype}`);
     const size = n * dtype;
     if (pos + size > bytes.length) throw new Error(`raster frame: truncated field ${id}`);
+    if (dirPick !== undefined && id === dirPick) {
+      dirCodes = new Uint8Array(n);
+      for (let k = 0; k < n; k++) {
+        const code = dtype === 1 ? bytes[pos + k] : (layout === 1 ? (bytes[pos + k] | (bytes[pos + n + k] << 8)) : (bytes[pos + 2 * k] | (bytes[pos + 2 * k + 1] << 8)));
+        const deg = code * scale + offset;
+        dirCodes[k] = ((Math.round(deg * 256 / 360) % 256) + 256) % 256;
+      }
+    }
     if (id === pick) {
       const values = new Float32Array(n);
       let min = Infinity; let max = -Infinity;
@@ -59,19 +72,21 @@ export function decodeFieldCore(buf, fieldId, missingValue) {
         if (v < min) min = v;
         if (v > max) max = v;
       }
-      return { cols, rows, bounds, values, min, max, validMs: validEpoch * 1000, runMs: Number.isFinite(runEpoch) ? runEpoch * 1000 : null, fieldId: pick };
+      out = { cols, rows, bounds, values, min, max, validMs: validEpoch * 1000, runMs: Number.isFinite(runEpoch) ? runEpoch * 1000 : null, fieldId: pick };
+      if (dirPick === undefined || dirCodes) break;
     }
     pos += size;
   }
-  return null;
+  if (out && dirCodes) out.dirCodes = dirCodes;
+  return out;
 }
 
 const WORKER_SRC = `const decodeFieldCore = ${decodeFieldCore.toString()};
 self.onmessage = (e) => {
-  const { id, buf, fieldId, missingValue } = e.data;
+  const { id, buf, fieldId, missingValue, dirFieldId } = e.data;
   try {
-    const out = decodeFieldCore(buf, fieldId, missingValue);
-    if (out) self.postMessage({ id, out }, [out.values.buffer]);
+    const out = decodeFieldCore(buf, fieldId, missingValue, dirFieldId);
+    if (out) self.postMessage({ id, out }, out.dirCodes ? [out.values.buffer, out.dirCodes.buffer] : [out.values.buffer]);
     else self.postMessage({ id, out: null });
   } catch (err) { self.postMessage({ id, error: String(err && err.message || err) }); }
 };`;
@@ -112,17 +127,17 @@ function worker() {
 /** Decode one field of a frame buffer (inflated RSWF bytes). Resolves to { cols, rows, bounds, values (Float32, `missingValue`
  *  for no data), min, max, validMs, runMs, offThread } or null when the frame has no such field; rejects on a bad frame. The
  *  buffer is TRANSFERRED to the worker (do not reuse it). */
-export function decodeOwnField(buf, fieldId, missingValue) {
+export function decodeOwnField(buf, fieldId, missingValue, dirFieldId) {
   const w = decodeWorkerKilled() ? null : worker();
-  if (!w) return Promise.resolve().then(() => { const out = decodeFieldCore(buf, fieldId, missingValue); return out && { ...out, offThread: false }; });
+  if (!w) return Promise.resolve().then(() => { const out = decodeFieldCore(buf, fieldId, missingValue, dirFieldId); return out && { ...out, offThread: false }; });
   const id = ++_seq;
   // The buffer is transferred to the worker; keep a copy only for the fallback a worker death needs (a decode on the main thread).
   const keep = buf.slice(0);
   const mainThread = (resolve, reject) => {
-    try { const out = decodeFieldCore(keep, fieldId, missingValue); resolve(out && { ...out, offThread: false }); } catch (e2) { e2.stage = 'parse'; reject(e2); }
+    try { const out = decodeFieldCore(keep, fieldId, missingValue, dirFieldId); resolve(out && { ...out, offThread: false }); } catch (e2) { e2.stage = 'parse'; reject(e2); }
   };
   return new Promise((resolve, reject) => {
     _pending.set(id, { resolve: (out) => resolve(out && { ...out, offThread: true }), reject, fallback: () => mainThread(resolve, reject) });
-    try { w.postMessage({ id, buf, fieldId, missingValue }, [buf]); } catch (e) { _pending.delete(id); mainThread(resolve, reject); }
+    try { w.postMessage({ id, buf, fieldId, missingValue, dirFieldId }, [buf]); } catch (e) { _pending.delete(id); mainThread(resolve, reject); }
   });
 }

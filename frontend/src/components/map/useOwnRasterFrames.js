@@ -21,6 +21,7 @@ import { RASTER_NAMES, getRasterDrawn, publishRasterDrawn, rasterReadoutKilled }
 import { requestIsobars } from './isobarStore';
 import { GUST_LUT, gustScale } from './gustPalette';
 import { setShownGustField, gustFieldTint } from './gustParticles';
+import { setShownCurrentField, setOfPath } from './currentParticles';
 import { v2FieldTint } from './WebGLWindUtils';
 import { CURRENTS_LUT, currentsScale } from './currentsPalette';
 import { loadDownscale, setDownscaled } from './ownRasterDownscale';
@@ -196,6 +197,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
             nearestMaxHours: st.nearestMaxHours || 1, drawnFactor: drawnFactor || 1 };
           emitOwnShown(layer, path);                     // synchronous: the isobars cut with the field, in the same frame
           if (layer === 'gusts') setShownGustField(field || null);   // the wind particles take their colour from it (gustParticles.js)
+          if (layer === 'currents') setShownCurrentField(field || null, setOfPath(path));   // the particles flow on it (currentParticles.js)
           if (path && st.widen) Promise.resolve().then(() => { if (st.widen) st.widen(); });   // first frame on screen: prefetch now
           Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : sourceModel(layer, M)); if (path) setShown(true); });
         });
@@ -213,6 +215,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       setWanted(layer, [], null);
       emitOwnShown(layer, null);
       if (layer === 'gusts') setShownGustField(null);
+      if (layer === 'currents') setShownCurrentField(null);
     };
   }, [engaged, mapInstance, layer, beforeId]);
 
@@ -284,6 +287,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       } else publish();
       noteMiss('no_frame');
       if (layer === 'gusts') setShownGustField(null);   // past the gust range: the particles drop the last frame's colours (advisor hold, #1079)
+      if (layer === 'currents') setShownCurrentField(null);   // no current frame for the hour: no particles (the status line says so)
       tel().want = { validMs, path: null, at: Date.now() };
       setWanted(layer, [], null);
       return;

@@ -100,6 +100,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_OWN_CURRENTS__',
   // gustParticles.test.js ("ships ON: Gusts runs the wind particles; the kill returns it to the heatmap alone"; 2026-11-18)
   '__RAW_DISABLE_GUST_PARTICLES__',
+  // currentParticles.test.js ("ships ON: Currents flows the wind engine on the current; the kill returns the raster alone"; 2026-11-22)
+  '__RAW_DISABLE_CURRENT_PARTICLES__',
   // gustParticles.test.js ("the flicker: on by default, off under its kill and under prefers-reduced-motion"; 2026-11-18)
   '__RAW_DISABLE_GUST_FLICKER__',
   // gustParticles.test.js ("the gust field tints like the wind field on light and beach; both kills turn it off"; 2026-11-18)

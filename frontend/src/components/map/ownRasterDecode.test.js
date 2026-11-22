@@ -72,3 +72,36 @@ test('without a Worker (and under its kill) the same function runs on the main t
   expect(b.offThread).toBe(false);
   expect(b.values).toEqual(ref.values);
 });
+
+// CURRENTS PARTICLES (2026-11-22): the flow direction decodes beside the speed, as one byte a cell, from the one-byte field 14
+// (the publisher's FLOW_DIR_BYTE) or the two-byte frames' field 1; both decode paths agree; a frame without it has none.
+describe('the flow direction beside the drawn field', () => {
+  const band = { id: 13, nb: 1, missing: 0, scale: 0.02, offset: -0.01, codes: Array.from({ length: n }, (_, k) => (k % 9 === 0 ? 0 : 1 + (k % 200))) };
+  const dirByte = { id: 14, nb: 1, missing: 0xFFFFFFFF, scale: 360 / 256, offset: 0, codes: Array.from({ length: n }, (_, k) => (k * 7) % 256) };
+
+  test('the one-byte field: codes kept exactly, worker path = shared path', async () => {
+    const buf = frameBytes({ cols, rows, fields: [band, dirByte] });
+    const got = decodeFieldCore(buf.slice(0), [13, 4], MISSING, [14, 1]);
+    expect(Array.from(got.dirCodes)).toEqual(dirByte.codes);
+    const shared = toField(parseFrame(buf.slice(0)), [13, 4], [14, 1]);
+    expect(Array.from(shared.dirCodes)).toEqual(dirByte.codes);
+    expect(Array.from(got.values)).toEqual(Array.from(shared.values));
+    const viaApi = await decodeOwnField(buf.slice(0), [13, 4], MISSING, [14, 1]);
+    expect(Array.from(viaApi.dirCodes)).toEqual(dirByte.codes);
+  });
+
+  test('the two-byte field 1 (decoded before the speed in its frame) rounds to the same byte', () => {
+    const buf = frameBytes({ cols, rows, fields: [direction, speed] });
+    const got = decodeFieldCore(buf.slice(0), [13, 4], MISSING, [14, 1]);
+    const want = direction.codes.map((c) => Math.round((c * 0.01) * 256 / 360) % 256);
+    expect(Array.from(got.dirCodes)).toEqual(want);
+    expect(got.fieldId).toBe(4);
+  });
+
+  test('no direction asked or none in the frame: no dirCodes, the field as before', () => {
+    const buf = frameBytes({ cols, rows, fields: [band] });
+    expect(decodeFieldCore(buf.slice(0), [13, 4], MISSING, [14, 1]).dirCodes).toBeUndefined();
+    const two = frameBytes({ cols, rows, fields: [band, dirByte] });
+    expect(decodeFieldCore(two.slice(0), [13, 4], MISSING).dirCodes).toBeUndefined();
+  });
+});

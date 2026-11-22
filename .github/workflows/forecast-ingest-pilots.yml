@@ -603,6 +603,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RASTER_CURRENTS: ${{ vars.FRAME_RASTER_CURRENTS }}
           FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}   # kill '0': the old two-byte frames (log §12)
+          FRAME_RASTER_DIR_BYTE: ${{ vars.FRAME_RASTER_DIR_BYTE }}   # kill '0': no one-byte flow direction (Currents particles stop)
           FRAME_RASTER_BUDGET_S: "600"
         run: python scripts/publish_raster_frames.py --set currents
       # G4 (2026-11-17): Copernicus ocean-model water temperature, the WORLD half of arm R2: 1/6 deg, 3-hourly, f000-f237 from the
