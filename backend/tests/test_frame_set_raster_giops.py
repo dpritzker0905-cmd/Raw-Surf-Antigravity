@@ -231,3 +231,17 @@ def test_the_run_states_its_size_pulled_and_kept(tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     pulled = len(ub) + len(vb)
     assert f"pulled {pulled / 1e6:.1f} MB, kept 2.5 MB" in out and f'"bytes_pulled": {pulled}' in out
+
+
+def test_own_module_sets_load_by_path_too():
+    """The advisor's limit (a): frame_set_raster_plugins follows the sibling-import rule, so the by-path route (services not a
+    package) still registers every own-module set and source kind, not only the package import."""
+    import subprocess
+    services = Path(__file__).resolve().parents[1] / "services"
+    code = ("import sys, frame_set_raster_plugins as p; specs = {}; p.register(specs, {}); "
+            "print(sorted(p.SOURCES), sorted(specs), 'services' in sys.modules)")
+    out = subprocess.run([sys.executable, "-c", code], cwd=services, capture_output=True, text=True, timeout=120)
+    assert out.returncode == 0, out.stderr
+    assert "['cmems_currents', 'cmems_sst', 'giops_currents']" in out.stdout and "currents_giops" in out.stdout
+    assert out.stdout.strip().endswith("False")
+    assert {k for k in ("cmems_currents", "cmems_sst", "giops_currents")} <= set(fsr.PLUGIN_SOURCES)

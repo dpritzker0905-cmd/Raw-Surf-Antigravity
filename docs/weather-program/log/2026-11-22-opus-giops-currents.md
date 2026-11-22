@@ -187,3 +187,18 @@ to 30 km". A new frontend test covers it (fragment +5).
 
 **Licence.** The advisor and the director settle on the ECCC End-use Licence. The index carries both statements: the ECCC
 attribution that licence requires, and the OGL sentence the GIOPS catalogue record supports (§8).
+
+## 10. Addendum: the merge order (#1137 → #1135 → #1134) and the 800-line cap
+
+- **The problem.** A trial merge of #1137 (currents animation, head e38bed98c) into this branch merged cleanly. GIOPS
+  inherits the new `dir_byte_field`: its effective fields are (13, 14), and the plane alias maps 13 → 4 and 14 → 1, the same
+  as Copernicus. But `frame_set_raster.py` came to **806 lines**, over the cap.
+- **The fix.** Sets in their own modules now load through `services/frame_set_raster_plugins.py`:
+  - it holds the SST / Copernicus currents and GIOPS imports, with the sibling-import fallback;
+  - its `register()` adds their specs and lattices;
+  - its `SOURCES` table holds their source kinds.
+- **The result.** `frame_set_raster.py` is 789 lines, two fewer than dev. After #1137 adds its 9 lines it is 798.
+- **RTOFS.** #1134 joins by editing only the plugins module: one import on each branch, one line in `register()`.
+- **Test.** A new test loads the plugins module by path, with `services` not importable, and checks every source kind is
+  registered (estate fragment +17).
+- **Merge.** dev goes into this branch once #1137 is on dev; that head goes to the director for a new advisor line.
