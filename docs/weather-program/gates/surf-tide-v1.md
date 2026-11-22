@@ -104,7 +104,7 @@ All constants above (0.85; the trend word lists; spring range = M2 + S2 amplitud
 - **Planted rating offset:** +5 and +10 points on `ON`. The ME test must catch +10.
 - **Leak:** no row before the freeze; the stored-input hashes match.
 
-## 7a. Dormancy (SubQ: low volume is this gate's main risk, p = 0.99)
+## 7a. Dormancy (SubQ ranked low volume as this gate's main risk, model confidence 0.99 in that ranking; not a statistic)
 - Row counts against every floor are reported monthly in the log. That report is a count, never a score.
 - If parts 1-2 have not met their floors 18 months after the freeze, this registration EXPIRES unscored.
   - Any new attempt is a new registration on rows after its own freeze.
@@ -120,3 +120,16 @@ All constants above (0.85; the trend word lists; spring range = M2 + S2 amplitud
 - Re-read the `surf_rating._BUCKETS` edges at freeze; if they changed, the section 3 mapping follows them (the centres rule is fixed, not the numbers).
 - `wave_type` coverage: the share of spots with a parsable type. Below 50% in the catalogue, report break type as "insufficient" and gate on tidal range only.
 - FES η and the constituent amplitudes per spot, from the served tide (PR B). Licence per the tide licence read (`evidence/2026-11-19-research-lead/tide-licence-commercial-read-2026-11-18.md`).
+
+## 10. Vertical datum (advisor limit, 2026-11-22)
+- **`ABS` uses no bathymetry and no chart datum.**
+  - FES η is the predicted tidal elevation about mean sea level, with zero mean over the constituents.
+  - `abs_norm = (η − η_min_spring) / spring range`, where `η_min_spring = −(M2 + S2 amplitudes)` and spring range = `2 × (M2 + S2)` (section 1).
+  - Every term is in the same MSL-referenced frame. MLLW is display only and never enters a rating.
+- **If a later version takes the threshold from `break_depth_m`** (a bathymetry-derived depth), that depth must first be converted to MSL by the rule in `gates/nearshore-moplite-v1.md` section 1a. That is a new registration, not an amendment.
+
+## 11. How the evidence behind this gate was read (advisor limit, 2026-11-22)
+- The literature motivating this gate is in `research/q7-tide-and-surf-quality-2026-11-22.md`.
+- Those references are **Consensus search records (abstract level)**, not re-read papers, unless marked.
+- **Becker, Merrifield and Ford (2014)**, JGR Oceans 119(2), 914-932, doi:10.1002/2013JC009373: full-text re-read ATTEMPTED 2026-11-22 and NOT reached (no open copy found). The bibliographic record and abstract-level finding (setup weaker at high water, stronger at low water, for the same incident waves; tide-dependent breaking on the reef face) were confirmed from library and citing records. Treat it as abstract-level.
+- **SubQ outputs** quoted anywhere in this programme are a model's confidence in its own ranking, NOT a statistic or a probability that a claim is true. They decide nothing here.
