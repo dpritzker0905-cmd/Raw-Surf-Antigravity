@@ -1,0 +1,37 @@
+name: Long-range wind v2 truth snapshot (offline evidence, serves nothing)
+
+# NDBC realtime2 keeps about 45 days, so TEST truth is a weekly snapshot kept as an artifact (registration section 4).
+# Public data only, no secret. DISPATCH-ONLY with the owner's typed word; run weekly from 2026-12-08 to 2027-02-04
+# (shifted with the window under the missed-freeze rule).
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner_word_ref:
+        description: 'Where the owner typed the dispatch word. Required.'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0
+      - name: Save every buoy station realtime2 file verbatim
+        working-directory: backend
+        run: |
+          test -n "${{ github.event.inputs.owner_word_ref }}" || exit 1
+          python scripts/wind_lr2_collect.py snapshot --cache "$RUNNER_TEMP/wlr2" \
+            --stations ../docs/weather-program/evidence/wind-long-range-v2/wind_lr2_stations.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wind-lr2-snapshot-${{ github.run_id }}
+          retention-days: 90
+          path: ${{ runner.temp }}/wlr2/snapshots/

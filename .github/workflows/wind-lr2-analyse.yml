@@ -1,0 +1,80 @@
+name: Long-range wind v2 analysis (offline evidence, serves nothing)
+
+# stations | pair | fit | freeze | score. DISPATCH-ONLY with the owner's typed word. `score` is the ONE scored look and
+# refuses on a freeze-manifest mismatch. Public data only; no secret. The collected run files come from the named
+# collection run's artifacts (wind-lr2-runs-<kind>-<shard>).
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'stations | pair | fit | freeze | score'
+        required: true
+        type: choice
+        options: ['stations', 'pair', 'fit', 'freeze', 'score']
+      owner_word_ref:
+        description: 'Where the owner typed the dispatch word. Required.'
+        required: true
+      runs_run_id:
+        description: 'fit/score: the collection workflow run whose wind-lr2-runs-* artifacts are read'
+        required: false
+        default: ''
+      snapshot_run_id:
+        description: 'score: the snapshot workflow run id whose artifact holds the weekly realtime2 snapshots'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0 eccodes==2.50.0
+      - name: Collected run files
+        if: ${{ github.event.inputs.runs_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wind-lr2-runs-*
+          path: ${{ runner.temp }}/wlr2/downloaded
+          run-id: ${{ github.event.inputs.runs_run_id }}
+          github-token: ${{ github.token }}
+      - name: Truth snapshots
+        if: ${{ github.event.inputs.snapshot_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: wind-lr2-snapshot-${{ github.event.inputs.snapshot_run_id }}
+          path: ${{ runner.temp }}/wlr2/snapshots
+          run-id: ${{ github.event.inputs.snapshot_run_id }}
+          github-token: ${{ github.token }}
+      - name: Run the command
+        working-directory: backend
+        env:
+          EVID: ../docs/weather-program/evidence/wind-long-range-v2
+        run: |
+          test -n "${{ github.event.inputs.owner_word_ref }}" || exit 1
+          C="$RUNNER_TEMP/wlr2"; mkdir -p "$C/runs_fit" "$C/runs_test"
+          for f in wind_lr2_stations.json wind_lr2_pairing.json wind_lr2_clim_stations.npz wind_lr2_coef_*.json; do cp "$EVID"/$f "$C"/ 2>/dev/null || true; done
+          find "$C/downloaded" -name '*.npz' -path '*runs-fit*' -exec cp {} "$C/runs_fit/" \; 2>/dev/null || true
+          find "$C/downloaded" -name '*.npz' -path '*runs-test*' -exec cp {} "$C/runs_test/" \; 2>/dev/null || true
+          case "${{ github.event.inputs.command }}" in
+            stations) python scripts/wind_lr_hindcast.py stations --cache "$C" && cp "$C/wind_lr_stations.json" "$C/wind_lr2_stations.json" ;;
+            pair)     python scripts/wind_lr2_run.py pair --cache "$C" --spots "$EVID/spots.json" ;;
+            fit)      python scripts/wind_lr2_run.py fit --cache "$C" ;;
+            freeze)   python scripts/wind_lr2_run.py freeze --cache "$C" --out "$C/freeze-manifest.json" ;;
+            score)    python scripts/wind_lr2_run.py score --cache "$C" --manifest "$EVID/freeze-manifest.json" --out "$C/report.json" ;;
+          esac
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wind-lr2-${{ github.event.inputs.command }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/wlr2/*.json
+            ${{ runner.temp }}/wlr2/*.npz
