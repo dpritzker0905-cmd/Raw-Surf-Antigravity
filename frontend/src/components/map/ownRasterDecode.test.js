@@ -72,3 +72,101 @@ test('without a Worker (and under its kill) the same function runs on the main t
   expect(b.offThread).toBe(false);
   expect(b.values).toEqual(ref.values);
 });
+
+// CURRENTS PARTICLES (2026-11-22): the flow direction decodes beside the speed, as one byte a cell, from the one-byte field 14
+// (the publisher's FLOW_DIR_BYTE) or the two-byte frames' field 1; both decode paths agree; a frame without it has none.
+describe('the flow direction beside the drawn field', () => {
+  const band = { id: 13, nb: 1, missing: 0, scale: 0.02, offset: -0.01, codes: Array.from({ length: n }, (_, k) => (k % 9 === 0 ? 0 : 1 + (k % 200))) };
+  const dirByte = { id: 14, nb: 1, missing: 0xFFFFFFFF, scale: 360 / 256, offset: 0, codes: Array.from({ length: n }, (_, k) => (k * 7) % 256) };
+
+  test('the one-byte field: codes kept exactly, worker path = shared path', async () => {
+    const buf = frameBytes({ cols, rows, fields: [band, dirByte] });
+    const got = decodeFieldCore(buf.slice(0), [13, 4], MISSING, [14, 1]);
+    expect(Array.from(got.dirCodes)).toEqual(dirByte.codes);
+    const shared = toField(parseFrame(buf.slice(0)), [13, 4], [14, 1]);
+    expect(Array.from(shared.dirCodes)).toEqual(dirByte.codes);
+    expect(Array.from(got.values)).toEqual(Array.from(shared.values));
+    const viaApi = await decodeOwnField(buf.slice(0), [13, 4], MISSING, [14, 1]);
+    expect(Array.from(viaApi.dirCodes)).toEqual(dirByte.codes);
+  });
+
+  test('the two-byte field 1 (decoded before the speed in its frame) rounds to the same byte', () => {
+    const buf = frameBytes({ cols, rows, fields: [direction, speed] });
+    const got = decodeFieldCore(buf.slice(0), [13, 4], MISSING, [14, 1]);
+    const want = direction.codes.map((c) => Math.round((c * 0.01) * 256 / 360) % 256);
+    expect(Array.from(got.dirCodes)).toEqual(want);
+    expect(got.fieldId).toBe(4);
+  });
+
+  test('no direction asked or none in the frame: no dirCodes, the field as before', () => {
+    const buf = frameBytes({ cols, rows, fields: [band] });
+    expect(decodeFieldCore(buf.slice(0), [13, 4], MISSING, [14, 1]).dirCodes).toBeUndefined();
+    const two = frameBytes({ cols, rows, fields: [band, dirByte] });
+    expect(decodeFieldCore(two.slice(0), [13, 4], MISSING).dirCodes).toBeUndefined();
+  });
+});
+
+// OLD CLIENTS READ NEW FRAMES (advisor limit (c) on #1137): the decoder of dev 5bbf5ee25, frozen verbatim, reads a frame that
+// carries the new field 14 after the band (encode_planes writes fields in id order) and returns the band exactly as the new
+// decoder does; the shared path (parseFrame + toField, unchanged by #1137) reads it too. A deployed client never breaks on it.
+function devDecodeFieldCore(buf, fieldId, missingValue) {
+  const bytes = new Uint8Array(buf);
+  const dv = new DataView(buf);
+  if (bytes.length < 72 || bytes[0] !== 82 || bytes[1] !== 83 || bytes[2] !== 87 || bytes[3] !== 70) throw new Error('raster frame: bad magic');
+  if (dv.getUint16(4, true) !== 1 || dv.getUint16(6, true) !== 1) throw new Error('raster frame: unsupported version');
+  const cols = dv.getUint16(8, true); const rows = dv.getUint16(10, true);
+  if (dv.getUint8(16) !== 0 || dv.getUint8(17) !== 0) throw new Error('raster frame: unsupported node order');
+  const fieldCount = dv.getUint8(18); const headerBytes = dv.getUint32(20, true);
+  const bounds = { west: dv.getFloat64(24, true), south: dv.getFloat64(32, true), east: dv.getFloat64(40, true), north: dv.getFloat64(48, true) };
+  const validEpoch = dv.getFloat64(56, true); const runEpoch = dv.getFloat64(64, true);
+  const n = cols * rows;
+  // `fieldId`: one id or a preference list (a one-byte band field first, then its two-byte form: both decode during a rollout)
+  const wanted = Array.isArray(fieldId) ? fieldId : [fieldId];
+  const present = [];
+  for (let f = 0; f < fieldCount; f++) present.push(dv.getUint8(72 + f * 24));
+  const pick = wanted.find((id) => present.indexOf(id) >= 0);
+  if (pick === undefined) return null;
+  let pos = headerBytes;
+  for (let f = 0; f < fieldCount; f++) {
+    const d = 72 + f * 24;
+    const id = dv.getUint8(d); const dtype = dv.getUint8(d + 1); const layout = dv.getUint8(d + 2);
+    const missing = dv.getUint32(d + 4, true); const scale = dv.getFloat64(d + 8, true); const offset = dv.getFloat64(d + 16, true);
+    if (dtype !== 1 && dtype !== 2 && dtype !== 4) throw new Error(`raster frame: unsupported dtype ${dtype}`);
+    const size = n * dtype;
+    if (pos + size > bytes.length) throw new Error(`raster frame: truncated field ${id}`);
+    if (id === pick) {
+      const values = new Float32Array(n);
+      let min = Infinity; let max = -Infinity;
+      const hasMissing = missing !== 0xFFFFFFFF;
+      for (let k = 0; k < n; k++) {
+        let code;
+        if (dtype === 1) code = bytes[pos + k];
+        else if (dtype === 2) code = layout === 1 ? (bytes[pos + k] | (bytes[pos + n + k] << 8)) : (bytes[pos + 2 * k] | (bytes[pos + 2 * k + 1] << 8));
+        else code = layout === 1
+          ? bytes[pos + k] + bytes[pos + n + k] * 256 + bytes[pos + 2 * n + k] * 65536 + bytes[pos + 3 * n + k] * 16777216
+          : bytes[pos + 4 * k] + bytes[pos + 4 * k + 1] * 256 + bytes[pos + 4 * k + 2] * 65536 + bytes[pos + 4 * k + 3] * 16777216;
+        if (hasMissing && code === missing) { values[k] = missingValue; continue; }
+        const v = code * scale + offset;
+        values[k] = v;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      return { cols, rows, bounds, values, min, max, validMs: validEpoch * 1000, runMs: Number.isFinite(runEpoch) ? runEpoch * 1000 : null, fieldId: pick };
+    }
+    pos += size;
+  }
+  return null;
+}
+
+test('old clients read the new frames: the dev decoder and the shared path return the band unchanged beside field 14', () => {
+  const band = { id: 13, nb: 1, missing: 0, scale: 0.02, offset: -0.01, codes: Array.from({ length: n }, (_, k) => (k % 9 === 0 ? 0 : 1 + (k % 200))) };
+  const dirByte = { id: 14, nb: 1, missing: 0xFFFFFFFF, scale: 360 / 256, offset: 0, codes: Array.from({ length: n }, (_, k) => (k % 2 ? 0 : (k * 4) % 256)) };
+  const oldOnly = devDecodeFieldCore(frameBytes({ cols, rows, fields: [band] }), [13, 4], MISSING);
+  const oldNew = devDecodeFieldCore(frameBytes({ cols, rows, fields: [band, dirByte] }), [13, 4], MISSING);
+  expect(oldNew.fieldId).toBe(13);
+  expect(Array.from(oldNew.values)).toEqual(Array.from(oldOnly.values));
+  expect([oldNew.min, oldNew.max]).toEqual([oldOnly.min, oldOnly.max]);
+  const shared = toField(parseFrame(frameBytes({ cols, rows, fields: [band, dirByte] })), [13, 4]);
+  expect(Array.from(shared.values)).toEqual(Array.from(oldOnly.values));
+  expect(shared.dirCodes).toBeUndefined();
+});
