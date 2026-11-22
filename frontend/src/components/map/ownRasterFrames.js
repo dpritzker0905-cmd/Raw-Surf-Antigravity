@@ -71,7 +71,7 @@ export const OWN_RASTER_SETS = {
     // have a gap, our ICON 0.5-degree set (a whole-set miss), then the ICON-anchored GFS prediction, then a labelled GFS stand-in
     // (ownRasterGapFill.js). Kill: __RAW_DISABLE_RASTER_OWN_GAP_FILL__ (gaps then say "unavailable").
     fallback: null, field: TEMP_FIELD, unit: '°C', workerDecode: true, ownOnlyModels: ['ICON'],
-    gapFill: { ICON: { coarse: 'ICON/weather/temperature/global_0p5', anchored: true } },
+    gapFill: { ICON: { coarse: 'ICON/weather/temperature/global_0p5', anchored: true, offset: 'ICON/weather/temperature_offset/global_0p5' } },
   },
   // FOG (2026-11-14): GFS surface visibility, the field the .om path draws for EVERY model (it pins ncep_gfs025 for fog,
   // openMeteoEndpoints.js), so every model reads the GFS set here too: the same field under the same label as before.
@@ -105,7 +105,7 @@ export const OWN_RASTER_SETS = {
     // clamped to 0-100 %; ICON, with no set, draws GFS cloud labelled "no ICON frames: NOAA GFS shown" until its own set publishes.
     models: { GFS: 'GFS/weather/cloud_cover/global_0p25', EURO: 'EURO/weather/cloud_cover/global_0p25' },
     fallback: null, field: CLOUD_FIELD, unit: '%', ownOnlyModels: ['GFS', 'EURO', 'ICON'],
-    gapFill: { EURO: { anchored: true, clamp: [0, 100] }, ICON: { anchored: false } },
+    gapFill: { EURO: { anchored: true, clamp: [0, 100], offset: 'EURO/weather/cloud_cover_offset/global_0p5' }, ICON: { anchored: false } },
   },
   // PRECIPITATION (2026-11-12, the owner: "Yes, build it"): the app's 'rain' layer from GFS APCP (frame_set_raster.py,
   // set `precipitation`): mm/h in the hour before the frame (the 3-hour mean past f120), the same meaning as the .om field,
@@ -329,9 +329,13 @@ export function gapFillFor(layer, model = 'GFS') {
 /** A gap fill's own index, read whether or not that set is on by default (it is part of the picked model's layer): the fill
  *  model's set ('fill') or the picked model's coarser set ('coarse'). The global, layer, static-frames and per-set kills apply.
  *  A coarse index comes back flagged `__coarse` (a shallow copy; the pinned index is never mutated). */
+/** The gap fill's S + residual split (ownRasterGapFill b'): DARK, default off. The ingest's MODEL - GFS offset set is read only
+ *  with window.__RAW_RASTER_GAPFILL_OFFSET__ = true (no skill is claimed until its pre-registered score passes). */
+export const gapFillOffsetOn = () => W().__RAW_RASTER_GAPFILL_OFFSET__ === true;
 export async function gapFillIndex(layer, model, which) {
   const fill = gapFillFor(layer, model);
-  const key = !fill ? null : (which === 'coarse' ? fill.coarse : setKey(layer, FILL_MODEL));
+  if (which === 'offset' && (!fill || !fill.offset || !gapFillOffsetOn())) return null;
+  const key = !fill ? null : (which === 'coarse' ? fill.coarse : which === 'offset' ? fill.offset : setKey(layer, FILL_MODEL));
   const w = W();
   if (!key || w.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true || w[`__RAW_DISABLE_RASTER_OWN_${String(layer).toUpperCase()}__`] === true) return null;
   if (!staticFramesEnabled() || !staticFramesBase() || !staticSetEnabled(key)) return null;
@@ -347,12 +351,13 @@ export async function gapFillIndex(layer, model, which) {
  * fallback's frames past its last one, flagged `estimated` (the basis the status line names). Each entry is a shallow copy
  * carrying the set key it loads from (`setKey`) and the model it shows (`model`); the indexes are never mutated.
  */
-export function combinedFrames(layer, model, index, fallbackIndex) {
+export function combinedFrames(layer, model, index, fallbackIndex, offsetIndex = null) {
   const m = up(model);
   const fill = gapFillFor(layer, m);
   if (fill) {
     return gapFillFrames({ ownIndex: index, fillIndex: fallbackIndex, model: m, sourceModel: sourceModel(layer, m), anchored: !!fill.anchored, clamp: fill.clamp || null,
-      keys: { own: setKey(layer, m), coarse: fill.coarse || null, fill: setKey(layer, FILL_MODEL) }, framesOf });
+      keys: { own: setKey(layer, m), coarse: fill.coarse || null, fill: setKey(layer, FILL_MODEL), offset: fill.offset || null }, framesOf,
+      offsetIndex: gapFillOffsetOn() ? offsetIndex : null });
   }
   const own = framesOf(index).map((f) => ({ ...f, setKey: setKey(layer, m), model: sourceModel(layer, m), estimated: null }));
   const set = OWN_RASTER_SETS[layer] || {};
@@ -589,10 +594,12 @@ async function anchorInput(layer, entry, priority) {
 /** A gap fill's anchored prediction (ownRasterGapFill.anchoredField): GFS at the hour, offset by the model's own difference from
  *  GFS at its last frame, the offset weighted down over five days. Null when any input fails (the hold rule keeps the last frame). */
 async function loadAnchored(layer, frame, priority) {
-  const { now, fillAnchor, modelAnchor, weight, clamp } = frame.parts;
-  const [a, b, c] = await Promise.all([loadField(layer, now, priority), anchorInput(layer, fillAnchor, 'low'), anchorInput(layer, modelAnchor, 'low')]);
+  const { now, fillAnchor, modelAnchor, weight, clamp, offset } = frame.parts;
+  const [a, b, c, s] = await Promise.all([loadField(layer, now, priority), anchorInput(layer, fillAnchor, 'low'), anchorInput(layer, modelAnchor, 'low'),
+    offset ? anchorInput(layer, offset, 'low') : null]);
   if (!a || !b || !c) { noteMiss('anchor_input_missing'); noteFailed(frame.path); return null; }
-  const field = anchoredField(a, b, c, weight, clamp || null);
+  if (offset && !s) noteMiss('offset_missing');           // b' without its S: the plain anchored offset (the label is the same)
+  const field = anchoredField(a, b, c, weight, clamp || null, s || null);
   if (getField(now.path) === a) _fields.delete(now.path);   // the composed field replaces its GFS input in the window
   _failedAt.delete(frame.path);
   keep(frame.path, field);
