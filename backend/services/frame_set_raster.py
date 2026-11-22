@@ -27,6 +27,7 @@ sets publish only when switched on (FRAME_RASTER_TEMPERATURE=1, FRAME_RASTER_CLO
 """
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import threading
@@ -382,6 +383,9 @@ try:  # G4 (2026-11-17): Copernicus ocean-model water temp, 1/6 degree; its spec
 except ImportError:  # pragma: no cover
     import frame_set_raster_sst as _sst
 _sst.register(SPECS, GRIDS)
+PLUGIN_SOURCES = {}   # own-module sets (Canada GIOPS currents, 2026-11-22): each register()s its SPECS and source-kind entries
+for _p in (importlib.import_module(f"services.{n}") for n in ("frame_set_raster_giops",)):
+    _p.register(SPECS, GRIDS, PLUGIN_SOURCES)
 
 
 def precip_step(f):
@@ -403,6 +407,8 @@ def make_source(spec, session=None):
         return _sst.CmemsCurrentsSource(spec, session)
     if kind == "cmems_sst":
         return _sst.CmemsSstSource(spec, session)
+    if kind in PLUGIN_SOURCES:
+        return PLUGIN_SOURCES[kind](spec, session)
     try:
         from services import frame_set_raster_sources as srcs
     except ImportError:  # pragma: no cover

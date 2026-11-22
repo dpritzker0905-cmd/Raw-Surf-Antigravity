@@ -20,5 +20,6 @@ export const RASTER_SET_KEYS = Object.freeze([
   // 2026-11-15: per-model gusts in knots (the new 'gusts' layer; FRAME_RASTER_GUST, _GUST_EURO, _GUST_ICON)
   'GFS/weather/gust/global_0p25', 'EURO/weather/gust/global_0p25', 'ICON/weather/gust/global_0p25',
   'CMEMS/marine/currents/global_0p25',   // 2026-11-15: Copernicus surface currents, speed kn + direction (FRAME_RASTER_CURRENTS)
+  'GIOPS/marine/currents/global_0p25',   // 2026-11-22: Canada GIOPS (ECCC) surface currents under ICON (FRAME_RASTER_CURRENTS_GIOPS)
   'CMEMS/marine/water_temp/global_1p6',   // 2026-11-17 (G4): Copernicus top-layer sea temperature, 1/6 deg (FRAME_RASTER_WATER_TEMP_CMEMS)
 ]);

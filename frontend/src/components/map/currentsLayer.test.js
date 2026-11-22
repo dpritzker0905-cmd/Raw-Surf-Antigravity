@@ -2,7 +2,7 @@
 // legend in the user's unit, the Copernicus credit, and the frame's direction field in the wind layout.
 import { CURRENTS_LUT, MS_PER_KN, currentsColor, currentsLegend, currentsScale } from './currentsPalette';
 import { toOklch } from './WindColorRamp';
-import { DEFAULT_ON_LAYERS, OWN_ONLY_LAYERS, OWN_RASTER_SETS, SPEED_FIELD, meteredLink, ownFramesOn, ownWindowRadius, setKey, sourceModel, windowRadius } from './ownRasterFrames';
+import { DEFAULT_ON_LAYERS, MODEL_SOURCE, OWN_ONLY_LAYERS, OWN_RASTER_SETS, SPEED_FIELD, meteredLink, modelSetOn, ownFramesOn, ownWindowRadius, setKey, sourceModel, windowRadius } from './ownRasterFrames';
 import { RASTER_SET_KEYS } from './staticRasterSets';
 import { buildStepLut, colorAtValue } from './ownRasterLayer';
 import { RASTER_STATUS_LAYERS, describeRasterFrame } from './rasterDrawnFrame';
@@ -38,6 +38,48 @@ describe('currents set and switches', () => {
     expect(RASTER_STATUS_LAYERS.has('currents')).toBe(true);
     const rec = { layer: 'currents', shown: null, want: null, unavailable: 'Currents: no forecast for this hour' };
     expect(describeRasterFrame(rec, 'currents', Date.now()).state).toBe('unavailable');
+  });
+});
+
+// Canada GIOPS under the ICON picker (2026-11-22): its own ocean model and its own credit, dark until its set is published.
+describe('ICON currents from Canada GIOPS', () => {
+  const GIOPS = 'GIOPS/marine/currents/global_0p25';
+  const CMEMS = 'CMEMS/marine/currents/global_0p25';
+  afterEach(() => {
+    delete window.__RAW_GIOPS_CURRENTS__; delete window.__RAW_DISABLE_GIOPS_CURRENTS__;
+    window.localStorage.removeItem('__RAW_GIOPS_CURRENTS__');
+  });
+  test('dark by default: ICON keeps Copernicus until the lever opts in', () => {
+    expect(OWN_RASTER_SETS.currents.modelSets.ICON).toMatchObject({ key: GIOPS, on: false });
+    expect(setKey('currents', 'ICON')).toBe(CMEMS);
+    expect(RASTER_SET_KEYS).toContain(GIOPS);
+  });
+  test('the lever (window or localStorage) sends ICON, and only ICON, to GIOPS', () => {
+    window.__RAW_GIOPS_CURRENTS__ = true;
+    expect(setKey('currents', 'ICON')).toBe(GIOPS);
+    expect(sourceModel('currents', 'icon')).toBe('GIOPS');
+    expect(MODEL_SOURCE.GIOPS).toBe('Canada GIOPS (ECCC)');
+    expect(setKey('currents', 'GFS')).toBe(CMEMS);
+    expect(setKey('currents', 'EURO')).toBe(CMEMS);
+    delete window.__RAW_GIOPS_CURRENTS__;
+    window.localStorage.setItem('__RAW_GIOPS_CURRENTS__', '1');
+    expect(setKey('currents', 'ICON')).toBe(GIOPS);
+  });
+  test('the kill switch sends ICON back to Copernicus, even over the lever and a default-on entry', () => {
+    window.__RAW_GIOPS_CURRENTS__ = true;
+    window.__RAW_DISABLE_GIOPS_CURRENTS__ = true;
+    expect(setKey('currents', 'ICON')).toBe(CMEMS);
+    expect(modelSetOn({ ...OWN_RASTER_SETS.currents.modelSets.ICON, on: true })).toBe(false);
+    delete window.__RAW_DISABLE_GIOPS_CURRENTS__;
+    expect(modelSetOn({ ...OWN_RASTER_SETS.currents.modelSets.ICON, on: true })).toBe(true);
+  });
+  test('credits ECCC by name and licence, never ICON', () => {
+    const c = creditFor('currents', { currents: 'GIOPS' }, {});
+    expect(c.text).toBe('Canada GIOPS (ECCC) · open-ocean current; no tides, not a nearshore / rip current');
+    expect(c.href).toBe('https://eccc-msc.github.io/open-data/licence/readme_en/');
+    expect(c.label).toMatch(/Data Source: Environment and Climate Change Canada/);
+    expect(c.label).toMatch(/GIOPS model \(half a metre down, 3-hour mean/);
+    expect(`${c.text} ${c.label}`).not.toMatch(/ICON|Copernicus/);
   });
 });
 

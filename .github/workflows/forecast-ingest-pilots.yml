@@ -605,6 +605,24 @@ jobs:
           FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}   # kill '0': the old two-byte frames (log §12)
           FRAME_RASTER_BUDGET_S: "600"
         run: python scripts/publish_raster_frames.py --set currents
+      # CANADA GIOPS SURFACE CURRENTS (2026-11-22): the Currents layer's own source under the ICON picker (DWD runs no ocean model).
+      # ECCC's GIOPS 0.2-deg 3 h-mean u/v at 0.5 m from the MSC Datamart, 00Z run, every 6 h to 240 h, bilinear onto 0.25 deg
+      # (services/frame_set_raster_giops.py). Measured offline 2026-11-22: 80 GETs (~200 MB read), 40 frames, 14.4 MB written,
+      # 13-21 s; a run whose 00Z cycle is already published does 4 HEADs and stops (1 s). The 00Z files land ~04:45Z, so the
+      # 11:45 run publishes it: one cycle a day. Licence: ECCC Data Servers End-use Licence (attribution to ECCC). DARK: off
+      # unless the repository variable FRAME_RASTER_CURRENTS_GIOPS = '1'.
+      - name: Publish raster static frames (Canada GIOPS currents; off unless FRAME_RASTER_CURRENTS_GIOPS=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_GIOPS == '1' }}
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CURRENTS_GIOPS: ${{ vars.FRAME_RASTER_CURRENTS_GIOPS }}
+          FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}   # kill '0': the old two-byte frames (log §12)
+          FRAME_RASTER_BUDGET_S: "300"
+        run: python scripts/publish_raster_frames.py --set currents_giops
       # G4 (2026-11-17): Copernicus ocean-model water temperature, the WORLD half of arm R2: 1/6 deg, 3-hourly, f000-f237 from the
       # hourly-mean thetao top level (the same CMEMS store family as currents). Offline cost: 80 frames, 71.6 MB, 47 s
       # (docs/weather-program/log/2026-11-17-opus-g4-copernicus-sst.md). ON by default (David 2026-11-17); kill: the repository
