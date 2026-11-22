@@ -6,7 +6,7 @@ Owner decision. This note gives a recommendation and the evidence. **Nothing ser
 
 **Move US points to MLLW (NOAA chart datum) as the primary displayed datum, with MSL shown as a secondary figure during a transition, behind an owner decision and a kill switch.** Keep MSL for non-US points and for all internal and model references (the eta cap and the model arithmetic stay MSL-referenced).
 
-Ship it as a **dark** served-number change under the house rule (served numbers ship dark, with a `SCOREBOARD.md` row and a kill switch), not as a default-on visual change. Do not change the display until the owner says so.
+Rollout rule: the older "served numbers ship dark" rule is superseded. D-065 ships fixes ON with guardrails (kill switch, `SCOREBOARD.md` row, the history filter, and the live guardrail). A staged dark rollout is a valid choice, but it is **the owner's choice**, not a repo requirement. Present it to the owner as one option. Do not change the display until the owner says so.
 
 **Rollout caution (from the longcat review, 2026-11-22):** the shift is large at some points (Boston 1.586 m), so a single switch-over is too blunt. Stage it: show both values with units on every US point during transition, and roll out by region or as owner opt-in before making MLLW the default. Each point needs a prominent datum label. The note does not yet know whether any user relies on the displayed number for navigation or safety, so confirm that before the default flips.
 
@@ -47,6 +47,8 @@ Both reviewers arrived at MLLW for US points. The earlier draft (keep MSL, propo
 
 ## 6. Constraints the implementation must meet
 
+- **EPOCH (advisor, 2026-11-22).** CO-OPS MSL and MLLW are on the **1983–2001 National Tidal Datum Epoch**. Our "local MSL" carries the **2016–2025 altimetry mean**. Adding the CO-OPS (MSL − MLLW) offset to our level therefore reads high by the sea-level rise since the epoch, about **5–15 cm, more on the Gulf**, unless corrected. The build must either apply an explicit epoch correction or state the mismatch in its label and its SCOREBOARD row. The offsets in §2 are epoch-1983–2001 values, not current ones.
+- **NON-GAUGE POINTS (advisor, 2026-11-22).** Most spots are not at a gauge. MLLW at those points needs either a VDatum-style interpolation between gauges or our own 19-year constituent computation (the NTDE is 1983–2001). The build must **name the source for each point** (gauge table, interpolation, or constituent computation) and show it on the point's datum label.
 - Per-spot MLLW offsets must come from station datum tables (or the offline constituents), labelled with their source. Non-US points keep MSL or LAT.
 - Negative heights are valid and need copy that does not read as an error.
 - Light, dark and beach themes, desktop and mobile, and ARIA labels on any control, per the repo rules.
