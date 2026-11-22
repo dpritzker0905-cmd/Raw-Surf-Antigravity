@@ -49,12 +49,18 @@ def sums_text(items: List[dict], prefix: str) -> str:
     return "".join(f"{r['sha256']}  {r['key'][len(prefix.rstrip('/')) + 1:]}\n" for r in items)
 
 
+def _supabase_headers(key):
+    """Supabase API-key headers. sb_ keys are not JWTs and are rejected as Bearer, so the Bearer copy is
+    sent only for a legacy JWT key (inline copy of core.supabase_auth: this script runs by path)."""
+    return {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+
+
 def upload_http(base: str, key: str, bucket: str = BUCKET) -> Callable[[str, bytes, str], None]:
     import requests
 
     def put(obj_key: str, data: bytes, ctype: str) -> None:
         r = requests.post(f"{base}/storage/v1/object/{bucket}/{obj_key}", data=data, timeout=300,
-                          headers={"Authorization": f"Bearer {key}", "apikey": key, "Content-Type": ctype, "x-upsert": "false"})
+                          headers={**_supabase_headers(key), "Content-Type": ctype, "x-upsert": "false"})
         if r.status_code not in (200, 201):
             raise RuntimeError(f"upload {obj_key}: HTTP {r.status_code}")      # the body may echo request details: not printed
     return put
@@ -107,7 +113,7 @@ def list_http(base: str, key: str, bucket: str = BUCKET) -> Callable[[str], List
             folder, offset = todo.pop(), 0
             while True:
                 r = requests.post(f"{base}/storage/v1/object/list/{bucket}", timeout=120,
-                                  headers={"Authorization": f"Bearer {key}", "apikey": key},
+                                  headers=_supabase_headers(key),
                                   json={"prefix": folder + "/", "limit": 1000, "offset": offset})
                 if r.status_code != 200:
                     raise RuntimeError(f"list {folder}: HTTP {r.status_code}")
@@ -126,7 +132,7 @@ def get_http(base: str, key: str, bucket: str = BUCKET) -> Callable[[str], bytes
 
     def get(obj_key: str) -> bytes:
         r = requests.get(f"{base}/storage/v1/object/{bucket}/{obj_key}", timeout=600,
-                         headers={"Authorization": f"Bearer {key}", "apikey": key})
+                         headers=_supabase_headers(key))
         if r.status_code != 200:
             raise RuntimeError(f"download {obj_key}: HTTP {r.status_code}")
         return r.content
