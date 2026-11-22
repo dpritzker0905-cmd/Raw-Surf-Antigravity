@@ -38,12 +38,20 @@ All constants above (0.85; the trend word lists; spring range = M2 + S2 amplitud
   - "beach" or "sandbar" → BEACH;
   - "river", "estuary" or "bar" (and not BEACH) → BAR, pooled into POINT for gating and reported alone;
   - else UNKNOWN (reported, never gated).
+  - A `wave_type` that matches keywords of TWO classes (e.g. "reef and beach") is AMBIGUOUS. It is excluded from the cells and reported (Reflection review).
+  - The parse's error rate is measured before freeze on a hand-checked random sample of 100 spots by a reader blind to any rating, and reported.
 - **Tidal range:** the spot's mean spring range from FES: MICRO < 2 m, MESO 2-4 m, MACRO > 4 m.
-- **Cells:** break type (REEF, POINT, BEACH) × range (MICRO, MESO, MACRO), 9 cells. A cell below its floor is "insufficient".
+- **Cells:** break type (REEF, POINT, BEACH) × range (MICRO, MESO, MACRO), 9 cells.
+  - A cell below its floor is "insufficient".
+  - Its rows still count in the pooled line and in its break-type margin (the 3 break-type lines are added to each family), so sparse cells never drive the "no cell worse" rule.
 
 ## 3. Truth mapping and rows
 - Blind quality levels map to the centres of the rating's own buckets (`surf_rating._BUCKETS`, edges 14 / 28 / 42 / 56 / 70 / 84, read on `dev` fe2240df1): very poor 7, poor 21, poor-to-fair 35, fair 49, fair-to-good 63, good 77, epic 92.
-- Also reported: the level hit rate (the served level equals the observed level) and the within-one-level rate.
+- **Ordinal check (a pass condition, not just reported; Reflection review):** a passing arm must also not lower the level hit rate (the served level equals the observed level). That way an MAE gain cannot come only from the bucket-centre spacing.
+  - The within-one-level rate is reported.
+  - So is the MAE under an alternative mapping (the bucket's lower edge + 3).
+- **Selection audit (reported):** blind-row counts by tide tercile, hour of day and spot, against all check-ins at the same spots. This shows whether blind reporting is tide-selected.
+- **Tide input:** the FES level is a harmonic PREDICTION, identical in the run the user could have seen and in any later analysis, so it carries no observation leak. The scorer records the tide-table version used.
 - **Row:** one blind observation with a quality level, a spot, and a time.
 - The forecast is the rating at the observation hour from the run the user could have seen: the latest precompute issued before `observed_at`, to the hour. Each arm is recomputed from the stored inputs of that run. Nothing is re-fetched, and the live backend is never called.
 - **Duplicates:** at most one row per (user, spot, 3 h block). Corroborating rows from other users are kept.
@@ -57,7 +65,9 @@ All constants above (0.85; the trend word lists; spring range = M2 + S2 amplitud
   - rows with `observed_at` before the freeze commit are NEVER used (they could have been seen);
   - TEST = every row after the freeze, until the floors are met, then ONE scored look.
   - Nothing is fitted in parts 1 and 2, so there is no TRAIN.
-- **Bootstrap:** a paired moving-block bootstrap over observation DATES, with spot clusters kept whole inside each date (14-day blocks, B = 10,000, seed 20261122). The blocks are long because check-in volume is thin and conditions persist through swell events.
+- **Bootstrap (two-level; Reflection review):**
+  - 14-day date blocks are resampled (moving blocks, B = 10,000, seed 20261122). The blocks are long because check-in volume is thin and conditions persist through swell events.
+  - Then, within each drawn block, USERS are resampled with all their rows together, so a prolific reporter cannot carry the precision.
 - **Lines and families:**
   - Part 1: `ON − OFF`, pooled plus 9 cells, one Holm family (one-sided "better").
   - Part 2: (`REL+TREND − ON`, `ABS − ON`) × (pooled plus the cells where the arm differs from ON), one Holm family per arm.
@@ -70,7 +80,9 @@ All constants above (0.85; the trend word lists; spring range = M2 + S2 amplitud
     - `c_s ~ N(c_g, τ_c)` and `w_s ~ N(w_g, τ_w)`;
     - g = break type × tidal range;
     - the group centres start at the expert band's median for the group.
-  - Fitted by penalised least squares on TRAIN only. τ is chosen by leave-one-block-out CV inside TRAIN.
+  - Fitted by penalised least squares on TRAIN only.
+  - τ is chosen by NESTED leave-one-block-out CV inside TRAIN (the outer score never sees the inner choice).
+  - TRAIN must cover at least two seasons per spot used, else the spot uses its group band. Season = meteorological quarter.
 - **Volume floor per spot:** ≥ 30 blind quality rows spread over ≥ 3 tide terciles (≥ 5 rows in each). A spot below the floor uses its group band. A group below 5 qualifying spots uses the expert band.
 - **Holdout:** per spot, time-blocked. Its newest 30% of rows are TEST, with a 14-day gap. Spots are never split at random.
 - **Gate:** `HIER − SHIPPED` MAE one-sided better after Holm across break types; no break type worse; replicated in both halves of TEST.
@@ -91,6 +103,12 @@ All constants above (0.85; the trend word lists; spring range = M2 + S2 amplitud
 - **Planted band shift:** score `ON` with every spot's band shifted +0.2 (1×) and +0.4 (2×). MAE must rise significantly at 2×, or the metric cannot see tide at all: VOID.
 - **Planted rating offset:** +5 and +10 points on `ON`. The ME test must catch +10.
 - **Leak:** no row before the freeze; the stored-input hashes match.
+
+## 7a. Dormancy (SubQ: low volume is this gate's main risk, p = 0.99)
+- Row counts against every floor are reported monthly in the log. That report is a count, never a score.
+- If parts 1-2 have not met their floors 18 months after the freeze, this registration EXPIRES unscored.
+  - Any new attempt is a new registration on rows after its own freeze.
+  - The floors are never lowered to make this one run.
 
 ## 8. One look, stop rule, reader
 - Parts 1-2 are scored once when the floors are met. Part 3 is scored once when its own floors are met.
