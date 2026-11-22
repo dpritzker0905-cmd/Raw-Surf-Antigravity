@@ -17,10 +17,19 @@
  *      from GFS at the model's last frame before the hour, decaying linearly to zero over ANCHOR_DECAY_HOURS (5 days):
  *          value = GFS(t) + w(t) * (MODEL(t0) - GFS(t0)),  w = 1 - (t - tL) / 120 h,
  *      tL = the model's last own frame <= t (the seam), t0 = its last own frame <= t at the SAME UTC hour of day (the 2 m
- *      temperature offset has a daily cycle over land; the advisor's hold on #1136). Five days past the seam it is GFS. This is the decaying-average bias
- *      handover of NOAA's National Blend of Models, and the house rule for ICON's marine extension ("ICON@168 + GFS@168 anchor
- *      trend-extrapolation, persistence -> GFS weight shift over 5 days", BRAIN_RULES' 14-day contract). Cloud is clamped to
- *      0-100 %. Labelled "<MODEL> prediction: NOAA GFS trend anchored to <MODEL>'s last frame";
+ *      temperature offset has a daily cycle over land; the advisor's hold on #1136). Five days past the seam it is GFS. The
+ *      120 h linear ramp is a LABELLED BRIDGE AND A DESIGN CHOICE, justified only by analogy with the house rule for ICON's
+ *      marine extension ("ICON@168 + GFS@168 anchor trend-extrapolation, persistence -> GFS weight shift over 5 days",
+ *      BRAIN_RULES' 14-day contract); it is unscored. CORRECTED 2026-11-22 (the senior research lead's Q2 note, #1141): #1136
+ *      called it "the decaying-average bias handover of NOAA's National Blend of Models". It is not: NBM's decaying average is a
+ *      FILTER OVER PAST RUNS (a bias estimate updated run to run), not a ramp over lead time. That filter is what (b') runs.
+ *      Cloud is clamped to 0-100 %. Labelled "<MODEL> prediction: NOAA GFS trend anchored to <MODEL>'s last frame";
+ *   b'. DARK (the director, 2026-11-22; lever window.__RAW_RASTER_GAPFILL_OFFSET__ = true, default off): the offset split in two,
+ *          value = GFS(t) + S(h) + w(t) * (MODEL(t0) - GFS(t0) - S(h)),
+ *      S(h) = the ingest's running mean of MODEL - GFS at UTC hour h over past runs (backend services/frame_set_offset.py, a
+ *      decaying-average filter as NAEFS / NBM and Cui et al. 2012 use for week-2 bias), which does NOT decay; only the
+ *      residual R does (w as above until the pre-registered fit replaces it). Past the decay S alone stays on GFS. No skill is
+ *      claimed until the score pre-registered in log 2026-11-22-claude-gapfill-offset-s-r.md passes against observations;
  *   c. a plain NOAA GFS stand-in where no anchor exists (a whole set missing, rain, or more than 5 days past the anchor):
  *      labelled with whose frames are missing and that GFS is shown. Rain is never offset (an added millimetre of rain where GFS
  *      has none is not a forecast); past ICON's 180 h it is the layer's GFS stand-in rule since 2026-11-12;
@@ -61,7 +70,7 @@ export const basisFor = {
  * coarse?, gap?, parts? } where `parts` (anchored entries) names the three frames the field is composed from.
  *   ownIndex, fillIndex: pinned indexes (either may be null); keys: { own, coarse, fill }; model: the picked model ('ICON').
  */
-export function gapFillFrames({ ownIndex, fillIndex, keys, model, sourceModel, anchored, clamp = null, framesOf }) {
+export function gapFillFrames({ ownIndex, fillIndex, keys, model, sourceModel, anchored, clamp = null, framesOf, offsetIndex = null }) {
   const coarse = !!keys.coarse && !!ownIndex && ownIndex.__coarse === true;
   const own = framesOf(ownIndex).map((f) => ({
     ...f, setKey: coarse ? keys.coarse : keys.own, model: sourceModel, estimated: coarse ? basisFor.coarse(model) : null, coarse,
@@ -72,6 +81,9 @@ export function gapFillFrames({ ownIndex, fillIndex, keys, model, sourceModel, a
   const lastOwn = ownMs.length ? ownMs[ownMs.length - 1] : -Infinity;
   const covered = (ms) => ownMs.some((o) => Math.abs(o - ms) <= PICK_WINDOW_MS);
   const fbAt = (ms) => fb.find((g) => Math.abs(Date.parse(g.valid_time) - ms) < 1000) || null;
+  // b' (dark): the offset set's frame for a UTC hour of day; its valid_time carries the hour (frame_set_offset.py).
+  const offs = anchored ? framesOf(offsetIndex) : [];
+  const offsetAt = (ms) => offs.find((o) => new Date(Date.parse(o.valid_time)).getUTCHours() === new Date(ms).getUTCHours()) || null;
   const out = own.slice();
   for (const g of fb) {
     const ms = Date.parse(g.valid_time);
@@ -95,13 +107,16 @@ export function gapFillFrames({ ownIndex, fillIndex, keys, model, sourceModel, a
         if (samePhase(ownMs[i], ms)) { const f = fbAt(ownMs[i]); if (f) { a = i; gA = f; } }
       }
       const w = last >= 0 ? 1 - (ms - ownMs[last]) / (ANCHOR_DECAY_HOURS * 3600000) : 0;
-      if (w > 0 && a >= 0 && gA) {
+      const off = a >= 0 && gA ? offsetAt(ms) : null;
+      if ((w > 0 || off) && a >= 0 && gA) {   // with S (b'), S stays on GFS after the residual has decayed
+        const wR = Math.max(0, w);
         entry = {
           ...plain,
-          path: `anchored:${g.path}|${gA.path}|${own[a].path}|${Math.round(w * 1000) / 1000}`,
+          path: `anchored:${g.path}|${gA.path}|${own[a].path}|${Math.round(wR * 1000) / 1000}${off ? `|S:${off.path}` : ''}`,
           model: `${sourceModel}+${FILL_MODEL}`,
           estimated: basisFor.anchored(model),
-          parts: { now: { ...g, setKey: keys.fill }, fillAnchor: { ...gA, setKey: keys.fill }, modelAnchor: own[a], weight: w, clamp },
+          parts: { now: { ...g, setKey: keys.fill }, fillAnchor: { ...gA, setKey: keys.fill }, modelAnchor: own[a], weight: wR, clamp,
+            ...(off ? { offset: { ...off, setKey: keys.offset } } : {}) },
         };
       }
     }
@@ -151,7 +166,7 @@ const sameGrid = (a, b) => a.cols === b.cols && a.rows === b.rows && a.bounds.we
  * The anchored prediction on `now`'s grid: now + weight * (modelAnchor - fillAnchor), node by node; `clamp` = [lo, hi] or null.
  * A node GFS has no value for stays MISSING; a node the anchors cannot offset keeps GFS's value. Returns a field like toField's.
  */
-export function anchoredField(now, fillAnchor, modelAnchor, weight, clamp) {
+export function anchoredField(now, fillAnchor, modelAnchor, weight, clamp, offset = null) {
   const n = now.values.length;
   const out = new Float32Array(n);
   const b = now.bounds;
@@ -159,6 +174,7 @@ export function anchoredField(now, fillAnchor, modelAnchor, weight, clamp) {
   const dLat = now.rows > 1 ? (b.north - b.south) / (now.rows - 1) : 0;
   const sameF = sameGrid(now, fillAnchor);
   const sameM = sameGrid(now, modelAnchor);
+  const sameS = !!offset && sameGrid(now, offset);
   const halfOf = (src) => (src.cols > 1 && dLon > 0 ? Math.max(0, Math.floor(dLon / ((src.bounds.east - src.bounds.west) / (src.cols - 1)) / 2)) : 0);
   const hF = halfOf(fillAnchor); const hM = halfOf(modelAnchor);
   let min = Infinity; let max = -Infinity;
@@ -171,7 +187,9 @@ export function anchoredField(now, fillAnchor, modelAnchor, weight, clamp) {
       const lon = b.west + c * dLon;
       const ga = sameF ? fillAnchor.values[i] : sampleBox(fillAnchor, lon, lat, hF);
       const ma = sameM ? modelAnchor.values[i] : sampleBox(modelAnchor, lon, lat, hM);
-      let x = (missing(ga) || missing(ma)) ? v : v + weight * (ma - ga);
+      const sv = offset ? (sameS ? offset.values[i] : sampleBox(offset, lon, lat, halfOf(offset))) : NaN;
+      const S = missing(sv) ? 0 : sv;                     // b': no S at a node -> the plain anchored offset there
+      let x = (missing(ga) || missing(ma)) ? v + S : v + S + weight * (ma - ga - S);
       if (clamp) x = Math.min(clamp[1], Math.max(clamp[0], x));
       out[i] = x;
       if (x < min) min = x; if (x > max) max = x;

@@ -219,3 +219,60 @@ test('framesOf and gapFillFrameAt agree on an empty fill (nothing invented)', ()
   expect(gapFillFrames({ ownIndex: null, fillIndex: null, keys: { own: 'a', fill: 'b' }, model: 'ICON', sourceModel: 'ICON', anchored: true, framesOf })).toEqual([]);
   expect(gapFillFrameAt([], T0)).toBeNull();
 });
+
+describe('the anchor when GFS lacks its newest same-hour frame (the advisor\'s LongCat pass, 2026-11-22: pinned behaviour)', () => {
+  test('STALE ANCHOR: the next earlier same-UTC-hour ICON frame WITH a GFS frame anchors; the decay still runs from the seam', () => {
+    // ICON every 3 h to 180 h (12Z on day 7). For 183 h (15Z) the newest same-hour ICON frame is 159 h, but GFS has no 159 h
+    // frame, so the anchor falls back to 135 h (the 15Z one before it). The weight is measured from 180 h, not from 135 h.
+    const gfsHours = Array.from({ length: 113 }, (_, k) => k * 3).filter((h) => h !== 159);
+    const c = combinedFrames('temperature', 'ICON', idx('i', Array.from({ length: 61 }, (_, k) => k * 3)), idx('g', gfsHours));
+    const p = c.find((f) => f.valid_time === t(183)).parts;
+    expect(p.modelAnchor.path).toBe('i135');
+    expect(p.fillAnchor.path).toBe('g135');
+    expect(p.weight).toBeCloseTo(1 - 3 / ANCHOR_DECAY_HOURS);
+  });
+});
+
+describe('b\' (DARK): the offset split into a persistent S and a decaying residual (the director, 2026-11-22)', () => {
+  const OFF_T = 'ICON/weather/temperature_offset/global_0p5';
+  const LEVER = '__RAW_RASTER_GAPFILL_OFFSET__';
+  const offsetIdx = () => ({ path: 'o-idx', run: 'r', frames: [0, 3, 6, 9, 12, 15, 18, 21].map((h) => ({ valid_time: t(h), path: `s${h}` })) });
+  afterEach(() => { delete window[LEVER]; });
+  const grid1 = (v) => ({ cols: 2, rows: 1, bounds: { west: 0, south: 0, east: 1, north: 0 }, values: Float32Array.from([v, v]) });
+
+  test('value = GFS(t) + S + w * (MODEL(t0) - GFS(t0) - S); S stays when the residual has decayed; no S = the plain offset', () => {
+    // anchor difference +5, of which S = +2 persists and R = +3 decays
+    expect(anchoredField(grid1(10), grid1(20), grid1(25), 1, null, grid1(2)).values[0]).toBeCloseTo(15);   // the seam: MODEL's own
+    expect(anchoredField(grid1(10), grid1(20), grid1(25), 0.5, null, grid1(2)).values[0]).toBeCloseTo(13.5);
+    expect(anchoredField(grid1(10), grid1(20), grid1(25), 0, null, grid1(2)).values[0]).toBeCloseTo(12);     // S alone
+    expect(anchoredField(grid1(10), grid1(20), grid1(25), 0, null, null).values[0]).toBeCloseTo(10);         // without S: GFS
+    const noS = { ...grid1(2), values: Float32Array.from([-9999, 2]) };
+    expect(Array.from(anchoredField(grid1(10), grid1(20), grid1(25), 0.5, null, noS).values)).toEqual([12.5, 13.5]);
+  });
+
+  test('with the lever, each anchored hour carries S for its UTC hour, and past the decay S keeps it anchored (labelled)', () => {
+    window[LEVER] = true;
+    const c = combinedFrames('temperature', 'ICON', idx('i', Array.from({ length: 61 }, (_, k) => k * 3)),
+      idx('g', Array.from({ length: 113 }, (_, k) => k * 3)), offsetIdx());
+    const at = (h) => c.find((f) => f.valid_time === t(h));
+    expect(at(183).parts.offset).toMatchObject({ path: 's15', setKey: OFF_T });              // 183 h = 15Z
+    expect(at(204).parts.offset.path).toBe('s12');
+    const late = at(330);                                                                     // 150 h past the seam
+    expect(late).toMatchObject({ estimated: 'icon_anchored_gfs', model: 'ICON+GFS' });
+    expect(late.parts.weight).toBe(0);
+    expect(late.parts.offset.path).toBe('s18');
+  });
+
+  test('DARK by default: no lever, no S (the #1136 behaviour), and the offset set is never asked for', async () => {
+    const c = combinedFrames('temperature', 'ICON', idx('i', Array.from({ length: 61 }, (_, k) => k * 3)),
+      idx('g', Array.from({ length: 113 }, (_, k) => k * 3)), offsetIdx());
+    expect(c.some((f) => f.parts && f.parts.offset)).toBe(false);
+    expect(c.find((f) => f.valid_time === t(330))).toMatchObject({ estimated: 'gfs_estimated_fallback', model: 'GFS' });
+    getPinnedIndex.mockResolvedValue(idx('x', [0]));
+    expect(await gapFillIndex('temperature', 'ICON', 'offset')).toBeNull();
+    expect(getPinnedIndex).not.toHaveBeenCalled();
+    window[LEVER] = true;
+    expect(await gapFillIndex('temperature', 'ICON', 'offset')).not.toBeNull();
+    expect(getPinnedIndex).toHaveBeenCalledWith(OFF_T);
+  });
+});
