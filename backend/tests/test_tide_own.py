@@ -55,7 +55,7 @@ def test_fes_box_wraps_across_the_seam_and_stays_monotonic():
 
 def test_window_and_levels_never_serve_tide_alone():
     start, hours = OR.window(datetime(2026, 11, 18, 15, tzinfo=UTC))
-    assert start == datetime(2026, 11, 15, tzinfo=UTC) and hours == 48 * 24
+    assert start == datetime(2026, 11, 15, tzinfo=UTC) and hours == 24 * (3 + 90)       # 3 days back, 90 ahead
     a = np.array([0.5, np.nan, -0.25])
     assert OR.levels_mm(a, 0.1) == [600, None, -150]
     assert OR.levels_mm(a, None) == [None, None, None]
@@ -93,8 +93,11 @@ def test_series_slices_from_00z_today_in_metres_and_truncates():
     s16 = tide_own.series_from_table(t, (21.7, -158.0), 60, now)
     assert len(s16["time"]) == 48 * 24 - 72              # truncated to the table's end
     assert tide_own.series_from_table(t, (1.0, 1.0), 3, now) is None
+    # NEVER MISSING: the harmonic tide is deterministic, so an old table still serves for as long as it covers today
     old = tide_own.validate(_table(now, {"21.7,-158.0": vals}, generated=now - timedelta(days=8)))
-    assert tide_own.series_from_table(old, (21.7, -158.0), 3, now) is None
+    assert tide_own.series_from_table(old, (21.7, -158.0), 3, now)["source"] == "am"
+    ended = tide_own.validate(_table(now, {"21.7,-158.0": vals}, back_days=60))        # its axis ended before today
+    assert tide_own.series_from_table(ended, (21.7, -158.0), 3, now) is None
     assert tide_own.series_from_table(None, (21.7, -158.0), 3, now) is None
     nulls = tide_own.validate(_table(now, {"21.7,-158.0": [None] * (48 * 24)}))
     assert tide_own.series_from_table(nulls, (21.7, -158.0), 3, now) is None
@@ -277,15 +280,95 @@ def test_a_missing_table_is_unavailable_not_open_meteo(served):
     assert asyncio.run(tide.prewarm_tide_cache([(21.66, -158.04)], client=_NoClient())) == 0
 
 
-def test_a_stale_table_is_unavailable_not_open_meteo(served):
-    """Condition 3: a table older than tide_own._MAX_AGE_S (7 days; the build runs daily) = NO tide shown."""
+# ---------------------------------------------------------------- never missing (the owner, 2026-11-22)
+def _guard():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("publish_guard", BACKEND / "scripts" / "tide_own" / "publish_guard.py")
+    PG = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(PG)
+    return PG
+
+
+def test_build_failed_for_weeks_the_tide_still_serves(served, monkeypatch):
+    """BUILD FAILED: a table generated 30 days ago still serves the harmonic tide (deterministic) for as long as its
+    axis covers today; its CMEMS forecast does NOT serve (it ages past _CMEMS_MAX_AGE_S)."""
+    monkeypatch.setenv("SURF_TIDE_CMEMS", "1")
     now = datetime.now(UTC)
-    old = now - timedelta(seconds=tide_own._MAX_AGE_S + 3600)
-    tide_own._reset_for_tests(lambda: _two_source_table(now, generated=old))
-    assert asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient())) is None
-    fresh = now - timedelta(seconds=tide_own._MAX_AGE_S - 3600)
-    tide_own._reset_for_tests(lambda: _two_source_table(now, generated=fresh))
-    assert asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient()))["source"] == "am"
+    t = _two_source_table(now, generated=now - timedelta(days=30))
+    tide_own._reset_for_tests(lambda: t)
+    s = asyncio.run(tide.fetch_tide_hourly(21.66, -158.04, client=_NoClient()))
+    assert s["source"] == "am" and s["level"][0] == 0.25                     # not the aged CMEMS 1.3
+    assert OR.AHEAD_DAYS >= 90                                               # the build publishes months ahead
+
+
+def test_storage_down_falls_back_to_previous_then_memory_then_disk(served, tmp_path):
+    """STORAGE DOWN: the published table unreadable -> the previous good one; both down -> the in-memory table;
+    a cold start with both down -> the copy on local disk. Only with all four gone is the tide unavailable."""
+    now = datetime.now(UTC)
+    good = OR.encode_table(_two_source_table(now))
+
+    def down():
+        raise OSError("storage down")
+    disk = str(tmp_path / "series.json.gz")
+    tide_own._reset_for_tests(down, prev_fetcher=lambda: good, disk_path=disk)       # previous good table
+    assert tide_own._load_sync(1000.0) is not None
+    assert (tmp_path / "series.json.gz").exists()                                     # and kept on disk
+    tide_own._reset_for_tests(down, prev_fetcher=down, disk_path=disk)               # cold start, all storage down
+    t = tide_own._load_sync(2000.0)
+    assert t is not None and "21.7,-158.0" in t["am"]                                 # served from the disk copy
+    tide_own._reset_for_tests(down, prev_fetcher=down, disk_path=str(tmp_path / "none.json.gz"))
+    assert tide_own._load_sync(3000.0) is None                                        # nothing anywhere: unavailable
+
+
+def test_an_older_table_never_replaces_a_newer_one(served):
+    now = datetime.now(UTC)
+    new, old = _two_source_table(now), _two_source_table(now, generated=now - timedelta(days=3))
+    seq = iter([new, None])
+    tide_own._reset_for_tests(lambda: next(seq), prev_fetcher=lambda: old)
+    first = tide_own._load_sync(1000.0)
+    second = tide_own._load_sync(1000.0 + 10 * tide_own._TTL_S)                      # published gone, prev is older
+    assert second["generated_at"] == first["generated_at"]
+
+
+def test_partial_short_or_shrunken_tables_are_never_published():
+    """PARTIAL BUILD: the publish guard refuses a table that is short, has lost keys, or has keys with no values."""
+    PG = _guard()
+    assert PG.SCHEMA == OR.SCHEMA == tide_own.SCHEMA
+    now = datetime.now(UTC)
+    hours = 24 * (OR.BACK_DAYS + OR.AHEAD_DAYS)
+    full = OR.encode_table(_table(now, {f"{i}.0,1.0": [100] * hours for i in range(40)}, hours=hours))
+    assert PG.check(full, full, now) == [] and PG.check(full, None, now) == []
+    short = OR.encode_table(_table(now, {f"{i}.0,1.0": [100] * (30 * 24) for i in range(40)}, hours=30 * 24))
+    assert any("days ahead" in w for w in PG.check(short, full, now))
+    shrunk = OR.encode_table(_table(now, {f"{i}.0,1.0": [100] * hours for i in range(30)}, hours=hours))
+    assert any("fewer than 95%" in w for w in PG.check(shrunk, full, now))
+    empty_vals = {f"{i}.0,1.0": ([100] * hours if i < 30 else [None] * hours) for i in range(40)}
+    hollow = OR.encode_table(_table(now, empty_vals, hours=hours))
+    assert any("have a value" in w for w in PG.check(hollow, full, now))
+    assert PG.check(dict(full, schema="raw-surf/tide-own/1"), full, now)
+
+
+def test_the_horizon_alert_fires_below_30_days(tmp_path, capsys):
+    import gzip as _gz
+    PG = _guard()
+    now = datetime.now(UTC)
+    p = tmp_path / "t.json.gz"
+    p.write_bytes(_gz.compress(json.dumps(_table(now, {"1.0,1.0": [1] * (20 * 24)}, hours=20 * 24)).encode()))
+    assert PG.main(["horizon", str(p), "--min-days", "30"]) == 1 and "::error" in capsys.readouterr().out
+    p.write_bytes(_gz.compress(json.dumps(_table(now, {"1.0,1.0": [1] * (60 * 24)}, hours=60 * 24)).encode()))
+    assert PG.main(["horizon", str(p), "--min-days", "30"]) == 0
+    assert PG.main(["horizon", str(tmp_path / "missing.json.gz")]) == 1          # no table at all also alerts
+
+
+def test_the_workflow_guards_keeps_the_previous_table_and_always_checks_the_horizon():
+    i_guard = WF.index("publish_guard.py guard tide_own_series.json.gz")
+    i_prev = WF.index("put current_series.json.gz series.prev.json.gz")
+    i_pub = WF.index("put tide_own_series.json.gz series.json.gz")
+    assert i_guard < i_prev < i_pub                                  # guard first; the old table kept before the swap
+    horizon = WF.split("\n  horizon:")[1]
+    assert "needs: build" in horizon and "if: always()" in horizon and "publish_guard.py horizon" in horizon
+    steps = re.split(r"\n      - ", WF)
+    assert all("secrets." not in s for s in steps if "publish_guard.py" in s)
 
 
 def test_tide_kill_serves_no_tide_and_never_reads_or_requests(served, monkeypatch):
@@ -362,7 +445,7 @@ def test_workflow_scopes_each_credential_to_its_steps():
         if "SUPABASE_SERVICE_ROLE_KEY" in s:
             runs = re.findall(r"python3? [^\n]*", s)
             assert runs and all(r.startswith("python3 -I -S backend/scripts/tide_own/storage_io.py") for r in runs)
-    assert WF.count("secrets.SUPABASE_SERVICE_ROLE_KEY") == 3 and WF.count("secrets.AVISO_PASSWORD") == 1
+    assert WF.count("secrets.SUPABASE_SERVICE_ROLE_KEY") == 5 and WF.count("secrets.AVISO_PASSWORD") == 1
     code = "\n".join(ln.split("#")[0] for ln in WF.splitlines())
     assert "tags:" not in code and "workflow_dispatch" in code and "contents: read" in WF and "contents: write" not in WF
     build = WF.split("\n  build:")[1]
@@ -391,8 +474,8 @@ def test_storage_io_get_treats_only_a_real_not_found_as_absent():
     assert "treated as absent" not in src and "failing the step" in src
 
 
-def test_storage_io_writes_only_two_names_under_tide_own():
+def test_storage_io_writes_only_three_names_under_tide_own():
     src = (BACKEND / "scripts" / "tide_own" / "storage_io.py").read_text(encoding="utf-8")
-    assert 'ALLOWED = {"series.json.gz", "m.json"}' in src and 'PREFIX = "tide_own/"' in src
+    assert 'ALLOWED = {"series.json.gz", "series.prev.json.gz", "m.json"}' in src and 'PREFIX = "tide_own/"' in src
     assert re.findall(r"^\s*(?:import|from)\s+(\w+)", src, re.M) == ["json", "os", "sys", "urllib", "urllib"]
     assert "print(key" not in src and "print(base" not in src
