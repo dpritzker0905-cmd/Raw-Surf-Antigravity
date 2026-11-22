@@ -54,3 +54,17 @@ surfer's own word, not ours, and stays. The levels are the server's words and co
 - The ordering on the check-in screen puts "Conditions" (texture) before the quality question. That is the
   surfer's own observation, but it can anchor the level. Not measured.
 - The local ESLint ratchet reported counts below its baseline on this worktree. The baseline was not rewritten here.
+
+## The production read behind "0 grants" (advisor limit at c1e24c6ca)
+
+- Who: this session (lane T1, Claude Code, as part of this build), on 2026-11-22.
+- How: the Supabase MCP connector's `execute_sql` on project `jnfbxcvcbtndtsvscppt` (production). The credential is
+  the connector's own signed-in account. No repository credential was used: no environment variable, and neither
+  `SUPABASE_SERVICE_ROLE_KEY` nor `DATABASE_URL`.
+- What: four read-only SELECTs. Only counts, names and flags were read; no row contents or personal data.
+  1. `count(*)` of `surf_truth_consent_events` (all, and `granted`) and of `surf_observations`: 0, 0, 0.
+  2. `doc_type, version, is_active` of `tos_content` where `doc_type in ('privacy', 'forecast_consent')`: no rows.
+     So no admin-published privacy or consent document is live, and the app serves the built-in defaults.
+  3. `column_name` from `information_schema.columns` for five `surf_observations` columns: all five exist.
+  4. One attempted query named a `content` column that does not exist and errored before reading anything.
+- Nothing was written.
