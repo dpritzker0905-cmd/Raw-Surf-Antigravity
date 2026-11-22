@@ -33,10 +33,18 @@ Served change: none from this gate.
 | Source | Native vertical reference (as documented) | Conversion to MSL |
 |---|---|---|
 | CUDEM | NAVD 88, metres (NCEI metadata, read 2026-11-22) | NOAA VDatum, NAVD 88 → LMSL, per tile; the VDatum grid version is recorded |
-| Coastal Relief Model | EGM2008 or mean sea level for the newer volumes. The pre-2013 volumes kept each source's datum (bathymetry at MLLW or MLW), and NCEI states the vertical uncertainty is > 1 m, larger than the datum differences (NCEI CRM FAQ, read 2026-11-22) | treated as MSL. Each target that uses a pre-2013 volume is tagged `DATUM_1M` and reported as its own stratum |
+| Coastal Relief Model | EGM2008 or mean sea level for the newer volumes. The pre-2013 volumes kept each source's datum (bathymetry at MLLW or MLW; some shorelines at MHW), and NCEI states the vertical uncertainty is > 1 m, larger than the datum differences (NCEI CRM FAQ, read 2026-11-22) | per volume, from its metadata: MLLW, MLW or MHW → MSL with NOAA VDatum, or the nearest NOAA CO-OPS station's published datums where VDatum has no grid. EGM2008 is treated as MSL. A volume whose datum cannot be established is tagged `DATUM_1M` and reported as its own stratum |
 | EMODnet DTM | Lowest Astronomical Tide (LAT; tile metadata, read 2026-11-22); an MSL variant is published | the MSL variant is downloaded. If it is unavailable for a tile: MSL depth = LAT depth + (MSL − LAT) from the EMODnet tide model, recorded |
 | GEBCO_2024 | nominally mean sea level (NOT verified in this session) | treated as MSL; these targets are `COARSE` already |
 
+- **Seam check at source joins (advisor, 2026-11-22; BEFORE the coefficients are frozen):**
+  - After conversion, the overlapping strip where two sources meet (CUDEM/CRM, CRM/GEBCO, EMODnet/GEBCO) is compared cell by cell on a common grid, in water shallower than 30 m.
+  - Measure: the median and p95 of the absolute depth difference.
+  - A join with median > 0.3 m or p95 > 1.0 m is a SEAM.
+    - Every target whose ray domain crosses a seam is tagged `SEAM` and reported as its own stratum.
+    - Those targets use the single finer source alone where it covers the ray domain, else they are excluded from the gated lines.
+  - The seam table is committed beside the coefficient hashes.
+  - **No coefficient is frozen before the datum conversion and the seam table are both committed.**
 - **Why it matters:** in water under about 10 m, a 0.5-1 m datum error is a 5-20% depth error. That moves the shoaling and the breaking-limited heights, and bends the shallowest rays.
 - **Water level during TEST:** rays are traced on the MSL surface, as the stationary linear method assumes.
   - The tide (FES η about MSL) is NOT added to the ray depth in `LITE`.
