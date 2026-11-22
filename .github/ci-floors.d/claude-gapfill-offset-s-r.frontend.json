@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 4,
+  "files": 0,
+  "branch": "claude/gapfill-offset-s-r",
+  "date": "2026-11-22",
+  "note": "gap-fill S + residual (dark) + stale-anchor pin"
+}
