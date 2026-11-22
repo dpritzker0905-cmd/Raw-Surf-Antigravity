@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 12,
+  "files": 1,
+  "branch": "claude/nearshore-moplite-driver",
+  "date": "2026-11-22",
+  "note": "MOP-lite NetCDF driver"
+}
