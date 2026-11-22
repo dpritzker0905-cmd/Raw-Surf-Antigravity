@@ -7,9 +7,11 @@ import numpy as np
 
 SCHEMA = "raw-surf/tide-own/2"           # must equal services/weather_pipeline/tide_own.SCHEMA (pinned by a test)
 BOX_DEG = 0.5
-BACK_DAYS, AHEAD_DAYS = 3, 45            # served window: 3 days back (tide_state_at looks back) to 45 days ahead; the job
-                                         # runs daily and the server refuses a table older than 7 days, so at least 38
-                                         # days ahead of A+M are always served (the 14-day horizon contract needs 16)
+BACK_DAYS, AHEAD_DAYS = 3, 90            # served window: 3 days back (tide_state_at looks back) to 90 days ahead. The
+                                         # harmonic tide (A + M) is DETERMINISTIC, so the server keeps serving a table for
+                                         # as long as it covers today (the owner, 2026-11-22: "we don't have missing tide
+                                         # tables ever"): a missed build loses nothing for months, the publish guard
+                                         # refuses < 60 days and the horizon check alerts below 30 (publish_guard.py)
 SOURCE = ("A = FES2022b ocean tide + long-period equilibrium (AVISO/CNES/LEGOS/NOVELTIS); M = 2016-2025 mean altimetry "
           "sea-level anomaly at the G3t cell rule (Copernicus Marine SEALEVEL_GLO_PHY_L4). No storm surge.")
 

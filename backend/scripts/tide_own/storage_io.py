@@ -21,7 +21,7 @@ def _supabase_headers(key):
 
 BUCKET = "weather-products"
 PREFIX = "tide_own/"
-ALLOWED = {"series.json.gz", "m.json"}
+ALLOWED = {"series.json.gz", "series.prev.json.gz", "m.json"}   # prev: the last good table, kept on every publish
 
 
 def _cfg():
