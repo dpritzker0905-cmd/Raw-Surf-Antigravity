@@ -27,12 +27,14 @@ from models import SurfTruthConsentEvent, TosContent
 from services import legal_identity
 
 DOC_TYPE = "forecast_consent"
-CONSENT_VERSION = "draft-2026-11-18e"     # the default's version until an admin publishes one. b: the advisor's 11-18
+CONSENT_VERSION = "draft-2026-11-22f"     # the default's version until an admin publishes one. b: the advisor's 11-18
 #                                           review (the first draft overstated both promises); c: retention now purges
 #                                           older exports after a withdrawal, so the text can promise it; d: the
 #                                           2026-11-18 legal research (names the controller, the Art. 7(3) sentence,
 #                                           withdrawal by "this same switch", distances only in bands); e: the
-#                                           controller and the privacy link come from Company details (tokens)
+#                                           controller and the privacy link come from Company details (tokens);
+#                                           f: names the surf QUALITY a report may carry (blind quality, gate
+#                                           surf-tide-v1 section 0). Production had 0 grants when f replaced e.
 CONSENT_TITLE = "Use my wave reports to improve Raw Surf's forecasts"
 
 # COMPANY DETAILS (owner, 2026-11-18): "{company}" and "{privacy_url}" are filled from Compliance > Legal documents >
@@ -63,7 +65,7 @@ PLACEHOLDERS = (COMPANY_PLACEHOLDER, PRIVACY_NOTICE_PLACEHOLDER)
 #   replaces every export cut before it.
 # - "this same switch" = Art. 7(3) "as easy to withdraw as to give": the switch that records the grant also withdraws.
 CONSENT_TEXT = ("Help check our forecasts. Off unless you turn it on. When on, {company} uses the "
-                "wave heights you report to measure how far off our surf forecasts are and to correct them. Each "
+                "wave heights and surf quality you report to measure how far off our surf forecasts are and to correct them. Each "
                 "report is used with its spot, its time to the minute, roughly how far you and your photo were from "
                 "the spot (in wide bands, never closer than 1 km), your app version and how we rated the report. We "
                 "use a code instead of your name; it is the same for all your reports, and we can trace it back to "

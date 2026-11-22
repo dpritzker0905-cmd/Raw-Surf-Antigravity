@@ -28,6 +28,7 @@ import {
   barOutline, chartTheme, dayLabel, decodeSeries, frameDescription, frameIndexForOffset, levelColor, levelWord,
   offsetForFrame, offsetLabel, windArrowDeg,
 } from './spotSeriesModel';
+import { useNoteForecastShown } from '../../observations/forecastExposure';
 
 const HOUR_MS = 3600 * 1000;
 
@@ -258,6 +259,7 @@ function useSelection(series, selectedOffsetHours, onSelectOffset) {
  * `selectedOffsetHours` / `onSelectOffset` (the map's hour, two-way), `onUpgrade`, `isPremium`.
  */
 export default function SpotForecastChart({ body, resolverHours, selectedOffsetHours = 0, onSelectOffset, onUpgrade, isPremium = false }) {
+  useNoteForecastShown('forecast_chart');  // blind-quality exposure (observations/forecastExposure)
   const { theme } = useTheme();
   const t = getThemeTokens(theme);
   const unit = useHeightUnit();
@@ -305,6 +307,7 @@ export default function SpotForecastChart({ body, resolverHours, selectedOffsetH
 
 /** The compact chart for the map infobox (~170 px). Same slider, no daily row. */
 export function SpotForecastMiniChart({ body, resolverHours, selectedOffsetHours = 0, onSelectOffset, hostTheme = null }) {
+  useNoteForecastShown('forecast_mini_chart');  // blind-quality exposure (observations/forecastExposure)
   // `hostTheme`: the palette of the glass this sits on (the infobox draws beach on its dark glass), so text and
   // outlines are measured against the background they are actually drawn over.
   const { theme: appTheme } = useTheme();

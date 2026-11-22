@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 11,
+  "files": 0,
+  "branch": "claude/surf-truth-blind-quality",
+  "date": "2026-11-22",
+  "note": "blind surf quality on observations (gate surf-tide-v1 section 0)"
+}

@@ -326,6 +326,7 @@ const CheckInModal = ({
                     value={checkInData.observation}
                     defaultScale={defaultScaleFor(spots.find(s => s.id === checkInData.spot_id) || nearestSpot)}
                     onChange={(observation) => setCheckInData(prev => ({ ...prev, observation }))}
+                    askQuality
                   />
 
                   {/* Notes */}

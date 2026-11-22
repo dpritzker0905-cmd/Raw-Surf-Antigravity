@@ -19,6 +19,7 @@ import { responsiveWeatherOn } from './useMapChromeLayout'; import LayerDataCred
 import { marineWaveLegend } from './marineWavePalette';
 import WeatherLayerSheet, { useWeatherPanelDisclosure } from './WeatherLayerSheet';
 import { buildGradientCSS, buildStops, evenStops, HEIGHT_VARIABLES } from './weatherControlLegend'; import { rasterLegend, rasterPaletteKey } from './rasterPalettes';
+import { useNoteForecastShown } from '../observations/forecastExposure';
 const ownLayerKilled = (name) => typeof window !== 'undefined' && (window[`__RAW_DISABLE_RASTER_OWN_${name}__`] === true || window.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true);
 const gustsKilled = () => ownLayerKilled('GUSTS');
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
@@ -56,6 +57,7 @@ export var MapWeatherControls = ({
   onTimelineCollapseToggle,
   isImmersiveMode = false,
 }) => {
+  useNoteForecastShown('map_controls');  // blind-quality exposure (observations/forecastExposure)
   const { theme } = useTheme();
   const responsive = responsiveWeatherOn();
   const summaryId = useId();

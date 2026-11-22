@@ -16,6 +16,7 @@ import SpotQualityBadge from './SpotQualityBadge';
 import { forecastCalendar } from './forecastCalendar';
 import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
 import { effectiveWindowHours, hubForecastWindow, spotHubP1Enabled, splitForecastWindow } from './spot-hub/spotHubP1';
+import { useNoteForecastShown } from './observations/forecastExposure';
 
 // Conditions color mapping
 const conditionColors = {
@@ -77,6 +78,7 @@ const ForecastDayBadge = ({ day, index, isLocked = false }) => {
 const readExploreModel = () => { try { return localStorage.getItem('rawsurf-active-model') || 'GFS'; } catch { return 'GFS'; } };
 
 const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
+  useNoteForecastShown('explore_card');  // blind-quality exposure (observations/forecastExposure)
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const [imageError, setImageError] = useState(false);
