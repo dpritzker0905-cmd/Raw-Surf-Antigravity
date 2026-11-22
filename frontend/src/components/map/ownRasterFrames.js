@@ -26,7 +26,7 @@ import { decodeOwnField, decodeWorkerKilled } from './ownRasterDecode';
 import { pickIndexFrame } from './staticFrameCodec';
 import { isHandheldDevice } from './deviceTier';
 import { applyWaterTempLandFill } from './waterTempLandFill';
-import { currentParticlesOn } from './currentParticles';
+import { currentParticlesOn, prewarmCurrentGrid, setOfPath } from './currentParticles';
 
 export const PRESSURE_FIELD = 6;
 export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
@@ -437,6 +437,7 @@ export function loadField(layer, frame, priority) {
       t.decodeMs.push(Math.round((t1 - t0) * 10) / 10);
       if (t.decodeMs.length > 50) t.decodeMs.shift();
       keep(frame.path, field);
+      if (set.dirField) prewarmCurrentGrid(field, setOfPath(frame.path));   // the particle grid, built in idle time (currentParticles.js)
       return field;
     })().finally(() => _inflight.delete(frame.path));
     _inflight.set(frame.path, p);
@@ -466,6 +467,7 @@ async function loadOwnOnly(key, frame, priority, set, t) {
   t.decodeOffThread = (t.decodeOffThread || 0) + (field.offThread ? 1 : 0);
   delete field.offThread;
   keep(frame.path, field);
+  if (set.dirField) prewarmCurrentGrid(field, setOfPath(frame.path));   // the particle grid, built in idle time (currentParticles.js)
   return field;
 }
 

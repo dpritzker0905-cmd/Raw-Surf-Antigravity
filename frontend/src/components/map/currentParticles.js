@@ -141,14 +141,35 @@ export function encodeCurrentColour(field, top = CURRENT_RAMP_MAX) {
 }
 
 const _grids = new WeakMap();
-/** The grid for a shown record, built once per field (a scrub back to a frame reuses it). */
+/** The grid for a field, built once per field and set (a scrub back to a frame, or a prewarmed frame, reuses it). */
+function gridOf(field, source) {
+  const hit = _grids.get(field);
+  if (hit && hit.source === source) return hit.grid;
+  let handheld = false; try { handheld = !!isHandheldDevice(); } catch (e) { /* no device tier */ }
+  const grid = buildCurrentGrid(field, source, handheld ? 4 : 2);   // 0.5 deg (1 deg on phones): 260k / 65k nodes
+  _grids.set(field, { source, grid });
+  return grid;
+}
+
+/**
+ * PREWARM (advisor limit (b) on #1137): a grid build walks the whole 1440 x 721 frame on the main thread (measured on a desktop:
+ * 22 ms at 0.5 deg, 14 ms at 1 deg; a mid phone is ~4x). ownRasterFrames calls this when it decodes a currents frame (the shown
+ * one AND the scrub-ahead window), so the build runs in idle time and the scrub step that shows the frame reads the cache.
+ * Kill: window.__RAW_DISABLE_CURRENT_GRID_PREWARM__ = true (built when shown, as before).
+ */
+export function prewarmCurrentGrid(field, source, win = W()) {
+  if (!field || !field.dirCodes || !currentParticlesOn(win)) return false;
+  if (win && win.__RAW_DISABLE_CURRENT_GRID_PREWARM__ === true) return false;
+  const run = () => { try { gridOf(field, source); } catch (e) { /* the shown path builds it */ } };
+  if (win && typeof win.requestIdleCallback === 'function') win.requestIdleCallback(run, { timeout: 2000 });
+  else setTimeout(run, 0);
+  return true;
+}
+
+/** The grid for a shown record (and the page's read-back, window.__RAW_CURRENT_PARTICLES__). */
 export function gridForShown(rec) {
   if (!rec || !rec.field) return null;
-  const hit = _grids.get(rec.field);
-  if (hit && hit.source === rec.source) return hit.grid;
-  let handheld = false; try { handheld = !!isHandheldDevice(); } catch (e) { /* no device tier */ }
-  const grid = buildCurrentGrid(rec.field, rec.source, handheld ? 4 : 2);   // 0.5 deg (1 deg on phones): 260k / 65k nodes
-  _grids.set(rec.field, { source: rec.source, grid });
+  const grid = gridOf(rec.field, rec.source);
   const w = W();
   if (w) w.__RAW_CURRENT_PARTICLES__ = { at: Date.now(), source: rec.source, validMs: rec.field.validMs,
     state: grid ? 'flowing' : (rec.field.dirCodes ? 'no_water' : 'no_direction'), cols: grid ? grid.cols : 0, rows: grid ? grid.rows : 0 };

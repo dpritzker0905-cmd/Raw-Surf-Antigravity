@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 18,
+  "tests": 22,
   "files": 1,
   "branch": "claude/currents-animation",
   "date": "2026-11-22",
-  "note": "currentParticles.test.js (15) + ownRasterDecode direction (3)"
+  "note": "currentParticles.test.js (18) + ownRasterDecode direction and old-client read (4)"
 }

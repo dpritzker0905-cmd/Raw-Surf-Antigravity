@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   currentParticlesOn, currentFlowMode, setShownCurrentField, getShownCurrentField, subscribeCurrentField, setOfPath,
-  buildCurrentGrid, encodeCurrentColour, gridForShown, CURRENT_SPEED_GAIN, CURRENT_RAMP_MAX, DIR_STEP_DEG,
+  buildCurrentGrid, encodeCurrentColour, gridForShown, prewarmCurrentGrid, CURRENT_SPEED_GAIN, CURRENT_RAMP_MAX, DIR_STEP_DEG,
 } from './currentParticles';
 import { setGustMode, setGustField, gustColourActive, gustModeBlank, rampMaxFor, bindGustColour } from './windGustColour';
 import { DRAW_VS } from './WebGLWindShaders';
@@ -19,6 +19,7 @@ const code = (deg) => Math.round(deg / DIR_STEP_DEG) % 256;
 
 afterEach(() => {
   delete window.__RAW_DISABLE_CURRENT_PARTICLES__;
+  delete window.__RAW_DISABLE_CURRENT_GRID_PREWARM__;
   delete window.matchMedia;
   setShownCurrentField(null);
 });
@@ -171,5 +172,38 @@ describe('one engine: the gust colour path in current mode', () => {
     expect(l).toContain('if (!data.isCurrentFlow) publishWindDrawn(data);');
     expect(l).toContain('engine.setGustField(gl, field || null, field ? { encoded: currentColourOf(field), sea: true } : undefined);');
     expect(l).toContain('subscribeCurrentField((rec) => { apply(rec ? rec.field : null); })');
+  });
+});
+
+describe('the grid prewarm (advisor limit (b) on #1137: the build leaves the scrub step)', () => {
+  const fld = () => ({ cols: 4, rows: 4, bounds: { west: 0, south: 0, east: 0.75, north: 0.75 }, validMs: 0,
+    values: new Float32Array(16).fill(1), dirCodes: new Uint8Array(16) });
+
+  test('a decoded frame builds its grid in idle time; the shown step then reads the same grid from the cache', async () => {
+    const f = fld();
+    expect(prewarmCurrentGrid(f, 'cmems/x')).toBe(true);
+    await new Promise((r) => setTimeout(r, 5));
+    const g = gridForShown({ field: f, source: 'cmems/x' });
+    expect(g).not.toBeNull();
+    expect(gridForShown({ field: f, source: 'cmems/x' })).toBe(g);
+  });
+
+  test('its kill, the particles kill, reduced motion or no direction: no prewarm (built when shown, as before)', () => {
+    window.__RAW_DISABLE_CURRENT_GRID_PREWARM__ = true;
+    expect(prewarmCurrentGrid(fld(), 's')).toBe(false);
+    delete window.__RAW_DISABLE_CURRENT_GRID_PREWARM__;
+    window.__RAW_DISABLE_CURRENT_PARTICLES__ = true;
+    expect(prewarmCurrentGrid(fld(), 's')).toBe(false);
+    delete window.__RAW_DISABLE_CURRENT_PARTICLES__;
+    window.matchMedia = (q) => ({ matches: q === '(prefers-reduced-motion: reduce)' });
+    expect(prewarmCurrentGrid(fld(), 's')).toBe(false);
+    delete window.matchMedia;
+    const a = fld(); delete a.dirCodes;
+    expect(prewarmCurrentGrid(a, 's')).toBe(false);
+  });
+
+  test('ownRasterFrames prewarms every decoded frame of a set with a direction (both load paths)', () => {
+    const r = src('ownRasterFrames.js');
+    expect((r.match(/if \(set\.dirField\) prewarmCurrentGrid\(field, setOfPath\(frame\.path\)\);/g) || []).length).toBe(2);
   });
 });
