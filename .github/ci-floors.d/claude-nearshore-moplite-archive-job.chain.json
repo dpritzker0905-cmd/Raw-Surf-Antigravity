@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 16,
+  "files": 1,
+  "branch": "claude/nearshore-moplite-archive-job",
+  "date": "2026-11-22",
+  "note": "MOP-lite ETA reader, archive job, LITE_EC removed"
+}
