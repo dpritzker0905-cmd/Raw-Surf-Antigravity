@@ -1,0 +1,65 @@
+name: Long-range wind v2 truth snapshot (offline evidence, serves nothing)
+
+# NDBC realtime2 keeps about 45 days, so TEST truth is a weekly snapshot kept as an artifact (registration section 4).
+# Public data only, no secret. DISPATCH-ONLY with the owner's typed word; run on the schedule in amendment 2 section F (every few weeks,
+# realtime2 keeps about 45 days), each run with the owner's word; never a cron.
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner_word_ref:
+        description: 'Where the owner typed the dispatch word. Required.'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0
+      - name: Save every buoy station realtime2 file verbatim
+        working-directory: backend
+        env:
+          OWNER_WORD_REF: ${{ github.event.inputs.owner_word_ref }}
+        run: |
+          test -n "$OWNER_WORD_REF" || exit 1
+          python scripts/wind_lr2_collect.py snapshot --cache "$RUNNER_TEMP/wlr2" \
+            --stations ../docs/weather-program/evidence/wind-long-range-v2/wind_lr2_stations.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wind-lr2-snapshot-${{ github.run_id }}
+          retention-days: 90
+          path: ${{ runner.temp }}/wlr2/snapshots/
+
+  archive:
+    # Artifacts expire after 90 days and TEST scoring is February 2027 or later: copy every artifact and its sha256 to the
+    # weather bucket (calibration/ prefix) and log the hashes. Secrets by NAME, in the supabase-service environment only.
+    needs: [snapshot]
+    if: ${{ always() && needs.snapshot.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install requests==2.31.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wind-lr2-*
+          path: ${{ runner.temp }}/art
+      - name: Copy to the weather bucket with sha256
+        working-directory: backend
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/wind_lr2_archive.py --src "$RUNNER_TEMP/art" --prefix "calibration/wind-lr2/$RUN_ID-$RUN_ATTEMPT"

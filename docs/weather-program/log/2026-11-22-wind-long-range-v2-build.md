@@ -11,3 +11,6 @@ Task (director): build, dark, with tests and floor fragments, what the frozen re
 
 ## Not built (second build PR, before any freeze): amendment A5.
 ## Record: nothing collected, fitted or scored; no served number changed; no secret value in any file.
+
+## Build PR 2 (branch `claude/wind-long-range-v2-build2`, stacked on #1139)
+Added `wind_lr2_geo` (ETOPO mask, no-land-crossing, marine-exposed rule), `wind_lr2_rows` (row table, imported `wq*wg`, native changes, fit rows), `wind_lr2_score` (F1/F3/F1c, G4 seam and bin edges, G5 halves by run, G6 regions, controls on rows, the one scored decision with floors/freeze/disjointness), `wind_lr2_run` (pair, fit, freeze, score) and three dispatch-only workflows (collect, snapshots, analyse), each requiring `owner_word_ref`. 19 tests (synthetic rows with a known answer: skilled arms PASS and all controls hold; short collection VOID; freeze mismatch VOID; unskilled arms FAIL and open the CLIM_SERVE gate; a leaky shuffle voids). Readings and remaining gaps: amendment A5/A6. Nothing run against real data.

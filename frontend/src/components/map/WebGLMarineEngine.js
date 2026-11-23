@@ -85,6 +85,7 @@ export {
 // grace object the live decision mutates, or it reports the rating-grace rule as a divergence
 // forever. It is shared mutable state, not a value — the identity is the point.
 import { decideMarineCommit, shouldBridgeToCoarseGlobal, _arbiterGraceState, coarseBaseStaleForSeed, heldBaseKeeps } from './marineCommitGate';
+import { bandRatedFor } from './partitionHeightOnly';
 
 export {
   shouldBridgeToCoarseGlobal, shouldRejectSubcoveringRegional, decideMarineCommit,
@@ -685,7 +686,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         [...this._coarseBaseLru.keys()],
         (_wgNow && _wgNow.__sourceModel) || 'GFS',
         (_wgNow && _wgNow.__componentLayer) || 'waves',
-        _surfNow);
+        bandRatedFor(_surfNow, (_wgNow && _wgNow.__componentLayer) || 'waves'));   // a partition is plain (partitionHeightOnly.js)
       if (_pickKey) {
         const _picked = this._coarseBaseLru.get(_pickKey);
         if (_picked && _picked !== this._coarseBaseData) {

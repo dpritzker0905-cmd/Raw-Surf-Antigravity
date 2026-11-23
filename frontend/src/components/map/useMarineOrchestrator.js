@@ -1,6 +1,7 @@
 import { useRef, useEffect, useMemo } from 'react';
 import { getMarineHourlyCache, extractMarineAtOffset, getModelSafeMarine, isContainedInMarineCache } from './marineController';
 import { getBackendCopernicusFlag, getBackendWeatherFlag, getBackendIconMarineFlag, getSharedValidTime, getSurfModeFlag } from './backendWeatherServiceClient';
+import { bandRatedFor } from './partitionHeightOnly';
 import { staticRatedReadySync } from './staticFrames';
 import { findClosestHourIndex } from './marineControllerUtils';
 import { computeGridContentHash } from './marineGridHash';
@@ -16,6 +17,8 @@ import { isTerminalNoCoverage } from './marineControllerCache';
 import { useMarineOrchestratorScrubCache, showStoredFrameOnModelSwitch } from './useMarineOrchestratorScrubCache';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { useMarineScrubSettle } from './useMarineScrubSettle';
+// The flavour the marine data lane asks for this layer: a partition is plain even in Rating mode (bug hunt 2026-11-22 D).
+const getMarineBandFlag = (layer) => bandRatedFor(getSurfModeFlag(), layer);
 
 // Module-level scrub log throttle (max once per 2s)
 let _lastMarineScrubLogTime = 0;
@@ -339,7 +342,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       try {
         const bounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
         isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves')
-          || (getSurfModeFlag() && staticRatedReadySync(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves', getSharedValidTime));   // the rated mosaic in memory (staticFrames)
+          || (getMarineBandFlag(activeMarineLayerRef.current || 'waves') && staticRatedReadySync(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves', getSharedValidTime));   // the rated mosaic in memory (staticFrames)
       } catch (e) {
         isCached = false;
       }

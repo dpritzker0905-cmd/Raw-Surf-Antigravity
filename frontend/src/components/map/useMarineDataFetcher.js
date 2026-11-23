@@ -5,6 +5,7 @@ import { useMarineDataFetcherCore } from './useMarineDataFetcherCore';
 import { fetchMarineData, getRemainingCooldown, getModelSafeMarine, isContainedInMarineCache } from './marineController';
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
 import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag, getBackendWeatherFlag, getSurfModeFlag } from './backendWeatherServiceClient';
+import { bandRatedFor } from './partitionHeightOnly';
 import { updateDeprecationDiag } from './forecastSamplers';
 import { isInCooldown, clearCooldown } from './marineControllerUtils';
 import { _marineDataSignature, _logPipelineEvent } from './useMarineOrchestratorDiag';
@@ -25,6 +26,8 @@ import {
 import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
 import { createMarineInFlightRegistry } from './marineInFlightRegistry';
 import { recordMarineEvent } from './marineForensics';   // surf_toggle breadcrumb (§5b pinning instrument)
+// The flavour the marine data lane asks for this layer: a partition is plain even in Rating mode (bug hunt 2026-11-22 D).
+const getMarineBandFlag = (layer) => bandRatedFor(getSurfModeFlag(), layer);
 
 
 export function useMarineDataFetcher({
@@ -110,7 +113,7 @@ export function useMarineDataFetcher({
       }
       const q = v => Number(v).toFixed(2);
       const bboxStr = `${q(west)},${q(south)},${q(east)},${q(north)}`;
-      return `${bboxStr}:${activeModelRef.current}:${activeMarineLayerRef.current || 'waves'}:${timeOffsetRef.current}:${getSurfModeFlag() ? 'surf' : 'swell'}`;
+      return `${bboxStr}:${activeModelRef.current}:${activeMarineLayerRef.current || 'waves'}:${timeOffsetRef.current}:${getMarineBandFlag(activeMarineLayerRef.current || 'waves') ? 'surf' : 'swell'}`;
     } catch (e) { return null; }
   }, [mapInstance, activeModelRef, activeMarineLayerRef, timeOffsetRef]);
 
