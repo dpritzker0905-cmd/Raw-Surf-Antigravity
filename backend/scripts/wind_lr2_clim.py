@@ -1,77 +1,72 @@
 """wind_lr2_clim.py - the climatology field CLIM for the long-range wind v2 registration. Serves nothing.
 
-CLIM = seasonal climatology of 10 m u, v and speed by day of year and 6-hourly UTC hour from ERA5 (Copernicus C3S),
-bilinear at the station. Amendment 1 fixes how it is built from the CDS product `reanalysis-era5-single-levels-monthly-
-means` (`monthly_averaged_reanalysis_by_hour_of_day`, 1991-2020): the 30-year mean of each calendar month at each
-UTC hour, placed at mid-month and interpolated linearly in day of year (circular). That replaces the registration's
-"+-15 d window" with the same intent (a smooth seasonal mean) at a data cost of 12 x 24 fields per variable, not 30
-years of hourly fields. The CDS request is built here; nothing is requested until the owner dispatches the freeze.
-Credentials are read by environment-variable NAME (`CDS_API_KEY`) by the `cdsapi` client; never written anywhere.
-Attribution (served basis label and tracked file): "Contains modified Copernicus Climate Change Service information".
+Amendment 2 (supersedes amendment 1 A2; ERA5 is not used): CLIM is built from Copernicus Marine
+WIND_GLO_PHY_L4_MY_012_006 (hourly 0.125 deg stress-equivalent wind, ERA5 bias-corrected with scatterometers), the
+calendar years 2008-2025, at the 00/06/12/18 UTC hours, with the registered day-of-year +-15 d window. The table is
+[365 days of year, 4 hours, stations] for the mean eastward wind `u`, mean northward wind `v` and the MEAN SPEED `s`
+(the mean of hourly speeds, not the length of the mean vector). A station with no valid ocean cell within 25 km has NaN
+and is dropped from every CLIM-dependent line, reported, never filled. Building it (`wind_lr2_cmems.py`) is CI-only.
 """
-import math
 from datetime import datetime
 from typing import Dict, List
 
 import numpy as np
 
-ATTRIBUTION = "Contains modified Copernicus Climate Change Service information"
-YEARS = [str(y) for y in range(1991, 2021)]
-VARIABLES = ["10m_u_component_of_wind", "10m_v_component_of_wind", "10m_wind_speed"]
-MID_DOY = [15.5, 45.0, 74.5, 105.0, 135.5, 166.0, 196.5, 227.5, 258.0, 288.5, 319.0, 349.5]   # mid-month, non-leap
+HOURS = (0, 6, 12, 18)
+PERIOD = (2008, 2025)            # fixed now: the full calendar years of the hourly 0.125 deg dataset (2007 and 2026 partial)
+WINDOW_DAYS = 15                 # the registered +-15 d window
+DOI = "https://doi.org/10.48670/moi-00185"
+ATTRIBUTION = f"E.U. Copernicus Marine Service Information; {DOI}"
+DATASET = "cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H"
+PRODUCT = "WIND_GLO_PHY_L4_MY_012_006"
+# what the product's wind IS (its own description: "stress-equivalent wind"): an equivalent-neutral 10 m wind, which differs
+# from the actual 10 m wind by a few tenths of m/s under stable or unstable air. CLIM_SERVE is served raw, so its label says it.
+VARIABLE_MEANING = "stress-equivalent (equivalent-neutral) 10 m wind, not the actual 10 m wind"
 
 
-def cds_request(variable: str) -> dict:
-    """The CDS request body for one variable (all months, all hours, the 1991-2020 normal period)."""
-    return {"product_type": "monthly_averaged_reanalysis_by_hour_of_day", "variable": [variable], "year": YEARS,
-            "month": [f"{m:02d}" for m in range(1, 13)], "time": [f"{h:02d}:00" for h in range(24)],
-            "data_format": "netcdf"}
+def doy_index(valid: datetime) -> int:
+    """0-based day-of-year slot 0..364. Feb 29 uses Feb 28's slot (leap-day samples are dropped at build time)."""
+    if valid.month == 2 and valid.day == 29:
+        return 58
+    d = valid.timetuple().tm_yday
+    return (d - 2 if (valid.year % 4 == 0 and valid.month > 2) else d - 1)
 
 
-def doy_weights(doy: float):
-    """(month_a, month_b, w_b): linear interpolation between mid-month anchors, circular over the year."""
-    d = float(doy)
-    for i in range(12):
-        a, b = MID_DOY[i], MID_DOY[(i + 1) % 12] + (365.0 if i == 11 else 0.0)
-        dd = d + (365.0 if (i == 11 and d < MID_DOY[0]) else 0.0)
-        if a <= dd <= b:
-            return i, (i + 1) % 12, (dd - a) / (b - a)
-    return 11, 0, 0.0
-
-
-def clim_value(monthly: np.ndarray, valid: datetime) -> np.ndarray:
-    """monthly: [12, 24, ...] 30-year means by month and UTC hour (any trailing shape, e.g. [nst]). The value at `valid`
-    (UTC hour = the 6-hourly step's hour), linearly interpolated in day of year. Feb 29 counts as Feb 28 (doy 59)."""
-    doy = min(valid.timetuple().tm_yday, 365) if not (valid.month == 2 and valid.day == 29) else 59
-    a, b, w = doy_weights(doy)
-    h = valid.hour
-    return (1.0 - w) * monthly[a, h] + w * monthly[b, h]
+def clim_value(table: np.ndarray, valid: datetime) -> np.ndarray:
+    """table: [365, 4, ...]; the value at `valid` (a 6-hourly UTC hour)."""
+    if valid.hour not in HOURS:
+        raise ValueError(f"CLIM exists at {HOURS} UTC only, not {valid.hour}")
+    return table[doy_index(valid), HOURS.index(valid.hour)]
 
 
 def clim_vector(fields: Dict[str, np.ndarray], valid: datetime):
-    """(c_u, c_v, c_s) at `valid` from {'u': [12,24,n], 'v': ..., 's': ...}. c_s is the mean SPEED (not |mean vector|)."""
+    """(c_u, c_v, c_s) over stations at `valid`. c_s is the mean SPEED."""
     return clim_value(fields["u"], valid), clim_value(fields["v"], valid), clim_value(fields["s"], valid)
 
 
 def check_fields(fields: Dict[str, np.ndarray]) -> List[str]:
-    """Sanity guard on a built climatology (unit-tested): shapes, finiteness, speed >= |mean vector| (Jensen)."""
+    """Guard on a built climatology: shapes, finite where a station has a cell, speed >= |mean vector| (Jensen).
+    NaN is allowed ONLY as a whole station (no ocean cell within 25 km), never partially."""
     bad = []
     for k in ("u", "v", "s"):
         if k not in fields:
             bad.append(f"missing {k}")
             continue
-        if fields[k].shape[:2] != (12, 24):
+        if fields[k].ndim != 3 or fields[k].shape[:2] != (365, 4):
             bad.append(f"{k} shape {fields[k].shape}")
-        if not np.all(np.isfinite(fields[k])):
-            bad.append(f"{k} has non-finite values")
+    if bad:
+        return bad
+    has = np.isfinite(fields["s"]).any(axis=(0, 1))
+    for k in ("u", "v", "s"):
+        part = np.isfinite(fields[k]).all(axis=(0, 1))
+        if not np.array_equal(part, has):
+            bad.append(f"{k} is partially NaN for some station")
     if not bad:
-        mag = np.hypot(fields["u"], fields["v"])
-        if np.any(fields["s"] + 1e-6 < mag):
+        mag = np.hypot(fields["u"][..., has], fields["v"][..., has])
+        if np.any(fields["s"][..., has] + 1e-6 < mag):
             bad.append("mean speed below the mean vector magnitude somewhere")
     return bad
 
 
-def seasonal_cycle_range(fields: Dict[str, np.ndarray]) -> float:
-    """Max over stations of the annual range of mean speed at 00 UTC (a crude picture for the freeze log)."""
-    s = fields["s"][:, 0, ...]
-    return float(np.nanmax(np.nanmax(s, axis=0) - np.nanmin(s, axis=0))) if s.size else math.nan
+def stations_without_clim(fields: Dict[str, np.ndarray]) -> List[int]:
+    return [int(i) for i in np.where(~np.isfinite(fields["s"]).any(axis=(0, 1)))[0]]

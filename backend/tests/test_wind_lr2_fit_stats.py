@@ -70,6 +70,9 @@ def test_bins_and_regions():
     ("Varna (Black Sea)", 43.20, 27.92, "BLACK_SEA"),
     ("Chicago (Lake Michigan)", 41.88, -87.63, "GREAT_LAKES"), ("Duluth (Lake Superior)", 46.79, -92.10, "GREAT_LAKES"),
     ("Buffalo (Lake Erie)", 42.88, -78.88, "GREAT_LAKES"),
+    ("Hawaii as 203 E", 21.6, 203.0, "HAWAII"), ("Huntington Beach as 242 E", 33.66, 242.0, "US_PACIFIC"),
+    ("Halifax (Maritimes)", 44.65, -63.57, "US_ATLANTIC_GULF"), ("Bermuda", 32.30, -64.75, "US_ATLANTIC_GULF"),
+    ("Azores", 38.70, -27.20, "OTHER"), ("Sea of Marmara", 40.80, 28.90, "BLACK_SEA"),
     ("Montauk", 41.04, -71.95, "US_ATLANTIC_GULF"), ("Cape Hatteras", 35.25, -75.53, "US_ATLANTIC_GULF"),
     ("Galveston", 29.30, -94.80, "US_ATLANTIC_GULF"), ("Huntington Beach", 33.66, -118.0, "US_PACIFIC")])
 def test_named_points_land_in_the_right_region(name, lat, lon, want):

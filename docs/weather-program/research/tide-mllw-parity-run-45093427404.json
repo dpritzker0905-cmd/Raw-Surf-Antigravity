@@ -1,0 +1,571 @@
+{
+ "generated_at": "2026-11-23T01:27:49Z",
+ "days": 7,
+ "gauges": 26,
+ "all": {
+  "model": {
+   "n": 661,
+   "unmatched": 8,
+   "height_median_abs_m": 0.0462,
+   "height_max_abs_m": 0.377,
+   "time_median_min": 8.4,
+   "time_max_min": 174.0
+  },
+  "sheet": {
+   "n": 661,
+   "unmatched": 8,
+   "height_median_abs_m": 0.0361,
+   "height_max_abs_m": 0.232,
+   "time_median_min": 8.3,
+   "time_max_min": 174.0
+  }
+ },
+ "per_gauge": {
+  "1611400": {
+   "name": "Nawiliwili",
+   "d_model": 0.2644,
+   "d_sheet": 0.252,
+   "model": {
+    "n": 26,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0109,
+    "height_max_abs_m": 0.0513,
+    "time_median_min": 21.2,
+    "time_max_min": 49.7
+   },
+   "sheet": {
+    "n": 26,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0229,
+    "height_max_abs_m": 0.0639,
+    "time_median_min": 21.0,
+    "time_max_min": 47.7
+   }
+  },
+  "1612340": {
+   "name": "Honolulu",
+   "d_model": 0.2593,
+   "d_sheet": 0.251,
+   "model": {
+    "n": 26,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0152,
+    "height_max_abs_m": 0.0432,
+    "time_median_min": 18.7,
+    "time_max_min": 43.3
+   },
+   "sheet": {
+    "n": 26,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0231,
+    "height_max_abs_m": 0.0518,
+    "time_median_min": 18.8,
+    "time_max_min": 42.5
+   }
+  },
+  "1615680": {
+   "name": "Kahului, Kahului Harbor",
+   "d_model": 0.3256,
+   "d_sheet": 0.339,
+   "model": {
+    "n": 26,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0344,
+    "height_max_abs_m": 0.0754,
+    "time_median_min": 9.5,
+    "time_max_min": 38.4
+   },
+   "sheet": {
+    "n": 26,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0214,
+    "height_max_abs_m": 0.0614,
+    "time_median_min": 9.5,
+    "time_max_min": 38.4
+   }
+  },
+  "1617760": {
+   "name": "Hilo, Hilo Bay, Kuhio Bay",
+   "d_model": 0.3591,
+   "d_sheet": 0.349,
+   "model": {
+    "n": 26,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0308,
+    "height_max_abs_m": 0.0471,
+    "time_median_min": 10.1,
+    "time_max_min": 19.8
+   },
+   "sheet": {
+    "n": 26,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0408,
+    "height_max_abs_m": 0.0571,
+    "time_median_min": 10.1,
+    "time_max_min": 19.8
+   }
+  },
+  "8443970": {
+   "name": "Boston",
+   "d_model": 1.4888,
+   "d_sheet": 1.586,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0878,
+    "height_max_abs_m": 0.2185,
+    "time_median_min": 4.5,
+    "time_max_min": 11.6
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0369,
+    "height_max_abs_m": 0.1235,
+    "time_median_min": 4.5,
+    "time_max_min": 11.6
+   }
+  },
+  "8452660": {
+   "name": "Newport",
+   "d_model": 0.4815,
+   "d_sheet": 0.529,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0344,
+    "height_max_abs_m": 0.0831,
+    "time_median_min": 12.7,
+    "time_max_min": 49.0
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0297,
+    "height_max_abs_m": 0.0758,
+    "time_median_min": 12.6,
+    "time_max_min": 48.6
+   }
+  },
+  "8531680": {
+   "name": "Sandy Hook",
+   "d_model": 0.7724,
+   "d_sheet": 0.785,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0605,
+    "height_max_abs_m": 0.1022,
+    "time_median_min": 25.2,
+    "time_max_min": 36.4
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0519,
+    "height_max_abs_m": 0.097,
+    "time_median_min": 25.3,
+    "time_max_min": 36.8
+   }
+  },
+  "8534720": {
+   "name": "Atlantic City",
+   "d_model": 0.6222,
+   "d_sheet": 0.675,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0566,
+    "height_max_abs_m": 0.0757,
+    "time_median_min": 3.8,
+    "time_max_min": 7.8
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0129,
+    "height_max_abs_m": 0.0258,
+    "time_median_min": 4.1,
+    "time_max_min": 8.0
+   }
+  },
+  "8651370": {
+   "name": "Duck",
+   "d_model": 0.4066,
+   "d_sheet": 0.539,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0908,
+    "height_max_abs_m": 0.377,
+    "time_median_min": 6.0,
+    "time_max_min": 21.2
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.136,
+    "height_max_abs_m": 0.232,
+    "time_median_min": 6.0,
+    "time_max_min": 21.0
+   }
+  },
+  "8658163": {
+   "name": "Wrightsville Beach",
+   "d_model": 0.6444,
+   "d_sheet": 0.658,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0466,
+    "height_max_abs_m": 0.0834,
+    "time_median_min": 2.9,
+    "time_max_min": 12.0
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0336,
+    "height_max_abs_m": 0.0694,
+    "time_median_min": 2.9,
+    "time_max_min": 12.0
+   }
+  },
+  "8665530": {
+   "name": "Charleston",
+   "d_model": 0.8138,
+   "d_sheet": 0.89,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0546,
+    "height_max_abs_m": 0.1551,
+    "time_median_min": 12.2,
+    "time_max_min": 18.9
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0411,
+    "height_max_abs_m": 0.0791,
+    "time_median_min": 12.2,
+    "time_max_min": 18.7
+   }
+  },
+  "8720030": {
+   "name": "Fernandina Beach",
+   "d_model": 0.9162,
+   "d_sheet": 1.004,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.1225,
+    "height_max_abs_m": 0.1936,
+    "time_median_min": 39.8,
+    "time_max_min": 48.4
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0444,
+    "height_max_abs_m": 0.1056,
+    "time_median_min": 40.0,
+    "time_max_min": 48.4
+   }
+  },
+  "8722670": {
+   "name": "Lake Worth Pier, Atlantic Ocean",
+   "d_model": 0.4657,
+   "d_sheet": 0.469,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0959,
+    "height_max_abs_m": 0.1245,
+    "time_median_min": 2.4,
+    "time_max_min": 5.8
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0929,
+    "height_max_abs_m": 0.1207,
+    "time_median_min": 2.5,
+    "time_max_min": 5.8
+   }
+  },
+  "8723214": {
+   "name": "Virginia Key",
+   "d_model": 0.406,
+   "d_sheet": 0.342,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0776,
+    "height_max_abs_m": 0.1552,
+    "time_median_min": 43.4,
+    "time_max_min": 47.0
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.1416,
+    "height_max_abs_m": 0.2193,
+    "time_median_min": 43.4,
+    "time_max_min": 47.0
+   }
+  },
+  "8726724": {
+   "name": "Clearwater Beach",
+   "d_model": 0.4344,
+   "d_sheet": 0.45,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0125,
+    "height_max_abs_m": 0.0409,
+    "time_median_min": 10.0,
+    "time_max_min": 17.2
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0136,
+    "height_max_abs_m": 0.043,
+    "time_median_min": 10.0,
+    "time_max_min": 18.1
+   }
+  },
+  "8729840": {
+   "name": "Pensacola",
+   "d_model": 0.1894,
+   "d_sheet": 0.188,
+   "model": {
+    "n": 14,
+    "unmatched": 8,
+    "height_median_abs_m": 0.0435,
+    "height_max_abs_m": 0.0749,
+    "time_median_min": 163.7,
+    "time_max_min": 174.0
+   },
+   "sheet": {
+    "n": 14,
+    "unmatched": 8,
+    "height_median_abs_m": 0.0418,
+    "height_max_abs_m": 0.0739,
+    "time_median_min": 164.1,
+    "time_max_min": 174.0
+   }
+  },
+  "8771510": {
+   "name": "Galveston Pleasure Pier",
+   "d_model": 0.3255,
+   "d_sheet": 0.338,
+   "model": {
+    "n": 15,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0479,
+    "height_max_abs_m": 0.0575,
+    "time_median_min": 2.8,
+    "time_max_min": 14.5
+   },
+   "sheet": {
+    "n": 15,
+    "unmatched": 0,
+    "height_median_abs_m": 0.04,
+    "height_max_abs_m": 0.0504,
+    "time_median_min": 2.2,
+    "time_max_min": 13.0
+   }
+  },
+  "9410230": {
+   "name": "La Jolla",
+   "d_model": 0.8259,
+   "d_sheet": 0.832,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0187,
+    "height_max_abs_m": 0.0665,
+    "time_median_min": 1.8,
+    "time_max_min": 7.4
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0127,
+    "height_max_abs_m": 0.0605,
+    "time_median_min": 1.8,
+    "time_max_min": 7.4
+   }
+  },
+  "9410660": {
+   "name": "Los Angeles",
+   "d_model": 0.8448,
+   "d_sheet": 0.861,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.044,
+    "height_max_abs_m": 0.0879,
+    "time_median_min": 1.4,
+    "time_max_min": 6.0
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0277,
+    "height_max_abs_m": 0.071,
+    "time_median_min": 1.5,
+    "time_max_min": 6.3
+   }
+  },
+  "9413450": {
+   "name": "Monterey",
+   "d_model": 0.8582,
+   "d_sheet": 0.862,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0386,
+    "height_max_abs_m": 0.072,
+    "time_median_min": 3.4,
+    "time_max_min": 5.5
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0346,
+    "height_max_abs_m": 0.068,
+    "time_median_min": 3.5,
+    "time_max_min": 5.5
+   }
+  },
+  "9415020": {
+   "name": "Point Reyes",
+   "d_model": 0.9218,
+   "d_sheet": 0.946,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0641,
+    "height_max_abs_m": 0.096,
+    "time_median_min": 3.4,
+    "time_max_min": 7.4
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0391,
+    "height_max_abs_m": 0.072,
+    "time_median_min": 3.3,
+    "time_max_min": 7.4
+   }
+  },
+  "9419750": {
+   "name": "Crescent City",
+   "d_model": 1.1262,
+   "d_sheet": 1.13,
+   "model": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0429,
+    "height_max_abs_m": 0.0782,
+    "time_median_min": 1.8,
+    "time_max_min": 5.3
+   },
+   "sheet": {
+    "n": 27,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0389,
+    "height_max_abs_m": 0.0742,
+    "time_median_min": 1.7,
+    "time_max_min": 5.3
+   }
+  },
+  "9435380": {
+   "name": "South Beach",
+   "d_model": 1.3163,
+   "d_sheet": 1.358,
+   "model": {
+    "n": 28,
+    "unmatched": 0,
+    "height_median_abs_m": 0.1335,
+    "height_max_abs_m": 0.187,
+    "time_median_min": 17.0,
+    "time_max_min": 24.6
+   },
+   "sheet": {
+    "n": 28,
+    "unmatched": 0,
+    "height_median_abs_m": 0.092,
+    "height_max_abs_m": 0.148,
+    "time_median_min": 17.0,
+    "time_max_min": 24.7
+   }
+  },
+  "9443090": {
+   "name": "Neah Bay",
+   "d_model": 1.3158,
+   "d_sheet": 1.315,
+   "model": {
+    "n": 28,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0538,
+    "height_max_abs_m": 0.1626,
+    "time_median_min": 5.3,
+    "time_max_min": 17.5
+   },
+   "sheet": {
+    "n": 28,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0541,
+    "height_max_abs_m": 0.1636,
+    "time_median_min": 5.3,
+    "time_max_min": 17.6
+   }
+  },
+  "9751639": {
+   "name": "Charlotte Amalie",
+   "d_model": 0.122,
+   "d_sheet": 0.114,
+   "model": {
+    "n": 14,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0161,
+    "height_max_abs_m": 0.0501,
+    "time_median_min": 11.2,
+    "time_max_min": 27.3
+   },
+   "sheet": {
+    "n": 14,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0241,
+    "height_max_abs_m": 0.0581,
+    "time_median_min": 11.2,
+    "time_max_min": 27.3
+   }
+  },
+  "9755371": {
+   "name": "San Juan, La Puntilla, San Juan Bay",
+   "d_model": 0.2124,
+   "d_sheet": 0.234,
+   "model": {
+    "n": 26,
+    "unmatched": 0,
+    "height_median_abs_m": 0.058,
+    "height_max_abs_m": 0.105,
+    "time_median_min": 24.1,
+    "time_max_min": 30.5
+   },
+   "sheet": {
+    "n": 26,
+    "unmatched": 0,
+    "height_median_abs_m": 0.0365,
+    "height_max_abs_m": 0.083,
+    "time_median_min": 23.8,
+    "time_max_min": 30.5
+   }
+  }
+ }
+}

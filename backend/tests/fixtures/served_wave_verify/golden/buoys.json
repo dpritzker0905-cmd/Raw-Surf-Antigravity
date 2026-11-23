@@ -1,0 +1,70 @@
+{
+ "about": "SYNTHETIC golden fixture (served-wave-verify-v1 section 7)",
+ "stations": [
+  {
+   "depth_m": 100.0,
+   "exam_only": false,
+   "id": "SYN01",
+   "lat": 20.0,
+   "lon": -150.0,
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "stratum": "exposed",
+   "wmo_id": "SYN01"
+  },
+  {
+   "depth_m": 100.0,
+   "exam_only": false,
+   "id": "SYN02",
+   "lat": 21.0,
+   "lon": -151.0,
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "stratum": "exposed",
+   "wmo_id": "SYN02"
+  },
+  {
+   "depth_m": 100.0,
+   "exam_only": false,
+   "id": "SYN03",
+   "lat": 22.0,
+   "lon": -152.0,
+   "purposes": [
+    "served"
+   ],
+   "region": "hawaii",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "stratum": "exposed",
+   "wmo_id": "SYN03"
+  },
+  {
+   "depth_m": 30.0,
+   "exam_only": true,
+   "id": "SYN04",
+   "lat": 33.0,
+   "lon": -118.0,
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "cdip",
+   "stratum": "exposed",
+   "wmo_id": "SYN04"
+  }
+ ],
+ "version": "golden-synthetic/1"
+}
