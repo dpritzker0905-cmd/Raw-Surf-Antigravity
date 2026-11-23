@@ -12,6 +12,7 @@ import {
 import { getFullUrl } from '../../utils/media';
 import { SocialAdCard } from '../SocialAdCard';
 import PostMediaPreview from './PostMediaPreview';
+import { useNoteForecastShown } from '../observations/forecastExposure';
 
 const ExploreTrending = ({
   trending,
@@ -20,6 +21,7 @@ const ExploreTrending = ({
   error = false,
   onRetry,
 }) => {
+  useNoteForecastShown('explore_trending');  // blind-quality exposure (observations/forecastExposure)
   const navigate = useNavigate();
 
   if (error) {

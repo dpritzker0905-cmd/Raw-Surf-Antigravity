@@ -13,22 +13,18 @@ logger = logging.getLogger(__name__)
 
 def parse_valid_time(valid_time_str: str) -> datetime:
     """
-    Parses ISO-8601 UTC timestamp ensuring a Z suffix or correct offset.
-    Raises HTTPException(400) on parse errors.
+    Parses an ISO-8601 timestamp into an AWARE UTC datetime. Raises HTTPException(400) on parse errors.
+    A naive time (no offset) and a date-only input ('2026-11-22' = 00:00) are read as UTC; any other offset is
+    CONVERTED to UTC, never kept (bug hunt 2026-11-22: '10:00-08:00' used to be stamped 10:00Z downstream, and a
+    date-only input came back naive because the date's '-' read as an offset sign).
     """
     try:
-        # Check if timezone is specified in the time part (after 'T' or space)
-        time_part = valid_time_str.split("T")[-1] if "T" in valid_time_str else valid_time_str
-        has_tz = "Z" in valid_time_str or "+" in time_part or "-" in time_part
-        if not has_tz:
-            valid_time_str += "+00:00"
-        
-        # fromisoformat requires replacing Z with +00:00 in older python versions,
-        # but Python 3.11+ natively handles Z. To be safe:
-        clean_str = valid_time_str.replace("Z", "+00:00")
-        return datetime.fromisoformat(clean_str)
+        dt = datetime.fromisoformat(valid_time_str.strip().replace("Z", "+00:00"))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid valid_time ISO-8601 format: {e}")
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 def parse_bbox(bbox_str: str) -> Tuple[float, float, float, float]:
     """
