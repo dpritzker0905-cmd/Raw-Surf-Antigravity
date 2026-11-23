@@ -26,8 +26,11 @@ def _entry(entry):
 
 
 def serve_box_reads(where: str, guarded: bool) -> bool:
+    """True when the serve box reads the flag. Only the RUNTIME manifest (control/flags.json) counts as a manifest:
+    "the manifest writers" (the ingest lanes that write the product manifest) are workflows, not this server (P0-3,
+    2026-11-23: MANIFEST_ONE_ENTRY_PER_OBJECT showed this server's 0 with no caveat while its lanes read 1)."""
     w = (where or "").lower()
-    if guarded or "manifest" in w:
+    if guarded or "runtime manifest" in w or "control/flags.json" in w:
         return True
     return "render" in w and "not render" not in w
 
