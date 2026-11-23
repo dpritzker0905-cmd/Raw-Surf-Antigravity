@@ -412,6 +412,10 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       // which WORLD COPIES the heatmap and the marks are drawn for (windWorldCopies.js, 2026-11-13): the same draw at offsets -360 / 0 / +360,
       // and a copy it leaves out lights no pixel on screen; never a table, ramp, rule or ground
       '__RAW_DISABLE_WIND_COPY_CULL__',
+      // DARK's field blend (windDarkFieldVivid.js, 2026-11-22): ONE vs SRC_ALPHA for dark's premultiplied field. These rules draw light and
+      // beach only, whose field is the multiply tint (or SRC_ALPHA, unchanged); windDarkVividOn is false for both, so no light or beach
+      // table, field, composite or ground reads it
+      '__RAW_DISABLE_DARK_WIND_VIVID__',
     ];
     const files = fs.readdirSync(__dirname).filter((f) => /^(WebGLWind|wind|WindColorRamp)/.test(f) && f.endsWith('.js') && !f.endsWith('.test.js'));
     expect(files.length).toBeGreaterThan(12);

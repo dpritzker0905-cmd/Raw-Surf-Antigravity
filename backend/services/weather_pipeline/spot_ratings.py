@@ -211,7 +211,8 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         try:
             from services.weather_pipeline.bathymetry import bed_slope_at
             from services.weather_pipeline.surf_transform import iribarren
-            breaker_xi = iribarren(bed_slope_at(lat, lng), surf_h, period)
+            # DEEP-WATER xi0: H0 is the OFFSHORE Hs, never the breaking height (bug hunt 2026-11-22 G: ~21% low)
+            breaker_xi = iribarren(bed_slope_at(lat, lng), offshore_h, period)
         except Exception as e:
             logger.debug(f"[spot-ratings] breaker-type resolve failed for {spot.get('id')}: {e}")
     # Nearshore BREAK depth (not the shelf depth) — the oversize gate's tier-2 capacity signal, so a

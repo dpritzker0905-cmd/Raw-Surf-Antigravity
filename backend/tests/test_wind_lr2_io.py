@@ -157,41 +157,109 @@ def test_pairing_picks_nearest_without_crossing_land_and_breaks_ties_by_lowest_i
 
 
 # ------------------------------------------------------------------------------------------------ climatology
-def _monthly(fn):
-    a = np.zeros((12, 24, 2))
-    for m in range(12):
-        for h in range(24):
-            a[m, h] = fn(m, h)
+def _table(fn):
+    a = np.zeros((365, 4, 2))
+    for d in range(365):
+        for h in range(4):
+            a[d, h] = fn(d, h)
     return a
 
 
-def test_clim_interpolates_between_mid_month_anchors_and_wraps_the_year():
-    f = _monthly(lambda m, h: m * 10.0)
-    assert C.clim_value(f, datetime(2026, 1, 16, 6, tzinfo=UTC))[0] == pytest.approx(0.0, abs=0.5)      # at the January anchor
-    mid = C.clim_value(f, datetime(2026, 2, 1, 0, tzinfo=UTC))[0]
-    assert 0.0 < mid < 10.0                                                                              # between Jan and Feb
-    dec31 = C.clim_value(f, datetime(2026, 12, 31, 0, tzinfo=UTC))[0]
-    jan1 = C.clim_value(f, datetime(2027, 1, 1, 0, tzinfo=UTC))[0]
-    assert abs(dec31 - jan1) < 110.0 / 31.0 * 1.2      # one day apart: about one day of the Dec->Jan ramp, no jump
-    assert C.clim_value(f, datetime(2028, 2, 29, 0, tzinfo=UTC)) == pytest.approx(C.clim_value(f, datetime(2027, 2, 28, 0, tzinfo=UTC)))
+def test_clim_indexes_day_of_year_and_hour_and_folds_leap_day():
+    f = _table(lambda d, h: d * 10.0 + h)
+    assert C.clim_value(f, datetime(2026, 1, 1, 0, tzinfo=UTC))[0] == 0.0
+    assert C.clim_value(f, datetime(2026, 12, 31, 18, tzinfo=UTC))[0] == 364 * 10.0 + 3
+    assert C.clim_value(f, datetime(2026, 3, 1, 6, tzinfo=UTC))[0] == 59 * 10.0 + 1
+    assert C.clim_value(f, datetime(2028, 3, 1, 6, tzinfo=UTC))[0] == 59 * 10.0 + 1          # a leap year's Mar 1 is the same slot
+    assert C.clim_value(f, datetime(2028, 2, 29, 0, tzinfo=UTC))[0] == C.clim_value(f, datetime(2027, 2, 28, 0, tzinfo=UTC))[0]
+    with pytest.raises(ValueError):
+        C.clim_value(f, datetime(2026, 6, 15, 3, tzinfo=UTC))                                  # only 00/06/12/18 UTC exist
 
 
-def test_clim_uses_the_valid_utc_hour():
-    f = _monthly(lambda m, h: float(h))
-    assert C.clim_value(f, datetime(2026, 6, 15, 18, tzinfo=UTC))[0] == pytest.approx(18.0)
-
-
-def test_clim_guards_catch_bad_fields_and_jensen_violations():
-    ok = {"u": np.ones((12, 24, 2)), "v": np.zeros((12, 24, 2)), "s": np.full((12, 24, 2), 2.0)}
+def test_clim_guards_catch_bad_fields_and_partial_nan():
+    ok = {"u": np.ones((365, 4, 3)), "v": np.zeros((365, 4, 3)), "s": np.full((365, 4, 3), 2.0)}
     assert C.check_fields(ok) == []
-    assert C.check_fields(dict(ok, s=np.full((12, 24, 2), 0.5))) != []        # speed below |mean vector|
+    assert C.check_fields(dict(ok, s=np.full((365, 4, 3), 0.5))) != []                     # speed below |mean vector|
     assert C.check_fields({"u": ok["u"], "v": ok["v"]}) == ["missing s"]
-    bad = dict(ok, u=np.full((12, 24, 2), np.nan))
-    assert any("non-finite" in b for b in C.check_fields(bad))
+    whole = {k: v.copy() for k, v in ok.items()}
+    for k in whole:
+        whole[k][..., 1] = np.nan                                                           # a whole station without CLIM is allowed
+    assert C.check_fields(whole) == [] and C.stations_without_clim(whole) == [1]
+    part = {k: v.copy() for k, v in ok.items()}
+    part["s"][5, 2, 0] = np.nan
+    assert any("partially NaN" in b for b in C.check_fields(part))
 
 
-def test_cds_request_covers_the_normal_period_and_carries_no_credential():
-    r = C.cds_request(C.VARIABLES[0])
-    assert r["year"][0] == "1991" and r["year"][-1] == "2020" and len(r["time"]) == 24 and len(r["month"]) == 12
-    assert "key" not in json.dumps(r).lower()
-    assert C.ATTRIBUTION == "Contains modified Copernicus Climate Change Service information"
+def test_clim_records_what_the_product_is_and_how_to_credit_it():
+    assert C.PERIOD == (2008, 2025) and C.WINDOW_DAYS == 15 and C.PRODUCT == "WIND_GLO_PHY_L4_MY_012_006"
+    assert "10.48670/moi-00185" in C.ATTRIBUTION and C.ATTRIBUTION.startswith("E.U. Copernicus Marine Service Information")
+    assert "stress-equivalent" in C.VARIABLE_MEANING and "not the actual 10 m wind" in C.VARIABLE_MEANING
+
+
+# ------------------------------------------------------------------------------------------------ CMEMS builder
+import wind_lr2_cmems as CM  # noqa: E402
+
+
+def test_nearest_valid_cell_uses_only_ocean_cells_within_25_km():
+    lats, lons = np.array([34.0, 34.125, 34.25]), np.array([-120.25, -120.125, -120.0])
+    valid = np.array([[True, False, False], [True, False, False], [True, False, False]])      # ocean only in the first column
+    i, j, km = CM.nearest_valid_cell(valid, lats, lons, 34.1, -120.0)
+    assert (i, j) == (1, 0) and 20.0 < km < 25.0
+    assert CM.nearest_valid_cell(valid, lats, lons, 34.1, -119.5) is None                      # > 25 km: no CLIM, never filled
+    assert CM.nearest_valid_cell(np.zeros((3, 3), bool), lats, lons, 34.0, -120.25) is None
+
+
+def _hourly(years, fn):
+    times, u = [], []
+    for y in years:
+        t = datetime(y, 1, 1, tzinfo=UTC)
+        while t.year == y:
+            times.append(np.datetime64(t.replace(tzinfo=None), "s"))
+            u.append(fn(t))
+            t += timedelta(hours=1)
+    return np.array(times), np.array(u)
+
+
+def test_accumulate_and_finish_build_the_window_mean_speed_not_the_vector_mean():
+    times, ang = _hourly([2008, 2009], lambda t: [(t.hour // 6) * 90.0])
+    u, v = 4.0 * np.cos(np.radians(ang)), 4.0 * np.sin(np.radians(ang))                         # constant speed 4, hour-dependent direction
+    sums = CM.new_sums(1)
+    CM.accumulate(sums, times, u, v)
+    out = CM.finish(sums, min_n=20)
+    assert np.allclose(out["s"][:, :, 0], 4.0)                                                   # mean SPEED, whatever the direction
+    assert out["s"].shape == (365, 4, 1) and C.check_fields(out) == []
+    assert np.hypot(out["u"], out["v"]).max() <= 4.0 + 1e-9
+
+
+def test_accumulate_keeps_only_the_synoptic_hours_period_and_skips_leap_day_and_nan():
+    t = np.array([np.datetime64("2008-03-01T00", "s"), np.datetime64("2008-03-01T03", "s"), np.datetime64("2007-03-01T00", "s"),
+                  np.datetime64("2008-02-29T00", "s"), np.datetime64("2008-03-01T06", "s")])
+    u = np.array([[3.0], [3.0], [3.0], [3.0], [np.nan]])
+    sums = CM.new_sums(1)
+    CM.accumulate(sums, t, u, np.zeros((5, 1)))
+    assert sums["n"].sum() == 1.0 and sums["n"][59, 0, 0] == 1.0                                 # only 2008-03-01 00Z counted
+
+
+def test_a_station_with_a_thin_slot_is_nan_everywhere_never_partial():
+    sums = CM.new_sums(2)
+    sums["n"][:, :, 0] = 200.0
+    sums["s"][:, :, 0] = 200.0 * 3.0
+    sums["u"][:, :, 0] = 200.0 * 3.0
+    sums["n"][:, :, 1] = 200.0
+    sums["n"][10, 1, 1] = 0.0                                                                    # one empty slot for station 1
+    sums["n"][:, 1, 1] = 0.0
+    out = CM.finish(sums, min_n=100)
+    assert np.isfinite(out["s"][..., 0]).all() and np.isnan(out["s"][..., 1]).all()
+
+
+# ------------------------------------------------------------------------------------------------ spot export
+import wind_lr2_spots as SP  # noqa: E402
+
+
+def test_spot_rows_keep_the_shore_normal_or_null_and_are_sorted(tmp_path):
+    spots = [{"id": 9, "latitude": 34.0, "longitude": -120.0}, {"id": 2, "latitude": 21.6, "longitude": -158.0}]
+    rows = SP.spot_rows(spots, lambda la, lo: (270.0, 5.0) if la > 30 else (None, None))
+    assert [r["id"] for r in rows] == ["2", "9"] and rows[0]["shore_normal"] is None and rows[1]["shore_normal"] == 270.0
+    out = tmp_path / "spots.json"
+    assert SP.export(str(out), fetch=lambda: spots, shore_normal_at=lambda la, lo: (90.0, 1.0)) == 0
+    assert len(json.load(open(out))) == 2
