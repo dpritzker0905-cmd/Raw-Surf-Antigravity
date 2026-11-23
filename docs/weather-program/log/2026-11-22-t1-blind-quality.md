@@ -68,3 +68,21 @@ surfer's own word, not ours, and stays. The levels are the server's words and co
   3. `column_name` from `information_schema.columns` for five `surf_observations` columns: all five exist.
   4. One attempted query named a `content` column that does not exist and errored before reading anything.
 - Nothing was written.
+
+## Owner approval of the wording, and where it is edited (2026-11-22)
+
+- **Approved:** David (owner), in the T1 session: "Approve the consent and privacy wording change, and make sure its
+  all changeable in the admin backend". This settles the advisor's wording hold on #1151 (D-084). The flag
+  `SURF_TRUTH_BLIND_QUALITY` stays off; turning it on is a separate word from him. The map-file question
+  (MapForecastOverlay, MapWeatherControls) is still with the director and Codex.
+- **Editable in the admin backend (checked, no code change):** both texts are in Admin > Compliance > Legal documents
+  (`components/admin/LegalDocumentsEditor.js`, rendered by `AdminComplianceDashboard.js`):
+  - "Privacy Policy" tab (doc_type `privacy`): section 11 is one of its sections.
+  - "Forecast data consent" tab (doc_type `forecast_consent`): one checkbox label and one text.
+
+  Until an admin publishes, the editor loads the built-in defaults (`GET /compliance/tos-content/current?raw=true`),
+  which are the approved words. Publishing goes through `PUT /compliance/tos-content` (admin only,
+  `get_current_admin`), then deactivates the old version. A new consent version asks everyone who opted in again.
+  Under the existing version, a change of words is refused. Covered by `tests/test_forecast_consent_wording.py`
+  (including `test_default_wording_until_an_admin_publishes` and
+  `test_a_version_keeps_its_text_and_a_new_version_asks_again`) and `LegalDocumentsEditor.test.js`.
