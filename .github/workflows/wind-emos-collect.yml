@@ -10,10 +10,17 @@ name: EMOS wind calibration record (offline collection, serves nothing)
 # collecting and fitting all run with no credential in their environment.
 # Daily at 10:07 UTC (00Z ENS is complete by ~07:40; clear of the ingest/precompute/pilots minutes). Backfill =
 # workflow_dispatch, one date slice per dispatch, 4 shards.
+# AUTO BACKFILL (David, 2026-11-23, director session: "Recover + backfill (Recommended)"): the second cron, 06:37 UTC
+# (off-peak for the Actions queue), backfills ONE monthly slice a day from 2025-07 through 2026-10. The cursor is the
+# stored record itself (backend/scripts/emos_backfill_next.py: the month after the newest stored month in range); past
+# 2026-10 it no-ops. It refuses to plan on an unread fetch (no stations file, or no run before 2025-07: the 2026-11-19
+# HTTP 401 read as an empty bucket), and an auto slice that stores no run fails loudly. Kill: repository variable
+# EMOS_BACKFILL_AUTO = '0'.
 
 on:
   schedule:
     - cron: '7 10 * * *'
+    - cron: '37 6 * * *'     # auto backfill, one monthly slice a day (see the header)
   workflow_dispatch:
     inputs:
       mode:
@@ -35,12 +42,12 @@ concurrency:
 
 env:
   PYTHONUNBUFFERED: '1'
-  MODE: ${{ github.event.inputs.mode || 'daily' }}
+  MODE: ${{ github.event.inputs.mode || (github.event.schedule == '37 6 * * *' && 'backfill' || 'daily') }}
 
 jobs:
   single:
     environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
-    if: ${{ (github.event.inputs.mode || 'daily') != 'backfill' }}
+    if: ${{ (github.event.inputs.mode || 'daily') != 'backfill' && github.event.schedule != '37 6 * * *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 300
     steps:
@@ -78,9 +85,34 @@ jobs:
           path: ${{ runner.temp }}/emos/collect_report_*.json
           if-no-files-found: ignore
 
+  plan:
+    # The auto backfill's one planning step: lists the stored record ONCE, so all 4 shards collect the same month.
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
+    if: ${{ github.event.schedule == '37 6 * * *' && (vars.EMOS_BACKFILL_AUTO || '1') != '0' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      go: ${{ steps.next.outputs.go }}
+      start: ${{ steps.next.outputs.start }}
+      end: ${{ steps.next.outputs.end }}
+      month: ${{ steps.next.outputs.month }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch stored state (storage only, stdlib)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 -I -S backend/scripts/emos_bucket_io.py fetch --dir "$RUNNER_TEMP/emos"
+      - name: Next monthly slice (stdlib, no credential)
+        id: next
+        run: >-
+          python3 -I -S backend/scripts/emos_backfill_next.py --existing "$RUNNER_TEMP/emos/existing_runs.json"
+          --stations "$RUNNER_TEMP/emos/emos_stations.json" --first 2025-07 --last 2026-10
+
   backfill:
     environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
-    if: ${{ github.event.inputs.mode == 'backfill' }}
+    needs: plan
+    if: ${{ always() && (github.event.inputs.mode == 'backfill' || needs.plan.outputs.go == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 340
     strategy:
@@ -104,13 +136,20 @@ jobs:
         working-directory: backend
         run: >-
           python scripts/wind_emos_collect.py backfill --cache "$RUNNER_TEMP/emos"
-          --start "${{ github.event.inputs.start }}" --end "${{ github.event.inputs.end }}" --shard ${{ matrix.shard }}/4
+          --start "${{ github.event.inputs.start || needs.plan.outputs.start }}"
+          --end "${{ github.event.inputs.end || needs.plan.outputs.end }}" --shard ${{ matrix.shard }}/4
       - name: Upload new run files (storage only, stdlib, create-only)
         if: always()
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python3 -I -S backend/scripts/emos_bucket_io.py upload --dir "$RUNNER_TEMP/emos"
+      - name: An auto slice that stored no run fails loudly (the cursor stays, so the next day retries it)
+        if: ${{ needs.plan.outputs.go == 'true' }}
+        run: |
+          n=$(ls "$RUNNER_TEMP/emos/runs/"*.npz.new 2>/dev/null | wc -l)
+          echo "auto slice ${{ needs.plan.outputs.month }} shard ${{ matrix.shard }}: $n new run files"
+          [ "$n" -gt 0 ] || { echo "::error::auto backfill ${{ needs.plan.outputs.month }} shard ${{ matrix.shard }} stored no run"; exit 1; }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
