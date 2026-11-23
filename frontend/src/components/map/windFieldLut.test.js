@@ -128,24 +128,31 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
       const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
       return t * t * (3 - 2 * t);
     };
-    const compositeHue = (theme, stop) => {
+    // `gpu`: the law the GPU laid dark's field by until 2026-11-22 and lays it by under window.__RAW_DISABLE_DARK_WIND_VIVID__
+    // (HEATMAP_FS writes vec4(rgb a, a), blended SRC_ALPHA: rgb a^2 + map (1 - a); read back by scripts/wind-color/dark-field-gpu.mjs).
+    // Without it: the alpha-over law these floors were DESIGNED in (rgb a + map (1 - a)), which the GPU now draws by default
+    // (windDarkFieldVivid.js blends dark's premultiplied field ONE, ONE_MINUS_SRC_ALPHA), so the design floors ARE the screen's.
+    const compositeHue = (theme, stop, gpu = false) => {
       const [kn, r, g, b] = stop;
-      const a = OPACITY[theme] * (BASE_A[theme] + (1 - BASE_A[theme]) * smoothstep(0, RAMP_KN[theme], kn));
+      const a = OPACITY[theme] * (BASE_A[theme] + (1 - BASE_A[theme]) * smoothstep(0, RAMP_KN[theme], kn)), k = gpu ? a * a : a;
       const bm = BASEMAP[theme].map((v) => v / 255);
-      return rgbToHueDeg([bm[0] * (1 - a) + r * a, bm[1] * (1 - a) + g * a, bm[2] * (1 - a) + b * a]);
+      return rgbToHueDeg([bm[0] * (1 - a) + r * k, bm[1] * (1 - a) + g * k, bm[2] * (1 - a) + b * k]);
     };
+    const gap = (theme, s0, s1, gpu) => { const d = Math.abs(compositeHue(theme, s1, gpu) - compositeHue(theme, s0, gpu)); return d > 180 ? 360 - d : d; };
     for (const theme of ['dark']) {   // light/beach now TINT (multiply) — gated by the CIEDE2000 tests below
       const ramp = THEME_RAMPS[theme];
       for (let i = 1; i < ramp.length && ramp[i][0] <= 21; i++) {
-        const a = compositeHue(theme, ramp[i - 1]);
-        const b = compositeHue(theme, ramp[i]);
-        let d = Math.abs(b - a);
-        if (d > 180) d = 360 - d;
         // the 0-10 kn band (where 71% of the Gulf's real wind lived on 07-20) carries the raised
         // 18-deg bar the low-band re-derivation guaranteed; 12 remains the floor above it
-        expect(d).toBeGreaterThanOrEqual(ramp[i][0] <= 10 ? 18 : 12);
+        expect(gap(theme, ramp[i - 1], ramp[i])).toBeGreaterThanOrEqual(ramp[i][0] <= 10 ? 18 : 12);
       }
     }
+    // UNDER THE KILL (the squared law, as the GPU drew it before windDarkFieldVivid.js): the gaps measured then (0-3 kn 4.9, 3-6 26.7,
+    // 6-10 26.6, 10-16 19.4, 16-21 30.2 deg), pinned so the kill still draws exactly what dev drew. The 0-3 kn pair sat BELOW the
+    // 18-deg bar; the owner approved the fix ("Yes, fix it", 2026-11-22).
+    const GPU_GAP = { 3: 4.5, 6: 26, 10: 26, 16: 19, 21: 29.5 };
+    const dark = THEME_RAMPS.dark;
+    for (let i = 1; i < dark.length && dark[i][0] <= 21; i++) expect(gap('dark', dark[i - 1], dark[i], true)).toBeGreaterThanOrEqual(GPU_GAP[dark[i][0]]);
   });
 
   it('COMPOSITE VISIBILITY floors: low stops must not go DIMMER than the pre-respread palette', () => {
@@ -163,11 +170,11 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
       const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
       return t * t * (3 - 2 * t);
     };
-    const visDelta = (theme, stop) => {
+    const visDelta = (theme, stop, gpu = false) => {   // gpu: dark's field under the vivid kill (rgb a^2 + map (1 - a)), see the hue-gap test
       const [kn, r, g, b] = stop;
-      const a = OPACITY[theme] * (BASE_A[theme] + (1 - BASE_A[theme]) * smoothstep(0, RAMP_KN[theme], kn));
+      const a = OPACITY[theme] * (BASE_A[theme] + (1 - BASE_A[theme]) * smoothstep(0, RAMP_KN[theme], kn)), k = gpu ? a * a : a;
       const bm = BASEMAP[theme].map((v) => v / 255);
-      const c = [bm[0] * (1 - a) + r * a, bm[1] * (1 - a) + g * a, bm[2] * (1 - a) + b * a];
+      const c = [bm[0] * (1 - a) + r * k, bm[1] * (1 - a) + g * k, bm[2] * (1 - a) + b * k];
       return 255 * Math.sqrt(0.30 * (c[0] - bm[0]) ** 2 + 0.59 * (c[1] - bm[1]) ** 2 + 0.11 * (c[2] - bm[2]) ** 2);
     };
     // 07-20 floors: pinned at ~92% of the composite deltas the raised-alpha derivation achieved
@@ -188,6 +195,10 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
         expect(visDelta(theme, stop)).toBeGreaterThanOrEqual(floor);
       }
     }
+    // UNDER THE KILL (the squared law dev drew before windDarkFieldVivid.js): the deltas measured then (0 kn 20.3, 3 kn 39.7, 6 kn
+    // 27.7); calm and 6 kn sat BELOW the design floors above, which the default now draws.
+    const GPU_VIS = { 0: 20, 3: 39, 6: 27 };
+    for (const stop of THEME_RAMPS.dark) if (GPU_VIS[stop[0]] !== undefined) expect(visDelta('dark', stop, true)).toBeGreaterThanOrEqual(GPU_VIS[stop[0]]);
   });
 
   // ── LIGHT + BEACH (2026-10-09 redesign; owner chose the MIDDLE GROUND for slow wind) ─────────────────────

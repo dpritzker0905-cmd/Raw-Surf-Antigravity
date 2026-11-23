@@ -1,7 +1,7 @@
 // WIND PALETTE CHECKER — judges the wind colours as they are actually COMPOSITED over each basemap, not as bare swatches.
 //
 // Why a tool of its own (reports/Color and motion tools for Claude.md): light/beach draw the field as a MULTIPLY tint
-// (out = map x (1 - s(1 - c)), encoded sRGB) and dark as an alpha-over field; the particles sit on top of that tint. No
+// (out = map x (1 - s(1 - c)), encoded sRGB) and dark as a premultiplied field blended ONE (out = c a + map (1 - a), see MODEL); the particles sit on top of that tint. No
 // palette plugin or connector models either, and every "blends into the water" report this project had (#285, #288)
 // lived in the composite between the stops, not in the swatches. Libraries: culori (CIEDE2000, Lab) here; coloraide
 // (Vienot/Brettel colour-blind models) in cvd_check.py, called automatically when ./.venv exists.
@@ -19,6 +19,7 @@
 //                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today] [--before-white] [--full-white] [--before-path] [--before-depth] [--before-step] [--land-l 0.75] [--as-uploaded [10-80:1]] [--as-uploaded-floor 4.9] [--index255]
 //                            node check.mjs --look moderate|deep|ink   (light's look A/B, window.__RAW_WIND_LIGHT_LOOK__)
 //                            node check.mjs [--no-gusts] [--before-gust-dark]   (the GUSTS vs WIND section at the end; README "Gusts vs Wind")
+//                            node check.mjs --before-dark-vivid   (dark's field by the squared law the GPU drew before windDarkFieldVivid.js, i.e. under its kill)
 // Exit code 1 with --strict when any RED line is printed (here or in the colour-blind check).
 import fs from 'fs';
 import path from 'path';
@@ -60,10 +61,18 @@ const groundOf = (theme, surf, c) => {
 const winOf = (theme) => { const amount = NO_MUTE ? 0 : windBasemapMuteAmount(theme, LEVERS); return { ...LEVERS, __WIND_BASEMAP_MUTE__: { applied: amount > 0, theme, landL: amount > 0 ? windBasemapLandL(theme, LEVERS) : 1, landStep: amount > 0 && windLandStepAsked(theme, LEVERS) } }; };
 
 // Composite model — keep in sync with HEATMAP_FS / DRAW_FS and windFieldLut.test.js (TINT, SURFACES, BASEMAP).
+// DARK IS PREMULTIPLIED (2026-11-22, read back on a GPU by dark-field-gpu.mjs). HEATMAP_FS writes vec4(fieldRgb * a, a) and the engine
+// blends it SRC_ALPHA, ONE_MINUS_SRC_ALPHA (windCanvasAlpha.js blendIntoMap), so the map shows c a^2 + map (1 - a): a dim veil whose
+// colour lands at a squared strength (the colour laid fits a^2 to 0.006 at every speed, the water composite to 0.7/255). Until then dark
+// was judged as c a + map (1 - a), a brighter, more saturated field than any screen showed. THE FIX (windDarkFieldVivid.js, same day,
+// owner-approved): the engine blends dark's premultiplied field ONE, ONE_MINUS_SRC_ALPHA, so the screen holds c a + map (1 - a), the law
+// the palette was designed in, and this models it by default ('over'). --before-dark-vivid reads the squared law (its kill,
+// window.__RAW_DISABLE_DARK_WIND_VIVID__; dev before the fix). --dark-alpha-over is accepted and is now the default.
+const DARK_PREMUL = args.includes('--before-dark-vivid');
 const MODEL = {
   light: { kind: 'multiply', op: 0.65, baseA: 0.42, end: 7, k: 0.70 / 0.65, pop: 1.0, surfaces: { water: [168, 214, 222], land: [236, 236, 232] } },
   beach: { kind: 'multiply', op: 0.55, baseA: 0.45, end: 7, k: 0.60 / 0.55, pop: 0.6, surfaces: { water: [150, 190, 200], land: [222, 208, 180] } },
-  dark: { kind: 'over', op: 0.48, baseA: 0.44, end: 5, k: 1, pop: null, surfaces: { water: [93, 117, 126] } },
+  dark: { kind: DARK_PREMUL ? 'premul' : 'over', op: 0.48, baseA: 0.44, end: 5, k: 1, pop: null, surfaces: { water: [93, 117, 126] } },
 };
 // tintFromKn: 3 kn is the owner's "middle ground" (a deliberately soft tint, ~9-11 dE00), so the tint floor starts at 6 kn.
 // blendRedKn: a violet -> green ramp must hand off across a cyan water's hue once; > 2 kn of it is a real blend zone.
@@ -84,7 +93,9 @@ const hgap = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 -
 const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 const sample = (ramp, v) => { if (v <= ramp[0][0]) return ramp[0].slice(1); for (let i = 1; i < ramp.length; i++) if (v <= ramp[i][0]) { const t = (v - ramp[i - 1][0]) / (ramp[i][0] - ramp[i - 1][0]); return [1, 2, 3, 4].map((j) => ramp[i - 1][j] + (ramp[i][j] - ramp[i - 1][j]) * t); } return ramp[ramp.length - 1].slice(1); };
 const strength = (m, v) => Math.min(1, m.op * (m.baseA + (1 - m.baseA) * ss(0, m.end, v)) * m.k);
-const tintOver = (m, v, c, bm) => (m.kind === 'multiply' ? bm.map((x, i) => x * (1 - strength(m, v) * (1 - c[i]))) : bm.map((x, i) => c[i] * strength(m, v) + x * (1 - strength(m, v))));
+const tintOver = (m, v, c, bm) => (m.kind === 'multiply' ? bm.map((x, i) => x * (1 - strength(m, v) * (1 - c[i])))
+  : m.kind === 'premul' ? bm.map((x, i) => c[i] * strength(m, v) * strength(m, v) + x * (1 - strength(m, v)))   // dark under the vivid kill: c a^2 + map (1 - a)
+    : bm.map((x, i) => c[i] * strength(m, v) + x * (1 - strength(m, v))));   // alpha-over: dark as the GPU lays it (windDarkFieldVivid.js), its designed law
 
 // --as-uploaded [10-80:1]: ALSO read the field as the engine uploads it. The engine draws a 256-texel, 8-bit texture of the table
 // (WindColorRamp.js generateRampData: the table sampled at i / 255 x the frame's maximum, each channel rounded to a byte), read LINEAR
@@ -168,7 +179,8 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
 // GUSTS = WIND (2026-11-22): the Gusts layer draws the wind field's own colour for each knot (gustPalette.js) through a raster
 // of its own (ownRasterLayer.js), so "does a gust of N kn look like a wind of N kn" is a question about two COMPOSITES. Each is
 // modelled as the GPU lays it, from the app's own sources:
-//   wind, dark:        HEATMAP_FS writes (rgb a, a), blended SRC_ALPHA, ONE_MINUS_SRC_ALPHA -> rgb a^2 + map (1 - a), a = 0.48 law(kn)
+//   wind, dark:        HEATMAP_FS writes (rgb a, a), blended ONE, ONE_MINUS_SRC_ALPHA -> rgb a + map (1 - a), a = 0.48 law(kn)
+//                      (--before-dark-vivid: blended SRC_ALPHA -> rgb a^2 + map (1 - a))
 //   wind, light/beach: the multiply tint, map x mix(1, rgb, a s), a = opacity law(kn), s = v2FieldTint
 //   gusts, dark:       its LUT (bytes) at alpha A = lut.a opacity, MapLibre's premultiplied blend -> lut.rgb A + map (1 - A)
 //   gusts, light/beach: the same multiply as the wind with its own tint strength (gustParticles.gustFieldTint)
@@ -179,10 +191,11 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
 // --no-gusts skips it; --before-gust-dark reads dark before its parity fix (window.__RAW_DISABLE_GUST_DARK_FIELD__).
 if (!args.includes('--no-gusts')) {
   const MAPDIR = path.join(HERE, '..', '..', 'src', 'components', 'map');
-  const GW = { ...LEVERS, ...(args.includes('--before-gust-dark') ? { __RAW_DISABLE_GUST_DARK_FIELD__: true } : {}) };
+  const GW = { ...LEVERS, ...(args.includes('--before-gust-dark') ? { __RAW_DISABLE_GUST_DARK_FIELD__: true } : {}), ...(DARK_PREMUL ? { __RAW_DISABLE_DARK_WIND_VIVID__: true } : {}) };
+  const { windDarkVividOn } = new Function(source(path.join(MAPDIR, 'windDarkFieldVivid.js')) + '; return { windDarkVividOn };')();
   const { WIND_FIELD_OPACITY, gustFieldTint } = new Function(source(path.join(MAPDIR, 'gustParticles.js')) + '; return { WIND_FIELD_OPACITY, gustFieldTint };')();
-  const { gustScale, gustFieldOpacity, WIND_FIELD_ALPHA } = new Function('huePathStops', 'resolveDrawnField', 'resolveThemeRamp', 'sampleRamp', 'windLegendStops', 'WIND_FIELD_OPACITY',
-    source(path.join(MAPDIR, 'gustPalette.js')) + '; return { gustScale, gustFieldOpacity, WIND_FIELD_ALPHA };')(huePathStops, resolveDrawnField, resolveThemeRamp, sampleRamp, windLegendStops, WIND_FIELD_OPACITY);
+  const { gustScale, gustFieldOpacity, WIND_FIELD_ALPHA } = new Function('huePathStops', 'resolveDrawnField', 'resolveThemeRamp', 'sampleRamp', 'windLegendStops', 'WIND_FIELD_OPACITY', 'windDarkVividOn',
+    source(path.join(MAPDIR, 'gustPalette.js')) + '; return { gustScale, gustFieldOpacity, WIND_FIELD_ALPHA };')(huePathStops, resolveDrawnField, resolveThemeRamp, sampleRamp, windLegendStops, WIND_FIELD_OPACITY, windDarkVividOn);
   const rasterSrc = fs.readFileSync(path.join(MAPDIR, 'ownRasterLayer.js'), 'utf8');
   const GUST_OPACITY_STOPS = JSON.parse(/export const GUST_OPACITY_STOPS = (\[[^;]*\]);/.exec(rasterSrc)[1]);
   const opAt = (z) => { const s = GUST_OPACITY_STOPS; if (z <= s[0][0]) return s[0][1]; for (let i = 1; i < s.length; i++) if (z <= s[i][0]) return s[i - 1][1] + ((z - s[i - 1][0]) / (s[i][0] - s[i - 1][0])) * (s[i][1] - s[i - 1][1]); return s[s.length - 1][1]; };
@@ -209,7 +222,8 @@ if (!args.includes('--no-gusts')) {
         const c = sample(F, kn), a = law(kn), l = lutAt(kn);
         let wind, gust;
         if (theme === 'dark') {
-          wind = g.map((x, i) => c[i] * a * a + x * (1 - a));
+          const kw = MODEL.dark.kind === 'premul' ? a * a : a;   // the engine's law (windDarkFieldVivid.js; squared under its kill)
+          wind = g.map((x, i) => c[i] * kw + x * (1 - a));
           const A = l[3] * gustFieldOpacity(theme, z, opAt, GW);
           gust = g.map((x, i) => l[i] * A + x * (1 - A));
         } else {

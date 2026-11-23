@@ -117,6 +117,9 @@ COVERAGE = {
                                    "nearshore-moplite-v1 scorer (LITE vs CHAIN at buoys, forward archive), not yet run"),
     "SHORE_NORMAL_MOP_CALIBRATED": (REPLAY, "the height exposure normal at the calibrated anchors (#780)"),
     "RATING_LOCAL_SIZE": (RATING, "the quality score's size reference; no observed rating exists"),
+    "RATING_MISSING_SAMPLE_UNKNOWN": (BLIND, "moves only spot-hours whose sample was a sampler placeholder "
+                                             "('unavailable' / out-of-bounds); the replay never serves one. Evidence: "
+                                             "tests/test_missing_sample_unknown.py and the placeholder census in its PR"),
     "RATING_BREAKER_TYPE": (RATING, "the quality score's breaker-type term; no observed rating exists"),
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": (RATING, "the quality score's oversize gate reads the height cap's depth "
                                                  "(CMP-3); the height is unchanged, no observed rating exists"),
@@ -133,6 +136,8 @@ COVERAGE = {
                                      "asset (unit, offline)"),
     "SIDE_PATHS_THROUGH_CHAIN": (BLIND, "the conditions preview, _breaking_ft and surf-conditions side paths (#774); "
                                         "the replay rates rate_one_spot. Evidence: test_side_paths_through_chain.py"),
+    "HUB_NOW_NEAREST_HOUR": (BLIND, "which hour the hub's 'now' row and the sim's default sample read (bug hunt E); the "
+                                    "replay rates fixed valid times. Evidence: test_hub_now_anchor_parity.py + Jest twin"),
     "MANIFEST_PRUNE_TOMBSTONES": (BLIND, "moves which products the manifest lists, not a forecast number (#770). "
                                          "Evidence: the manifest chain harness (pruned entries stay pruned)"),
     "CONSENSUS_DIRECTION_VECTOR": (LEDGER, "acts only inside the multi-model consensus build, which the GFS-only replay "

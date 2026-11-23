@@ -1,0 +1,89 @@
+name: Long-range wind v2 climatology and spot export (offline evidence, serves nothing)
+
+# Amendment 2: CLIM from Copernicus Marine WIND_GLO_PHY_L4_MY_012_006 (2008-2025, +-15 d window), and the spot catalogue
+# export for station-to-spot pairing. Credentials are read by environment-variable NAME from Actions secrets, in CI only,
+# never on Render, never written to a file or a log. DISPATCH-ONLY with the owner's typed word in the dispatching session.
+
+on:
+  workflow_dispatch:
+    inputs:
+      what:
+        description: 'clim (CMEMS climatology) or spots (catalogue export)'
+        required: true
+        type: choice
+        options: ['clim', 'spots']
+      owner_word_ref:
+        description: 'Where the owner typed the dispatch word. Required.'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0 copernicusmarine==2.4.1 xarray
+      - name: Climatology from the CMEMS L4 MY wind (00/06/12/18 UTC, 2008-2025, one small box per station)
+        if: ${{ github.event.inputs.what == 'clim' }}
+        working-directory: backend
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+          OWNER_WORD_REF: ${{ github.event.inputs.owner_word_ref }}
+        run: |
+          test -n "$OWNER_WORD_REF" || exit 1
+          mkdir -p "$RUNNER_TEMP/wlr2"
+          cp ../docs/weather-program/evidence/wind-long-range-v2/wind_lr2_stations.json "$RUNNER_TEMP/wlr2/"
+          python scripts/wind_lr2_cmems.py build --cache "$RUNNER_TEMP/wlr2"
+      - name: Spot catalogue export (read-only)
+        if: ${{ github.event.inputs.what == 'spots' }}
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OWNER_WORD_REF: ${{ github.event.inputs.owner_word_ref }}
+        run: |
+          test -n "$OWNER_WORD_REF" || exit 1
+          mkdir -p "$RUNNER_TEMP/wlr2"
+          python scripts/wind_lr2_spots.py export --out "$RUNNER_TEMP/wlr2/spots.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wind-lr2-${{ github.event.inputs.what }}-${{ github.run_id }}
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/wlr2/wind_lr2_clim_stations.npz
+            ${{ runner.temp }}/wlr2/wind_lr2_clim_report.json
+            ${{ runner.temp }}/wlr2/spots.json
+
+  archive:
+    # Artifacts expire after 90 days and TEST scoring is February 2027 or later: copy every artifact and its sha256 to the
+    # weather bucket (calibration/ prefix) and log the hashes. Secrets by NAME, in the supabase-service environment only.
+    needs: [run]
+    if: ${{ always() && needs.run.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install requests==2.31.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wind-lr2-*
+          path: ${{ runner.temp }}/art
+      - name: Copy to the weather bucket with sha256
+        working-directory: backend
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/wind_lr2_archive.py --src "$RUNNER_TEMP/art" --prefix "calibration/wind-lr2/$RUN_ID-$RUN_ATTEMPT"
