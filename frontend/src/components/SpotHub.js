@@ -108,11 +108,13 @@ const ForecastDayCard = ({ day, _dayIndex, isLocked = false, isSelected = false 
 
 import BookingTypeModal from './spot-hub/BookingTypeModal';
 import PhotographerRequestModal from './spot-hub/PhotographerRequestModal';
+import { useNoteForecastShown } from './observations/forecastExposure';
 
 /**
  * SpotHub Page - Compact surf spot view that fits within app layout
  */
 const SpotHub = () => {
+  useNoteForecastShown('spot_hub');  // blind-quality exposure (observations/forecastExposure)
   const { spotId } = useParams();
   const { theme } = useTheme();
   const t = getThemeTokens(theme);

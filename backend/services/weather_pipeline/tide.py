@@ -302,10 +302,13 @@ def tide_trend_at(extrema, at):
     return None
 
 
-def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dict]:
+def tide_state_at(times, levels, valid_time, window_h: int = 12, max_gap_h: Optional[float] = None) -> Optional[dict]:
     """PURE: tide state at ``valid_time`` from an hourly (times, levels) series. Returns
     {height_m, norm (0..1 within the surrounding ±window_h tidal window), trend ('rising'|'falling'|'slack')}
-    or None when the series can't be used. ``valid_time`` is an ISO-8601 UTC string or datetime."""
+    or None when the series can't be used. ``valid_time`` is an ISO-8601 UTC string or datetime.
+
+    ``max_gap_h``: when given, None if the nearest sample is farther than that from ``valid_time`` (a valid time
+    outside the series gets NO tide, never the edge sample's). None (the default) keeps the nearest-sample behaviour."""
     if not times or not levels or len(times) != len(levels):
         return None
     req = valid_time if isinstance(valid_time, datetime) else _parse_iso(valid_time)
@@ -325,6 +328,8 @@ def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dic
         if best_d is None or d < best_d:
             best_i, best_d = i, d
     if best_i is None:
+        return None
+    if max_gap_h is not None and best_d > max_gap_h * 3600:
         return None
     height = levels[best_i]
     # local min/max over ±window_h (a tidal day) for the normalized position
@@ -481,23 +486,59 @@ async def _prewarm_chunk(chunk, client, forecast_days):
         return sum(int(_store_series(k, item, forecast_days, now)) for k, item in zip(chunk, results))
 
 
+TIDE_MAX_DAYS = 16          # the 14-day horizon plus the part of today before now and a margin; tide_own publishes ~90
+TIDE_MAX_GAP_H = 1.5        # a sample farther than this from the valid time is not that time's tide
+WINDOW_FIX_FLAG = "SURF_TIDE_WINDOW_FIX"
+
+
+def _days_covering(now, valid) -> int:
+    """PURE: the forecast_days (from 00Z of ``now``'s day) whose window covers ``valid`` plus TIDE_MAX_GAP_H;
+    at least today's 3, at most TIDE_MAX_DAYS. None or an unparseable time: 3."""
+    req = valid if isinstance(valid, datetime) else _parse_iso(valid) if valid else None
+    if req is None:
+        return 3
+    if req.tzinfo is None:
+        req = req.replace(tzinfo=timezone.utc)
+    day0 = now.astimezone(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    hours = (req - day0).total_seconds() / 3600.0 + TIDE_MAX_GAP_H + 1.0
+    return max(3, min(TIDE_MAX_DAYS, int(math.ceil(hours / 24.0))))
+
+
 async def tide_norm_at(lat, lng, valid_time, client=None) -> Optional[dict]:
     """Convenience: fetch + resolve the tide state at a spot for ``valid_time``. Returns the tide_state_at dict
-    ({height_m, norm, trend}) or None. The `norm` feeds surf_rating.tide_fit; the rest is for explainability."""
-    series = await fetch_tide_hourly(lat, lng, client=client)
+    ({height_m, norm, trend}) or None. The `norm` feeds surf_rating.tide_fit; the rest is for explainability.
+
+    SURF_TIDE_WINDOW_FIX (2026-11-23, dark, default "0"): with it OFF this fetches the default 3 days from 00Z today
+    and takes the nearest sample, so every valid time past ~49-72 h gets the LAST sample's height (a frozen tide in
+    tide_fit and in the SURF_TIDE_DEPTH cap: /point, the precompute, the hub's 14-day plan). With it ON the request
+    covers the valid time (`_days_covering`) and a sample farther than TIDE_MAX_GAP_H is refused (None: the callers'
+    neutral eta and tide factor), never a stale one. tests/test_tide_window.py."""
+    from services.runtime_flags import on
+    if not on(WINDOW_FIX_FLAG):
+        series = await fetch_tide_hourly(lat, lng, client=client)
+        if not series:
+            return None
+        return _with_display_datum(tide_state_at(series["time"], series["level"], valid_time), lat, lng, series)
+    days = _days_covering(datetime.now(timezone.utc), valid_time)
+    series = await fetch_tide_hourly(lat, lng, client=client, forecast_days=days)
     if not series:
         return None
-    state = tide_state_at(series["time"], series["level"], valid_time)
-    if state is not None:
-        # DISPLAY ONLY (tide_datum, the one display composition): `height_m` stays the served MSL level that tide_fit,
-        # the SURF_TIDE_DEPTH cap and water_level_m use; the card, glyph and chart rows show `display_height_m`.
-        from services.weather_pipeline import tide_datum
-        # Added only where the display is NOT the served level (a US point above MLLW), so the ratings blob carries no
-        # extra bytes elsewhere; a reader without them shows height_m above local MSL, as before.
-        block = tide_datum.datum_for(lat, lng, series)
-        if block["datum"] == "MLLW":
-            state = dict(state, display_height_m=tide_datum.display_m(state.get("height_m"), block),
-                         datum="MLLW", datum_src=block["source"])         # gauge | model | interpolated
+    return _with_display_datum(tide_state_at(series["time"], series["level"], valid_time, max_gap_h=TIDE_MAX_GAP_H),
+                               lat, lng, series)
+
+
+def _with_display_datum(state, lat, lng, series):
+    """DISPLAY ONLY (tide_datum, the one display composition): `height_m` stays the served MSL level that tide_fit,
+    the SURF_TIDE_DEPTH cap and water_level_m use; the card, glyph and chart rows show `display_height_m`. Added only
+    where the display is NOT the served level (a US point above MLLW), so the ratings blob carries no extra bytes
+    elsewhere; a reader without them shows height_m above local MSL, as before."""
+    if state is None:
+        return None
+    from services.weather_pipeline import tide_datum
+    block = tide_datum.datum_for(lat, lng, series)
+    if block["datum"] == "MLLW":
+        state = dict(state, display_height_m=tide_datum.display_m(state.get("height_m"), block),
+                     datum="MLLW", datum_src=block["source"])         # gauge | model | interpolated
     return state
 
 

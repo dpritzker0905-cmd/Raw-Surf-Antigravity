@@ -22,6 +22,7 @@ import { forecastCalendar } from './forecastCalendar';
 import SpotTideBlock from './spot-hub/SpotTideBlock';
 import { SpotChartPanel } from './spot-hub/charts/SpotChartPanel';
 import { displayPeriod, hubForecastWindow, spotHubP1Enabled, splitForecastWindow } from './spot-hub/spotHubP1';
+import { useNoteForecastShown } from './observations/forecastExposure';
 
 // Emoji constants -- using String.fromCodePoint to prevent encoding corruption
 const E = {
@@ -96,6 +97,7 @@ export const confidenceLabel = (fc) => {
 };
 
 export const SpotConditions = ({ spotId, spotName, compact = false, timeOffsetHours = 0, onSelectOffset = null }) => {
+  useNoteForecastShown('spot_conditions');  // blind-quality exposure (observations/forecastExposure)
   const { user } = useAuth();
   const { theme } = useTheme();
   const t = getThemeTokens(theme);

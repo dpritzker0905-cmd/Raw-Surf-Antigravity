@@ -26,7 +26,7 @@
   - It should persist as a climatological offset. Cui et al. found that for week 2, a climate-mean bias correction beats the decaying-average estimate [1].
 - **(b) a synoptic-state part** (the two models placing a front differently at t0).
   - This decays as both forecasts lose skill.
-  - It can also flip sign. Carried forward it is noise, and that is the risk the 2026-11-19 advisor hold on the same-hour rule already partly addressed.
+  - It can also flip sign. Carried forward it is noise, and that is the risk the 2026-11-22 advisor hold on the same-hour rule already partly addressed.
 
 So decaying the whole offset to zero throws away (a), and holding (b) for 120 h keeps noise for days.
 

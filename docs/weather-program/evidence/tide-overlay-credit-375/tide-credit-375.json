@@ -1,0 +1,152 @@
+{
+ "light": {
+  "map": {
+   "file": "C:\\Users\\David\\App\\raw-surf\\.claude\\worktrees\\tide-overlay-cf8266\\docs\\weather-program\\evidence\\tide-overlay-credit-375\\tide-credit-375-light.png",
+   "credit": {
+    "text": "Tide data: FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine",
+    "box": {
+     "left": 8,
+     "top": 216,
+     "right": 270.5,
+     "bottom": 244.5,
+     "height": 28.5
+    },
+    "occluded": [],
+    "visibleEverywhere": true,
+    "clipped": false,
+    "inViewport": true,
+    "wheels": [],
+    "overlapsWheel": false,
+    "markers": 1
+   }
+  },
+  "wheel": {
+   "file": "C:\\Users\\David\\App\\raw-surf\\.claude\\worktrees\\tide-overlay-cf8266\\docs\\weather-program\\evidence\\tide-overlay-credit-375\\tide-credit-375-light-wheel.png",
+   "credit": {
+    "text": "Tide data: FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine",
+    "box": {
+     "left": 8,
+     "top": 216,
+     "right": 270.5,
+     "bottom": 244.5,
+     "height": 28.5
+    },
+    "occluded": [],
+    "visibleEverywhere": true,
+    "clipped": false,
+    "inViewport": true,
+    "wheels": [
+     {
+      "left": 73,
+      "top": 722,
+      "right": 298,
+      "bottom": 766
+     }
+    ],
+    "overlapsWheel": false,
+    "markers": 1
+   }
+  },
+  "errors": []
+ },
+ "dark": {
+  "map": {
+   "file": "C:\\Users\\David\\App\\raw-surf\\.claude\\worktrees\\tide-overlay-cf8266\\docs\\weather-program\\evidence\\tide-overlay-credit-375\\tide-credit-375-dark.png",
+   "credit": {
+    "text": "Tide data: FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine",
+    "box": {
+     "left": 8,
+     "top": 216,
+     "right": 270.5,
+     "bottom": 244.5,
+     "height": 28.5
+    },
+    "occluded": [],
+    "visibleEverywhere": true,
+    "clipped": false,
+    "inViewport": true,
+    "wheels": [],
+    "overlapsWheel": false,
+    "markers": 1
+   }
+  },
+  "wheel": {
+   "file": "C:\\Users\\David\\App\\raw-surf\\.claude\\worktrees\\tide-overlay-cf8266\\docs\\weather-program\\evidence\\tide-overlay-credit-375\\tide-credit-375-dark-wheel.png",
+   "credit": {
+    "text": "Tide data: FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine",
+    "box": {
+     "left": 8,
+     "top": 216,
+     "right": 270.5,
+     "bottom": 244.5,
+     "height": 28.5
+    },
+    "occluded": [],
+    "visibleEverywhere": true,
+    "clipped": false,
+    "inViewport": true,
+    "wheels": [
+     {
+      "left": 73,
+      "top": 722,
+      "right": 298,
+      "bottom": 766
+     }
+    ],
+    "overlapsWheel": false,
+    "markers": 1
+   }
+  },
+  "errors": []
+ },
+ "beach": {
+  "map": {
+   "file": "C:\\Users\\David\\App\\raw-surf\\.claude\\worktrees\\tide-overlay-cf8266\\docs\\weather-program\\evidence\\tide-overlay-credit-375\\tide-credit-375-beach.png",
+   "credit": {
+    "text": "Tide data: FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine",
+    "box": {
+     "left": 8,
+     "top": 216,
+     "right": 270.5,
+     "bottom": 244.5,
+     "height": 28.5
+    },
+    "occluded": [],
+    "visibleEverywhere": true,
+    "clipped": false,
+    "inViewport": true,
+    "wheels": [],
+    "overlapsWheel": false,
+    "markers": 1
+   }
+  },
+  "wheel": {
+   "file": "C:\\Users\\David\\App\\raw-surf\\.claude\\worktrees\\tide-overlay-cf8266\\docs\\weather-program\\evidence\\tide-overlay-credit-375\\tide-credit-375-beach-wheel.png",
+   "credit": {
+    "text": "Tide data: FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine",
+    "box": {
+     "left": 8,
+     "top": 216,
+     "right": 270.5,
+     "bottom": 244.5,
+     "height": 28.5
+    },
+    "occluded": [],
+    "visibleEverywhere": true,
+    "clipped": false,
+    "inViewport": true,
+    "wheels": [
+     {
+      "left": 73,
+      "top": 722,
+      "right": 298,
+      "bottom": 766
+     }
+    ],
+    "overlapsWheel": false,
+    "markers": 1
+   }
+  },
+  "errors": []
+ }
+}
