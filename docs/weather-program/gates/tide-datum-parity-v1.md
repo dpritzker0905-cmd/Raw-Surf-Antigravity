@@ -89,3 +89,31 @@ A PR that changes any of them must name this gate.
   is retargeted or merged so the v2 instrument is what runs.
 - Starting it is a dispatch and needs David's typed word.
 - The result goes to `results/tide-datum-parity-v1.md`, in a later commit than this file.
+
+## 8. Amendment 1 (2026-11-23 02:50Z, before the run and before any data from it): when a gauge counts as MEASURED
+
+Requested by the advisor, through the director, before dispatch.
+
+**Rule:** a gauge is MEASURED for a D variant only if, over the run's window, both of these hold:
+- at least **70%** of NOAA's High/Low events at that gauge are matched to one of ours (the same type within the
+  instrument's 3 h match window);
+- at least **8** events are matched.
+
+Otherwise the gauge is NOT MEASURED for that variant, and **counts as a FAIL** in the per-gauge leg: it is never
+dropped from the 26.
+
+**Effect on the per-gauge leg:** "≥ 24 of 26" counts only gauges that are MEASURED AND have median |h| ≤ 0.10 m. A gauge
+that is not measured cannot be one of the 24.
+
+**What the aggregate legs use:** median |h|, p90 |h| and the median signed error are computed over the matched events
+of the MEASURED gauges only. The events and gauges left out are listed by name.
+
+**Reported per gauge and variant:** NOAA's event count, the matched count, the matched share, and MEASURED or NOT
+MEASURED.
+
+**Disclosure:** in v1 (raw band, run 45093427404), Pensacola matched 6 of 14 NOAA events (43%), so under this rule it
+would have been NOT MEASURED, and therefore a FAIL. Every other gauge matched all of its events. The rule is not chosen
+to help or to hurt any gauge: it is the advisor's proposed rule, stated before the run.
+
+**The verdict is unchanged:** it is on the **model** D variant, the served first source. The sheet variant is judged
+and reported, and a sheet failure is a named limit on the fallback (section 3).
