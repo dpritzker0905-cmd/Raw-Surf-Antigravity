@@ -13,7 +13,9 @@
 #   Dry run:  Actions -> "Spot Forecast Series" -> Run workflow (defaults: 40 spots a job, 10 hub-parity spots).
 # Measured offline (synthetic catalogue, 1,773 spots, scripts/spot_series_ci.py synthetic): 102,834 frames a model,
 # 192 shards, 2.24 MB gzipped in all, mean 11.7 KB, max 17.9 KB. At CI's measured ~54 ms a frame that is ~93 min a
-# model, ~23 min a job at 4 jobs.
+# model, ~23 min a job at 4 jobs. ⚠️ MEASURED 2026-11-15 (dispatch 43734665312, 40 spots a job): 206-366 ms a frame,
+# 4-7x that estimate, so a full job (~1/4 of the catalogue) needs well over the 60-minute timeout; no automatic run
+# has ever completed (2026-11-22 diagnosis, PR body). The job logs "rate progress" lines to measure the real rate.
 # ⚠️ TIER: shards hold 14 days; the client must show only LayerAccessResolver's window. Anonymous CDN access would
 # expose 14 days to free users (as the map's static frames do) and needs an owner-approved storage policy for the
 # spot_series/ prefix. Both are owner decisions (PR body).
@@ -30,6 +32,10 @@ on:
         description: "Spots per job on which the phase-2 hub path is compared with the glyph item and these rows"
         required: false
         default: '10'
+      identity_check:
+        description: "Rate each job twice (capped vs full prefetch, emptied L1 each time) and fail unless every row matches"
+        required: false
+        default: 'false'
   # Ratings follow the glyph precompute, so the series and the glyphs are rated on the same restored products.
   workflow_run:
     workflows: ["Precompute Spot Ratings (decoupled)"]
@@ -60,6 +66,10 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # 2026-11-22: every automatic run since 11-18 held 12 runners for the full 60-minute timeout and ended
+      # "cancelled" (nothing published), queueing every PR's CI behind it. 4 at a time leaves the rest of the
+      # account's runners for CI; the rating budget below makes an overrunning job fail loudly in ~15 min, not 60.
+      max-parallel: 4
       matrix:
         model: [GFS, EURO, ICON]
         job: [0, 1, 2, 3]
@@ -101,6 +111,18 @@ jobs:
           SURF_BIGHT_HS_EURO_WEIGHT: '0.5'
           # The series reaches +336 h, so warm the whole horizon (precompute warms 1 day: it rates +0/+3 h).
           PREFETCH_WINDOW_DAYS: '15'
+          # 2026-11-23: warm EVERY product of this job's model before rating (incl. global_mid), not the serve box's
+          # all-model warm set capped at 400. With the cap, a GFS job lazily downloaded 3,259 distinct products one at a
+          # time during rating and never fit 60 min. Gate: the dispatch input identity_check (rows identical, capped vs
+          # full); do NOT unset SPOT_SERIES_PUBLISH before it passes on every model.
+          PREFETCH_MODELS: ${{ matrix.model }}
+          PREFETCH_MAX: '0'
+          PREFETCH_INCLUDE_MID: '1'
+          PREFETCH_CONCURRENCY: '16'
+          PREFETCH_RETRIES: '3'
+          # Not science: once 30% of this budget is spent, a job whose projected rating time exceeds it fails with
+          # the measured numbers instead of being killed silently at timeout-minutes (scripts/spot_series_ci.py).
+          SPOT_SERIES_RATE_BUDGET_MIN: '50'
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           WEATHER_PROXY_URL: ${{ secrets.WEATHER_PROXY_URL }}
@@ -110,6 +132,7 @@ jobs:
           python scripts/spot_series_ci.py rate --model ${{ matrix.model }} --job ${{ matrix.job }} --jobs 4
           --base-time ${{ needs.plan.outputs.base_time }} --limit ${{ inputs.limit || '0' }}
           --hub-parity ${{ inputs.hub_parity || '0' }} --out ../series-rows
+          ${{ inputs.identity_check == 'true' && '--identity-check' || '' }}
       - uses: actions/upload-artifact@v6
         with:
           name: series-rows-${{ matrix.model }}-${{ matrix.job }}
