@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 8,
+  "tests": 10,
   "files": 1,
   "branch": "claude/tide-mllw-us",
   "date": "2026-11-23",
-  "note": "tideDatum.test.js +13 (incl. A+M+D compact-pair wording); tideClient fallback tests -6 +1 (D-082 removal)"
+  "note": "tideDatum.test.js +13 (incl. A+M+D wording); tideClient fallback -6 +1 (D-082); tideOverlay.parity +2 (MLLW kill parity, #923)"
 }

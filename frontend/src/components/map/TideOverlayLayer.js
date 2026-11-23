@@ -41,6 +41,7 @@ export function TideMarkerBody({ model, theme }) {
       <div aria-hidden="true">
         <span className={`font-semibold ${k.accent}`}>{model.glyph} {model.trendWord}</span>{' '}
         <span className="font-bold">{model.heightText}</span>
+        {model.datumText && <span className={k.muted}> {model.datumText}</span>}
       </div>
       {model.nextText && <div aria-hidden="true" className={`text-[9px] ${k.muted}`}>{model.nextText}</div>}
     </div>

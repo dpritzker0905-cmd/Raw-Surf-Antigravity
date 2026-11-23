@@ -393,3 +393,34 @@ before any TWL data.
 
 **Why Reflection's framing:** this window's +0.3–0.4 m persistent offset is exactly the case where beating A + D
 proves little and beating persistence proves skill.
+
+## 2026-11-23 03:38Z: dev merged in (#1178, #923 and others); the #923 overlay datum work #1149 owed
+
+**The merge (`b606fdc29`) is conflict resolution only.** #1178 (the tide-window fix, ON) and #923 (the tide overlay)
+are now on dev.
+- **`tide.py`:** both flag paths of `tide_norm_at` keep the window fix and #1149's MLLW display fields, through one
+  helper.
+- **Card, hub, chart and series:** dev's ft/m-following tide text plus #1149's datum word.
+- **Kept on both sides:** both kill switches, and the SCOREBOARD rows.
+
+**The #923 overlay work, done as a separate commit** (owed under the PR body's "Owed when #923 lands" section):
+1. **Same path as the infobox.** `tideOverlayModel.tideMarkerModel` now reads the payload through
+   `pointTideForDisplay`, exactly as `TideReadout` does. With the client kill `__RAW_DISABLE_TIDE_MLLW__` on or off,
+   marker and infobox show the same height in the same named datum. Pinned by two new cases in
+   `tideOverlay.parity.test.js`.
+2. **The datum is named.** The marker's text and `aria-label` carry `datum.short` ("above MLLW" / "above local MSL"),
+   in all three themes, using the theme's own muted class.
+3. **Wording.**
+   - The overlay's code header now says "heights above MLLW (NOAA chart datum) at US points and above local mean sea
+     level elsewhere".
+   - #923's session log line "FES2022 + the altimetry mean level, above local MSL"
+     (`log/2026-11-15-claude-tide-overlay.md:183`) is **superseded by this entry** for US points. That log is another
+     session's and append-only, so it is not edited.
+   - The FES2022 / AVISO + Copernicus credit text is unchanged.
+4. **Stale pins and lists.**
+   - dev's new ft/m tide-row test pinned the pre-#1149 label "Tide (model estimate, mean sea level)". Updated to the
+     unified "above local MSL".
+   - `tideOverlayModel.js` is added to the blind-quality scanner's PURE list: it is a pure model with no JSX, and its
+     renderer sits under MapWebGL, which records exposure.
+
+**Tests:** Jest (map, spot-hub, src/tests) 541 suites and 7,613 tests pass; the eslint ratchet shows no increase.

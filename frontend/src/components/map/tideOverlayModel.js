@@ -7,7 +7,9 @@
  * infobox's TideReadout receives as atTime). tideOverlay.parity.test.js pins marker == infobox at several hours.
  *
  * The data is a MODELED tide from Raw Surf's own table (PR B #1132; the server's tide_source() is 'own' or, killed,
- * 'off', never Open-Meteo): FES2022 + the altimetry mean level, heights above local mean sea level, ~0.1 degree cells,
+ * 'off', never Open-Meteo): FES2022 + the altimetry mean level, ~0.1 degree cells; heights above MLLW (NOAA chart datum)
+ * at US points and above local mean sea level elsewhere, the SAME datum the infobox names (tideDatum.pointTideForDisplay,
+ * so the client kill __RAW_DISABLE_TIDE_MLLW__ moves marker and infobox together; #1149),
  * credited from the payload's provider (TideOverlayCredit). There are no tide stations behind it, so the
  * overlay draws one marker per tide CELL, anchored at the first visible surf spot in that cell, never a station pin
  * that would imply a gauge. Cells are capped (MAX_TIDE_CELLS) and fetched on view change only: the hour never
@@ -17,6 +19,7 @@
  */
 import { tideCellKey } from './tideClient';
 import { tideAt, trendWord, trendGlyph, formatTideHeight } from './tideReadoutFormat';
+import { tideDatumOf, pointTideForDisplay } from './tideDatum';
 
 export const TIDE_OVERLAY_EVENT = 'rawsurf:tide-overlay-toggle';
 export const TIDE_OVERLAY_STORAGE_KEY = '__TIDE_OVERLAY__';
@@ -97,7 +100,10 @@ function nextTurn(d) {
  * past the ~3-day modeled series; the scrubber is never capped to it), else the full readout with a text label for
  * the trend (never arrow or colour alone).
  */
-export function tideMarkerModel(payload, atMs, unit, name = 'Surf spot') {
+export function tideMarkerModel(served, atMs, unit, name = 'Surf spot') {
+  // The infobox's path exactly (TideReadout): heights in the datum the label names, the client kill included.
+  const payload = served ? pointTideForDisplay(served) : served;
+  const datum = tideDatumOf(payload && payload.datum_info);
   const d = payload ? tideAt(payload, atMs) : null;
   if (!d) {
     return { available: false, text: 'No tide for this time', ariaLabel: `Tide near ${name}: no modeled tide for the selected time` };
@@ -108,10 +114,10 @@ export function tideMarkerModel(payload, atMs, unit, name = 'Surf spot') {
   const until = turn ? formatTimeUntil(Date.parse(turn.time) - atMs) : null;
   const nextText = turn && until ? (until === 'now' ? `${turn.kind} now` : `${turn.kind} in ${until}`) : null;
   const turnHeight = turn ? formatTideHeight(turn.height_m, unit) : null;
-  let ariaLabel = `Tide near ${name}: ${word.toLowerCase()}, ${height} at selected time`;
+  let ariaLabel = `Tide near ${name}: ${word.toLowerCase()}, ${height} ${datum.short} at selected time`;
   if (nextText) ariaLabel += `, ${turn.kind.toLowerCase()} ${turnHeight} ${until === 'now' ? 'now' : `in ${until}`}`;
   return {
-    available: true, height_m: d.height_m, trend: d.trend, heightText: height, trendWord: word,
+    available: true, height_m: d.height_m, trend: d.trend, heightText: height, datumText: datum.short, trendWord: word,
     glyph: trendGlyph(d.trend), nextText, next: turn ? { kind: turn.kind, time: turn.time, height_m: turn.height_m } : null,
     ariaLabel,
   };

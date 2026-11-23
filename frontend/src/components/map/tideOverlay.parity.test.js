@@ -242,3 +242,36 @@ describe('load safety: one request per cell, shared with the infobox (no upstrea
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+// #1149 (US tide display above MLLW): the marker reads the payload through the infobox's own pointTideForDisplay, so
+// with the client kill __RAW_DISABLE_TIDE_MLLW__ on or off, marker and infobox show the SAME height in the SAME named
+// datum, and the marker's text and aria-label carry the datum word.
+describe('G1 parity under the MLLW display and its client kill', () => {
+  const OFF = 0.85;
+  const mllw = {
+    ...payload, datum: 'MLLW',
+    datum_info: { datum: 'MLLW', label: 'above MLLW', offset_m: OFF, source: 'gauge', source_label: 'NOAA CO-OPS gauge 1612340 Honolulu',
+      long_label: 'Tide plus average sea-level rise, above MLLW (NOAA chart datum).', negative_note: 'x' },
+    series: series.map((p) => ({ ...p, h: Math.round((p.h + OFF) * 1000) / 1000 })),
+    events: events.map((e) => ({ ...e, height_m: Math.round((e.height_m + OFF) * 1000) / 1000 })),
+  };
+  afterEach(() => { delete window.__RAW_DISABLE_TIDE_MLLW__; });
+
+  test.each([[false, 'above MLLW'], [true, 'above local MSL']])('kill %p: marker == infobox, datum named', async (kill, word) => {
+    window.__RAW_DISABLE_TIDE_MLLW__ = kill;
+    fetchMock = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(mllw) }));
+    global.fetch = fetchMock;
+    const hour = 5;
+    const { rerender } = render(<Both hour={hour} unit="m" />);
+    await waitFor(() => expect(screen.getByTestId('overlay').querySelector('[data-testid="tide-marker"]')).not.toBeNull());
+    rerender(<Both hour={hour} unit="m" />);
+    const atMs = forecastSelectionMs(hour);
+    const truth = tideAt(kill ? payload : mllw, atMs);          // kill on = the served MSL level
+    const h = formatTideHeight(truth.height_m, 'm');
+    const marker = screen.getByTestId('tide-marker');
+    expect(within(screen.getByTestId('infobox')).getByTestId('tide-readout').textContent).toContain(h);
+    expect(marker.textContent).toContain(h);
+    expect(marker.textContent).toContain(word);
+    expect(marker.getAttribute('aria-label')).toContain(`${h} ${word}`);
+  });
+});
