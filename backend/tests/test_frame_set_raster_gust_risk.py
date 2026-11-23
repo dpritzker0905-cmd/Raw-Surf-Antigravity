@@ -286,3 +286,22 @@ def test_guarded_publish_stops_when_the_day_is_spent(tmp_path, monkeypatch):
 def test_guarded_publish_auto_disabled_by_a_recorded_fail(tmp_path, monkeypatch):
     rc, uploads, made, _s = _run_guarded(tmp_path, monkeypatch, _FakeSource(), result_text="Gate verdict: FAIL\n")
     assert rc == 0 and uploads == [] and made == []
+
+
+# ---- regression 2026-11-23: the raster sets must import WITHOUT numpy (data-health-monitor's raster_set_freshness.py runs a
+# system python3 that has none; #1202's top-level core import blinded the monitor to every raster set)
+def test_raster_sets_and_the_freshness_monitor_import_without_numpy():
+    import subprocess
+    backend = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    code = ("import sys; sys.modules['numpy'] = None; sys.path.insert(0, '.'); sys.path.insert(0, 'scripts'); "
+            "from services import frame_set_raster as f; import raster_set_freshness; "
+            "print('gust_risk_ens' in f.SPECS, len(f.SPECS['gust_risk_ens']['hours']))")
+    out = subprocess.run([sys.executable, "-c", code], cwd=backend, capture_output=True, text=True, timeout=120)
+    assert out.returncode == 0, out.stderr[-2000:]
+    assert out.stdout.strip() == "True 84"
+
+
+def test_load_time_constants_equal_the_core():
+    from services.weather_pipeline import ens_gust_risk_core as core
+    assert gk.HOURS == tuple(core.native_steps(360)) and gk.THRESHOLDS_KN == core.THRESHOLDS_KN and gk.MEMBERS == core.MEMBERS
+    assert fsr.SPECS[gk.SET]["hours"] == gk.HOURS
