@@ -41,15 +41,18 @@ const lab = (rgb) => labLin(rgb.map(dec));
 
 // The composite the checker scores (check.mjs MODEL = HEATMAP_FS / windFieldLut.test.js): dark draws the field OVER the
 // map at its stop alpha; light/beach multiply it in. Water as measured on each basemap.
+// Dark's OVER (2026-11-22): HEATMAP_FS writes vec4(rgb a, a) and the engine blends it ONE, ONE_MINUS_SRC_ALPHA (windDarkFieldVivid.js),
+// so the screen holds rgb a + map (1 - a), the law dark's floor was designed in. Under window.__RAW_DISABLE_DARK_WIND_VIVID__ it blends
+// SRC_ALPHA and the screen holds rgb a^2 + map (1 - a) (read back on a GPU, scripts/wind-color/dark-field-gpu.mjs): tintOver(..., gpu = true).
 const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 const MODEL = {
   dark: { over: true, op: 0.48, baseA: 0.44, end: 5, k: 1, water: [93, 117, 126] },
   beach: { op: 0.55, baseA: 0.45, end: 7, k: 0.60 / 0.55, water: [150, 190, 200], land: [222, 208, 180] },
   light: { op: 0.65, baseA: 0.42, end: 7, k: 0.70 / 0.65, water: [168, 214, 222], land: [236, 236, 232] },
 };
-const tintOver = (theme, [kn, r, g, b], surface = 'water') => { const m = MODEL[theme], s = Math.min(1, m.op * (m.baseA + (1 - m.baseA) * ss(0, m.end, kn)) * m.k);
-  const w = m[surface].map((v) => v / 255); return m.over ? [r, g, b].map((c, i) => c * s + w[i] * (1 - s)) : w.map((v, i) => v * (1 - s * (1 - [r, g, b][i]))); };
-const tintOverWater = (theme, stop) => tintOver(theme, stop, 'water');
+const tintOver = (theme, [kn, r, g, b], surface = 'water', gpu = false) => { const m = MODEL[theme], s = Math.min(1, m.op * (m.baseA + (1 - m.baseA) * ss(0, m.end, kn)) * m.k);
+  const w = m[surface].map((v) => v / 255), k = gpu ? s * s : s; return m.over ? [r, g, b].map((c, i) => c * k + w[i] * (1 - s)) : w.map((v, i) => v * (1 - s * (1 - [r, g, b][i]))); };
+const tintOverWater = (theme, stop, gpu = false) => tintOver(theme, stop, 'water', gpu);
 const neighbours = (stops, colour) => stops.slice(1).map((s, i) => ({ kn: `${stops[i][0]}-${s[0]}`, d: worstCvd(colour(stops[i]), colour(s)) }));
 const legendPairs = (ramp) => neighbours(ramp, (s) => s.slice(1, 4));
 const waterPairs = (theme, field, surface = 'water') => neighbours(field.filter((s) => s[0] >= 3), (s) => tintOver(theme, s, surface));
@@ -71,7 +74,14 @@ describe('DARK passes the colour-blind floor (legend and tint over water)', () =
   const live = () => resolveThemeRamp('dark');
   it('every neighbouring legend stop and every neighbouring tint over water is >= 5 dE2000 for all three dichromacies', () => {
     expect(weakest(legendPairs(live())).d).toBeGreaterThanOrEqual(5);
-    expect(weakest(waterPairs('dark', live())).d).toBeGreaterThanOrEqual(5);
+    expect(weakest(waterPairs('dark', live())).d).toBeGreaterThanOrEqual(5);   // as designed (alpha-over) and, since windDarkFieldVivid.js, as drawn
+  });
+  it('UNDER THE VIVID KILL (rgb a^2 + map (1 - a), dev before 2026-11-22): the tint over water was BELOW the 5 dE2000 floor (pinned so the kill draws it)', () => {
+    // check.mjs --before-dark-vivid + cvd_check.py (coloraide), 2026-11-22: 47-55 kn tritan 3.1 the weakest; eight of eleven pairs under 5.
+    // The default (windDarkFieldVivid.js) draws the alpha-over law, which the test above holds at >= 5.
+    const gpuPairs = neighbours(live().filter((s) => s[0] >= 3), (s) => tintOverWater('dark', s, true));
+    expect(weakest(gpuPairs).d).toBeGreaterThanOrEqual(3.0);
+    expect(weakest(gpuPairs).d).toBeLessThan(weakest(waterPairs('dark', live())).d);   // the old model judged a brighter field than the screen shows
   });
   it('without false bands: the 10-55 kn legend is one lightness arc (up to 21 kn, down to 55 kn) and adds no peak or dip', () => {
     const L = live().map((s) => lab(s.slice(1, 4))[0]);

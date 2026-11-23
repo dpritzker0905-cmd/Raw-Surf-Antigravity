@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 2,
+  "files": 1,
+  "branch": "fix/breaker-xi-offshore-height",
+  "date": "2026-11-23",
+  "note": "breaker xi offshore height (bug hunt G)"
+}

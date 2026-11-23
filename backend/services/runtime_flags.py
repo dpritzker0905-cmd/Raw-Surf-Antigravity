@@ -86,11 +86,15 @@ GUARDED = {
     "LOCATION_TIME_FIELD": "0",         # location_time phase 1 (#762): civil zone + civil day rows. Held OFF until
                                         # the D-065 prerequisites (SCOREBOARD row, history filter) land; tier-safe
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
+    "HUB_NOW_NEAREST_HOUR": "1",        # bug hunt 2026-11-22 E: hub/sim "now" = the map's nearest-hour anchor (was a
+                                        # floor: other 3-hourly product in :30-:59); kill '0' = the floor
     "SIDE_PATHS_THROUGH_CHAIN": "1",    # O4: /api/conditions preview rows = precomputed rate_one_spot frames (rated);
                                         # _breaking_ft fails CLOSED (never offshore Hs as surf); /api/surf-conditions
                                         # target-time height labelled an unrated estimate; kill '0'
     "RATING_BAND_ONE_CHAIN": "1",       # CMP-1: map rating band = estimate_surf_at on cached geometry + break depth;
                                         # band level == glyph level at 4,101 of 4,197 asset spot-seas, 0 unexplained
+    "BAND_PARTITION_HEIGHT_ONLY": "1",  # bug hunt 2026-11-22 D, option B: swell_1/swell_2/wind_waves show their own height, no
+                                        # surf rating (band_partition.py); the rating stays on waves; kill '0'
     "ICON_SWELL2_SERVE": "0",           # option B (#877): /grid + /point serve the stored ICON swell_2 blend (else
                                         # "unsupported"). Real-frame parity: = the mid-zoom map 0/120,184 cells; vs the
                                         # world-span map 924 cells (0.77%) <= 0.4 mm, same direction/period. Owner said
