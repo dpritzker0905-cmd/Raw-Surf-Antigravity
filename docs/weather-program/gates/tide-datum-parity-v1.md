@@ -118,7 +118,7 @@ to help or to hurt any gauge: it is the advisor's proposed rule, stated before t
 **The verdict is unchanged:** it is on the **model** D variant, the served first source. The sheet variant is judged
 and reported, and a sheet failure is a named limit on the fallback (section 3).
 
-## 9. Amendment 2 (2026-11-23 02:58Z, before the run and before any data from it): the two VOID controls, made runnable
+## 9. Amendment 2 (2026-11-23 02:53Z, before the run and before any data from it): the two VOID controls, made runnable
 
 **Why.** Before dispatch, this lane checked the instrument on #1171's head (`e427002d7`). Section 4's controls, as
 written, could not run:
