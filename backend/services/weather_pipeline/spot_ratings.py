@@ -131,6 +131,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     try:
         marine = await resolver.resolve_point(
             model=model, domain="marine", layer="waves", lat=lat, lng=lng, valid_time_str=valid_time)
+        _missing.note(marine if isinstance(marine, NormalizedPointResponse) else None, "marine", model)
         # RATING_MISSING_SAMPLE_UNKNOWN (dark): the sampler's zero-filled "unavailable"/out-of-bounds placeholder is
         # treated as a failed resolve (no height, no rating), never as 0 m of surf. Off: byte-identical.
         if (isinstance(marine, NormalizedPointResponse) and marine.point is not None
@@ -178,6 +179,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     try:
         wind = await resolver.resolve_point(
             model=model, domain="wind", layer="wind", lat=lat, lng=lng, valid_time_str=valid_time)
+        _missing.note(wind if isinstance(wind, NormalizedPointResponse) else None, "wind", model)
         # Same rule for wind: a placeholder is NOT 0 kt (that grades as glassy, the best wind). It is left unset, so
         # the rating takes `wind_quality(None)`, the engine's neutral for unknown wind. Off: byte-identical.
         if (isinstance(wind, NormalizedPointResponse) and wind.point is not None
