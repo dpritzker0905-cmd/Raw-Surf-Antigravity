@@ -15,7 +15,7 @@ Record before this session (read 2026-11-23 02:30Z):
   model in every lead bin except EURO 120-240 h. Most of EURO/ICON's high bias is the one-report-an-hour observation (the dense
   window maximum cuts EURO's +1.6 to ~+0.5 m/s, ICON's +1.26 to +0.14).
 
-## 0. Collector: backfill dispatched (2026-11-23 02:40Z)
+## 0. Collector: backfill dispatched (2026-11-23 02:40Z), then CANCELLED (~03:00Z, director's order: no dispatches without David's word)
 
 `gust-verify.yml` (on dev) `mode=backfill` for GFS and EURO 00Z, 2026-10-09..10-28 (run 45101551190) and 10-29..11-18
 (run 45101561748). The mode is the merged collector's own; it writes create-only under `calibration/gust_verify/`. Why now: NDBC's
@@ -91,10 +91,25 @@ rows are `|raw - obs| - |C - obs|`, and for G4 `|raw - obs| - CRPS_C`. It is com
 - LEAK: a fit that also trains on the test rows must score MAE <= the out-of-sample fit. Otherwise the folds are not doing what they claim.
 - The CRPS closed form is checked against a 200,000-draw Monte Carlo in the tests (to 0.5%).
 
-**When each model is read:** GFS and EURO now, on a 44-day window (cycles 2026-10-09..11-21, NDBC to the run date). The PR's keyless
-dry run collects it from the same public archives with the same collector code (the bucket key is limited to dev). ICON needs at
-least 28 stored cycles (14 training days + 14 test days), so about 2026-12-16 from the daily record on dev. Until then ICON stays raw.
-The #1063 re-score (due 2026-12-09) is a separate commitment and keeps its own rule.
+**When each model is read (no score is read before the #1063 re-score):**
+- No out-of-sample score of any model is computed or read before BOTH of these hold:
+  - the #1063 multi-week re-score (due 2026-12-09) is recorded;
+  - this pre-registration is gated and merged.
+- After that, a run is dispatched only on David's word in the director session. Its exact spec (window, models, workflow) goes to the
+  director first.
+- GFS and EURO: then read on the record available at that time, needing >= 14 UTC training days plus >= 14 UTC test days.
+- ICON: read once the stored record has at least 28 cycles (~2026-12-16). Until its read passes, ICON stays raw.
+- A run started before these hold is VOID: it is recorded and never used.
+
+**Precedence:**
+- **This calibration vs #1063's additive bias correction.** For each model and lead bin, the bias correction comes first: it is
+  decided at the 12-09 re-score by its own rule. C is scored after it, against the RAW gust. If both pass, they are never stacked:
+  C (which absorbs a constant bias, POSITIVE 1) replaces the additive correction for that model and bin. If C fails, the #1063 rule
+  stands alone.
+- **This calibration vs D-075.** C covers each model's own native range only. Past it, D-075's ENS median 10fg rule governs
+  (#946's gate), and C is never applied to ENS members.
+- **This document vs this session.** Where this document and anything said in this session disagree, the merged #1186 text wins,
+  as amended in dated amendments.
 
 **If a model passes:** a PR wires C into that model's gust frames behind a registered guarded flag (`runtime_flags.flag()`,
 `_RATING_FLAGS` parity, a kill switch, a SCOREBOARD row, the history filter). Coefficients are refitted on the trailing 45 days. It
