@@ -19,8 +19,10 @@ BACKEND = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO = os.path.dirname(BACKEND)
 WORKFLOWS = os.path.join(REPO, ".github", "workflows")
 
-# Broader than the scanner on purpose: any function whose name says env/flag/switch, any default form.
-_BROAD = re.compile(r"\b(\w*(?:env|Env|ENV|getenv|flag|Flag|FLAG|switch)\w*)\(\s*[\"']([A-Z][A-Z0-9_]{2,})[\"']"
+# Broader than the scanner on purpose: any function whose (dotted) name says env/flag/switch, any default form.
+# Dotted names count (os.environ.get, settings.env_int): the mutation case below showed that a last-name-only pattern
+# never matched a plain os.environ.get read.
+_BROAD = re.compile(r"\b([\w.]*(?:env|Env|ENV|getenv|flag|Flag|FLAG|switch)[\w.]*)\(\s*[\"']([A-Z][A-Z0-9_]{2,})[\"']"
                     r"\s*(?:,\s*(?:default\s*=\s*)?[\"']?([^,\"')\s]{0,40})[\"']?)?")
 _SWITCHY = re.compile(r"^(?:0|1|true|false|True|False|-?\d+(?:\.\d+)?)$")
 # Reads the broad pattern sees that are NOT switches, each with its reason. Keep this short; never add a switch here.
@@ -49,17 +51,46 @@ def _broad_hits():
     return hits
 
 
-def test_every_env_read_with_a_switch_or_number_default_is_listed(registry):
-    missing = {n: sorted(f)[:2] for n, f in _broad_hits().items() if n not in registry and n not in NOT_A_SWITCH}
+def _unlisted_reads(registry, hits):
+    return {n: sorted(f)[:2] for n, f in hits.items() if n not in registry and n not in NOT_A_SWITCH}
+
+
+def _unlisted_vars(registry):
+    listed = {v for e in registry.values() for v in e["repo_vars"]}
+    return set(s.repo_vars_referenced(WORKFLOWS)) - listed
+
+
+@pytest.fixture(scope="module")
+def broad_hits():
+    return _broad_hits()
+
+
+def test_every_env_read_with_a_switch_or_number_default_is_listed(registry, broad_hits):
+    missing = _unlisted_reads(registry, broad_hits)
     assert not missing, ("env reads the switch scan does not list (teach services/switch_scan.py the helper, or, for a "
                          f"non-switch, add it to NOT_A_SWITCH with its reason): {missing}")
 
 
 def test_every_repo_variable_a_workflow_reads_is_listed(registry):
-    read = set(s.repo_vars_referenced(WORKFLOWS))
-    listed = {v for e in registry.values() for v in e["repo_vars"]}
-    assert read - listed == set()
-    assert len(read) >= 32                       # the inspection counted 32 repository variables in use
+    assert _unlisted_vars(registry) == set()
+    assert len(s.repo_vars_referenced(WORKFLOWS)) >= 32       # the inspection counted 32 repository variables in use
+
+
+# MUTATION CASES (advisor, 2026-11-23): the two parity checks above must FAIL when the registry loses an entry, so a
+# scan that silently stopped seeing a switch or a repository variable cannot pass. Each deletes one real entry.
+@pytest.mark.parametrize("victim", ["GFS_WORLD_FULL_HORIZON", "MANIFEST_PUBLISH_ONE_STEP", "SURF_FACE_RANGE"])
+def test_mutation_deleting_a_switch_from_the_registry_fails_parity(registry, broad_hits, victim):
+    assert victim in broad_hits or victim in rf.GUARDED or registry[victim]["repo_vars"]
+    mutated = {k: v for k, v in registry.items() if k != victim}
+    caught = (victim in _unlisted_reads(mutated, broad_hits) or victim in _unlisted_vars(mutated)
+              or any(n not in mutated for n in rf.GUARDED))
+    assert caught, f"deleting {victim} from the registry went unnoticed"
+    assert not _unlisted_reads(registry, broad_hits) and not _unlisted_vars(registry)   # the unmutated one passes
+
+
+def test_mutation_deleting_a_repo_variable_reader_fails_parity(registry):
+    mutated = {k: v for k, v in registry.items() if k != "SERVED_WAVE_VERIFY"}
+    assert "SERVED_WAVE_VERIFY" in _unlisted_vars(mutated)
 
 
 def test_every_guarded_and_registered_flag_is_listed(registry):

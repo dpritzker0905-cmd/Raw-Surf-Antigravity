@@ -13,9 +13,9 @@ Before: the flag board listed the 138 hand-written `_RATING_FLAGS` rows and read
 After:
 - `backend/services/switch_scan.py` (pure, stdlib) SCANS the code (`os.environ.get` / `getenv` / guarded `flag()` /
   the project's `env_int`-style and `_flag` helpers with a 0/1 or numeric default) and the workflows (literal,
-  `${{ vars.X || 'fb' }}`, other expressions, and `if: vars.X` job gates). Local run on `15a1e8472`: 575 rows
-  (356 switches, 219 settings), 139 registered, 436 not; every one of the 118 `vars.*` names the workflows read is
-  attached to a row.
+  `${{ vars.X || 'fb' }}`, other expressions, and `if: vars.X` job gates). Local run on `15a1e8472`: 580 rows,
+  139 registered, 441 not; every one of the 118 `vars.*` names the workflows read is attached to a row. (575 before
+  the scan learned bare numeric defaults and `os.environ.setdefault`, see "Advisor follow-up" below.)
 - `GET /admin/surf-forecast/switches` (admin only, read-only; `routes/admin/surf_switches.py`): per switch, what THIS
   server reads (env > runtime manifest for GUARDED > code default) and, per workflow lane, the literal, the repo
   variable's value, the workflow fallback when the variable is unset, or "set in CI" when no snapshot was read (or
@@ -29,6 +29,8 @@ After:
   Secrets are never in `vars`; no secret is read except the storage key, by name, in the one stdlib step.
 - `admin_flag_board.serve_box_reads` no longer treats the word "manifest" as the runtime manifest ("the manifest
   writers" are ingest lanes): `MANIFEST_ONE_ENTRY_PER_OBJECT` now carries the "read by a workflow lane" caveat.
+  **Display-only:** it changes one label on the admin row (`serve_box_value`), never a flag's value, a precedence or
+  anything a lane or the serve box reads.
 - Parity: `tests/test_switch_scan_parity.py` runs a BROADER pattern (any function named env/flag/switch, any literal
   default) and every repo variable the workflows read; each must be in the registry, so a new switch cannot go
   unlisted. It also pins that no credential-like name is ever listed.
@@ -114,3 +116,23 @@ Both reviewers gave the same answer to all three:
 3. **`RATING_REF_PRIOR` description: fixed here, neutrally.** It now reads "code default OFF ... may be ON through the
    runtime manifest: read the effective value and source on this row". It does not claim ON from STATE, because the
    private manifest was not read.
+
+## Advisor follow-up (the advisor passed #1239 with limits; the director relayed three asks)
+1. The `frontend/src/buildVersion.js` bump that a local build had written was dropped (restored to the merge base), so
+   it cannot conflict with other PRs.
+2. **Mutation cases in the parity test**: deleting `GFS_WORLD_FULL_HORIZON`, `MANIFEST_PUBLISH_ONE_STEP` or
+   `SURF_FACE_RANGE` from the registry, or the reader of `SERVED_WAVE_VERIFY`, must make the parity checks fail. The
+   first run of the new case FAILED for `MANIFEST_PUBLISH_ONE_STEP`, and that was a real hole: the "broader" pattern
+   matched only the last name before `(`, so it never saw a plain `os.environ.get(...)` read and could not catch a
+   scanner that lost one. Fixed in two steps. The broad pattern now takes dotted names. The scanner learned the two
+   read forms the widened pattern then exposed: a bare numeric default (`os.environ.get("PORT", 8000)`) and
+   `os.environ.setdefault("X", "1")` (`L2_WRITER`, `TESTING`, `TIER_LAT/LNG`, `PORT`). Parity and mutation cases
+   all pass.
+3. The `admin_flag_board` label change is display-only (said above and in the PR).
+4. **Visual render in all six combinations** (advisor ask), from the same temporary harness on payloads produced by the
+   real endpoint code at this head (580 rows): dark / light / beach on desktop and at a 375 px phone. Every one shows no
+   horizontal scroll, legible semantic colours, state in words and the queue progressbar. Shots (kept outside the
+   public repo in the shared notes folder `admin-truth-switches-2026-11-23/`): `dark-desktop-gfs-on-from-repo-variable`,
+   `light-desktop-switches`, `light-desktop-verification`, `beach-desktop-switches`, `beach-desktop-verification`,
+   `dark-phone-switches`, `dark-phone-verification`, `light-phone-switches`, `light-phone-verification`,
+   `beach-phone-switches`, `beach-phone-coverage`.

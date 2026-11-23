@@ -29,8 +29,11 @@ SECRET_WORDS = frozenset({"KEY", "SECRET", "SECRETS", "TOKEN", "TOKENS", "PASSWO
                           "SESSION", "SIGNING", "WEBHOOK", "AUTHORIZATION", "BEARER", "JWT", "HOST", "EMAIL"})
 SKIP_DIRS = frozenset({"tests", "test", "node_modules", "__pycache__", ".venv", "venv", "site-packages", "_archive"})
 _NAME = r"([A-Z][A-Z0-9_]{2,})"
-_READ = re.compile(r"(?:\bos\.environ\.get|\bos\.getenv|\benviron\.get|\b_?rf\.flag|\bruntime_flags\.flag|\b_?rf\.on"
-                   r"|\bruntime_flags\.on)\(\s*[\"']" + _NAME + r"[\"']\s*(?:,\s*[\"']([^\"'\n]{0,40})[\"'])?")
+# `os.environ.setdefault("X", "1")` counts: that process runs with X=1 unless told otherwise. A default may be quoted
+# or a bare number (`os.environ.get("PORT", 8000)`); both found by the parity test's mutation case, 2026-11-23.
+_READ = re.compile(r"(?:\bos\.environ\.get|\bos\.environ\.setdefault|\bos\.getenv|\benviron\.get|\b_?rf\.flag"
+                   r"|\bruntime_flags\.flag|\b_?rf\.on|\bruntime_flags\.on)\(\s*[\"']" + _NAME
+                   + r"[\"']\s*(?:,\s*(?:[\"']([^\"'\n]{0,40})[\"']|(-?\d+(?:\.\d+)?)\b))?")
 # Project helpers that read the environment by a literal name: env_int / env_float / env_positive_int, _env_int,
 # _env_hours, _env_f, _env_number, _env, _flag, _sim_flag ... (their first argument is the variable's name).
 _HELPER = re.compile(r"\b(_?env_[a-z_]+|_env[a-z_]*|_?[a-z_]*_flag|_flag)\(\s*[\"']" + _NAME + r"[\"']\s*"
@@ -117,7 +120,7 @@ def scan_code(backend_dir: str, guarded: Optional[Dict[str, str]] = None) -> Dic
             continue
         rel = os.path.relpath(path, os.path.dirname(backend_dir)).replace(os.sep, "/")
         for m in _READ.finditer(text):
-            name, default = m.group(1), m.group(2)
+            name, default = m.group(1), m.group(2) if m.group(2) is not None else m.group(3)
             if default is None and name in guarded:
                 default = guarded[name]
             rec = out.setdefault(name, {"defaults": set(), "files": set()})
