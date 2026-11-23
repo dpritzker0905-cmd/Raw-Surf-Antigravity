@@ -52,9 +52,70 @@ The thresholds (8 km, 1.30, 1.0 km, 0.5 km, −20 m) are fixed here and are not 
 The classifier is `backend/scripts/tide_datum/gauge_class.py` (next commit). It implements exactly these steps, and
 its output file records the class and the four numbers per gauge.
 
-## 3. The gauge list
+## 3. The gauge list (computed 2026-11-23 by `gauge_class.py`, rule unchanged)
 
-Computed by the rule in the next commit. Not yet computed at this stamp.
+The classifier reads ETOPO and CO-OPS station metadata only, no water levels and no predictions. Output:
+`research/tide-parity-v2-gauge-class-2026-11-23.json`. The rule text was committed first (`0a6a5e9e9`, 01:41:18Z),
+before any ETOPO cell was read.
+
+| Gauge | Class | d_path (km) | d_line (km) | detour | why |
+|---|---|---|---|---|---|
+| 1611400 Nawiliwili | **OPEN_COAST** | 1.92 | 1.78 | 1.079 | all three hold |
+| 1612340 Honolulu | **HARBOR_BAY** | 2.02 | 1.9 | 1.063 | constriction |
+| 1615680 Kahului, Kahului Harbor | **OPEN_COAST** | 1.85 | 1.85 | 1.0 | all three hold |
+| 1617760 Hilo, Hilo Bay, Kuhio Bay | **OPEN_COAST** | 1.74 | 1.64 | 1.058 | all three hold |
+| 8443970 Boston | **HARBOR_BAY** | 10.07 | 9.01 | 1.118 | d_path>8km, constriction |
+| 8452660 Newport | **OPEN_COAST** | 1.39 | 1.39 | 1.0 | all three hold |
+| 8531680 Sandy Hook | **HARBOR_BAY** | 6.99 | 5.52 | 1.267 | constriction |
+| 8534720 Atlantic City | **HARBOR_BAY** | 12.37 | 11.34 | 1.091 | d_path>8km |
+| 8651370 Duck | **OPEN_COAST** | 4.93 | 4.58 | 1.076 | all three hold |
+| 8658163 Wrightsville Beach | **HARBOR_BAY** | 13.02 | 11.89 | 1.095 | d_path>8km |
+| 8665530 Charleston | **UNCLASSIFIED** | None | None | None | no DEEP cell reachable through water within the box |
+| 8720030 Fernandina Beach | **UNCLASSIFIED** | None | None | None | no DEEP cell reachable through water within the box |
+| 8722670 Lake Worth Pier, Atlantic Ocean | **OPEN_COAST** | 1.66 | 1.66 | 1.0 | all three hold |
+| 8723214 Virginia Key | **OPEN_COAST** | 7.51 | 7.51 | 1.0 | all three hold |
+| 8726724 Clearwater Beach | **UNCLASSIFIED** | None | None | None | no DEEP cell reachable through water within the box |
+| 8729840 Pensacola | **HARBOR_BAY** | 13.66 | 12.86 | 1.062 | d_path>8km, constriction |
+| 8771510 Galveston Pleasure Pier | **UNCLASSIFIED** | None | None | None | no DEEP cell reachable through water within the box |
+| 9410230 La Jolla | **OPEN_COAST** | 0.99 | 0.91 | 1.098 | all three hold |
+| 9410660 Los Angeles | **HARBOR_BAY** | 1.16 | 1.16 | 1.0 | constriction |
+| 9413450 Monterey | **OPEN_COAST** | 0.46 | 0.46 | 1.0 | all three hold |
+| 9415020 Point Reyes | **HARBOR_BAY** | 2.6 | 2.36 | 1.101 | constriction |
+| 9419750 Crescent City | **OPEN_COAST** | 2.08 | 1.96 | 1.061 | all three hold |
+| 9435380 South Beach | **HARBOR_BAY** | 4.91 | 4.06 | 1.209 | constriction |
+| 9443090 Neah Bay | **HARBOR_BAY** | 1.58 | 1.52 | 1.037 | constriction |
+| 9751639 Charlotte Amalie | **OPEN_COAST** | 3.13 | 2.92 | 1.074 | all three hold |
+| 9755371 San Juan, La Puntilla, San Juan Bay | **HARBOR_BAY** | 2.64 | 2.27 | 1.162 | constriction |
+
+**Counts:** OPEN_COAST 11, HARBOR_BAY 11, UNCLASSIFIED 4. Since n = 11 ≥ 10, the gate is measurable. The per-gauge bar
+needs ⌈0.923 × 11⌉ = **11 of 11**.
+
+**Limits of the rule, seen in its output and disclosed here; the rule is NOT changed:**
+
+1. **Wide shallow shelves.** The −20 m DEEP threshold sits far offshore on the Carolina, New Jersey and Gulf shelves.
+   - Two open-ocean pier gauges come out HARBOR_BAY on distance alone (d_path > 8 km, no constriction): Atlantic City
+     12.4 km and Wrightsville Beach 13.0 km.
+   - Four gauges are UNCLASSIFIED, because no −20 m water lies inside the ±0.20° box: Charleston, Fernandina,
+     Clearwater Beach and Galveston.
+   - So the OPEN_COAST verdict covers no Gulf gauge and no Southeast gauge north of Lake Worth.
+2. **Constriction** flags some gauges an observer might call open coast: Point Reyes, Neah Bay and South Beach. It also
+   flags the expected harbours: Honolulu, Los Angeles and San Juan.
+3. **Virginia Key is OPEN_COAST** by the rule (7.5 km straight to −20 m through Bear Cut, no detour, no constriction),
+   even though NOAA's own predictions put the gauge 39 min behind the Miami harbour entrance (log, 01:38Z). The rule
+   stands: Virginia Key is scored as OPEN_COAST, and if it fails, the failure counts.
+
+**Applied to v1's already-seen numbers (disclosure, not a result):** OPEN_COAST would FAIL v1's per-gauge rule on both
+D variants (the per-variant medians would pass):
+- Nawiliwili, median time 21.2 min;
+- Virginia Key, median time 43.4 min;
+- the sheet D also misses at Duck, median height 0.136 m.
+
+So the rule was not shaped to pass, and v2 is not expected to pass unless the signed instrument shows something v1's
+could not.
+
+**Any change to the rule** (for example, a shelf-independent "open water" test) must be a dated amendment made before
+v2 data. It must say it came after this list was seen, and it needs the director's and the advisor's word. This lane
+does not amend the rule on its own.
 
 ## 4. Data and instrument
 
