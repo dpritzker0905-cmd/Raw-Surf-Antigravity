@@ -372,6 +372,11 @@ class ClimGustRefused(Exception):
     """The CLIM_GUST table could not be verified against the committed hash. Fail closed: there is no fallback table."""
 
 
+class ClimGustUnavailable(ClimGustRefused):
+    """A source could not be READ (HTTP error, network failure). Only this lets the loader try the next source; a source that was
+    read and does not match the committed hash is a plain ClimGustRefused and stops everything."""
+
+
 def read_committed_hash(hash_path: str) -> str:
     """The sha256 recorded in the committed `wind_lr2_clim_gust.json.sha256` ("<64 hex>  <name>"). Missing, unreadable or
     malformed -> refuse."""
@@ -423,17 +428,35 @@ def fetch_table(url: str, dest: str, get: Optional[Callable] = None, timeout: in
     try:
         r = get(url, timeout=timeout)
         if r.status_code != 200:
-            raise ClimGustRefused(f"CLIM_GUST table download HTTP {r.status_code}")
+            raise ClimGustUnavailable(f"CLIM_GUST table download HTTP {r.status_code}")
         open(dest, "wb").write(r.content)
     except ClimGustRefused:
         raise
     except Exception as e:  # noqa: BLE001 - the body may echo request details: only the type is reported
-        raise ClimGustRefused(f"CLIM_GUST table download failed ({type(e).__name__})") from None
+        raise ClimGustUnavailable(f"CLIM_GUST table download failed ({type(e).__name__})") from None
     return dest
 
 
 def fetch_and_load(url: str, hash_path: str, dest: str, get: Optional[Callable] = None) -> "ClimGust":
     return load_clim_gust(fetch_table(url, dest, get), hash_path)
+
+
+def fetch_and_load_sources(sources: Sequence[Tuple[str, Optional[Callable]]], hash_path: str, dest: str) -> "ClimGust":
+    """Ordered sources (the private bucket first, then the public release asset), each `(url, get)`. EVERY source is verified
+    against the committed hash; there is no unverified path. A source that cannot be READ (`ClimGustUnavailable`) lets the next one
+    be tried; a source that was read and does not verify, a missing/malformed hash file, or a non-canonical table REFUSES at once
+    (a mismatch is a tamper or corruption signal, never something to route around). No source left -> refuse."""
+    if not sources:
+        raise ClimGustRefused("no CLIM_GUST source given")
+    reasons = []
+    for url, get in sources:
+        try:
+            return fetch_and_load(url, hash_path, dest, get)
+        except ClimGustUnavailable as e:
+            reasons.append(str(e))
+            if os.path.exists(dest):
+                os.remove(dest)
+    raise ClimGustRefused("no CLIM_GUST source could be read: " + "; ".join(reasons))
 
 
 # ---------------------------------------------------------------------------------------------- wiring into the score command
@@ -487,13 +510,16 @@ def fetch_object_main(argv=None) -> int:
     ap.add_argument("--object", required=True)
     ap.add_argument("--hash", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--public-url", action="append", default=[], help="public mirror(s), tried after the bucket, verified the same way")
     a = ap.parse_args(argv)
     base, key = os.environ["SUPABASE_URL"].rstrip("/"), os.environ["SUPABASE_SERVICE_ROLE_KEY"]
     headers = {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
     url = f"{base}/storage/v1/object/weather-products/{a.object}"
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
+    sources = [(url, lambda u, timeout: requests.get(u, headers=headers, timeout=timeout))]
+    sources += [(u, lambda u2, timeout: requests.get(u2, timeout=timeout)) for u in a.public_url]      # public: no key is sent
     try:
-        fetch_and_load(url, a.hash, a.out, get=lambda u, timeout: requests.get(u, headers=headers, timeout=timeout))
+        fetch_and_load_sources(sources, a.hash, a.out)
     except ClimGustRefused as e:
         if os.path.exists(a.out):
             os.remove(a.out)                  # an unverified table is never left behind for a later step to use
