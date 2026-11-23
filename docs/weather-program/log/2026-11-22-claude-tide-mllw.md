@@ -504,3 +504,26 @@ gauges: Virginia Key (13; d_model 0.406 vs sheet 0.342), Duck (13; 0.407 vs 0.53
 **What this decides.** By #1183, #1149's datum gate (a) FAILED on the served model D. Whether #1149 is held, or its D
 source order changed (for example, the sheet first wherever a sheet is within 2 km, which this run reports as passing
 at the gauges), is for the advisor and David. Any such change is a new gate, not a re-read of this one.
+
+## 2026-11-23 12:08Z: #1149 stays HELD; the hybrid-D gate pre-registered as #1210 (tide-datum-parity-v2)
+
+**The director's decision** (SubQ and Reflection agree; David's standing rule is the SOTA consensus): #1149 stays HELD,
+and nothing ships with a caveat. A new gate tests hybrid D: the NOAA sheet within 2 km, else our 19-year D.
+
+**Held-out stations, frozen by rule** before the gate text: `scripts/tide_datum/heldout_select.py` at `665ca6521`
+(12:02Z). Output: `research/tide-datum-parity-v2-heldout.json` and the CO-OPS station-list snapshot.
+- 1,110 eligible stations, excluding every station this program has read.
+- Strata: NEIGHBOR (pool 96) and MODEL (pool 1,014). 20 drawn from each, seed 20261124.
+- Scored leave-one-out: a station's own sheet is never used.
+
+**Gate:** #1210, `gates/tide-datum-parity-v2.md`, stamped 12:05Z.
+- Window fixed at 2026-12-01 → 12-08.
+- #1183's bar, unchanged.
+- The primary is an INTERSECTION: each stratum must pass.
+- Donors are never deciding stations; replacements are capped at 5 per stratum.
+- New placebo control: D + 0.10 m must FAIL.
+- No re-run.
+
+**Advisory review, public context only:** SubQ and Reflection answered; the gate's §8 records what was adopted and why.
+Both flagged the pooled primary masking a stratum, and HARKing. LongCat's request was built (preview `payload_sha256`
+5b5a833d…) but NOT sent, because its tool requires the user's own approval of that hash.
