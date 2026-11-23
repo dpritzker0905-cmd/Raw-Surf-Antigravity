@@ -26,7 +26,7 @@ import {
 } from './WebGLWindEngineInit';
 import { recordTruthStage } from './weatherTruthTracker'; import { refreshWindSpeedScale } from './windDeliveryCoalesce';
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { advTeardownNeeded } from './advFboSync';
-import { setGustField, clearGustField, setGustMode, gustColourActive, gustModeBlank, rampMaxFor, bindGustColour, GUST_UNIT } from './windGustColour';   // Gusts: wind motion, gust colour (gustParticles.js)
+import { setGustField, clearGustField, setGustMode, gustColourActive, gustModeBlank, rampMaxFor, bindGustColour, GUST_UNIT } from './windGustColour'; import { drawGustHatch } from './gustHatch';   // Gusts: wind motion, gust colour (gustParticles.js)
 
 function latToMercatorY(lat) {
   var latClamped = Math.max(-85.051129, Math.min(85.051129, lat));
@@ -695,7 +695,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
       if (heatUVLoc !== -1) gl.disableVertexAttribArray(heatUVLoc);
     }
-  }   // end Step 0 (skipped in gust mode)
+  } else { drawGustHatch(gl, this, { fbo: webglState.prevFBO, matrix: mat4, screenW: screenWidth, screenH: screenHeight, theme: effectiveTheme, offsets: worldOffsets || (z < 3.5 ? [0.0, -360.0, 360.0] : [0.0]), wind: { texture: this._windData.texture, uMin: this._windData.uMin, uMax: this._windData.uMax, box: [dataBoundsMinX, bounds.south, dataBoundsMaxX, bounds.north], grid: windGrid }, fine: fine && !fineCrosses ? fine : null }); }   // end Step 0 (skipped in gust mode); there the free slot draws the gustiness HATCH when that A/B cue is picked (gustHatch.js)
 
   // Step 1: Advect particles (ping-pong). The state format follows its kill (particleState.js; a flip reseeds, trails kept).
   syncParticleStateFormat(gl, this, () => this.reinitParticles(gl, { keepTrails: true }));
