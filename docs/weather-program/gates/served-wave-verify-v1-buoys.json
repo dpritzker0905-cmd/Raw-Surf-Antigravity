@@ -1,6 +1,19 @@
 {
  "frozen_at": "2026-11-23T01:58:38Z",
  "gate": "docs/weather-program/gates/served-wave-verify-v1.md",
+ "holdout": {
+  "fit_used_census": {
+   "canon_sha256": "6d5ee973c091982da86c5a32728a400d23c0fc155a474ac631e312e73952d231",
+   "open": [
+    "wind / gust EMOS (backend/scripts/wind_emos_collect.py, wind_emos_fit.py, emos_core.py)"
+   ],
+   "path": "docs/weather-program/gates/served-wave-verify-v1-fit-used.json",
+   "taken_at": "2026-11-23"
+  },
+  "gate": "docs/weather-program/gates/served-wave-skill-v1.md",
+  "locked_list": null,
+  "rule": "#1199 section 1a: LOCKED buoys are archived like every other, but the scorer reads none of them and every published table and printed line excludes them, keyed to the frozen LOCKED list by its SHA-256. Until locked_list is recorded, the scorer is collect-only (NOT_READ) and publishes nothing. fit_used buoys stay in this lane's indicative tables, tagged, and #1199's P1 excludes them."
+ },
  "inputs": {
   "boxes_latest_written_at": "2026-11-22T23:15:56Z",
   "boxes_read_at": "2026-11-23T01:55:09Z",
@@ -31,9 +44,14 @@
   {
    "depth_m": 35.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "41004",
    "lat": 32.502,
+   "locked": null,
    "lon": -79.099,
    "name": null,
    "nearshore_eval_checks": {
@@ -68,9 +86,12 @@
   {
    "depth_m": 42.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "41009",
    "lat": 28.508,
+   "locked": null,
    "lon": -80.185,
    "name": null,
    "nearshore_eval_checks": {
@@ -105,9 +126,12 @@
   {
    "depth_m": 903.1,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "41010",
    "lat": 28.86,
+   "locked": null,
    "lon": -78.478,
    "name": null,
    "nearshore_eval_checks": {
@@ -133,9 +157,12 @@
   {
    "depth_m": 30.8,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "41013",
    "lat": 33.436,
+   "locked": null,
    "lon": -77.764,
    "name": null,
    "nearshore_eval_checks": {
@@ -170,9 +197,14 @@
   {
    "depth_m": 61.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "41025",
    "lat": 35.026,
+   "locked": null,
    "lon": -75.38,
    "name": null,
    "nearshore_eval_checks": {
@@ -207,9 +239,12 @@
   {
    "depth_m": 5069.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "41040",
    "lat": 14.568,
+   "locked": null,
    "lon": -53.037,
    "name": "NORTH EQUATORIAL ONE- 470 NM East of Martinique",
    "nearshore_eval_checks": {
@@ -235,9 +270,12 @@
   {
    "depth_m": 3506.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "41041",
    "lat": 14.259,
+   "locked": null,
    "lon": -46.052,
    "name": "NORTH EQUATORIAL TWO - 890 NM East of Martinique",
    "nearshore_eval_checks": {
@@ -263,9 +301,14 @@
   {
    "depth_m": 5235.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "41043",
    "lat": 21.083,
+   "locked": null,
    "lon": -64.853,
    "name": "NE PUERTO RICO - 170 NM NNE of San Juan, PR",
    "nearshore_eval_checks": {
@@ -291,9 +334,12 @@
   {
    "depth_m": 5419.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "41044",
    "lat": 21.582,
+   "locked": null,
    "lon": -58.63,
    "name": "NE ST MARTIN - 330 NM NE St Martin Is",
    "nearshore_eval_checks": {
@@ -319,9 +365,12 @@
   {
    "depth_m": 5553.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "41046",
    "lat": 23.84,
+   "locked": null,
    "lon": -68.34,
    "name": "EAST BAHAMAS - 335 NM East of San Salvador Is,  Bahamas",
    "nearshore_eval_checks": {
@@ -347,9 +396,12 @@
   {
    "depth_m": 5328.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "41047",
    "lat": 27.557,
+   "locked": null,
    "lon": -71.48,
    "name": "NE BAHAMAS - 350 NM ENE of Nassau, Bahamas",
    "nearshore_eval_checks": {
@@ -375,9 +427,12 @@
   {
    "depth_m": 5368.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "41048",
    "lat": 31.878,
+   "locked": null,
    "lon": -69.722,
    "name": "WEST BERMUDA - 240 NM West of Bermuda",
    "nearshore_eval_checks": {
@@ -403,9 +458,14 @@
   {
    "depth_m": 5480.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "41049",
    "lat": 27.505,
+   "locked": null,
    "lon": -62.271,
    "name": "SOUTH BERMUDA - 300 NM SSE of Bermuda",
    "nearshore_eval_checks": {
@@ -431,9 +491,12 @@
   {
    "depth_m": 32.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "41053",
    "lat": 18.474,
+   "locked": null,
    "lon": -66.099,
    "name": "San Juan, PR",
    "nearshore_eval_checks": {
@@ -464,9 +527,12 @@
   {
    "depth_m": 30.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "41056",
    "lat": 18.261,
+   "locked": null,
    "lon": -65.464,
    "name": "Vieques Island, PR",
    "nearshore_eval_checks": {
@@ -497,9 +563,14 @@
   {
    "depth_m": 15.2,
    "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
    "gulf": false,
    "id": "41112",
    "lat": 30.709,
+   "locked": null,
    "lon": -81.292,
    "name": "Offshore Fernandina Beach, FL (132)",
    "nearshore_eval_checks": {
@@ -534,9 +605,14 @@
   {
    "depth_m": 9.8,
    "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
    "gulf": false,
    "id": "41113",
    "lat": 28.4,
+   "locked": null,
    "lon": -80.533,
    "name": "Cape Canaveral Nearshore, FL (143)",
    "nearshore_eval_checks": {
@@ -571,9 +647,14 @@
   {
    "depth_m": 32.9,
    "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
    "gulf": false,
    "id": "41115",
    "lat": 18.376,
+   "locked": null,
    "lon": -67.28,
    "name": "Rincon, Puerto Rico (181)",
    "nearshore_eval_checks": {
@@ -604,9 +685,14 @@
   {
    "depth_m": 23.3,
    "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
    "gulf": false,
    "id": "41117",
    "lat": 29.999,
+   "locked": null,
    "lon": -81.079,
    "name": "St. Augustine, FL (194)",
    "nearshore_eval_checks": {
@@ -641,9 +727,12 @@
   {
    "depth_m": 3195.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": true,
    "id": "42001",
    "lat": 25.922,
+   "locked": null,
    "lon": -89.638,
    "name": null,
    "nearshore_eval_checks": {
@@ -669,9 +758,12 @@
   {
    "depth_m": 3208.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": true,
    "id": "42002",
    "lat": 25.95,
+   "locked": null,
    "lon": -93.78,
    "name": null,
    "nearshore_eval_checks": {
@@ -697,9 +789,12 @@
   {
    "depth_m": 27.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": true,
    "id": "42012",
    "lat": 30.061,
+   "locked": null,
    "lon": -87.547,
    "name": null,
    "nearshore_eval_checks": {
@@ -725,9 +820,12 @@
   {
    "depth_m": 53.3,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": true,
    "id": "42036",
    "lat": 28.5,
+   "locked": null,
    "lon": -84.505,
    "name": null,
    "nearshore_eval_checks": {
@@ -762,9 +860,12 @@
   {
    "depth_m": 297.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": true,
    "id": "42039",
    "lat": 28.768,
+   "locked": null,
    "lon": -86.024,
    "name": null,
    "nearshore_eval_checks": {
@@ -790,9 +891,12 @@
   {
    "depth_m": 3608.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": true,
    "id": "42055",
    "lat": 22.14,
+   "locked": null,
    "lon": -94.112,
    "name": null,
    "nearshore_eval_checks": {
@@ -818,9 +922,12 @@
   {
    "depth_m": 412.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "42057",
    "lat": 16.975,
+   "locked": null,
    "lon": -81.578,
    "name": "Western Caribbean - 195 NM WSW of Negril, Jamaica",
    "nearshore_eval_checks": {
@@ -846,9 +953,12 @@
   {
    "depth_m": 3953.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "42058",
    "lat": 14.114,
+   "locked": null,
    "lon": -75.949,
    "name": "Central Caribbean - 210 NM SSE of Kingston, Jamaica",
    "nearshore_eval_checks": {
@@ -874,9 +984,12 @@
   {
    "depth_m": 1556.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "42060",
    "lat": 16.428,
+   "locked": null,
    "lon": -63.21,
    "name": "Caribbean Valley - 63 NM WSW of Montserrat",
    "nearshore_eval_checks": {
@@ -907,9 +1020,12 @@
   {
    "depth_m": 94.0,
    "exam_only": true,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": true,
    "id": "42099",
    "lat": 27.352,
+   "locked": null,
    "lon": -84.275,
    "name": "Offshore St. Petersburg, FL (144)",
    "nearshore_eval_checks": {
@@ -944,9 +1060,12 @@
   {
    "depth_m": 49.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "44007",
    "lat": 43.525,
+   "locked": null,
    "lon": -70.14,
    "name": null,
    "nearshore_eval_checks": {
@@ -981,9 +1100,12 @@
   {
    "depth_m": 73.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "44008",
    "lat": 40.5,
+   "locked": null,
    "lon": -69.254,
    "name": null,
    "nearshore_eval_checks": {
@@ -1018,9 +1140,12 @@
   {
    "depth_m": 90.2,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "44011",
    "lat": 41.088,
+   "locked": null,
    "lon": -66.546,
    "name": null,
    "nearshore_eval_checks": {
@@ -1046,9 +1171,12 @@
   {
    "depth_m": 64.6,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "44013",
    "lat": 42.346,
+   "locked": null,
    "lon": -70.651,
    "name": null,
    "nearshore_eval_checks": {
@@ -1083,9 +1211,12 @@
   {
    "depth_m": 49.1,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "44014",
    "lat": 36.603,
+   "locked": null,
    "lon": -74.837,
    "name": null,
    "nearshore_eval_checks": {
@@ -1120,9 +1251,14 @@
   {
    "depth_m": 40.2,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
    "gulf": false,
    "id": "44025",
    "lat": 40.258,
+   "locked": null,
    "lon": -73.175,
    "name": null,
    "nearshore_eval_checks": {
@@ -1157,9 +1293,12 @@
   {
    "depth_m": 188.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "44027",
    "lat": 44.284,
+   "locked": null,
    "lon": -67.301,
    "name": null,
    "nearshore_eval_checks": {
@@ -1185,9 +1324,12 @@
   {
    "depth_m": 26.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "44065",
    "lat": 40.368,
+   "locked": null,
    "lon": -73.701,
    "name": null,
    "nearshore_eval_checks": {
@@ -1222,9 +1364,12 @@
   {
    "depth_m": 4000.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "44137",
    "lat": 42.26,
+   "locked": null,
    "lon": -62.03,
    "name": "East Scotia Slope",
    "nearshore_eval_checks": {
@@ -1250,9 +1395,12 @@
   {
    "depth_m": 1500.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "44139",
    "lat": 44.24,
+   "locked": null,
    "lon": -57.1,
    "name": "Banqureau Banks",
    "nearshore_eval_checks": {
@@ -1278,9 +1426,12 @@
   {
    "depth_m": 1300.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "44150",
    "lat": 42.5,
+   "locked": null,
    "lon": -64.02,
    "name": "La Have Bank",
    "nearshore_eval_checks": {
@@ -1306,9 +1457,14 @@
   {
    "depth_m": 58.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
    "gulf": false,
    "id": "44258",
    "lat": 44.5,
+   "locked": null,
    "lon": -63.4,
    "name": "Halifax Harbour",
    "nearshore_eval_checks": {
@@ -1334,9 +1490,12 @@
   {
    "depth_m": 3438.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46002",
    "lat": 42.56,
+   "locked": null,
    "lon": -130.523,
    "name": null,
    "nearshore_eval_checks": {
@@ -1362,9 +1521,12 @@
   {
    "depth_m": 3600.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46004",
    "lat": 50.93,
+   "locked": null,
    "lon": -136.1,
    "name": "Middle Nomad",
    "nearshore_eval_checks": {
@@ -1390,9 +1552,12 @@
   {
    "depth_m": 2811.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46005",
    "lat": 46.147,
+   "locked": null,
    "lon": -131.077,
    "name": null,
    "nearshore_eval_checks": {
@@ -1418,9 +1583,12 @@
   {
    "depth_m": 416.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46011",
    "lat": 34.937,
+   "locked": null,
    "lon": -120.999,
    "name": null,
    "nearshore_eval_checks": {
@@ -1455,9 +1623,12 @@
   {
    "depth_m": 208.8,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46012",
    "lat": 37.356,
+   "locked": null,
    "lon": -122.881,
    "name": null,
    "nearshore_eval_checks": {
@@ -1492,9 +1663,12 @@
   {
    "depth_m": 128.3,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46013",
    "lat": 38.235,
+   "locked": null,
    "lon": -123.317,
    "name": null,
    "nearshore_eval_checks": {
@@ -1525,9 +1699,14 @@
   {
    "depth_m": 335.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "46014",
    "lat": 39.225,
+   "locked": null,
    "lon": -123.98,
    "name": null,
    "nearshore_eval_checks": {
@@ -1558,9 +1737,12 @@
   {
    "depth_m": 446.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46015",
    "lat": 42.754,
+   "locked": null,
    "lon": -124.839,
    "name": null,
    "nearshore_eval_checks": {
@@ -1591,9 +1773,12 @@
   {
    "depth_m": 456.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46022",
    "lat": 40.716,
+   "locked": null,
    "lon": -124.54,
    "name": null,
    "nearshore_eval_checks": {
@@ -1624,9 +1809,14 @@
   {
    "depth_m": 868.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "46025",
    "lat": 33.765,
+   "locked": null,
    "lon": -119.077,
    "name": null,
    "nearshore_eval_checks": {
@@ -1661,9 +1851,14 @@
   {
    "depth_m": 53.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "46026",
    "lat": 37.75,
+   "locked": null,
    "lon": -122.838,
    "name": null,
    "nearshore_eval_checks": {
@@ -1698,9 +1893,14 @@
   {
    "depth_m": 60.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "46027",
    "lat": 41.84,
+   "locked": null,
    "lon": -124.382,
    "name": null,
    "nearshore_eval_checks": {
@@ -1731,9 +1931,12 @@
   {
    "depth_m": 1136.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46028",
    "lat": 35.763,
+   "locked": null,
    "lon": -121.9,
    "name": null,
    "nearshore_eval_checks": {
@@ -1768,9 +1971,14 @@
   {
    "depth_m": 135.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "46029",
    "lat": 46.148,
+   "locked": null,
    "lon": -124.508,
    "name": null,
    "nearshore_eval_checks": {
@@ -1801,9 +2009,12 @@
   {
    "depth_m": 3696.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46035",
    "lat": 57.034,
+   "locked": null,
    "lon": -177.468,
    "name": null,
    "nearshore_eval_checks": {
@@ -1829,9 +2040,14 @@
   {
    "depth_m": 131.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "46041",
    "lat": 47.351,
+   "locked": null,
    "lon": -124.741,
    "name": null,
    "nearshore_eval_checks": {
@@ -1862,9 +2078,12 @@
   {
    "depth_m": 1710.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46042",
    "lat": 36.787,
+   "locked": null,
    "lon": -122.408,
    "name": null,
    "nearshore_eval_checks": {
@@ -1899,9 +2118,12 @@
   {
    "depth_m": 1390.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46047",
    "lat": 32.418,
+   "locked": null,
    "lon": -119.535,
    "name": null,
    "nearshore_eval_checks": {
@@ -1936,9 +2158,12 @@
   {
    "depth_m": 149.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46050",
    "lat": 44.679,
+   "locked": null,
    "lon": -124.535,
    "name": null,
    "nearshore_eval_checks": {
@@ -1969,9 +2194,12 @@
   {
    "depth_m": 417.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46053",
    "lat": 34.246,
+   "locked": null,
    "lon": -119.842,
    "name": null,
    "nearshore_eval_checks": {
@@ -2006,9 +2234,14 @@
   {
    "depth_m": 454.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "46054",
    "lat": 34.274,
+   "locked": null,
    "lon": -120.468,
    "name": null,
    "nearshore_eval_checks": {
@@ -2043,9 +2276,12 @@
   {
    "depth_m": 4620.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46059",
    "lat": 38.067,
+   "locked": null,
    "lon": -129.895,
    "name": null,
    "nearshore_eval_checks": {
@@ -2071,9 +2307,12 @@
   {
    "depth_m": 430.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46060",
    "lat": 60.571,
+   "locked": null,
    "lon": -146.795,
    "name": null,
    "nearshore_eval_checks": {
@@ -2099,9 +2338,12 @@
   {
    "depth_m": 215.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46061",
    "lat": 60.231,
+   "locked": null,
    "lon": -146.84,
    "name": null,
    "nearshore_eval_checks": {
@@ -2127,9 +2369,12 @@
   {
    "depth_m": 985.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46069",
    "lat": 33.657,
+   "locked": null,
    "lon": -120.227,
    "name": null,
    "nearshore_eval_checks": {
@@ -2164,9 +2409,12 @@
   {
    "depth_m": 3848.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46070",
    "lat": 55.048,
+   "locked": null,
    "lon": 175.246,
    "name": null,
    "nearshore_eval_checks": {
@@ -2192,9 +2440,12 @@
   {
    "depth_m": 3589.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46072",
    "lat": 51.645,
+   "locked": null,
    "lon": -172.145,
    "name": null,
    "nearshore_eval_checks": {
@@ -2220,9 +2471,12 @@
   {
    "depth_m": 3445.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46073",
    "lat": 54.985,
+   "locked": null,
    "lon": -171.874,
    "name": null,
    "nearshore_eval_checks": {
@@ -2248,9 +2502,12 @@
   {
    "depth_m": 2731.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46075",
    "lat": 53.93,
+   "locked": null,
    "lon": -160.763,
    "name": null,
    "nearshore_eval_checks": {
@@ -2276,9 +2533,12 @@
   {
    "depth_m": 200.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46076",
    "lat": 59.508,
+   "locked": null,
    "lon": -148.005,
    "name": null,
    "nearshore_eval_checks": {
@@ -2304,9 +2564,12 @@
   {
    "depth_m": 200.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46077",
    "lat": 57.869,
+   "locked": null,
    "lon": -154.211,
    "name": null,
    "nearshore_eval_checks": {
@@ -2332,9 +2595,12 @@
   {
    "depth_m": 5361.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46078",
    "lat": 55.561,
+   "locked": null,
    "lon": -152.599,
    "name": null,
    "nearshore_eval_checks": {
@@ -2360,9 +2626,12 @@
   {
    "depth_m": 220.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46080",
    "lat": 57.91,
+   "locked": null,
    "lon": -150.129,
    "name": null,
    "nearshore_eval_checks": {
@@ -2388,9 +2657,12 @@
   {
    "depth_m": 131.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46083",
    "lat": 58.276,
+   "locked": null,
    "lon": -138.024,
    "name": null,
    "nearshore_eval_checks": {
@@ -2416,9 +2688,12 @@
   {
    "depth_m": 1149.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46084",
    "lat": 56.614,
+   "locked": null,
    "lon": -136.04,
    "name": null,
    "nearshore_eval_checks": {
@@ -2444,9 +2719,12 @@
   {
    "depth_m": 3749.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46085",
    "lat": 55.84,
+   "locked": null,
    "lon": -142.895,
    "name": null,
    "nearshore_eval_checks": {
@@ -2472,9 +2750,14 @@
   {
    "depth_m": 1862.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "46086",
    "lat": 32.504,
+   "locked": null,
    "lon": -118.029,
    "name": null,
    "nearshore_eval_checks": {
@@ -2509,9 +2792,14 @@
   {
    "depth_m": 259.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "46087",
    "lat": 48.493,
+   "locked": null,
    "lon": -124.727,
    "name": null,
    "nearshore_eval_checks": {
@@ -2542,9 +2830,12 @@
   {
    "depth_m": 115.5,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46088",
    "lat": 48.332,
+   "locked": null,
    "lon": -123.179,
    "name": null,
    "nearshore_eval_checks": {
@@ -2575,9 +2866,12 @@
   {
    "depth_m": 2360.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46089",
    "lat": 45.928,
+   "locked": null,
    "lon": -125.815,
    "name": null,
    "nearshore_eval_checks": {
@@ -2608,9 +2902,12 @@
   {
    "depth_m": 42.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46146",
    "lat": 49.34,
+   "locked": null,
    "lon": -123.73,
    "name": "Halibut Bank",
    "nearshore_eval_checks": {
@@ -2636,9 +2933,12 @@
   {
    "depth_m": 2000.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46147",
    "lat": 51.83,
+   "locked": null,
    "lon": -131.22,
    "name": "South Moresby",
    "nearshore_eval_checks": {
@@ -2664,9 +2964,12 @@
   {
    "depth_m": 23.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46181",
    "lat": 53.83,
+   "locked": null,
    "lon": -128.83,
    "name": "Nanakwa Shoal",
    "nearshore_eval_checks": {
@@ -2692,9 +2995,12 @@
   {
    "depth_m": 65.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46183",
    "lat": 53.62,
+   "locked": null,
    "lon": -131.1,
    "name": "North Hecate Strait",
    "nearshore_eval_checks": {
@@ -2720,9 +3026,12 @@
   {
    "depth_m": 230.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46185",
    "lat": 52.42,
+   "locked": null,
    "lon": -129.79,
    "name": "South Hecate Strait",
    "nearshore_eval_checks": {
@@ -2748,9 +3057,14 @@
   {
    "depth_m": 72.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
    "gulf": false,
    "id": "46206",
    "lat": 48.84,
+   "locked": null,
    "lon": -126.0,
    "name": "La Perouse Bank",
    "nearshore_eval_checks": {
@@ -2781,9 +3095,12 @@
   {
    "depth_m": 2125.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46207",
    "lat": 50.87,
+   "locked": null,
    "lon": -129.92,
    "name": "East Dellwood",
    "nearshore_eval_checks": {
@@ -2809,9 +3126,12 @@
   {
    "depth_m": 2950.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46208",
    "lat": 52.52,
+   "locked": null,
    "lon": -132.69,
    "name": "West Moresby",
    "nearshore_eval_checks": {
@@ -2837,9 +3157,12 @@
   {
    "depth_m": 483.0,
    "exam_only": true,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "46222",
    "lat": 33.614,
+   "locked": null,
    "lon": -118.314,
    "name": "San Pedro, CA (092)",
    "nearshore_eval_checks": {
@@ -2874,9 +3197,14 @@
   {
    "depth_m": 1049.8,
    "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
    "gulf": false,
    "id": "46232",
    "lat": 32.517,
+   "locked": null,
    "lon": -117.425,
    "name": "Point Loma South, CA  (191)",
    "nearshore_eval_checks": {
@@ -2911,9 +3239,12 @@
   {
    "depth_m": 4848.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "51000",
    "lat": 23.534,
+   "locked": null,
    "lon": -153.752,
    "name": null,
    "nearshore_eval_checks": {
@@ -2939,9 +3270,14 @@
   {
    "depth_m": 4895.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "51001",
    "lat": 24.475,
+   "locked": null,
    "lon": -162.03,
    "name": null,
    "nearshore_eval_checks": {
@@ -2967,9 +3303,14 @@
   {
    "depth_m": 4979.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "51002",
    "lat": 17.07,
+   "locked": null,
    "lon": -157.755,
    "name": null,
    "nearshore_eval_checks": {
@@ -2995,9 +3336,12 @@
   {
    "depth_m": 5034.1,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "51003",
    "lat": 19.151,
+   "locked": null,
    "lon": -160.617,
    "name": null,
    "nearshore_eval_checks": {
@@ -3032,9 +3376,14 @@
   {
    "depth_m": 5272.0,
    "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "51004",
    "lat": 17.504,
+   "locked": null,
    "lon": -152.197,
    "name": null,
    "nearshore_eval_checks": {
@@ -3060,9 +3409,12 @@
   {
    "depth_m": 4847.0,
    "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "51101",
    "lat": 24.34,
+   "locked": null,
    "lon": -162.073,
    "name": null,
    "nearshore_eval_checks": {
@@ -3088,9 +3440,15 @@
   {
    "depth_m": 200.0,
    "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits",
+    "wave_emos_l1"
+   ],
    "gulf": false,
    "id": "51201",
    "lat": 21.671,
+   "locked": null,
    "lon": -158.118,
    "name": "Waimea Bay, HI (106)",
    "nearshore_eval_checks": {
@@ -3125,9 +3483,14 @@
   {
    "depth_m": 345.0,
    "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
    "gulf": false,
    "id": "51206",
    "lat": 19.779,
+   "locked": null,
    "lon": -154.97,
    "name": "Hilo, Hawaii, HI (188)",
    "nearshore_eval_checks": {
@@ -3162,9 +3525,12 @@
   {
    "depth_m": 540.0,
    "exam_only": true,
+   "fit_used": false,
+   "fit_used_by": [],
    "gulf": false,
    "id": "52201",
    "lat": 7.078,
+   "locked": null,
    "lon": 171.384,
    "name": "Kalo, Majuro, Marshall Islands (163)",
    "nearshore_eval_checks": {
@@ -3188,5 +3554,5 @@
    "wvht_rows_at_probe": 764
   }
  ],
- "version": "served-wave-verify-v1-buoys/1"
+ "version": "served-wave-verify-v1-buoys/2"
 }

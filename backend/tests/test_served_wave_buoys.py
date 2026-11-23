@@ -40,7 +40,10 @@ def test_list_is_exactly_the_freeze_of_its_committed_inputs():
     load = lambda p: json.loads(Path(p).read_text(encoding="utf-8"))  # noqa: E731
     doc = buoylist.load()
     again = mod.freeze(load(mod.POOL), load(mod.CATALOGUE), load(mod.BOXES), doc["frozen_at"])
+    # version 2 (amendment 2) = the version 1 freeze, unchanged, + the committed fit-used census
+    again = mod.tag(again, load(mod.FIT_USED), (doc.get("holdout") or {}).get("locked_list"))
     assert again == doc
+    assert doc["version"] == "served-wave-verify-v1-buoys/2"
 
 
 def test_regional_box_rule_farthest_from_edge_then_lexical():

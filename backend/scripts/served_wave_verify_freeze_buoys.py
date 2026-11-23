@@ -5,6 +5,8 @@
                                      public read, the client's path; section 2a "read from the published latest.json and
                                      indexes at freeze") and write them, so the freeze itself is reproducible offline
   --freeze                           pool + catalogue + boxes -> the list (+ its .sha256)
+  --tag                              amendment 2: the version 1 freeze (same inputs, same frozen_at) + the committed fit-used
+                                     census -> the version 2 list (fit_used / fit_used_by / locked tags, holdout block)
 
 Selection uses the gate's rules ONLY (no skill, no forecast read):
   * ACTIVE: the probe saw >= ACTIVE_MIN_ROWS realtime2 rows with a QC-passing WVHT,
@@ -34,7 +36,14 @@ GATES = Path(__file__).resolve().parents[2] / "docs" / "weather-program" / "gate
 POOL = GATES / "served-wave-verify-v1-buoys.pool.json"
 CATALOGUE = GATES / "served-wave-verify-v1-buoys.catalogue.json"
 BOXES = GATES / "served-wave-verify-v1-boxes.json"
+FIT_USED = GATES / "served-wave-verify-v1-fit-used.json"
 VERSION = "served-wave-verify-v1-buoys/1"
+VERSION_2 = "served-wave-verify-v1-buoys/2"
+HOLDOUT_GATE = "docs/weather-program/gates/served-wave-skill-v1.md"
+HOLDOUT_RULE = ("#1199 section 1a: LOCKED buoys are archived like every other, but the scorer reads none of them and every "
+                "published table and printed line excludes them, keyed to the frozen LOCKED list by its SHA-256. Until "
+                "locked_list is recorded, the scorer is collect-only (NOT_READ) and publishes nothing. fit_used buoys stay in "
+                "this lane's indicative tables, tagged, and #1199's P1 excludes them.")
 TARGETS = {"us_west": 20, "us_east": 15, "gulf": 8, "hawaii": 8, "alaska": 5, "canada": 8, "caribbean": 6, "open_ocean": 10}
 TOTAL = 100
 CDIP_CAP = 2
@@ -136,6 +145,24 @@ def freeze(pool, catalogue, boxes, frozen_at):
             "stations": rows}
 
 
+def tag(doc, census, locked_list=None):
+    """The version 2 list: `doc` (a version 1 freeze) with each station's fit_used / fit_used_by from `census` (consumer ->
+    ids; intersected with the list) and `locked` (None until #1199's freeze), plus the holdout block."""
+    by = {}
+    for name, c in sorted(census["consumers"].items()):
+        for i in c["ids"]:
+            by.setdefault(str(i).upper(), []).append(name)
+    rows = []
+    for s in doc["stations"]:
+        users = sorted(by.get(s["id"].upper(), []))
+        rows.append({**s, "fit_used": bool(users), "fit_used_by": users, "locked": None})
+    return {**doc, "version": VERSION_2, "stations": rows,
+            "holdout": {"gate": HOLDOUT_GATE, "rule": HOLDOUT_RULE, "locked_list": locked_list,
+                        "fit_used_census": {"path": "docs/weather-program/gates/" + FIT_USED.name, "taken_at": census["taken_at"],
+                                            "canon_sha256": core.sha256_hex(core.canon(census).encode("utf-8")),
+                                            "open": [o["consumer"] for o in census.get("open", [])]}}}
+
+
 def boxes_from_public(frames):
     latest = json.loads(frames.get("v1/latest.json", bust=True))
     sets = {}
@@ -158,6 +185,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--boxes-from-public", metavar="OUT")
     ap.add_argument("--freeze", action="store_true")
+    ap.add_argument("--tag", action="store_true")
     ap.add_argument("--out", default=str(buoylist.LIST_PATH))
     a = ap.parse_args(argv)
     if a.boxes_from_public:
@@ -175,6 +203,18 @@ def main(argv=None):
         h = buoylist.list_hash(buoylist.load(a.out))
         Path(a.out + ".sha256").write_text(f"{h}  {Path(a.out).name}\n", encoding="utf-8", newline="\n")
         print(f"[freeze] {len(doc['stations'])} stations; buoy_list_hash {h}")
+    if a.tag:
+        load = lambda p: json.loads(Path(p).read_text(encoding="utf-8"))  # noqa: E731
+        current = buoylist.load(a.out)
+        doc = tag(freeze(load(POOL), load(CATALOGUE), load(BOXES), current["frozen_at"]), load(FIT_USED),
+                  (current.get("holdout") or {}).get("locked_list"))
+        problems = buoylist.validate(doc)
+        if problems:
+            raise SystemExit("tag refused: " + "; ".join(problems))
+        Path(a.out).write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+        h = buoylist.list_hash(buoylist.load(a.out))
+        Path(a.out + ".sha256").write_text(f"{h}  {Path(a.out).name}\n", encoding="utf-8", newline="\n")
+        print(f"[tag] {sum(s['fit_used'] for s in doc['stations'])} fit_used of {len(doc['stations'])}; buoy_list_hash {h}")
 
 
 if __name__ == "__main__":

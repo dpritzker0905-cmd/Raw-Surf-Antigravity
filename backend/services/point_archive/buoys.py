@@ -3,6 +3,12 @@
 The list file is `docs/weather-program/gates/served-wave-verify-v1-buoys.json`; `buoy_list_hash` = SHA-256 of its canonical
 JSON (core.canon of the parsed file), and every record carries it with `buoy_list_version`. A change is a new version.
 
+Version 2 (amendment 2) adds two tags per station: `fit_used` / `fit_used_by` (the consumers whose fits read that buoy, from
+the committed census `served-wave-verify-v1-fit-used.json`) and `locked` (#1199's LOCKED final holdout: null until that
+list is frozen). The FREEZE-FILLED fields, each station's `locked` and the list's `holdout.locked_list` pointer, are left
+out of the hash: filling them at #1199's freeze changes no sampled byte, so it must not split the archive into two list
+versions. Their integrity is the locked list's own SHA-256 (holdout.py), which the scorer verifies and publishes.
+
 Regional box rule (section 2a): per (model, set), a buoy's box is the regional box whose bounds contain it; if several do, the
 one where the buoy lies farthest from the box edge (km: the shortest distance to any of the four edges, longitude scaled by
 cos(lat)); ties go to the lexically smallest region_id. A buoy in no box has Tier A only (`no_regional_tier`).
@@ -25,8 +31,20 @@ def load(path=LIST_PATH):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+FREEZE_FILLED_STATION = ("locked",)
+FREEZE_FILLED_HOLDOUT = ("locked_list",)
+
+
+def hashed_view(doc):
+    """`doc` without the freeze-filled holdout fields (what list_hash covers)."""
+    out = {**doc, "stations": [{k: v for k, v in s.items() if k not in FREEZE_FILLED_STATION} for s in doc.get("stations", [])]}
+    if isinstance(doc.get("holdout"), dict):
+        out["holdout"] = {k: v for k, v in doc["holdout"].items() if k not in FREEZE_FILLED_HOLDOUT}
+    return out
+
+
 def list_hash(doc):
-    return core.sha256_hex(core.canon(doc).encode("utf-8"))
+    return core.sha256_hex(core.canon(hashed_view(doc)).encode("utf-8"))
 
 
 def stations(doc, purpose="served"):
@@ -57,6 +75,16 @@ def validate(doc):
             problems.append(f"{s['id']}: purposes {s['purposes']}")
         if not (-90 <= s["lat"] <= 90 and -180 <= s["lon"] <= 180):
             problems.append(f"{s['id']}: position")
+        if "fit_used" in s:                                      # version 2 tags (amendment 2)
+            if s["fit_used"] is not bool(s.get("fit_used_by")):
+                problems.append(f"{s['id']}: fit_used {s['fit_used']} disagrees with fit_used_by {s.get('fit_used_by')}")
+            if s.get("locked") not in (None, True, False):
+                problems.append(f"{s['id']}: locked {s.get('locked')!r}")
+    if any("fit_used" in s for s in doc.get("stations", [])):
+        if not all("fit_used" in s and "locked" in s for s in doc["stations"]):
+            problems.append("version 2 list: every station needs fit_used and locked")
+        if not isinstance(doc.get("holdout"), dict) or "locked_list" not in doc["holdout"]:
+            problems.append("version 2 list: holdout.locked_list missing")
     return problems
 
 
