@@ -64,14 +64,31 @@ jobs:
           verdict() { echo "docs_only=$1" >> "$GITHUB_OUTPUT"; echo "docs_only=$1 ($2)"; echo "**docs_only=$1** — $2" >> "$GITHUB_STEP_SUMMARY"; exit 0; }
           [ "$EVENT" = "pull_request" ] || verdict false "event $EVENT always runs the full suite"
           git rev-parse --verify -q 'HEAD^2' >/dev/null || verdict false "HEAD is not a PR merge commit"
-          git diff --name-only --no-renames 'HEAD^1' HEAD > /tmp/changed.txt
+          # --raw -z: NUL-delimited (no quoting or newline tricks) and carries each file's mode, so a symlink,
+          # submodule or exec-bit change on a `.md` path is NOT docs (adversarial review, Reflection 2026-11-22).
+          git diff --raw -z --no-renames 'HEAD^1' HEAD | python3 -c '
+          import sys
+          parts = sys.stdin.buffer.read().split(b"\0")
+          ok_modes = {"100644", "000000"}            # regular file, or deleted
+          with open("/tmp/changed.txt", "wb") as ch, open("/tmp/badmode.txt", "wb") as bad:
+              for meta, path in zip(parts[0::2], parts[1::2]):
+                  if not meta.startswith(b":"):
+                      continue
+                  old, new = meta[1:].split(b" ")[:2]
+                  odd = b"\n" in path or b"\r" in path          # a control character in a name: not docs
+                  p = path.replace(b"\n", b"?").replace(b"\r", b"?")
+                  ch.write(p + b"\n")
+                  if odd or old.decode() not in ok_modes or new.decode() not in ok_modes:
+                      bad.write(p + b"\n")
+          '
           n=$(wc -l < /tmp/changed.txt)
           [ "$n" -gt 0 ] || verdict false "empty diff"
-          : > /tmp/code.txt
+          cp /tmp/badmode.txt /tmp/code.txt   # any non-regular-file entry counts as code
           while IFS= read -r f; do
             case "$f" in
+              .github/ci-floors.d/*/*) echo "$f" >> /tmp/code.txt ;;   # fragments live at the top level only
               .github/ci-floors.d/*.json) ;;
-              */*/*.md|*/*.md)
+              */*.md)
                 case "$f" in
                   docs/*|audit/*|program/*|memory/*|.claude/*|.agents/*) ;;
                   *) echo "$f" >> /tmp/code.txt ;;
