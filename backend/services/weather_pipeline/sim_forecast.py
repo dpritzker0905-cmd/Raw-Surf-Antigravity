@@ -454,8 +454,14 @@ def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
     wind_time = identities["wind"]["served_valid_time"]
     alignment = "unknown" if not marine_time or not wind_time else (
         "aligned" if marine_time == wind_time else "mixed")
-    missing = [name for name, ok in (("marine", mp.get("speed") is not None),
-                                     ("wind", wp.get("speed") is not None)) if not ok]
+    # RATING_MISSING_SAMPLE_UNKNOWN (dark, bug-hunt B): the sampler's zero-filled "unavailable"/out-of-bounds placeholder
+    # is no data, the same as an absent speed, never a measured 0 m / 0 kt. Off: byte-identical.
+    from services.weather_pipeline import missing_sample as _missing
+    _placeholder = _missing.MISSING_METHODS if _missing.enabled() else frozenset()
+    missing = [name for name, ok in (("marine", mp.get("speed") is not None
+                                      and mp.get("interpolation_method") not in _placeholder),
+                                     ("wind", wp.get("speed") is not None
+                                      and wp.get("interpolation_method") not in _placeholder)) if not ok]
     baseline, invalid_reason = _validated_baseline(mp, wp) if strict_inputs else (None, None)
     if missing or invalid_reason:
         reason = f"no {' and '.join(missing)} data at this coordinate" if missing else invalid_reason

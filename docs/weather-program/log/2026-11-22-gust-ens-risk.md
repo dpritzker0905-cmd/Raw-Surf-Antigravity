@@ -121,7 +121,6 @@ minimum 25 kn in B1 and B2. Committed before any model value or truth is read.
   exclusion).
 - LongCat was not asked: its one paid request on 2026-11-22 failed with a network error, and its billing outcome is
   unknown.
-
 ## 2026-11-23 04:15Z · collection complete; measured egress (nothing scored)
 - **Collection** (local, serialized; one process with 4 run threads and every decode under one lock; never Render or
   Supabase):
