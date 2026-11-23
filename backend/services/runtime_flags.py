@@ -81,6 +81,8 @@ GUARDED = {
     "LOCATION_TIME_FIELD": "0",         # location_time phase 1 (#762): civil zone + civil day rows. Held OFF until
                                         # the D-065 prerequisites (SCOREBOARD row, history filter) land; tier-safe
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
+    "HUB_NOW_NEAREST_HOUR": "1",        # bug hunt 2026-11-22 E: hub/sim "now" = the map's nearest-hour anchor (was a
+                                        # floor: other 3-hourly product in :30-:59); kill '0' = the floor
     "SIDE_PATHS_THROUGH_CHAIN": "1",    # O4: /api/conditions preview rows = precomputed rate_one_spot frames (rated);
                                         # _breaking_ft fails CLOSED (never offshore Hs as surf); /api/surf-conditions
                                         # target-time height labelled an unrated estimate; kill '0'
