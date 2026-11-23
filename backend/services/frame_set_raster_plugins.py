@@ -15,11 +15,13 @@ from __future__ import annotations
 try:
     from services import frame_set_raster_currents_native as _native
     from services import frame_set_raster_giops as _giops
+    from services import frame_set_raster_gust_risk as _gust_risk
     from services import frame_set_raster_rtofs as _rtofs
     from services import frame_set_raster_sst as _sst
 except ImportError:  # pragma: no cover - run by path (fetcher subprocess)
     import frame_set_raster_currents_native as _native
     import frame_set_raster_giops as _giops
+    import frame_set_raster_gust_risk as _gust_risk
     import frame_set_raster_rtofs as _rtofs
     import frame_set_raster_sst as _sst
 
@@ -33,4 +35,5 @@ def register(specs, grids):
     _giops.register(specs, grids, SOURCES)
     _rtofs.register(specs, grids, SOURCES)
     _native.register(specs, grids, SOURCES)
+    _gust_risk.register(specs, grids, SOURCES)     # the ECMWF ENS gust-risk set (gate gust-ens-risk-v1), dark
     return SOURCES

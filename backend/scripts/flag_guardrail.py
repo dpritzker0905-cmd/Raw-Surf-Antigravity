@@ -117,6 +117,10 @@ COVERAGE = {
                                    "nearshore-moplite-v1 scorer (LITE vs CHAIN at buoys, forward archive), not yet run"),
     "SHORE_NORMAL_MOP_CALIBRATED": (REPLAY, "the height exposure normal at the calibrated anchors (#780)"),
     "RATING_LOCAL_SIZE": (RATING, "the quality score's size reference; no observed rating exists"),
+    "COPERNICUS_PEAK_PERIOD": (BLIND, "an ingest-time period definition read by fetcher subprocesses (os.environ); the replay "
+                                      "fetches GFS only and a manifest off cannot reach it. Evidence: gates/peak-period-ship-v1.md"),
+    "ICON_PEAK_PERIOD": (BLIND, "an ingest-time period definition read by fetcher subprocesses (os.environ); the replay "
+                                "fetches GFS only and a manifest off cannot reach it. Evidence: gates/peak-period-ship-v1.md"),
     "RATING_MISSING_SAMPLE_UNKNOWN": (BLIND, "moves only spot-hours whose sample was a sampler placeholder "
                                              "('unavailable' / out-of-bounds); the replay never serves one. Evidence: "
                                              "tests/test_missing_sample_unknown.py and the placeholder census in its PR"),
