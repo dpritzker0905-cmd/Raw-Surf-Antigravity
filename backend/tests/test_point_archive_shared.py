@@ -1,0 +1,213 @@
+"""The ONE point archive's shared parts (gate served-wave-verify-v1 section 0): time / lead rules, the QC module (L-S30), the
+immutable writer with SHA256SUMS and verify_archive, and the deterministic cell rule."""
+import gzip
+from datetime import datetime, timezone
+
+import numpy as np
+import pytest
+
+from services.point_archive import cells, core, qc, slim
+from services.point_archive.storage import LocalStore
+from services.point_archive.writer import ArchiveWriter, archive_prefixes, read_run_rows, verify_archive
+
+
+# ---- core -----------------------------------------------------------------------------------------------------------
+def test_run_stamp_lead_and_paths():
+    assert core.run_stamp("2027-01-15T00:00:00Z") == "20270115T0000Z"
+    assert core.lead_h("2027-01-15T00:00:00Z", "2027-01-16T06:00:00+00:00") == 30
+    with pytest.raises(ValueError):
+        core.lead_h("2027-01-15T00:00:00Z", "2027-01-15T00:30:00Z")
+    assert core.run_path("served", "GFS", "2027-01-15T06:00:00Z") == "verify/point-archive/v1/served/gfs/20270115T0600Z.jsonl.gz"
+    with pytest.raises(ValueError):
+        core.run_path("weighting", "gfs", "2027-01-15T06:00:00Z")
+
+
+def test_lead_bins_are_the_gates_edges():
+    assert core.LEAD_BINS == ((0, 24), (24, 48), (48, 72), (72, 120), (120, 168), (168, 240))
+    assert [core.lead_bin(h) for h in (0, 23, 24, 47, 167, 168, 239, 240)] == \
+        ["[0,24)", "[0,24)", "[24,48)", "[24,48)", "[120,168)", "[168,240)", "[168,240)", None]
+
+
+# ---- QC (L-S30) -----------------------------------------------------------------------------------------------------
+def test_only_mm_is_global_and_numeric_fills_are_per_field():
+    assert qc.MISSING_TOKENS == frozenset({"MM"})
+    assert qc.check_value("MWD", "99") == (99.0, None)          # a valid 99 deg direction is kept
+    assert qc.check_value("WVHT", "99.00") == (None, "range")   # WVHT's own fill
+    assert qc.check_value("DPD", "99.00") == (None, "range")
+    assert qc.check_value("MWD", "999") == (None, "range")
+    assert qc.check_value("WVHT", "MM") == (None, "missing")
+    assert qc.check_value("SwD", "WSW") == (247.5, None)
+    assert qc.FIELD_RANGES["WVHT"] == (0.0, 30.0) and qc.FIELD_RANGES["DPD"] == (1.0, 40.0)
+    assert qc.FIELD_RANGES["MWD"] == (0.0, 360.0)
+
+
+def _txt(vals):
+    head = "#YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD   PRES\n#yr  mo dy hr mn degT m/s  m/s m sec sec degT hPa\n"
+    return head + "".join(f"2027 01 15 {h:02d} 00 MM MM MM {v} 10 7 200 MM\n" for h, v in reversed(list(enumerate(vals))))
+
+
+def test_parse_sorts_oldest_first_and_flags_stuck_after_six_equal():
+    rows = qc.parse_stdmet(_txt(["1.0"] * 8))
+    assert [r["time"].hour for r in rows] == list(range(8))
+    assert [r["qc"].get("hs_m") for r in rows] == [None] * 6 + ["stuck", "stuck"]
+    broken = qc.parse_stdmet(_txt(["1.0"] * 4 + ["MM"] + ["1.0"] * 4))
+    assert not any(r["qc"].get("hs_m") == "stuck" for r in broken)        # a missing report breaks the run
+
+
+def test_steady_swell_never_flags_binned_or_compass_fields_stuck():
+    """Amendment 1, A1: 10 h of a steady swell repeats DPD (a spectral bin) and MWD; WVHT and APD vary. Nothing is stuck."""
+    head = "#YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD   PRES\n#yr  mo dy hr mn degT m/s  m/s m sec sec degT hPa\n"
+    std = head + "".join(f"2027 01 15 {h:02d} 00 MM MM MM {1.5 + 0.01 * h:.2f} 14.81 {7 + 0.1 * h:.1f} 285 MM\n"
+                         for h in reversed(range(10)))
+    rows = qc.parse_stdmet(std)
+    assert len(rows) == 10 and not any(r["qc"] for r in rows)
+    assert {r["tp_s"] for r in rows} == {14.81} and {r["dir_deg"] for r in rows} == {285.0}
+    spec_head = ("#YY  MM DD hh mm WVHT  SwH  SwP  WWH  WWP SwD WWD  STEEPNESS  APD MWD\n"
+                 "#yr  mo dy hr mn    m    m  sec    m  sec  -  degT     -      sec degT\n")
+    spec = spec_head + "".join(f"2027 01 15 {h:02d} 00 1.5 {1.2 + 0.01 * h:.2f} 14.8 {0.3 + 0.01 * h:.2f} 5.0 WNW W SWELL 7.0 285\n"
+                               for h in reversed(range(10)))
+    srows = qc.parse_spec(spec)
+    assert not any(r["qc"] for r in srows)                    # SwP, WWP, SwD, WWD repeat honestly
+    merged = qc.merge_snapshots([("2027-01-15T10:00:00Z", std)], qc.parse_stdmet)
+    assert not any(r["qc"] for r in merged)
+    assert qc.STUCK_EXEMPT == frozenset({"DPD", "SwP", "WWP", "MWD", "SwD", "WWD"})
+
+
+def test_continuous_fields_are_still_flagged_stuck():
+    stuck_h = qc.parse_spec("#YY  MM DD hh mm WVHT  SwH  SwP  WWH  WWP SwD WWD  STEEPNESS  APD MWD\n#yr\n" + "".join(
+        f"2027 01 15 {h:02d} 00 1.5 1.20 14.8 0.30 5.0 WNW W SWELL 7.0 285\n" for h in reversed(range(8))))
+    assert [r["qc"].get("swell_h_m") for r in stuck_h][6:] == ["stuck", "stuck"]
+    assert [r["qc"].get("ww_h_m") for r in stuck_h][6:] == ["stuck", "stuck"]
+    assert not any("swell_t_s" in r["qc"] or "swell_dir_deg" in r["qc"] for r in stuck_h)
+
+
+def test_at_hour_window_and_tie_goes_earlier():
+    t = lambda h, m: datetime(2027, 1, 15, h, m, tzinfo=timezone.utc)  # noqa: E731
+    rows = [{"time": t(0, 0), "qc": {}}, {"time": t(1, 0), "qc": {}}]
+    assert qc.at_hour(rows, t(0, 30))["time"] == t(0, 0)
+    assert qc.at_hour(rows, t(0, 20))["time"] == t(0, 0)
+    assert qc.at_hour([rows[0]], t(0, 31)) is None
+
+
+def test_merge_snapshots_later_wins_and_restitches_stuck():
+    a = _txt(["1.0", "1.0", "1.0", "1.0"])
+    b = "\n".join(_txt(["1.0"] * 8).splitlines()[:2] + _txt(["1.0"] * 8).splitlines()[2:6]) + "\n"   # hours 4..7
+    rows = qc.merge_snapshots([("2027-01-15T04:00:00Z", a), ("2027-01-15T08:00:00Z", b)], qc.parse_stdmet)
+    assert [r["time"].hour for r in rows] == list(range(8))
+    assert [r["qc"].get("hs_m") for r in rows][6:] == ["stuck", "stuck"]
+
+
+# ---- writer ---------------------------------------------------------------------------------------------------------
+def test_run_files_are_immutable_canonical_and_listed(tmp_path):
+    w = ArchiveWriter(LocalStore(tmp_path))
+    rows = [{"b": 2, "a": 1.5}, {"a": 0}]
+    path, h = w.write_run("served", "gfs", "2027-01-15T00:00:00Z", rows)
+    data = (tmp_path / path).read_bytes()
+    assert gzip.decompress(data).startswith(b'{"layout":"slim/1","row_type":"header"')    # canonical, sorted keys
+    assert core.sha256_hex(data) == h
+    ArchiveWriter(LocalStore(tmp_path / "again")).write_run("served", "gfs", "2027-01-15T00:00:00Z", rows)
+    assert (tmp_path / "again" / path).read_bytes() == data                # same rows -> same bytes (gzip mtime 0)
+    with pytest.raises(FileExistsError):
+        w.write_run("served", "gfs", "2027-01-15T00:00:00Z", rows)          # re-writing is refused
+    assert read_run_rows(data) == [{"a": 1.5, "b": 2}, {"a": 0}]
+    sums = (tmp_path / "verify/point-archive/v1/served/gfs/SHA256SUMS").read_text()
+    assert sums == f"{h}  20270115T0000Z.jsonl.gz\n"
+    assert verify_archive(LocalStore(tmp_path), "verify/point-archive/v1/served/gfs") == []
+
+
+def _rec(**kw):
+    base = {"row_type": "record", "schema": core.SCHEMA, "purpose": "served", "model": "gfs", "run_time": "2027-01-15T00:00:00Z",
+            "buoy_list_version": "v", "buoy_list_hash": "h" * 64, "run_hash": "r" * 64, "decoder_version": "d" * 40,
+            "sampler_version": "s/1", "writer_version": "w/1", "frame_set": "waves", "tier": "global_mid", "lead_h": 0,
+            "valid_time": "2027-01-15T00:00:00Z", "period_kind": "tp", "station_id": "A", "status": "ok"}
+    return {**base, **kw}
+
+
+def test_slim_layout_is_lossless_on_every_record_shape():
+    """Amendment 1, A2: unpack(pack(rows)) == rows for ok / cell_masked / distance_exceeded / out_of_domain / sampler_fail
+    records, partitions, census rows and a cell that disagrees between two records of one grid (left unfactored)."""
+    cell = {"cell_row": 3, "cell_col": 6, "cell_lat": 0.0, "cell_lon": 0.0, "distance_km": 12.5}
+    rows = [
+        {"row_type": "census", "schema": core.SCHEMA, "frame_set": "waves", "tier": "global_mid", "counts": {"ok": 2}},
+        _rec(frame_hash="f1", grid_hash="g1", hs_m=1.234, tp_s=12.5, dir_deg=270.0, **cell),
+        _rec(lead_h=3, valid_time="2027-01-15T03:00:00Z", frame_hash="f2", grid_hash="g1", status="cell_masked", **cell),
+        _rec(station_id="B", frame_hash="f1", grid_hash="g1", status="distance_exceeded", distance_km=400.0),
+        _rec(station_id="C", frame_hash="f1", grid_hash="g1", status="out_of_domain"),
+        _rec(station_id="A", lead_h=6, valid_time="2027-01-15T06:00:00Z", status="sampler_fail", cause="pruned", frame_sha12=None),
+        _rec(frame_set="swell_1", period_kind="tm", frame_hash="f3", grid_hash="g2",
+             partitions=[{"kind": "swell_1", "h": 0.5, "tp": 9.1, "dir": 280.0}], **cell),
+        _rec(station_id="D", frame_hash="f1", grid_hash="g1", **{**cell, "cell_row": 4}),
+        _rec(station_id="D", lead_h=3, valid_time="2027-01-15T03:00:00Z", frame_hash="f2", grid_hash="g1", **cell),
+    ]
+    packed = slim.pack(rows)
+    assert packed[0]["row_type"] == "header" and packed[0]["layout"] == slim.LAYOUT
+    assert slim.unpack(packed) == rows
+    assert slim.unpack(rows) == rows                                    # a plain file reads as it is
+    slim_recs = [x for x in packed if x["row_type"] == "r"]
+    assert not any(k in x for x in slim_recs for k in slim.RUN_KEYS)    # run provenance written once
+    assert sum(1 for x in slim_recs if x.get("c")) == 3                 # A x2 (g1) + swell_1 A (g2); D clashes -> kept inline
+
+
+def test_verify_archive_reports_mismatch_missing_and_unlisted(tmp_path):
+    store = LocalStore(tmp_path)
+    w = ArchiveWriter(store)
+    p1, _ = w.write_run("served", "gfs", "2027-01-15T00:00:00Z", [{"a": 1}])
+    p2, _ = w.write_run("served", "gfs", "2027-01-15T06:00:00Z", [{"a": 2}])
+    (tmp_path / p1).write_bytes(b"tampered")
+    (tmp_path / p2).unlink()
+    store.write("verify/point-archive/v1/served/gfs/stray.jsonl.gz", b"x")
+    probs = verify_archive(store, "verify/point-archive/v1/served/gfs")
+    assert any("20270115T0000Z.jsonl.gz: sha256 mismatch" in p for p in probs)
+    assert any("20270115T0600Z.jsonl.gz: listed but missing" in p for p in probs)
+    assert any("stray.jsonl.gz: not in SHA256SUMS" in p for p in probs)
+    assert archive_prefixes(store) == ["verify/point-archive/v1/served/gfs"]
+
+
+def test_truth_snapshot_is_immutable_and_hashed(tmp_path):
+    w = ArchiveWriter(LocalStore(tmp_path))
+    path, h = w.write_truth("46025", "txt", "2027-01-16T06:30:00Z", "#YY\n")
+    assert path == "verify/point-archive/v1/truth/46025/46025_20270116T0630Z.txt.gz"
+    assert gzip.decompress((tmp_path / path).read_bytes()) == b"#YY\n"
+    with pytest.raises(FileExistsError):
+        w.write_truth("46025", "txt", "2027-01-16T06:30:00Z", "#YY\n")
+
+
+# ---- cell rule ------------------------------------------------------------------------------------------------------
+GEOM = cells.geometry(5, 5, (-160.0, 15.0, -150.0, 25.0))      # 2.5 deg nodes, row 0 south, column 0 west
+
+
+def test_nearest_wet_cell_and_tie_break_lower_row_then_column():
+    wet = np.ones((5, 5), dtype=bool)
+    a = cells.assign(GEOM, wet, 16.25, -158.75)                  # equidistant-ish centre of 4 nodes
+    assert a["status"] == "ok" and (a["cell_row"], a["cell_col"]) in ((0, 0), (0, 1), (1, 0), (1, 1))
+    # an exact tie on the equator-symmetric grid: lower row wins, then lower column
+    g = cells.geometry(3, 3, (-1.0, -1.0, 1.0, 1.0))
+    t = cells.assign(g, np.ones((3, 3), dtype=bool), 0.0, -0.5)   # halfway between columns 0 and 1 of row 1
+    assert (t["cell_row"], t["cell_col"]) == (1, 0)
+
+
+def test_land_cells_are_skipped_and_distance_limit_is_enforced():
+    wet = np.zeros((5, 5), dtype=bool)
+    wet[4, 4] = True                                             # the only wet node: (25, -150)
+    a = cells.assign(GEOM, wet, 15.0, -160.0)
+    assert a["status"] == "distance_exceeded" and "cell_row" not in a
+    near = cells.assign(GEOM, wet, 24.0, -151.0)
+    assert near["status"] == "ok" and (near["cell_row"], near["cell_col"]) == (4, 4)
+    assert near["limit_km"] == pytest.approx(0.75 * cells.cell_diagonal_km(GEOM, 25.0), abs=1e-3)
+
+
+def test_domain_box_and_world_wrap():
+    assert cells.assign(GEOM, np.ones((5, 5), bool), 30.0, -155.0)["status"] == "out_of_domain"
+    world = cells.geometry(181, 83, (-180.0, -80.0, 180.0, 84.0))
+    assert cells.in_domain(world, 21.0, 179.9) and cells.in_domain(world, 21.0, -179.9)
+    assert not cells.in_domain(world, 85.0, 0.0)
+
+
+def test_grid_hash_changes_with_mask_and_geometry():
+    wet = np.ones((5, 5), dtype=bool)
+    h = cells.grid_hash(GEOM, wet)
+    wet2 = wet.copy()
+    wet2[2, 2] = False
+    assert cells.grid_hash(GEOM, wet2) != h
+    assert cells.grid_hash(cells.geometry(5, 5, (-160.0, 15.0, -150.0, 25.5)), wet) != h
+    assert cells.grid_hash(GEOM, wet.ravel()) == h
