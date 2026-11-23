@@ -328,3 +328,68 @@ planted-D option, and the finder check does not measure heights. A re-run would 
 
 The finder height extension (`finder_check.py --all26`, heights) is committed on this branch at `238f11ac9`
 (02:55Z), before any result.
+
+## 2026-11-23 03:06Z: the TWL design (#1167, tide-twl-v1) put to SubQ and Reflection (advisory)
+
+The director relayed David's ask: every lane uses SubQ and Reflection, and tests thoroughly. Both received the same
+three questions with public context only: the design, the bars, and the measured West Coast residual. No credentials
+and no private table values were sent. Their answers are advisory external content.
+
+| Model | Call |
+|---|---|
+| SubQ | `subq-savant-1.4`, medium effort. A first high-effort call ran out of output tokens on reasoning and returned nothing |
+| Reflection | `Beam-1.0-501B-A23B`, high effort |
+
+### Q1: the MLLW ↔ NAVD88 chain
+
+**Both:** stay on MLLW at stage 1, with r = observed_MLLW − (A + D). NAVD88 adds nothing for corrections at the gauges.
+It becomes necessary only when leaving that frame:
+- stage-2 interpolation of r to spots;
+- blending with STOFS/ETSS, CMEMS or other products on a different vertical reference;
+- land or inundation thresholds.
+
+At that point, convert per station (VDatum or the geoid), then convert the result back to MLLW.
+
+**Reflection's warning:** if D (computed vs sheet), FES's MSL reference and any NAVD88 conversion are mixed, r absorbs
+datum error, and the gate measures datum mismatch rather than TWL skill.
+
+### Q2: which gauges
+
+**Both:** do not decide on OPEN_COAST only.
+- SubQ: all gauges for the primary verdict, with the strata as a pre-specified sensitivity, and the 4 unclassified
+  gauges kept in and shown separately.
+- Reflection: all 30 gauges, stratified by exposure class.
+
+Their reason: the rule's misclassification and its unclassified gauges would bias an OPEN_COAST-only subset.
+
+### Q3: the primary metric (they disagree)
+
+- **Reflection:** absolute RMSE per lead against the BETTER of r24 persistence and the 60-day anchor. A percent cut
+  against A + D can pass just by removing a persistent offset.
+- **SubQ:** lead-weighted RMSE skill against A + D, with the 6–72 h and 7–14 d cuts as pass/fail. Bias, the two
+  simple-benchmark guardrails and the storm bar are hard constraints.
+
+**Both say these are missing:**
+- a pre-declared aggregation and uncertainty plan: gauge weighting, rolling-origin confidence intervals, and a 3–7 d
+  lead bin (the leads jump from 72 h to 168 h);
+- a two-sided tail or peak metric: over-reads as well as under-reads.
+
+### This lane's decision
+
+These are recommendations. They become a dated amendment 5 to #1167 only with the director's and the advisor's word,
+before any TWL data.
+
+- **Q1: no change.** The gate already keeps stage 1 on MLLW. Stage 2 (section 9 there) gets a sentence: a per-station
+  MLLW ↔ NAVD88 conversion at the blending boundary, and back.
+- **Q2: no change needed for the TWL gate.** #1167 already judges every gauge per stratum, and serving is per stratum.
+  Its 30 gauges are not filtered by the OPEN_COAST rule; that rule belongs to the timing gate #1179.
+- **Q3: adopt Reflection's framing as PRIMARY.**
+  - Per gauge and lead bin, the RMSE of TWL must beat the better of PERSIST24 and ANCHOR, with a rolling-origin
+    bootstrap 90% interval that excludes "no better".
+  - The cut against A + D stays as a secondary bar.
+  - Add a 120 h lead.
+  - Add a two-sided storm-hour metric: the mean signed error, the under-read share and the over-read share.
+  - Add an aggregation rule: per gauge, no pooling across gauges.
+
+**Why Reflection's framing:** this window's +0.3–0.4 m persistent offset is exactly the case where beating A + D
+proves little and beating persistence proves skill.
