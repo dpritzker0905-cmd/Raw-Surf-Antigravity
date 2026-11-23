@@ -59,7 +59,7 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
         <span className={`text-[10px] ${muted}`}>Tide</span>
         <span className={`text-xs font-bold ${textClass}`}>{formatTideHeight(d.height_m, unit)}</span>
         <span className={`text-[9px] ${muted}`} data-testid="tide-datum" title={datum.long}>
-          {datum.short}{minus ? ` (${minus})` : ''}
+          {datum.chip}{minus ? ` (${minus})` : ''}
         </span>
         <span className={`text-[10px] font-semibold ${accent}`}>
           <span aria-hidden="true">{trendGlyph(d.trend)} </span>{trendWord(d.trend)}

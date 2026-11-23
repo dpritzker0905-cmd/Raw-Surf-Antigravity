@@ -115,7 +115,8 @@ describe.each(THEMES)('%s theme', (name, flags) => {
       source_url: 'https://doi.org/10.24400/527896/A01-2024.004' };
     global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(payload) }));
     render(<TideReadout lat={33.7} lng={-118.3} heightUnit="m" {...flags} atTime={Date.parse(NOW)} />);
-    expect(await screen.findByTestId('tide-datum')).toHaveTextContent('above MLLW (minus tide)');
+    expect(await screen.findByTestId('tide-datum')).toHaveTextContent('Tide + avg sea-level rise (minus tide)');
+    expect(screen.getByTestId('tide-datum')).toHaveAttribute('title', expect.stringMatching(/excludes today's ocean anomaly/));
     expect(screen.getByTestId('tide-msl-line')).toHaveTextContent('≈ -0.9 m above local mean sea level');
     expect(screen.getByTestId('tide-datum-source')).toHaveTextContent(/MLLW from NOAA CO-OPS gauge 9410660/);
     expect(screen.getByText(/Modeled tide · above MLLW \(NOAA chart datum\)/)).toBeVisible();

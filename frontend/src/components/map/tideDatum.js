@@ -11,6 +11,8 @@
  * (the server's own kill is SURF_TIDE_MLLW_US=0).
  */
 export const MLLW_SHORT = 'above MLLW';
+/** The infobox chip at an MLLW point (2026-11-23, interim frame A + M + D); its title carries the full text. */
+export const MLLW_CHIP = 'Tide + avg sea-level rise';
 export const MSL_SHORT = 'above local MSL';
 export const MINUS_TIDE = 'minus tide';
 export const NEGATIVE_NOTE = '0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error.';
@@ -24,7 +26,7 @@ export function tideMllwDisabled() {
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
 /**
- * Normalise any datum description to { isMllw, short, offsetM, source, sourceShort, long, negativeNote }.
+ * Normalise any datum description to { isMllw, short, chip, offsetM, source, sourceShort, long, negativeNote }.
  * Accepts the full backend block ({datum, label, offset_m, source, source_label, long_label}), or a compact pair
  * ('MLLW' | 'MSL' | undefined, 'gauge' | 'model' | 'interpolated'). Unknown or absent = local MSL (offset 0).
  */
@@ -32,14 +34,14 @@ export function tideDatumOf(info, src) {
   const block = info && typeof info === 'object' ? info : { datum: info, source: src };
   const isMllw = block.datum === 'MLLW' && !tideMllwDisabled();
   if (!isMllw) {
-    return { isMllw: false, short: MSL_SHORT, offsetM: 0, source: null, sourceShort: null,
+    return { isMllw: false, short: MSL_SHORT, chip: MSL_SHORT, offsetM: 0, source: null, sourceShort: null,
       long: 'Tide height above local mean sea level (2016-2025 mean level).', negativeNote: null };
   }
   const sourceKey = typeof block.source === 'string' ? block.source : null;
   const sourceShort = SOURCE_WORD[sourceKey] || null;
   const source = typeof block.source_label === 'string' && block.source_label ? block.source_label : sourceShort;
   return {
-    isMllw: true, short: MLLW_SHORT, offsetM: num(block.offset_m) ?? 0, source, sourceShort,
+    isMllw: true, short: MLLW_SHORT, chip: MLLW_CHIP, offsetM: num(block.offset_m) ?? 0, source, sourceShort,
     long: typeof block.long_label === 'string' && block.long_label
       ? block.long_label
       : `Tide plus average sea-level rise, above MLLW (NOAA chart datum). Excludes today's ocean anomaly and storm surge${source ? `. Datum from ${source}` : ''}.`,

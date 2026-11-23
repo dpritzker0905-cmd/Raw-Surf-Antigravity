@@ -109,3 +109,38 @@ only `offset_m`, the long label, `mean_level_removed_m` and the row numbers chan
 - **CO-OPS datums are never read per request.** They are a committed table carrying its source URL and `built_at`
   date. They are refreshed by the read-only script `fetch_coops_datums.py`, not by a scheduled CI job; datums change
   only on NOAA's epoch updates.
+
+## 2026-11-23 01:18Z: interim frame A + M + D (owner's word)
+
+**Owner's word, typed in the director session:** "Yes interim, however double check first". The director ran the
+double-check first: CO-OPS monthly means at 16 US gauges, year-round. A + M + D was closer at 16/16, with a median
+|error| of 0.024 m against 0.136 m for A + D. The advisors also agreed (SubQ ship 0.997; Reflection ship, keep M as the
+2016–2025 mean with no trend; LongCat: the math is right).
+
+**What changed on #1149:**
+- The display frame is A + M + D: `offset_m` = D, and the key `mean_level_removed_m` becomes `mean_level_included_m`.
+- The long label names the rise and says today's anomaly is excluded. The compact pair (card, glyph, chart) says the
+  same.
+- New infobox chip: "Tide + avg sea-level rise" (`MLLW_CHIP`, `TideReadout.js:62`). Its `title` carries the full text.
+  The footer keeps "above MLLW (NOAA chart datum)".
+
+**Pre-push checks (the director's list):**
+1. `git grep mean_level_removed_m` in backend and frontend: 0 hits. Every `offset_m` reader adds or subtracts it
+   generically, so all are correct with offset_m = D:
+   - `tide_datum.display_m`;
+   - `weather_point_tide` `height_msl_m`;
+   - `TideReadout` `mslNow`;
+   - `tideDatum.shownHeight` and `pointTideForDisplay` (the client kill);
+   - the card, glyph, chart and spot series, through `display_height_m`, `td` and `tdd`.
+2. No stored product or cache carries an MLLW payload with the old offset. `dev` has no MLLW code at all (no
+   `display_height_m`, `tdd` or `SURF_TIDE_MLLW_US`), so no precompute, series build or ratings file was ever written
+   with one. The client caches tide payloads in memory only; `localStorage` holds only kill flags. No schema field is
+   needed.
+3. The chip short form is as given.
+4. A SCOREBOARD row was added (01:18Z).
+
+**Tests:**
+- Backend tide, spot-series and flag-parity files: 444 pass, 56 skipped.
+- Frontend map, spot-hub and src/tests: 538 suites, 7,555 tests pass.
+
+**Still waiting:** the parity-run tag needs David's separate word.
