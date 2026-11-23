@@ -83,3 +83,41 @@ minimum 25 kn in B1 and B2. Committed before any model value or truth is read.
   38,575,905 B, sha256 `0b2fce07590bf6373f2527ae8b2e3633af905f7fd36ad0a592366c8bd627d55a`.
 - **Freeze reads disclosed:** the freeze read every NDBC candidate's realtime2 file to count coverage, before any #1199
   LOCKED list existed.
+
+## 2026-11-23 03:52Z · advisor review of the scoring plan (SubQ, Reflection) and amendment 2 (before any score)
+- **Authority:** David asked by name in the director session (relayed by `local_d6b521eb`): "use subq, reflection,
+  longcat to help figure it out. Make sure all lanes do that."
+- **What was sent:** public plan text only (the gate and amendment 1, summarised: product, windows, bins, stations, truth,
+  arms, P1, controls, limits). No secrets, no numbers, nothing from any run.
+- **Reflection Beam** (Beam-1.0-501B-A23B, high effort; 1,018 prompt / 5,629 completion tokens):
+  - truth mismatch dominates (sparse sampling, PK WND only > 25 kt, sustained-speed fallback);
+  - apply the fair Brier p(1-p)/(m-1) for m = 50;
+  - control multiplicity (FDR or hierarchical);
+  - use a two-way station x time bootstrap with 3-5 day blocks, not two separate ones;
+  - add calibration slope/intercept and consistency bars;
+  - use cluster-adjusted effective n;
+  - "acceptable as a display/feature gate, not as standalone evidence of real predictive skill" until dependence,
+    multiplicity and fairness are fixed.
+- **SubQ Savant** (subq-savant-1.4, low effort; 679 / 3,079 tokens; the first try at medium effort used its whole
+  budget on reasoning and returned nothing):
+  1. fair Brier (decide);
+  2. state that matching is per step (decide);
+  3. treat ASOS at 25 kn as censored (decide);
+  4. one paired two-way bootstrap (decide);
+  5. Holm over the 12 cells (decide);
+  6. replace the crude calibration gate with a slope/intercept (decide);
+  7. recalibrated references (report);
+  8. a dependent-null simulation of the full decision rule (report, raises the power floor).
+- **Amendment 2** (`gates/gust-ens-risk-v1-amendment-2.md`) adopts:
+  - the fair Brier;
+  - one crossed station x 3-day bootstrap with a one-sided p, and Holm over the powered cells;
+  - ASOS at 25 kn reported only;
+  - a logistic calibration slope in [0.5, 1.5] plus calibration in the large;
+  - per-step matching, stated;
+  - control C6 (circular 7/14/21-day shifts; any PASS voids the run);
+  - cluster counts added to the n table.
+
+  It does not adopt the recalibrated references (EMOS is its own gate) or a censoring likelihood (replaced by the
+  exclusion).
+- LongCat was not asked: its one paid request on 2026-11-22 failed with a network error, and its billing outcome is
+  unknown.
