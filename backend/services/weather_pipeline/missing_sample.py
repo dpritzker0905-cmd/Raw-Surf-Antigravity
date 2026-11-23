@@ -20,6 +20,8 @@ that reads either inherits the fix; nothing is forked.
 DARK: `RATING_MISSING_SAMPLE_UNKNOWN`, code default '0' (it moves served heights and ratings; turning it on is the owner's
 word, D-065 with a SCOREBOARD row). Off, both callers are byte-identical to before.
 """
+from collections import Counter
+
 from services import runtime_flags as _rf
 
 FLAG = "RATING_MISSING_SAMPLE_UNKNOWN"
@@ -43,3 +45,41 @@ def enabled() -> bool:
 def skip(response) -> bool:
     """True when the flag is on and `response` is a missing sample: the caller treats it as absent (like None)."""
     return response is not None and enabled() and is_missing(response)
+
+
+# ── THE PLACEHOLDER TALLY (bug-hunt B follow-up, committed with #1181) ─────────────────────────────────────────────────
+# How often does production actually serve a placeholder? The precompute records no sample method, so the blast radius
+# of B was unmeasured. `note` counts every input `rate_one_spot` reads, by (model, domain) and outcome, whether the flag
+# is on or off, so the count is the same either way. Process-local and pure counting: no I/O, no effect on any number.
+_TALLY = Counter()
+
+
+def note(response, domain: str, model: str) -> None:
+    """Count one resolved input. `response` None (a failed resolve) is counted as 'none', not as a placeholder."""
+    if response is None:
+        kind = "none"
+    elif is_missing(response):
+        kind = getattr(getattr(response, "point", None), "interpolation_method", None) or "no_point"
+    else:
+        kind = "sample"
+    _TALLY[(str(model), str(domain), kind)] += 1
+
+
+def reset_tally() -> None:
+    _TALLY.clear()
+
+
+def tally_summary() -> dict:
+    """{"model/domain": {"total": n, "placeholder": k, "share": k/n, "none": f, <method>: c, ...}} for this process."""
+    out = {}
+    for (model, domain, kind), n in sorted(_TALLY.items()):
+        row = out.setdefault(f"{model}/{domain}", {"total": 0, "placeholder": 0, "none": 0})
+        row["total"] += n
+        if kind == "none":
+            row["none"] += n
+        elif kind != "sample":
+            row["placeholder"] += n
+            row[kind] = row.get(kind, 0) + n
+    for row in out.values():
+        row["share"] = round(row["placeholder"] / row["total"], 6) if row["total"] else 0.0
+    return out
