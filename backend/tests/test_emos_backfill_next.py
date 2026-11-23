@@ -59,6 +59,9 @@ def test_workflow_wiring():
     assert "37 6 * * *" in crons and "7 10 * * *" in crons
     plan, bf, single = wf["jobs"]["plan"], wf["jobs"]["backfill"], wf["jobs"]["single"]
     assert "pull_request" not in on
+    grp = wf["concurrency"]["group"]
+    assert "wind-emos-backfill-auto" in grp and "'wind-emos-collect'" in grp and "37 6 * * *" in grp   # never blocks the daily
+    assert wf["concurrency"]["cancel-in-progress"] is False
     assert plan["environment"] == "supabase-service" and bf["environment"] == "supabase-service"
     assert "(vars.EMOS_BACKFILL_AUTO || '1') != '0'" in plan["if"] and "37 6 * * *" in plan["if"]
     assert "37 6 * * *" in single["if"]                                    # the daily job never runs on the backfill cron
@@ -67,3 +70,16 @@ def test_workflow_wiring():
     assert "needs.plan.outputs.start" in run and "needs.plan.outputs.end" in run and "stored no run" in run
     nxt = [s for s in plan["steps"] if s.get("id") == "next"][0]["run"]
     assert "python3 -I -S" in nxt and "--first 2025-07 --last 2026-10" in nxt
+
+
+def test_coverage_counts_failed_and_lost_days_as_missing(tmp_path):
+    import numpy as np
+    import wind_emos_fit as F
+    for r in JUNE + ["2026111700.npz", "2026111800.npz", "2026112000.npz"]:
+        (tmp_path / r).write_bytes(b"")
+    cov = F.coverage({"run": np.array([]), "y": np.array([]), "net": np.array([])}, [], str(tmp_path))
+    assert {"2025061400", "2025061600", "2025061800"} <= set(cov["runs_missing"])     # a failed shard's day is missing
+    assert "2026111900" in cov["runs_missing_daily"] and "2026111600" in cov["runs_missing_daily"]
+    assert "2026111700" not in cov["runs_missing_daily"]
+    assert ["2025070100", "2026111600", 504] in cov["gaps_over_2_days"]                 # 2025-07-01 .. 2026-11-16 unbroken
+    assert all(g[2] > 2 for g in cov["gaps_over_2_days"])

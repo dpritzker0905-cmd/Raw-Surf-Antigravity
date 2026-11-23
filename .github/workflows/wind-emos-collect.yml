@@ -37,7 +37,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: wind-emos-collect
+  # The auto backfill has its OWN group (advisor limit (2) on #1229): sharing the daily's group made the 10:07 daily wait
+  # up to ~340 min behind it, and a second pending event would REPLACE the waiting daily (a lost day). Both write only
+  # create-only calibration/emos/runs keys for different days, so they never collide.
+  group: ${{ github.event.schedule == '37 6 * * *' && 'wind-emos-backfill-auto' || 'wind-emos-collect' }}
   cancel-in-progress: false
 
 env:
