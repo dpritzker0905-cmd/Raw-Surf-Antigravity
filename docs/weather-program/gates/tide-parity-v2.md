@@ -1,12 +1,12 @@
 # Gate: tide-parity-v2
 Stamp: 2026-11-23 01:41Z. Rule text committed BEFORE any ETOPO value has been read for these gauges and before any v2 result exists. The gauge list (section 3) is computed from this rule and committed in a LATER commit.
-Candidate: the US tide display above MLLW (`SURF_TIDE_MLLW_US`, #1149): timing and height of A + D against NOAA CO-OPS MLLW High/Low predictions, scored where the surf spots are: at OPEN_COAST gauges.
+Candidate (amendment 1, 2026-11-23 02:24Z): A's timing at OPEN_COAST gauges (the served event times). This is the TIMING gate (b) of the advisor's split ruling. Height is reported only, as a side figure; the datum gate (a), `gates/tide-datum-parity-v1.md`, owns height. Owner: the tide-MLLW lane (claude-tide-mllw).
 Metric: #1171's signed instrument (`parity_coops.py` v2). Per event: signed height error (ours − NOAA) and signed time error (ours − NOAA, min). Medians, p90 and max, per D variant, TIDAL-BAND variant (each side's seasonal constituents removed) for height; time is the same in both bands.
-Pass threshold: section 5. The 01:26:12Z v1 bar, applied to OPEN_COAST, plus a SIGN check (median signed time error within ±10 min on OPEN_COAST).
+Pass threshold: section 5, TIMING legs only (amendment 1): the 01:26:12Z v1 bar's time legs on OPEN_COAST (per variant median |time| ≤ 10 min and unmatched ≤ 2%; per gauge median |time| ≤ 20 min at ⌈0.923 n⌉ gauges), plus the SIGN check (median signed time error within ±10 min). The height legs are reported, not judged.
 Controls: section 6. The served event finder on NOAA's own curve (finder_check.py) must reproduce NOAA's times; the original 26 gauges are reported unchanged beside the verdict.
 Decision rule: section 5. Verdict on OPEN_COAST, on the served D variant; a non-served variant that fails is a limit. HARBOR_BAY is reported with its signed timing offset, as a limit, never as a pass.
 Unmeasured items: section 7. Fernandina's 40 min (v1) is OPEN and unexplained; spots inside bays and harbours; leads beyond 7 days.
-Served change: none from this gate. #1149's merge decision stays with the advisor and David.
+Served change: none from this gate. It tracks a served defect (A's event times, already served on dev under MSL) and does NOT decide #1149; it must be merged (registered) before #1149 merges (advisor's ruling (b)).
 
 ## 1. Disclosure: v1 FAILED, and why this split exists
 
@@ -156,3 +156,86 @@ On OPEN_COAST gauges, n = the number of measured OPEN_COAST gauges:
   Fernandina, its v2 signed error is reported by name. If it is OPEN_COAST and fails, the failure counts.
 - Spots inside bays and harbours are not covered by an OPEN_COAST verdict.
 - Leads beyond the 7-day window are not tested.
+
+## 8. Amendment 1 (2026-11-23 02:24Z, before any v2 data): this is the TIMING gate (b)
+
+**Why.** David typed "Yes, split it" (in the director's session), adopting the advisor's split ruling (RULING, gate file,
+2026-11-23 02:17Z).
+- The v1 bar tested the display's A + D as one unit. Its FAIL is real and stays on record as **FAIL-TIMING**.
+- #1149 changes only D, a constant that moves no event, so it cannot cause or fix A's timing.
+- The decision is therefore split, before any new data:
+  - **(a)** the datum gate `gates/tide-datum-parity-v1.md` decides #1149, on heights;
+  - **(b)** this gate tracks A's timing, the served event times, and does not block #1149.
+
+**What changes here:**
+- **Candidate:** A's timing at OPEN_COAST gauges (the served event times).
+- **Verdict:** the timing legs only.
+  - Per D variant: median |time| ≤ 10 min, unmatched ≤ 2%.
+  - Per gauge: median |time| ≤ 20 min at ⌈0.923 n⌉ = 11 of 11 OPEN_COAST gauges.
+  - Sign check: median signed time error within ±10 min.
+  - Times are identical across D variants, so judging "the served D" here is a formality.
+- **Height:** every height figure (tidal band and raw, per variant and per gauge) is REPORTED as a side figure. It is
+  never in this verdict; gate (a) owns height.
+- **Unchanged:** the classification rule, the gauge list, the finder VOID control, S_g, the HARBOR_BAY limit
+  reporting, and the original 26 reported under the v1 bar.
+- **Owner:** the tide-MLLW lane (claude-tide-mllw), which also owns a fix lane for the timing defect if this gate
+  fails.
+- **Ordering:** this gate is merged (registered) before #1149 merges, so the timing defect is tracked, not dropped.
+
+## 9. The attribution table (LongCat's safeguard)
+
+Each gauge's timing error beside NOAA's OWN gauge-vs-open-coast lag, so a timing miss can be attributed. The
+comparator is chosen by rule, never by hand:
+- An OPEN_COAST gauge is its own coast, so its lag is 0.
+- Any other gauge uses the NEAREST NOAA tide-prediction station within 30 km that this gate's own rule classifies
+  OPEN_COAST.
+
+Instrument: `backend/scripts/tide_datum/timing_attribution.py`. Output:
+`research/tide-parity-v2-timing-attribution-2026-11-23.json`. Window: v1's, 2026-11-23 → 11-30. The table is below.
+v1's column is UNSIGNED, because v1's artifact holds only |error|. The SIGNED column is filled by v2's run.
+
+| Gauge | Class | v1 median |time| (min, unsigned) | Our signed median time (min) | NOAA lag, gauge − comparator (min) | Comparator (by rule) |
+|---|---|---|---|---|---|
+| 1611400 Nawiliwili | OPEN_COAST | 21.2 | filled by v2 | 0.0 | itself |
+| 1612340 Honolulu | HARBOR_BAY | 18.7 | filled by v2 | 72.0 | MOKU O LOE (1612480, 16.4 km) |
+| 1615680 Kahului, Kahului Harbor | OPEN_COAST | 9.5 | filled by v2 | 0.0 | itself |
+| 1617760 Hilo, Hilo Bay, Kuhio Bay | OPEN_COAST | 10.1 | filled by v2 | 0.0 | itself |
+| 8443970 Boston | HARBOR_BAY | 4.5 | filled by v2 | -1.0 | Moon Head (8444312, 7.0 km) |
+| 8452660 Newport | OPEN_COAST | 12.7 | filled by v2 | 0.0 | itself |
+| 8531680 Sandy Hook | HARBOR_BAY | 25.2 | filled by v2 | -14.0 | Highlands, Route 36 bridge (8531712, 8.2 km) |
+| 8534720 Atlantic City | HARBOR_BAY | 3.8 | filled by v2 | — | no OPEN_COAST prediction station within 30 km |
+| 8651370 Duck | OPEN_COAST | 6.0 | filled by v2 | 0.0 | itself |
+| 8658163 Wrightsville Beach | HARBOR_BAY | 2.9 | filled by v2 | — | no OPEN_COAST prediction station within 30 km |
+| 8665530 Charleston | UNCLASSIFIED | 12.2 | filled by v2 | — | no OPEN_COAST prediction station within 30 km |
+| 8720030 Fernandina Beach | UNCLASSIFIED | 39.8 | filled by v2 | — | no OPEN_COAST prediction station within 30 km |
+| 8722670 Lake Worth Pier, Atlantic Ocean | OPEN_COAST | 2.4 | filled by v2 | 0.0 | itself |
+| 8723214 Virginia Key | OPEN_COAST | 43.4 | filled by v2 | 0.0 | itself |
+| 8726724 Clearwater Beach | UNCLASSIFIED | 10.0 | filled by v2 | — | no OPEN_COAST prediction station within 30 km |
+| 8729840 Pensacola | HARBOR_BAY | 163.7 | filled by v2 | 189.0 | Pensacola Beach Pier (8729807, 10.8 km) |
+| 8771510 Galveston Pleasure Pier | UNCLASSIFIED | 2.8 | filled by v2 | — | no OPEN_COAST prediction station within 30 km |
+| 9410230 La Jolla | OPEN_COAST | 1.8 | filled by v2 | 0.0 | itself |
+| 9410660 Los Angeles | HARBOR_BAY | 1.4 | filled by v2 | 0.0 | Cabrillo Beach (9410650, 1.5 km) |
+| 9413450 Monterey | OPEN_COAST | 3.4 | filled by v2 | 0.0 | itself |
+| 9415020 Point Reyes | HARBOR_BAY | 3.4 | filled by v2 | -53.0 | Bolinas Lagoon (9414958, 27.6 km) |
+| 9419750 Crescent City | OPEN_COAST | 1.8 | filled by v2 | 0.0 | itself |
+| 9435380 South Beach | HARBOR_BAY | 17.0 | filled by v2 | 14.5 | Depoe Bay (9435827, 20.5 km) |
+| 9443090 Neah Bay | HARBOR_BAY | 5.3 | filled by v2 | 16.0 | Makah Bay (9442861, 9.7 km) |
+| 9751639 Charlotte Amalie | OPEN_COAST | 11.2 | filled by v2 | 0.0 | itself |
+| 9755371 San Juan, La Puntilla, San Juan Bay | HARBOR_BAY | 24.1 | filled by v2 | -10.5 | Boca de Cangrejos (9754986, 13.2 km) |
+
+**Reading, as measured. The table is evidence, not a verdict.**
+
+- **Pensacola is the only clean attribution.** NOAA's own predictions put the bay gauge +189 min behind Pensacola Beach
+  Pier, and v1's |error| there was 163.7 min.
+- **Two v1 misses are OPEN_COAST by the rule**, so the bay lag is 0 by definition and the misses stay UNATTRIBUTED:
+  Nawiliwili (21.2 min) and Virginia Key (43.4 min). They count in this gate's verdict. An earlier hand-picked
+  comparator (Government Cut) had suggested a 39 min bay lag at Virginia Key; that is not used, because comparators
+  are chosen by rule.
+- **Fernandina** (39.8 min) is UNCLASSIFIED, and no OPEN_COAST station lies within 30 km. It stays OPEN and
+  unexplained.
+- **The nearest-station rule picks some poor comparators.** They are kept, not replaced by hand:
+  - Honolulu is paired with Moku o Loe in Kāne'ohe Bay, on the other side of O'ahu: lag 72 min against our 18.7.
+  - Point Reyes is paired with Bolinas Lagoon: lag −53 min against our 3.4.
+  - Where a NOAA lag and our error disagree like this, the comparator is suspect, not our tide.
+- **The signed column is empty until v2.** Only signed errors can show whether ours leads the gauge by about NOAA's
+  lag, which is what a bay-lag explanation predicts.
