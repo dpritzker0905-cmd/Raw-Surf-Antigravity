@@ -53,6 +53,8 @@ GUARDED = {
     "ALERTS_FORECAST_WINDOWS": "0",     # D-065: up to 5 alerts/day before the cap fix (claude/alerts-dedupe-cap)
     "SURF_BIGHT_HS_CONSENSUS": "1",     # #707: hs_station +0.099 m [two-way 0.038, 0.182]; round-7 history +0.155, ON
     "SPOT_HUB_RATE_ONE_SPOT": "1",      # spot-hub phase 2 (#710): the hub on rate_one_spot; kill '0' = the old chain
+    "RATING_MISSING_SAMPLE_UNKNOWN": "1",  # bug-hunt B: a sampler "unavailable"/out-of-bounds placeholder is MISSING, not 0.
+                                        # ON by the owner's typed word 2026-11-22: "Yes, ship #1181 on". Kill '0'.
     "SURF_NEARSHORE_LITE": "0",         # MOP-lite (gate nearshore-moplite-v1): DARK until the gate passes; replaces only Kr + exposure
     "SURF_NEARSHORE_MOP": "1",          # CDIP MOP nearshore sea at California spots: nearshore judge 86/86 runs better,
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
@@ -84,6 +86,8 @@ GUARDED = {
     "LOCATION_TIME_FIELD": "0",         # location_time phase 1 (#762): civil zone + civil day rows. Held OFF until
                                         # the D-065 prerequisites (SCOREBOARD row, history filter) land; tier-safe
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
+    "HUB_NOW_NEAREST_HOUR": "1",        # bug hunt 2026-11-22 E: hub/sim "now" = the map's nearest-hour anchor (was a
+                                        # floor: other 3-hourly product in :30-:59); kill '0' = the floor
     "SIDE_PATHS_THROUGH_CHAIN": "1",    # O4: /api/conditions preview rows = precomputed rate_one_spot frames (rated);
                                         # _breaking_ft fails CLOSED (never offshore Hs as surf); /api/surf-conditions
                                         # target-time height labelled an unrated estimate; kill '0'

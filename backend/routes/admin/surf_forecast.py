@@ -342,8 +342,7 @@ _RATING_FLAGS = {"SURF_NEARSHORE_LITE": ("0", "[D-065 GUARDED, held OFF: gate ne
     #   * BY FILE SCOPE — `_RATING_SURFACES` is a hardcoded list of files, and `surf_point.py`,
     #     `shore_normal_asset.py` and `surf_height_convention.py` were not on it.
     #   * BY INDIRECTION — `surf_transform._v3(flag)` reads the env through a VARIABLE, so a scan
-    #     matching `os.environ.get("LITERAL")` could not see four switches inside a file it was
-    #     already walking.
+    #     matching `os.environ.get("LITERAL")` could not see four switches inside a file it was already walking.
     # ⚠️ SURF_HEIGHT_H110 is the one to read twice. DEFAULT FLIPPED TO ON 2026-08-05, shipped as a
     # PAIR with SURF_REFRACTION_KR=0.797 (the two errors that used to cancel are now both applied).
     # ⛔ THIS ROW SAID default "0" FOR TEN DAYS AFTER THE CODE FLIPPED (found 2026-08-15) — so this
@@ -482,7 +481,7 @@ _RATING_FLAGS = {"SURF_NEARSHORE_LITE": ("0", "[D-065 GUARDED, held OFF: gate ne
     "SURF_SEA_INPUTS_EVERY_CALLER": ("1", "[D-065 GUARDED, ON; accuracy not measured] hub, conditions, sim take /point's tide+MOP; kill '0'",
                                      "Render env (serve-side surfaces); the sim reads the served glyph's tide, no env"),
     "SIDE_PATHS_THROUGH_CHAIN": ("1", "[D-065 GUARDED, ON] O4: conditions rows from rate_one_spot frames, _breaking_ft fails closed, "
-                                     "target-time surf-conditions labelled unrated (side_paths.py); kill '0'", "Render env"),
+                                     "target-time surf-conditions labelled unrated (side_paths.py); kill '0'", "Render env"), "HUB_NOW_NEAREST_HOUR": ("1", "[D-065 GUARDED, ON; time alignment, guardrail BLIND] bug hunt 2026-11-22 E: hub and sim 'now' = the map's nearest-hour anchor (was a floor: a different 3-hourly product in minutes :30-:59); kill '0' = the floor. spot_hub_composition.current_valid_time", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
     "RATING_BAND_ONE_CHAIN": ("1", "[D-065 GUARDED, ON] CMP-1: map band = estimate_surf_at on cached geometry + break depth, "
                                    "eta 0 (band_chain.py); kill '0'", "Render env AND precompute.yml env (rated static frames)"),
     # CMP-3 (audit 2026-11-10). The rating's oversize gate read `break_depth_at` while the height's cap read the
@@ -500,6 +499,7 @@ _RATING_FLAGS = {"SURF_NEARSHORE_LITE": ("0", "[D-065 GUARDED, held OFF: gate ne
                                               "must carry before the partition-aware exposure may "
                                               "speak for the sea (0 = pre-fix behaviour)",
                                       "Render env"),
+    "RATING_MISSING_SAMPLE_UNKNOWN": ("1", "[D-065 ON, owner's typed word 2026-11-22 'Yes, ship #1181 on'; guardrail BLIND; kill '0'] a sampler unavailable/out-of-bounds placeholder is MISSING (no height, neutral wind), never 0 m / 0 kt (missing wind graded glassy)", "Render env"),
     "RATING_BREAKER_TYPE":         ("0", "[D-065 held OFF: only the glyph path reads it, so ON splits ONE FORECAST COMPOSITION] Iribarren breaker-type factor in spot ratings", "Render env"),
     "SPOT_RATINGS_V2":             ("1", "Spot-ratings endpoint (glyphs) master switch", "Render env"),
     # 2026-08-15 (WS-CAN-0064): /conditions/batch answers from the precomputed frames per spot

@@ -120,6 +120,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_GUST_WIND_ALPHA__',
   // gustsLayer.test.js ("before (the kill): calm drew ~10x the wind's colour and 20 kn about twice it"; 2026-11-22, dark field parity)
   '__RAW_DISABLE_GUST_DARK_FIELD__',
+  // windDarkFieldVivid.test.js ("the kill returns dark to SRC_ALPHA (the squared law dev drew)"; 2026-11-22, dark wind field vivid)
+  '__RAW_DISABLE_DARK_WIND_VIVID__',
   // currentsLayer.test.js ("its kill restores the handheld radius"; 2026-11-15, own-only phone prefetch)
   '__RAW_DISABLE_OWN_ONLY_PREFETCH2__',
   // ownRasterDecode.test.js ("without a Worker (and under its kill) the same function runs on the main thread"; 2026-11-15)

@@ -21,6 +21,7 @@ import logging
 import os
 
 from services.weather_pipeline.schemas import NormalizedPointResponse
+from services.weather_pipeline import missing_sample as _missing
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,9 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
         and isinstance(response, NormalizedPointResponse)
         and response.point is not None
         and os.environ.get("SURF_TRANSFORM", "1") != "0"
+        # RATING_MISSING_SAMPLE_UNKNOWN (dark): no surf height from the sampler's zero-filled placeholder; it stays
+        # None (unknown) instead of a transformed 0 m. Off: byte-identical.
+        and not _missing.skip(response)
     ):
         try:
             # ── The geometry chain lives in surf_point.resolve_surf_geometry (extracted
