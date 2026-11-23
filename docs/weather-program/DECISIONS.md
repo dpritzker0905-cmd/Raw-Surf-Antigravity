@@ -2114,6 +2114,7 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - **What this decides:** the three-rule split above (the same-model regression, the hole buoys with their own bound, best_match on common keys) replaces the single pooled +0.10 m RED, as written.
   - **What it does not do:** it builds nothing and changes no repo variable. The bounds marked PROVISIONAL above must still be re-derived from a row backfill of the pre-onset window alone, before any rule can page.
   - **Where it is used:** it is the level-alarm component of `gates/self-improving-loop-v1.md` (#1231).
+  - **Fact, appended 2026-11-23 (true whatever the owner decides):** the D-072 v2 replay FAILED as registered (SCOREBOARD 2026-11-16, rule 2 fired on 0 of 5 days); the adopted rules page nothing until a passing replay is on record.
 
 ### D-074 · Open-Meteo is test-only; served data comes from free primary sources (GRIB, CMEMS) (2026-11-15, decided)
 - **Owner, verbatim:**
