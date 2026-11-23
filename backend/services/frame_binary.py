@@ -107,6 +107,11 @@ BAND_SATURATED = 255
 # code = 4 x step index), and 0 elsewhere: 577,872 B (+36 %). Readers take the anchor cells only (currentParticles.js).
 FLOW_DIR_BYTE = 14
 FLOW_DIR_STRIDE = 2
+# ENSEMBLE GUST RISK (2026-11-23, gate gust-ens-risk-v1, DARK): the percent of the 50 ECMWF ENS members whose gust reaches 25 / 34 /
+# 48 kn, one byte each (code 1 = 0 %, 101 = 100 %, 0 = no data; the cloud field's layout). 50 members give even percents only, so the
+# codes are exact (frame_set_raster_gust_risk).
+GUST_P25_PCT, GUST_P34_PCT, GUST_P48_PCT = 15, 16, 17
+GUST_RISK_FIELDS = (GUST_P25_PCT, GUST_P34_PCT, GUST_P48_PCT)
 FLOW_DIR_LEVELS = 64
 CIRCULAR_FIELDS = (DIRECTION, FLOW_DIR_BYTE)
 # The client's LUT index is floor((v - min) / step + 1e-3) (ownRasterLayer's shader): the encoder takes the band by the SAME rule,
@@ -117,7 +122,8 @@ FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s
                SPEED: "speed", LANE_WEIGHT: "lane_weight", PRESSURE_HPA: "pressure_hpa", TEMP_C: "temp_c",
                CLOUD_PCT: "cloud_pct", RATING: "rating", PRECIP_MM_H: "precip_mm_h",
                VISIBILITY_M: "visibility_m", GUST_KN_BAND: "gust_kn_band", CURRENT_KN_BAND: "current_kn_band",
-               FLOW_DIR_BYTE: "flow_direction_byte"}
+               FLOW_DIR_BYTE: "flow_direction_byte", GUST_P25_PCT: "gust_p25kn_pct", GUST_P34_PCT: "gust_p34kn_pct",
+               GUST_P48_PCT: "gust_p48kn_pct"}
 
 # (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data;
 # speed (knots, the wind products' unit; the index meta carries value_unit) does the same at 0.01.
@@ -137,6 +143,9 @@ FIELD_SPECS = {
     GUST_KN_BAND: (1, 0, 0, 0.5, -0.25),      # band (above): code k -> (k - 1) x 0.5 + 0.25 kn; 255 = saturated (>= 127 kn)
     CURRENT_KN_BAND: (1, 0, 0, 0.02, -0.01),  # band: code k -> (k - 1) x 0.02 + 0.01 kn; 255 = saturated (>= 5.08 kn)
     FLOW_DIR_BYTE: (1, 0, NO_MISSING, 360.0 / 256.0, 0.0),   # direction toward, 1.40625 deg; code wraps mod 256 (above)
+    GUST_P25_PCT: (1, 0, 0, 1.0, -1.0),       # ensemble gust risk: code 1 = 0 %, 101 = 100 %, 0 = no data
+    GUST_P34_PCT: (1, 0, 0, 1.0, -1.0),
+    GUST_P48_PCT: (1, 0, 0, 1.0, -1.0),
 }
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
 WIND_FIELDS = (DIRECTION, SPEED)
@@ -169,6 +178,9 @@ TOLERANCE = {
     GUST_KN_BAND: _half_step(GUST_KN_BAND) + 0.5 * 1e-3,       # 0.5 kn band -> 0.25 kn + the index eps (unsaturated cells)
     CURRENT_KN_BAND: _half_step(CURRENT_KN_BAND) + 0.02 * 1e-3,  # 0.02 kn band -> 0.01 kn + the index eps
     FLOW_DIR_BYTE: _half_step(FLOW_DIR_BYTE),    # 1.40625 deg step -> 0.703 deg (compared on the circle)
+    GUST_P25_PCT: _half_step(GUST_P25_PCT),      # 1 % step -> 0.5 % (the values are whole even percents: exact)
+    GUST_P34_PCT: _half_step(GUST_P34_PCT),
+    GUST_P48_PCT: _half_step(GUST_P48_PCT),
 }
 POSITION_TOL_DEG = 1e-6
 # Marine u, v rebuilt from the decoded height and direction, against the stored u, v the normalizer computed from the

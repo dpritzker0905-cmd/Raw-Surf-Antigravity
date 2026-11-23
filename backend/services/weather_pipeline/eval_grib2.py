@@ -219,6 +219,10 @@ def decode_eccodes(msg: bytes) -> Tuple[np.ndarray, dict]:
         if int(ec.codes_get(h, "bitmapPresent")):
             vals[vals == ec.codes_get_double(h, "missingValue")] = np.nan
         jpos = int(ec.codes_get(h, "jScansPositively"))
+        try:    # a statistical field's window ("23-24" = max over the last hour); the gust-risk collector checks it
+            step_range = str(ec.codes_get(h, "stepRange"))
+        except Exception:                                               # noqa: BLE001 - absent on some templates
+            step_range = None
     finally:
         ec.codes_release(h)
     if vals.size != ni * nj:
@@ -229,7 +233,7 @@ def decode_eccodes(msg: bytes) -> Tuple[np.ndarray, dict]:
     return arr, {"ni": ni, "nj": nj, "lat_south": min(lat1, lat2), "lat_north": max(lat1, lat2),
                  "lon_west": lon1 % 360.0, "dlat": (abs(lat2 - lat1) / (nj - 1)) if nj > 1 else 0.0,
                  "dlon": ((lon2 - lon1) % 360.0) / (ni - 1) if ni > 1 else 0.0, "template": f"5.{tmpl}",
-                 "decoder": "eccodes"}
+                 "decoder": "eccodes", "step_range": step_range}
 
 
 def _decode_pygrib(buf: bytes, keys: Sequence[str]) -> Dict[str, Tuple[np.ndarray, dict]]:

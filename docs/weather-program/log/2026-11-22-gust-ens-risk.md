@@ -23,3 +23,33 @@ Fresh collection (none of #946's files), 42 00Z runs 2026-10-10..11-20, 21 lead 
 window changes, NDBC + coastal ASOS truth with the `PK WND` peak, CLIM (leave-one-day-out) and HRES 0/1 as
 comparators; G1-G4 per threshold x bin, controls C1-C4 (VOID on failure); product scope follows the passing cells,
 minimum 25 kn in B1 and B2. Committed before any model value or truth is read.
+
+## 2026-11-23 03:10Z · publisher (dark) and the hindcast instrument built
+- **Core** `services/weather_pipeline/ens_gust_risk_core.py` (pure numpy; shared by the hindcast and the publisher):
+  thresholds 25/34/48 kn = 12.861/17.491/24.693 m/s, the measured window table (`gust_param`, `gust_window_h`),
+  member exceedance counts, Brier, Murphy REL/RES/UNC over 11 bins, ROC AUC (Mann-Whitney, ties half), day-block CIs,
+  leave-one-day-out station climatology, the cell verdict (UNDERPOWERED / FRAGILE / PASS / FAIL).
+- **Reuse, not a second fetcher:** `ens_wind_fetch.fetch_step` gains one optional `decode_lock` (every GRIB decode
+  under it; default None = unchanged). The raster publisher runs 6 steps at once and ecCodes is not thread-safe
+  (frame_set_raster's DECODE_LOCK). `eval_grib2.decode_eccodes` meta gains `step_range`, so every member message's window
+  is checked against the table (a wrong window refuses the step).
+- **Publisher** `services/frame_set_raster_gust_risk.py`, set `gust_risk_ens` (ECMWF_ENS/weather/gust_risk/global_0p25),
+  registered through `frame_set_raster_plugins`. It has three new one-byte frame fields, 15/16/17 `gust_p{25,34,48}kn_pct`
+  (the cloud layout: code 1 = 0 %, 0 = no data). It runs on the 84 native steps (3-144 h by 3, 150-360 h by 6). DARK:
+  `default_on` False; the pilots step runs only with repo variable `FRAME_RASTER_GUST_RISK = '1'`, and no workflow sets it.
+- **Measured on the live 2026-11-22 00Z run, offline, nothing uploaded** (local machine, one connection):
+
+| step | fetch + reduce | raw | gzip | cells > 0 % at 25 / 34 / 48 kn | parity |
+|---|---|---|---|---|---|
+| f024 | 13.4 s | 3,114,864 B | 281,970 B | 33.9 / 11.8 / 1.8 % | 0 bad, max err 0 |
+| f120 | 20.6 s | 3,114,864 B | 443,499 B | 56.2 / 26.8 / 6.5 % | 0 bad, max err 0 |
+| f240 | 13.0 s | 3,114,864 B | 515,990 B | 73.0 / 42.5 / 13.6 % | 0 bad, max err 0 |
+
+  **Cost per new run:** about 6 GB of public ECMWF byte-range reads (84 x 50 x ~1.4 MB), all inside the job. About 36 MB
+  is stored per run (84 frames x ~430 kB); retention keeps the current and previous run (~72 MB). Client egress is one
+  frame (~0.3-0.5 MB) per hour viewed, against ~0.9 MB for a 0.25-deg gust frame. Nothing touches Render.
+- **Hindcast instrument** `scripts/gust_ens_risk_hindcast.py`: `stations` / `truth` / `collect` / `score`, as the gate
+  says. Stations were frozen 2026-11-23 by `wind_lr_obs.select_stations` over 10-10..11-21: **390 NDBC/C-MAN and 60
+  coastal ASOS**.
+- Tests: 32 new (chain lane; floor fragment `claude-gust-ens-risk-instrument.chain.json`, +32 tests, +3 files). The giops
+  by-path test now also expects the `ens_gust_risk` source kind.
