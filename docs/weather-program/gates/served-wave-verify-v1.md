@@ -5,7 +5,7 @@ Metric: per (model, variable, lead bin, region): bias, RMSE, scatter index (RMSE
 Pass threshold: an ACCEPTANCE gate for the archive, not a skill threshold. The archive is accepted when all of these hold: decoder parity (section 4), the golden fixture (section 7), coverage over the first 14 days of collection (section 8) and the storage budget (section 9). No skill number decides anything here.
 Controls: decoder parity on a frozen frame (Python vs the client's `decodeFieldCore`); a golden fixture with hand-checked expected scores; a planted bias (+0.20 m on one model's Hs in the fixture) that the scorer must report; a status-code census (every expected record accounted for).
 Decision rule: accepted archive → rolling skill tables published (section 10). Using those tables for consensus weighting is OUT OF SCOPE: it needs its own gate, with caps and hysteresis. CDIP rows are EXAM-only and can never feed weighting (section 3).
-Unmeasured items: EURO swell partitions (EURO swell exists only at 10° today, not in the served wave set); any model or set not in `frame_set.SETS` at freeze; the `/point` path that the hub and rating read (a different serve path from the frames: section 12).
+Unmeasured items: every tier other than the ONE named per set in section 2a (the 0.25° regional bundles are not scored in v1); the Gulf-filled `global_mid_filled` variants; any model or set not named in section 2a at freeze; the `/point` path that the hub and rating read (a different serve path from the frames: section 12).
 Served change: none. The sampler only reads published frames and writes records to a separate store.
 
 ## 1. Why a point archive (decided)
@@ -21,13 +21,29 @@ Served change: none. The sampler only reads published frames and writes records 
   - (d) leaves Q9's n = 0 permanent.
 
 ## 2. Where the sampler runs
-- **Placement:** a separate GitHub Actions job (`served-wave-verify-sample`) that `needs:` the publish job in `forecast-ingest-pilots.yml`. It reads only what the publish job wrote to the PUBLIC `weather-frames` bucket (the immutable run index plus that run's frames), through the same anonymous public read the client uses.
+- **Hook (read 2026-11-22, `dev`):** every sampled wave set is published by ONE job, `ingest-pilots` in `.github/workflows/forecast-ingest-pilots.yml`, step "Publish static forecast frames" (`scripts/publish_frame_images.py`). That workflow runs on `schedule` (cron `45 3,11,19 * * *`, 3 times a day) and `workflow_dispatch`.
+  - This holds for GFS, EURO and ICON alike. The core lane (`forecast-ingest.yml`) bakes the ICON/EURO 14-day tails but does not publish these world sets.
+  - Because the publisher runs 3 times a day, a model run is sampled only if one of those publishes carried it. Runs the publisher skipped are counted, not invented (section 8).
+- **Placement:** a separate job, `served-wave-verify-sample`, in the same workflow with `needs: ingest-pilots` and `if: always()`. It is not a `workflow_run` trigger, so it sees the exact publish it follows. It reads only what the publish job wrote to the PUBLIC `weather-frames` bucket (the immutable run index plus that run's frames), through the same anonymous public read the client uses.
   - It never uses the service-role key to READ frames.
   - Its only write is the record store (section 9).
 - **It cannot block or slow the publish.** It runs after the publish, `continue-on-error: true`, with its own timeout (10 min), and never touches the Render box.
   - A failed sampling run writes a `sampler_fail` row (section 5), so a gap is visible.
 - **Trigger:** once per newly published run per model (keyed by `run_hash`). A run already sampled is skipped, so re-publishes are idempotent.
 - **Kill switch:** repository variable `SERVED_WAVE_VERIFY=0` skips the job. The default is `0` until David's word; then it is set to `1`.
+
+## 2a. The ONE tier sampled per set (named now, advisor, 2026-11-22)
+All sampled sets use the WORLD tier `global_mid` (2°, the plain set, not `_filled`), read from `frame_set.SETS` / `EURO_SWELL_SETS` on `dev` 2026-11-22:
+
+| Model | Sets sampled (tier `global_mid`) |
+|---|---|
+| GFS | `waves`, `swell_1`, `swell_2`, `wind_waves` |
+| ICON | `waves`, `swell_1`, `wind_waves` (ICON `swell_2` is a client-side blend, not a frame) |
+| EURO | `waves`; `swell_1`, `swell_2`, `wind_waves` while `FRAME_EURO_SWELL_SETS` is `1` (its default) |
+
+- **Why the world tier:** it is the only tier published for all three models over the whole globe, so every buoy has an expected record and the census is simple.
+- **Its cost:** 2° is coarse near coasts. The 0.25° regional bundles that the map shows at close zoom are NOT scored in v1 (section 11). Adding them is a v2 amendment, with their own expected-count rule.
+- **Gulf fill:** EURO and ICON world views can show the Gulf-filled variant (`global_mid_filled`). It differs only in Gulf of Mexico cells. Gulf buoys are tagged, and that difference is a named limit.
 
 ## 3. Frozen buoy list
 - **File:** `docs/weather-program/gates/served-wave-verify-v1-buoys.json`, versioned (`buoy_list_version`). `buoy_list_hash` is the SHA-256 of its canonical JSON, and both go in every record.
@@ -62,7 +78,7 @@ Served change: none. The sampler only reads published frames and writes records 
 - **Grid snapshot:** for each (model, frame set, tier), the frame header's grid (cols, rows, bounds, node order) plus its land/missing mask define a `grid_hash` (SHA-256 of the header geometry and the mask bitmap).
 - **Buoy → cell:** the nearest WET cell (a cell whose Hs is not the missing value in the snapshot's mask), by great-circle distance from the buoy to the cell centre.
   - **Tie-break** (equal distance to 1e-6 km): the lower row index, then the lower column index.
-  - **Maximum distance:** 0.75 × the cell diagonal of that grid (about 26 km for 0.25°). Beyond it the buoy gets `distance_exceeded` and NO substitute cell.
+  - **Maximum distance:** 0.75 × the cell diagonal of that grid (roughly 200-240 km for the 2° world tier sampled in v1; about 26 km for a 0.25° grid). Beyond it the buoy gets `distance_exceeded` and NO substitute cell.
 - **Cache:** the (buoy → cell index, cell lat/lon, distance_km) table is computed once per `grid_hash` and stored beside the records. A new grid hash recomputes it, and the change is logged.
 
 ## 6. Record (one per model, run, buoy, lead)
@@ -76,10 +92,10 @@ Served change: none. The sampler only reads published frames and writes records 
 | `hs_m`, `tp_s` and/or `tm_s` (as served), `dir_deg` | the `waves` set, decoded |
 | `swell1_*`, `swell2_*`, `windwave_*` (height, period, direction) | where the model's served sets carry them; else absent, never zero |
 | `run_hash`, `frame_hash` (SHA-256 of the frame object), `grid_hash`, `decoder_version`, `sampler_version` | provenance |
-| `status` | `ok` \| `cell_masked` \| `distance_exceeded` \| `sampler_fail` |
+| `status` | `ok` \| `out_of_domain` \| `cell_masked` \| `distance_exceeded` \| `sampler_fail` |
 
 - **Who sets which status:**
-  - The sampler writes `ok`, `cell_masked` (the cached cell is missing in this frame), `distance_exceeded` and `sampler_fail`.
+  - The sampler writes `ok`, `out_of_domain` (the buoy lies outside the frame's bounds), `cell_masked` (the cached cell is missing in this frame), `distance_exceeded` and `sampler_fail`.
   - `buoy_qc_fail` and `no_obs` are set by the SCORER on the joined row. The raw record is never edited.
 - **Leads sampled:** every published frame step up to 240 h. Steps beyond 240 h are not sampled in v1.
 
@@ -102,24 +118,33 @@ Served change: none. The sampler only reads published frames and writes records 
 - **Breakdown:** model × variable × lead bin × region, plus a pooled `all regions` row. CDIP is in the separate exam table.
 - **Minimum n:** a cell needs n >= 100 collocated `ok` pairs from >= 3 buoys and >= 10 distinct runs. Below that it reads `insufficient` with its n shown, never 0 and never blank.
 - **Golden fixture (CI):**
-  - one archived run's records (a real sampled run, frozen), one NDBC response per buoy for the same window, and the expected score table, computed by hand in a notebook committed beside it;
+  - **until collection starts:** a hand-built SYNTHETIC fixture (records and NDBC responses written by hand, labelled synthetic), because no real sampled run exists yet. It is replaced by a real archived run (frozen) in the first PR after collection starts;
+  - the fixture holds one run's records, one NDBC response per buoy for the same window, and the expected score table, computed by hand in a notebook committed beside it;
   - the scorer must reproduce that table to 1e-9;
   - the planted control (+0.20 m added to that run's Hs) must move the bias by +0.20 m and leave the other models' rows unchanged.
 
+## 7a. Scorer workflow and readability
+- **Workflow:** a new `.github/workflows/served-wave-verify-score.yml`, `schedule` cron `30 6 * * *` (daily, away from the pilots' :45 slots), plus `workflow_dispatch`. It has its own concurrency group and never runs on the Render box. Kill switch: the same `SERVED_WAVE_VERIFY` variable.
+- **Score tables are public, raw records are not.** The tables (section 10) are published to a public read-only path: the `weather-frames` bucket, prefix `verify/served-wave/v1/scores/`. A dated snapshot is also committed weekly to the repo under `docs/weather-program/evidence/served-wave-verify/`, so sessions read them without any key.
+- **Statuses the scorer adds:** `buoy_qc_fail` and `no_obs`. A `no_obs` row carries its cause:
+  - `no_report`: the buoy did not report within ±30 min;
+  - `fetch_gap`: the scorer could not fetch the file, or the time was past NDBC realtime2's 45-day window when the scorer ran.
+
 ## 8. Coverage acceptance (first 14 days of collection)
-- **Census:** for each model, (records written) = (runs published) × (buoys on the list) × (sampled leads). Every expected record is either written with a status or counted as a `sampler_fail`. No unaccounted gap is allowed.
+- **Census, by domain:** for each (model, set, tier), the EXPECTED count = (runs published) × (buoys inside that set's frame bounds) × (sampled leads). Buoys outside the bounds are written once per run as `out_of_domain` and are not in the expected count. With the world tier (section 2a) every buoy is inside, so `out_of_domain` should be 0 in v1. A non-zero count is reported as a fault. Every expected record is either written with a status or counted as a `sampler_fail`. No unaccounted gap is allowed.
 - **Reach:** `ok` must be at least 80 % of records for GFS and ICON and 70 % for EURO (coarser grid near coasts). The shortfall is broken down by status.
 - **Q9 bin:** the [24,48) bin must reach `n >= 100` for GFS by day 14. This is the bin Q9 could not fill.
 - If coverage fails, the archive is not accepted. The fault is fixed and the 14 days restart. No skill table is published from an unaccepted archive.
 
 ## 9. Storage (estimate; measured in the first week and reported)
 - **Assumptions:**
-  - runs per day: GFS 4, EURO 4, ICON 2 → 10;
+  - runs per day: at most 3 per model (the publisher runs 3 times a day), so at most 9;
   - about 100 buoys;
   - about 70 sampled steps per run to 240 h (hourly early, 3-hourly later; the mix differs by model);
+  - the swell and wind-wave sets ride in the same record, so they add fields, not records;
   - about 250 bytes per JSON record.
 - **Volume:**
-  - 10 × 100 × 70 ≈ 70,000 records per day, about 2.1 M per month;
+  - at most 9 × 100 × 70 ≈ 63,000 records per day, about 1.9 M per month (the figures below keep the earlier 10-run figure as headroom);
   - about 525 MB per month raw JSON, about 60-100 MB per month as gzipped JSONL (one object per model-run);
   - the score tables are under 1 MB per month.
 - **Retention:**
@@ -127,6 +152,8 @@ Served change: none. The sampler only reads published frames and writes records 
   - score tables and the buoy / grid / decoder version tables kept indefinitely.
 - **Store:** a new path prefix `verify/served-wave/v1/` in a non-public bucket, written by the Actions job with the publish job's existing storage secret (`SUPABASE_SERVICE_ROLE_KEY`, by name only), used for this WRITE only. It is never written from the Render box.
 - **Budget check:** if the measured first-week volume exceeds 2× the estimate, collection pauses and the director is told before it continues.
+- **Quota and cost (a limit, owed before the dispatch request):** 2-3.6 GB over 36 months must be checked against the Supabase project's storage quota and its cost, and written into the request that goes to David, before he is asked for his word.
+- **Who reads raw records:** only the CI scorer job (section 7a), with the secret held in GitHub Actions. No session holding the service-role key reads them, and they are never published.
 
 ## 10. Output
 - Rolling skill tables (30-day and 90-day windows, updated daily): model × lead bin × region × variable, with n and status, published as JSON beside the records.
@@ -134,12 +161,16 @@ Served change: none. The sampler only reads published frames and writes records 
 - **What they may not be used for:** consensus weighting. That needs its own gate (caps, hysteresis, a held-out window, CDIP excluded). These tables are its input, never its decision.
 
 ## 11. Known limits, written now
-- **Representativeness.** A buoy measures a point; a cell is 0.1°-0.25° (EURO coarser). Near coasts and islands the nearest wet cell can sit in different water than the buoy. `distance_km` and the `sheltered` and `depth_m` tags are reported, and sheltered buoys are a separate stratum, never pooled with exposed ones.
+- **Representativeness.** A buoy measures a point; a v1 cell is 2° (section 2a). Near coasts and islands the nearest wet cell can sit in different water than the buoy. `distance_km` and the `sheltered` and `depth_m` tags are reported, and sheltered buoys are a separate stratum, never pooled with exposed ones.
 - **Sensor changes.** NDBC hull, payload or software changes can shift a buoy's statistics. The scorer reads station metadata monthly and logs a change. A changed station starts a new segment.
 - **Partitions.** Model partitions (swell_1, swell_2, wind waves) and NDBC's split of the spectrum are defined differently. Partition scores are indicative, not verdicts.
 - **Served ≠ point.** The frames are what the MAP draws. The hub and the rating read `/point` and the surf chain (nearshore BREAKING height), so this archive verifies offshore served frames, not surf height.
 - **Quantisation.** Frames are quantised by the encoder, so scores include that error. That is intended, because it is what users see.
 - **Seasonality.** The first windows are northern winter. The rolling tables show their window; no season is extrapolated.
 
+- **n ≥ 100 is descriptive.** It is a floor for showing a number, not for inference. Pairs share runs, days and weather, so they are autocorrelated. Any inferential use (a difference, an interval, a weighting) needs a block bootstrap that resamples whole runs and whole days, registered in its own gate.
+- **NDBC retention.** realtime2 keeps about 45 days, so a scorer outage longer than that loses observations for good. Those rows are `no_obs` with cause `fetch_gap`, never dropped silently. A long outage is reported with its date span.
+- **Coarse tier.** The world tier is 2°, so its maximum match distance (0.75 × the cell diagonal) is roughly 200-240 km at low latitudes. Scores describe the 2° field users see at world zoom, not the close-zoom regional frames.
+
 ## 12. Not in v1
-- Steps past 240 h; EURO swell partitions; regional tiers other than the one named per set at freeze (the build names one tier per set, the one the map shows at zoom 3-6); `/point` verification; any use for weighting.
+- Steps past 240 h; every tier other than `global_mid` (section 2a); the `_filled` variants; `/point` verification; any use for weighting.
