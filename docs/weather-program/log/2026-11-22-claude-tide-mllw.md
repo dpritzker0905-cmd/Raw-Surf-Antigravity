@@ -162,3 +162,40 @@ gauges over 7 days.
   centimetres, of either sign by gauge, is expected and is not a datum error. At San Diego, for example, SA 0.076 m at
   phase 180.5° gives about +0.035 m in late November.
 - The run is watched read-only. It will not be re-tagged or re-run on failure.
+
+## 2026-11-23 01:32Z: S_g frozen in the log, before the parity artifact is opened
+
+The advisor stamped the #1149 parity bar at 01:26:12Z (PARITY-BAR and PARITY-BAR-RULING in the gate file, read from
+the director). S_g is a DIAGNOSTIC there, not part of the verdict. This is the table from
+`research/tide-mllw-parity-seasonal-2026-11-23.json`: S_g is the window mean of NOAA SA/SSA minus FES Sa/Ssa (FES taken as about 0),
+over 2026-11-23..30, built 01:27:19Z. The artifact `tide-mllw-parity` of run 45093427404 has NOT been opened at the
+time of this commit. Since our A + D lacks NOAA's seasonal term, our − NOAA is expected near −S_g at each gauge.
+
+| Gauge | NOAA SA amplitude (m) / phase (°) | NOAA SSA amplitude (m) / phase (°) | S_g, window 11-23 (m) | S_g, window 11-24 (m) |
+|---|---|---|---|---|
+| 1611400 Nawiliwili | 0.053 / 181.1 | 0.000 / 0.0 | +0.0230 | +0.0221 |
+| 1612340 Honolulu | 0.048 / 177.7 | 0.000 / 0.0 | +0.0182 | +0.0174 |
+| 1615680 Kahului, Kahului Harbor | 0.048 / 179.2 | 0.000 / 0.0 | +0.0193 | +0.0186 |
+| 1617760 Hilo, Hilo Bay, Kuhio Bay | 0.046 / 188.2 | 0.000 / 0.0 | +0.0249 | +0.0242 |
+| 8443970 Boston | 0.049 / 136.3 | 0.022 / 97.5 | +0.0023 | +0.0011 |
+| 8452660 Newport | 0.061 / 145.3 | 0.016 / 75.1 | -0.0017 | -0.0032 |
+| 8531680 Sandy Hook | 0.098 / 142.3 | 0.036 / 71.6 | -0.0039 | -0.0066 |
+| 8534720 Atlantic City | 0.097 / 149.5 | 0.041 / 60.7 | +0.0039 | +0.0009 |
+| 8651370 Duck | 0.090 / 170.0 | 0.054 / 44.1 | +0.0257 | +0.0224 |
+| 8658163 Wrightsville Beach | 0.108 / 165.0 | 0.059 / 50.3 | +0.0277 | +0.0238 |
+| 8665530 Charleston | 0.101 / 173.2 | 0.076 / 49.2 | +0.0419 | +0.0376 |
+| 8720030 Fernandina Beach | 0.111 / 184.8 | 0.088 / 49.0 | +0.0669 | +0.0622 |
+| 8722670 Lake Worth Pier, Atlantic Ocean | 0.079 / 204.5 | 0.054 / 68.4 | +0.0846 | +0.0820 |
+| 8723214 Virginia Key | 0.092 / 194.1 | 0.064 / 60.5 | +0.0790 | +0.0756 |
+| 8726724 Clearwater Beach | 0.107 / 153.2 | 0.042 / 47.4 | +0.0007 | -0.0026 |
+| 8729840 Pensacola | 0.113 / 150.4 | 0.054 / 49.1 | -0.0021 | -0.0059 |
+| 8771510 Galveston Pleasure Pier | 0.077 / 157.4 | 0.090 / 55.2 | +0.0249 | +0.0206 |
+| 9410230 La Jolla | 0.079 / 175.7 | 0.016 / 261.0 | +0.0171 | +0.0162 |
+| 9410660 Los Angeles | 0.066 / 184.4 | 0.000 / 0.0 | +0.0320 | +0.0310 |
+| 9413450 Monterey | 0.062 / 198.5 | 0.020 / 264.6 | +0.0285 | +0.0282 |
+| 9415020 Point Reyes | 0.059 / 213.3 | 0.035 / 263.3 | +0.0264 | +0.0267 |
+| 9419750 Crescent City | 0.071 / 261.4 | 0.041 / 262.1 | +0.0412 | +0.0426 |
+| 9435380 South Beach | 0.122 / 285.9 | 0.027 / 234.0 | +0.0866 | +0.0889 |
+| 9443090 Neah Bay | 0.122 / 684.0 | 0.017 / 193.9 | +0.0318 | +0.0344 |
+| 9751639 Charlotte Amalie | 0.064 / 181.2 | 0.016 / 46.0 | +0.0293 | +0.0277 |
+| 9755371 San Juan, La Puntilla, San Juan Bay | 0.055 / 181.4 | 0.015 / 38.3 | +0.0234 | +0.0221 |
