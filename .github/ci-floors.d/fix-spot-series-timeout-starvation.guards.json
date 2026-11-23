@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 5,
+  "files": 0,
+  "branch": "fix/spot-series-timeout-starvation",
+  "date": "2026-11-23",
+  "note": ""
+}

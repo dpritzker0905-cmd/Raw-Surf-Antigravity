@@ -117,13 +117,128 @@ async def hub_parity(resolver, spots, model, base, rows, l2):
     return out
 
 
+PROGRESS_CHUNK = 25   # spots per progress line (25 spots x ~58 frames keeps every concurrency slot busy)
+
+
+async def rate_in_chunks(rate_fn, spots, budget_s=0.0, chunk=PROGRESS_CHUNK, clock=time.monotonic, log=None):
+    """Rate `spots` through `rate_fn(part) -> {spot_id: rec}` a chunk at a time, logging progress, and stop EARLY when
+    the projected job time overruns `budget_s` (0 = never). Returns (rows, overrun): `overrun` is None, or the dict the
+    caller logs and fails on. Each spot is rated exactly as one whole-list call rates it (the spots are independent),
+    so a run that finishes writes the same rows.
+
+    Why (2026-11-22): every automatic run since 11-18 hit the rate job's 60-minute timeout (12 jobs x 60 min, then
+    "cancelled", nothing published). The only completed run was the 11-15 40-spot dry run, at 206-366 ms a frame, not
+    the ~54 ms the workflow was sized on. A silent timeout spends an hour of 12 runners and says nothing; this fails
+    loudly once the projection is trustworthy (at least 30% of the budget spent) and frees the runners."""
+    log = log or logger
+    t0, rows, total = clock(), {}, len(spots)
+    for i in range(0, total, max(1, chunk)):
+        rows.update(await rate_fn(spots[i:i + chunk]))
+        done, el = len(rows), clock() - t0
+        proj = el * total / done if done else 0.0
+        log.info("rate progress: %d/%d spots, %.0f s elapsed, projected %.0f s", done, total, el, proj)
+        if budget_s and done < total and el >= 0.3 * budget_s and proj > budget_s:
+            return rows, {"done": done, "total": total, "elapsed_s": round(el, 1), "projected_s": round(proj, 1),
+                          "budget_s": round(budget_s, 1)}
+    return rows, None
+
+
+# The prefetch the rate job used until 2026-11-23 (the serve box's boot defaults): the CAPPED arm of --identity-check.
+CAPPED_PREFETCH = {"PREFETCH_MAX": "400", "PREFETCH_INCLUDE_MID": "0", "PREFETCH_CONCURRENCY": "5",
+                   "PREFETCH_MODELS": "", "PREFETCH_RETRIES": "0"}
+
+
+def _manifest_sha():
+    """Which L2 manifest this process rated on: two arms are comparable only if they read the same one."""
+    import hashlib
+    from services.weather_pipeline.store import ProductStore
+    p = ProductStore().manifest_path
+    return hashlib.sha256(p.read_bytes()).hexdigest()[:16] if p.exists() else None
+
+
+def compare_arms(capped: dict, full: dict, limit: int = 10) -> dict:
+    """The identity verdict of two rows documents (`SS.load_model_rows`) rated on the same spots and base time.
+    'identical' only when every spot's rows are equal; 'inconclusive' when the arms read different manifests (an
+    ingest landed between them), so a difference could be the new run rather than the prefetch."""
+    mc, mf = capped.get("meta", {}), full.get("meta", {})
+    out = {"capped_ms_per_frame": mc.get("ms_per_frame"), "full_ms_per_frame": mf.get("ms_per_frame"),
+           "capped_rate_s": mc.get("elapsed_s"), "full_rate_s": mf.get("elapsed_s"),
+           "capped_restore_s": mc.get("restore_s"), "full_restore_s": mf.get("restore_s"),
+           "manifest": [mc.get("manifest_sha"), mf.get("manifest_sha")], "spots": len(full.get("spots", {})),
+           "frames_compared": 0, "frames_different": 0, "examples": []}
+    if capped.get("base_time") != full.get("base_time") or mc.get("manifest_sha") != mf.get("manifest_sha"):
+        out["verdict"] = "inconclusive"
+        return out
+    a, b = capped.get("spots", {}), full.get("spots", {})
+    for sid in sorted(set(a) | set(b)):
+        ra, rb = (a.get(sid) or {}).get("rows", []), (b.get(sid) or {}).get("rows", [])
+        if len(ra) != len(rb):
+            out["frames_different"] += max(len(ra), len(rb))
+            if len(out["examples"]) < limit:
+                out["examples"].append({"spot": sid, "frames": [len(ra), len(rb)]})
+            continue
+        for x, y in zip(ra, rb):
+            out["frames_compared"] += 1
+            if x != y:
+                out["frames_different"] += 1
+                if len(out["examples"]) < limit:
+                    keys = sorted(k for k in set(x) | set(y) if x.get(k) != y.get(k))
+                    out["examples"].append({"spot": sid, "valid_time": x.get("valid_time"),
+                                            "diff": {k: [x.get(k), y.get(k)] for k in keys}})
+    out["verdict"] = "identical" if not out["frames_different"] and out["frames_compared"] else "different"
+    return out
+
+
+def identity_check(a) -> int:
+    """--identity-check: rate the same spots twice IN SEPARATE PROCESSES on an emptied L1 store, first with the capped
+    prefetch (CAPPED_PREFETCH) and then with this process's environment (the full prefetch), and fail unless every row
+    is identical. Why: two resolver branches choose a product by whether its file is on disk
+    (point_resolution.py hint swap, grid_resolver.py Step 3.5 preview), so warming more could move a rated value.
+    The full arm's rows become this job's output, so assemble still runs (a dry run never publishes)."""
+    import shutil
+    import subprocess
+    from services.weather_pipeline.store import ProductStore
+    cache = ProductStore().cache_dir
+    base = a.base_time or SS._iso(SS.base_time_from(None))
+    root = os.path.abspath(a.out) + "-identity"
+    docs, walls = {}, {}
+    for arm, overrides in (("capped", CAPPED_PREFETCH), ("full", {})):
+        shutil.rmtree(cache, ignore_errors=True)
+        out = os.path.join(root, arm)
+        cmd = [sys.executable, os.path.abspath(__file__), "rate", "--model", a.model, "--job", str(a.job),
+               "--jobs", str(a.jobs), "--base-time", base, "--limit", str(a.limit), "--out", out]
+        t0 = time.monotonic()
+        rc = subprocess.call(cmd, env={**os.environ, **overrides})
+        walls[arm] = round(time.monotonic() - t0, 1)
+        if rc != 0:
+            logger.error("identity check: the %s arm failed (exit %d)", arm, rc)
+            return 1
+        docs[arm] = SS.load_model_rows(os.path.join(out, f"rows-{a.model.upper()}-{a.job}.json.gz"))
+    verdict = {**compare_arms(docs["capped"], docs["full"]), "wall_s": walls}
+    os.makedirs(a.out, exist_ok=True)
+    for name in os.listdir(os.path.join(root, "full")):
+        shutil.copy(os.path.join(root, "full", name), os.path.join(a.out, name))
+    with open(os.path.join(a.out, f"identity-{a.model.upper()}-{a.job}.json"), "w", encoding="utf-8") as fh:
+        json.dump(verdict, fh, indent=1)
+    logger.info("identity check %s job %d: %s", a.model, a.job, json.dumps(verdict))
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
+            fh.write(f"### Identity check {a.model} job {a.job}: **{verdict['verdict']}**\n\n```json\n"
+                     f"{json.dumps(verdict, indent=1)}\n```\n")
+    return 0 if verdict["verdict"] == "identical" else 1
+
+
 def cmd_rate(a) -> int:
+    if getattr(a, "identity_check", False):
+        return identity_check(a)
     from services.weather_pipeline.spot_ratings_precompute import _make_point_resolver, fetch_active_spots_via_rest
     model = a.model.upper()
     base = SS.base_time_from(a.base_time)
+    t_restore = time.monotonic()
     if not _restore_products():
         logger.error("no products restored from L2; nothing to rate")
         return 1
+    restore_s = round(time.monotonic() - t_restore, 1)
     wanted = set(SS.job_shards(a.job, a.jobs))
     spots = [s for s in fetch_active_spots_via_rest() if SS.shard_of(s["id"]) in wanted]
     if a.limit:
@@ -134,14 +249,22 @@ def cmd_rate(a) -> int:
     resolver = _make_point_resolver()
     asyncio.run(_prewarm(spots, model))
     horizon = SS.horizon_for(model)
+    ref = _ref_map()
+    budget_s = 60.0 * float(os.environ.get("SPOT_SERIES_RATE_BUDGET_MIN", "0") or 0)
     t0 = time.monotonic()
-    rows = asyncio.run(SS.rate_spot_series(resolver, spots, model, base, horizon, _ref_map()))
+    rows, overrun = asyncio.run(rate_in_chunks(
+        lambda part: SS.rate_spot_series(resolver, part, model, base, horizon, ref), spots, budget_s))
     elapsed = time.monotonic() - t0
+    if overrun:
+        logger.error("rate %s job %d/%d would overrun its budget (SPOT_SERIES_RATE_BUDGET_MIN): %s; failing early "
+                     "instead of holding the runner to the job timeout", model, a.job, a.jobs, json.dumps(overrun))
+        return 1
     n_frames = sum(len(r["rows"]) for r in rows.values())
     n_rated = sum(1 for r in rows.values() for f in r["rows"] if f.get("raw_score") is not None)
     meta = {"model": model, "job": a.job, "jobs": a.jobs, "base_time": SS._iso(base), "horizon_h": horizon,
             "spots": len(spots), "frames": n_frames, "rated": n_rated, "elapsed_s": round(elapsed, 1),
-            "ms_per_frame": round(1000 * elapsed / n_frames, 1) if n_frames else None}
+            "ms_per_frame": round(1000 * elapsed / n_frames, 1) if n_frames else None,
+            "restore_s": restore_s, "manifest_sha": _manifest_sha()}
     if a.hub_parity:
         from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2
         meta["hub_parity"] = asyncio.run(hub_parity(resolver, spots[:a.hub_parity], model, base, rows,
@@ -296,6 +419,8 @@ def main(argv=None) -> int:
     r.add_argument("--base-time", default=None)
     r.add_argument("--limit", type=int, default=0, help="rate at most N spots (a dry run)")
     r.add_argument("--hub-parity", type=int, default=0)
+    r.add_argument("--identity-check", action="store_true",
+                   help="rate twice (capped vs full prefetch, separate processes) and fail unless the rows match")
     r.add_argument("--out", required=True)
     s = sub.add_parser("assemble")
     s.add_argument("--in", dest="inp", required=True)
