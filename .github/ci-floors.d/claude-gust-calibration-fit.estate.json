@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 9,
+  "branch": "claude/gust-calibration-fit",
+  "date": "2026-11-23",
+  "note": "gust calibration fitter (test_gust_calibrate.py)"
+}
