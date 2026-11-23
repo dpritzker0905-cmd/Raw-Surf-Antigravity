@@ -6,11 +6,12 @@
  * G Step 1: JSX scan -- zero JSX in extraction range
  * G Step 2: Closure param audit -- all state/setters listed
  * G Step 3: Phantom param check -- every param used in handler body
- * G Step 4: React hooks scan -- no React hooks needed (pure handlers)
+ * G Step 4: React hooks scan -- committed ownership guards the balance read
  * G Step 5: Utility/import scan -- apiClient, toast, logger
  * G Step 6: Hook placement -- called AFTER all useState declarations
  * G Step 7: Cross-module export -- SURFER_ROLES is local const, not needed
  */
+import { useLayoutEffect, useRef } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -49,6 +50,27 @@ const useBookingsActions = ({
   setSelectedBooking,
   setShowInviteModal,
 }) => {
+  const balanceOwner = useRef(null);
+  const userId = user?.id;
+  const session = user?.access_token;
+
+  useLayoutEffect(() => {
+    const owner = { userId, session, request: 0 };
+    balanceOwner.current = owner;
+    // Clear the previous session's local value; this is not a confirmed profile balance.
+    setUserCreditBalance(0);
+    return () => {
+      if (balanceOwner.current === owner) balanceOwner.current = null;
+    };
+    // Callback updates below must not restart ownership for the same session.
+  }, [userId, session]);
+
+  useLayoutEffect(() => {
+    if (balanceOwner.current) {
+      balanceOwner.current.setBalance = setUserCreditBalance;
+      balanceOwner.current.updateUser = updateUser;
+    }
+  });
 
   // Helper: sort photographers by priority
   const sortPhotographers = (photographers) => {
@@ -59,10 +81,13 @@ const useBookingsActions = ({
   };
 
   const fetchData = async () => {
+    const owner = balanceOwner.current;
+    const ownsBalance = owner && owner.userId && owner.userId === userId && owner.session === session;
+    const balanceRequest = ownsBalance ? ++owner.request : null;
     setLoading(true);
     try {
       const [creditsRes, bookingsRes, sessionsRes, liveRes, invitesRes, crewRes, activeRes, historyRes] = await Promise.allSettled([
-        apiClient.get(`/credits/${user.id}/balance`),
+        ownsBalance ? apiClient.get(`/credits/balance/${userId}`) : Promise.resolve(null),
         apiClient.get(`/bookings/user/${user.id}`),
         apiClient.get(`/sessions/user/${user.id}`),
         apiClient.get(`/photographers/live`),
@@ -72,9 +97,11 @@ const useBookingsActions = ({
         apiClient.get(`/sessions/user/${user.id}/history`),
       ]);
 
-      if (creditsRes.status === 'fulfilled' && creditsRes.value.data?.balance !== undefined) {
-        setUserCreditBalance(creditsRes.value.data.balance);
-        updateUser({ credit_balance: creditsRes.value.data.balance });
+      const creditData = creditsRes.status === 'fulfilled' ? creditsRes.value?.data : null;
+      if (ownsBalance && balanceOwner.current === owner && balanceRequest === owner.request
+          && creditData?.user_id === userId && Number.isFinite(creditData.balance)) {
+        owner.setBalance(creditData.balance);
+        owner.updateUser({ credit_balance: creditData.balance });
       }
       setBookings(bookingsRes.status === 'fulfilled' ? (bookingsRes.value.data || []) : []);
       setLiveSessions(sessionsRes.status === 'fulfilled' ? (sessionsRes.value.data || []) : []);
