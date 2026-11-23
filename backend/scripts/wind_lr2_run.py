@@ -126,9 +126,11 @@ def cmd_score(a):
         if pr.get("marine") and T.station_ok(truth.get(i, {}), min(inits), R.last_valid(inits)):
             r = R.region_of(st["lat"], st["lon"])
             by_region[r] = by_region.get(r, 0) + 1
+    cov = {str(st["id"]): T.coverage_report(truth.get(i, {}), min(inits), R.last_valid(inits)) for i, st in enumerate(stations)}
     fit_inits = R.fit_runs()
     doc = SC.score_rows(rows, W.native_changes(runs, len(stations)), len(runs), by_region, [],
                         SC.fit_test_disjoint(fit_inits, inits))
+    doc["station_coverage"] = cov            # reported per station; used for floor counts only, never a row filter
     json.dump(doc, open(a.out, "w"), indent=1, default=float)
     print(doc["verdict"], doc["void_reasons"])
     return 0

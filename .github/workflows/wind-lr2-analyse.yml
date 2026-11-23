@@ -67,7 +67,7 @@ jobs:
           find "$C/downloaded" -name '*.npz' -path '*runs-fit*' -exec cp {} "$C/runs_fit/" \; 2>/dev/null || true
           find "$C/downloaded" -name '*.npz' -path '*runs-test*' -exec cp {} "$C/runs_test/" \; 2>/dev/null || true
           case "$COMMAND" in
-            stations) python scripts/wind_lr_hindcast.py stations --cache "$C" && cp "$C/wind_lr_stations.json" "$C/wind_lr2_stations.json" ;;
+            stations) python scripts/wind_lr2_stations.py freeze --cache "$C" --out "$C/wind_lr2_stations.json" ;;
             pair)     python scripts/wind_lr2_run.py pair --cache "$C" --spots "$EVID/spots.json" ;;
             fit)      python scripts/wind_lr2_run.py fit --cache "$C" ;;
             freeze)   python scripts/wind_lr2_run.py freeze --cache "$C" --out "$C/freeze-manifest.json" ;;
@@ -79,6 +79,7 @@ jobs:
           name: wind-lr2-${{ github.event.inputs.command }}-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/wlr2/*.json
+            ${{ runner.temp }}/wlr2/*.json.sha256
             ${{ runner.temp }}/wlr2/*.npz
 
   archive:
