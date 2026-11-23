@@ -4,7 +4,7 @@ Session: side session of the director (`local_d6b521eb`), started from `local_7f
 an ensemble gust-risk product, P(gust >= 25 / 34 / 48 kn) from the ECMWF open-data ENS `10fg`; pre-register, build
 the publisher dark, score on a hindcast, and only then a client view.
 
-## 23:10Z · measured before writing the gate
+## 2026-11-23 02:10Z · measured before writing the gate
 - `memory_audit.py --docs-only`: 0 FAIL. The open gust commitment (`claude--gust-verify-f27efa.jsonl:3`, re-score
   due 12-09) is #1063's; nothing overdue is this lane's.
 - #939 is CLOSED (its hindcast run 44376282465 FAIL on wind; condition (2) blinding still binds). #946 (instrument),
@@ -18,7 +18,7 @@ the publisher dark, score on a hindcast, and only then a client view.
   peaks with their minute). That gives the METAR hourly peak above 25 kt, not only the 10-min gust group.
 - Local AWS read speed ~14 MB/s on one connection (71 MB in 5 s); eccodes 2.50.0 installs and decodes locally.
 
-## 23:40Z · gate written: `gates/gust-ens-risk-v1.md`
+## 2026-11-23 02:50Z · gate written: `gates/gust-ens-risk-v1.md`
 Fresh collection (none of #946's files), 42 00Z runs 2026-10-10..11-20, 21 lead steps in four bins that follow the
 window changes, NDBC + coastal ASOS truth with the `PK WND` peak, CLIM (leave-one-day-out) and HRES 0/1 as
 comparators; G1-G4 per threshold x bin, controls C1-C4 (VOID on failure); product scope follows the passing cells,

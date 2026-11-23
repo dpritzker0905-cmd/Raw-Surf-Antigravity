@@ -1,5 +1,5 @@
 # Gate: gust-ens-risk-v1
-Stamp: 2026-11-22 23:40Z (written BEFORE any collection, fit or score for this gate; the result file `results/gust-ens-risk-v1.md` must be a later commit)
+Stamp: 2026-11-23 02:50Z (written BEFORE any collection, fit or score for this gate; the result file `results/gust-ens-risk-v1.md` must be a later commit)
 Candidate: an ensemble gust-risk product: per cell and step, the fraction of ECMWF IFS ENS open-data members whose `10fg` / `10fg3` reaches 25, 34 and 48 kn (an ECMWF EFI/SOT-style exceedance probability), shown under Gusts as a probability view.
 Metric: Brier score (BS) of the member fraction against the observed window-max gust event, per threshold x lead bin, paired on identical rows against (a) station climatology and (b) the deterministic HRES `10fg` >= threshold (0/1); plus the Murphy reliability/resolution terms, the reliability diagram and ROC AUC. Full definitions in section 4.
 Pass threshold: section 6 (G1-G4, per threshold x lead bin; every CI a 95% day-block bootstrap, with 5-day blocks as the fragility check).
@@ -29,7 +29,7 @@ Is the ECMWF ENS member fraction a reliable and skilful probability of the obser
 better than station climatology and better than the deterministic "HRES gust >= threshold", at each lead bin? Where
 it is, the product may show it; where it is not, it may not.
 
-## 2. What `10fg` is (measured 2026-11-22 23:10Z from GRIB headers of run 2026-10-15 00Z; reused for every run)
+## 2. What `10fg` is (measured 2026-11-23 02:10Z from GRIB headers of run 2026-10-15 00Z; reused for every run)
 The window is NOT a flat 3 h / 6 h. Decoded `stepRange` / `lengthOfTimeRange` (same in `enfo` and `oper`):
 | ENS steps | param | window ending at the step |
 |---|---|---|
