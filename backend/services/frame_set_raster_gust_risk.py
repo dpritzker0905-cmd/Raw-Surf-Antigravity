@@ -352,18 +352,24 @@ def guarded_publish(args, spec, make_sink, pub, fsr, status_fn, now=None):
     sp = dict(spec, target=dict(spec["target"], display=display_allowed(), gate=gate_state()))
     source = fsr.make_source(sp)
     source.read_cap = min(source.read_cap, remaining)
-    try:
-        upload = pub._uploader(sink)
-
-        def guarded_upload(jobs):                    # a cap reached anywhere in the run uploads nothing
-            if source.exceeded:
-                raise BudgetExceeded(source.exceeded)
-            return upload(jobs)
-        report = fsr.publish(source, sink, guarded_upload, log=print, spec=sp)
-    except BudgetExceeded as e:                      # raised outside the per-step guard (the cycle check)
-        report = {"status": "budget_refused", "reason": str(e)}
     writer = f"gh-run-{os.environ['GITHUB_RUN_ID']}" if os.environ.get("GITHUB_RUN_ID") else "local"
-    total = add_day_used(sink, now.astimezone(timezone.utc), source.bytes_pulled, writer)
+    # The day's read record is written WHATEVER happens (the advisor's hold on #1222): a publish that raises anything
+    # else (upload, decode, a non-404 HTTP error, a bug) re-raises AFTER its bytes are recorded, so a persistent mid-run
+    # failure cannot let every cron re-read ~3-6 GB while the record stays near 0. A failed record write is not swallowed:
+    # it raises (and the step fails).
+    try:
+        try:
+            upload = pub._uploader(sink)
+
+            def guarded_upload(jobs):                # a cap reached anywhere in the run uploads nothing
+                if source.exceeded:
+                    raise BudgetExceeded(source.exceeded)
+                return upload(jobs)
+            report = fsr.publish(source, sink, guarded_upload, log=print, spec=sp)
+        except BudgetExceeded as e:                  # raised outside the per-step guard (the cycle check)
+            report = {"status": "budget_refused", "reason": str(e)}
+    finally:
+        total = add_day_used(sink, now.astimezone(timezone.utc), source.bytes_pulled, writer)
     report.update(bytes_pulled=source.bytes_pulled, bytes_stored_estimate=source.bytes_stored, read_today=total,
                   pruned=len(gone), display=sp["target"]["display"], gate=sp["target"]["gate"])
     print(f"::notice title=Raster set {name} size::pulled {source.bytes_pulled / 1e6:.1f} MB (today {total / 1e6:.1f} MB), "

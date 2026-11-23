@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 3,
+  "tests": 6,
   "files": 0,
   "branch": "fix/gust-risk-drop-slot",
   "date": "2026-11-23",
-  "note": "gust-risk: no wall-clock slot (two runs a day publish once, late cron publishes, day cap stops)"
+  "note": "gust-risk: no wall-clock slot + day record written in a finally (advisor hold)"
 }

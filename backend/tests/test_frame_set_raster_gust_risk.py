@@ -367,3 +367,45 @@ def test_the_day_cap_still_hard_stops_whatever_the_hour(tmp_path, monkeypatch):
     for hour in (17, 23):                                              # the day is now spent: exit 1, nothing even read
         n = len(f.sources)
         assert _guard(tmp_path, monkeypatch, f, hour, sink) == 1 and len(f.sources) == n
+
+
+# ---- the advisor's hold on #1222: the day record is written whatever the publish does --------------------------------
+class _RaisingFsr(_StatefulFsr):
+    def __init__(self, pulled, exc):
+        super().__init__()
+        self.pulled, self.exc = pulled, exc
+
+    def publish(self, src, snk, uploader, log=print, spec=None):
+        src.bytes_pulled += self.pulled                                # read N bytes, then fail mid-run
+        raise self.exc
+
+
+def test_a_publish_that_raises_records_its_bytes_and_fails_the_step(tmp_path, monkeypatch):
+    sink, n = _local_sink(tmp_path), 2_345_678_901
+    f = _RaisingFsr(n, RuntimeError("decode exploded mid-run"))
+    with pytest.raises(RuntimeError, match="decode exploded"):        # re-raised: the step fails
+        _guard(tmp_path, monkeypatch, f, 16, sink)
+    assert gk.day_used(sink, datetime(2026, 11, 23, tzinfo=timezone.utc)) == n
+    with pytest.raises(RuntimeError):                                  # a second failing run adds its bytes too
+        _guard(tmp_path, monkeypatch, f, 19, sink)
+    assert gk.day_used(sink, datetime(2026, 11, 23, tzinfo=timezone.utc)) == 2 * n
+
+
+def test_a_budget_refusal_still_records_and_exits_1(tmp_path, monkeypatch):
+    sink, n = _local_sink(tmp_path), 1_000_000
+    f = _RaisingFsr(n, gk.BudgetExceeded("read cap: x"))
+    assert _guard(tmp_path, monkeypatch, f, 16, sink) == 1
+    assert gk.day_used(sink, datetime(2026, 11, 23, tzinfo=timezone.utc)) == n
+
+
+def test_a_failed_record_write_is_not_swallowed(tmp_path, monkeypatch):
+    sink = _local_sink(tmp_path)
+    real_write = sink.write
+
+    def write(path, *a, **k):
+        if path.startswith(gk.BUDGET_PREFIX):
+            raise OSError("bucket write refused")
+        return real_write(path, *a, **k)
+    monkeypatch.setattr(sink, "write", write)
+    with pytest.raises(OSError, match="bucket write refused"):
+        _guard(tmp_path, monkeypatch, _StatefulFsr(), 16, sink)
