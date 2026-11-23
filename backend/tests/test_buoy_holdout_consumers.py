@@ -101,3 +101,13 @@ def test_nothing_is_dropped_when_no_list_is_recorded():
     from datetime import date
     rows, _ = ssa.read_month("2026-11", date(2026, 11, 3), lambda key: ([{"buoy_id": LOCKED}], True))
     assert rows and all(r["buoy_id"] == LOCKED for r in rows)
+
+
+def test_nearshore_lite_truth_fetch_never_requests_a_locked_buoy(locked_root):
+    """The MOP-lite gate's truth reader (nearshore_lite/truth.py, #1155) scores what it fetches: a LOCKED buoy reads as
+    missing and the opener is never called; an open buoy is fetched as before."""
+    from services.weather_pipeline.nearshore_lite import truth
+    asked = []
+    assert truth.fetch_realtime(LOCKED, lambda u: asked.append(u) or "text") is None
+    assert truth.fetch_realtime(OPEN, lambda u: asked.append(u) or "text") == "text"
+    assert asked == [truth.realtime_url(OPEN)]
