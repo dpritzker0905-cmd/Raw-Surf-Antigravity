@@ -424,3 +424,41 @@ are now on dev.
      renderer sits under MapWebGL, which records exposure.
 
 **Tests:** Jest (map, spot-hub, src/tests) 541 suites and 7,613 tests pass; the eslint ratchet shows no increase.
+
+## 2026-11-23 04:42Z: datum parity run 45102683907, VOID (the planted-D identity control failed)
+
+**Run.** It completed at 04:41:10Z, conclusion success. The parity step started at 04:38:14Z on 2026-11-23, so its
+window is 11-23 → 11-30, the same window the finder control was run on.
+- The artifact was opened once, after condition (a) was pushed (`76b0fe98f`) and the run had completed.
+- It was scored by the committed scorer, `datum_gate_score.py` at `d196498c4`, committed before the run.
+- Saved as `research/tide-datum-parity-run-45102683907.json`, with the score in
+  `research/tide-datum-parity-score-45102683907.json`.
+
+**Controls (#1183 §9; VOID-only by the advisor's ruling (b)):**
+- **Finder heights:** PASS. The largest per-gauge median |h| on NOAA's own curve is 0.0017 m (limit 0.01).
+- **Planted-D identity:** **FAIL**, at 23 of 25 measured gauges.
+  - Heights: (sheet − model) signed differences equal d_sheet − d_model within 0.001 m at most gauges. The exceptions
+    are Nawiliwili (0.006 m), Duck (0.016 m) and Lake Worth (0.017 m).
+  - Times: the paired event times differ by 0.1–2.3 min, against the 0.1-min tolerance.
+  - **Likely cause** (diagnosis, not a re-score): `parity_coops.py` rounds the hourly display series to 1 mm after
+    adding D (`round(x + d, 3)`). Two different D values round differently, and the finder's parabolic vertex then moves
+    on flat-topped turns. §9's tolerance (0.1 min, 0.002 m) was set tighter than that rounding allows. That is this
+    lane's specification error, made after the tag.
+
+**Verdict: VOID.** Under the advisor's ruling (b), a failed control means a new tag plus David's word, never a re-read
+of the bar.
+
+**MEASURED (§8):** every gauge matched all its NOAA events except Pensacola, which matched 6 of 14 (43%) and is NOT
+MEASURED. Counts per gauge are in the score JSON.
+
+**Bar figures, RECORDED ONLY. This is not a verdict, and is not to be read as one:**
+
+| Variant | median \|h\| | p90 \|h\| | gauges ≤ 0.10 m | median signed |
+|---|---|---|---|---|
+| model (tidal band) | 0.0262 m | 0.090 m | 25 / 26 | −0.0149 m |
+| sheet (tidal band) | 0.0213 m | 0.0774 m | 24 / 26 | +0.0007 m |
+
+**Proposed for the re-run** (needs the director, the advisor and David):
+- remove the 1 mm rounding in `parity_coops.py` before the event finder, in #1171, so the identity can hold exactly;
+- keep §9's tolerances unchanged;
+- a new tag.
