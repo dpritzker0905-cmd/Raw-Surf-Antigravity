@@ -1,8 +1,8 @@
 {
   "lane": "guards",
-  "tests": 13,
+  "tests": 15,
   "files": 1,
   "branch": "claude/wind-lr2-score-gust-wiring",
   "date": "2026-11-23",
-  "note": "tests/test_wind_lr2_gust_wiring.py: 13 cases (wind_passed from the wind doc only, gust block never changes wind, gust floor counts, refuse on mismatch/absent table, table checked before any read, freeze artifact, fetch step, fetch-job key scope, same-run artifact + needs)"
+  "note": "tests/test_wind_lr2_gust_wiring.py: 15 cases (wiring, refuse on mismatch/absent, never built at score time, no authed URL or key printed, fetch-job key scope, same-run artifact + needs)"
 }
