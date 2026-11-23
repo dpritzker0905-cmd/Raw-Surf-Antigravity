@@ -1,0 +1,68 @@
+[
+ {
+  "gauge": "8729840",
+  "coast": "8729807",
+  "what": "Pensacola (bay) vs Pensacola Beach Pier (Gulf front)",
+  "parity_abs_time_median_min": 163.7,
+  "n_gauge": 14,
+  "n_coast_in_window": 13,
+  "paired": 14,
+  "lag_median_min": 189.0,
+  "lag_abs_median_min": 189.0
+ },
+ {
+  "gauge": "8723214",
+  "coast": "8723178",
+  "what": "Virginia Key (Bear Cut) vs Government Cut, Miami Harbor entrance",
+  "parity_abs_time_median_min": 43.4,
+  "n_gauge": 27,
+  "n_coast_in_window": 27,
+  "paired": 27,
+  "lag_median_min": 39.0,
+  "lag_abs_median_min": 39.0
+ },
+ {
+  "gauge": "8720030",
+  "coast": "8679997",
+  "what": "Fernandina (Amelia River) vs St. Marys Entrance, North Jetty",
+  "parity_abs_time_median_min": 39.8,
+  "n_gauge": 27,
+  "n_coast_in_window": 27,
+  "paired": 27,
+  "lag_median_min": 3.0,
+  "lag_abs_median_min": 3.0
+ },
+ {
+  "gauge": "8531680",
+  "coast": "8531804",
+  "what": "Sandy Hook (Fort Hancock) vs Sea Bright (ocean beach)",
+  "parity_abs_time_median_min": 25.2,
+  "n_gauge": 27,
+  "n_coast_in_window": 26,
+  "paired": 27,
+  "lag_median_min": -67.0,
+  "lag_abs_median_min": 67.0
+ },
+ {
+  "gauge": "9755371",
+  "coast": "9754986",
+  "what": "San Juan (harbour) vs Boca de Cangrejos",
+  "parity_abs_time_median_min": 24.1,
+  "n_gauge": 26,
+  "n_coast_in_window": 26,
+  "paired": 26,
+  "lag_median_min": -10.5,
+  "lag_abs_median_min": 10.5
+ },
+ {
+  "gauge": "8722670",
+  "coast": "8722670",
+  "what": "control: Lake Worth Pier (open coast, passed) vs itself",
+  "parity_abs_time_median_min": 2.4,
+  "n_gauge": 27,
+  "n_coast_in_window": 27,
+  "paired": 27,
+  "lag_median_min": -0.0,
+  "lag_abs_median_min": 0.0
+ }
+]

@@ -267,3 +267,44 @@ lacks it, so ours − NOAA is expected near −S_g.
      0.06–0.13 m from the other source, which accounts for those misses.
 3. **The instrument fix (#1171)** was to become required only if HEIGHT failed. Height did not fail, so it stays a
    follow-up, per the director's ruling. Nothing was re-tagged or re-run.
+
+## 2026-11-23 01:38Z: where the parity timing misses come from (measured; no served change)
+
+The director asked whether the served event finder has a timing bug, since timing is what failed the parity bar. Both
+instruments below are read-only CO-OPS calls, run over the parity window 2026-11-23..30.
+
+**1. The finder is NOT the cause.** `scripts/tide_datum/finder_check.py` gives the served `tide.tide_extrema` NOAA's
+OWN prediction curve and compares its events with NOAA's own High/Low times (`research/tide-mllw-finder-check-2026-11-23.json`).
+- The curve was sampled hourly (as served) and every 6 min, at the six failing gauges and two passing controls.
+- **Hourly:** median |time error| 1.0–2.0 min, max 7.6 min, no unmatched events, at every gauge. That includes
+  Pensacola: 14 of 14 events matched, median 1.5 min, max 3.1 min.
+- **6 min:** median 0.5–1.0 min.
+
+So the 21–164 min misses come from the tide model A (FES2022b at the gauge coordinates), not from the finder. A
+finder change would be the wrong fix, and none is made.
+
+**2. Are the failing gauges inside bays whose tide lags the open coast?** `scripts/tide_datum/gauge_vs_coast.py`
+compares NOAA's own hilo at each failing gauge with a nearby NOAA prediction station nearer the open coast
+(`research/tide-mllw-gauge-vs-coast-2026-11-23.json`). Lag is the gauge's time minus the coast station's, from NOAA's
+own predictions:
+
+| Failing gauge | Parity median \|time\| (min) | Open-coast comparator | NOAA's own lag, gauge − coast (min) | Reading |
+|---|---|---|---|---|
+| Pensacola (bay) | 163.7 | 8729807 Pensacola Beach Pier (Gulf front) | +189 | consistent: the bay gauge runs about 3 h behind the Gulf front |
+| Virginia Key (Bear Cut) | 43.4 | 8723178 Government Cut, Miami Harbor entrance | +39 | consistent |
+| San Juan (harbour) | 24.1 | 9754986 Boca de Cangrejos | −10.5 | partial |
+| Fernandina (Amelia River) | 39.8 | 8679997 St. Marys Entrance, North Jetty | +3 | NOT explained: the entrance is within 3 min of the gauge, but our error is 40 min |
+| Sandy Hook (Fort Hancock) | 25.2 | 8531804 Sea Bright | −67 | inconclusive: Sea Bright is a subordinate station and reads 67 min BEHIND the gauge, so it is a poor open-coast comparator |
+| control: Lake Worth Pier (open coast; passed, 2.4 min) | 2.4 | itself | 0 | — |
+
+**What this shows, and what it does not:**
+- **What it shows:** at Pensacola and Virginia Key, NOAA's own predictions put the gauge about as far behind the open
+  coast as our error. That is the signature of an open-ocean atlas tide read against a bay gauge.
+- **What it does not show:** the sign. The run's artifact holds ABSOLUTE errors only, so it cannot say that ours
+  leads; #1171's signed per-event rows would.
+- **What stays unexplained:** Fernandina's 40 min, Sandy Hook's 25 min and San Juan's 24 min. They could be FES2022b's
+  phase at those coordinates, or the comparator choice; neither is established here.
+- **The verdict stands.** The stamped bar's gauge set and verdict are NOT changed by this. Choosing different gauges
+  after seeing the result would not be a test.
+- **What a fair next test needs:** a pre-registered gauge set that separates open-coast gauges (where surf spots
+  are) from harbour gauges, scored with #1171's signed instrument, on a new tag with David's word.
