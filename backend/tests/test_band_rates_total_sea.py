@@ -125,3 +125,49 @@ def test_kill_switch_rates_the_partition_again(monkeypatch):
     total = _rated(_band("waves", TOTAL))
     part = _rated(_band("swell_1", SWELL1))
     assert any(part[k].speed != total[k].speed for k in set(part) & set(total)) or set(part) != set(total)
+
+
+# ── Second-opinion follow-ups (Reflection, 2026-11-23; log in research/bug-hunt-D-second-opinions-2026-11-23.md) ──────────
+
+class _MixedStore(_Store):
+    """A total sea that is calm (0 m) in the west half and 2 m in the east half."""
+
+    def load_product(self, filename):
+        self.loads.append(filename)
+        p = _product("waves", TOTAL)
+        for v in p.grid.vectors:
+            if v.lng < -80.5:
+                v.speed = 0.0
+        return p
+
+
+def test_a_calm_total_sea_cell_is_unrated_partition_not_a_neighbours_swell():
+    """A 0 m total-sea node is a real calm, not 'no data': the cell stays the (valid, unrated) partition. It must not borrow
+    the nearest NONZERO node's swell, nor be masked as unavailable."""
+    out = _band("swell_1", SWELL1, store=_MixedStore())
+    west = [v for v in out.grid.vectors if v.lng < -80.6]
+    assert west and all(v.speed == 1.0 for v in west)
+    assert not any(v.phys_speed is not None and v.is_valid for v in west), "a calm total sea was rated"
+    assert all(v.is_valid for v in west if v.phys_speed is None), "a calm cell was masked as if it had no data"
+
+
+def test_a_failing_rating_restores_the_partition(monkeypatch):
+    """If the rating throws after the swap, the served grid must still be the partition, never total-sea values under a
+    partition label."""
+    from services.weather_pipeline import surf_rating
+
+    def boom(*a, **k):
+        raise RuntimeError("rating failed")
+    monkeypatch.setattr(surf_rating, "rating_transform_grid", boom)
+    out = _band("swell_1", SWELL1)
+    assert "surf_skip_reason" in (out.grid.diagnostics or {})
+    for v in out.grid.vectors:
+        assert (v.speed, v.period, v.direction, v.phys_speed, v.is_valid) == (1.0, 15.0, 95.0, None, True)
+
+
+def test_the_shared_cached_product_is_never_mutated():
+    src = _product("swell_1", SWELL1)
+    before = [v.model_dump() for v in src.grid.vectors]
+    asyncio.run(apply_surf_overlay(src, store=_Store(), manifest=_manifest(), model="GFS", domain="marine",
+                                   layer="swell_1", surf=True, target_dt=NOW))
+    assert [v.model_dump() for v in src.grid.vectors] == before

@@ -48,7 +48,7 @@ def _nearest(store, filename):
         wp = store.load_product(filename)
         vex = [v for v in ((wp.grid.vectors if wp and wp.grid else None) or [])
                if getattr(v, "lat", None) is not None and getattr(v, "lng", None) is not None
-               and getattr(v, "is_valid", True) and (getattr(v, "speed", None) or 0) > 0]
+               and getattr(v, "is_valid", True) and getattr(v, "speed", None) is not None]   # 0 m is a real calm, kept
         if not vex:
             return None
         lats = np.array([v.lat for v in vex], dtype=np.float64)

@@ -164,16 +164,19 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
                 if _bts.applies(layer):
                     _sampler = await asyncio.to_thread(_bts.build_sampler, store, manifest, model, target_dt)
                     _sea = (await asyncio.to_thread(_bts.swap_in, product.grid.vectors, _sampler), _sampler)
-                n_t, n_masked = await asyncio.to_thread(
-                    rating_transform_grid,
-                    product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn,
-                    # CMP-1: under the one chain the bearing comes from the band cell's cached geometry (identical value)
-                    _band_chain.shore_normal_at if _band_chain.enabled() else chain_shore_normal_at,
-                    reference_fn=(_recording_reference_fn if reference_fn else None), gate_fn=gate_fn)
+                try:
+                    n_t, n_masked = await asyncio.to_thread(
+                        rating_transform_grid,
+                        product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn,
+                        # CMP-1: under the one chain the bearing comes from the band cell's cached geometry (identical value)
+                        _band_chain.shore_normal_at if _band_chain.enabled() else chain_shore_normal_at,
+                        reference_fn=(_recording_reference_fn if reference_fn else None), gate_fn=gate_fn)
+                finally:   # a failed rating must still serve the partition, never total-sea values under its label
+                    if _sea is not None:
+                        _bts.restore(product.grid.vectors, _sea[0])
                 tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn),
                        "local_size": bool(reference_fn), "obs_gate": bool(gate_fn)}
                 if _sea is not None:
-                    _bts.restore(product.grid.vectors, _sea[0])
                     tag["total_sea"] = "waves" if _sea[1] is not None else "unavailable"
                 # `n` is the count that ANSWERED, not the count asked: reference_for returns None
                 # where a cell has too few samples, and those cells fall back to the global default.

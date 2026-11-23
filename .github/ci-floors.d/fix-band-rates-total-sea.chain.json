@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 9,
+  "tests": 12,
   "files": 1,
   "branch": "fix/band-rates-total-sea",
   "date": "2026-11-23",
-  "note": "band rates total sea (bug hunt D)"
+  "note": "band rates total sea (bug hunt D) incl. second-opinion tests"
 }

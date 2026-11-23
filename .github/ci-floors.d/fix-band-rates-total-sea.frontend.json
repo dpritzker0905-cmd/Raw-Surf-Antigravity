@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 12,
+  "files": 1,
+  "branch": "fix/band-rates-total-sea",
+  "date": "2026-11-23",
+  "note": "ratingBandLegend.test.js (bug hunt D)"
+}
