@@ -9,6 +9,13 @@ SERVED_WAVE_VERIFY=1. Each mode is one workflow step; only the steps that need t
   --publish OUT             upload OUT/scores.json to the PUBLIC weather-frames bucket, verify/served-wave/v1/scores/
                             (latest.json + a dated copy); raw records are never published
   --verify                  verify_archive over every prefix under verify/point-archive/v1 (mismatch / missing / unlisted)
+
+LOCKED holdout (#1199 section 1a; amendment 2). Collection (--snapshot-truth, the sampler) keeps archiving EVERY buoy. The
+reading modes go through holdout.state(): while #1199's LOCKED list is not frozen and committed (or does not verify against
+its recorded SHA-256), --download reads nothing, --score writes a NOT_READ document and reads nothing, and --publish
+publishes nothing. Once it is READY, locked truth is never downloaded or opened, locked rows are dropped on load (and again
+inside the scorer), --publish refuses a body that names a locked id, and every printed line is redacted (this repository's
+Actions logs are PUBLIC).
 """
 from __future__ import annotations
 
@@ -26,7 +33,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.point_archive import buoys as buoylist  # noqa: E402
-from services.point_archive import core, qc  # noqa: E402
+from services.point_archive import core, holdout, qc  # noqa: E402
 from services.point_archive import served_scorer as sc  # noqa: E402
 from services.point_archive.storage import FRAMES_BUCKET, LocalStore, SupabaseStore  # noqa: E402
 from services.point_archive.writer import ArchiveWriter, archive_prefixes, read_run_rows, verify_archive  # noqa: E402
@@ -50,6 +57,16 @@ def ndbc_get(url):
         raise
 
 
+def say(text, locked=frozenset(), file=None):
+    """print, with locked ids redacted (Actions logs are public)."""
+    print(holdout.redact(str(text), locked), file=file or sys.stdout)
+
+
+def not_read_doc(doc, now, info):
+    return {"schema": sc.TABLE_SCHEMA, "scorer_version": sc.SCORER_VERSION, "asof": core.iso_z(now), "status": holdout.NOT_READ,
+            "reason": info["reason"], "buoy_list_version": doc["version"], "buoy_list_hash": buoylist.list_hash(doc)}
+
+
 def snapshot_truth(writer, doc, now, opener=ndbc_get, pause=0.3):
     out = {"written": 0, "missing": [], "failed": []}
     for s in buoylist.stations(doc):
@@ -71,7 +88,8 @@ def snapshot_truth(writer, doc, now, opener=ndbc_get, pause=0.3):
     return out
 
 
-def download(store, dest, now):
+def download(store, dest, now, locked=frozenset()):
+    """Copy the run files and the truth snapshots of every NON-locked station (a locked station's truth is never fetched)."""
     dest = Path(dest)
     cutoff = core.run_stamp(now - timedelta(days=LOOKBACK_DAYS))
     n = 0
@@ -83,21 +101,25 @@ def download(store, dest, now):
                 (dest / p).write_bytes(store.read(p))
                 n += 1
     for p in store.list(core.TRUTH_ROOT):
-        if p.endswith(".gz"):
+        if p.endswith(".gz") and not holdout.is_locked_path(p, locked):
             (dest / p).parent.mkdir(parents=True, exist_ok=True)
             (dest / p).write_bytes(store.read(p))
     return n
 
 
-def load_local(src):
-    """(records, {station: Truth}) from a downloaded folder."""
+def load_local(src, locked=frozenset()):
+    """(records, {station: Truth}) from a downloaded folder, with every LOCKED station's rows dropped and its truth files
+    left unopened."""
     src = Path(src)
     records = []
     for p in sorted(src.glob(f"{core.ROOT}/served/*/*.jsonl.gz")):
-        records += read_run_rows(p.read_bytes())          # slim or plain layout -> the full schema rows
+        records += [r for r in read_run_rows(p.read_bytes())          # slim or plain layout -> the full schema rows
+                    if str(r.get("station_id", "")).upper() not in locked]
     texts = {}
     for p in sorted(src.glob(f"{core.TRUTH_ROOT}/*/*.gz")):
         station, rest = p.name.split("_", 1)
+        if station.upper() in locked:
+            continue
         stamp, kind = rest.split(".")[0], rest.split(".")[1]
         fetched = datetime.strptime(stamp, "%Y%m%dT%H%MZ").replace(tzinfo=timezone.utc)
         texts.setdefault(station, {"txt": [], "spec": []})[kind].append((fetched, gzip.decompress(p.read_bytes()).decode("utf-8")))
@@ -115,38 +137,61 @@ def main(argv=None):
     ap.add_argument("--verify", action="store_true")
     ap.add_argument("--asof")
     ap.add_argument("--local-store", help="use this folder instead of the private bucket (offline runs)")
+    ap.add_argument("--buoy-list", help="use this buoy list file (tests)")
+    ap.add_argument("--repo-root", help="resolve the locked list's path under this folder (tests)")
     a = ap.parse_args(argv)
     if os.environ.get("SERVED_WAVE_VERIFY", "0") != "1":
         print("[swv-score] SERVED_WAVE_VERIFY is not '1': dark; nothing read, nothing written")
         return 0
     now = core.parse_time(a.asof) if a.asof else datetime.now(timezone.utc)
-    doc = buoylist.load()
+    doc = buoylist.load(a.buoy_list) if a.buoy_list else buoylist.load()
+    status, info = holdout.state(doc, a.repo_root) if a.repo_root else holdout.state(doc)
+    locked = info.get("locked", frozenset())
+    rc = 0
+    if status == holdout.NOT_READ:
+        say(f"[swv-score] holdout {holdout.NOT_READ}: {info['reason']}")
+        rc = 1 if info["error"] else 0
 
     def archive():
         return LocalStore(a.local_store) if a.local_store else SupabaseStore()
-    if a.snapshot_truth:
-        print(json.dumps(snapshot_truth(ArchiveWriter(archive()), doc, now), sort_keys=True))
+    if a.snapshot_truth:                                  # collection: every buoy is archived; the printed lists are redacted
+        say(json.dumps(snapshot_truth(ArchiveWriter(archive()), doc, now), sort_keys=True), locked)
     if a.download:
-        print(f"[swv-score] downloaded {download(archive(), a.download, now)} run files")
+        if status == holdout.READY:
+            say(f"[swv-score] downloaded {download(archive(), a.download, now, locked)} run files", locked)
+        else:
+            say("[swv-score] download skipped: collect-only (NOT_READ); no record or truth read")
     if a.score:
-        records, truth = load_local(a.score)
-        out = sc.score(records, truth, doc, now)
         Path(a.out).mkdir(parents=True, exist_ok=True)
+        if status == holdout.READY:
+            records, truth = load_local(a.score, locked)
+            out = {**sc.score(records, truth, doc, now, locked=locked, locked_sha256=info["sha256"]), "status": "scored"}
+            say(f"[swv-score] {len(records)} rows scored ({len(locked)} LOCKED buoys excluded) -> {a.out}/scores.json", locked)
+        else:
+            out = not_read_doc(doc, now, info)
+            say(f"[swv-score] {holdout.NOT_READ}: nothing scored -> {a.out}/scores.json")
         (Path(a.out) / "scores.json").write_text(core.canon(out) + "\n", encoding="utf-8", newline="\n")
-        print(f"[swv-score] {len(records)} rows scored -> {a.out}/scores.json")
     if a.publish:
         body = (Path(a.publish) / "scores.json").read_bytes()
-        pub = SupabaseStore(bucket=FRAMES_BUCKET)
-        pub.write(f"{SCORES_PREFIX}/{now.strftime('%Y-%m-%d')}.json", body, "application/json", "public, max-age=300")
-        pub.write(f"{SCORES_PREFIX}/latest.json", body, "application/json", "no-cache")
-        print(f"[swv-score] published {SCORES_PREFIX}/latest.json")
-    if a.verify:
+        text = body.decode("utf-8")
+        got = json.loads(text)
+        if status != holdout.READY or got.get("status") != "scored":
+            say(f"[swv-score] nothing published: holdout {status}, scores {got.get('status')}")
+        elif holdout.redact(text, locked) != text:
+            say("[swv-score] publish REFUSED: the score document names a LOCKED station")
+            return 1
+        else:
+            pub = SupabaseStore(bucket=FRAMES_BUCKET)
+            pub.write(f"{SCORES_PREFIX}/{now.strftime('%Y-%m-%d')}.json", body, "application/json", "public, max-age=300")
+            pub.write(f"{SCORES_PREFIX}/latest.json", body, "application/json", "no-cache")
+            say(f"[swv-score] published {SCORES_PREFIX}/latest.json")
+    if a.verify:                                          # integrity of the bytes only; problem lines are redacted
         store = archive()
         problems = [p for prefix in archive_prefixes(store) for p in verify_archive(store, prefix)]
-        print("\n".join(problems) or "[swv-score] verify_archive: clean")
+        say("\n".join(problems) or "[swv-score] verify_archive: clean", locked)
         if problems:
             return 1
-    return 0
+    return rc
 
 
 if __name__ == "__main__":

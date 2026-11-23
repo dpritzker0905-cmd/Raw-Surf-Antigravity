@@ -26,7 +26,7 @@ from datetime import timedelta
 
 from services.point_archive import core, qc
 
-SCORER_VERSION = "served-wave-scorer/1"
+SCORER_VERSION = "served-wave-scorer/2"            # 2: LOCKED holdout excluded, holdout header (amendment 2)
 TABLE_SCHEMA = "served-wave-verify-scores/1"
 MIN_N, MIN_BUOYS, MIN_RUNS = 100, 3, 10
 WINDOWS_DAYS = (30, 90)
@@ -186,14 +186,22 @@ def census(pairs):
     return [{"model": m, "frame_set": f, "tier": t, "counts": dict(sorted(c.items()))} for (m, f, t), c in sorted(out.items())]
 
 
-def score(records, truth, buoy_doc, asof, windows=WINDOWS_DAYS, min_n=MIN_N, min_buoys=MIN_BUOYS, min_runs=MIN_RUNS):
-    """The published score document for `asof` (UTC)."""
+def score(records, truth, buoy_doc, asof, windows=WINDOWS_DAYS, min_n=MIN_N, min_buoys=MIN_BUOYS, min_runs=MIN_RUNS,
+          locked=frozenset(), locked_sha256=None):
+    """The published score document for `asof` (UTC). `locked` (#1199's LOCKED ids, amendment 2): their records, truth and
+    list rows are dropped BEFORE anything is joined, so no table, census or count reads them (the CLI already filtered
+    them out on load; this is the second fence)."""
     from services.point_archive import buoys as buoylist
-    stations = {s["id"]: s for s in buoylist.stations(buoy_doc)}
+    locked = frozenset(str(i).upper() for i in locked)
+    stations = {s["id"]: s for s in buoylist.stations(buoy_doc) if s["id"].upper() not in locked}
+    records = [r for r in records if str(r.get("station_id", "")).upper() not in locked]
+    truth = {k: v for k, v in truth.items() if str(k).upper() not in locked}
     asof_t = core.parse_time(asof)
     pairs = join(records, truth, stations)
     doc = {"schema": TABLE_SCHEMA, "scorer_version": SCORER_VERSION, "asof": core.iso_z(asof_t),
            "buoy_list_version": buoy_doc["version"], "buoy_list_hash": buoylist.list_hash(buoy_doc),
+           "holdout": {"locked_list_sha256": locked_sha256, "locked_excluded": len(locked),
+                       "fit_used_in_tables": sorted({s["id"] for s in stations.values() if s.get("fit_used")}) or None},
            "lead_bins": [f"[{lo},{hi})" for lo, hi in core.LEAD_BINS],
            "minimum": {"n": min_n, "buoys": min_buoys, "runs": min_runs}, "note": INDICATIVE,
            "use": "reading, the Truth/HUD diagnostics and later gates; NEVER consensus weighting (gate section 10)",

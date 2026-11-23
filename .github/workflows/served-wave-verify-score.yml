@@ -147,6 +147,10 @@ jobs:
           GH_TOKEN: ${{ secrets.SERVED_WAVE_VERIFY_PR_TOKEN }}
         run: |
           if [ "$(date -u +%u)" != "1" ]; then echo "not Monday: no snapshot"; exit 0; fi
+          # amendment 2: only a scored document (the #1199 LOCKED list frozen, verified and excluded) is ever committed
+          if ! grep -q '"status":"scored"' "$RUNNER_TEMP/scores/scores.json"; then
+            echo "scores are not 'scored' (holdout NOT_READ: collect-only): no snapshot"; exit 0
+          fi
           d=$(date -u +%Y-%m-%d)
           dest="docs/weather-program/evidence/served-wave-verify/$d"
           mkdir -p "$dest"

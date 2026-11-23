@@ -98,3 +98,15 @@ Supersedes the "(not adopted)" line of the entry above.
 - Measured with the real packer on the same synthetic rows: one run of GFS + ICON + EURO = 1.41 MB (plain 3.31 MB)
   → ~0.127 GB/month, ~4.5 GB over 36 months; the first-week pause is now 2 × 0.125 = 0.25 GB/month.
 - Tests 56 → 58; estate floor fragment +58.
+
+## 2026-11-23: amendment 2, the #1199 LOCKED holdout (follow-up PR, branch claude/served-wave-verify-holdout)
+- Director relayed the advisor's #1199 limit 1. The public score tables pooled ALL buoys daily, which would read #1199's LOCKED 20 % every day and void the holdout. That must be fixed before `SERVED_WAVE_VERIFY` is set.
+- Built (amendment 2): `point_archive/holdout.py`, with `state()` as the only gate.
+  - NOT_READ while the list's `holdout.locked_list` is null, and also when the named list is missing, fails its SHA-256, or disagrees with the `locked` tags (exit 1). NOT_READ means collect-only: no download, a NOT_READ document, nothing published.
+  - Once READY: locked truth is never downloaded or opened, locked rows are dropped on load and again in `served_scorer.score`, `--publish` refuses a body naming a locked id, and every printed line is redacted. The snapshot PR commits only a `scored` document.
+- Buoy list version 2: `fit_used` / `fit_used_by` / `locked`, plus a `holdout` block. It equals the v1 freeze plus the committed census, under the new `--tag` mode. `list_hash` leaves out the freeze-filled fields, so #1199's freeze makes no new version. Hash `656a7a27…`.
+- Census: 26 / 100 buoys are fit_used. wave_emos_l1 has 17 listed; skill_ledger_fits has 10 of the 60 mapped buoys (one SELECT on `surf_spots.noaa_buoy_id`). OPEN: the wind / gust EMOS station set in the private bucket, whose read was denied in this session.
+- Tests: `test_served_wave_holdout.py`, 14 tests, including the pin that a locked id never appears in the scored document, stdout, downloads or verify lines. The locked-excluded scores equal scoring with the buoy absent; the control is that the buoy does move the tables when it is read.
+  - Mutation-checked, each going red: scorer fence off, download fence off, redact made a no-op, SHA check off, NOT_READ download allowed.
+  - The suite ran twice, 72 passed both times.
+- Slip: one mutation command contained a bare `python -` (house rule). It hung, was stopped with TaskStop, and the files were restored from backups and re-checked.
