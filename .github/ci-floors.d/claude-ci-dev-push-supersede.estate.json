@@ -3,5 +3,5 @@
   "tests": 17,
   "branch": "claude/ci-dev-push-supersede",
   "date": "2026-11-23",
-  "note": ""
+  "note": "test_ci_push_concurrency.py: 17 tests evaluate the dev-push concurrency group in ci.yml, encoding-check, loc-check and weather-program-ledger (4 workflows x 4 cases + 1 known-bad control)"
 }

@@ -1619,3 +1619,16 @@ A stored estimate can be estimated again in a browser branch with different sour
 - **Rule:**
   - Before reporting a physics inconsistency, read the constant's entry in `science_registry.py` and search LESSONS.
   - A repro with identical inputs cannot test an effect that lives in the inputs.
+
+### 2026-11-23 — L-P49 · Dev CI is "latest wins": a red dev run can span several merges (#1244)
+- **What changed:** pushes to dev share one concurrency group per workflow (`<workflow>-push-dev`, cancel-in-progress
+  false). GitHub keeps the running run and only the NEWEST pending one, so the merges in between get no dev run of
+  their own (their pending run is cancelled). Before this, 15 full dev runs queued on 2026-11-23 and starved the PRs.
+- **Rule:**
+  - When a dev run goes red, the breaker can be ANY merge since the last green dev run, not just the run's head.
+    Find it with `git bisect` over `<last green sha>..<red sha>` (each merge passed its own PR CI against its base,
+    so look first at merges whose PRs ran against an older base), or open a PR off the suspect parent to re-run CI.
+  - Promote to main ONLY a dev SHA that has a green CI run of its own: the newest green dev run's `headSha`, not the
+    dev tip. Read it with `gh run list --workflow=ci.yml --branch=dev --event=push --status=success --limit 1`.
+  - Do not "fix" the cancelled runs by setting cancel-in-progress true for dev: merges land every few minutes against
+    a ~25 min run, so dev would never finish a green run and the floor readers (staleness, catch-up) would starve.
