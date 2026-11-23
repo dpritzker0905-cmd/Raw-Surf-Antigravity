@@ -197,6 +197,47 @@ function Coverage({ cov }) {
   );
 }
 
+// The research lead's alert and proposal shapes (gates/self-improving-loop-v1.md sections 3 and 11). Rules: n of 0 or
+// missing reads "not measured" (never 0, never green); a station id is NEVER shown, only how many (a LOCKED id must
+// not leak); state is always in words.
+export function nText(n) {
+  return typeof n === 'number' && n > 0 ? `n = ${n}` : 'not measured';
+}
+
+function Link({ href, children, label }) {
+  if (!href) return <>{children}</>;
+  return (
+    <a href={href} target="_blank" rel="noreferrer" aria-label={label} className="underline underline-offset-2">
+      {children}<ExternalLink className="ml-1 inline h-3 w-3" aria-hidden="true" />
+    </a>
+  );
+}
+
+export function AlertItem({ a }) {
+  const where = [a.surface, a.region].filter(Boolean).join(', ');
+  const stations = Array.isArray(a.stations) && a.stations.length ? `; ${a.stations.length} buoys` : '';
+  const budget = a.budget_week ? `; false-issue budget ${a.budget_week.used} of ${a.budget_week.allotted} this week` : '';
+  const text = `${a.severity === 'issue' ? 'Issue' : 'Warning'} (${a.state || 'open'}): ${a.rule}${where ? ` on ${where}` : ''}`
+    + `; ${nText(a.n)}${a.window ? ` over ${a.window}` : ''}${stations}`
+    + `${a.state === 'suppressed' && a.suppressed_until ? `; suppressed until ${when(a.suppressed_until)}` : ''}${budget}`;
+  return (
+    <span className="break-words text-foreground">
+      <Link href={a.evidence_url} label={`${text} (opens the GitHub issue)`}>{text}</Link>
+      {a.opened_at ? <span className="text-muted-foreground"> · opened {when(a.opened_at)}</span> : null}
+    </span>
+  );
+}
+
+export function ProposalItem({ p }) {
+  const text = `${p.flag || p.id}: ${p.status}${p.surface ? ` (${p.surface})` : ''}${p.gate ? `, gate ${p.gate}` : ''}`
+    + `${p.harm_warning ? ', HARM WARNING' : ''}${p.decision_at ? `, decision ${when(p.decision_at)}` : ''}`;
+  return (
+    <span className="break-words text-foreground">
+      <Link href={p.evidence_url} label={`${text} (opens the evidence)`}>{text}</Link>
+    </span>
+  );
+}
+
 export default function VerificationPanel({ refreshKey = 0 }) {
   const [state, setState] = useState({ loading: true, data: null, error: '' });
   const load = useCallback(async () => {
@@ -271,13 +312,20 @@ export default function VerificationPanel({ refreshKey = 0 }) {
             </Section>
             <Section title="Drift alerts">
               {data.alerts?.length ? (
-                <ul className="space-y-1 text-xs">
-                  {data.alerts.map((a, i) => (
-                    <li key={a.id || i} className="break-words text-foreground">{a.rule || a.id}: {a.scope || ''} {a.severity ? `(${a.severity})` : ''}</li>
-                  ))}
+                <ul className="space-y-1 text-xs" aria-label="Drift alerts">
+                  {data.alerts.map((a, i) => <li key={a.id || i}><AlertItem a={a} /></li>)}
                 </ul>
               ) : (
                 <p className="text-xs text-muted-foreground">No drift alerts are produced yet; the research lead&apos;s per-buoy and per-region rules will list here.</p>
+              )}
+            </Section>
+            <Section title="Challenger proposals">
+              {data.proposals?.length ? (
+                <ul className="space-y-1 text-xs" aria-label="Challenger proposals">
+                  {data.proposals.map((p, i) => <li key={p.id || i}><ProposalItem p={p} /></li>)}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground">No challenger-versus-champion proposals yet; none is written until that job exists.</p>
               )}
             </Section>
           </>

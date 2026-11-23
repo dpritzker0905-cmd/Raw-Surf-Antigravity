@@ -152,6 +152,7 @@ def test_verification_view_carries_the_snapshot_and_guardrail_coverage():
     view._reset_for_tests(lambda key: _snap())
     out = view.verification_view()
     assert out["verification"]["skill_pending"]["entries"] == 61093
+    assert out["alerts"] == [] and out["proposals"] == []          # reserved for the research lead's loop
     cov = out["coverage"]
     assert cov["guarded"] == len(rf.GUARDED)
     assert sum(len(v) for v in cov["by_class"].values()) == len(rf.GUARDED)

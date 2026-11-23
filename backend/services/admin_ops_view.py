@@ -110,5 +110,6 @@ def verification_view() -> dict:
             "generated_at": doc.get("generated_at"), "bucket_read_at": doc.get("bucket_read_at"),
             "commit": doc.get("commit"), "run_url": doc.get("run_url"),
             "verification": doc.get("verification") or {}, "alerts": doc.get("alerts") or [],
+            "proposals": doc.get("proposals") or [],
             "coverage": coverage_report(cov) if cov else {"error": "guardrail coverage unavailable on this server"},
             "workflow": WORKFLOW}

@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 7,
+  "tests": 8,
   "files": 2,
   "branch": "claude/admin-truth-switches-verification",
   "date": "2026-11-23",
-  "note": "SwitchBoard (3), VerificationPanel (3), panel switch-board case (1)"
+  "note": "SwitchBoard (3), VerificationPanel (4), panel switch-board case (1)"
 }

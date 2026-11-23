@@ -12,7 +12,11 @@ lists buckets, downloads the 8 MB skill queue or shells out to `memory_audit.py`
   workflows       the last runs of the verification workflows (tide gates, scorers, collectors), via `gh run list`
                   with the job's own read-only GITHUB_TOKEN. A tide gate's verdict is in its run artifact; the run's
                   conclusion and link are what the admin shows.
-  alerts          [] - reserved for the research lead's drift alerts (D-072 follow-up); nothing writes it yet.
+  alerts          [] - reserved for the research lead's drift alerts (gates/self-improving-loop-v1.md sections 3 and 11:
+                  {id, rule, surface, region, severity, state, opened_at, suppressed_until, evidence_url, stations,
+                  n, window, budget_week}); nothing writes it yet.
+  proposals       [] - reserved for challenger-vs-champion proposals ({id, flag, fix_version, commit, surface, gate,
+                  status, decision_at, evidence_url, harm_warning}); nothing writes it yet.
 
 The bucket half (`admin_ops_bucket_io.py`, standard library only, the one step holding the storage secret by name)
 adds the queue fill and record counts, then uploads to `admin/ops-snapshot.json`.
@@ -161,7 +165,7 @@ def build(vars_json, with_runs: bool = True) -> dict:
                              "memory_audit": memory_audit(), "served_wave": served_wave(),
                              "skill_pending": {"cap": pending_cap()},
                              "workflows": workflow_runs() if with_runs else []},
-            "alerts": []}
+            "alerts": [], "proposals": []}
 
 
 def main(argv=None) -> int:

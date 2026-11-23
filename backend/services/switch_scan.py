@@ -219,8 +219,8 @@ def build_registry(repo_root: str, guarded: Optional[Dict[str, str]] = None,
         if n in registered:
             defaults.add(str(registered[n]))
         ls = [x for x in lanes.get(n, []) if not (x["form"] in ("var", "gate") and is_secret_name(x["var"]))]
-        rv = sorted({x["var"] for x in ls if x["form"] in ("var", "gate")} | {v for x in ls if x["form"] == "expr"
-                                                                   for v in x["vars"]})
+        rv = sorted({x["var"] for x in ls if x["form"] in ("var", "gate")}
+                    | {v for x in ls if x["form"] == "expr" for v in x["vars"]})
         hint = "switch" if "switch" in rec.get("hints", ()) else None
         reg[n] = {"kind": kind_of(defaults, any(x["form"] == "gate" for x in ls)) or hint or "setting",
                   "defaults": sorted(d for d in (safe_value(x) for x in defaults) if d is not None),

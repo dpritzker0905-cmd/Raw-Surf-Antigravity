@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import apiClient from '../../lib/apiClient';
-import VerificationPanel, { queueText } from './VerificationPanel';
+import VerificationPanel, { queueText, nText } from './VerificationPanel';
 
 jest.mock('../../lib/apiClient', () => ({ __esModule: true, default: { get: jest.fn() } }));
 
@@ -67,4 +67,22 @@ test('an absent snapshot and a failed load are both said plainly', async () => {
   apiClient.get.mockRejectedValueOnce(new Error('500'));
   render(<VerificationPanel />);
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not load the verification view.');
+});
+
+test('drift alerts and proposals in the research lead shape: n 0 is "not measured", station ids never shown', async () => {
+  expect(nText(0)).toBe('not measured');
+  expect(nText(undefined)).toBe('not measured');
+  expect(nText(12)).toBe('n = 12');
+  const alert = { id: 'drift:per_buoy:hs_served:pnw:2026-11-30', rule: 'per_buoy', surface: 'hs_served', region: 'pnw',
+    severity: 'issue', state: 'open', opened_at: '2026-11-30T00:00:00Z', evidence_url: 'https://github.com/x/issues/1',
+    stations: ['46267', '46041'], n: 0, window: '2026-11-23..2026-11-30', budget_week: { used: 0.5, allotted: 1 } };
+  const proposal = { id: 'p1', flag: 'SURF_X', status: 'proposal', surface: 'hs_served', gate: 'g1', harm_warning: true,
+    evidence_url: 'https://github.com/x/pull/2' };
+  apiClient.get.mockResolvedValueOnce({ data: { ...DATA, alerts: [alert], proposals: [proposal] } });
+  render(<VerificationPanel />);
+  const link = await screen.findByRole('link', { name: /Issue \(open\): per_buoy on hs_served, pnw; not measured/ });
+  expect(link).toHaveAttribute('href', 'https://github.com/x/issues/1');
+  expect(link).toHaveTextContent('2 buoys');
+  expect(screen.queryByText(/46267/)).toBeNull();
+  expect(screen.getByRole('link', { name: /SURF_X: proposal \(hs_served\), gate g1, HARM WARNING/ })).toBeInTheDocument();
 });
