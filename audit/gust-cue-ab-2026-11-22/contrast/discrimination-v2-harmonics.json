@@ -1,0 +1,524 @@
+{
+ "desktop-dark": {
+  "reduced_motion": true,
+  "threshold": [
+   0.03310279254965556,
+   0.031709334457688775,
+   0.032435471030478766,
+   0.03913006692467993,
+   0.03522667966662754,
+   0.04200628530364258
+  ],
+  "bands": [
+   {
+    "gw": 1,
+    "expect": "steady",
+    "n": 180,
+    "accuracy": 0.9944444444444445,
+    "travel_dir_none_deg": 26.358505254203628,
+    "travel_dir_hatch_deg": 25.30325322619744,
+    "travel_dir_diff_deg": 1.055252028006187,
+    "counts": {
+     "steady": 179,
+     "gusty": 1,
+     "very gusty": 0
+    },
+    "dir_none_deg": 14.620898675718074,
+    "dir_hatch_deg": 12.845055023357688,
+    "dir_diff_deg": 1.7758436523603862,
+    "mark_contrast_ratio": 0.989406175129649
+   },
+   {
+    "gw": 1.3,
+    "expect": "steady",
+    "n": 180,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 21.67628865897676,
+    "travel_dir_hatch_deg": 21.27335095057211,
+    "travel_dir_diff_deg": 0.40293770840465015,
+    "counts": {
+     "steady": 180,
+     "gusty": 0,
+     "very gusty": 0
+    },
+    "dir_none_deg": 10.028635191372345,
+    "dir_hatch_deg": 10.686912548061159,
+    "dir_diff_deg": 0.6582773566888136,
+    "mark_contrast_ratio": 1.017956997229024
+   },
+   {
+    "gw": 1.6,
+    "expect": "gusty",
+    "n": 180,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 12.333513670659244,
+    "travel_dir_hatch_deg": 16.66609568659615,
+    "travel_dir_diff_deg": 4.332582015936907,
+    "counts": {
+     "steady": 0,
+     "gusty": 180,
+     "very gusty": 0
+    },
+    "dir_none_deg": 8.449231915638748,
+    "dir_hatch_deg": 8.80150387766139,
+    "dir_diff_deg": 0.3522719620226411,
+    "mark_contrast_ratio": 1.0425002696900822
+   },
+   {
+    "gw": 2.2,
+    "expect": "very gusty",
+    "n": 180,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 4.1389289831971325,
+    "travel_dir_hatch_deg": 5.324478363031034,
+    "travel_dir_diff_deg": 1.1855493798339012,
+    "counts": {
+     "steady": 0,
+     "gusty": 0,
+     "very gusty": 180
+    },
+    "dir_none_deg": 6.15337493663197,
+    "dir_hatch_deg": 4.766009678532093,
+    "dir_diff_deg": 1.3873652580998765,
+    "mark_contrast_ratio": 1.0634953636360769
+   }
+  ],
+  "gusty_accuracy": 1.0,
+  "steady_false_rate": 0.002777777777777768
+ },
+ "desktop-light": {
+  "reduced_motion": true,
+  "threshold": [
+   0.008238816623147278,
+   0.007191957885408228,
+   0.005935406156281514,
+   0.010476588287785396,
+   0.006797749622417996,
+   0.0061952868920928435
+  ],
+  "bands": [
+   {
+    "gw": 1,
+    "expect": "steady",
+    "n": 180,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 24.331375557710473,
+    "travel_dir_hatch_deg": 24.50309645885163,
+    "travel_dir_diff_deg": 0.1717209011411569,
+    "counts": {
+     "steady": 180,
+     "gusty": 0,
+     "very gusty": 0
+    },
+    "dir_none_deg": 8.708297177726251,
+    "dir_hatch_deg": 11.84407249947602,
+    "dir_diff_deg": 3.135775321749769,
+    "mark_contrast_ratio": 0.9942562135579672
+   },
+   {
+    "gw": 1.3,
+    "expect": "steady",
+    "n": 180,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 19.805500997145188,
+    "travel_dir_hatch_deg": 19.456744406932614,
+    "travel_dir_diff_deg": 0.34875659021257377,
+    "counts": {
+     "steady": 180,
+     "gusty": 0,
+     "very gusty": 0
+    },
+    "dir_none_deg": 13.611551306638368,
+    "dir_hatch_deg": 8.691471108273511,
+    "dir_diff_deg": 4.920080198364857,
+    "mark_contrast_ratio": 0.9893448347633264
+   },
+   {
+    "gw": 1.6,
+    "expect": "gusty",
+    "n": 180,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 10.117697602801016,
+    "travel_dir_hatch_deg": 13.371797538963278,
+    "travel_dir_diff_deg": 3.2540999361622625,
+    "counts": {
+     "steady": 0,
+     "gusty": 180,
+     "very gusty": 0
+    },
+    "dir_none_deg": 91.10568087059616,
+    "dir_hatch_deg": 13.156628963487258,
+    "dir_diff_deg": 77.9490519071089,
+    "mark_contrast_ratio": 0.9893362780602019
+   },
+   {
+    "gw": 2.2,
+    "expect": "very gusty",
+    "n": 180,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 6.928264241640875,
+    "travel_dir_hatch_deg": 7.894657302881484,
+    "travel_dir_diff_deg": 0.9663930612406091,
+    "counts": {
+     "steady": 0,
+     "gusty": 0,
+     "very gusty": 180
+    },
+    "dir_none_deg": 3.441497816009381,
+    "dir_hatch_deg": 6.4028075970307725,
+    "dir_diff_deg": 2.9613097810213915,
+    "mark_contrast_ratio": 0.9498391310516423
+   }
+  ],
+  "gusty_accuracy": 1.0,
+  "steady_false_rate": 0.0
+ },
+ "desktop-beach": {
+  "reduced_motion": true,
+  "threshold": [
+   0.011392187262521968,
+   0.008417585872996567,
+   0.008512250628224208,
+   0.011937102850731482,
+   0.01142281942798123,
+   0.007557066871868972
+  ],
+  "bands": [
+   {
+    "gw": 1,
+    "expect": "steady",
+    "n": 180,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 22.025002634546453,
+    "travel_dir_hatch_deg": 22.761484321674303,
+    "travel_dir_diff_deg": 0.7364816871278492,
+    "counts": {
+     "steady": 180,
+     "gusty": 0,
+     "very gusty": 0
+    },
+    "dir_none_deg": 10.25254230146303,
+    "dir_hatch_deg": 8.803519283174985,
+    "dir_diff_deg": 1.4490230182880453,
+    "mark_contrast_ratio": 1.0019513019687587
+   },
+   {
+    "gw": 1.3,
+    "expect": "steady",
+    "n": 180,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 17.683770978640467,
+    "travel_dir_hatch_deg": 19.067677471760078,
+    "travel_dir_diff_deg": 1.3839064931196106,
+    "counts": {
+     "steady": 180,
+     "gusty": 0,
+     "very gusty": 0
+    },
+    "dir_none_deg": 5.041202588942305,
+    "dir_hatch_deg": 14.4455619927055,
+    "dir_diff_deg": 9.404359403763195,
+    "mark_contrast_ratio": 1.007258083766123
+   },
+   {
+    "gw": 1.6,
+    "expect": "gusty",
+    "n": 180,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 11.265235565675226,
+    "travel_dir_hatch_deg": 14.164043026997462,
+    "travel_dir_diff_deg": 2.898807461322235,
+    "counts": {
+     "steady": 0,
+     "gusty": 180,
+     "very gusty": 0
+    },
+    "dir_none_deg": 9.53986303970143,
+    "dir_hatch_deg": 10.393332429679134,
+    "dir_diff_deg": 0.8534693899777039,
+    "mark_contrast_ratio": 0.9912872763912858
+   },
+   {
+    "gw": 2.2,
+    "expect": "very gusty",
+    "n": 180,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 7.2626064385891596,
+    "travel_dir_hatch_deg": 6.196974971588887,
+    "travel_dir_diff_deg": 1.065631467000273,
+    "counts": {
+     "steady": 0,
+     "gusty": 0,
+     "very gusty": 180
+    },
+    "dir_none_deg": 9.977776206658206,
+    "dir_hatch_deg": 173.8828334502758,
+    "dir_diff_deg": 16.09494275638241,
+    "mark_contrast_ratio": 0.977192063941057
+   }
+  ],
+  "gusty_accuracy": 1.0,
+  "steady_false_rate": 0.0
+ },
+ "phone-dark": {
+  "reduced_motion": true,
+  "threshold": [
+   0.022323774118218544,
+   0.02368828182974354,
+   0.022464237434885057,
+   0.022516950400419972,
+   0.024451297686088294,
+   0.02388039048814922
+  ],
+  "bands": [
+   {
+    "gw": 1,
+    "expect": "steady",
+    "n": 30,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 17.37913552651348,
+    "travel_dir_hatch_deg": 15.885149417087021,
+    "travel_dir_diff_deg": 1.4939861094264586,
+    "counts": {
+     "steady": 30,
+     "gusty": 0,
+     "very gusty": 0
+    },
+    "dir_none_deg": 20.668507749104123,
+    "dir_hatch_deg": 18.88227808474236,
+    "dir_diff_deg": 1.7862296643617626,
+    "mark_contrast_ratio": 0.9963939219400209
+   },
+   {
+    "gw": 1.3,
+    "expect": "steady",
+    "n": 30,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 13.577880072968611,
+    "travel_dir_hatch_deg": 13.930790390420285,
+    "travel_dir_diff_deg": 0.35291031745167345,
+    "counts": {
+     "steady": 30,
+     "gusty": 0,
+     "very gusty": 0
+    },
+    "dir_none_deg": 19.108013365871777,
+    "dir_hatch_deg": 19.51191491131093,
+    "dir_diff_deg": 0.4039015454391546,
+    "mark_contrast_ratio": 0.9946105271847547
+   },
+   {
+    "gw": 1.6,
+    "expect": "gusty",
+    "n": 30,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 11.8822564181378,
+    "travel_dir_hatch_deg": 12.472596683445701,
+    "travel_dir_diff_deg": 0.5903402653079013,
+    "counts": {
+     "steady": 0,
+     "gusty": 30,
+     "very gusty": 0
+    },
+    "dir_none_deg": 16.53084290120259,
+    "dir_hatch_deg": 16.1249199386964,
+    "dir_diff_deg": 0.40592296250618887,
+    "mark_contrast_ratio": 1.0283540568536689
+   },
+   {
+    "gw": 2.2,
+    "expect": "very gusty",
+    "n": 30,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 10.373018943591163,
+    "travel_dir_hatch_deg": 10.020723103710992,
+    "travel_dir_diff_deg": 0.35229583988017055,
+    "counts": {
+     "steady": 0,
+     "gusty": 0,
+     "very gusty": 30
+    },
+    "dir_none_deg": 15.944637597800345,
+    "dir_hatch_deg": 15.096838371957354,
+    "dir_diff_deg": 0.8477992258429907,
+    "mark_contrast_ratio": 1.0215758994250257
+   }
+  ],
+  "gusty_accuracy": 1.0,
+  "steady_false_rate": 0.0
+ },
+ "phone-light": {
+  "reduced_motion": true,
+  "threshold": [
+   0.008826323763150828,
+   0.0063935040483016955,
+   0.0062157311627540545,
+   0.007903911233470385,
+   0.007441479122703636,
+   0.007501875894080249
+  ],
+  "bands": [
+   {
+    "gw": 1,
+    "expect": "steady",
+    "n": 30,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 14.460914799342078,
+    "travel_dir_hatch_deg": 13.034627247942524,
+    "travel_dir_diff_deg": 1.4262875513995539,
+    "counts": {
+     "steady": 30,
+     "gusty": 0,
+     "very gusty": 0
+    },
+    "dir_none_deg": 19.50340813588624,
+    "dir_hatch_deg": 19.126107104678404,
+    "dir_diff_deg": 0.37730103120783554,
+    "mark_contrast_ratio": 0.9761584040596911
+   },
+   {
+    "gw": 1.3,
+    "expect": "steady",
+    "n": 30,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 11.639829571966331,
+    "travel_dir_hatch_deg": 11.034148487671885,
+    "travel_dir_diff_deg": 0.6056810842944458,
+    "counts": {
+     "steady": 30,
+     "gusty": 0,
+     "very gusty": 0
+    },
+    "dir_none_deg": 17.495237096433137,
+    "dir_hatch_deg": 17.305999601511303,
+    "dir_diff_deg": 0.18923749492183362,
+    "mark_contrast_ratio": 1.0051526168635414
+   },
+   {
+    "gw": 1.6,
+    "expect": "gusty",
+    "n": 30,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 10.197897826730994,
+    "travel_dir_hatch_deg": 10.520156763096892,
+    "travel_dir_diff_deg": 0.3222589363658983,
+    "counts": {
+     "steady": 0,
+     "gusty": 30,
+     "very gusty": 0
+    },
+    "dir_none_deg": 15.91309188371195,
+    "dir_hatch_deg": 15.066588547881246,
+    "dir_diff_deg": 0.8465033358307039,
+    "mark_contrast_ratio": 1.0047748030977381
+   },
+   {
+    "gw": 2.2,
+    "expect": "very gusty",
+    "n": 30,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 8.397560826220172,
+    "travel_dir_hatch_deg": 7.41669886165522,
+    "travel_dir_diff_deg": 0.9808619645649514,
+    "counts": {
+     "steady": 0,
+     "gusty": 0,
+     "very gusty": 30
+    },
+    "dir_none_deg": 13.260001153732794,
+    "dir_hatch_deg": 13.717765370525875,
+    "dir_diff_deg": 0.45776421679308044,
+    "mark_contrast_ratio": 0.9719033557722501
+   }
+  ],
+  "gusty_accuracy": 1.0,
+  "steady_false_rate": 0.0
+ },
+ "phone-beach": {
+  "reduced_motion": true,
+  "threshold": [
+   0.012851200778187587,
+   0.010553031477188349,
+   0.009925820816677002,
+   0.010521962076740946,
+   0.011477168912530807,
+   0.009042738243281213
+  ],
+  "bands": [
+   {
+    "gw": 1,
+    "expect": "steady",
+    "n": 30,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 12.850499589505162,
+    "travel_dir_hatch_deg": 13.159612773760486,
+    "travel_dir_diff_deg": 0.30911318425532386,
+    "counts": {
+     "steady": 30,
+     "gusty": 0,
+     "very gusty": 0
+    },
+    "dir_none_deg": 18.19376729313337,
+    "dir_hatch_deg": 18.794866668991403,
+    "dir_diff_deg": 0.6010993758580341,
+    "mark_contrast_ratio": 1.0143915928935783
+   },
+   {
+    "gw": 1.3,
+    "expect": "steady",
+    "n": 30,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 11.568290987731999,
+    "travel_dir_hatch_deg": 11.511669433005665,
+    "travel_dir_diff_deg": 0.05662155472633401,
+    "counts": {
+     "steady": 30,
+     "gusty": 0,
+     "very gusty": 0
+    },
+    "dir_none_deg": 17.249735207984898,
+    "dir_hatch_deg": 16.694867660297405,
+    "dir_diff_deg": 0.5548675476874934,
+    "mark_contrast_ratio": 1.0224996471579657
+   },
+   {
+    "gw": 1.6,
+    "expect": "gusty",
+    "n": 30,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 9.634725835467137,
+    "travel_dir_hatch_deg": 10.794461031836377,
+    "travel_dir_diff_deg": 1.1597351963692404,
+    "counts": {
+     "steady": 0,
+     "gusty": 30,
+     "very gusty": 0
+    },
+    "dir_none_deg": 15.830561730250828,
+    "dir_hatch_deg": 17.029032516342156,
+    "dir_diff_deg": 1.1984707860913275,
+    "mark_contrast_ratio": 0.990683504954265
+   },
+   {
+    "gw": 2.2,
+    "expect": "very gusty",
+    "n": 30,
+    "accuracy": 1.0,
+    "travel_dir_none_deg": 6.812380427444921,
+    "travel_dir_hatch_deg": 7.8193951578002725,
+    "travel_dir_diff_deg": 1.0070147303553512,
+    "counts": {
+     "steady": 0,
+     "gusty": 0,
+     "very gusty": 30
+    },
+    "dir_none_deg": 12.355198720110444,
+    "dir_hatch_deg": 11.983675974898254,
+    "dir_diff_deg": 0.3715227452121894,
+    "mark_contrast_ratio": 0.9651243393178823
+   }
+  ],
+  "gusty_accuracy": 1.0,
+  "steady_false_rate": 0.0
+ }
+}
