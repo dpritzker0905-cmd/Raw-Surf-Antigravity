@@ -217,3 +217,8 @@ David released the Codex-reserved files (MapWeatherControls.js, usePointTide.js;
   `-light-wheel.png`, `-dark.png`, `-dark-wheel.png`, `-beach.png`, `-beach-wheel.png`; measurements in
   `tide-credit-375.json`.
 - **Tests:** Jest 195 pass (10 suites); check_eslint passes.
+
+
+## 2026-11-23 01:24Z: the six screenshots moved out of docs/weather-program
+`memory_audit.py` reads every file under docs/weather-program as UTF-8, and the PNGs crashed it (UnicodeDecodeError on 0x89; the merge clerk). The screenshots now live in `audit/tide-overlay-credit-375/` (same file names). The measurements stay in `docs/weather-program/evidence/tide-overlay-credit-375/tide-credit-375.json`. This corrects the paths in the entry above.
+
