@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 9,
+  "files": 1,
+  "branch": "claude/tide-window-fix",
+  "date": "2026-11-23",
+  "note": "test_tide_window.py (SURF_TIDE_WINDOW_FIX)"
+}

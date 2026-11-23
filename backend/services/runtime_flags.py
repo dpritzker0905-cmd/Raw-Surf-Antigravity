@@ -64,6 +64,9 @@ GUARDED = {
                                         # unavailable), never Open-Meteo. Moves tide_fit and the SURF_TIDE_DEPTH cap
     "SURF_TIDE_CMEMS": "0",             # held OFF: the CMEMS sea level read directly, where the table has it. ON only after
                                         # the r2 parity run is read and passing AND the builder refuses a low fill count
+    "SURF_TIDE_WINDOW_FIX": "0",        # DARK (director 2026-11-23; ON needs the owner's word): the tide no longer freezes
+                                        # past ~72 h (window covers the valid time; >1.5 h from a sample = no tide, not stale).
+                                        # Moves tide_fit and the SURF_TIDE_DEPTH cap past day 3. tests/test_tide_window.py
     "RATING_REF_PRIOR": "0",            # JAC-2 (#771): held OFF: -17.9 pt mean rating move on reference-less
                                         # spot-hours (480/480 moved, 414 level changes), no rating truth yet
     "FRAME_ENTITLEMENT": "0",           # O6 accounts only: EVERY static frame private + signed URLs. Held OFF: needs the
