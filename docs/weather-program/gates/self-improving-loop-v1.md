@@ -361,12 +361,15 @@ Full note: `ADVISOR-MERGE-GATE.md` in the shared notes.
   - A failed check raises z0 (to the 5e-4 quantile) or h (ARL0 1,000), by amendment, and the rule stays WARN-only.
 - **Live:** the monthly achieved-rate report and the pause rule (section 3: a rule over twice its budget for 30 days goes WARN-only) are the long-run guard, and they accumulate the evidence the baseline cannot give.
 
-**The fence is #1234's, not a second design.** Section 12.1 item 3 and section 12.3 now mean #1234's fence:
+**The fence is #1234's, not a second design.** This REPLACES section 12.1 item 3's "no NDBC host outside the fence module; move the readers" model. #1234 instead lets each reader module (54 today) hold its own fetch and CALL the fence. Section 12.1 item 3 and section 12.3 now mean #1234's fence, adopted by name:
 - `services/buoy_holdout.py` (`is_locked`, `drop` for stored rows, `allow_url` for fetches, `redact`);
 - the AST guard `tests/test_buoy_holdout_guard.py`. It scans every backend `.py` file (scripts included) and every workflow, with listed, live-checked exemptions.
 - Every loop reader must call that module. The loop adds no fence of its own.
 - **Gaps, as follow-ups on #1234's fence, not here:**
-  1. the 25 km LOCKED-ADJACENT rule (#1234 has no radius);
-  2. the rule that no session reads a LOCKED id through the ndbc or ww3 MCP tools or public pages (a human and tool rule; it goes into LESSONS and the session brief);
-  3. recording each fitted product's training-station list.
+  1. **ERDDAP NDBC patterns:** the guard's URL patterns must also match the NDBC datasets served through ERDDAP, not only `ndbc.noaa.gov` paths.
+  2. **Per-call-site checking:** the guard passes a module that calls the fence ANYWHERE. It should check that each buoy-truth fetch or stored-row read site is itself fenced.
+  3. **The 25 km LOCKED-ADJACENT rule:** it exists nowhere yet. #1234 has no radius, and this design only states the rule.
+  4. **No session reads of LOCKED ids** through the ndbc or ww3 MCP tools or public pages. This is a human and tool rule; it goes into LESSONS and the session brief.
+  5. **Training-station lists:** each fitted product records the stations it was trained on.
+- The loop does not ship until gaps 1 to 3 are closed on #1234's fence or a follow-up to it.
 
