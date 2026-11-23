@@ -37,6 +37,17 @@
 - The pier anemometer's height and exposure were not checked. Pier winds can be sheltered or channelled.
 - **No served wind was read.** This does not show our rating is wrong at La Jolla. It shows the truth we would need to score against moves on a scale the offshore buoys, and D-071's buoy grade, cannot see.
 
+- **Prior evidence in this program (L6 lane, 2026-11-02; memory `research-wind-tide-nearshore-verification-2026-11-02`, missed by the first draft of this note and added 2026-11-22):**
+  - **Setup:** 14 US coastal spots, 2026-10-19 to 11-02. Past-day forecasts were read through Open-Meteo (research only, never user data). The same GFS-Wave marine fed every arm, through the real chain offline.
+  - **Rating sensitivity to the wind source:** swapping GFS for HRRR moved the rating by 4.6 points [3.7, 5.6], and the level changed in 28.7 % of spot-hours.
+  - **Against 7 anemometers:** piers DUKN7 / TRDF1 / LJPC1 / JMPN7, harbour GTOT2, and buoys 46026 / 46012, log-adjusted; n = 2,469, with a cluster bootstrap over 105 spot-days.
+    - HRRR beat served GFS by **1.17 rating points [0.57, 1.82]** and cut level misses by 5.6 pp [2.2, 9.2].
+    - ICON was worse by 2.2 points and ECMWF by 4.7.
+    - **Piers only (60 spot-days):** HRRR +0.67 [0.13, 1.25], with the miss reduction not significant.
+  - **Speed slope (model / observed):** GFS 0.76, HRRR 0.77, ICON 0.55, ECMWF 0.51.
+  - **L6's ranked dark build #1** was "HRRR in CONUS as the rating wind for /point + precompute". Reflection called the gain modest.
+  - **What it means here:** the direction (HRRR > GFS at the coast) was measured once already, at a small size, scored on rating points rather than classes, with Open-Meteo-sourced forecasts and in autumn. The gate below is the registered, larger, class-scored test of it. L6's period precedes any collection window and is not scored.
+
 ## 3. What the literature says (read at abstract level through Consensus unless marked)
 
 - **The sea breeze needs convection-permitting resolution.** Kilometre-scale ensembles discriminate sea-breeze events from non-events significantly better, at all lead times, than a statistical forecast built from the global ensemble's large-scale parameters (Cafaro et al. 2019, MOGREPS) [1]. ERA5-class models reproduce only the dominant sea breeze and miss the local circulations that 2.8 km runs capture (Latt et al. 2022) [2]. Automatic detection is still hard, even in 2.2 km output (Brown et al. 2026) [3].
