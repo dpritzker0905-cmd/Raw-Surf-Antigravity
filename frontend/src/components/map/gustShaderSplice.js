@@ -20,6 +20,9 @@ uniform float u_gust_on; uniform sampler2D u_gust; uniform vec4 u_gust_box; unif
 // GUST FLICKER (windGustColour.gustFlicker): where the gust runs well above the mean wind, the mark's light pulses on its own
 // phase, a non-colour cue for gustiness; motion is untouched. u_gust_flick = (on, seconds, Hz, depth); v_flick multiplies alpha.
 uniform vec4 u_gust_flick; varying float v_flick;
+// GUST WIDTH (A/B cue 'width', windGustColour.gustCue): where G/W runs 1.5 -> 2.0 the mark is drawn up to 1.8x WIDER across the
+// flow (static; length, which reads as speed, and motion are untouched). v_bold divides DRAW_FS's across-wind squash.
+uniform float u_gust_bold; varying float v_bold;
 // CURRENTS (currentParticles.js): u_gust_sea = 1 hides a mark where the colour texture has no data (land): ocean only.
 uniform float u_gust_sea;`;
 
@@ -41,11 +44,14 @@ const VS_COLOUR = `
     float phase = rand(uv + vec2(0.711, 0.239)) * 6.2831853;
     v_flick = 1.0 - u_gust_flick.w * gusty * (0.5 + 0.5 * sin(u_gust_flick.y * 6.2831853 * u_gust_flick.z + phase));
   }
+  v_bold = 1.0;
+  if (u_gust_on > 0.5 && u_gust_bold > 0.5) v_bold = 1.0 + 0.8 * smoothstep(1.5, 2.0, v_cspeed / max(v_speed, 2.0));
   if (u_gust_on > 0.5 && u_gust_sea > 0.5 && gb < 1.0) v_flick = 0.0;   // currents: no water here (land), no mark`;
 
 const FS_DECL = `
 varying float v_cspeed;      // the colour speed (DRAW_VS): the gust in gust mode, else v_speed
-varying float v_flick;       // gust flicker (DRAW_VS): 1.0 outside gust mode`;
+varying float v_flick;       // gust flicker (DRAW_VS): 1.0 outside gust mode
+varying float v_bold;        // gust width (DRAW_VS): 1.0 unless the 'width' cue widens a gusty mark`;
 
 // The fragment stage has its OWN switch: a uniform declared in both stages must match precision, and the vertex default is
 // highp while this pass is mediump ("Precisions of uniform 'u_gust_on' differ" failed the link and dropped the whole wind
@@ -63,4 +69,6 @@ export const GUST_SPLICE = Object.freeze({
   fsSpeed: on ? 'v_cspeed / (u_gust_fs > 0.5 ? max(u_ramp_max, 1.0) : u_max_speed)' : 'v_speed / u_max_speed',
   // the mark's alpha: the flicker multiplies it (1.0 outside gust mode)
   fsFlick: on ? ' * v_flick;   // v_flick: 1.0 outside gust mode' : ';',
+  // after the dash's across-wind squash: divided by v_bold (1.0 unless the 'width' cue widens a gusty mark)
+  fsBold: on ? '\n    localCoord.y /= v_bold;   // gust width (the A/B cue): a gusty mark widens across the flow; 1.0 otherwise' : '',
 });
