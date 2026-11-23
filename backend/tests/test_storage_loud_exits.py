@@ -150,3 +150,51 @@ def test_emos_the_daily_upload_runs_even_when_the_collect_step_fails():
                                           ".github", "workflows", "wind-emos-collect.yml"), encoding="utf-8"))
     up = [s for s in wf["jobs"]["single"]["steps"] if s.get("name", "").startswith("Upload new objects")][0]
     assert up["if"].replace(" ", "").startswith("${{always()&&")
+
+
+# ---------------------------------------------------------------------------------------------------- EURO retry ladder (11-19)
+def test_euro_uses_the_longer_ladder_and_others_keep_theirs(monkeypatch):
+    assert C.EuroModel.retry_waits == (5, 15, 45, 120, 300)
+    slept = []
+    monkeypatch.setattr("time.sleep", lambda s: slept.append(s))
+
+    class Flaky:
+        name, steps, retry_waits = "EURO", (3,), C.EURO_RETRY_WAITS
+        n = 0
+
+        def window(self, f):
+            return 1
+
+        def step(self, cycle, f, nodes):
+            Flaky.n += 1
+            if Flaky.n < 5:                                   # throttled for the first four tries (the 11-19 pattern)
+                raise RuntimeError("index not a GRIB index (HTTP 503; throttled mirror): retryable")
+            return [1.0], [2.0]
+    doc = C.collect_cycle(Flaky(), TODAY, [{"id": "A", "node": [1, 2]}], workers=1)
+    assert [s["f"] for s in doc["steps"]] == [3] and doc["dropped"] == []
+    assert slept == [0, 5, 15, 45, 120]                   # recovered on the 5th try, which the old 5/15/45 ladder never reached
+
+
+def test_the_cycle_budget_drops_instead_of_waiting_past_it(monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr("time.monotonic", lambda: clock[0])
+    monkeypatch.setattr("time.sleep", lambda s: clock.__setitem__(0, clock[0] + s))
+
+    class Never:
+        name, steps, retry_waits = "EURO", (3,), (5, 15, 45, 120, 300)
+
+        def window(self, f):
+            return 1
+
+        def step(self, cycle, f, nodes):
+            raise RuntimeError("HTTP 503")
+    doc = C.collect_cycle(Never(), TODAY, [{"id": "A", "node": [1, 2]}], workers=1, budget_s=100)
+    d = doc["dropped"][0]
+    assert d["why"].endswith("(retry budget spent)") and d["attempts"] == 4 and clock[0] <= 100   # 0, 5, 15, 45; not 120
+
+
+def test_an_error_page_is_not_a_grib_index():
+    assert C.is_grib_index(200, '{"param": "10fg", "levtype": "sfc", "_offset": 0, "_length": 10}\n')
+    assert not C.is_grib_index(503, '{"param": "10fg"}')
+    assert not C.is_grib_index(200, "<?xml version='1.0'?><Error><Code>SlowDown</Code></Error>")
+    assert not C.is_grib_index(200, "")

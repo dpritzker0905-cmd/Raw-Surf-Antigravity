@@ -46,6 +46,10 @@ ICON_STEPS = tuple(range(3, 181, 3))
 KN_PER_MS = 3600.0 / 1852.0
 GUST_VALID_KN = (0.0, 250.0)            # the gust specs' own physical range
 UA = "raw-surf-gust-verify (public data, one daily read)"
+EURO_RETRY_WAITS = (5, 15, 45, 120, 300)  # EURO only: 11-19's backfill (run 45251339050) dropped 31 of 64 steps after 5/15/45
+# A cycle stops WAITING to retry after 25 min, so a throttled backfill slice cannot run past the collect step's 120-min timeout
+# and lose every cycle not yet written.
+CYCLE_RETRY_BUDGET_S = 1500
 
 
 def euro_window(f):
@@ -208,11 +212,28 @@ def _euro_source(spec, base, exact_window):
 
         def _steps_for(self, f):                                 # the window is checked, not assumed (log section 1)
             return (f"{f - euro_window(f)}-{f}",) if exact_window else (str(f),)
+
+        def fetch(self, cycle, f):
+            """A throttled mirror answers the .index with an error page, which the publisher's source would read as "index
+            has no 10fg" (final-sounding, but transient). Checked here first, so the step is retried as what it is."""
+            r = self.http.get(self._stem(cycle, f) + ".index", timeout=60)
+            if not is_grib_index(r.status_code, r.text):
+                raise RuntimeError(f"index not a GRIB index (HTTP {r.status_code}; throttled mirror): retryable")
+            return super().fetch(cycle, f)
     return Euro
+
+
+def is_grib_index(status, text):
+    """ECMWF open-data .index files are JSON lines ({"param": ...}); anything else (an error page, an empty body) is not."""
+    if status != 200:
+        return False
+    first = (text or "").lstrip()[:1]
+    return first == "{"
 
 
 class EuroModel:
     name, steps = "EURO", EURO_STEPS
+    retry_waits = EURO_RETRY_WAITS              # the mirror throttles for minutes, not seconds (director, 2026-11-23)
 
     def __init__(self, http, base=None):
         from services import frame_set_raster as fsr
@@ -318,23 +339,29 @@ def plan_daily(model, today, done, report, waits=None):
     return out
 
 
-def collect_cycle(model, cycle, stations, workers=4, waits=RETRY_WAITS):
-    """{model, cycle, station_ids, steps:[{f, w, g, u}], dropped:[{f, why}]}; a step is retried after `waits`, then dropped
-    with its last reason, never filled. (A throttled .index comes back as an error page, which the source reads as "index has
-    no 10fg": the retry covers it too.)"""
+def collect_cycle(model, cycle, stations, workers=4, waits=None, budget_s=CYCLE_RETRY_BUDGET_S):
+    """{model, cycle, station_ids, steps:[{f, w, g, u}], dropped:[{f, why}]}; a step is retried after each of the model's
+    waits (EURO a longer ladder), then dropped with its last reason, never filled. No retry wait starts once the cycle's
+    budget would be passed: the step is dropped instead ("retry budget spent")."""
     import time
     nodes = [tuple(s["node"]) for s in stations]
+    waits = getattr(model, "retry_waits", RETRY_WAITS) if waits is None else waits
+    deadline = time.monotonic() + budget_s
 
     def one(f):
-        why = None
-        for wait in (0,) + tuple(waits):
+        why, tries = None, 0
+        for k, wait in enumerate((0,) + tuple(waits)):
+            if k and time.monotonic() + wait > deadline:
+                why = f"{why} (retry budget spent)"
+                break
             time.sleep(wait)
+            tries += 1
             try:
                 g, u = model.step(cycle, f, nodes)
                 return {"f": f, "w": model.window(f), "g": g, "u": u}, None
             except Exception as e:  # noqa: BLE001 - recorded with its reason
                 why = f"{type(e).__name__}: {str(e)[:160]}"
-        return None, {"f": f, "why": why, "attempts": 1 + len(waits)}
+        return None, {"f": f, "why": why, "attempts": tries}
     with ThreadPoolExecutor(workers) as ex:
         res = list(ex.map(one, model.steps))
     return {"model": model.name, "cycle": cycle.strftime("%Y%m%d%H"), "station_ids": [s["id"] for s in stations],
