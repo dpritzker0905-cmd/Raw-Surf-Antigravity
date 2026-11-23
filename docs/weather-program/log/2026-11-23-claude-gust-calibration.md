@@ -103,7 +103,10 @@ rows are `|raw - obs| - |C - obs|`, and for G4 `|raw - obs| - CRPS_C`. It is com
 
 **Adopted from the 2026-11-23 review (SubQ Savant and Reflection Beam; their answers are in §1b; all written before any real-data fit):**
 - **Size check before the read (both reviewers).** At read time the realised layout (its blocks, days and rows per cell) is checked
-  with `eval_twoway.calibrate_items` (synthetic mean-zero nulls on that layout). If the one-sided false-pass rate is above 5%, the
+  with eval_twoway's null calibration (synthetic mean-zero nulls on that layout; `calibrate_items`' defaults, 300 sets x 200
+  replicates). It runs through a numpy port (`scripts/twoway_np.py`) of the same nulls, bootstrap and thresholds, because the
+  pure-Python original needs ~1e10 operations on a real layout. The port is pinned by a test to within 0.04 of
+  `eval_twoway.self_test()` on each binding null. If the one-sided false-pass rate is above 5%, the
   verdict is INVALID, never PASS. If power against a 4-null-SD effect is below 80%, the verdict is UNDERPOWERED, reported and never
   PASS.
 - **Height-scaling robustness (both).** The primary is recomputed on the RAW, unscaled target, and on buoys only (3 m <= z <= 6 m).
