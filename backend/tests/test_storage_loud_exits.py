@@ -99,3 +99,54 @@ def test_a_stored_today_is_skipped_without_asking():
     m, rep = _Model({}), _report()
     assert C.plan_daily(m, TODAY, {"cycles/ICON_2026112200.json.gz"}, rep, waits=(0, 0, 0)) == []
     assert m.asked == [] and rep["skipped"] == ["cycles/ICON_2026112200.json.gz"]
+
+
+# ---------------------------------------------------------------------------------------------------- wind EMOS daily (11-16)
+import wind_emos_collect as W  # noqa: E402
+
+NOW = datetime(2026, 11, 16, 18, 0, tzinfo=timezone.utc)
+
+
+def _ef(monkeypatch, answers):
+    """answers: {(yyyymmdd, base): [result, ...]}; a result is True / False or an exception to raise."""
+    calls = []
+
+    def run_available(session, run, lead, base):
+        k = (f"{run:%Y%m%d}", base)
+        calls.append(k)
+        seq = answers.get(k, [False])
+        r = seq.pop(0) if len(seq) > 1 else seq[0]
+        if isinstance(r, Exception):
+            raise r
+        return r
+    monkeypatch.setattr(W.ef, "run_available", run_available)
+    return calls
+
+
+def test_emos_the_11_16_503_is_recorded_not_hidden_behind_a_stored_yesterday(monkeypatch):
+    e503 = RuntimeError("HTTP 503 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20261116/00z/ifs/0p25/enfo/x.index")
+    _ef(monkeypatch, {("20261116", W.ef.ECMWF_BASE): [e503], ("20261116", W.ef.AWS_BASE): [e503]})
+    rep = {"skipped": [], "unavailable": [], "dropped": []}
+    plan = W.daily_plan(None, NOW, {"2026111500.npz"}, rep, waits=(0, 0, 0))
+    assert plan == [] and rep["unavailable"] == ["2026111600"] and rep["skipped"] == ["2026111500.npz"]
+    assert W.daily_status(rep) == 3
+
+
+def test_emos_a_transient_503_is_retried_and_collected(monkeypatch):
+    e503 = RuntimeError("HTTP 503")
+    _ef(monkeypatch, {("20261116", W.ef.ECMWF_BASE): [False], ("20261116", W.ef.AWS_BASE): [e503, True]})
+    rep = {"skipped": [], "unavailable": [], "dropped": []}
+    assert W.daily_plan(None, NOW, set(), rep, waits=(0, 0, 0)) == [(datetime(2026, 11, 16, tzinfo=timezone.utc), W.ef.AWS_BASE)]
+    assert rep["unavailable"] == [] and W.daily_status(rep) == 0
+
+
+def test_emos_a_dropped_daily_run_ends_red():
+    assert W.daily_status({"unavailable": [], "dropped": [{"run": "2026111900.npz", "why": "x"}]}) == 3
+
+
+def test_emos_the_daily_upload_runs_even_when_the_collect_step_fails():
+    import yaml
+    wf = yaml.safe_load(open(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                                          ".github", "workflows", "wind-emos-collect.yml"), encoding="utf-8"))
+    up = [s for s in wf["jobs"]["single"]["steps"] if s.get("name", "").startswith("Upload new objects")][0]
+    assert up["if"].replace(" ", "").startswith("${{always()&&")

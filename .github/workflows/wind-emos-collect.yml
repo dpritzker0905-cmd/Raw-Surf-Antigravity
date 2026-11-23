@@ -66,7 +66,7 @@ jobs:
             python scripts/wind_emos_collect.py "$MODE" --cache "$RUNNER_TEMP/emos"
           fi
       - name: Upload new objects (storage only, stdlib, create-only)
-        if: ${{ (github.event.inputs.mode || 'daily') == 'daily' || github.event.inputs.mode == 'stations' }}
+        if: ${{ always() && ((github.event.inputs.mode || 'daily') == 'daily' || github.event.inputs.mode == 'stations') }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
