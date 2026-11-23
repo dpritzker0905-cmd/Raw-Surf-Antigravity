@@ -1,6 +1,6 @@
 {
   "lane": "guards",
-  "tests": 23,
+  "tests": 26,
   "files": 1,
   "branch": "claude/wind-lr2-gust-scorer",
   "date": "2026-11-23",

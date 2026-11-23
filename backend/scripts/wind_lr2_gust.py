@@ -16,6 +16,7 @@ The serial order (gust only for an arm that passed wind for the tail) is applied
 import hashlib
 import json
 import math
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -354,3 +355,67 @@ def power_note(fit_rows, arms: Sequence[str] = S.CAL_ARMS, n_blocks: int = POWER
                 out["lines"][key] = {"fit_blocks": len(means), "mean_diff": float(np.mean(means)), "sd_block": sd,
                                      "mde_80": MDE_Z * sd / math.sqrt(n_blocks)}
     return out
+
+
+# ---------------------------------------------------------------------------------------------- the one-time build (CLI)
+def build_clim_gust(stations: Sequence[dict], year_reader: Callable[[str, int], dict], convert: Callable,
+                    years: Tuple[int, int] = CLIM_YEARS) -> Tuple["ClimGust", dict]:
+    """CLIM_GUST over the FROZEN NDBC station list. `year_reader(station_id, year) -> {time: (wspd, gst, wdir)}` is the only
+    place data enters (the CLI passes the NDBC annual stdmet reader; tests pass a synthetic one). A station without a 1-50 m
+    anemometer height contributes nothing; ASOS entries are skipped (no gust truth). Returns (table, report)."""
+    per: Dict[str, List[Tuple[datetime, float]]] = {}
+    rep: dict = {"years": list(years), "stations": {}, "skipped": {}}
+    for st in stations:
+        sid, z = str(st["id"]), st.get("anemometer_m")
+        if st.get("kind", "ndbc") != "ndbc":
+            rep["skipped"][sid] = "not NDBC (no gust truth)"
+            continue
+        if not z or not (W.GUST_Z_MIN <= float(z) <= W.GUST_Z_MAX):
+            rep["skipped"][sid] = f"anemometer height {z!r} outside {W.GUST_Z_MIN}-{W.GUST_Z_MAX} m"
+            continue
+        obs: dict = {}
+        empty_years = []
+        for y in range(years[0], years[1] + 1):
+            rec = year_reader(sid, y)
+            if not rec:
+                empty_years.append(y)
+            obs.update(rec)
+        recs = clim_gust_records(obs, float(z), convert, W.gust_window_gst, years)
+        per[sid] = recs
+        rep["stations"][sid] = {"records": len(recs), "empty_years": empty_years}
+    clim = ClimGust.build(per)
+    rep["n_stations_with_records"] = sum(1 for v in rep["stations"].values() if v["records"])
+    rep["sha256_table"] = clim.sha256()
+    return clim, rep
+
+
+def main(argv=None):
+    """`build-clim --stations frozen.json --cache DIR --out DIR`: reads the public NDBC annual stdmet files of the frozen
+    list (2016-2025, cached under DIR/ndbc), writes wind_lr2_clim_gust.json, its .sha256 and the report. Run only by the
+    dispatch-only workflow after the owner's typed word; the station list must be the frozen v2 list, never a superseded one."""
+    import argparse
+    import wind_lr_obs as O
+    import requests
+    ap = argparse.ArgumentParser()
+    ap.add_argument("cmd", choices=["build-clim"])
+    ap.add_argument("--stations", required=True)
+    ap.add_argument("--cache", required=True)
+    ap.add_argument("--out", required=True)
+    a = ap.parse_args(argv)
+    doc = json.load(open(a.stations, encoding="utf-8"))
+    stations = [s for s in doc["ndbc"] if s.get("kind", "ndbc") == "ndbc"]
+    session = requests.Session()
+    clim, rep = build_clim_gust(stations, lambda sid, y: O.ndbc_year(session, a.cache, sid, y), O.to_10m)
+    os.makedirs(a.out, exist_ok=True)
+    body = json.dumps(clim.table(), sort_keys=True, separators=(",", ":"))
+    open(os.path.join(a.out, "wind_lr2_clim_gust.json"), "w", encoding="utf-8").write(body)
+    open(os.path.join(a.out, "wind_lr2_clim_gust.json.sha256"), "w", encoding="utf-8").write(
+        hashlib.sha256(body.encode()).hexdigest() + "  wind_lr2_clim_gust.json\n")
+    json.dump(rep, open(os.path.join(a.out, "wind_lr2_clim_gust_report.json"), "w", encoding="utf-8"), indent=1, sort_keys=True)
+    print(f"CLIM_GUST: {rep['n_stations_with_records']} stations with records, {len(rep['skipped'])} skipped, table sha256 {rep['sha256_table']}")
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())

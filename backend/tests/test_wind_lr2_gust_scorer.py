@@ -276,3 +276,49 @@ def test_power_note_is_arithmetic_on_fit_blocks():
 def test_power_note_marks_thin_cells_insufficient():
     note = G.power_note(_table(n_days=6, n_st=3))
     assert any(v.get("insufficient") for v in note["lines"].values())
+
+
+# ------------------------------------------------------------------------------------------------ the one-time build
+def _stations():
+    return [{"id": "S1", "kind": "ndbc", "anemometer_m": 4.0}, {"id": "S2", "kind": "ndbc", "anemometer_m": 80.0},
+            {"id": "S3", "kind": "ndbc"}, {"id": "A1", "kind": "asos", "anemometer_m": 10.0}]
+
+
+def test_build_clim_gust_uses_only_gust_eligible_ndbc_stations_and_reports_the_rest():
+    calls = []
+
+    def reader(sid, y):
+        calls.append((sid, y))
+        return _obs_full(y) if y == 2020 else {}
+    clim, rep = G.build_clim_gust(_stations(), reader, lambda g, z: g, years=(2019, 2021))
+    assert {s for s, _ in calls} == {"S1"}                              # S2 (80 m), S3 (no height), A1 (ASOS): never read
+    assert set(rep["skipped"]) == {"S2", "S3", "A1"} and rep["stations"]["S1"]["empty_years"] == [2019, 2021]
+    assert rep["sha256_table"] == clim.sha256() and rep["n_stations_with_records"] == 1
+    assert clim.get("S1", datetime(2026, 6, 1, 12, tzinfo=UTC)) == pytest.approx(9.2)      # max of hours 7..12 (8.0 + 1.2)
+    assert clim.get("S1", datetime(2026, 6, 1, 6, tzinfo=UTC)) == pytest.approx(8.6)
+
+
+def test_cli_writes_a_table_whose_file_hash_equals_the_reported_hash(tmp_path, monkeypatch):
+    import hashlib
+    import json
+    import wind_lr_obs as O
+    stations = tmp_path / "st.json"
+    stations.write_text(json.dumps({"ndbc": _stations()}))
+    monkeypatch.setattr(O, "ndbc_year", lambda s, cache, sid, y: _obs_full(y) if 2016 <= y <= 2025 and y % 2 == 0 else {})
+    assert G.main(["build-clim", "--stations", str(stations), "--cache", str(tmp_path / "c"), "--out", str(tmp_path / "o")]) == 0
+    body = (tmp_path / "o" / "wind_lr2_clim_gust.json").read_bytes()
+    assert (tmp_path / "o" / "wind_lr2_clim_gust.json.sha256").read_text().split()[0] == hashlib.sha256(body).hexdigest()
+    assert json.loads((tmp_path / "o" / "wind_lr2_clim_gust_report.json").read_text())["sha256_table"] == hashlib.sha256(body).hexdigest()
+
+
+def test_the_dispatch_workflow_has_a_clim_gust_mode_that_needs_the_owner_word_and_the_frozen_list():
+    import yaml
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".github", "workflows",
+                        "wind-lr2-clim.yml")
+    text = open(path, encoding="utf-8").read()
+    doc = yaml.safe_load(text)
+    on = doc.get(True, doc.get("on"))
+    assert "clim_gust" in on["workflow_dispatch"]["inputs"]["what"]["options"]
+    step = [s for s in doc["jobs"]["run"]["steps"] if "build-clim" in s.get("run", "")][0]
+    assert 'test -n "$OWNER_WORD_REF"' in step["run"] and "wind_lr2_stations.json" in step["run"]
+    assert "secrets." not in str(step) and "clim_gust.json.sha256" in text
