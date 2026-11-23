@@ -761,8 +761,7 @@ export var MapWeatherControls = ({
             )}
             <div className={`text-[9px] ${textMuted} mb-0.5 flex justify-between`}><span>{legendConfig[activeLayer].label}</span><LayerDataCredit layer={activeLayer} /></div>
             <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS, clipPath: legendConfig[activeLayer].clipPath }} />
-            <LegendTicks showResolution ticks={legendConfig[activeLayer].stops} className={`text-[8px] ${textMuted} mt-0.5`} />
-            {activeLayer === 'gusts' && <GustCueKey className={`text-[8px] ${textMuted} mt-0.5`} />}
+            <LegendTicks showResolution ticks={legendConfig[activeLayer].stops} className={`text-[8px] ${textMuted} mt-0.5`} />{activeLayer === 'gusts' && <GustCueKey className={`text-[8px] ${textMuted} mt-0.5`} />}
           </div>
         )}
 
@@ -833,8 +832,7 @@ export var MapWeatherControls = ({
                   <span>{legendConfig[activeLayer].label}</span><LayerDataCredit layer={activeLayer} />
                 </div>
                 <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS, clipPath: legendConfig[activeLayer].clipPath }} />
-                <LegendTicks showResolution ticks={legendConfig[activeLayer].stops} className={`text-[9px] ${textMuted} mt-1`} />
-                {activeLayer === 'gusts' && <GustCueKey className={`text-[9px] ${textMuted} mt-0.5`} />}
+                <LegendTicks showResolution ticks={legendConfig[activeLayer].stops} className={`text-[9px] ${textMuted} mt-1`} />{activeLayer === 'gusts' && <GustCueKey className={`text-[9px] ${textMuted} mt-0.5`} />}
               </div>
             )}
             {renderTimeline(true)}
@@ -941,8 +939,7 @@ export var MapWeatherControls = ({
                     <span>{legendConfig[activeLayer].label}</span><LayerDataCredit layer={activeLayer} />
                   </div>
                   <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS, clipPath: legendConfig[activeLayer].clipPath }} />
-                  <LegendTicks showResolution ticks={legendConfig[activeLayer].stops} className={`text-[8px] ${textMuted} mt-0.5`} />
-                  {activeLayer === 'gusts' && <GustCueKey className={`text-[8px] ${textMuted} mt-0.5`} />}
+                  <LegendTicks showResolution ticks={legendConfig[activeLayer].stops} className={`text-[8px] ${textMuted} mt-0.5`} />{activeLayer === 'gusts' && <GustCueKey className={`text-[8px] ${textMuted} mt-0.5`} />}
                 </div>
               )}
               {renderTimeline(true)}
