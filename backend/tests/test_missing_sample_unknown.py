@@ -170,3 +170,31 @@ def test_sim_off_keeps_the_old_reading(monkeypatch):
     monkeypatch.setenv(FLAG, "0")
     baseline, _ = _sim(monkeypatch, "unavailable")
     assert baseline is not None and baseline["wind_speed_knots"] == 0.0
+
+
+# ── the placeholder tally (the committed follow-up: how often production serves a placeholder) ─────────────────────
+def test_tally_counts_every_rated_input_whatever_the_flag(monkeypatch):
+    for value in ("0", "1"):
+        monkeypatch.setenv(FLAG, value)
+        missing_sample.reset_tally()
+        _rate(GOOD_MARINE, _unavailable("wind", "wind"))
+        _rate(_unavailable("marine", "waves", "out_of_bounds_fallback"), ONSHORE_12KT)
+        _rate(GOOD_MARINE, None)
+        t = missing_sample.tally_summary()
+        assert t["GFS/marine"] == {"total": 3, "placeholder": 1, "none": 0, "out_of_bounds_fallback": 1,
+                                   "share": round(1 / 3, 6)}
+        assert t["GFS/wind"] == {"total": 3, "placeholder": 1, "none": 1, "unavailable": 1, "share": round(1 / 3, 6)}
+
+
+def test_precompute_report_writes_the_step_summary(monkeypatch, tmp_path):
+    import importlib
+    import sys
+    sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1] / "scripts"))
+    pc = importlib.import_module("precompute_ci")
+    missing_sample.reset_tally()
+    _rate(GOOD_MARINE, _unavailable("wind", "wind"))
+    out = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(out))
+    pc._report_placeholder_tally()
+    text = out.read_text(encoding="utf-8")
+    assert "Placeholder samples" in text and "| GFS/wind | 1 | 1 | 100.0000% | 0 |" in text
