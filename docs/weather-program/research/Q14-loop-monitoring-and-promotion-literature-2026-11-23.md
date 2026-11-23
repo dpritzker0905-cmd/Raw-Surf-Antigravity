@@ -76,3 +76,16 @@ Checked with SubQ (subq-savant-1.4, high effort) and Reflection (Beam-1.0). Long
 - (d) locked run-day holdout for bounded final queries only; rolling-origin validation for everything else.
 
 **Next checks, none run:** simulate ARL0 and family false-alarm rates under a block-dependent null; simulate the full selection pipeline (discovery, then served action) on null data; stress the holdout on drifting synthetic data.
+
+## LongCat review (retry, 2026-11-23)
+
+The first LongCat submit failed on a network error, and its billing outcome is uncertain. The retry returned a review. Verdicts: (a) weak, (b) sound in principle but weak as specified, (c) weak, (d) weak to wrong.
+
+- **(a)** The CUSUM's false-alarm control is not shown to survive repeated looks, resets and a BY layer applied to its output. Check: simulate the full loop (resets, look frequency, BY layer) under a stationary null with realistic autocorrelation; measure false-alarm rate and detection delay.
+- **(b)** "Anytime-valid e-process or confidence sequence" is not one method. Validity depends on its construction, the null and the dependence assumptions. A Harvey-style correction does not by itself give anytime validity. Check: write down the exact e-process, the null and the dependence model, and verify a test-martingale inequality under that model.
+- **(c)** The family of hypotheses is not defined: 1,800 cells, or also the repeated days? BY on day-block p-values controls FDR for a block, not necessarily a sequence of decisions. "Holm for any single served action" is ambiguous when an action is a policy. Check: enumerate the family for BY and Holm; measure realized FDR and FWER by resampling.
+- **(d)** Reusable-holdout guarantees assume i.i.d. samples and a specific query mechanism. Autocorrelated, nonstationary forecast errors violate that. A locked run-day holdout can go stale under drift. Check: name the exact reusable-holdout variant and theorem, and test its assumptions on autocorrelated data.
+
+**Conflicts (LongCat agrees with SubQ and Reflection):** (a) and (c) mix a sequential statistic with batch FDR; (b) and (c) use different error frameworks for the same decisions; (d) is i.i.d.-based while (a) to (c) handle dependence. LongCat's overall view: the path is plausible but not yet coherent. It asks for one written specification before implementation: data-generating assumptions, exact hypotheses, decision timing, error target, and how holdout reuse interacts with sequential testing.
+
+With all three reviewers in, the revised defaults stand as proposals, not decisions. The single specification LongCat asks for is the next step, and it is not done.
