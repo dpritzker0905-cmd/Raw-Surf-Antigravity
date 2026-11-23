@@ -112,6 +112,19 @@ export function validateModelAccess(model, user) {
   return true;
 }
 
+// Marine add-ons (overlays drawn ON TOP of the marine layers, not layers themselves) per tier. The tide overlay
+// re-presents the infobox tide, which every tier already sees, so every tier gets it; its time range is the
+// scrubber's, already bounded by resolveForecastWindow below.
+var ADD_ON_ACCESS = {
+  tide: ['guest', 'free', 'basic', 'premium']
+};
+
+/** True when the user's tier may use the marine add-on `addOn` (e.g. 'tide'). Unknown add-ons are denied. */
+export function canUseAddOn(user, addOn) {
+  var tiers = ADD_ON_ACCESS[addOn];
+  return !!tiers && tiers.includes(getUserTier(user));
+}
+
 /**
  * Returns the number of allowed forecast days for the given user.
  */
