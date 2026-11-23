@@ -107,7 +107,8 @@ COVERAGE = {
                                "the replay never reads our table. Evidence: the M1-0 parity run (r2) and served_delta"),
     "SURF_TIDE_WINDOW_FIX": (BLIND, "the replay resolves its tide with tide_state_at on a by-date series (eval_replay), not "
                                     "tide_norm_at, so it never sees the served window. Evidence: tests/test_tide_window.py "
-                                    "and the offline cap-depth before/after in its PR"),
+                                    "and the offline cap-depth probe (scripts/tide_window_cap_probe.py). Post-merge check: ONE "
+                                    "/api/health read plus ONE offline cap-depth probe run; no live sweep"),
     "SURF_EXPOSURE_RECONCILED": (REPLAY, "the height exposure factor at the anchors"),
     # MOP-lite: the replay has neither the per-spot coefficient tables nor archived partitions, so it cannot exercise the
     # flag. HONESTLY BLIND (never "inert"): the gate's own forward-archive scorer is the instrument.

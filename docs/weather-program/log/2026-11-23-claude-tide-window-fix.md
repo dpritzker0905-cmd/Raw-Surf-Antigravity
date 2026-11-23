@@ -59,3 +59,18 @@ near each spot. Everything after the fetch is the served chain: `sea_inputs.reso
 | CI floor | `.github/ci-floors.d/claude-tide-window-fix.chain.json` (+9 tests, +1 file) |
 
 **Tests:** 472 tide, sea-input, spot-rating, flag, surf-point and eval-replay tests pass locally (22 skipped).
+
+## 2026-11-23 02:14Z: shipped ON (owner's word)
+
+**Owner's word, typed in the director session:** "Yes, turn it on". It answered "Turn on the tide-freeze fix
+(SURF_TIDE_WINDOW_FIX) once #1178 merges?"
+
+- **The flag:** `SURF_TIDE_WINDOW_FIX` now defaults to "1" in `runtime_flags.GUARDED` and `_RATING_FLAGS`, under D-065.
+  The kill switch is "0", through the env or the runtime manifest. The flag is not in `NEVER_AUTO_DISABLE`, and a
+  test pins that.
+- **Parity:** green.
+- **Guardrail:** BLIND, because the replay never calls `tide_norm_at`. So the post-merge check is one `/api/health`
+  read plus one offline run of `scripts/tide_window_cap_probe.py`. No live sweep.
+- **Tests:** `tests/test_tide_window.py` now has 10 tests. They pin that the default is ON and follows the valid time,
+  and that the kill switch restores the old frozen value.
+- **Records:** SCOREBOARD row (02:08Z) updated to ON; ledger `claude--tide-window-fix:2` (`flag_flip`).

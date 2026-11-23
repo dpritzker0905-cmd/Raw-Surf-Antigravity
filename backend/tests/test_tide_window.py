@@ -5,8 +5,9 @@ Bug (found in the research lead's bug hunt, verified): `tide_norm_at` fetched th
 height. With SURF_TIDE_DEPTH on that stale height fed the depth-limited cap (/point, the precompute, the hub's 14-day plan)
 and the rating's tide_fit.
 
-Fix (dark, flag SURF_TIDE_WINDOW_FIX, default "0"): request a window that covers the valid time (tide_own publishes ~90
-days), and refuse a sample farther than 1.5 h from the valid time (None: the caller's neutral eta = 0), never a stale one.
+Fix (flag SURF_TIDE_WINDOW_FIX; D-065 ON, owner 2026-11-23 "Yes, turn it on"; kill "0"): request a window that covers
+the valid time (tide_own publishes ~90 days), and refuse a sample farther than 1.5 h from the valid time (None: the
+caller's neutral eta = 0), never a stale one.
 """
 import asyncio
 import math
@@ -51,11 +52,11 @@ def test_fix_on_tide_follows_the_valid_time_past_three_days(monkeypatch, h):
     assert calls and calls[-1] * 24 > h                      # the window asked for covers the valid time
 
 
-def test_flag_off_keeps_todays_behaviour_the_frozen_last_sample(monkeypatch):
-    """Parity while dark: with the flag off the served value is exactly today's (the last of 72 samples)."""
+def test_kill_switch_restores_the_old_frozen_last_sample(monkeypatch):
+    """Kill '0': the served value is exactly the pre-fix one (the last of 72 samples)."""
     calls = []
     monkeypatch.setattr(T, "fetch_tide_hourly", _fake_fetch(calls))
-    monkeypatch.delenv("SURF_TIDE_WINDOW_FIX", raising=False)
+    monkeypatch.setenv("SURF_TIDE_WINDOW_FIX", "0")
     st = asyncio.run(T.tide_norm_at(21.6, -158.05, _at(120)))
     assert calls == [3] and st["height_m"] == pytest.approx(_truth(71), abs=1e-3)
 
@@ -94,10 +95,21 @@ def test_days_needed_covers_the_valid_time_and_is_bounded():
     assert T._days_covering(now, None) == 3
 
 
-def test_flag_registered_dark_with_parity():
-    from services.runtime_flags import GUARDED
+def test_flag_registered_on_by_owner_word_with_parity(monkeypatch):
+    """D-065 ON: the owner, 2026-11-23, typed in the director session: "Yes, turn it on"."""
+    from services.runtime_flags import GUARDED, on
     from routes.admin.surf_forecast import _RATING_FLAGS
-    from scripts.flag_guardrail import COVERAGE
-    assert GUARDED["SURF_TIDE_WINDOW_FIX"] == "0"
-    assert _RATING_FLAGS["SURF_TIDE_WINDOW_FIX"][0] == "0"
-    assert "SURF_TIDE_WINDOW_FIX" in COVERAGE
+    from scripts.flag_guardrail import COVERAGE, NEVER_AUTO_DISABLE
+    assert GUARDED["SURF_TIDE_WINDOW_FIX"] == "1"
+    assert _RATING_FLAGS["SURF_TIDE_WINDOW_FIX"][0] == "1"
+    assert "SURF_TIDE_WINDOW_FIX" in COVERAGE and "SURF_TIDE_WINDOW_FIX" not in NEVER_AUTO_DISABLE
+    monkeypatch.delenv("SURF_TIDE_WINDOW_FIX", raising=False)
+    assert on("SURF_TIDE_WINDOW_FIX")
+
+
+def test_default_on_follows_the_valid_time(monkeypatch):
+    calls = []
+    monkeypatch.setattr(T, "fetch_tide_hourly", _fake_fetch(calls))
+    monkeypatch.delenv("SURF_TIDE_WINDOW_FIX", raising=False)
+    st = asyncio.run(T.tide_norm_at(21.6, -158.05, _at(120)))
+    assert st["height_m"] == pytest.approx(_truth(120), abs=1e-3)
