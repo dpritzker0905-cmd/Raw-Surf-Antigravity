@@ -3,6 +3,7 @@ import { fetchMarineData, getRemainingCooldown, getModelSafeMarine, isContainedI
 import { getMarineSeriesFrame } from './marineGridSeries';   // flavor-toggle instant cache commit
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
 import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag, getBackendWeatherFlag, getSurfModeFlag } from './backendWeatherServiceClient';
+import { bandRatedFor } from './partitionHeightOnly';   // D: a partition layer is asked plain in Rating mode (getMarineBandFlag)
 import { staticRatedReadySync } from './staticFrames';   // the rated mosaic in memory: the cached 50 ms lane (2026-11-15)
 import { updateDeprecationDiag } from './forecastSamplers';
 import { isInCooldown, clearCooldown } from './marineControllerUtils';
@@ -31,6 +32,7 @@ import { marineErrorOwnsDisplay } from './marineSeekIdentity';
 import { keepSwrRetryCount, noteRequestDiet, swrReaskScheduledFor } from './marineRequestDiet';
 import { isFlavorToggleSource, leasePendingStampOf } from './marineFlavorToggle';
 import { isAbandonedLive, cellDegOf, commitLaneSwitchRegionalFirst } from './marineFetchCoreBits';
+const getMarineBandFlag = (layer) => bandRatedFor(getSurfModeFlag(), layer);
 
 /**
  * Release an abandoned in-flight marine fetch when a newer request supersedes it.
@@ -268,7 +270,7 @@ export function useMarineDataFetcherCore({
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === layer;
       // FLAVOR-MISMATCH BYPASS (2026-07-15) -- rationale moved to docs/runbooks/RATIONALE-2026-08-04-moved-for-the-loc-ratchet.md
-      const _flavorMismatch = !!(marineData?.grid?.ratingMode) !== getSurfModeFlag();
+      const _flavorMismatch = !!(marineData?.grid?.ratingMode) !== getMarineBandFlag(layer);
       let bypassDedupe = !hasValidData || !isCorrectLayer || _flavorMismatch || !!(marineData?.stale || marineData?.grid?.stale);
 
       if (!isRetry && !isTimelineScrub && !bypassDedupe && locks.lastHash === viewportHash && (Date.now() - locks.lastTime < 5 * 60 * 1000)) return;
@@ -298,7 +300,7 @@ export function useMarineDataFetcherCore({
         const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
         const isAborted = abortControllerRef.current?.signal?.aborted;
         if (inflight && !isAborted && inflight.rawModel === rawModel && inflight.layer === layer && inflight.hour === timeOffset
-            && inflight.surf === getSurfModeFlag()) { // §0l: opposite flavor = DIFFERENT target (toggle must not dedup)
+            && inflight.surf === getMarineBandFlag(layer)) { // §0l: opposite flavor = DIFFERENT target (toggle must not dedup)
           const panMoved = bufferPanMovedReplay({ inflight, currentViewportHash: viewportHash, source, model: activeModelRef.current, layer, hour: timeOffset, pendingMarineIntentRef, logPipelineEventHelper });
           console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); ${panMoved ? 'viewport moved — replay buffered for fetch completion' : 'skipping duplicate'} (no abort).`);
           // Forensic: the AGE of the in-flight fetch is the wedge diagnostic — a healthy dedup
@@ -389,7 +391,7 @@ export function useMarineDataFetcherCore({
       // rejects on its own. Fail-open: any miss/mismatch just falls through to the normal path.
       // Kill: __RAW_DISABLE_FLAVOR_CACHE_FASTPATH__. Ring: flavor_cache_fastpath.
       try {
-        const _wantSurf = getSurfModeFlag();
+        const _wantSurf = getMarineBandFlag(layer);
         // marineDataRef, not the closure's marineData: updateMarineGrid's useCallback deps don't
         // include marineData, so the closure capture is mount-time-stale (typically null).
         const _mdNow = marineDataRef.current;
@@ -462,7 +464,7 @@ export function useMarineDataFetcherCore({
       // the same model/layer/hour, so a toggle must never dedup against the opposite flavor's
       // in-flight fetch (the rapid off→on re-activation stick: the ON-ask skipped as "same
       // target", the OFF-leg's swell result then committed and the honest resident held).
-      abortControllerRef.current.__intent = { model, rawModel, layer, hour: timeOffset, surf: getSurfModeFlag(), bounds, zoom, boundsKey: viewportHash };
+      abortControllerRef.current.__intent = { model, rawModel, layer, hour: timeOffset, surf: getMarineBandFlag(layer), bounds, zoom, boundsKey: viewportHash };
       inFlight.registerForeground(myController, abortControllerRef.current.__intent, requestId);
 
       locks.isFetching = true;
@@ -778,7 +780,7 @@ export function useMarineDataFetcherCore({
           if ((typeof window === 'undefined' || window.__RAW_DISABLE_FLAVOR_BACKSTOP__ !== true)
               && !(typeof window !== 'undefined' && window.isScrubbingTimeline)) {
             const _fbGrid = marineDataRef.current && marineDataRef.current.grid;
-            const _fbWantSurf = getSurfModeFlag();
+            const _fbWantSurf = getMarineBandFlag(activeMarineLayerRef.current || 'waves');
             if (_fbGrid && _fbGrid.vectors && _fbGrid.vectors.length > 0
                 && (!!_fbGrid.ratingMode) !== _fbWantSurf) {
               const _fbKey = `${_fbWantSurf}|${getViewportHash()}|${activeMarineLayerRef.current || 'waves'}|${timeOffsetRef.current}`;
@@ -843,7 +845,7 @@ export function useMarineDataFetcherCore({
       if (inflight && !isAborted && inflight.rawModel === activeModelRef.current &&
           inflight.layer === (activeMarineLayerRef.current || 'waves') &&
           inflight.hour === timeOffsetRef.current &&
-          inflight.surf === getSurfModeFlag()) { // §0l: opposite flavor = DIFFERENT target
+          inflight.surf === getMarineBandFlag(activeMarineLayerRef.current || 'waves')) { // §0l: opposite flavor = DIFFERENT target
         const panMoved = bufferPanMovedReplay({ inflight, getViewportHash, source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, pendingMarineIntentRef, logPipelineEventHelper });
         console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); ${panMoved ? 'viewport moved — replay buffered for fetch completion' : 'skipping duplicate'} (no abort).`);
         recordMarineEvent('inflight_skip', {
@@ -879,7 +881,7 @@ export function useMarineDataFetcherCore({
     let isCached = false;
     try {
       const b = mapInstance.getBounds(), bounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
-      isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves') || (getSurfModeFlag() && staticRatedReadySync(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves', getSharedValidTime));
+      isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves') || (getMarineBandFlag(activeMarineLayerRef.current || 'waves') && staticRatedReadySync(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves', getSharedValidTime));
     } catch (e) {
       isCached = false;
     }
@@ -891,9 +893,8 @@ export function useMarineDataFetcherCore({
       const viewportHash = getViewportHash();
       const hasValidData = marineDataRef.current && marineDataRef.current.grid && marineDataRef.current.grid.vectors && marineDataRef.current.grid.vectors.length > 0;
       const isCorrectLayer = marineDataRef.current?.grid?.__componentLayer === (activeMarineLayerRef.current || 'waves');
-      // FLAVOR-MISMATCH BYPASS (2026-07-15) — the enqueue-side twin of the updateMarineGrid guard.
-      // See the updateMarineGrid comment for the full rationale (verified on the live map).
-      const _flavorMismatch = !!(marineDataRef.current?.grid?.ratingMode) !== getSurfModeFlag();
+      // FLAVOR-MISMATCH BYPASS (2026-07-15): the enqueue-side twin of the updateMarineGrid guard (rationale there, verified live).
+      const _flavorMismatch = !!(marineDataRef.current?.grid?.ratingMode) !== getMarineBandFlag(activeMarineLayerRef.current || 'waves');
       const bypassDedupe = !hasValidData || !isCorrectLayer || _flavorMismatch || !!(marineDataRef.current?.stale || marineDataRef.current?.grid?.stale);
       if (!bypassDedupe && locks.lastHash === viewportHash && (now - locks.lastTime < 5 * 60 * 1000)) return;
     } catch (e) {
