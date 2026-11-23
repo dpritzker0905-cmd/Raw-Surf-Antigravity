@@ -1,5 +1,5 @@
 # Gate: self-improving-loop-v1 (DESIGN, pre-registration style)
-Stamp: 2026-11-23T18:40:17Z (research lead, on the director's assignment, from David's ask to put "the researchers to work with the inspector… toward SOTA". DESIGN ONLY: nothing is built, and no threshold below has been computed on data.) FROZEN 2026-11-23T19:02:48Z: the rule forms, families, budget, controls and holdout rules below are final for v1. The thresholds file and its numbers come later, computed under section 12.2's freeze order. Open at freeze: LongCat's view on the notify channel (section 10.1, not statistical; it can only reopen the channel choice) and the inspector's fact list (the advisor's read supplied the facts the design depends on: the archive start, the direct NDBC readers).
+Stamp: 2026-11-23T18:40:17Z (research lead, on the director's assignment, from David's ask to put "the researchers to work with the inspector… toward SOTA". DESIGN ONLY: nothing is built, and no threshold below has been computed on data.) RE-FROZEN 2026-11-23T19:11:55Z after the advisor's HOLD (section 12.4 replaces the per-buoy null and makes every false-alarm check held-out). First frozen 2026-11-23T19:02:48Z: the rule forms, families, budget, controls and holdout rules below are final for v1. The thresholds file and its numbers come later, computed under section 12.2's freeze order. Open at freeze: LongCat's view on the notify channel (section 10.1, not statistical; it can only reopen the channel choice) and the inspector's fact list (the advisor's read supplied the facts the design depends on: the archive start, the direct NDBC readers).
 Candidate: the three missing pieces of the self-improving loop that the Fable inspection found (SOTA-GAP-INSPECTION-2026-11-23, findings 6-8): (A) drift alerts, (B) a challenger-vs-champion job that writes PROPOSALS, (C) an admin view of verification and skill.
 Metric: one PRIMARY metric per served surface (section 2), used by all three components. Each alarm and each proposal reads only that surface's primary metric; secondaries are display only.
 Pass threshold: this design "passes" when its acceptance controls hold on replayed history (section 7): in-control replay stays within the false-alarm budget, a planted drift alarms within its delay bound, an A/A challenger never proposes, and a planted better challenger does.
@@ -68,7 +68,7 @@ Three alarm types per surface. Each opens or updates ONE GitHub issue per (surfa
    - **What the CUSUM sees:** because it reads a differential against the same-model control, it detects OUR regressions (decode, cell, fills, blends), not a degradation of the upstream model itself. Upstream degradation is caught by the level and per-buoy rules, which read absolute error.
 4. **Health WARNs (no statistics):** pending-queue headroom >= 85 % of `PENDING_MAX_ENTRIES` (inspection finding 5); a scheduled scorer missing two consecutive slots; a scored run with n below its floor.
 
-**One global budget, allocated now (review: Reflection, high; the first draft's arithmetic exceeded it). At most 1 statistical issue every 7 days, program-wide, in expectation under no real drift:**
+(SUPERSEDED for the per-buoy rule by section 12.4, and for the decision types by sections 11.2 and 12.2; the shares below still hold.) **One global budget, allocated now (review: Reflection, high; the first draft's arithmetic exceeded it). At most 1 statistical issue every 7 days, program-wide, in expectation under no real drift:**
 | Rule | Allocation (issues per week) | How it is held |
 |---|---|---|
 | Trend CUSUM, at most 16 charts (section 11.2) | <= 0.224 | ARL0 >= 500 days per chart (16 × 7 / 500) |
@@ -328,4 +328,45 @@ Source: the inspection lane's `LOOP-FACTS-FOR-RESEARCH-LEAD-2026-11-23.md` (shar
   - The level rules run WARN-only, and their 0.50 budget share opens no issue, until the D-072 version adopted in #1233 has a passing replay on record.
   - Until then, the per-buoy rule and the CUSUM run on their own shares, and the unused share is not reassigned.
 - **46267 today:** no per-buoy rule existed before or after #852. Its post-fix value is NOT MEASURED, and the plant in section 12.1 item 5 is the test that the per-buoy rule would have caught it.
+
+### 12.4 Advisor HOLD at `417b32bc9`, folded: the per-buoy null and held-out validation (binding; supersedes the per-buoy p-value, BY and simulation text in sections 3, 11.2, 11.3 and 11.5, and section 12.1 item 1)
+Full note: `ADVISOR-MERGE-GATE.md` in the shared notes.
+
+**What was wrong.** The weekly index is one 7-day window, and the null resampled 7-day circular blocks of the same baseline. So each bootstrap "week" was one of only about 50 distinct baseline windows, and p = 5e-5 meant only "above the baseline maximum". By exchangeability, an in-control new week does that about 1 time in 8 per buoy: about 12 of 100 buoys would pass BY, a false issue nearly every week. The 11.5 simulation resampled the same windows, so it could not see this. The CUSUM h has the same, milder, blind spot.
+
+**The fix: pooled standardised z with a parametric tail and a union bound; no p-values and no BY.** SubQ and Reflection both chose this, independently (2026-11-23). It is the advisor's options (b) and (c) combined, with (a)'s parametric tail fitted to the pooled values.
+- **Standardise per buoy:** `z_{b,w} = (SI_{b,w} - mean_b) / s_b`. Here `s_b` is the buoy's baseline weekly standard deviation, shrunk toward the pooled standard deviation (7 weeks per buoy are too few for a stable `s_b`), with a floor of 0.02 SI units.
+- **One pooled null:** all buoys' standardised baseline weeks (about 700).
+- **Threshold z0:** the per-buoy-week false-flag rate `alpha = 1e-3`, so that 100 buoys × 1e-3 = 0.10.
+  - z0 is the LARGER of the normal 1e-3 quantile (3.09) and a generalised-Pareto tail fitted to the top 10 % of the pooled values, evaluated at 1e-3.
+  - 700 values cannot estimate a 1e-3 quantile empirically, so the tail is a model. Taking the larger of the two models errs toward fewer alarms.
+- **Flag:** buoy b in week w when `z_{b,w} > z0` AND its MAE exceeds the floor (Hs 0.5 m; wind 6 kn; tide 0.15 m). All flagged buoys of a week go into ONE issue.
+- **Why the budget holds under any dependence:** one issue can hold several buoys, so E[false issues per week] <= E[false flags per week] <= sum over buoys of alpha = 0.10, by the union bound, whatever the cross-buoy dependence. Each buoy's expected false flags per week are 1e-3, within the rule's 0.10 share.
+- **Detection check:** a +0.5 m Hs step at one VERIFY buoy moves its weekly SI by several `s_b`, so it should flag in the first full week after the step (the second, if the step starts mid-week). This is the section 12.1 item 5 plant, run on held-out weeks.
+
+**Held-out validation for every A rule (the advisor's second point).** No rule's false rate is measured on the data its threshold was built from.
+- **Per-buoy:** leave-one-week-out rotation of CALIBRATION, 7 rotations. Standardise and fit z0 on 6 weeks, then count flags in the held-out week. Then VALIDATION (4 weeks) and the prospective 28-day WARN-only block.
+- **CUSUM h:** the same rotation, by 7-day segment. h is re-derived without the held-out segment and run on it. Then VALIDATION and the prospective block.
+- **Level rules:** the same rotation, then VALIDATION and the prospective block. They stay WARN-only until D-072 has a passing replay (section 12.3).
+- **The full-pipeline simulation in 11.5 is kept, but only as a check of the code path** (reset, suppression, issue dedup). It is no longer evidence of a false-alarm rate.
+
+**What the data can and cannot show (stated, not hidden; both reviewers agree).**
+- At the target rates, the held-out data expect very few false issues:
+  - about 0.7 per-buoy false flags over the 7 rotations, and 0.4 to 0.8 over VALIDATION plus the prospective block;
+  - about 1.8 CUSUM alarms over 56 days for 16 charts at ARL0 500.
+- So the 0.10 per-week rate and ARL0 >= 500 are NOMINAL, under the fitted tail model and the union bound. Held-out data give a COMPATIBILITY CHECK, not empirical verification. Zero observed false issues is not proof.
+- **The compatibility checks, fixed now:**
+  - per-buoy: fail if 2 or more held-out weeks have a false flag, across the 7 rotations plus the 8 VALIDATION and prospective weeks (expected 1.5 at 0.10 a week; P(>= 2 | Poisson(1.5)) = 0.44, so this check can only catch a gross miss: a rate near 1 a week gives about 15);
+  - CUSUM: fail if more than 5 alarms over VALIDATION plus the prospective block (P(>= 6 | Poisson(1.8)) = 0.01).
+  - A failed check raises z0 (to the 5e-4 quantile) or h (ARL0 1,000), by amendment, and the rule stays WARN-only.
+- **Live:** the monthly achieved-rate report and the pause rule (section 3: a rule over twice its budget for 30 days goes WARN-only) are the long-run guard, and they accumulate the evidence the baseline cannot give.
+
+**The fence is #1234's, not a second design.** Section 12.1 item 3 and section 12.3 now mean #1234's fence:
+- `services/buoy_holdout.py` (`is_locked`, `drop` for stored rows, `allow_url` for fetches, `redact`);
+- the AST guard `tests/test_buoy_holdout_guard.py`. It scans every backend `.py` file (scripts included) and every workflow, with listed, live-checked exemptions.
+- Every loop reader must call that module. The loop adds no fence of its own.
+- **Gaps, as follow-ups on #1234's fence, not here:**
+  1. the 25 km LOCKED-ADJACENT rule (#1234 has no radius);
+  2. the rule that no session reads a LOCKED id through the ndbc or ww3 MCP tools or public pages (a human and tool rule; it goes into LESSONS and the session brief);
+  3. recording each fitted product's training-station list.
 
