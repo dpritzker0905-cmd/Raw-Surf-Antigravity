@@ -104,7 +104,18 @@ Supersedes the source choice in §6a. The ERDDAP result in §7a is kept for the 
 - Index: `v1/latest.json` (run-keyed). Frame index format: encoding_version 1, transform_version 1 (see `frontend/src/components/map/staticFrames.js`, `loadIndex`).
 - Decoder: `decodeOwnField` in `frontend/src/components/map/ownRasterDecode.js`, reused as-is. Fetch: `fetchFrameBytes` in `staticFrames.js`. Writer side: `backend/services/noaa_gfs_wave_fetcher.py` (source dataset `ncep_gfswave025`).
 
-**Retention check: NOT PERFORMED.** The public project host is not in this worktree (`REACT_APP_SUPABASE_URL` is unset here, and no tracked file carries the real host). Nothing was fetched. Until the host is supplied, the retention result is "unknown", and no run is chosen.
+**Retention check: PERFORMED (2026-11-23 UTC), before any frame value was read.** Anonymous GET of `v1/latest.json` on the public `weather-frames` bucket (no key sent). Result:
+- The GFS regional wave sets in `latest.json` list run 2026-11-22 12Z as current and 2026-11-22 06Z as `previous_index`. No 2026-11-20 or 2026-11-21 GFS wave run is listed.
+- Per the rule, the 24–48 h bin cannot use an older run from this index. The 06Z run's 24–48 h valid hours fall after the newest buoy truth (NDBC ends 2026-11-23 00:24 UTC), so bin B has no truth on any retained run: **n = 0 for bin B**.
+- Bin A (0–24 h, leads at 3 h steps): the 12Z run is the newest retained run with truth. Truth covers valid times up to 2026-11-23 00:24 UTC, so bin A is effectively leads 0–12 h. The 06Z run is retained and recorded but not used.
+- Sets used per buoy (anonymous `index` JSON, metadata only; no frame value read):
+  - 46042 Monterey: `GFS/marine/waves/us_west_coast_socal`, bounds 30–38°N, 125–115°W, grid 41 × 33 (0.25° spacing), run 2026-11-22T12Z.
+  - 46086 San Clemente: `GFS/marine/waves/us_west_coast_socal`, same set.
+  - 51201 Waimea: `GFS/marine/waves/hawaii`, bounds 18–23°N, 161–154°W, grid 29 × 21 (0.25°), run 2026-11-22T12Z.
+  - 44013 Boston: `GFS/marine/waves/us_northeast`, bounds 37.5–45°N, 77–69°W, grid 33 × 31 (0.25°), run 2026-11-22T12Z.
+- Bundle format: concatenated RSWF v1 gzip members; frame = `bundle[offset:offset+length]`; `sha12` = SHA-256 of the slice, first 12 hex. Each set has 113 frames (129 for `global_mid`).
+
+**Retention rule update:** the retention result above is the one that applies. 24–48 h leads have no truth on any retained run, so bin B is n = 0 and is not filled from another source.
 
 **Run rule (fixed now):** if 2026-11-20 or 2026-11-21 is listed in `latest.json`, use the oldest retained run with leads covering 24–48 h and buoy truth. If only the newest run is kept, report the 24–48 h bin as n = 0 and do not substitute another run.
 
@@ -144,7 +155,19 @@ Notes for the next attempt:
 - Truth ends at 2026-11-22T23:40 UTC. For the 00z cycle, leads 0–24 h fall inside the observation window, but the 24–48 h bin is almost entirely in the future. Under §6, that bin stays n = 0.
 - The 46042 observations are usable: about 1 record every 10 min, roughly a third null, with hourly-mean gap handling per §6.
 
-## 7a. Path B result, ERDDAP ww3_global (descriptive, n = 1 cycle, not a skill claim)
+## 7a. PacIOOS ww3_global: an independent WW3 run, NOT our served product (path A, fallback; descriptive, n = 1 cycle, not a skill claim)
+
+Label: **PacIOOS ww3_global: an independent WW3 run, NOT our served product.** Never mixed into path B (§7b).
+
+**46042 check (before any reading as model error):**
+- Cell used: lat 37.0, lon 237.5 (= 122.5°W). Buoy: 36.787, 237.592 (= 122.408°W).
+- Distance from buoy to cell centre: about 25 km (0.213° north ≈ 23.7 km; 0.092° west ≈ 8.2 km at 36.9°N).
+- Wet or masked: wet. ERDDAP returned finite Thgt, Tper and Tdir for all 49 hours at this cell, so it is not masked in the PacIOOS grid. The cell sits offshore of Monterey Bay, not on the coast.
+- Units: Thgt in metres, Tdir in degrees (direction the waves come from, per the dataset's "peak wave direction"). NDBC WVHT is metres, MWD degrees from. The two are on the same convention, but it is not verified against NDBC directly.
+- Time alignment: ERDDAP times are UTC, on the hour, "…Z". NDBC `datetime` is UTC (the retrieval timestamp is +00:00). Pairing used ±30 min windows around each ERDDAP hour, so no shift was applied.
+- Conclusion for this check: the cell is wet and the units and time are aligned. The 46042 gap is not explained by masking, units or time. A 25 km cell offset on a 0.5° grid, next to a coastline, could still produce a local height gap. That is not checked here, so the −1.73 m bias is a result to check, not a model error.
+
+(The earlier table and notes follow, unchanged.)
 
 Run under the 2026-11-23 amendment in §6a. The valid-hour set was fixed before values were read. Model: ERDDAP `ww3_global` (Thgt, Tdir), nearest cell. Truth: NDBC WVHT and MWD, ±30 min window, ≥2 non-null records. Reference time 2026-11-20 00:00Z. Lead bins are offsets from that reference, not per-run leads. Hs = significant height in metres. Direction error = model Tdir minus NDBC MWD, circular mean.
 
