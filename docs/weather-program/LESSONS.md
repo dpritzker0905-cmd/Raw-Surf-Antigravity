@@ -1611,3 +1611,11 @@ A stored estimate can be estimated again in a browser branch with different sour
 - **Coastal means land AND water nearby.** A rule of "water within 3 km" admits offshore platforms and lights.
 - **Census by domain.** A count of expected records must use only the units inside the product's bounds, with an `out_of_domain` status (#1168).
 - **Keys.** Parity and verification reads use the anonymous public path, never the service-role key.
+
+### 2026-11-22 — L-S33 · Read the science registry before calling code inconsistent with its docs
+- **What happened:** the bug hunt (#1175) reported that, with shelf friction off, breaking height below the cap does not depend on depth, "contradicting" the wide-shelf text.
+  - The repro fed the SAME offshore sea to four spots.
+  - `science_registry.SHELF_CF_SCALE_DEFAULT` already recorded why friction is off: WW3 applies bed friction, so the model Hs at a shelf spot is already reduced, and the decision was CDIP-validated on 2026-09-28. The legacy arm has confirmed it since.
+- **Rule:**
+  - Before reporting a physics inconsistency, read the constant's entry in `science_registry.py` and search LESSONS.
+  - A repro with identical inputs cannot test an effect that lives in the inputs.
