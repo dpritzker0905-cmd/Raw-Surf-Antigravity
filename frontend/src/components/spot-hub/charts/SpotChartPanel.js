@@ -5,11 +5,13 @@
 import React from 'react';
 import { useSpotSeries } from './useSpotSeries';
 import SpotForecastChart, { SpotForecastMiniChart } from './SpotForecastChart';
+import { useNoteForecastShown } from '../../observations/forecastExposure';
 
 // The infobox is ~200 px wide: it shows the free window (the map's and scrubber's +72 h) for every tier.
 export const MINI_CHART_HOURS = 72;
 
 export function SpotChartPanel({ spotId, user, model, selectedOffsetHours, onSelectOffset, onUpgrade, fallback = null, className = '' }) {
+  useNoteForecastShown('spot_chart');  // blind-quality exposure (observations/forecastExposure)
   const s = useSpotSeries(spotId, user, model);
   // While the series loads (and whenever it is not published) the surface keeps its previous rows: never a blank card.
   if (s.status !== 'ok') return fallback;
@@ -22,6 +24,7 @@ export function SpotChartPanel({ spotId, user, model, selectedOffsetHours, onSel
 }
 
 export function SpotMiniChartPanel({ spotId, user, model, selectedOffsetHours, onSelectOffset, hostTheme = null }) {
+  useNoteForecastShown('spot_mini_chart');  // blind-quality exposure (observations/forecastExposure)
   const s = useSpotSeries(spotId, user, model);
   if (s.status !== 'ok') return null;
   return (
@@ -35,6 +38,7 @@ export function SpotMiniChartPanel({ spotId, user, model, selectedOffsetHours, o
  * draws beach on its dark glass, so the chart takes the glass's palette (`isLight` ? light : dark).
  */
 export function InfoboxSpotChart({ spot, user, model, hour, onTimeChange, isLight }) {
+  useNoteForecastShown('infobox_chart');  // blind-quality exposure (observations/forecastExposure)
   if (!spot || spot.id == null) return null;
   return (
     <SpotMiniChartPanel spotId={spot.id} user={user} model={model} selectedOffsetHours={Number(hour) || 0}

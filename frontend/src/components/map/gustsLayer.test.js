@@ -1,5 +1,7 @@
 // Gusts layer (2026-11-15): own frames only, ON by default with a kill, the wind palette per theme, honest credit and status.
-import { GUST_LUT, GUST_LIGHT_FASTBAND, WIND_FIELD_ALPHA, gustBaseAlpha, gustLegend, gustScale, lightCompositeL } from './gustPalette';
+import { GUST_LUT, GUST_LIGHT_FASTBAND, WIND_FIELD_ALPHA, gustBaseAlpha, gustLegend, gustScale, lightCompositeL, gustDarkFieldOn, gustFieldOpacity, windDarkFieldAlpha } from './gustPalette';
+import { WIND_FIELD_OPACITY } from './gustParticles';
+import { GUST_OPACITY_STOPS, opacityAtZoom } from './ownRasterLayer';
 import { huePathStops, resolveDrawnField, resolveThemeRamp, sampleRamp } from './WindColorRamp';
 const field = (theme) => huePathStops(resolveDrawnField(theme) || resolveThemeRamp(theme));
 import { DEFAULT_ON_LAYERS, OWN_ONLY_LAYERS, OWN_RASTER_SETS, SPEED_FIELD, ownFramesOn, setKey, sourceModel, combinedFrames, combinedFrameAt, endNoteText } from './ownRasterFrames';
@@ -46,10 +48,12 @@ describe('gust palette = the wind palette', () => {
     for (const kn of [0, 5, 12.5, 20, 30, 47, 63, 75]) {
       const want = sampleRamp(stops, kn);
       const got = colorAtValue(scale, kn);
-      expect(got.slice(0, 3)).toEqual(want.slice(0, 3).map((x) => Math.round(x * 255)));
-      // the same hue everywhere. Alpha: dark keeps the table's; light and beach take the WIND FIELD's own alpha law
+      // the same hue everywhere (dark's LUT holds it pre-scaled by the wind field's alpha: DARK FIELD PARITY, pinned below).
+      // Alpha: dark takes the wind's law over the layer's 0.48; light and beach take the WIND FIELD's own alpha law
       // (HEATMAP_FS: base + (1 - base) x smoothstep(0, rampEnd, kn)); light above 40 kn draws lighter still (the gentler band)
-      if (theme === 'dark') expect(got[3]).toBeCloseTo(want[3], 6);
+      const k = theme === 'dark' ? windDarkFieldAlpha(kn) : 1;
+      expect(got.slice(0, 3)).toEqual(want.slice(0, 3).map((x) => Math.round(x * k * 255)));
+      if (theme === 'dark') expect(got[3]).toBeCloseTo(windDarkFieldAlpha(kn) / WIND_FIELD_OPACITY.dark, 6);
       else if (theme === 'light' && kn > 40) expect(got[3]).toBeLessThan(gustBaseAlpha(theme, kn, want));
       else expect(got[3]).toBeCloseTo(gustBaseAlpha(theme, kn, want), 6);
     }
@@ -87,10 +91,79 @@ describe('the wind field\'s alpha law on light and beach (the pink was CALM air 
     expect(fs).toMatch(/baseAlpha = 0\.42; rampEnd = 7\.0;/);
   });
 
-  test('dark keeps the table\'s alpha; the kill returns light and beach to it', () => {
+  test('dark under its own kill keeps the table\'s alpha; the kill returns light and beach to it', () => {
+    window.__RAW_DISABLE_GUST_DARK_FIELD__ = true;
     for (const kn of [0, 3, 20]) expect(colorAtValue(gustScale('dark'), kn)[3]).toBeCloseTo(sampleRamp(field('dark'), kn)[3], 6);
+    delete window.__RAW_DISABLE_GUST_DARK_FIELD__;
     window.__RAW_DISABLE_GUST_WIND_ALPHA__ = true;
     for (const kn of [0, 3, 20]) expect(colorAtValue(gustScale('beach'), kn)[3]).toBeCloseTo(sampleRamp(field('beach'), kn)[3], 6);
+  });
+});
+
+describe('dark field parity (2026-11-22: dark gusts drew ~2x the wind field\'s colour at speed, ~10x at calm)', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_GUST_DARK_FIELD__; });
+  // What lands on the map, per channel, over a ground g (0..1). The WIND heatmap writes premultiplied (rgb x a, a) and blends it
+  // SRC_ALPHA, ONE_MINUS_SRC_ALPHA: rgb x a^2 + g (1 - a). The gust raster writes (lut.rgb x A, A), A = lut.a x opacity, through
+  // MapLibre's premultiplied blend ONE, ONE_MINUS_SRC_ALPHA: lut.rgb x A + g (1 - A).
+  const windDark = (kn, g) => { const c = sampleRamp(field('dark'), kn); const a = windDarkFieldAlpha(kn); return [0, 1, 2].map((i) => c[i] * a * a + g[i] * (1 - a)); };
+  const gustDark = (kn, g, opacity) => { const l = colorAtValue(gustScale('dark'), kn); const A = l[3] * opacity; return [0, 1, 2].map((i) => (l[i] / 255) * A + g[i] * (1 - A)); };
+  const GROUNDS = [[93 / 255, 117 / 255, 126 / 255], [58 / 255, 71 / 255, 79 / 255], [0.02, 0.02, 0.03]];   // dark water, dark land (bench reads), near black
+
+  test('the shaders still draw what this models (the wind heatmap premultiplies and blends by SRC_ALPHA)', () => {
+    const { HEATMAP_FS } = require('./WebGLWindShaders');
+    expect(HEATMAP_FS).toContain('vec4(fieldRgb * alpha, alpha)');
+    expect(HEATMAP_FS).toMatch(/baseAlpha = 0\.44;\s*float rampEnd = 5\.0;/);
+    const engine = require('fs').readFileSync(require('path').join(__dirname, 'WebGLWindEngine.js'), 'utf8');
+    expect(engine).toContain('blendIntoMap(gl, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // field tint: multiply');
+    expect(engine).toMatch(/heatmapOpacity = effectiveTheme === 'dark' \? 0\.48/);
+    expect(WIND_FIELD_OPACITY.dark).toBe(0.48);
+  });
+
+  test('every knot, every ground: the gust field lands within one byte of the wind field', () => {
+    const op = gustFieldOpacity('dark', 5, () => 0.56);
+    expect(op).toBe(WIND_FIELD_OPACITY.dark);
+    for (let kn = 0; kn <= 75; kn += 0.5) for (const g of GROUNDS) {
+      const w = windDark(kn, g); const s = gustDark(kn, g, op);
+      for (let i = 0; i < 3; i++) expect(Math.abs(w[i] - s[i]) * 255).toBeLessThan(1);
+    }
+  });
+
+  test('before (the kill): calm drew ~10x the wind\'s colour and 20 kn about twice it', () => {
+    window.__RAW_DISABLE_GUST_DARK_FIELD__ = true;
+    const stops = (z) => opacityAtZoom(GUST_OPACITY_STOPS, z);
+    expect(gustFieldOpacity('dark', 5, stops)).toBe(stops(5));
+    const black = [0, 0, 0];
+    const ratio = (kn) => gustDark(kn, black, stops(5)).reduce((a, b) => a + b) / windDark(kn, black).reduce((a, b) => a + b);
+    expect(ratio(0)).toBeGreaterThan(8);
+    expect(ratio(20)).toBeGreaterThan(1.8);
+  });
+
+  test('light and beach are untouched (their tint path already matched); the layer keeps its stops there', () => {
+    const stops = (z) => opacityAtZoom(GUST_OPACITY_STOPS, z);
+    for (const theme of ['light', 'beach']) {
+      expect(gustDarkFieldOn(theme)).toBe(false);
+      expect(gustFieldOpacity(theme, 7, stops)).toBe(stops(7));
+    }
+  });
+
+  test('the legend bar keeps the colours (no pre-scaling), as the wind legend does', () => {
+    const g = gustLegend('dark'); const first = field('dark')[0];
+    expect(g.gradientCSS).toContain(`rgba(${Math.round(first[1] * 255)},${Math.round(first[2] * 255)},${Math.round(first[3] * 255)},`);
+  });
+
+  test('the particle pass gets the field opacity in gust mode too (it was declared inside the skipped wind field pass)', () => {
+    const engine = require('fs').readFileSync(require('path').join(__dirname, 'WebGLWindEngine.js'), 'utf8');
+    const decl = engine.indexOf('var heatmapOpacity = ');
+    expect(decl).toBeGreaterThan(0);
+    expect(engine.indexOf('var heatmapOpacity = ', decl + 1)).toBe(-1);                       // one declaration
+    expect(decl).toBeLessThan(engine.indexOf('if (!gustColourActive(this)) {'));               // before the pass gust mode skips
+    expect(engine.indexOf("'u_field_opacity'), heatmapOpacity")).toBeGreaterThan(decl);
+  });
+
+  test('the gust layer is wired to draw at that opacity, decided with the LUT', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, 'useOwnRasterFrames.js'), 'utf8');
+    expect(src).toMatch(/gustDarkFieldOn\(theme\) \? gustFieldOpacity\(theme, 2, \(\) => 0, \{\}\) : null/);
+    expect(src).toContain('L.setOpacityAt(');
   });
 });
 
@@ -121,10 +194,9 @@ describe('gentler fast band, light only (David 2026-11-18: light gusts "too dark
     for (const kn of [0, 10, 25, 40]) {
       expect(colorAtValue(gustScale('light'), kn)[3]).toBeCloseTo(gustBaseAlpha('light', kn, sampleRamp(field('light'), kn)), 6);
     }
-    for (const theme of ['dark', 'beach']) {
-      for (const kn of [45, 60, 75]) {
-        expect(colorAtValue(gustScale(theme), kn)[3]).toBeCloseTo(gustBaseAlpha(theme, kn, sampleRamp(field(theme), kn)), 6);
-      }
+    for (const kn of [45, 60, 75]) {
+      expect(colorAtValue(gustScale('beach'), kn)[3]).toBeCloseTo(gustBaseAlpha('beach', kn, sampleRamp(field('beach'), kn)), 6);
+      expect(colorAtValue(gustScale('dark'), kn)[3]).toBeCloseTo(windDarkFieldAlpha(kn) / WIND_FIELD_OPACITY.dark, 6);   // dark: the wind's law (parity)
     }
   });
 
