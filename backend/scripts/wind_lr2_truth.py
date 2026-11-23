@@ -124,3 +124,20 @@ def pairing_table(stations: Sequence[dict], spots: Sequence[dict], crosses_land:
 def station_ok(truth: Truth, start: datetime, end: datetime, need_gust: bool = False) -> bool:
     """>= 70% hourly records over the window (reported at SCORE time; never used to pick stations by skill)."""
     return obs.hourly_coverage(truth, start, end, need_gust) >= 0.70
+
+
+def coverage_report(truth: Truth, start: datetime, end: datetime, threshold: float = 0.70) -> dict:
+    """Per-station coverage over the TEST valid window (advisor ruling 2026-11-23T12:45:02Z): the fraction of window hours with a
+    wind record (WSPD and WDIR present) and, separately, with a GST record. `ok_wind` / `ok_gust` mark >= `threshold`; they feed
+    the floor counts and the report ONLY and never drop a row from scoring."""
+    hours = max(1.0, (end - start).total_seconds() / 3600.0)
+    wind, gust = set(), set()
+    for t, (w, g, d) in truth.items():
+        if start <= t <= end:
+            h = t.replace(minute=0, second=0)
+            if w == w and d == d:
+                wind.add(h)
+            if g == g:
+                gust.add(h)
+    cw, cg = len(wind) / hours, len(gust) / hours
+    return {"wind": round(cw, 4), "gust": round(cg, 4), "ok_wind": bool(cw >= threshold), "ok_gust": bool(cg >= threshold)}

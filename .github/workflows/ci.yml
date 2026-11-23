@@ -18,10 +18,18 @@ on:
     branches: [dev, main]
 
 # A new commit on a PR cancels that PR's older run of this workflow (the Actions queue was the bottleneck,
-# 2026-11-19). A push gets a group of its own (its run id): GitHub keeps only ONE pending run per group and
-# replaces it even with cancel-in-progress false, so a shared push group would drop queued dev/main runs.
+# 2026-11-19). PUSHES TO DEV SHARE ONE GROUP, `push-dev` (2026-11-23, owner: "Yes, small CI PR"): GitHub keeps
+# one RUNNING and only the NEWEST PENDING run per group (default `queue: single`), and cancel-in-progress stays
+# false for pushes, so a running dev CI is never killed and every merge in between drops its pending run. Before
+# this each push had its own group (run id) and 15 full runs (~25 min each) queued on dev in one afternoon,
+# starving every PR. Dev CI is now "latest wins": not every merge gets a dev run of its own. The readers already
+# cope (floor-catchup.yml fires only on a green run; ci_floor_staleness.py reads the newest green run;
+# ci_floor_overlift.py walks every commit since it). Do NOT also cancel the running one: merges land every few
+# minutes, so dev would never finish a green run and both floor readers would starve.
+# Pushes to main (the production promotion) or any other branch keep a group per run: each keeps its evidence.
+# Pinned by backend/tests/test_ci_push_concurrency.py.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || (github.event_name == 'push' && github.ref == 'refs/heads/dev') && 'push-dev' || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -1303,7 +1311,10 @@ jobs:
     # 30 min (2026-10-26, lead): the suite itself runs ~12-19 min, but on a loaded runner the job crossed 20 min AFTER
     # pytest finished (#580: estate passed 3355 tests, then timed out at 20:00, twice), failing green PRs. A hang still
     # dies here; pytest's own per-test timeouts remain the first backstop.
-    timeout-minutes: 30
+    # 45 min (2026-11-23, director): 131 green full runs since 2026-11-19 measured median 23.6, p90 25.6, p95 26.5,
+    # max 29.8 min (45137345066; 29.3 on 45118521992), i.e. 12 s from the old 30:00 ceiling. Same headroom as estate.
+    # Sharding the lane is the durable fix; this keeps green PRs from dying at 30:00 meanwhile.
+    timeout-minutes: 45
     steps:
       - name: "📄 Docs-only PR: the heavy steps below are skipped (see the `changes` job)"
         if: needs.changes.outputs.docs_only == 'true'
@@ -2603,7 +2614,12 @@ jobs:
       contents: read
       actions: read
     steps:
+      # Full history, no file contents (blob:none): the over-lift step below reads the floors at the last green dev
+      # run's commit and the fragment-only commits since it. Blobs it needs are fetched on demand.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          filter: blob:none
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -2624,3 +2640,14 @@ jobs:
           else
             python scripts/ci_floor_staleness.py
           fi
+
+      # ⬆ 2026-11-23 (advisor, #1227): the OTHER side, for fragments-only PRs only. ci_floor_staleness.py above is
+      # one-sided by design; a catch-up PR adds no tests, so a floor it lifts ABOVE the last green dev reading can only
+      # fail later (e.g. a lag caught up twice, by hand and by floor-catchup.yml). Such a PR is docs-only, so its lanes
+      # do not run; this takes seconds instead. Any other PR, and every push, exits 0 with the reason.
+      - name: "🔍 Fragments-only PR: does it lift a floor above what dev last observed?"
+        if: github.event_name == 'pull_request'
+        working-directory: backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/ci_floor_overlift.py

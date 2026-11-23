@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 3,
+  "branch": "claude/emos-backfill-november",
+  "date": "2026-11-23",
+  "note": "EMOS auto backfill extended to 2026-11-15 (test_emos_backfill_next.py)"
+}

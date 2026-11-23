@@ -74,10 +74,37 @@ def vec_from_obs(speed, direction):
     return -speed * np.sin(np.radians(direction)), -speed * np.cos(np.radians(direction))
 
 
+GUST_Z_MIN, GUST_Z_MAX = 1.0, 50.0   # amendment G1 G2: the log law is used only for anemometers 1-50 m above the surface
+GUST_TOL_MIN = 10                    # the hourly report is the one nearest the hour within +-10 min (#1063)
+
+
+def gust_window_gst(obs: dict, valid: datetime, hours: int = 6) -> Optional[float]:
+    """Amendment G1 gust truth at valid time V: the MAX over the `hours` hourly observations ending at V (V-hours+1 .. V), each
+    the NDBC GST report nearest that hour within +-10 min. ALL hours must have a numeric GST (the #1063 rule for a window-max
+    model), else None; nothing is filled. ASOS is never passed in: an absent ASOS gust is a blank, not a missing value, and is
+    never imputed as the wind."""
+    vals = []
+    for h in range(hours):
+        hour = valid - timedelta(hours=h)
+        best, bd = None, None
+        for dt in range(-GUST_TOL_MIN, GUST_TOL_MIN + 1):
+            rec = obs.get(hour + timedelta(minutes=dt))
+            if rec and rec[1] == rec[1] and (bd is None or abs(dt) < bd):
+                best, bd = rec[1], abs(dt)
+        if best is None:
+            return None
+        vals.append(best)
+    return max(vals)
+
+
 def station_truth_fn(truth: Dict[int, dict], height: Dict[int, Optional[float]], convert: Callable, wind_at: Callable,
-                     gust_window: Callable):
+                     gust_window: Optional[Callable] = None):
     """truth[st] = {datetime: (wspd, gust, wdir)}. Returns f(st, valid_dt) -> (u, v, speed, dir, gust) at 10 m or None.
-    `convert(speed, z)` is obs.to_10m (NDBC log law); ASOS stations have height None and are used as is."""
+    `convert(speed, z)` is obs.to_10m (NDBC log law); ASOS stations have height None and are used as is for WIND.
+    GUST (amendment G1): only NDBC stations with 1 <= z <= 50 m carry a gust (the 6 h window max of GST, adjusted to 10 m);
+    every other station, ASOS included, has NaN gust, so it is outside the gust fit (GF) and the gust score."""
+    gw = gust_window or gust_window_gst
+
     def f(st, valid):
         rec = wind_at(truth.get(st, {}), valid)
         if rec is None:
@@ -85,8 +112,11 @@ def station_truth_fn(truth: Dict[int, dict], height: Dict[int, Optional[float]],
         sp, d = rec
         z = height.get(st)
         sp10 = float(convert(sp, z)) if z else float(sp)
-        g = gust_window(truth.get(st, {}), valid, 6, gust_absent_is_wind=(not z))
-        g10 = float(convert(g, z)) if (g is not None and z) else (float(g) if g is not None else float("nan"))
+        g10 = float("nan")
+        if z and GUST_Z_MIN <= z <= GUST_Z_MAX:
+            g = gw(truth.get(st, {}), valid, 6)
+            if g is not None:
+                g10 = float(convert(g, z))
         u, v = vec_from_obs(sp10, d)
         return float(u), float(v), sp10, float(d), g10
     return f
@@ -154,6 +184,9 @@ def build_rows(runs: Dict[datetime, dict], stations: List[dict], pairing: Dict[s
                 put("o_u", tr[0]), put("o_v", tr[1]), put("o_s", tr[2]), put("o_d", tr[3]), put("o_g", tr[4])
                 put("o_s_p7", t7[2] if t7 else float("nan"))
                 put("o_s_p48", t48[2] if t48 else float("nan"))
+                put("o_g_p7", t7[4] if t7 else float("nan"))                 # gust controls (shuffled / shifted truth)
+                put("o_g_p48", t48[4] if t48 else float("nan"))
+                put("hres240_g", float(z["cmp_hres_10fg_240"][i]) if "cmp_hres_10fg_240" in z else float("nan"))
                 put("hres240_s", float(np.hypot(z["cmp_hres_10u_240"][i], z["cmp_hres_10v_240"][i]))
                     if "cmp_hres_10u_240" in z else float("nan"))
                 for arm in set(list(CAL_SETS) + list(RAW_SETS) + ["CLIM_SERVE", "CLIM", "LOOP_PROXY", "GFS"]):

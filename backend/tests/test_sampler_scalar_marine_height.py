@@ -542,4 +542,8 @@ def test_both_ledger_lanes_declare_the_shadow_model_list_equal():
         assert len(found) == 1, wf
         values[wf] = found[0]
     assert len(set(values.values())) == 1, values
-    assert {"EURO", "ICON"} <= {m.strip().upper() for m in next(iter(values.values())).split(",")}
+    named = {m.strip().upper() for m in next(iter(values.values())).split(",")}
+    assert "ICON" in named                       # ICON's flip is still undecided: its shadow keeps grading
+    # EURO_SCALAR retired 2026-11-23: #663 (the EURO flip) was retired by the owner, so the lane had no decision left to feed
+    # and only used ~5.4k of the 68,000 pending rows (59,520 used). Re-arming it is a new decision: change this pin with it.
+    assert "EURO" not in named

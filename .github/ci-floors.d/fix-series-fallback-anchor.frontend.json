@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 4,
+  "files": 1,
+  "branch": "fix/series-fallback-anchor",
+  "date": "2026-11-23",
+  "note": "series fallback anchor guard (bug hunt)"
+}
