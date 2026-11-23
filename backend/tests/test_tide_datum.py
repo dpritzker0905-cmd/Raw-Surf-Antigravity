@@ -245,6 +245,30 @@ def test_parity_match_and_summary_are_honest():
                  "time_median_min": 12.0, "time_max_min": 12.0}
 
 
+def test_parity_v2_signed_events_p90_and_tidal_band():
+    """v2: signed per-event rows (ours - NOAA), p90, and the tidal band (each side's seasonal term removed)."""
+    sys.path.insert(0, os.path.join(HERE, "..", "scripts", "tide_datum"))
+    import parity_coops as P
+    from datetime import timedelta
+    t0 = datetime(2026, 11, 23, 3, 59, tzinfo=timezone.utc)
+    noaa = [(t0, "High", 1.23), (t0 + timedelta(hours=6), "Low", 0.20), (t0 + timedelta(hours=12), "High", 1.10)]
+    ours = [{"type": "High", "time": t0 - timedelta(minutes=12), "level_m": 1.26},
+            {"type": "Low", "time": t0 + timedelta(hours=6, minutes=6), "level_m": 0.15}]
+    ev = P.match_events(noaa, ours)
+    assert ev[0]["height_err_m"] == pytest.approx(0.03) and ev[0]["time_err_min"] == pytest.approx(-12.0)
+    assert ev[1]["height_err_m"] == pytest.approx(-0.05) and ev[1]["time_err_min"] == pytest.approx(6.0)
+    assert ev[2]["ours_m"] is None and ev[2]["height_err_m"] is None and ev[0]["time"] == "2026-11-23T03:59Z"
+    s = P.summarize_events(ev)
+    assert s["n"] == 3 and s["unmatched"] == 1 and s["height_median_abs_m"] == pytest.approx(0.04)
+    assert s["height_median_signed_m"] == pytest.approx(-0.01) and s["height_p90_abs_m"] == pytest.approx(0.05)
+    assert s["time_median_min"] == pytest.approx(9.0) and s["time_p90_min"] == pytest.approx(12.0)
+    assert P.p90([]) is None and P.p90([0.1]) == 0.1 and P.p90([float(i) for i in range(1, 11)]) == 9.0
+    # a seasonal +0.05 m in NOAA's heights that our atlas tide lacks reads -0.05 m raw and ~0 in the tidal band
+    raw = P.match_events([(t0, "High", 1.28)], [{"type": "High", "time": t0, "level_m": 1.23}])
+    tb = P.match_events(P.remove_seasonal([(t0, "High", 1.28)], [0.05]), [{"type": "High", "time": t0, "level_m": 1.23}])
+    assert raw[0]["height_err_m"] == pytest.approx(-0.05) and tb[0]["height_err_m"] == pytest.approx(0.0)
+
+
 def test_spot_shift_uses_exact_m_and_model_d_when_given():
     sys.path.insert(0, os.path.join(HERE, "..", "scripts", "tide_datum"))
     import spot_shift as SS

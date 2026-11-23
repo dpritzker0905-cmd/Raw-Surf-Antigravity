@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 1,
+  "files": 0,
+  "branch": "claude/tide-mllw-parity-v2",
+  "date": "2026-11-23",
+  "note": "test_parity_v2_signed_events_p90_and_tidal_band (parity_coops v2)"
+}
