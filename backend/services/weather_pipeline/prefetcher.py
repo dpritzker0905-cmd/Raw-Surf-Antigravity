@@ -43,6 +43,25 @@ def _prefetch_max() -> int:
         return 400
 
 
+def _prefetch_models():
+    """PREFETCH_MODELS: comma list (e.g. 'GFS') limiting the warm set to those models; unset/empty = every model (the
+    serve box's boot behaviour, unchanged). CI rating jobs use it: a one-model job needs only its own model's products,
+    and 2026-11-22 a spot-series GFS job lazily downloaded 3,259 of them one at a time because the all-model warm set
+    (14,005) was capped at 400."""
+    raw = os.environ.get("PREFETCH_MODELS", "")
+    models = {m.strip().upper() for m in raw.split(",") if m.strip()}
+    return models or None
+
+
+def _prefetch_retries() -> int:
+    """PREFETCH_RETRIES: extra attempts per failed download, with 1 s, 2 s, 4 s ... backoff (Supabase 429 bursts at
+    high concurrency). Default 0 = one attempt, the serve box's behaviour, unchanged."""
+    try:
+        return max(0, int(os.environ.get("PREFETCH_RETRIES", "0")))
+    except Exception:
+        return 0
+
+
 async def prefetch_supabase_products():
     """
     Warm the serve box on boot: download the NEAR-TERM forecast products for ALL models and the layers the
@@ -78,9 +97,12 @@ async def prefetch_supabase_products():
     start_time = now - timedelta(hours=6)
     end_time = now + timedelta(days=_prefetch_window_days())
 
+    models = _prefetch_models()
     candidates = []
     for p in manifest.products:
         if getattr(p, "is_test_fixture", False):
+            continue
+        if models is not None and str(p.model).upper() not in models:
             continue
         if (p.domain.lower(), p.layer.lower()) not in _WARM_LAYERS:
             continue
@@ -136,7 +158,15 @@ async def prefetch_supabase_products():
         temp_filepath = filepath.with_suffix(".tmp")
         async with sem:
             try:
-                product_bytes = await asyncio.to_thread(sb.storage.from_(WEATHER_BUCKET).download, filename)
+                retries = _prefetch_retries()
+                for attempt in range(retries + 1):
+                    try:
+                        product_bytes = await asyncio.to_thread(sb.storage.from_(WEATHER_BUCKET).download, filename)
+                        break
+                    except Exception:
+                        if attempt >= retries:
+                            raise
+                        await asyncio.sleep(2 ** attempt)
                 if product_bytes:
                     await asyncio.to_thread(temp_filepath.write_bytes, product_bytes)
                     await asyncio.to_thread(temp_filepath.rename, filepath)

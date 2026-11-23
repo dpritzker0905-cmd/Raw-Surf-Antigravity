@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.security import get_current_user_id
 from database import get_db
 from models import CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport, SurfSpot
-from services import observation_rewards, surf_truth_anchors, surf_truth_consent
+from services import blind_quality, observation_rewards, surf_truth_anchors, surf_truth_consent
 from services.surf_observation_scale import SCALE_VERSION, ObservationError, normalise, region_default_scale
 
 router = APIRouter()
@@ -82,6 +82,11 @@ class ObservationIn(BaseModel):
     # stored as null with a flag rather than refused (advisor note on #954).
     client_build: Optional[str] = Field(None, max_length=200)
     device_id: Optional[str] = Field(None, pattern=r"^[0-9a-fA-F-]{32,36}$")  # random install id (a claim)
+    # Blind surf quality (services/blind_quality; flag on, kill switch). One of surf_rating.LEVELS; stored only on a blind
+    # screen, with consent in force, and with an explicit `forecast_seen_for_spot: false` from the app. Never a reason
+    # to refuse the height.
+    quality_level: Optional[Literal["very_poor", "poor", "poor_fair", "fair", "fair_good", "good", "epic"]] = None
+    forecast_seen_for_spot: Optional[bool] = None
 
 
 def _distance_m(lat1, lon1, lat2, lon2) -> float:
@@ -222,6 +227,9 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
     if overridden and exif_check in ("none", "no_record"):
         flags.add("scale_override_no_photo")
     consent = await surf_truth_consent.current(db, user_id)   # P3: the choice in force at receipt, kept on the row
+    quality, quality_flags = blind_quality.decide(data.quality_level, shown, data.forecast_seen_for_spot,
+                                                   consent["granted"])
+    flags |= quality_flags
 
     obs = SurfObservation(
         user_id=user_id, observer_role=observer_role(anchor, role), flow=FLOW, spot_id=spot_id, surface=surface,
@@ -236,6 +244,8 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
         exif_check=exif_check, duplicate_of=duplicate_of, flags=",".join(sorted(flags)),
         device_hash=observation_rewards.device_hash(data.device_id), xp_status="none", corroborated=False,
         audit_selected=False, consent_training=consent["granted"], consent_version=consent["version"],
+        quality_level=quality, quality_version=blind_quality.QUALITY_VERSION if quality else None,
+        forecast_seen_claim=data.forecast_seen_for_spot,
     )
     db.add(obs)
     try:
@@ -248,6 +258,7 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
         raise HTTPException(status_code=409, detail="This report already has an observation") from exc
     # The reply names the stored row and its scale only. Quality flags, the converted height and the provenance
     # verdicts stay server-side: returning them would tell anyone gaming the checks which one fired.
+    # Whether a submitted quality level was kept is a check verdict too, so it is not in the reply either.
     return {"id": obs.id, "height_scale": obs.height_scale, "scale_default": scale_default}
 
 
@@ -283,6 +294,15 @@ async def put_consent(data: ConsentIn, db: AsyncSession = Depends(get_db),
         raise HTTPException(status_code=409, detail="This option is not available yet.") from exc
     await db.commit()
     return await _consent_reply(db, user_id)
+
+
+@router.get("/surf-observations/features")
+async def get_features():
+    """Which optional parts of the blind report the app should ask. Public and read-only: a flag state and the
+    question's fixed labels, nothing about any person or spot."""
+    on = blind_quality.enabled()
+    return {"blind_quality": on, "quality_version": blind_quality.QUALITY_VERSION if on else None,
+            "quality_levels": [{"value": k, "label": v} for k, v in blind_quality.LEVEL_WORDS.items()] if on else []}
 
 
 @router.get("/surf-observations/scale-default/{spot_id}")

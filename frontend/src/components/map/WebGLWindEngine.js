@@ -574,6 +574,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
 
   // Step 0: Draw live wind-speed heatmap from the same forecast grid used by particles.
   // GUSTS: the gust raster under the particles IS the field (gustParticles.js), so this pass is skipped and never stacks on it.
+  var heatmapOpacity = effectiveTheme === 'dark' ? 0.48 : (effectiveTheme === 'light' ? 0.65 : 0.55);   // OUTSIDE the skipped pass: DRAW_FS's casing reads it too (u_field_opacity; was undefined in gust mode, 2026-11-22)
   if (!gustColourActive(this)) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
@@ -586,8 +587,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_wind'), 0);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
-  // v3.20: Theme-dynamic heatmap opacity for premium look per theme (increased contrast: light=0.65, beach=0.55, dark=0.48)
-  var heatmapOpacity = effectiveTheme === 'dark' ? 0.48 : (effectiveTheme === 'light' ? 0.65 : 0.55);
+  // v3.20: Theme-dynamic heatmap opacity for premium look per theme (increased contrast: light=0.65, beach=0.55, dark=0.48), set above
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_max_speed'), this._maxWindSpeed);
