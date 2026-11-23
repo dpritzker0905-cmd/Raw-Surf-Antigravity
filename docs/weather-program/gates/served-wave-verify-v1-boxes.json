@@ -1,0 +1,815 @@
+{
+ "about": "Regional box bounds (index grid = tile lattice) read anonymously from the published v1/latest.json",
+ "latest_written_at": "2026-11-22T23:15:56Z",
+ "read_at": "2026-11-23T01:55:09Z",
+ "sets": {
+  "EURO/waves": {
+   "azores": {
+    "east": -24.05,
+    "north": 40.0,
+    "south": 36.0,
+    "west": -29.8
+   },
+   "brazil_east": {
+    "east": -34.0,
+    "north": -3.0,
+    "south": -27.0,
+    "west": -49.0
+   },
+   "east_australia": {
+    "east": 156.0,
+    "north": -25.0,
+    "south": -38.0,
+    "west": 150.0
+   },
+   "florida_east_coast": {
+    "east": -79.0,
+    "north": 31.0,
+    "south": 24.0,
+    "west": -85.0
+   },
+   "france_biscay": {
+    "east": 1.0,
+    "north": 48.75,
+    "south": 42.5,
+    "west": -6.0
+   },
+   "hawaii": {
+    "east": -154.0,
+    "north": 23.0,
+    "south": 18.0,
+    "west": -161.0
+   },
+   "iberia_west": {
+    "east": -6.0,
+    "north": 44.0,
+    "south": 36.0,
+    "west": -11.0
+   },
+   "indonesia": {
+    "east": 120.0,
+    "north": 2.0,
+    "south": -11.0,
+    "west": 98.0
+   },
+   "mexico_centralamerica_pac": {
+    "east": -84.0,
+    "north": 21.0,
+    "south": 8.0,
+    "west": -106.0
+   },
+   "south_africa": {
+    "east": 28.0,
+    "north": -31.0,
+    "south": -35.0,
+    "west": 17.0
+   },
+   "uk_ireland": {
+    "east": 1.0,
+    "north": 59.0,
+    "south": 49.0,
+    "west": -11.0
+   },
+   "us_northeast": {
+    "east": -69.1,
+    "north": 44.5,
+    "south": 37.5,
+    "west": -76.1
+   },
+   "us_southeast_midatlantic": {
+    "east": -74.5,
+    "north": 37.5,
+    "south": 31.0,
+    "west": -82.0
+   },
+   "us_west_coast_socal": {
+    "east": -115.0,
+    "north": 38.0,
+    "south": 30.0,
+    "west": -125.0
+   }
+  },
+  "GFS/swell_1": {
+   "azores": {
+    "east": -24.0,
+    "north": 41.0,
+    "south": 36.0,
+    "west": -30.0
+   },
+   "brazil_east": {
+    "east": -34.0,
+    "north": -3.0,
+    "south": -27.0,
+    "west": -49.0
+   },
+   "canaries_madeira_morocco": {
+    "east": -9.0,
+    "north": 34.0,
+    "south": 26.0,
+    "west": -19.0
+   },
+   "caribbean_pr_dr": {
+    "east": -61.0,
+    "north": 20.0,
+    "south": 12.0,
+    "west": -71.0
+   },
+   "centralamerica_caribbean": {
+    "east": -75.0,
+    "north": 11.0,
+    "south": 3.0,
+    "west": -84.0
+   },
+   "east_australia": {
+    "east": 156.0,
+    "north": -25.0,
+    "south": -38.0,
+    "west": 150.0
+   },
+   "florida_east_coast": {
+    "east": -79.0,
+    "north": 31.0,
+    "south": 24.0,
+    "west": -85.0
+   },
+   "france_biscay": {
+    "east": 1.0,
+    "north": 49.0,
+    "south": 42.0,
+    "west": -6.0
+   },
+   "hawaii": {
+    "east": -154.0,
+    "north": 23.0,
+    "south": 18.0,
+    "west": -161.0
+   },
+   "iberia_west": {
+    "east": -6.0,
+    "north": 44.0,
+    "south": 36.0,
+    "west": -11.0
+   },
+   "indonesia": {
+    "east": 120.0,
+    "north": 2.0,
+    "south": -11.0,
+    "west": 98.0
+   },
+   "mexico_centralamerica_pac": {
+    "east": -84.0,
+    "north": 21.0,
+    "south": 8.0,
+    "west": -106.0
+   },
+   "south_africa": {
+    "east": 28.0,
+    "north": -31.0,
+    "south": -35.0,
+    "west": 17.0
+   },
+   "srilanka_maldives": {
+    "east": 82.0,
+    "north": 10.0,
+    "south": 2.0,
+    "west": 72.0
+   },
+   "uk_ireland": {
+    "east": 1.0,
+    "north": 59.0,
+    "south": 49.0,
+    "west": -11.0
+   },
+   "us_northeast": {
+    "east": -69.0,
+    "north": 45.0,
+    "south": 37.5,
+    "west": -77.0
+   },
+   "us_pacific_northwest": {
+    "east": -122.0,
+    "north": 49.0,
+    "south": 38.0,
+    "west": -128.0
+   },
+   "us_southeast_midatlantic": {
+    "east": -74.0,
+    "north": 37.5,
+    "south": 31.0,
+    "west": -82.0
+   },
+   "us_west_coast_socal": {
+    "east": -115.0,
+    "north": 38.0,
+    "south": 30.0,
+    "west": -125.0
+   }
+  },
+  "GFS/swell_2": {
+   "azores": {
+    "east": -24.0,
+    "north": 41.0,
+    "south": 36.0,
+    "west": -30.0
+   },
+   "brazil_east": {
+    "east": -34.0,
+    "north": -3.0,
+    "south": -27.0,
+    "west": -49.0
+   },
+   "canaries_madeira_morocco": {
+    "east": -9.0,
+    "north": 34.0,
+    "south": 26.0,
+    "west": -19.0
+   },
+   "caribbean_pr_dr": {
+    "east": -61.0,
+    "north": 20.0,
+    "south": 12.0,
+    "west": -71.0
+   },
+   "centralamerica_caribbean": {
+    "east": -75.0,
+    "north": 11.0,
+    "south": 3.0,
+    "west": -84.0
+   },
+   "east_australia": {
+    "east": 156.0,
+    "north": -25.0,
+    "south": -38.0,
+    "west": 150.0
+   },
+   "florida_east_coast": {
+    "east": -79.0,
+    "north": 31.0,
+    "south": 24.0,
+    "west": -85.0
+   },
+   "france_biscay": {
+    "east": 1.0,
+    "north": 49.0,
+    "south": 42.0,
+    "west": -6.0
+   },
+   "hawaii": {
+    "east": -154.0,
+    "north": 23.0,
+    "south": 18.0,
+    "west": -161.0
+   },
+   "iberia_west": {
+    "east": -6.0,
+    "north": 44.0,
+    "south": 36.0,
+    "west": -11.0
+   },
+   "indonesia": {
+    "east": 120.0,
+    "north": 2.0,
+    "south": -11.0,
+    "west": 98.0
+   },
+   "mexico_centralamerica_pac": {
+    "east": -84.0,
+    "north": 21.0,
+    "south": 8.0,
+    "west": -106.0
+   },
+   "south_africa": {
+    "east": 28.0,
+    "north": -31.0,
+    "south": -35.0,
+    "west": 17.0
+   },
+   "srilanka_maldives": {
+    "east": 82.0,
+    "north": 10.0,
+    "south": 2.0,
+    "west": 72.0
+   },
+   "uk_ireland": {
+    "east": 1.0,
+    "north": 59.0,
+    "south": 49.0,
+    "west": -11.0
+   },
+   "us_northeast": {
+    "east": -69.0,
+    "north": 45.0,
+    "south": 37.5,
+    "west": -77.0
+   },
+   "us_pacific_northwest": {
+    "east": -122.0,
+    "north": 49.0,
+    "south": 38.0,
+    "west": -128.0
+   },
+   "us_southeast_midatlantic": {
+    "east": -74.0,
+    "north": 37.5,
+    "south": 31.0,
+    "west": -82.0
+   },
+   "us_west_coast_socal": {
+    "east": -115.0,
+    "north": 38.0,
+    "south": 30.0,
+    "west": -125.0
+   }
+  },
+  "GFS/waves": {
+   "azores": {
+    "east": -24.0,
+    "north": 41.0,
+    "south": 36.0,
+    "west": -30.0
+   },
+   "brazil_east": {
+    "east": -34.0,
+    "north": -3.0,
+    "south": -27.0,
+    "west": -49.0
+   },
+   "canaries_madeira_morocco": {
+    "east": -9.0,
+    "north": 34.0,
+    "south": 26.0,
+    "west": -19.0
+   },
+   "caribbean_pr_dr": {
+    "east": -61.0,
+    "north": 20.0,
+    "south": 12.0,
+    "west": -71.0
+   },
+   "centralamerica_caribbean": {
+    "east": -75.0,
+    "north": 11.0,
+    "south": 3.0,
+    "west": -84.0
+   },
+   "east_australia": {
+    "east": 156.0,
+    "north": -25.0,
+    "south": -38.0,
+    "west": 150.0
+   },
+   "florida_east_coast": {
+    "east": -79.0,
+    "north": 31.0,
+    "south": 24.0,
+    "west": -85.0
+   },
+   "france_biscay": {
+    "east": 1.0,
+    "north": 49.0,
+    "south": 42.0,
+    "west": -6.0
+   },
+   "hawaii": {
+    "east": -154.0,
+    "north": 23.0,
+    "south": 18.0,
+    "west": -161.0
+   },
+   "iberia_west": {
+    "east": -6.0,
+    "north": 44.0,
+    "south": 36.0,
+    "west": -11.0
+   },
+   "indonesia": {
+    "east": 120.0,
+    "north": 2.0,
+    "south": -11.0,
+    "west": 98.0
+   },
+   "mexico_centralamerica_pac": {
+    "east": -84.0,
+    "north": 21.0,
+    "south": 8.0,
+    "west": -106.0
+   },
+   "south_africa": {
+    "east": 28.0,
+    "north": -31.0,
+    "south": -35.0,
+    "west": 17.0
+   },
+   "srilanka_maldives": {
+    "east": 82.0,
+    "north": 10.0,
+    "south": 2.0,
+    "west": 72.0
+   },
+   "uk_ireland": {
+    "east": 1.0,
+    "north": 59.0,
+    "south": 49.0,
+    "west": -11.0
+   },
+   "us_northeast": {
+    "east": -69.0,
+    "north": 45.0,
+    "south": 37.5,
+    "west": -77.0
+   },
+   "us_pacific_northwest": {
+    "east": -122.0,
+    "north": 49.0,
+    "south": 38.0,
+    "west": -128.0
+   },
+   "us_southeast_midatlantic": {
+    "east": -74.0,
+    "north": 37.5,
+    "south": 31.0,
+    "west": -82.0
+   },
+   "us_west_coast_socal": {
+    "east": -115.0,
+    "north": 38.0,
+    "south": 30.0,
+    "west": -125.0
+   }
+  },
+  "GFS/wind_waves": {
+   "azores": {
+    "east": -24.0,
+    "north": 41.0,
+    "south": 36.0,
+    "west": -30.0
+   },
+   "brazil_east": {
+    "east": -34.0,
+    "north": -3.0,
+    "south": -27.0,
+    "west": -49.0
+   },
+   "canaries_madeira_morocco": {
+    "east": -9.0,
+    "north": 34.0,
+    "south": 26.0,
+    "west": -19.0
+   },
+   "caribbean_pr_dr": {
+    "east": -61.0,
+    "north": 20.0,
+    "south": 12.0,
+    "west": -71.0
+   },
+   "centralamerica_caribbean": {
+    "east": -75.0,
+    "north": 11.0,
+    "south": 3.0,
+    "west": -84.0
+   },
+   "east_australia": {
+    "east": 156.0,
+    "north": -25.0,
+    "south": -38.0,
+    "west": 150.0
+   },
+   "florida_east_coast": {
+    "east": -79.0,
+    "north": 31.0,
+    "south": 24.0,
+    "west": -85.0
+   },
+   "france_biscay": {
+    "east": 1.0,
+    "north": 49.0,
+    "south": 42.0,
+    "west": -6.0
+   },
+   "hawaii": {
+    "east": -154.0,
+    "north": 23.0,
+    "south": 18.0,
+    "west": -161.0
+   },
+   "iberia_west": {
+    "east": -6.0,
+    "north": 44.0,
+    "south": 36.0,
+    "west": -11.0
+   },
+   "indonesia": {
+    "east": 120.0,
+    "north": 2.0,
+    "south": -11.0,
+    "west": 98.0
+   },
+   "mexico_centralamerica_pac": {
+    "east": -84.0,
+    "north": 21.0,
+    "south": 8.0,
+    "west": -106.0
+   },
+   "south_africa": {
+    "east": 28.0,
+    "north": -31.0,
+    "south": -35.0,
+    "west": 17.0
+   },
+   "srilanka_maldives": {
+    "east": 82.0,
+    "north": 10.0,
+    "south": 2.0,
+    "west": 72.0
+   },
+   "uk_ireland": {
+    "east": 1.0,
+    "north": 59.0,
+    "south": 49.0,
+    "west": -11.0
+   },
+   "us_northeast": {
+    "east": -69.0,
+    "north": 45.0,
+    "south": 37.5,
+    "west": -77.0
+   },
+   "us_pacific_northwest": {
+    "east": -122.0,
+    "north": 49.0,
+    "south": 38.0,
+    "west": -128.0
+   },
+   "us_southeast_midatlantic": {
+    "east": -74.0,
+    "north": 37.5,
+    "south": 31.0,
+    "west": -82.0
+   },
+   "us_west_coast_socal": {
+    "east": -115.0,
+    "north": 38.0,
+    "south": 30.0,
+    "west": -125.0
+   }
+  },
+  "ICON/swell_1": {
+   "azores": {
+    "east": -24.05,
+    "north": 40.0,
+    "south": 36.0,
+    "west": -29.8
+   },
+   "brazil_east": {
+    "east": -34.0,
+    "north": -3.0,
+    "south": -27.0,
+    "west": -49.0
+   },
+   "east_australia": {
+    "east": 156.0,
+    "north": -25.0,
+    "south": -38.0,
+    "west": 150.0
+   },
+   "florida_east_coast": {
+    "east": -79.0,
+    "north": 31.0,
+    "south": 24.0,
+    "west": -85.0
+   },
+   "france_biscay": {
+    "east": 1.0,
+    "north": 48.75,
+    "south": 42.5,
+    "west": -6.0
+   },
+   "hawaii": {
+    "east": -154.0,
+    "north": 23.0,
+    "south": 18.0,
+    "west": -161.0
+   },
+   "iberia_west": {
+    "east": -6.0,
+    "north": 44.0,
+    "south": 36.0,
+    "west": -11.0
+   },
+   "indonesia": {
+    "east": 120.0,
+    "north": 2.0,
+    "south": -11.0,
+    "west": 98.0
+   },
+   "mexico_centralamerica_pac": {
+    "east": -84.0,
+    "north": 21.0,
+    "south": 8.0,
+    "west": -106.0
+   },
+   "south_africa": {
+    "east": 28.0,
+    "north": -31.0,
+    "south": -35.0,
+    "west": 17.0
+   },
+   "uk_ireland": {
+    "east": 1.0,
+    "north": 59.0,
+    "south": 49.0,
+    "west": -11.0
+   },
+   "us_northeast": {
+    "east": -69.1,
+    "north": 44.5,
+    "south": 37.5,
+    "west": -76.1
+   },
+   "us_southeast_midatlantic": {
+    "east": -74.5,
+    "north": 37.5,
+    "south": 31.0,
+    "west": -82.0
+   },
+   "us_west_coast_socal": {
+    "east": -115.0,
+    "north": 38.0,
+    "south": 30.0,
+    "west": -125.0
+   }
+  },
+  "ICON/waves": {
+   "azores": {
+    "east": -24.05,
+    "north": 40.0,
+    "south": 36.0,
+    "west": -29.8
+   },
+   "brazil_east": {
+    "east": -34.0,
+    "north": -3.0,
+    "south": -27.0,
+    "west": -49.0
+   },
+   "east_australia": {
+    "east": 156.0,
+    "north": -25.0,
+    "south": -38.0,
+    "west": 150.0
+   },
+   "florida_east_coast": {
+    "east": -79.0,
+    "north": 31.0,
+    "south": 24.0,
+    "west": -85.0
+   },
+   "france_biscay": {
+    "east": 1.0,
+    "north": 48.75,
+    "south": 42.5,
+    "west": -6.0
+   },
+   "hawaii": {
+    "east": -154.0,
+    "north": 23.0,
+    "south": 18.0,
+    "west": -161.0
+   },
+   "iberia_west": {
+    "east": -6.0,
+    "north": 44.0,
+    "south": 36.0,
+    "west": -11.0
+   },
+   "indonesia": {
+    "east": 120.0,
+    "north": 2.0,
+    "south": -11.0,
+    "west": 98.0
+   },
+   "mexico_centralamerica_pac": {
+    "east": -84.0,
+    "north": 21.0,
+    "south": 8.0,
+    "west": -106.0
+   },
+   "south_africa": {
+    "east": 28.0,
+    "north": -31.0,
+    "south": -35.0,
+    "west": 17.0
+   },
+   "uk_ireland": {
+    "east": 1.0,
+    "north": 59.0,
+    "south": 49.0,
+    "west": -11.0
+   },
+   "us_northeast": {
+    "east": -69.1,
+    "north": 44.5,
+    "south": 37.5,
+    "west": -76.1
+   },
+   "us_southeast_midatlantic": {
+    "east": -74.5,
+    "north": 37.5,
+    "south": 31.0,
+    "west": -82.0
+   },
+   "us_west_coast_socal": {
+    "east": -115.0,
+    "north": 38.0,
+    "south": 30.0,
+    "west": -125.0
+   }
+  },
+  "ICON/wind_waves": {
+   "azores": {
+    "east": -24.05,
+    "north": 40.0,
+    "south": 36.0,
+    "west": -29.8
+   },
+   "brazil_east": {
+    "east": -34.0,
+    "north": -3.0,
+    "south": -27.0,
+    "west": -49.0
+   },
+   "east_australia": {
+    "east": 156.0,
+    "north": -25.0,
+    "south": -38.0,
+    "west": 150.0
+   },
+   "florida_east_coast": {
+    "east": -79.0,
+    "north": 31.0,
+    "south": 24.0,
+    "west": -85.0
+   },
+   "france_biscay": {
+    "east": 1.0,
+    "north": 48.75,
+    "south": 42.5,
+    "west": -6.0
+   },
+   "hawaii": {
+    "east": -154.0,
+    "north": 23.0,
+    "south": 18.0,
+    "west": -161.0
+   },
+   "iberia_west": {
+    "east": -6.0,
+    "north": 44.0,
+    "south": 36.0,
+    "west": -11.0
+   },
+   "indonesia": {
+    "east": 120.0,
+    "north": 2.0,
+    "south": -11.0,
+    "west": 98.0
+   },
+   "mexico_centralamerica_pac": {
+    "east": -84.0,
+    "north": 21.0,
+    "south": 8.0,
+    "west": -106.0
+   },
+   "south_africa": {
+    "east": 28.0,
+    "north": -31.0,
+    "south": -35.0,
+    "west": 17.0
+   },
+   "uk_ireland": {
+    "east": 1.0,
+    "north": 59.0,
+    "south": 49.0,
+    "west": -11.0
+   },
+   "us_northeast": {
+    "east": -69.1,
+    "north": 44.5,
+    "south": 37.5,
+    "west": -76.1
+   },
+   "us_southeast_midatlantic": {
+    "east": -74.5,
+    "north": 37.5,
+    "south": 31.0,
+    "west": -82.0
+   },
+   "us_west_coast_socal": {
+    "east": -115.0,
+    "north": 38.0,
+    "south": 30.0,
+    "west": -125.0
+   }
+  }
+ }
+}

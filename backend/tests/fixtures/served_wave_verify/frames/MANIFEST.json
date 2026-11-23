@@ -1,0 +1,86 @@
+{
+ "euro_waves_global_mid.bin": {
+  "bytes": 52511,
+  "index": "v1/euro/marine/waves/global_mid/index/20261122T120000Z-f03838d0e661.json",
+  "path": "v1/euro/marine/waves/global_mid/20261122T120000Z/20261123T120000Z-233fb7816fbb.bin",
+  "run": "2026-11-22T12:00:00Z",
+  "set": "EURO/marine/waves/global_mid",
+  "sha256": "cfea984e1e1c910dd674550b8bb1193907aefceb0a802e81e268ce9407ad4859",
+  "valid_time": "2026-11-23T12:00:00Z"
+ },
+ "gfs_swell_1_global_mid.bin": {
+  "bytes": 53378,
+  "index": "v1/gfs/marine/swell_1/global_mid/index/20261122T120000Z-b4e829318356.json",
+  "path": "v1/gfs/marine/swell_1/global_mid/20261122T120000Z/20261123T120000Z-fe7635d7cb1c.bin",
+  "run": "2026-11-22T12:00:00Z",
+  "set": "GFS/marine/swell_1/global_mid",
+  "sha256": "edfd625cfaa44227fa3f6d25793720a8d3bff390342f0451d652667563360d3b",
+  "valid_time": "2026-11-23T12:00:00Z"
+ },
+ "gfs_swell_2_global_mid.bin": {
+  "bytes": 52162,
+  "index": "v1/gfs/marine/swell_2/global_mid/index/20261122T120000Z-aa76715da511.json",
+  "path": "v1/gfs/marine/swell_2/global_mid/20261122T120000Z/20261123T120000Z-2ab62c698749.bin",
+  "run": "2026-11-22T12:00:00Z",
+  "set": "GFS/marine/swell_2/global_mid",
+  "sha256": "a508d74cd070d622f1a2538deea8827339e70c4060e1751d6ce50278568db09b",
+  "valid_time": "2026-11-23T12:00:00Z"
+ },
+ "gfs_waves_global_mid.bin": {
+  "bytes": 56027,
+  "index": "v1/gfs/marine/waves/global_mid/index/20261122T120000Z-135707f6c079.json",
+  "path": "v1/gfs/marine/waves/global_mid/20261122T120000Z/20261123T120000Z-a7dbb4e79c4b.bin",
+  "run": "2026-11-22T12:00:00Z",
+  "set": "GFS/marine/waves/global_mid",
+  "sha256": "7820e68cb96c71df57be1df24cf6142b0b9f8615b109dd566fbe742fac62ea22",
+  "valid_time": "2026-11-23T12:00:00Z"
+ },
+ "gfs_waves_hawaii.bin": {
+  "bundle": "v1/gfs/marine/waves/hawaii/20261122T120000Z/bundle-b518ac1f85dd.bin",
+  "bytes": 2755,
+  "index": "v1/gfs/marine/waves/hawaii/index/20261122T120000Z-7e4b1db049bb.json",
+  "length": 2755,
+  "offset": 21708,
+  "run": "2026-11-22T12:00:00Z",
+  "set": "GFS/marine/waves/hawaii",
+  "sha12": "54bdfe955835",
+  "sha256": "54bdfe9558355fd48215c5d3eb46d9f3cbe79c4294a5836a78d8672c4a4c99a4",
+  "valid_time": "2026-11-23T12:00:00Z"
+ },
+ "gfs_wind_waves_global_mid.bin": {
+  "bytes": 53504,
+  "index": "v1/gfs/marine/wind_waves/global_mid/index/20261122T120000Z-9641c5f3c5ee.json",
+  "path": "v1/gfs/marine/wind_waves/global_mid/20261122T120000Z/20261123T120000Z-238e55350652.bin",
+  "run": "2026-11-22T12:00:00Z",
+  "set": "GFS/marine/wind_waves/global_mid",
+  "sha256": "73a7f3eef42956e4f284892029548f271df0ea2b60e366dc2ec18855cc225e26",
+  "valid_time": "2026-11-23T12:00:00Z"
+ },
+ "icon_swell_1_global_mid.bin": {
+  "bytes": 47279,
+  "index": "v1/icon/marine/swell_1/global_mid/index/20261122T120000Z-f23b189fad3b.json",
+  "path": "v1/icon/marine/swell_1/global_mid/20261122T120000Z/20261123T120000Z-57e040bc699d.bin",
+  "run": "2026-11-22T12:00:00Z",
+  "set": "ICON/marine/swell_1/global_mid",
+  "sha256": "e3a5f26868273c4abfe8c7c7a4eadb94331b870eecd044fe82a9170679a870da",
+  "valid_time": "2026-11-23T12:00:00Z"
+ },
+ "icon_waves_global_mid.bin": {
+  "bytes": 52116,
+  "index": "v1/icon/marine/waves/global_mid/index/20261122T120000Z-be66b8434ffe.json",
+  "path": "v1/icon/marine/waves/global_mid/20261122T120000Z/20261123T120000Z-9760fdc3c0c1.bin",
+  "run": "2026-11-22T12:00:00Z",
+  "set": "ICON/marine/waves/global_mid",
+  "sha256": "6d035952b39f2b476ec6c99908a162d921505ece4382603105b98690414086f3",
+  "valid_time": "2026-11-23T12:00:00Z"
+ },
+ "icon_wind_waves_global_mid.bin": {
+  "bytes": 48945,
+  "index": "v1/icon/marine/wind_waves/global_mid/index/20261122T120000Z-a1f5070ca995.json",
+  "path": "v1/icon/marine/wind_waves/global_mid/20261122T120000Z/20261123T120000Z-9852b76f1813.bin",
+  "run": "2026-11-22T12:00:00Z",
+  "set": "ICON/marine/wind_waves/global_mid",
+  "sha256": "65437ff3999efe39774872e237ac4070a507f34b2b0715c87065b387cb12f5ca",
+  "valid_time": "2026-11-23T12:00:00Z"
+ }
+}
