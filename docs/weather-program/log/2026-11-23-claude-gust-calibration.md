@@ -96,6 +96,11 @@ rows are `|raw - obs| - |C - obs|`, and for G4 `|raw - obs| - CRPS_C`. It is com
   - **Floors (below any of them the model is NOT_READ, never PASS):** >= 14 UTC test days and >= 50 two-way blocks, plus >= 200,000
     test rows (GFS), >= 100,000 (EURO) or >= 50,000 (ICON).
   - The realised n (rows, cycles, days, blocks) is reported beside every number.
+  - **Station count (noted 2026-11-23, from the backfill's collection reports only; no score read):** the dev record's list was frozen
+    on 2026-11-19 with 510 stations, not the 533 of #1063's 11-18 dry run (NDBC's GST reporters change from day to day). The
+    expected rows above came from the 533-station run, so they scale by about 0.96: GFS ~0.67 M, EURO ~0.35 M. ICON stays ~0.13 M,
+    since its estimate already came from the stored record. The floors are unchanged and still well below these. The 510-station
+    list is what is read, less #1199's LOCKED stations (round 2).
 - **G1-G6 below are SECONDARY:**
   - They are each required to ship (safety and served-number checks), but they are not the primary hypothesis.
   - Their intervals are reported unadjusted, and none of them can rescue a failed primary.
