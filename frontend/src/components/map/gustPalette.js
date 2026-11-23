@@ -13,6 +13,7 @@
  */
 import { huePathStops, resolveDrawnField, resolveThemeRamp, sampleRamp, windLegendStops } from './WindColorRamp';
 import { WIND_FIELD_OPACITY } from './gustParticles';
+import { windDarkVividOn } from './windDarkFieldVivid';
 
 export const GUST_LUT = { min: 0, step: 0.5, n: 151 };   // 0..75 kn every 0.5 kn: finer than any colour change of the table
 
@@ -94,6 +95,9 @@ export function gustAlpha(theme, stops, kn, c, win) {
  * With it on, the dark gust LUT holds rgb x a_wind with alpha = the wind's law, and the layer draws at the wind field's own
  * opacity (0.48, gustFieldOpacity) at every zoom: alpha = a_wind and colour = rgb x a_wind^2, the wind field's composite to the
  * byte (pinned in gustsLayer.test.js). The legend bar is unchanged (it shows the colours, as the wind legend does).
+ * Since dark's wind field is laid by the premultiplied law (windDarkFieldVivid.js, 2026-11-22: rgb x a + map x (1 - a)), the
+ * LUT holds the colour itself (no pre-scale) so the gust lands as rgb x a_wind, still the wind field's composite; under that
+ * module's kill the pre-scale returns with the wind's squared law.
  * Kill: window.__RAW_DISABLE_GUST_DARK_FIELD__ = true (read when the gust LUT is built: a reload or a theme change).
  */
 export function gustDarkFieldOn(theme, win = (typeof window !== 'undefined' ? window : null)) {
@@ -113,14 +117,16 @@ export function gustFieldOpacity(theme, zoom, gustOpacityAt, win) {
 export function gustScale(theme, win) {
   const stops = gustStops(theme, win);
   const dark = gustDarkFieldOn(theme, win);
+  const vivid = windDarkVividOn(theme, win);
   const breakpoints = []; const colors = [];
   for (let k = 0; k < GUST_LUT.n; k++) {
     const kn = GUST_LUT.min + k * GUST_LUT.step;
     const c = sampleRamp(stops, kn);
     breakpoints.push(kn);
-    if (dark) {   // DARK FIELD PARITY: colour pre-scaled by the wind's alpha, alpha = the wind's law (the layer draws at 0.48)
-      const aw = windDarkFieldAlpha(kn);
-      colors.push([Math.round(c[0] * aw * 255), Math.round(c[1] * aw * 255), Math.round(c[2] * aw * 255), aw / WIND_FIELD_OPACITY.dark]);
+    if (dark) {   // DARK FIELD PARITY: alpha = the wind's law (the layer draws at 0.48); the colour as the wind field lays it:
+      // c a (windDarkFieldVivid.js, the default) or, under its kill, pre-scaled by the wind's alpha for its squared law c a^2
+      const aw = windDarkFieldAlpha(kn), k = vivid ? 1 : aw;
+      colors.push([Math.round(c[0] * k * 255), Math.round(c[1] * k * 255), Math.round(c[2] * k * 255), aw / WIND_FIELD_OPACITY.dark]);
     } else {
       colors.push([Math.round(c[0] * 255), Math.round(c[1] * 255), Math.round(c[2] * 255), gustAlpha(theme, stops, kn, c, win)]);
     }

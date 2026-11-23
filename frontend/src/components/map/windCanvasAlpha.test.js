@@ -134,7 +134,7 @@ describe('the engine draws into the map through the helper', () => {
   it('imports it, and both passes bound to the map\'s framebuffer set their blend with it', () => {
     expect(engine).toContain('import { blendIntoMap } from \'./windCanvasAlpha\';');
     expect(engine.match(/blendIntoMap\(gl, /g)).toHaveLength(2);
-    expect(engine).toContain('else blendIntoMap(gl, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // field tint: multiply');
+    expect(engine).toContain('else blendIntoMap(gl, windFieldSrcFactor(gl, effectiveTheme), gl.ONE_MINUS_SRC_ALPHA); // field tint: multiply');   // dark: ONE (windDarkFieldVivid.js); every other theme SRC_ALPHA as before
     expect(engine).toContain('blendIntoMap(gl, _premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, \'u_premul\')');
     for (const call of engine.split('blendIntoMap(gl, ').slice(0, 2)) expect(call.lastIndexOf('gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);')).toBeGreaterThan(call.lastIndexOf('gl.bindFramebuffer(gl.FRAMEBUFFER, this.'));
   });

@@ -109,10 +109,21 @@ def valid_time_str(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:00:00Z")
 
 
+def nearest_hour_utc(now: datetime) -> datetime:
+    """THE "now" rule, shared with the map's getSeriesAnchorMs (backendWeatherServiceClient.js): UTC now rounded to
+    the NEAREST whole hour, a half hour rounding up (JS Math.round). Pinned on both sides by one fixture,
+    frontend/src/tests/fixtures/now-anchor-parity.json (bug hunt 2026-11-22 item E)."""
+    return (now.astimezone(timezone.utc) + timedelta(minutes=30)).replace(minute=0, second=0, microsecond=0)
+
+
 def current_valid_time(now: Optional[datetime] = None) -> datetime:
-    """The hub's "now": the top of the current UTC hour, the base the glyph precompute rates from."""
-    now = now or datetime.now(timezone.utc)
-    return now.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    """The hub's "now": the nearest UTC hour, the same anchor as the map's "Now" (`nearest_hour_utc`).
+    ⚠️ It used to FLOOR, so in minutes :30-:59 the hub picked a different 3-hourly product than the map (item E).
+    Kill switch HUB_NOW_NEAREST_HOUR='0' restores the floor."""
+    now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    if _rf.flag("HUB_NOW_NEAREST_HOUR") == "0":
+        return now.replace(minute=0, second=0, microsecond=0)
+    return nearest_hour_utc(now)
 
 
 def local_date(dt: datetime, offset_h: int):

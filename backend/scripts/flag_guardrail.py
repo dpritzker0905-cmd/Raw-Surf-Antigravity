@@ -117,6 +117,13 @@ COVERAGE = {
                                    "nearshore-moplite-v1 scorer (LITE vs CHAIN at buoys, forward archive), not yet run"),
     "SHORE_NORMAL_MOP_CALIBRATED": (REPLAY, "the height exposure normal at the calibrated anchors (#780)"),
     "RATING_LOCAL_SIZE": (RATING, "the quality score's size reference; no observed rating exists"),
+    "COPERNICUS_PEAK_PERIOD": (BLIND, "an ingest-time period definition read by fetcher subprocesses (os.environ); the replay "
+                                      "fetches GFS only and a manifest off cannot reach it. Evidence: gates/peak-period-ship-v1.md"),
+    "ICON_PEAK_PERIOD": (BLIND, "an ingest-time period definition read by fetcher subprocesses (os.environ); the replay "
+                                "fetches GFS only and a manifest off cannot reach it. Evidence: gates/peak-period-ship-v1.md"),
+    "RATING_MISSING_SAMPLE_UNKNOWN": (BLIND, "moves only spot-hours whose sample was a sampler placeholder "
+                                             "('unavailable' / out-of-bounds); the replay never serves one. Evidence: "
+                                             "tests/test_missing_sample_unknown.py and the placeholder census in its PR"),
     "RATING_BREAKER_TYPE": (RATING, "the quality score's breaker-type term; no observed rating exists"),
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": (RATING, "the quality score's oversize gate reads the height cap's depth "
                                                  "(CMP-3); the height is unchanged, no observed rating exists"),
@@ -125,6 +132,8 @@ COVERAGE = {
     "RATING_REF_PRIOR": (RATING, "the quality score's size reference for spots with no climatology (JAC-2, #771); no "
                                  "observed rating exists. Evidence: MOP size-category agreement (#839)"),
     "ALERTS_FORECAST_WINDOWS": (VOLUME, "sent-alert volume per user-day against its cap"),
+    "BAND_PARTITION_HEIGHT_ONLY": (BLIND, "the map band on partition layers only (they show height, no rating); the replay rates "
+                                          "the glyph chain, untouched. Evidence: test_band_partition_height_only.py"),
     "SPOT_HUB_RATE_ONE_SPOT": (BLIND, "the spot hub's own route; the replay rates through rate_one_spot. Evidence: "
                                       "hub = glyph parity tests (unit, offline)"),
     "SURF_SEA_INPUTS_EVERY_CALLER": (BLIND, "the hub, conditions, surf-conditions and sim callers (#772); the glyph "
@@ -133,6 +142,8 @@ COVERAGE = {
                                      "asset (unit, offline)"),
     "SIDE_PATHS_THROUGH_CHAIN": (BLIND, "the conditions preview, _breaking_ft and surf-conditions side paths (#774); "
                                         "the replay rates rate_one_spot. Evidence: test_side_paths_through_chain.py"),
+    "HUB_NOW_NEAREST_HOUR": (BLIND, "which hour the hub's 'now' row and the sim's default sample read (bug hunt E); the "
+                                    "replay rates fixed valid times. Evidence: test_hub_now_anchor_parity.py + Jest twin"),
     "MANIFEST_PRUNE_TOMBSTONES": (BLIND, "moves which products the manifest lists, not a forecast number (#770). "
                                          "Evidence: the manifest chain harness (pruned entries stay pruned)"),
     "CONSENSUS_DIRECTION_VECTOR": (LEDGER, "acts only inside the multi-model consensus build, which the GFS-only replay "
