@@ -189,7 +189,7 @@ _RATING_FLAGS = {"COPERNICUS_PEAK_PERIOD": ("0", "[DARK since 2026-10-20 (#412);
                                    "a task that has a waiter (serve-box CPU and event-loop time; no served number moves)",
                               "Render env"),
     "SIM_SERVED_TIME_MATCH": ("0", "Match sim tide/quality to actual baseline hour and model", "MCP process env"),
-    "SIM_STRICT_INPUTS": ("0", "Refuse missing/non-finite sim forecast fields; preserve measured zero", "MCP process env"),
+    "SIM_STRICT_INPUTS": ("0", "Refuse missing/non-finite sim forecast fields; preserve measured zero", "MCP process env"), "SIM_MISSING_PERIOD_UNKNOWN": ("1", "[ON, kill '0'] bug hunt 2026-11-22 F: the default sim path reads a nonzero swell with no usable period as unknown (no forecast), never period 0 = flat surf", "MCP process env"),
     # EXPLANATION, not physics: publishes `limiter`/`limiter_f` on each spot rating — which of the
     # nine multiplicative factors removed the most. Pulling it changes no score, only the ability to
     # say WHY. Declared in the same commit that added it: an undeclared switch is invisible to the
