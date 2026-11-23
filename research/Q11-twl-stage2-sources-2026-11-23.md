@@ -148,3 +148,74 @@ Reasons:
 4. Fetch the v1.4 P-ETSS service-change notice for the horizon.
 5. Copy the Stockdon 2006 equations from the paper, not from memory.
 6. Establish whether STOFS-2D-Global surge is bias-corrected in the current operational product.
+
+## Update 2026-11-23: header, index and notice reads (supersedes the matching items above)
+
+Header and index reads only. No array data loaded. One station file (SHEF, 1.8 MB) fetched once in full to read the two station blocks.
+
+### U1. STOFS points NetCDF header (`stofs_2d_glo.t12z.points.cwl.nc`, 2026-11-22 12Z)
+
+- **Format:** NetCDF-3 classic (`CDF\x01` magic). Read the first 256 KB by range request and opened in memory with netCDF4; no data arrays loaded. Source: `https://noaa-gestofs-pds.s3.amazonaws.com/stofs_2d_glo.20261122/stofs_2d_glo.t12z.points.cwl.nc`.
+- **Dimensions:** `time` 1860, `station` 1687, `namelen` 50. 1860 steps at six minutes covers the 186 h run (6 h nowcast plus 180 h forecast).
+- **Variables:**
+
+| Variable | Type | Dimensions | Units | Attributes |
+|---|---|---|---|---|
+| `time` | float64 | time | seconds since 2026-05-26 12:00:00 | long_name "model time" |
+| `station_name` | char | station, namelen | — | "BATN6 SOUS41 8518750 NY The Battery", "SDBC1 SOUS43 9410170 CA San Diego, San Diego Bay" |
+| `x` | float64 | station | degrees_east | longitude |
+| `y` | float64 | station | degrees_north | latitude |
+| `zeta` | float64 | time, station | m | long_name "water surface elevation above geoid"; standard_name `sea_surface_height_above_geoid`; _FillValue −99999 |
+
+- **Station indices (0-based):** `BATN6` = 19; `SDBC1` = 128. A third entry, `ZZZZZ` (175 NM west of San Diego, not a gauge), is at 722.
+- **Datum conflict:** the variable metadata says "above geoid", but the bucket README says the NetCDF points are MSL. Treat the datum as **unresolved** until the README and the file agree or NOAA confirms.
+- **Swl file** (`…points.swl.nc`) has identical dimensions and variables, so the variable name alone does not say which component it holds. The file name does.
+
+### U2. SHEF station blocks for SDBC1 and BATN6 (`stofs_2d_glo.t12z.points.cwl.shef`)
+
+- **Header:** "SHEF ENCODED 30 MINUTE WATER LEVEL MODEL GUIDANCE"; "WATER LEVEL VALUES REFERENCED TO MLLW IN FEET (HMIFC)"; "TIME ZONE IS UTC"; "FOR COMBINED WATER LEVELS".
+- **Blocks:** 477 `.E` station blocks. Each block is 31 lines: `.E <ID> <YYYYMMDD> Z DH1200/DC<creation>/HMIFC/DIN30/` followed by continuation lines `.E1` to `.E29`, with values in feet at 30-minute steps from 12:00 UTC. Both blocks run about 7.5 days.
+- **SDBC1** first values: 5.86, 6.33, 6.85, 7.26, 7.59 ft MLLW; the block runs to a minimum near −0.27 ft and a maximum near 8.30 ft.
+- **BATN6** first values: 5.33, 4.81, 4.34, 3.79, 3.21 ft MLLW; the block ranges from about −0.30 to 7.69 ft.
+- **Datum:** MLLW, feet. Convert to metres and to CO-OPS MLLW before comparing with gauges.
+
+### U3. Licence (AWS registry page, read directly)
+
+- The registry text reads: "NOAA data disseminated through NODD are open to the public and can be used as desired. … NOAA requests attribution for the use or dissemination of unaltered NOAA data. However, it is not permissible to state or imply endorsement by or affiliation with NOAA. If you modify NOAA data, you may not state or imply that it is original, unaltered NOAA data." NODD contact: the NODD team. Source: `https://registry.opendata.aws/noaa-gestofs/`.
+- This **confirms** the licence item as NODD open data with attribution. It does not state CC0 for this dataset. Earlier CC0 references are from NOAA repository records for related datasets.
+
+### U4. P-ETSS horizon (Service Change Notice)
+
+- **Notice:** SCN 25-57, "P-ETSS v1.4.0", `https://www.weather.gov/media/notification/pdf_2025/scn25-57_PETSS_v1.4.0.pdf`, linked from the MDL v1.4 page `https://vlab.noaa.gov/web/mdl/-/probabilistic-extra-tropical-storm-surge-model-upgraded-to-version-1-4`. Effective on or about 2 September 2025.
+- **Horizon: not stated in the notice text.** The text extracted from the PDF (crude stream extraction, about 8 kB) gives no forecast length. It mentions a "6-hour projection guidance" bug fix. **Horizon remains UNVERIFIED**; rendering the PDF would settle it.
+- **Other facts from the notice:** GEFS produces 3-hourly 27.5 km grids; GEPS produces 3-hourly 55 km grids (both from the MDL page); P-ETSS runs four times a day; the West Coast now uses 37 tidal constituents, up from 13.
+- **Bias correction: conflict.** The notice lists "bias corrected SHEF files" for the P-ETSS station products (`shef.petss.tCCz.*.totalwater.AREA`) as well as for ETSS. That contradicts our earlier note that P-ETSS has no station bias correction. The notice text is only partly extracted, so the sentence needs checking in a rendered copy. Until then, treat P-ETSS bias correction as **unresolved**, not absent.
+
+### U5. Stockdon et al. (2006) coefficients: still UNVERIFIED
+
+- The Ifremer copy (`data-ww3.ifremer.fr/BIB/Stockdon_etal_CE2006.pdf`) returned an HTML error page, not the paper.
+- The USGS publication page gave no direct PDF link. The USGS data-series readme (`pubs.usgs.gov/ds/602/readme.pdf`) is a dataset readme, and its text extraction was not completed in this session.
+- The coefficients stated in the request (setup η = 0.35·β·(H0·L0)^0.5) and the 0.563β² + 0.004 swash term were **not verified**. A search summary confirmed only the structure: setup depends on β, H0 and L0. The 1.1 factor and the η + S/2 structure are from memory. Do not use these numbers until the paper is read.
+- Citation: Stockdon, H.F., Holman, R.A., Howd, P.A., Sallenger, A.H. (2006), "Empirical parameterization of setup, swash, and runup", Coastal Engineering 53(7), 573–588, doi 10.1016/j.coastaleng.2005.12.005. The DOI comes from a secondary citation and was not checked at the publisher.
+
+### U6. Machine-learning runup and setup (latest-science, OpenAlex metadata; abstracts not read)
+
+The retry succeeded through the OpenAlex source; the arXiv route had returned 429 earlier.
+- Naeini & Snaiki (2024), "A physics-informed machine learning model for time-dependent wave runup prediction" (OpenAlex W4391517527, 2024-02-03).
+- Beuzen et al. (2019), "Ensemble models from machine learning: an example of wave runup and coastal dune erosion", NHESS 19, 2295 (`https://nhess.copernicus.org/articles/19/2295/2019/nhess-19-2295-2019.pdf`; OpenAlex W2934386742, 2019-10-22).
+- Mirkhorli et al. (2026), "Hybrid machine learning models with particle swarm optimization … solitary wave runup … sloping beaches", Scientific Reports (OpenAlex W7202035628, 2026-08-09). Solitary waves, not ocean waves, so limited transfer.
+- Kim & Lee (2024), "Prediction of wave runup on beaches using interpretable machine learning" (OpenAlex W4392018965, 2024-02-21), already cited in the note above.
+- **Not verified from full text in this session:** the skill numbers of these papers. Treat any comparison claim as unverified until the paper is read.
+
+### Revised status
+
+| Item | Status now |
+|---|---|
+| NetCDF variables, units, station indices | Verified (header read) |
+| NetCDF datum (MSL per README vs "above geoid" per variable) | **Conflict, unresolved** |
+| SHEF blocks for SDBC1 and BATN6, MLLW feet | Verified (full file read once) |
+| NODD licence | Verified (registry page) |
+| P-ETSS horizon | **Not in the notice text; UNVERIFIED** |
+| P-ETSS bias correction | **Conflicts with notice text; unresolved** |
+| Stockdon coefficients | **UNVERIFIED** |
+| latest-science ML runup | Retrieved (metadata only) |
