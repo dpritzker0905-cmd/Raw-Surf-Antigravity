@@ -244,7 +244,9 @@ def test_own_module_sets_load_by_path_too():
     assert out.returncode == 0, out.stderr
     # + NOAA RTOFS (2026-11-22, #1134), which joins through the same plugins module
     # + the native 1/12-degree Copernicus boxes (2026-11-22, #1145)
-    assert "['cmems_currents', 'cmems_currents_native', 'cmems_sst', 'giops_currents', 'rtofs_currents']" in out.stdout
+    # + the ECMWF ENS gust-risk set (2026-11-23, gate gust-ens-risk-v1; dark)
+    assert "['cmems_currents', 'cmems_currents_native', 'cmems_sst', 'ens_gust_risk', 'giops_currents', 'rtofs_currents']" in out.stdout
+    assert "gust_risk_ens" in out.stdout
     assert "currents_giops" in out.stdout and "currents_rtofs" in out.stdout and "currents_native_hawaii" in out.stdout
     assert out.stdout.strip().endswith("False")
     assert {k for k in ("cmems_currents", "cmems_sst", "giops_currents")} <= set(fsr.PLUGIN_SOURCES)

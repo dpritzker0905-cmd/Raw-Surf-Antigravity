@@ -22,6 +22,7 @@ import { requireStoredIconEstimate } from './iconEstimateDelivery';
 import { noteRequestDiet, planManifestFetch, requestDietOn } from './marineRequestDiet';
 import { staticEligible, tryStaticWorldGrid } from './staticFrames';
 import { noteBackendAnswer } from './staticRegional';
+import { bandRatedFor } from './partitionHeightOnly';
 
 
 export { BoundedPointCache };
@@ -179,6 +180,15 @@ export function getSurfModeFlag() {
     window.__SURF_MODE__ = persisted;
     return persisted;
   } catch (e) { return false; }
+}
+
+/**
+ * The flavour the marine DATA lane asks for a layer: rated only when Rating is on AND the layer can carry a rating. A partition
+ * layer (Swell 1/2, Wind Waves) is asked plain and draws its own height (partitionHeightOnly.js, bug hunt 2026-11-22 D). The
+ * toggle, the glyphs and the infobox keep reading getSurfModeFlag().
+ */
+export function getMarineBandFlag(layer) {
+  return bandRatedFor(getSurfModeFlag(), layer);
 }
 
 export function setSurfModeFlag(on) {
@@ -444,12 +454,12 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
 
   const { clampedBbox } = clampResult;
   const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
-  const url = `${GRID_URL}?model=${model}&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}${getSurfModeFlag() ? '&surf=1' : ''}`;
+  const url = `${GRID_URL}?model=${model}&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}${getMarineBandFlag(layer) ? '&surf=1' : ''}`;
 
   try {
     // STATIC FRAMES (step 2b, DARK: staticFrames.js): a WORLD box is answered from the pinned CDN frame when one
     // covers this valid time; any miss or error returns null and /grid is fetched exactly as before.
-    const surfNow = getSurfModeFlag();
+    const surfNow = getMarineBandFlag(layer);
     const staticJson = staticEligible({ model, layer, bbox: clampedBbox, surf: surfNow })
       ? await tryStaticWorldGrid({ model, layer, validTimeStr, clampedBbox, surf: surfNow, signal })
       : null;

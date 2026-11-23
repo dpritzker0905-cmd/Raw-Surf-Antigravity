@@ -2,8 +2,11 @@ import { useMemo, useRef } from 'react';
 import { isGridLayerSupported } from './marineControllerUtils';
 import { markDisplayed } from './marineTransitionCoordinator';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
+import { bandRatedFor } from './partitionHeightOnly';
 import { alignedCoverFrac } from './marineZoomThresholds';
 import { readoutModelRun } from './marineDrawnFrame';
+// The flavour the marine data lane asks for this layer: a partition is plain even in Rating mode (bug hunt 2026-11-22 D).
+const getMarineBandFlag = (layer) => bandRatedFor(getSurfModeFlag(), layer);
 
 function getLongitudinalOverlap(w1, e1, w2, e2) {
   const vpWidth = (e1 < w1) ? (e1 + 360) - w1 : e1 - w1;
@@ -366,7 +369,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       const isSameTarget = lastValidKeyRef.current &&
                            lastValidKeyRef.current.model === activeModel &&
                            lastValidKeyRef.current.layer === activeMarineLayer &&
-                           lastValidKeyRef.current.surf === getSurfModeFlag();
+                           lastValidKeyRef.current.surf === getMarineBandFlag(activeMarineLayer);
       if ((isTransitioning || isSameTarget) && lastValidDataRef.current) {
         return returnHeld();
       }
@@ -509,7 +512,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       const isSameTarget = lastValidKeyRef.current &&
                            lastValidKeyRef.current.model === activeModel &&
                            lastValidKeyRef.current.layer === activeMarineLayer &&
-                           lastValidKeyRef.current.surf === getSurfModeFlag();
+                           lastValidKeyRef.current.surf === getMarineBandFlag(activeMarineLayer);
       if ((isTransitioning || isSameTarget) && lastValidDataRef.current) {
         return returnHeld();
       }
@@ -520,7 +523,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     // The Swell↔Surf MODE is part of the identity (2026-07-03): a held surf-banded frame must
     // never satisfy a plain request (or vice versa) — the plain/surf frame-mixing family.
     lastValidDataRef.current = res;
-    lastValidKeyRef.current = { model: activeModel, layer: activeMarineLayer, hour: res.hourOffset, surf: getSurfModeFlag() };
+    lastValidKeyRef.current = { model: activeModel, layer: activeMarineLayer, hour: res.hourOffset, surf: getMarineBandFlag(activeMarineLayer) };
     markDisplayed(lastValidKeyRef.current);
     return res;
   }, [conformedGridBase, memoHourDep, mapInstance, viewState, marineData]);

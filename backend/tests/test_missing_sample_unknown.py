@@ -33,14 +33,14 @@ def _offline(monkeypatch):
         monkeypatch.setenv(k, "0")
 
 
-def _resp(domain, layer, speed, direction, period, method):
+def _resp(domain, layer, speed, direction, period, method, lat=LAT, lng=LNG):
     return NormalizedPointResponse(
         model="GFS", provider="x", domain=domain, layer=layer,
         run_time=datetime(2026, 11, 22, 6, tzinfo=timezone.utc),
         valid_time=datetime(2026, 11, 22, 12, tzinfo=timezone.utc),
         is_forecast_authoritative=True, is_estimated=False, value_kind="x",
         value_unit="m" if domain == "marine" else "kn", display_unit_hint="x", source_variables=[], freshness_sec=0,
-        point=NormalizedPointDetail(requested_lat=LAT, requested_lng=LNG, sampled_lat=LAT, sampled_lng=LNG,
+        point=NormalizedPointDetail(requested_lat=lat, requested_lng=lng, sampled_lat=lat, sampled_lng=lng,
                                     speed=speed, direction=direction, period=period, interpolation_method=method))
 
 
@@ -65,8 +65,8 @@ class _Resolver:
         return None
 
 
-def _rate(marine, wind):
-    spot = {"id": "t", "name": "t", "latitude": LAT, "longitude": LNG}
+def _rate(marine, wind, lat=LAT, lng=LNG):
+    spot = {"id": "t", "name": "t", "latitude": lat, "longitude": lng}
     return asyncio.run(SRT.rate_one_spot(_Resolver(marine, wind), spot, "GFS", VT))
 
 
@@ -95,12 +95,20 @@ def test_skip_is_on_by_default_and_the_kill_turns_it_off(monkeypatch):
 
 
 # ── flag ON: the fix ────────────────────────────────────────────────────────────────────────────────────────────────
+# Two shores with different normals (SubQ review 2026-11-23: one coordinate was a modest gap). Swell arrives head-on at
+# each, so the sea is rated; the shore normals come from the served geometry (Pipeline 325 deg, Cocoa Beach 93 deg).
+SHORES = [pytest.param(LAT, LNG, 315.0, id="pipeline-nnw"), pytest.param(28.3200, -80.6000, 93.0, id="cocoa-east")]
+
+
+@pytest.mark.parametrize("lat,lng,swell_from", SHORES)
 @pytest.mark.parametrize("method", ["unavailable", "out_of_bounds_fallback"])
-def test_missing_wind_is_never_glassy(monkeypatch, method):
+def test_missing_wind_is_never_glassy(monkeypatch, method, lat, lng, swell_from):
     monkeypatch.setenv(FLAG, "1")
-    missing = _rate(GOOD_MARINE, _unavailable("wind", "wind", method))
-    failed = _rate(GOOD_MARINE, None)              # a failed wind resolve: the engine's neutral wind
-    glassy = _rate(GOOD_MARINE, _resp("wind", "wind", 0.0, 0.0, None, "bilinear"))   # a REAL measured calm
+    sea = _resp("marine", "waves", 2.0, swell_from, 14.0, "bilinear", lat, lng)
+    missing = _rate(sea, _resp("wind", "wind", 0.0, 0.0, 0.0, method, lat, lng), lat, lng)
+    failed = _rate(sea, None, lat, lng)            # a failed wind resolve: the engine's neutral wind
+    glassy = _rate(sea, _resp("wind", "wind", 0.0, 0.0, None, "bilinear", lat, lng), lat, lng)   # a REAL measured calm
+    assert glassy["score"] is not None             # the sea is rated here, so the comparison means something
     assert missing["score"] == failed["score"]
     assert missing["score"] < glassy["score"]      # no glassy credit for a sample that has no data
 
@@ -170,3 +178,31 @@ def test_sim_off_keeps_the_old_reading(monkeypatch):
     monkeypatch.setenv(FLAG, "0")
     baseline, _ = _sim(monkeypatch, "unavailable")
     assert baseline is not None and baseline["wind_speed_knots"] == 0.0
+
+
+# ── the placeholder tally (the committed follow-up: how often production serves a placeholder) ─────────────────────
+def test_tally_counts_every_rated_input_whatever_the_flag(monkeypatch):
+    for value in ("0", "1"):
+        monkeypatch.setenv(FLAG, value)
+        missing_sample.reset_tally()
+        _rate(GOOD_MARINE, _unavailable("wind", "wind"))
+        _rate(_unavailable("marine", "waves", "out_of_bounds_fallback"), ONSHORE_12KT)
+        _rate(GOOD_MARINE, None)
+        t = missing_sample.tally_summary()
+        assert t["GFS/marine"] == {"total": 3, "placeholder": 1, "none": 0, "out_of_bounds_fallback": 1,
+                                   "share": round(1 / 3, 6)}
+        assert t["GFS/wind"] == {"total": 3, "placeholder": 1, "none": 1, "unavailable": 1, "share": round(1 / 3, 6)}
+
+
+def test_precompute_report_writes_the_step_summary(monkeypatch, tmp_path):
+    import importlib
+    import sys
+    sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[1] / "scripts"))
+    pc = importlib.import_module("precompute_ci")
+    missing_sample.reset_tally()
+    _rate(GOOD_MARINE, _unavailable("wind", "wind"))
+    out = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(out))
+    pc._report_placeholder_tally()
+    text = out.read_text(encoding="utf-8")
+    assert "Placeholder samples" in text and "| GFS/wind | 1 | 1 | 100.0000% | 0 |" in text

@@ -247,7 +247,13 @@ def test_a_rated_regional_bundle_builds_for_a_tile_on_one_side_of_the_split(tmp_
         assert fb.RATING in dec["fields"]
     order = [fs.set_key(t) for t in fsr.rated_publish_sets()]
     assert order[0].endswith("_rated") and order[0].split("/")[2] == "waves" and order[0].split("/")[3] != "global_mid_rated"
+    # Partition layers are never rated (BAND_PARTITION_HEIGHT_ONLY, bug hunt 2026-11-22 D): only the total sea is baked...
+    assert {k.split("/")[2] for k in order} == {"waves"}
+    # ...and under its kill switch the old order holds: the world waves set before any swell_1 set.
+    monkeypatch.setenv("BAND_PARTITION_HEIGHT_ONLY", "0")
+    order = [fs.set_key(t) for t in fsr.rated_publish_sets()]
     assert order.index("GFS/marine/waves/global_mid_rated") < order.index(next(k for k in order if k.split("/")[2] == "swell_1"))
+    monkeypatch.delenv("BAND_PARTITION_HEIGHT_ONLY")
     # The plain bundles include EURO / ICON (D-059); their rated twins stay GFS-only (surf is tile-first for GFS alone).
     assert any(t["model"] != "GFS" for t in fsb.selected_regional_sets())
     assert fsr.rated_regional_sets() and all(t["model"] == "GFS" for t in fsr.rated_regional_sets())
