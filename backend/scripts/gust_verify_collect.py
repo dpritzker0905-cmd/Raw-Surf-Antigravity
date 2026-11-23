@@ -285,6 +285,39 @@ class IconModel:
 RETRY_WAITS = (5, 15, 45)               # seconds; the AWS mirror answers 503 under load (dry run 44392035963: 130 EURO steps)
 
 
+def available_retried(model, cycle, waits=None):
+    """model.available(cycle), asked again after each wait: one failed HEAD must not count as "not published"."""
+    import time
+    for wait in (0,) + tuple(RETRY_WAITS if waits is None else waits):
+        time.sleep(wait)
+        if model.available(cycle):
+            return True
+    return False
+
+
+def plan_daily(model, today, done, report, waits=None):
+    """Today's run if it is stored (skip) or available (collect). Otherwise today is recorded as UNAVAILABLE, and yesterday is
+    collected only if it is not stored and still available.
+    2026-11-22: a single failed HEAD for ICON's 00Z made the old loop fall back to yesterday, find it stored, and stop. Today
+    was never recorded, the run stayed green, and by the next run DWD (which keeps only its latest 00Z run) had replaced the
+    file: ICON 2026-11-22 was lost for good."""
+    out = []
+    tkey = f"cycles/{model.name}_{today:%Y%m%d%H}.json.gz"
+    if tkey in done:
+        report["skipped"].append(tkey)
+        return out
+    if available_retried(model, today, waits):
+        return [(model, today, tkey)]
+    report["unavailable"].append(f"{model.name} {today:%Y%m%d%H}")
+    y = today - timedelta(days=1)
+    ykey = f"cycles/{model.name}_{y:%Y%m%d%H}.json.gz"
+    if ykey in done:
+        report["skipped"].append(ykey)
+    elif available_retried(model, y, waits):
+        out.append((model, y, ykey))
+    return out
+
+
 def collect_cycle(model, cycle, stations, workers=4, waits=RETRY_WAITS):
     """{model, cycle, station_ids, steps:[{f, w, g, u}], dropped:[{f, why}]}; a step is retried after `waits`, then dropped
     with its last reason, never filled. (A throttled .index comes back as an error page, which the source reads as "index has
@@ -397,17 +430,7 @@ def main(argv=None):
         for M in (GfsModel, EuroModel, IconModel):
             if M.name not in wanted:
                 continue
-            model = M(http)
-            for cyc in (today, today - timedelta(days=1)):
-                key = f"cycles/{M.name}_{cyc:%Y%m%d%H}.json.gz"
-                if key in done:
-                    report["skipped"].append(key)
-                    break
-                if model.available(cyc):
-                    jobs.append((model, cyc, key))
-                    break
-            else:
-                report["unavailable"].append(M.name)
+            jobs += plan_daily(M(http), today, done, report)
         obs_kind = "5day"
     else:
         start = datetime.fromisoformat(a.start).replace(tzinfo=timezone.utc)
@@ -440,6 +463,9 @@ def main(argv=None):
         report["obs"] = {"key": okey, "stations": len(got), "missing": missing}
         print(f"{okey}: {len(got)} stations, {len(missing)} without a file", flush=True)
     json.dump(report, open(os.path.join(a.cache, f"collect_report_{a.cmd}.json"), "w"), indent=1)
+    if report["unavailable"]:              # loud, AFTER the collected files are written (the upload step runs on failure too)
+        print(f"::error::today's run not collected: {', '.join(report['unavailable'])}", flush=True)
+        return 3
     return 0
 
 
