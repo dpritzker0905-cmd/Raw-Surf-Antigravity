@@ -15,12 +15,42 @@ Record before this session (read 2026-11-23 02:30Z):
   model in every lead bin except EURO 120-240 h. Most of EURO/ICON's high bias is the one-report-an-hour observation (the dense
   window maximum cuts EURO's +1.6 to ~+0.5 m/s, ICON's +1.26 to +0.14).
 
-## 0. Collector: backfill dispatched (2026-11-23 02:40Z), then CANCELLED (~03:00Z, director's order: no dispatches without David's word)
+## 0. Collector: backfill dispatched (2026-11-23 02:40Z), CANCELLED (~03:00Z, director's order), re-dispatched on David's word (03:01Z)
 
 `gust-verify.yml` (on dev) `mode=backfill` for GFS and EURO 00Z, 2026-10-09..10-28 (run 45101551190) and 10-29..11-18
 (run 45101561748). The mode is the merged collector's own; it writes create-only under `calibration/gust_verify/`. Why now: NDBC's
 `realtime2` files hold 45 days, so 10-09 is the oldest cycle whose verifying reports can still be fetched, and the window rolls
 forward every day. ICON has no archive (DWD keeps about a day), so ICON's record starts at 11-19 and grows by one cycle a day.
+
+**The record of what happened:**
+- **Cancelled, partial.** Both runs above were dispatched before the director's word. They were cancelled at ~03:00Z on the
+  director's order, after starting at 02:40:30Z and 02:58:41Z. Any create-only objects they uploaded before the cancel are inert, and
+  the re-dispatch skips any key already stored. The fitter PR #1197 was closed then, and its keyless scoring run 45103148103 was
+  cancelled before it fitted.
+- **Re-dispatched on David's word.** He typed "Yes, run both" in the director session (local_d6b521eb) at about 03:01Z, and the
+  advisor session recorded "Yes, ratify the gust backfill runs". The director dispatched the same two halves at 03:01:20Z and
+  03:01:26Z: run 45103479599 (10-09..10-28) and run 45103488328 (10-29..11-18). Both concluded success.
+- **Result (collection reports only; no score read):**
+  - 45103479599: GFS 20 cycles, 1,620 steps; EURO 20 cycles, 1,280 steps; 0 dropped. NDBC realtime2 for 510 of 510 stations.
+  - 45103488328: GFS 21 cycles, 1,701 steps, 0 dropped; EURO 21 cycles, 1,291 steps, **53 dropped**. The obs file had already been
+    stored by the first run.
+- **The partial EURO backfill: dropped steps by cycle.** Every drop reads "index has no 10fg/sfc fc message" after the collector's
+  three retries. That is #1063's throttled-AWS-mirror pattern. The drops are recorded and never filled, so these cycles cover their
+  leads unevenly.
+
+  | EURO cycle (00Z) | steps dropped (of 64) |
+  |---|---|
+  | 2026-10-29 | 1 |
+  | 2026-10-30 | 3 |
+  | 2026-10-31 | 2 |
+  | 2026-11-02 | 8 |
+  | 2026-11-05 | 2 |
+  | 2026-11-06 | 19 |
+  | 2026-11-09 | 8 |
+  | 2026-11-11 | 6 |
+  | 2026-11-12 | 1 |
+  | 2026-11-13 | 2 |
+  | 2026-11-14 | 1 |
 
 ## 1. PRE-REGISTERED METHOD (written 2026-11-23, before any calibration code exists and before any fit or calibrated number)
 
@@ -174,10 +204,21 @@ rows are `|raw - obs| - |C - obs|`, and for G4 `|raw - obs| - CRPS_C`. It is com
 - A run started before these hold is VOID: it is recorded and never used.
 
 **Precedence:**
-- **This calibration vs #1063's additive bias correction.** For each model and lead bin, the bias correction comes first: it is
-  decided at the 12-09 re-score by its own rule. C is scored after it, against the RAW gust. If both pass, they are never stacked:
-  C (which absorbs a constant bias, POSITIVE 1) replaces the additive correction for that model and bin. If C fails, the #1063 rule
-  stands alone.
+- **This calibration vs #1063's additive bias correction (advisor HOLD, 2026-11-23).**
+  - Order: for each model and lead bin, the bias correction comes first. It is decided at the 12-09 re-score by its own rule.
+  - C's primary and gates are unchanged: C is scored against the RAW gust (§1 primary endpoint).
+  - The two are never stacked.
+  - Where the correction did NOT pass for a model x bin, a passing C serves there.
+  - Where the correction DID pass, C replaces it in that model x bin only if C also beats the CORRECTED gust
+    (`G_corr = G - b`, with b the offset #1063's rule decided, applied unchanged):
+    - on the same out-of-sample test rows;
+    - by the primary metric: the gain `|G_corr - y| - CRPS_C`;
+    - two-way 95% (block x day) lower bound > 0;
+    - Holm across the bins of that model where the replacement is tested, alpha 0.05.
+    - Otherwise the additive correction stays in that model x bin, and C serves only where the correction did not pass.
+  - Why b is applied as #1063 decided it, even though its fit window may overlap C's test rows: any in-sample advantage favours the
+    incumbent correction, so the test can only err toward keeping it.
+  - If C fails its own gate, the #1063 rule stands alone.
 - **This calibration vs D-075.** C covers each model's own native range only. Past it, D-075's ENS median 10fg rule governs
   (#946's gate), and C is never applied to ENS members.
 - **This document vs this session.** Where this document and anything said in this session disagree, the merged #1186 text wins,
