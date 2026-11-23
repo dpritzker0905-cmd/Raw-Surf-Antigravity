@@ -143,3 +143,43 @@ Client-only perf fix: no served number, no fetch rule, no commit rule changes. O
   That changes the engine's grid interface; a PR of its own.
 - **Not under the budget:** `windGridSeries` pages, `windStaticFrames` raw bytes, staticFrames `_lru` (12 entries; 19 MB measured),
   and the .om library's own states.
+
+## The advisor's hold, and the fix (2026-11-23, later)
+
+- **The hold.** The advisor HELD #1247: "The active view is only activeLayers[0]. But the wind overlay is a SECOND active layer
+  (MapWeatherControls.js:784, windOn = activeLayers.includes('wind')). With waves plus wind on, every wind grid, including hour ±3,
+  counts as off-screen and unpinned and is dropped first."
+- **What I checked:**
+  - Today's UI never holds two layers. `useWeatherState.toggleLayer` sets exactly `[layerId]`, and route memory restores
+    `[saved.layer]`; no other writer exists, on this branch or on dev 705d30fa6.
+  - The same class of bug IS reachable another way. GUSTS runs the wind particle engine (`gustParticles.windParticlesWanted`), so its
+    wind grids are on screen under a Gusts chip, and the budget counted them off-screen.
+- **The fix:**
+  - `cacheBudget.viewLayers(activeLayers)`: the view is a SET of every active layer, plus `wind` whenever the wind particles run.
+  - `onScreen` tests membership.
+  - The raster and decoded pins are the newest per on-screen layer (`pinNewestPerLayer`).
+  - `useWeatherState` passes the whole `activeLayers`.
+- **Tests:**
+  - `viewLayers` (Gusts brings wind; Gusts with its particles killed does not);
+  - `onScreen` membership;
+  - the advisor's case: with `['waves','wind']`, the wind grids at hour ±3 stay pinned and only the other model's wind is dropped;
+  - a positive control (the view as `activeLayers[0]` leaves them unpinned);
+  - a pass scheduled on a change of the layer set.
+  - A mutant `onScreen` that reads only the first layer fails 2 of them.
+- **Frontend floor fragment:** `.github/ci-floors.d/claude-frame-cache-budget.frontend.json` (+3 suites, +39 tests: cacheBudget,
+  cacheBudgetAdapters, decodedOmBudget).
+- **The A/B.** The advisor's exact case cannot be driven, because no UI path puts waves and wind on together. The reachable one,
+  Gusts, is in the full flow, so the flow was re-run ON vs killed on the fixed build (dev 705d30fa6 + this PR), 2 cycles. Retained
+  cycle 1 / cycle 2:
+  - desktop ON 408 / 369 MB vs killed 883 / 1,047;
+  - phone ON 321 / 323 MB vs killed 828 / 934 (the killed phone's `usedJSHeapSize` reached 2,038 MB in cycle 2).
+- **Latency in that A/B:**
+  - Wind drawn during the Gusts steps: p50 44-57 ms in both arms.
+  - Marine: p50 equal (18-21 vs 17-23 ms); desktop p95 26-34 vs 26-65; phone p95 388-396 vs 297-347.
+  - Raster: equal.
+- **The honest cost: wind revisits on a phone.** After ~20 other layer and model views, the 32 MB reserve holds only the most recent
+  model's wind grids. Cycle-2 wind steps under 1 s, of 42:
+  - phone: ON 11 and 7 vs killed 12 and 21, over two runs;
+  - desktop: ON 19 and 12 vs killed 15 and 11.
+  - A cold wind step costs ~7.8 s in every arm. That pre-existing cost is the real fix (the proposed follow-up session); the reserve
+    stays capped per the reviewers.

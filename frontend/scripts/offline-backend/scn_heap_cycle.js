@@ -227,6 +227,11 @@ async function session(arm) {
           const before = rlog.filter(([t]) => t < s.pk).pop(); const wantBefore = before ? before[3] : null;
           const hit = rlog.find(([t, , sh, w]) => t >= s.pk && w != null && w !== wantBefore && sh === w);
           s.trueMs = hit ? Math.round(hit[0] - s.pk) : null;
+          // GUSTS draws the WIND particles along the wind grids (gustParticles.windParticlesWanted): time them too, as a wind step.
+          if (s.layer === 'Gusts') {
+            const wh = wlog.find(([t, , d]) => t >= s.pk && d != null && Math.abs(d - s.targetMs) <= 3 * 3600000);
+            s.windTrueMs = wh ? Math.round(wh[0] - s.pk) : null;
+          }
         } else {
           // Wind: the drawn frame's instant within 3 h of the step's (3-hourly frames; EURO's 6-hourly tail).
           const hit = wlog.find(([t, , d]) => t >= s.pk && d != null && Math.abs(d - s.targetMs) <= 3 * 3600000);

@@ -108,9 +108,15 @@ export function rasterEntries(map, view, { anchors = false } = {}) {
     const pv = rasterPathView(path);
     out.push({ key: path, bytes: fieldBytes(f), id: (f && f.values) || null, model: pv.model, layer: pv.layer, lastUse: (f && f.__used) || 0 });
   }
-  const mine = out.filter((e) => onScreen(e, view)).sort((a, b) => b.lastUse - a.lastUse);
-  for (const e of (anchors ? mine : mine.slice(0, PIN_RASTER))) e.pinned = true;
+  pinNewestPerLayer(out.filter((e) => onScreen(e, view)), anchors ? Infinity : PIN_RASTER);
   return out;
+}
+
+/** Pin the `n` most recently used entries of EACH on-screen layer (several layers can be on screen at once). */
+export function pinNewestPerLayer(entries, n) {
+  const byLayer = new Map();
+  for (const e of entries) { if (!byLayer.has(e.layer)) byLayer.set(e.layer, []); byLayer.get(e.layer).push(e); }
+  for (const list of byLayer.values()) for (const e of list.sort((a, b) => b.lastUse - a.lastUse).slice(0, n)) e.pinned = true;
 }
 
 // ---- decoded .om fields kept for the point infobox (window.__DECODED_OM_TILES__): the cheapest to lose ----
@@ -124,8 +130,7 @@ export function decodedOmEntries(map, view) {
   }
   // The raster ring has 3 slots (the shown hour and its neighbours): the 3 newest fields of the view on screen stay. Every infobox
   // card that reads these is gated on its own layer being on (forecastCardCompiler), so an off-screen field is never read.
-  const mine = out.filter((e) => onScreen(e, view)).sort((a, b) => b.lastUse - a.lastUse).slice(0, 3);
-  for (const e of mine) e.pinned = true;
+  pinNewestPerLayer(out.filter((e) => onScreen(e, view)), 3);
   return out;
 }
 

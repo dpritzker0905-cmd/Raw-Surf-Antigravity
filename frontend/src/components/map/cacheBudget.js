@@ -29,6 +29,7 @@
  * Kill: window.__RAW_DISABLE_CACHE_BUDGET__ = true (read on every enforce: nothing is dropped, every cache keeps today's bound).
  */
 import { isHandheldDevice } from './deviceTier';
+import { windParticlesWanted } from './gustParticles';
 
 export const DESKTOP_BUDGET_MB = 192;
 export const HANDHELD_BUDGET_MB = 128;
@@ -103,22 +104,40 @@ export class RecencyMap extends Map {
 
 // ---- the registry ----
 const caches = new Map();
-let active = { model: null, layer: null, hour: null };
+const EMPTY = Object.freeze(new Set());
+let active = { model: null, layers: EMPTY, layer: null, hour: null };
 let pending = false; let enforcing = false;
 const stats = { enforces: 0, dropped: { offscreen: 0, active: 0 }, freedMB: 0, byCache: {}, overPinned: 0, last: null, ring: [] };
 
-/** The active view (model, chip layer, hour offset) adapters pin against. */
+/** The active view adapters pin against: the model, the SET of layers whose data is on screen, the hour offset. */
 export function activeView() { return active; }
 
-/** True when an entry belongs to the view on screen (a model-agnostic entry, model null, matches on its layer alone). */
+/**
+ * THE LAYERS ON SCREEN (the advisor's hold on #1247, 2026-11-23): the view is a SET, not activeLayers[0]. Every active layer is on
+ * screen, and so is the data another layer DRAWS WITH: the wind particles run for Wind and for Gusts (gustParticles
+ * windParticlesWanted: a Gusts view moves its particles along the wind grids), so `wind` is on screen whenever the particles are.
+ * Before this, a Gusts view counted its own wind grids off-screen and dropped them first, and a wind overlay beside a marine layer
+ * would have too.
+ */
+export function viewLayers(activeLayers) {
+  const raw = Array.isArray(activeLayers) ? activeLayers : (activeLayers ? [activeLayers] : []);
+  const set = new Set(raw.map(normLayer).filter(Boolean));
+  if (windParticlesWanted(raw)) set.add('wind');
+  return set;
+}
+
+/** True when an entry belongs to a layer on screen (a model-agnostic entry, model null, matches on its layer alone). */
 export function onScreen(e, view = active) {
-  if (!view.layer || !e.layer || e.layer !== view.layer) return false;
+  const layers = view.layers || (view.layer ? new Set([view.layer]) : EMPTY);
+  if (!e.layer || !layers.has(e.layer)) return false;
   return !e.model || !view.model || e.model === view.model;
 }
 
-export function noteActiveView({ model, layer, hour } = {}) {
-  const next = { model: normModel(model), layer: normLayer(layer), hour: Number.isFinite(Number(hour)) ? Number(hour) : null };
-  const moved = next.model !== active.model || next.layer !== active.layer;
+/** From the app's weather state: `layers` = activeLayers (a `layer` alone is accepted too). */
+export function noteActiveView({ model, layers, layer, hour } = {}) {
+  const set = viewLayers(layers !== undefined ? layers : layer);
+  const next = { model: normModel(model), layers: set, layer: set.values().next().value || null, hour: Number.isFinite(Number(hour)) ? Number(hour) : null };
+  const moved = next.model !== active.model || next.layers.size !== active.layers.size || [...next.layers].some((l) => !active.layers.has(l));
   active = next;
   if (moved) scheduleCacheBudget('view');
 }
@@ -216,7 +235,7 @@ export function cacheBudgetReport() {
   }
   for (const p of Object.values(per)) { p.mb = +p.mb.toFixed(1); p.pinnedMB = +p.pinnedMB.toFixed(1); p.onScreenMB = +p.onScreenMB.toFixed(1); }
   return { on: cacheBudgetOn(), budgetMB: +(cacheBudgetBytes() / MB).toFixed(1), totalMB: +(totalOf(list, new Map()) / MB).toFixed(1),
-    active: { ...active }, caches: per, stats: JSON.parse(JSON.stringify(stats)) };
+    active: { model: active.model, layers: [...active.layers], hour: active.hour }, caches: per, stats: JSON.parse(JSON.stringify(stats)) };
 }
 
 if (typeof window !== 'undefined' && !window.__RAW_CACHE_BUDGET__) {
@@ -224,6 +243,6 @@ if (typeof window !== 'undefined' && !window.__RAW_CACHE_BUDGET__) {
 }
 
 export function _resetCacheBudgetForTest() {
-  caches.clear(); active = { model: null, layer: null, hour: null }; pending = false; enforcing = false;
+  caches.clear(); active = { model: null, layers: EMPTY, layer: null, hour: null }; pending = false; enforcing = false;
   Object.assign(stats, { enforces: 0, dropped: { offscreen: 0, active: 0 }, freedMB: 0, byCache: {}, overPinned: 0, last: null, ring: [] });
 }

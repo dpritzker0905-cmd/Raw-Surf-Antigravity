@@ -3,10 +3,11 @@
  * 1.8-2.1 GB after one 21-layer scrub cycle; the offline replay attributed 985 MB retained to caches bounded by count alone.
  */
 import {
-  RecencyMap, _resetCacheBudgetForTest, cacheBudgetBytes, cacheBudgetReport, enforceCacheBudget, noteActiveView, noteCacheGrowth,
-  normLayer, normModel, onScreen, registerCache, DESKTOP_BUDGET_MB, HANDHELD_BUDGET_MB, LOW_WATER,
+  RecencyMap, _resetCacheBudgetForTest, activeView, cacheBudgetBytes, cacheBudgetReport, enforceCacheBudget, noteActiveView, noteCacheGrowth,
+  normLayer, normModel, onScreen, registerCache, viewLayers, DESKTOP_BUDGET_MB, HANDHELD_BUDGET_MB, LOW_WATER,
 } from './cacheBudget';
 import { isHandheldDevice } from './deviceTier';
+import { windCacheEntries } from './cacheBudgetAdapters';
 
 jest.mock('./deviceTier', () => ({ isHandheldDevice: jest.fn(() => false) }));
 
@@ -135,7 +136,7 @@ describe('the budget', () => {
     const r = cacheBudgetReport();
     expect(r.caches.a).toEqual({ entries: 2, mb: 15, pinnedMB: 10, onScreenMB: 10 });
     expect(r.budgetMB).toBe(100);
-    expect(r.active).toEqual({ model: 'GFS', layer: 'waves', hour: 0 });
+    expect(r.active).toEqual({ model: 'GFS', layers: ['waves'], hour: 0 });
     expect(typeof window.__RAW_CACHE_BUDGET__.report).toBe('function');
   });
 });
@@ -170,6 +171,54 @@ describe('the dear reserve on a small device (round-2 review)', () => {
     expect(wind.dropped).toEqual(['w2', 'w1']);
     expect(raster.dropped).toEqual([]);
     delete window.__RAW_CACHE_RESERVE_MB__;
+  });
+});
+
+describe('the view is a SET of layers (the advisor\'s hold on #1247)', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_GUST_PARTICLES__; });
+  it('every active layer is on screen, and wind whenever the wind particles run (Gusts moves them along the wind grids)', () => {
+    expect([...viewLayers(['waves', 'wind'])].sort()).toEqual(['waves', 'wind']);
+    expect([...viewLayers(['gusts'])].sort()).toEqual(['gusts', 'wind']);
+    expect([...viewLayers(['waves'])]).toEqual(['waves']);
+    expect([...viewLayers([])]).toEqual([]);
+    window.__RAW_DISABLE_GUST_PARTICLES__ = true;   // Gusts without particles draws no wind
+    expect([...viewLayers(['gusts'])]).toEqual(['gusts']);
+  });
+  it('onScreen tests membership', () => {
+    const view = { model: 'GFS', layers: new Set(['waves', 'wind']) };
+    expect(onScreen({ model: 'GFS', layer: 'wind' }, view)).toBe(true);
+    expect(onScreen({ model: 'GFS', layer: 'waves' }, view)).toBe(true);
+    expect(onScreen({ model: 'GFS', layer: 'swell_1' }, view)).toBe(false);
+    expect(onScreen({ model: 'ICON', layer: 'wind' }, view)).toBe(false);
+  });
+  it('with [waves, wind] on, the wind grids at hour +-3 stay PINNED and only the other model\'s wind is dropped', () => {
+    const vec = (n) => ({ data: { vectors: new Array(n) }, timestamp: 1 });
+    const map = new Map([['GFS_wind_grid_global_mid_24', vec(400000)], ['GFS_wind_grid_global_mid_27', vec(400000)],
+      ['ICON_wind_grid_global_mid_24', vec(400000)], ['GFS_wind_grid_global_mid_96', vec(400000)]]);
+    const dropped = [];
+    registerCache('wind', { entries: () => windCacheEntries(map, activeView()), drop: (k) => { dropped.push(k); map.delete(k); return 1; }, cost: 4 });
+    noteActiveView({ model: 'GFS', layers: ['waves', 'wind'], hour: 25 });
+    const pinned = windCacheEntries(map, activeView()).filter((e) => e.pinned).map((e) => e.key).sort();
+    expect(pinned).toEqual(['GFS_wind_grid_global_mid_24', 'GFS_wind_grid_global_mid_27']);
+    window.__RAW_CACHE_BUDGET_MB__ = 100;   // 4 x ~38 MB = ~153 MB over 100: down to 80
+    enforceCacheBudget();
+    expect(dropped[0]).toBe('ICON_wind_grid_global_mid_24');            // off-screen (another model) first
+    expect(dropped).not.toContain('GFS_wind_grid_global_mid_24');        // the scrubbed hour's wind stays
+    expect(dropped).not.toContain('GFS_wind_grid_global_mid_27');
+  });
+  it('positive control: with the view taken as activeLayers[0] alone (waves), the same wind grids are off-screen and go first', () => {
+    const map = new Map([['GFS_wind_grid_global_mid_24', { data: { vectors: new Array(400000) }, timestamp: 1 }]]);
+    noteActiveView({ model: 'GFS', layers: ['waves'], hour: 25 });
+    expect(windCacheEntries(map, activeView())[0].pinned).toBe(false);
+  });
+  it('a change of the layer SET (not just the first layer) schedules a pass', () => {
+    jest.useFakeTimers();
+    noteActiveView({ model: 'GFS', layers: ['waves'], hour: 0 });
+    jest.runOnlyPendingTimers();
+    const before = cacheBudgetReport().stats.enforces;
+    noteActiveView({ model: 'GFS', layers: ['waves', 'wind'], hour: 0 });
+    jest.runOnlyPendingTimers();
+    expect(cacheBudgetReport().stats.enforces - before).toBe(1);
   });
 });
 
