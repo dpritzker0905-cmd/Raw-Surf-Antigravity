@@ -219,3 +219,18 @@ The retry succeeded through the OpenAlex source; the arXiv route had returned 42
 | P-ETSS bias correction | **Conflicts with notice text; unresolved** |
 | Stockdon coefficients | **UNVERIFIED** |
 | latest-science ML runup | Retrieved (metadata only) |
+
+## Update 2026-11-23: STOFS zeta datum resolved empirically (moved from Q12)
+
+Question: the NetCDF `zeta` attribute says "water surface elevation above geoid", while the bucket README and NOMADS say MSL or LMSL.
+
+Test (SHEF-to-NetCDF offset, same model, same run `stofs_2d_glo.20261122/…t12z`): SHEF water level is MLLW in feet (per the SHEF header), converted to metres. At each station, the offset is `zeta` minus SHEF metres across all 361 matched 30-minute values (zeta read at matching six-minute steps by 8-byte range reads).
+
+| Station | Median offset | Min to max | CO-OPS MSL − MLLW (m) | Match |
+|---|---|---|---|---|
+| SDBC1 (9410170) | −0.897 m | −0.899 to −0.895 | 2.052 − 1.155 = 0.897 | exact |
+| BATN6 (8518750) | −0.783 m | −0.785 to −0.781 | 1.785 − 1.002 = 0.783 | exact |
+
+CO-OPS datums were read with the CO-OPS datum tool for each station.
+
+Result: `zeta` is referenced to mean sea level at both stations, so the README and NOMADS are right. The "above geoid" attribute is misleading and should not be used. A geoid reference would show a tens-of-metres offset, not 0.8–0.9 m. Two stations, one run: this is a descriptive check, not a general proof.
