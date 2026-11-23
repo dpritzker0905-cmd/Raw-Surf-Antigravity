@@ -81,3 +81,24 @@ def test_a_new_region_gets_its_own_cell_when_it_has_the_data_and_borrows_when_it
     regs = F.fit_all(rows, "GRAND_CAL")["bins"]["B2"]["regions"]
     assert regs["ALASKA"]["borrowed"] is False and regs["CARIBBEAN_PR"]["borrowed"] is True
     assert F.coef_at(F.fit_all(rows, "GRAND_CAL"), "ALASKA", 240.0)["alpha"] == pytest.approx(regs["ALASKA"]["alpha"])
+
+
+def test_an_insufficient_region_is_left_out_of_the_holm_family():
+    """Amendment R1 R3b: a thin region is skipped before the adjustment, so it adds no line and changes nobody's adjusted p."""
+    import wind_lr2_gust as G
+    rng = np.random.default_rng(5)
+    base = {"lead": [], "vday": [], "marine": [], "region": [], "st": [], "o_g": [], "GRAND_CAL_g": [], "CLIM_GUST_g": []}
+    for reg, nst, bad in (("US_PACIFIC", 12, False), ("US_ATLANTIC_GULF", 12, False), ("ALASKA", 3, True)):
+        for st in range(nst):
+            for d in range(40):
+                truth = 10.0 + rng.normal(0, 3)
+                base["lead"].append(186), base["vday"].append(739000 + d), base["marine"].append(True), base["region"].append(reg)
+                base["st"].append(hash(reg) % 1000 * 100 + st), base["o_g"].append(truth)
+                base["CLIM_GUST_g"].append(10.0 + rng.normal(0, 0.3))
+                base["GRAND_CAL_g"].append(truth + (9.0 if bad else rng.normal(0, 0.5)))      # the thin region is terrible
+    rows = {k: np.array(v) for k, v in base.items()}
+    with_thin = G.gg6_regions(rows, "GRAND_CAL", "ICON", reps=500, min_stations=10)
+    keep = rows["region"] != "ALASKA"
+    without = G.gg6_regions({k: v[keep] for k, v in rows.items()}, "GRAND_CAL", "ICON", reps=500, min_stations=10)
+    assert with_thin["flagged"] == without["flagged"] == [] and with_thin["ok"] and without["ok"]    # a terrible thin region flags nothing
+    assert any(x.startswith("ALASKA:") for x in with_thin["insufficient"]) and not any(x.startswith("ALASKA") for x in without["insufficient"])

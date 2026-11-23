@@ -1,8 +1,8 @@
 {
   "lane": "guards",
-  "tests": 25,
+  "tests": 26,
   "files": 1,
   "branch": "claude/wind-lr2-regions",
   "date": "2026-11-23",
-  "note": ""
+  "note": "tests/test_wind_lr2_regions.py: 26 cases (21 boundary/named-point params, regions list, partition+hash of the frozen list, floors unchanged, per-region fit cell, insufficient region left out of the Holm family)"
 }
