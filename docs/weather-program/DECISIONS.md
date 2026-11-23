@@ -2109,6 +2109,17 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   is found that moved served MAE without moving the same-model delta.
 - **Rollback:** the current behaviour is the repo variables as they are today (`ACCURACY_PAIRED_REFERENCE_MARGIN_M`
   0.10, `ACCURACY_PAIRED_GATE` 1); the change would ship behind its own kill switch.
+- **Status update 2026-11-23: DECIDED (appended; the entry above is unchanged).**
+  - The owner (David) answered the director's question in the director session (local_d6b521eb) at 2026-11-23T18:50:01Z, choosing the option labelled exactly: "Adopt D-072 (Recommended)".
+  - **What this decides:** the three-rule split above (the same-model regression, the hole buoys with their own bound, best_match on common keys) replaces the single pooled +0.10 m RED, as written.
+  - **What it does not do:** it builds nothing and changes no repo variable. The bounds marked PROVISIONAL above must still be re-derived from a row backfill of the pre-onset window alone, before any rule can page.
+  - **Where it is used:** it is the level-alarm component of `gates/self-improving-loop-v1.md` (#1231).
+  - **Fact, appended 2026-11-23 (true whatever the owner decides):** the D-072 v2 replay FAILED as registered (SCOREBOARD 2026-11-16, rule 2 fired on 0 of 5 days); the adopted rules page nothing until a passing replay is on record.
+- **Status update 2026-11-23 (second): back to PROPOSED (appended; the DECIDED line above stays as history).**
+  - The owner (David) answered in the director session on 2026-11-23, choosing the options labelled exactly: "Back to proposed (Recommended)" for D-072, and "Note only, keep red" for the monitor.
+  - **Reason:** the v2 replay FAILED as registered (rule 2 fired on 0 of 5 days, SCOREBOARD 2026-11-16), the bound may not be lowered after the fact, and rule 1 v2 was restated after its data was seen. So any fixed rule 2 (and rule 1, out of sample) must pass a NEW registration on unseen data before D-072 can be decided. SubQ and Reflection, asked separately, both recommended this; LongCat was unavailable.
+  - **The monitor (note only):** `forecast-accuracy-monitor.yml` stays RED as it is, and no workflow, threshold or output text changes. The RED that began on 2026-11-10 is, on the evidence in this entry, weather plus the hole buoys, not a regression in our chain (the same-model control moved in our favour). Read it that way until a registered D-072 replaces the rule.
+  - `gates/self-improving-loop-v1.md` (#1231) already runs the D-072 level rules WARN-only until a passing replay (its section 12.3), so it needs no change.
 
 ### D-074 · Open-Meteo is test-only; served data comes from free primary sources (GRIB, CMEMS) (2026-11-15, decided)
 - **Owner, verbatim:**
