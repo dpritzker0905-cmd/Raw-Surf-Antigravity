@@ -2109,6 +2109,17 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   is found that moved served MAE without moving the same-model delta.
 - **Rollback:** the current behaviour is the repo variables as they are today (`ACCURACY_PAIRED_REFERENCE_MARGIN_M`
   0.10, `ACCURACY_PAIRED_GATE` 1); the change would ship behind its own kill switch.
+- **Status update 2026-11-23: DECIDED (appended; the entry above is unchanged).**
+  - The owner (David) answered the director's question in the director session (local_d6b521eb) at 2026-11-23T18:50:01Z, choosing the option labelled exactly: "Adopt D-072 (Recommended)".
+  - **What this decides:** the three-rule split above (the same-model regression, the hole buoys with their own bound, best_match on common keys) replaces the single pooled +0.10 m RED, as written.
+  - **What it does not do:** it builds nothing and changes no repo variable. The bounds marked PROVISIONAL above must still be re-derived from a row backfill of the pre-onset window alone, before any rule can page.
+  - **Where it is used:** it is the level-alarm component of `gates/self-improving-loop-v1.md` (#1231).
+  - **Fact, appended 2026-11-23 (true whatever the owner decides):** the D-072 v2 replay FAILED as registered (SCOREBOARD 2026-11-16, rule 2 fired on 0 of 5 days); the adopted rules page nothing until a passing replay is on record.
+- **Status update 2026-11-23 (second): back to PROPOSED (appended; the DECIDED line above stays as history).**
+  - The owner (David) answered in the director session on 2026-11-23, choosing the options labelled exactly: "Back to proposed (Recommended)" for D-072, and "Note only, keep red" for the monitor.
+  - **Reason:** the v2 replay FAILED as registered (rule 2 fired on 0 of 5 days, SCOREBOARD 2026-11-16), the bound may not be lowered after the fact, and rule 1 v2 was restated after its data was seen. So any fixed rule 2 (and rule 1, out of sample) must pass a NEW registration on unseen data before D-072 can be decided. SubQ and Reflection, asked separately, both recommended this; LongCat was unavailable.
+  - **The monitor (note only):** `forecast-accuracy-monitor.yml` stays RED as it is, and no workflow, threshold or output text changes. The RED that began on 2026-11-10 is, on the evidence in this entry, weather plus the hole buoys, not a regression in our chain (the same-model control moved in our favour). Read it that way until a registered D-072 replaces the rule.
+  - `gates/self-improving-loop-v1.md` (#1231) already runs the D-072 level rules WARN-only until a passing replay (its section 12.3), so it needs no change.
 
 ### D-074 · Open-Meteo is test-only; served data comes from free primary sources (GRIB, CMEMS) (2026-11-15, decided)
 - **Owner, verbatim:**
@@ -2437,3 +2448,31 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **2026-11-23 follow-up (PR #1226):** `shadow_proposal` is idempotent — once written for a version,
   further qualifying passes return `hold` ("proposal already written for version …; owner decides when to
   re-enable") so the ACTIONS log and `acted.txt` don't grow every 6 hours while the owner decides.
+
+### D-089 · Automatic floor catch-up PRs (`bot/floor-catchup-*`) auto-pass the advisor gate under three conditions (2026-11-23, decided by the owner)
+- **Owner, typed in the director session (2026-11-23 18:22:28Z, relayed by the director to the #1227 lane):** "Yes,
+  auto-pass them". This follows "Yes, build it" (the same session, earlier that day), which approved the bot itself.
+- **Number:** D-087 is claimed by two open PRs (#1223, #1226) and D-088 is their likely renumber, so this takes D-089.
+- **What the bot is:** `floor-catchup.yml` runs `backend/scripts/floor_catchup.py` after every green dev CI push run.
+  It opens or updates ONE `bot/floor-catchup-<run_id>` PR holding only its own `.github/ci-floors.d` fragments. That
+  PR's floors match the reading exactly (set-from = observed passed, MIN_FILES = observed files). It never merges.
+- **The rule:** a `bot/floor-catchup-*` PR AUTO-PASSES the advisor gate (no advisor read; the merge loop may merge it)
+  only when ALL THREE hold:
+  1. Every file it changes is `.github/ci-floors.d/<its own branch slug>.<lane>.json`.
+  2. Every fragment's `tests` and `files` is an integer >= 0. `ci_floor_fragments.validate` already refuses anything
+     else and fails CI closed.
+  3. `backend-floor-staleness` is green, including its fragments-only over-lift step (`scripts/ci_floor_overlift.py`:
+     no touched lane's set-from or MIN_FILES above the last green dev reading). Every other required check is green
+     too.
+- **Anything else goes to the advisor**, including:
+  - a commit on the bot branch by anyone but the bot (a human commit);
+  - any change to `backend/scripts/floor_catchup.py`, `backend/scripts/ci_floor_overlift.py`,
+    `.github/workflows/floor-catchup.yml`, or the floor lines in `.github/workflows/ci.yml` (the base literals, the
+    lane floor steps, `backend-floor-staleness`);
+  - a fragment for another branch's slug, or a deleted fragment that is not the bot's own.
+- **Why:** on 2026-11-23 three manual catch-ups (#1209, #1213, #1224) each turned every open PR red on
+  `backend-floor-staleness` until a rebuild round. A catch-up whose numbers are the reading itself, checked by the
+  over-lift step in seconds, carries nothing for the advisor to judge. Holding it for a read only stretches that red
+  window.
+- **Reopen if:** an auto-passed catch-up is merged and a lane then fails its floor on dev (an over-lift the step
+  missed), or the bot's output ever needs a judgement call the three conditions do not encode.

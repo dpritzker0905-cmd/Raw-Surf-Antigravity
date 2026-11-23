@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 13,
+  "files": 1,
+  "branch": "claude/gust-cue-ab",
+  "date": "2026-11-23",
+  "note": "gustCue.test.js: gust cue A/B lever, width splice, cased hatch geometry and 3:1 contrast, legend key"
+}
