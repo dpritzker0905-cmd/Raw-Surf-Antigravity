@@ -68,6 +68,7 @@ import LongPressMarker from './LongPressMarker';
 import './scrubPerfProbe';   // installs window.__SCRUB_PROBE__ (dev scrub/animation re-render harness, backlog #1)
 import { planAnchorMoves } from './waterTempAnchor';
 import { useMarineWebglRecovery } from './useMarineWebglRecovery';
+import { useNoteForecastShown } from '../observations/forecastExposure';
 
 const MapWebGL = ({
   effectiveLocation,
@@ -95,6 +96,7 @@ const MapWebGL = ({
   longPressLocation,
   onMarineDataChange,
 }) => {
+  useNoteForecastShown('map');  // blind-quality exposure (observations/forecastExposure)
   // v3.9.7: Explicit init never at import time
   ensureMapLibreInit();
   if (typeof window !== 'undefined') {
