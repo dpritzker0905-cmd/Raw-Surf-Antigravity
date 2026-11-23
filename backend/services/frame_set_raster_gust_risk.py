@@ -27,10 +27,22 @@ import os
 import threading
 from datetime import timedelta, timezone
 
-try:
-    from services.weather_pipeline import ens_gust_risk_core as gr
-except ImportError:  # pragma: no cover - run by path, where `services` is not importable
-    from weather_pipeline import ens_gust_risk_core as gr
+# NO numpy (or numpy-importing module) at load time (2026-11-23, regression fix): frame_set_raster_plugins imports this module,
+# and raster_set_freshness.py (data-health-monitor) imports the raster sets with a system python3 that has no numpy. The
+# numeric core is imported lazily (_gr) inside the functions that compute; these load-time constants equal the core's
+# (tests/test_frame_set_raster_gust_risk.py pins the parity).
+HOURS = tuple(range(3, 145, 3)) + tuple(range(150, 361, 6))     # = ens_gust_risk_core.native_steps(360)
+THRESHOLDS_KN = (25, 34, 48)                                     # = ens_gust_risk_core.THRESHOLDS_KN
+MEMBERS = 50                                                     # = ens_gust_risk_core.MEMBERS
+
+
+def _gr():
+    try:
+        from services.weather_pipeline import ens_gust_risk_core as gr
+    except ImportError:  # pragma: no cover - run by path, where `services` is not importable
+        from weather_pipeline import ens_gust_risk_core as gr
+    return gr
+
 
 SET = "gust_risk_ens"
 CREDIT = ("Copyright ECMWF; ECMWF open data (IFS ENS, 50 members), CC BY 4.0; modified (share of members whose 10 m gust reaches "
@@ -44,9 +56,9 @@ SPEC = {
     "value_kind": "ensemble_gust_exceedance_pct", "value_unit": "%",
     "source_dataset": "ECMWF IFS ENS open data enfo ef 0p25, 50 pf members, 10fg (1 h max to 90 h, 6 h max from 150 h) / 10fg3 "
                       "(3 h max, 93-144 h); percent of members >= 25, 34, 48 kn",
-    "hours": tuple(gr.native_steps(360)), "source": "ens_gust_risk", "upstream_provider": "ecmwf",
+    "hours": HOURS, "source": "ens_gust_risk", "upstream_provider": "ecmwf",
     "credit": CREDIT, "license": LICENSE, "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
-    "thresholds_kn": gr.THRESHOLDS_KN,
+    "thresholds_kn": THRESHOLDS_KN,
 }
 
 
@@ -72,7 +84,7 @@ def to_lattice(arr, meta):
     return np.roll(a, shift, axis=1) if shift else a
 
 
-def risk_planes(counts, n_members=gr.MEMBERS):
+def risk_planes(counts, n_members=MEMBERS):
     """{field id: percent plane} from exceed_counts' uint8 [3, rows, cols]."""
     try:
         import frame_binary as fb
@@ -288,6 +300,7 @@ class EnsGustRiskSource:
     def fetch(self, cycle, f):
         import numpy as np
         self._check_budget()
+        gr = _gr()
         want = f"{f - gr.gust_window_h(f)}-{f}"
 
         def reduce(arr, meta):
