@@ -53,6 +53,9 @@ GUARDED = {
     "ALERTS_FORECAST_WINDOWS": "0",     # D-065: up to 5 alerts/day before the cap fix (claude/alerts-dedupe-cap)
     "SURF_BIGHT_HS_CONSENSUS": "1",     # #707: hs_station +0.099 m [two-way 0.038, 0.182]; round-7 history +0.155, ON
     "SPOT_HUB_RATE_ONE_SPOT": "1",      # spot-hub phase 2 (#710): the hub on rate_one_spot; kill '0' = the old chain
+    "RATING_MISSING_SAMPLE_UNKNOWN": "1",  # bug-hunt B: a sampler "unavailable"/out-of-bounds placeholder is MISSING, not 0.
+                                        # ON by the owner's typed word 2026-11-22: "Yes, ship #1181 on". Kill '0'.
+    "SURF_NEARSHORE_LITE": "0",         # MOP-lite (gate nearshore-moplite-v1): DARK until the gate passes; replaces only Kr + exposure
     "SURF_NEARSHORE_MOP": "1",          # CDIP MOP nearshore sea at California spots: nearshore judge 86/86 runs better,
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
     "SURF_FACE_RANGE": "1",             # ON by the owner's typed word 2026-11-17 ("it needs to be on, not dark"): adds the
@@ -67,6 +70,9 @@ GUARDED = {
                                         # kill '0' = every point above local mean sea level, as before
     "SURF_TIDE_CMEMS": "0",             # held OFF: the CMEMS sea level read directly, where the table has it. ON only after
                                         # the r2 parity run is read and passing AND the builder refuses a low fill count
+    "SURF_TIDE_WINDOW_FIX": "1",        # D-065 ON: owner 2026-11-23 "Yes, turn it on" (director session). The tide no longer
+                                        # freezes past ~72 h (window covers the valid time; >1.5 h from a sample = no tide, not
+                                        # stale). Moves tide_fit and the SURF_TIDE_DEPTH cap past day 3. Kill '0'. tests/test_tide_window.py
     "RATING_REF_PRIOR": "0",            # JAC-2 (#771): held OFF: -17.9 pt mean rating move on reference-less
                                         # spot-hours (480/480 moved, 414 level changes), no rating truth yet
     "FRAME_ENTITLEMENT": "0",           # O6 accounts only: EVERY static frame private + signed URLs. Held OFF: needs the

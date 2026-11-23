@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useId } from 'react';
 import { Wind, Waves, CloudRain, Snowflake, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward, Sun, Loader2 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
+import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver'; import TideOverlayToggle from './TideOverlayToggle';
 import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale } from './mapUtils';
 import { setSurfModeFlag } from './backendWeatherServiceClient'; import { useSurfModeFlagState } from './useSurfModeFlagState';   // D6: one band state for every panel
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
@@ -19,6 +19,7 @@ import { responsiveWeatherOn } from './useMapChromeLayout'; import LayerDataCred
 import { marineWaveLegend } from './marineWavePalette';
 import WeatherLayerSheet, { useWeatherPanelDisclosure } from './WeatherLayerSheet';
 import { buildGradientCSS, buildStops, evenStops, HEIGHT_VARIABLES } from './weatherControlLegend'; import { rasterLegend, rasterPaletteKey } from './rasterPalettes';
+import { useNoteForecastShown } from '../observations/forecastExposure';
 const ownLayerKilled = (name) => typeof window !== 'undefined' && (window[`__RAW_DISABLE_RASTER_OWN_${name}__`] === true || window.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true);
 const gustsKilled = () => ownLayerKilled('GUSTS');
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
@@ -56,6 +57,7 @@ export var MapWeatherControls = ({
   onTimelineCollapseToggle,
   isImmersiveMode = false,
 }) => {
+  useNoteForecastShown('map_controls');  // blind-quality exposure (observations/forecastExposure)
   const { theme } = useTheme();
   const responsive = responsiveWeatherOn();
   const summaryId = useId();
@@ -695,16 +697,17 @@ export var MapWeatherControls = ({
             onClick={toggleSurfMode}
             aria-pressed={surfMode}
             title="Surf Rating overlay: colors spots + the coastal band by surf QUALITY (size + period + wind) instead of raw swell height. Governs spot glyphs even with no heatmap layer active."
-            className={`text-[9px] leading-none px-2 py-1 rounded-full border transition-colors ${surfMode ? 'bg-emerald-500/80 text-white border-emerald-400' : `${textMuted} border-current opacity-70 hover:opacity-100`}`}
+            className={`text-[9px] leading-none px-2 py-1 rounded-full border whitespace-nowrap transition-colors ${surfMode ? 'bg-emerald-500/80 text-white border-emerald-400' : `${textMuted} border-current opacity-70 hover:opacity-100`}`}
           >
             {surfMode ? 'Surf Rating: ON' : 'Surf Rating: OFF'}
           </button>
+          <TideOverlayToggle userTier={userTier} size="sm" isLight={isLight} isBeach={isBeach} className="mr-auto ml-1.5" />
           <button
             type="button"
             onClick={toggleHeightUnit}
             title="Wave-height display unit (feet or meters)"
             aria-label={heightUnit === 'm' ? 'Wave height unit: meters (m) — switch to feet' : 'Wave height unit: feet (ft) — switch to meters'}
-            className={`text-[9px] leading-none px-2 py-1 rounded-full border transition-colors ${textMuted} border-current opacity-70 hover:opacity-100`}
+            className={`text-[9px] leading-none px-2 py-1 rounded-full border whitespace-nowrap transition-colors ${textMuted} border-current opacity-70 hover:opacity-100`}
           >
             {heightUnit === 'm' ? 'm' : 'ft'} ⇄
           </button>
@@ -881,6 +884,7 @@ export var MapWeatherControls = ({
             >
               {surfMode ? 'Surf Rating: ON' : 'Surf Rating: OFF'}
             </button>
+            <TideOverlayToggle userTier={userTier} size="lg" isLight={isLight} isBeach={isBeach} className="mr-auto ml-2" />
             <button
               type="button"
               onClick={toggleHeightUnit}

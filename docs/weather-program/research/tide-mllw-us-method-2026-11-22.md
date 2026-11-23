@@ -252,6 +252,13 @@ case the step started after midnight.
 The bar (being stamped by the advisor) compares each gauge's |median error| with |S_g|. Neah Bay's SA phase is published
 as 684°; cosine is periodic, so it reads as 324°.
 
+**Timing, as recorded:**
+- S_g built: 2026-11-23T01:27:19Z (`built_at` in the JSON).
+- Run 45093427404 completed: 01:27:54Z, conclusion success; only the status and time were read.
+- S_g commit: 01:28:03Z.
+- The run's result (artifact `tide-mllw-parity`, step summary) had not been opened at any of these times. It stays
+  unopened until the advisor stamps the bar.
+
 | Gauge | NOAA SA amplitude (m) / phase (°) | NOAA SSA amplitude (m) / phase (°) | S_g, window 11-23 (m) | S_g, window 11-24 (m) |
 |---|---|---|---|---|
 | 1611400 Nawiliwili | 0.053 / 181.1 | 0.000 / 0.0 | +0.0230 | +0.0221 |
