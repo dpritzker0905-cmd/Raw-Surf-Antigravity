@@ -2445,6 +2445,10 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Reopen if:** the 18 h (3 × 6 h) shadow window proves too slow for high-urgency fixes. A flag can still
   be re-enabled immediately via the owner's workflow_dispatch, bypassing the shadow — but that leaves a gap
   in the evidence chain, which the owner accepts.
+- **2026-11-23 follow-up (PR #1226):** `shadow_proposal` is idempotent — once written for a version,
+  further qualifying passes return `hold` ("proposal already written for version …; owner decides when to
+  re-enable") so the ACTIONS log and `acted.txt` don't grow every 6 hours while the owner decides.
+
 ### D-089 · Automatic floor catch-up PRs (`bot/floor-catchup-*`) auto-pass the advisor gate under three conditions (2026-11-23, decided by the owner)
 - **Owner, typed in the director session (2026-11-23 18:22:28Z, relayed by the director to the #1227 lane):** "Yes,
   auto-pass them". This follows "Yes, build it" (the same session, earlier that day), which approved the bot itself.
