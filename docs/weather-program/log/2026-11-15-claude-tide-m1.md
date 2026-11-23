@@ -2894,3 +2894,19 @@ Branch claude/tide-never-missing, stacked on #1132.
 
 Chain fragment for this branch is now +7; `tests/test_tide_own.py` passes 33 locally.
 
+
+
+## 2026-11-22: live read after PR B (#1132) went live (David's word, typed in this session: "Yes, read 2 spots")
+One-off GETs to https://raw-surf-antigravity.onrender.com, 4 requests in all, no load:
+- `/api/health` before: 1.66 s (uptime 4 h 54 m).
+- `/api/weather/point-tide`, Pipeline (21.665, -158.053): 0.17 s; height 0.056 m; datum MSL.
+- `/api/weather/point-tide`, Huntington Beach (33.655, -118.003): 0.25 s; height -0.531 m; datum MSL.
+- `/api/health` after: 0.31 s.
+
+**Provider** (both spots): "FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine". `credit_detail` carries
+the AVISO acknowledgement verbatim, the CNES 2024 citation with its DOI, the licence link, and the Copernicus mean sea
+level line. So our own tide is served.
+
+**Gap (follow-up, recorded on #1132):** `/point-tide` does NOT carry the "heights above local mean sea level" label; it
+returns only `datum: MSL`. The label reaches users only through the spot hub's `/tides`, which was not read (beyond the
+2 spots approved). No further live reads without David's word.
