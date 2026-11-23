@@ -98,19 +98,19 @@ gauge.
 
 | Leg | Data | Training history | Scored blocks | Role |
 |---|---|---|---|---|
-| **R, retrospective** | CO-OPS VERIFIED hourly | from 2025-09-01 (90 days of anchor history before the first block) | twelve 7-day blocks, 2025-12-01 → 2026-02-22 | decisive |
+| **R, retrospective** | CO-OPS VERIFIED hourly | from 2024-09-01 (90 days of anchor history before the first block) | twelve 7-day blocks, 2024-12-01 → 2025-02-22 (moved by amendment 2) | decisive |
 | **P, prospective** | CO-OPS PRELIMINARY 6-min at the top of the hour, with the QC of section 2, as served | everything before each block | the first four complete 7-day blocks (Monday 00Z) after the instrument PR merges | decisive |
 | Seen (not scored) | 2026-10-23 → 11-21 | — | — | section 1 motivation; reported, never in the verdict |
 
 - **Storm check for leg R** (rule fixed now): if no gate gauge has an hourly residual above 0.30 m anywhere in leg R's
-  scored blocks, the leg is extended backward by four blocks, once (2025-11-03 start). The extension is reported.
+  scored blocks, the leg is extended backward by four blocks, once (2024-11-03 start). The extension is reported.
 - **Leg P must also hold together:** at each gate gauge, its RMSE at 6–72 h must not exceed leg R's by more than
   0.03 m. This is the check that the preliminary, QC'd serving path matches the verified-data score.
 - **Prior looks:**
   - observed-minus-predicted at six stations in 2026-05-10, 2026-07-12 and 2026-11-15 (the frame check);
   - 2026-10-23 → 11-21, PERSIST24 only, by the director and by this lane.
-  - Nobody in this lane has read any data in leg R's window. The director must say so if they have, and leg R then
-    moves back one year (2024-12-02 start) by this rule.
+  - Leg R's original window (2025-12-01 → 2026-02-22) was NOT clean, so it moved back one year by this rule:
+    amendment 2, section 12.
 - The 14-day lead needs targets 14 days past the origin, so blocks whose targets fall outside the leg's span are
   scored only at the leads they reach. Counts are reported per lead.
 
@@ -233,3 +233,37 @@ which must carry over these rules unchanged. They come from the superseded `tide
   section 4. Its later gate must re-check those prior looks before it is stamped.
 
 **3. The #923 overlay parity fix belongs to #1149.** This is recorded in #1149's PR body, not in this gate.
+
+## 12. Amendment 2 (2026-11-23 01:17Z, before any run): leg R moves back one year
+
+**Why.** The director could not certify the original leg R window (2025-12-01 → 2026-02-22) as unseen. For the interim
+A + M + D double-check, they read CO-OPS MONTHLY-mean MSL at 16 gauges and printed only per-station aggregates:
+- the mean of 2025-11 → 2026-10;
+- the 2016–2025 annual sets, which include December 2025.
+
+They never printed individual months or hourly data, but those months entered a number they looked at. The 16 gauges:
+San Diego, San Francisco, Seattle, Virginia Key, The Battery, Honolulu, Los Angeles, Point Reyes, South Beach OR,
+Kahului, Trident Pier, Charleston, Duck, Boston, Galveston and San Juan. The script is in the director session's
+scratchpad, not in the repository.
+
+This lane also touched that window through 12-month aggregates: `scripts/tide_datum/residual_check.py` (on #1149)
+reported `prior_12mo` (the 12-month mean MSL before each scored week) at six stations. For the 2026-05-10 and
+2026-11-15 weeks, those 12 months include December 2025 → February 2026.
+
+**The rule applied (section 4):** leg R moves back one year.
+
+| Item | New value |
+|---|---|
+| Scored blocks | twelve 7-day blocks, **2024-12-01 → 2025-02-22** |
+| Training and anchor history | from **2024-09-01** |
+| Storm extension | unchanged rule: four blocks back, once, to 2024-11-03 |
+| Leg P | unchanged |
+
+**What remains disclosed about the new window.** December 2024 → February 2025 lies inside 2016–2025, so it entered
+only TEN-YEAR means, none of which is an arm or a truth in this gate:
+- our M (`own_rules.G3T_M`, the 2016–2025 altimetry mean);
+- the frame check's `decadal_2016_2025` column (CO-OPS monthly means over 2016–2025, at six stations);
+- the director's 2016–2025 annual sets.
+
+No hourly, daily, monthly or 12-month value from the new window has been printed or read by this lane. The TWL
+candidate does not use M; only the `AMD` reference arm and the long-outage fallback do.
