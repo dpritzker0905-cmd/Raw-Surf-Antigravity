@@ -1,0 +1,129 @@
+{
+ "dark": {
+  "n_backgrounds": 9622,
+  "v1_alpha_only": {
+   "min": 2.0280896710133964,
+   "p1": 2.058827619132185,
+   "p5": 2.1070837208775552,
+   "median": 2.365911659347092
+  },
+  "alpha_only_for_3to1": [
+   0.5000000000000002,
+   3.044987388027483
+  ],
+  "cased_lightest": [
+   {
+    "weight": 0.9000000000000001,
+    "style": "light core, dark halo",
+    "core_alpha": 0.6000000000000001,
+    "halo_alpha": 0.3,
+    "min_core_vs_halo": 4.970616028641163,
+    "min_edge_vs_bg": 3.2550311881168534
+   },
+   {
+    "weight": 0.9500000000000001,
+    "style": "light core, dark halo",
+    "core_alpha": 0.6000000000000001,
+    "halo_alpha": 0.35,
+    "min_core_vs_halo": 5.221827254089941,
+    "min_edge_vs_bg": 3.190282095181827
+   },
+   {
+    "weight": 0.9500000000000002,
+    "style": "light core, dark halo",
+    "core_alpha": 0.6500000000000001,
+    "halo_alpha": 0.3,
+    "min_core_vs_halo": 5.527765680516962,
+    "min_edge_vs_bg": 3.6198832472689566
+   }
+  ]
+ },
+ "light": {
+  "n_backgrounds": 10160,
+  "v1_alpha_only": {
+   "min": 1.2268841385910523,
+   "p1": 1.2520407541110512,
+   "p5": 1.2843469830346739,
+   "median": 1.506861674024242
+  },
+  "alpha_only_for_3to1": {
+   "none_reaches_3to1": true,
+   "at_alpha_1": {
+    "min": 1.6733716753777588,
+    "p1": 1.7436530956037604,
+    "p5": 1.8571567836058689,
+    "median": 2.9682837463373968
+   }
+  },
+  "cased_lightest": [
+   {
+    "weight": 1.5500000000000003,
+    "style": "dark core, light halo",
+    "core_alpha": 0.9500000000000004,
+    "halo_alpha": 0.5999999999999999,
+    "min_core_vs_halo": 7.65951578623788,
+    "min_edge_vs_bg": 3.013572992747919
+   },
+   {
+    "weight": 1.5500000000000003,
+    "style": "light core, dark halo",
+    "core_alpha": 0.8500000000000003,
+    "halo_alpha": 0.7,
+    "min_core_vs_halo": 7.68412346249182,
+    "min_edge_vs_bg": 3.0027030992242003
+   },
+   {
+    "weight": 1.6,
+    "style": "dark core, light halo",
+    "core_alpha": 0.8500000000000003,
+    "halo_alpha": 0.7499999999999999,
+    "min_core_vs_halo": 8.064168590453393,
+    "min_edge_vs_bg": 3.004527415623679
+   }
+  ]
+ },
+ "beach": {
+  "n_backgrounds": 9650,
+  "v1_alpha_only": {
+   "min": 1.230304017328732,
+   "p1": 1.2460421133369124,
+   "p5": 1.2763845772819664,
+   "median": 1.4524142474470172
+  },
+  "alpha_only_for_3to1": {
+   "none_reaches_3to1": true,
+   "at_alpha_1": {
+    "min": 1.7351091643256755,
+    "p1": 1.7980387007998722,
+    "p5": 1.9191130554067677,
+    "median": 2.824671039985474
+   }
+  },
+  "cased_lightest": [
+   {
+    "weight": 1.6000000000000003,
+    "style": "dark core, light halo",
+    "core_alpha": 0.9500000000000004,
+    "halo_alpha": 0.6499999999999999,
+    "min_core_vs_halo": 7.838672165156052,
+    "min_edge_vs_bg": 3.008820069195841
+   },
+   {
+    "weight": 1.6000000000000003,
+    "style": "dark core, light halo",
+    "core_alpha": 1.0000000000000004,
+    "halo_alpha": 0.5999999999999999,
+    "min_core_vs_halo": 7.7881413087722615,
+    "min_edge_vs_bg": 3.011793128577226
+   },
+   {
+    "weight": 1.6500000000000001,
+    "style": "light core, dark halo",
+    "core_alpha": 0.8000000000000003,
+    "halo_alpha": 0.8499999999999999,
+    "min_core_vs_halo": 8.444643072780174,
+    "min_edge_vs_bg": 3.0339806828105553
+   }
+  ]
+ }
+}
