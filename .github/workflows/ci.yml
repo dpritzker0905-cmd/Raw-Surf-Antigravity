@@ -25,7 +25,72 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # ★ DOCS-ONLY FAST PATH (2026-11-22, Actions queue at 61 runs, ~half the open PRs touching only docs).
+  # This job classifies a PULL REQUEST's diff (merge commit vs its base parent). When EVERY changed path is
+  # documentation, each heavy job below still RUNS and still reports its own required check name, but its
+  # first step says so and every later step is skipped by a step-level `if:`, so the check goes green in
+  # seconds. No `paths:` filter and no job-level skip on a required job: the header above says why.
+  #   docs-only = every path is a `.md` file under docs/, audit/, program/, memory/, .claude/, .agents/ or the
+  #   repo root, or a `.github/ci-floors.d/*.json` fragment. ANYTHING else (a .json/.py under docs/, any
+  #   workflow, any code dir, a rename into code, an empty diff, a missing merge parent) => full suite.
+  # Pushes (dev, main) always get the full suite: the classifier answers 'false' for every non-PR event.
+  # Fail-closed: the gated jobs carry `if: !cancelled()`, so if this job errors they run in full rather than
+  # being skipped (GitHub reports a skipped required job as passing).
+  # ⚠️ Some backend tests READ docs (control-char scan of docs/weather-program, LESSONS.md and DECISIONS.md
+  # pins, flip-candidates, audit evidence scripts). On a docs-only PR the estate job therefore still runs
+  # every test file that names a docs path (selected by grep at run time, so a new doc-reading test is
+  # picked up without editing this file).
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+      # The default PR checkout is refs/pull/N/merge: HEAD^1 is the base tip, HEAD^2 the PR head, so
+      # HEAD^1..HEAD is exactly what merging would change. Trees only (blob:none) and a sparse tree.
+      - uses: actions/checkout@v5
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 2
+          filter: blob:none
+          sparse-checkout: .github/ci-floors.d
+
+      - name: "🗂 Classify the PR diff: docs-only or not"
+        id: classify
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          verdict() { echo "docs_only=$1" >> "$GITHUB_OUTPUT"; echo "docs_only=$1 ($2)"; echo "**docs_only=$1** — $2" >> "$GITHUB_STEP_SUMMARY"; exit 0; }
+          [ "$EVENT" = "pull_request" ] || verdict false "event $EVENT always runs the full suite"
+          git rev-parse --verify -q 'HEAD^2' >/dev/null || verdict false "HEAD is not a PR merge commit"
+          git diff --name-only --no-renames 'HEAD^1' HEAD > /tmp/changed.txt
+          n=$(wc -l < /tmp/changed.txt)
+          [ "$n" -gt 0 ] || verdict false "empty diff"
+          : > /tmp/code.txt
+          while IFS= read -r f; do
+            case "$f" in
+              .github/ci-floors.d/*.json) ;;
+              */*/*.md|*/*.md)
+                case "$f" in
+                  docs/*|audit/*|program/*|memory/*|.claude/*|.agents/*) ;;
+                  *) echo "$f" >> /tmp/code.txt ;;
+                esac ;;
+              *.md) ;;
+              *) echo "$f" >> /tmp/code.txt ;;
+            esac
+          done < /tmp/changed.txt
+          if [ -s /tmp/code.txt ]; then
+            sed 's/^/  not docs: /' /tmp/code.txt | head -50
+            verdict false "$(wc -l < /tmp/code.txt) of $n changed path(s) are not documentation"
+          fi
+          sed 's/^/  docs: /' /tmp/changed.txt | head -50
+          verdict true "all $n changed path(s) are documentation"
+
   openai-budget-postgres:
+    needs: changes
+    # Not a required check, so a job-level skip is safe here (and avoids starting the postgres service).
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
@@ -56,6 +121,10 @@ jobs:
         run: python -m pytest tests/test_openai_budget.py -q --timeout=60
 
   lint-and-build:
+    needs: changes
+    # !cancelled(): if `changes` itself fails, this job still runs IN FULL (empty output != 'true'),
+    # instead of being skipped, which GitHub would report as a passing required check.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -63,9 +132,14 @@ jobs:
         node-version: [24.22.1]
 
     steps:
+      - name: "📄 Docs-only PR: the heavy steps below are skipped (see the `changes` job)"
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "docs-only, skipping (changes job classified every changed path as documentation)"; exit 0
       - uses: actions/checkout@v5
+        if: needs.changes.outputs.docs_only != 'true'
 
       - name: Use Node.js ${{ matrix.node-version }}
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
@@ -73,6 +147,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: frontend
         run: npm ci
 
@@ -86,6 +161,7 @@ jobs:
       # at that SHA: FOUR consecutive runs, byte-identical, 178/178 suites, 1640/1640 tests,
       # exit 0 every time. The gate is not born red, so it is allowed to block.
       - name: Run tests
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: frontend
         run: |
           CI=true npx react-scripts test --watchAll=false --passWithNoTests \
@@ -100,7 +176,7 @@ jobs:
       # asserts the COUNT, not the colour, and runs even when jest already failed so a coverage
       # collapse is reported instead of hiding behind the first red test.
       - name: "🔍 Assert the frontend suite actually ran"
-        if: always()
+        if: always() && needs.changes.outputs.docs_only != 'true'
         working-directory: frontend
         run: |
           node - <<'JS'
@@ -247,6 +323,7 @@ jobs:
           JS
 
       - name: Build frontend
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: frontend
         env:
           CI: false  # Allow warnings to not fail build
@@ -254,6 +331,7 @@ jobs:
         run: npm run build
 
       - name: Build success
+        if: needs.changes.outputs.docs_only != 'true'
         run: echo "✅ Frontend build verified successfully"
 
   # 2026-07-31 Frontend ESLint gate — the control that was simply absent.
@@ -278,12 +356,21 @@ jobs:
   # a `paths:`-gated job with a green tick. An unfiltered job costs a couple of runner-minutes;
   # a green tick that means "did not run" costs a production defect.
   frontend-lint:
+    needs: changes
+    # !cancelled(): if `changes` itself fails, this job still runs IN FULL (empty output != 'true'),
+    # instead of being skipped, which GitHub would report as a passing required check.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
 
     steps:
+      - name: "📄 Docs-only PR: the heavy steps below are skipped (see the `changes` job)"
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "docs-only, skipping (changes job classified every changed path as documentation)"; exit 0
       - uses: actions/checkout@v5
+        if: needs.changes.outputs.docs_only != 'true'
 
       - name: Use Node.js 24.22.1
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/setup-node@v5
         with:
           node-version: '24.22.1'   # matches frontend/.node-version
@@ -291,6 +378,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: frontend
         run: npm ci
 
@@ -302,6 +390,7 @@ jobs:
       #      frontend/scripts/eslint_baseline.json and are shrink-only. Gating those at zero
       #      today would mean merging red, and a gate born red gets switched off.
       - name: "🔍 ESLint gate (never-zero rules + shrink-only debt ratchet)"
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: frontend
         run: node scripts/check_eslint.js
         # NO continue-on-error, deliberately. `no-undef` in a render path is not advisory.
@@ -317,13 +406,22 @@ jobs:
   # for the marine composition guards specifically; widening `continue-on-error` off wholesale
   # would merge red on those two pre-existing resolve failures, and a gate born red gets disabled.
   frontend-marine-composition-guards:
+    needs: changes
+    # !cancelled(): if `changes` itself fails, this job still runs IN FULL (empty output != 'true'),
+    # instead of being skipped, which GitHub would report as a passing required check.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
+      - name: "📄 Docs-only PR: the heavy steps below are skipped (see the `changes` job)"
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "docs-only, skipping (changes job classified every changed path as documentation)"; exit 0
       - uses: actions/checkout@v5
+        if: needs.changes.outputs.docs_only != 'true'
 
       - name: Use Node.js 24.22.1
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/setup-node@v5
         with:
           node-version: '24.22.1'   # matches frontend/.node-version
@@ -331,6 +429,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: frontend
         run: npm ci
 
@@ -340,6 +439,7 @@ jobs:
       # rate predicts the error rate monotonically across all three models (ICON 0%, GFS 21%,
       # EURO 59%). These guards pin that conditional before any Energy card is built on top of it.
       - name: "🌊 Marine card-matrix composition guards (closure · card contract · provenance)"
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: frontend
         run: |
           set -o pipefail
@@ -353,7 +453,7 @@ jobs:
       # NOT passed above precisely so an empty match is a failure — but a pattern that matches ONE
       # of the two files would still be "green", which is what this step exists to catch.
       - name: "🔍 Assert the guards actually ran"
-        if: always()
+        if: always() && needs.changes.outputs.docs_only != 'true'
         working-directory: frontend
         run: |
           node - <<'JS'
@@ -389,10 +489,18 @@ jobs:
           JS
 
   backend-lint:
+    needs: changes
+    # !cancelled(): if `changes` itself fails, this job still runs IN FULL (empty output != 'true'),
+    # instead of being skipped, which GitHub would report as a passing required check.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
 
     steps:
+      - name: "📄 Docs-only PR: the heavy steps below are skipped (see the `changes` job)"
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "docs-only, skipping (changes job classified every changed path as documentation)"; exit 0
       - uses: actions/checkout@v5
+        if: needs.changes.outputs.docs_only != 'true'
 
       # ⚠️ 3.12 BECAUSE THAT IS WHAT PRODUCTION ACTUALLY RUNS - MEASURED, NOT DECLARED.
       # /api/health now reports it: {"python":"3.12","deps_digest":"1fbddd64165a","deps_count":137}.
@@ -406,11 +514,13 @@ jobs:
       #   a separate change: they are scheduled production jobs and need artifact-level verification
       #   (write on both, compare bytes), not a find-and-replace.
       - name: Set up Python
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Install backend dependencies
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: |
           pip install -q flake8
@@ -419,10 +529,12 @@ jobs:
       # The April route split imported successfully while function bodies retained
       # missing globals. Keep a targeted dependency guard as well as the fatal-error gate.
       - name: Condition-report runtime dependency guard
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: flake8 --select=F821 routes/condition_reports
 
       - name: Lint backend
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: flake8 --max-line-length=150 --count --select=E9,F63,F7,F82 --show-source --statistics .
 
@@ -445,16 +557,26 @@ jobs:
 
   # v89 Governance — Import Graph Validation
   backend-import-check:
+    needs: changes
+    # !cancelled(): if `changes` itself fails, this job still runs IN FULL (empty output != 'true'),
+    # instead of being skipped, which GitHub would report as a passing required check.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
+      - name: "📄 Docs-only PR: the heavy steps below are skipped (see the `changes` job)"
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "docs-only, skipping (changes job classified every changed path as documentation)"; exit 0
       - uses: actions/checkout@v5
+        if: needs.changes.outputs.docs_only != 'true'
 
       - name: Set up Python
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: "🔍 Check for circular imports"
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: python scripts/check_imports.py --path routes
 
@@ -467,16 +589,26 @@ jobs:
   # Widened 2026-10-08: any actor-id argument (payer_id, surfer_id, captain_id, photographer_id, ...),
   # not only `user_id`; the baseline now stores hashes, not route names, and only shrinks.
   backend-bola-guard:
+    needs: changes
+    # !cancelled(): if `changes` itself fails, this job still runs IN FULL (empty output != 'true'),
+    # instead of being skipped, which GitHub would report as a passing required check.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
+      - name: "📄 Docs-only PR: the heavy steps below are skipped (see the `changes` job)"
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "docs-only, skipping (changes job classified every changed path as documentation)"; exit 0
       - uses: actions/checkout@v5
+        if: needs.changes.outputs.docs_only != 'true'
 
       - name: Set up Python
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: "🔐 BOLA route guard (no new bare-user_id routes)"
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: python scripts/check_bola_routes.py
 
@@ -494,6 +626,10 @@ jobs:
   # clean over 21 files it never read. So this job fails if the globs stop matching files or if the
   # passing count collapses — measure FILES PARSED, not finding count.
   backend-sim-composition-guards:
+    needs: changes
+    # !cancelled(): if `changes` itself fails, this job still runs IN FULL (empty output != 'true'),
+    # instead of being skipped, which GitHub would report as a passing required check.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     # CI 34886811636 passed all 1874 guards but used 19m58s of 20m.
     # Keep a bounded five-minute margin; selection and pass floors stay unchanged.
@@ -501,9 +637,14 @@ jobs:
     # #998 and other branches were CANCELLED at exactly 25 min with no guards.xml (dev 01:49-02:15Z), failing every PR's merge.
     timeout-minutes: 35
     steps:
+      - name: "📄 Docs-only PR: the heavy steps below are skipped (see the `changes` job)"
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "docs-only, skipping (changes job classified every changed path as documentation)"; exit 0
       - uses: actions/checkout@v5
+        if: needs.changes.outputs.docs_only != 'true'
 
       - name: Set up Python
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
@@ -518,6 +659,7 @@ jobs:
       # how this job's second cloud run died. Installing the overlay second lets it lift httpx for
       # the test lane only. See backend/requirements-dev.txt for why that divergence is accepted.
       - name: Install backend dependencies
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: |
           pip install -q -r requirements.txt
@@ -555,6 +697,7 @@ jobs:
       # not a cheaper version of the same one. Harmless here only because the count moved UP and
       # this ratchet is shrink-only.
       - name: "🌊 Composition guard suite (sim ↔ rating ↔ geometry ↔ provenance)"
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: |
           set -o pipefail
@@ -590,7 +733,7 @@ jobs:
       # Shrink-only ratchet on COVERAGE, run even when pytest already failed so a collapse in what
       # was collected is reported rather than hidden behind the first red test.
       - name: "🔍 Assert the guards actually ran"
-        if: always()
+        if: always() && needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: |
           python - <<'PY'
@@ -1135,24 +1278,35 @@ jobs:
   # minus everything the composition glob already takes". A hardcoded list is how the composition glob
   # came to miss 45 of its own files, and how `tests/test_point_*.py` sat outside it for months.
   backend-forecast-chain-guards:
+    needs: changes
+    # !cancelled(): if `changes` itself fails, this job still runs IN FULL (empty output != 'true'),
+    # instead of being skipped, which GitHub would report as a passing required check.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     # 30 min (2026-10-26, lead): the suite itself runs ~12-19 min, but on a loaded runner the job crossed 20 min AFTER
     # pytest finished (#580: estate passed 3355 tests, then timed out at 20:00, twice), failing green PRs. A hang still
     # dies here; pytest's own per-test timeouts remain the first backstop.
     timeout-minutes: 30
     steps:
+      - name: "📄 Docs-only PR: the heavy steps below are skipped (see the `changes` job)"
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "docs-only, skipping (changes job classified every changed path as documentation)"; exit 0
       - uses: actions/checkout@v5
+        if: needs.changes.outputs.docs_only != 'true'
       - name: Set up Python
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Install backend dependencies
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: |
           pip install -q -r requirements.txt
           pip install -q -r requirements-dev.txt
 
       - name: "🌊 Forecast-chain guards (bathymetry · shore normal · EURO · calibration · manifest)"
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: |
           set -o pipefail
@@ -1177,7 +1331,7 @@ jobs:
           python -m pytest $FILES -q --junitxml=chain.xml
 
       - name: "🔍 Assert the forecast-chain guards actually ran"
-        if: always()
+        if: always() && needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: |
           python - <<'PY'
@@ -1812,6 +1966,10 @@ jobs:
   # tests/min (~4 h projected) while these 244 files alone take 1 m 54 s, so the cost is in the
   # other lanes' files and running everything in one process is pathological. Three lanes, not one.
   backend-estate-coverage:
+    needs: changes
+    # !cancelled(): if `changes` itself fails, this job still runs IN FULL (empty output != 'true'),
+    # instead of being skipped, which GitHub would report as a passing required check.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     # 30 min (2026-10-26, lead): the suite itself runs ~12-19 min, but on a loaded runner the job crossed 20 min AFTER
     # pytest finished (#580: estate passed 3355 tests, then timed out at 20:00, twice), failing green PRs. A hang still
@@ -1821,6 +1979,9 @@ jobs:
     # durable fix; this keeps it from cancelling green PRs meanwhile.
     timeout-minutes: 45
     steps:
+      - name: "📄 Docs-only PR: the estate is skipped; only the doc-reading tests run (see the `changes` job)"
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "docs-only, skipping the estate (changes job classified every changed path as documentation)"; exit 0
       - uses: actions/checkout@v5
 
       - name: Set up Python
@@ -1837,16 +1998,31 @@ jobs:
           pip install -q -r requirements.txt
           pip install -q -r requirements-dev.txt
 
+      # Docs-only PRs: a doc edit can still break a test that reads that doc (control characters in
+      # docs/weather-program, the LESSONS/DECISIONS pins, ...). Run every backend test file, from ANY lane,
+      # that names a docs-like path. Over-inclusive on purpose; selected at run time so it never goes stale.
+      - name: "📄 Docs-only PR: run every backend test file that reads documentation"
+        if: needs.changes.outputs.docs_only == 'true'
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          grep -lE "docs[/\"']|\.md[\"']|BRAIN_RULES|CLAUDE\.md|[\"'/](audit|program|memory)/" tests/test_*.py > /tmp/doc_tests.txt
+          echo "$(wc -l < /tmp/doc_tests.txt) doc-reading test files:"; sed 's/^/  doc-reader: /' /tmp/doc_tests.txt
+          [ -s /tmp/doc_tests.txt ] || { echo "::error::no doc-reading tests selected; the grep is broken"; exit 1; }
+          python -m pytest $(tr '\n' ' ' < /tmp/doc_tests.txt) -q --timeout=120
+
       # ★ The partition guard runs BEFORE pytest and is the real product of this lane: it fails if
       # any tracked test file is claimed by no lane, if two lanes claim one file, or if a named
       # exclusion has outlived the file it names.
       - name: "🔍 Assert the lanes partition the tracked test estate"
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: python scripts/ci_test_lanes.py --assert-partition
 
       # --timeout is per-test so a hang names ITSELF in the report instead of burning the job
       # anonymously; timeout-minutes is the backstop for a hang that escapes pytest entirely.
       - name: "Run every test file no other lane claims"
+        if: needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: |
           python scripts/ci_test_lanes.py --lane estate > /tmp/estate_files.txt
@@ -1858,7 +2034,7 @@ jobs:
             -W error::pytest.PytestUnraisableExceptionWarning
 
       - name: Preserve SQLite lifetime census
-        if: always()
+        if: always() && needs.changes.outputs.docs_only != 'true'
         uses: actions/upload-artifact@v6
         with:
           name: sqlite-lifetime-${{ github.run_id }}-${{ github.run_attempt }}
@@ -1866,7 +2042,7 @@ jobs:
           if-no-files-found: error
 
       - name: "🔍 Assert every selected file actually produced results"
-        if: always()
+        if: always() && needs.changes.outputs.docs_only != 'true'
         working-directory: backend
         run: |
           python - <<'PY'
