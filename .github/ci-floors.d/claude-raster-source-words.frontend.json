@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 14,
+  "files": 1,
+  "branch": "claude/raster-source-words",
+  "date": "2026-11-23",
+  "note": "rasterSourceWords.test.js (14): pass 13, which model a raster draws, in words"
+}

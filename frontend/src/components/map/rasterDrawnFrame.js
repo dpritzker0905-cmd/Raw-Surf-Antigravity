@@ -16,7 +16,7 @@
  */
 import { useEffect, useSyncExternalStore } from 'react';
 import { MODEL_METADATA_CACHE } from './LayerRegistry';
-import { getEngaged } from './ownRasterFrames';
+import { getEngaged, MODEL_SOURCE } from './ownRasterFrames';
 import { ESTIMATE_WORDS } from './drawnFrameReadout';
 import { formatReadoutDate } from './readoutDateFormat';
 import { gustLeadHours, gustWindowLabel } from './gustWindow';
@@ -73,6 +73,46 @@ export function useRasterDrawnPublisher(activeLayers, activeSlots, omTileUrls, t
   }, [activeLayers, activeSlots, omTileUrls, targetSlotsRef]);
 }
 
+// ── WHICH MODEL IS DRAWN (2026-11-23, SOTA-GAP inspection pass 13): with EURO or ICON picked, Fog draws GFS (Open-Meteo
+// ncep_gfs025; LayerRegistry pins it) and nothing said so. Any raster whose DRAWN frame is another weather model than the picked one
+// (the drawn record, never the request: the request already carries the stand-in) now says so in the warning tone, as the ICON
+// cloud gap fill does: "EURO fog unavailable: NOAA GFS shown". Ocean products (Copernicus, RTOFS, GIOPS) are other quantities, not
+// stand-ins: ICON's water temp (the Copernicus ocean model's top layer, 1/6 degree) gets a quiet line naming it, because the same
+// button shows weather-model skin temperature on GFS and EURO. Display only (no served number). The status line waits
+// PENDING_QUIET_MS before showing a stand-in, so a model switch's in-between render never flashes one (ForecastTimeStatus).
+// Kill: window.__RAW_DISABLE_RASTER_SOURCE_WORDS__ = true (no line, as before).
+export const rasterSourceWordsKilled = () => W().__RAW_DISABLE_RASTER_SOURCE_WORDS__ === true;
+const WEATHER_MODELS = new Set(['GFS', 'EURO', 'ICON']);
+const PATH_MODEL = { gfs: 'GFS', euro: 'EURO', icon: 'ICON', cmems: 'CMEMS', rtofs: 'RTOFS', giops: 'GIOPS' };
+/** The drawn frame's model family: the record's model (before any '+' / ':' suffix), else the own-frame path's folder. */
+export function drawnModelFamily(shown) {
+  const m = shown && shown.model ? String(shown.model).split(/[+:]/)[0].trim().toUpperCase() : '';
+  if (m) return m;
+  const p = shown && typeof shown.url === 'string' ? /^v1\/([a-z0-9]+)\//.exec(shown.url) : null;
+  return p ? PATH_MODEL[p[1]] || p[1].toUpperCase() : '';
+}
+/** A grid spacing in words, read from the DRAWN field (never a set name): 1/6° when it is a whole fraction, else 0.25°. */
+export function gridWords(deg) {
+  if (!Number.isFinite(deg) || deg <= 0) return null;
+  const n = Math.round(1 / deg);
+  if (n >= 2 && Math.abs(1 / deg - n) < 0.01) return `1/${n}°`;
+  return `${Number(deg.toFixed(3))}°`;
+}
+/** The stand-in / source line for a drawn raster frame, or null. `selectedModel`: the model button pressed (GFS | EURO | ICON). */
+export function describeRasterSource(shown, layer, selectedModel) {
+  if (!shown || rasterSourceWordsKilled() || layer === 'radar') return null;
+  const name = RASTER_NAMES[layer] || layer;
+  const url = typeof shown.url === 'string' ? shown.url : '';
+  if (layer === 'water_temp' && /(^|\/)cmems\//i.test(url)) {
+    const grid = gridWords(shown.gridDeg);
+    return { state: 'source', text: `${name}: Copernicus Marine ocean model, top layer${grid ? `, ${grid} grid` : ''}` };
+  }
+  const sel = String(selectedModel || '').toUpperCase();
+  const fam = drawnModelFamily(shown);
+  if (!WEATHER_MODELS.has(sel) || !WEATHER_MODELS.has(fam) || fam === sel) return null;
+  return { state: 'standin', text: `${sel} ${name.toLowerCase()} unavailable: ${MODEL_SOURCE[fam] || fam} shown` };
+}
+
 const withWindow = (r, gust) => (gust ? { ...r, text: `${r.text} · ${gust}` } : r);
 const fmtHour = (ms) => formatReadoutDate(new Date(ms), 'hour');
 const fmtClock = (ms) => formatReadoutDate(new Date(ms), 'clock');
@@ -81,7 +121,7 @@ const fmtClock = (ms) => formatReadoutDate(new Date(ms), 'clock');
  * Words for the pair, in the marine readout's states. `requestedMs` = the selected instant (now + hour; radar: its frame).
  * Returns null when the layer shows what was asked (or the readout is killed).
  */
-export function describeRasterFrame(rec, layer, requestedMs) {
+export function describeRasterFrame(rec, layer, requestedMs, selectedModel = null) {
   if (rasterReadoutKilled() || !rec || rec.layer !== layer) return null;
   const name = RASTER_NAMES[layer] || layer;
   const fmt = layer === 'radar' ? fmtClock : fmtHour;
@@ -103,6 +143,8 @@ export function describeRasterFrame(rec, layer, requestedMs) {
   // Which gust is drawn (the frame's own model and lead): joined to a nearest / reduced line, or the line on its own.
   const gust = layer === 'gusts' ? gustWindowLabel(shown.model, gustLeadHours(shown)) : null;
   if (shown.estimated) return { state: 'estimated', ...(shown.fill || shown.coarse ? { fill: true } : {}), text: `Estimated forecast: ${ESTIMATE_WORDS[shown.estimated] || 'estimated'}` };
+  const source = describeRasterSource(shown, layer, selectedModel);
+  if (source) return source;
   if (layer !== 'radar' && Number.isFinite(requestedMs)) {
     const dh = Math.round((shown.dataMs - requestedMs) / 3600000);
     if (dh !== 0 && Math.abs(dh) <= (shown.nearestMaxHours || 0)) return withWindow({ state: 'nearest', text: `Showing ${fmt(shown.dataMs)}: the nearest stored forecast` }, gust);
