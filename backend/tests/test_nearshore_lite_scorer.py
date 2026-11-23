@@ -34,7 +34,7 @@ def make_rows(lite_noise, chain_noise, n_dates=90, seed=1, with_ca=False):
                 truth = 1.0 + rng.random()
                 rows.append({"date": date, "buoy": f"ca{b}", "region": "California", "sheltered": False,
                              "stratum": "FINE", "obs_hs": truth, "lead_h": 24, "inc_rel_deg": 20.0,
-                             "arms": {"CHAIN": truth, "LITE": truth, "LITE_EC": truth + rng.normal(0, 0.1),
+                             "arms": {"CHAIN": truth, "LITE": truth + rng.normal(0, 0.1),
                                       "MOP": truth + rng.normal(0, 0.1)}})
     return rows
 
@@ -78,17 +78,23 @@ def test_the_same_rows_feed_every_arm_missing_run_rule():
     assert r["n"] == len(rows) - 10
 
 
-def test_tost_equivalent_and_not_equivalent():
+def test_lite_ec_and_tost_are_gone_and_california_is_context_only():
+    assert not hasattr(scorer, "tost_ratio") and not hasattr(scorer, "TOST_MARGIN")
     rows = [r for r in make_rows(0.1, 0.1, n_dates=60, with_ca=True) if r["region"] == "California"]
-    for r in rows:                                    # same error shape, MOP 2% larger: inside the +/-10% margin
-        e = r["arms"]["LITE_EC"] - r["obs_hs"]
-        r["arms"]["MOP"] = r["obs_hs"] + 1.02 * e
-    same = scorer.tost_ratio(rows, B=B)
-    assert same["equivalent"] and abs(same["r"]) < 0.10
-    for i, r in enumerate(rows):                      # LITE_EC far worse than MOP
-        r["arms"]["LITE_EC"] = r["obs_hs"] + 0.5 * (1 if i % 2 else -1)
-    bad = scorer.tost_ratio(rows, B=B)
-    assert not bad["equivalent"] and bad["worse"]
+    ctx = scorer.california_context(rows)
+    assert ctx["tost"] is None and ctx["context_only"] is True and ctx["n"] == len(rows)
+    assert ctx["text"] == scorer.LITE_EC_NOT_RUN_TEXT
+    text = scorer.california_report_text(ctx)
+    assert text.startswith("LITE_EC is NOT RUN (no free ECMWF directional partitions).")
+    assert "does NOT measure bathymetry quality; no TOST conclusion is drawn; the RMSE ratio and ME are context only." in text
+    assert "context only (n=" in text
+
+
+def test_the_ruling_wording_is_verbatim():
+    assert scorer.LITE_EC_NOT_RUN_TEXT == (
+        "LITE_EC is NOT RUN (no free ECMWF directional partitions). The California comparison is REPORTED as LITE, driven by the "
+        "same served partitions as CHAIN (CMEMS MFWAM), against MOP (ECMWF-driven). Because the forcing differs, it does NOT "
+        "measure bathymetry quality; no TOST conclusion is drawn; the RMSE ratio and ME are context only.")
 
 
 def test_floors_report_void_when_unmet():
@@ -150,21 +156,29 @@ def test_leak_control_flags_a_valid_time_before_the_freeze(tmp_path):
     assert scorer.control_leak(d, ["T1"], "2027-01-15T00:00Z", ["2027-01-14T23:00Z"]) is False
 
 
-# ---- archive ---------------------------------------------------------------------------------------------------
+# ---- archive (the SHARED point archive: services/point_archive) ----------------------------------------------------
+def _recs(run, target="T1", leads=range(0, 73), member="GFS"):
+    from services.weather_pipeline.nearshore_lite import records
+    rows = [{"target": target, "lead_h": h, "basis": "partitions",
+             "partitions": [{"h": 1.0, "tp": 12.0, "dir": 270.0, "kind": "swell"}], "total": {"h": 1.0, "tp": 12.0, "dir": 270.0}}
+            for h in leads]
+    return [records.build_record(run, member, {"id": target}, r, "v1", "lh", "rh") for r in rows]
+
+
 def test_archive_is_hashed_immutable_and_detects_tampering(tmp_path):
-    d = str(tmp_path / "arch")
-    rows = [{"target": "T1", "lead_h": h, "partitions": [{"h": 1.0, "tp": 12.0, "dir": 270.0, "kind": "swell"}]}
-            for h in range(0, 73)]
-    p, h = archive.archive_init(d, "2027-01-15T00:00Z", "GFS", rows)
-    assert archive.verify_archive(d) == [] and len(h) == 64
+    from services.point_archive import storage
+    store = storage.LocalStore(tmp_path)
+    w = archive._writer.ArchiveWriter(store)
+    p, h = archive.archive_run(w, "2027-01-15T00:00Z", "GFS", _recs("2027-01-15T00:00Z"))
+    assert p == "verify/point-archive/v1/nearshore_eval/gfs/20270115T0000Z.jsonl.gz"
+    assert archive.verify_archive(store, "GFS") == [] and len(h) == 64
     with pytest.raises(FileExistsError):
-        archive.archive_init(d, "2027-01-15T00:00Z", "GFS", rows)
-    assert archive.missing_run(d, ["T1"]) == []
-    archive.archive_init(d, "2027-01-16T00:00Z", "GFS", rows[:40])                  # a short init
-    assert archive.missing_run(d, ["T1"]) == ["20270116T0000Z.json"]
-    with open(p, "ab") as f:
-        f.write(b" ")
-    assert any("mismatch" in x for x in archive.verify_archive(d))
+        archive.archive_run(w, "2027-01-15T00:00Z", "GFS", _recs("2027-01-15T00:00Z"))
+    assert archive.missing_run(store, ["T1"], "GFS") == []
+    archive.archive_run(w, "2027-01-16T00:00Z", "GFS", _recs("2027-01-16T00:00Z", leads=range(0, 40)))   # a short run
+    assert archive.missing_run(store, ["T1"], "GFS") == ["20270116T0000Z.jsonl.gz"]
+    (tmp_path / p).write_bytes((tmp_path / p).read_bytes() + b" ")
+    assert any("mismatch" in x for x in archive.verify_archive(store, "GFS"))
 
 
 # ---- ship decision on stratified tags (advisor ruling) -----------------------------------------------------------
