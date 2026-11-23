@@ -436,6 +436,73 @@ def fetch_and_load(url: str, hash_path: str, dest: str, get: Optional[Callable] 
     return load_clim_gust(fetch_table(url, dest, get), hash_path)
 
 
+# ---------------------------------------------------------------------------------------------- wiring into the score command
+def wind_passed_from_doc(wind_doc: dict) -> Dict[str, Dict[str, bool]]:
+    """{tail: {arm: bool}}: an arm passed the WIND gates for a tail, read ONLY from the wind result document (`tails[tail][arm]
+    ["pass"]`). The gust family never feeds back into this document and no other source decides it."""
+    out: Dict[str, Dict[str, bool]] = {}
+    for tail in ("ICON", "EURO"):
+        info = wind_doc.get("tails", {}).get(tail, {})
+        out[tail] = {arm: bool(isinstance(info.get(arm), dict) and info[arm].get("pass")) for arm in S.CAL_ARMS}
+    return out
+
+
+def gust_stations_by_region(stations: Sequence[dict], pairing: Dict[str, dict], coverage: Dict[str, dict]) -> Dict[str, int]:
+    """Stations that count toward the GUST floor, per region: NDBC (never ASOS), marine-exposed, anemometer height 1-50 m, and
+    GST coverage >= 70% over the TEST window. A LOCKED id has no truth, hence zero coverage, hence is not counted."""
+    out: Dict[str, int] = {}
+    for st in stations:
+        if st.get("kind", "ndbc") != "ndbc":
+            continue
+        z = st.get("anemometer_m")
+        if not z or not (W.GUST_Z_MIN <= float(z) <= W.GUST_Z_MAX):
+            continue
+        sid = str(st["id"])
+        if not pairing.get(sid, {}).get("marine") or not coverage.get(sid, {}).get("ok_gust"):
+            continue
+        import wind_lr2_runs as R
+        r = R.region_of(st["lat"], st["lon"])
+        out[r] = out.get(r, 0) + 1
+    return out
+
+
+def score_gust(rows: Dict[str, np.ndarray], wind_doc: dict, stations: Sequence[dict], pairing: Dict[str, dict],
+               coverage: Dict[str, dict], clim: "ClimGust", native_gust_changes: Optional[np.ndarray] = None,
+               reps: int = S.REPS, control_reps: int = S.REPS) -> dict:
+    """The gust block of the score report (amendment G1, serial: after wind). Reads the wind document, never writes it."""
+    rows = attach_clim_gust(rows, clim, [str(s["id"]) for s in stations])
+    return gust_verdict(rows, wind_passed_from_doc(wind_doc),
+                        native_gust_changes if native_gust_changes is not None else np.zeros(0),
+                        gust_stations_by_region(stations, pairing, coverage), reps=reps, control_reps=control_reps)
+
+
+def fetch_object_main(argv=None) -> int:
+    """`fetch-table --object KEY --hash FILE --out FILE`: read the one archived table from the PRIVATE bucket (key by NAME from
+    the environment, read-only GET), then verify it against the committed hash with `load_clim_gust` and keep it only if it
+    verifies. Run only by the `fetch-clim-gust` job of wind-lr2-analyse.yml (environment supabase-service)."""
+    import argparse
+    import requests
+    ap = argparse.ArgumentParser()
+    ap.add_argument("cmd", choices=["fetch-table"])
+    ap.add_argument("--object", required=True)
+    ap.add_argument("--hash", required=True)
+    ap.add_argument("--out", required=True)
+    a = ap.parse_args(argv)
+    base, key = os.environ["SUPABASE_URL"].rstrip("/"), os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    headers = {"apikey": key, **({"Authorization": "Bearer " + key} if str(key).startswith("eyJ") else {})}
+    url = f"{base}/storage/v1/object/weather-products/{a.object}"
+    os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
+    try:
+        fetch_and_load(url, a.hash, a.out, get=lambda u, timeout: requests.get(u, headers=headers, timeout=timeout))
+    except ClimGustRefused as e:
+        if os.path.exists(a.out):
+            os.remove(a.out)                  # an unverified table is never left behind for a later step to use
+        print(f"REFUSED: {e}")
+        return 1
+    print(f"CLIM_GUST table verified against the committed hash: {a.out}")
+    return 0
+
+
 # ---------------------------------------------------------------------------------------------- the one-time build (CLI)
 def build_clim_gust(stations: Sequence[dict], year_reader: Callable[[str, int], dict], convert: Callable,
                     years: Tuple[int, int] = CLIM_YEARS) -> Tuple["ClimGust", dict]:
@@ -473,6 +540,11 @@ def main(argv=None):
     list (2016-2025, cached under DIR/ndbc), writes wind_lr2_clim_gust.json, its .sha256 and the report. Run only by the
     dispatch-only workflow after the owner's typed word; the station list must be the frozen v2 list, never a superseded one."""
     import argparse
+    import sys
+    args = sys.argv[1:] if argv is None else list(argv)
+    if args and args[0] == "fetch-table":
+        return fetch_object_main(args)
+    argv = args
     import wind_lr_obs as O
     import requests
     ap = argparse.ArgumentParser()
