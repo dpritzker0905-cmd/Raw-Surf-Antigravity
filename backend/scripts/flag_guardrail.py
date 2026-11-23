@@ -121,6 +121,8 @@ COVERAGE = {
     "RATING_REF_PRIOR": (RATING, "the quality score's size reference for spots with no climatology (JAC-2, #771); no "
                                  "observed rating exists. Evidence: MOP size-category agreement (#839)"),
     "ALERTS_FORECAST_WINDOWS": (VOLUME, "sent-alert volume per user-day against its cap"),
+    "BAND_RATES_TOTAL_SEA": (BLIND, "the map rating band on partition layers only; the replay rates the glyph chain, which "
+                                    "already rated the total sea. Evidence: test_band_rates_total_sea.py (band = waves band)"),
     "SPOT_HUB_RATE_ONE_SPOT": (BLIND, "the spot hub's own route; the replay rates through rate_one_spot. Evidence: "
                                       "hub = glyph parity tests (unit, offline)"),
     "SURF_SEA_INPUTS_EVERY_CALLER": (BLIND, "the hub, conditions, surf-conditions and sim callers (#772); the glyph "
@@ -129,8 +131,6 @@ COVERAGE = {
                                      "asset (unit, offline)"),
     "SIDE_PATHS_THROUGH_CHAIN": (BLIND, "the conditions preview, _breaking_ft and surf-conditions side paths (#774); "
                                         "the replay rates rate_one_spot. Evidence: test_side_paths_through_chain.py"),
-    "BAND_RATES_TOTAL_SEA": (BLIND, "the map rating band on partition layers only; the replay rates the glyph chain, which "
-                                    "already rated the total sea. Evidence: test_band_rates_total_sea.py (band = waves band)"),
     "MANIFEST_PRUNE_TOMBSTONES": (BLIND, "moves which products the manifest lists, not a forecast number (#770). "
                                          "Evidence: the manifest chain harness (pruned entries stay pruned)"),
     "CONSENSUS_DIRECTION_VECTOR": (LEDGER, "acts only inside the multi-model consensus build, which the GFS-only replay "
