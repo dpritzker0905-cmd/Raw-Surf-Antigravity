@@ -71,7 +71,7 @@ def truth_fn_for(kind, cache, stations, window):
         else:
             height[i] = None
             truth[i] = obs.asos_range(s, cache, st["id"], window[0], window[1])
-    return W.station_truth_fn(truth, height, obs.to_10m, obs.wind_at, obs.gust_window), truth
+    return W.station_truth_fn(truth, height, obs.to_10m, obs.wind_at), truth
 
 
 def cmd_fit(a):
