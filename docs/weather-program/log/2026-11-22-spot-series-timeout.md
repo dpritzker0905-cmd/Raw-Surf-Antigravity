@@ -29,3 +29,22 @@ fix; it changes no served number, so it adds no SCOREBOARD row.
 - **Open, owner's decision:** (a) a ~180-min timeout plus a throttled trigger, (b) more shards, (c) find out why a
   frame costs 4-7× the estimate (steady L1-miss L2 downloads during rating), (d) a shorter horizon or lower frame
   density. Until one is picked and the variable is unset, the series stays off.
+
+## 2026-11-23: the cause is narrowed; the full-prefetch build (owner: "Yes, build it")
+- Measured in the cancelled GFS job's log:
+  - `[Prefetcher] Capping warm set 14005 -> 400 (nearest-hour-first); rest lazy on demand`, at conc=5, with
+    `global_mid` excluded.
+  - The 3,259 lazy L1 misses were all DISTINCT, ~1.1 s each: gfs marine swell 1,273, waves 1,259, wind 667, plus EURO
+    waves 60. Every one is a layer the prefetcher warms. The 400 cap (sized for the 512 MB serve box) left them lazy.
+- Consulted SubQ, Reflection and Longcat. All three chose making the job fast (option c).
+  - Longcat flagged product choice by disk presence. It is real: `point_resolution.py:274` (hint swap) and
+    `grid_resolver.py:362` (Step 3.5 preview).
+- Built (#1174):
+  - `prefetcher.py`: `PREFETCH_MODELS` (model filter) and `PREFETCH_RETRIES` (backoff), both default off, so the serve
+    boot is unchanged.
+  - The rate step warms its model uncapped, incl. `global_mid`, 16-way with 3 retries.
+  - Dispatch input `identity_check=true` rates each job twice in separate processes on an emptied L1: the capped
+    prefetch, then the full one. It fails unless every row is identical, and an ingest between the arms makes it
+    'inconclusive'.
+- Commitment (`ledger.d/fix--spot-series-timeout-starvation.jsonl:2`): `SPOT_SERIES_PUBLISH` stays 0 until that
+  dispatch reads 'identical' on GFS, EURO and ICON.

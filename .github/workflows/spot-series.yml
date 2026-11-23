@@ -32,6 +32,10 @@ on:
         description: "Spots per job on which the phase-2 hub path is compared with the glyph item and these rows"
         required: false
         default: '10'
+      identity_check:
+        description: "Rate each job twice (capped vs full prefetch, emptied L1 each time) and fail unless every row matches"
+        required: false
+        default: 'false'
   # Ratings follow the glyph precompute, so the series and the glyphs are rated on the same restored products.
   workflow_run:
     workflows: ["Precompute Spot Ratings (decoupled)"]
@@ -107,6 +111,15 @@ jobs:
           SURF_BIGHT_HS_EURO_WEIGHT: '0.5'
           # The series reaches +336 h, so warm the whole horizon (precompute warms 1 day: it rates +0/+3 h).
           PREFETCH_WINDOW_DAYS: '15'
+          # 2026-11-23: warm EVERY product of this job's model before rating (incl. global_mid), not the serve box's
+          # all-model warm set capped at 400. With the cap, a GFS job lazily downloaded 3,259 distinct products one at a
+          # time during rating and never fit 60 min. Gate: the dispatch input identity_check (rows identical, capped vs
+          # full); do NOT unset SPOT_SERIES_PUBLISH before it passes on every model.
+          PREFETCH_MODELS: ${{ matrix.model }}
+          PREFETCH_MAX: '0'
+          PREFETCH_INCLUDE_MID: '1'
+          PREFETCH_CONCURRENCY: '16'
+          PREFETCH_RETRIES: '3'
           # Not science: once 30% of this budget is spent, a job whose projected rating time exceeds it fails with
           # the measured numbers instead of being killed silently at timeout-minutes (scripts/spot_series_ci.py).
           SPOT_SERIES_RATE_BUDGET_MIN: '50'
@@ -119,6 +132,7 @@ jobs:
           python scripts/spot_series_ci.py rate --model ${{ matrix.model }} --job ${{ matrix.job }} --jobs 4
           --base-time ${{ needs.plan.outputs.base_time }} --limit ${{ inputs.limit || '0' }}
           --hub-parity ${{ inputs.hub_parity || '0' }} --out ../series-rows
+          ${{ inputs.identity_check == 'true' && '--identity-check' || '' }}
       - uses: actions/upload-artifact@v6
         with:
           name: series-rows-${{ matrix.model }}-${{ matrix.job }}
