@@ -198,6 +198,10 @@ def execute(run_id, sha, readings, *, run=_run, frag_dir=None, dry_run=False, lo
             run(["git", "merge", "--no-edit", "-m", f"Merge dev run {run_id} ({sha[:9]}) into {branch}", sha])
         else:
             run(["git", "checkout", "-B", branch, sha])
+        # A clean tree before writing: nothing left by a hook, a failed run or a merge may ride along (LongCat #6).
+        dirty = changed_paths(run)
+        if dirty:
+            raise Refusal(f"the checkout is not clean before writing: {dirty[:5]}")
     floors = floors_without(branch, frag_dir)
     items = plan(floors, readings)
     for lane in S.LANES:

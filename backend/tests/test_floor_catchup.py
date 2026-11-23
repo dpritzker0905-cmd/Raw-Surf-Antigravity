@@ -218,9 +218,9 @@ def test_the_same_run_twice_pushes_nothing_the_second_time(frag_dir):
 
 def test_an_open_catchup_pr_is_closed_when_nothing_is_stale_any_more(frag_dir):
     branch = f"{C.BRANCH_PREFIX}{RUN}"
-    sh = FakeShell(frag_dir, prs=[{"number": 77, "headRefName": branch}])
-    with open(os.path.join(frag_dir, f"{F.slug(branch)}.chain.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(frag_dir, f"{F.slug(branch)}.chain.json"), "w", encoding="utf-8") as f:   # committed on the branch
         json.dump({"lane": "chain", "tests": 12, "files": 0, "branch": branch, "date": "2026-11-23"}, f)
+    sh = FakeShell(frag_dir, prs=[{"number": 77, "headRefName": branch}])
     base = C.floors_without(branch, frag_dir)
     assert C.execute(RUN + 5, SHA, _current(base), run=sh, frag_dir=frag_dir, log=lambda *_: None) == "closed"
     assert sh.named("gh", "pr", "close")[0][:4] == ["gh", "pr", "close", "77"]
@@ -275,3 +275,25 @@ def test_duplicate_catchup_prs_are_closed_and_only_the_oldest_is_updated(frag_di
     assert C.execute(RUN, SHA, _stale_readings(frag_dir), run=sh, frag_dir=frag_dir, log=lambda *_: None) == "updated"
     assert [c[3] for c in sh.named("gh", "pr", "close")] == ["80"]
     assert [c[3] for c in sh.named("gh", "pr", "edit")] == ["79"] and not sh.named("gh", "pr", "create")
+
+
+def test_a_dirty_checkout_is_refused_before_anything_is_written(frag_dir):
+    sh = FakeShell(frag_dir)
+    with open(os.path.join(frag_dir, "claude-left-behind.chain.json"), "w", encoding="utf-8") as f:
+        json.dump({"lane": "chain", "tests": 1, "files": 0, "branch": "claude/left-behind", "date": "2026-11-23"}, f)
+    before = sh._files()
+    with pytest.raises(C.Refusal, match="not clean"):
+        C.execute(RUN, SHA, _stale_readings(frag_dir), run=sh, frag_dir=frag_dir, log=lambda *_: None)
+    assert sh._files() == before and not sh.named("git", "push")
+
+
+def test_the_workflow_acts_only_on_green_dev_pushes_of_this_repository():
+    import yaml
+    with open(os.path.join(os.path.dirname(BACKEND), ".github", "workflows", "floor-catchup.yml"), encoding="utf-8") as f:
+        wf = yaml.safe_load(f)
+    cond = wf["jobs"]["catchup"]["if"]
+    for needle in ("conclusion == 'success'", "event == 'push'", "head_branch == 'dev'",
+                   "head_repository.full_name == github.repository"):
+        assert needle in cond
+    assert wf["concurrency"]["cancel-in-progress"] is False
+    assert "secrets.FLOOR_CATCHUP_PR_TOKEN" in json.dumps(wf) and "ghp_" not in json.dumps(wf)
