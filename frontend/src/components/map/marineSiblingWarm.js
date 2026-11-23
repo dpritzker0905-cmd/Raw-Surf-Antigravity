@@ -36,6 +36,9 @@ import { staticOwnsWorldPage } from './marineSeriesStatic';
 import { normalizeRequestBbox, padRegionalBbox } from './marineBboxGeometry';
 import { seriesIdentityBounds } from './marineSeriesPanGuard';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
+import { bandRatedFor } from './partitionHeightOnly';
+// The flavour the marine data lane asks for this layer: a partition is plain even in Rating mode (bug hunt 2026-11-22 D).
+const getMarineBandFlag = (layer) => bandRatedFor(getSurfModeFlag(), layer);
 
 export const SIBLING_PAGE_POLL_MS = 400;        // re-check a closed gate this often
 export const SIBLING_PAGE_MAX_WAIT_MS = 8000;   // the visible page is 2.5-5 s cold; past this, a quiet lane is enough
@@ -50,9 +53,9 @@ const _asked = new Map();         // ask key (siblingAskKey) -> when its answer 
 export function siblingAskKey(kind, { model, layer, bounds, hourOffset }) {
   const b = seriesIdentityBounds(bounds) || bounds;
   const f = (v) => Number(v).toFixed(2);
-  const page = typeof marineSeriesPageForHour === 'function' ? marineSeriesPageForHour(hourOffset, model) : null;   // (a stubbed module: per hour)
+  const page = typeof marineSeriesPageForHour === 'function' ? marineSeriesPageForHour(hourOffset, model, layer) : null;   // (a stubbed module: per hour)
   const which = kind === 'page' && Number.isFinite(page) ? `p${page}` : `h${hourOffset}`;
-  return `${kind}|${model}|${layer}|${getSurfModeFlag() ? 'surf' : 'swell'}|${which}|${f(b.west)},${f(b.south)},${f(b.east)},${f(b.north)}`;
+  return `${kind}|${model}|${layer}|${getMarineBandFlag(layer) ? 'surf' : 'swell'}|${which}|${f(b.west)},${f(b.south)},${f(b.east)},${f(b.north)}`;
 }
 
 /** This sibling ask was answered within SIBLING_ASK_TTL_MS (and the kill switch is off): do not ask it again. */
@@ -96,7 +99,7 @@ export function siblingSurfGated() {
 
 /** A static source answers this sibling's page (marineSeriesStatic's own test, so every static seam counts): no /grid_series. */
 export function siblingStaticOwned(model, layer, bounds) {
-  try { return staticOwnsWorldPage(model, layer, normalizeRequestBbox(padRegionalBbox(bounds)), getSurfModeFlag()); } catch (e) { return false; }
+  try { return staticOwnsWorldPage(model, layer, normalizeRequestBbox(padRegionalBbox(bounds)), getMarineBandFlag(layer)); } catch (e) { return false; }
 }
 
 /** No series load in flight or queued anywhere in the limiter: nothing visible (or already warming) to compete with. */
