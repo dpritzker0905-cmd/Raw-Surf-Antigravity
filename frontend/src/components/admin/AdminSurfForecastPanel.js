@@ -13,10 +13,15 @@ import logger from '../../utils/logger';
 import ForecastDataHealth from './ForecastDataHealth';
 import SpotInspector from './SpotInspector';
 import GuardrailHistory from './GuardrailHistory';
+import SwitchBoard from './SwitchBoard';
+import VerificationPanel from './VerificationPanel';
 
 /**
  * Admin · Surf Forecast — the rating system's control room.
  *
+ *  0. SWITCHES (SwitchBoard, 2026-11-23) — every scanned switch with its true state per source (server, runtime
+ *     manifest, workflow lanes, repository variables); the FLAGS board below is its fallback. VERIFICATION AND SKILL
+ *     (VerificationPanel) — read-only: queue fill, served-wave and gust records, gate runs, coverage, read-backs.
  *  1. FLAGS — every registered rating/forecast flag as the SERVE BOX sees it (GET /admin/surf-forecast/status).
  *     Since D-065 a guarded flag's value comes from env > the runtime manifest (control/flags.json, written only by
  *     the guardrail workflow) > its code default, so each row says its SOURCE and, when the guardrail set it, the
@@ -224,6 +229,10 @@ export const AdminSurfForecastPanel = () => {
   const [deleting, setDeleting] = useState(null);
   const [confirming, setConfirming] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  // The scanned switch board (every source, P0-3) replaces the registered-flag board; that board stays as the fallback
+  // when /switches cannot be read, so the admin never loses the flag view.
+  const [switchesUnavailable, setSwitchesUnavailable] = useState(false);
+  const onSwitchesUnavailable = useCallback(() => setSwitchesUnavailable(true), []);
 
   const fetchAll = useCallback(async (again = false) => {
     if (again) setRefreshKey((k) => k + 1);   // the data-health card reloads on the same cadence (it loads itself first)
@@ -293,7 +302,11 @@ export const AdminSurfForecastPanel = () => {
 
       <SpotInspector />
 
-      <FlagBoard flags={flags} manifest={status?.manifest} />
+      <SwitchBoard refreshKey={refreshKey} onUnavailable={onSwitchesUnavailable} />
+
+      {switchesUnavailable && <FlagBoard flags={flags} manifest={status?.manifest} />}
+
+      <VerificationPanel refreshKey={refreshKey} />
 
       <GuardrailHistory refreshKey={refreshKey} />
 
