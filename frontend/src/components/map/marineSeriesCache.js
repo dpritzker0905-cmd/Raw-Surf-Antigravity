@@ -62,10 +62,10 @@ export class MarineSeriesCache extends Map {
     return this;
   }
   get(key) {
-    if (!marineSeriesCacheBoundsEnabled()) return super.get(key);
-    this.prune();
-    const entry = super.get(key);
-    if (entry) { super.delete(key); super.set(key, entry); }
+    let entry;
+    if (!marineSeriesCacheBoundsEnabled()) entry = super.get(key);
+    else { this.prune(); entry = super.get(key); if (entry) { super.delete(key); super.set(key, entry); } }
+    if (entry) entry.__used = Date.now();   // the shared byte budget's recency (cacheBudget.js)
     return entry;
   }
   values() { this.prune(); return super.values(); }

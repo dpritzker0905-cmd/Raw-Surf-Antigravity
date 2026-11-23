@@ -6,6 +6,7 @@ import logger from '../utils/logger';
 import { getModelSafeMarine, prewarmGlobalMarineGrid } from '../components/map/marineController';
 import { getSharedValidTime, getSurfModeFlag } from '../components/map/backendWeatherServiceClient';
 import { exactGfsPlaybackEnabled, playbackMapBounds, isWidePlaybackView, isExactPlaybackFrame, PLAYBACK_WORLD_BOUNDS } from '../components/map/marinePlaybackPolicy';
+import { noteActiveView } from '../components/map/cacheBudget';
 
 /**
  * useWeatherState Manages all weather/forecast layer state for the Map.
@@ -47,6 +48,9 @@ export function useWeatherState({ user }) {
 
   const [activeLayers, setActiveLayers] = useState([]);
   const [timeOffsetHours, setTimeOffsetHours] = useState(0);
+  // The view on screen, for the shared cache budget (2026-11-23, cacheBudget.js): another model's or layer's cached data is
+  // dropped first, the selected hour's neighbourhood is kept. Kill: window.__RAW_DISABLE_CACHE_BUDGET__ = true.
+  useEffect(() => { noteActiveView({ model: activeModel, layer: activeLayers[0] || null, hour: timeOffsetHours }); }, [activeModel, activeLayers, timeOffsetHours]);
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
   const [isForecastBuffering, setIsForecastBuffering] = useState(false);
   const [showWeatherControls, setShowWeatherControls] = useState(false);

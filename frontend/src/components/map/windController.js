@@ -11,9 +11,13 @@ import { fetchBackendWindGrid } from './backendWindServiceClient';
 import { createFallbackSafeZeroGrid, recordTerminalNoCoverage } from './marineControllerCache';
 import { recordTruthStage } from './weatherTruthTracker';
 import { fineContainmentAcceptable, windCacheTtlMs } from './windFineContainment';
+import { RecencyMap, activeView, noteCacheGrowth, registerCache } from './cacheBudget'; import { windCacheEntries } from './cacheBudgetAdapters';
 
 // --- CACHES ---
-var WIND_CACHE = new Map();
+// A read stamps the entry (RecencyMap) for the shared byte budget (2026-11-23, cacheBudget.js): this cache had no bound but the
+// hourly anchor roll; another model's grids now go first, the selected hour +-3 h of the view is pinned. Kill: __RAW_DISABLE_CACHE_BUDGET__.
+var WIND_CACHE = new RecencyMap();
+registerCache('wind-grids', { entries: () => windCacheEntries(WIND_CACHE, activeView()), drop: (k) => (WIND_CACHE.delete(k) ? 1 : null), cost: 4 });
 
 // STALE-AWARE TTL (2026-07-19, wind viewport-fine arc). When the backend's dynamic wind lane is
 // upstream-rate-limited it answers a FINE-bbox request with the stale GLOBAL 10-deg product
@@ -347,7 +351,7 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
           // below (windHourlyCache / lastKnownGoodWind) and the truth stage are model-stamped GLOBAL
           // state — a sibling-model prewarm MUST NOT clobber them (that's the marine cache-pollution
           // landmine), so they are skipped when isPrewarm.
-          if (!anchorMovedSince(anchorAtStart)) WIND_CACHE.set(cacheKey, { data: result, timestamp: Date.now() });
+          if (!anchorMovedSince(anchorAtStart)) { WIND_CACHE.set(cacheKey, { data: result, timestamp: Date.now() }); noteCacheGrowth(); }
           if (!isPrewarm && hourOffset === 0) {
             recordTruthStage('cacheWrite', result, 'windController.js', 'fetchWindData');
           }

@@ -30,6 +30,7 @@ import { pickIndexFrame } from './staticFrameCodec';
 import { isHandheldDevice } from './deviceTier';
 import { applyWaterTempLandFill } from './waterTempLandFill';
 import { currentParticlesOn, prewarmCurrentGrid, setOfPath } from './currentParticles';
+import { activeView, noteCacheGrowth, registerCache } from './cacheBudget'; import { rasterEntries } from './cacheBudgetAdapters';
 
 export const PRESSURE_FIELD = 6;
 export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
@@ -512,7 +513,7 @@ function clearRetryTimers() { for (const t of _retryTimers.values()) clearTimeou
 /** The decoded field for a frame path, if held (no I/O; refreshes its LRU place). */
 export function getField(path) {
   const f = _fields.get(path);
-  if (f) { _fields.delete(path); _fields.set(path, f); }
+  if (f) { _fields.delete(path); _fields.set(path, f); f.__used = Date.now(); }   // __used: the shared byte budget's recency
   return f || null;
 }
 
@@ -523,7 +524,9 @@ export const HANDHELD_NODE_BUDGET = 4 * 2880 * 1441;
 const nodesOf = (f) => (f && f.values ? f.values.length : 0);
 
 function keep(path, field) {
+  if (field) field.__used = Date.now();
   _fields.set(path, field);
+  noteCacheGrowth();
   while (_fields.size > LRU_MAX) _fields.delete(_fields.keys().next().value);
   if (!isHandheldDevice()) return;
   let held = 0;
@@ -581,12 +584,18 @@ export function loadField(layer, frame, priority) {
 // here (at most ANCHOR_PINS fields), not in the window's LRU, so a scrub through the tail never re-fetches them.
 const ANCHOR_PINS = 4;
 const _anchors = new Map();
+// One byte budget across caches (2026-11-23, cacheBudget.js): another layer's or model's fields go first; the shown field and its
+// neighbours (the 3 most recently used on screen) and the view's own anchors are pinned. Kill: __RAW_DISABLE_CACHE_BUDGET__.
+registerCache('raster-fields', { entries: () => rasterEntries(_fields, activeView()), drop: (k) => (_fields.delete(k) ? 1 : null), cost: 1 });
+registerCache('raster-anchors', { entries: () => rasterEntries(_anchors, activeView(), { anchors: true }), drop: (k) => (_anchors.delete(k) ? 1 : null), cost: 1 });
 async function anchorInput(layer, entry, priority) {
   if (_anchors.has(entry.path)) return _anchors.get(entry.path);
   const f = await loadField(layer, entry, priority);
   if (f) {
     _fields.delete(entry.path);
+    f.__used = Date.now();
     _anchors.set(entry.path, f);
+    noteCacheGrowth();
     while (_anchors.size > ANCHOR_PINS) _anchors.delete(_anchors.keys().next().value);
   }
   return f;
