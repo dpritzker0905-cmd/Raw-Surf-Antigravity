@@ -20,6 +20,7 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
+from services import buoy_holdout
 from scripts.partition_truth.hawaii_gate import CLASSES, OBS_HS_MIN, WINDOW, ad, mae
 
 ERDDAP = "https://pae-paha.pacioos.hawaii.edu/erddap/griddap/ww3_hawaii.csv"
@@ -56,7 +57,7 @@ def main(argv=None):
     t0 = datetime.fromisoformat(WINDOW[0]).replace(tzinfo=timezone.utc)
     t1 = datetime.fromisoformat(WINDOW[1]).replace(tzinfo=timezone.utc) + timedelta(hours=23)
     pos = nd.station_positions({b for b, c in CLASSES.items() if c != "not_hawaii"})
-    ids = sorted(pos)
+    ids = sorted(b for b in pos if buoy_holdout.keep(b))
     q = {"latitude": ",".join(f"{pos[b][0]:.4f}" for b in ids), "longitude": ",".join(f"{pos[b][1]:.4f}" for b in ids),
          "hourly": "wave_direction", "models": "ncep_gfswave025", "timezone": "UTC", "cell_selection": "sea",
          "start_date": t0.strftime("%Y-%m-%d"), "end_date": t1.strftime("%Y-%m-%d")}
@@ -78,7 +79,7 @@ def main(argv=None):
         sel = [v for k, v in res.items() if k in ids and v["class"] == cls]
         res[f"mean_{cls}"] = {"gfs_best_mae": float(np.mean([v["gfs_best_mae"] for v in sel])),
                               "regional_best_mae": float(np.mean([v["regional_best_mae"] for v in sel]))}
-    text = json.dumps(res, indent=1)
+    text = buoy_holdout.redact(json.dumps(res, indent=1))
     if a.out:
         open(a.out, "w", encoding="utf-8").write(text)
     print(text)

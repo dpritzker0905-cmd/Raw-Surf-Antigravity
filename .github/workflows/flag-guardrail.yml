@@ -9,7 +9,8 @@ name: Flag guardrail (D-065, live; dry run until enforced)
 # It never calls the Render backend. It is the ONLY writer of control/flags.json. Secrets by NAME only.
 # DRY RUN by default: with FLAG_GUARDRAIL_ENFORCE unset or '0' it writes nothing and reports what it would do.
 # The owner enforces it with: gh variable set FLAG_GUARDRAIL_ENFORCE --body 1
-# NO FLAP: it only writes 'off'; a fix comes back on with a new runtime_flags.FIX_VERSION or the owner's word
+# HYBRID (D-087): it only writes 'off'; a FIX_VERSION bump keeps the flag off and starts a shadow run (N=3
+# consecutive NOT_WORSE cycles, ~18 h); only after that does the owner's word turn it back on
 # (dispatch with reenable + owner_words, which still needs FLAG_GUARDRAIL_ENFORCE '1' to write).
 
 on:
@@ -77,7 +78,8 @@ jobs:
           REPO_OWNER_LOGIN: ${{ vars.REPO_OWNER_LOGIN }}
         run: |
           python scripts/flag_guardrail.py --cache-dir "$RUNNER_TEMP/guardrail-cache" --out "$RUNNER_TEMP/guardrail-out" \
-            --reenable "$REENABLE" --owner-words "$OWNER_WORDS" --owner-login "$REPO_OWNER_LOGIN"
+            --reenable "$REENABLE" --owner-words "$OWNER_WORDS" --owner-login "$REPO_OWNER_LOGIN" \
+            --commit "$GITHUB_SHA"
           cat "$RUNNER_TEMP/guardrail-out/guardrail.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open or update the guardrail issue

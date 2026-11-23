@@ -33,6 +33,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from services import buoy_holdout  # noqa: E402 - stdlib only
+
+buoy_holdout.declare_collector(__name__, "archives raw NDBC gust reports and model gusts at every station; scores nothing")
 
 LATEST_OBS = "https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt"
 STATION_META = "https://www.ndbc.noaa.gov/metadata/stationmetadata.xml"
@@ -447,7 +450,7 @@ def main(argv=None):
         report["stations_frozen"] = len(stations)
     report["stations"] = len(stations)
     if a.cmd == "stations":
-        print(json.dumps(report))
+        print(buoy_holdout.redact(json.dumps(report)))
         return 0
     done = existing(a.cache)
     wanted = set(a.models.split(","))
@@ -489,9 +492,9 @@ def main(argv=None):
         write_gz(os.path.join(a.cache, okey + ".new"), doc)
         report["obs"] = {"key": okey, "stations": len(got), "missing": missing}
         print(f"{okey}: {len(got)} stations, {len(missing)} without a file", flush=True)
-    json.dump(report, open(os.path.join(a.cache, f"collect_report_{a.cmd}.json"), "w"), indent=1)
+    open(os.path.join(a.cache, f"collect_report_{a.cmd}.json"), "w").write(buoy_holdout.redact(json.dumps(report, indent=1)))
     if report["unavailable"]:              # loud, AFTER the collected files are written (the upload step runs on failure too)
-        print(f"::error::today's run not collected: {', '.join(report['unavailable'])}", flush=True)
+        print(buoy_holdout.redact(f"::error::today's run not collected: {', '.join(report['unavailable'])}"), flush=True)
         return 3
     return 0
 

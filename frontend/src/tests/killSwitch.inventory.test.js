@@ -59,6 +59,9 @@ const KILL_SWITCHES_TESTED = new Set([
   // components/map/marineLateWash.test.js (the late wash, 2026-11-15): a seed that repairs a refused wash waits 150 ms, not 1 s
   '__RAW_DISABLE_UNVERIFIED_PIN_MARK__',   // unverifiedLocation.test.js (spots marking, #1087)
   '__RAW_DISABLE_GUST_WINDOW_LABEL__',   // components/map/gustWindow.test.js ("kill switch: no label anywhere"; the gust window label, 2026-11-22)
+  // components/map/cacheBudget.test.js ("KILL ... drops nothing", with its positive control) and decodedOmBudget.test.js ("KILL: the
+  // echo copy is stored again"): one byte budget across the map caches (2026-11-23)
+  '__RAW_DISABLE_CACHE_BUDGET__',
   '__RAW_DISABLE_URGENT_WASH_SEED__',
   // tests/weatherAuthFetch.test.js ("kill switch: never a token, never a retry") and tests/sessionExpiredPrompt.test.js
   // ("kill switch and the auth page itself raise nothing"): #782, accounts only
@@ -112,8 +115,12 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CURRENT_GRID_PREWARM__',
   // currentNative.test.js ("off by default; the lever ... turns it on; its kill and the particles' gates win"; 2026-11-22)
   '__RAW_DISABLE_CURRENTS_NATIVE__',
-  // gustParticles.test.js ("the flicker: on by default, off under its kill and under prefers-reduced-motion"; 2026-11-18)
+  // gustParticles.test.js ("the flicker: on when picked, off under its kill and under prefers-reduced-motion"; 2026-11-18)
   '__RAW_DISABLE_GUST_FLICKER__',
+  // gustCue.test.js ("each cue's own kill drops it to no cue, and only its own"; 2026-11-22, gust cue A/B; the HATCH kill
+  // is the default cue's kill since the owner's pick, 2026-11-23)
+  '__RAW_DISABLE_GUST_WIDTH__',
+  '__RAW_DISABLE_GUST_HATCH__',
   // gustParticles.test.js ("the gust field tints like the wind field on light and beach; both kills turn it off"; 2026-11-18)
   '__RAW_DISABLE_GUST_FIELD_TINT__',
   // gustsLayer.test.js ("the kill returns light to the wind field exactly; the legend follows the same rows"; 2026-11-18)
@@ -177,6 +184,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_INFOBOX_TIDE__',
   // components/map/tideOverlay.parity.test.js
   '__RAW_DISABLE_TIDE_OVERLAY__',
+  // components/map/rasterSourceWords.test.js (pass 13: which model a raster draws, in words)
+  '__RAW_DISABLE_RASTER_SOURCE_WORDS__',
   // hudResidentTruth.test.js
   '__RAW_DISABLE_HUD_RESIDENT_TRUTH__',
   // marineSeriesFrame.killSwitch.test.js

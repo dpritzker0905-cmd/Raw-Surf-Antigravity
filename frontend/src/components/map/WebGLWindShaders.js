@@ -693,7 +693,7 @@ void main() {
     // basemap shows through MORE than with the round mark it replaces.
     // 2.6:1 at the slow end easing to 1.8:1 once real motion supplies its own streak.
     float elong = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed)) * max(v_thin, 1.0);
-    localCoord = vec2(along.x, along.y * elong * max(v_stretch, 1.0));
+    localCoord = vec2(along.x, along.y * elong * max(v_stretch, 1.0));${GUST_SPLICE.fsBold}
   }
   float dist = length(localCoord);
   if (dist > 0.5) discard;

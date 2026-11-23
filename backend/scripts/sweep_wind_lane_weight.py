@@ -30,8 +30,12 @@ USAGE (from backend/):
 import argparse
 import json
 import sys
+from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from services import buoy_holdout  # noqa: E402 - the locked-holdout fence
 
 LEADS = (3, 12, 24, 36)
 W_GRID = np.round(np.arange(0.0, 1.0001, 0.1), 2)
@@ -122,7 +126,7 @@ def main(argv=None):
     ap.add_argument("--table-out", help="also write the fitted two-region table in the wind_lane_skill_weights format")
     a = ap.parse_args(argv)
     with open(a.rows, encoding="utf-8") as fh:
-        rows = [json.loads(line) for line in fh if line.strip()]
+        rows = buoy_holdout.drop([json.loads(line) for line in fh if line.strip()], "id")
     published, table = sweep(rows)
     cycles = sorted({r["cycle"] for r in rows})
     res = {"rows": len(rows), "cycles": [cycles[0], cycles[-1], len(cycles)] if cycles else None,

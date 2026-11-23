@@ -40,6 +40,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.dirname(HERE)
 REPO = os.path.dirname(BACKEND)
 sys.path.insert(0, BACKEND)
+from services import buoy_holdout  # noqa: E402  (the locked final buoy holdout, #1199)
 
 CATALOGUE = os.path.join(REPO, "audit", "weather-simulation-12.0", "evidence", "runtime-verification",
                          "RV-12_spot_catalogue_20260812.json")
@@ -62,6 +63,8 @@ def get(url, timeout=60, tries=6):
     """GET with an optional on-disk cache and a polite back-off. Open-Meteo answers 429 when the per-minute weight is
     spent (a multi-coordinate call counts every location); waiting out the minute is the documented remedy."""
     import hashlib
+    if not buoy_holdout.allow_url(url):            # a LOCKED holdout buoy reads as a missing station (404), never fetched
+        raise urllib.error.HTTPError(url, 404, "locked holdout buoy", None, None)
     path = None
     if CACHE_DIR:
         os.makedirs(CACHE_DIR, exist_ok=True)
@@ -340,6 +343,8 @@ def buoy_part(buoys, days, use_cmems):
     start = now - timedelta(days=days)
     obs = {}
     for b in buoys:
+        if not buoy_holdout.keep(b["id"]):
+            continue
         s = ndbc_series(b["id"], start)
         if len(s) >= 24:
             obs[b["id"]] = s

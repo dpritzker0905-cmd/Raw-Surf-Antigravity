@@ -23,10 +23,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import wind_lr2_clim as C  # noqa: E402
 import wind_lr2_descr as D  # noqa: E402
 import wind_lr2_fit as F  # noqa: E402
+import wind_lr2_gust as GU  # noqa: E402
 import wind_lr2_rows as W  # noqa: E402
 import wind_lr2_runs as R  # noqa: E402
 import wind_lr2_score as SC  # noqa: E402
 import wind_lr2_truth as T  # noqa: E402
+from services import buoy_holdout  # noqa: E402
 
 UTC = timezone.utc
 CAL_ARMS = list(W.CAL_SETS)
@@ -64,7 +66,9 @@ def truth_fn_for(kind, cache, stations, window):
     for i, st in enumerate(stations):
         if st["kind"] == "ndbc":
             height[i] = st.get("anemometer_m")
-            if kind == "fit":
+            if not buoy_holdout.keep(st["id"]):
+                truth[i] = {}                       # a LOCKED buoy: no truth is read, so it makes no row
+            elif kind == "fit":
                 truth[i], _src = T.fit_truth(s, cache, st["id"], window[0], window[1])
             else:
                 truth[i], _src = T.truth_for_test(os.path.join(cache, "snapshots"), st["id"])
@@ -94,7 +98,10 @@ def cmd_fit(a):
 
 def freeze_files(cache):
     return {"clim": os.path.join(cache, "wind_lr2_clim_stations.npz"), "stations": os.path.join(cache, "wind_lr2_stations.json"),
-            "pairing": os.path.join(cache, "wind_lr2_pairing.json")}
+            "pairing": os.path.join(cache, "wind_lr2_pairing.json"),
+            # amendment G1: the CLIM_GUST table is a hashed freeze artifact; the committed hash file is what is pinned here and
+            # what the verified loader checks the table against at score time
+            "clim_gust_sha256": os.path.join(cache, "wind_lr2_clim_gust.json.sha256")}
 
 
 def load_coefs(cache):
@@ -108,12 +115,28 @@ def cmd_freeze(a):
     return 0
 
 
+def gust_table_paths(a):
+    return (a.clim_gust_table or os.path.join(a.cache, "clim_gust", "wind_lr2_clim_gust.json"),
+            freeze_files(a.cache)["clim_gust_sha256"])
+
+
+def load_gust_table(a):
+    """The CLIM_GUST table, verified against the committed hash. Absence or any mismatch REFUSES the whole score: there is no
+    fallback and no wind-only scoring when the gust inputs are not what was frozen."""
+    table, hash_path = gust_table_paths(a)
+    try:
+        return GU.load_clim_gust(table, hash_path)
+    except GU.ClimGustRefused as e:
+        raise SystemExit(f"REFUSED: CLIM_GUST table: {e}")
+
+
 def cmd_score(a):
     man = json.load(open(a.manifest))
     coefs = load_coefs(a.cache)
     mism = F.verify_freeze(man, coefs, freeze_files(a.cache))
     if mism:
         raise SystemExit(f"REFUSED: freeze mismatch {mism}")           # a scorer that finds a hash mismatch refuses to run
+    clim_gust = load_gust_table(a)                                      # BEFORE any station, run or truth is read
     stations = load_stations(a.cache)
     pairing = json.load(open(freeze_files(a.cache)["pairing"]))
     runs = load_runs(os.path.join(a.cache, "runs_test"))
@@ -131,6 +154,8 @@ def cmd_score(a):
     doc = SC.score_rows(rows, W.native_changes(runs, len(stations)), len(runs), by_region, [],
                         SC.fit_test_disjoint(fit_inits, inits))
     doc["station_coverage"] = cov            # reported per station; used for floor counts only, never a row filter
+    # amendment G1, serial: the gust family is evaluated AFTER wind, reads the wind result and never writes to it
+    doc["gust"] = GU.score_gust(rows, doc, stations, pairing, cov, clim_gust)
     json.dump(doc, open(a.out, "w"), indent=1, default=float)
     print(doc["verdict"], doc["void_reasons"])
     return 0
@@ -156,6 +181,7 @@ def main(argv=None):
     ap.add_argument("--out")
     ap.add_argument("--manifest")
     ap.add_argument("--freeze-time", default=None)
+    ap.add_argument("--clim-gust-table", default=None, help="score: the verified CLIM_GUST table (default <cache>/clim_gust/...)")
     a = ap.parse_args(argv)
     return {"pair": cmd_pair, "fit": cmd_fit, "freeze": cmd_freeze, "score": cmd_score}[a.cmd](a)
 

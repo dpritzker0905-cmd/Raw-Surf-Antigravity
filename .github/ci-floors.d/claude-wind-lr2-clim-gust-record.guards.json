@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 5,
+  "files": 0,
+  "branch": "claude/wind-lr2-clim-gust-record",
+  "date": "2026-11-23",
+  "note": "tests/test_wind_lr2_gust_scorer.py: 5 loader tests (match loads, mismatch refuses, missing/malformed hash refuses, non-canonical refuses, fetch verifies and every failure refuses)"
+}

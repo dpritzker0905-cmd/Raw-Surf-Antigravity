@@ -352,3 +352,85 @@ def test_the_dispatch_workflow_has_a_clim_gust_mode_that_needs_the_owner_word_an
     step = [s for s in doc["jobs"]["run"]["steps"] if "build-clim" in s.get("run", "")][0]
     assert 'test -n "$OWNER_WORD_REF"' in step["run"] and "wind_lr2_stations.json" in step["run"]
     assert "secrets." not in str(step) and "clim_gust.json.sha256" in text
+
+
+# ------------------------------------------------------------------------------------------------ the verified loader
+def _written_table(tmp_path):
+    import hashlib
+    import json
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    clim = G.ClimGust.build({"S1": _recs(30), "S2": _recs(25, hour=6, val=7.0)})
+    body = json.dumps(clim.table(), sort_keys=True, separators=(",", ":"))
+    tab, hsh = tmp_path / "wind_lr2_clim_gust.json", tmp_path / "wind_lr2_clim_gust.json.sha256"
+    tab.write_text(body)
+    hsh.write_text(f"{hashlib.sha256(body.encode()).hexdigest()}  wind_lr2_clim_gust.json\n")
+    return clim, tab, hsh
+
+
+def test_loader_loads_a_table_that_matches_the_committed_hash(tmp_path):
+    clim, tab, hsh = _written_table(tmp_path)
+    got = G.load_clim_gust(str(tab), str(hsh))
+    assert got.sha256() == clim.sha256()
+    ask = datetime(2026, 4, 12, 12, tzinfo=UTC)
+    assert got.get("S1", ask) == pytest.approx(clim.get("S1", ask))
+    assert got.get("NOPE", ask) is None
+
+
+def test_loader_refuses_on_a_hash_mismatch_and_returns_nothing(tmp_path):
+    clim, tab, hsh = _written_table(tmp_path)
+    tab.write_text(tab.read_text().replace("S1", "S9", 1))                   # a tampered table
+    with pytest.raises(G.ClimGustRefused, match="!= committed"):
+        G.load_clim_gust(str(tab), str(hsh))
+    _c2, tab2, hsh2 = _written_table(tmp_path / "x")
+    hsh2.write_text("0" * 64 + "  wind_lr2_clim_gust.json\n")                # a different committed hash
+    with pytest.raises(G.ClimGustRefused, match="!= committed"):
+        G.load_clim_gust(str(tab2), str(hsh2))
+
+
+def test_loader_refuses_a_missing_or_malformed_hash_file_and_a_missing_table(tmp_path):
+    _clim, tab, hsh = _written_table(tmp_path)
+    with pytest.raises(G.ClimGustRefused, match="unreadable"):
+        G.load_clim_gust(str(tab), str(tmp_path / "nope.sha256"))             # a missing hash file never loads the table
+    hsh.write_text("not a hash\n")
+    with pytest.raises(G.ClimGustRefused, match="malformed"):
+        G.load_clim_gust(str(tab), str(hsh))
+    hsh.write_text("")
+    with pytest.raises(G.ClimGustRefused, match="malformed"):
+        G.load_clim_gust(str(tab), str(hsh))
+    _c3, _tab3, hsh3 = _written_table(tmp_path / "y")
+    with pytest.raises(G.ClimGustRefused, match="unreadable"):
+        G.load_clim_gust(str(tmp_path / "gone.json"), str(hsh3))
+
+
+def test_loader_refuses_a_table_that_is_valid_json_but_not_canonical(tmp_path):
+    import hashlib
+    import json
+    clim = G.ClimGust.build({"S1": _recs(30)})
+    body = json.dumps(clim.table(), indent=1)                               # same content, not the canonical bytes
+    tab, hsh = tmp_path / "t.json", tmp_path / "t.sha256"
+    tab.write_bytes(body.encode())                                          # bytes, so Windows newline translation cannot change them
+    hsh.write_text(hashlib.sha256(body.encode()).hexdigest() + "  t.json\n")   # the hash of THESE bytes: bytes match, canonical form does not
+    with pytest.raises(G.ClimGustRefused, match="canonical"):
+        G.load_clim_gust(str(tab), str(hsh))
+
+
+def test_fetch_downloads_then_verifies_and_every_failure_refuses(tmp_path):
+    clim, tab, hsh = _written_table(tmp_path)
+    body = tab.read_bytes()
+
+    class R:
+        def __init__(self, code, content=b""):
+            self.status_code, self.content = code, content
+    dest = str(tmp_path / "dl.json")
+    ok = G.fetch_and_load("https://example.invalid/t.json", str(hsh), dest, get=lambda u, timeout: R(200, body))
+    assert ok.sha256() == clim.sha256()
+    with pytest.raises(G.ClimGustRefused, match="HTTP 404"):
+        G.fetch_and_load("https://example.invalid/t.json", str(hsh), dest, get=lambda u, timeout: R(404))
+    with pytest.raises(G.ClimGustRefused, match="!= committed"):
+        G.fetch_and_load("https://example.invalid/t.json", str(hsh), dest, get=lambda u, timeout: R(200, body + b" "))
+
+    def boom(u, timeout):
+        raise ConnectionError("secret-looking detail must not be echoed")
+    with pytest.raises(G.ClimGustRefused) as e:
+        G.fetch_and_load("https://example.invalid/t.json", str(hsh), dest, get=boom)
+    assert "secret-looking" not in str(e.value) and "ConnectionError" in str(e.value)

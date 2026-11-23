@@ -41,6 +41,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 from services import _hrrr_grid as hg                                    # noqa: E402
+from services import buoy_holdout                                        # noqa: E402 - the locked-holdout fence
 from services import noaa_hrrr_wind_fetcher as F                         # noqa: E402
 from services.weather_pipeline import surf_rating as SR                  # noqa: E402 - the one knots constant
 from services.weather_pipeline import wind_lane as WL                    # noqa: E402
@@ -69,6 +70,8 @@ def _session():
 
 
 def _get(s, url, tries=4, **kw):
+    if not buoy_holdout.allow_url(url):
+        return None                                             # a locked buoy reads as a 404
     for k in range(tries):
         try:
             r = s.get(url, timeout=90, **kw)
@@ -127,7 +130,7 @@ def anemometer_m(s, sid):
 def stations(s, cache, cycle):
     path = os.path.join(cache, "stations.json")
     if os.path.exists(path):
-        return json.load(open(path))
+        return buoy_holdout.drop(json.load(open(path)), "id")
     text = _get(s, f"{NDBC}/activestations.xml").text
     feather = WL.FEATHER_KM_DEFAULT
     picked = []
@@ -161,7 +164,7 @@ def stations(s, cache, cycle):
         z = anemometer_m(s, p["id"])
         p["anemometer_m"], p["anemometer_src"] = (z, "station page") if z else (DEFAULT_ANEMOMETER_M, "default")
     json.dump(picked, open(path, "w"), indent=1)
-    return picked
+    return buoy_holdout.drop(picked, "id")
 
 
 def observations(s, cache, sid):

@@ -19,6 +19,8 @@ import re
 import time
 import urllib.request
 
+from services import buoy_holdout
+
 NDBC_HOST = "www.ndbc.noaa.gov"
 META_URL = "https://www.ndbc.noaa.gov/metadata/stationmetadata.xml"
 SPEC_URL = "https://www.ndbc.noaa.gov/data/realtime2/{station}.data_spec"
@@ -59,6 +61,8 @@ def fetch_truth(buoys, parse_meta, parse_spec, get=None, timeout_s: float = 30.0
     for sid in sorted({str(b).strip().upper() for b in buoys if b is not None}):
         if not valid_station(sid):
             counts["invalid_id"] += 1
+            continue
+        if not buoy_holdout.keep(sid):                              # the LOCKED final holdout (#1199): never read
             continue
         if clock() - start > budget_s:
             counts["not_fetched_budget"] += 1

@@ -149,6 +149,7 @@ def lines_for(bounds, res, daily, verdict):
 
 def main():
     from scripts.forecast_accuracy_monitor import _fetch_scored_month
+    from services import buoy_holdout      # the LOCKED final buoy holdout (#1199)
     through = (datetime.now(timezone.utc) + timedelta(days=1)).date()
     rows = []
     for m in ("2026-08", "2026-09", "2026-10", "2026-11"):
@@ -156,7 +157,7 @@ def main():
         if got is None:
             print("REFUSED: scored month %s could not be read (blind is not empty)" % m)
             return 3
-        rows += got
+        rows += buoy_holdout.drop(got, "buoy_id")
     idx = A.index_rows(rows)
     bounds, res, daily, verdict = checks(idx)
     print("\n".join(lines_for(bounds, res, daily, verdict) + audit(idx)))

@@ -1,0 +1,54 @@
+name: Admin ops snapshot (repo variables + verification status for the weather admin; read-only)
+
+# WHY (Fable inspection 2026-11-23, P0-3 and P1-6): the weather admin showed "Off, code default" for switches the ingest
+# lanes run ON through repository variables, and it had no view of verification or skill. The serve box cannot read
+# repository variables, and it must not list buckets or download the 8 MB skill queue on a request (one 1-CPU box serves
+# production). This job builds ONE small JSON and uploads it to `admin/ops-snapshot.json` in the weather bucket; the
+# admin endpoints (/admin/surf-forecast/switches and /verification) only read that object.
+#
+# WHAT IT READS: `${{ toJSON(vars) }}` (repository variables are not secrets; credential-like names are dropped and only
+# 0/1, numbers and boolean words are kept), the repo's docs (SCOREBOARD, memory_audit --docs-only), `gh run list` for the
+# verification workflows (read-only GITHUB_TOKEN), and in the storage step counts and sizes of the skill queue, the gust
+# record and the served-wave archive. WHAT IT WRITES: that one object, nothing else. It flips nothing, sets no variable,
+# never calls the Raw Surf backend.
+# CREDENTIALS: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY by NAME, only in the storage step, which runs the standard-library
+# script admin_ops_bucket_io.py as `python3 -I -S` (the gust_bucket_io.py pattern); the job reads them from the
+# `supabase-service` environment (#1043) and never runs on a pull request.
+# Every 6 h at :41, clear of the ingest and precompute minutes. Kill: the repository variable ADMIN_OPS_SNAPSHOT = '0'.
+
+on:
+  schedule:
+    - cron: '41 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: admin-ops-snapshot
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    if: ${{ (vars.ADMIN_OPS_SNAPSHOT || '1') != '0' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0          # memory_audit's completeness and clock checks read the merge history
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Build the repo half (no storage credential)
+        env:
+          VARS_JSON: ${{ toJSON(vars) }}
+          GH_TOKEN: ${{ github.token }}
+        run: python backend/scripts/admin_ops_snapshot.py --out "$RUNNER_TEMP/ops-snapshot.json"
+      - name: Add bucket counts and upload (storage only, stdlib)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 -I -S backend/scripts/admin_ops_bucket_io.py --snapshot "$RUNNER_TEMP/ops-snapshot.json"

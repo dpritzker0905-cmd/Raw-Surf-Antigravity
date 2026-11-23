@@ -208,6 +208,7 @@ def main():
     ap.add_argument("--since", default=SINCE)
     args = ap.parse_args()
     from scripts.forecast_accuracy_monitor import _fetch_scored_month
+    from services import buoy_holdout      # the LOCKED final buoy holdout (#1199)
     now = datetime.now(timezone.utc)
     since = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc)
     through = (now + timedelta(days=1)).date()
@@ -221,7 +222,7 @@ def main():
         if got is None:
             print("REFUSED: scored month %s could not be read (blind is not empty)" % m)
             return 3
-        rows += got
+        rows += buoy_holdout.drop(got, "buoy_id")
     out, valid, call = lines(read(index_rows(rows, since, now)))
     print("\n".join(out))
     return 0 if valid else 2

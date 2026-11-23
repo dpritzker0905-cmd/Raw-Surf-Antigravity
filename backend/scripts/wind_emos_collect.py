@@ -30,9 +30,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline import ens_wind_core as ec  # noqa: E402
 from services.weather_pipeline import ens_wind_fetch as ef  # noqa: E402
+from services import buoy_holdout  # noqa: E402
 
 import wind_lr_hindcast as H  # noqa: E402
 import wind_lr_obs as obs  # noqa: E402
+
+buoy_holdout.declare_collector(__name__, "archives IFS ENS member values at every frozen station; scores nothing")
 
 LEADS = (192, 210, 228, 252, 288, 324)          # amendment 2: two per lead bin
 PERIOD = (datetime(2025, 6, 1, tzinfo=timezone.utc), datetime(2026, 10, 31, tzinfo=timezone.utc))
