@@ -2397,3 +2397,31 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   `test_the_served_tide_is_blind_and_never_auto_disabled`, changes with it.
 - **Reopen if:** an instrument that scores the served tide against observed water exists (G4), so the flag can be
   judged on evidence that can see it.
+
+### D-089 · Automatic floor catch-up PRs (`bot/floor-catchup-*`) auto-pass the advisor gate under three conditions (2026-11-23, decided by the owner)
+- **Owner, typed in the director session (2026-11-23 18:22:28Z, relayed by the director to the #1227 lane):** "Yes,
+  auto-pass them". This follows "Yes, build it" (the same session, earlier that day), which approved the bot itself.
+- **Number:** D-087 is claimed by two open PRs (#1223, #1226) and D-088 is their likely renumber, so this takes D-089.
+- **What the bot is:** `floor-catchup.yml` runs `backend/scripts/floor_catchup.py` after every green dev CI push run.
+  It opens or updates ONE `bot/floor-catchup-<run_id>` PR holding only its own `.github/ci-floors.d` fragments. That
+  PR's floors match the reading exactly (set-from = observed passed, MIN_FILES = observed files). It never merges.
+- **The rule:** a `bot/floor-catchup-*` PR AUTO-PASSES the advisor gate (no advisor read; the merge loop may merge it)
+  only when ALL THREE hold:
+  1. Every file it changes is `.github/ci-floors.d/<its own branch slug>.<lane>.json`.
+  2. Every fragment's `tests` and `files` is an integer >= 0. `ci_floor_fragments.validate` already refuses anything
+     else and fails CI closed.
+  3. `backend-floor-staleness` is green, including its fragments-only over-lift step (`scripts/ci_floor_overlift.py`:
+     no touched lane's set-from or MIN_FILES above the last green dev reading). Every other required check is green
+     too.
+- **Anything else goes to the advisor**, including:
+  - a commit on the bot branch by anyone but the bot (a human commit);
+  - any change to `backend/scripts/floor_catchup.py`, `backend/scripts/ci_floor_overlift.py`,
+    `.github/workflows/floor-catchup.yml`, or the floor lines in `.github/workflows/ci.yml` (the base literals, the
+    lane floor steps, `backend-floor-staleness`);
+  - a fragment for another branch's slug, or a deleted fragment that is not the bot's own.
+- **Why:** on 2026-11-23 three manual catch-ups (#1209, #1213, #1224) each turned every open PR red on
+  `backend-floor-staleness` until a rebuild round. A catch-up whose numbers are the reading itself, checked by the
+  over-lift step in seconds, carries nothing for the advisor to judge. Holding it for a read only stretches that red
+  window.
+- **Reopen if:** an auto-passed catch-up is merged and a lane then fails its floor on dev (an over-lift the step
+  missed), or the bot's output ever needs a judgement call the three conditions do not encode.
