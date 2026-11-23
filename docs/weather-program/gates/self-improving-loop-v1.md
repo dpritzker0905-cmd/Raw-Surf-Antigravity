@@ -1,5 +1,5 @@
 # Gate: self-improving-loop-v1 (DESIGN, pre-registration style)
-Stamp: 2026-11-23T18:40:17Z (research lead, on the director's assignment, from David's ask to put "the researchers to work with the inspector… toward SOTA". DESIGN ONLY: nothing is built, and no threshold below has been computed on data.)
+Stamp: 2026-11-23T18:40:17Z (research lead, on the director's assignment, from David's ask to put "the researchers to work with the inspector… toward SOTA". DESIGN ONLY: nothing is built, and no threshold below has been computed on data.) FROZEN 2026-11-23T19:02:48Z: the rule forms, families, budget, controls and holdout rules below are final for v1. The thresholds file and its numbers come later, computed under section 12.2's freeze order. Open at freeze: LongCat's view on the notify channel (section 10.1, not statistical; it can only reopen the channel choice) and the inspector's fact list (the advisor's read supplied the facts the design depends on: the archive start, the direct NDBC readers).
 Candidate: the three missing pieces of the self-improving loop that the Fable inspection found (SOTA-GAP-INSPECTION-2026-11-23, findings 6-8): (A) drift alerts, (B) a challenger-vs-champion job that writes PROPOSALS, (C) an admin view of verification and skill.
 Metric: one PRIMARY metric per served surface (section 2), used by all three components. Each alarm and each proposal reads only that surface's primary metric; secondaries are display only.
 Pass threshold: this design "passes" when its acceptance controls hold on replayed history (section 7): in-control replay stays within the false-alarm budget, a planted drift alarms within its delay bound, an A/A challenger never proposes, and a planted better challenger does.
@@ -15,6 +15,7 @@ Served change: none. The loop has no write path to any served value, flag, manif
 
 ## 1. Principles (fixed now)
 - **Never flip.** No component has credentials to write `control/flags.json`, a repo variable or the Render env. The job token is `contents: read, issues: write` only, so even a bug in it cannot switch anything.
+  - **The loop holds NO secret except `GITHUB_TOKEN`** (advisor blocker 2). Every read goes through public or read-only paths: public score tables, public NDBC through the fence, and run artifacts. A CI check fails if any loop workflow or script references another secret.
   - **No issue-triggered write path (review: Reflection, medium).** A CI test lists every workflow triggered by `issues`, `issue_comment` or `label`. It asserts that none has `contents: write`, `actions: write` or a variables/secret write, and that none dispatches the flag-guardrail or any publish workflow. An alarm or proposal issue can therefore never start a write.
 - **The owner decides.** A proposal is a GitHub issue plus an evidence file; turning anything on is the existing owner-checked path.
 - **Holdout:**
@@ -57,7 +58,10 @@ Three alarm types per surface. Each opens or updates ONE GitHub issue per (surfa
    - Once a week, on the last complete Monday-to-Sunday block (no rolling windows, so blocks do not overlap), a VERIFY or FIT-USED buoy is flagged when BOTH hold:
      - its scatter index exceeds its own calibration-window 99th percentile of weekly blocks;
      - its MAE exceeds an absolute floor (Hs 0.5 m; wind 6 kn; tide 0.15 m).
-   - Each flagged buoy gets a p-value from its calibration weekly blocks (the empirical exceedance rank). Benjamini-Yekutieli at q = 0.10 runs across that week's buoys (valid under any dependence between buoys; section 11).
+   - Each buoy gets a p-value from a BLOCK-BOOTSTRAP null (advisor blocker 1: 7 calibration weeks give a minimum p of 1/8, so the rule could never fire).
+     - Its baseline daily errors are resampled in 7-day circular blocks, 19,999 times, to build the null distribution of a weekly scatter index.
+     - p = (1 + #{null >= x}) / 20,000, so the minimum p is 5e-5. That is below BY's smallest threshold for 100 buoys, q / (m · c(m)) = 0.10 / (100 × 5.19) = 1.9e-4, so the rule CAN fire.
+     - Benjamini-Yekutieli at q = 0.10 runs across that week's buoys (valid under any dependence between buoys; section 11).
    - All flagged buoys of a week go into ONE issue (`weather-drift`, per-buoy, that week), never one issue per buoy.
 3. **Trend alarm (slow degradation):** a one-sided CUSUM per (surface, region) on the daily paired loss differential (served minus the same-model control, or minus persistence where no control exists), standardised by the CALIBRATION mean and standard deviation, with k = 0.5.
    - The decision level h is set by block-bootstrap simulation of the CALIBRATION series (7-day blocks, so autocorrelation is kept) so that the in-control average run length is at least 500 days per chart.
@@ -90,7 +94,7 @@ Three alarm types per surface. Each opens or updates ONE GitHub issue per (surfa
   - the gate's own controls pass;
   - the challenger is not worse in any region at the gate's floor.
 - **What a proposal is:**
-  - an evidence JSON bound to `id + fix_version + commit` (D-087), written to `verify/proposals/` with its SHA-256;
+  - an evidence JSON bound to `id + fix_version + commit` (D-087), uploaded as a workflow-run ARTIFACT with its SHA-256 (advisor blocker 2: a write to `verify/proposals/` would need the service-role key, which can also write `control/flags.json`);
   - one issue labelled `weather-proposal`, with the table, the controls and the owner question in plain words.
 
   It writes nothing else.
@@ -128,10 +132,10 @@ Read-only panels. Every number has its n, window and timestamp. Missing data rea
 
 ## 8. Build order and owner decisions
 - **Build order:** (0) prerequisites; then A (needs D-072 decided); then B (needs the registry and at least one gate-registered challenger); then C (by the admin-truth lane, reading A and B's outputs).
-- **Owner decisions this design needs:**
-  - adopt D-072;
-  - the program false-alarm budget (proposed: at most 1 statistical issue a week);
-  - whether drift issues also notify a channel beyond GitHub.
+- **Owner decisions (answered by David in the director session at 2026-11-23T18:50:01Z):**
+  - D-072: "Adopt D-072 (Recommended)". Recorded as DECIDED in DECISIONS.md (#1233).
+  - The budget: "At most 1 a week (Recommended)". This is the budget in section 3.
+  - The notify channel: David asked "Is GitHub issues only the SOTA path forward? Ask reflection, subq, and longcat". The answer is in section 10.
 
 ## 9. Limits
 - **Buoys are offshore and sparse at some coasts.** Alarms cover what is measured.
@@ -159,6 +163,23 @@ Asked 2026-11-23 with public context only. Answers are advisory; SubQ figures ar
   - The researcher's literature (CUSUM/EWMA ARL under autocorrelation, anytime-valid confidence sequences vs Diebold-Mariano, FDR vs FWER for alerts, reusable holdout).
 
   They are folded into this file before freeze, and anything they change is listed here.
+
+### 10.1 The notify channel (David's question, 2026-11-23)
+Asked with public context only. The question covered alert fatigue against missed alarms for one owner, GitHub notification reliability, and an email digest or push against the secret burden in a public repo.
+- **SubQ (snap-1.2):**
+  - GitHub issues only: 0.90 (weekly digest 0.06, severe-only push 0.03, chat or webhook 0.001);
+  - the missed-alarm risk of issues-only, with notifications configured, is material: 0.03;
+  - an email or webhook secret is a material burden: 0.24.
+- **Reflection (Beam-1.0, high):** GitHub issues only. At most 1 alarm a week means fatigue is low, so the question is reliability. Issues are durable and auditable and add no secret to a public repo.
+  - Main risk: a missed notification (watch settings, email routing, mobile app, filters).
+  - Upgrade to severe-only push only if a delayed alarm would harm customers, and then with a least-privilege secret.
+- **LongCat:** pending. The paid submit waits for David's approval in the research lead's session. Its preview is ready (payload sha `d1889a62…`).
+- **Decision, from where the reviewers agree: GitHub issues only, with four mitigations built into component A:**
+  1. Each issue is ASSIGNED to the owner, which notifies him even when he is not watching every thread.
+  2. Each issue carries the label `weather-drift` and a severity in the title.
+  3. A monthly synthetic "path test" issue (labelled `weather-drift-test`, closed automatically after 24 h) confirms that the notification reaches him. The owner is asked once to confirm that email and mobile delivery are on.
+  4. No secret is added.
+- **Reopen if:** an alarm is missed in practice, or customers depend on alarm latency. Then a severe-only push with a least-privilege secret is the next step.
 
 ## 11. The unified statistical specification (Q14, #1230: SubQ, Reflection and LongCat all asked for one, before any build)
 Q14 found the literature defaults conflicting, because they mixed error frameworks (per-stream ARL vs multiplicity, sequential vs fixed-look, BY discovery sets feeding actions, i.i.d. holdout reuse). This section fixes ONE framework per decision type and says why they do not interact.
@@ -203,7 +224,7 @@ Q14 found the literature defaults conflicting, because they mixed error framewor
     - Human closure of the issue affects only the issue, never S.
     - The simulation implements exactly this rule.
   - `h` is chosen per chart so that the simulated in-control ARL0 is >= 500 days. The simulation resamples CALIBRATION in 7-day blocks, with all charts' common block draw (A2, A3) and the reset rule included.
-- **Per-buoy:** the p-value of buoy b in week w is the empirical upper-tail rank of its scatter index among its CALIBRATION weekly blocks: `(1 + #{calib >= x}) / (1 + n_calib)`, then BY at q = 0.10 over the buoys scored in week w.
+- **Per-buoy:** the p-value of buoy b in week w is `(1 + #{null >= x}) / 20,000`, against 19,999 circular 7-day block-bootstrap resamples of b's baseline daily errors (minimum 5e-5, below the BY rank-1 threshold of 1.9e-4). Then BY at q = 0.10 over the buoys scored in week w.
 - **Harm confidence sequence:** on WEEKLY block means of the paired loss differential (one value per 7-day block, so A2 makes them approximately independent), a normal-mixture confidence sequence (Howard et al. 2021 form) with variance proxy `sigma^2` estimated on CALIBRATION blocks and multiplied by 1.5 for safety, alpha 0.05, one-sided.
   - This is an ASSUMPTION-based construction, sub-Gaussian weekly means. It is validated by simulation (11.5), not claimed by theorem for autocorrelated daily data.
   - **If the validation fails (SubQ: the weakest remaining part, 0.85):** a pre-registered widening procedure runs on CALIBRATION only. The variance multiplier is raised from 1.5 in steps of 0.25 until the simulated false-warning rate is <= 0.05. The final multiplier is frozen in the thresholds file.
@@ -241,4 +262,58 @@ Q14 found the literature defaults conflicting, because they mixed error framewor
   5. Multiplicity across challengers. **Fixed:** a Holm overlay per surface per quarter.
 - **LongCat:** the single paid submit failed (network; billing outcome uncertain), the second failure today. Not retried; please check its usage.
 - **Literature:** Q14 (#1230) by the SOTA researcher: CUSUM under autocorrelation (Lu et al. 2001), anytime-valid inference (Johari et al. 2021; Howard et al. form used here), BY under dependence (Benjamini and Yekutieli 2001), and the reusable holdout's i.i.d. limit (Dwork et al. 2015). This specification resolves the five conflicts Q14 listed.
+
+## 12. Advisor early read at `74acd1a45`, folded before freeze (binding; where this section differs from earlier text, this section governs)
+The full notes are in the shared notes, `ADVISOR-EARLY-READ-1231-self-improving-loop.md`.
+
+### 12.1 Blockers
+1. **Per-buoy p-values could never reach the BY threshold.** Fixed in sections 3 and 11.3: a 19,999-draw block-bootstrap null, minimum p 5e-5, below the 1.9e-4 rank-1 threshold.
+2. **A storage write needs the service-role key.** Fixed in sections 1 and 4: evidence is a run artifact plus the issue body; the loop holds no secret but `GITHUB_TOKEN`, enforced by a CI check.
+3. **Direct NDBC reads bypass the fence.**
+   - A CI scan fails if any file outside the fence module contains an NDBC host or URL (`ndbc.noaa.gov`, the realtime2 and historical paths, and the NDBC ERDDAP datasets). Scripts and workflows are included.
+   - Existing direct readers move behind the fence BEFORE the LOCKED list is frozen: the wind and gust observation readers, the EMOS and gust collectors, and gust-verify.
+   - **Human and tool reads:** no session queries a LOCKED station id, through the ndbc or ww3 MCP tools or public pages, outside the logged look. The LOCKED list is referenced by its SHA in this rule, and the rule goes into LESSONS and the session brief.
+   - **Neighbours:** a station within 25 km of a LOCKED buoy is LOCKED-ADJACENT. It may be monitored, but never used to fit or decide anything. Every fitted product records its training-station list.
+4. **Rows that do not exist (August to October).** Each surface's baseline is fixed now by what rows exist. A surface uses the fixed CALIBRATION/VALIDATION windows only if it has ROWS (not aggregates) for at least 42 of CALIBRATION's 50 days; otherwise it is SELF-BASELINED. Expected status, confirmed with row counts in the thresholds file at freeze:
+   | Surface | Expected baseline |
+   |---|---|
+   | Hs, served frames | SELF-BASELINED: the archive began collecting in November |
+   | Hs, point lane (D-072) | fixed window, if the accuracy monitor's rows are retained; else self-baselined |
+   | Wind | fixed window, if the skill-ledger rows are retained; else self-baselined |
+   | Gust | self-baselined unless gust-verify rows cover CALIBRATION |
+   | Tide | SELF-BASELINED (the own-tide series is recent) |
+   - Self-baselined surfaces run WARN-only until their second, unseen 60 days confirm the bound (section 2.3).
+5. **One planted drift per alarm type** (replaces the single region-wide step in section 7(2)):
+   - a single-buoy step (+0.5 m Hs at one VERIFY buoy) must be caught by the per-buoy rule within 2 weekly blocks;
+   - a lead step (+0.2 m at the 72 h lead only) by the level rules within 7 days;
+   - a slow ramp (0 to +0.2 m over 60 days, one region) by the CUSUM;
+   - an intermittent fault (+0.5 m on one day in three, one region) must be caught by some rule within 21 days.
+   - Each plant's detection-delay bound comes from a power simulation on the baseline, set before VALIDATION is read.
+
+### 12.2 Fixes
+- **Freeze order:** every rule form and constant (k, the ARL0 target, the budget shares, q, block lengths, floors, the plant sizes) is frozen with a SHA in `self-improving-loop-v1-thresholds.json` BEFORE any threshold is computed.
+  - CALIBRATION and VALIDATION (August to October) have been SEEN in aggregate, so a PROSPECTIVE validation block is added: after freeze, every rule runs 28 days live in WARN-only mode before it may open an issue. Its achieved rate is reported.
+- **Served changes are not in-control:** CALIBRATION and VALIDATION are split into segments at every served change logged in ACTIONS (`flag_flip`, `deploy` of a served-number change) or SCOREBOARD. Days within ±3 of a change are dropped, and the change dates are listed.
+- **Tail uncertainty:** each threshold and h is reported with its bootstrap 90 % interval and set at the conservative end (the larger h; the larger p99 bound). A sparse baseline therefore errs toward fewer alarms, and says so.
+- **Reserve wording:** expected issues add linearly across rules whatever the dependence, so the 0.176 reserve covers ESTIMATION error in the per-rule rates, not dependence. Dependence affects only how alarms cluster, which the simulation reports.
+- **The family, exactly:**
+  - CUSUM: Hs served × {West, East, Gulf, Hawaii, Puerto Rico}, wind × the same 5, gust × {West, East + Gulf, Hawaii}, tide × {West, East + Gulf, Hawaii}, giving 16 charts;
+  - level: 3 D-072 rules × {24, 48, 72 h}, giving 9;
+  - per-buoy: 1 weekly batch.
+- **Served change on a surface:** when a served change merges on a surface (a ledger `flag_flip` or served deploy), that surface's charts reset S to 0 and run WARN-only for 14 days. The issue text names the change. A re-baseline is an amendment after 60 days.
+- **The served frames' "same-model control":**
+  - for GFS frames, NOAA's own GFS-Wave at the same buoy and lead (the upstream read of `served-wave-skill-v1` S-FID);
+  - for EURO and ICON frames, which have no upstream read here, the differential against observed persistence.
+- **Wider no-write CI test:** besides `issues`, `issue_comment` and `label` triggers, the test covers scheduled jobs that READ issue or label state and then act, `workflow_run` and `repository_dispatch` chains, and any `gh workflow run` or `gh api .../dispatches` call in the loop's scripts.
+- **A/A at scale:** 200 A/A challenger replicates (block-resampled), with the realised false-proposal rate <= 0.05 and its 95 % Clopper-Pearson upper bound reported.
+- **Planted-better challenger:** planted at the gate's minimum detectable effect from its power simulation, not at "error halved".
+- **Added controls:**
+  1. **Never-flip red team:** the loop job, with its own token, tries to write `control/flags.json`, a repo variable and a dispatch. All must fail.
+  2. **Direct-read red team:** a script outside the fence that fetches NDBC must fail the CI scan.
+  3. **Chart-reset control:** after a simulated alarm, S = 0 and suppression lasts 14 days.
+  4. **"Not measured" UI test:** an empty or n = 0 metric renders "not measured", never 0 or green.
+- **Validation length:** 28 days cannot confirm a rate of 1 a week. So:
+  - the decisive check is the full-pipeline in-control SIMULATION (section 11.5). It passes if the simulated false issues are <= 1.0 per week with a 95 % upper bound <= 1.2;
+  - the 4-week VALIDATION replay is a sanity check that passes with <= 8 statistical issues (P(<= 8 | Poisson(4)) = 0.98 when the alarms work as designed);
+  - the prospective WARN-only month is reported beside both.
 
