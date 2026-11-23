@@ -317,3 +317,15 @@ The full notes are in the shared notes, `ADVISOR-EARLY-READ-1231-self-improving-
   - the 4-week VALIDATION replay is a sanity check that passes with <= 8 statistical issues (P(<= 8 | Poisson(4)) = 0.98 when the alarms work as designed);
   - the prospective WARN-only month is reported beside both.
 
+### 12.3 Inspector facts, folded after freeze (scope clarifications only; no rule form, constant or budget changes)
+Source: the inspection lane's `LOOP-FACTS-FOR-RESEARCH-LEAD-2026-11-23.md` (shared notes, read at dev `78e7adb21`).
+- **The fence also covers STORED rows.** There is no single NDBC helper today: about six independent fetchers plus one-off scripts, and only `served_wave_verify_score.ndbc_get` is behind the holdout module.
+  - Several readers fetch nothing themselves and read the skill ledger's stored rows instead (`forecast_accuracy_monitor.py`, `gate_v2.py` and others).
+  - So the LOCKED filter is applied at READ of stored rows too, not only at fetch: every loop input passes the same station-id filter, and rows stored before the LOCKED list existed are filtered on read, never trusted.
+- **Proposals are not `shadow_proposal`.** #1223's `shadow_proposal` is a key inside the flag's own entry in `control/flags.json`. The loop never writes it, and never writes that file at all (section 1).
+- **Skill-ledger row loss.** The pending queue was at 61,093 of a 68,000 cap on 2026-11-23, and +72 h rows are evicted first. Any period with a non-zero `pending_evicted_cap` counts as missing rows under section 12.1 item 4, so the 42-of-50-days test is decided on rows actually stored.
+- **D-072 level rules depend on a version that passed its replay.** The v2 replay failed as registered (SCOREBOARD 2026-11-16, P3: rule 2 fired on 0 of 5 episode days).
+  - The level rules run WARN-only, and their 0.50 budget share opens no issue, until the D-072 version adopted in #1233 has a passing replay on record.
+  - Until then, the per-buoy rule and the CUSUM run on their own shares, and the unused share is not reassigned.
+- **46267 today:** no per-buoy rule existed before or after #852. Its post-fix value is NOT MEASURED, and the plant in section 12.1 item 5 is the test that the per-buoy rule would have caught it.
+
