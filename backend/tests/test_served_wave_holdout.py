@@ -64,12 +64,13 @@ def _truth(exp, ids):
 
 # ---------------------------------------------------------------- the committed list (version 2)
 
-def test_committed_list_is_collect_only_until_1199_freezes():
+def test_committed_list_is_frozen_by_1199_and_ready():
+    """#1199's freeze (amendment 1): the LOCKED list is recorded and verifies, so the scorer is READY and drops it."""
     doc = buoylist.load()
     status, info = holdout.state(doc)
-    assert status == holdout.NOT_READ and info["error"] is False
-    assert doc["holdout"]["locked_list"] is None
-    assert all(s["locked"] is None for s in doc["stations"])
+    assert status == holdout.READY and len(info["locked"]) == 15
+    assert doc["holdout"]["locked_list"]["path"] == holdout.LOCKED_LIST_PATH
+    assert all(s["locked"] is (s["id"].upper() in info["locked"]) for s in doc["stations"])
 
 
 def test_committed_fit_used_tags_follow_the_census():

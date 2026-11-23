@@ -59,13 +59,64 @@ def test_cdip_buoys_are_locked_by_their_cdip_number_too(root):
         "every committed CDIP buoy must carry its CDIP number as an alias"
 
 
-def test_committed_record_is_a_no_op_today():
+def _freeze_mod():
+    import importlib.util
+    p = bh.REPO_ROOT / "backend/scripts/served_wave_verify_freeze_buoys.py"
+    spec = importlib.util.spec_from_file_location("swv_freeze", p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_committed_record_is_verified_not_quarantined():
+    """#1199's freeze is recorded. A quarantine here would lock every buoy, so CI fails loudly on it."""
     bh.reset_cache()
     st = bh.state()
-    assert st["status"] == "none" and bh.locked() == frozenset()
-    assert bh.allow_url("https://www.ndbc.noaa.gov/data/realtime2/46025.txt")
-    rows = [{"station_id": "46025"}, {"station_id": "41004"}]
-    assert bh.drop(rows) == rows and bh.redact("46025 41004") == "46025 41004"
+    assert st["status"] == "verified", st.get("reason")
+    assert len(st["locked"]) == 15
+    open_ids = [s["id"] for s in json.loads((bh.REPO_ROOT / bh.BUOY_LIST).read_text(encoding="utf-8"))["stations"]
+                if not s["locked"]]
+    rows = [{"station_id": i} for i in open_ids]
+    assert bh.drop(rows) == rows                          # an unlocked buoy passes untouched
+
+
+def test_committed_draw_reproduces_and_obeys_the_ruling():
+    """#1199 amendment 1 (owner ruling 2026-11-23): eligible = not exam_only and not fit_used; k_r = floor(0.2 n_r + 0.5);
+    one random.Random(1199) stream over regions in lexicographic order. Redrawing from the committed list reproduces the
+    committed LOCKED file byte for byte, so the draw is checkable by anyone."""
+    mod = _freeze_mod()
+    doc = json.loads((bh.REPO_ROOT / bh.BUOY_LIST).read_text(encoding="utf-8"))
+    unlocked = {**doc, "stations": [{**s, "locked": None} for s in doc["stations"]],
+                "holdout": {**doc["holdout"], "locked_list": None}}
+    raw = (bh.REPO_ROOT / mod.LOCKED_PATH).read_bytes()
+    assert (json.dumps(mod.draw(unlocked), indent=1, sort_keys=True) + "\n").encode("utf-8") == raw
+    got = json.loads(raw)
+    by = {s["id"]: s for s in doc["stations"]}
+    assert all(not by[i]["exam_only"] and not by[i]["fit_used"] for i in got["locked"])
+    assert got["n_eligible"] == 71 and sum(got["k"].values()) == 15
+    assert got["k"] == {r: (2 * len(v) + 5) // 10 for r, v in got["eligible"].items()}
+    census = json.loads((bh.REPO_ROOT / "docs/weather-program/gates/served-wave-verify-v1-fit-used.json").read_text(
+        encoding="utf-8"))
+    every_fit = {str(i).upper() for c in census["consumers"].values() for i in c["ids"]}
+    assert not set(got["locked"]) & every_fit           # no served or built fit has read a LOCKED buoy
+    assert hashlib.sha256(raw).hexdigest() == doc["holdout"]["locked_list"]["sha256"]
+
+
+def test_the_draw_never_redraws(tmp_path, monkeypatch):
+    mod = _freeze_mod()
+    out = tmp_path / "buoys.json"
+    out.write_text((bh.REPO_ROOT / bh.BUOY_LIST).read_text(encoding="utf-8"), encoding="utf-8")
+    with pytest.raises(SystemExit, match="already recorded"):
+        mod.main(["--draw-locked", "--out", str(out)])
+
+
+def test_quarantine_is_loud_in_actions(root, capsys, monkeypatch):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    _root(root, locked=["SYN99"], sha="0" * 64)
+    assert bh.state()["status"] == "quarantine"
+    cap = capsys.readouterr()
+    assert "::error title=LOCKED holdout quarantine::" in cap.out and "!" * 100 in cap.err
+    assert "SYN99" not in cap.out + cap.err             # the alarm names no buoy (public logs)
 
 
 def test_unrecorded_list_is_a_no_op(root):

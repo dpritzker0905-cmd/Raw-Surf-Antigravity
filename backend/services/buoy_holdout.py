@@ -106,6 +106,16 @@ def verify(doc, root):
     return locked, got
 
 
+def _alarm(reason):
+    """A quarantine locks EVERY listed buoy (all ~100), so it must be loud, never a quiet stderr line: a banner on stderr
+    and, inside GitHub Actions, an ::error:: annotation that shows on the run's summary page. The reason names no buoy id
+    (only paths, counts and hash prefixes), so it is safe in public logs."""
+    msg = f"LOCKED holdout QUARANTINE: {reason}; every listed buoy is treated as LOCKED until the record verifies"
+    print("!" * 100 + f"\n[buoy_holdout] {msg}\n" + "!" * 100, file=sys.stderr)
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::error title=LOCKED holdout quarantine::{msg}", flush=True)
+
+
 def state(refresh=False):
     """{"status": none|verified|quarantine, "locked": frozenset (with aliases), "sha256", "reason"}. Cached per process."""
     root = _root()
@@ -137,7 +147,7 @@ def state(refresh=False):
             pool = frozenset(a for s in by_id.values() for a in _aliases(s))
         else:
             pool = frozenset()
-        print(f"[buoy_holdout] QUARANTINE: {reason}; every listed buoy is treated as LOCKED", file=sys.stderr)
+        _alarm(reason)
         _CACHE[key] = {"status": "quarantine", "locked": pool, "sha256": None, "reason": reason, "all": doc is None}
     return _CACHE[key]
 

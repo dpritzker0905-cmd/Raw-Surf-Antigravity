@@ -132,3 +132,16 @@ Supersedes the "(not adopted)" line of the entry above.
   - `test_buoy_holdout_consumers.py`: 7 runtime canaries.
   - Mutations each go red: allow_url forced open, drop made a no-op, one consumer's gate removed, aliases off.
   - The regression run over every test file naming a changed module ran twice (see the PR).
+
+## #1199 LOCKED freeze (2026-11-23, after #1234 and #1236)
+- **Rulings** (David, relayed by the director): scope "Whole buoy, all data (Recommended)"; pool "71 unfitted buoys
+  (Recommended)". SubQ and Reflection reached the same pool independently. LongCat was down.
+- **Draw:** `served_wave_verify_freeze_buoys.py --draw-locked` locked 15 of 71 eligible buoys: alaska 3, canada 2,
+  caribbean 1, gulf 1, hawaii 1, open_ocean 2, us_east 2, us_west 3. The buoy list hash is unchanged (`656a7a27…`;
+  locked fields sit outside `list_hash`). The fence state is `verified`. No LOCKED id is in any fit-used consumer set.
+- **Loud quarantine:** a stderr banner, plus an `::error::` annotation in Actions. CI pins the committed record as verified.
+- **Pins:** redrawing from the committed list reproduces the LOCKED file byte for byte. A changed seed, or fit_used
+  buoys made eligible, each turn the pin red. `--draw-locked` refuses to run once a list is recorded.
+- **Census open item** (wind/gust EMOS): resolved in the text of amendment 1 without a census change. EMOS has fit
+  nothing, and a census change would move the list hash.
+- **Rules:** `gates/served-wave-skill-v1-amendment-1.md`.
