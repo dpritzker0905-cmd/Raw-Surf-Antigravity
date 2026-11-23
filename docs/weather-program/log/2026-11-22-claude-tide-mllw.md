@@ -462,3 +462,45 @@ MEASURED. Counts per gauge are in the score JSON.
 - remove the 1 mm rounding in `parity_coops.py` before the event finder, in #1171, so the identity can hold exactly;
 - keep §9's tolerances unchanged;
 - a new tag.
+
+## 2026-11-23 11:59Z: datum re-run 45169199337: controls PASS; verdict FAIL (model D's p90 leg)
+
+**The run.** Tag `tide-mllw-parity-datum-2` on #1171's `cefbba914` (unrounded instrument), pushed on the owner's
+"Yes, re-run it" after the advisor's PASS on #1183 and #1171. It completed at 11:58:07Z, conclusion success.
+- The parity step started 2026-11-23 11:55:58Z, so the window (11-23 → 11-30) equals the committed finder control's.
+- The artifact was opened once.
+- Controls ran first; the bar was opened only after both passed.
+- Scored once by the committed scorer (`d196498c4`). Saved as `research/tide-datum-parity-run-45169199337.json` and
+  `research/tide-datum-parity-score-45169199337.json`.
+
+**Controls (§9):**
+- **Planted-D identity:** PASS, and EXACT at all 25 measured gauges: paired time difference 0.0 min, height residual
+  0.0 m. The one-line fix removed the VOID's cause.
+- **Finder heights:** PASS (0.0017 m).
+
+**MEASURED (§8):** every gauge 100% except Pensacola, 6 of 14, NOT MEASURED. That counts as a per-gauge FAIL.
+
+**Bar (§3), tidal band; the verdict is on the MODEL D:**
+
+| Variant | median \|h\| ≤ 0.03 | p90 \|h\| ≤ 0.08 | per gauge ≤ 0.10 at ≥ 24 of 26 | median signed within ±0.02 | Result |
+|---|---|---|---|---|---|
+| **model (verdict)** | 0.0261 PASS | **0.0903 FAIL** | 25 / 26 PASS | −0.0151 PASS | **FAIL** |
+| sheet (reported; a limit only) | 0.0213 PASS | 0.0777 PASS | 24 / 26 PASS (Duck 0.1405 and Pensacola miss) | +0.0008 PASS | would pass |
+
+**VERDICT: FAIL.** The model D variant fails the p90 leg by 0.010 m. Under amendment 3 there is NO further re-run.
+
+**Beside the VOID run 45102683907:** its recorded, not-a-verdict figures were model 0.0262 / 0.090 / 25 / −0.0149 and
+sheet 0.0213 / 0.0774 / 24 / +0.0007. The re-run reproduces them within 0.001 m, so the rounding moved event timing in
+the identity check, not the height distribution.
+
+**Where the model's p90 tail comes from (diagnosis, not a re-score).** Events above the model p90 cluster at three
+gauges: Virginia Key (13; d_model 0.406 vs sheet 0.342), Duck (13; 0.407 vs 0.539) and Boston (13; 1.489 vs 1.586).
+- At Boston the model D sits 0.10 m below the sheet, and the sheet variant's median there is 0.038 against the
+  model's 0.086.
+- At Duck the sheet misses too (0.14).
+- So the model D's error concentrates at a few East Coast gauges, where our 19-year D departs from the station sheet
+  by 0.06–0.13 m.
+
+**What this decides.** By #1183, #1149's datum gate (a) FAILED on the served model D. Whether #1149 is held, or its D
+source order changed (for example, the sheet first wherever a sheet is within 2 km, which this run reports as passing
+at the gauges), is for the advisor and David. Any such change is a new gate, not a re-read of this one.
