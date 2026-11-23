@@ -7,7 +7,7 @@ Status of the sources: Consensus returned abstracts (three per search, free tier
 ## 0. Context
 
 - GFS-Wave, EURO and ICON are the three wave members we serve. The request says they share ancestry and initial conditions. **Shared ancestry and shared initial conditions are UNVERIFIED for these three**: they come from different centres and different wave models, and I have not checked the input sources of each in the repo. The consensus design must measure member error correlation directly rather than assume it.
-- The buoy point archive is PR #1168, `docs/gate-served-wave-verify-v1`. It is a design and pre-registration only, not built. Its scorer uses fixed lead bins, NDBC QC, ±30 min collocation, and a minimum n of 100 per cell, 3 buoys and 10 runs, else "insufficient". It records served GFS frames today. **EURO and ICON served frames must also be archived before a three-member consensus can be scored**; #1168 does not say this yet.
+- The buoy point archive is PR #1168, `docs/gate-served-wave-verify-v1`. It is a design and pre-registration only, not built. Its scorer uses fixed lead bins, NDBC QC, ±30 min collocation, and a minimum n of 100 per cell, 3 buoys and 10 runs, else "insufficient". It samples every newly published GFS, EURO and ICON wave run, with each member as its own record (`gates/served-wave-verify-v1.md`, lines 3 and 28, on branch `docs/gate-served-wave-verify-v1`; §2a lists the sets per model and tier). Nuances: the publisher runs three times a day, so runs it skipped are counted as gaps, not invented; EURO swell sets (`swell_1`, `swell_2`, `wind_waves`) are sampled only while `FRAME_EURO_SWELL_SETS=1` (its default); ICON `swell_2` is a client-side blend, not a frame; regional Tier B bundles keep only the current and previous index, so a bundle pruned before sampling is recorded as `sampler_fail` with cause `pruned`.
 - Our own Q9 result (#1166) gives n = 0 for the 24–48 h bin on the current archive. The #1168 design targets n ≥ 100 by day 14 for that bin.
 
 ## 1. Methods
@@ -80,7 +80,7 @@ Status of the sources: Consensus returned abstracts (three per search, free tier
 **Purpose:** decide whether a skill-weighted consensus of GFS-Wave, EURO and ICON beats equal weights and the best single member on Hs, at each lead bin and region, using the #1168 archive. Tier B (spot-scale) reads the same archive at the spots.
 
 **Prerequisites (must be true before scoring):**
-1. EURO and ICON served wave frames are archived under the same design as #1168 (same frozen buoy list, cell rule, decoder parity, QC and collocation). **Not in #1168 today.**
+1. EURO and ICON served wave frames are archived under the same design as #1168: #1168 already samples every newly published GFS, EURO and ICON wave run, each member as its own record (`gates/served-wave-verify-v1.md`, lines 3 and 28; §2a). **Met, with the nuances above.** The remaining check is that the census shows the expected EURO and ICON counts per run, and that EURO swell sets are either present or recorded as disabled.
 2. The member error correlation matrix is measured per region and lead bin before any weights are fitted. Report it.
 
 **Arms (all fitted on the calibration window only, scored on the test window):**
