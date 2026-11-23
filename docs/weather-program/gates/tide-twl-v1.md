@@ -147,7 +147,7 @@ bar; a coverage below 80% is named in the result.
 
 | Control | Rule | Failure means |
 |---|---|---|
-| NOAA parity | At every gauge and leg, \|bias(AD) − bias(NOAA)\| ≤ 0.03 m, and the hourly RMSE between AD and NOAA ≤ 0.05 m (also #1149's `tide-mllw-parity.yml`) | at a gate gauge, the run is VOID; elsewhere, that gauge is not measured |
+| NOAA parity (tidal band, amendment 3) | At every gauge and leg, with each side's own seasonal constituents removed (NOAA's SA/SSA from NOAA; FES2022b's Sa/Ssa from AD): \|bias\| ≤ 0.03 m and hourly RMSE ≤ 0.05 m. The seasonal difference (NOAA SA/SSA − FES Sa/Ssa) is reported per gauge, not gated | at a gate gauge, the run is VOID; elsewhere, that gauge is not measured |
 | May baseline | AMD in 2026-05-10 reproduces the frame check (\|M − residual\| ≤ 0.011 m at the gate gauges) within 0.02 m | the run is VOID |
 | Planted step | Add +0.10 m to r on the 24 h before one origin per gate gauge. TWL must move by w(L) × 0.10 + (1 − w(L)) × 0.10 × 24/1440, within 0.003 m at each lead | the run is VOID |
 | Leakage | The instrument asserts that no τ and no anchor reads an hour at or after its origin | the run is VOID |
@@ -267,3 +267,85 @@ only TEN-YEAR means, none of which is an arm or a truth in this gate:
 
 No hourly, daily, monthly or 12-month value from the new window has been printed or read by this lane. The TWL
 candidate does not use M; only the `AMD` reference arm and the long-outage fallback do.
+
+## 13. Amendment 3 (2026-11-23 01:22Z, before any run): the advisor's three HOLD points
+
+The advisor held the superseded SLA head (`9c3c30fe0`). The three points carry over to this gate.
+
+### 13.1 The seasonal cycle (Sa / Ssa): where it lives, and no double count
+
+**What A carries.** A is FES2022b with Sa and Ssa included (`tide_fes/fes_gate.FES_CONSTITUENTS`), plus the
+long-period equilibrium term (`tide_own` SOURCE). But an ocean-tide atlas's Sa/Ssa are small: the weather-driven and
+steric seasonal cycle is mostly NOT in them (M1 log, `log/2026-11-15-claude-tide-m1.md`, the SA/SSA finding). NOAA's
+predictions DO carry it, in NOAA's SA/SSA. CO-OPS harmonic constants, read-only (`mdapi .../harcon.json`):
+
+| Gauge | NOAA SA amplitude (m) / phase (°) | NOAA SSA amplitude (m) / phase (°) |
+|---|---|---|
+| San Diego | 0.076 / 180.5 | 0.000 |
+| San Francisco | 0.044 / 200.2 | 0.030 / 272.3 |
+| Seattle | 0.070 / 283.2 | 0.024 / 217.0 |
+| Virginia Key | 0.092 / 194.1 | 0.064 / 60.5 |
+| The Battery | 0.094 / 144.6 | 0.032 / 55.3 |
+| Honolulu | 0.048 / 177.7 | 0.000 |
+
+**TWL: no double count, by construction.** r = observed − (A + D), measured against our own A. Whatever part of the
+season A carries is in A once; the rest is in r once. Nothing is added twice. The cost is the anchor's lag:
+- A 60-day trailing mean of an annual cycle of amplitude a is late by 30 days, which leaves an error of up to about
+  0.50·a (the 30-day phase lag at 0.956 gain). That is 0.022–0.047 m at the six gauges above, landing at the 7–14 d
+  leads, where the anchor dominates.
+- This is stated now so a 7–14 d shortfall is not misread.
+- **Diagnostic arm `TWL_S` (reported, never in the verdict):** r is measured against A + D + (NOAA SA/SSA − FES
+  Sa/Ssa), so the anchor holds only the non-seasonal residual.
+
+**The positive control is corrected.** As first written, |bias(AD) − bias(NOAA)| would have tripped on the season,
+not on a tide or datum error. With h, the sun's mean longitude, near 280° in January, NOAA's SA/SSA put Seattle about
++0.09 m and The Battery about −0.09 m against an atlas tide. That would have VOIDed the run at Seattle. The control is
+now tidal-band only, with each side's own seasonal constituents removed (section 7's table, edited in place), and the
+seasonal difference is reported.
+
+**Stage-2 SLA arm: the season lives in ONE place.** zos carries the real seasonal sea-level cycle, and FES's Sa/Ssa is
+an atlas estimate of part of the same signal. Rule: in `AMSD`, A is evaluated WITHOUT FES Sa and Ssa (the
+`exclude=("Sa", "Ssa")` path that `fes_gate.seasonal_constants` already uses). zos stays referenced to its plain
+2016–2025 mean (section 11), so its seasonal cycle is kept, once. The E2 epoch test runs with this A.
+
+### 13.2 Inverse barometer (IB)
+
+| Quantity | Carries the IB response? |
+|---|---|
+| CO-OPS observations | yes: it is real water |
+| NOAA predictions | no |
+| Our A (FES2022b) | no |
+| D, M | no (M is a ten-year mean, so IB averages out) |
+
+**TWL:** r = observed − (A + D) therefore carries the IB response in full. r24 persists it (lagged), and the anchor
+averages it out. It is neither double-counted nor missing; only its forecast skill is limited, and the storm-hour bar
+(6.4) measures that.
+
+**Stage-2 SLA arm:** whether the CMEMS GLO-PHY `zos` (`cmems_mod_glo_phy_anfc_0.083deg_P1D-m`) includes the IB
+response is NOT established here. A documentation search did not settle it, and the answer is in the Product User
+Manual: https://documentation.marine.copernicus.eu/PUM/CMEMS-GLO-PUM-001-024.pdf. Before the stage-2 gate is stamped,
+its author must quote the PUM's statement on atmospheric pressure forcing. Then:
+- if `zos` includes IB, nothing is added;
+- if it does not, `AMSD` adds IB = −(p − p_ocean)/(ρ g), about −0.0099 m per hPa, from the daily mean sea-level
+  pressure at the cell. p_ocean is the same day's mean over the global ocean, and the pressure source is named in that
+  gate.
+- Either way, a pressure-regression check is reported: the slope of (observed − AMSD) on local pressure must lie
+  within ±0.003 m/hPa of 0, or IB is double-counted or missing.
+
+### 13.3 Truth product, named exactly; the overlap window fixed
+
+**Truth (all NOAA CO-OPS datagetter, `datum=MLLW`, `units=metric`, `time_zone=gmt`, the station's current NTDE datums,
+the same as `coops_datums.json`):**
+
+| Leg | Product | Rule |
+|---|---|---|
+| R (retrospective) | `product=hourly_height` | VERIFIED hourly heights. Hours with no verified value are missing, and are never filled from preliminary data |
+| P (prospective, as served) | `product=water_level` | the 6-min series, preliminary or verified as returned (field `q`), sampled at minute 00. A row is dropped when any of its quality flags (field `f`) is non-zero, then by the 4-robust-sd rule of section 2 |
+| NOAA control | `product=predictions&interval=h` | |
+
+The section 1 motivation numbers (`residual_persist.py`) used `water_level` preliminary at minute 00 against
+`predictions&interval=h`.
+
+**The reanalysis/analysis overlap window (stage-2 SLA arm):** calendar **2025-01-01 → 2025-12-31**. This is a
+model-to-model offset with no truth involved. If either product does not cover it in full, the latest 12 full months
+both cover are used, and named in the result.
