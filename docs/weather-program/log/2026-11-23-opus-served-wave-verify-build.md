@@ -145,3 +145,14 @@ Supersedes the "(not adopted)" line of the entry above.
 - **Census open item** (wind/gust EMOS): resolved in the text of amendment 1 without a census change. EMOS has fit
   nothing, and a census change would move the list hash.
 - **Rules:** `gates/served-wave-skill-v1-amendment-1.md`.
+
+## Fence additions on #1234 after the merges from dev (2026-11-23)
+- **`nearshore_lite/truth.py` (#1155):** fenced. `fetch_realtime` is a truth reader that the MOP-lite gate scores against.
+  A LOCKED buoy now reads as missing (`None`), and the opener is never called. Station selection is unchanged (metadata).
+  A canary is in `test_buoy_holdout_consumers.py`. Nothing calls `fetch_realtime` yet besides its own tests, so no
+  nearshore score moves. No live lane owns #1155 / #1157 (director, 2026-11-23); the guard forces future scoring through
+  the fence.
+- **`scripts/admin_ops_bucket_io.py` (#1239):** EXEMPT, the 15th entry. It counts objects only and reads no observation
+  value.
+- **A slip:** the intermediate #1234 head `b8d8137e1` was pushed red on the guard, because the push was not gated on the
+  test. It was fixed forward at `873a40438`. Pushes are now gated on the guard passing.
