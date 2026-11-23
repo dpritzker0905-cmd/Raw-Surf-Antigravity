@@ -6,7 +6,7 @@ import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale 
 import { setSurfModeFlag } from './backendWeatherServiceClient'; import { useSurfModeFlagState } from './useSurfModeFlagState';   // D6: one band state for every panel
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 import useHeightUnit from './useHeightUnit';
-import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp'; import { gustLegend } from './gustPalette'; import { currentsLegend } from './currentsPalette';
+import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp'; import { gustLegend } from './gustPalette'; import GustCueKey from './GustCueKey'; import { currentsLegend } from './currentsPalette';
 import { fallbackFor, useOwnOnlyLayersAvailable } from './ownLayerAvailability';
 import { evenTicks, LegendTicks } from './legendTicks';
 import { activeCadenceHours, stepHour } from './cadenceStep';
@@ -759,6 +759,7 @@ export var MapWeatherControls = ({
             <div className={`text-[9px] ${textMuted} mb-0.5 flex justify-between`}><span>{legendConfig[activeLayer].label}</span><LayerDataCredit layer={activeLayer} /></div>
             <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS, clipPath: legendConfig[activeLayer].clipPath }} />
             <LegendTicks showResolution ticks={legendConfig[activeLayer].stops} className={`text-[8px] ${textMuted} mt-0.5`} />
+            {activeLayer === 'gusts' && <GustCueKey className={`text-[8px] ${textMuted} mt-0.5`} />}
           </div>
         )}
 
@@ -830,6 +831,7 @@ export var MapWeatherControls = ({
                 </div>
                 <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS, clipPath: legendConfig[activeLayer].clipPath }} />
                 <LegendTicks showResolution ticks={legendConfig[activeLayer].stops} className={`text-[9px] ${textMuted} mt-1`} />
+                {activeLayer === 'gusts' && <GustCueKey className={`text-[9px] ${textMuted} mt-0.5`} />}
               </div>
             )}
             {renderTimeline(true)}
@@ -936,6 +938,7 @@ export var MapWeatherControls = ({
                   </div>
                   <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS, clipPath: legendConfig[activeLayer].clipPath }} />
                   <LegendTicks showResolution ticks={legendConfig[activeLayer].stops} className={`text-[8px] ${textMuted} mt-0.5`} />
+                  {activeLayer === 'gusts' && <GustCueKey className={`text-[8px] ${textMuted} mt-0.5`} />}
                 </div>
               )}
               {renderTimeline(true)}

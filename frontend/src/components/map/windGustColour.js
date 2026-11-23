@@ -98,6 +98,7 @@ export function bindGustColour(gl, program, engine) {
   const fl = gustFlicker();
   // The flicker is the GUST cue (gust factor G / W); a current's colour field is its own speed, so it never flickers.
   gl.uniform4f(gl.getUniformLocation(program, 'u_gust_flick'), fl.on && !g.sea ? 1 : 0, fl.seconds, fl.hz, fl.depth);
+  gl.uniform1f(gl.getUniformLocation(program, 'u_gust_bold'), !g.sea && gustCue() === 'width' ? 1 : 0);   // A/B 'width'
   gl.uniform1f(gl.getUniformLocation(program, 'u_gust_sea'), g.sea ? 1 : 0);
 }
 
@@ -110,9 +111,30 @@ export function bindGustColour(gl, program, engine) {
 export const GUST_FLICKER_HZ = 0.9;
 export const GUST_FLICKER_DEPTH = 0.35;
 export function gustFlicker(win = (typeof window !== 'undefined' ? window : null), nowMs = Date.now()) {
-  let on = !(win && win.__RAW_DISABLE_GUST_FLICKER__ === true);
+  let on = gustCue(win) === 'flicker';
   try { if (on && win && win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches) on = false; } catch (e) { /* no media queries */ }
   // seconds modulo a whole number of periods, so float32 in the shader never loses the phase over a long session
   const period = 1000 / GUST_FLICKER_HZ * 100;
   return { on, seconds: (nowMs % period) / 1000, hz: GUST_FLICKER_HZ, depth: GUST_FLICKER_DEPTH };
+}
+
+/**
+ * GUST CUE A/B (2026-11-22, owner to pick; audit/gust-cue-ab-2026-11-22 has the evidence). ONE build runs every candidate:
+ *   'flicker' (today's default, above) | 'width' (gusty marks drawn wider ACROSS the flow, static; gustShaderSplice.js)
+ *   | 'hatch' (static diagonal hatch over the field, gustHatch.js) | 'none' (colour only: the control).
+ * Pick: window.__RAW_GUST_CUE__, else localStorage 'rawGustCue', else the default. Each cue's own kill drops it to 'none':
+ * window.__RAW_DISABLE_GUST_FLICKER__, window.__RAW_DISABLE_GUST_WIDTH__, window.__RAW_DISABLE_GUST_HATCH__ (= true).
+ * Motion is never touched.
+ */
+export const GUST_CUES = Object.freeze(['flicker', 'width', 'hatch', 'none']);
+export const GUST_CUE_DEFAULT = 'flicker';
+export function gustCue(win = (typeof window !== 'undefined' ? window : null)) {
+  let cue = win && win.__RAW_GUST_CUE__;
+  if (!GUST_CUES.includes(cue)) {
+    cue = null;
+    try { const v = win && win.localStorage && win.localStorage.getItem('rawGustCue'); if (GUST_CUES.includes(v)) cue = v; } catch (e) { /* storage blocked */ }
+  }
+  if (!cue) cue = GUST_CUE_DEFAULT;
+  if (cue !== 'none' && win && win['__RAW_DISABLE_GUST_' + cue.toUpperCase() + '__'] === true) cue = 'none';
+  return cue;
 }

@@ -111,6 +111,9 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CURRENTS_NATIVE__',
   // gustParticles.test.js ("the flicker: on by default, off under its kill and under prefers-reduced-motion"; 2026-11-18)
   '__RAW_DISABLE_GUST_FLICKER__',
+  // gustCue.test.js ("each cue's own kill drops it to no cue, and only its own"; 2026-11-22, gust cue A/B)
+  '__RAW_DISABLE_GUST_WIDTH__',
+  '__RAW_DISABLE_GUST_HATCH__',
   // gustParticles.test.js ("the gust field tints like the wind field on light and beach; both kills turn it off"; 2026-11-18)
   '__RAW_DISABLE_GUST_FIELD_TINT__',
   // gustsLayer.test.js ("the kill returns light to the wind field exactly; the legend follows the same rows"; 2026-11-18)
