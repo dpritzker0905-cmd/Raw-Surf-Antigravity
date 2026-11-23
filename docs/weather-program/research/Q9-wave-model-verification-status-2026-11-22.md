@@ -39,4 +39,52 @@ NDBC 46042 (Monterey) WVHT over the most recent ~33 h, 2026-11-21 06:30 to 2026-
 
 Do not put a bias or RMSE number into consensus weighting from this status note. The GFS-Wave leg is achievable once the ww3 path is fixed or replaced by a bounded local fetch. The EURO and ICON legs need a scope decision first, because neither is reachable through an MCP.
 
-Sources: ww3 MCP (`ww3_list_cycles`, `ww3_compare_forecast_with_buoy`, `ww3_get_forecast_at_point`), NDBC MCP (`ndbc_get_observations`), all read-only, 2026-11-22.
+## 6. Pre-registration: path B (pairs built by hand from working calls)
+
+Set before any forecast-vs-buoy pair was read. Requested by the parent session after `ww3_compare_forecast_with_buoy` hung 1800 s twice (second attempt: buoy 46042, 24 h).
+
+**Buoys** (coordinates confirmed with `ndbc_get_station`, 2026-11-22):
+
+| Station | Name | Lat | Lon |
+|---|---|---|---|
+| 46042 | Monterey, CA | 36.787 | -122.408 |
+| 46086 | San Clemente Basin, CA | 32.504 | -118.029 |
+| 51201 | Waimea Bay, HI | 21.671 | -158.118 |
+| 44013 | Boston, MA | 42.346 | -70.651 |
+
+**Forecast:** `ww3_get_forecast_at_point`, grid `global.0p25`, variables HTSGW, PERPW, DIRPW, step 3 h, max 48 h, JSON. Intended cycle: 2026-11-22 00z. The tool takes no cycle argument, so the cycle it actually reads is recorded from its output. Any other cycle is a logged deviation.
+
+**Truth:** `ndbc_get_observations`, JSON (`max_records` 2000), WVHT, DPD, MWD, last 48 h.
+
+**Pairing rule:** each forecast valid hour T is paired with the mean of NDBC records in [T−30 min, T+30 min]. A pair needs at least 2 non-null records in that window. Null records are dropped, never filled.
+
+**Statistics**, reported for leads 0–24 h and 24–48 h separately:
+- Hs (HTSGW vs WVHT): n, bias (model − obs), RMSE, scatter index = RMSE / mean(obs).
+- Direction (DIRPW vs MWD): n, circular mean error, in degrees.
+- DPD (PERPW vs DPD): n, bias, RMSE, reported descriptively.
+
+**Label:** n = 1 cycle, descriptive, not a skill claim.
+
+**Known constraint, set before reading:** the 2026-11-22 00z cycle's 24–48 h leads are valid after the newest observation, so the 24–48 h bin may have no truth. If that bin is empty, it is reported as n = 0 and not filled from another cycle.
+
+**Unavailable:** a single call over about 120 s is skipped, and the buoy is recorded as unavailable.
+
+## 7. Path B outcome (2026-11-22, after the pre-registration above)
+
+No forecast-vs-buoy pair was formed. Status: blocked on the forecast side, again.
+
+| Call | Result |
+|---|---|
+| `ww3_list_cycles` (global.0p25, 1 day) | Works. 00z, 06z, 12z and 18z for 2026-11-22 all listed as available. |
+| `ndbc_get_station` for 46042, 46086, 51201, 44013 | Works. Coordinates in §6 confirmed. |
+| `ndbc_get_observations` 46042, 48 h, JSON | Works. 287 records, `truncated: false`, newest 2026-11-22T23:40 UTC, retrieved 2026-11-23T00:24 UTC. |
+| `ww3_get_forecast_at_point` 46042, 48 h, step 3 h | First call: "Connection closed". Retry: no response for 1800 s, aborted. |
+| `ww3_compare_forecast_with_buoy` 46042 | Already recorded in §1 (hung 1800 s). |
+| 46086, 51201, 44013 | Not attempted. Forecast calls fail for 46042, so the same blocker applies; no point spending calls on them yet. |
+
+Notes for the next attempt:
+- `ww3_get_forecast_at_point` takes no cycle argument. Even when it returns, the cycle it reads is not confirmed as 00z 2026-11-22, so the deviation must be logged from its output.
+- Truth ends at 2026-11-22T23:40 UTC. For the 00z cycle, leads 0–24 h fall inside the observation window, but the 24–48 h bin is almost entirely in the future. Under §6, that bin stays n = 0.
+- The 46042 observations are usable: about 1 record every 10 min, roughly a third null, with hourly-mean gap handling per §6.
+
+Sources: ww3 MCP (`ww3_list_cycles`, `ww3_compare_forecast_with_buoy`, `ww3_get_forecast_at_point`), NDBC MCP (`ndbc_get_station`, `ndbc_get_observations`), all read-only, 2026-11-22.
