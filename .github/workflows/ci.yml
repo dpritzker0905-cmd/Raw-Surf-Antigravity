@@ -1627,7 +1627,10 @@ jobs:
           #   base 3035 (hosted read) + 0 new test(s) and 0 new file(s) = 3035, files 184; floor 3035 - 6 = 3029. This PR must read 3035 passed.
           # ⬆ 3029→3029 on 2026-11-02 (rederive_floor.py, claude/upbeat-cori-222cde): dev run 41377184916 read 3035 / 184 files; dev's map 3035;
           #   base 3035 (hosted read) + 0 new test(s) and 0 new file(s) = 3035, files 184; floor 3035 - 6 = 3029. This PR must read 3035 passed.
-          MIN_FILES, MIN_PASSED = 184, 3029
+          # ⬆ 3029→3032 on 2026-11-23, IN THE SAME COMMIT THAT CAUSES IT (flag guardrail P0 security fix):
+          #   tests/test_flag_guardrail_owner_check.py (3 new tests, 1 new chain file: --lane chain 184 -> 185);
+          #   base 3035 (dev's read 41377184916) + 3 new test(s) = 3038, files 185; floor 3038 - 6 = 3032. This PR must read 185 files / 3038 passed.
+          MIN_FILES, MIN_PASSED = 185, 3032
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
