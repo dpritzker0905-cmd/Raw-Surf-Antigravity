@@ -31,11 +31,8 @@ jobs:
   # first step says so and every later step is skipped by a step-level `if:`, so the check goes green in
   # seconds. No `paths:` filter and no job-level skip on a required job: the header above says why.
   #   docs-only = every path is a `.md` file under docs/, audit/, program/, memory/, .claude/, .agents/ or the
-  #   repo root. ANYTHING else (a .json/.py under docs/, any workflow, any code dir, a rename into code, an
-  #   empty diff, a missing merge parent) => full suite.
-  #   ⬇ 2026-11-23: a `.github/ci-floors.d/*.json` fragment is NO LONGER docs. A fragment changes what each lane
-  #   enforces, and the lanes running in full are the only check that a catch-up (by hand or by
-  #   floor-catchup.yml) did not lift a floor above what the lane really passes, e.g. two catch-ups for one lag.
+  #   repo root, or a `.github/ci-floors.d/*.json` fragment. ANYTHING else (a .json/.py under docs/, any
+  #   workflow, any code dir, a rename into code, an empty diff, a missing merge parent) => full suite.
   # Pushes (dev, main) always get the full suite: the classifier answers 'false' for every non-PR event.
   # Fail-closed: the gated jobs carry `if: !cancelled()`, so if this job errors they run in full rather than
   # being skipped (GitHub reports a skipped required job as passing).
@@ -89,6 +86,8 @@ jobs:
           cp /tmp/badmode.txt /tmp/code.txt   # any non-regular-file entry counts as code
           while IFS= read -r f; do
             case "$f" in
+              .github/ci-floors.d/*/*) echo "$f" >> /tmp/code.txt ;;   # fragments live at the top level only
+              .github/ci-floors.d/*.json) ;;
               */*.md)
                 case "$f" in
                   docs/*|audit/*|program/*|memory/*|.claude/*|.agents/*) ;;
@@ -2604,7 +2603,12 @@ jobs:
       contents: read
       actions: read
     steps:
+      # Full history, no file contents (blob:none): the over-lift step below reads the floors at the last green dev
+      # run's commit and the fragment-only commits since it. Blobs it needs are fetched on demand.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          filter: blob:none
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -2625,3 +2629,14 @@ jobs:
           else
             python scripts/ci_floor_staleness.py
           fi
+
+      # ⬆ 2026-11-23 (advisor, #1227): the OTHER side, for fragments-only PRs only. ci_floor_staleness.py above is
+      # one-sided by design; a catch-up PR adds no tests, so a floor it lifts ABOVE the last green dev reading can only
+      # fail later (e.g. a lag caught up twice, by hand and by floor-catchup.yml). Such a PR is docs-only, so its lanes
+      # do not run; this takes seconds instead. Any other PR, and every push, exits 0 with the reason.
+      - name: "🔍 Fragments-only PR: does it lift a floor above what dev last observed?"
+        if: github.event_name == 'pull_request'
+        working-directory: backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/ci_floor_overlift.py

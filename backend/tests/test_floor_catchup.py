@@ -12,6 +12,7 @@ import itertools
 import json
 import os
 import shutil
+import subprocess
 import sys
 
 import pytest
@@ -297,3 +298,50 @@ def test_the_workflow_acts_only_on_green_dev_pushes_of_this_repository():
         assert needle in cond
     assert wf["concurrency"]["cancel-in-progress"] is False
     assert "secrets.FLOOR_CATCHUP_PR_TOKEN" in json.dumps(wf) and "ghp_" not in json.dumps(wf)
+
+
+def test_every_committing_git_call_carries_the_bot_identity(frag_dir):
+    branch = f"{C.BRANCH_PREFIX}{RUN}"
+    sh = FakeShell(frag_dir, prs=[{"number": 77, "headRefName": branch}])
+    C.execute(RUN + 9, SHA, _stale_readings(frag_dir), run=sh, frag_dir=frag_dir, log=lambda *_: None)
+    committing = [c for c in sh.calls if c[0] == "git" and ("merge" in c or "commit" in c)]
+    assert len(committing) == 2, committing          # the update's merge AND the fragment commit
+    for c in committing:
+        assert c[1:5] == C.IDENT, c
+
+
+def test_the_bots_merge_command_works_with_no_git_identity_configured(tmp_path, monkeypatch):
+    """A fresh runner has no user.name/email: the real merge must still succeed (advisor, #1227 at 45cdbbf52)."""
+    for k in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL",
+              "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "EMAIL"):
+        monkeypatch.delenv(k, raising=False)
+    cfg = tmp_path / "empty-gitconfig"
+    cfg.write_text("")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(cfg))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    d = tmp_path / "r"
+    d.mkdir()
+
+    def g(*a):
+        return subprocess.run(["git", *a], cwd=d, capture_output=True, text=True)
+    g("init", "-q", "-b", "dev")
+    ident = C.IDENT
+    (d / "a.txt").write_text("a")
+    g(*ident, "add", "a.txt")
+    assert g(*ident, "commit", "-q", "-m", "base").returncode == 0
+    g("checkout", "-q", "-b", "bot")
+    (d / "b.txt").write_text("b")
+    g("add", "b.txt")
+    g(*ident, "commit", "-q", "-m", "bot fragment")
+    g("checkout", "-q", "dev")
+    (d / "c.txt").write_text("c")
+    g("add", "c.txt")
+    g(*ident, "commit", "-q", "-m", "dev moved")
+    dev_sha = g("rev-parse", "HEAD").stdout.strip()
+    g("checkout", "-q", "bot")
+    without = g("merge", "--no-edit", "-m", "no identity", dev_sha)
+    if without.returncode == 0:                      # this machine has a fallback identity: undo, the point stands below
+        g("reset", "-q", "--hard", "HEAD~1")
+    merged = subprocess.run(C.merge_cmd(RUN, dev_sha, "bot"), cwd=d, capture_output=True, text=True)
+    assert merged.returncode == 0, merged.stderr
+    assert g("log", "-1", "--format=%cn").stdout.strip() == "github-actions[bot]"

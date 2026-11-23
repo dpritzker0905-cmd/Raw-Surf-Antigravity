@@ -54,6 +54,9 @@ REPO = os.path.dirname(os.path.dirname(HERE))
 FRAG_REL = ".github/ci-floors.d"
 BRANCH_PREFIX = "bot/floor-catchup-"
 BASE = "dev"
+# The runner has no git identity. EVERY git command that writes a commit (the update's merge AND the fragment commit)
+# carries this one; the merge once lacked it and would have died "Committer identity unknown" (advisor, 2026-11-23).
+IDENT = ["-c", "user.name=github-actions[bot]", "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com"]
 
 
 class Refusal(Exception):
@@ -178,6 +181,11 @@ def assert_only_own_fragments(paths: list, branch: str) -> None:
         raise Refusal(f"refusing to commit files outside this bot's fragments: {bad}")
 
 
+def merge_cmd(run_id, sha, branch) -> list:
+    """The update's merge of the run commit into the bot branch, WITH the bot identity (a merge commit needs one)."""
+    return ["git", *IDENT, "merge", "--no-edit", "-m", f"Merge dev run {run_id} ({sha[:9]}) into {branch}", sha]
+
+
 def execute(run_id, sha, readings, *, run=_run, frag_dir=None, dry_run=False, log=print, still_newest=lambda: True) -> str:
     """Make the repository match the plan for this reading. Returns 'nothing', 'closed', 'dry-run', 'unchanged',
     'updated' or 'opened'. The plan is computed on the tree that will be pushed, without this bot's own fragments."""
@@ -195,7 +203,7 @@ def execute(run_id, sha, readings, *, run=_run, frag_dir=None, dry_run=False, lo
         if pr:
             run(["git", "fetch", "--no-tags", "origin", f"+refs/heads/{branch}:refs/remotes/origin/{branch}"])
             run(["git", "checkout", "-B", branch, f"origin/{branch}"])
-            run(["git", "merge", "--no-edit", "-m", f"Merge dev run {run_id} ({sha[:9]}) into {branch}", sha])
+            run(merge_cmd(run_id, sha, branch))
         else:
             run(["git", "checkout", "-B", branch, sha])
         # A clean tree before writing: nothing left by a hook, a failed run or a merge may ride along (LongCat #6).
@@ -243,10 +251,8 @@ def execute(run_id, sha, readings, *, run=_run, frag_dir=None, dry_run=False, lo
         return "unchanged"
     if paths:
         run(["git", "add", "-A", "--", FRAG_REL])
-        run(["git", "-c", "user.name=github-actions[bot]",
-             "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
-             "commit", "-m", f"ci(floors): catch up {', '.join(p['lane'] for p in items)} to dev run {run_id} "
-                             f"[skip render] [skip netlify]"])
+        lanes = ", ".join(p["lane"] for p in items)
+        run(["git", *IDENT, "commit", "-m", f"ci(floors): catch up {lanes} to dev run {run_id} [skip render] [skip netlify]"])
     # Whole-branch scope (a human edit to the bot branch, or a bad merge, would ride along otherwise): everything this
     # branch changes against the run's dev commit must be this bot's own fragments.
     assert_only_own_fragments([x for x in run(["git", "diff", "--name-only", sha, "HEAD"]).splitlines() if x.strip()],
