@@ -7,9 +7,11 @@ name: Tide MLLW parity (our US display above MLLW vs NOAA CO-OPS MLLW prediction
 # ONE-SHOT START: only a push of a tag `tide-mllw-parity-*` (on the owner's or the director's word) starts it; no branch
 # push, schedule or dispatch. Credentials: AVISO only on the FES download step; CO-OPS is public. Nothing is printed
 # but the scores.
+# tide-datum-parity-v2 (gates/tide-datum-parity-v2.md, #1210): a tag `tide-datum-parity-v2-*` runs the SAME job on the
+# frozen held-out stations, leave-one-out, over the FIXED window 2026-12-01..08 (owner's word + the advisor's PASS).
 on:
   push:
-    tags: ['tide-mllw-parity-*']
+    tags: ['tide-mllw-parity-*', 'tide-datum-parity-v2-*']
 permissions:
   contents: read
 concurrency:
@@ -71,7 +73,14 @@ jobs:
           fail-on-cache-miss: true
       - name: Parity vs CO-OPS MLLW predictions (7 days, 26 gauges)
         timeout-minutes: 100
-        run: python backend/scripts/tide_datum/parity_coops.py --fes-cache fes_cache --work parity_work --days 7 --json tide_mllw_parity.json
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == tide-datum-parity-v2-* ]]; then
+            python backend/scripts/tide_datum/parity_coops.py --fes-cache fes_cache --work parity_work --days 7 \
+              --stations docs/weather-program/research/tide-datum-parity-v2-heldout.json --start 2026-12-01 \
+              --json tide_mllw_parity.json
+          else
+            python backend/scripts/tide_datum/parity_coops.py --fes-cache fes_cache --work parity_work --days 7 --json tide_mllw_parity.json
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

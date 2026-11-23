@@ -109,6 +109,55 @@ def p90(values):
     return v[max(0, -(-9 * len(v) // 10) - 1)] if v else None
 
 
+DONOR_KM = 2.0          # gates/tide-datum-parity-v2.md: a NOAA sheet within 2 km, else our 19-year D
+PLACEBO_M = 0.10        # the placebo control: D_hybrid + 0.10 m must FAIL the signed leg
+
+
+def _km(lat1, lng1, lat2, lng2):
+    import math
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    h = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lng2 - lng1) / 2) ** 2
+    return 2 * 6371.0 * math.asin(min(1.0, math.sqrt(h)))
+
+
+def choose_donor(sid, lat, lng, sheets, exclude_ids, km=DONOR_KM):
+    """PURE (tide-datum-parity-v2, leave-one-out): the NEAREST other dated sheet within `km` of (lat, lng), never the
+    station itself (its own sheet is the truth's datum) and never one in `exclude_ids` (the held-out set: a donor never
+    decides). Returns {id, d, km} or None. `sheets`: [{id, lat, lng, d}]."""
+    best = None
+    for o in sheets:
+        if o["id"] == sid or o["id"] in exclude_ids or o.get("d") is None:
+            continue
+        k = _km(lat, lng, o["lat"], o["lng"])
+        if k <= km and (best is None or k < best["km"]):
+            best = {"id": o["id"], "d": float(o["d"]), "km": round(k, 3)}
+    return best
+
+
+def v2_datums(d_model, donor):
+    """PURE: the D variants scored in v2 mode. There is NO own-sheet variant (leave-one-out). `nsheet` only when a
+    donor exists; `hybrid` = the donor's sheet, else our 19-year D; `placebo` = hybrid + PLACEBO_M."""
+    out = {}
+    if d_model is not None:
+        out["model"] = float(d_model)
+    if donor is not None:
+        out["nsheet"] = donor["d"]
+    hyb = donor["d"] if donor is not None else (float(d_model) if d_model is not None else None)
+    if hyb is not None:
+        out["hybrid"] = hyb
+        out["placebo"] = hyb + PLACEBO_M
+    return out
+
+
+def v2_station_list(heldout, n_reserve):
+    """PURE: [(id, stratum)] the v2 run scores: every deciding station, then the first `n_reserve` reserves of each
+    stratum (the frozen replacement order, cap 5 in the gate)."""
+    out = []
+    for k, st_ in heldout["strata"].items():
+        out += [(i, k) for i in st_["deciding"]] + [(i, k) for i in st_["reserve"][:n_reserve]]
+    return out
+
+
 def match(noaa, ours):
     """PURE: [(height error m, time error min)] per NOAA event (None, None when unmatched within MATCH_H)."""
     res = []
@@ -156,6 +205,9 @@ def main(argv=None):
     ap.add_argument("--days", type=int, default=7)
     ap.add_argument("--json", default="tide_mllw_parity.json")
     ap.add_argument("--summary", default=os.environ.get("GITHUB_STEP_SUMMARY"))
+    ap.add_argument("--stations", help="v2: the frozen held-out JSON (gates/tide-datum-parity-v2.md); leave-one-out")
+    ap.add_argument("--start", help="v2: the fixed window start, YYYY-MM-DD (UTC); default today")
+    ap.add_argument("--reserve", type=int, default=5, help="v2: reserves scored per stratum (the gate's cap)")
     a = ap.parse_args(argv)
     import arms                                                   # noqa: E402 - pyfes, CI only
     import sources as S                                           # noqa: E402
@@ -164,7 +216,15 @@ def main(argv=None):
     import build_series as BS                                     # noqa: E402 (subset_wrapped)
 
     stations = {s["id"]: s for s in TD._load_stations()}
-    gauges = {sid: (stations[sid]["lat"], stations[sid]["lng"]) for sid in OR.G3T_M if sid in stations}
+    v2 = None
+    if a.stations:
+        heldout = json.loads(Path(a.stations).read_text(encoding="utf-8"))
+        v2 = dict(v2_station_list(heldout, a.reserve))
+        scored = set(v2)
+        sheets = [{"id": k, "lat": v["lat"], "lng": v["lng"], "d": v["d"]} for k, v in stations.items()]
+        gauges = {sid: (stations[sid]["lat"], stations[sid]["lng"]) for sid in v2 if sid in stations}
+    else:
+        gauges = {sid: (stations[sid]["lat"], stations[sid]["lng"]) for sid in OR.G3T_M if sid in stations}
     work = Path(a.work)
     boxes, scratch = work / "boxes", work / "scratch"
     scratch.mkdir(parents=True, exist_ok=True)
@@ -172,13 +232,14 @@ def main(argv=None):
     for name, path in files.items():
         BS.subset_wrapped(path, name, gauges, boxes, scratch)
 
-    day0 = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    day0 = (datetime.fromisoformat(a.start).replace(tzinfo=timezone.utc) if a.start
+            else datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0))
     start, end = day0 - timedelta(hours=6), day0 + timedelta(days=a.days, hours=6)
     hours = [start + timedelta(hours=i) for i in range(int((end - start).total_seconds() // 3600) + 1)]
     ntde = np.arange(np.datetime64("1983-01-01T00:00", "us"), np.datetime64("2002-01-01T00:00", "us"),
                      np.timedelta64(OR.NTDE_STEP_MIN, "m"))
     from metrics import noaa_long_period                         # noqa: E402 (stdlib only)
-    per, allrows = {}, {"model": [], "sheet": [], "model_tb": [], "sheet_tb": []}
+    per, allrows = {}, {}
     for sid, (la, lo) in gauges.items():
         d = boxes / OR.safe_dir(sid)
         if not d.exists():
@@ -191,7 +252,12 @@ def main(argv=None):
             per[sid] = {"error": "FES undefined"}
             continue
         d_model = OR.d_ntde(a_n, OR.NTDE_STEP_MIN / 60.0)
-        d_sheet = stations[sid]["d"]
+        if v2 is not None:      # LEAVE-ONE-OUT: the station's own sheet is never a D here
+            donor = choose_donor(sid, la, lo, sheets, scored)
+            datums = v2_datums(d_model, donor)
+        else:
+            donor = None
+            datums = {"model": d_model, "sheet": stations[sid]["d"]}
         try:
             stop = day0 + timedelta(days=a.days)
             noaa = [e for e in noaa_hilo_mllw(sid, day0, stop) if day0 <= e[0] < stop]
@@ -199,7 +265,11 @@ def main(argv=None):
             per[sid] = {"error": f"CO-OPS {type(e).__name__}"}
             continue
         iso = [t.strftime("%Y-%m-%dT%H:00") for t in hours]
-        row = {"name": stations[sid]["name"], "d_model": d_model, "d_sheet": round(d_sheet, 4)}
+        row = {"name": stations[sid]["name"], "d_model": d_model}
+        if v2 is not None:
+            row.update(stratum=v2[sid], donor=donor, d=datums)
+        else:
+            row["d_sheet"] = round(stations[sid]["d"], 4)
         try:
             hc = noaa_seasonal_harcon(sid)
         except Exception as e:                                    # noqa: BLE001 - the raw variants still score
@@ -207,7 +277,7 @@ def main(argv=None):
         noaa_tb = remove_seasonal(noaa, noaa_long_period(hc, [e[0] for e in noaa])) if hc else None
         if hc:
             row["S_g_m"] = round(st.fmean(noaa_long_period(hc, [h for h in hours if day0 <= h < stop])), 4)
-        for tag, dval in (("model", d_model), ("sheet", d_sheet)):
+        for tag, dval in datums.items():
             if dval is None:
                 continue
             variants = [(tag, a_h, noaa)]
@@ -218,11 +288,12 @@ def main(argv=None):
                 # constant D must move no event (gates/tide-datum-parity-v1.md amendment 3; run 45102683907 was VOID
                 # because 1 mm rounding after adding D moved the finder's vertex by up to minutes)
                 ev = match_events(truth, T.tide_extrema(iso, lv))
-                allrows[name] += ev
+                allrows.setdefault(name, []).extend(ev)
                 row[name] = summarize_events(ev)
                 row[name + "_events"] = ev
         per[sid] = row
     out = {"generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "days": a.days,
+           "window_start": day0.strftime("%Y-%m-%d"), "mode": "v2-heldout-loo" if v2 is not None else "v1-gauges",
            "gauges": len(gauges), "all": {k: summarize_events(v) for k, v in allrows.items()}, "per_gauge": per,
            "version": 2}
     print(json.dumps(out["all"], indent=1))

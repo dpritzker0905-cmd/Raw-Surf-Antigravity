@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 3,
+  "tests": 7,
   "files": 0,
   "branch": "claude/tide-mllw-parity-v2",
   "date": "2026-11-23",
-  "note": "test_parity_v2 (+1); finder datum-invariance + unrounded source pin (+2, #1183 amendment 3)"
+  "note": "parity_v2 (+1); datum-invariance + unrounded pin (+2); v2 donor/LOO, datums+placebo, frozen held-out, scorer (+4)"
 }

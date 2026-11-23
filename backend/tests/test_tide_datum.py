@@ -303,6 +303,107 @@ def test_parity_display_series_is_unrounded():
     assert "round(float(x) + dval" not in src
 
 
+def _pc():
+    sys.path.insert(0, os.path.join(HERE, "..", "scripts", "tide_datum"))
+    import parity_coops as P
+    return P
+
+
+def test_v2_donor_never_decides_and_own_sheet_never_used():
+    """tide-datum-parity-v2 (#1210): leave-one-out. The station's OWN sheet (the truth's datum) is never its D, and a
+    held-out (deciding) station is never a donor, even when nearer."""
+    P = _pc()
+    sheets = [{"id": "SELF", "lat": 30.0, "lng": -80.0, "d": 0.50},          # the station itself, distance 0
+              {"id": "DEC", "lat": 30.002, "lng": -80.0, "d": 0.60},        # 0.22 km, but a deciding station
+              {"id": "OK", "lat": 30.009, "lng": -80.0, "d": 0.70},         # 1.0 km, eligible
+              {"id": "FAR", "lat": 30.05, "lng": -80.0, "d": 0.80}]         # 5.6 km, beyond 2 km
+    d = P.choose_donor("SELF", 30.0, -80.0, sheets, {"SELF", "DEC"})
+    assert d["id"] == "OK" and d["d"] == 0.70 and d["km"] == pytest.approx(1.0, abs=0.01)
+    assert P.choose_donor("SELF", 30.0, -80.0, sheets[:2] + sheets[3:], {"SELF", "DEC"}) is None
+    for k in range(4):                                       # whatever is excluded, never the station or a decider
+        got = P.choose_donor("SELF", 30.0, -80.0, sheets[k:], {"SELF", "DEC"})
+        assert got is None or got["id"] not in {"SELF", "DEC"}
+
+
+def test_v2_datums_have_no_own_sheet_and_the_placebo_is_offset():
+    P = _pc()
+    with_donor = P.v2_datums(0.40, {"id": "OK", "d": 0.70, "km": 1.0})
+    assert set(with_donor) == {"model", "nsheet", "hybrid", "placebo"} and "sheet" not in with_donor
+    assert with_donor["hybrid"] == 0.70 and with_donor["placebo"] == pytest.approx(0.80)
+    without = P.v2_datums(0.40, None)
+    assert set(without) == {"model", "hybrid", "placebo"} and without["hybrid"] == 0.40
+    assert without["placebo"] == pytest.approx(0.40 + P.PLACEBO_M)
+
+
+def test_v2_frozen_heldout_is_disjoint_from_everything_seen():
+    P = _pc()
+    path = os.path.join(HERE, "..", "..", "docs", "weather-program", "research", "tide-datum-parity-v2-heldout.json")
+    held = json.load(open(path, encoding="utf-8"))
+    nb, md = held["strata"]["NEIGHBOR"], held["strata"]["MODEL"]
+    deciding = set(nb["deciding"]) | set(md["deciding"])
+    assert len(nb["deciding"]) == 20 and len(md["deciding"]) == 20 and len(deciding) == 40
+    assert not deciding & set(held["seen_excluded"]) and not deciding & set(nb["reserve"] + md["reserve"])
+    from own_rules import G3T_M
+    assert not deciding & set(G3T_M) and held["seed"] == 20261124
+    lst = P.v2_station_list(held, 5)
+    assert [i for i, _ in lst[:20]] == nb["deciding"] and len(lst) == 50
+
+
+def _v2_art(per_h, d_model=0.4, d_ns=0.43, nb=True):
+    """Synthetic artifact rows: 10 matched events with the given signed tidal-band hybrid error."""
+    def ev(err, dt=2.0):
+        return [{"time": f"2026-12-0{1 + i // 4}T{(i % 4) * 6:02d}:00Z", "type": "High", "noaa_m": 1.0,
+                 "ours_m": 1.0 + err, "height_err_m": err, "time_err_min": dt} for i in range(10)]
+    row = {"d": {"model": d_model, "hybrid": d_ns if nb else d_model, "placebo": (d_ns if nb else d_model) + 0.10},
+           "hybrid_tb_events": ev(per_h), "placebo_tb_events": ev(per_h + 0.10), "model_tb_events": ev(per_h - (d_ns - d_model) if nb else per_h)}
+    if nb:
+        row["d"]["nsheet"] = d_ns
+        row["nsheet_tb_events"] = ev(per_h)
+    return row
+
+
+def _v2_held(n=20, reserve=6):
+    return {"strata": {"NEIGHBOR": {"deciding": [f"N{i}" for i in range(n)], "reserve": [f"NR{i}" for i in range(reserve)]},
+                       "MODEL": {"deciding": [f"M{i}" for i in range(n)], "reserve": [f"MR{i}" for i in range(reserve)]}}}
+
+
+def test_v2_scorer_intersection_placebo_and_replacement_cap():
+    sys.path.insert(0, os.path.join(HERE, "..", "scripts", "tide_datum"))
+    import datum_v2_score as V
+    held = _v2_held()
+    fin = {sid: {"hourly": {"median_abs_h_m": 0.001}} for k in ("N", "M", "NR", "MR") for sid in [f"{k}{i}" for i in range(20)]}
+
+    def art(nb_err, md_err, undefined=()):
+        per = {}
+        for i in range(20):
+            per[f"N{i}"] = _v2_art(nb_err)
+            per[f"M{i}"] = _v2_art(md_err, nb=False)
+        for i in range(6):
+            per[f"NR{i}"] = _v2_art(nb_err)
+            per[f"MR{i}"] = _v2_art(md_err, nb=False)
+        for sid in undefined:
+            per[sid] = {"error": "FES undefined"}
+        return {"per_gauge": per, "window_start": "2026-12-01", "mode": "v2-heldout-loo"}
+
+    assert V.score(art(0.01, 0.01), held, fin)["verdict"] == "PASS"
+    # intersection: NEIGHBOR passes, MODEL's signed bias fails -> FAIL (a pooled primary could have passed)
+    r = V.score(art(0.01, 0.05), held, fin)
+    assert r["verdict"] == "FAIL" and r["strata"]["NEIGHBOR"]["pass"] and not r["strata"]["MODEL"]["pass"]
+    # placebo: a +0.10 m D must FAIL the signed leg; a run whose placebo passes is VOID and the bar is never opened
+    r = V.score(art(-0.09, -0.09), held, fin)
+    assert r["verdict"] == "VOID" and not r["controls"]["placebo"]["pass"] and "strata" not in r
+    # replacement: 2 FES-undefined deciders are replaced in the frozen reserve order
+    r = V.score(art(0.01, 0.01, undefined=("M3", "M7")), held, fin)
+    assert r["deciding"]["MODEL"]["replaced"] == [["M3", "MR0"], ["M7", "MR1"]] and r["verdict"] == "PASS"
+    # cap: a sixth replacement in one stratum makes it NOT MEASURABLE -> FAIL
+    r = V.score(art(0.01, 0.01, undefined=tuple(f"M{i}" for i in range(6))), held, fin)
+    assert not r["deciding"]["MODEL"]["measurable"] and r["verdict"] == "FAIL"
+    # finder control: a missing or > 0.01 m finder row at a measured decider is VOID
+    bad = dict(fin)
+    bad["N0"] = {"hourly": {"median_abs_h_m": 0.02}}
+    assert V.score(art(0.01, 0.01), held, bad)["verdict"] == "VOID"
+
+
 def test_spot_shift_uses_exact_m_and_model_d_when_given():
     sys.path.insert(0, os.path.join(HERE, "..", "scripts", "tide_datum"))
     import spot_shift as SS
