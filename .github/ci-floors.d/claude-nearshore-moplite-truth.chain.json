@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 14,
+  "files": 2,
+  "branch": "claude/nearshore-moplite-truth",
+  "date": "2026-11-23",
+  "note": "MOP-lite buoy truth + ablation"
+}
