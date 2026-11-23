@@ -2023,7 +2023,10 @@ jobs:
         working-directory: backend
         run: |
           set -euo pipefail
-          grep -lE "docs[/\"']|\.md[\"']|BRAIN_RULES|CLAUDE\.md|[\"'/](audit|program|memory)/" tests/test_*.py > /tmp/doc_tests.txt
+          # Only files some lane already runs: the lanes' named exclusions (fastmcp, runner quarantine) stay excluded.
+          for lane in guards chain estate; do python scripts/ci_test_lanes.py --lane "$lane"; done | sort -u > /tmp/lane_files.txt
+          [ -s /tmp/lane_files.txt ] || { echo "::error::ci_test_lanes.py listed no files"; exit 1; }
+          xargs grep -lE "docs[/\"']|\.md[\"']|BRAIN_RULES|CLAUDE\.md|[\"'/](audit|program|memory)/" < /tmp/lane_files.txt > /tmp/doc_tests.txt || true
           echo "$(wc -l < /tmp/doc_tests.txt) doc-reading test files:"; sed 's/^/  doc-reader: /' /tmp/doc_tests.txt
           [ -s /tmp/doc_tests.txt ] || { echo "::error::no doc-reading tests selected; the grep is broken"; exit 1; }
           python -m pytest $(tr '\n' ' ' < /tmp/doc_tests.txt) -q --timeout=120
