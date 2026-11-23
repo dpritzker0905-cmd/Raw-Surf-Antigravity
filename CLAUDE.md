@@ -148,8 +148,10 @@ measurement: check `git fetch`, `gh pr list --state open` and `/api/health` befo
   hub or sim value ships with its code default ON and a kill switch, plus a `SCOREBOARD.md` row. Before merge, the
   history filter (`default-on-filter.yml`) must not show it significantly worse (pooled, or any season or region
   after Holm; "not proven better" does not block). After merge, the live guardrail (`flag-guardrail.yml`, every 6 h)
-  can auto-disable it through the runtime manifest `control/flags.json` with a written reason; only a new
-  `FIX_VERSION` or the owner's word turns it back on. Alerts and anything that sends to users also need volume caps.
+  can auto-disable it through the runtime manifest `control/flags.json` with a written reason; a new
+  `FIX_VERSION` keeps the flag OFF and starts a shadow run (N=3 consecutive NOT_WORSE cycles, ~18 h);
+  only after the shadow passes and the owner explicitly re-enables via workflow_dispatch does the flag come
+  back on (D-087, supersedes D-065 NO FLAP). Alerts and anything that sends to users also need volume caps.
   Guarded flags read through `services/runtime_flags.flag()` (explicit env > manifest > code default); every flag is
   registered in `_RATING_FLAGS` (`backend/routes/admin/surf_forecast.py`) and kept in parity by
   `tests/test_flag_lane_parity.py`. Client-only fixes ship on with a `window.__RAW_DISABLE_<NAME>__ = true` kill switch.

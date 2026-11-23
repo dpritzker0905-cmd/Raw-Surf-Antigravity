@@ -2397,3 +2397,34 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   `test_the_served_tide_is_blind_and_never_auto_disabled`, changes with it.
 - **Reopen if:** an instrument that scores the served tide against observed water exists (G4), so the flag can be
   judged on evidence that can see it.
+
+### D-087 · HYBRID shadow-run replaces NO FLAP (supersedes the "FIX_VERSION clears" clause of D-065) (2026-11-23, decided by the owner via relay)
+- **Owner, relayed by the lead session:** "Build B but don't push it until I relay David's final yes on the policy."
+  David's final yes: relayed as "yes" to this session by the lead session.
+- **Proposed by:** SubQ, Reflection and LongCat, all preferring the HYBRID over the existing NO FLAP clause.
+- **The rule as written:**
+  - After a guardrail auto-disable, a `FIX_VERSION` bump in `runtime_flags.py` **keeps the flag OFF**.
+  - The bump starts a **shadow run**: the guardrail scores the new version for
+    `SHADOW_REQUIRED_PASSES = 3` consecutive NOT_WORSE cycles (~18 h at the 6-h schedule).
+  - During the shadow run, `decide()` returns action `version_hold`; the flag entry gains a `shadow` dict
+    tracking `passes`, `fails`, and `verdicts`.
+  - If a WORSE verdict arrives, the consecutive pass count resets to 0 (fails accumulate).
+  - If UNTESTABLE, `fails` increments but `passes` is unchanged.
+  - After `SHADOW_REQUIRED_PASSES` consecutive NOT_WORSE (or BETTER) cycles, `decide()` returns
+    `shadow_proposal` and writes an evidence bundle (`feature_id + version + commit`) into `shadow_proposal`
+    in the manifest entry. **The flag stays OFF.** No auto-enable ever.
+  - Evidence is bound to `feature_id + version + commit` to prevent inheritance by renamed or unrelated flags.
+  - The owner's `workflow_dispatch` re-enable (`owner_reenable()`, actor-checked, D-074) is the only way to
+    turn the flag back on.
+  - A later WORSE verdict may auto-disable it again under D-065 rules.
+  - The old `clear` action (flag removed from manifest on version bump) is replaced by `version_hold`.
+    The `clear` action remains in the code for external callers that may rely on it, but `decide()` no
+    longer produces it on a version bump.
+- **Why:** the old NO FLAP clause (FIX_VERSION clears the manifest entry, implicitly re-enabling the flag)
+  was too weak: a developer could bump the version with the same broken code and bypass the guardrail. The
+  HYBRID requires evidence of three consecutive non-harmful cycles before the owner can consider re-enabling.
+- **LongCat's safeguard (binding evidence):** shadow evidence bound to a different `feature_id` or `version`
+  is rejected. This prevents an adversary from grafting another flag's evidence onto a held flag.
+- **Reopen if:** the 18 h (3 × 6 h) shadow window proves too slow for high-urgency fixes. A flag can still
+  be re-enabled immediately via the owner's workflow_dispatch, bypassing the shadow — but that leaves a gap
+  in the evidence chain, which the owner accepts.
