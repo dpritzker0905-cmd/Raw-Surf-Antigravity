@@ -97,8 +97,7 @@ const MapWebGL = ({
   onMarineDataChange,
 }) => {
   useNoteForecastShown('map');  // blind-quality exposure (observations/forecastExposure)
-  // v3.9.7: Explicit init never at import time
-  ensureMapLibreInit();
+  ensureMapLibreInit();  // v3.9.7: explicit init, never at import time
   if (typeof window !== 'undefined') {
     window.__MODEL_METADATA_CACHE__ = MODEL_METADATA_CACHE;
   }
