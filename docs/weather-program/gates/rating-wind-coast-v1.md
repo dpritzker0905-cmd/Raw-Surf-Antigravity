@@ -13,6 +13,17 @@ Served change: none from this gate. A pass is an owner decision to change the ra
 - Observations at one site over 13 days (n = 1, no forecast read): the La Jolla pier and the offshore buoy 46086 agree on offshore / cross / onshore in only 39 % of 310 hours. The disagreement is the land/sea-breeze cycle.
 - D-071 graded vector RMSE at offshore-leaning buoys. RMSE carries the double penalty, so it can rank a smooth field above a sharper, more useful one. This gate scores what the rating uses, at the coast.
 
+- **Prior evidence in this program (L6 lane, 2026-11-02; memory `research-wind-tide-nearshore-verification-2026-11-02`, missed by the first draft of this note and added 2026-11-22):**
+  - **Setup:** 14 US coastal spots, 2026-10-19 to 11-02. Past-day forecasts were read through Open-Meteo (research only, never user data). The same GFS-Wave marine fed every arm, through the real chain offline.
+  - **Rating sensitivity to the wind source:** swapping GFS for HRRR moved the rating by 4.6 points [3.7, 5.6], and the level changed in 28.7 % of spot-hours.
+  - **Against 7 anemometers:** piers DUKN7 / TRDF1 / LJPC1 / JMPN7, harbour GTOT2, and buoys 46026 / 46012, log-adjusted; n = 2,469, with a cluster bootstrap over 105 spot-days.
+    - HRRR beat served GFS by **1.17 rating points [0.57, 1.82]** and cut level misses by 5.6 pp [2.2, 9.2].
+    - ICON was worse by 2.2 points and ECMWF by 4.7.
+    - **Piers only (60 spot-days):** HRRR +0.67 [0.13, 1.25], with the miss reduction not significant.
+  - **Speed slope (model / observed):** GFS 0.76, HRRR 0.77, ICON 0.55, ECMWF 0.51.
+  - **L6's ranked dark build #1** was "HRRR in CONUS as the rating wind for /point + precompute". Reflection called the gain modest.
+  - **What it means here:** the direction (HRRR > GFS at the coast) was measured once already, at a small size, scored on rating points rather than classes, with Open-Meteo-sourced forecasts and in autumn. The gate below is the registered, larger, class-scored test of it. L6's period precedes any collection window and is not scored.
+
 ## 1. Arms
 Every arm is read offline from public archives on a workstation or GitHub Actions, never from the Render box.
 
@@ -119,4 +130,5 @@ Every arm is read offline from public archives on a workstation or GitHub Action
 ## 10. What was seen before this gate (disclosure)
 - No forecast value of any arm has been paired with any station by the author.
 - Observations only (no forecast) were read at CO-OPS 9410230 La Jolla and NDBC 46086 for 2026-11-08 to 2026-11-22 (research note Q10). That read motivated the DAWN stratum. That window precedes collection and is not scored.
+- L6's 2026-11-02 result (section 0) was measured by another lane on 2026-10-19 to 11-02, before this gate. Its 7 stations may reappear under the station rule. Their scored window does not overlap.
 - Priors: the author's prior is `NBM`, and Reflection (advisory) preferred `HRRR_NATIVE`. Both are arms, so the gate tests the disagreement instead of settling it by argument.
