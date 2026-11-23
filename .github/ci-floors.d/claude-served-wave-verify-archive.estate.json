@@ -1,6 +1,6 @@
 {
   "lane": "estate",
-  "tests": 56,
+  "tests": 58,
   "branch": "claude/served-wave-verify-archive",
   "date": "2026-11-23",
   "note": "served-wave-verify-v1 point archive (+ amendment 1): tests/test_point_archive_shared.py + test_served_wave_{buoys,decoder_parity,publisher_prune,sampler,scorer,workflows}.py"

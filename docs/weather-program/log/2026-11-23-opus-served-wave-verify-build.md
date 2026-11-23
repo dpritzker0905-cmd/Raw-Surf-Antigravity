@@ -88,3 +88,13 @@ Recorded in `gates/served-wave-verify-v1-amendment-1.md`; the choices above it s
 - **A3 snapshot PR:** opened with the PAT secret `SERVED_WAVE_VERIFY_PR_TOKEN` by name, never `GITHUB_TOKEN` (no CI would run
   on it); skipped with a warning while the secret is unset. Creating the secret is the owner's step.
 - Tests 52 → 56; estate floor fragment +56. Still dark: nothing dispatched, no variable set, no bucket written.
+
+## 2026-11-23 · director: adopt the SLIM layout now, before any data exists (folded into amendment 1, A2)
+Supersedes the "(not adopted)" line of the entry above.
+- `point_archive/slim.py` (`slim/1`): header (run provenance once), one line per frame, one cells line per grid snapshot,
+  records keep only their own keys. Lossless: `unpack(pack(rows)) == rows` on every record shape (unit test) and on real
+  sampler output read back from the stored file (sampler test). `writer.write_run` writes it; `writer.read_run_rows` and the
+  scorer's `load_local` read it (plain files still read). Schema fields and the scorer unchanged. Columnar not adopted.
+- Measured with the real packer on the same synthetic rows: one run of GFS + ICON + EURO = 1.41 MB (plain 3.31 MB)
+  → ~0.127 GB/month, ~4.5 GB over 36 months; the first-week pause is now 2 × 0.125 = 0.25 GB/month.
+- Tests 56 → 58; estate floor fragment +58.

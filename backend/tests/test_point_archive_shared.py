@@ -6,9 +6,9 @@ from datetime import datetime, timezone
 import numpy as np
 import pytest
 
-from services.point_archive import cells, core, qc
+from services.point_archive import cells, core, qc, slim
 from services.point_archive.storage import LocalStore
-from services.point_archive.writer import ArchiveWriter, archive_prefixes, read_jsonl_gz, verify_archive
+from services.point_archive.writer import ArchiveWriter, archive_prefixes, read_run_rows, verify_archive
 
 
 # ---- core -----------------------------------------------------------------------------------------------------------
@@ -103,16 +103,49 @@ def test_run_files_are_immutable_canonical_and_listed(tmp_path):
     rows = [{"b": 2, "a": 1.5}, {"a": 0}]
     path, h = w.write_run("served", "gfs", "2027-01-15T00:00:00Z", rows)
     data = (tmp_path / path).read_bytes()
-    assert gzip.decompress(data) == b'{"a":1.5,"b":2}\n{"a":0}\n'
+    assert gzip.decompress(data).startswith(b'{"layout":"slim/1","row_type":"header"')    # canonical, sorted keys
     assert core.sha256_hex(data) == h
     ArchiveWriter(LocalStore(tmp_path / "again")).write_run("served", "gfs", "2027-01-15T00:00:00Z", rows)
     assert (tmp_path / "again" / path).read_bytes() == data                # same rows -> same bytes (gzip mtime 0)
     with pytest.raises(FileExistsError):
         w.write_run("served", "gfs", "2027-01-15T00:00:00Z", rows)          # re-writing is refused
-    assert read_jsonl_gz(data) == [{"a": 1.5, "b": 2}, {"a": 0}]
+    assert read_run_rows(data) == [{"a": 1.5, "b": 2}, {"a": 0}]
     sums = (tmp_path / "verify/point-archive/v1/served/gfs/SHA256SUMS").read_text()
     assert sums == f"{h}  20270115T0000Z.jsonl.gz\n"
     assert verify_archive(LocalStore(tmp_path), "verify/point-archive/v1/served/gfs") == []
+
+
+def _rec(**kw):
+    base = {"row_type": "record", "schema": core.SCHEMA, "purpose": "served", "model": "gfs", "run_time": "2027-01-15T00:00:00Z",
+            "buoy_list_version": "v", "buoy_list_hash": "h" * 64, "run_hash": "r" * 64, "decoder_version": "d" * 40,
+            "sampler_version": "s/1", "writer_version": "w/1", "frame_set": "waves", "tier": "global_mid", "lead_h": 0,
+            "valid_time": "2027-01-15T00:00:00Z", "period_kind": "tp", "station_id": "A", "status": "ok"}
+    return {**base, **kw}
+
+
+def test_slim_layout_is_lossless_on_every_record_shape():
+    """Amendment 1, A2: unpack(pack(rows)) == rows for ok / cell_masked / distance_exceeded / out_of_domain / sampler_fail
+    records, partitions, census rows and a cell that disagrees between two records of one grid (left unfactored)."""
+    cell = {"cell_row": 3, "cell_col": 6, "cell_lat": 0.0, "cell_lon": 0.0, "distance_km": 12.5}
+    rows = [
+        {"row_type": "census", "schema": core.SCHEMA, "frame_set": "waves", "tier": "global_mid", "counts": {"ok": 2}},
+        _rec(frame_hash="f1", grid_hash="g1", hs_m=1.234, tp_s=12.5, dir_deg=270.0, **cell),
+        _rec(lead_h=3, valid_time="2027-01-15T03:00:00Z", frame_hash="f2", grid_hash="g1", status="cell_masked", **cell),
+        _rec(station_id="B", frame_hash="f1", grid_hash="g1", status="distance_exceeded", distance_km=400.0),
+        _rec(station_id="C", frame_hash="f1", grid_hash="g1", status="out_of_domain"),
+        _rec(station_id="A", lead_h=6, valid_time="2027-01-15T06:00:00Z", status="sampler_fail", cause="pruned", frame_sha12=None),
+        _rec(frame_set="swell_1", period_kind="tm", frame_hash="f3", grid_hash="g2",
+             partitions=[{"kind": "swell_1", "h": 0.5, "tp": 9.1, "dir": 280.0}], **cell),
+        _rec(station_id="D", frame_hash="f1", grid_hash="g1", **{**cell, "cell_row": 4}),
+        _rec(station_id="D", lead_h=3, valid_time="2027-01-15T03:00:00Z", frame_hash="f2", grid_hash="g1", **cell),
+    ]
+    packed = slim.pack(rows)
+    assert packed[0]["row_type"] == "header" and packed[0]["layout"] == slim.LAYOUT
+    assert slim.unpack(packed) == rows
+    assert slim.unpack(rows) == rows                                    # a plain file reads as it is
+    slim_recs = [x for x in packed if x["row_type"] == "r"]
+    assert not any(k in x for x in slim_recs for k in slim.RUN_KEYS)    # run provenance written once
+    assert sum(1 for x in slim_recs if x.get("c")) == 3                 # A x2 (g1) + swell_1 A (g2); D clashes -> kept inline
 
 
 def test_verify_archive_reports_mismatch_missing_and_unlisted(tmp_path):

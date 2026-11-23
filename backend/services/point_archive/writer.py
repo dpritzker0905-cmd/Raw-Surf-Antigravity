@@ -1,7 +1,8 @@
 """The ONE writer of the point archive (gate served-wave-verify-v1 section 0.1).
 
   * one immutable gzipped JSONL per (purpose, model, run): canonical JSON (sorted keys), one object per line, rows in a
-    fixed order, gzip with mtime 0, so the same rows always make the same bytes;
+    fixed order, gzip with mtime 0, so the same rows always make the same bytes; in the SLIM layout (slim.py: run, frame and
+    cell provenance written once per file; lossless, so readers get the full schema rows back);
   * re-writing an existing file is REFUSED (as #1156's archive_init refuses to re-archive an init), first by a read, then
     by the store itself (x-upsert false);
   * each prefix carries a SHA256SUMS (`<sha256>  <name>`), appended AFTER the file lands, so a crash between the two shows
@@ -15,7 +16,7 @@ from __future__ import annotations
 import gzip
 import json
 
-from services.point_archive import core
+from services.point_archive import core, slim
 
 JSONL_TYPE = "application/gzip"
 IMMUTABLE = "private, max-age=31536000, immutable"
@@ -68,9 +69,10 @@ class ArchiveWriter:
         return h
 
     def write_run(self, purpose, model, run_time, rows):
-        """(path, sha256) of the run file for (purpose, model, run). Rows are written as given (callers sort them)."""
+        """(path, sha256) of the run file for (purpose, model, run), in the SLIM layout (slim.py, amendment 1 A2; lossless:
+        read_run returns `rows` exactly). Rows keep the order the caller gives (callers sort them)."""
         path = core.run_path(purpose, model, run_time)
-        data = gzip_bytes(jsonl_bytes(rows))
+        data = gzip_bytes(jsonl_bytes(slim.pack(rows)))
         return path, self.write_immutable(path, data)
 
     def write_truth(self, station_id, kind, fetched_at, text):
@@ -81,7 +83,12 @@ class ArchiveWriter:
 
     def read_run(self, path):
         data = self.store.read(path)
-        return None if data is None else read_jsonl_gz(data)
+        return None if data is None else read_run_rows(data)
+
+
+def read_run_rows(data):
+    """The full `point-archive/1` rows of a run file (slim or plain layout)."""
+    return slim.unpack(read_jsonl_gz(data))
 
 
 def verify_archive(store, prefix):

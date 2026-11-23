@@ -29,7 +29,7 @@ from services.point_archive import buoys as buoylist  # noqa: E402
 from services.point_archive import core, qc  # noqa: E402
 from services.point_archive import served_scorer as sc  # noqa: E402
 from services.point_archive.storage import FRAMES_BUCKET, LocalStore, SupabaseStore  # noqa: E402
-from services.point_archive.writer import ArchiveWriter, archive_prefixes, verify_archive  # noqa: E402
+from services.point_archive.writer import ArchiveWriter, archive_prefixes, read_run_rows, verify_archive  # noqa: E402
 
 UA = "raw-surf-served-wave-verify/1 (daily buoy snapshot)"
 SCORES_PREFIX = "verify/served-wave/v1/scores"
@@ -94,7 +94,7 @@ def load_local(src):
     src = Path(src)
     records = []
     for p in sorted(src.glob(f"{core.ROOT}/served/*/*.jsonl.gz")):
-        records += [json.loads(x) for x in gzip.decompress(p.read_bytes()).decode("utf-8").splitlines() if x.strip()]
+        records += read_run_rows(p.read_bytes())          # slim or plain layout -> the full schema rows
     texts = {}
     for p in sorted(src.glob(f"{core.TRUTH_ROOT}/*/*.gz")):
         station, rest = p.name.split("_", 1)

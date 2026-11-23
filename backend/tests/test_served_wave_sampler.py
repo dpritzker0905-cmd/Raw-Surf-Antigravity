@@ -12,7 +12,7 @@ from services import frame_binary as fb
 from services.point_archive import core
 from services.point_archive import served_sampler as ss
 from services.point_archive.storage import LocalStore
-from services.point_archive.writer import ArchiveWriter, read_jsonl_gz, verify_archive
+from services.point_archive.writer import ArchiveWriter, read_run_rows, verify_archive
 
 if shutil.which("node") is None:
     if os.environ.get("CI"):
@@ -105,7 +105,7 @@ def box_index(fr, run, *, bad_sha_lead=None):
 
 
 def _rows(store, model, run):
-    return read_jsonl_gz(store.read(core.run_path("served", model, run)))
+    return read_run_rows(store.read(core.run_path("served", model, run)))
 
 
 def _census(rows, layer, tier):
@@ -198,6 +198,20 @@ def test_records_carry_the_decoded_served_values_and_provenance(world):
     assert "hs_m" not in p                                     # a partition is never written as the bulk height
     cells = [x for x in store.list("verify/point-archive/v1/served/cells") if x.endswith(".json")]
     assert cells and json.loads(store.read(cells[0]))["rule"].startswith("nearest wet node")
+
+
+def test_the_stored_slim_file_returns_exactly_the_sampled_rows(world):
+    """Amendment 1, A2: what the sampler built is what a reader gets back, row for row, from the smaller slim file."""
+    fr, store, s = world
+    w1, sw1 = world_index(fr, "waves", R1, land_at_lead6={(3, 6)}), world_index(fr, "swell_1", R1)
+    latest = {"sets": {"GFS/marine/waves/global_mid": {"index": w1}, "GFS/marine/swell_1/global_mid": {"index": sw1}}}
+    ix = s.indexes(latest, "GFS")
+    built = s.sample_run("GFS", R1, ix)
+    s.run(latest)
+    assert _rows(store, "gfs", R1) == built
+    raw = store.read(core.run_path("served", "gfs", R1))
+    from services.point_archive.writer import gzip_bytes, jsonl_bytes
+    assert len(raw) < len(gzip_bytes(jsonl_bytes(built)))               # smaller than the plain layout of the same rows
 
 
 def test_unarchived_run_closes_when_it_is_about_to_be_pruned(world):
