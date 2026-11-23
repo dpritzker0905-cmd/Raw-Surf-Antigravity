@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 10,
+  "files": 1,
+  "branch": "fix/time-parse-utc",
+  "date": "2026-11-23",
+  "note": "time parsers read naive as UTC (bug hunt latent)"
+}
