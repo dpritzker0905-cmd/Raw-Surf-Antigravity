@@ -235,7 +235,7 @@ lacks it, so ours − NOAA is expected near −S_g.
 | 8722670 Lake Worth Pier | +0.085 | 0.096 | 0.093 | 2.4 | PASS | PASS |
 | 8723214 Virginia Key | +0.079 | 0.078 | 0.142 | 43.4 | FAIL t | FAIL h t |
 | 8726724 Clearwater Beach | +0.001 | 0.013 | 0.014 | 10.0 | PASS | PASS |
-| 8729840 Pensacola | −0.002 | 0.043 | 0.042 | 163.7 (8 of 22 unmatched) | FAIL t | FAIL t |
+| 8729840 Pensacola | −0.002 | 0.043 | 0.042 | 163.7 (8 of 14 NOAA events unmatched) | FAIL t | FAIL t |
 | 8771510 Galveston | +0.025 | 0.048 | 0.040 | 2.8 | PASS | PASS |
 | 9410230 La Jolla | +0.017 | 0.019 | 0.013 | 1.8 | PASS | PASS |
 | 9410660 Los Angeles | +0.032 | 0.044 | 0.028 | 1.4 | PASS | PASS |
