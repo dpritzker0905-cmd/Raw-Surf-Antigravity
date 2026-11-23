@@ -57,7 +57,7 @@ Three alarm types per surface. Each opens or updates ONE GitHub issue per (surfa
    - Once a week, on the last complete Monday-to-Sunday block (no rolling windows, so blocks do not overlap), a VERIFY or FIT-USED buoy is flagged when BOTH hold:
      - its scatter index exceeds its own calibration-window 99th percentile of weekly blocks;
      - its MAE exceeds an absolute floor (Hs 0.5 m; wind 6 kn; tide 0.15 m).
-   - Each flagged buoy gets a p-value from its calibration weekly blocks (the empirical exceedance rank). Benjamini-Hochberg at q = 0.10 runs across the buoys.
+   - Each flagged buoy gets a p-value from its calibration weekly blocks (the empirical exceedance rank). Benjamini-Yekutieli at q = 0.10 runs across that week's buoys (valid under any dependence between buoys; section 11).
    - All flagged buoys of a week go into ONE issue (`weather-drift`, per-buoy, that week), never one issue per buoy.
 3. **Trend alarm (slow degradation):** a one-sided CUSUM per (surface, region) on the daily paired loss differential (served minus the same-model control, or minus persistence where no control exists), standardised by the CALIBRATION mean and standard deviation, with k = 0.5.
    - The decision level h is set by block-bootstrap simulation of the CALIBRATION series (7-day blocks, so autocorrelation is kept) so that the in-control average run length is at least 500 days per chart.
@@ -67,10 +67,10 @@ Three alarm types per surface. Each opens or updates ONE GitHub issue per (surfa
 **One global budget, allocated now (review: Reflection, high; the first draft's arithmetic exceeded it). At most 1 statistical issue every 7 days, program-wide, in expectation under no real drift:**
 | Rule | Allocation (issues per week) | How it is held |
 |---|---|---|
-| Trend CUSUM, about 15 charts | <= 0.21 | ARL0 >= 500 days per chart (15 × 7 / 500) |
-| Per-buoy weekly | <= 0.10 | 1 test a week, BH q = 0.10, so P(any false) <= 0.10 under the global null, one issue a week at most |
+| Trend CUSUM, at most 16 charts (section 11.2) | <= 0.224 | ARL0 >= 500 days per chart (16 × 7 / 500) |
+| Per-buoy weekly | <= 0.10 | 1 batch a week, BY q = 0.10, so P(any false) <= 0.10 under the global null, one issue a week at most |
 | D-072 level rules (3 rules × 3 leads) | <= 0.50 | each rule's bound set on CALIBRATION so that its daily exceedance rate there is <= 0.5 / 7 / 9 |
-| Reserve | 0.19 | absorbs dependence between rules |
+| Reserve | 0.176 | absorbs dependence between rules |
 - The achieved rate is measured on VALIDATION before shipping (section 7) and reported monthly live.
 - If achieved false alarms over 30 days exceed twice the budget, the rule with the most closed-as-false issues is paused (WARN-only) and reported. Its threshold is never re-tuned silently: a new bound is an amendment, set on new calibration data.
 
@@ -159,3 +159,86 @@ Asked 2026-11-23 with public context only. Answers are advisory; SubQ figures ar
   - The researcher's literature (CUSUM/EWMA ARL under autocorrelation, anytime-valid confidence sequences vs Diebold-Mariano, FDR vs FWER for alerts, reusable holdout).
 
   They are folded into this file before freeze, and anything they change is listed here.
+
+## 11. The unified statistical specification (Q14, #1230: SubQ, Reflection and LongCat all asked for one, before any build)
+Q14 found the literature defaults conflicting, because they mixed error frameworks (per-stream ARL vs multiplicity, sequential vs fixed-look, BY discovery sets feeding actions, i.i.d. holdout reuse). This section fixes ONE framework per decision type and says why they do not interact.
+
+### 11.1 Data-generating assumptions (each one is checked; a failed check changes a named parameter, never silently)
+- **A1, stationarity within a season after normalisation.**
+  - The daily paired loss differential per chart, and the weekly scatter index per buoy, are weakly stationary within a season.
+  - Check: on CALIBRATION, a block-bootstrap test for a mean shift between its two halves at p >= 0.05. A chart that fails is excluded and listed. It is not re-tuned.
+- **A2, dependence dies out within 7 days.**
+  - Check: the lag-7 autocorrelation of each chart's CALIBRATION series is < 0.2.
+  - If ANY stream feeding a rule fails, that rule's block length becomes 14 days EVERYWHERE it is used. Its CUSUM h, per-buoy calibration distribution, level-rule bound and harm-sequence weekly-mean construction (14-day block means) are all re-derived. Recorded per rule. (Review: Reflection; the first text re-simulated only h.)
+- **A3, cross-stream dependence is unrestricted** (shared synoptic weather). Never assumed independent: every simulation resamples ALL streams with the SAME block draw.
+- **A4, the observations are not affected by the forecasts** (no feedback). This holds for buoys and gauges.
+
+### 11.2 The four decision types, each with ONE error target
+| Type | Hypothesis | Timing | Error target | Why it does not mix with the others |
+|---|---|---|---|---|
+| A-trend (CUSUM) | H0: the chart's mean paired differential equals its CALIBRATION mean | daily | a false-ISSUE RATE (the budget in section 3), not FWER or FDR | Alarms take no served action. The target is operational and is measured, not derived. |
+| A-buoy (weekly) | H0_b: buoy b's weekly scatter index comes from its CALIBRATION weekly distribution | weekly, one batch | FDR <= 0.10 within the week's batch (BY); under the global null this is P(any false) <= 0.10 | The BY family is exactly "the buoys scored that week". It is never applied to a sequence of days or to CUSUM output. |
+| A-level (D-072) | per D-072 | daily | each rule's EXPECTED FALSE ISSUES PER WEEK, set to its budget share by simulation (checks, dependence and issue dedup included; review: Reflection), not a per-check exceedance rate | It is a fixed bound, not a test statistic; its simulated issue rate goes into the same budget. |
+| B-decision (challenger) | the gate's own H0, e.g. challenger loss >= champion loss + margin | ONE fixed look at the gate's window end | the gate's own FWER (alpha 0.05, Holm within the gate's family) | It is fixed-horizon. No repeated looks feed it, and no discovery set feeds it. |
+| B-harm (advisory) | H0: challenger mean loss <= champion mean loss | weekly | anytime-valid, P(ever falsely warn) <= 0.05 | It triggers only a WARNING on the issue, never a decision or a served action. |
+
+- **The family, enumerated (LongCat's point):**
+  - The CUSUM charts are the (surface, region) pairs listed in `self-improving-loop-v1-thresholds.json`, at most 16: served Hs × 5 regions, wind × 5, gust × 3, tide × 3. That is not 1,800 streams.
+  - Models and lead bins are NOT separate charts. The chart reads the served (consensus-of-record) stream at its primary lead bin.
+  - Per-model, per-lead views are display only. Adding a chart is an amendment, and it re-runs the budget simulation.
+- **Why BY's FDR still fits a COUNT budget (review: Reflection rated "severe"; answered by construction, not changed):** all buoys flagged in one week go into ONE issue (section 3). Two cases:
+  - Under the global null (no real drift anywhere), BY at q makes P(any flag) <= q. So the expected false per-buoy ISSUES per week are <= 0.10.
+  - When some buoys really drift, false flags join the same week's already-justified issue and add no issue.
+  - The issue count therefore stays within the 0.10 share. The 11.5 simulation measures it directly.
+- **Several challengers on the same surface (review: Reflection):** challengers that decide in the same calendar quarter on the SAME surface share VERIFY data and the same action space, so they form one Holm family at alpha 0.05 at their decision looks.
+  - A proposal needs its own gate's bar AND to survive this Holm overlay.
+  - Different surfaces are separate decisions. The 8-per-quarter cap and the monthly A/A-null report stay.
+- **No discovery set feeds an action:** a proposal comes only from a pre-registered challenger's own gate, never from "whatever the alarms flagged". This resolves Q14 conflict 4.
+
+### 11.3 Exact constructions
+- **CUSUM:**
+  - `S_t = max(0, S_{t-1} + z_t - k)`, with `z_t` the daily paired differential standardised by its CALIBRATION mean and standard deviation, `k = 0.5`. It alarms when `S_t > h`.
+  - **Reset rule (automatic, so the simulated rate does not depend on human timing; review: Reflection):** at an alarm, S is set to 0, and that chart is SUPPRESSED for 14 days. It keeps computing and displays, but cannot open a second issue.
+    - After 14 days it may alarm again, and a new alarm comments on the open issue rather than opening another.
+    - Human closure of the issue affects only the issue, never S.
+    - The simulation implements exactly this rule.
+  - `h` is chosen per chart so that the simulated in-control ARL0 is >= 500 days. The simulation resamples CALIBRATION in 7-day blocks, with all charts' common block draw (A2, A3) and the reset rule included.
+- **Per-buoy:** the p-value of buoy b in week w is the empirical upper-tail rank of its scatter index among its CALIBRATION weekly blocks: `(1 + #{calib >= x}) / (1 + n_calib)`, then BY at q = 0.10 over the buoys scored in week w.
+- **Harm confidence sequence:** on WEEKLY block means of the paired loss differential (one value per 7-day block, so A2 makes them approximately independent), a normal-mixture confidence sequence (Howard et al. 2021 form) with variance proxy `sigma^2` estimated on CALIBRATION blocks and multiplied by 1.5 for safety, alpha 0.05, one-sided.
+  - This is an ASSUMPTION-based construction, sub-Gaussian weekly means. It is validated by simulation (11.5), not claimed by theorem for autocorrelated daily data.
+  - **If the validation fails (SubQ: the weakest remaining part, 0.85):** a pre-registered widening procedure runs on CALIBRATION only. The variance multiplier is raised from 1.5 in steps of 0.25 until the simulated false-warning rate is <= 0.05. The final multiplier is frozen in the thresholds file.
+  - If no multiplier up to 4.0 passes, the harm warning is dropped for that surface and reported. That is safe, because it is advisory only.
+  - A Harvey-corrected Diebold-Mariano test on the same window is printed beside it as a diagnostic, never as a decision (Q14 B).
+
+### 11.4 Holdout interaction (Q14 D; LongCat's "reusable holdout is i.i.d." point accepted)
+- **No reusable-holdout mechanism is used.** Its guarantees (Dwork et al. 2015) assume i.i.d. samples, which forecast errors are not.
+- **Instead, VERIFY reuse is bounded and disjoint in time:**
+  - each challenger's decision window starts after its registration and after any window used to design or tune it;
+  - at most 8 challenger decisions may use any one calendar quarter of VERIFY data, logged and reported.
+- **LOCKED:** one pre-registered look, champion and challenger(s) on the SAME LOCKED window. Drift then affects every arm alike: the look compares arms, not absolute levels.
+  - Staleness is a limit: a LOCKED result speaks for its window's season.
+- **Alarms never read LOCKED** (section 1). An alarm opened on a surface does not let a challenger on that surface use pre-registration data: its window still starts after its own registration.
+
+### 11.5 Validation of the specification itself (added to section 7's acceptance controls)
+1. **Full-pipeline null (Q14 next check 1).** Simulate 1,000 years of in-control operation by block-resampling CALIBRATION with the common block draw, running EVERY A rule with its look frequency, reset rule and BY layer.
+   - The realised false-issue rate per rule and in total must meet the budget. Achieved rates are reported.
+   - Then replay VALIDATION once, as section 7(1) says.
+2. **Selection pipeline on null data (Q14 next check 2).** Simulate registering 8 A/A challengers per quarter for 8 quarters, with harm warnings and decisions. Report:
+   - the realised false-proposal rate, which must be <= 0.05 per challenger;
+   - the realised false harm-warning rate, which must be <= 0.05 over each challenger's horizon.
+3. **Drifting synthetic data (Q14 next check 3).** Run a slow linear drift (0 to +0.2 m over 60 days) on VALIDATION. Report the detection delay of each A rule, and confirm that no B decision changes when the drift is common to both arms.
+
+### 11.6 Reviews of this specification (2026-11-23; public context only)
+- **SubQ (snap-1.2):**
+  - coherent now: 0.99;
+  - weakest remaining part: the confidence-sequence assumption (0.85). **Fixed:** a pre-registered widening procedure, or the warning is dropped (11.3);
+  - block-bootstrap simulation an adequate validation: 0.90.
+- **Reflection (Beam-1.0, high):** "mostly yes" on coherence. Five findings:
+  1. BY's FDR vs a count budget (rated severe). **Answered by construction:** one issue a week, P(any) <= q under the global null; the simulation measures it.
+  2. The A2 fallback re-derived only h. **Fixed:** it now applies to every rule.
+  3. The CUSUM reset depended on human closure timing. **Fixed:** an automatic reset plus 14-day suppression, simulated as written.
+  4. The level-rule calibration was per-check. **Fixed:** expected false issues per week, by simulation.
+  5. Multiplicity across challengers. **Fixed:** a Holm overlay per surface per quarter.
+- **LongCat:** the single paid submit failed (network; billing outcome uncertain), the second failure today. Not retried; please check its usage.
+- **Literature:** Q14 (#1230) by the SOTA researcher: CUSUM under autocorrelation (Lu et al. 2001), anytime-valid inference (Johari et al. 2021; Howard et al. form used here), BY under dependence (Benjamini and Yekutieli 2001), and the reusable holdout's i.i.d. limit (Dwork et al. 2015). This specification resolves the five conflicts Q14 listed.
+
