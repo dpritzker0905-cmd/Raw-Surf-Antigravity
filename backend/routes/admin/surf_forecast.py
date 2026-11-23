@@ -499,7 +499,7 @@ _RATING_FLAGS = {"SURF_NEARSHORE_LITE": ("0", "[D-065 GUARDED, held OFF: gate ne
                                               "must carry before the partition-aware exposure may "
                                               "speak for the sea (0 = pre-fix behaviour)",
                                       "Render env"),
-    "RATING_MISSING_SAMPLE_UNKNOWN": ("0", "[DARK, bug-hunt B 2026-11-22; ON needs the owner's word] a sampler unavailable/out-of-bounds placeholder is MISSING (no height, neutral wind), never 0 m / 0 kt (missing wind graded glassy)", "Render env"),
+    "RATING_MISSING_SAMPLE_UNKNOWN": ("1", "[D-065 ON, owner's typed word 2026-11-22 'Yes, ship #1181 on'; guardrail BLIND; kill '0'] a sampler unavailable/out-of-bounds placeholder is MISSING (no height, neutral wind), never 0 m / 0 kt (missing wind graded glassy)", "Render env"),
     "RATING_BREAKER_TYPE":         ("0", "[D-065 held OFF: only the glyph path reads it, so ON splits ONE FORECAST COMPOSITION] Iribarren breaker-type factor in spot ratings", "Render env"),
     "SPOT_RATINGS_V2":             ("1", "Spot-ratings endpoint (glyphs) master switch", "Render env"),
     # 2026-08-15 (WS-CAN-0064): /conditions/batch answers from the precomputed frames per spot

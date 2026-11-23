@@ -7,7 +7,7 @@ because 0 kt grades as glassy. An "unavailable" marine sample gave 0 m of surf a
 With `RATING_MISSING_SAMPLE_UNKNOWN=1` a placeholder is treated exactly as a failed resolve (None):
   * wind  -> the engine's neutral for unknown wind (never glassy);
   * marine -> no surf height and no rating (score None, level "unknown").
-Off (the code default), both callers are byte-identical to before. Offline: no network, no credentials.
+ON by default since the owner's word 2026-11-22; the kill '0' restores the old reading byte-identically. Offline: no network, no credentials.
 """
 import asyncio
 from datetime import datetime, timezone
@@ -86,8 +86,11 @@ def test_is_missing_names_only_the_zero_placeholders(method, missing):
     assert missing_sample.is_missing(_resp("wind", "wind", 0.0, 0.0, 0.0, method)) is missing
 
 
-def test_skip_is_off_by_default(monkeypatch):
+def test_skip_is_on_by_default_and_the_kill_turns_it_off(monkeypatch):
+    # ON by the owner's typed word 2026-11-22 ("Yes, ship #1181 on"); the kill switch is '0'.
     monkeypatch.delenv(FLAG, raising=False)
+    assert missing_sample.skip(_unavailable("wind", "wind")) is True
+    monkeypatch.setenv(FLAG, "0")
     assert missing_sample.skip(_unavailable("wind", "wind")) is False
 
 
