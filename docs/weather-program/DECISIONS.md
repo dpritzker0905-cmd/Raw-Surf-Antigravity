@@ -2109,6 +2109,11 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   is found that moved served MAE without moving the same-model delta.
 - **Rollback:** the current behaviour is the repo variables as they are today (`ACCURACY_PAIRED_REFERENCE_MARGIN_M`
   0.10, `ACCURACY_PAIRED_GATE` 1); the change would ship behind its own kill switch.
+- **Status update 2026-11-23: DECIDED (appended; the entry above is unchanged).**
+  - The owner (David) answered the director's question in the director session (local_d6b521eb) at 2026-11-23T18:50:01Z, choosing the option labelled exactly: "Adopt D-072 (Recommended)".
+  - **What this decides:** the three-rule split above (the same-model regression, the hole buoys with their own bound, best_match on common keys) replaces the single pooled +0.10 m RED, as written.
+  - **What it does not do:** it builds nothing and changes no repo variable. The bounds marked PROVISIONAL above must still be re-derived from a row backfill of the pre-onset window alone, before any rule can page.
+  - **Where it is used:** it is the level-alarm component of `gates/self-improving-loop-v1.md` (#1231).
 
 ### D-074 · Open-Meteo is test-only; served data comes from free primary sources (GRIB, CMEMS) (2026-11-15, decided)
 - **Owner, verbatim:**
