@@ -38,6 +38,7 @@ from services.weather_pipeline.buoy_calibration import (          # noqa: E402
     WIND_OBS_MAX_AGE_MIN, compare_wind_to_model, parse_latest_obs_wind,
 )
 from services.weather_pipeline import surf_rating as SR          # noqa: E402  ATTRIBUTE read
+from services import buoy_holdout                                # noqa: E402  the locked-holdout fence
 from services.weather_pipeline.surf_rating import (               # noqa: E402
     rating_score, score_to_level,
 )
@@ -71,7 +72,7 @@ def main():
 
     now = datetime.now(timezone.utc)
     vt = now.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:00:00Z")
-    stations = parse_latest_obs_wind(_get(LATEST_OBS), now=now, max_age_min=args.max_age_min)
+    stations = buoy_holdout.drop(parse_latest_obs_wind(_get(LATEST_OBS), now=now, max_age_min=args.max_age_min), "id")
     print("valid_time            : %s" % vt)
     print("stations with FRESH wind (age gate %.0f min): %d" %
           (args.max_age_min if args.max_age_min is not None else WIND_OBS_MAX_AGE_MIN, len(stations)))

@@ -26,6 +26,8 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional, Tuple
 
+from services import buoy_holdout
+
 USER_AGENT = "raw-surf-eval-harness/0 (offline verification; github.com/dpritzker0905-cmd/Raw-Surf-Antigravity)"
 ALLOWED_HOSTS = (
     "www.ndbc.noaa.gov",                    # NDBC realtime2 stdmet / data_spec / swdir / swr1, station metadata
@@ -115,6 +117,8 @@ def http_get(url: str, rng: Optional[Tuple[int, Optional[int]]] = None, timeout_
     object was read, beside the sha256 of what arrived. `route` = {final_url, redirects: [{code, url}]}: every hop
     was checked against the allowlist before it was contacted. `extra_handlers` is for offline tests only."""
     check_url(url)
+    if not buoy_holdout.allow_url(url):                              # LOCKED final buoy holdout (#1199): no read
+        raise FileNotFoundError("locked holdout buoy: not fetched")
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT}, method="GET")
     if rng is not None:
         req.add_header("Range", f"bytes={rng[0]}-{'' if rng[1] is None else rng[1]}")
@@ -177,7 +181,10 @@ class Cache:
     def fetch(self, key: str, url: str, rng=None, *, source: str, parser: str, time_standard: str = "UTC",
               qc_policy: str = "", station_meta_version: Optional[str] = None, notes: str = "",
               max_bytes: int = MAX_BYTES_DEFAULT) -> Tuple[bytes, dict]:
-        """(raw bytes, provenance record). A cached file is re-hashed and must match its sidecar, else refetched."""
+        """(raw bytes, provenance record). A cached file is re-hashed and must match its sidecar, else refetched. A LOCKED
+        holdout buoy (#1199) reads as missing, cached or not."""
+        if not buoy_holdout.allow_url(url):
+            raise FileNotFoundError(f"locked holdout buoy, not read: {buoy_holdout.redact(key)}")
         path, side = self._paths(key)
         if os.path.exists(path) and os.path.exists(side):
             with open(path, "rb") as f:

@@ -46,6 +46,7 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.weather_pipeline.skill_consensus import (  # noqa: E402
     BIG_SWELL_M, NDBC_REGIONS, _by_forecast_by_region, region_of)
+from services import buoy_holdout  # noqa: E402  (the locked final buoy holdout, #1199)
 
 MODELS = {"raw_surf": "ncep_gfswave025", "raw_surf:EURO": "ecmwf_wam025", "raw_surf:ICON": "dwd_gwam"}
 LEADS = {24: 1, 48: 2, 72: 3}
@@ -205,7 +206,8 @@ def main():
         return 0
     os.makedirs(a.cache, exist_ok=True)
     start, end = (_parse_t(x) for x in a.window.split("/"))
-    stations = observations(a.cache, start, end)
+    # the ERDDAP pull is one all-station query, so the LOCKED holdout buoys are dropped right after the load
+    stations = {s: v for s, v in observations(a.cache, start, end).items() if buoy_holdout.keep(s)}
     pop = wave_reporting_ids(a.cache) if a.population == "wave_reporting" else None
     fc = forecasts(a.cache, stations, start - timedelta(days=1), end + timedelta(days=1))
     per = build(stations, fc, start, end, a.step_h, pop)

@@ -21,6 +21,8 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 
+from services import buoy_holdout
+
 # The classes are fixed in the pre-registration BEFORE any error was computed; do not edit them to fit a result.
 CLASSES = {"51201": "exposed", "51202": "exposed", "51206": "exposed", "51211": "sheltered", "51212": "sheltered",
            "51214": "not_hawaii"}
@@ -79,10 +81,10 @@ def build(args, s8o, ppv, nd, gw, rpt, mode="age"):
     t0 = datetime.fromisoformat(WINDOW[0]).replace(tzinfo=timezone.utc)
     t1 = datetime.fromisoformat(WINDOW[1]).replace(tzinfo=timezone.utc) + timedelta(hours=23)
     pos = nd.station_positions(set(CLASSES))
-    buoys = [{"id": b, "lat": pos[b][0], "lon": pos[b][1]} for b in CLASSES if b in pos]
+    buoys = [{"id": b, "lat": pos[b][0], "lon": pos[b][1]} for b in CLASSES if b in pos and buoy_holdout.keep(b)]
     obs = {b["id"]: s8o.ndbc_hourly(b["id"]) for b in buoys}
     fc = {m: s8o.om_previous_runs(buoys, m, t0 - timedelta(days=7), t1) for m in s8o.MODELS.values()}
-    stations = {s: nd.load_station(s, max_age_h=1e6) for s in CLASSES}
+    stations = {s: nd.load_station(s, max_age_h=1e6) for s in CLASSES if buoy_holdout.keep(s)}
     stations = {s: v for s, v in stations.items() if v}
     for b in buoys:
         if b["id"] in stations and not stations[b["id"]]["wind"]:
@@ -307,7 +309,7 @@ def main(argv=None):
         out["labels"][mode] = {"sets": {k: report(v) for k, v in sets.items() if v}, "per_buoy": per_buoy(L),
                                "leave_one_buoy_out": loo}
         out["open_meteo_grid_cells"] = grids.get("ncep_gfswave025")
-    text = json.dumps(out, indent=1, default=str)
+    text = buoy_holdout.redact(json.dumps(out, indent=1, default=str))
     if a.out:
         open(a.out, "w", encoding="utf-8").write(text)
     print(text)

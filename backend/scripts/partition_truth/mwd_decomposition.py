@@ -20,6 +20,7 @@ from scripts.partition_truth import ndbc_spectra as nd
 from scripts.partition_truth import partitioner as P
 from scripts.partition_truth import score as sc
 from scripts.partition_truth.run_partition_truth import GATE, LEADS, STATIONS, nearest, observed_trains, pick
+from services import buoy_holdout
 
 MWD_MIN_HS_M = 0.3          # the S8 bulk lane's own observed-Hs gate for direction
 
@@ -28,7 +29,7 @@ def read_mwd(sid):
     """{time: (mwd_deg_from, wvht_m)} from the cached standard-met file; missing -> omitted."""
     out = {}
     path = nd.cache_dir() / f"{sid}.txt"
-    if not path.exists():
+    if not buoy_holdout.keep(sid) or not path.exists():
         return out
     for line in path.read_text().splitlines():
         if line.startswith("#") or not line.strip():
@@ -66,7 +67,7 @@ def main(argv=None):
     d1 = datetime.fromisoformat(a.end).replace(tzinfo=timezone.utc) + timedelta(hours=12)
     cyc = gw.cycles(d0, d1)
     pos = nd.station_positions(set(a.buoys))
-    stations = {s: nd.load_station(s, max_age_h=1e6) for s in a.buoys if s in pos}
+    stations = {s: nd.load_station(s, max_age_h=1e6) for s in a.buoys if s in pos and buoy_holdout.keep(s)}
     stations = {s: v for s, v in stations.items() if v}
     pos = {s: pos[s] for s in stations}
     mwd = {s: read_mwd(s) for s in stations}
@@ -114,7 +115,7 @@ def main(argv=None):
             "mae_persistence_vs_mwd": float(np.mean(np.abs(g("persist_mwd")))),
             "bias_model_vs_train": float(np.mean(g("model_vs_train"))), "bias_model_vs_mwd": float(np.mean(g("model_vs_mwd"))),
             "model_vs_mwd_minus_persistence": sc.summarize(rows, "dir", blocks)}
-    text = json.dumps(out, indent=1, default=str)
+    text = buoy_holdout.redact(json.dumps(out, indent=1, default=str))
     if a.out:
         open(a.out, "w", encoding="utf-8").write(text)
     print(text)

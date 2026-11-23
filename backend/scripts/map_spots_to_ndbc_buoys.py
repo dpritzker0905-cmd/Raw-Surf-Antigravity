@@ -210,8 +210,11 @@ def main() -> int:
         return 2
 
     import requests
-    print(f"Fetching NDBC latest observations … {NDBC_LATEST_OBS_URL}")
-    buoys = parse_latest_obs(requests.get(NDBC_LATEST_OBS_URL, timeout=60).text)
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from services import buoy_holdout   # the locked final buoy holdout (#1199): a mapping, not a score, so no buoy is
+    print(f"Fetching NDBC latest observations … {NDBC_LATEST_OBS_URL}")   # dropped; the feed is gated, prints redacted
+    feed = requests.get(NDBC_LATEST_OBS_URL, timeout=60).text if buoy_holdout.allow_url(NDBC_LATEST_OBS_URL) else ""
+    buoys = parse_latest_obs(feed)
     print(f"  wave-reporting stations: {len(buoys)}")
     if not buoys:
         print("ERROR: no wave stations parsed — NDBC format may have changed. Aborting.")
@@ -245,7 +248,7 @@ def main() -> int:
         print(f"  distinct buoys used: {distinct}")
         print("\n  closest 8 pairings:")
         for sp, b, km in sorted(matched, key=lambda x: x[2])[:8]:
-            print(f"    {sp['name'][:34]:<34} -> {b['id']:>7}  {km:6.1f} km  (buoy Hs {b['wvht_m']} m)")
+            print(buoy_holdout.redact(f"    {sp['name'][:34]:<34} -> {b['id']:>7}  {km:6.1f} km  (buoy Hs {b['wvht_m']} m)"))
 
     if not args.apply:
         print("\nDRY RUN — nothing written. Re-run with --apply to persist.")
