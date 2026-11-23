@@ -481,7 +481,7 @@ _RATING_FLAGS = {"SURF_NEARSHORE_LITE": ("0", "[D-065 GUARDED, held OFF: gate ne
     "SURF_SEA_INPUTS_EVERY_CALLER": ("1", "[D-065 GUARDED, ON; accuracy not measured] hub, conditions, sim take /point's tide+MOP; kill '0'",
                                      "Render env (serve-side surfaces); the sim reads the served glyph's tide, no env"),
     "SIDE_PATHS_THROUGH_CHAIN": ("1", "[D-065 GUARDED, ON] O4: conditions rows from rate_one_spot frames, _breaking_ft fails closed, "
-                                     "target-time surf-conditions labelled unrated (side_paths.py); kill '0'", "Render env"),
+                                     "target-time surf-conditions labelled unrated (side_paths.py); kill '0'", "Render env"), "HUB_NOW_NEAREST_HOUR": ("1", "[D-065 GUARDED, ON; time alignment, guardrail BLIND] bug hunt 2026-11-22 E: hub and sim 'now' = the map's nearest-hour anchor (was a floor: a different 3-hourly product in minutes :30-:59); kill '0' = the floor. spot_hub_composition.current_valid_time", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
     "RATING_BAND_ONE_CHAIN": ("1", "[D-065 GUARDED, ON] CMP-1: map band = estimate_surf_at on cached geometry + break depth, "
                                    "eta 0 (band_chain.py); kill '0'", "Render env AND precompute.yml env (rated static frames)"),
     # CMP-3 (audit 2026-11-10). The rating's oversize gate read `break_depth_at` while the height's cap read the

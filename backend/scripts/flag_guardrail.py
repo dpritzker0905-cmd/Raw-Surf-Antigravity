@@ -136,6 +136,8 @@ COVERAGE = {
                                      "asset (unit, offline)"),
     "SIDE_PATHS_THROUGH_CHAIN": (BLIND, "the conditions preview, _breaking_ft and surf-conditions side paths (#774); "
                                         "the replay rates rate_one_spot. Evidence: test_side_paths_through_chain.py"),
+    "HUB_NOW_NEAREST_HOUR": (BLIND, "which hour the hub's 'now' row and the sim's default sample read (bug hunt E); the "
+                                    "replay rates fixed valid times. Evidence: test_hub_now_anchor_parity.py + Jest twin"),
     "MANIFEST_PRUNE_TOMBSTONES": (BLIND, "moves which products the manifest lists, not a forecast number (#770). "
                                          "Evidence: the manifest chain harness (pruned entries stay pruned)"),
     "CONSENSUS_DIRECTION_VECTOR": (LEDGER, "acts only inside the multi-model consensus build, which the GFS-only replay "
