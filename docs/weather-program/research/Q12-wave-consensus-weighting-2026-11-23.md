@@ -66,14 +66,13 @@ Status of the sources: Consensus returned abstracts (three per search, free tier
 - **Overfitting guard:** calibrate on the first 60% of days, test on the later 40% (rolling origin), and hold out a fixed set of buoys (the #1168 frozen list) from both fits and scores. **The 60/40 split is a design choice, not a sourced number.**
 - **Parameter count:** at most one weight per member per cell (two free weights for three members, with the sum-to-one constraint), plus one shrinkage factor. That keeps the fitted parameters far below the number of independent days.
 
-## 4. Q11 closure (STOFS zeta datum): unresolved, evidence recorded here
+## 4. Q11 closure (STOFS zeta datum): evidence summary (test result moved to Q11)
 
 - The NetCDF `zeta` metadata says "water surface elevation above geoid" (`sea_surface_height_above_geoid`). The bucket README says the NetCDF station output is referenced to MSL, and the SHEF output to MLLW. Source: [STOFS bucket README](https://noaa-gestofs-pds.s3.amazonaws.com/README.html); header read in this session.
 - NOMADS says STOFS-2D-Global water level guidance is referenced to Local Mean Sea Level (LMSL) for gridded and station output. Source: [NOAA NOMADS STOFS text](https://nomads.ncep.noaa.gov/txt_descriptions/STOFS_Global_txt.html) (search-reported, not fetched in full). LMSL is not the same as the geoid.
 - A third-party GitHub issue reports that retrieving STOFS 2D GLO water levels fails for `output_datum="MSL"` but works for `"MLLW"`. Source: [seanode issue 14](https://github.com/oceanmodeling/seanode/issues/14) (search-reported; third-party, not NOAA).
 - The NOS/CSDL portal says v3.1 includes a gridded bias correction tied to CO-OPS water levels. Source: [NOS STOFS portal](https://polar.ncep.noaa.gov/estofs/glo.htm) (search-reported; not checked in full).
-- **Empirical test (run 2026-11-23, SDBC1, 361 matched 30-minute values):** `zeta` minus the same model's SHEF level (MLLW, converted from feet) is **−0.897 m**, with a range of −0.899 to −0.895 m. That is a constant offset, as a datum shift would be. CO-OPS station 9410170 has MSL 2.052 m and MLLW 1.155 m above its station datum, so MSL − MLLW = 0.897 m. This matches the offset exactly. Source: the NetCDF and SHEF reads in this session, and the CO-OPS datum table for 9410170 read with the `coops_get_datums` tool.
-- **Verdict on the datum:** `zeta` is referenced to mean sea level at the station, matching the README and NOMADS. The "above geoid" attribute in the NetCDF metadata is **wrong or misleading**, and should not be used. A geoid reference would have shown an offset of tens of metres, not 0.897 m. One station is a single test; BATN6 is the second check (CO-OPS MSL 1.785 m minus MLLW 1.002 m = 0.783 m, expected offset −0.783 m). BATN6 result: model `zeta` minus SHEF MLLW is a constant **−0.783 m** (range −0.785 to −0.781 m over 361 matched values). CO-OPS 8518750 gives MSL 1.785 m minus MLLW 1.002 m = 0.783 m, an exact match. Both stations agree, so `zeta` is MSL-referenced at both.
+- **Empirical test: moved to the Q11 note** (`docs/weather-program/research/Q11-twl-stage2-sources-2026-11-23.md`, datum update 2026-11-23). Result at SDBC1 (−0.897 m) and BATN6 (−0.783 m): `zeta` is MSL-referenced; the "above geoid" metadata is misleading.
 
 ## 5. Recommended pre-registered design: `wave-consensus-v1`
 
