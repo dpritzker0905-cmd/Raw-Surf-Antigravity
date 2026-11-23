@@ -1303,7 +1303,10 @@ jobs:
     # 30 min (2026-10-26, lead): the suite itself runs ~12-19 min, but on a loaded runner the job crossed 20 min AFTER
     # pytest finished (#580: estate passed 3355 tests, then timed out at 20:00, twice), failing green PRs. A hang still
     # dies here; pytest's own per-test timeouts remain the first backstop.
-    timeout-minutes: 30
+    # 45 min (2026-11-23, director): 131 green full runs since 2026-11-19 measured median 23.6, p90 25.6, p95 26.5,
+    # max 29.8 min (45137345066; 29.3 on 45118521992), i.e. 12 s from the old 30:00 ceiling. Same headroom as estate.
+    # Sharding the lane is the durable fix; this keeps green PRs from dying at 30:00 meanwhile.
+    timeout-minutes: 45
     steps:
       - name: "📄 Docs-only PR: the heavy steps below are skipped (see the `changes` job)"
         if: needs.changes.outputs.docs_only == 'true'
