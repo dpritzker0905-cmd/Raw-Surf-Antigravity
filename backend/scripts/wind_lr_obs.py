@@ -311,10 +311,14 @@ def asos_candidates(s) -> List[dict]:
 
 
 def select_stations(s, cache, start: datetime, end: datetime, out_path: str, cover=None, ndbc_months=((2026, 9),),
-                    asos_cover=None) -> dict:
+                    asos_cover=None, coverage_filter: bool = True, frozen_at: Optional[str] = None) -> dict:
     """Freeze the station list by rule. `cover` is the NDBC coverage window (default COVER), `ndbc_months` the NDBC
     monthly files read for it, `asos_cover` the ASOS coverage window (default `cover`). The EMOS backfill passes its own
-    (log 2026-11-16-wind-emos-preregistration.md, amendment 2 item 6)."""
+    (log 2026-11-16-wind-emos-preregistration.md, amendment 2 item 6).
+    `coverage_filter=False` (the long-range v2 freeze, advisor ruling 2026-11-23T12:45:02Z): NO hourly-coverage test runs and
+    no observation file is read at all; the list is everything that passes the CATALOGUE rules (type, distance to land/sea,
+    anemometer height, the ASOS cap). `frozen_at` (a stated catalogue date) replaces the wall-clock stamp so the file is a pure
+    function of the catalogues; with it set the NDBC list is ordered by id. Defaults keep every other caller byte-identical."""
     cover = cover or COVER
     asos_cover = asos_cover or cover
     land, meta = gfs_land(s, cache)
@@ -325,9 +329,10 @@ def select_stations(s, cache, start: datetime, end: datetime, out_path: str, cov
         dk = _distance_to(land_b, meta, c["lat"], c["lon"])
         if dk > 50.0:
             continue
-        obs = ndbc_window(s, cache, c["id"], months=ndbc_months)
-        if hourly_coverage(obs, cover[0], cover[1], need_gust=True) < 0.70:
-            continue
+        if coverage_filter:
+            obs = ndbc_window(s, cache, c["id"], months=ndbc_months)
+            if hourly_coverage(obs, cover[0], cover[1], need_gust=True) < 0.70:
+                continue
         z = anemometer_m(s, c["id"])
         if not z:
             continue
@@ -336,18 +341,31 @@ def select_stations(s, cache, start: datetime, end: datetime, out_path: str, cov
         dk = _distance_to(sea_b, meta, c["lat"], c["lon"])
         if dk > 10.0:
             continue
-        obs = asos_range(s, cache, c["id"], start, end)
-        if hourly_coverage(obs, asos_cover[0], asos_cover[1], need_gust=False) < 0.70:
-            continue
+        if coverage_filter:
+            obs = asos_range(s, cache, c["id"], start, end)
+            if hourly_coverage(obs, asos_cover[0], asos_cover[1], need_gust=False) < 0.70:
+                continue
         asos.append({**c, "sea_km": round(dk, 1), "kind": "asos"})
     # Amendment 23:30Z: at most ASOS_CAP ASOS stations, nearest the sea first (ties by id): a deterministic rule that
     # bounds the IEM archive load; never chosen by skill.
-    asos = sorted(asos, key=lambda x: (x["sea_km"], x["id"]))[:ASOS_CAP]
-    doc = {"frozen_at": datetime.now(timezone.utc).isoformat(), "window": [start.isoformat(), end.isoformat()],
-           "rules": f"NDBC/C-MAN met=y within 50 km of GFS land, >=70% hourly WSPD+GST over {cover[0]:%Y-%m-%d}.."
-                    f"{cover[1]:%Y-%m-%d}, anemometer height known; ASOS (IEM, open) within 10 km of GFS sea, >=70% hourly "
-                    f"sknt over {asos_cover[0]:%Y-%m-%d}..{asos_cover[1]:%Y-%m-%d}; <=60 ASOS nearest the sea",
-           "ndbc": ndbc, "asos": asos}
+    asos = sorted(asos, key=lambda x: (x["sea_km"], x["id"]))
+    if frozen_at is not None:           # v2: one row per station id (a station listed in two networks counts once), before the cap
+        seen_ids: set = set()
+        asos = [x for x in asos if not (str(x["id"]) in seen_ids or seen_ids.add(str(x["id"])))]
+    asos = asos[:ASOS_CAP]
+    if coverage_filter:
+        rules = (f"NDBC/C-MAN met=y within 50 km of GFS land, >=70% hourly WSPD+GST over {cover[0]:%Y-%m-%d}.."
+                 f"{cover[1]:%Y-%m-%d}, anemometer height known; ASOS (IEM, open) within 10 km of GFS sea, >=70% hourly "
+                 f"sknt over {asos_cover[0]:%Y-%m-%d}..{asos_cover[1]:%Y-%m-%d}; <=60 ASOS nearest the sea")
+    else:
+        rules = ("NDBC/C-MAN met=y within 50 km of GFS land, anemometer height known; ASOS (IEM, open) within 10 km of GFS "
+                 "sea; <=60 ASOS nearest the sea; NO hourly-coverage filter at freeze (coverage is computed and reported at "
+                 "score time and never drops rows)")
+    if frozen_at is not None:
+        seen_n: set = set()
+        ndbc = [x for x in sorted(ndbc, key=lambda x: str(x["id"])) if not (str(x["id"]) in seen_n or seen_n.add(str(x["id"])))]
+    doc = {"frozen_at": frozen_at or datetime.now(timezone.utc).isoformat(), "window": [start.isoformat(), end.isoformat()],
+           "rules": rules, "ndbc": ndbc, "asos": asos}
     json.dump(doc, open(out_path, "w"), indent=1)
     return doc
 

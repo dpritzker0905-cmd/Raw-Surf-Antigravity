@@ -40,9 +40,19 @@ export function nearestFrameInEntry(entry, hourOffset) {
 }
 
 /**
+ * True when a cache entry's hour offsets are measured from `anchor` (seriesAnchorTag()). Bug hunt 2026-11-22: a page warmed
+ * under the previous anchor (the :30 rollover, inside the 5-min TTL) has offsets one hour shifted, so its nearest-offset snap
+ * landed a whole 3-hourly product away. An unstamped entry passes (fail-open). Kill: window.__RAW_DISABLE_SERIES_ANCHOR_GUARD__.
+ */
+export function seriesEntryAnchorOk(entry, anchor) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_SERIES_ANCHOR_GUARD__ === true) return true;
+  return !entry || entry.anchor === undefined || anchor === undefined || entry.anchor === anchor;
+}
+
+/**
  * The frame to serve for a regional view given the exact-key hit `{ frame, diff }`: a meaningfully finer REGIONAL frame from another
  * live entry of the same model, layer and flavour that covers `want.bounds`, at an hour no farther than the hit's; otherwise the hit.
- * `want`: { model, layer, surf, bounds, hourOffset, now, ttlMs }.
+ * `want`: { model, layer, surf, bounds, hourOffset, now, ttlMs, anchor }.
  */
 export function finestCoveringSeriesFrame(entries, hit, want) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_SERIES_FINER_ENTRY__ === true) return hit;
@@ -53,6 +63,7 @@ export function finestCoveringSeriesFrame(entries, hit, want) {
     if (want.now - entry.ts >= want.ttlMs) continue;
     if (entry.model !== want.model || entry.layer !== want.layer) continue;
     if (!!entry.surf !== !!want.surf) continue;          // a swell page in surf mode would drop the rating band the hit carries
+    if (!seriesEntryAnchorOk(entry, want.anchor)) continue;   // offsets of another anchor name other instants
     const nf = nearestFrameInEntry(entry, want.hourOffset);
     if (!nf || nf.diff > hit.diff) continue;              // nearest hour first: never a farther hour for a finer grid
     // The SERVED frame decides, not entry.bounds (its first frame's: a page can mix bounds, #10 Source 3). A world grid on a

@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 7,
+  "branch": "claude/emos-backfill-auto",
+  "date": "2026-11-23",
+  "note": "EMOS auto backfill planner + coverage (test_emos_backfill_next.py)"
+}
