@@ -1,10 +1,12 @@
 import React from 'react';
 import { Check, Info, AlertTriangle } from 'lucide-react';
 import { STATUS_RENDERS } from './forecastCardCompiler';
+import { useNoteForecastShown } from '../observations/forecastExposure';
 
 // Forecast row semantics and status wording live beside their presentation.
 // These fragments add no wrapper, preserving the card's list and focus geometry.
 export function ForecastConditionRows({ cards, textMuted, textClass, timeClass }) {
+  useNoteForecastShown('forecast_rows');  // blind-quality exposure (observations/forecastExposure)
   return (<>
 {cards.map((card, i) => {
   const Icon = card.icon;
@@ -41,6 +43,7 @@ export function ForecastConditionRows({ cards, textMuted, textClass, timeClass }
 }
 
 export function ForecastHeatmapStatus({ status, model, layer, isLight }) {
+  useNoteForecastShown('forecast_status');  // blind-quality exposure (observations/forecastExposure)
   const tone = isLight ? (status === 'ready' ? 'text-emerald-800'
     : STATUS_RENDERS[status]?.color === 'text-rose-400' ? 'text-rose-800' : 'text-amber-800') : STATUS_RENDERS[status]?.color;
   const coverageMissing = ['no_backend_coverage', 'no_copernicus_coverage'].includes(status);

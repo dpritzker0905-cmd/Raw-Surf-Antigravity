@@ -18,6 +18,7 @@ import { MapPersonContextCard, useExplorePinContext } from './MapPersonContext';
 import {
   UNVERIFIED_LOCATION_TEXT, UNVERIFIED_RING_STYLE, isLocationUnverified, withUnverifiedLocation,
 } from './unverifiedLocation';
+import { useNoteForecastShown } from '../observations/forecastExposure';
 
 /**
  * ACCESSIBILITY (user mandate 2026-07-14, §0a item 1): the rating glyph is the map's core data
@@ -97,6 +98,7 @@ var MapMarkerLayers = ({
   clusterRatings = null,
   exploreContextEnabled = null,
 }) => {
+  useNoteForecastShown('map_markers');  // blind-quality exposure (observations/forecastExposure)
   const personContext = useExplorePinContext(exploreContextEnabled);
   const FriendMarker = onFriendClick || exploreContextEnabled != null ? 'button' : 'div';
   const contextPerson = useMemo(() => {

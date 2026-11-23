@@ -32,10 +32,17 @@ export function withPrivacyLink(text, url) {
   );
 }
 
-const TrainingConsent = ({ idPrefix = 'obs', source = 'blind_height_input' }) => {
+// onGrantedChange(granted): told the choice in force whenever it is known or changes (false until the server answers),
+// so the report form can ask the blind quality question only of people whose consent covers its one use.
+const TrainingConsent = ({ idPrefix = 'obs', source = 'blind_height_input', onGrantedChange }) => {
   const [state, setState] = useState(null);   // { granted, title, text } once the server answers
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const granted = Boolean(state && state.granted);
+
+  useEffect(() => {
+    if (onGrantedChange) onGrantedChange(granted);
+  }, [granted, onGrantedChange]);
 
   useEffect(() => {
     let live = true;
