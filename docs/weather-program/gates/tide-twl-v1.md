@@ -439,3 +439,35 @@ controls (section 7), serving architecture (section 8), and the stage-2 list (se
 One addition to stage 2: blending with a product on another vertical reference (STOFS/ETSS, CMEMS) converts per station
 MLLW ↔ NAVD88 (VDatum or the geoid) at that boundary, and back to MLLW. Stage 1 stays entirely on MLLW, as both advisors
 recommend.
+
+## 15. Amendment 6 (2026-11-23 03:15Z, before any TWL data): the pass rule, the A + D secondary, and spatial holdout
+
+**Why.** In round 2 (director, 2026-11-23), SubQ, Reflection and LongCat all agreed with amendment 5's primary
+decision, and asked for three clarifications before the run. No TWL data has been read.
+
+**(a) The pass rule is an INTERSECTION: all three gate gauges must pass.** San Diego, San Francisco and Seattle are each
+tested at the 24–48 h bin (14.1), and PASS requires every one of the three nulls rejected. The gate does NOT use an
+"at least N of 30" count.
+- Under an intersection (an intersection-union test), each test at α = 0.05 already holds the familywise error at
+  0.05. The Holm adjustment committed in 14.1 is KEPT anyway. It is conservative, and it is not relaxed now.
+- Serving scope (14.2) is the same intersection, within each stratum: every measured gauge of that stratum.
+
+**(b) A + D stays a reported secondary, as the physically interpretable reference.** It is the tide NOAA's own
+predictions describe, and it shows how far the water departs from the astronomical tide.
+- At every gauge and lead it reports: the RMSE and bias of A + D, the RMSE cut of TWL against it, and the signed
+  residual mean, the "how far off the tide table" figure.
+- It never decides PASS, because a cut against A + D can come from removing a constant offset.
+
+**(c) Spatial holdout: no gauge's correction is fitted on another gauge, and the scored gauges fit nothing used
+elsewhere.**
+- **Stage 1 is per gauge by construction.** At gauge g, r24, the 60-day anchor, τ and the choice of benchmark are
+  computed ONLY from gauge g's own observations, strictly before each scored block (rolling origin, section 2;
+  benchmark choice on the training data, 14.1). No parameter is pooled or shared across gauges, and no gauge's data
+  enters another gauge's correction. The holdout is temporal (rolling origin) at every gauge, and no gauge is used
+  both to fit something and to verify a different gauge.
+- **The gate gauges fit nothing for the others.** San Diego, San Francisco and Seattle decide PASS; no quantity
+  fitted at them is applied at any other gauge or spot.
+- **Stage 2** (spreading the correction along the coast to spot keys; section 9) must declare a held-out gauge set
+  before its data. Its verdict must be leave-one-gauge-out: each verifying gauge's correction is interpolated only
+  from the OTHER gauges, and a gauge used to fit a spatial model never verifies that model. This is a binding
+  requirement on stage 2's own gate.
