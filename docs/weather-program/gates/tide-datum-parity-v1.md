@@ -117,3 +117,32 @@ to help or to hurt any gauge: it is the advisor's proposed rule, stated before t
 
 **The verdict is unchanged:** it is on the **model** D variant, the served first source. The sheet variant is judged
 and reported, and a sheet failure is a named limit on the fallback (section 3).
+
+## 9. Amendment 2 (2026-11-23 02:58Z, before the run and before any data from it): the two VOID controls, made runnable
+
+**Why.** Before dispatch, this lane checked the instrument on #1171's head (`e427002d7`). Section 4's controls, as
+written, could not run:
+- the instrument has no planted-D option;
+- the finder check (`finder_check.py`) compares event TIMES, not heights.
+
+Under section 4, a control that cannot run would VOID the run. So both controls are restated here, computed from the
+run's own artifact and from read-only CO-OPS calls. Neither needs a second CI run, and neither changes the bar.
+
+**1. Planted-D identity (replaces "re-score with D + 0.05 m").** The model and sheet variants use the SAME A and the
+same event finder, and differ only by a per-gauge constant D. So, for every MEASURED gauge:
+- every NOAA event that both variants matched must have the SAME event time in both, within 0.1 min;
+- the signed height error must differ by exactly d_sheet − d_model, within 0.002 m.
+
+This is the planted-offset test, with the offset d_sheet − d_model, which is 0.0–0.13 m at these gauges. Any
+violation makes the run VOID. The instrument then responds to D other than as a constant, and its heights cannot
+judge D.
+
+**2. Finder heights on NOAA's own curve (restates the finder control).** `finder_check.py` is extended, read-only, to
+report HEIGHT errors as well as times: the served event finder, fed NOAA's own hourly MLLW curve, against NOAA's own
+High/Low heights, over the run's window, at all 26 gauges.
+- If the median |h| exceeds 0.01 m at any MEASURED gauge, the run is VOID. The event-height measurement, not D, would
+  then be in question.
+- This runs offline after the run completes, before the verdict is read. The extension is committed before it runs.
+
+**Unchanged:** the bar (section 3), the MEASURED rule (section 8), the verdict on the model D variant, and the re-run
+rule (section 5).
