@@ -5,7 +5,7 @@ Metric: per (model, variable, lead bin, region): bias, RMSE, scatter index (RMSE
 Pass threshold: an ACCEPTANCE gate for the archive, not a skill threshold. The archive is accepted when all of these hold: decoder parity (section 4), the golden fixture (section 7), coverage over the first 14 days of collection (section 8) and the storage budget (section 9). No skill number decides anything here.
 Controls: decoder parity on a frozen frame (Python vs the client's `decodeFieldCore`); a golden fixture with hand-checked expected scores; a planted bias (+0.20 m on one model's Hs in the fixture) that the scorer must report; a status-code census (every expected record accounted for).
 Decision rule: accepted archive → rolling skill tables published (section 10). Using those tables for consensus weighting is OUT OF SCOPE: it needs its own gate, with caps and hysteresis. CDIP rows are EXAM-only and can never feed weighting (section 3).
-Unmeasured items: every tier other than the ONE named per set in section 2a (the 0.25° regional bundles are not scored in v1); the Gulf-filled `global_mid_filled` variants; any model or set not named in section 2a at freeze; the `/point` path that the hub and rating read (a different serve path from the frames: section 12).
+Unmeasured items: tiers other than the two named in section 2a (`global_mid` for every buoy, plus the finest regional 0.25° bundle covering the buoy); the Gulf-filled `global_mid_filled` variants; any model or set not named in section 2a at freeze; the `/point` path that the hub and rating read (a different serve path from the frames: section 12).
 Served change: none. The sampler only reads published frames and writes records to a separate store.
 
 ## 0. One point archive for the program (director, 2026-11-22)
@@ -73,8 +73,8 @@ Served change: none. The sampler only reads published frames and writes records 
 - **Trigger:** once per newly published run per model (keyed by `run_hash`). A run already sampled is skipped, so re-publishes are idempotent.
 - **Kill switch:** repository variable `SERVED_WAVE_VERIFY=0` skips the job. The default is `0` until David's word; then it is set to `1`.
 
-## 2a. The ONE tier sampled per set (named now, advisor, 2026-11-22)
-All sampled sets use the WORLD tier `global_mid` (2°, the plain set, not `_filled`), read from `frame_set.SETS` / `EURO_SWELL_SETS` on `dev` 2026-11-22:
+## 2a. The tiers sampled per set (named now; advisor and director, 2026-11-22)
+**Tier A, the baseline (every buoy):** the WORLD tier `global_mid` (2°, the plain set, not `_filled`), read from `frame_set.SETS` / `EURO_SWELL_SETS` on `dev` 2026-11-22:
 
 | Model | Sets sampled (tier `global_mid`) |
 |---|---|
@@ -83,7 +83,22 @@ All sampled sets use the WORLD tier `global_mid` (2°, the plain set, not `_fill
 | EURO | `waves`; `swell_1`, `swell_2`, `wind_waves` while `FRAME_EURO_SWELL_SETS` is `1` (its default) |
 
 - **Why the world tier:** it is the only tier published for all three models over the whole globe, so every buoy has an expected record and the census is simple.
-- **Its cost:** 2° is coarse near coasts. The 0.25° regional bundles that the map shows at close zoom are NOT scored in v1 (section 11). Adding them is a v2 amendment, with their own expected-count rule.
+- **Its cost:** 2° is coarse near coasts (match radius roughly 200-240 km), so on its own it would not score what surfers read at the coast. Tier B exists for that reason (director, 2026-11-22).
+
+**Tier B, the finest served tier (in v1):** the 0.25° regional bundles that the map shows at close zoom (`services/frame_set_bundle.py`, `dev` 2026-11-22). Each set is one immutable bundle per run per box, `v1/<model>/marine/<layer>/<region_id>/<run>/bundle-<sha12>.bin`, and a frame is the slice `[offset, offset + length)` listed in the index.
+
+| Model | Regional sets (tier = the box's `region_id`) | Boxes |
+|---|---|---|
+| GFS | `waves`, `swell_1`, `swell_2`, `wind_waves` (`REGIONAL_SETS`) | every GFS marine pilot box (`pilot_regions`) |
+| EURO | `waves` (`OTHER_MODEL_SETS`, while `FRAME_REGIONAL_BUNDLES_EURO_ICON` is on) | the EURO/ICON pilot boxes |
+| ICON | `waves`, `swell_1`, `wind_waves` (`OTHER_MODEL_SETS`) | the EURO/ICON pilot boxes |
+
+- **Which box:** the box list and bounds are read from the published `latest.json` and indexes at freeze, and each buoy is assigned per (model, set). Its box is the regional box whose bounds contain the buoy. If several do, it is the one where the buoy lies farthest from the box edge; ties go to the lexically smallest `region_id`.
+  - The assignment is written to the frozen buoy list (`regional_box` per model and set) and recomputed only when a box's bounds change, which is logged.
+  - A buoy inside no regional box has Tier A only. Its Tier B status is `no_regional_tier`, counted once per run in the census, not per lead.
+- **Cell rule and decoder:** the same as Tier A (sections 4 and 5). The grid hash comes from the bundle index's `grid` (the tile lattice). The sampler verifies `sha12` on each slice before decoding.
+- **Retention race:** regional bundles keep only the current and previous index (`frame_set.referenced_paths`). The sampler runs right after the publish (section 2), so the run it samples is current. A bundle gone before sampling is `sampler_fail` with cause `pruned`.
+- **Every row records its tier**: `global_mid` or the `region_id`. Scores are reported per tier and never pooled across tiers. Tier A is the common baseline across models and buoys. Tier B is what surfers read near the coast.
 - **Gulf fill:** EURO and ICON world views can show the Gulf-filled variant (`global_mid_filled`). It differs only in Gulf of Mexico cells. Gulf buoys are tagged, and that difference is a named limit.
 
 ## 3. Frozen buoy list
@@ -126,14 +141,14 @@ All sampled sets use the WORLD tier `global_mid` (2°, the plain set, not `_fill
 
 | Field | Content |
 |---|---|
-| `model`, `frame_set`, `tier` | e.g. `gfs`, `waves`, `global_mid` |
+| `model`, `frame_set`, `tier` | e.g. `gfs`, `waves`, `global_mid` or a regional `region_id`; every row carries its tier |
 | `run_time`, `valid_time`, `lead_h` | from the frame header (`runEpoch`, `validEpoch`) |
 | `buoy_id`, `buoy_list_version`, `buoy_list_hash` | |
 | `cell_row`, `cell_col`, `cell_lat`, `cell_lon`, `distance_km` | from the cache |
 | `hs_m`, `tp_s` and/or `tm_s` (as served), `dir_deg` | the `waves` set, decoded |
 | `swell1_*`, `swell2_*`, `windwave_*` (height, period, direction) | where the model's served sets carry them; else absent, never zero |
 | `run_hash`, `frame_hash` (SHA-256 of the frame object), `grid_hash`, `decoder_version`, `sampler_version` | provenance |
-| `status` | `ok` \| `out_of_domain` \| `cell_masked` \| `distance_exceeded` \| `sampler_fail` |
+| `status` | `ok` \| `out_of_domain` \| `cell_masked` \| `distance_exceeded` \| `sampler_fail`; census-only, per run: `no_regional_tier`, `set_unpublished` |
 
 - **Who sets which status:**
   - The sampler writes `ok`, `out_of_domain` (the buoy lies outside the frame's bounds), `cell_masked` (the cached cell is missing in this frame), `distance_exceeded` and `sampler_fail`.
@@ -171,7 +186,10 @@ All sampled sets use the WORLD tier `global_mid` (2°, the plain set, not `_fill
   - `fetch_gap`: the scorer could not fetch the file, or the time was past NDBC realtime2's 45-day window when the scorer ran.
 
 ## 8. Coverage acceptance (first 14 days of collection)
-- **Census, by domain:** for each (model, set, tier), the EXPECTED count = (runs published) × (buoys inside that set's frame bounds) × (sampled leads). Buoys outside the bounds are written once per run as `out_of_domain` and are not in the expected count. With the world tier (section 2a) every buoy is inside, so `out_of_domain` should be 0 in v1. A non-zero count is reported as a fault. Every expected record is either written with a status or counted as a `sampler_fail`. No unaccounted gap is allowed.
+- **Census, by domain:** counted per (model, set, tier). The EXPECTED count = (runs in which that set was published for that tier) × (buoys assigned to that tier and inside its frame bounds in that run) × (sampled leads).
+  - **Tier A:** every buoy is inside, so `out_of_domain` should be 0. A non-zero count is a fault.
+  - **Tier B:** a buoy assigned to a box but outside that box's frame bounds in a given run (the bounds moved) is written once per run as `out_of_domain`, is not in the expected count, and is reported as a fault in the box assignment.
+  - A regional set the publisher did not publish in a run (its budget stagger dropped it, or the box has no product for that layer, such as GFS swell_2 in SoCal) is counted as `set_unpublished` for that (model, set, tier, run). It is not a sampler failure. Every expected record is either written with a status or counted as a `sampler_fail`. No unaccounted gap is allowed.
 - **Reach:** `ok` must be at least 80 % of records for GFS and ICON and 70 % for EURO (coarser grid near coasts). The shortfall is broken down by status.
 - **Q9 bin:** the [24,48) bin must reach `n >= 100` for GFS by day 14. This is the bin Q9 could not fill.
 - If coverage fails, the archive is not accepted. The fault is fixed and the 14 days restart. No skill table is published from an unaccepted archive.
@@ -184,15 +202,17 @@ All sampled sets use the WORLD tier `global_mid` (2°, the plain set, not `_fill
   - the swell and wind-wave sets ride in the same record, so they add fields, not records;
   - about 250 bytes per JSON record.
 - **Volume:**
-  - at most 9 × 100 × 70 ≈ 63,000 records per day, about 1.9 M per month (the figures below keep the earlier 10-run figure as headroom);
-  - about 525 MB per month raw JSON, about 60-100 MB per month as gzipped JSONL (one object per model-run);
+  - Tier A: at most 9 × 100 × 70 ≈ 63,000 records per day;
+  - Tier B adds at most one record per (model, run, buoy, lead) for each buoy inside a regional box, so at most another 63,000, and fewer in practice (EURO and ICON have fewer boxes and sets, and not every buoy is in a box);
+  - total: at most about 126,000 records per day, about 3.8 M per month, double the Tier A-only estimate;
+  - about 1.05 GB per month raw JSON, about 120-200 MB per month as gzipped JSONL (one object per model-run-tier);
   - the score tables are under 1 MB per month.
 - **Retention:**
-  - raw records for 36 months (about 2-3.6 GB at the estimate), then pruned by a dated job;
+  - raw records for 36 months (about 4.3-7.2 GB at the doubled estimate), then pruned by a dated job;
   - score tables and the buoy / grid / decoder version tables kept indefinitely.
 - **Store:** the shared prefix `verify/point-archive/v1/served/<model>/` (section 0.1) in a non-public bucket, written by the Actions job with the publish job's existing storage secret (`SUPABASE_SERVICE_ROLE_KEY`, by name only), used for this WRITE only. It is never written from the Render box.
 - **Budget check:** if the measured first-week volume exceeds 2× the estimate, collection pauses and the director is told before it continues.
-- **Quota and cost (a limit, owed before the dispatch request):** 2-3.6 GB over 36 months must be checked against the Supabase project's storage quota and its cost, and written into the request that goes to David, before he is asked for his word.
+- **Quota and cost (a limit, owed before the dispatch request):** 4.3-7.2 GB over 36 months (with Tier B) must be checked against the Supabase project's storage quota and its cost, and written into the request that goes to David, before he is asked for his word.
 - **Who reads raw records:** only the CI scorer job (section 7a), with the secret held in GitHub Actions. No session holding the service-role key reads them, and they are never published.
 
 ## 10. Output
@@ -210,7 +230,7 @@ All sampled sets use the WORLD tier `global_mid` (2°, the plain set, not `_fill
 
 - **n ≥ 100 is descriptive.** It is a floor for showing a number, not for inference. Pairs share runs, days and weather, so they are autocorrelated. Any inferential use (a difference, an interval, a weighting) needs a block bootstrap that resamples whole runs and whole days, registered in its own gate.
 - **NDBC retention.** realtime2 keeps about 45 days, so a scorer outage longer than that loses observations for good. Those rows are `no_obs` with cause `fetch_gap`, never dropped silently. A long outage is reported with its date span.
-- **Coarse tier.** The world tier is 2°, so its maximum match distance (0.75 × the cell diagonal) is roughly 200-240 km at low latitudes. Scores describe the 2° field users see at world zoom, not the close-zoom regional frames.
+- **Two tiers, never pooled.** Tier A (2°) has a match radius of roughly 200-240 km and describes the field users see at world zoom. Tier B (0.25°, about 26 km) describes the close-zoom regional frames, only where a box covers the buoy. A regression in one tier is reported against that tier. Spot-scale decisions (MOP-lite, consensus) read Tier B, with Tier A shown beside it.
 
 - **Correlated members.** GFS, EURO and ICON share ancestry, observations and often initial-condition information, so their errors are correlated. Naive inverse-variance weighting from these tables would be overconfident. Any skill weighting must model the error covariance between members (or shrink toward equal weights), registered in its own gate.
 - **Buoys are a floor, not a target.** Passing at offshore buoys is necessary, not sufficient. Buoys are not surf spots, and nothing here measures surf height or quality at a break.
@@ -218,4 +238,4 @@ All sampled sets use the WORLD tier `global_mid` (2°, the plain set, not `_fill
 - **Own durability.** The archive is not on the 2-run frame retention path (section 0.3). Its integrity comes from immutable files, `SHA256SUMS` and the weekly verify. A loss is logged and never back-filled from a later run.
 
 ## 12. Not in v1
-- Steps past 240 h; every tier other than `global_mid` (section 2a); the `_filled` variants; `/point` verification; any use for weighting.
+- Steps past 240 h; tiers other than `global_mid` and the assigned regional box (section 2a); the `_filled` variants; `/point` verification; any use for weighting.
