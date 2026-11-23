@@ -48,6 +48,8 @@ def test_guardrail_off_comes_with_its_source_reason_and_fix_version(manifest):
     ("Render env", False, True),
     ("runtime manifest (control/flags.json) - keep Render env UNSET", False, True),
     ("forecast-ingest-pilots.yml env", True, True),
+    # P0-3 2026-11-23: "the manifest writers" are the ingest lanes, not the runtime manifest the serve box reads
+    ("forecast-ingest, forecast-ingest-pilots and precompute workflow env together (the manifest writers)", False, False),
 ])
 def test_serve_box_value_is_marked_when_only_a_workflow_reads_the_flag(where, guarded, expected):
     assert board.serve_box_reads(where, guarded) is expected

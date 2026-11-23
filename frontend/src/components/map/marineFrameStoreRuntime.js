@@ -57,6 +57,7 @@ import { publishMarineDrawn } from './marineDrawnFrame';
 import { isHandheldDevice, isWeakDevice } from './deviceTier';
 import { createCropShow } from './marineFrameStoreCropShow';   // the crop show (2026-10-22)
 import { lakeShowPlan, applyLakeSwap } from './waveLakesShow';   // a lake model's mask under a non-lake frame (2026-10-23)
+import { noteCacheGrowth, registerCache } from './cacheBudget'; import { frameStoreEntries } from './cacheBudgetAdapters';
 
 const DEPTH = 128;     // layers per array: every set's frame count fits (GFS/ICON 113, EURO 81 over the locked 14 days)
 // Cells whose validity may differ between the shown frame and the resident's chl/bath (measured: at most 36 within a real run,
@@ -92,6 +93,19 @@ const freshAux = () => ({ aux: new Map(), auxPending: new Set(), auxSyncAt: -Inf
 const rt = { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
   resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
   fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null, ...freshAux() };
+
+// ONE BYTE BUDGET ACROSS CACHES (2026-11-23, cacheBudget.js): each set's CPU bytes are weighed with the other caches; a set of
+// another model or layer is dropped whole (its GPU array released, as a re-pin retires an old run); the set being scrubbed is
+// pinned. Its next visit re-creates it from the pinned index (frames from the HTTP cache). Kill: __RAW_DISABLE_CACHE_BUDGET__.
+function dropStoreSet(storeKey) {
+  if (!rt.store || storeKey === rt.activeKey) return null;
+  const before = rt.store.bytes().cpu;
+  for (const [k, x] of [...rt.sets]) if (x.key === storeKey) { rt.sets.delete(k); if (rt.pool) rt.pool.release(x.key); }
+  if (rt.want && rt.want.setKey === storeKey) rt.want = null;
+  rt.store.retainOnly((st) => st.key !== storeKey);
+  return before - rt.store.bytes().cpu;
+}
+registerCache('frame-store', { entries: () => frameStoreEntries(rt.store, rt.activeKey), drop: dropStoreSet, cost: 2 });
 
 function miss(reason) { rt.shows.misses[reason] = (rt.shows.misses[reason] || 0) + 1; return false; }
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -363,6 +377,7 @@ function packInto(info, validTime, parsed, buffer) {
   const pack = packStaticFrame(parsed, { layer: layerOfStoreKey(info.key) });   // every marine layer since 2026-11-12
   if (!pack) { if (s.markInflight(info.key, validTime)) s.markUnpackable(info.key, validTime, 'unpackable'); return null; }
   if (!s.putPacked(info.key, validTime, pack, buffer || null)) return null;
+  noteCacheGrowth();
   upload(info, validTime);
   return pack;
 }
@@ -393,7 +408,7 @@ function ensureInit() {
         return got ? { buffer: { parsed: got.parsed }, raw: got.buffer || null, wire: got.wire } : { error: signal && signal.aborted ? 'aborted' : 'load_failed' };
       },
       decodeAndPack: ({ parsed }, key) => packStaticFrame(parsed, { layer: layerOfStoreKey(key) }),
-      onPacked: (key, validTime) => { const info = [...rt.sets.values()].find((x) => x.key === key); if (info) upload(info, validTime); },
+      onPacked: (key, validTime) => { noteCacheGrowth(); const info = [...rt.sets.values()].find((x) => x.key === key); if (info) upload(info, validTime); },
     });
   }
   // A hidden tab or a link that turns slow or Save-Data pauses the fill (no new requests beyond the on-demand window); when the

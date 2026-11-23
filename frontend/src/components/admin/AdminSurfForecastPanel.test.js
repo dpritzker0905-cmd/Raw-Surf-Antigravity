@@ -84,3 +84,18 @@ test('deleting a report asks in a dialog, names the report, and calls the API', 
   await waitFor(() => expect(apiClient.delete).toHaveBeenCalledWith('/admin/surf-forecast/reports/r1'));
   await waitFor(() => expect(screen.queryByRole('button', { name: /^Delete report: Pier,/ })).toBeNull());
 });
+
+test('the scanned switch board replaces the registered-flag board when it loads (P0-3), with the verification panel', async () => {
+  const SW = { switches: [{ name: 'GFS_WORLD_FULL_HORIZON', kind: 'switch', defaults: ['0'], state: 'on', differs_from_default: true,
+    lanes_unknown: 0, registered: false, guarded: false, server: { value: '0', source: 'default' },
+    lanes: [{ workflow: 'forecast-ingest.yml', form: 'var', value: '1', source: 'repo variable GFS_WORLD_FULL_HORIZON' }] }],
+  counts: {}, repo_vars: [], repo_vars_known: true, snapshot: { status: 'ok', age_h: 1 } };
+  const base = apiClient.get.getMockImplementation();
+  apiClient.get.mockImplementation((url) => (url.startsWith('/admin/surf-forecast/switches') ? Promise.resolve({ data: SW })
+    : url.startsWith('/admin/surf-forecast/verification') ? Promise.reject(new Error('x')) : base(url)));
+  render(<AdminSurfForecastPanel />);
+  const row = await screen.findByTestId('switch-GFS_WORLD_FULL_HORIZON');
+  expect(within(row).getByText('On')).toBeInTheDocument();
+  expect(screen.queryByTestId('flag-SURF_TIDE_DEPTH')).toBeNull();
+  expect(await screen.findByText('Could not load the verification view.')).toBeInTheDocument();
+});

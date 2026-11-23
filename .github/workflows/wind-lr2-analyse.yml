@@ -29,7 +29,41 @@ permissions:
   actions: read
 
 jobs:
+  fetch-clim-gust:
+    # Amendment G1 / design (b): the ONE job that holds the service key for the score command. Minimal on purpose: checkout, a
+    # pinned requests, one step that reads one object from the PRIVATE weather bucket and verifies it against the COMMITTED sha256
+    # (fail closed). The key is scoped to that single step by NAME. Dispatch on dev only; there is no pull_request trigger.
+    if: ${{ github.event.inputs.command == 'score' && github.ref == 'refs/heads/dev' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install requests==2.31.0
+      - name: Fetch the archived CLIM_GUST table and verify it (key in this step only)
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OWNER_WORD_REF: ${{ github.event.inputs.owner_word_ref }}
+        run: |
+          test -n "$OWNER_WORD_REF" || exit 1
+          mkdir -p "$RUNNER_TEMP/clim_gust"
+          python scripts/wind_lr2_gust.py fetch-table --object calibration/wind-lr2/45266543788-1/wind-lr2-clim_gust-45266543788/wind_lr2_clim_gust.json --hash ../docs/weather-program/evidence/wind-long-range-v2/wind_lr2_clim_gust.json.sha256 --out "$RUNNER_TEMP/clim_gust/wind_lr2_clim_gust.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clim-gust-verified-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: error
+          path: ${{ runner.temp }}/clim_gust/wind_lr2_clim_gust.json
+
   analyse:
+    needs: [fetch-clim-gust]
+    # runs when the fetch job succeeded OR was skipped (every command but score); a failed fetch skips it: no score without the table
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -54,6 +88,12 @@ jobs:
           path: ${{ runner.temp }}/wlr2/snapshots
           run-id: ${{ github.event.inputs.snapshot_run_id }}
           github-token: ${{ github.token }}
+      - name: Verified CLIM_GUST table (score only)
+        if: ${{ github.event.inputs.command == 'score' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: clim-gust-verified-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wlr2/clim_gust
       - name: Run the command
         working-directory: backend
         env:
@@ -63,11 +103,11 @@ jobs:
         run: |
           test -n "$OWNER_WORD_REF" || exit 1
           C="$RUNNER_TEMP/wlr2"; mkdir -p "$C/runs_fit" "$C/runs_test"
-          for f in wind_lr2_stations.json wind_lr2_pairing.json wind_lr2_clim_stations.npz wind_lr2_coef_*.json; do cp "$EVID"/$f "$C"/ 2>/dev/null || true; done
+          for f in wind_lr2_stations.json wind_lr2_pairing.json wind_lr2_clim_stations.npz wind_lr2_clim_gust.json.sha256 wind_lr2_coef_*.json; do cp "$EVID"/$f "$C"/ 2>/dev/null || true; done
           find "$C/downloaded" -name '*.npz' -path '*runs-fit*' -exec cp {} "$C/runs_fit/" \; 2>/dev/null || true
           find "$C/downloaded" -name '*.npz' -path '*runs-test*' -exec cp {} "$C/runs_test/" \; 2>/dev/null || true
           case "$COMMAND" in
-            stations) python scripts/wind_lr_hindcast.py stations --cache "$C" && cp "$C/wind_lr_stations.json" "$C/wind_lr2_stations.json" ;;
+            stations) python scripts/wind_lr2_stations.py freeze --cache "$C" --out "$C/wind_lr2_stations.json" ;;
             pair)     python scripts/wind_lr2_run.py pair --cache "$C" --spots "$EVID/spots.json" ;;
             fit)      python scripts/wind_lr2_run.py fit --cache "$C" ;;
             freeze)   python scripts/wind_lr2_run.py freeze --cache "$C" --out "$C/freeze-manifest.json" ;;
@@ -79,6 +119,7 @@ jobs:
           name: wind-lr2-${{ github.event.inputs.command }}-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/wlr2/*.json
+            ${{ runner.temp }}/wlr2/*.json.sha256
             ${{ runner.temp }}/wlr2/*.npz
 
   archive:

@@ -8,10 +8,10 @@ on:
   workflow_dispatch:
     inputs:
       what:
-        description: 'clim (CMEMS climatology) or spots (catalogue export)'
+        description: 'clim (CMEMS climatology), spots (catalogue export) or clim_gust (one-time public NDBC stdmet read, 2016-2025, for CLIM_GUST)'
         required: true
         type: choice
-        options: ['clim', 'spots']
+        options: ['clim', 'spots', 'clim_gust']
       owner_word_ref:
         description: 'Where the owner typed the dispatch word. Required.'
         required: true
@@ -42,6 +42,16 @@ jobs:
           mkdir -p "$RUNNER_TEMP/wlr2"
           cp ../docs/weather-program/evidence/wind-long-range-v2/wind_lr2_stations.json "$RUNNER_TEMP/wlr2/"
           python scripts/wind_lr2_cmems.py build --cache "$RUNNER_TEMP/wlr2"
+      - name: CLIM_GUST table from the public NDBC annual stdmet files (2016-2025, FROZEN v2 station list only; no secret)
+        if: ${{ github.event.inputs.what == 'clim_gust' }}
+        working-directory: backend
+        env:
+          OWNER_WORD_REF: ${{ github.event.inputs.owner_word_ref }}
+        run: |
+          test -n "$OWNER_WORD_REF" || exit 1
+          mkdir -p "$RUNNER_TEMP/wlr2"
+          test -s ../docs/weather-program/evidence/wind-long-range-v2/wind_lr2_stations.json || exit 1
+          python scripts/wind_lr2_gust.py build-clim --stations ../docs/weather-program/evidence/wind-long-range-v2/wind_lr2_stations.json --cache "$RUNNER_TEMP/wlr2" --out "$RUNNER_TEMP/wlr2"
       - name: Spot catalogue export (read-only)
         if: ${{ github.event.inputs.what == 'spots' }}
         working-directory: backend
@@ -61,6 +71,9 @@ jobs:
             ${{ runner.temp }}/wlr2/wind_lr2_clim_stations.npz
             ${{ runner.temp }}/wlr2/wind_lr2_clim_report.json
             ${{ runner.temp }}/wlr2/spots.json
+            ${{ runner.temp }}/wlr2/wind_lr2_clim_gust.json
+            ${{ runner.temp }}/wlr2/wind_lr2_clim_gust.json.sha256
+            ${{ runner.temp }}/wlr2/wind_lr2_clim_gust_report.json
 
   archive:
     # Artifacts expire after 90 days and TEST scoring is February 2027 or later: copy every artifact and its sha256 to the

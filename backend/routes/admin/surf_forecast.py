@@ -189,7 +189,7 @@ _RATING_FLAGS = {"COPERNICUS_PEAK_PERIOD": ("0", "[DARK since 2026-10-20 (#412);
                                    "a task that has a waiter (serve-box CPU and event-loop time; no served number moves)",
                               "Render env"),
     "SIM_SERVED_TIME_MATCH": ("0", "Match sim tide/quality to actual baseline hour and model", "MCP process env"),
-    "SIM_STRICT_INPUTS": ("0", "Refuse missing/non-finite sim forecast fields; preserve measured zero", "MCP process env"),
+    "SIM_STRICT_INPUTS": ("0", "Refuse missing/non-finite sim forecast fields; preserve measured zero", "MCP process env"), "SIM_MISSING_PERIOD_UNKNOWN": ("1", "[ON, kill '0'] bug hunt 2026-11-22 F: the default sim path reads a nonzero swell with no usable period as unknown (no forecast), never period 0 = flat surf", "MCP process env"),
     # EXPLANATION, not physics: publishes `limiter`/`limiter_f` on each spot rating — which of the
     # nine multiplicative factors removed the most. Pulling it changes no score, only the ability to
     # say WHY. Declared in the same commit that added it: an undeclared switch is invisible to the
@@ -374,7 +374,7 @@ _RATING_FLAGS = {"COPERNICUS_PEAK_PERIOD": ("0", "[DARK since 2026-10-20 (#412);
     # lane it omits is exactly the one that silently keeps the old reference.
     "RATING_LOCAL_SIZE":           ("1", "[D-065 default ON, as every lane already ran it; guardrail-watched] Local (per-spot/per-cell) size calibration — flip glyphs+band together",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
-    "RATING_REF_PRIOR":            ("0", "[D-065 held OFF: -17.9 pt mean rating move on reference-less spot-hours, no rating truth yet] JAC-2 (#771): a spot with NO size reference is graded against the catalogue median reference (1.142 m, scripts/climatology_baseline.json) instead of the legacy curve that read 1.2-8 m flat; spots with a reference are byte-identical. Accuracy not measured: the history filter's primary is hs_station. services/weather_pipeline/spot_size_climatology.py reference_prior",
+    "RATING_REF_PRIOR":            ("0", "[D-065: code default OFF (-17.9 pt mean rating move on reference-less spot-hours, no rating truth yet); may be ON through the runtime manifest: read the effective value and source on this row] JAC-2 (#771): a spot with NO size reference is graded against the catalogue median reference (1.142 m, scripts/climatology_baseline.json) instead of the legacy curve that read 1.2-8 m flat; spots with a reference are byte-identical. Accuracy not measured: the history filter's primary is hs_station. services/weather_pipeline/spot_size_climatology.py reference_prior",
                                     "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
     "RATING_SIZE_CLIMATOLOGY":     ("1", "Accumulate per-SPOT good-day size climatology (blob only)", "precompute.yml env"),
     "RATING_GRID_SIZE_CLIMATOLOGY": ("1", "Accumulate per-CELL (band) size climatology (blob only)", "pilots workflow env"),

@@ -42,6 +42,7 @@ from .admin import (
     admin_support_router,
     admin_content_mod_router, admin_communications_router,
     admin_system_router, admin_surf_forecast_router, admin_surf_spot_inspector_router, admin_surf_guardrail_router,
+    admin_surf_switches_router,
     admin_finance_router,
     admin_content_mgmt_router,
     admin_ab_analytics_router, admin_test_accounts_router,
@@ -104,6 +105,7 @@ api_router.include_router(admin_system_router, tags=["Admin System"])
 api_router.include_router(admin_surf_forecast_router, tags=["Admin Surf Forecast"])
 api_router.include_router(admin_surf_spot_inspector_router, tags=["Admin Surf Forecast"])
 api_router.include_router(admin_surf_guardrail_router, tags=["Admin Surf Forecast"])
+api_router.include_router(admin_surf_switches_router, tags=["Admin Surf Forecast"])
 api_router.include_router(admin_finance_router, tags=["Admin Finance"])
 api_router.include_router(admin_content_mgmt_router, tags=["Admin Content Management"])
 api_router.include_router(admin_ab_analytics_router, tags=["Admin A/B Analytics"])
