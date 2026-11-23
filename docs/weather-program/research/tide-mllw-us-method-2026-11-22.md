@@ -142,6 +142,68 @@ The AVISO/FES2022 and Copernicus credit stays on every surface that carried it.
 - **Shift at the spot keys:** `spot_shift.py`, offline on the catalogue snapshot (`tide-mllw-spot-shift-2026-11-22.json`),
   and every build summary after merge.
 
+## Frame check: does M reproduce the water above NOAA's table? (2026-11-23 00:56Z)
+
+The director asked for this check before David picks between A + D and A + M + D. Instrument:
+`scripts/tide_datum/residual_check.py`. Results: `tide-mllw-residual-2026-11-22.json`, including per-day means. It
+made read-only CO-OPS calls only (water level, predictions, monthly means, datums). It did not call the live backend
+or the bucket.
+
+The residual is the preliminary 6-min observed level minus NOAA's 6-min prediction, both above MLLW, with n = 1,680
+per station-week. NOAA's prediction is A + D, so our A + M + D can match the water only if M equals the residual.
+
+**Which M.** The stored per-key M cache (`tide_own/m.json`) cannot be read without the service-role key. A public URL
+answers "Bucket not found", and the anon key gets "Object not found". So M here is the committed `own_rules.G3T_M`, the
+G3t-measured value of the same quantity, taken at the station itself or the nearest G3t gauge:
+
+| Station | M taken from |
+|---|---|
+| San Diego | La Jolla, 20 km |
+| San Francisco | Point Reyes, 45 km |
+| Seattle | Neah Bay, 190 km |
+| The Battery | Sandy Hook, 25 km |
+| Virginia Key | itself |
+| Honolulu | itself |
+
+**Decadal** is each station's own 2016–2025 monthly-mean MSL minus its epoch MSL: the quantity M is meant to be.
+
+| Station | M | Decadal | Nov 15–21 residual (sd) | M − residual | Jul 12–18 residual | M − residual | May 10–16 residual | M − residual |
+|---|---|---|---|---|---|---|---|---|
+| San Diego | 0.080 | 0.081 | 0.372 (0.039) | **−0.293** | 0.199 | −0.119 | 0.081 | −0.002 |
+| San Francisco | 0.078 | 0.058 | 0.405 (0.068) | **−0.327** | 0.125 | −0.047 | 0.075 | +0.003 |
+| Seattle | 0.098 | 0.074 | 0.378 (0.128) | **−0.280** | 0.132 | −0.034 | 0.087 | +0.011 |
+| Virginia Key | 0.122 | 0.147 | 0.230 (0.049) | −0.108 | 0.178 | −0.057 | 0.214 | −0.092 |
+| The Battery | 0.138 | 0.131 | 0.060 (0.066) | +0.078 | 0.100 | +0.038 | 0.047 | +0.091 |
+| Honolulu | 0.089 | 0.087 | 0.033 (0.034) | +0.056 | 0.045 | +0.044 | 0.071 | +0.019 |
+
+All values are in metres.
+
+**What this shows:**
+
+1. **The pass bar fails this week at all three gate stations**, by 0.28–0.33 m. Neither frame tracks the water now:
+   - A + D reads 0.37–0.41 m low on the West Coast.
+   - A + M + D reads 0.28–0.33 m low.
+2. **M is right for what it models.** M agrees with each station's own decadal offset to within 0.025 m at all six
+   stations (largest: Virginia Key and Seattle).
+3. **The excess is not decadal.** The 12 months before this week already ran 0.14–0.17 m above the epoch at San Diego
+   and San Francisco (`prior_12mo` in the JSON). That is about double M: a basin-wide anomaly, with a November rise on
+   top. A static decadal M cannot follow it. Only a dynamic sea-level term can, such as the CMEMS total-sea-level read
+   (`--cmems`), which is not enabled: no `TIDE_CMEMS_PRIMARY` repository variable is set.
+4. **In a quiet week, A + M + D is right.** In May 10–16, M matched the residual to within 0.011 m at all three gate
+   stations. A + D read 0.075–0.087 m low there. Even then, A + D is never closer to the water than A + M + D at the
+   West Coast stations. At The Battery and Honolulu, the residual this week was at or below M, so A + D happened to be
+   closer.
+
+**Not run here: A + D against the published predictions (item 3).** A is FES2022, which runs only in CI with the AVISO
+credentials. That comparison is exactly `tide-mllw-parity.yml`, which is still waiting on David's word to push the tag.
+
+**For the frame decision:**
+- A + M + D is the better "water level" headline in normal conditions.
+- In an anomaly like this week's, both frames read about 0.3 m low on the West Coast, and labelling either one "water
+  level" would overstate it.
+- A headline that claims the actual water needs the dynamic term (CMEMS, M1-0) first, or a label that says "tide plus
+  average sea-level rise, not today's surge or anomaly".
+
 ## Not done here (follow-ups)
 
 - Stored posts carry a tide height whose datum is unknown. A datum column for new posts needs a schema change.
