@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 14,
+  "tests": 17,
   "files": 1,
   "branch": "claude/raster-source-words",
   "date": "2026-11-23",
-  "note": "rasterSourceWords.test.js (14): pass 13, which model a raster draws, in words"
+  "note": "rasterSourceWords.test.js (17): pass 13, which model a raster draws, composed with nearest / reduced"
 }

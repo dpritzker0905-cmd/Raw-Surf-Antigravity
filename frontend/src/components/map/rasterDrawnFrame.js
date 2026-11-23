@@ -143,15 +143,22 @@ export function describeRasterFrame(rec, layer, requestedMs, selectedModel = nul
   // Which gust is drawn (the frame's own model and lead): joined to a nearest / reduced line, or the line on its own.
   const gust = layer === 'gusts' ? gustWindowLabel(shown.model, gustLeadHours(shown)) : null;
   if (shown.estimated) return { state: 'estimated', ...(shown.fill || shown.coarse ? { fill: true } : {}), text: `Estimated forecast: ${ESTIMATE_WORDS[shown.estimated] || 'estimated'}` };
+  const base = (() => {
+    if (layer !== 'radar' && Number.isFinite(requestedMs)) {
+      const dh = Math.round((shown.dataMs - requestedMs) / 3600000);
+      if (dh !== 0 && Math.abs(dh) <= (shown.nearestMaxHours || 0)) return withWindow({ state: 'nearest', text: `Showing ${fmt(shown.dataMs)}: the nearest stored forecast` }, gust);
+    }
+    // TEXTURE FIT (ownRasterLayer.fitFieldToLimit): drawn downsampled because the field exceeds this device's texture limit: say so.
+    if (shown.drawnFactor > 1) return withWindow({ state: 'reduced', text: `${name} drawn at 1/${shown.drawnFactor} detail: this device's graphics limit` }, gust);
+    // THE GUST WINDOW (gustWindow.js): the frame on screen is the one asked for, and the line says WHICH gust it is (instantaneous
+    // GFS, or ECMWF / ICON's maximum over the hours before the valid time), by the drawn frame's own lead. Quiet tone.
+    return gust ? { state: 'window', text: gust } : null;
+  })();
+  // WHICH MODEL / SOURCE (describeRasterSource) is JOINED to the nearest / reduced / gust line, never in its place (the advisor's
+  // hold on #1246: a source line on every CMEMS frame must not hide "the nearest stored forecast" or "drawn at 1/N detail"). A
+  // stand-in sets the state (the warning tone, the quiet wait); a quiet source line keeps the base line's state.
   const source = describeRasterSource(shown, layer, selectedModel);
-  if (source) return source;
-  if (layer !== 'radar' && Number.isFinite(requestedMs)) {
-    const dh = Math.round((shown.dataMs - requestedMs) / 3600000);
-    if (dh !== 0 && Math.abs(dh) <= (shown.nearestMaxHours || 0)) return withWindow({ state: 'nearest', text: `Showing ${fmt(shown.dataMs)}: the nearest stored forecast` }, gust);
-  }
-  // TEXTURE FIT (ownRasterLayer.fitFieldToLimit): drawn downsampled because the field exceeds this device's texture limit: say so.
-  if (shown.drawnFactor > 1) return withWindow({ state: 'reduced', text: `${name} drawn at 1/${shown.drawnFactor} detail: this device's graphics limit` }, gust);
-  // THE GUST WINDOW (gustWindow.js): the frame on screen is the one asked for, and the line says WHICH gust it is (instantaneous
-  // GFS, or ECMWF / ICON's maximum over the hours before the valid time), by the drawn frame's own lead. Quiet tone.
-  return gust ? { state: 'window', text: gust } : null;
+  if (!source) return base;
+  if (!base) return source;
+  return { state: source.state === 'standin' ? 'standin' : base.state, text: `${base.text} · ${source.text}` };
 }

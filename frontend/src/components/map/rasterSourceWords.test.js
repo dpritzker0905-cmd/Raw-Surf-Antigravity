@@ -59,6 +59,25 @@ describe('describeRasterSource / describeRasterFrame', () => {
     const r = describeRasterFrame({ layer: 'fog', shown: fogGfs(), want: om('ncep_gfs025', 4) }, 'fog', 0, 'EURO');
     expect(r.state).toBe('pending');
   });
+  // COMPOSED, never replaced (the advisor's hold on #1246): the nearest / reduced lines that showed before still show.
+  test('a stand-in at a nearest hour: both lines, the stand-in sets the state (the warning tone)', () => {
+    const e = { ...fogGfs(), nearestMaxHours: 1 };
+    const r = describeRasterFrame({ layer: 'fog', shown: e, want: e }, 'fog', e.dataMs + 3600000, 'EURO');
+    expect(r.state).toBe('standin');
+    expect(r.text).toMatch(/^Showing .+: the nearest stored forecast · EURO fog unavailable: NOAA GFS shown$/);
+  });
+  test('a CMEMS frame at a nearest hour: both lines, the nearest state kept (the quiet source joins it)', () => {
+    const e = { ...cmems, nearestMaxHours: 1 };
+    const r = describeRasterFrame({ layer: 'water_temp', shown: e, want: e }, 'water_temp', e.dataMs + 3600000, 'ICON');
+    expect(r.state).toBe('nearest');
+    expect(r.text).toMatch(/^Showing .+: the nearest stored forecast · Water Temp: Copernicus Marine ocean model, top layer, 1\/6° grid$/);
+  });
+  test('a CMEMS frame drawn at reduced detail: both lines', () => {
+    const e = { ...cmems, drawnFactor: 2 };
+    const r = describeRasterFrame({ layer: 'water_temp', shown: e, want: e }, 'water_temp', e.dataMs, 'ICON');
+    expect(r).toEqual({ state: 'reduced',
+      text: "Water Temp drawn at 1/2 detail: this device's graphics limit · Water Temp: Copernicus Marine ocean model, top layer, 1/6° grid" });
+  });
   test('the model family: the record, else the own-frame path', () => {
     expect(drawnModelFamily({ model: 'ICON+GFS' })).toBe('ICON');
     expect(drawnModelFamily({ model: 'GFS:fill:ICON' })).toBe('GFS');

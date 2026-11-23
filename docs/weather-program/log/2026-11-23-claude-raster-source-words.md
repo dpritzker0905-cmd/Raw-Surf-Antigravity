@@ -102,3 +102,22 @@ pass 13. **Display only: no served number changes**, so it ships ON with a kill 
   The first of those runs also showed the known local Git Bash spawn timeout (`netlifyIconStoredTailScope`).
 
 No SCOREBOARD row: no served number changes.
+
+## Part 2: the advisor's hold on #1246 (composed, not replaced)
+
+- **The hold (relayed by the lead).** `describeRasterFrame` returned the source line BEFORE the nearest-forecast and
+  drawnFactor checks. ICON water temp (CMEMS, a source line on every frame) and any stand-in could therefore no longer
+  show "Showing <time>: the nearest stored forecast" or "drawn at 1/N detail", which showed before the PR.
+- **The fix.** The nearest / reduced / gust line is computed as before, and the source text is JOINED to it
+  ("<base> · <source>", the withWindow pattern).
+  - A stand-in sets the state, so it keeps the warning tone and the quiet wait.
+  - A quiet source line keeps the base line's state.
+  - With no base line, the source line stands alone, as before.
+- **Tests.** `rasterSourceWords.test.js` gains three (17 in all): a stand-in at a nearest hour, a CMEMS frame at a
+  nearest hour, and a CMEMS frame drawn at reduced detail. Each shows both lines, and each fails on the held code. The
+  floor fragment is now +1 suite / +17 tests.
+- **Tested twice on the fix (runs 7 and 8, the whole tree):**
+  - `src/components/map` 506 suites / 7243 tests and `src/tests` 37 / 371: 0 failures in both runs.
+  - The other failures were admin paging suites (`AdminSupportDashboard.pagination`, `AdminSpotPaging`), timing out
+    under the full-tree load, with different tests each run. They are outside this diff and pass alone (35/35).
+  - The production build passes. `check_eslint.js`: no rule over its baseline.
