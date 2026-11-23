@@ -31,7 +31,7 @@ import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { exactGfsPlaybackEnabled } from './marinePlaybackPolicy';
 import { isThinnedWorldGrid } from './marineExactUpgrade';
 import { MarineSeriesCache } from './marineSeriesCache';
-import { finestCoveringSeriesFrame, nearestFrameInEntry } from './marineSeriesFinerEntry';
+import { finestCoveringSeriesFrame, nearestFrameInEntry, seriesEntryAnchorOk } from './marineSeriesFinerEntry';
 import { marineSeriesWorkBoundsEnabled } from './marineSeriesWorkPolicy';
 import { deferMarineSeries, marineSeriesCallerAborted, resetMarineSeriesDeferred } from './marineSeriesDeferred';
 import { padRegionalBbox, normalizeRequestBbox, bboxContains } from './marineBboxGeometry'; import { seriesBoxContained, seriesFetchInit, seriesIdentityBounds, snapRequestBox } from './marineSeriesPanGuard';
@@ -353,7 +353,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
             if (!existing || !(existing.frames && existing.frames.size)) {
               _seriesCache.set(key, {
                 ts: Date.now(), frames: new Map(), hours: [], bounds: null,
-                model, layer, page, warming: true, warmingRetries: prevWarm + 1,
+                model, layer, page, warming: true, warmingRetries: prevWarm + 1, anchor: seriesAnchorTag(),
               });
             }
             deferMarineSeries(() => { loadSeriesPage(model, layer, bounds, page, signal, true); }, coarseRevalDelayMs(prevWarm + 1), signal);
@@ -378,7 +378,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
       // key: the requested bbox is a wrapped wide viewport (e.g. west=-204) but the served global
       // grid is ±180, which contains every viewport — so global scrub HITS regardless of pan. Also
       // strictly improves regional hits (the served tile is ≥ the requested viewport).
-      _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds: sfb || bounds, model, layer, page, surf: surfFlavor, coarsePreview: isCoarsePreview, revalCount });
+      _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds: sfb || bounds, model, layer, page, surf: surfFlavor, coarsePreview: isCoarsePreview, revalCount, anchor: seriesAnchorTag() });
       _failRetries.delete(key); // §4.3(b): a successful page resets its failure budget
       evictOlderRunSiblings(model, layer, bounds, page, reqBox, frames);   // CLI-7: never two runs across a page boundary
       boundSeriesCache(key);   // Bound memory.
@@ -534,7 +534,7 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
       const frames = new Map([[f.hour_offset, md]]);
       _seriesCache.set(h0key, {
         ts: Date.now(), frames, hours: [f.hour_offset], bounds: sfb || bounds,
-        model, layer, page, surf: surfFlavor, coarsePreview: false, revalCount: 0, h0: true,
+        model, layer, page, surf: surfFlavor, coarsePreview: false, revalCount: 0, h0: true, anchor: seriesAnchorTag(),
       });
       if (typeof window !== 'undefined') {
         const dg = (window.__MARINE_SERIES_DIAG__ = window.__MARINE_SERIES_DIAG__ || { loads: 0, hits: 0, misses: 0 });
@@ -653,7 +653,7 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     return blendIconSwell2Frames(g, e, bounds);
   }
   const page = marineSeriesPageForHour(hourOffset, model, layer);
-  const now = Date.now();
+  const now = Date.now(); const anchor = seriesAnchorTag();   // the fallbacks scan values, not anchor-keyed keys (bug hunt 2026-11-22)
   // Width of the requested viewport (deg, antimeridian-safe). A GLOBAL-width cached frame must NEVER be
   // served to a regional (zoomed-in) viewport — that IS the coarse-global clamp.
   const vWid = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
@@ -685,7 +685,7 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
   // (the paused churn's series-entry half, marineSeriesFinerEntry.js).
   if (best !== null && bestDiff <= 1.5 && isRegionalViewport) {
     const pick = finestCoveringSeriesFrame(_seriesCache.values(), { frame: best, diff: bestDiff },
-      { model, layer, surf: getMarineBandFlag(layer), bounds, hourOffset, now, ttlMs: SERIES_TTL_MS });
+      { model, layer, surf: getMarineBandFlag(layer), bounds, hourOffset, now, ttlMs: SERIES_TTL_MS, anchor });
     best = pick.frame; bestDiff = pick.diff;
   }
   // Containment fallback: the exact viewport key missed (e.g. just zoomed in / panned a bit), but
@@ -700,7 +700,7 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     const _wantSurf = getMarineBandFlag(layer);
     for (const entry of _seriesCache.values()) {
       if (now - entry.ts >= SERIES_TTL_MS) continue;
-      if (entry.model !== model || entry.layer !== layer) continue;
+      if (entry.model !== model || entry.layer !== layer || !seriesEntryAnchorOk(entry, anchor)) continue;
       // FLAVOR GUARD (2026-07-15, "the rating band isn't turning off"): NEVER serve a surf-flavored
       // page in swell mode — its frames carry SCOREs (ratingMode:true) and the engine's reverse gate
       // would keep painting the band while this serve preempts the honest commit that releases it.

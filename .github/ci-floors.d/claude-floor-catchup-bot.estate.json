@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 60,
+  "branch": "claude/floor-catchup-bot",
+  "date": "2026-11-23",
+  "note": "floor_catchup.py + ci_floor_overlift.py tests"
+}

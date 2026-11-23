@@ -178,12 +178,38 @@ def build_rows(run_dir, stations, st_obs, clim):
     return {k: np.array(v) for k, v in R.items()}
 
 
+def gaps_over(missing, days=2):
+    """Runs of consecutive missing 00Z days longer than `days`, as [first, last, length] (the commitment's '> 2 days')."""
+    out, cur = [], []
+    for r in sorted(missing):
+        d = _run_dt(r)
+        if cur and (d - _run_dt(cur[-1])).days == 1:
+            cur.append(r)
+        else:
+            if len(cur) > days:
+                out.append([cur[0], cur[-1], len(cur)])
+            cur = [r]
+    if len(cur) > days:
+        out.append([cur[0], cur[-1], len(cur)])
+    return out
+
+
 def coverage(R, stations, run_dir) -> dict:
+    """runs_missing counts every expected 00Z run with no stored file: a day a backfill shard failed or dropped is never
+    stored, so it is missing here (advisor limit (1) on #1229). The daily era after PERIOD (2026-11-01 up to the newest
+    stored run) is counted separately, so a lost daily run (2026-11-16 ECMWF 503, 11-19 storage 401) is reported too."""
     runs = sorted({r for r in R["run"]}) if len(R["run"]) else []
     present = sorted(f[:10] for f in os.listdir(run_dir) if f.endswith(".npz"))
     expected = [r.strftime("%Y%m%d%H") for r in C.runs_between(C.PERIOD[0], C.PERIOD[1])]
+    newest = max((_run_dt(r) for r in present), default=None)
+    daily = ([r.strftime("%Y%m%d%H") for r in C.runs_between(C.PERIOD[1] + timedelta(days=1), newest)]
+             if newest and newest > C.PERIOD[1] else [])
+    missing = sorted(set(expected) - set(present))
+    missing_daily = sorted(set(daily) - set(present))
     return {"runs_expected": len(expected), "runs_present": len(present),
-            "runs_missing": sorted(set(expected) - set(present)),
+            "runs_missing": missing,
+            "runs_missing_daily": missing_daily,
+            "gaps_over_2_days": gaps_over(missing + missing_daily),
             "runs_with_truth": len(runs), "stations": len(stations),
             "stations_by_region": {g: int(sum(region_of(s) == g for s in stations)) for g in REGIONS + ("other",)},
             "leads": list(C.LEADS), "rows_with_truth": int(len(R["y"])),

@@ -669,8 +669,8 @@ jobs:
       # KEEPS ~36 MB (84 frames, 282-516 kB each). A run whose cycle is already published reads one index and stops. HIDDEN:
       # publishes when FRAME_RASTER_GUST_RISK = '1' (the director, 2026-11-23); no client reads it, and each index says display
       # false unless GUST_RISK_DISPLAY = '1' AND results/gust-ens-risk-v1.md records PASS. Guardrails (the module docstring):
-      # read caps 6.5 GB a run and a UTC day, store cap 45 MB a run (a cap reached uploads nothing and exits 1), one attempt a
-      # day (the 11:45 run: UTC hours 11-15), runs older than 14 days pruned, the GRIB identity pinned, a recorded FAIL / VOID turns it off.
+      # read caps 6.5 GB a run and a UTC day, store cap 45 MB a run (a cap reached uploads nothing and exits 1), every run may
+      # try (no clock slot; a published cycle costs one ~2 MB index), 14-day prune, GRIB identity pinned, FAIL / VOID turns it off.
       # The pinned decoder is ecCodes (pygrib carries neither the window nor the identity), installed by this step only.
       - name: Publish raster static frames (ECMWF ENS gust risk; off unless FRAME_RASTER_GUST_RISK=1)
         if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && steps.budget.outputs.go != 'false' && vars.FRAME_RASTER_GUST_RISK == '1' }}

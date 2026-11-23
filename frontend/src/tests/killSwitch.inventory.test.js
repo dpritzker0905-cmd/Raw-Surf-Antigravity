@@ -43,6 +43,8 @@ const EXTRA_FILES = ['../lib/weatherAuthFetch.js', '../lib/weatherSession.js', '
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // components/map/marineGridSeries.staleAnchorFallback.test.js (bug hunt 2026-11-22): series fallbacks skip other-anchor pages
+  '__RAW_DISABLE_SERIES_ANCHOR_GUARD__',
   // components/map/staticRatedMosaic.test.js and marineRatingBandRes.test.js (the rating band SOTA lane, 2026-11-15): the rated
   // mosaic, its neighbour prefetch, overscan and in-memory fast lane, and the coarse-rated cache skip
   '__RAW_DISABLE_RATED_MOSAIC__',
@@ -110,8 +112,12 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CURRENT_GRID_PREWARM__',
   // currentNative.test.js ("off by default; the lever ... turns it on; its kill and the particles' gates win"; 2026-11-22)
   '__RAW_DISABLE_CURRENTS_NATIVE__',
-  // gustParticles.test.js ("the flicker: on by default, off under its kill and under prefers-reduced-motion"; 2026-11-18)
+  // gustParticles.test.js ("the flicker: on when picked, off under its kill and under prefers-reduced-motion"; 2026-11-18)
   '__RAW_DISABLE_GUST_FLICKER__',
+  // gustCue.test.js ("each cue's own kill drops it to no cue, and only its own"; 2026-11-22, gust cue A/B; the HATCH kill
+  // is the default cue's kill since the owner's pick, 2026-11-23)
+  '__RAW_DISABLE_GUST_WIDTH__',
+  '__RAW_DISABLE_GUST_HATCH__',
   // gustParticles.test.js ("the gust field tints like the wind field on light and beach; both kills turn it off"; 2026-11-18)
   '__RAW_DISABLE_GUST_FIELD_TINT__',
   // gustsLayer.test.js ("the kill returns light to the wind field exactly; the legend follows the same rows"; 2026-11-18)

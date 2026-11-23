@@ -197,13 +197,11 @@ def test_g1_no_client_code_reads_the_set():
     assert hits == [], f"a client path reads the hidden gust-risk set before the gate passes: {hits}"
 
 
-def test_g5_and_slot_publish_blocked(tmp_path, monkeypatch):
+def test_g5_publish_blocked_only_by_a_recorded_fail_never_by_the_clock(tmp_path):
     p = tmp_path / "r.md"
-    monkeypatch.delenv("GUST_RISK_PUBLISH_HOURS_UTC", raising=False)
     at11 = datetime(2026, 11, 23, 11, 50, tzinfo=timezone.utc)
-    assert gk.publish_blocked(at11, str(p)) is None                    # pending: publish (hidden)
-    assert "daily slot" in gk.publish_blocked(datetime(2026, 11, 23, 4, 0, tzinfo=timezone.utc), str(p))
-    assert gk.publish_blocked(datetime(2026, 11, 23, 15, 59, tzinfo=timezone.utc), str(p)) is None
+    for hour in (0, 4, 11, 16, 23):                                    # no wall-clock slot (late crons publish)
+        assert gk.publish_blocked(datetime(2026, 11, 23, hour, 5, tzinfo=timezone.utc), str(p)) is None
     p.write_text("Gate verdict: FAIL\n")
     assert gk.publish_blocked(at11, str(p)).startswith("auto-disabled")
     p.write_text("Gate verdict: VOID\n")
@@ -286,3 +284,128 @@ def test_guarded_publish_stops_when_the_day_is_spent(tmp_path, monkeypatch):
 def test_guarded_publish_auto_disabled_by_a_recorded_fail(tmp_path, monkeypatch):
     rc, uploads, made, _s = _run_guarded(tmp_path, monkeypatch, _FakeSource(), result_text="Gate verdict: FAIL\n")
     assert rc == 0 and uploads == [] and made == []
+
+
+# ---- regression 2026-11-23: the raster sets must import WITHOUT numpy (data-health-monitor's raster_set_freshness.py runs a
+# system python3 that has none; #1202's top-level core import blinded the monitor to every raster set)
+def test_raster_sets_and_the_freshness_monitor_import_without_numpy():
+    import subprocess
+    backend = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    code = ("import sys; sys.modules['numpy'] = None; sys.path.insert(0, '.'); sys.path.insert(0, 'scripts'); "
+            "from services import frame_set_raster as f; import raster_set_freshness; "
+            "print('gust_risk_ens' in f.SPECS, len(f.SPECS['gust_risk_ens']['hours']))")
+    out = subprocess.run([sys.executable, "-c", code], cwd=backend, capture_output=True, text=True, timeout=120)
+    assert out.returncode == 0, out.stderr[-2000:]
+    assert out.stdout.strip() == "True 84"
+
+
+def test_load_time_constants_equal_the_core():
+    from services.weather_pipeline import ens_gust_risk_core as core
+    assert gk.HOURS == tuple(core.native_steps(360)) and gk.THRESHOLDS_KN == core.THRESHOLDS_KN and gk.MEMBERS == core.MEMBERS
+    assert fsr.SPECS[gk.SET]["hours"] == gk.HOURS
+
+
+# ---- no wall-clock slot (2026-11-23): the day is bounded by the day cap, the run caps and "cycle already published" -------
+class _StatefulFsr:
+    """frame_set_raster as the guard sees it: a cycle publishes once (reading ~3.2 GB); a later run of the same cycle reads
+    only the run-availability index (~2 MB) and returns 'unchanged', uploading nothing."""
+    FULL, INDEX = 3_200_000_000, 2_004_514
+
+    def __init__(self):
+        self.published, self.uploads, self.sources = set(), [], []
+
+    def make_source(self, sp):
+        src = _FakeSource(pulled=0)
+        self.sources.append(src)
+        return src
+
+    def publish(self, src, snk, uploader, log=print, spec=None):
+        cyc = "2026-11-23T00:00:00Z"
+        if cyc in self.published:
+            src.bytes_pulled += self.INDEX
+            return {"status": "unchanged", "run": cyc}
+        src.bytes_pulled += self.INDEX + self.FULL
+        uploader([("frame", b"x", "t", "c")])
+        self.published.add(cyc)
+        return {"status": "published", "run": cyc, "bytes": 1}
+
+
+def _guard(tmp_path, monkeypatch, fsr_like, hour, sink):
+    res = tmp_path / "result.md"
+    monkeypatch.setenv("GUST_RISK_RESULT_FILE", str(res))
+    monkeypatch.delenv("GUST_RISK_DISPLAY", raising=False)
+
+    class FakePub:
+        @staticmethod
+        def _uploader(snk):
+            return lambda jobs: fsr_like.uploads.extend(jobs)
+    return gk.guarded_publish(None, fsr.SPECS[gk.SET], lambda a: sink, FakePub, fsr_like, lambda n, r, strict=False: 0,
+                              now=datetime(2026, 11, 23, hour, 5, tzinfo=timezone.utc))
+
+
+def test_two_runs_on_one_day_publish_once_and_the_second_reads_only_an_index(tmp_path, monkeypatch):
+    sink, f = _local_sink(tmp_path), _StatefulFsr()
+    assert _guard(tmp_path, monkeypatch, f, 13, sink) == 0
+    assert _guard(tmp_path, monkeypatch, f, 19, sink) == 0
+    assert len(f.uploads) == 1                                         # published once
+    assert f.sources[1].bytes_pulled == _StatefulFsr.INDEX            # the second run read one index only
+    day = gk.day_used(sink, datetime(2026, 11, 23, tzinfo=timezone.utc))
+    assert day == 2 * _StatefulFsr.INDEX + _StatefulFsr.FULL < gk.READ_CAP_DAY
+
+
+def test_a_late_cron_publishes(tmp_path, monkeypatch):
+    sink, f = _local_sink(tmp_path), _StatefulFsr()
+    assert _guard(tmp_path, monkeypatch, f, 16, sink) == 0             # GitHub started the 11:45 cron at 13:41Z on 11-23
+    assert len(f.uploads) == 1 and f.sources[0].bytes_pulled > _StatefulFsr.FULL
+
+
+def test_the_day_cap_still_hard_stops_whatever_the_hour(tmp_path, monkeypatch):
+    sink, f = _local_sink(tmp_path), _StatefulFsr()
+    gk.add_day_used(sink, datetime(2026, 11, 23, tzinfo=timezone.utc), gk.READ_CAP_DAY - 1_000)
+    _guard(tmp_path, monkeypatch, f, 16, sink)
+    assert f.sources[0].read_cap == 1_000                              # the run may read only what the day has left
+    for hour in (17, 23):                                              # the day is now spent: exit 1, nothing even read
+        n = len(f.sources)
+        assert _guard(tmp_path, monkeypatch, f, hour, sink) == 1 and len(f.sources) == n
+
+
+# ---- the advisor's hold on #1222: the day record is written whatever the publish does --------------------------------
+class _RaisingFsr(_StatefulFsr):
+    def __init__(self, pulled, exc):
+        super().__init__()
+        self.pulled, self.exc = pulled, exc
+
+    def publish(self, src, snk, uploader, log=print, spec=None):
+        src.bytes_pulled += self.pulled                                # read N bytes, then fail mid-run
+        raise self.exc
+
+
+def test_a_publish_that_raises_records_its_bytes_and_fails_the_step(tmp_path, monkeypatch):
+    sink, n = _local_sink(tmp_path), 2_345_678_901
+    f = _RaisingFsr(n, RuntimeError("decode exploded mid-run"))
+    with pytest.raises(RuntimeError, match="decode exploded"):        # re-raised: the step fails
+        _guard(tmp_path, monkeypatch, f, 16, sink)
+    assert gk.day_used(sink, datetime(2026, 11, 23, tzinfo=timezone.utc)) == n
+    with pytest.raises(RuntimeError):                                  # a second failing run adds its bytes too
+        _guard(tmp_path, monkeypatch, f, 19, sink)
+    assert gk.day_used(sink, datetime(2026, 11, 23, tzinfo=timezone.utc)) == 2 * n
+
+
+def test_a_budget_refusal_still_records_and_exits_1(tmp_path, monkeypatch):
+    sink, n = _local_sink(tmp_path), 1_000_000
+    f = _RaisingFsr(n, gk.BudgetExceeded("read cap: x"))
+    assert _guard(tmp_path, monkeypatch, f, 16, sink) == 1
+    assert gk.day_used(sink, datetime(2026, 11, 23, tzinfo=timezone.utc)) == n
+
+
+def test_a_failed_record_write_is_not_swallowed(tmp_path, monkeypatch):
+    sink = _local_sink(tmp_path)
+    real_write = sink.write
+
+    def write(path, *a, **k):
+        if path.startswith(gk.BUDGET_PREFIX):
+            raise OSError("bucket write refused")
+        return real_write(path, *a, **k)
+    monkeypatch.setattr(sink, "write", write)
+    with pytest.raises(OSError, match="bucket write refused"):
+        _guard(tmp_path, monkeypatch, _StatefulFsr(), 16, sink)
