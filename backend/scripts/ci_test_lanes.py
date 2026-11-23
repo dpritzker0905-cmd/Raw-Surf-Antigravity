@@ -336,3 +336,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+# ci-test: throwaway comment (mixed docs+code test PR, never merged)
