@@ -1,0 +1,4453 @@
+{
+ "frozen_at": "2026-11-23T03:05:20.923883+00:00",
+ "window": [
+  "2026-10-10T00:00:00+00:00",
+  "2026-11-21T00:00:00+00:00"
+ ],
+ "rules": "NDBC/C-MAN met=y within 50 km of GFS land, >=70% hourly WSPD+GST over 2026-10-10..2026-11-21, anemometer height known; ASOS (IEM, open) within 10 km of GFS sea, >=70% hourly sknt over 2026-10-10..2026-11-21; <=60 ASOS nearest the sea",
+ "ndbc": [
+  {
+   "id": "41029",
+   "lat": 32.803,
+   "lon": -79.624,
+   "type": "buoy",
+   "name": "Capers Nearshore, SC (CAP2)",
+   "land_km": 24.8,
+   "anemometer_m": 2.95,
+   "kind": "ndbc"
+  },
+  {
+   "id": "41033",
+   "lat": 32.279,
+   "lon": -80.406,
+   "type": "buoy",
+   "name": "Fripp Nearshore, SC (FRP2)",
+   "land_km": 26.1,
+   "anemometer_m": 2.95,
+   "kind": "ndbc"
+  },
+  {
+   "id": "41038",
+   "lat": 34.141,
+   "lon": -77.715,
+   "type": "buoy",
+   "name": "Wrightsville Beach Nearshore, NC (ILM2)",
+   "land_km": 28.9,
+   "anemometer_m": 2.95,
+   "kind": "ndbc"
+  },
+  {
+   "id": "41053",
+   "lat": 18.474,
+   "lon": -66.099,
+   "type": "buoy",
+   "name": "San Juan, PR",
+   "land_km": 10.8,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "41056",
+   "lat": 18.261,
+   "lon": -65.464,
+   "type": "buoy",
+   "name": "Vieques Island, PR",
+   "land_km": 30.2,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "41066",
+   "lat": 32.536,
+   "lon": -79.656,
+   "type": "buoy",
+   "name": "CHR60",
+   "land_km": 40.0,
+   "anemometer_m": 2.95,
+   "kind": "ndbc"
+  },
+  {
+   "id": "41068",
+   "lat": 27.593,
+   "lon": -80.189,
+   "type": "buoy",
+   "name": "Fort Pierce, FL (FTP)",
+   "land_km": 12.0,
+   "anemometer_m": 3.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "41069",
+   "lat": 29.289,
+   "lon": -80.803,
+   "type": "buoy",
+   "name": "Ponce de Leon Inlet, FL (PNC)",
+   "land_km": 37.4,
+   "anemometer_m": 3.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "42012",
+   "lat": 30.061,
+   "lon": -87.547,
+   "type": "buoy",
+   "name": "ORANGE BEACH - 44 NM SE of Mobile, AL",
+   "land_km": 49.0,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "42085",
+   "lat": 17.87,
+   "lon": -66.537,
+   "type": "buoy",
+   "name": "Southeast of Ponce, PR",
+   "land_km": 15.0,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44007",
+   "lat": 43.525,
+   "lon": -70.14,
+   "type": "buoy",
+   "name": "PORTLAND - 12 NM Southeast of Portland,ME",
+   "land_km": 26.5,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44009",
+   "lat": 38.46,
+   "lon": -74.692,
+   "type": "buoy",
+   "name": "DELAWARE BAY 26 NM Southeast of Cape May, NJ",
+   "land_km": 48.8,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44013",
+   "lat": 42.346,
+   "lon": -70.651,
+   "type": "buoy",
+   "name": "BOSTON 16 NM East of Boston, MA",
+   "land_km": 13.4,
+   "anemometer_m": 3.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44020",
+   "lat": 41.497,
+   "lon": -70.283,
+   "type": "buoy",
+   "name": "NANTUCKET SOUND",
+   "land_km": 33.4,
+   "anemometer_m": 4.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44029",
+   "lat": 42.523,
+   "lon": -70.566,
+   "type": "buoy",
+   "name": "Buoy A01 - Massachusetts Bay",
+   "land_km": 33.9,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44030",
+   "lat": 43.179,
+   "lon": -70.426,
+   "type": "buoy",
+   "name": "Buoy B01 - Western Maine Shelf",
+   "land_km": 27.4,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44032",
+   "lat": 43.715,
+   "lon": -69.355,
+   "type": "buoy",
+   "name": "Buoy E01 - Central Maine Shelf",
+   "land_km": 32.8,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44033",
+   "lat": 44.055,
+   "lon": -68.996,
+   "type": "buoy",
+   "name": "Buoy F01 - Penobscot Bay",
+   "land_km": 21.2,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44034",
+   "lat": 44.103,
+   "lon": -68.112,
+   "type": "buoy",
+   "name": "Buoy I01 - Eastern Maine Shelf",
+   "land_km": 45.0,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44042",
+   "lat": 38.033,
+   "lon": -76.335,
+   "type": "buoy",
+   "name": "Potomac, MD",
+   "land_km": 14.9,
+   "anemometer_m": 3.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44062",
+   "lat": 38.556,
+   "lon": -76.415,
+   "type": "buoy",
+   "name": "Gooses Reef, MD",
+   "land_km": 9.7,
+   "anemometer_m": 3.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44063",
+   "lat": 38.963,
+   "lon": -76.448,
+   "type": "buoy",
+   "name": "Annapolis, MD",
+   "land_km": 6.1,
+   "anemometer_m": 3.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44065",
+   "lat": 40.368,
+   "lon": -73.701,
+   "type": "buoy",
+   "name": "New York Harbor Entrance - 15 NM SE of Breezy Point , NY",
+   "land_km": 42.7,
+   "anemometer_m": 4.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44069",
+   "lat": 40.699,
+   "lon": -73.087,
+   "type": "buoy",
+   "name": "Great South Bay",
+   "land_km": 14.9,
+   "anemometer_m": 3.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44072",
+   "lat": 37.201,
+   "lon": -76.266,
+   "type": "buoy",
+   "name": "York Spit, VA   ",
+   "land_km": 21.4,
+   "anemometer_m": 3.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44074",
+   "lat": 43.071,
+   "lon": -70.868,
+   "type": "buoy",
+   "name": "Great Bay Buoy",
+   "land_km": 12.4,
+   "anemometer_m": 2.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "44080",
+   "lat": 39.223,
+   "lon": -76.528,
+   "type": "buoy",
+   "name": "Baltimore",
+   "land_km": 3.9,
+   "anemometer_m": 2.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46011",
+   "lat": 34.937,
+   "lon": -120.999,
+   "type": "buoy",
+   "name": "SANTA MARIA - 21NM NW of Point Arguello, CA",
+   "land_km": 41.5,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46013",
+   "lat": 38.235,
+   "lon": -123.317,
+   "type": "buoy",
+   "name": "BODEGA BAY - 48NM NW of San Francisco, CA",
+   "land_km": 40.4,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46014",
+   "lat": 39.225,
+   "lon": -123.98,
+   "type": "buoy",
+   "name": "PT ARENA - 19NM North of Point Arena, CA",
+   "land_km": 41.4,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46015",
+   "lat": 42.754,
+   "lon": -124.839,
+   "type": "buoy",
+   "name": "PORT ORFORD - 15 NM West of Port Orford, OR",
+   "land_km": 27.7,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46022",
+   "lat": 40.716,
+   "lon": -124.54,
+   "type": "buoy",
+   "name": "EEL RIVER - 17NM WSW of Eureka, CA",
+   "land_km": 34.3,
+   "anemometer_m": 4.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46025",
+   "lat": 33.765,
+   "lon": -119.077,
+   "type": "buoy",
+   "name": "Santa Monica Basin - 33NM WSW of Santa Monica, CA",
+   "land_km": 39.9,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46026",
+   "lat": 37.75,
+   "lon": -122.838,
+   "type": "buoy",
+   "name": "SAN FRANCISCO - 18NM West of San Francisco, CA",
+   "land_km": 28.9,
+   "anemometer_m": 4.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46027",
+   "lat": 41.84,
+   "lon": -124.382,
+   "type": "buoy",
+   "name": "ST GEORGES - 8 NM NW of Crescent City, CA",
+   "land_km": 33.2,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46041",
+   "lat": 47.351,
+   "lon": -124.741,
+   "type": "buoy",
+   "name": "CAPE ELIZABETH - 45NM NW of Aberdeen, WA",
+   "land_km": 40.5,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46042",
+   "lat": 36.787,
+   "lon": -122.408,
+   "type": "buoy",
+   "name": "MONTEREY - 27NM WNW of Monterey, CA",
+   "land_km": 43.3,
+   "anemometer_m": 4.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46050",
+   "lat": 44.679,
+   "lon": -124.535,
+   "type": "buoy",
+   "name": "STONEWALL BANK - 20NM West of Newport, OR",
+   "land_km": 43.0,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46053",
+   "lat": 34.246,
+   "lon": -119.842,
+   "type": "buoy",
+   "name": "EAST SANTA BARBARA  - 12NM Southwest of Santa Barbara, CA",
+   "land_km": 29.5,
+   "anemometer_m": 4.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46054",
+   "lat": 34.274,
+   "lon": -120.468,
+   "type": "buoy",
+   "name": "WEST SANTA BARBARA  38 NM West of Santa Barbara, CA",
+   "land_km": 25.3,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46060",
+   "lat": 60.571,
+   "lon": -146.795,
+   "type": "buoy",
+   "name": "WEST ORCA BAY - 8NM NW of Hinchinbrook Is., AK",
+   "land_km": 25.6,
+   "anemometer_m": 4.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46061",
+   "lat": 60.231,
+   "lon": -146.84,
+   "type": "buoy",
+   "name": "Seal Rocks - Between Montague and Hinchinbrook Islands, AK",
+   "land_km": 22.7,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46077",
+   "lat": 57.869,
+   "lon": -154.211,
+   "type": "buoy",
+   "name": "SHELIKOF STRAIT, AK",
+   "land_km": 30.3,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46081",
+   "lat": 60.802,
+   "lon": -148.283,
+   "type": "buoy",
+   "name": "Western Prince William Sound",
+   "land_km": 22.1,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46087",
+   "lat": 48.493,
+   "lon": -124.727,
+   "type": "buoy",
+   "name": "Neah Bay - 6 NM North of Cape Flattery, WA (Traffic Separation Lighted Buoy)",
+   "land_km": 28.6,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46088",
+   "lat": 48.332,
+   "lon": -123.179,
+   "type": "buoy",
+   "name": "NEW DUNGENESS - 17 NM NE of Port Angeles, WA",
+   "land_km": 30.2,
+   "anemometer_m": 3.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46118",
+   "lat": 48.724,
+   "lon": -122.576,
+   "type": "buoy",
+   "name": "Se'lhaem Bellingham Bay",
+   "land_km": 6.3,
+   "anemometer_m": 2.97,
+   "kind": "ndbc"
+  },
+  {
+   "id": "46119",
+   "lat": 47.967,
+   "lon": -124.95,
+   "type": "buoy",
+   "name": "Cha'Ba La Push",
+   "land_km": 33.7,
+   "anemometer_m": 3.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "AAMC1",
+   "lat": 37.772,
+   "lon": -122.3,
+   "type": "fixed",
+   "name": "9414750 - Alameda, CA",
+   "land_km": 5.0,
+   "anemometer_m": 6.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ABYA2",
+   "lat": 58.381,
+   "lon": -134.646,
+   "type": "fixed",
+   "name": "Auke Bay Lab Dock, AK",
+   "land_km": 15.7,
+   "anemometer_m": 3.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ADKA2",
+   "lat": 51.861,
+   "lon": -176.637,
+   "type": "fixed",
+   "name": "9461380 - Adak Island, AK",
+   "land_km": 14.6,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "AJXA2",
+   "lat": 58.287,
+   "lon": -134.398,
+   "type": "fixed",
+   "name": "Juneau AJ Dock, AK",
+   "land_km": 7.2,
+   "anemometer_m": 3.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ALIA2",
+   "lat": 56.898,
+   "lon": -154.247,
+   "type": "fixed",
+   "name": "9457804 - Alitak, AK",
+   "land_km": 11.3,
+   "anemometer_m": 10.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "AMAA2",
+   "lat": 58.916,
+   "lon": -151.952,
+   "type": "fixed",
+   "name": "East Amatuli Island Light, AK",
+   "land_km": 37.2,
+   "anemometer_m": 15.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "AMRL1",
+   "lat": 29.45,
+   "lon": -91.338,
+   "type": "fixed",
+   "name": "8764227 - LAWMA, Amerada Pass, LA",
+   "land_km": 10.2,
+   "anemometer_m": 11.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ANPT2",
+   "lat": 27.837,
+   "lon": -97.039,
+   "type": "fixed",
+   "name": "8775241 - Aransas, Aransas Pass, TX",
+   "land_km": 27.5,
+   "anemometer_m": 3.96,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ANVC1",
+   "lat": 38.915,
+   "lon": -123.711,
+   "type": "fixed",
+   "name": "9416841 - Arena Cove, CA",
+   "land_km": 20.5,
+   "anemometer_m": 8.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "APCF1",
+   "lat": 29.724,
+   "lon": -84.98,
+   "type": "fixed",
+   "name": "8728690 - Apalachicola, FL",
+   "land_km": 26.2,
+   "anemometer_m": 7.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "APMA2",
+   "lat": 61.238,
+   "lon": -149.887,
+   "type": "fixed",
+   "name": "Anchorage Port, AK",
+   "land_km": 7.4,
+   "anemometer_m": 10.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "APNM4",
+   "lat": 45.06,
+   "lon": -83.424,
+   "type": "fixed",
+   "name": "Alpena Harbor Light, Alpena, MI",
+   "land_km": 9.0,
+   "anemometer_m": 18.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ASTO3",
+   "lat": 46.207,
+   "lon": -123.768,
+   "type": "fixed",
+   "name": "9439040 - Astoria, OR",
+   "land_km": 21.2,
+   "anemometer_m": 6.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ATGM1",
+   "lat": 44.392,
+   "lon": -68.204,
+   "type": "fixed",
+   "name": "8413320 - Bar Harbor, ME",
+   "land_km": 12.6,
+   "anemometer_m": 8.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ATKA2",
+   "lat": 52.232,
+   "lon": -174.173,
+   "type": "fixed",
+   "name": "9461710 - Atka, AK",
+   "land_km": 5.6,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "AUGA2",
+   "lat": 59.378,
+   "lon": -153.356,
+   "type": "fixed",
+   "name": "Augustine Island, AK",
+   "land_km": 26.1,
+   "anemometer_m": 7.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "AWRT2",
+   "lat": 28.227,
+   "lon": -96.796,
+   "type": "fixed",
+   "name": "8774230 - Aransas Wildlife Refuge, TX",
+   "land_km": 5.2,
+   "anemometer_m": 9.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BABT2",
+   "lat": 27.297,
+   "lon": -97.405,
+   "type": "fixed",
+   "name": "8776604 - Baffin Bay, TX",
+   "land_km": 10.7,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BARN6",
+   "lat": 42.345,
+   "lon": -79.595,
+   "type": "fixed",
+   "name": "Barcelona Harbor, NY",
+   "land_km": 13.1,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BCFM2",
+   "lat": 39.205,
+   "lon": -76.524,
+   "type": "fixed",
+   "name": "Brewerton Channel Range Front Light (8574831)",
+   "land_km": 5.4,
+   "anemometer_m": 7.264,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BCTP1",
+   "lat": 42.153,
+   "lon": -80.131,
+   "type": "fixed",
+   "name": "Beach 2 Tower",
+   "land_km": 19.6,
+   "anemometer_m": 179.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BDRN4",
+   "lat": 40.082,
+   "lon": -74.87,
+   "type": "fixed",
+   "name": "8539094 - Burlington, Delaware River, NJ",
+   "land_km": 13.7,
+   "anemometer_m": 7.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BEXA2",
+   "lat": 60.791,
+   "lon": -161.749,
+   "type": "fixed",
+   "name": "Bethel, AK",
+   "land_km": 4.6,
+   "anemometer_m": 14.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BFTN7",
+   "lat": 34.717,
+   "lon": -76.671,
+   "type": "fixed",
+   "name": "8656483 - Beaufort, NC",
+   "land_km": 16.1,
+   "anemometer_m": 7.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BIGM4",
+   "lat": 46.827,
+   "lon": -87.727,
+   "type": "fixed",
+   "name": "Big Bay, MI",
+   "land_km": 8.7,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BISM2",
+   "lat": 38.22,
+   "lon": -76.039,
+   "type": "fixed",
+   "name": "8571421 - Bishops Head, MD",
+   "land_km": 25.5,
+   "anemometer_m": 7.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BKBF1",
+   "lat": 30.192,
+   "lon": -81.692,
+   "type": "fixed",
+   "name": "8720357 -  I-295 Buckman Bridge, St Johns River, FL",
+   "land_km": 8.5,
+   "anemometer_m": 9.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BLIA2",
+   "lat": 60.839,
+   "lon": -146.884,
+   "type": "fixed",
+   "name": "Bligh Reef Light, AK",
+   "land_km": 19.0,
+   "anemometer_m": 18.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BLIF1",
+   "lat": 30.393,
+   "lon": -81.523,
+   "type": "fixed",
+   "name": "8720233 - Blount Island Command, St Johns River, FL",
+   "land_km": 12.1,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BLTM2",
+   "lat": 39.267,
+   "lon": -76.579,
+   "type": "fixed",
+   "name": "8574680 - Baltimore, MD",
+   "land_km": 7.1,
+   "anemometer_m": 7.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BLTM3",
+   "lat": 41.704,
+   "lon": -71.174,
+   "type": "fixed",
+   "name": "8447387 - Borden Flats Light at Fall River, MA",
+   "land_km": 8.1,
+   "anemometer_m": 16.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BMTW1",
+   "lat": 47.562,
+   "lon": -122.626,
+   "type": "fixed",
+   "name": "9445958 - Bremerton, WA",
+   "land_km": 11.6,
+   "anemometer_m": 16.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BRHC3",
+   "lat": 41.174,
+   "lon": -73.181,
+   "type": "fixed",
+   "name": "8467150 - Bridgeport, CT",
+   "land_km": 10.2,
+   "anemometer_m": 7.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BRND1",
+   "lat": 38.987,
+   "lon": -75.113,
+   "type": "fixed",
+   "name": "8555889 - Brandywine Shoal Light, DE",
+   "land_km": 28.9,
+   "anemometer_m": 21.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BSBM4",
+   "lat": 44.055,
+   "lon": -86.514,
+   "type": "fixed",
+   "name": "Big Sable Point, MI",
+   "land_km": 22.0,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BUFN6",
+   "lat": 42.878,
+   "lon": -78.89,
+   "type": "fixed",
+   "name": "9063020 - Buffalo, NY",
+   "land_km": 16.3,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BURL1",
+   "lat": 28.906,
+   "lon": -89.429,
+   "type": "fixed",
+   "name": "Southwest Pass, LA",
+   "land_km": 42.0,
+   "anemometer_m": 38.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BUZM3",
+   "lat": 41.397,
+   "lon": -71.033,
+   "type": "fixed",
+   "name": "Buzzards Bay, MA",
+   "land_km": 21.4,
+   "anemometer_m": 24.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "BZST2",
+   "lat": 26.067,
+   "lon": -97.155,
+   "type": "fixed",
+   "name": "8779749 - SPI Brazos Santiago, TX ",
+   "land_km": 12.1,
+   "anemometer_m": 4.25,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CAMM2",
+   "lat": 38.574,
+   "lon": -76.069,
+   "type": "fixed",
+   "name": "8571892 - Cambridge, MD",
+   "land_km": 10.2,
+   "anemometer_m": 6.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CAPL1",
+   "lat": 29.768,
+   "lon": -93.343,
+   "type": "fixed",
+   "name": "8768094 - Calcasieu Pass, LA",
+   "land_km": 27.3,
+   "anemometer_m": 12.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CASM1",
+   "lat": 43.656,
+   "lon": -70.246,
+   "type": "fixed",
+   "name": "8418150 - Portland, ME",
+   "land_km": 10.5,
+   "anemometer_m": 7.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CAVN6",
+   "lat": 44.13,
+   "lon": -76.333,
+   "type": "fixed",
+   "name": "9052000 - Cape Vincent, NY",
+   "land_km": 18.9,
+   "anemometer_m": 8.57,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CBLO1",
+   "lat": 41.981,
+   "lon": -80.556,
+   "type": "fixed",
+   "name": "Conneaut Breakwater Light, OH",
+   "land_km": 25.4,
+   "anemometer_m": 12.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CDEA2",
+   "lat": 56.001,
+   "lon": -134.136,
+   "type": "fixed",
+   "name": "Cape Decision, AK",
+   "land_km": 28.9,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CDRF1",
+   "lat": 29.136,
+   "lon": -83.029,
+   "type": "fixed",
+   "name": "Cedar Key, FL",
+   "land_km": 13.0,
+   "anemometer_m": 7.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CDXA2",
+   "lat": 56.001,
+   "lon": -134.136,
+   "type": "fixed",
+   "name": "Cape Decision MXAK, AK",
+   "land_km": 28.9,
+   "anemometer_m": 9.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CECC1",
+   "lat": 41.746,
+   "lon": -124.184,
+   "type": "fixed",
+   "name": "9419750 - Crescent City, CA",
+   "land_km": 15.3,
+   "anemometer_m": 8.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CFWM1",
+   "lat": 44.657,
+   "lon": -67.205,
+   "type": "fixed",
+   "name": " 8411060 - Cutler Farris Wharf, ME",
+   "land_km": 10.9,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CHAO3",
+   "lat": 43.351,
+   "lon": -124.337,
+   "type": "fixed",
+   "name": "9432780 - Charleston, OR",
+   "land_km": 13.3,
+   "anemometer_m": 8.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CHBV2",
+   "lat": 37.032,
+   "lon": -76.083,
+   "type": "fixed",
+   "name": "8638901 - Chesapeake Bay Bridge Tunnel, VA",
+   "land_km": 32.2,
+   "anemometer_m": 4.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CHCM2",
+   "lat": 39.527,
+   "lon": -75.81,
+   "type": "fixed",
+   "name": "8573927 - Chesapeake City, MD",
+   "land_km": 6.0,
+   "anemometer_m": 6.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CHII2",
+   "lat": 41.916,
+   "lon": -87.572,
+   "type": "fixed",
+   "name": "Harrison-Dever Crib, Chicago, IL",
+   "land_km": 17.4,
+   "anemometer_m": 25.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CHSV3",
+   "lat": 17.748,
+   "lon": -64.699,
+   "type": "fixed",
+   "name": "9751364 - Christiansted Harbor, St. Croix, VI",
+   "land_km": 5.4,
+   "anemometer_m": 7.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CHTS1",
+   "lat": 32.781,
+   "lon": -79.924,
+   "type": "fixed",
+   "name": "8665530 - Charleston, Cooper River Entrance, SC",
+   "land_km": 7.9,
+   "anemometer_m": 16.374,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CHYV2",
+   "lat": 36.926,
+   "lon": -76.007,
+   "type": "fixed",
+   "name": "8638999 - Cape Henry, VA",
+   "land_km": 19.6,
+   "anemometer_m": 27.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CKYF1",
+   "lat": 29.134,
+   "lon": -83.031,
+   "type": "fixed",
+   "name": "8727520 - Cedar Key, FL",
+   "land_km": 13.2,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CLKN7",
+   "lat": 34.611,
+   "lon": -76.528,
+   "type": "fixed",
+   "name": "Cape Lookout, NC",
+   "land_km": 15.7,
+   "anemometer_m": 6.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CLSM4",
+   "lat": 42.471,
+   "lon": -82.877,
+   "type": "fixed",
+   "name": "St. Clair Shores, MI",
+   "land_km": 10.6,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CMAN4",
+   "lat": 38.968,
+   "lon": -74.96,
+   "type": "fixed",
+   "name": "8536110 - Cape May, NJ",
+   "land_km": 31.5,
+   "anemometer_m": 9.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CMTI2",
+   "lat": 41.73,
+   "lon": -87.538,
+   "type": "fixed",
+   "name": "9087044 - Calumet Harbor, IL",
+   "land_km": 3.9,
+   "anemometer_m": 10.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CNDO1",
+   "lat": 41.542,
+   "lon": -81.637,
+   "type": "fixed",
+   "name": "9063063 - Cleveland, OH",
+   "land_km": 10.5,
+   "anemometer_m": 7.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CNII2",
+   "lat": 41.856,
+   "lon": -87.609,
+   "type": "fixed",
+   "name": "Northerly Isle, IL",
+   "land_km": 14.9,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "COXA2",
+   "lat": 60.542,
+   "lon": -145.766,
+   "type": "fixed",
+   "name": "Cordova, AK",
+   "land_km": 4.8,
+   "anemometer_m": 5.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CPMW1",
+   "lat": 48.86,
+   "lon": -122.756,
+   "type": "fixed",
+   "name": "9449419 - Cherry Point South Dock Met, WA",
+   "land_km": 15.6,
+   "anemometer_m": 7.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CPNW1",
+   "lat": 48.863,
+   "lon": -122.758,
+   "type": "fixed",
+   "name": "9449427 - Cherry Point North Dock Met",
+   "land_km": 15.2,
+   "anemometer_m": 15.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CPSA2",
+   "lat": 56.397,
+   "lon": -160.142,
+   "type": "fixed",
+   "name": "Cape Seniavin, AK",
+   "land_km": 17.7,
+   "anemometer_m": 3.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CPTR1",
+   "lat": 41.717,
+   "lon": -71.345,
+   "type": "fixed",
+   "name": "8452944 - Conimicut Light, RI",
+   "land_km": 8.7,
+   "anemometer_m": 20.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CPXA2",
+   "lat": 53.843,
+   "lon": -166.583,
+   "type": "fixed",
+   "name": "Captains Bay",
+   "land_km": 11.7,
+   "anemometer_m": 15.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CRGA2",
+   "lat": 55.474,
+   "lon": -133.136,
+   "type": "fixed",
+   "name": "Craig, AK",
+   "land_km": 9.0,
+   "anemometer_m": 11.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CRVA2",
+   "lat": 60.558,
+   "lon": -145.752,
+   "type": "fixed",
+   "name": "9454050 - Cordova, AK",
+   "land_km": 6.5,
+   "anemometer_m": 8.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CRYV2",
+   "lat": 36.888,
+   "lon": -76.338,
+   "type": "fixed",
+   "name": "8638595 - South Craney Island, VA",
+   "land_km": 17.2,
+   "anemometer_m": 8.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CSIM3",
+   "lat": 42.341,
+   "lon": -71.012,
+   "type": "fixed",
+   "name": "Castle Island (NOS) 8444069",
+   "land_km": 10.2,
+   "anemometer_m": 9.16,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CSPA2",
+   "lat": 58.199,
+   "lon": -136.64,
+   "type": "fixed",
+   "name": "Cape Spencer, AK",
+   "land_km": 8.6,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CSXA2",
+   "lat": 58.199,
+   "lon": -136.641,
+   "type": "fixed",
+   "name": "Cape Spencer WX",
+   "land_km": 8.5,
+   "anemometer_m": 30.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CWBF1",
+   "lat": 27.978,
+   "lon": -82.832,
+   "type": "fixed",
+   "name": "8726724 - Clearwater Beach, FL",
+   "land_km": 32.7,
+   "anemometer_m": 6.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CXHN6",
+   "lat": 42.353,
+   "lon": -73.795,
+   "type": "fixed",
+   "name": "Coxsackie, Hudson River (8518979)",
+   "land_km": 12.0,
+   "anemometer_m": 3.65,
+   "kind": "ndbc"
+  },
+  {
+   "id": "CXLM2",
+   "lat": 38.679,
+   "lon": -76.174,
+   "type": "fixed",
+   "name": "Cooperative Oxford Laboratory",
+   "land_km": 17.0,
+   "anemometer_m": 3.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "DBLN6",
+   "lat": 42.494,
+   "lon": -79.354,
+   "type": "fixed",
+   "name": "Dunkirk, NY",
+   "land_km": 8.6,
+   "anemometer_m": 19.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "DCXA2",
+   "lat": 58.351,
+   "lon": -154.127,
+   "type": "fixed",
+   "name": "Devils Cove",
+   "land_km": 18.0,
+   "anemometer_m": 14.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "DELD1",
+   "lat": 39.582,
+   "lon": -75.589,
+   "type": "fixed",
+   "name": "8551762 - Delaware City, DE",
+   "land_km": 11.9,
+   "anemometer_m": 7.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "DESW1",
+   "lat": 47.675,
+   "lon": -124.485,
+   "type": "fixed",
+   "name": "Destruction Island, WA",
+   "land_km": 19.5,
+   "anemometer_m": 31.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "DILA1",
+   "lat": 30.25,
+   "lon": -88.075,
+   "type": "fixed",
+   "name": "8735180 - Dauphin Island, AL ",
+   "land_km": 32.5,
+   "anemometer_m": 3.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "DISW3",
+   "lat": 47.079,
+   "lon": -90.728,
+   "type": "fixed",
+   "name": "Devils Island, WI",
+   "land_km": 42.0,
+   "anemometer_m": 24.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "DOMV2",
+   "lat": 36.962,
+   "lon": -76.424,
+   "type": "fixed",
+   "name": "8638511 - Dominion Terminal Associates, VA",
+   "land_km": 8.0,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "DPLA2",
+   "lat": 53.884,
+   "lon": -166.531,
+   "type": "fixed",
+   "name": "Dutch Harbor APL, AK",
+   "land_km": 15.0,
+   "anemometer_m": 30.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "DPXA2",
+   "lat": 53.889,
+   "lon": -166.542,
+   "type": "fixed",
+   "name": "Dutch Harbor Pilot Station, AK",
+   "land_km": 15.7,
+   "anemometer_m": 9.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "DTLM4",
+   "lat": 45.993,
+   "lon": -83.898,
+   "type": "fixed",
+   "name": "9075099 - De Tour Village, MI",
+   "land_km": 7.9,
+   "anemometer_m": 11.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "DUKN7",
+   "lat": 36.184,
+   "lon": -75.746,
+   "type": "fixed",
+   "name": " 8651370 - Duck Pier, NC ",
+   "land_km": 23.9,
+   "anemometer_m": 8.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "DULM5",
+   "lat": 46.776,
+   "lon": -92.092,
+   "type": "fixed",
+   "name": "9099064 - Duluth, MN",
+   "land_km": 7.6,
+   "anemometer_m": 13.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "EINL1",
+   "lat": 29.373,
+   "lon": -91.384,
+   "type": "fixed",
+   "name": "8764314 - North of Eugene Island, LA",
+   "land_km": 19.2,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "EMAT2",
+   "lat": 28.71,
+   "lon": -95.914,
+   "type": "fixed",
+   "name": "8773146 - Matagorda City, TX",
+   "land_km": 9.5,
+   "anemometer_m": 8.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "EPTT2",
+   "lat": 29.481,
+   "lon": -94.917,
+   "type": "fixed",
+   "name": "8771013 - Eagle Point, TX",
+   "land_km": 8.3,
+   "anemometer_m": 5.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ERXA2",
+   "lat": 58.971,
+   "lon": -135.221,
+   "type": "fixed",
+   "name": "Eldred Rock MXAK, AK",
+   "land_km": 13.1,
+   "anemometer_m": 6.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ESPP4",
+   "lat": 18.094,
+   "lon": -65.471,
+   "type": "fixed",
+   "name": "9752695 - Esperanza, Viequez Island, PR",
+   "land_km": 34.2,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FBIS1",
+   "lat": 32.684,
+   "lon": -79.887,
+   "type": "fixed",
+   "name": "Folly Island, SC",
+   "land_km": 12.9,
+   "anemometer_m": 8.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FFIA2",
+   "lat": 57.271,
+   "lon": -133.632,
+   "type": "fixed",
+   "name": "Five Fingers, AK",
+   "land_km": 8.3,
+   "anemometer_m": 24.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FILA2",
+   "lat": 59.331,
+   "lon": -151.995,
+   "type": "fixed",
+   "name": "Flat Island Light, AK",
+   "land_km": 9.0,
+   "anemometer_m": 4.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FMRF1",
+   "lat": 26.647,
+   "lon": -81.871,
+   "type": "fixed",
+   "name": "8725520 - Fort Myers, FL",
+   "land_km": 16.6,
+   "anemometer_m": 6.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FOXR1",
+   "lat": 41.807,
+   "lon": -71.401,
+   "type": "fixed",
+   "name": "8454000 - Providence, RI",
+   "land_km": 10.4,
+   "anemometer_m": 18.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FPKG1",
+   "lat": 32.035,
+   "lon": -80.903,
+   "type": "fixed",
+   "name": "8670870 - Fort Pulaski, GA",
+   "land_km": 9.9,
+   "anemometer_m": 6.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FPST2",
+   "lat": 28.936,
+   "lon": -95.294,
+   "type": "fixed",
+   "name": "8772471 - Freeport SPIP, TX",
+   "land_km": 8.3,
+   "anemometer_m": 15.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FPTM4",
+   "lat": 45.619,
+   "lon": -86.66,
+   "type": "fixed",
+   "name": "Fairport, MI",
+   "land_km": 19.1,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FRDF1",
+   "lat": 30.675,
+   "lon": -81.465,
+   "type": "fixed",
+   "name": "8720030 - Fernandina Beach, FL",
+   "land_km": 19.7,
+   "anemometer_m": 6.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FRDW1",
+   "lat": 48.545,
+   "lon": -123.012,
+   "type": "fixed",
+   "name": "9449880 - Friday Harbor, WA",
+   "land_km": 36.3,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FRMA1",
+   "lat": 30.234,
+   "lon": -87.994,
+   "type": "fixed",
+   "name": "8734383 - Fort Morgan, AL",
+   "land_km": 37.7,
+   "anemometer_m": 7.01,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FRWL1",
+   "lat": 29.552,
+   "lon": -92.305,
+   "type": "fixed",
+   "name": "8766072 - Freshwater Canal Locks, LA",
+   "land_km": 22.6,
+   "anemometer_m": 17.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FSKM2",
+   "lat": 39.219,
+   "lon": -76.528,
+   "type": "fixed",
+   "name": "8574728 - Francis Scott Key Bridge, MD",
+   "land_km": 4.2,
+   "anemometer_m": 6.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FTGM4",
+   "lat": 43.007,
+   "lon": -82.422,
+   "type": "fixed",
+   "name": "9014098 - Fort Gratiot, MI",
+   "land_km": 6.4,
+   "anemometer_m": 27.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "FTPC1",
+   "lat": 37.806,
+   "lon": -122.466,
+   "type": "fixed",
+   "name": "9414290 - San Francisco, CA",
+   "land_km": 20.0,
+   "anemometer_m": 7.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "GBWW3",
+   "lat": 44.538,
+   "lon": -88.003,
+   "type": "fixed",
+   "name": "9087077 - Green Bay West, WI",
+   "land_km": 4.2,
+   "anemometer_m": 5.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "GBXA2",
+   "lat": 63.777,
+   "lon": -171.715,
+   "type": "fixed",
+   "name": "Gambell, AK",
+   "land_km": 30.8,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "GEXA2",
+   "lat": 58.213,
+   "lon": -136.381,
+   "type": "fixed",
+   "name": "George Island, Alaska",
+   "land_km": 22.0,
+   "anemometer_m": 5.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "GISL1",
+   "lat": 29.265,
+   "lon": -89.958,
+   "type": "fixed",
+   "name": "8761724 - Grand Isle, LA",
+   "land_km": 26.4,
+   "anemometer_m": 6.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "GIXA2",
+   "lat": 55.446,
+   "lon": -131.881,
+   "type": "fixed",
+   "name": "Guard Island, AK",
+   "land_km": 23.3,
+   "anemometer_m": 2.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "GNJT2",
+   "lat": 29.357,
+   "lon": -94.725,
+   "type": "fixed",
+   "name": "8771341 - Galveston Bay Entrance (North Jetty), TX",
+   "land_km": 31.0,
+   "anemometer_m": 12.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "GPXA2",
+   "lat": 58.062,
+   "lon": -134.051,
+   "type": "fixed",
+   "name": "Grave Point, AK",
+   "land_km": 13.6,
+   "anemometer_m": 6.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "GRMM4",
+   "lat": 46.684,
+   "lon": -85.972,
+   "type": "fixed",
+   "name": "Grand Marais, MI",
+   "land_km": 20.6,
+   "anemometer_m": 9.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "GRRT2",
+   "lat": 29.302,
+   "lon": -94.896,
+   "type": "fixed",
+   "name": "8771486 - Galveston RR Bridge, TX",
+   "land_km": 24.2,
+   "anemometer_m": 3.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "GTLM4",
+   "lat": 45.211,
+   "lon": -85.55,
+   "type": "fixed",
+   "name": "Grand Traverse Light, MI",
+   "land_km": 23.9,
+   "anemometer_m": 16.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "GUXA2",
+   "lat": 58.408,
+   "lon": -135.726,
+   "type": "fixed",
+   "name": "Gustavus Dock, AK",
+   "land_km": 10.3,
+   "anemometer_m": 7.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "HAXA2",
+   "lat": 59.234,
+   "lon": -135.442,
+   "type": "fixed",
+   "name": "Haines Harbor, AK",
+   "land_km": 11.1,
+   "anemometer_m": 4.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "HCGN7",
+   "lat": 35.209,
+   "lon": -75.704,
+   "type": "fixed",
+   "name": "8654467 - USCG Station Hatteras, NC",
+   "land_km": 42.0,
+   "anemometer_m": 7.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "HHLO1",
+   "lat": 41.401,
+   "lon": -82.545,
+   "type": "fixed",
+   "name": "Huron Harbor Light, OH",
+   "land_km": 17.2,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "HLNM4",
+   "lat": 42.773,
+   "lon": -86.213,
+   "type": "fixed",
+   "name": "9087031 - Holland, MI",
+   "land_km": 17.6,
+   "anemometer_m": 10.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "HMSA2",
+   "lat": 59.602,
+   "lon": -151.417,
+   "type": "fixed",
+   "name": "Homer Spit, AK",
+   "land_km": 14.7,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "HRBM4",
+   "lat": 43.846,
+   "lon": -82.643,
+   "type": "fixed",
+   "name": "9075014 - Harbor Beach, MI",
+   "land_km": 13.7,
+   "anemometer_m": 8.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ICAC1",
+   "lat": 34.008,
+   "lon": -118.5,
+   "type": "fixed",
+   "name": "9410840 - Santa Monica Pier",
+   "land_km": 0.9,
+   "anemometer_m": 13.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ILOH1",
+   "lat": 19.73,
+   "lon": -155.056,
+   "type": "fixed",
+   "name": "1617760 - Hilo, HI",
+   "land_km": 20.4,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "IRDT2",
+   "lat": 27.48,
+   "lon": -97.322,
+   "type": "fixed",
+   "name": "8776139 - South Bird Island, TX",
+   "land_km": 17.7,
+   "anemometer_m": 3.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "JLXA2",
+   "lat": 58.298,
+   "lon": -134.405,
+   "type": "fixed",
+   "name": "Juneau Library, AK",
+   "land_km": 7.7,
+   "anemometer_m": 21.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "JMLA2",
+   "lat": 58.286,
+   "lon": -134.39,
+   "type": "fixed",
+   "name": "Juneau AML Dock",
+   "land_km": 7.6,
+   "anemometer_m": 18.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "JMPN7",
+   "lat": 34.213,
+   "lon": -77.786,
+   "type": "fixed",
+   "name": "8658163 - Wrightsville Beach, NC",
+   "land_km": 20.1,
+   "anemometer_m": 8.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "JNEA2",
+   "lat": 58.298,
+   "lon": -134.411,
+   "type": "fixed",
+   "name": "9452210 - Juneau, AK",
+   "land_km": 7.5,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KCXA2",
+   "lat": 55.057,
+   "lon": -162.326,
+   "type": "fixed",
+   "name": "King Cove",
+   "land_km": 22.0,
+   "anemometer_m": 29.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KECA2",
+   "lat": 55.331,
+   "lon": -131.625,
+   "type": "fixed",
+   "name": "9450460 - Ketchikan, AK",
+   "land_km": 12.0,
+   "anemometer_m": 8.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KEXA2",
+   "lat": 55.352,
+   "lon": -131.684,
+   "type": "fixed",
+   "name": "Ketchikan Harbor, AK",
+   "land_km": 12.1,
+   "anemometer_m": 7.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KGCA2",
+   "lat": 55.062,
+   "lon": -162.327,
+   "type": "fixed",
+   "name": "9459881 - King Cove, AK",
+   "land_km": 21.5,
+   "anemometer_m": 6.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KGXA2",
+   "lat": 57.777,
+   "lon": -152.425,
+   "type": "fixed",
+   "name": "Kodiak Gull Island, AK",
+   "land_km": 5.4,
+   "anemometer_m": 7.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KLIH1",
+   "lat": 20.895,
+   "lon": -156.469,
+   "type": "fixed",
+   "name": "1615680 - Kahului, Kahului Harbor, HI",
+   "land_km": 16.4,
+   "anemometer_m": 6.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KMXA2",
+   "lat": 57.782,
+   "lon": -152.439,
+   "type": "fixed",
+   "name": "Kodiak Matson Crane, AK",
+   "land_km": 5.1,
+   "anemometer_m": 70.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KNXA2",
+   "lat": 60.552,
+   "lon": -151.274,
+   "type": "fixed",
+   "name": "Kenai, AK",
+   "land_km": 16.1,
+   "anemometer_m": 9.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KOZA2",
+   "lat": 66.901,
+   "lon": -162.589,
+   "type": "fixed",
+   "name": "KOTZEBUE MXAK, AK",
+   "land_km": 39.0,
+   "anemometer_m": 16.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KPTN6",
+   "lat": 40.811,
+   "lon": -73.765,
+   "type": "fixed",
+   "name": "8516945 - Kings Point, NY",
+   "land_km": 6.9,
+   "anemometer_m": 8.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KPTV2",
+   "lat": 37.165,
+   "lon": -75.988,
+   "type": "fixed",
+   "name": "8632200 - Kiptopeke, VA",
+   "land_km": 42.8,
+   "anemometer_m": 7.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KTNF1",
+   "lat": 29.819,
+   "lon": -83.594,
+   "type": "fixed",
+   "name": "Keaton Beach, FL",
+   "land_km": 11.9,
+   "anemometer_m": 7.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KWHH1",
+   "lat": 20.037,
+   "lon": -155.829,
+   "type": "fixed",
+   "name": "1617433 - Kawaihae, HI",
+   "land_km": 9.2,
+   "anemometer_m": 8.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "KWNW3",
+   "lat": 44.465,
+   "lon": -87.496,
+   "type": "fixed",
+   "name": "9087069 - Kewaunee MET, WI",
+   "land_km": 3.9,
+   "anemometer_m": 9.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LAPW1",
+   "lat": 47.913,
+   "lon": -124.637,
+   "type": "fixed",
+   "name": "9442396 - La Push, WA",
+   "land_km": 14.1,
+   "anemometer_m": 7.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LDTM4",
+   "lat": 43.947,
+   "lon": -86.441,
+   "type": "fixed",
+   "name": "9087023 - Ludington, MI",
+   "land_km": 16.4,
+   "anemometer_m": 7.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LJAC1",
+   "lat": 32.867,
+   "lon": -117.257,
+   "type": "fixed",
+   "name": "9410230 - La Jolla, CA",
+   "land_km": 27.3,
+   "anemometer_m": 8.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LJPC1",
+   "lat": 32.867,
+   "lon": -117.257,
+   "type": "fixed",
+   "name": "La Jolla, CA (073)",
+   "land_km": 27.3,
+   "anemometer_m": 20.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LKWF1",
+   "lat": 26.613,
+   "lon": -80.034,
+   "type": "fixed",
+   "name": "8722670 - Lake Worth Pier, FL",
+   "land_km": 13.0,
+   "anemometer_m": 6.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LMFS1",
+   "lat": 34.107,
+   "lon": -81.271,
+   "type": "fixed",
+   "name": "Lake Murray SC",
+   "land_km": 12.1,
+   "anemometer_m": 9.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LNDC1",
+   "lat": 37.795,
+   "lon": -122.281,
+   "type": "fixed",
+   "name": "9414763 - Oakland Berth 67, CA",
+   "land_km": 5.7,
+   "anemometer_m": 7.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LONF1",
+   "lat": 24.844,
+   "lon": -80.864,
+   "type": "fixed",
+   "name": "Long Key, FL",
+   "land_km": 46.6,
+   "anemometer_m": 6.34,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LPNM4",
+   "lat": 45.063,
+   "lon": -83.429,
+   "type": "fixed",
+   "name": "9075065 - Alpena, MI ",
+   "land_km": 9.0,
+   "anemometer_m": 9.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LQAT2",
+   "lat": 27.881,
+   "lon": -97.285,
+   "type": "fixed",
+   "name": "La Quinta, TX  MET (8775132)",
+   "land_km": 13.7,
+   "anemometer_m": 18.626,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LTBV3",
+   "lat": 17.695,
+   "lon": -64.754,
+   "type": "fixed",
+   "name": "9751401 - Lime Tree Bay, St. Croix, VI",
+   "land_km": 6.1,
+   "anemometer_m": 6.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LTRM4",
+   "lat": 46.486,
+   "lon": -84.302,
+   "type": "fixed",
+   "name": "9076033 - Little Rapids, MI",
+   "land_km": 4.3,
+   "anemometer_m": 10.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LWSD1",
+   "lat": 38.783,
+   "lon": -75.119,
+   "type": "fixed",
+   "name": "8557380 - Lewes, DE",
+   "land_km": 11.9,
+   "anemometer_m": 9.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "LWTV2",
+   "lat": 37.995,
+   "lon": -76.465,
+   "type": "fixed",
+   "name": "8635750 - Lewisetta, VA",
+   "land_km": 3.1,
+   "anemometer_m": 6.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MACM4",
+   "lat": 45.777,
+   "lon": -84.721,
+   "type": "fixed",
+   "name": "9075080 - Mackinaw City, MI",
+   "land_km": 30.9,
+   "anemometer_m": 10.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MBET2",
+   "lat": 28.422,
+   "lon": -96.327,
+   "type": "fixed",
+   "name": "8773767 - Matagorda Bay Entrance Channel, TX",
+   "land_km": 19.0,
+   "anemometer_m": 12.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MBIN7",
+   "lat": 34.091,
+   "lon": -77.868,
+   "type": "fixed",
+   "name": "Masonboro Island, NC (MSNB_S)",
+   "land_km": 15.8,
+   "anemometer_m": 3.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MBNN7",
+   "lat": 34.171,
+   "lon": -77.824,
+   "type": "fixed",
+   "name": "Masonboro Island, NC (MSNB_N)",
+   "land_km": 18.4,
+   "anemometer_m": 3.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MCGA1",
+   "lat": 30.649,
+   "lon": -88.058,
+   "type": "fixed",
+   "name": "8736897 - Coast Guard Sector Mobile, AL",
+   "land_km": 12.5,
+   "anemometer_m": 7.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MCGM4",
+   "lat": 46.546,
+   "lon": -87.379,
+   "type": "fixed",
+   "name": "9099018 - Marquette C.G., MI",
+   "land_km": 10.6,
+   "anemometer_m": 8.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MCYI3",
+   "lat": 41.729,
+   "lon": -86.912,
+   "type": "fixed",
+   "name": "Michigan City Harbor Entrance Light, Michigan City, IN",
+   "land_km": 13.6,
+   "anemometer_m": 21.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MGIP4",
+   "lat": 17.97,
+   "lon": -67.046,
+   "type": "fixed",
+   "name": "9759110 - Magueyes Islands, PR",
+   "land_km": 31.5,
+   "anemometer_m": 6.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MGPT2",
+   "lat": 29.682,
+   "lon": -94.985,
+   "type": "fixed",
+   "name": "8770613 - Morgans Point, TX",
+   "land_km": 7.7,
+   "anemometer_m": 3.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MGZP4",
+   "lat": 18.218,
+   "lon": -67.159,
+   "type": "fixed",
+   "name": "9759394 - Mayaguez, PR",
+   "land_km": 17.2,
+   "anemometer_m": 8.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MHBT2",
+   "lat": 27.828,
+   "lon": -97.201,
+   "type": "fixed",
+   "name": "8775283 - Enbridge, Ingleside, TX",
+   "land_km": 19.7,
+   "anemometer_m": 17.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MHRN6",
+   "lat": 40.641,
+   "lon": -74.162,
+   "type": "fixed",
+   "name": "8519532 - Mariners Harbor, NY",
+   "land_km": 14.2,
+   "anemometer_m": 46.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MISM1",
+   "lat": 43.784,
+   "lon": -68.855,
+   "type": "fixed",
+   "name": "Matinicus Rock, ME",
+   "land_km": 39.7,
+   "anemometer_m": 15.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MIXA2",
+   "lat": 57.837,
+   "lon": -133.814,
+   "type": "fixed",
+   "name": "Midway Island, AK",
+   "land_km": 18.5,
+   "anemometer_m": 8.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MKGM4",
+   "lat": 43.228,
+   "lon": -86.339,
+   "type": "fixed",
+   "name": "Muskegon CG Station, Muskegon, MI",
+   "land_km": 7.6,
+   "anemometer_m": 24.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MLWW3",
+   "lat": 43.005,
+   "lon": -87.884,
+   "type": "fixed",
+   "name": "Port of Milwaukee",
+   "land_km": 9.4,
+   "anemometer_m": 7.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MNMM4",
+   "lat": 45.096,
+   "lon": -87.59,
+   "type": "fixed",
+   "name": "9087088 - Menominee, MI",
+   "land_km": 16.5,
+   "anemometer_m": 10.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MNPV2",
+   "lat": 36.778,
+   "lon": -76.302,
+   "type": "fixed",
+   "name": "8639348 - Money Point, VA",
+   "land_km": 5.6,
+   "anemometer_m": 5.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MOKH1",
+   "lat": 21.433,
+   "lon": -157.79,
+   "type": "fixed",
+   "name": "1612480 - Mokuoloe, HI",
+   "land_km": 23.0,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MRHO1",
+   "lat": 41.544,
+   "lon": -82.731,
+   "type": "fixed",
+   "name": "9063079 - Marblehead, OH",
+   "land_km": 32.7,
+   "anemometer_m": 9.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MRKA2",
+   "lat": 61.081,
+   "lon": -146.653,
+   "type": "fixed",
+   "name": "Middle Rock Light, AK",
+   "land_km": 12.2,
+   "anemometer_m": 15.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MRNA2",
+   "lat": 58.198,
+   "lon": -134.257,
+   "type": "fixed",
+   "name": "Marmion Island, AK",
+   "land_km": 5.8,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MROS1",
+   "lat": 33.656,
+   "lon": -78.916,
+   "type": "fixed",
+   "name": "8661070 - Springmaid Pier, SC",
+   "land_km": 13.0,
+   "anemometer_m": 6.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MRYA2",
+   "lat": 55.099,
+   "lon": -131.182,
+   "type": "fixed",
+   "name": "Mary Island, AK",
+   "land_km": 16.0,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MTBF1",
+   "lat": 27.661,
+   "lon": -82.594,
+   "type": "fixed",
+   "name": "8726412 - Middle Tampa Bay, FL",
+   "land_km": 20.2,
+   "anemometer_m": 6.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MVXA2",
+   "lat": 58.364,
+   "lon": -134.606,
+   "type": "fixed",
+   "name": "Mendenhall Valley, AK",
+   "land_km": 14.1,
+   "anemometer_m": 11.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MXXA2",
+   "lat": 58.301,
+   "lon": -134.425,
+   "type": "fixed",
+   "name": "MXAK Office, AK",
+   "land_km": 7.2,
+   "anemometer_m": 12.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MYPF1",
+   "lat": 30.398,
+   "lon": -81.428,
+   "type": "fixed",
+   "name": "8720218 - Mayport (Bar Pilots Dock), FL",
+   "land_km": 13.3,
+   "anemometer_m": 5.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "MZXC1",
+   "lat": 38.035,
+   "lon": -122.125,
+   "type": "fixed",
+   "name": "9415102 - Martinez-Amorco Pier, CA",
+   "land_km": 11.6,
+   "anemometer_m": 6.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NABM4",
+   "lat": 46.087,
+   "lon": -85.444,
+   "type": "fixed",
+   "name": "Naubinway, MI",
+   "land_km": 18.6,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NBGM3",
+   "lat": 41.624,
+   "lon": -70.906,
+   "type": "fixed",
+   "name": "8447627 - New Bedford, Barrier Gate, MA",
+   "land_km": 16.0,
+   "anemometer_m": 6.82,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NBLP1",
+   "lat": 40.137,
+   "lon": -74.752,
+   "type": "fixed",
+   "name": "8548989 - Newbold, PA",
+   "land_km": 12.6,
+   "anemometer_m": 6.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NCHT2",
+   "lat": 29.726,
+   "lon": -95.266,
+   "type": "fixed",
+   "name": "8770777 - Manchester, TX ",
+   "land_km": 3.1,
+   "anemometer_m": 4.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NFDF1",
+   "lat": 30.4,
+   "lon": -81.627,
+   "type": "fixed",
+   "name": "8720215 - Navy Fuel Depot, St Johns River, FL",
+   "land_km": 16.2,
+   "anemometer_m": 8.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NKTA2",
+   "lat": 60.683,
+   "lon": -151.399,
+   "type": "fixed",
+   "name": "9455760 - Nikiski, AK",
+   "land_km": 22.9,
+   "anemometer_m": 12.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NKXA2",
+   "lat": 58.255,
+   "lon": -134.945,
+   "type": "fixed",
+   "name": "Naked Island, AK",
+   "land_km": 11.4,
+   "anemometer_m": 3.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NLXA2",
+   "lat": 56.005,
+   "lon": -161.177,
+   "type": "fixed",
+   "name": "Nelson Lagoon, AK",
+   "land_km": 28.7,
+   "anemometer_m": 14.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NMTA2",
+   "lat": 64.5,
+   "lon": -165.43,
+   "type": "fixed",
+   "name": "9468756 - Nome, Norton Sound, AK",
+   "land_km": 3.4,
+   "anemometer_m": 7.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NMXA2",
+   "lat": 64.494,
+   "lon": -165.44,
+   "type": "fixed",
+   "name": "Nome, AK",
+   "land_km": 2.9,
+   "anemometer_m": 7.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NPDW3",
+   "lat": 45.291,
+   "lon": -86.977,
+   "type": "fixed",
+   "name": "Northport Pier at Death's Door, WI",
+   "land_km": 31.5,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NREP1",
+   "lat": 42.258,
+   "lon": -79.792,
+   "type": "fixed",
+   "name": "Northeast Marina, PA",
+   "land_km": 24.0,
+   "anemometer_m": 11.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NSXA2",
+   "lat": 60.74,
+   "lon": -151.311,
+   "type": "fixed",
+   "name": "Nikiski, AK",
+   "land_km": 16.9,
+   "anemometer_m": 7.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NTBC1",
+   "lat": 34.405,
+   "lon": -119.692,
+   "type": "fixed",
+   "name": "9411340 - Santa Barbara, CA ",
+   "land_km": 11.8,
+   "anemometer_m": 13.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NWCL1",
+   "lat": 30.027,
+   "lon": -90.113,
+   "type": "fixed",
+   "name": "8761927 - New Canal Station, LA",
+   "land_km": 11.3,
+   "anemometer_m": 9.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NWHC3",
+   "lat": 41.283,
+   "lon": -72.908,
+   "type": "fixed",
+   "name": "8465705 - New Haven, CT",
+   "land_km": 8.5,
+   "anemometer_m": 6.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NWPR1",
+   "lat": 41.504,
+   "lon": -71.326,
+   "type": "fixed",
+   "name": "8452660 - Newport, RI",
+   "land_km": 6.3,
+   "anemometer_m": 8.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "NWWH1",
+   "lat": 21.954,
+   "lon": -159.353,
+   "type": "fixed",
+   "name": "1611400 - Nawiliwili, HI",
+   "land_km": 16.0,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "OCIM2",
+   "lat": 38.328,
+   "lon": -75.091,
+   "type": "fixed",
+   "name": "8570283 - Ocean City Inlet, MD",
+   "land_km": 16.4,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "OKXC1",
+   "lat": 37.811,
+   "lon": -122.333,
+   "type": "fixed",
+   "name": "9414776 - Oakland Berth 34, CA",
+   "land_km": 10.0,
+   "anemometer_m": 7.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "OLCN6",
+   "lat": 43.341,
+   "lon": -78.719,
+   "type": "fixed",
+   "name": "Olcott Harbor, NY",
+   "land_km": 20.4,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "OLSA2",
+   "lat": 52.94,
+   "lon": -168.87,
+   "type": "fixed",
+   "name": "9462450 - Nikolski, AK",
+   "land_km": 42.4,
+   "anemometer_m": 8.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "OMHC1",
+   "lat": 37.801,
+   "lon": -122.33,
+   "type": "fixed",
+   "name": "9414769 - Oakland Middle Harbor Met, CA",
+   "land_km": 9.0,
+   "anemometer_m": 6.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "OOUH1",
+   "lat": 21.303,
+   "lon": -157.865,
+   "type": "fixed",
+   "name": "1612340 - Honolulu, HI",
+   "land_km": 26.0,
+   "anemometer_m": 7.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "OPTF1",
+   "lat": 27.858,
+   "lon": -82.553,
+   "type": "fixed",
+   "name": "8726607 - Old Port Tampa, FL",
+   "land_km": 16.6,
+   "anemometer_m": 6.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ORIN7",
+   "lat": 35.796,
+   "lon": -75.548,
+   "type": "fixed",
+   "name": "8652587 - Oregon Inlet Marina, NC",
+   "land_km": 18.9,
+   "anemometer_m": 6.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "OSGN6",
+   "lat": 43.464,
+   "lon": -76.511,
+   "type": "fixed",
+   "name": "9052030 - Oswego, NY",
+   "land_km": 21.4,
+   "anemometer_m": 14.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "OTNM4",
+   "lat": 46.87,
+   "lon": -89.33,
+   "type": "fixed",
+   "name": "Ontonagon, MI",
+   "land_km": 14.7,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PACF1",
+   "lat": 30.15,
+   "lon": -85.664,
+   "type": "fixed",
+   "name": "8729108 - Panama City, FL",
+   "land_km": 13.9,
+   "anemometer_m": 8.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PACT2",
+   "lat": 27.634,
+   "lon": -97.237,
+   "type": "fixed",
+   "name": "8775792 - Packery Channel, TX",
+   "land_km": 28.9,
+   "anemometer_m": 10.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PAXA2",
+   "lat": 58.159,
+   "lon": -134.178,
+   "type": "fixed",
+   "name": "Point Arden, AK",
+   "land_km": 11.0,
+   "anemometer_m": 7.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PBPA2",
+   "lat": 58.203,
+   "lon": -134.148,
+   "type": "fixed",
+   "name": "Point Bishop, AK",
+   "land_km": 7.9,
+   "anemometer_m": 6.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PCBF1",
+   "lat": 30.213,
+   "lon": -85.88,
+   "type": "fixed",
+   "name": "8729210 - Panama City Beach, FL",
+   "land_km": 13.1,
+   "anemometer_m": 8.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PCLF1",
+   "lat": 30.404,
+   "lon": -87.211,
+   "type": "fixed",
+   "name": "8729840 - Pensacola, FL",
+   "land_km": 11.3,
+   "anemometer_m": 6.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PCOC1",
+   "lat": 38.056,
+   "lon": -122.039,
+   "type": "fixed",
+   "name": "9415144 - Port Chicago, CA",
+   "land_km": 7.1,
+   "anemometer_m": 8.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PCXA2",
+   "lat": 57.463,
+   "lon": -134.867,
+   "type": "fixed",
+   "name": "Point Craven MXAK, AK",
+   "land_km": 9.0,
+   "anemometer_m": 6.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PDVR1",
+   "lat": 41.611,
+   "lon": -71.41,
+   "type": "fixed",
+   "name": "8454123 - Port of Davisville, RI",
+   "land_km": 14.4,
+   "anemometer_m": 11.212,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PEGF1",
+   "lat": 26.086,
+   "lon": -80.116,
+   "type": "fixed",
+   "name": "8722956 - Port Everglades, FL",
+   "land_km": 16.5,
+   "anemometer_m": 45.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PEXA2",
+   "lat": 57.958,
+   "lon": -136.227,
+   "type": "fixed",
+   "name": "Pelican MXAK, AK",
+   "land_km": 4.9,
+   "anemometer_m": 6.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PGXA2",
+   "lat": 57.016,
+   "lon": -134.618,
+   "type": "fixed",
+   "name": "Point Gardner",
+   "land_km": 23.2,
+   "anemometer_m": 4.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PILA2",
+   "lat": 59.742,
+   "lon": -149.47,
+   "type": "fixed",
+   "name": "Pilot Rock, AK",
+   "land_km": 28.7,
+   "anemometer_m": 7.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PILL1",
+   "lat": 29.179,
+   "lon": -89.259,
+   "type": "fixed",
+   "name": "8760721 - Pilottown, LA",
+   "land_km": 7.9,
+   "anemometer_m": 9.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PILM4",
+   "lat": 48.223,
+   "lon": -88.366,
+   "type": "fixed",
+   "name": "Passage Island, MI",
+   "land_km": 41.9,
+   "anemometer_m": 15.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PLXA2",
+   "lat": 56.247,
+   "lon": -134.647,
+   "type": "fixed",
+   "name": "9451054 - Port Alexander, AK",
+   "land_km": 6.4,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PNGW3",
+   "lat": 46.792,
+   "lon": -91.386,
+   "type": "fixed",
+   "name": "Port Wing, WI",
+   "land_km": 11.4,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PNLM4",
+   "lat": 45.968,
+   "lon": -85.869,
+   "type": "fixed",
+   "name": "9087096 - Port Inland, MI",
+   "land_km": 9.9,
+   "anemometer_m": 10.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PORO3",
+   "lat": 42.739,
+   "lon": -124.498,
+   "type": "fixed",
+   "name": "9431647 - Port Orford, OR",
+   "land_km": 1.2,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PORT2",
+   "lat": 29.867,
+   "lon": -93.931,
+   "type": "fixed",
+   "name": "8770475 - Port Arthur, TX",
+   "land_km": 14.6,
+   "anemometer_m": 10.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "POTA2",
+   "lat": 61.056,
+   "lon": -146.697,
+   "type": "fixed",
+   "name": "Potato Point, AK",
+   "land_km": 12.3,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PPTM2",
+   "lat": 38.134,
+   "lon": -76.533,
+   "type": "fixed",
+   "name": "8578240 - Piney Point, MD",
+   "land_km": 13.2,
+   "anemometer_m": 6.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PPXA2",
+   "lat": 60.801,
+   "lon": -148.357,
+   "type": "fixed",
+   "name": "Point Pigot",
+   "land_km": 22.1,
+   "anemometer_m": 5.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PRDA2",
+   "lat": 70.4,
+   "lon": -148.527,
+   "type": "fixed",
+   "name": "9497645 - Prudhoe Bay, AK",
+   "land_km": 16.7,
+   "anemometer_m": 9.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PRHH1",
+   "lat": 21.367,
+   "lon": -157.964,
+   "type": "fixed",
+   "name": "1612401 - Pearl Harbor, HI",
+   "land_km": 15.3,
+   "anemometer_m": 18.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PRTA2",
+   "lat": 58.411,
+   "lon": -134.955,
+   "type": "fixed",
+   "name": "Point Retreat, AK",
+   "land_km": 19.8,
+   "anemometer_m": 6.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PSBC1",
+   "lat": 38.04,
+   "lon": -121.887,
+   "type": "fixed",
+   "name": "9415115 - Pittsburg (Suisun Bay), CA",
+   "land_km": 10.9,
+   "anemometer_m": 7.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PSBM1",
+   "lat": 44.905,
+   "lon": -66.983,
+   "type": "fixed",
+   "name": "8410140 - Eastport, ME",
+   "land_km": 23.5,
+   "anemometer_m": 7.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PSTL1",
+   "lat": 28.932,
+   "lon": -89.407,
+   "type": "fixed",
+   "name": "8760922 - Pilot's Station East, SW Pass, LA",
+   "land_km": 38.5,
+   "anemometer_m": 20.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PTAW1",
+   "lat": 48.125,
+   "lon": -123.441,
+   "type": "fixed",
+   "name": "9444090 - Port Angeles, WA",
+   "land_km": 14.6,
+   "anemometer_m": 12.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PTBM6",
+   "lat": 30.213,
+   "lon": -88.505,
+   "type": "fixed",
+   "name": "8741003 - Petit Bois Island, Port of Pascagoula, MS",
+   "land_km": 31.9,
+   "anemometer_m": 4.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PTCR1",
+   "lat": 41.638,
+   "lon": -71.34,
+   "type": "fixed",
+   "name": "8452951 - Potter Cove, Prudence Island, RI",
+   "land_km": 14.5,
+   "anemometer_m": 8.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PTGC1",
+   "lat": 34.577,
+   "lon": -120.647,
+   "type": "fixed",
+   "name": "Point Arguello, CA",
+   "land_km": 16.0,
+   "anemometer_m": 7.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PTIM4",
+   "lat": 46.485,
+   "lon": -84.631,
+   "type": "fixed",
+   "name": "9099004 - Point Iroquois, MI",
+   "land_km": 27.7,
+   "anemometer_m": 8.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PTIT2",
+   "lat": 26.061,
+   "lon": -97.215,
+   "type": "fixed",
+   "name": "8779770 - Port Isabel, TX",
+   "land_km": 7.6,
+   "anemometer_m": 8.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PTLA2",
+   "lat": 58.346,
+   "lon": -134.752,
+   "type": "fixed",
+   "name": "Portland Island, AK",
+   "land_km": 10.7,
+   "anemometer_m": 4.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PTWW1",
+   "lat": 48.111,
+   "lon": -122.76,
+   "type": "fixed",
+   "name": "9444900 - Port Townsend, WA",
+   "land_km": 12.4,
+   "anemometer_m": 8.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PVDR1",
+   "lat": 41.786,
+   "lon": -71.383,
+   "type": "fixed",
+   "name": "8453662 - Providence Visibility, RI",
+   "land_km": 10.5,
+   "anemometer_m": 7.26,
+   "kind": "ndbc"
+  },
+  {
+   "id": "PXOC1",
+   "lat": 37.798,
+   "lon": -122.393,
+   "type": "fixed",
+   "name": "9414311 - San Francisco Pier 1, CA",
+   "land_km": 13.7,
+   "anemometer_m": 16.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "RCKM4",
+   "lat": 46.264,
+   "lon": -84.191,
+   "type": "fixed",
+   "name": "9076024 - Rock Cut, MI",
+   "land_km": 4.8,
+   "anemometer_m": 8.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "RCMC1",
+   "lat": 37.923,
+   "lon": -122.41,
+   "type": "fixed",
+   "name": "9414863 - Richmond, CA",
+   "land_km": 16.4,
+   "anemometer_m": 7.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "RCPT2",
+   "lat": 28.024,
+   "lon": -97.048,
+   "type": "fixed",
+   "name": "8774770 - Rockport, TX",
+   "land_km": 20.0,
+   "anemometer_m": 6.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "RDDA2",
+   "lat": 67.575,
+   "lon": -164.067,
+   "type": "fixed",
+   "name": "9491094 - Red Dog Dock, AK",
+   "land_km": 15.8,
+   "anemometer_m": 12.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "RIXA2",
+   "lat": 58.177,
+   "lon": -135.052,
+   "type": "fixed",
+   "name": "Rocky Island, AK",
+   "land_km": 19.5,
+   "anemometer_m": 2.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "RLOT2",
+   "lat": 29.515,
+   "lon": -94.513,
+   "type": "fixed",
+   "name": "8770971 - Rollover Pass, TX",
+   "land_km": 26.2,
+   "anemometer_m": 10.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ROAM4",
+   "lat": 47.867,
+   "lon": -89.315,
+   "type": "fixed",
+   "name": "Rock of Ages, MI",
+   "land_km": 35.6,
+   "anemometer_m": 46.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "ROBN4",
+   "lat": 40.657,
+   "lon": -74.065,
+   "type": "fixed",
+   "name": "8530973 - Robbins Reef, NJ",
+   "land_km": 11.7,
+   "anemometer_m": 21.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "RPLV2",
+   "lat": 37.538,
+   "lon": -76.014,
+   "type": "fixed",
+   "name": "8632837 - Rappahannock Light, VA",
+   "land_km": 23.7,
+   "anemometer_m": 16.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "RPRN6",
+   "lat": 43.263,
+   "lon": -77.598,
+   "type": "fixed",
+   "name": "Rochester Coast Guard, NY",
+   "land_km": 12.4,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "RSJT2",
+   "lat": 26.801,
+   "lon": -97.471,
+   "type": "fixed",
+   "name": "8777812 - Rincon del San Jose, TX",
+   "land_km": 6.4,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "RTAT2",
+   "lat": 27.84,
+   "lon": -97.072,
+   "type": "fixed",
+   "name": "8775237 - Port Aransas, TX",
+   "land_km": 24.9,
+   "anemometer_m": 10.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "RTYC1",
+   "lat": 37.507,
+   "lon": -122.212,
+   "type": "fixed",
+   "name": "9414523 - Redwood City, CA",
+   "land_km": 3.4,
+   "anemometer_m": 7.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SAPF1",
+   "lat": 27.761,
+   "lon": -82.627,
+   "type": "fixed",
+   "name": "8726520 - St. Petersburg, Tampa Bay, FL",
+   "land_km": 29.4,
+   "anemometer_m": 7.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SAUF1",
+   "lat": 29.857,
+   "lon": -81.264,
+   "type": "fixed",
+   "name": "St. Augustine, FL",
+   "land_km": 25.7,
+   "anemometer_m": 7.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SBIO1",
+   "lat": 41.629,
+   "lon": -82.841,
+   "type": "fixed",
+   "name": "South Bass Island, OH",
+   "land_km": 36.9,
+   "anemometer_m": 24.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SBLM4",
+   "lat": 43.81,
+   "lon": -83.72,
+   "type": "fixed",
+   "name": "Saginaw Bay Light #1, MI",
+   "land_km": 21.3,
+   "anemometer_m": 13.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SCXA2",
+   "lat": 58.205,
+   "lon": -134.646,
+   "type": "fixed",
+   "name": "Scull Island, AK",
+   "land_km": 7.9,
+   "anemometer_m": 2.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SDHN4",
+   "lat": 40.467,
+   "lon": -74.009,
+   "type": "fixed",
+   "name": "8531680 - Sandy Hook, NJ",
+   "land_km": 20.7,
+   "anemometer_m": 5.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SDRT2",
+   "lat": 28.407,
+   "lon": -96.712,
+   "type": "fixed",
+   "name": "8773037 - Seadrift, TX",
+   "land_km": 11.0,
+   "anemometer_m": 10.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SGNW3",
+   "lat": 43.749,
+   "lon": -87.693,
+   "type": "fixed",
+   "name": "Sheboygan, WI",
+   "land_km": 4.6,
+   "anemometer_m": 23.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SHBL1",
+   "lat": 29.868,
+   "lon": -89.673,
+   "type": "fixed",
+   "name": "8761305 - Shell Beach, LA",
+   "land_km": 15.1,
+   "anemometer_m": 15.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SHXA2",
+   "lat": 57.055,
+   "lon": -135.349,
+   "type": "fixed",
+   "name": "Sitka Harbor, AK",
+   "land_km": 8.6,
+   "anemometer_m": 10.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SISW1",
+   "lat": 48.321,
+   "lon": -122.831,
+   "type": "fixed",
+   "name": "Smith Island, WA",
+   "land_km": 36.2,
+   "anemometer_m": 17.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SJNP4",
+   "lat": 18.459,
+   "lon": -66.116,
+   "type": "fixed",
+   "name": "9755371 - San Juan, La Puntilla, San Juan Bay, PR",
+   "land_km": 13.1,
+   "anemometer_m": 5.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SJSN4",
+   "lat": 39.305,
+   "lon": -75.377,
+   "type": "fixed",
+   "name": "8537121 - Ship John Shoal, NJ",
+   "land_km": 12.2,
+   "anemometer_m": 14.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SKCF1",
+   "lat": 27.921,
+   "lon": -82.445,
+   "type": "fixed",
+   "name": "8726671 - Sparkman Channel Entrance, FL",
+   "land_km": 10.3,
+   "anemometer_m": 7.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SKDA2",
+   "lat": 59.449,
+   "lon": -135.331,
+   "type": "fixed",
+   "name": "Skagway Ore Dock",
+   "land_km": 7.3,
+   "anemometer_m": 14.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SKXA2",
+   "lat": 59.448,
+   "lon": -135.326,
+   "type": "fixed",
+   "name": "Skagway MXAK, AK",
+   "land_km": 7.2,
+   "anemometer_m": 10.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SLVM5",
+   "lat": 47.278,
+   "lon": -91.27,
+   "type": "fixed",
+   "name": "Silver Bay, MN",
+   "land_km": 3.5,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SLXA2",
+   "lat": 55.34,
+   "lon": -131.644,
+   "type": "fixed",
+   "name": "Salmon Landing, AK",
+   "land_km": 12.0,
+   "anemometer_m": 18.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SNDA2",
+   "lat": 55.336,
+   "lon": -160.502,
+   "type": "fixed",
+   "name": "9459450 - Sand Point, AK",
+   "land_km": 9.6,
+   "anemometer_m": 6.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SPXA2",
+   "lat": 55.599,
+   "lon": -132.203,
+   "type": "fixed",
+   "name": "Ship Island, AK",
+   "land_km": 21.1,
+   "anemometer_m": 4.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SRST2",
+   "lat": 29.683,
+   "lon": -94.033,
+   "type": "fixed",
+   "name": "Sabine Pass, TX",
+   "land_km": 8.1,
+   "anemometer_m": 10.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SRXA2",
+   "lat": 58.383,
+   "lon": -134.652,
+   "type": "fixed",
+   "name": "Statter Harbor MXAK, AK",
+   "land_km": 15.7,
+   "anemometer_m": 6.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "STXA2",
+   "lat": 57.116,
+   "lon": -135.391,
+   "type": "fixed",
+   "name": "Sitka AML, AK",
+   "land_km": 15.5,
+   "anemometer_m": 9.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SVNM4",
+   "lat": 42.401,
+   "lon": -86.288,
+   "type": "fixed",
+   "name": "South Haven Light, South Haven, MI",
+   "land_km": 17.1,
+   "anemometer_m": 16.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SVXA2",
+   "lat": 63.693,
+   "lon": -170.492,
+   "type": "fixed",
+   "name": "Savoonga, AK",
+   "land_km": 21.5,
+   "anemometer_m": 18.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SWPM4",
+   "lat": 46.501,
+   "lon": -84.372,
+   "type": "fixed",
+   "name": "9076070 - S.W. Pier, MI",
+   "land_km": 9.3,
+   "anemometer_m": 9.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SWXA2",
+   "lat": 60.116,
+   "lon": -149.434,
+   "type": "fixed",
+   "name": "Seward Harbor, AK",
+   "land_km": 13.4,
+   "anemometer_m": 7.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SXHW3",
+   "lat": 46.563,
+   "lon": -90.437,
+   "type": "fixed",
+   "name": "Saxon Harbor, WI",
+   "land_km": 8.5,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "SXXA2",
+   "lat": 55.315,
+   "lon": -131.596,
+   "type": "fixed",
+   "name": "Saxman Landing, AK",
+   "land_km": 9.4,
+   "anemometer_m": 5.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TAWM4",
+   "lat": 44.254,
+   "lon": -83.449,
+   "type": "fixed",
+   "name": "Tawas Point, MI",
+   "land_km": 4.1,
+   "anemometer_m": 10.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TBIM4",
+   "lat": 45.035,
+   "lon": -83.194,
+   "type": "fixed",
+   "name": "Thunder Bay Island, MI",
+   "land_km": 24.4,
+   "anemometer_m": 10.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TCBM2",
+   "lat": 39.213,
+   "lon": -76.244,
+   "type": "fixed",
+   "name": "8573364 - Tolchester Beach, MD",
+   "land_km": 21.4,
+   "anemometer_m": 6.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TCMW1",
+   "lat": 47.276,
+   "lon": -122.418,
+   "type": "fixed",
+   "name": "9446482 - Tacoma Met, WA",
+   "land_km": 6.8,
+   "anemometer_m": 6.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TESL1",
+   "lat": 29.668,
+   "lon": -91.237,
+   "type": "fixed",
+   "name": "8764044 - Tesoro Marine Terminal, Berwick, Atchafalaya River, LA",
+   "land_km": 9.2,
+   "anemometer_m": 12.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TGXA2",
+   "lat": 59.055,
+   "lon": -160.334,
+   "type": "fixed",
+   "name": "Togiak, Alaska",
+   "land_km": 20.1,
+   "anemometer_m": 12.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "THLO1",
+   "lat": 41.826,
+   "lon": -83.194,
+   "type": "fixed",
+   "name": "Toledo Light No. 2 OH",
+   "land_km": 25.1,
+   "anemometer_m": 14.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "THRO1",
+   "lat": 41.694,
+   "lon": -83.473,
+   "type": "fixed",
+   "name": "9063085 - Toledo, OH",
+   "land_km": 6.6,
+   "anemometer_m": 26.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TKEA2",
+   "lat": 57.779,
+   "lon": -135.219,
+   "type": "fixed",
+   "name": "Tenakee Springs, AK",
+   "land_km": 3.7,
+   "anemometer_m": 3.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TKPN6",
+   "lat": 42.014,
+   "lon": -73.939,
+   "type": "fixed",
+   "name": "Turkey Point Hudson River NERRS, NY (NOS 8518962)",
+   "land_km": 5.3,
+   "anemometer_m": 8.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TOKW1",
+   "lat": 46.707,
+   "lon": -123.967,
+   "type": "fixed",
+   "name": "9440910 - Toke Point, WA",
+   "land_km": 17.2,
+   "anemometer_m": 6.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TPAF1",
+   "lat": 27.933,
+   "lon": -82.433,
+   "type": "fixed",
+   "name": "8726694 - TPA Cruise Terminal 2, Tampa, FL",
+   "land_km": 9.9,
+   "anemometer_m": 22.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TPLM2",
+   "lat": 38.899,
+   "lon": -76.436,
+   "type": "fixed",
+   "name": "Thomas Point, MD",
+   "land_km": 12.5,
+   "anemometer_m": 18.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TPXA2",
+   "lat": 54.802,
+   "lon": -130.934,
+   "type": "fixed",
+   "name": "Tree Point, AK",
+   "land_km": 22.4,
+   "anemometer_m": 4.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TRDF1",
+   "lat": 28.416,
+   "lon": -80.593,
+   "type": "fixed",
+   "name": "8721604 - Trident Pier, FL",
+   "land_km": 18.0,
+   "anemometer_m": 6.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TRTP1",
+   "lat": 42.11,
+   "lon": -80.154,
+   "type": "fixed",
+   "name": "TREC Tower",
+   "land_km": 14.6,
+   "anemometer_m": 223.7,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TWCO1",
+   "lat": 41.699,
+   "lon": -83.259,
+   "type": "fixed",
+   "name": "Toledo Crib, OH",
+   "land_km": 20.8,
+   "anemometer_m": 18.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "TXPT2",
+   "lat": 29.689,
+   "lon": -93.842,
+   "type": "fixed",
+   "name": "8770822 - Texas Point, Sabine Pass, TX ",
+   "land_km": 16.7,
+   "anemometer_m": 12.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "UNLA2",
+   "lat": 53.88,
+   "lon": -166.537,
+   "type": "fixed",
+   "name": "9462620 - Unalaska, AK",
+   "land_km": 14.7,
+   "anemometer_m": 16.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "UPBC1",
+   "lat": 38.038,
+   "lon": -122.121,
+   "type": "fixed",
+   "name": "9415118 - Union Pacific Rail Road Bridge, Martinez, CA",
+   "land_km": 11.4,
+   "anemometer_m": 100.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "UQXA2",
+   "lat": 71.315,
+   "lon": -156.722,
+   "type": "fixed",
+   "name": "Utqiagvik, AK",
+   "land_km": 7.3,
+   "anemometer_m": 18.6,
+   "kind": "ndbc"
+  },
+  {
+   "id": "VAKF1",
+   "lat": 25.731,
+   "lon": -80.162,
+   "type": "fixed",
+   "name": "8723214 - Virginia Key, FL",
+   "land_km": 9.1,
+   "anemometer_m": 10.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "VDXA2",
+   "lat": 61.127,
+   "lon": -146.344,
+   "type": "fixed",
+   "name": "Valdez, AK",
+   "land_km": 14.6,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "VDZA2",
+   "lat": 61.125,
+   "lon": -146.361,
+   "type": "fixed",
+   "name": "9454240 - Valdez, AK",
+   "land_km": 15.1,
+   "anemometer_m": 8.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "VENF1",
+   "lat": 27.072,
+   "lon": -82.453,
+   "type": "fixed",
+   "name": "Venice, FL",
+   "land_km": 21.6,
+   "anemometer_m": 7.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "VTBT2",
+   "lat": 27.841,
+   "lon": -97.52,
+   "type": "fixed",
+   "name": "8775222 - Viola Turning Basin, TX",
+   "land_km": 10.3,
+   "anemometer_m": 10.5,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WAHV2",
+   "lat": 37.608,
+   "lon": -75.686,
+   "type": "fixed",
+   "name": "8631044 - Wachapreague, VA",
+   "land_km": 13.3,
+   "anemometer_m": 7.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WASD2",
+   "lat": 38.873,
+   "lon": -77.021,
+   "type": "fixed",
+   "name": "8594900 - Washington, DC",
+   "land_km": 13.8,
+   "anemometer_m": 9.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WATS1",
+   "lat": 34.335,
+   "lon": -80.702,
+   "type": "fixed",
+   "name": "Lake Wateree, SC",
+   "land_km": 10.4,
+   "anemometer_m": 3.1,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WBXA2",
+   "lat": 57.729,
+   "lon": -152.516,
+   "type": "fixed",
+   "name": "Womens Bay Cargo Pier",
+   "land_km": 2.5,
+   "anemometer_m": 4.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WCXA2",
+   "lat": 55.402,
+   "lon": -131.729,
+   "type": "fixed",
+   "name": "Ward Cove, AK",
+   "land_km": 17.0,
+   "anemometer_m": 3.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WDSV2",
+   "lat": 36.977,
+   "lon": -76.315,
+   "type": "fixed",
+   "name": "8638614 - Willoughby Deguassing Station, VA",
+   "land_km": 16.6,
+   "anemometer_m": 4.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WFXA2",
+   "lat": 57.726,
+   "lon": -152.519,
+   "type": "fixed",
+   "name": "Womens Bay Fuel Pier",
+   "land_km": 2.9,
+   "anemometer_m": 5.4,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WGXA2",
+   "lat": 56.467,
+   "lon": -132.382,
+   "type": "fixed",
+   "name": "Wrangell Harbor",
+   "land_km": 8.9,
+   "anemometer_m": 24.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WIXA2",
+   "lat": 60.777,
+   "lon": -148.682,
+   "type": "fixed",
+   "name": "Whittier AMHS, AK",
+   "land_km": 4.8,
+   "anemometer_m": 5.2,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WLXA2",
+   "lat": 65.616,
+   "lon": -168.094,
+   "type": "fixed",
+   "name": "Wales, AK",
+   "land_km": 20.4,
+   "anemometer_m": 18.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WNEM4",
+   "lat": 46.285,
+   "lon": -84.21,
+   "type": "fixed",
+   "name": "9076027 - West Neebish Island, MI",
+   "land_km": 5.0,
+   "anemometer_m": 11.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WPOW1",
+   "lat": 47.662,
+   "lon": -122.435,
+   "type": "fixed",
+   "name": "West Point, WA",
+   "land_km": 10.9,
+   "anemometer_m": 7.3,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WPTW1",
+   "lat": 46.904,
+   "lon": -124.105,
+   "type": "fixed",
+   "name": "9441102 - Westport, WA",
+   "land_km": 29.0,
+   "anemometer_m": 26.8,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WRXA2",
+   "lat": 70.636,
+   "lon": -160.034,
+   "type": "fixed",
+   "name": "Wainwright, AK",
+   "land_km": 15.2,
+   "anemometer_m": 18.0,
+   "kind": "ndbc"
+  },
+  {
+   "id": "WYCM6",
+   "lat": 30.326,
+   "lon": -89.326,
+   "type": "fixed",
+   "name": "8747437 - Bay Waveland Yacht Club, MS",
+   "land_km": 18.7,
+   "anemometer_m": 9.9,
+   "kind": "ndbc"
+  },
+  {
+   "id": "YKTV2",
+   "lat": 37.227,
+   "lon": -76.479,
+   "type": "fixed",
+   "name": "8637689 - Yorktown USCG Training Center, VA",
+   "land_km": 3.2,
+   "anemometer_m": 9.6,
+   "kind": "ndbc"
+  }
+ ],
+ "asos": [
+  {
+   "id": "MSY",
+   "lat": 29.9933,
+   "lon": -90.2511,
+   "network": "LA_ASOS",
+   "name": "New Orleans - Louis Armstrong",
+   "sea_km": 0.8,
+   "kind": "asos"
+  },
+  {
+   "id": "PAHN",
+   "lat": 59.2429,
+   "lon": -135.5117,
+   "network": "AK_ASOS",
+   "name": "Haines",
+   "sea_km": 1.0,
+   "kind": "asos"
+  },
+  {
+   "id": "LLR",
+   "lat": 39.2621,
+   "lon": -123.7538,
+   "network": "CA_ASOS",
+   "name": "Little River",
+   "sea_km": 1.4,
+   "kind": "asos"
+  },
+  {
+   "id": "HAF",
+   "lat": 37.5136,
+   "lon": -122.4996,
+   "network": "CA_ASOS",
+   "name": "Half Moon Bay",
+   "sea_km": 1.5,
+   "kind": "asos"
+  },
+  {
+   "id": "PPIZ",
+   "lat": 69.7329,
+   "lon": -163.0053,
+   "network": "AK_ASOS",
+   "name": "POINT LAY(DEW/AWOS)",
+   "sea_km": 1.9,
+   "kind": "asos"
+  },
+  {
+   "id": "PAGM",
+   "lat": 63.7668,
+   "lon": -171.7328,
+   "network": "AK_ASOS",
+   "name": "GAMBELL (AWOS)",
+   "sea_km": 2.1,
+   "kind": "asos"
+  },
+  {
+   "id": "GLX",
+   "lat": 28.23,
+   "lon": -88.99,
+   "network": "LA_ASOS",
+   "name": "Mississippi Canyon 724",
+   "sea_km": 2.4,
+   "kind": "asos"
+  },
+  {
+   "id": "BQX",
+   "lat": 28.4936,
+   "lon": -95.7244,
+   "network": "TX_ASOS",
+   "name": "Brazos 451",
+   "sea_km": 2.6,
+   "kind": "asos"
+  },
+  {
+   "id": "CLW",
+   "lat": 27.9742,
+   "lon": -82.7563,
+   "network": "FL_ASOS",
+   "name": "Clearwater Air Park",
+   "sea_km": 2.9,
+   "kind": "asos"
+  },
+  {
+   "id": "FHR",
+   "lat": 48.522,
+   "lon": -123.0244,
+   "network": "WA_ASOS",
+   "name": "FRIDAY HARBOR",
+   "sea_km": 3.0,
+   "kind": "asos"
+  },
+  {
+   "id": "AAF",
+   "lat": 29.7276,
+   "lon": -85.0274,
+   "network": "FL_ASOS",
+   "name": "APALACHICOLA MUNI (ASOS)",
+   "sea_km": 3.6,
+   "kind": "asos"
+  },
+  {
+   "id": "VOA",
+   "lat": 29.229,
+   "lon": -87.781,
+   "network": "LA_ASOS",
+   "name": "Viosca Knoll",
+   "sea_km": 3.8,
+   "kind": "asos"
+  },
+  {
+   "id": "CEC",
+   "lat": 41.7837,
+   "lon": -124.238,
+   "network": "CA_ASOS",
+   "name": "Crescent City",
+   "sea_km": 3.9,
+   "kind": "asos"
+  },
+  {
+   "id": "PACZ",
+   "lat": 61.7803,
+   "lon": -166.0388,
+   "network": "AK_ASOS",
+   "name": "CAPE ROMANZOFF AWOS",
+   "sea_km": 3.9,
+   "kind": "asos"
+  },
+  {
+   "id": "NSI",
+   "lat": 33.2398,
+   "lon": -119.4582,
+   "network": "CA_ASOS",
+   "name": "SAN NICOLAS ISLAND",
+   "sea_km": 4.0,
+   "kind": "asos"
+  },
+  {
+   "id": "EZP",
+   "lat": 28.22,
+   "lon": -92.784,
+   "network": "LA_ASOS",
+   "name": "East Cameron 321A ",
+   "sea_km": 4.7,
+   "kind": "asos"
+  },
+  {
+   "id": "PAYA",
+   "lat": 59.5121,
+   "lon": -139.671,
+   "network": "AK_ASOS",
+   "name": "Yakutat",
+   "sea_km": 4.7,
+   "kind": "asos"
+  },
+  {
+   "id": "S31",
+   "lat": 48.4839,
+   "lon": -122.9377,
+   "network": "WA_ASOS",
+   "name": "Lopez",
+   "sea_km": 4.9,
+   "kind": "asos"
+  },
+  {
+   "id": "ACK",
+   "lat": 41.2531,
+   "lon": -70.0603,
+   "network": "MA_ASOS",
+   "name": "NANTUCKET MEMORIAL",
+   "sea_km": 5.1,
+   "kind": "asos"
+  },
+  {
+   "id": "PAMK",
+   "lat": 63.49,
+   "lon": -162.11,
+   "network": "AK_ASOS",
+   "name": "ST MICHAEL",
+   "sea_km": 5.6,
+   "kind": "asos"
+  },
+  {
+   "id": "PHNG",
+   "lat": 21.4509,
+   "lon": -157.7629,
+   "network": "HI_ASOS",
+   "name": "KANEOHE_MCAS/OAHU",
+   "sea_km": 5.6,
+   "kind": "asos"
+  },
+  {
+   "id": "HXD",
+   "lat": 32.2244,
+   "lon": -80.6975,
+   "network": "SC_ASOS",
+   "name": "Hilton Head Island",
+   "sea_km": 5.7,
+   "kind": "asos"
+  },
+  {
+   "id": "PAOU",
+   "lat": 56.01,
+   "lon": -161.16,
+   "network": "AK_ASOS",
+   "name": "NELSON LAGOON",
+   "sea_km": 5.7,
+   "kind": "asos"
+  },
+  {
+   "id": "HQM",
+   "lat": 46.9712,
+   "lon": -123.9366,
+   "network": "WA_ASOS",
+   "name": "HOQUIAM/BOWERMAN",
+   "sea_km": 5.8,
+   "kind": "asos"
+  },
+  {
+   "id": "MTH",
+   "lat": 24.7262,
+   "lon": -81.0514,
+   "network": "FL_ASOS",
+   "name": "Marathon",
+   "sea_km": 5.8,
+   "kind": "asos"
+  },
+  {
+   "id": "XER",
+   "lat": 27.946,
+   "lon": -90.9969,
+   "network": "LA_ASOS",
+   "name": "Green Canyon 19",
+   "sea_km": 6.0,
+   "kind": "asos"
+  },
+  {
+   "id": "PAHP",
+   "lat": 61.5239,
+   "lon": -166.1466,
+   "network": "AK_ASOS",
+   "name": "HOOPER BAY (AWOS)",
+   "sea_km": 6.1,
+   "kind": "asos"
+  },
+  {
+   "id": "PHTO",
+   "lat": 19.7203,
+   "lon": -155.0485,
+   "network": "HI_ASOS",
+   "name": "HILO/LYMAN_FIELD_(ASOS)",
+   "sea_km": 6.1,
+   "kind": "asos"
+  },
+  {
+   "id": "EYW",
+   "lat": 24.5561,
+   "lon": -81.7596,
+   "network": "FL_ASOS",
+   "name": "Key West",
+   "sea_km": 6.3,
+   "kind": "asos"
+  },
+  {
+   "id": "PHNY",
+   "lat": 20.7856,
+   "lon": -156.9514,
+   "network": "HI_ASOS",
+   "name": "LANAI_CITY_AIRPORT",
+   "sea_km": 6.4,
+   "kind": "asos"
+  },
+  {
+   "id": "SAN",
+   "lat": 32.7339,
+   "lon": -117.1845,
+   "network": "CA_ASOS",
+   "name": "SAN DIEGO/LINDBERG",
+   "sea_km": 6.4,
+   "kind": "asos"
+  },
+  {
+   "id": "ATP",
+   "lat": 27.1956,
+   "lon": -90.0269,
+   "network": "LA_ASOS",
+   "name": "Atlantis",
+   "sea_km": 6.6,
+   "kind": "asos"
+  },
+  {
+   "id": "OXR",
+   "lat": 34.2008,
+   "lon": -119.2072,
+   "network": "CA_ASOS",
+   "name": "OXNARD",
+   "sea_km": 6.7,
+   "kind": "asos"
+  },
+  {
+   "id": "BVS",
+   "lat": 48.47,
+   "lon": -122.42,
+   "network": "WA_ASOS",
+   "name": "BURLINGTON/MT_VE",
+   "sea_km": 6.8,
+   "kind": "asos"
+  },
+  {
+   "id": "EDE",
+   "lat": 36.0277,
+   "lon": -76.5671,
+   "network": "NC_ASOS",
+   "name": "EDENTON_NORTHEA",
+   "sea_km": 6.8,
+   "kind": "asos"
+  },
+  {
+   "id": "PAAE",
+   "lat": 57.9422,
+   "lon": -152.465,
+   "network": "AK_ASOS",
+   "name": "Ouzinkie",
+   "sea_km": 6.8,
+   "kind": "asos"
+  },
+  {
+   "id": "PASO",
+   "lat": 59.4424,
+   "lon": -151.704,
+   "network": "AK_ASOS",
+   "name": "SELDOVIA (ASOS)",
+   "sea_km": 6.9,
+   "kind": "asos"
+  },
+  {
+   "id": "CQX",
+   "lat": 41.6875,
+   "lon": -69.9933,
+   "network": "MA_ASOS",
+   "name": "CHATHAM MUNI ARPT",
+   "sea_km": 7.0,
+   "kind": "asos"
+  },
+  {
+   "id": "GBK",
+   "lat": 27.2039,
+   "lon": -92.2025,
+   "network": "LA_ASOS",
+   "name": "Magnolia (GoM)",
+   "sea_km": 7.0,
+   "kind": "asos"
+  },
+  {
+   "id": "PASA",
+   "lat": 63.6864,
+   "lon": -170.4926,
+   "network": "AK_ASOS",
+   "name": "SAVOONGA AIRPORT",
+   "sea_km": 7.1,
+   "kind": "asos"
+  },
+  {
+   "id": "X59",
+   "lat": 27.9608,
+   "lon": -80.558,
+   "network": "FL_ASOS",
+   "name": "Valkaria",
+   "sea_km": 7.2,
+   "kind": "asos"
+  },
+  {
+   "id": "NZY",
+   "lat": 32.6922,
+   "lon": -117.2098,
+   "network": "CA_ASOS",
+   "name": "NORTH ISLAND NAS",
+   "sea_km": 7.4,
+   "kind": "asos"
+  },
+  {
+   "id": "W29",
+   "lat": 38.9764,
+   "lon": -76.3296,
+   "network": "MD_ASOS",
+   "name": "Stevensville",
+   "sea_km": 7.4,
+   "kind": "asos"
+  },
+  {
+   "id": "FFA",
+   "lat": 36.02,
+   "lon": -75.67,
+   "network": "NC_ASOS",
+   "name": "KILL_DEVIL_HILLS",
+   "sea_km": 7.5,
+   "kind": "asos"
+  },
+  {
+   "id": "NGP",
+   "lat": 27.6926,
+   "lon": -97.2911,
+   "network": "TX_ASOS",
+   "name": "CORPUS CHRISTI NAS",
+   "sea_km": 7.6,
+   "kind": "asos"
+  },
+  {
+   "id": "POKA",
+   "lat": 60.5695,
+   "lon": -165.2463,
+   "network": "AK_ASOS",
+   "name": "Tununak",
+   "sea_km": 7.7,
+   "kind": "asos"
+  },
+  {
+   "id": "AGI",
+   "lat": 27.546,
+   "lon": -92.44,
+   "network": "LA_ASOS",
+   "name": "Garden Banks",
+   "sea_km": 7.8,
+   "kind": "asos"
+  },
+  {
+   "id": "MKY",
+   "lat": 25.995,
+   "lon": -81.6725,
+   "network": "FL_ASOS",
+   "name": "Marco Island",
+   "sea_km": 7.8,
+   "kind": "asos"
+  },
+  {
+   "id": "NGU",
+   "lat": 36.9375,
+   "lon": -76.2893,
+   "network": "VA_ASOS",
+   "name": "NORFOLK NAS/CHAMBER",
+   "sea_km": 7.8,
+   "kind": "asos"
+  },
+  {
+   "id": "ORS",
+   "lat": 48.71,
+   "lon": -122.91,
+   "network": "WA_ASOS",
+   "name": "EASTSOUND/ORCAS ISLAND AIRPORT",
+   "sea_km": 8.0,
+   "kind": "asos"
+  },
+  {
+   "id": "WWD",
+   "lat": 39.0085,
+   "lon": -74.9083,
+   "network": "NJ_ASOS",
+   "name": "WILDWOOD(AWOS)",
+   "sea_km": 8.0,
+   "kind": "asos"
+  },
+  {
+   "id": "PALH",
+   "lat": 61.1786,
+   "lon": -149.9651,
+   "network": "AK_ASOS",
+   "name": "Lake Hood Seaplane",
+   "sea_km": 8.2,
+   "kind": "asos"
+  },
+  {
+   "id": "PAWG",
+   "lat": 56.4843,
+   "lon": -132.3698,
+   "network": "AK_ASOS",
+   "name": "WRANGELL",
+   "sea_km": 8.2,
+   "kind": "asos"
+  },
+  {
+   "id": "PVC",
+   "lat": 42.07,
+   "lon": -70.22,
+   "network": "MA_ASOS",
+   "name": "PROVINCETOWN (AWOS)",
+   "sea_km": 8.2,
+   "kind": "asos"
+  },
+  {
+   "id": "PABR",
+   "lat": 71.2826,
+   "lon": -156.7922,
+   "network": "AK_ASOS",
+   "name": "BARROW/POST-ROGERS (ASOS)",
+   "sea_km": 8.3,
+   "kind": "asos"
+  },
+  {
+   "id": "MRH",
+   "lat": 34.7336,
+   "lon": -76.6606,
+   "network": "NC_ASOS",
+   "name": "SMITH_FIELD/BEAUFORT_(ASOS)",
+   "sea_km": 8.4,
+   "kind": "asos"
+  },
+  {
+   "id": "PAPH",
+   "lat": 56.9591,
+   "lon": -158.6334,
+   "network": "AK_ASOS",
+   "name": "Port Heiden",
+   "sea_km": 8.4,
+   "kind": "asos"
+  },
+  {
+   "id": "PATG",
+   "lat": 59.0536,
+   "lon": -160.3969,
+   "network": "AK_ASOS",
+   "name": "TOGIAC VILLAGE AWOS",
+   "sea_km": 8.4,
+   "kind": "asos"
+  },
+  {
+   "id": "PAMR",
+   "lat": 61.2163,
+   "lon": -149.8573,
+   "network": "AK_ASOS",
+   "name": "Merrill Field",
+   "sea_km": 8.5,
+   "kind": "asos"
+  },
+  {
+   "id": "NUC",
+   "lat": 33.0228,
+   "lon": -118.5885,
+   "network": "CA_ASOS",
+   "name": "SAN CLEMENTE (AWOS)",
+   "sea_km": 8.6,
+   "kind": "asos"
+  }
+ ],
+ "gate": "gust-ens-risk-v1"
+}
