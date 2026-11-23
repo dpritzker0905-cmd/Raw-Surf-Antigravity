@@ -93,7 +93,7 @@ CHAIN_ENV = ("SURF_TRANSFORM", "SURF_RATING", "MARINE_MID_RES_RATING", "RATING_L
              "SURF_COASTAL_FROM_LAND_BIT", "SURF_COASTAL_FROM_SHORE_NORMAL", "SURF_EXPOSURE_RECONCILED",
              "SURF_GAMMA_FIELD_CEILING", "SURF_HEIGHT_H110", "SURF_REFRACTION_KR", "SURF_SHELF_CF_SCALE",
              "SURF_SHELF_KF_FLOOR", "SURF_TIDE_DEPTH", "SURF_V3_JACK_MAX", "SURF_V3_NORMAL_OVERRIDES", "SURF_V3_SLOPE_GAMMA",
-             "COPERNICUS_ISLAND_SERVE", "POINT_RES_TIEBREAK")
+             "COPERNICUS_ISLAND_SERVE", "POINT_RES_TIEBREAK", "BAND_RATES_TOTAL_SEA")
 UNTOUCHED, MASKED, RATED_BASE = 0, 1, 2
 UNCHANGED_FIELDS = ("u", "v", "direction", "period", "dir_confidence", "lat", "lng")
 
@@ -170,12 +170,12 @@ class ChainInputs:
         return {"env": {k: os.environ.get(k) for k in CHAIN_ENV}, "local_size_sha12": (self.clim_id or "")[:12] or None,
                 "code_sha12": _code_sha12()}
 
-    def ask_key(self, model, valid_dt):
+    def ask_key(self, model, valid_dt, layer=None):
         """A frame's rating inputs at EVERY ask offset it could answer: equal keys = equal rated values and ask_offsets_h,
         so the publisher may carry the frame over."""
-        return _digest([self.ask_signature(model, valid_dt + timedelta(hours=h)) for h in ASK_OFFSETS_H])[:16]
+        return _digest([self.ask_signature(model, valid_dt + timedelta(hours=h), layer) for h in ASK_OFFSETS_H])[:16]
 
-    def ask_signature(self, model, target_dt):
+    def ask_signature(self, model, target_dt, layer=None):
         """Everything the rating reads from the ask time: the wind candidates in the order the per-cell choice walks them
         (with which side of the estimate preference each falls), and the gate's confirmed spots. Equal signatures = equal
         rated values for every cell (manifest_point_selection.choose_for_point; grid_resolver_surf.confirmed_spots)."""
@@ -190,7 +190,17 @@ class ChainInputs:
             wind = None
         # The gate tests "any epic / any good within the radius": order and repeats do not change it.
         gate = tuple(sorted(set(confirmed_spots(target_dt, blob=self.gate_blob)))) if self.gate_blob is not None else None
-        return wind, gate
+        # A PARTITION band rates the TOTAL sea (band_total_sea, bug hunt 2026-11-22 D): the waves candidates it reads. Other
+        # layers keep their two-part signature exactly (their rated values do not read these candidates).
+        from services.weather_pipeline import band_total_sea as _bts
+        if not _bts.applies(layer):
+            return wind, gate
+        try:
+            sa, se = point_candidates(self.manifest, model, "marine", "waves", target_dt)
+            sea = (tuple(p.filename for p, _d, _c in sa), tuple(p.filename for p, _d, _c in se))
+        except Exception:
+            sea = None
+        return wind, gate, sea
 
 
 def _inside(a, b):
@@ -218,7 +228,7 @@ def _digest(obj):
 _PIPE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "weather_pipeline")
 CHAIN_FILES = tuple(os.path.join(_PIPE, f) for f in (
     "surf_rating.py", "surf_transform.py", "surf_point.py", "grid_resolver_surf.py", "bathymetry.py", "rating_confirmation.py",
-    "grid_size_climatology.py", "manifest_point_selection.py", "shore_normal_asset.py", "schemas.py")) + (
+    "grid_size_climatology.py", "manifest_point_selection.py", "shore_normal_asset.py", "schemas.py", "band_total_sea.py")) + (
     os.path.abspath(__file__), os.path.join(os.path.dirname(os.path.abspath(__file__)), "frame_binary.py"))
 _code_sha = None
 
@@ -342,8 +352,8 @@ def rated_product(product_dict, model, layer, inputs):
         vectors.append({**stored, "_rating_code": code})
     out = dict(product_dict, grid=dict(product_dict["grid"], vectors=vectors))
     target_dt = _iso_dt(product_dict.get("valid_time"))
-    base = inputs.ask_signature(model, target_dt)
-    offsets = [h for h in ASK_OFFSETS_H if inputs.ask_signature(model, target_dt + timedelta(hours=h)) == base]
+    base = inputs.ask_signature(model, target_dt, layer)
+    offsets = [h for h in ASK_OFFSETS_H if inputs.ask_signature(model, target_dt + timedelta(hours=h), layer) == base]
     # The product-level fields the overlay sets on a rated grid (grid_resolver_surf): the tag's constant part (the counts are per
     # served box, and the client recounts them from the codes it crops).
     t0 = tags[0]

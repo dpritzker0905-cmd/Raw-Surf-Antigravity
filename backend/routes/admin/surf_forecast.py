@@ -482,7 +482,7 @@ _RATING_FLAGS = {"SURF_NEARSHORE_LITE": ("0", "[D-065 GUARDED, held OFF: gate ne
     "SURF_SEA_INPUTS_EVERY_CALLER": ("1", "[D-065 GUARDED, ON; accuracy not measured] hub, conditions, sim take /point's tide+MOP; kill '0'",
                                      "Render env (serve-side surfaces); the sim reads the served glyph's tide, no env"),
     "SIDE_PATHS_THROUGH_CHAIN": ("1", "[D-065 GUARDED, ON] O4: conditions rows from rate_one_spot frames, _breaking_ft fails closed, "
-                                     "target-time surf-conditions labelled unrated (side_paths.py); kill '0'", "Render env"),
+                                     "target-time surf-conditions labelled unrated (side_paths.py); kill '0'", "Render env"), "BAND_RATES_TOTAL_SEA": ("1", "[D-065 GUARDED, ON by the owner's word 2026-11-22 'Rate the whole sea'; guardrail BLIND] bug hunt D: the map band on swell_1/swell_2/wind_waves rates the TOTAL sea the glyphs rate (the cell's point-resolver waves product through the unchanged band chain), keeping the partition's own motion; kill '0' = rate the shown partition. services/weather_pipeline/band_total_sea.py", "runtime manifest (control/flags.json); the rated static frames read it at their next publish - keep Render env UNSET"),
     "RATING_BAND_ONE_CHAIN": ("1", "[D-065 GUARDED, ON] CMP-1: map band = estimate_surf_at on cached geometry + break depth, "
                                    "eta 0 (band_chain.py); kill '0'", "Render env AND precompute.yml env (rated static frames)"),
     # CMP-3 (audit 2026-11-10). The rating's oversize gate read `break_depth_at` while the height's cap read the

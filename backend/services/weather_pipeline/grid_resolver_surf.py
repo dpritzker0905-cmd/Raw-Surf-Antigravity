@@ -157,6 +157,13 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
                         _acc.append(float(r))
                     return r
 
+                # Bug hunt 2026-11-22 D (owner: "Rate the whole sea"): on a partition layer the band rates the TOTAL
+                # sea the glyphs rate, through this same chain; the partition's own motion is restored (band_total_sea).
+                from services.weather_pipeline import band_total_sea as _bts
+                _sea = None
+                if _bts.applies(layer):
+                    _sampler = await asyncio.to_thread(_bts.build_sampler, store, manifest, model, target_dt)
+                    _sea = (await asyncio.to_thread(_bts.swap_in, product.grid.vectors, _sampler), _sampler)
                 n_t, n_masked = await asyncio.to_thread(
                     rating_transform_grid,
                     product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn,
@@ -165,6 +172,9 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
                     reference_fn=(_recording_reference_fn if reference_fn else None), gate_fn=gate_fn)
                 tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn),
                        "local_size": bool(reference_fn), "obs_gate": bool(gate_fn)}
+                if _sea is not None:
+                    _bts.restore(product.grid.vectors, _sea[0])
+                    tag["total_sea"] = "waves" if _sea[1] is not None else "unavailable"
                 # `n` is the count that ANSWERED, not the count asked: reference_for returns None
                 # where a cell has too few samples, and those cells fall back to the global default.
                 # Reporting only min/p50/max would hide that distinction, and "no reference" vs
