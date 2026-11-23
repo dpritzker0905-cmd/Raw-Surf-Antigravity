@@ -195,11 +195,14 @@ def gg4_seam(rows, arm: str, native_changes: np.ndarray) -> dict:
     HRES gust at 240 h is the column `hres240_g`; without it the seam is NOT MEASURABLE (never passed by default). ICON is
     read forward on >= 10 live runs from stored products."""
     if "hres240_g" not in rows:
-        return {"ok": False, "reason": "NOT MEASURABLE: no hres240_g column (the collector does not carry HRES 10fg)"}
+        return {"ok": False, "measurable": False, "reason": "NOT MEASURABLE: no hres240_g column (the collector does not carry HRES 10fg)"}
     m = (rows["lead"] == 246) & _pop(rows)
+    pair = np.isfinite(rows[f"{arm}_g"][m]) & np.isfinite(rows["hres240_g"][m])
+    if not pair.any():          # an all-NaN column is a missing measurement, never a seam failure
+        return {"ok": False, "measurable": False, "reason": "NOT MEASURABLE: hres240_g has no finite value at the seam rows"}
     import wind_lr2_score as SC
     s = SC.seam_ok(rows[f"{arm}_g"][m], rows["hres240_g"][m], native_changes)
-    return dict(s, icon_seam="NOT MEASURABLE HERE: needs >= 10 live ICON runs from stored products")
+    return dict(s, measurable=True, icon_seam="NOT MEASURABLE HERE: needs >= 10 live ICON runs from stored products")
 
 
 def gg5_halves(rows, fg: Dict[tuple, dict], arm: str, tail: str) -> dict:
@@ -312,12 +315,19 @@ def gust_verdict(rows, wind_passed: Dict[str, Dict[str, bool]], native_changes: 
             if not wind_passed.get(tail, {}).get(arm):
                 info[arm] = {"evaluated": False, "ships": "WIND_ONLY_OR_NONE", "why": "arm did not pass wind for this tail"}
                 continue
-            g4 = gg4_seam(rows, arm, native_changes) if tail == "EURO" else {"ok": True, "icon_seam": "PENDING live read"}
+            if tail == "EURO":
+                g4 = gg4_seam(rows, arm, native_changes)
+            else:       # ICON has no archive: the seam is read forward on >= 10 live runs, so it is PENDING, never passed
+                g4 = {"ok": False, "measurable": False, "reason": "PENDING: needs >= 10 live ICON runs from stored products"}
             g5 = gg5_halves(rows, fg, arm, tail)
             g6 = gg6_regions(rows, arm, tail, reps)
-            ok = fg_pass(arm, tail, fg) and g4["ok"] and g5["ok"] and g6["ok"]
+            rest = bool(fg_pass(arm, tail, fg) and g5["ok"] and g6["ok"])
+            pending = not g4.get("measurable", True)
+            ok = bool(rest and g4["ok"])
+            # mirrors the wind side's PASS_PENDING_ICON_SEAM: every other line holds but the seam is unread -> not shippable
+            status = "PASS" if ok else ("PASS_PENDING_SEAM" if (rest and pending) else "FAIL")
             info[arm] = {"evaluated": True, "FG": fg_pass(arm, tail, fg), "GG4": g4, "GG5": g5, "GG6": g6, "pass": ok,
-                         "ships": ("WIND_AND_GUST" if ok else "WIND_ONLY")}
+                         "status": status, "ships": ("WIND_AND_GUST" if ok else "WIND_ONLY")}
         doc["tails"][tail] = info
     doc["verdict"] = "VOID" if doc["void_reasons"] else "READ"
     return doc

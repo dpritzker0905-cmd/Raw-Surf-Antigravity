@@ -238,9 +238,39 @@ def test_gust_is_tested_only_for_an_arm_that_passed_wind(skilled):
     wp = {"ICON": {"GRAND_CAL": True, "AIGEFS_CAL": False}, "EURO": {"GRAND_CAL": False, "AIGEFS_CAL": False}}
     doc = G.gust_verdict(skilled, wp, np.array([5.0, 6.0]), sbr, reps=REPS, control_reps=REPS)
     assert doc["void_reasons"] == [] and doc["verdict"] == "READ"
-    assert doc["tails"]["ICON"]["GRAND_CAL"]["evaluated"] and doc["tails"]["ICON"]["GRAND_CAL"]["ships"] == "WIND_AND_GUST"
+    assert doc["tails"]["ICON"]["GRAND_CAL"]["evaluated"]
     assert not doc["tails"]["ICON"]["AIGEFS_CAL"]["evaluated"] and not doc["tails"]["EURO"]["GRAND_CAL"]["evaluated"]
     assert len(doc["fg"]) == 20                                         # adjusted over all 20 whether or not evaluated
+
+
+def test_icon_gust_pass_is_pending_the_live_seam_read_and_never_ships_gust_by_default(skilled):
+    sbr = {"HAWAII": 12, "US_PACIFIC": 12, "US_ATLANTIC_GULF": 12}
+    wp = {"ICON": {"GRAND_CAL": True, "AIGEFS_CAL": False}, "EURO": {"GRAND_CAL": False, "AIGEFS_CAL": False}}
+    a = G.gust_verdict(skilled, wp, np.array([5.0, 6.0]), sbr, reps=REPS, control_reps=REPS)["tails"]["ICON"]["GRAND_CAL"]
+    assert a["FG"] and a["GG5"]["ok"] and a["GG6"]["ok"]                 # every other line holds
+    assert a["status"] == "PASS_PENDING_SEAM" and a["ships"] == "WIND_ONLY" and a["pass"] is False
+    assert a["GG4"]["measurable"] is False and "PENDING" in a["GG4"]["reason"]
+
+
+def test_an_all_nan_hres_gust_is_not_measurable_not_a_seam_failure(skilled):
+    rows = dict(skilled, hres240_g=np.full(len(skilled["lead"]), np.nan))
+    out = G.gg4_seam(rows, "GRAND_CAL", np.array([5.0, 6.0]))
+    assert out["measurable"] is False and out["ok"] is False and "NOT MEASURABLE" in out["reason"] and "p95_seam" not in out
+    sbr = {"HAWAII": 12, "US_PACIFIC": 12, "US_ATLANTIC_GULF": 12}
+    wp = {"ICON": {}, "EURO": {"GRAND_CAL": True, "AIGEFS_CAL": False}}
+    a = G.gust_verdict(rows, wp, np.array([5.0, 6.0]), sbr, reps=REPS, control_reps=REPS)["tails"]["EURO"]["GRAND_CAL"]
+    assert a["status"] == "PASS_PENDING_SEAM" and a["ships"] == "WIND_ONLY"          # not "FAIL": a missing read, not a measured failure
+
+
+def test_a_measured_euro_seam_pass_ships_and_a_measured_seam_fail_is_a_fail(skilled):
+    sbr = {"HAWAII": 12, "US_PACIFIC": 12, "US_ATLANTIC_GULF": 12}
+    wp = {"ICON": {}, "EURO": {"GRAND_CAL": True, "AIGEFS_CAL": False}}
+    good = dict(skilled, hres240_g=skilled["GRAND_CAL_g"])                              # seam difference 0
+    a = G.gust_verdict(good, wp, np.array([1.0, 2.0]), sbr, reps=REPS, control_reps=REPS)["tails"]["EURO"]["GRAND_CAL"]
+    assert a["status"] == "PASS" and a["ships"] == "WIND_AND_GUST"
+    bad = dict(skilled, hres240_g=skilled["GRAND_CAL_g"] + 50.0)                         # a 50 m/s step at the seam
+    b = G.gust_verdict(bad, wp, np.array([1.0, 2.0]), sbr, reps=REPS, control_reps=REPS)["tails"]["EURO"]["GRAND_CAL"]
+    assert b["status"] == "FAIL" and b["ships"] == "WIND_ONLY"
 
 
 def test_a_gust_fail_ships_wind_only_and_never_rewrites_the_wind_verdict():
