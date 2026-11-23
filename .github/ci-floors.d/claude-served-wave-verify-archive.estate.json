@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 58,
+  "tests": 42,
   "branch": "claude/served-wave-verify-archive",
   "date": "2026-11-23",
-  "note": "served-wave-verify-v1 point archive (+ amendment 1): tests/test_point_archive_shared.py + test_served_wave_{buoys,decoder_parity,publisher_prune,sampler,scorer,workflows}.py"
+  "note": "served-wave-verify-v1 point archive (+ amendment 1): test_served_wave_{buoys,decoder_parity,publisher_prune,sampler,scorer,workflows}.py (test_point_archive_shared.py is the guards lane's)"
 }
