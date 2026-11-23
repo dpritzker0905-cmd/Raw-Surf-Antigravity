@@ -397,12 +397,12 @@ export function compileForecastCards({
         // TIDE (spot-hub phase 1, 2026-11-03): the tide the rating used, from the same answer
         // (/point-rating `rating.tide`). Absent => no row (never 0). It is a MODEL estimate on the
         // mean-sea-level datum, and the row says so. Kill: window.__RAW_DISABLE_SPOT_HUB_P1__.
-        const _tideText = spotHubP1Enabled() ? formatPointTide(surfRating.tide) : null;
+        const _tideText = spotHubP1Enabled() ? formatPointTide(surfRating.tide, _unit) : null;   // follows ft/m
         if (_tideText) {
           cards.push({
             icon: Waves, label: 'Tide', value: _tideText, color: 'text-cyan-300',
             note: 'model estimate, mean sea level',
-            ariaLabel: `${TIDE_MODEL_LABEL}: ${_tideText.replace('ft', 'feet')}`,
+            ariaLabel: `${TIDE_MODEL_LABEL}: ${_tideText.replace(/ ft\b/, ' feet').replace(/ m\b/, ' meters')}`,
           });
         }
       }

@@ -1,0 +1,262 @@
+{
+ "day0": "2026-11-23T00:00:00+00:00",
+ "stand_in": "NOAA CO-OPS hourly predictions, MSL datum",
+ "spots": [
+  {
+   "spot": "North Shore Oahu sweep point",
+   "lat": 21.665,
+   "lng": -158.05,
+   "gauge": "1612340",
+   "depth_m": 2534.5,
+   "break_depth_m": 11.1,
+   "leads": [
+    {
+     "lead_h": 24,
+     "true_eta_m": -0.001,
+     "eta_off_m": -0.001,
+     "cap_depth_off_m": 11.099,
+     "eta_on_m": -0.001,
+     "cap_depth_on_m": 11.099,
+     "cap_depth_true_m": 11.099
+    },
+    {
+     "lead_h": 60,
+     "true_eta_m": 0.293,
+     "eta_off_m": 0.293,
+     "cap_depth_off_m": 11.393,
+     "eta_on_m": 0.293,
+     "cap_depth_on_m": 11.393,
+     "cap_depth_true_m": 11.393
+    },
+    {
+     "lead_h": 80,
+     "true_eta_m": -0.326,
+     "eta_off_m": -0.177,
+     "cap_depth_off_m": 10.923,
+     "eta_on_m": -0.326,
+     "cap_depth_on_m": 10.774,
+     "cap_depth_true_m": 10.774
+    },
+    {
+     "lead_h": 120,
+     "true_eta_m": -0.203,
+     "eta_off_m": -0.177,
+     "cap_depth_off_m": 10.923,
+     "eta_on_m": -0.203,
+     "cap_depth_on_m": 10.897,
+     "cap_depth_true_m": 10.897
+    },
+    {
+     "lead_h": 200,
+     "true_eta_m": 0.043,
+     "eta_off_m": -0.177,
+     "cap_depth_off_m": 10.923,
+     "eta_on_m": 0.043,
+     "cap_depth_on_m": 11.143,
+     "cap_depth_true_m": 11.143
+    },
+    {
+     "lead_h": 330,
+     "true_eta_m": -0.05,
+     "eta_off_m": -0.177,
+     "cap_depth_off_m": 10.923,
+     "eta_on_m": -0.05,
+     "cap_depth_on_m": 11.05,
+     "cap_depth_true_m": 11.05
+    }
+   ]
+  },
+  {
+   "spot": "Windansea, La Jolla",
+   "lat": 32.8297,
+   "lng": -117.281,
+   "gauge": "9410230",
+   "depth_m": 739.0,
+   "break_depth_m": 11.9,
+   "leads": [
+    {
+     "lead_h": 24,
+     "true_eta_m": -0.898,
+     "eta_off_m": -0.898,
+     "cap_depth_off_m": 11.002,
+     "eta_on_m": -0.898,
+     "cap_depth_on_m": 11.002,
+     "cap_depth_true_m": 11.002
+    },
+    {
+     "lead_h": 60,
+     "true_eta_m": 0.05,
+     "eta_off_m": 0.05,
+     "cap_depth_off_m": 11.95,
+     "eta_on_m": 0.05,
+     "cap_depth_on_m": 11.95,
+     "cap_depth_true_m": 11.95
+    },
+    {
+     "lead_h": 80,
+     "true_eta_m": 0.165,
+     "eta_off_m": -1.201,
+     "cap_depth_off_m": 10.699,
+     "eta_on_m": 0.165,
+     "cap_depth_on_m": 12.065,
+     "cap_depth_true_m": 12.065
+    },
+    {
+     "lead_h": 120,
+     "true_eta_m": -0.911,
+     "eta_off_m": -1.201,
+     "cap_depth_off_m": 10.699,
+     "eta_on_m": -0.911,
+     "cap_depth_on_m": 10.989,
+     "cap_depth_true_m": 10.989
+    },
+    {
+     "lead_h": 200,
+     "true_eta_m": -0.175,
+     "eta_off_m": -1.201,
+     "cap_depth_off_m": 10.699,
+     "eta_on_m": -0.175,
+     "cap_depth_on_m": 11.725,
+     "cap_depth_true_m": 11.725
+    },
+    {
+     "lead_h": 330,
+     "true_eta_m": 0.172,
+     "eta_off_m": -1.201,
+     "cap_depth_off_m": 10.699,
+     "eta_on_m": 0.172,
+     "cap_depth_on_m": 12.072,
+     "cap_depth_true_m": 12.072
+    }
+   ]
+  },
+  {
+   "spot": "Ocean Beach, San Francisco",
+   "lat": 37.76,
+   "lng": -122.51,
+   "gauge": "9414290",
+   "depth_m": 70.0,
+   "break_depth_m": 8.5,
+   "leads": [
+    {
+     "lead_h": 24,
+     "true_eta_m": -1.278,
+     "eta_off_m": -1.278,
+     "cap_depth_off_m": 7.222,
+     "eta_on_m": -1.278,
+     "cap_depth_on_m": 7.222,
+     "cap_depth_true_m": 7.222
+    },
+    {
+     "lead_h": 60,
+     "true_eta_m": 0.006,
+     "eta_off_m": 0.006,
+     "cap_depth_off_m": 8.506,
+     "eta_on_m": 0.006,
+     "cap_depth_on_m": 8.506,
+     "cap_depth_true_m": 8.506
+    },
+    {
+     "lead_h": 80,
+     "true_eta_m": 0.395,
+     "eta_off_m": -0.502,
+     "cap_depth_off_m": 7.998,
+     "eta_on_m": 0.395,
+     "cap_depth_on_m": 8.895,
+     "cap_depth_true_m": 8.895
+    },
+    {
+     "lead_h": 120,
+     "true_eta_m": -0.096,
+     "eta_off_m": -0.502,
+     "cap_depth_off_m": 7.998,
+     "eta_on_m": -0.096,
+     "cap_depth_on_m": 8.404,
+     "cap_depth_true_m": 8.404
+    },
+    {
+     "lead_h": 200,
+     "true_eta_m": -0.756,
+     "eta_off_m": -0.502,
+     "cap_depth_off_m": 7.998,
+     "eta_on_m": -0.756,
+     "cap_depth_on_m": 7.744,
+     "cap_depth_true_m": 7.744
+    },
+    {
+     "lead_h": 330,
+     "true_eta_m": 0.868,
+     "eta_off_m": -0.502,
+     "cap_depth_off_m": 7.998,
+     "eta_on_m": 0.868,
+     "cap_depth_on_m": 9.368,
+     "cap_depth_true_m": 9.368
+    }
+   ]
+  },
+  {
+   "spot": "Rockaway Beach, NY",
+   "lat": 40.58,
+   "lng": -73.82,
+   "gauge": "8531680",
+   "depth_m": 25.0,
+   "break_depth_m": 8.0,
+   "leads": [
+    {
+     "lead_h": 24,
+     "true_eta_m": 0.659,
+     "eta_off_m": 0.659,
+     "cap_depth_off_m": 8.659,
+     "eta_on_m": 0.659,
+     "cap_depth_on_m": 8.659,
+     "cap_depth_true_m": 8.659
+    },
+    {
+     "lead_h": 60,
+     "true_eta_m": 1.061,
+     "eta_off_m": 1.061,
+     "cap_depth_off_m": 9.061,
+     "eta_on_m": 1.061,
+     "cap_depth_on_m": 9.061,
+     "cap_depth_true_m": 9.061
+    },
+    {
+     "lead_h": 80,
+     "true_eta_m": -0.847,
+     "eta_off_m": 0.238,
+     "cap_depth_off_m": 8.238,
+     "eta_on_m": -0.847,
+     "cap_depth_on_m": 7.153,
+     "cap_depth_true_m": 7.153
+    },
+    {
+     "lead_h": 120,
+     "true_eta_m": -0.097,
+     "eta_off_m": 0.238,
+     "cap_depth_off_m": 8.238,
+     "eta_on_m": -0.097,
+     "cap_depth_on_m": 7.903,
+     "cap_depth_true_m": 7.903
+    },
+    {
+     "lead_h": 200,
+     "true_eta_m": 0.33,
+     "eta_off_m": 0.238,
+     "cap_depth_off_m": 8.238,
+     "eta_on_m": 0.33,
+     "cap_depth_on_m": 8.33,
+     "cap_depth_true_m": 8.33
+    },
+    {
+     "lead_h": 330,
+     "true_eta_m": -0.631,
+     "eta_off_m": 0.238,
+     "cap_depth_off_m": 8.238,
+     "eta_on_m": -0.631,
+     "cap_depth_on_m": 7.369,
+     "cap_depth_true_m": 7.369
+    }
+   ]
+  }
+ ]
+}

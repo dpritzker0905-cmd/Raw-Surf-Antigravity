@@ -6,6 +6,7 @@ import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMar
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
 import MapMarkerLayers from './MapMarkerLayers';
+import TideOverlayLayer from './TideOverlayLayer';
 import { WindParticleOverlay } from './WindParticleOverlay';
 import { WebGLWindLayer } from './WebGLWindLayer';
 import { windParticlesWanted, gustColourMode } from './gustParticles';
@@ -67,6 +68,7 @@ import LongPressMarker from './LongPressMarker';
 import './scrubPerfProbe';   // installs window.__SCRUB_PROBE__ (dev scrub/animation re-render harness, backlog #1)
 import { planAnchorMoves } from './waterTempAnchor';
 import { useMarineWebglRecovery } from './useMarineWebglRecovery';
+import { useNoteForecastShown } from '../observations/forecastExposure';
 
 const MapWebGL = ({
   effectiveLocation,
@@ -94,6 +96,7 @@ const MapWebGL = ({
   longPressLocation,
   onMarineDataChange,
 }) => {
+  useNoteForecastShown('map');  // blind-quality exposure (observations/forecastExposure)
   // v3.9.7: Explicit init never at import time
   ensureMapLibreInit();
   if (typeof window !== 'undefined') {
@@ -1059,6 +1062,8 @@ const MapWebGL = ({
           spotRatings={spotRatings}
           clusterRatings={clusterRatings}
         />
+        {/* Tide add-on: per-cell tide markers at the visible spots; the hour re-evaluates cached payloads only. */}
+        <TideOverlayLayer spotClusters={spotClusters} timeOffsetHours={timeOffsetHours} mapInstance={mapInstance} userTier={userTier} />
         {/* Keep the WebGL wind engine RESIDENT (gated by `active`) — same rationale as the
             marine layer above: avoid disposing/rebuilding the 147,456-particle engine on
             every wind toggle. render() no-ops + clears once when active=false. */}
