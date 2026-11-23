@@ -17,7 +17,20 @@ Served change: none.
 ## 1. Data
 - Records: the point archive, `purpose = served`, schema `point-archive/1`, per member, as written by #1177's sampler. Truth: the shared NDBC QC (per-field ranges, ±30 min collocation) and the daily truth snapshots.
 - **Window:** the first 42 days after the archive's 14-day coverage acceptance (#1168 §8) passes, fixed by that date and logged before any score is read.
+- **Buoys that may decide (round 2):** only buoys in the VERIFY set (section 1a). FIT-USED and LOCKED buoys never enter P1.
 - **n fixed in advance:** for each model, P1 needs >= 300 collocated `ok` pairs in [24,48) h Tier B, from >= 10 buoys and >= 20 distinct runs. Below that, the model is INSUFFICIENT, not a fail.
+
+## 1a. Spatial holdout and the locked final holdout (round 2: Reflection, LongCat, SubQ)
+- **FIT-USED buoys are excluded (Reflection, LongCat).**
+  - Any buoy whose observations have fitted or calibrated anything that serves or is being built is tagged `fit_used` in the frozen buoy list, with the consumer named. Examples: an EMOS or bias-correction training set, a TWL / tide anchor, the bight consensus, a MOS.
+  - The tags are frozen with the list before the window. A buoy that becomes fit-used later is excluded from every window that starts after that date, and the change is logged.
+  - P1 is computed on VERIFY buoys only: `fit_used = false` and not LOCKED.
+- **The LOCKED final holdout (SubQ, program-level multiplicity).**
+  - At freeze, 20 % of the eligible buoys are drawn per region (seed 1199, stratified by region; the list and its SHA-256 are committed). They are LOCKED.
+  - No gate, ablation, calibration or diagnostic reads a LOCKED buoy at any time, except one pre-registered look in the LOCKED WINDOW (2027-03-01 to 2027-04-30), used only to support a program-level state-of-the-art claim.
+  - Every read of LOCKED data is logged in the ledger. An unlogged read voids the holdout, and the claim must then wait for a new locked set.
+  - LOCKED buoys still have archive records written; the scorer filters them out by the frozen list.
+- **Effect on n:** the n floor in section 1 applies to VERIFY buoys. A model below it is INSUFFICIENT.
 
 ## 2. Persistence reference (OBSERVED; advisor, 2026-11-22)
 - For each (run, buoy), persistence is the buoy's OBSERVED Hs at the run's init time: the QC'd observation nearest `run_time` within ±30 min, from the shared truth snapshots. It is held for every later valid time.
@@ -30,7 +43,10 @@ Served change: none.
 - SS = 1 - RMSE_served / RMSE_persist, over the same pairs.
 
 ## 4. Uncertainty
-- **Clustered block bootstrap:** resample whole runs nested in whole days (blocks of 1 day; every buoy and run of a day together), 10,000 replicates, seed 1168.
+- **Clustered block bootstrap, cross-day (round 2, LongCat):**
+  - Resample moving blocks of 3 consecutive days. Every buoy and every run whose valid time falls in the block move together, so swell events that span days stay in one block.
+  - 10,000 replicates, seed 1168.
+  - Block length is reported. A sensitivity run with 5-day blocks is reported, not decisive.
 - **Holm** across the three models (GFS, EURO, ICON): one family, alpha 0.05, one-sided.
 
 ## 5. Bar
@@ -50,6 +66,10 @@ Served change: none.
   - Reported with its block-bootstrap interval, and labelled "pipeline damage" if the lower bound is > +0.05 m. It never decides this gate.
   - It is what later gates read to know whether a served error comes from the model or from our serving (decode, quantisation, cell choice, fills).
   - EURO and ICON upstream are not read here: their raw fields need the CMEMS credential and the DWD archive.
+- **S-PART, per-partition (round 2, LongCat; reported, NEVER decides).**
+  - Swell_1, swell_2 and wind-sea Hs, plus the peak period of the dominant partition in bands (< 8 s, 8-12 s, > 12 s), from the served partition sets.
+  - Scored where partition truth exists: NDBC `.spec` summary (SwH/SwP, WWH/WWP) at VERIFY buoys, and CDIP spectra (EXAM only: a separate table, never pooled, never fitted).
+  - Labelled indicative: model and buoy partition definitions differ (#1168 §11).
 - **S-CLIM:** SS against a 30-day running buoy climatology, reported, as the weak-reference bracket on the other side of persistence.
 - **Other tiers and leads:** each (tier, lead bin) gets the same SS and interval, reported in one table. They are not verified by this gate (decision rule).
 
@@ -77,6 +97,12 @@ Decision (research lead):**
 - **Persistence:** the two disagree. Persistence stays the primary's reference, with two brackets reported beside it: climatology below (S-CLIM) and the upstream model above (S-FID, GFS).
 - **Fidelity:** added as the pre-registered secondary S-FID, per SubQ's 0.99. It is the stronger reference, but it is GFS-only, so it cannot be the primary across three models.
 - **Scope flaw (Reflection), accepted:** the decision rule now says PASS verifies only Tier B at [24,48) h. Every other (tier, lead) is reported, not verified. Adding them as co-primaries would break the director's one-primary rule.
+
+**Round 2 (all three AGREE with the design; each named one missing risk; folded in this commit, before the freeze):**
+- Reflection and LongCat: a spatial holdout. FIT-USED buoys are excluded, and a pre-declared VERIFY set decides (section 1a).
+- SubQ: program-level multiplicity. A LOCKED final holdout (20 % of buoys per region × 2027-03-01 to 04-30) that no gate or ablation reads, used only for a state-of-the-art claim (section 1a).
+- LongCat: a per-partition secondary, S-PART (reported, never decides; CDIP EXAM only).
+- LongCat: cross-day bootstrap blocks (3-day moving blocks, with a 5-day sensitivity run).
 
 **Re-check of the two fixes (SubQ snap-1.2, model confidence, 2026-11-22):**
 - Observed-at-init persistence is sounder than the model's earliest step: 0.93.
