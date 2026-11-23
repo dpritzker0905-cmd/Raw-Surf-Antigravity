@@ -184,6 +184,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_INFOBOX_TIDE__',
   // components/map/tideOverlay.parity.test.js
   '__RAW_DISABLE_TIDE_OVERLAY__',
+  // components/map/rasterSourceWords.test.js (pass 13: which model a raster draws, in words)
+  '__RAW_DISABLE_RASTER_SOURCE_WORDS__',
   // hudResidentTruth.test.js
   '__RAW_DISABLE_HUD_RESIDENT_TRUTH__',
   // marineSeriesFrame.killSwitch.test.js

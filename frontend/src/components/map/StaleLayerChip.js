@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, Info } from 'lucide-react';
 import { readRatedRunState, readWindStaleState } from './staleLayerState';
+import { getRasterDrawn, describeRasterSource, RASTER_STATUS_LAYERS } from './rasterDrawnFrame';
 
 /**
  * THE STALE-LAYER CHIP on the COLLAPSED phone timeline header (2026-11-16; David approved it 08:54 EST via the advisor, and gave it
@@ -14,7 +15,7 @@ import { readRatedRunState, readWindStaleState } from './staleLayerState';
 export const staleChipKilled = () => typeof window !== 'undefined' && window.__RAW_DISABLE_STALE_CHIP__ === true;
 
 /** What the chip says now, or null: the rating band's run age first, then (wind on) wind's nearest stored / held state. */
-export function readStaleChip({ model, hour, windOn } = {}) {
+export function readStaleChip({ model, layer, hour, windOn } = {}) {
   if (staleChipKilled()) return null;
   const rated = readRatedRunState();
   if (rated) return { kind: 'ratings', short: rated.short, text: rated.text };
@@ -22,6 +23,11 @@ export function readStaleChip({ model, hour, windOn } = {}) {
     const wind = readWindStaleState({ model, hour });
     if (wind) return { kind: 'wind', short: wind.short, text: wind.text };
   }
+  // A raster drawn from ANOTHER model than the one picked (SOTA-GAP pass 13: Fog draws GFS under EURO / ICON): the status line's own
+  // words (rasterDrawnFrame.describeRasterSource, the one reader), so the collapsed phone says it too. Its kill is the line's own.
+  const rec = RASTER_STATUS_LAYERS.has(layer) ? getRasterDrawn() : null;
+  const src = rec && rec.layer === layer ? describeRasterSource(rec.shown, layer, model) : null;
+  if (src && src.state === 'standin') return { kind: 'source', short: src.text, text: src.text };
   return null;
 }
 
@@ -51,10 +57,12 @@ export default function StaleLayerChip({ stale, onOpen, textClass = '' }) {
   if (!state) return null;
   return (
     <div className="weather-stale-chip-row flex justify-center pb-1">
-      <button type="button" data-stale-chip={state.kind} aria-label={`${state.short}. ${state.text}`} title={state.text}
+      <button type="button" data-stale-chip={state.kind} aria-label={state.short === state.text ? state.text : `${state.short}. ${state.text}`} title={state.text}
         aria-expanded={false} aria-controls="weather-mobile-timeline-body" onClick={onOpen}
         className={`weather-stale-chip inline-flex items-center gap-1 max-w-full truncate text-[11px] leading-4 px-2 py-0.5 rounded-full border border-current focus:outline-none focus-visible:ring-2 focus-visible:ring-current ${textClass}`}>
-        <Clock className="w-3 h-3 shrink-0" aria-hidden="true" focusable="false" />
+        {state.kind === 'source'
+          ? <Info className="w-3 h-3 shrink-0" aria-hidden="true" focusable="false" />
+          : <Clock className="w-3 h-3 shrink-0" aria-hidden="true" focusable="false" />}
         <span className="truncate">{state.short}</span>
       </button>
     </div>
