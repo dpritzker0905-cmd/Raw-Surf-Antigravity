@@ -3,7 +3,7 @@ Stamp: 2026-11-22 (research lead; DRAFT for the advisor. No forecast-observation
 Candidate: the surf rating's wind source at the break. Do `NBM` (2.5 km, station-calibrated blend) or `HRRR_NATIVE` (3 km cell, not area-meaned) get the rating's own wind class right more often than today's `GFS` point wind, at coastal stations, all hours and at dawn?
 Metric: M1 = category hit rate (fraction of station-hours whose forecast class equals the observed class) on the 7 rating wind classes (section 3), per region × stratum (ALL, DAWN). Reported beside it: M2 one-hour-tolerant hit rate, M3 vector RMSE (kn), M4 speed bias (kn), Heidke skill score.
 Pass threshold: section 6. A challenger is BETTER than `GFS` in a region × stratum when its M1 gain is >= +3.0 percentage points AND one-sided Holm-adjusted p < 0.05. It is WORSE when the reverse holds at p < 0.05, whatever the size.
-Controls: section 7. A permutation null (false-BETTER rate <= 0.08); a planted one-class shift in 20 % of `GFS` hours (must be WORSE); `PERSIST` as the skill floor; a GFS parity check against stored products.
+Controls: section 7. A permutation null (false-BETTER rate <= 0.08); a planted one-class shift toward onshore in 20 % of `GFS`'s non-calm, non-onshore hours (must be detected, section 7); `PERSIST` as the skill floor; a GFS parity check against stored products.
 Decision rule: section 8. An arm becomes the rating-wind candidate in a region only if it is BETTER on DAWN, not WORSE on ALL, and BETTER than `PERSIST` on ALL. With both challengers qualifying, a pre-registered two-sided head-to-head decides. If that head-to-head is not significant, `NBM` is chosen, for coverage (section 8).
 Unmeasured items: `HRRR_NATIVE` has no Hawaii or Puerto Rico rows (outside HRRR's domain): there it is "not measured", not a fail. Regions or strata under the floor are INSUFFICIENT. Non-US coasts are out of scope. Summer sea breeze is unmeasured by a winter window (section 9).
 Served change: none from this gate. A pass is an owner decision to change the rating wind under D-065. It ships with a kill switch and a SCOREBOARD row, through the ONE chain (`rate_one_spot`), never as a second forecast path.
@@ -32,7 +32,7 @@ Every arm is read offline from public archives on a workstation or GitHub Action
 - **Candidates:** NDBC `activestations.xml` rows with `type="fixed"` and `met="y"` (C-MAN and NOS/CO-OPS met stations mirrored by NDBC). Also NOAA CO-OPS met stations not mirrored there, read through the CO-OPS API.
 - **Kept when all of these hold:**
   - within 15 km of a catalogued spot (`models/spots.py`);
-  - an HRRR water cell within 3 km (Hawaii / Puerto Rico: an NBM water cell, from the NBM land mask);
+  - an HRRR water cell AND an HRRR land cell both within 3 km, so only coastal stations qualify and offshore platforms and lights do not (Hawaii / Puerto Rico: an NBM water cell and an NBM land cell, from the NBM land mask; advisor, 2026-11-22);
   - outside the Great Lakes box (lat 41-49, lon -92.5 to -76);
   - an anemometer height on the station page.
 - **Freeze.** The build writes the list (station id, lat, lon, height, region, linked spot id, shore normal) to `gates/rating-wind-coast-v1-stations.md`. That file is committed and gated (advisor line) BEFORE any arm is paired with any station. Nothing is added or removed after pairing.
@@ -85,10 +85,11 @@ Every arm is read offline from public archives on a workstation or GitHub Action
 
 ## 7. Controls (a failed control voids the region it fails in)
 - **Permutation null:** within each 7-day block, arm labels `GFS` and challenger are swapped at random. Over 200 such permutations (seed 1163), the share labelled BETTER must be <= 0.08 per region. Otherwise the bootstrap is mis-calibrated there and the region is VOID.
-- **Planted shift:** `GFS_PLANT` is `GFS` with its direction rotated toward onshore by the smallest angle that moves its class one step (offshore to cross, or cross to onshore). This is done in a fixed 20 % of non-calm hours (seed 1163).
-  - It must come out WORSE than `GFS` on ALL in every evaluable region. Otherwise the region is underpowered and VOID.
+- **Planted shift:** `GFS_PLANT` is `GFS` with its direction rotated toward onshore by the smallest angle that moves its class one step (offshore to cross, or cross to onshore). It is drawn from `GFS`'s non-calm, non-onshore hours only: a fixed 20 % of those hours (seed 1163). Calm and onshore hours cannot move one step toward onshore, so they are never drawn.
+  - **Test level:** `GFS_PLANT`'s M1 must be lower than `GFS`'s on ALL in every evaluable region, at one-sided p < 0.05 (same bootstrap), unadjusted, with no +3 pp minimum (advisor, 2026-11-22). Otherwise the region is underpowered and VOID.
 - **Skill floor:** `PERSIST` must be WORSE than `GFS` on ALL at leads 25-36 h in the pooled sample. Otherwise the pipeline is suspect and the whole gate is VOID.
-- **GFS parity:** on 30 station-hours drawn with seed 1163, `GFS` must match the stored GFS wind product (Supabase `weather-products`, the product the rating serves, read from storage, not the live API) within 0.5 kt and 5° (directions only when >= 4 kt). Otherwise the gate is VOID until fixed.
+- **GFS parity:** on 30 station-hours drawn with seed 1163, `GFS` must match the stored GFS wind product (Supabase `weather-products`, the product the rating serves) within 0.5 kt and 5° (directions only when >= 4 kt). Otherwise the gate is VOID until fixed.
+  - **Read path:** the stored product is read through its public object URL, or through the same anonymous read the client uses. It is never read with the service-role key, and never through the live API (advisor, 2026-11-22).
 
 ## 8. Decision
 - **In each region:** an arm qualifies if it is BETTER on DAWN, not WORSE on ALL, not NO SKILL, and no control is void there.
@@ -96,6 +97,10 @@ Every arm is read offline from public archives on a workstation or GitHub Action
 - **Both qualify:** a two-sided head-to-head on DAWN M1 (`NBM` vs `HRRR_NATIVE`, same bootstrap, alpha 0.05, outside the Holm family) picks the winner. If it is not significant, `NBM` is chosen.
   - This tie-break is written now so it cannot be argued later: `NBM` covers Hawaii and Puerto Rico, one source then serves every US region, and it carries its own bias correction.
 - **None qualifies:** `GFS` stays.
+- **Serving read rule a pass would ship (fixed now, advisor, 2026-11-22).** The rating reads the winning source at the SPOT coordinate (the catalogue pin `rate_one_spot` resolves), never at a station:
+  - `HRRR_NATIVE`: the nearest native 3 km cell whose `LAND:surface` is water. If the cell under the pin is water, that cell.
+  - `NBM`: the nearest grid cell to the pin. If that cell is land in NBM's land mask, the nearest water cell instead.
+  - The build may not choose another read (bilinear, area mean, a land cell) after the result. A different read is a new gate.
 - **Scope of a candidate:** an owner decision, not a ship. The change ships under D-065: code default ON with a kill switch (`RATING_WIND_SOURCE`), a SCOREBOARD row, the history filter, and the ONE chain (the source is resolved inside `rate_one_spot`'s wind resolve, so every surface reads the same wind).
 
 ## 9. Known limits, written now
@@ -105,6 +110,11 @@ Every arm is read offline from public archives on a workstation or GitHub Action
 - **NBM versions.** A version change inside the window splits the rows. If more than 50 % of the window is on one side, only that side is scored. Otherwise `NBM` is VOID for the window.
 - **One scored look.** The result is computed once on the full frozen window. Interim reads of any arm-truth pair are forbidden; collection health is checked from counts only.
 - **Station siting.** Pier and harbour anemometers can be sheltered or channelled. The result reports per-station hit rates so a single station cannot drive a region unseen. A region whose verdict flips when its most influential station is dropped is labelled FRAGILE beside its verdict (a report, not a re-decision).
+
+- **Stations, not spots.** The gate measures at coastal stations within 15 km of a spot, with the station's own nearest-cell read (section 1). A pass ships the spot-coordinate read above. The transfer from station to spot is assumed, not measured.
+- **Class edges.** The ±0.34 offshoreness cut and the 3 / 12 kt speed cuts are this gate's own binning. A forecast near a class edge can miss on a small error, and an observation near an edge can be hit by luck. Hits that fall on a class edge are a property of this binning, not of the source. M3 and M4 are reported beside M1 for that reason.
+- **Pull size before dispatch.** The NBM and HRRR pulls (byte-range `.idx` subsets of the 10 m wind fields only) are sized in GB per day and per window, and written to the build PR, before any dispatch request goes to David.
+- **Shore normal per station.** The result reports each station's shore normal (the linked spot's served normal), beside its per-station hit rates.
 
 ## 10. What was seen before this gate (disclosure)
 - No forecast value of any arm has been paired with any station by the author.
