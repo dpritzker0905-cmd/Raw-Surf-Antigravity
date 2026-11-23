@@ -223,6 +223,13 @@ def decode_eccodes(msg: bytes) -> Tuple[np.ndarray, dict]:
             step_range = str(ec.codes_get(h, "stepRange"))
         except Exception:                                               # noqa: BLE001 - absent on some templates
             step_range = None
+        grib_id = {}            # provenance the gust-risk set pins and logs (frame_set_raster_gust_risk.PIN)
+        for key in ("centre", "generatingProcessIdentifier", "productDefinitionTemplateNumber", "tablesVersion",
+                    "numberOfForecastsInEnsemble"):
+            try:
+                grib_id[key] = ec.codes_get(h, key)
+            except Exception:                                           # noqa: BLE001 - absent on some templates
+                grib_id[key] = None
     finally:
         ec.codes_release(h)
     if vals.size != ni * nj:
@@ -233,7 +240,7 @@ def decode_eccodes(msg: bytes) -> Tuple[np.ndarray, dict]:
     return arr, {"ni": ni, "nj": nj, "lat_south": min(lat1, lat2), "lat_north": max(lat1, lat2),
                  "lon_west": lon1 % 360.0, "dlat": (abs(lat2 - lat1) / (nj - 1)) if nj > 1 else 0.0,
                  "dlon": ((lon2 - lon1) % 360.0) / (ni - 1) if ni > 1 else 0.0, "template": f"5.{tmpl}",
-                 "decoder": "eccodes", "step_range": step_range}
+                 "decoder": "eccodes", "step_range": step_range, "grib_id": grib_id}
 
 
 def _decode_pygrib(buf: bytes, keys: Sequence[str]) -> Dict[str, Tuple[np.ndarray, dict]]:

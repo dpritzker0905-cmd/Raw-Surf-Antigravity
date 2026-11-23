@@ -650,8 +650,12 @@ jobs:
       # 25 / 34 / 48 kn, 3-360 h on ENS native steps (services/frame_set_raster_gust_risk.py). One model on its own range: no
       # seam, no stand-in, no blend (D-075, D-076). SIZE PER NEW 00Z RUN (measured offline 2026-11-23, run 11-22 00Z): PULLS
       # ~6 GB of public ECMWF byte ranges (84 steps x 50 member messages x ~1.4 MB), 13-21 s a step on one home connection;
-      # KEEPS ~36 MB (84 frames, 282-516 kB each). A run whose cycle is already published reads one index and stops. DARK:
-      # off unless FRAME_RASTER_GUST_RISK = '1', which waits on the gate's scored result and the director's ON/dark call.
+      # KEEPS ~36 MB (84 frames, 282-516 kB each). A run whose cycle is already published reads one index and stops. HIDDEN:
+      # publishes when FRAME_RASTER_GUST_RISK = '1' (the director, 2026-11-23); no client reads it, and each index says display
+      # false unless GUST_RISK_DISPLAY = '1' AND results/gust-ens-risk-v1.md records PASS. Guardrails (the module docstring):
+      # read caps 6.5 GB a run and a UTC day, store cap 45 MB a run (a cap reached uploads nothing and exits 1), one attempt a
+      # day (the 11:45 run: UTC hours 11-15), runs older than 14 days pruned, the GRIB identity pinned, a recorded FAIL / VOID turns it off.
+      # The pinned decoder is ecCodes (pygrib carries neither the window nor the identity), installed by this step only.
       - name: Publish raster static frames (ECMWF ENS gust risk; off unless FRAME_RASTER_GUST_RISK=1)
         if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_GUST_RISK == '1' }}
         timeout-minutes: 40
@@ -660,8 +664,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RASTER_GUST_RISK: ${{ vars.FRAME_RASTER_GUST_RISK }}
+          GUST_RISK_DISPLAY: ${{ vars.GUST_RISK_DISPLAY }}       # hidden unless 1 AND the gate recorded PASS
           FRAME_RASTER_BUDGET_S: "1800"
-        run: python scripts/publish_raster_frames.py --set gust_risk_ens
+        run: |
+          pip install eccodes==2.50.0
+          python scripts/publish_raster_frames.py --set gust_risk_ens
       # NATIVE 1/12-DEG COPERNICUS CURRENTS ON THE SURF BOXES (2026-11-22; the research lead's Q3 note, red flag 1): the world
       # set's 3 x 3 mean onto 0.25 deg drops the model's coastal detail, so each marine pilot box also gets the source cells
       # themselves (services/frame_set_raster_currents_native.py; CMEMS/marine/currents/<box>_0p083, 14 sets x 41 frames).

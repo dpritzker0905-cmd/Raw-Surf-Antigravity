@@ -147,3 +147,46 @@ minimum 25 kn in B1 and B2. Committed before any model value or truth is read.
   - the publisher measurement: 3 steps x 50 messages, ~0.2 GB, plus 3 indices, ~6 MB;
   - the truth snapshot and the station freeze: NDBC/IEM text, ~0.4 GB.
 - **Not done:** no count, no pairing, no score. These wait for #1195 to merge and #1199's LOCKED list to be frozen.
+
+## 2026-11-23 11:36Z · #1202: publish HIDDEN, with guardrails (the director's decision; nothing switched on)
+- **Decision, relayed by the director (`local_d6b521eb`).** David, in the director session: "Follow best path to SOTA. I
+  struggle with things switched off, then remembering to switch on. So maybe switch on to start, but run a test, if that is
+  SOTA. Use subq, longcat, and reflection". SubQ, Reflection and LongCat (asked by the director) chose option A: publish
+  the frames now, keep them hidden until #1195's test passes. The director sets `FRAME_RASTER_GUST_RISK=1` after #1202
+  merges.
+- **#1195 is merged** (`8c87a8e8a`). #1202 targets `dev`, brought up to date with a plain merge. The log's add/add conflict
+  was resolved to this branch's copy, which holds every entry of dev's copy plus the later ones.
+- **Guardrails** (`services/frame_set_raster_gust_risk.py`; the publish script hands the set to `guarded_publish`):
+  1. **Hidden, failing closed.**
+     - Every index carries `display: false` unless `GUST_RISK_DISPLAY = '1'` AND
+       `results/gust-ens-risk-v1.md` has the line `Gate verdict: PASS`. A missing, unscored or unparseable result keeps
+       it hidden.
+     - No client code reads the set: a test scans `frontend/src` for its names.
+     - The index also carries `gate` (PENDING / PASS / FAIL / VOID).
+  2. **Budget.** Caps per run: 6.5 GB read (counted on the wire, every response body) and 45 MB stored (each frame's
+     gzip). A cap reached refuses every later step, and the uploader then refuses, so nothing is uploaded and the step
+     exits 1. Per UTC day:
+     - a read record `budget/gust_risk_ens/<YYYYMMDD>.json` in the frames bucket, with a cap of 6.5 GB a day (an
+       unreadable record counts as spent);
+     - one attempt a day: UTC hours 11-15, which only the 11:45 pilots run can reach.
+  3. **Retention.** Frame-set retention keeps the current and previous run. On top, every run deletes this set's runs
+     and indices older than 14 days, and budget records older than 30 days. A recorded FAIL / VOID deletes the set's
+     objects.
+  4. **Provenance.** Decoding is pinned to ecCodes (`eccodes==2.50.0`, installed by the step; pygrib carries neither
+     the window nor the identity).
+     - Every member message must carry the pinned GRIB identity: centre `ecmf`, generatingProcessIdentifier 161,
+       product template 11. A change refuses the step.
+     - The identity seen (plus tablesVersion, numberOfForecastsInEnsemble and the decoder) rides in each run's index
+       as `provenance`.
+  5. **Auto-disable.** A recorded `Gate verdict: FAIL` or `VOID` stops the publisher (no read, no write) and clears the
+     set.
+- **Live check (2026-11-23 00Z run, offline, nothing uploaded):**
+
+| step | read | stored (gzip) | identity |
+|---|---|---|---|
+| f024 | 36,887,007 B | 286,142 B | ecmf / 161 / 11, tablesVersion 32, 51 forecasts |
+| f120 | 36,145,120 B | 432,335 B | ecmf / 161 / 11, tablesVersion 32, 51 forecasts |
+
+  Each step read 2 MB of index plus 50 member messages of ~0.7 MB. The hindcast averaged 0.84 MB a message; the
+  1.3-1.4 MB of 10-15 was the high end. A run is therefore ~3.2 GB read and ~36 MB stored, inside both caps.
+- Tests: 63 in the three gust-risk files (chain fragment +63, +3 files), plus the giops by-path test; run twice locally.
