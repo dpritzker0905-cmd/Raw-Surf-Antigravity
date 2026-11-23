@@ -54,6 +54,33 @@ def test_parse_sorts_oldest_first_and_flags_stuck_after_six_equal():
     assert not any(r["qc"].get("hs_m") == "stuck" for r in broken)        # a missing report breaks the run
 
 
+def test_steady_swell_never_flags_binned_or_compass_fields_stuck():
+    """Amendment 1, A1: 10 h of a steady swell repeats DPD (a spectral bin) and MWD; WVHT and APD vary. Nothing is stuck."""
+    head = "#YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD   PRES\n#yr  mo dy hr mn degT m/s  m/s m sec sec degT hPa\n"
+    std = head + "".join(f"2027 01 15 {h:02d} 00 MM MM MM {1.5 + 0.01 * h:.2f} 14.81 {7 + 0.1 * h:.1f} 285 MM\n"
+                         for h in reversed(range(10)))
+    rows = qc.parse_stdmet(std)
+    assert len(rows) == 10 and not any(r["qc"] for r in rows)
+    assert {r["tp_s"] for r in rows} == {14.81} and {r["dir_deg"] for r in rows} == {285.0}
+    spec_head = ("#YY  MM DD hh mm WVHT  SwH  SwP  WWH  WWP SwD WWD  STEEPNESS  APD MWD\n"
+                 "#yr  mo dy hr mn    m    m  sec    m  sec  -  degT     -      sec degT\n")
+    spec = spec_head + "".join(f"2027 01 15 {h:02d} 00 1.5 {1.2 + 0.01 * h:.2f} 14.8 {0.3 + 0.01 * h:.2f} 5.0 WNW W SWELL 7.0 285\n"
+                               for h in reversed(range(10)))
+    srows = qc.parse_spec(spec)
+    assert not any(r["qc"] for r in srows)                    # SwP, WWP, SwD, WWD repeat honestly
+    merged = qc.merge_snapshots([("2027-01-15T10:00:00Z", std)], qc.parse_stdmet)
+    assert not any(r["qc"] for r in merged)
+    assert qc.STUCK_EXEMPT == frozenset({"DPD", "SwP", "WWP", "MWD", "SwD", "WWD"})
+
+
+def test_continuous_fields_are_still_flagged_stuck():
+    stuck_h = qc.parse_spec("#YY  MM DD hh mm WVHT  SwH  SwP  WWH  WWP SwD WWD  STEEPNESS  APD MWD\n#yr\n" + "".join(
+        f"2027 01 15 {h:02d} 00 1.5 1.20 14.8 0.30 5.0 WNW W SWELL 7.0 285\n" for h in reversed(range(8))))
+    assert [r["qc"].get("swell_h_m") for r in stuck_h][6:] == ["stuck", "stuck"]
+    assert [r["qc"].get("ww_h_m") for r in stuck_h][6:] == ["stuck", "stuck"]
+    assert not any("swell_t_s" in r["qc"] or "swell_dir_deg" in r["qc"] for r in stuck_h)
+
+
 def test_at_hour_window_and_tie_goes_earlier():
     t = lambda h, m: datetime(2027, 1, 15, h, m, tzinfo=timezone.utc)  # noqa: E731
     rows = [{"time": t(0, 0), "qc": {}}, {"time": t(1, 0), "qc": {}}]

@@ -140,6 +140,16 @@ def test_stuck_sensor_is_buoy_qc_fail():
     assert (pairs[0]["status"], pairs[0]["cause"]) == ("buoy_qc_fail", "stuck")
 
 
+def test_steady_swell_period_and_direction_are_scored_not_qc_failed():
+    """Amendment 1, A1: a steady swell holds DPD and MWD for hours; the pairs stay `ok` (no stuck flag on binned fields)."""
+    rows = [(h, 0, f"{1.5 + 0.01 * h:.2f}", "14.81", "7", "285") for h in range(0, 10)]
+    truth = {"SYN01": sc.Truth([("2027-01-15T12:00:00Z", _txt(rows))])}
+    pairs = {p["variable"]: p for p in sc.join([_one(lead=6, hs_m=1.6, tp_s=15.0, dir_deg=280.0)], truth, STATION)}
+    assert pairs["tp"]["status"] == "ok" and pairs["tp"]["o"] == 14.81
+    assert pairs["dir"]["status"] == "ok" and pairs["dir"]["o"] == 285.0
+    assert pairs["hs"]["status"] == "ok"
+
+
 def test_sampler_statuses_are_counted_in_the_census_not_scored():
     recs = [{**_one(hs_m=1.0), "status": "distance_exceeded"}, {**_one(lead=6), "status": "sampler_fail", "cause": "pruned"}]
     pairs = sc.join(recs, {}, STATION)

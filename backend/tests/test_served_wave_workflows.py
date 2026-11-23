@@ -41,6 +41,18 @@ def test_scorer_workflow_schedule_and_kill_switch():
     assert not any("SECRET" in k or "KEY" in k for k in scoring.get("env", {}))   # the scoring step holds no credential
 
 
+def test_snapshot_pr_uses_a_named_pat_not_github_token():
+    """Amendment 1, A3: a PR opened with GITHUB_TOKEN triggers no CI, so the weekly snapshot PR uses a PAT by name."""
+    job = _wf(SCORE)["jobs"]["snapshot"]
+    text = SCORE.read_text(encoding="utf-8")
+    assert "github.token" not in text and "GITHUB_TOKEN }}" not in text
+    checkout = [s for s in job["steps"] if "actions/checkout" in s.get("uses", "")][0]
+    assert checkout["with"]["token"] == "${{ secrets.SERVED_WAVE_VERIFY_PR_TOKEN }}"
+    pr = [s for s in job["steps"] if "run" in s and "gh pr create" in s["run"]][0]
+    assert pr["env"]["GH_TOKEN"] == "${{ secrets.SERVED_WAVE_VERIFY_PR_TOKEN }}"
+    assert job["permissions"] == {"contents": "read"}
+
+
 def test_credentials_by_name_only():
     for p in (PILOTS, SCORE):
         text = p.read_text(encoding="utf-8")

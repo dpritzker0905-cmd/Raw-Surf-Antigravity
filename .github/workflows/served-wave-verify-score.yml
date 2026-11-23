@@ -7,7 +7,8 @@ name: Served-wave verify score (daily; dark until SERVED_WAVE_VERIFY=1)
 #   score      downloads the raw records (the ONLY reader of them) and the truth snapshots, scores with NO credentials in the
 #              scoring step, publishes the tables to the PUBLIC weather-frames bucket (verify/served-wave/v1/scores/)
 #   verify     Mondays (or on dispatch): verify_archive over every prefix (mismatch / listed-but-missing / unlisted)
-#   snapshot   Mondays: the dated score tables committed to docs/weather-program/evidence/served-wave-verify/ by a PR to dev
+#   snapshot   Mondays: the dated score tables committed to docs/weather-program/evidence/served-wave-verify/ by a PR to dev,
+#              opened with the PAT secret SERVED_WAVE_VERIFY_PR_TOKEN (by name; never GITHUB_TOKEN, so CI runs on that PR)
 # Credentials by NAME only, in the supabase-service environment.
 
 on:
@@ -113,18 +114,37 @@ jobs:
     if: ${{ always() && needs.score.result == 'success' && vars.SERVED_WAVE_VERIFY == '1' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # The snapshot PR is opened with a fine-grained PAT referenced by NAME (secret SERVED_WAVE_VERIFY_PR_TOKEN: this repo
+    # only, contents + pull requests read/write), NOT the workflow's GITHUB_TOKEN: GitHub does not run workflows on a push
+    # or a PR made with GITHUB_TOKEN, so CI would never run on the snapshot PR (advisor ruling on #1177, amendment 1 A3).
+    # The checkout carries the same token, so the push that opens the PR is the PAT's too. Unset -> skipped with a warning.
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
+      - name: Require the snapshot PR token
+        id: token
+        env:
+          PR_TOKEN: ${{ secrets.SERVED_WAVE_VERIFY_PR_TOKEN }}
+        run: |
+          if [ -z "$PR_TOKEN" ]; then
+            echo "::warning title=Served-wave snapshot skipped::secret SERVED_WAVE_VERIFY_PR_TOKEN is not set (the weekly snapshot PR needs a PAT so CI runs on it)"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v5
+        if: ${{ steps.token.outputs.ok == 'true' }}
+        with:
+          token: ${{ secrets.SERVED_WAVE_VERIFY_PR_TOKEN }}
       - uses: actions/download-artifact@v4
+        if: ${{ steps.token.outputs.ok == 'true' }}
         with:
           name: served-wave-verify-scores-${{ github.run_id }}
           path: ${{ runner.temp }}/scores
       - name: Weekly dated snapshot of the score tables, by PR to dev (Mondays)
+        if: ${{ steps.token.outputs.ok == 'true' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.SERVED_WAVE_VERIFY_PR_TOKEN }}
         run: |
           if [ "$(date -u +%u)" != "1" ]; then echo "not Monday: no snapshot"; exit 0; fi
           d=$(date -u +%Y-%m-%d)

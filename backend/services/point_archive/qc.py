@@ -6,7 +6,9 @@ Adopted from #1156's `nearshore_lite/truth.py` rules, moved here so the two purp
     same ranges for the .spec partitions). NDBC's numeric fills (99.00 m / s, 999 deg) all fall outside their own field's
     range, so each field rejects only its own fill: a valid 99 deg MWD is never a hole (the first draft's global
     "99.00, 999, 9999" list would have dropped it);
-  * a value equal to each of the previous 6 consecutive reports of that field is a STUCK sensor and is flagged;
+  * a value equal to each of the previous 6 consecutive reports of that field is a STUCK sensor and is flagged, on the
+    CONTINUOUS fields only (WVHT, APD, SwH, WWH): the binned periods (DPD, SwP, WWP) and the binned / compass directions
+    (MWD, SwD, WWD) repeat honestly under a steady swell and are never flagged stuck (amendment 1, A1);
   * directions are used only when Hs >= 0.3 m;
   * collocation: the report nearest the valid time within +/- 30 min (`at_hour`); on an exact tie the EARLIER report.
 
@@ -27,6 +29,10 @@ FIELD_RANGES = {
     "SwD": (0.0, 360.0), "WWD": (0.0, 360.0),
 }
 STUCK_RUN = 6            # a value equal to each of the previous 6 consecutive reports is stuck
+# The stuck rule applies to CONTINUOUS fields only (advisor ruling on #1177, amendment 1 item A1). NDBC reports DPD, SwP and WWP
+# as spectral-BIN periods, and MWD, SwD and WWD are binned or 16-point compass directions: a steady swell repeats them for hours,
+# and that is a real report, not a stuck sensor. So WVHT, APD, SwH and WWH are flagged; the binned and compass fields never are.
+STUCK_EXEMPT = frozenset({"DPD", "SwP", "WWP", "MWD", "SwD", "WWD"})
 DIR_MIN_HS_M = 0.3       # directions only when Hs >= 0.3 m
 COLLOCATE_MIN = 30       # +/- minutes
 # .spec gives SwD / WWD as 16-point compass text; each maps to its point's centre bearing (deg true, FROM).
@@ -93,14 +99,21 @@ def _rows(text, fields):
     return out
 
 
+def stuck_fields(mapping):
+    """The row keys of `mapping` the stuck rule applies to (every field but the binned / compass ones)."""
+    return tuple(k for k, col in mapping.items() if col not in STUCK_EXEMPT)
+
+
 def parse_stdmet(text):
-    """Rows {time, hs_m, tp_s, tm_s, dir_deg, qc: {field: 'missing'|'range'}} sorted by time (realtime2 is newest first)."""
-    return flag_stuck(_rows(text, STDMET_MAP), tuple(STDMET_MAP))
+    """Rows {time, hs_m, tp_s, tm_s, dir_deg, qc: {field: 'missing'|'range'|'stuck'}} sorted by time (realtime2 is newest
+    first). Only hs_m and tm_s can be 'stuck' (STUCK_EXEMPT)."""
+    return flag_stuck(_rows(text, STDMET_MAP), stuck_fields(STDMET_MAP))
 
 
 def parse_spec(text):
-    """Rows {time, swell_h_m, swell_t_s, swell_dir_deg, ww_h_m, ww_t_s, ww_dir_deg, qc} from a realtime2 `.spec`."""
-    return flag_stuck(_rows(text, SPEC_MAP), tuple(SPEC_MAP))
+    """Rows {time, swell_h_m, swell_t_s, swell_dir_deg, ww_h_m, ww_t_s, ww_dir_deg, qc} from a realtime2 `.spec`. Only the
+    two heights can be 'stuck' (STUCK_EXEMPT)."""
+    return flag_stuck(_rows(text, SPEC_MAP), stuck_fields(SPEC_MAP))
 
 
 def flag_stuck(rows, fields, run=STUCK_RUN):
@@ -144,5 +157,6 @@ def merge_snapshots(texts, parser):
     rows = [by_time[t] for t in sorted(by_time)]
     for r in rows:
         r["qc"] = {k: v for k, v in r["qc"].items() if v != "stuck"}
-    fields = tuple(k for k in (rows[0] if rows else {}) if k not in ("time", "qc"))
-    return flag_stuck(rows, fields)
+    keys = set(rows[0]) if rows else set()
+    mapping = STDMET_MAP if "hs_m" in keys else SPEC_MAP
+    return flag_stuck(rows, stuck_fields(mapping))

@@ -77,3 +77,14 @@ Read first: the gate at `cae692737` (from #1168's branch, not merged), `README.m
 ## Owed before the dispatch request to David (gate 9)
 - Supabase storage quota and cost against ~0.30 GB/month (~10.8 GB / 36 months).
 - The advisor's gate of the frozen buoy list (section 3: "before the first record").
+
+## 2026-11-23 · advisor rulings on #1177 (relayed by the director) → amendment 1
+Recorded in `gates/served-wave-verify-v1-amendment-1.md`; the choices above it stand where it does not change them.
+- **A1 stuck rule:** the 6-in-a-row flag now applies to WVHT, APD, SwH and WWH only; DPD, SwP, WWP (binned) and MWD, SwD, WWD
+  (binned / compass) are never flagged (`qc.STUCK_EXEMPT`). Steady-swell tests pin it (QC level and scorer level).
+- **A2 §6/§9:** one record per set accepted; storage restated at ~0.30 GB/month (~10.8 GB / 36 months); the first-week pause
+  line is now 2 × 0.30 = 0.60 GB/month. (My smaller-layout measurement, slim JSONL ~0.125 GB/month, columnar ~0.045, is not
+  adopted.)
+- **A3 snapshot PR:** opened with the PAT secret `SERVED_WAVE_VERIFY_PR_TOKEN` by name, never `GITHUB_TOKEN` (no CI would run
+  on it); skipped with a warning while the secret is unset. Creating the secret is the owner's step.
+- Tests 52 → 56; estate floor fragment +56. Still dark: nothing dispatched, no variable set, no bucket written.
