@@ -1,12 +1,53 @@
 # Gate: served-wave-verify-v1
 Stamp: 2026-11-22 (research lead; DESIGN AND PRE-REGISTRATION ONLY. Nothing is built, nothing is dispatched, and no record exists. Collection needs David's word: it adds a workflow and storage writes.)
-Candidate: a point archive of the SERVED wave frames. At publish time, each newly published GFS / EURO / ICON wave run is sampled at a frozen list of buoys. The records are scored later against buoy observations, so the wave forecasts we serve can be verified after the fact (Q9, #1166: the public store keeps only the latest 2 GFS-Wave runs, so the 24-48 h bin was n = 0).
+Candidate: the program's ONE point archive (section 0), first filled by its `served` purpose: a point archive of the SERVED wave frames. At publish time, each newly published GFS / EURO / ICON wave run is sampled at a frozen list of buoys. The records are scored later against buoy observations, so the wave forecasts we serve can be verified after the fact (Q9, #1166: the public store keeps only the latest 2 GFS-Wave runs, so the 24-48 h bin was n = 0).
 Metric: per (model, variable, lead bin, region): bias, RMSE, scatter index (RMSE / mean observed), and for directions the circular mean absolute error. Each cell carries n and its status (section 6).
 Pass threshold: an ACCEPTANCE gate for the archive, not a skill threshold. The archive is accepted when all of these hold: decoder parity (section 4), the golden fixture (section 7), coverage over the first 14 days of collection (section 8) and the storage budget (section 9). No skill number decides anything here.
 Controls: decoder parity on a frozen frame (Python vs the client's `decodeFieldCore`); a golden fixture with hand-checked expected scores; a planted bias (+0.20 m on one model's Hs in the fixture) that the scorer must report; a status-code census (every expected record accounted for).
 Decision rule: accepted archive → rolling skill tables published (section 10). Using those tables for consensus weighting is OUT OF SCOPE: it needs its own gate, with caps and hysteresis. CDIP rows are EXAM-only and can never feed weighting (section 3).
 Unmeasured items: every tier other than the ONE named per set in section 2a (the 0.25° regional bundles are not scored in v1); the Gulf-filled `global_mid_filled` variants; any model or set not named in section 2a at freeze; the `/point` path that the hub and rating read (a different serve path from the frames: section 12).
 Served change: none. The sampler only reads published frames and writes records to a separate store.
+
+## 0. One point archive for the program (director, 2026-11-22)
+- **Why:** #1156 (branch `claude/nearshore-moplite-archive-job`) builds its own forward archive (`nearshore_lite/archive.py`, `scripts/nearshore_lite_archive.py`, `.github/workflows/nearshore-lite-archive.yml`). It holds one canonical-JSON file per 00Z init with `SHA256SUMS`, EURO member only, leads 0-72 h, served offshore partitions plus `eta_m`, and NDBC truth snapshots.
+  - Two archives would drift apart in buoy set, QC, timestamp convention and retention. (LongCat flagged this; read from the branch 2026-11-22, read only.)
+- **Rule:** this gate defines the ONE point archive. Every point-forecast record in the program goes into it, tagged with `purpose`:
+  - `served`: this gate;
+  - `nearshore_eval`: #1156 and gate `nearshore-moplite-v1`;
+  - a later purpose is added by amendment, never by a second store.
+
+### 0.1 Shared parts
+| Part | Shared rule |
+|---|---|
+| Buoy list | ONE frozen file (`served-wave-verify-v1-buoys.json`, section 3). Each station has a `purposes` tag. The nearshore stations are the subset chosen by #1156's registered rules (`truth.select_stations`: directional, 10-40 m, not USACE FRF Duck, not assimilated into the driving model, no unresolved harbour structure within 1 km), tagged `nearshore_eval`. CDIP is `exam_only` under both purposes. |
+| QC | ONE module. It adopts #1156's `truth.py` rules: the text sentinel `MM` is global, and numeric fills are rejected by PER-FIELD ranges (WVHT 0-30 m, DPD 1-40 s, MWD 0-360°), so a valid 99° MWD is never dropped. Plus the stuck-sensor flag (section 7), and directions only when Hs >= 0.3 m. Collocation is `truth.at_hour`: nearest within ±30 min. |
+| Truth snapshots | ONE immutable, hashed daily copy of each listed station's NDBC realtime2 text (`truth.snapshot`). It is written by the scorer job for every station on the list, shared by both purposes, and kept indefinitely. This closes the 45-day realtime2 gap for every purpose. |
+| Time and lead | All UTC. `run_time` = the model init time (ISO 8601, `Z`). `valid_time` = run + lead. `lead_h` = an integer number of hours, valid minus run. A file is named by its run in ISO basic form (`20270115T0000Z`), as #1156 does. |
+| File and integrity | One immutable gzipped JSONL (canonical JSON, sorted keys) per (purpose, model, run). Re-writing an existing file is refused, as in #1156's `archive_init`. Each prefix has a `SHA256SUMS`, and a weekly `verify_archive` run reports a mismatch, a missing file or an unlisted file. |
+| Store | ONE prefix, `verify/point-archive/v1/<purpose>/<model>/`, in a non-public bucket (section 9). Truth snapshots are under `verify/point-archive/v1/truth/<station>/`. |
+| Members | Every model member (GFS, EURO, ICON) is its own record, under both purposes. A blend is never stored instead of its members. A blend, if one is ever needed, is a separate record with `model = blend:<name>` plus its member list, and never replaces the members. |
+
+### 0.2 Shared record core (schema `point-archive/1`)
+- **Every record:** `schema`, `purpose`, `model`, `run_time`, `valid_time`, `lead_h`, `station_id` (or `target_id` with its linked `station_id`), `buoy_list_version`, `buoy_list_hash`, `status`, `writer_version`, `run_hash`.
+- **Wave fields:** a bulk block (`hs_m`, `tp_s`, `tm_s`, `dir_deg`, as available) and `partitions`: a list of `{kind, h, tp, dir}`. This is #1156's shape, with `kind` in `swell_1 | swell_2 | wind_waves | total`. A partition the source does not carry is absent, never zero.
+- **Purpose fields:**
+  - `served`: the cell, frame, grid and decoder fields of section 6.
+  - `nearshore_eval`: `arm` (`CHAIN`, `LITE`, ... as registered), `eta_m`, the `eta_slice_sha256`, `tide_table_generated_at`, the coefficient freeze hash, and `owner_word_ref`.
+
+### 0.3 Retention per purpose
+- `served`: raw records for 36 months (section 9).
+- `nearshore_eval`: kept until that gate's result is committed, plus 36 months, so the registered result can be reproduced. Never pruned while its gate is open.
+- Truth snapshots, score tables, and the buoy, grid and decoder version tables: indefinitely.
+- **Durability:** the archive is NOT on the frame store's retention path. The frame publisher keeps the latest 2 runs and prunes the rest; it must never touch `verify/`, including the public score tables under `weather-frames/verify/`. The build adds a CI test asserting that the publisher's prune deletes only under its own set prefixes. A prune of `verify/` happens only by the dated retention job, per purpose, and it logs what it removed.
+
+### 0.4 What #1156 must change (a follow-up for the nearshore lane; this gate does not touch #1156)
+1. Write through the shared writer into `verify/point-archive/v1/nearshore_eval/<member>/`, schema `point-archive/1`, with `purpose = nearshore_eval`. It currently writes `nearshore-lite-archive/1` files to the job runner's `out_dir`, which does not outlive the job.
+2. Add `run_time`, `valid_time` and integer `lead_h` per record, and name files by run in ISO basic form. It already has `init` and `lead_h`.
+3. Read its stations from the shared frozen buoy list (the `nearshore_eval` tag), not from the dispatch input `stations`. Its `select_stations` rules become that tag's registered rule in the list file.
+4. Use the shared QC and truth-snapshot module. Its `truth.py` becomes that module, moved to a shared location, so the two purposes cannot diverge.
+5. Write truth snapshots once into the shared `truth/` prefix, not under its own `out_dir/truth`.
+6. Record each member as its own record. `member = "EURO"` stays explicit, and any added member is a separate file. No blend replaces a member.
+7. Keep what is already right and shared: immutability (refuse to re-archive), `SHA256SUMS` with `verify_archive`, `missing_run` (dropped for all arms), and the owner-word dispatch gate.
 
 ## 1. Why a point archive (decided)
 - The options were:
@@ -104,8 +145,7 @@ All sampled sets use the WORLD tier `global_mid` (2°, the plain set, not `_fill
   - Mapping: WVHT → Hs, DPD → Tp, APD → Tm, MWD → direction. Swell and wind-wave partitions use SwH/SwP/SwD and WWH/WWP/WWD from `.spec`.
   - The partition definitions differ between the model and NDBC, so partition scores are labelled "indicative".
 - **QC:**
-  - NDBC missing codes (99.00, 999, 9999) are dropped.
-  - Hs outside 0-25 m is dropped.
+  - The shared QC of section 0.1: the text sentinel `MM` is dropped everywhere, and numeric fills are rejected by per-field ranges (WVHT 0-30 m, DPD 1-40 s, APD 1-40 s, MWD 0-360°). This replaces this draft's earlier global list of 99.00 / 999 / 9999, which would have turned a valid 99° MWD into a hole.
   - A value equal to the previous 6 consecutive values is a stuck sensor and is flagged.
   - Directions are used only when Hs >= 0.3 m.
   - A flagged observation → `buoy_qc_fail`.
@@ -150,7 +190,7 @@ All sampled sets use the WORLD tier `global_mid` (2°, the plain set, not `_fill
 - **Retention:**
   - raw records for 36 months (about 2-3.6 GB at the estimate), then pruned by a dated job;
   - score tables and the buoy / grid / decoder version tables kept indefinitely.
-- **Store:** a new path prefix `verify/served-wave/v1/` in a non-public bucket, written by the Actions job with the publish job's existing storage secret (`SUPABASE_SERVICE_ROLE_KEY`, by name only), used for this WRITE only. It is never written from the Render box.
+- **Store:** the shared prefix `verify/point-archive/v1/served/<model>/` (section 0.1) in a non-public bucket, written by the Actions job with the publish job's existing storage secret (`SUPABASE_SERVICE_ROLE_KEY`, by name only), used for this WRITE only. It is never written from the Render box.
 - **Budget check:** if the measured first-week volume exceeds 2× the estimate, collection pauses and the director is told before it continues.
 - **Quota and cost (a limit, owed before the dispatch request):** 2-3.6 GB over 36 months must be checked against the Supabase project's storage quota and its cost, and written into the request that goes to David, before he is asked for his word.
 - **Who reads raw records:** only the CI scorer job (section 7a), with the secret held in GitHub Actions. No session holding the service-role key reads them, and they are never published.
@@ -171,6 +211,11 @@ All sampled sets use the WORLD tier `global_mid` (2°, the plain set, not `_fill
 - **n ≥ 100 is descriptive.** It is a floor for showing a number, not for inference. Pairs share runs, days and weather, so they are autocorrelated. Any inferential use (a difference, an interval, a weighting) needs a block bootstrap that resamples whole runs and whole days, registered in its own gate.
 - **NDBC retention.** realtime2 keeps about 45 days, so a scorer outage longer than that loses observations for good. Those rows are `no_obs` with cause `fetch_gap`, never dropped silently. A long outage is reported with its date span.
 - **Coarse tier.** The world tier is 2°, so its maximum match distance (0.75 × the cell diagonal) is roughly 200-240 km at low latitudes. Scores describe the 2° field users see at world zoom, not the close-zoom regional frames.
+
+- **Correlated members.** GFS, EURO and ICON share ancestry, observations and often initial-condition information, so their errors are correlated. Naive inverse-variance weighting from these tables would be overconfident. Any skill weighting must model the error covariance between members (or shrink toward equal weights), registered in its own gate.
+- **Buoys are a floor, not a target.** Passing at offshore buoys is necessary, not sufficient. Buoys are not surf spots, and nothing here measures surf height or quality at a break.
+- **The nearshore comparison is partition-resolved.** The `nearshore_eval` purpose stores and scores partitions (`kind`), not bulk Hs alone. A bulk-only score cannot tell a swell fix from a wind-sea compensation.
+- **Own durability.** The archive is not on the 2-run frame retention path (section 0.3). Its integrity comes from immutable files, `SHA256SUMS` and the weekly verify. A loss is logged and never back-filled from a later run.
 
 ## 12. Not in v1
 - Steps past 240 h; every tier other than `global_mid` (section 2a); the `_filled` variants; `/point` verification; any use for weighting.
