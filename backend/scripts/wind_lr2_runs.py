@@ -63,7 +63,9 @@ def snapshot_end(runs: List[datetime]) -> datetime:
 
 # Regions (the registration names five; the rules are fixed HERE, before any data, by amendment 1 A3 as corrected by the
 # advisor's hold on #1139). Ordered rules, not first-box-wins over overlapping boxes.
-REGIONS = ["US_PACIFIC", "US_ATLANTIC_GULF", "HAWAII", "EUROPE_ATLANTIC", "MEDITERRANEAN"]
+# Amendment R1 (2026-11-23, before any fit, score or forecast read): ALASKA and CARIBBEAN_PR are FIXED gated regions, added to the five
+# registered ones. They were chosen from the frozen station counts only (see the amendment); every floor stays as registered.
+REGIONS = ["US_PACIFIC", "US_ATLANTIC_GULF", "HAWAII", "EUROPE_ATLANTIC", "MEDITERRANEAN", "ALASKA", "CARIBBEAN_PR"]
 EXCLUDED_REGIONS = ("GREAT_LAKES",)       # lakes are not the open sea: never marine-exposed, never in a gated region
 
 
@@ -88,4 +90,12 @@ def region_of(lat: float, lon: float) -> str:
         return "US_ATLANTIC_GULF"
     if 35.0 <= lat <= 62.0 and -25.0 <= lon <= 10.0:
         return "EUROPE_ATLANTIC"
+    # Amendment R1. ALASKA: north of 50 N (lat == 50.0 exactly is US_PACIFIC, which is tested first) and east of the dateline
+    # at or west of 125 W: the Gulf of Alaska, the Alaska coast and the Aleutians as normalised to -180..180. CARIBBEAN_PR: 10 N
+    # up to (not including) 24 N and 90 W..58 W: the Caribbean, Puerto Rico and the Virgin Islands; Florida and the Keys are
+    # US_ATLANTIC_GULF (24 N and north), the Gulf of Mexico west of 90 W stays OTHER.
+    if lat > 50.0 and lon <= -125.0:
+        return "ALASKA"
+    if 10.0 <= lat < 24.0 and -90.0 <= lon <= -58.0:
+        return "CARIBBEAN_PR"
     return "OTHER"
