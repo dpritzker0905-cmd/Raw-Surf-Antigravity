@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 6,
+  "files": 0,
+  "branch": "fix/gust-risk-drop-slot",
+  "date": "2026-11-23",
+  "note": "gust-risk: no wall-clock slot + day record written in a finally (advisor hold)"
+}
