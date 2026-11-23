@@ -83,6 +83,9 @@ def test_a_new_region_gets_its_own_cell_when_it_has_the_data_and_borrows_when_it
     assert F.coef_at(F.fit_all(rows, "GRAND_CAL"), "ALASKA", 240.0)["alpha"] == pytest.approx(regs["ALASKA"]["alpha"])
 
 
+ST_OFFSET = {"US_PACIFIC": 0, "US_ATLANTIC_GULF": 1000, "ALASKA": 2000}      # fixed, so station ids do not depend on hash randomisation
+
+
 def test_an_insufficient_region_is_left_out_of_the_holm_family():
     """Amendment R1 R3b: a thin region is skipped before the adjustment, so it adds no line and changes nobody's adjusted p."""
     import wind_lr2_gust as G
@@ -93,7 +96,7 @@ def test_an_insufficient_region_is_left_out_of_the_holm_family():
             for d in range(40):
                 truth = 10.0 + rng.normal(0, 3)
                 base["lead"].append(186), base["vday"].append(739000 + d), base["marine"].append(True), base["region"].append(reg)
-                base["st"].append(hash(reg) % 1000 * 100 + st), base["o_g"].append(truth)
+                base["st"].append(ST_OFFSET[reg] + st), base["o_g"].append(truth)
                 base["CLIM_GUST_g"].append(10.0 + rng.normal(0, 0.3))
                 base["GRAND_CAL_g"].append(truth + (9.0 if bad else rng.normal(0, 0.5)))      # the thin region is terrible
     rows = {k: np.array(v) for k, v in base.items()}
@@ -102,3 +105,33 @@ def test_an_insufficient_region_is_left_out_of_the_holm_family():
     without = G.gg6_regions({k: v[keep] for k, v in rows.items()}, "GRAND_CAL", "ICON", reps=500, min_stations=10)
     assert with_thin["flagged"] == without["flagged"] == [] and with_thin["ok"] and without["ok"]    # a terrible thin region flags nothing
     assert any(x.startswith("ALASKA:") for x in with_thin["insufficient"]) and not any(x.startswith("ALASKA") for x in without["insufficient"])
+
+
+def test_wind_g6_also_leaves_an_insufficient_region_out_of_the_holm_family():
+    """Same rule for the wind scorer's G6 (wind_lr2_score.g6): the thin region is skipped before the adjustment; a sufficient
+    region that really is worse is still flagged (positive control)."""
+    import wind_lr2_score as SC
+    rng = np.random.default_rng(11)
+
+    def table(regions):
+        cols = {k: [] for k in ("lead", "vday", "marine", "region", "st", "arm_e", "comp_e")}
+        for reg, nst, arm_sd in regions:
+            for st in range(nst):
+                for d in range(40):
+                    for lead in (186, 246, 300):          # B1, B2, B3
+                        cols["lead"].append(lead), cols["vday"].append(739000 + d), cols["marine"].append(True)
+                        cols["region"].append(reg), cols["st"].append(ST_OFFSET[reg] + st)
+                        cols["arm_e"].append(abs(rng.normal(0, arm_sd))), cols["comp_e"].append(abs(rng.normal(0, 1.0)))
+        rows = {k: np.array(v) for k, v in cols.items()}
+        return rows, {("GRAND_CAL", "M1"): rows["arm_e"], ("LOOP_PROXY", "M1"): rows["comp_e"], ("GFS", "M1"): rows["comp_e"]}
+
+    good = (("US_PACIFIC", 12, 1.0), ("US_ATLANTIC_GULF", 12, 1.0))
+    rows, errs = table(good + (("ALASKA", 3, 9.0),))                       # terrible but only 3 stations
+    with_thin = SC.g6(rows, "GRAND_CAL", "ICON", errs, reps=500)
+    rows2, errs2 = table(good)
+    without = SC.g6(rows2, "GRAND_CAL", "ICON", errs2, reps=500)
+    assert with_thin["flagged"] == [] and without["flagged"] == [] and with_thin["ok"]
+    assert any(x.startswith("ALASKA:") for x in with_thin["insufficient"]) and not any(x.startswith("ALASKA") for x in without["insufficient"])
+    rows3, errs3 = table((("US_PACIFIC", 12, 9.0), ("US_ATLANTIC_GULF", 12, 1.0), ("ALASKA", 12, 1.0)))   # a SUFFICIENT bad region
+    bad = SC.g6(rows3, "GRAND_CAL", "ICON", errs3, reps=500)
+    assert not bad["ok"] and any(x.startswith("US_PACIFIC:") for x in bad["flagged"])
