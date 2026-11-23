@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 14,
+  "branch": "claude/served-wave-verify-holdout",
+  "date": "2026-11-23",
+  "note": "served-wave-verify amendment 2: tests/test_served_wave_holdout.py (LOCKED holdout, fit_used tags)"
+}
