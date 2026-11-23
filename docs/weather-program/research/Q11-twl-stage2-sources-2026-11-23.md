@@ -246,3 +246,11 @@ Earlier notes said P-ETSS has no station bias correction. That is superseded for
 Consequence for the surge choice: a served P-ETSS station value may already be bias corrected. Adding our own correction on top could double-correct it. Check the per-station flag for each gauge before any correction is added.
 
 Still open: the P-ETSS horizon (open item 2). The SCN text I extracted does not state it.
+
+## Update 2026-11-23: P-ETSS horizon (lead's open item 2): still not stated
+
+- NCEP P-ETSS product inventory, `https://www.nco.ncep.noaa.gov/pmb/products/petss/` (read directly, plain HTML): lists P-ETSS products with forecast-hour cadence "FH hourly" for the 1-hour increment files and "FH 6 hourly" for the 6-hour cumulative and increment files, for Alaska 3 km, CONUS 2.5 km and CONUS 625 m grids. It gives the cadence but **no maximum forecast hour**.
+- MDL P-ETSS page `https://vlab.noaa.gov/web/mdl/petss` and the v1.4 upgrade notice `https://vlab.noaa.gov/web/mdl/-/probabilistic-extra-tropical-storm-surge-model-upgraded-to-version-1-4`: no forecast length in hours or days. The v1.4 page gives grid spacing (GEFS 3-hourly 27.5 km, GEPS 3-hourly 55 km) and four runs a day, nothing on the horizon.
+- The 102 h figure is for P-Surge (tropical), extended from 78 h in 2017, and is **not** a P-ETSS horizon. Do not carry it over.
+
+**Status: P-ETSS horizon UNVERIFIED.** Parked, per the lead's instruction: no further search this session. Feasibility against the 14-day scrubber remains open until a stated horizon or the inventory's maximum hour is confirmed.
