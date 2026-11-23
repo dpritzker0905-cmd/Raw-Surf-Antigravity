@@ -157,3 +157,39 @@ The advisor ACCEPTED §9 (full ruling in the gate file), with three conditions:
 - **(b)** The controls are VOID-only. If a control misbehaves, the outcome is a new tag plus David's word, never a
   re-read of the bar.
 - **(c)** The artifact may be opened once (a) is pushed and the run has completed.
+
+## 11. Amendment 3 (2026-11-23 11:25Z, after run 45102683907 was VOID and before any re-run; owner: "Yes, re-run it", director session): the one-line instrument fix and the single re-run
+
+**Why.** Run 45102683907 is **VOID** and stays on record as VOID (log 04:42Z; SCOREBOARD 2026-11-23 04:42Z). The
+planted-D identity control (§9.1) failed at 23 of 25 measured gauges. The diagnosis: `parity_coops.py` rounded the
+hourly display series to 1 mm after adding D (`round(float(x) + dval, 3)`). Two D values therefore rounded
+differently, and the served event finder's parabolic vertex moved on flat-topped turns: event times differed by
+0.1–2.3 min, and heights by up to 0.017 m.
+
+**The only change.** In `parity_coops.py` (#1171), the display series passed to the event finder is no longer rounded:
+`lv = [float(x) + dval for x in series]`. Nothing else changes in the instrument.
+
+**Frozen, unchanged from the stamp, §8 and §9:**
+- the bar (§3);
+- the MEASURED rule (§8);
+- both control definitions and tolerances (§9: 0.1 min and 0.002 m for the identity; 0.01 m for the finder);
+- the window rule (7 days from the run's UTC start day);
+- the verdict on the model D;
+- the gauges.
+
+**A new pinned test** (in #1171): the served event finder is unaffected by a constant shift.
+- For a synthetic hourly tide, including flat-topped and near-flat turns, the series plus D1 and plus D2
+  (D2 − D1 ∈ {0.01, 0.0124, 0.13} m) give event TIMES equal within 1e-9 min, and event-height differences equal to
+  D2 − D1 within 1e-9 m.
+- It runs once on the unrounded path (it must pass) and once on the old rounded path (it must fail), as a positive
+  control that the test can see the defect.
+
+**The order for the re-run:**
+1. Push the tag `tide-mllw-parity-datum-2` on #1171's new head, on David's typed word.
+2. Run the controls first: the planted-D identity (§9.1, from the artifact) and the finder heights (§9.2, re-run on
+   the new window if the start day differs).
+3. Only if both controls pass, open the bar legs and score with the committed scorer (`datum_gate_score.py`,
+   unchanged).
+4. If a control fails, the re-run is VOID too, and the gate's state is "not measurable with this instrument". There is
+   no further re-run: the safeguard set by the director, SubQ and Reflection.
+5. Report it beside the VOID run 45102683907, whose recorded bar figures stay labelled "not a verdict".
