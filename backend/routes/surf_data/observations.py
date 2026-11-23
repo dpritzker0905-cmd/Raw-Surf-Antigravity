@@ -82,8 +82,9 @@ class ObservationIn(BaseModel):
     # stored as null with a flag rather than refused (advisor note on #954).
     client_build: Optional[str] = Field(None, max_length=200)
     device_id: Optional[str] = Field(None, pattern=r"^[0-9a-fA-F-]{32,36}$")  # random install id (a claim)
-    # Blind surf quality (services/blind_quality; dark flag). One of surf_rating.LEVELS; stored only on a blind screen
-    # with an explicit `forecast_seen_for_spot: false` from the app. Never a reason to refuse the height.
+    # Blind surf quality (services/blind_quality; flag on, kill switch). One of surf_rating.LEVELS; stored only on a blind
+    # screen, with consent in force, and with an explicit `forecast_seen_for_spot: false` from the app. Never a reason
+    # to refuse the height.
     quality_level: Optional[Literal["very_poor", "poor", "poor_fair", "fair", "fair_good", "good", "epic"]] = None
     forecast_seen_for_spot: Optional[bool] = None
 
@@ -226,7 +227,8 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
     if overridden and exif_check in ("none", "no_record"):
         flags.add("scale_override_no_photo")
     consent = await surf_truth_consent.current(db, user_id)   # P3: the choice in force at receipt, kept on the row
-    quality, quality_flags = blind_quality.decide(data.quality_level, shown, data.forecast_seen_for_spot)
+    quality, quality_flags = blind_quality.decide(data.quality_level, shown, data.forecast_seen_for_spot,
+                                                   consent["granted"])
     flags |= quality_flags
 
     obs = SurfObservation(

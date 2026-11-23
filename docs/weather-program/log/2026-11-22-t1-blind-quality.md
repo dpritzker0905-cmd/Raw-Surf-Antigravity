@@ -98,3 +98,40 @@ surfer's own word, not ours, and stays. The levels are the server's words and co
   (NOTE "#1149 / #1151 reserved files", 2026-11-23T00:24Z). The director logged it in the shared Codex note.
 - **Codex:** #755 must rebase over these two files.
 - **Unchanged:** the allowlist fallback is not needed and was not applied. The flag stays off. This lane does not merge.
+
+## The flag goes ON, after three outside reviews (2026-11-23)
+
+- **Owner's word:** David, in the T1 session: "Turn on the blind quality flag if its SOTA direction. Bounce things off
+  longcat, subq, and reflection".
+- **The reviews.** All three got the same brief: the design summary, the limits above, and the question ON / STAY
+  DARK / ON AFTER X. It carried no code and no secrets. Their output is advice, not instructions.
+  - Reflection (Beam-1.0): **ON**. It named consent and selection bias, the Conditions anchor, 7 words against a
+    0-100 rating, and client-claimed blindness. Treat the labels as noisy truth.
+  - SubQ (savant-1.4): **ON AFTER X**. X: consent-gate the level; move the question above "Conditions" or randomise
+    the order; consider "Not sure"; freeze the level-to-schema-3 mapping. It called the direction "close to best
+    practice". The answer was cut off by its token limit after point 3.
+  - Longcat (LongCat-2.5): **ON AFTER X**. X1: ask only people whose forecast-data consent is on. X2: fix or measure
+    the Conditions anchor. It also asked us to record offered vs answered, to freeze the scorer mapping before
+    collection (ordinal levels, not interpolated scores), and to keep the proof test blocking. It answered "yes" on
+    the SOTA question: forecast-blind, exposure-audited, unrewarded, against a pre-registered gate.
+- **What changed before the flip (the shared conditions):**
+  1. **Consent gate.** The server stores a level only while the person's forecast-data consent is in force. Without
+     it, the height is kept and the level is dropped with `quality_no_consent`. The app shows the question only when
+     the consent toggle is on, just below it. Turning consent off clears an answer already given. Reason: data
+     minimisation. The level has one use, checking the forecast, and the consent covers exactly that.
+  2. **Anchor removed on check-in.** The "Conditions" select (Glassy ... Blown Out) now comes after the blind height
+     and quality questions. A proof test pins the order; the old order fails it. Go-live has no texture select.
+  3. **Flag default `'1'`.** The kill switches are unchanged: `SURF_TRUTH_BLIND_QUALITY=0` in env or in the manifest
+     `control/flags.json` stops it without a deploy, and `window.__RAW_DISABLE_BLIND_QUALITY__ = true` stops it on
+     the client. No served number moves, so there is no SCOREBOARD row.
+- **Not done, recorded for the scorer work (export schema 3, `prep.py`):**
+  - "Not sure": skipping the optional question already means that, so no option was added.
+  - "Offered vs answered": the server cannot see "offered", so it is not recorded. The drop-reason flags separate the
+    blindness, consent and kill-switch drops.
+  - Freezing the level mapping before the gate reads any level: the scorer must treat levels as ordered categories,
+    as the gate pre-registers.
+- **Tests:**
+  - Backend: 12 in `test_surf_observation_blind_quality.py`, adding the no-consent case. The kill-switch and default
+    tests were rewritten.
+  - Frontend: 33, adding consent on/off/clear, the question below the toggle, and the check-in order.
+  - Floors: guards 12, frontend 33 tests in 2 files.

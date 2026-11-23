@@ -72,6 +72,14 @@ describe('blind screens show nothing the quality answer could anchor on', () => 
     expect(code).not.toMatch(/best_?tide|bestTide|tide_fit|tide_norm|surf_rating|rating_score|\.rating\b/i);
   });
 
+  test('check-in asks the blind questions before its "Conditions" words (Glassy ... Blown Out) can anchor them', () => {
+    const code = read('components/feed/CheckInModal.js');
+    const blind = code.indexOf('<BlindHeightInput');
+    const conditions = code.search(/>\s*Conditions\s*</);
+    expect(blind).toBeGreaterThan(-1);
+    expect(conditions).toBeGreaterThan(blind);
+  });
+
   test('both blind screens ask the question; the spot page form does not', () => {
     expect(read('components/feed/CheckInModal.js')).toMatch(/<BlindHeightInput[\s\S]*?askQuality[\s\S]*?\/>/);
     expect(read('components/ConditionsModal.js')).toMatch(/<BlindHeightInput[^>]*askQuality/);

@@ -19,10 +19,16 @@ const LEVELS = [
 const ON = { blind_quality: true, quality_version: 'blind_q1', quality_levels: LEVELS };
 const OFF = { blind_quality: false, quality_version: null, quality_levels: [] };
 
-function serve(features) {
-  apiClient.get.mockImplementation((url) => (url === '/surf-observations/features'
-    ? Promise.resolve({ data: features })
-    : new Promise(() => {})));                     // the consent toggle never answers here
+const CONSENT = (granted) => ({ granted, final: true, title: 'Use my wave reports to improve forecasts',
+  text: 'Off unless you turn it on.', privacy_url: null, needs_reconsent: false });
+
+function serve(features, { granted = true } = {}) {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/surf-observations/features') return Promise.resolve({ data: features });
+    if (url === '/surf-observations/consent') return Promise.resolve({ data: CONSENT(granted) });
+    return new Promise(() => {});
+  });
+  apiClient.put.mockImplementation((url, body) => Promise.resolve({ data: CONSENT(body.granted) }));
 }
 
 function Harness({ askQuality = true, onValue }) {
@@ -36,6 +42,7 @@ function Harness({ askQuality = true, onValue }) {
 beforeEach(() => {
   apiClient.get.mockReset();
   apiClient.post.mockReset();
+  apiClient.put.mockReset();
   _resetBlindQualityForTests();
   _resetForecastExposureForTests();
   delete window.__RAW_DISABLE_BLIND_QUALITY__;
@@ -67,7 +74,7 @@ describe('BlindQualityInput (blind surf quality, gate surf-tide-v1 section 0)', 
 });
 
 describe('when the quality question is asked', () => {
-  test('on a blind screen with the flag on and nothing shown this session', async () => {
+  test('on a blind screen with the flag on, consent on and nothing shown this session', async () => {
     serve(ON);
     const onValue = jest.fn();
     render(<Harness onValue={onValue} />);
@@ -76,7 +83,7 @@ describe('when the quality question is asked', () => {
     expect(onValue).toHaveBeenLastCalledWith(expect.objectContaining({ quality_level: 'fair' }));
   });
 
-  test('never with the flag off (the dark default)', async () => {
+  test('never with the flag off (its kill switch)', async () => {
     serve(OFF);
     render(<Harness />);
     await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith('/surf-observations/features'));
@@ -89,6 +96,30 @@ describe('when the quality question is asked', () => {
     await act(async () => {});
     expect(apiClient.get).not.toHaveBeenCalledWith('/surf-observations/features');
     expect(screen.queryByTestId('blind-quality-input')).toBeNull();
+  });
+
+  test('never without forecast-data consent; turning it on shows the question, turning it off clears the answer',
+    async () => {
+      serve(ON, { granted: false });
+      const onValue = jest.fn();
+      render(<Harness onValue={onValue} />);
+      const toggle = await screen.findByRole('checkbox', { name: /improve forecasts/i });
+      await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith('/surf-observations/features'));
+      expect(screen.queryByTestId('blind-quality-input')).toBeNull();
+      fireEvent.click(toggle);
+      fireEvent.click(await screen.findByRole('radio', { name: 'Good' }));
+      expect(onValue).toHaveBeenLastCalledWith(expect.objectContaining({ quality_level: 'good' }));
+      fireEvent.click(screen.getByRole('checkbox', { name: /improve forecasts/i }));
+      await waitFor(() => expect(screen.queryByTestId('blind-quality-input')).toBeNull());
+      expect(onValue).toHaveBeenLastCalledWith(expect.objectContaining({ quality_level: '' }));
+    });
+
+  test('the question sits below the consent toggle', async () => {
+    serve(ON);
+    render(<Harness />);
+    const question = await screen.findByTestId('blind-quality-input');
+    const consent = screen.getByTestId('training-consent');
+    expect(consent.compareDocumentPosition(question) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   test('never after any forecast surface was shown this session', async () => {

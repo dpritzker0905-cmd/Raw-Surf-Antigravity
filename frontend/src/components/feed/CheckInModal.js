@@ -303,7 +303,16 @@ const CheckInModal = ({
                     </Select>
                   </div>
   
-                  {/* Conditions */}
+                  {/* Wave height: the blind observation, asked before any forecast (none is shown in this modal). */}
+                  <BlindHeightInput
+                    idPrefix="checkin-obs"
+                    value={checkInData.observation}
+                    defaultScale={defaultScaleFor(spots.find(s => s.id === checkInData.spot_id) || nearestSpot)}
+                    onChange={(observation) => setCheckInData(prev => ({ ...prev, observation }))}
+                    askQuality
+                  />
+
+                  {/* Conditions: after the blind questions, so its words (Glassy ... Blown Out) cannot anchor the blind quality. */}
                   <div>
                     <span className="text-sm text-muted-foreground mb-2 block">Conditions</span>
                     <Select value={checkInData.conditions} onValueChange={(v) => setCheckInData(prev => ({ ...prev, conditions: v }))}>
@@ -320,15 +329,6 @@ const CheckInModal = ({
                     </Select>
                   </div>
   
-                  {/* Wave height: the blind observation, asked before any forecast (none is shown in this modal). */}
-                  <BlindHeightInput
-                    idPrefix="checkin-obs"
-                    value={checkInData.observation}
-                    defaultScale={defaultScaleFor(spots.find(s => s.id === checkInData.spot_id) || nearestSpot)}
-                    onChange={(observation) => setCheckInData(prev => ({ ...prev, observation }))}
-                    askQuality
-                  />
-
                   {/* Notes */}
                   <div>
                     <label htmlFor="notes-input" className="text-sm text-muted-foreground mb-2 block">Notes (optional)</label>

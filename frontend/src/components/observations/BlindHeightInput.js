@@ -12,7 +12,7 @@
  * a labelled number input, and the scale named in words, never by colour. Themes: semantic tokens only
  * (foreground/muted/card/border/primary), which light, dark and beach mode all define.
  */
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useThemeName } from '../../contexts/ThemeContext';
 import TrainingConsent from './TrainingConsent';
 import BlindQualityInput from './BlindQualityInput';
@@ -93,12 +93,20 @@ function Segmented({ name, legend, options, value, onChange, help }) {
 }
 
 // askQuality: only the BLIND report screens (CheckInModal, ConditionsModal) pass it; the spot page's report form shows
-// a forecast above it, so it never asks the quality question (gates/surf-tide-v1.md section 0).
+// a forecast above it, so it never asks the quality question (gates/surf-tide-v1.md section 0). The question is shown
+// only while the person's forecast-data consent is on (its one use is checking the forecast, which the consent covers),
+// so it sits just below the consent toggle; turning consent off clears an answer already given.
 const BlindHeightInput = ({ value, onChange, idPrefix = 'obs', defaultScale = 'face', showConsent = true,
   askQuality = false }) => {
   const obs = value || emptyObservation(defaultScale);
   const set = (patch) => onChange({ ...obs, ...patch });
   const quality = useBlindQuality(askQuality);
+  const [consented, setConsented] = useState(false);
+  const onGrantedChange = useCallback((granted) => setConsented(granted), []);
+  const hasLevel = Boolean(obs.quality_level);
+  useEffect(() => {
+    if (!consented && hasLevel) onChange({ ...obs, quality_level: '' });   // runs once: the answer is then gone
+  }, [consented, hasLevel, obs, onChange]);
   const inputId = `${idPrefix}-height-value`;
   // Beach mode's global input rule forces amber-900 text (index.css); pair it with the light amber field it expects.
   const fieldBg = useThemeName() === 'beach' ? 'bg-amber-50' : 'bg-background';
@@ -151,12 +159,12 @@ const BlindHeightInput = ({ value, onChange, idPrefix = 'obs', defaultScale = 'f
         value={obs.set_or_avg} onChange={(v) => set({ set_or_avg: v })}
         options={[{ value: 'typical', label: 'Typical wave' }, { value: 'sets', label: 'The sets' }]} />
 
-      {quality.ask && (
+      {showConsent && <TrainingConsent idPrefix={idPrefix} onGrantedChange={onGrantedChange} />}
+
+      {quality.ask && consented && (
         <BlindQualityInput idPrefix={idPrefix} levels={quality.levels} value={obs.quality_level || ''}
           onChange={(q) => set({ quality_level: q })} />
       )}
-
-      {showConsent && <TrainingConsent idPrefix={idPrefix} />}
     </section>
   );
 };

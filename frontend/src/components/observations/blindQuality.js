@@ -2,7 +2,8 @@
  * blindQuality - whether the report screen asks "How good is it right now?" (gates/surf-tide-v1.md section 0).
  *
  * Asked only when ALL of these hold:
- *   - the server's flag is on (GET /surf-observations/features; SURF_TRUTH_BLIND_QUALITY, dark by default);
+ *   - the server's flag is on (GET /surf-observations/features; SURF_TRUTH_BLIND_QUALITY, on by default, kill switch);
+ *   - the person's forecast-data consent is on (BlindHeightInput shows it only then; the server re-checks it);
  *   - the screen is one of the blind ones (the caller passes askQuality only on CheckInModal / ConditionsModal);
  *   - this app session has shown no forecast, rating or tide read anywhere (forecastExposure);
  *   - the client kill switch is not set: window.__RAW_DISABLE_BLIND_QUALITY__ = true hides it at once.

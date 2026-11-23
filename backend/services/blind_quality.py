@@ -4,8 +4,10 @@ The tide gate scores the served rating against what surfers saw. Its truth must 
 the rating's own seven levels, in words, without having seen a forecast, the rating, the tide factor or the spot's
 `best_tide` text. This module decides whether a submitted level is stored. The decision is the server's:
 
-- the flag SURF_TRUTH_BLIND_QUALITY must be '1' (runtime_flags: env > manifest > code default '0', so it ships DARK and
-  the owner turns it on, or off again, without a deploy);
+- the flag SURF_TRUTH_BLIND_QUALITY must be '1' (runtime_flags: env > manifest > code default '1': ON since the
+  owner's word of 2026-11-23, with a kill switch: set it to '0' in the manifest or env to stop it without a deploy);
+- the person's forecast-data consent must be in force when the report arrives (data minimisation: the level has no
+  use other than checking the forecast, which is what the consent covers, so without it the level is not kept);
 - the entry screen must be one the server audits as blind (observations.ENTRY_SCREENS: forecast_shown_before false);
 - the app must say, explicitly, that it has not shown this spot's forecast earlier in the session (a claim; an older
   client that says nothing does not qualify).
@@ -37,15 +39,18 @@ LEVELS = tuple(LEVEL_WORDS)
 
 
 def enabled() -> bool:
-    return runtime_flags.flag(FLAG, "0").strip() == "1"
+    return runtime_flags.flag(FLAG, "1").strip() == "1"
 
 
-def decide(level: Optional[str], screen_shows_forecast: bool, seen_claim: Optional[bool]) -> Tuple[Optional[str], set]:
+def decide(level: Optional[str], screen_shows_forecast: bool, seen_claim: Optional[bool],
+           consent_granted: bool) -> Tuple[Optional[str], set]:
     """(level to store or None, flags to add). `level` was already validated against LEVELS by the request model."""
     if level is None:
         return None, set()
     if not enabled():
         return None, {"quality_off"}
+    if not consent_granted:
+        return None, {"quality_no_consent"}
     if screen_shows_forecast:
         return None, {"quality_not_blind"}
     if seen_claim is not False:
