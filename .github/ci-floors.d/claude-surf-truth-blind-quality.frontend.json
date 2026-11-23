@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 33,
+  "files": 2,
+  "branch": "claude/surf-truth-blind-quality",
+  "date": "2026-11-23",
+  "note": "blind quality input (consent-gated), exposure record and per-screen blindness proof"
+}

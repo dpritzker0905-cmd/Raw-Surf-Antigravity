@@ -126,6 +126,8 @@ def iso(ts):
         dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
     except ValueError:
         return str(ts)
+    if dt.tzinfo is None:   # a naive timestamp is UTC, never the host's local time (bug hunt 2026-11-22)
+        dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
