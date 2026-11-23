@@ -56,6 +56,7 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_STALE_CHIP__',
   // components/map/marineLateWash.test.js (the late wash, 2026-11-15): a seed that repairs a refused wash waits 150 ms, not 1 s
   '__RAW_DISABLE_UNVERIFIED_PIN_MARK__',   // unverifiedLocation.test.js (spots marking, #1087)
+  '__RAW_DISABLE_GUST_WINDOW_LABEL__',   // components/map/gustWindow.test.js ("kill switch: no label anywhere"; the gust window label, 2026-11-22)
   '__RAW_DISABLE_URGENT_WASH_SEED__',
   // tests/weatherAuthFetch.test.js ("kill switch: never a token, never a retry") and tests/sessionExpiredPrompt.test.js
   // ("kill switch and the auth page itself raise nothing"): #782, accounts only
@@ -170,6 +171,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CADENCE_STEP__',
   // components/map/TideReadout.test.js
   '__RAW_DISABLE_INFOBOX_TIDE__',
+  // components/map/tideOverlay.parity.test.js
+  '__RAW_DISABLE_TIDE_OVERLAY__',
   // hudResidentTruth.test.js
   '__RAW_DISABLE_HUD_RESIDENT_TRUTH__',
   // marineSeriesFrame.killSwitch.test.js
