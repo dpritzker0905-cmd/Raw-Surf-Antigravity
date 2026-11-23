@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 48,
+  "branch": "claude/floor-catchup-bot",
+  "date": "2026-11-23",
+  "note": "floor_catchup.py tests (automatic CI floor catch-up)"
+}
