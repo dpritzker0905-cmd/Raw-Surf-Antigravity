@@ -1,8 +1,8 @@
 # Gate: rating-wind-gate-v1
 Stamp: 2026-11-22 (research lead; DRAFT for the advisor. Pre-registration only: nothing is built, no truth row is read, and the anchors in section 3 are fixed here before any data).
-Candidate: extend the surf rating's blown-out veto (`surf_rating.wind_gate`, today onshore-only) to cross-shore and offshore wind, behind `RATING_WIND_GATE_ALL_DIRECTIONS` (code default `'0'`, DARK).
+Candidate: extend the surf rating's blown-out veto (`surf_rating.wind_gate`, today onshore-only) to cross-shore and offshore wind, behind `RATING_WIND_GATE_ALL_DIRECTIONS` (code default `'0'`, DARK). Two pre-registered forms: `ALL_DIR` (fixed knots) and `ALL_DIR_UC` (scaled by the breaking wave's phase speed, section 1a).
 Metric: M1 = the 7-level hit rate of the served rating level against blind observed quality (surf-truth blind-quality check-ins, #1151), in the STRONG-WIND stratum (section 4). Reported beside it: M1 on ALL rows, mean absolute level error, and the confusion table.
-Pass threshold: section 6. In the STRONG-WIND stratum, `ALL_DIR` beats `CURRENT` on M1 by >= +5 percentage points at one-sided p < 0.05. On ALL rows it is not worse: a TOST on the M1 difference within ±2 pp, at p < 0.05.
+Pass threshold: section 6. In the STRONG-WIND stratum, a candidate (`ALL_DIR` or `ALL_DIR_UC`, Holm over the two) beats `CURRENT` on M1 by >= +5 percentage points at one-sided p < 0.05. On ALL rows it is not worse: a TOST on the M1 difference within ±2 pp, at p < 0.05.
 Controls: section 5. An exact light-wind inertness test; a direction-shuffle null; the D-065 history filter; a planted control.
 Decision rule: section 7. The flag ships DARK. Turning it on needs David's word with this gate's evidence. If truth is INSUFFICIENT by the review date, the gate says so; the owner may still decide on the anchors alone, but the result must be labelled "anchor-only, unvalidated".
 Unmeasured items: gusts (fetched for ICON/EURO, never used by the rating); offshore wind's effect on breaking shape (it delays breaking; lab-only evidence); spots without a shore normal (the gate is inert there, as today); non-blind reports.
@@ -31,7 +31,17 @@ All arms go through the ONE chain (`rate_one_spot` → `compute_surf_rating`); o
 | `ALL_DIR` (candidate) | Onshore unchanged. Cross-shore (\|offshoreness\| <= 0.34): start `S_c` = 14 kt, zero `Z_c` = 40 kt. Offshore (offshoreness > 0.34): start `S_o` = 25 kt, zero `Z_o` = 50 kt. Thresholds are linear in offshoreness across the 0.34 boundary, so the gate is continuous in direction. |
 | `SENS_*` (sensitivity, reported only) | `S_c` ∈ {10, 14, 18} kt × `S_o` ∈ {20, 25, 30} kt, with `Z = S + 26` kt (the onshore curve's span). 9 arms, the candidate's centre among them. |
 
-The candidate's centre values (14 / 40, 25 / 50) are fixed here and cannot move after data. The sensitivity arms are never picked by data. They show whether the verdict depends on the exact thresholds.
+| `ALL_DIR_UC` (second candidate, section 1a) | The same shape, with thresholds in U/C (wind speed over the breaking wave's phase speed). Cross-shore: start 1.67, zero 4.76. Offshore: start 2.98, zero 5.95. |
+
+The candidates' centre values (14 / 40 and 25 / 50 kt; their U/C equivalents) are fixed here and cannot move after data.
+
+### 1a. Why a phase-speed-scaled form (literature, read at abstract level through Consensus)
+- **Field scale:** wind's effect on breaking scales with U_w / C, the cross-shore wind over the wave's phase speed. At the Surf Ranch wave basin, breakpoint location and overturn shape varied inversely with U_w / C over -1.2 < U_w / C < 0.7 (Feddersen et al. 2023, J. Fluid Mech.). Numerical overturning studies show the same dependence (Feddersen et al. 2024).
+- **Laboratory:** offshore wind delays breaking and steepens breakers; onshore wind widens the surf zone and flattens waves, including at extreme wind (Sous et al. 2020, Coastal Eng.).
+- **Implication:** a fixed-knot veto treats a 1 m wave and a 3 m wave alike. Physics says the same wind matters more to the smaller, slower wave.
+- **The form:** C = sqrt(g · h_b), where h_b = H_b / γ. H_b is the served breaking height, and γ is the chain's own breaker index for that hour (`surf_transform`). If γ is unavailable, 0.78.
+- **Anchoring:** the U/C thresholds equal `ALL_DIR`'s knots at the reference breaking height 1.5 m (C ≈ 4.3 m/s ≈ 8.4 kt). The two candidates agree at 1.5 m, and `ALL_DIR_UC` vetoes earlier below 1.5 m and later above it.
+- **Limit:** the measured U_w / C range (up to 0.7 offshore) is far below these thresholds (1.7-6). The scaling is extrapolated, not measured, at gale strength. That is why `ALL_DIR_UC` is a tested candidate and not the default. The sensitivity arms are never picked by data. They show whether the verdict depends on the exact thresholds.
 
 ## 2. Truth
 - **Primary:** the blind quality field on surf observations (#1151, the `surf-tide-v1` prerequisite). It uses the rating's own 7 levels, and only rows with `forecast_shown_before = false` count.
@@ -51,7 +61,7 @@ The centre thresholds rest on published practice, not on fitting:
 - **Floors:** STRONG-WIND needs >= 150 blind rows from >= 20 spots on >= 30 distinct days. Below that it is INSUFFICIENT, not a fail.
 
 ## 5. Controls
-- **Light-wind inertness (exact, a unit test in the build).** For every wind speed below the lowest start threshold across all arms (10 kt), every direction and every height and period on a grid, `ALL_DIR` and every `SENS_*` arm return a score byte-identical to `CURRENT`. Any difference fails the build, not just the gate.
+- **Light-wind inertness (exact, a unit test in the build).** For every wind speed below the lowest start threshold across all arms (10 kt; for `ALL_DIR_UC`, below U/C 1.67 at that row's height), every direction and every height and period on a grid, `ALL_DIR` and every `SENS_*` arm return a score byte-identical to `CURRENT`. Any difference fails the build, not just the gate.
 - **Direction-shuffle null.** Within the STRONG-WIND stratum, wind directions are permuted among rows (seed 1170, 200 permutations). The share of permutations where `ALL_DIR` passes section 6 must be <= 0.08. Otherwise the gain is not about direction, and the result is VOID.
 - **Planted control.** On the same rows, a copy of `CURRENT` with its level forced down two steps in a fixed 25 % of STRONG-WIND rows (seed 1170) must come out WORSE than `CURRENT` at one-sided p < 0.05. Otherwise the sample is underpowered and the result is VOID.
 - **History filter (D-065).** `default-on-filter.yml` must not show `ALL_DIR` significantly worse, pooled or in any season or region after Holm.
@@ -60,7 +70,9 @@ The centre thresholds rest on published practice, not on fitting:
 ## 6. Statistics and bars
 - **Pairing:** by blind row (the same spot, hour and served wind for both arms).
 - **Bootstrap:** moving blocks of 7-day spans, 10,000 replicates, seed 1170.
-- **STRONG-WIND:** the M1 gain must be >= +5 pp at one-sided p < 0.05. This is one line; the sensitivity arms are reported, not tested.
+- **STRONG-WIND:** for each candidate (`ALL_DIR`, `ALL_DIR_UC`), the M1 gain over `CURRENT` must be >= +5 pp at one-sided p < 0.05, Holm-adjusted over the two lines. The sensitivity arms are reported, not tested.
+- **If both candidates pass:** a two-sided head-to-head on STRONG-WIND M1 (same bootstrap, alpha 0.05, outside the Holm family) decides. If it is not significant, `ALL_DIR` is chosen (fewer moving parts, no dependence on γ).
+- **Size stratum (reported):** STRONG-WIND split at H_b < 1 m / 1-2 m / > 2 m. This is where the two forms differ by design.
 - **ALL:** TOST on the M1 difference within ±2 pp, both one-sided p < 0.05.
 - **Mean absolute level error:** reported, not a bar.
 
