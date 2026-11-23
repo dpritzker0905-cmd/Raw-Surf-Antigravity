@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 32,
+  "branch": "claude/admin-truth-switches-verification",
+  "date": "2026-11-23",
+  "note": "switch scan parity (31) + flag board manifest-writers case (1)"
+}
