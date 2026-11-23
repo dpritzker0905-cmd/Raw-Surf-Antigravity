@@ -118,9 +118,9 @@ to help or to hurt any gauge: it is the advisor's proposed rule, stated before t
 **The verdict is unchanged:** it is on the **model** D variant, the served first source. The sheet variant is judged
 and reported, and a sheet failure is a named limit on the fallback (section 3).
 
-## 9. Amendment 2 (2026-11-23 02:53Z, before the run and before any data from it): the two VOID controls, made runnable
+## 9. Amendment 2 (2026-11-23 02:53Z, written after the tag at 02:52:46Z, while run 45102683907 was queued and before any job executed): the two VOID controls, made runnable
 
-**Why.** Before dispatch, this lane checked the instrument on #1171's head (`e427002d7`). Section 4's controls, as
+**Why.** This amendment was written after the tag at 02:52:46Z, while run 45102683907 was queued and before any job executed. This lane checked the instrument on #1171's head (`e427002d7`). Section 4's controls, as
 written, could not run:
 - the instrument has no planted-D option;
 - the finder check (`finder_check.py`) compares event TIMES, not heights.
@@ -146,3 +146,14 @@ High/Low heights, over the run's window, at all 26 gauges.
 
 **Unchanged:** the bar (section 3), the MEASURED rule (section 8), the verdict on the model D variant, and the re-run
 rule (section 5).
+
+## 10. Advisor's ruling on §9 (2026-11-23, recorded here)
+
+The advisor ACCEPTED §9 (full ruling in the gate file), with three conditions:
+
+- **(a)** §9's timing is stated exactly. It was "written after the tag at 02:52:46Z, while run 45102683907 was queued
+  and before any job executed". Its heading and first sentence are corrected above; they had said "before the run" and
+  "Before dispatch".
+- **(b)** The controls are VOID-only. If a control misbehaves, the outcome is a new tag plus David's word, never a
+  re-read of the bar.
+- **(c)** The artifact may be opened once (a) is pushed and the run has completed.
