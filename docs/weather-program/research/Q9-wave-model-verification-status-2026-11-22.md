@@ -69,6 +69,32 @@ Set before any forecast-vs-buoy pair was read. Requested by the parent session a
 
 **Unavailable:** a single call over about 120 s is skipped, and the buoy is recorded as unavailable.
 
+## 6a. Dated amendment, 2026-11-23 UTC, before any ERDDAP forecast value was read
+
+Written after the ww3 MCP forecast calls failed for a second time, and before any value from the new source was read. Source change: ww3 MCP is dropped. Truth is still NDBC.
+
+**Dataset:** `ww3_global` on `https://pae-paha.pacioos.hawaii.edu/erddap` (PacIOOS, "WaveWatch III (WW3) Global Wave Model"). Variables: `Thgt` (significant height, m), `Tper` (peak period, s), `Tdir` (peak direction, deg). Confirmed with `erddap_get_dataset_info`.
+
+**Cycle rule:** the dataset is a best-time-series aggregation (time axis not evenly spaced, about 86,000 values), not a per-cycle archive. No single cycle can be selected, so the 2026-11-20 00z run is not used. Instead:
+- Reference time is 2026-11-20 00:00 UTC.
+- Forecast value at valid hour T is the dataset value at T.
+- Lead bin A (0–24 h) = offsets 0, 3, 6, …, 21 h from the reference (8 points).
+- Lead bin B (24–48 h) = offsets 24, 27, …, 45 h from the reference (8 points).
+- Because the best series mixes runs, these bins are offsets from a reference, not true per-run leads. Every result carries that label.
+
+**Nearest-cell rule:** the grid is 0.5° in latitude and longitude, with longitude in 0–359.5. Each buoy uses the cell whose centre is nearest in each axis. If that cell is null (land or masked), the buoy is recorded as unavailable and no other cell is tried.
+
+| Station | Lat | Lon (−180..180) | Lon (0..360) | Nearest cell (lat, lon 0..360) |
+|---|---|---|---|---|
+| 46042 | 36.787 | −122.408 | 237.592 | 37.0, 237.5 |
+| 46086 | 32.504 | −118.029 | 241.971 | 32.5, 242.0 |
+| 51201 | 21.671 | −158.118 | 201.882 | 21.5, 202.0 |
+| 44013 | 42.346 | −70.651 | 289.349 | 42.5, 289.5 |
+
+**Truth:** NDBC, unchanged. Window 2026-11-20 00:00 to 2026-11-22 00:00 UTC, covering both bins. The 48 h NDBC pull from 46042 earlier does not reach 2026-11-20, so this window needs a wider pull.
+
+**Pairing and stats:** unchanged from §6 (±30 min truth window, at least 2 non-null records, Hs bias/RMSE/SI, direction circular error, DPD descriptive). Label: descriptive, n=1 cycle.
+
 ## 7. Path B outcome (2026-11-22, after the pre-registration above)
 
 No forecast-vs-buoy pair was formed. Status: blocked on the forecast side, again.
