@@ -99,16 +99,9 @@ def roc_auc(p: np.ndarray, o: np.ndarray) -> float:
     n1, n0 = int(o.sum()), int((~o).sum())
     if not n1 or not n0:
         return float("nan")
-    order = np.argsort(p, kind="mergesort")
-    ps = p[order]
-    ranks = np.empty(p.size, float)
-    i = 0
-    while i < ps.size:                         # average ranks for ties
-        j = i
-        while j + 1 < ps.size and ps[j + 1] == ps[i]:
-            j += 1
-        ranks[order[i:j + 1]] = 0.5 * (i + j) + 1.0
-        i = j + 1
+    _u, inv, cnt = np.unique(p, return_inverse=True, return_counts=True)     # average ranks for ties, vectorised
+    first = np.cumsum(cnt) - cnt                                              # 0-based rank of each level's first row
+    ranks = (first + (cnt + 1) / 2.0)[inv]
     return float((ranks[o].sum() - n1 * (n1 + 1) / 2.0) / (n1 * n0))
 
 

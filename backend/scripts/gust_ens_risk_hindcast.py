@@ -41,7 +41,8 @@ BINS = {"B1": (12, 24, 36, 48, 60, 72, 84), "B2": (96, 108, 120, 132, 144), "B3"
 LEADS = [L for b in BINS.values() for L in b]
 HRES_MAX = 240
 ENS_BASE = os.environ.get("GER_ENS_BASE") or ef.AWS_BASE
-SEED, NULL_SEED, REPS = 20261122, 20261123, 2000
+SEED, NULL_SEED, REPS = 20261122, 20261123, 10000          # amendment 1 A1: 10,000 reps for every CI
+ROWS_MIN = 1000                                              # amendment 1 A3: fewer rows in a cell -> UNDERPOWERED
 DROP_MAX = 0.10
 KT = 1852.0 / 3600.0
 DECODE_LOCK = threading.Lock()      # ecCodes is not thread-safe; runs are collected on a small pool
@@ -116,29 +117,48 @@ def cmd_truth(s, cache):
     for c in st["asos"]:
         for rt in (3, 4):
             _metar_csv(s, cache, c["id"], rt)
-    h = hashlib.sha256()
-    files = sorted(os.path.join(d, f) for sub in ("ndbc", "metar") for d, _, fs in os.walk(os.path.join(cache, sub))
-                   for f in fs)
-    for p in files:
-        h.update(os.path.relpath(p, cache).replace("\\", "/").encode())
-        h.update(open(p, "rb").read())
+    sha, n_files = truth_hash(cache)
     end = None
     for c in st["ndbc"]:
         recs = obs.parse_ndbc_stdmet(open(os.path.join(cache, "ndbc", f"{c['id']}_realtime2.txt"), encoding="utf-8").read())
         if recs:
             end = max(end or max(recs), max(recs))
-    doc = {"sha256": h.hexdigest(), "files": len(files), "taken_at": datetime.now(timezone.utc).isoformat(),
+    doc = {"sha256": sha, "files": n_files, "taken_at": datetime.now(timezone.utc).isoformat(),
            "truth_end": end.isoformat() if end else None}
     json.dump(doc, open(os.path.join(cache, "truth.json"), "w"), indent=1)
     print(json.dumps(doc))
     return 0
 
 
-def station_truth(cache, st):
-    """{i: dict} per station: event times/values and the record times that count for coverage."""
+def truth_hash(cache):
+    """(sha256, files) over every file under <cache>/ndbc and <cache>/metar, path-ordered, path then bytes (amendment 1
+    A5: a score re-hashes first; a mismatch voids the run)."""
+    h = hashlib.sha256()
+    files = sorted(os.path.join(d, f) for sub in ("ndbc", "metar") for d, _, fs in os.walk(os.path.join(cache, sub))
+                   for f in fs)
+    for p in files:
+        h.update(os.path.relpath(p, cache).replace("\\", "/").encode())
+        h.update(open(p, "rb").read())
+    return h.hexdigest(), len(files)
+
+
+def station_ids(st):
+    return [c["id"] for c in st["ndbc"]] + [c["id"] for c in st["asos"]]
+
+
+def station_truth(cache, st, skip=frozenset(), ndbc_file="{id}_realtime2.txt", ndbc_dir="ndbc"):
+    """[dict | None] per station in the frozen order: gust times/values and the record times that count for coverage.
+    A station in `skip` (amendment 1 A4: #1199's LOCKED buoys) is None, and its file is never opened."""
     out = []
     for c in st["ndbc"]:
-        recs = obs.parse_ndbc_stdmet(open(os.path.join(cache, "ndbc", f"{c['id']}_realtime2.txt"), encoding="utf-8").read())
+        if c["id"] in skip:
+            out.append(None)
+            continue
+        p = os.path.join(cache, ndbc_dir, ndbc_file.format(id=c["id"]))
+        if not os.path.exists(p):
+            out.append(None)
+            continue
+        recs = obs.parse_ndbc_stdmet(open(p, encoding="utf-8").read())
         tm, gv = [], []
         for t, (_w, g, _d) in sorted(recs.items()):
             if g == g:
@@ -146,6 +166,9 @@ def station_truth(cache, st):
                 gv.append(float(obs.to_10m(g, c["anemometer_m"])))
         out.append({"kind": "ndbc", "t": np.array(tm, np.int64), "g": np.array(gv), "cov": np.array(tm, np.int64)})
     for c in st["asos"]:
+        if c["id"] in skip:
+            out.append(None)
+            continue
         tm, gv, cov = [], [], []
         for rt in (3, 4):
             for (t, sk, gu, pk, pkt) in parse_metar(_metar_csv(None, cache, c["id"], rt)):
@@ -264,15 +287,21 @@ def cmd_collect(s, cache, workers):
 
 
 # ---------------------------------------------------------------------------------------------------- score
-def build_rows(cache):
-    """One row per (run, lead, station) with every arm's value and the truth window max (NaN rows kept out)."""
-    st = json.load(open(os.path.join(cache, "stations.json")))
-    stations = st["ndbc"] + st["asos"]
-    truths = station_truth(cache, st)
+def read_id_list(path, key):
+    """A frozen station-id list: a JSON list, or an object holding it under `key` (#1199's frozen list: `locked`,
+    `fit_used`), or under `ids`. Missing path -> empty set."""
+    if not path:
+        return frozenset()
+    doc = json.load(open(path))
+    if isinstance(doc, dict):
+        doc = doc.get(key, doc.get("ids", []))
+    return frozenset(str(x.get("id") if isinstance(x, dict) else x).upper() for x in doc)
+
+
+def _iter_slots(cache, truths, count_only=False):
+    """(run label, lead, valid, station index, member column, hres) for every slot whose truth window is covered and whose
+    50 member values are finite. count_only reads nothing but coverage and finiteness (amendment 1 A3)."""
     run_dir = os.path.join(cache, "runs")
-    R = {k: [] for k in ("run", "lead", "sta", "day", "obs", "obs_shift", "obs_w6", "hres", "net")}
-    ens = []
-    dropped = sorted({f.split(".")[0] for f in os.listdir(run_dir) if f.endswith(".failed.json")})
     for fn in sorted(f for f in os.listdir(run_dir) if f.endswith(".npz")):
         z = np.load(os.path.join(run_dir, fn))
         run = datetime.strptime(fn[:10], "%Y%m%d%H").replace(tzinfo=timezone.utc)
@@ -280,26 +309,65 @@ def build_rows(cache):
             if f"ens_{L}" not in z:
                 continue
             m = z[f"ens_{L}"]
-            hres = z[f"hres_{L}"] if f"hres_{L}" in z else np.full(len(stations), np.nan)
+            fin = np.all(np.isfinite(m), axis=0)
+            hres = z[f"hres_{L}"] if f"hres_{L}" in z else np.full(m.shape[1], np.nan)
             V = run + timedelta(hours=L)
             end, w = _ep(V), gr.gust_window_h(L)
             for i, tr in enumerate(truths):
-                o = truth_row(tr, end, w)
-                if o != o or not np.all(np.isfinite(m[:, i])):
+                if tr is None or not fin[i] or not covered(tr["cov"], end, w):
                     continue
-                R["run"].append(int(fn[:10]))
-                R["lead"].append(L)
-                R["sta"].append(i)
-                R["day"].append(V.toordinal())
-                R["obs"].append(o)
-                R["obs_shift"].append(truth_row(tr, end + 24 * 60, w))
-                R["obs_w6"].append(truth_row(tr, end, 6) if w == 1 else float("nan"))
-                R["hres"].append(float(hres[i]))
-                R["net"].append(tr["kind"])
-                ens.append(m[:, i])
+                yield int(fn[:10]), L, V, end, w, i, (None if count_only else m[:, i]), (None if count_only else hres[i])
+
+
+def build_rows(cache, locked=frozenset(), fit_used=frozenset(), truths=None):
+    """One row per (run, lead, station) with every arm's value and the truth window max. LOCKED stations are never read;
+    fit-used rows are flagged (they never decide, amendment 1 A4)."""
+    st = json.load(open(os.path.join(cache, "stations.json")))
+    stations = st["ndbc"] + st["asos"]
+    ids = station_ids(st)
+    truths = truths if truths is not None else station_truth(cache, st, skip=locked)
+    R = {k: [] for k in ("run", "lead", "sta", "day", "obs", "obs_shift", "obs_w6", "hres", "net", "fit_used")}
+    ens = []
+    run_dir = os.path.join(cache, "runs")
+    dropped = sorted({f.split(".")[0] for f in os.listdir(run_dir) if f.endswith(".failed.json")})
+    for run, L, V, end, w, i, col, hv in _iter_slots(cache, truths):
+        tr = truths[i]
+        o = truth_row(tr, end, w)
+        if o != o:
+            continue
+        R["run"].append(run)
+        R["lead"].append(L)
+        R["sta"].append(i)
+        R["day"].append(V.toordinal())
+        R["obs"].append(o)
+        R["obs_shift"].append(truth_row(tr, end + 24 * 60, w))
+        R["obs_w6"].append(truth_row(tr, end, 6) if w == 1 else float("nan"))
+        R["hres"].append(float(hv))
+        R["net"].append(tr["kind"])
+        R["fit_used"].append(ids[i].upper() in fit_used)
+        ens.append(col)
     out = {k: np.array(v) for k, v in R.items()}
     out["ens"] = np.array(ens, dtype=np.float32).reshape(-1, gr.MEMBERS)
     return out, stations, dropped
+
+
+def n_table(cache, locked=frozenset(), fit_used=frozenset()):
+    """Amendment 1 A3: rows / stations / days per lead bin (deciding rows = not fit-used), from coverage and member
+    finiteness only. No observed value, event or probability is read."""
+    st = json.load(open(os.path.join(cache, "stations.json")))
+    ids = station_ids(st)
+    truths = station_truth(cache, st, skip=locked)
+    acc = {b: {"rows": 0, "stations": set(), "days": set(), "rows_fit_used": 0} for b in BINS}
+    for _run, L, V, _end, _w, i, _c, _h in _iter_slots(cache, truths, count_only=True):
+        a = acc[bin_of(L)]
+        if ids[i].upper() in fit_used:
+            a["rows_fit_used"] += 1
+            continue
+        a["rows"] += 1
+        a["stations"].add(i)
+        a["days"].add(V.toordinal())
+    return {b: {"rows": a["rows"], "stations": len(a["stations"]), "days": len(a["days"]), "rows_fit_used": a["rows_fit_used"]}
+            for b, a in acc.items()}
 
 
 def score_cell(rows, sel, t_ms, rng_seed=SEED):
@@ -314,6 +382,7 @@ def score_cell(rows, sel, t_ms, rng_seed=SEED):
     out["bs"] = {"ens": gr.brier(p, o), "clim": gr.brier(clim, o)}
     d_clim = (p - o) ** 2 - (clim - o) ** 2
     out["ens_minus_clim"] = {b: gr.block_ci_mean(d_clim, days, REPS, rng_seed, b) for b in (1, 5)}
+    out["ens_minus_clim_station"] = gr.block_ci_mean(d_clim, sta, REPS, rng_seed, 1)    # whole stations resampled (A2)
     out["bss_clim"] = 1 - out["bs"]["ens"] / out["bs"]["clim"] if out["bs"]["clim"] > 0 else float("nan")
     if hres_ok.any():
         h = (rows["hres"][sel] >= t_ms).astype(float)
@@ -331,17 +400,22 @@ def score_cell(rows, sel, t_ms, rng_seed=SEED):
 
 
 def lines(c, has_hres):
+    """Amendment 1 A2: ONE primary P1 decides (Brier difference vs CLIM, CI upper < 0 under the day-block AND the
+    station-cluster bootstrap, with the reliability condition G3). G2, G4 and the 5-day blocks are reported only."""
     g1 = c["ens_minus_clim"][1][2] < 0
+    g1_st = c["ens_minus_clim_station"][2] < 0
     g1_5 = c["ens_minus_clim"][5][2] < 0
     g2 = (c["ens_minus_hres"][1][2] < 0) if has_hres else None
-    g2_5 = (c["ens_minus_hres"][5][2] < 0) if has_hres else None
     mu = c["murphy"]
     ratio = mu["mean_p"] / mu["obar"] if mu["obar"] > 0 else float("inf")
     g3 = bool(mu["rel"] < mu["res"] and 0.5 <= ratio <= 2.0)
     g4 = bool(c["auc"][1] > 0.70)
-    v = gr.cell_verdict(c["n_events"], c["event_days"], g1, g1_5, g2, g2_5, g3, g4)
-    return {"G1": bool(g1), "G1_5d": bool(g1_5), "G2": g2, "G2_5d": g2_5, "G3": g3, "calib_ratio": ratio, "G4": g4,
-            "verdict": v}
+    if c["n"] < ROWS_MIN or c["n_events"] < 30 or c["event_days"] < 10:
+        v = "UNDERPOWERED"
+    else:
+        v = "PASS" if (g1 and g1_st and g3) else "FAIL"
+    return {"P1": v == "PASS", "P1_day": bool(g1), "P1_station": bool(g1_st), "G3": g3, "calib_ratio": ratio,
+            "reported": {"G2_vs_hres": g2, "G4_auc": g4, "fragile_5d": bool(g1 and not g1_5)}, "verdict": v}
 
 
 def controls(rows):
@@ -388,15 +462,42 @@ def controls(rows):
     return c
 
 
-def cmd_score(cache, out_dir):
+def _subset(rows, keep):
+    return {k: v[keep] for k, v in rows.items()}
+
+
+def cmd_count(cache, out_path, locked, fit_used):
+    doc = {"gate": "gust-ens-risk-v1 amendment 1 A3", "made_at": datetime.now(timezone.utc).isoformat(),
+           "locked_stations": len(locked), "fit_used_stations": len(fit_used), "by_bin": n_table(cache, locked, fit_used)}
+    json.dump(doc, open(out_path, "w"), indent=1)
+    print(json.dumps(doc, indent=1))
+    return 0
+
+
+def cmd_score(cache, out_dir, locked, fit_used, n_table_path, october=False):
     os.makedirs(out_dir, exist_ok=True)
-    rows, stations, dropped = build_rows(cache)
-    rep = {"gate": "gust-ens-risk-v1", "n_rows": int(rows["obs"].size), "dropped_runs": dropped,
-           "runs_scored": int(len(np.unique(rows["run"]))), "truth": json.load(open(os.path.join(cache, "truth.json"))),
-           "stations": {"ndbc": sum(1 for s in stations if s["kind"] == "ndbc"),
-                        "asos": sum(1 for s in stations if s["kind"] == "asos")},
-           "controls": controls(rows), "cells": {}, "by_network": {}}
-    void = [k for k in ("C1", "C2", "C3", "C4") if not rep["controls"][k]["pass"]]
+    void = []
+    truth = json.load(open(os.path.join(cache, "truth.json")))
+    sha, _n = truth_hash(cache)
+    if sha != truth["sha256"]:
+        void.append(f"truth re-hash {sha[:12]} != frozen {truth['sha256'][:12]}")
+    rows_all, stations, dropped = build_rows(cache, locked, fit_used)
+    rows = _subset(rows_all, ~rows_all["fit_used"])
+    if n_table_path:                                     # amendment 1 A3: the score uses exactly the committed rows
+        want = json.load(open(n_table_path))["by_bin"]
+        got = {b: int(np.isin(rows["lead"], leads).sum()) for b, leads in BINS.items()}
+        if any(got[b] != want[b]["rows"] for b in BINS):
+            void.append(f"rows {got} != committed n table {({b: want[b]['rows'] for b in BINS})}")
+    else:
+        void.append("no committed n table")
+    rep = {"gate": "gust-ens-risk-v1 (+ amendment 1)", "label": "recorded, not a claim (amendment 1 A7)",
+           "n_rows": int(rows["obs"].size), "n_rows_fit_used": int(rows_all["fit_used"].sum()), "dropped_runs": dropped,
+           "runs_scored": int(len(np.unique(rows["run"]))), "truth": truth, "truth_rehash": sha,
+           "locked_dropped": len(locked & {s["id"].upper() for s in stations}),
+           "stations": {"ndbc": sum(1 for s in stations if s["kind"] == "ndbc" and s["id"].upper() not in locked),
+                        "asos": sum(1 for s in stations if s["kind"] == "asos" and s["id"].upper() not in locked)},
+           "reps": REPS, "controls": controls(rows), "cells": {}, "by_network": {}, "fit_used_cells": {}}
+    void += [k for k in ("C1", "C2", "C3", "C4") if not rep["controls"][k]["pass"]]
     if len(dropped) > DROP_MAX * len(RUNS):
         void.append(f"dropped runs {len(dropped)} > 10%")
     rep["void"] = void
@@ -413,6 +514,25 @@ def cmd_score(cache, out_dir):
                 if s2.sum() > 0:
                     c2, *_ = score_cell(rows, s2, tm)
                     rep["by_network"][f"{tk}kn_{b}_{net}"] = {k: c2[k] for k in ("n", "n_events", "bss_clim", "auc")}
+            fu = np.isin(rows_all["lead"], leads) & rows_all["fit_used"]
+            if fu.sum() > 0:                      # fit-used stations: reported only, never decide (A4)
+                c3, *_ = score_cell(rows_all, fu, tm)
+                rep["fit_used_cells"][f"{tk}kn_{b}"] = {k: c3[k] for k in ("n", "n_events", "bss_clim", "auc")}
+    if october:                                   # A6: QC'd October monthly NDBC truth, reported sensitivity only
+        st = json.load(open(os.path.join(cache, "stations.json")))
+        tr_oct = station_truth(cache, st, skip=locked, ndbc_file="{id}.txt", ndbc_dir="ndbc_oct2026")
+        tr_oct = [t if (t is not None and t["kind"] == "ndbc") else None for t in tr_oct]
+        ro, _s, _d = build_rows(cache, locked, fit_used, truths=tr_oct)
+        ro = _subset(ro, ~ro["fit_used"] & np.array([datetime.fromordinal(int(d)).month == 10 for d in ro["day"]], bool))
+        rep["october_monthly_sensitivity"] = {}
+        for tk, tm in gr.iter_cells():
+            for b, leads in BINS.items():
+                sel = np.isin(ro["lead"], leads)
+                if sel.sum() > 0:
+                    c4, *_ = score_cell(ro, sel, tm)
+                    rep["october_monthly_sensitivity"][f"{tk}kn_{b}"] = {
+                        "n": c4["n"], "n_events": c4["n_events"], "bss_clim": c4["bss_clim"],
+                        "ens_minus_clim": c4["ens_minus_clim"][1], "verdict_if_primary": lines(c4, False)["verdict"]}
     json.dump(rep, open(os.path.join(out_dir, "gust_ens_risk_report.json"), "w"), indent=1, default=float)
     print(markdown(rep))
     open(os.path.join(out_dir, "gust_ens_risk_report.md"), "w", encoding="utf-8").write(markdown(rep))
@@ -426,14 +546,15 @@ def _f(x, nd=3):
 def markdown(rep):
     L = [f"rows {rep['n_rows']}, runs {rep['runs_scored']}, stations NDBC {rep['stations']['ndbc']} / ASOS "
          f"{rep['stations']['asos']}, dropped {len(rep['dropped_runs'])}, VOID: {rep['void'] or 'no'}", "",
-         "| cell | n | events | ev days | freq | BS ens | BS clim | BSS clim | ens-clim CI (1d) | 5d hi | BS hres | ens-hres CI (1d) "
-         "| 5d hi | REL | RES | p/freq | AUC [lo, hi] | BS med | BS p90 | verdict |", "|" + "---|" * 21]
+         "| cell | n | events | ev days | freq | BS ens | BS clim | BSS clim | P1 ens-clim CI (day) | P1 station hi | 5d hi "
+         "| BS hres | ens-hres CI (1d) | 5d hi | REL | RES | p/freq | AUC [lo, hi] | BS med | BS p90 | verdict |", "|" + "---|" * 22]
     for k, c in rep["cells"].items():
         ln = c["lines"]
         h = c.get("ens_minus_hres")
         L.append(f"| {k} | {c['n']} | {c['n_events']} | {c['event_days']} | {_f(c['event_freq'], 4)} | {_f(c['bs']['ens'], 4)} "
                  f"| {_f(c['bs']['clim'], 4)} | {_f(c['bss_clim'])} | {_f(c['ens_minus_clim'][1][0], 4)} "
-                 f"[{_f(c['ens_minus_clim'][1][1], 4)}, {_f(c['ens_minus_clim'][1][2], 4)}] | {_f(c['ens_minus_clim'][5][2], 4)} "
+                 f"[{_f(c['ens_minus_clim'][1][1], 4)}, {_f(c['ens_minus_clim'][1][2], 4)}] "
+                 f"| {_f(c['ens_minus_clim_station'][2], 4)} | {_f(c['ens_minus_clim'][5][2], 4)} "
                  f"| {_f(c['bs'].get('hres_same_rows'), 4)} | "
                  + (f"{_f(h[1][0], 4)} [{_f(h[1][1], 4)}, {_f(h[1][2], 4)}] | {_f(h[5][2], 4)}" if h else "- | -")
                  + f" | {_f(c['murphy']['rel'], 4)} | {_f(c['murphy']['res'], 4)} | {_f(ln['calib_ratio'], 2)} "
@@ -443,13 +564,83 @@ def markdown(rep):
     return "\n".join(L)
 
 
+def message_bytes(index_text, param, step, typ):
+    """(sum of `_length`, count) of the messages a collection read from one index: the 50 `pf` (ENS) or the one `fc`."""
+    tot = n = 0
+    for e in ec.parse_ecmwf_index(index_text):
+        if e.get("param") == param and int(e.get("step", -1)) == step and e.get("type") == typ:
+            tot += int(e["_length"])
+            n += 1
+    return tot, n
+
+
+def cmd_egress(s, cache, out_path):
+    """Amendment 1 A8: the bytes the collection read, measured from the indices of the collected runs: every member and
+    HRES message (`_length`) plus every index file (its size). This pass itself re-reads the indices (also counted)."""
+    run_dir = os.path.join(cache, "runs")
+    doc = {"ens_message_bytes": 0, "ens_messages": 0, "hres_message_bytes": 0, "hres_messages": 0, "index_bytes": 0,
+           "indices": 0, "run_steps": 0}
+    for fn in sorted(f for f in os.listdir(run_dir) if f.endswith(".npz")):
+        z = np.load(os.path.join(run_dir, fn))
+        run = datetime.strptime(fn[:10], "%Y%m%d%H").replace(tzinfo=timezone.utc)
+        for L in LEADS:
+            p = gr.gust_param(L)
+            if f"ens_{L}" in z:
+                r = ef._get(s, ef.ef_url(ENS_BASE, run, L, "index"))
+                b, n = message_bytes(r.text, p, L, "pf")
+                doc["ens_message_bytes"] += b
+                doc["ens_messages"] += n
+                doc["index_bytes"] += len(r.content)
+                doc["indices"] += 1
+                doc["run_steps"] += 1
+            if f"hres_{L}" in z:
+                r = ef._get(s, ef.ef_url(ENS_BASE, run, L, "index", stream="oper", typ="fc"))
+                b, n = message_bytes(r.text, p, L, "fc")
+                doc["hres_message_bytes"] += b
+                doc["hres_messages"] += n
+                doc["index_bytes"] += len(r.content)
+                doc["indices"] += 1
+    doc["collection_bytes"] = doc["ens_message_bytes"] + doc["hres_message_bytes"] + doc["index_bytes"]
+    doc["this_pass_bytes"] = doc["index_bytes"]
+    json.dump(doc, open(out_path, "w"), indent=1)
+    print(json.dumps(doc, indent=1))
+    return 0
+
+
+def cmd_october(s, cache):
+    """Amendment 1 A6: NDBC's QC'd October 2026 monthly stdmet for the frozen NDBC stations minus LOCKED, into
+    <cache>/ndbc_oct2026 (outside the hashed truth), with its own hash. A sensitivity only."""
+    st = json.load(open(os.path.join(cache, "stations.json")))
+    d = os.path.join(cache, "ndbc_oct2026")
+    os.makedirs(d, exist_ok=True)
+    h, got = hashlib.sha256(), 0
+    for c in st["ndbc"]:
+        p = os.path.join(d, f"{c['id']}.txt")
+        if not os.path.exists(p):
+            r = obs._get(s, f"{obs.NDBC}/data/stdmet/Oct/{c['id'].upper()}.txt", tries=3)
+            open(p, "w", encoding="utf-8").write(r.text if r.status_code == 200 else "")
+        body = open(p, "rb").read()
+        got += bool(body)
+        h.update(c["id"].encode())
+        h.update(body)
+    doc = {"sha256": h.hexdigest(), "stations_with_file": got, "taken_at": datetime.now(timezone.utc).isoformat()}
+    json.dump(doc, open(os.path.join(cache, "october.json"), "w"), indent=1)
+    print(json.dumps(doc))
+    return 0
+
+
 def main(argv=None):
     import requests
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["stations", "truth", "collect", "score"])
+    ap.add_argument("cmd", choices=["stations", "truth", "collect", "count", "egress", "october", "score"])
     ap.add_argument("--cache", required=True)
     ap.add_argument("--out", default=None)
     ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--locked", default=None, help="#1199's frozen LOCKED list (never read; amendment 1 A4)")
+    ap.add_argument("--fit-used", default=None, help="a frozen fit-used station list (reported only, never decides)")
+    ap.add_argument("--fit-used-key", default="fit_used")
+    ap.add_argument("--n-table", default=None, help="the committed n table (amendment 1 A3)")
+    ap.add_argument("--with-october", action="store_true", help="add the October monthly sensitivity (A6)")
     a = ap.parse_args(argv)
     os.makedirs(a.cache, exist_ok=True)
     s = requests.Session()
@@ -459,7 +650,18 @@ def main(argv=None):
         return cmd_truth(s, a.cache)
     if a.cmd == "collect":
         return cmd_collect(s, a.cache, a.workers)
-    return cmd_score(a.cache, a.out or os.path.join(a.cache, "report"))
+    if a.cmd == "egress":
+        return cmd_egress(s, a.cache, a.out or os.path.join(a.cache, "egress.json"))
+    if a.cmd == "october":
+        return cmd_october(s, a.cache)
+    locked = read_id_list(a.locked, "locked")
+    fit_used = read_id_list(a.fit_used, a.fit_used_key)
+    if not a.locked:
+        print(f"{a.cmd} refused: #1199's frozen LOCKED list is required (amendment 1 A4)", file=sys.stderr)
+        return 2
+    if a.cmd == "count":
+        return cmd_count(a.cache, a.out or os.path.join(a.cache, "n_table.json"), locked, fit_used)
+    return cmd_score(a.cache, a.out or os.path.join(a.cache, "report"), locked, fit_used, a.n_table, a.with_october)
 
 
 if __name__ == "__main__":

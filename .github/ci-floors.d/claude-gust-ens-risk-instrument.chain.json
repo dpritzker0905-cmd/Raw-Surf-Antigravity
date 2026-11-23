@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 32,
+  "tests": 38,
   "files": 3,
   "branch": "claude/gust-ens-risk-instrument",
   "date": "2026-11-23",
-  "note": "gust-ens-risk-v1: ENS gust-risk core, dark raster set, hindcast instrument"
+  "note": "gust-ens-risk-v1 (+ amendment 1): ENS gust-risk core, dark raster set, hindcast instrument"
 }

@@ -65,7 +65,7 @@ def test_a_skilful_ensemble_passes_its_cell_and_the_controls_behave():
     sel = np.ones(rows["obs"].size, bool)
     c, *_ = h.score_cell(rows, sel, gr.THRESHOLDS_MS[0])
     ln = h.lines(c, True)
-    assert c["bss_clim"] > 0.3 and ln["G1"] and ln["G4"] and ln["verdict"] in ("PASS", "FRAGILE")
+    assert c["bss_clim"] > 0.3 and ln["P1_day"] and ln["P1_station"] and ln["reported"]["G4_auc"] and ln["verdict"] == "PASS"
     ctl = h.controls(rows)
     assert ctl["C1"]["pass"] and ctl["C2"]["pass"] and ctl["C3"]["pass"] and ctl["C4"]["pass"], ctl
 
@@ -80,3 +80,102 @@ def test_too_few_events_is_underpowered():
     rows = _rows(n_days=5, per=10)
     c, *_ = h.score_cell(rows, np.ones(rows["obs"].size, bool), gr.THRESHOLDS_MS[2])
     assert h.lines(c, True)["verdict"] == "UNDERPOWERED"
+
+
+# ---- amendment 1 (A2-A4, A8) ---------------------------------------------------------------------------------------
+def test_p1_needs_both_bootstraps_and_reliability():
+    c = {"ens_minus_clim": {1: (-0.01, -0.02, -0.001), 5: (-0.01, -0.03, 0.001)}, "ens_minus_clim_station": (-0.01, -0.02, 0.002),
+         "murphy": {"rel": 0.001, "res": 0.01, "mean_p": 0.1, "obar": 0.1}, "auc": (0.8, 0.75, 0.85),
+         "n": 5000, "n_events": 200, "event_days": 20}
+    assert h.lines(c, False)["verdict"] == "FAIL"                       # the station-cluster CI crosses 0
+    c["ens_minus_clim_station"] = (-0.01, -0.02, -0.001)
+    ln = h.lines(c, False)
+    assert ln["verdict"] == "PASS" and ln["reported"]["fragile_5d"] is True     # 5-day blocks are reported, not deciding
+    c["murphy"] = dict(c["murphy"], rel=0.02)
+    assert h.lines(c, False)["verdict"] == "FAIL"                       # REL >= RES
+    c["murphy"] = dict(c["murphy"], rel=0.001)
+    assert h.lines(dict(c, n=999), False)["verdict"] == "UNDERPOWERED"  # A3: < 1,000 rows
+
+
+def _cache(tmp_path, n_runs=2):
+    """A tiny cache: 2 NDBC stations (one LOCKED), 1 ASOS, hourly 10-min truth, and run files holding the B1 leads."""
+    import json
+    st = {"ndbc": [{"id": "AAA01", "kind": "ndbc", "anemometer_m": 10.0, "lat": 0, "lon": 0},
+                   {"id": "LCK01", "kind": "ndbc", "anemometer_m": 10.0, "lat": 0, "lon": 0}],
+          "asos": [{"id": "KXYZ", "kind": "asos", "lat": 0, "lon": 0}]}
+    (tmp_path / "stations.json").write_text(json.dumps(st))
+    (tmp_path / "ndbc").mkdir()
+    lines_ = ["#YY  MM DD hh mm WDIR WSPD GST", "#yr  mo dy hr mn degT m/s m/s"]
+    t = datetime(2026, 10, 10, tzinfo=timezone.utc)
+    while t < datetime(2026, 10, 16, tzinfo=timezone.utc):
+        lines_.append(f"{t:%Y %m %d %H %M} 200 8.0 14.0")
+        t = t.replace() + (datetime(2026, 1, 1, 0, 10) - datetime(2026, 1, 1))
+    (tmp_path / "ndbc" / "AAA01_realtime2.txt").write_text("\n".join(lines_))
+    (tmp_path / "metar").mkdir()
+    rows = ["station,valid,sknt,gust,peak_wind_gust,peak_wind_time"]
+    t = datetime(2026, 10, 10, tzinfo=timezone.utc)
+    while t < datetime(2026, 10, 16, tzinfo=timezone.utc):
+        rows.append(f"KXYZ,{t:%Y-%m-%d %H}:54,10.00,M,M,M")
+        t = t + (datetime(2026, 1, 1, 1) - datetime(2026, 1, 1))
+    (tmp_path / "metar" / "KXYZ_rt3.csv").write_text("\n".join(rows))
+    (tmp_path / "metar" / "KXYZ_rt4.csv").write_text("station,valid,sknt,gust,peak_wind_gust,peak_wind_time\n")
+    (tmp_path / "runs").mkdir()
+    for k in range(n_runs):
+        arrs = {f"ens_{L}": np.full((50, 3), 13.0, np.float32) for L in (12, 24, 36)}
+        arrs["ens_24"][:, 2] = np.nan                                     # a non-finite member column drops that slot
+        np.savez(tmp_path / "runs" / f"202610{10 + k:02d}00.npz", **arrs)
+    return tmp_path
+
+
+def test_locked_station_file_is_never_opened(tmp_path, monkeypatch):
+    c = _cache(tmp_path)
+    opened = []
+    real = open
+
+    def spy(p, *a, **k):
+        opened.append(str(p))
+        return real(p, *a, **k)
+    monkeypatch.setattr("builtins.open", spy)
+    import json
+    st = json.loads((c / "stations.json").read_text())
+    tr = h.station_truth(str(c), st, skip=frozenset({"LCK01"}))
+    assert tr[1] is None and not any("LCK01" in p for p in opened)
+
+
+def test_n_table_counts_exactly_the_rows_the_score_builds(tmp_path):
+    c = _cache(tmp_path)
+    locked, fit = frozenset({"LCK01"}), frozenset({"KXYZ"})
+    tab = h.n_table(str(c), locked, fit)
+    rows, _s, _d = h.build_rows(str(c), locked, fit)
+    keep = ~rows["fit_used"]
+    assert tab["B1"]["rows"] == int(np.isin(rows["lead"][keep], h.BINS["B1"]).sum()) == 6   # AAA01: 2 runs x 3 leads
+    assert tab["B1"]["rows_fit_used"] == int(rows["fit_used"].sum()) == 4   # KXYZ: 6 slots minus its 2 NaN member columns
+    assert tab["B1"]["stations"] == 1 and set(rows["sta"][keep]) == {0}
+    assert 1 not in set(rows["sta"])                                      # the LOCKED station is in no row
+
+
+def test_read_id_list_shapes(tmp_path):
+    import json
+    p = tmp_path / "l.json"
+    p.write_text(json.dumps({"locked": ["aaa01", {"id": "B2"}]}))
+    assert h.read_id_list(str(p), "locked") == frozenset({"AAA01", "B2"})
+    p.write_text(json.dumps(["x"]))
+    assert h.read_id_list(str(p), "locked") == frozenset({"X"})
+    assert h.read_id_list(None, "locked") == frozenset()
+
+
+def test_score_and_count_refuse_without_the_locked_list(tmp_path, capsys):
+    assert h.main(["score", "--cache", str(tmp_path)]) == 2
+    assert h.main(["count", "--cache", str(tmp_path)]) == 2
+    assert "LOCKED list is required" in capsys.readouterr().err
+
+
+def test_message_bytes_sums_only_the_read_messages():
+    import json
+    idx = "\n".join(json.dumps(d) for d in (
+        {"param": "10fg", "step": "24", "type": "pf", "number": "1", "_offset": 0, "_length": 100},
+        {"param": "10fg", "step": "24", "type": "pf", "number": "2", "_offset": 100, "_length": 50},
+        {"param": "10u", "step": "24", "type": "pf", "number": "1", "_offset": 150, "_length": 999},
+        {"param": "10fg", "step": "24", "type": "cf", "_offset": 1200, "_length": 7}))
+    assert h.message_bytes(idx, "10fg", 24, "pf") == (150, 2)
+    assert h.message_bytes(idx, "10fg", 24, "cf") == (7, 1)
