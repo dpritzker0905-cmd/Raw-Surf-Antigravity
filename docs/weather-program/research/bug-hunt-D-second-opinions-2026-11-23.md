@@ -40,3 +40,23 @@ Its verdict: "Mostly correct and likely the smallest fix", provided three things
 - Kill switch: `window.__RAW_DISABLE_BAND_WHOLE_SEA_LABEL__`.
 - Test `ratingBandLegend.test.js` renders it in light, dark and beach, on desktop and mobile.
 - ⚠️ The label cannot see the server flag. If `BAND_RATES_TOTAL_SEA` is killed, kill the label too.
+
+## Addendum, 2026-11-23 ~05:30Z: superseded by option B
+
+The whole-sea band reviewed above never merged.
+- The director relayed the overnight research consensus the owner delegated ("use subq, reflection, longcat to help figure it
+  out ... Test twice"). SubQ, Reflection and LongCat all agreed on **option B**.
+- Over Swell 1, Swell 2 and Wind Waves the map shows that partition's own height, with a legend line "Height only, no surf
+  rating".
+- The 0-100 rating stays on the Waves (total sea) layer, the glyphs, the spot pages and the infobox.
+
+PR #1198 now ships option B:
+- **Client:** `partitionHeightOnly.js` asks a partition layer in the plain flavour, and `PartitionHeightOnlyNote.js` adds the
+  legend line in all three layouts.
+- **Server:** `band_partition.py` makes the overlay skip the rating on a partition layer, and CI bakes no rated partition sets.
+- **Kill switches:** `BAND_PARTITION_HEIGHT_ONLY` and `window.__RAW_DISABLE_PARTITION_HEIGHT_ONLY__`.
+
+What happened to the review findings:
+- The sampler, and with it the Reflection findings about it and the advisor's CPU HOLD, are gone. Option B does no per-cell
+  search.
+- SubQ's legend-confusion risk is answered by the new legend line.

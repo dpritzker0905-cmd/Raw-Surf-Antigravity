@@ -325,7 +325,7 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
             donor = fsf.donor_entry(products, vt, target["layer"], store=fill_store)
             ident["fill_donor"] = fsf.donor_identity(donor)
         if rated:                              # the chain (env, blobs, code) and this hour's wind + gate inputs
-            ident["rating"] = chain_key + ":" + rating_inputs.ask_key(target["model"], fsr._iso_dt(vt), target["layer"])
+            ident["rating"] = chain_key + ":" + rating_inputs.ask_key(target["model"], fsr._iso_dt(vt))
         bight_on = fsb.applies(target, entry)
         if bight_on:                           # a new EURO run in the Bight rebuilds the frame
             bight_view = bight_view or fsb.ManifestView(products)

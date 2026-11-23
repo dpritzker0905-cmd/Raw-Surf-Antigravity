@@ -226,9 +226,7 @@ SURFACES = {
             "breaker_xi": SeeAlso("breaker_xi"),
             "partitions": (
                 "The band rates a GRID VECTOR carrying one combined sea state (`speed`/`period`/"
-                "`direction`; on a swell_1/swell_2/wind_waves layer the TOTAL sea's since bug hunt "
-                "2026-11-22 D, band_total_sea.py, BAND_RATES_TOTAL_SEA); it never resolves a point "
-                "response, so there is no partition list to "
+                "`direction`); it never resolves a point response, so there is no partition list to "
                 "reconcile and no fetch that could produce one. Gated SURF_PARTITIONS is off at every "
                 "surface today, so this costs nothing now; if it flips, the band stays combined-sea "
                 "by construction and that divergence must be re-priced HERE rather than discovered."),

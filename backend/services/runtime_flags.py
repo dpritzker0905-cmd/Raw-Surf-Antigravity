@@ -86,8 +86,8 @@ GUARDED = {
                                         # target-time height labelled an unrated estimate; kill '0'
     "RATING_BAND_ONE_CHAIN": "1",       # CMP-1: map rating band = estimate_surf_at on cached geometry + break depth;
                                         # band level == glyph level at 4,101 of 4,197 asset spot-seas, 0 unexplained
-    "BAND_RATES_TOTAL_SEA": "1",        # bug hunt 2026-11-22 D, owner "Rate the whole sea": the band on swell_1/swell_2/
-                                        # wind_waves rates the total sea the glyphs rate (band_total_sea.py); kill '0'
+    "BAND_PARTITION_HEIGHT_ONLY": "1",  # bug hunt 2026-11-22 D, option B: swell_1/swell_2/wind_waves show their own height, no
+                                        # surf rating (band_partition.py); the rating stays on waves; kill '0'
     "ICON_SWELL2_SERVE": "0",           # option B (#877): /grid + /point serve the stored ICON swell_2 blend (else
                                         # "unsupported"). Real-frame parity: = the mid-zoom map 0/120,184 cells; vs the
                                         # world-span map 924 cells (0.77%) <= 0.4 mm, same direction/period. Owner said

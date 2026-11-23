@@ -31,6 +31,9 @@
 import { marineSeriesPageForHour } from './marineGridSeries';
 import { seriesIdentityBounds } from './marineSeriesPanGuard';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
+import { bandRatedFor } from './partitionHeightOnly';
+// The flavour the marine data lane asks for this layer: a partition is plain even in Rating mode (bug hunt 2026-11-22 D).
+const getMarineBandFlag = (layer) => bandRatedFor(getSurfModeFlag(), layer);
 
 export const SETTLE_RELOAD_QUICK = 2;
 export const SETTLE_RELOAD_GAP_MS = 30000;
@@ -47,9 +50,9 @@ export function settleReloadKey({ model, layer, hour, vb }) {
   if (vb && !(typeof window !== 'undefined' && window.__RAW_DISABLE_SETTLE_RELOAD_PAGE_KEY__ === true)) {
     try {
       const b = seriesIdentityBounds(vb);
-      const page = marineSeriesPageForHour(hour, model);
+      const page = marineSeriesPageForHour(hour, model, layer);
       if (b && Number.isFinite(page)) {
-        return `${model}_${layer}_${getSurfModeFlag() ? 'surf' : 'swell'}_p${page}_${r(b.west)}_${r(b.south)}_${r(b.east)}_${r(b.north)}`;
+        return `${model}_${layer}_${getMarineBandFlag(layer) ? 'surf' : 'swell'}_p${page}_${r(b.west)}_${r(b.south)}_${r(b.east)}_${r(b.north)}`;
       }
     } catch (e) { /* the per-hour key below */ }
   }
