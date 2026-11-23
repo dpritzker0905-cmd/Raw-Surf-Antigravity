@@ -41,7 +41,7 @@ It is a reasonable prior. **It is not shown to be better than no tide term**, an
 1. **Relative normalisation ignores the spring-neap cycle.**
    - `norm = 0.9` on a neap day is a lower absolute water level than 0.9 at springs.
    - For reefs and points, the physics [2][3] says absolute depth matters.
-   - SubQ ranked "absolute level vs a datum or break depth" as the better predictor for reefs and points (p = 0.76, vs 0.12 for relative).
+   - SubQ ranked "absolute level vs a datum or break depth" as the better predictor for reefs and points (model confidence 0.76, vs 0.12 for relative; a ranking weight from the model, not a statistic or a p-value).
    - **Counter (Reflection):** absolute thresholds need an accurate reef-crest elevation and datum, and coarse public bathymetry may make the absolute version noisier than the relative band. **That is why it must be tested, not assumed.**
 2. **Trend is ignored.** Many spot notes say "incoming" or "push". The parser drops trend-only text, and the factor never uses `trend`.
 3. **Mixed and diurnal tides.**

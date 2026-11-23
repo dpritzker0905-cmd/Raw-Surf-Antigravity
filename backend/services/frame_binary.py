@@ -335,7 +335,9 @@ def _epoch(ts):
     if not ts:
         return float("nan")
     try:
-        return datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone(timezone.utc).timestamp()
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        # a naive timestamp is UTC, never the host's local time (bug hunt 2026-11-22)
+        return (dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt).timestamp()
     except ValueError:
         return float("nan")
 
