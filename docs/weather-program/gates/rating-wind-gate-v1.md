@@ -77,7 +77,8 @@ The centre thresholds rest on published practice, not on fitting:
 
 ## 5. Controls
 - **Light-wind inertness (exact, a unit test in the build).** For every wind speed below 10 kt (the lowest start threshold of every arm, `ALL_DIR_UC` included by its floor, section 1b), every direction and every breaking height (0.1-6 m) and period on a grid, `ALL_DIR`, `ALL_DIR_UC` and every `SENS_*` arm return a score byte-identical to `CURRENT`. Any difference fails the build, not just the gate.
-- **Truth-shuffle null (advisor fix 1).** Within the STRONG-WIND stratum, the blind observed levels are permuted among rows within each 7-day block (seed 1170, 200 permutations). The rating no longer lines up with what surfers saw. The share of permutations where a candidate passes section 6 must be <= 0.08. Otherwise the bootstrap is mis-calibrated, and the result is VOID.
+- **Truth-shuffle null (advisor fix 1).** Within the STRONG-WIND stratum, the blind observed levels are permuted among rows within each 7-day block (seed 1170, 200 permutations). The rating no longer lines up with what surfers saw. The share of permutations where a candidate passes section 6 must be <= 0.08, and the achieved share is reported. Otherwise the bootstrap is mis-calibrated, and the result is VOID.
+  - **Why 0.08 and not 0.05:** the null checks that the test is calibrated at its nominal alpha of 0.05. With 200 permutations the Monte Carlo standard error of a true 0.05 rate is 0.015, so 0.08 is about 0.05 + 2 SE. A cut at 0.05 would void a perfectly calibrated test about half the time by noise alone.
   - The old direction shuffle stays as a REPORTED diagnostic only. It can never void a real effect, because shuffled directions stay strong-wind and the new veto still bites.
 - **Planted control, harmful on every planted row (advisor fix 2; SubQ re-check).** On the same rows, a copy of `CURRENT` has its level moved two steps FURTHER from the row's observed blind level, in a fixed 25 % of STRONG-WIND rows (seed 1170).
   - The move continues in the direction of `CURRENT`'s existing error (`sign(current - observed)`). Where the error is 0, the seed picks the direction.
@@ -121,3 +122,8 @@ The advisor's text reached the research lead late (from the advisor's 2026-11-23
 4. For -0.34 <= o < 0, the stricter of the two rules wins, `min(g_on, g_new)`, pinned by a test (section 1b).
 5. `ALL_DIR_UC` is floored at a 10 kt start and a start + 10 kt zero, so section 5's "byte-identical below 10 kt" holds (section 1b).
 6. Limits: answers per wind band and direction class; the station-vs-served direction-disagreement stratum (section 8).
+
+## 10. Three-way review, 2026-11-23 (the owner asked for every test to be run by SubQ, Reflection and LongCat)
+- **Reflection (rated high):** false-pass <= 0.08 does not control Type I at 0.05. **Kept, with the rationale written in (section 5):** the null is a calibration check on a nominal-0.05 test, and 0.08 is the Monte Carlo tolerance for 200 permutations (0.05 + 2 SE). The achieved rate is reported.
+- **LongCat:** the planted control is undefined. **Already defined in full** (section 5, the advisor's fix 2). The review bundle carried a one-line summary.
+- **SubQ:** likely underpowered (0.90). **Already a limit** (section 8): strong-wind check-ins are rare, the answers per wind band are reported, and the anchor-only path exists.
