@@ -179,7 +179,7 @@ def skilled_doc():
 def test_rows_have_registered_columns_and_comparator_rules(skilled_doc):
     _doc, rows = skilled_doc
     for k in ("run", "st", "lead", "vday", "region", "marine", "sn", "o_u", "o_s", "o_s_p7", "o_s_p48", "GRAND_CAL_s",
-              "AIGEFS_CAL_s", "CLIM_SERVE_s", "LOOP_PROXY_s", "GFS_s", "IFS_RAW_s", "hres240_s"):
+              "AIGEFS_CAL_s", "CLIM_SERVE_s", "LOOP_PROXY_s", "GFS_s", "IFS_RAW_s", "hres240_s", "o_g_p7", "o_g_p48", "hres240_g"):
         assert k in rows, k
     assert np.all(np.isnan(rows["GFS_s"][rows["lead"] <= 240])) and np.isfinite(rows["GFS_s"][rows["lead"] > 240]).all()
     assert np.isfinite(rows["LOOP_PROXY_s"]).all()
