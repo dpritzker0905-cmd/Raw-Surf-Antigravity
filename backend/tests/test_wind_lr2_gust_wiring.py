@@ -56,6 +56,14 @@ def _clim(n=12):
     return G.ClimGust.build({str(i): recs for i in range(n)})
 
 
+def _clim_files(tmp_path):
+    clim = G.ClimGust.build({"S1": [(datetime(2018, 4, 10, 6, tzinfo=UTC), 5.0)] * 25})
+    body = json.dumps(clim.table(), sort_keys=True, separators=(",", ":")).encode()
+    hsh = tmp_path / "h.sha256"
+    hsh.write_text(hashlib.sha256(body).hexdigest() + "  t.json\n")
+    return clim, body, str(hsh)
+
+
 def test_the_gust_block_reads_the_wind_doc_and_never_changes_it():
     rows = _table(n_days=40, n_st=12)
     stations = _stations()
@@ -125,6 +133,53 @@ def test_cmd_score_checks_the_table_before_reading_any_station_run_or_truth():
     body = text[text.index("def cmd_score"):text.index("def cmd_pair")]
     assert body.index("clim_gust = load_gust_table(a)") < body.index("load_stations(") < body.index("truth_fn_for(")
     assert body.index("doc = SC.score_rows(") < body.index('doc["gust"] = GU.score_gust(')        # serial: wind first
+    assert "build_clim_gust" not in body                                       # advisor limit (a): at score time the table is never BUILT
+
+
+def test_at_score_time_clim_gust_comes_only_from_the_verified_loader_never_from_a_build():
+    """Advisor limit (a) on #1248: the whole score path (run module, score_gust, the fetch step) loads the table only through
+    load_clim_gust / fetch_and_load*, and `build_clim_gust` / `ClimGust.build` appear nowhere on it."""
+    import inspect
+    run_src = open(os.path.join(ROOT, "backend", "scripts", "wind_lr2_run.py"), encoding="utf-8").read()
+    assert "build_clim_gust" not in run_src and "ClimGust.build" not in run_src and "build-clim" not in run_src
+    for fn in (G.score_gust, G.attach_clim_gust, G.fetch_object_main, RUN.load_gust_table, RUN.cmd_score):
+        src = inspect.getsource(fn)
+        assert "build_clim_gust" not in src and "ClimGust.build" not in src, fn.__name__
+    assert "GU.load_clim_gust" in inspect.getsource(RUN.load_gust_table)
+    text = open(WF, encoding="utf-8").read()
+    assert "build-clim" not in text and "clim_gust" in text and "fetch-table" in text        # no workflow path builds it for the scorer
+
+
+def test_no_authenticated_url_or_key_is_ever_printed_or_put_in_an_error(tmp_path, monkeypatch, capsys):
+    """Advisor limit (b): the bucket URL (authed) and the key never reach stdout, stderr or an exception message; the key is
+    referenced by environment-variable NAME only."""
+    import requests
+    _clim, body, hsh = _clim_files(tmp_path)
+    secret_url_part = "proj-secret-host.example.invalid"
+    monkeypatch.setenv("SUPABASE_URL", f"https://{secret_url_part}")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "sb_secret_DO_NOT_PRINT")
+
+    class Rsp:
+        def __init__(self, code, content=b""):
+            self.status_code, self.content = code, content
+
+    def get_down(url, headers=None, timeout=None):
+        raise ConnectionError(f"could not reach {url} with {headers}")                 # an exception that WOULD leak if echoed
+    monkeypatch.setattr(requests, "get", get_down)
+    rc = G.main(["fetch-table", "--object", "calibration/x/t.json", "--hash", hsh, "--out", str(tmp_path / "o" / "t.json")])
+    out = capsys.readouterr()
+    assert rc == 1
+    for blob in (out.out, out.err):
+        assert secret_url_part not in blob and "sb_secret_DO_NOT_PRINT" not in blob and "storage/v1" not in blob
+    monkeypatch.setattr(requests, "get", lambda url, headers=None, timeout=None: Rsp(200, body + b"x"))      # a mismatch
+    rc = G.main(["fetch-table", "--object", "calibration/x/t.json", "--hash", hsh, "--out", str(tmp_path / "o" / "t.json")])
+    out = capsys.readouterr()
+    assert rc == 1 and secret_url_part not in out.out + out.err and "sb_secret_DO_NOT_PRINT" not in out.out + out.err
+    text = open(WF, encoding="utf-8").read()
+    assert "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" in text and "set -x" not in text
+    src = open(os.path.join(ROOT, "backend", "scripts", "wind_lr2_gust.py"), encoding="utf-8").read()
+    fetch_src = src[src.index("def fetch_object_main"):src.index("# ---------------------------------------------------------------------------------------------- the one-time build")]
+    assert "print(" in fetch_src and not any("url" in ln and "print(" in ln for ln in fetch_src.splitlines())   # no print mentions the URL
 
 
 def test_the_committed_hash_file_is_a_freeze_artifact(tmp_path):
