@@ -46,6 +46,7 @@ from services.weather_pipeline.nearshore_validation import (   # noqa: E402
     match, model_hs_at_station, model_hs_at_station_trains, mop_grid_hours, qc_filter, station_trains,
     transform_factors)
 from services.weather_pipeline.nwps_nearshore import attach_nwps  # noqa: E402
+from services import buoy_holdout  # noqa: E402  the LOCKED final buoy holdout (#1199)
 from services.weather_pipeline.ndbc_nearshore import load_ndbc_pairs  # noqa: E402
 from services.weather_pipeline.nearshore_validation import GRADED_MIN_STATION_HOURS, LEGACY_SHELF_CF_SCALE  # noqa: E402
 from services.weather_pipeline.surf_transform import shelf_dissipation  # noqa: E402
@@ -203,7 +204,8 @@ def main() -> int:
         print(f"WARNING: pair table is {age_d:.0f} days old — hard refusal at 90 "
               f"(rerun backend/scripts/build_nearshore_pairs.py)")
 
-    pairs = table["pairs"]
+    # LOCKED final holdout (#1199): a CDIP deployment "<id>p<n>" is named by its station id; fetch_station_hs gates too.
+    pairs = buoy_holdout.drop(table["pairs"], lambda p: str(p.get("station", "")).split("p")[0])
     if args.stations:
         want = {s.strip() for s in args.stations.split(",") if s.strip()}
         pairs = [p for p in pairs if p["station"] in want]

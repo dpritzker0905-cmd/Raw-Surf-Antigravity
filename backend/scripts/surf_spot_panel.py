@@ -23,6 +23,10 @@ import time
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from services import buoy_holdout  # noqa: E402  (the locked final buoy holdout, #1199)
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 NDBC_HOST = "www.ndbc.noaa.gov"
@@ -255,7 +259,7 @@ def run(base: str, now: datetime, get=None, sleep=time.sleep, panel=PANEL, clock
         meta["stopped"] = "backend not healthy before the run; no spot was read"
         return {"meta": meta, "rows": rows}
     try:
-        stations = parse_latest_obs(get(NDBC_LATEST)[1])
+        stations = buoy_holdout.drop(parse_latest_obs(get(NDBC_LATEST)[1]), "id")   # LOCKED holdout buoys never read
     except Exception:
         stations = []
     meta["buoys_in_feed"] = len(stations)

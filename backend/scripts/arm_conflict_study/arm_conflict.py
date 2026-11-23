@@ -9,8 +9,12 @@ Data: CDIP archives (stations + offshore buoys) and MOP v1.1 alongshore hindcast
 import json
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from services import buoy_holdout  # noqa: E402  (the locked final buoy holdout, #1199)
 
 S = os.environ.get("SEN_WORK_DIR", "sen_work/").rstrip("/") + "/"
 J = os.environ.get("JAC1_MOP_DIR", "jac1_mop_work/").rstrip("/") + "/"
@@ -34,8 +38,11 @@ def fetch_buoy(i):
     f = S + f"arm/npz/{i}.npz"
     if any(os.path.exists(d + f"{i}.npz") for d in NPZ):
         return True
+    url = f"https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/archive/{i}/{i}_historic.nc"
+    if not buoy_holdout.allow_url(url):              # a LOCKED holdout buoy is never fetched
+        return False
     try:
-        d = netCDF4.Dataset(f"https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/archive/{i}/{i}_historic.nc")
+        d = netCDF4.Dataset(url)
         t = np.asarray(d["waveTime"][:])
         i0, i1 = int(np.searchsorted(t, T0)), int(np.searchsorted(t, T1))
         np.savez(f, t=t[i0:i1], hs=np.ma.filled(d["waveHs"][i0:i1], np.nan), dp=np.ma.filled(d["waveDp"][i0:i1], np.nan),
@@ -113,6 +120,8 @@ def fit(r, dp):
 fits = {x["name"]: x for x in json.load(open(S + "ext/fit_all.json"))}
 out = []
 for st, spot, off in ANCHORS:
+    if not (buoy_holdout.keep(st[:-2]) and buoy_holdout.keep(off[:-2])):   # CDIP '103p1' -> station '103'
+        continue
     if not fetch_buoy(st):
         continue
     f = fits[spot]

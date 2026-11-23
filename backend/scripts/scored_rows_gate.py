@@ -43,6 +43,7 @@ from scripts import forecast_accuracy_monitor as monitor            # noqa: E402
 from services.weather_pipeline import forecast_skill as fs           # noqa: E402
 from services.weather_pipeline import scored_rows_analysis as sra    # noqa: E402
 from services.weather_pipeline import gate_v2_config                 # noqa: E402  GATES_V2 (default off)
+from services import buoy_holdout                                    # noqa: E402  LOCKED final holdout (#1199)
 
 DONE, BLIND = 0, 3
 DEFAULT_SINCE = "2026-10-03T00:00:00Z"      # the first monitor read with GFS_SCALAR rows
@@ -107,7 +108,7 @@ def load_rows(months, through, fetch=None):
         if got is None:
             raise Unreadable(month)
         read += len(got)
-        kept.extend(r for r in got if r.get("source") in sra.KEEP)
+        kept.extend(r for r in buoy_holdout.drop(got, "buoy_id") if r.get("source") in sra.KEEP)
     return read, kept
 
 

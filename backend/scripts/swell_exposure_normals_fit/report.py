@@ -1,5 +1,7 @@
+import sys; from pathlib import Path as _P; sys.path.insert(0, str(_P(__file__).resolve().parents[2]))
+from services import buoy_holdout  # noqa: E402  (#1199 LOCKED buoys: dropped at load)
 import json, numpy as np
-R=json.load(open('fit_all.json')); S=json.load(open('summary.json'))
+R=buoy_holdout.drop(json.load(open('fit_all.json')), 'buoy'); S=json.load(open('summary.json'))
 ok=[x for x in R if x['usable']]
 def pooled(rows,k):
     w=np.array([x['n_test'] for x in rows],float); return float(np.sum(w*np.array([x[k] for x in rows]))/w.sum())

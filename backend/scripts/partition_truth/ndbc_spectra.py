@@ -16,6 +16,8 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
+from services import buoy_holdout
+
 BASE = "https://www.ndbc.noaa.gov/data/realtime2/{sid}.{ext}"
 LATEST_OBS = "https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt"
 EXTS = ("data_spec", "swdir", "swr1", "txt")
@@ -29,7 +31,9 @@ def cache_dir() -> Path:
 
 
 def get(url: str, name: str, max_age_h: Optional[float] = None, pause_s: float = 0.5) -> Optional[bytes]:
-    """Cached GET. A cached file is reused unless max_age_h says it is stale. Returns None on 404."""
+    """Cached GET. A cached file is reused unless max_age_h says it is stale. Returns None on 404 or a LOCKED holdout buoy."""
+    if not buoy_holdout.allow_url(url):
+        return None
     path = cache_dir() / name
     if path.exists() and path.stat().st_size > 0 and (max_age_h is None or time.time() - path.stat().st_mtime < max_age_h * 3600):
         return path.read_bytes()
@@ -98,6 +102,8 @@ def parse_met(text: str) -> Dict[datetime, tuple]:
 
 def load_station(sid: str, max_age_h: float = 24.0) -> Optional[Dict]:
     """Aligned records for one station: {'times', 'freq', 'energy', 'a1', 'b1', 'wind': {time: (dir, speed)}} or None."""
+    if not buoy_holdout.keep(sid):
+        return None
     raw = {}
     for ext in EXTS:
         b = get(BASE.format(sid=sid, ext=ext), f"{sid}.{ext}", max_age_h=max_age_h)

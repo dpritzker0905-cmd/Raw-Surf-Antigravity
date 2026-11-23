@@ -61,6 +61,7 @@ def run(rows):
 
 def main():
     from scripts.forecast_accuracy_monitor import _fetch_scored_month
+    from services import buoy_holdout      # the LOCKED final buoy holdout (#1199)
     now = datetime.now(timezone.utc)
     through = (now + timedelta(days=1)).date()
     rows, m = [], datetime(2026, 8, 1, tzinfo=timezone.utc)
@@ -69,7 +70,7 @@ def main():
         if got is None:
             print("REFUSED: scored month %s could not be read (blind is not empty)" % f"{m:%Y-%m}")
             return 3
-        rows += got
+        rows += buoy_holdout.drop(got, "buoy_id")
         m = (m + timedelta(days=32)).replace(day=1)
     out, call = run(rows)
     print("\n".join(out))

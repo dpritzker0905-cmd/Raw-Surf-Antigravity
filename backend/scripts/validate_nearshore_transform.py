@@ -56,6 +56,7 @@ import os
 import re
 import statistics
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -69,6 +70,7 @@ except (AttributeError, ValueError):
     pass
 
 from services.weather_pipeline.surf_transform import shoaling_coefficient, wavenumber  # noqa: E402
+from services import buoy_holdout  # noqa: E402  (the locked final buoy holdout, #1199)
 
 THREDDS = "https://thredds.cdip.ucsd.edu/thredds"
 NCSS = f"{THREDDS}/ncss/point/cdip/archive"
@@ -88,6 +90,8 @@ MIN_SAMPLES = 200
 
 
 def _get(url, timeout=300):
+    if not buoy_holdout.allow_url(url):                # a LOCKED holdout buoy reads as a missing station (404)
+        raise urllib.error.HTTPError(url, 404, "locked holdout buoy", None, None)
     with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout) as r:
         return r.read().decode("utf-8", "replace")
 
@@ -444,7 +448,8 @@ def main(argv=None):
         ap.error("choose --discover, --measure, --directional, --shadow and/or --composed")
 
     out_dir = os.path.abspath(a.out)
-    pairs = _load_or_discover(out_dir, a.workers)
+    pairs = [p for p in _load_or_discover(out_dir, a.workers)
+             if buoy_holdout.keep(re.sub(r"p\d+$", "", p["near"])) and buoy_holdout.keep(re.sub(r"p\d+$", "", p["deep"]))]
     if a.limit:
         pairs = pairs[:a.limit]
     if a.discover:
