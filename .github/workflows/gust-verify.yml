@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'daily | backfill | score | calibrate (the pre-registered gust calibration on the stored record)'
+        description: 'daily | backfill | score'
         default: 'daily'
       start:
         description: 'backfill start YYYY-MM-DD (GFS and EURO only; ICON has no archive)'
@@ -46,7 +46,7 @@ jobs:
     if: ${{ (vars.GUST_VERIFY_COLLECT || '1') != '0' }}
     runs-on: ubuntu-latest
     environment: supabase-service
-    timeout-minutes: 300
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v5
       - name: Fetch the stored record (storage only, stdlib)
@@ -60,7 +60,7 @@ jobs:
           cache: pip
       - run: pip install -r backend/requirements.txt
       - name: Collect (no credential)
-        if: ${{ env.MODE != 'score' && env.MODE != 'calibrate' }}
+        if: ${{ env.MODE != 'score' }}
         working-directory: backend
         timeout-minutes: 120
         run: |
@@ -70,7 +70,7 @@ jobs:
             python scripts/gust_verify_collect.py daily --cache "$GV"
           fi
       - name: Upload new objects (storage only, stdlib, create-only)
-        if: ${{ always() && env.MODE != 'score' && env.MODE != 'calibrate' }}
+        if: ${{ always() && env.MODE != 'score' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -78,11 +78,6 @@ jobs:
       - name: Score the whole record (stdlib, no credential)
         if: ${{ always() }}
         run: python3 -I -S backend/scripts/gust_verify_score.py --dir "$GV" --out "$GV/score_report.json" --md "$GV/score_table.md"
-      - name: Calibrate out of sample (no credential; log 2026-11-23-claude-gust-calibration.md section 1)
-        if: ${{ env.MODE == 'calibrate' }}
-        working-directory: backend
-        timeout-minutes: 240
-        run: python scripts/gust_calibrate.py --dir "$GV" --workers 4 --out "$GV/calib_report.json" --md "$GV/calib_table.md"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -91,6 +86,4 @@ jobs:
             ${{ env.GV }}/collect_report_*.json
             ${{ env.GV }}/score_report.json
             ${{ env.GV }}/score_table.md
-            ${{ env.GV }}/calib_report.json
-            ${{ env.GV }}/calib_table.md
           if-no-files-found: ignore

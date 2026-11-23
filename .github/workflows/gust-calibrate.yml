@@ -9,11 +9,9 @@ name: Gust calibration out-of-sample score (keyless; public archives; serves not
 # cycles. The registered window is 00Z 2026-10-09 .. 11-21. A later rerun loses the oldest cycles' observations as realtime2 rolls,
 # and the report says so in its row counts.
 
+# HELD (director, 2026-11-23): workflow_dispatch ONLY, never on a pull request, and dispatched only on David's word in the director
+# session, after #1186 (the pre-registration) is gated and merged. A score taken before that would spoil the registration.
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/gust-calibrate.yml'
-      - 'backend/scripts/gust_calibrate.py'
   workflow_dispatch:
     inputs:
       start:
