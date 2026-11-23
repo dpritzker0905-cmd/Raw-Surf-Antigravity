@@ -85,7 +85,7 @@ Status of the sources: Consensus returned abstracts (three per search, free tier
 **Arms (all fitted on the calibration window only, scored on the test window):**
 - A0: best single member, chosen on the calibration window, per region and lead bin.
 - A1: equal weights (EW).
-- A2: inverse-MSE weights from the calibration window.
+- A2: covariance-aware weights from the calibration window: minimum-variance weights from the member error covariance matrix, estimated per region and lead bin on whole days, then shrunk to EW. Naive inverse-variance (inverse-MSE) weighting is **not** an arm: it ignores the shared-ancestry covariance (senior research lead, condition b).
 - A3: shrunk-to-EW weights (Blanc et al. 2020), shrinkage factor from a pre-registered rule.
 - A4: NGR-style Hs regression: bias-corrected linear combination of members with an intercept, shrunk to EW (Murphy et al. 2025; Jewson et al. 2026 for the RHP variant as a stretch arm).
 
@@ -93,6 +93,7 @@ Status of the sources: Consensus returned abstracts (three per search, free tier
 - C1, negative: shuffle buoy identity within region; A3 must not beat A1 by more than the bootstrap width.
 - C2, positive: plant +0.20 m bias on one member in the archive; A3 or A4 must reduce its weight or bias correct it, and the planted member's weight must fall.
 - C3, correlation: duplicate one member's frames as a fourth member; the consensus must not double its weight (A2 and A3 must give the duplicate the same weight as the original, within tolerance).
+- C5, stability: fit the weights on the first half and the second half of the calibration window separately; the weights must agree within a pre-registered tolerance, or the cell is reported unstable and not served.
 - C4, golden fixture: #1168's planted +0.20 m bias fixture, unchanged.
 
 **Bars (pass/fail, fixed before scoring):**
@@ -106,6 +107,13 @@ Status of the sources: Consensus returned abstracts (three per search, free tier
 **Failure rules:** if B1 or B2 fails in a cell, the consensus is not served in that cell. If C1, C2 or C3 fails, the gate is void, not a fail, and the design is fixed before rerun.
 
 **Served status:** consensus weighting is a served change. Under D-080 it would ship ON with a kill switch and a kill-switch test, after this gate passes and David gives the word to merge. This design does not merge or serve anything.
+
+**Conditions set by the senior research lead (binding, before any data; #1172 review):**
+- (a) Per-member records only. Arms A0–A4 are built from members at scoring time. A stored blend is never used as an input (#1168 §0.1).
+- (b) Correlated members: GFS, EURO and ICON share ancestry, so any weighted arm must model the error covariance or shrink to EW. Naive inverse-variance weighting is out (arm A2 above). Control C5 checks weight stability across halves.
+- (c) Tiers: Tier B (0.25° regional, where a box covers the buoy) is the primary score for spot-scale claims. Tier A (2° `global_mid`) is shown beside it. Tiers are never pooled.
+- (d) Period: consensus currently averages GFS's peak period with ICON and CMEMS energy periods (about 0.84×), until `COPERNICUS_PEAK_PERIOD` and `ICON_PEAK_PERIOD` ship (gate `peak-period-ship-v1`, #1194). Hs and direction are the primary scores. Period is scored per member only, or stratified by period definition. A consensus-period claim waits for those flags.
+- (e) Statistics and window: n ≥ 100 in #1168 is descriptive. B1–B6 use a block bootstrap that resamples whole runs and whole days. CDIP rows stay EXAM-only and are excluded from any fitted weight. The scoring window starts only after #1168's 14-day coverage acceptance passes.
 
 **Sample plan:** report n in every cell. Report "insufficient" where n < 100 pairs or < 30 independent days. Use #1168's scorer for the pairs. Expected coverage: the Q9 24–48 h bin is n = 0 today; #1168 targets n ≥ 100 by day 14, so the lead 24–48 h cell is first testable at about day 14 after collection.
 
