@@ -43,6 +43,8 @@ const EXTRA_FILES = ['../lib/weatherAuthFetch.js', '../lib/weatherSession.js', '
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // components/map/marineGridSeries.staleAnchorFallback.test.js (bug hunt 2026-11-22): series fallbacks skip other-anchor pages
+  '__RAW_DISABLE_SERIES_ANCHOR_GUARD__',
   // components/map/staticRatedMosaic.test.js and marineRatingBandRes.test.js (the rating band SOTA lane, 2026-11-15): the rated
   // mosaic, its neighbour prefetch, overscan and in-memory fast lane, and the coarse-rated cache skip
   '__RAW_DISABLE_RATED_MOSAIC__',
