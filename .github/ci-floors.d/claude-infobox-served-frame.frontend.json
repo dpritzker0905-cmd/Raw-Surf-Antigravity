@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 28,
+  "files": 2,
+  "branch": "claude/infobox-served-frame",
+  "date": "2026-11-23",
+  "note": "glyphTide.test.js (10) + ownFrameReadout.test.js (18): findings 9 and 10, dark"
+}

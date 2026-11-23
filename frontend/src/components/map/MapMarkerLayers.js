@@ -14,6 +14,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ContentMarker as Marker } from './ContentMarker';
 import { getHeightUnit, formatHeightFromMeters } from './heightUnits';
 import { getCachedTideState, ensureTideState, formatTideLine, trendArrow } from './tideClient';
+import { glyphTideOwnEnabled, glyphTideModel, glyphTideLine, requestGlyphTide } from './glyphTide';
 import { MapPersonContextCard, useExplorePinContext } from './MapPersonContext';
 import {
   UNVERIFIED_LOCATION_TEXT, UNVERIFIED_RING_STYLE, isLocationUnverified, withUnverifiedLocation,
@@ -97,6 +98,7 @@ var MapMarkerLayers = ({
   spotRatings = null,
   clusterRatings = null,
   exploreContextEnabled = null,
+  timeOffsetHours = 0,   // the scrubbed hour: the rated glyph's tide line (glyphTide.js, finding 9)
 }) => {
   useNoteForecastShown('map_markers');  // blind-quality exposure (observations/forecastExposure)
   const personContext = useExplorePinContext(exploreContextEnabled);
@@ -120,7 +122,9 @@ var MapMarkerLayers = ({
   // Client-side tide FALLBACK (tideClient.js): a version bump re-renders after a hover's fetch
   // resolves, so the card's tide line pops in even before the baked payload carries tide.
   const [, setTideFetchVersion] = useState(0);
+  const ownTide = glyphTideOwnEnabled();
   const requestFallbackTide = (lat, lng) => {
+    if (ownTide) { requestGlyphTide(lat, lng).then(() => setTideFetchVersion((v) => v + 1)); return; }   // our table, never Open-Meteo
     if (typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_FALLBACK__) return;
     if (getCachedTideState(lat, lng) !== undefined) return;
     ensureTideState(lat, lng).then(() => setTideFetchVersion((v) => v + 1));
@@ -178,11 +182,13 @@ var MapMarkerLayers = ({
         // Tide for the card + aria label — RIDES THE RATING TOGGLE (`rating` exists only in Rating
         // mode): baked payload first (authoritative — it shaped the score), else the client-side
         // fallback cell (display-only). Null when Rating is off / no data yet.
-        const tideState = rating
+        // ONE TIDE PER GLYPH (DARK, glyphTide.js): with the flag the card's tide is the overlay marker's, at the scrubbed hour.
+        const ownTideModel = rating && ownTide ? glyphTideModel(lat, lng, timeOffsetHours, heightUnit, cluster.name) : null;
+        const tideState = ownTide ? (ownTideModel ? { height_m: ownTideModel.height_m, trend: ownTideModel.trend } : null) : rating
           ? (rating.tide || (typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_FALLBACK__
               ? null : getCachedTideState(lat, lng)) || null)
           : null;
-        const tideLine = tideState ? formatTideLine(tideState, heightUnit) : null;
+        const tideLine = ownTide ? glyphTideLine(ownTideModel) : (tideState ? formatTideLine(tideState, heightUnit) : null);
         // A spot whose position nobody has verified: hollow pin, dashed ring, and the words (unverifiedLocation.js).
         const unverified = isLocationUnverified(cluster);
         return (
@@ -202,9 +208,9 @@ var MapMarkerLayers = ({
               style={{ position: 'relative', width: 32, height: 32 }}
               aria-label={withUnverifiedLocation(spotGlyphAriaLabel(cluster, rating, tideLine, heightUnit), unverified)}
               data-location-unverified={unverified ? 'true' : undefined}
-              onMouseEnter={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}
+              onMouseEnter={() => { setHoveredSpotId(cluster.id); if (rating && (ownTide || !rating.tide)) requestFallbackTide(lat, lng); }}
               onMouseLeave={() => setHoveredSpotId(null)}
-              onFocus={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}
+              onFocus={() => { setHoveredSpotId(cluster.id); if (rating && (ownTide || !rating.tide)) requestFallbackTide(lat, lng); }}
               onBlur={() => setHoveredSpotId(null)}
               onContextMenuCapture={exploreContextEnabled == null ? undefined : event => {
                 event.preventDefault(); event.stopPropagation(); onSpotClick?.(cluster.spot);
@@ -457,4 +463,14 @@ var MapMarkerLayers = ({
 // unchanged props. Shallow-compare skips it; when any prop identity changes (clusters,
 // photographers, filters, callbacks) it renders exactly as before — memo with occasionally-
 // unstable props degrades to the old behavior, never past it.
-export default React.memo(MapMarkerLayers);
+// The scrubbed hour reaches only the rated glyph's tide line (Surf Rating on): outside that mode a scrub step must not re-render
+// this marker subtree (in rating mode the per-hour ratings already re-render it every step).
+export function sameMarkerProps(a, b) {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    if (k === 'timeOffsetHours' && !b.surfMode) continue;
+    if (a[k] !== b[k]) return false;
+  }
+  return true;
+}
+export default React.memo(MapMarkerLayers, sameMarkerProps);
