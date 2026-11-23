@@ -367,6 +367,75 @@ def power_note(fit_rows, arms: Sequence[str] = S.CAL_ARMS, n_blocks: int = POWER
     return out
 
 
+# ---------------------------------------------------------------------------------------------- the verified loader
+class ClimGustRefused(Exception):
+    """The CLIM_GUST table could not be verified against the committed hash. Fail closed: there is no fallback table."""
+
+
+def read_committed_hash(hash_path: str) -> str:
+    """The sha256 recorded in the committed `wind_lr2_clim_gust.json.sha256` ("<64 hex>  <name>"). Missing, unreadable or
+    malformed -> refuse."""
+    try:
+        text = open(hash_path, encoding="utf-8").read()
+    except OSError as e:
+        raise ClimGustRefused(f"committed hash file unreadable: {hash_path} ({type(e).__name__})") from None
+    parts = text.split()
+    if not parts or len(parts[0]) != 64 or any(c not in "0123456789abcdef" for c in parts[0]):
+        raise ClimGustRefused(f"committed hash file malformed: {hash_path}")
+    return parts[0]
+
+
+def _from_table(table: dict) -> "ClimGust":
+    acc: Dict[str, Dict[Tuple[int, int], List[float]]] = {}
+    for sid, cells in table.items():
+        a = acc.setdefault(str(sid), {})
+        for key, (total, n) in cells.items():
+            doy, hour = key.split("-")
+            a[(int(doy), int(hour))] = [float(total), int(n)]
+    return ClimGust(acc)
+
+
+def load_clim_gust(table_path: str, hash_path: str) -> "ClimGust":
+    """Load the CLIM_GUST table ONLY if its bytes hash to the committed sha256 AND the parsed table re-serialises to the same
+    hash. Any mismatch, missing file or parse failure refuses; the scorer never continues without it."""
+    want = read_committed_hash(hash_path)
+    try:
+        body = open(table_path, "rb").read()
+    except OSError as e:
+        raise ClimGustRefused(f"CLIM_GUST table unreadable: {table_path} ({type(e).__name__})") from None
+    got = hashlib.sha256(body).hexdigest()
+    if got != want:
+        raise ClimGustRefused(f"CLIM_GUST table sha256 {got} != committed {want}")
+    try:
+        clim = _from_table(json.loads(body))
+    except (ValueError, TypeError, KeyError) as e:
+        raise ClimGustRefused(f"CLIM_GUST table does not parse ({type(e).__name__})") from None
+    if clim.sha256() != want:
+        raise ClimGustRefused("CLIM_GUST table is not in canonical form (re-serialised hash differs)")
+    return clim
+
+
+def fetch_table(url: str, dest: str, get: Optional[Callable] = None, timeout: int = 300) -> str:
+    """Download the table from the bucket URL to `dest` (no trust placed in it: `load_clim_gust` verifies). Any failure refuses."""
+    if get is None:
+        import requests
+        get = requests.get
+    try:
+        r = get(url, timeout=timeout)
+        if r.status_code != 200:
+            raise ClimGustRefused(f"CLIM_GUST table download HTTP {r.status_code}")
+        open(dest, "wb").write(r.content)
+    except ClimGustRefused:
+        raise
+    except Exception as e:  # noqa: BLE001 - the body may echo request details: only the type is reported
+        raise ClimGustRefused(f"CLIM_GUST table download failed ({type(e).__name__})") from None
+    return dest
+
+
+def fetch_and_load(url: str, hash_path: str, dest: str, get: Optional[Callable] = None) -> "ClimGust":
+    return load_clim_gust(fetch_table(url, dest, get), hash_path)
+
+
 # ---------------------------------------------------------------------------------------------- the one-time build (CLI)
 def build_clim_gust(stations: Sequence[dict], year_reader: Callable[[str, int], dict], convert: Callable,
                     years: Tuple[int, int] = CLIM_YEARS) -> Tuple["ClimGust", dict]:
