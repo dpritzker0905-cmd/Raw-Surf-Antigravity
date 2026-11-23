@@ -20,6 +20,8 @@ import os
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
+from services import buoy_holdout
+
 NDBC_RT = "https://www.ndbc.noaa.gov/data/realtime2"
 NDBC_PREFIX = "ndbc:"
 NDBC_PAIRS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -65,7 +67,10 @@ def parse_ndbc_wvht(text: str, hours: float, now: datetime) -> list:
 def fetch_ndbc_hs(station: str, hours: float = 26.0, timeout: float = 60.0) -> list:
     """Recent Hs at an `ndbc:<id>` station. Failures raise (an HTTP 404 is a dead station, as for CDIP)."""
     sid = station[len(NDBC_PREFIX):] if is_ndbc(station) else station
-    req = urllib.request.Request(f"{NDBC_RT}/{sid}.txt", headers=UA)
+    url = f"{NDBC_RT}/{sid}.txt"
+    if not buoy_holdout.allow_url(url):          # a LOCKED final-holdout buoy (#1199) reads as no recent data
+        return []
+    req = urllib.request.Request(url, headers=UA)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         txt = r.read().decode("utf-8", "replace")
     return parse_ndbc_wvht(txt, hours, datetime.now(timezone.utc))
@@ -78,4 +83,5 @@ def load_ndbc_pairs(path: str = None) -> list:
             pairs = json.load(f).get("pairs") or []
     except (OSError, ValueError):
         return []
-    return [p for p in pairs if is_ndbc(p.get("station", ""))]
+    return buoy_holdout.drop([p for p in pairs if is_ndbc(p.get("station", ""))],
+                             lambda p: p["station"][len(NDBC_PREFIX):])      # LOCKED final holdout (#1199)

@@ -26,6 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from services import buoy_holdout  # noqa: E402
 from services.point_archive import qc  # noqa: E402
 
 UA = "raw-surf-served-wave-verify/1 (offline buoy probe)"
@@ -39,6 +40,8 @@ _NAME = re.compile(r"<h1[^>]*>\s*Station\s+\S+\s*(?:&#8209;|-|&ndash;)?\s*([^<]*
 def _get(url, opener):
     if not url.startswith(f"https://{qc.NDBC_HOST}/"):
         raise ValueError(url)
+    if not buoy_holdout.allow_url(url):          # #1199 LOCKED: a probe after the freeze never reads a locked buoy
+        return None
     return opener(url)
 
 

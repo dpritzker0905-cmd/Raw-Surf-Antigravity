@@ -1,11 +1,15 @@
 """Direction control for NDBC 41009: the mean direction rebuilt from our moments vs NDBC's own MWD (stdmet), per block.
 Run with the spectra venv after fetch_spectra.py. Prints the median |difference| for history years and realtime."""
 import gzip
+import sys
 from datetime import datetime, timezone
 
 import numpy as np
 
-from config import CACHE
+from config import CACHE, buoy_holdout
+
+if not buoy_holdout.keep('41009'):              # the LOCKED final buoy holdout (#1199): never read
+    sys.exit(buoy_holdout.redact('REFUSED: 41009 is a locked holdout buoy'))
 
 d = np.load(CACHE / '41009.npz')
 e = np.nan_to_num(d['energy'])

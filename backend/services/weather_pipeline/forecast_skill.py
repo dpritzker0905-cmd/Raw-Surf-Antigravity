@@ -27,7 +27,7 @@ import os
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
-
+from services import buoy_holdout   # the LOCKED final buoy holdout (#1199): archived, never summarised or fitted
 from services.weather_pipeline import skill_scored_archive as archive_keys
 
 logger = logging.getLogger(__name__)
@@ -710,7 +710,7 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
         upload_calibration_l2(store, rows, key, strict=True, overwrite=exists)
     upload_calibration_l2(store, still, SKILL_PENDING_L2_KEY,
                           strict=True, overwrite=pending_exists)
-    summary = skill_summary(scored)
+    summary = skill_summary(buoy_holdout.drop(scored, "buoy_id"))      # the archive above keeps every row
     # ⚠️ The `ledgered=%d scored=%d` prefix is an operator surface: it is the string the Actions-log
     # grep dated the 08-04 outage with. Append fields, never reorder it.
     logger.info("[forecast-skill] ledgered=%d scored=%d pending=%d evicted_cap=%d invalid_forecasts=%d invalid_observations=%d %s",
@@ -772,7 +772,7 @@ def mos_history_rows(now: datetime, archives, load_rows) -> List[dict]:
     rows: List[dict] = []
     for month in (prev, now):
         rows.extend(archive_keys.read_month(f"{month:%Y-%m}", through, load_rows, override=written)[0])
-    return rows
+    return buoy_holdout.drop(rows, "buoy_id")      # read_month already drops; kept here so the fence sits at the fit
 
 
 def attach_to_report(report, skill) -> None:

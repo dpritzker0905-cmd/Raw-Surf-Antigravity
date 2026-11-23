@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 7,
+  "files": 1,
+  "branch": "claude/locked-holdout-fence",
+  "date": "2026-11-23",
+  "note": "#1199 LOCKED fence: tests/test_buoy_holdout_consumers.py (runtime canaries)"
+}

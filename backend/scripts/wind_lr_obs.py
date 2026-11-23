@@ -29,6 +29,7 @@ try:
 except ImportError:  # run by path from backend/scripts
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from services.weather_pipeline import surf_rating as SR
+from services import buoy_holdout  # noqa: E402 - the locked-holdout fence (stdlib)
 ASOS_CAP = 60
 # Amendment 2: coverage is measured where NDBC truth exists for the TEST half (realtime2 from 10-02; Sep unpublished)
 COVER = (datetime(2026, 10, 2, tzinfo=timezone.utc), datetime(2026, 11, 14, tzinfo=timezone.utc))
@@ -130,6 +131,8 @@ def parse_ndbc_stdmet(text: str) -> Dict[datetime, Tuple[float, float, float]]:
 
 
 def ndbc_year(s, cache, sid, year) -> Dict[datetime, Tuple[float, float, float]]:
+    if buoy_holdout.is_locked(sid):
+        return {}                                       # a LOCKED buoy is neither fetched nor read
     path = os.path.join(cache, "ndbc", f"{sid}h{year}.txt")
     if not os.path.exists(path):
         r = _get(s, f"{NDBC}/data/historical/stdmet/{sid.lower()}h{year}.txt.gz", tries=3)
@@ -146,6 +149,8 @@ def ndbc_window(s, cache, sid, months=((2026, 9),)) -> Dict[datetime, Tuple[floa
     """2026 window truth (amendment 2): the NDBC monthly stdmet file of each listed month IF published, plus the
     `realtime2` snapshot (45 days). Both are cached on first read; the stations job keeps the cache as its artifact
     so a later score reads the SAME records after realtime2 rolls on."""
+    if buoy_holdout.is_locked(sid):
+        return {}                                       # a LOCKED buoy is neither fetched nor read
     out: Dict[datetime, Tuple[float, float, float]] = {}
     for y, m in months:
         path = os.path.join(cache, "ndbc", f"{sid}_{y}{m:02d}.txt")

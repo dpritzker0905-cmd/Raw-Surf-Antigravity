@@ -1,0 +1,160 @@
+"""services/buoy_holdout.py, the ONE fence around #1199's LOCKED buoys (amendment 3 of served-wave-verify-v1).
+
+Pinned: no list recorded = a strict no-op; a verified list locks its ids AND their aliases; a recorded list that does not
+verify QUARANTINES the whole pool (fail closed, no second source trusted, nothing raised); allow_url refuses every URL shape
+that names a locked station; drop and redact; the strict served-wave wrapper verifies through the same code."""
+import hashlib
+import json
+
+import pytest
+
+from services import buoy_holdout as bh
+from services.point_archive import holdout as strict
+
+STATIONS = [{"id": "46025", "wmo_id": "46025"}, {"id": "41004", "wmo_id": "41004"}, {"id": "SYN99", "wmo_id": "99001"},
+            {"id": "100", "wmo_id": "46225"},
+            {"id": "51201", "wmo_id": "51201", "source": "cdip", "name": "Waimea Bay, HI (106)"}]
+
+
+def _root(tmp_path, locked=None, tags=None, sha=None, write_list=True):
+    doc = {"version": "t/2", "holdout": {"locked_list": None},
+           "stations": [{**s, "locked": None} for s in STATIONS]}
+    if locked is not None:
+        raw = (json.dumps({"seed": 1199, "locked": locked}) + "\n").encode("utf-8")
+        p = tmp_path / "docs/weather-program/gates/served-wave-skill-v1-locked.json"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        if write_list:
+            p.write_bytes(raw)
+        doc["holdout"]["locked_list"] = {"path": "docs/weather-program/gates/served-wave-skill-v1-locked.json",
+                                         "sha256": sha or hashlib.sha256(raw).hexdigest()}
+        for s in doc["stations"]:
+            s["locked"] = (tags or {}).get(s["id"], s["id"] in locked)
+    elif tags:
+        for s in doc["stations"]:
+            s["locked"] = tags.get(s["id"])
+    p = tmp_path / bh.BUOY_LIST
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(doc), encoding="utf-8")
+    return doc
+
+
+@pytest.fixture
+def root(tmp_path, monkeypatch):
+    monkeypatch.setenv(bh.ENV_ROOT, str(tmp_path))
+    bh.reset_cache()
+    yield tmp_path
+    bh.reset_cache()
+
+
+def test_cdip_buoys_are_locked_by_their_cdip_number_too(root):
+    _root(root, locked=["51201"])
+    assert bh.locked() == {"51201", "106"}
+    assert bh.is_locked("106") and bh.is_locked("106p1") and bh.is_locked("51201")
+    assert not bh.allow_url("https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/archive/106p1/106p1_historic.nc")
+    assert not bh.allow_url("https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/realtime/106p1_rt.nc.ascii?waveHs")
+    assert bh.allow_url("https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/realtime/1061p1_rt.nc")
+    committed = json.loads((bh.REPO_ROOT / bh.BUOY_LIST).read_text(encoding="utf-8"))
+    cdip = [s for s in committed["stations"] if s["source"] == "cdip"]
+    assert cdip and all(len(bh._aliases(s)) == 2 and any(len(a) == 3 for a in bh._aliases(s)) for s in cdip), \
+        "every committed CDIP buoy must carry its CDIP number as an alias"
+
+
+def test_committed_record_is_a_no_op_today():
+    bh.reset_cache()
+    st = bh.state()
+    assert st["status"] == "none" and bh.locked() == frozenset()
+    assert bh.allow_url("https://www.ndbc.noaa.gov/data/realtime2/46025.txt")
+    rows = [{"station_id": "46025"}, {"station_id": "41004"}]
+    assert bh.drop(rows) == rows and bh.redact("46025 41004") == "46025 41004"
+
+
+def test_unrecorded_list_is_a_no_op(root):
+    _root(root)
+    assert bh.state()["status"] == "none"
+    assert all(bh.keep(s["id"]) for s in STATIONS)
+
+
+def test_verified_list_locks_ids_and_aliases(root):
+    _root(root, locked=["SYN99", "100"])
+    st = bh.state()
+    assert st["status"] == "verified" and len(st["sha256"]) == 64
+    assert st["locked"] == {"SYN99", "99001", "100", "46225"}
+    assert bh.is_locked("syn99") and bh.is_locked("99001") and bh.is_locked("46225")
+    assert bh.keep("46025") and bh.keep("41004")
+    rows = [{"station_id": s["id"]} for s in STATIONS]
+    assert [r["station_id"] for r in bh.drop(rows)] == ["46025", "41004", "51201"]
+    assert [x for x in bh.drop(["46025", "100"], key=lambda r: r)] == ["46025"]
+    assert bh.redact("ok 46025, bad SYN99 and 46225; 461001 stays") == "ok 46025, bad <locked> and <locked>; 461001 stays"
+
+
+@pytest.mark.parametrize("url,ok", [
+    ("https://www.ndbc.noaa.gov/data/realtime2/46225.txt", False),
+    ("https://www.ndbc.noaa.gov/data/realtime2/46225.spec", False),
+    ("https://www.ndbc.noaa.gov/view_text_file.php?filename=46225h2025.txt.gz&dir=data/historical/stdmet/", False),
+    ("https://www.ndbc.noaa.gov/station_page.php?station=46225", False),
+    ("https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/realtime/100p1_rt.nc.ascii?waveHs", False),
+    ("https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/archive/100p1/100p1_historic.nc", False),
+    ("https://www.ndbc.noaa.gov/data/realtime2/46025.txt", True),
+    ("https://www.ndbc.noaa.gov/data/realtime2/146225.txt", True),     # a longer id is not the locked one
+    ("https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/realtime/1001p1_rt.nc", True),
+])
+def test_allow_url_refuses_every_shape_naming_a_locked_station(root, url, ok):
+    _root(root, locked=["100"])
+    assert bh.allow_url(url) is ok
+
+
+@pytest.mark.parametrize("case", ["hash", "missing", "tags_disagree", "unknown_id", "tags_without_list"])
+def test_a_recorded_list_that_does_not_verify_quarantines_the_whole_pool(root, capsys, case):
+    if case == "hash":
+        _root(root, locked=["SYN99"], sha="0" * 64)
+    elif case == "missing":
+        _root(root, locked=["SYN99"], write_list=False)
+    elif case == "tags_disagree":
+        _root(root, locked=["SYN99"], tags={"46025": True})
+    elif case == "unknown_id":
+        _root(root, locked=["NOPE1"])
+    else:
+        _root(root, tags={"46025": True})
+    st = bh.state()
+    assert st["status"] == "quarantine", st
+    for s in STATIONS:                                   # every listed buoy and alias is treated as locked: fail closed
+        assert bh.is_locked(s["id"]) and bh.is_locked(s["wmo_id"])
+    assert not bh.allow_url("https://www.ndbc.noaa.gov/data/realtime2/46025.txt")
+    assert bh.drop([{"station_id": "41004"}]) == []
+    assert "QUARANTINE" in capsys.readouterr().err
+
+
+def test_unreadable_list_locks_everything(root):
+    p = root / bh.BUOY_LIST
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text("{not json", encoding="utf-8")
+    assert bh.state()["status"] == "quarantine"
+    assert bh.is_locked("ANYTHING") and not bh.allow_url("https://www.ndbc.noaa.gov/data/realtime2/12345.txt")
+    # no id is known to be safe, so every buoy-shaped token is redacted (LongCat review 2026-11-23)
+    assert bh.redact("46025, KIKH1, 106p1 and 100 failed; ERROR at row") == \
+        "<locked>, <locked>, <locked> and <locked> failed; ERROR at row"
+
+
+@pytest.mark.parametrize("bad", ["../outside.json", "/etc/passwd", "C:/Windows/win.ini",
+                                 "docs/../../outside.json"])
+def test_a_locked_list_path_outside_the_repo_quarantines(root, bad):
+    _root(root, locked=["SYN99"])
+    doc = json.loads((root / bh.BUOY_LIST).read_text(encoding="utf-8"))
+    doc["holdout"]["locked_list"]["path"] = bad
+    (root / bh.BUOY_LIST).write_text(json.dumps(doc), encoding="utf-8")
+    st = bh.state()
+    assert st["status"] == "quarantine" and "inside the repository" in st["reason"]
+
+
+def test_strict_scorer_wrapper_uses_the_same_verification(root):
+    doc = _root(root, locked=["SYN99"])
+    status, info = strict.state(doc, root)
+    assert status == strict.READY and info["locked"] == {"SYN99"}
+    bad = _root(root, locked=["SYN99"], sha="f" * 64)
+    status, info = strict.state(bad, root)
+    assert status == strict.NOT_READ and info["error"] is True
+    assert strict.HoldoutError is bh.HoldoutError
+
+
+def test_collectors_are_declared_not_silent():
+    assert bh.declare_collector("x.y", "archives raw truth") == "archives raw truth"

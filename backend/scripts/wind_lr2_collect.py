@@ -24,6 +24,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import wind_lr2_runs as R  # noqa: E402
+from services import buoy_holdout  # noqa: E402
+
+buoy_holdout.declare_collector(__name__, "archives AIGEFS/GEFS/IFS members and weekly realtime2 snapshots at every frozen station")
 
 AIGEFS_BASE = "https://noaa-nws-graphcastgfs-pds.s3.amazonaws.com"
 GEFS_BASE = "https://noaa-gefs-pds.s3.amazonaws.com"

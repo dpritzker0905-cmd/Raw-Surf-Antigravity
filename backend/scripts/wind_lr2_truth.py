@@ -8,10 +8,14 @@ Serves nothing; the parsing is `wind_lr_obs`'s, imported, not copied.
 import glob
 import math
 import os
+import sys
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 import wind_lr_obs as obs
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from services import buoy_holdout  # noqa: E402
 
 Rec = Tuple[float, float, float]            # (wspd, gust, wdir) at station height
 Truth = Dict[datetime, Rec]
@@ -29,6 +33,8 @@ def fit_truth(s, cache: str, sid: str, start: datetime, end: datetime,
               year_reader: Callable = obs.ndbc_year, month_reader: Optional[Callable] = None) -> Tuple[Truth, Dict[str, int]]:
     """NDBC FIT truth for [start, end]: annual stdmet for each completed calendar year touched, the monthly stdmet files
     for months of the current/unfinished year. Returns (records, {source: n}). realtime2 is never read here."""
+    if buoy_holdout.is_locked(sid):                         # a LOCKED buoy: no truth is read (the locked-holdout fence)
+        return {}, {"annual": 0, "monthly": 0}
     month_reader = month_reader or (lambda s_, c_, sid_, y_, m_: obs.ndbc_window(s_, c_, sid_, months=((y_, m_),)))
     now_year = datetime.now(timezone.utc).year
     out: Truth = {}
@@ -68,6 +74,8 @@ def load_snapshots(snap_dir: str, sid: str) -> Truth:
     """Merge every snapshot for one station. Snapshots overlap by design (45-day window, weekly); the same record is
     read the same way in each, and the EARLIEST snapshot that holds a record wins (what was seen first)."""
     out: Truth = {}
+    if buoy_holdout.is_locked(sid):                         # archived by save_snapshot, never read before the window
+        return out
     for p in sorted(glob.glob(os.path.join(snap_dir, "*", f"{sid.upper()}.txt"))):
         for t, r in obs.parse_ndbc_stdmet(open(p, encoding="utf-8").read()).items():
             out.setdefault(t, r)

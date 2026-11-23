@@ -73,6 +73,7 @@ except ImportError:
     from scripts._service_auth import service_headers
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from services import buoy_holdout   # noqa: E402  the LOCKED final buoy holdout (#1199): dropped at every archive load
 
 OK, RED, REFUSED = 0, 1, 3
 
@@ -698,7 +699,7 @@ def _fetch_scored_month(month, through):
         rows, exists = read_month(month, through, load)
     except _Unreadable:
         return None
-    return rows if exists or segmented(month) else None
+    return buoy_holdout.drop(rows, "buoy_id") if exists or segmented(month) else None
 
 
 def main():
@@ -761,7 +762,8 @@ def main():
             print("big-swell by coast: NOT AVAILABLE (table failed: %s)" % type(e).__name__)
 
     if has_creds:
-        rc, rl = evaluate_residual_history(_fetch_l2("calibration/history/residuals-%s.json" % month), now)
+        hist = _fetch_l2("calibration/history/residuals-%s.json" % month)
+        rc, rl = evaluate_residual_history(None if hist is None else buoy_holdout.drop(hist, "buoy_id"), now)
         print("\n".join(rl))
         code = combine(code, rc)
         through = (now + timedelta(days=1)).date()       # scoring tolerance lets a row's target sit past `now`
