@@ -151,6 +151,15 @@ describe('dark field parity (2026-11-22: dark gusts drew ~2x the wind field\'s c
     expect(g.gradientCSS).toContain(`rgba(${Math.round(first[1] * 255)},${Math.round(first[2] * 255)},${Math.round(first[3] * 255)},`);
   });
 
+  test('the particle pass gets the field opacity in gust mode too (it was declared inside the skipped wind field pass)', () => {
+    const engine = require('fs').readFileSync(require('path').join(__dirname, 'WebGLWindEngine.js'), 'utf8');
+    const decl = engine.indexOf('var heatmapOpacity = ');
+    expect(decl).toBeGreaterThan(0);
+    expect(engine.indexOf('var heatmapOpacity = ', decl + 1)).toBe(-1);                       // one declaration
+    expect(decl).toBeLessThan(engine.indexOf('if (!gustColourActive(this)) {'));               // before the pass gust mode skips
+    expect(engine.indexOf("'u_field_opacity'), heatmapOpacity")).toBeGreaterThan(decl);
+  });
+
   test('the gust layer is wired to draw at that opacity, decided with the LUT', () => {
     const src = require('fs').readFileSync(require('path').join(__dirname, 'useOwnRasterFrames.js'), 'utf8');
     expect(src).toMatch(/gustDarkFieldOn\(theme\) \? gustFieldOpacity\(theme, 2, \(\) => 0, \{\}\) : null/);

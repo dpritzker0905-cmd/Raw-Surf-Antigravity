@@ -198,7 +198,13 @@ if (!args.includes('--no-gusts')) {
     out.gusts[theme] = {};
     for (const [surf, g0] of Object.entries(surfaces)) {
       const g = (theme === 'dark' ? g0 : groundOf(theme, surf, g0)).map((x) => x / 255);
-      let worst = { de: 0 }, band = { de: 0 };
+      // THE PARTICLES (2026-11-22): a gust mark of N kn takes the marks' own row at N kn (resolveDrawnMarks: dark's rules / the white
+      // streak by ground in light and beach, dark's legend row in dark), laid by the engine's law (the colour at full light at alpha^2,
+      // the white streak's strength by ground, D-022), over the GUST field; a wind mark of N kn the same row over the WIND field.
+      const KM = resolveDrawnMarks(theme, LEVERS), Kp = huePathStops(KM[surf === 'water' ? 'water' : 'land'] || resolveThemeRamp(theme), LEVERS);
+      const markW = windWhiteStreakOn(theme, LEVERS) ? WHITE_STREAK.opacity * windWhiteStrength(theme, winOf(theme))[surf === 'water' ? 'sea' : 'land'] : (windDarkRulesOn(theme, LEVERS) ? DARK_RULES.opacity : 1);
+      const lay = (k, T) => { const w = k[3] * k[3] * markW; return T.map((x, j) => k[j] * w + x * (1 - w)); };
+      let worst = { de: 0 }, band = { de: 0 }, mark = { de: 0 }, lift = { d: 0 };
       for (const z of [3, 5, 8]) for (let kn = 0; kn <= 75; kn += 0.5) {
         const c = sample(F, kn), a = law(kn), l = lutAt(kn);
         let wind, gust;
@@ -213,9 +219,16 @@ if (!args.includes('--no-gusts')) {
         }
         const r = { de: de(wind, gust), kn, z, wind: wind.map((x) => Math.round(x * 255)), gust: gust.map((x) => Math.round(x * 255)) };
         if (theme === 'light' && kn > 40) { if (r.de > band.de) band = r; } else if (r.de > worst.de) worst = r;
+        if (!(theme === 'light' && kn > 40)) {
+          const k = sample(Kp, kn), mw = lay(k, wind), mg = lay(k, gust), dm = de(mw, mg), dl = Math.abs((L(mg) - L(gust)) - (L(mw) - L(wind)));
+          if (dm > mark.de) mark = { de: dm, kn, z, wind: mw.map((x) => Math.round(x * 255)), gust: mg.map((x) => Math.round(x * 255)) };
+          if (dl > lift.d) lift = { d: dl, kn, z, windLift: L(mw) - L(wind), gustLift: L(mg) - L(gust) };
+        }
       }
-      out.gusts[theme][surf] = { worst, ...(band.kn ? { fastBand: band } : {}) };
+      out.gusts[theme][surf] = { worst, mark, lift, ...(band.kn ? { fastBand: band } : {}) };
       console.log(`[${flag(worst.de > 1.0, worst.de > 0.5)}] ${theme} ${surf}: gust vs wind composite, largest gap ${worst.de.toFixed(2)} dE00 at ${worst.kn} kn z${worst.z} (wind ${worst.wind} / gust ${worst.gust}; target <= 1.0)`);
+      console.log(`[${flag(mark.de > 1.0, mark.de > 0.5)}] ${theme} ${surf}: gust MARK vs wind mark (core over its field), largest gap ${mark.de.toFixed(2)} dE00 at ${mark.kn} kn z${mark.z} (target <= 1.0)`);
+      console.log(`[${flag(lift.d > 1.0, lift.d > 0.5)}] ${theme} ${surf}: a mark's lift off its field, gust vs wind, differs by at most ${lift.d.toFixed(2)} L* (${lift.kn} kn z${lift.z}: wind ${lift.windLift.toFixed(1)} / gust ${lift.gustLift.toFixed(1)}; target <= 1.0)`);
       if (band.kn) console.log(`[${flag(false, false)}] ${theme} ${surf}: above 40 kn the gentler fast band (by design) differs by up to ${band.de.toFixed(1)} dE00 (${band.kn} kn)`);
     }
   }
