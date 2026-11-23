@@ -12,6 +12,8 @@
 // model in it: (white - black) = 1 - a_dst (how much map is left), black = c k (how much colour is laid). Fit k against a and a^2.
 // It repeats the read over dark's water and land grounds, and with the canvas-alpha kill (__RAW_DISABLE_WIND_OPAQUE_CANVAS__: one
 // blendFunc for colour and alpha) to show that path moves the canvas's ALPHA only, never the colour.
+// THE FIX (windDarkFieldVivid.js, 2026-11-22): the engine now blends dark's field by windFieldSrcFactor (ONE for dark), so the
+// default path is read as 'vivid' too, with the factor taken from the app's own module; 'opaque' is that module's kill (SRC_ALPHA).
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -41,6 +43,9 @@ const { BEACH_PATH, beachPathRows } = new Function(source(path.join(MAPDIR, 'win
 const { generateRampData, resolveDrawnField } = new Function('DARK_RULES', 'DARK_WHITE', 'solveDarkRules', 'windLandWhite', 'setWindLandDepthGate', 'BEACH_PATH', 'beachPathRows', 'LIGHT_PATH', 'lightTables',
   source(path.join(MAPDIR, 'WindColorRamp.js')) + '; return { generateRampData, resolveDrawnField };')(DARK_RULES, DARK_WHITE, solveDarkRules, windLandWhite, setWindLandDepthGate, BEACH_PATH, beachPathRows, LIGHT_PATH, lightTables);
 const MAX = 50, LUT = Array.from(generateRampData(MAX, resolveDrawnField('dark', {}), null, {}));
+const { windFieldSrcFactor } = new Function(source(path.join(MAPDIR, 'windDarkFieldVivid.js')) + '; return { windFieldSrcFactor };')();
+const SRC_ONE = windFieldSrcFactor({ ONE: 'ONE', SRC_ALPHA: 'SRC_ALPHA' }, 'dark', {});   // the factor the engine passes for dark (default)
+if (SRC_ONE !== 'ONE') throw new Error(`windFieldSrcFactor('dark') is ${SRC_ONE}, expected ONE`);
 const OPACITY = 0.48;   // WebGLWindEngine.js heatmapOpacity for dark
 const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 const lawA = (kn) => OPACITY * (0.44 + 0.56 * ss(0, 5, kn));   // HEATMAP_FS dark: baseAlpha 0.44, rampEnd 5
@@ -80,13 +85,14 @@ const out = await page.evaluate(({ HEATMAP_VS, HEATMAP_FS, LUT, MAX, OPACITY, SP
     gl.uniform2f(U('u_wind_min'), 0, 0); gl.uniform2f(U('u_wind_max'), Math.max(speed, 1e-4), 0);
     gl.disable(gl.BLEND); gl.clearColor(ground[0] / 255, ground[1] / 255, ground[2] / 255, 1); gl.clear(gl.COLOR_BUFFER_BIT);
     if (blend === 'opaque') { gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); }   // blendIntoMap, kill off (the default)
+    else if (blend === 'vivid') { gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); }   // blendIntoMap(windFieldSrcFactor('dark') = ONE): the fix
     else if (blend === 'kill') { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); }   // blendIntoMap under __RAW_DISABLE_WIND_OPAQUE_CANVAS__
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.readPixels(4, 4, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); return Array.from(px);
   };
   const rows = [];
   for (const speed of SPEEDS) {
-    const r = { speed, raw: draw(speed, [0, 0, 0], 'none'), opaque: {}, kill: {} };
-    for (const [g, c] of Object.entries(GROUNDS)) { r.opaque[g] = draw(speed, c, 'opaque'); r.kill[g] = draw(speed, c, 'kill'); }
+    const r = { speed, raw: draw(speed, [0, 0, 0], 'none'), opaque: {}, kill: {}, vivid: {} };
+    for (const [g, c] of Object.entries(GROUNDS)) { r.opaque[g] = draw(speed, c, 'opaque'); r.kill[g] = draw(speed, c, 'kill'); r.vivid[g] = draw(speed, c, 'vivid'); }
     rows.push(r);
   }
   return { renderer, rows };
@@ -113,4 +119,16 @@ for (const r of out.rows) {
 }
 console.log(`largest |k - a^2| ${worstSq.toFixed(3)}; largest |k - a| ${worstOver.toFixed(3)}.  Over dark's water, the GPU vs c a^2 + m(1-a): up to ${worstWaterSq.toFixed(1)}/255; vs c a + m(1-a): up to ${worstWaterOver.toFixed(1)}/255.`);
 console.log(`the canvas-alpha kill moved the colour by at most ${killColourMoved}/255 on any ground (its alpha: see the last two columns; default keeps 255).`);
-if (jsonOut) fs.writeFileSync(jsonOut, JSON.stringify({ renderer: out.renderer, max: MAX, fits, raw: out.rows }, null, 1));
+// THE FIX, read back: the default blend (ONE) over every ground against c a + m (1 - a), and its canvas alpha.
+let vividWorst = 0, vividVsSq = 0, vividAlpha = 255;
+for (const r of out.rows) {
+  const a = r.raw[3] / 255, c = r.raw.slice(0, 3).map((x) => x / 255 / a);
+  for (const [g, col] of Object.entries(GROUNDS)) {
+    const m = col.map((x) => x / 255), got = r.vivid[g].slice(0, 3);
+    vividWorst = Math.max(vividWorst, ...m.map((x, i) => Math.abs((c[i] * a + x * (1 - a)) * 255 - got[i])));
+    vividVsSq = Math.max(vividVsSq, ...m.map((x, i) => Math.abs((c[i] * a * a + x * (1 - a)) * 255 - got[i])));
+    vividAlpha = Math.min(vividAlpha, r.vivid[g][3]);
+  }
+}
+console.log(`THE FIX (windDarkFieldVivid.js, blend ONE): over black, white, water and land the GPU sits within ${vividWorst.toFixed(1)}/255 of c a + m(1-a) (the designed law) and up to ${vividVsSq.toFixed(1)}/255 off c a^2 + m(1-a); canvas alpha min ${vividAlpha}.`);
+if (jsonOut) fs.writeFileSync(jsonOut, JSON.stringify({ renderer: out.renderer, max: MAX, fits, vivid: { worstVsOver: vividWorst, worstVsSquared: vividVsSq, minCanvasAlpha: vividAlpha }, raw: out.rows }, null, 1));

@@ -448,6 +448,18 @@ a finding for the owner, whose dark look is approved; no colour was changed. DRA
 alpha-over (`fieldY = mix(u_basemap_y, rampY, fieldA)`); it is inert under the default fixed pole (`windCasingFixedPole`), and
 only the kill `__RAW_DISABLE_WIND_FIXED_CASING__` reads it.
 
+**Fixed the same day: dark's field is blended as the premultiplied colour it is (`windDarkFieldVivid.js`, owner-approved).** The
+engine passes `windFieldSrcFactor(gl, theme)` to `blendIntoMap`: `ONE` for dark, so the screen holds `c a + map (1 - a)`, the law
+dark's palette and targets were designed in; `SRC_ALPHA` for every other theme, as before (light and beach draw their field as a
+multiply tint and are byte-identical). `check.mjs` now models dark that way by default; `--before-dark-vivid` reads the squared law
+(the kill `window.__RAW_DISABLE_DARK_WIND_VIVID__`, i.e. dev before the fix; `--dark-alpha-over` is accepted and is now the default).
+Measured (`node check.mjs`): the 7 kn tint 14.5 dE00 off the water (9.0 before; floor 14), the dark tint over water colour-blind
+27-33 kn deutan 5.2 (47-55 kn tritan 3.1 before; floor 5), 0 red lines (2 + 1 before); every light and beach line unchanged. The Jest
+design floors (`windFieldLut.test.js` 0-3 kn hue gap >= 18 deg, calm visibility >= 24) now describe the screen. `dark-field-gpu.mjs`
+reads the fix back on a GPU (the `vivid` blend, its factor taken from the module): within 1.0/255 of `c a + map (1 - a)` over black,
+white, water and land, canvas alpha 255 (evidence `audit/dark-wind-vivid-gpu-2026-11-22.json`). Dark's Gusts follow it
+(`gustPalette.js` DARK FIELD PARITY: the LUT stops pre-scaling the colour), so the GUSTS vs WIND lines stay at most 0.18 dE00.
+
 Background: `reports/Color and motion tools for Claude.md` and `reports/Wind particle color basemap contrast.md`.
 
 **Beach crest style (2026-10-21, removed 2026-10-22).** `beach-crest-style.mjs` measured beach's crests on the v1 sea as the engine

@@ -41,9 +41,9 @@ const lab = (rgb) => labLin(rgb.map(dec));
 
 // The composite the checker scores (check.mjs MODEL = HEATMAP_FS / windFieldLut.test.js): dark draws the field OVER the
 // map at its stop alpha; light/beach multiply it in. Water as measured on each basemap.
-// Dark's OVER is premultiplied (2026-11-22, read back on a GPU: scripts/wind-color/dark-field-gpu.mjs): HEATMAP_FS writes
-// vec4(rgb a, a), blended SRC_ALPHA, ONE_MINUS_SRC_ALPHA, so the screen holds rgb a^2 + map (1 - a). tintOver(..., gpu = true) lays it
-// so; without it, the alpha-over rgb a + map (1 - a) dark's floor was designed in (and check.mjs --dark-alpha-over).
+// Dark's OVER (2026-11-22): HEATMAP_FS writes vec4(rgb a, a) and the engine blends it ONE, ONE_MINUS_SRC_ALPHA (windDarkFieldVivid.js),
+// so the screen holds rgb a + map (1 - a), the law dark's floor was designed in. Under window.__RAW_DISABLE_DARK_WIND_VIVID__ it blends
+// SRC_ALPHA and the screen holds rgb a^2 + map (1 - a) (read back on a GPU, scripts/wind-color/dark-field-gpu.mjs): tintOver(..., gpu = true).
 const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 const MODEL = {
   dark: { over: true, op: 0.48, baseA: 0.44, end: 5, k: 1, water: [93, 117, 126] },
@@ -74,11 +74,11 @@ describe('DARK passes the colour-blind floor (legend and tint over water)', () =
   const live = () => resolveThemeRamp('dark');
   it('every neighbouring legend stop and every neighbouring tint over water is >= 5 dE2000 for all three dichromacies', () => {
     expect(weakest(legendPairs(live())).d).toBeGreaterThanOrEqual(5);
-    expect(weakest(waterPairs('dark', live())).d).toBeGreaterThanOrEqual(5);   // as designed (alpha-over)
+    expect(weakest(waterPairs('dark', live())).d).toBeGreaterThanOrEqual(5);   // as designed (alpha-over) and, since windDarkFieldVivid.js, as drawn
   });
-  it('AS THE GPU DRAWS IT (rgb a^2 + map (1 - a)): the tint over water is BELOW the 5 dE2000 floor; a no-worse ratchet until the owner rules', () => {
-    // check.mjs + cvd_check.py (coloraide), 2026-11-22: 47-55 kn tritan 3.1 the weakest; eight of eleven pairs under 5. A finding for the
-    // owner (dark's look is approved), not fixed here: raise this when dark's field is re-tuned against the GPU's law.
+  it('UNDER THE VIVID KILL (rgb a^2 + map (1 - a), dev before 2026-11-22): the tint over water was BELOW the 5 dE2000 floor (pinned so the kill draws it)', () => {
+    // check.mjs --before-dark-vivid + cvd_check.py (coloraide), 2026-11-22: 47-55 kn tritan 3.1 the weakest; eight of eleven pairs under 5.
+    // The default (windDarkFieldVivid.js) draws the alpha-over law, which the test above holds at >= 5.
     const gpuPairs = neighbours(live().filter((s) => s[0] >= 3), (s) => tintOverWater('dark', s, true));
     expect(weakest(gpuPairs).d).toBeGreaterThanOrEqual(3.0);
     expect(weakest(gpuPairs).d).toBeLessThan(weakest(waterPairs('dark', live())).d);   // the old model judged a brighter field than the screen shows
