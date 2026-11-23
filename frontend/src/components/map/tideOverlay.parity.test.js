@@ -13,7 +13,7 @@ let mockTheme = 'dark';
 jest.mock('../../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: mockTheme }) }));
 
 import TideReadout from './TideReadout';
-import TideOverlayLayer, { TideMarkerBody, tideMarkerClasses } from './TideOverlayLayer';
+import TideOverlayLayer, { TideMarkerBody, TideOverlayCredit, tideMarkerClasses } from './TideOverlayLayer';
 import TideOverlayToggle from './TideOverlayToggle';
 import { clearPointTideCache } from './usePointTide';
 import { forecastSelectionMs } from './forecastReadout';
@@ -177,6 +177,45 @@ test.each(['light', 'dark', 'beach'])('theme %s: marker has its own palette and 
   tideMarkerClasses(theme).box.split(' ').forEach((cls) => expect(el.className).toContain(cls));
   expect(el.textContent).toMatch(/Rising|Falling|Slack/);
   expect(el.textContent).toMatch(/ft/);
+});
+
+describe('the overlay credits its data exactly as the infobox does (the advisor on #923)', () => {
+  const credited = {
+    ...payload,
+    provider: 'FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine',
+    source_url: 'https://doi.org/10.24400/527896/A01-2024.004',
+    credit_detail: 'The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely '
+      + 'available by AVISO. CNES, 2024. FES2022 ... Licence: https://www.aviso.altimetry.fr/... Mean sea level: '
+      + 'E.U. Copernicus Marine Service Information.',
+  };
+
+  test.each(['light', 'dark', 'beach'])('theme %s: the provider in words, a link, and the full credit as its accessible name', (theme) => {
+    render(<TideOverlayCredit payloads={[credited, credited, null]} theme={theme} />);
+    const box = screen.getByTestId('tide-overlay-credit');
+    tideMarkerClasses(theme).box.split(' ').forEach((cls) => expect(box.className).toContain(cls));
+    expect(box.textContent).toMatch(/Tide data:/);
+    const link = within(box).getByRole('link');
+    expect(link.textContent).toBe(credited.provider);                                 // words, once for both cells
+    expect(link.getAttribute('href')).toBe(credited.source_url);
+    expect(link.getAttribute('aria-label')).toContain('funded by CNES, produced by LEGOS, NOVELTIS and CLS');
+    expect(link.getAttribute('title')).toBe(credited.credit_detail);
+  });
+
+  test('no provider in the payload: no credit line is invented', () => {
+    const { container } = render(<TideOverlayCredit payloads={[payload, null, undefined]} theme="dark" />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  test('the layer draws the credit with its markers, the same text the infobox shows', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve({ ok: true, json: () => Promise.resolve(credited) }));
+    render(<TideOverlayLayer spotClusters={[spot]} timeOffsetHours={0} userTier="guest" />);
+    await act(async () => { jest.advanceTimersByTime(700); await Promise.resolve(); await Promise.resolve(); });
+    await waitFor(() => expect(screen.queryByTestId('tide-overlay-credit')).not.toBeNull());
+    render(<TideReadout lat={LAT} lng={LNG} heightUnit="m" isLight={false} isBeach={false} atTime={forecastSelectionMs(0)} />);
+    await waitFor(() => expect(screen.getAllByTestId('tide-credit').length).toBeGreaterThan(0));
+    expect(screen.getAllByTestId('tide-credit')[0].textContent).toBe(
+      within(screen.getByTestId('tide-overlay-credit')).getByRole('link').textContent);
+  });
 });
 
 describe('load safety: one request per cell, shared with the infobox (no upstream quota since PR B #1132)', () => {

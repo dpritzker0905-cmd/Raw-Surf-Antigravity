@@ -165,3 +165,27 @@ David released the Codex-reserved files (MapWeatherControls.js, usePointTide.js;
 - **Kept.** Shared acquisition with the infobox, words not colour, three themes, the kill switch (`__RAW_DISABLE_TIDE_OVERLAY__`), the LayerAccessResolver tier gate, SETTLE_MS, zero fetches on scrub, and tide heights following the ft/m button.
 - **Tests.** The two deferral tests are replaced by one: the overlay and the infobox share ONE request per cell, and no `purpose=` path remains. Jest: 190 pass in 10 suites (overlay parity, toggle, usePointTide, TideReadout, spot hub, kill-switch inventory). `check_eslint` passes. Frontend fragment +27 tests, +2 files; the guards fragment for the removed backend test is dropped.
 
+
+
+## 2026-11-23 00:07Z: #923 HOLD fixes (the advisor, at ae9831417)
+1. **The overlay credits its data.** `TideOverlayCredit` renders ONE credit line with the markers, built by the infobox's
+   own `tideCredit()` from the same /point-tide payload:
+   - the provider in words ("Tide data: FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine");
+   - a link to the source;
+   - the full `credit_detail` (the AVISO acknowledgement, citation, licence link and Copernicus line) as its title and
+     accessible name.
+
+   It uses the marker's three-theme classes. Distinct providers are each listed. No provider means no line, never an
+   invented one. It is one line rather than one per marker because markers ignore pointer events and would repeat the
+   same credit up to 12 times. Tests: the 3 themes; the same text as the infobox's `tide-credit`; none when the payload
+   has no provider.
+2. **The stale Open-Meteo provenance comment is corrected** (`tideOverlayModel.js`): the data is our own table
+   (`tide_source()` 'own', or 'off' when killed, never Open-Meteo), FES2022 + the altimetry mean level, above local MSL.
+3. **Where David's release comes from.** The Codex-reserved files are MapWeatherControls.js and usePointTide.js; Codex PR
+   #755 touches both.
+   - **Session:** the tide lane's Claude Code session, transcript `9499d47d-c526-4d78-a3ab-c8a635657da3`.
+   - **Question:** an AskUserQuestion asked "Release them for #923, as you did for #1069?".
+   - **Answer:** David answered "Yes, release them" at **2026-11-22T23:53:07Z** (tool call
+     `toolu_01YDFqDcG3dbYjw7VquJNqkV`).
+   - Codex was also asked, in the shared note `CODEX-REVIEW-REQUEST-1101-2026-11-19.md`, whether #755 is live and
+     which order it wants.

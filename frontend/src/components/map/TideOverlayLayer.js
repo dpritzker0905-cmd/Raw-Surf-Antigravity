@@ -13,6 +13,7 @@ import { forecastSelectionMs } from './forecastReadout';
 import { canUseAddOn } from './LayerAccessResolver';
 import { selectTideCells, tideMarkerModel } from './tideOverlayModel';
 import { useTideOverlayFlag, useTidePayloads } from './useTideOverlay';
+import { tideCredit } from './tideReadoutFormat';
 
 // Stable props: react-map-gl re-applies a Marker's offset/style when their identity changes, so new literals on every
 // scrub step would cost a DOM update per marker per step.
@@ -46,6 +47,37 @@ export function TideMarkerBody({ model, theme }) {
   );
 }
 
+/**
+ * ONE credit line for the overlay's data, built by the infobox's own tideCredit() from the same /point-tide payload, so
+ * the overlay credits exactly what the infobox credits (AVISO s.3.1; Copernicus): the provider in WORDS, a link to the
+ * source, and the full attribution as its title and accessible name. One line for all markers (they ignore pointer
+ * events, and a link on each would repeat the same credit up to 12 times). Distinct providers are each listed.
+ */
+export function TideOverlayCredit({ payloads, theme }) {
+  const seen = new Map();
+  for (const p of payloads) {
+    const c = p ? tideCredit(p) : null;
+    if (c && !seen.has(c.text)) seen.set(c.text, c);
+  }
+  if (!seen.size) return null;
+  const k = tideMarkerClasses(theme);
+  return (
+    <div data-testid="tide-overlay-credit"
+         className={`absolute bottom-8 left-2 z-10 max-w-[70vw] px-1.5 py-0.5 rounded-md border text-[9px] leading-tight shadow truncate ${k.box}`}>
+      <span className={k.muted}>Tide data: </span>
+      {[...seen.values()].map((c, i) => (
+        <React.Fragment key={c.text}>
+          {i > 0 && <span className={k.muted}>; </span>}
+          {c.href
+            ? <a href={c.href} target="_blank" rel="noopener noreferrer" aria-label={c.label} title={c.title || undefined}
+                 className={`underline ${k.accent}`}>{c.text}</a>
+            : <span title={c.title || undefined} aria-label={c.label}>{c.text}</span>}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
 function TideOverlayLayer({ spotClusters, timeOffsetHours = 0, mapInstance, userTier }) {
   const { theme } = useTheme();
   const [heightUnit] = useHeightUnit();
@@ -73,6 +105,7 @@ function TideOverlayLayer({ spotClusters, timeOffsetHours = 0, mapInstance, user
           </Marker>
         );
       })}
+      <TideOverlayCredit payloads={cells.map((c) => payloads[c.cell])} theme={theme} />
     </>
   );
 }

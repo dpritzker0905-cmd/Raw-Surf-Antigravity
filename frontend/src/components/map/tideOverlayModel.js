@@ -6,7 +6,9 @@
  * the SAME tideAt() at the SAME instant (forecastReadout.forecastSelectionMs(timeOffsetHours), the instant the
  * infobox's TideReadout receives as atTime). tideOverlay.parity.test.js pins marker == infobox at several hours.
  *
- * The data is MODELED sea level (Open-Meteo, MSL, ~0.1 degree cells). There are no tide stations behind it, so the
+ * The data is a MODELED tide from Raw Surf's own table (PR B #1132; the server's tide_source() is 'own' or, killed,
+ * 'off', never Open-Meteo): FES2022 + the altimetry mean level, heights above local mean sea level, ~0.1 degree cells,
+ * credited from the payload's provider (TideOverlayCredit). There are no tide stations behind it, so the
  * overlay draws one marker per tide CELL, anchored at the first visible surf spot in that cell, never a station pin
  * that would imply a gauge. Cells are capped (MAX_TIDE_CELLS) and fetched on view change only: the hour never
  * enters a fetch, so scrubbing costs zero backend requests.
