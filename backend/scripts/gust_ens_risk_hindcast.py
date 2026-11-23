@@ -357,7 +357,7 @@ def n_table(cache, locked=frozenset(), fit_used=frozenset()):
     st = json.load(open(os.path.join(cache, "stations.json")))
     ids = station_ids(st)
     truths = station_truth(cache, st, skip=locked)
-    acc = {b: {"rows": 0, "stations": set(), "days": set(), "rows_fit_used": 0} for b in BINS}
+    acc = {b: {"rows": 0, "stations": set(), "days": set(), "rows_fit_used": 0, "clusters": set(), "rows_ndbc": 0} for b in BINS}
     for _run, L, V, _end, _w, i, _c, _h in _iter_slots(cache, truths, count_only=True):
         a = acc[bin_of(L)]
         if ids[i].upper() in fit_used:
@@ -366,56 +366,128 @@ def n_table(cache, locked=frozenset(), fit_used=frozenset()):
         a["rows"] += 1
         a["stations"].add(i)
         a["days"].add(V.toordinal())
-    return {b: {"rows": a["rows"], "stations": len(a["stations"]), "days": len(a["days"]), "rows_fit_used": a["rows_fit_used"]}
+        a["clusters"].add((i, V.toordinal() // 3))           # amendment 2 B7: station x 3-day blocks
+        a["rows_ndbc"] += i < len(st["ndbc"])
+    return {b: {"rows": a["rows"], "rows_ndbc": a["rows_ndbc"], "stations": len(a["stations"]), "days": len(a["days"]),
+                "clusters": len(a["clusters"]), "rows_fit_used": a["rows_fit_used"]}
             for b, a in acc.items()}
 
 
-def score_cell(rows, sel, t_ms, rng_seed=SEED):
+def score_cell(rows, sel, t_ms, rng_seed=SEED, reps=None):
+    """One threshold x bin cell (gate section 4 + amendments 1-2): fair Brier for ENS (B1), CLIM, the crossed bootstrap
+    p-value that decides (B2), the calibration fit (B4), and every reported line."""
+    reps = reps or REPS
     o = (rows["obs"][sel] >= t_ms).astype(float)
     k = (rows["ens"][sel] >= t_ms).sum(axis=1)
     p = k / gr.MEMBERS
     days, sta = rows["day"][sel], rows["sta"][sel]
     clim = gr.loo_day_climatology(sta, days, o)
+    fair = gr.fair_brier_rows(p, o)
     hres_ok = np.isfinite(rows["hres"][sel])
     out = {"n": int(sel.sum()), "n_events": int(o.sum()), "event_days": int(len(np.unique(days[o > 0]))),
-           "n_stations": int(len(np.unique(sta))), "event_freq": float(o.mean()) if o.size else float("nan")}
-    out["bs"] = {"ens": gr.brier(p, o), "clim": gr.brier(clim, o)}
-    d_clim = (p - o) ** 2 - (clim - o) ** 2
-    out["ens_minus_clim"] = {b: gr.block_ci_mean(d_clim, days, REPS, rng_seed, b) for b in (1, 5)}
-    out["ens_minus_clim_station"] = gr.block_ci_mean(d_clim, sta, REPS, rng_seed, 1)    # whole stations resampled (A2)
+           "n_stations": int(len(np.unique(sta))), "event_freq": float(o.mean()) if o.size else float("nan"),
+           "event_clusters": int(len({(s, d // 3) for s, d, e in zip(sta, days, o) if e > 0}))}
+    out["bs"] = {"ens": float(fair.mean()) if o.size else float("nan"), "ens_raw": gr.brier(p, o), "clim": gr.brier(clim, o)}
+    d_clim = fair - (clim - o) ** 2
+    out["p1_crossed"] = gr.crossed_boot(d_clim, sta, days, reps, rng_seed, 3)         # decides (with Holm)
+    out["ens_minus_clim"] = {b: gr.block_ci_mean(d_clim, days, reps, rng_seed, b) for b in (1, 5)}   # reported
+    out["ens_minus_clim_station"] = gr.block_ci_mean(d_clim, sta, reps, rng_seed, 1)                # reported
     out["bss_clim"] = 1 - out["bs"]["ens"] / out["bs"]["clim"] if out["bs"]["clim"] > 0 else float("nan")
     if hres_ok.any():
         h = (rows["hres"][sel] >= t_ms).astype(float)
-        d_h = np.where(hres_ok, (p - o) ** 2 - (h - o) ** 2, np.nan)
+        d_h = np.where(hres_ok, fair - (h - o) ** 2, np.nan)
         out["bs"]["hres_same_rows"] = gr.brier(h[hres_ok], o[hres_ok])
-        out["bs"]["ens_same_rows_as_hres"] = gr.brier(p[hres_ok], o[hres_ok])
-        out["ens_minus_hres"] = {b: gr.block_ci_mean(d_h, days, REPS, rng_seed, b) for b in (1, 5)}
+        out["bs"]["ens_same_rows_as_hres"] = float(fair[hres_ok].mean())
+        out["ens_minus_hres"] = {b: gr.block_ci_mean(d_h, days, reps, rng_seed, b) for b in (1, 5)}
         out["n_hres"] = int(hres_ok.sum())
     med = np.median(rows["ens"][sel], axis=1) >= t_ms
     p90 = np.percentile(rows["ens"][sel], 90, axis=1) >= t_ms
     out["bs"]["ens_med_01"], out["bs"]["ens_p90_01"] = gr.brier(med, o), gr.brier(p90, o)
     out["murphy"] = gr.murphy(p, o)
-    out["auc"] = gr.block_ci_auc(p, o, days, REPS, rng_seed, 1)
+    out["calibration"] = dict(zip(("intercept", "slope"), gr.calibration_fit(p, o)))
+    out["reliability_51"] = reliability_classes(k, o, rng_seed)
+    out["auc"] = gr.block_ci_auc(p, o, days, reps, rng_seed, 1)
     return out, p, o, days
 
 
-def lines(c, has_hres):
-    """Amendment 1 A2: ONE primary P1 decides (Brier difference vs CLIM, CI upper < 0 under the day-block AND the
-    station-cluster bootstrap, with the reliability condition G3). G2, G4 and the 5-day blocks are reported only."""
-    g1 = c["ens_minus_clim"][1][2] < 0
-    g1_st = c["ens_minus_clim_station"][2] < 0
-    g1_5 = c["ens_minus_clim"][5][2] < 0
-    g2 = (c["ens_minus_hres"][1][2] < 0) if has_hres else None
+def reliability_classes(k, o, seed, min_rows=50, draws=2000):
+    """Amendment 2 B4 (reported): the diagram over the 51 member-count classes, adjacent classes pooled to >= `min_rows`,
+    with 95% consistency bars from binomial resampling at each point's mean p."""
+    rng = np.random.default_rng(seed)
+    pts, acc_k, acc_o = [], [], []
+    for c in range(gr.MEMBERS + 1):
+        m = k == c
+        acc_k += list(k[m])
+        acc_o += list(o[m])
+        if len(acc_k) >= min_rows or (c == gr.MEMBERS and acc_k):
+            n, pbar, obs_f = len(acc_k), float(np.mean(acc_k)) / gr.MEMBERS, float(np.mean(acc_o))
+            sim = rng.binomial(n, pbar, size=draws) / n
+            pts.append({"to_class": c, "n": n, "mean_p": round(pbar, 4), "obs_freq": round(obs_f, 4),
+                        "consistency_95": [round(float(np.percentile(sim, 2.5)), 4), round(float(np.percentile(sim, 97.5)), 4)]})
+            acc_k, acc_o = [], []
+    return pts
+
+
+def calib_ok(c):
+    """Amendment 2 B4: logistic slope in [0.5, 1.5] and mean(p) / event frequency in [0.5, 2.0]."""
     mu = c["murphy"]
     ratio = mu["mean_p"] / mu["obar"] if mu["obar"] > 0 else float("inf")
-    g3 = bool(mu["rel"] < mu["res"] and 0.5 <= ratio <= 2.0)
-    g4 = bool(c["auc"][1] > 0.70)
-    if c["n"] < ROWS_MIN or c["n_events"] < 30 or c["event_days"] < 10:
-        v = "UNDERPOWERED"
-    else:
-        v = "PASS" if (g1 and g1_st and g3) else "FAIL"
-    return {"P1": v == "PASS", "P1_day": bool(g1), "P1_station": bool(g1_st), "G3": g3, "calib_ratio": ratio,
-            "reported": {"G2_vs_hres": g2, "G4_auc": g4, "fragile_5d": bool(g1 and not g1_5)}, "verdict": v}
+    b = c["calibration"]["slope"]
+    return bool(b == b and 0.5 <= b <= 1.5 and 0.5 <= ratio <= 2.0), ratio
+
+
+def powered(c):
+    return not (c["n"] < ROWS_MIN or c["n_events"] < 30 or c["event_days"] < 10)
+
+
+def decide(rows, rng_seed=SEED, reps=None):
+    """Every P1 cell with its verdict after Holm over the powered cells (amendment 2 B2-B4). ASOS rows are out of P1 at
+    25 kn (B3); they get their own reported table."""
+    cells, asos25 = {}, {}
+    for tk, tm in gr.iter_cells():
+        for b, leads in BINS.items():
+            sel = np.isin(rows["lead"], leads)
+            if tk == gr.THRESHOLDS_KN[0]:
+                s_asos = sel & (rows["net"] == "asos")
+                if s_asos.any():
+                    ca, *_ = score_cell(rows, s_asos, tm, rng_seed, reps)
+                    asos25[f"{tk}kn_{b}_asos"] = {k: ca[k] for k in ("n", "n_events", "bss_clim", "p1_crossed", "auc")}
+                sel = sel & (rows["net"] != "asos")
+            if not sel.any():
+                continue
+            c, *_ = score_cell(rows, sel, tm, rng_seed, reps)
+            ok, ratio = calib_ok(c)
+            hres_line = (c["ens_minus_hres"][1][2] < 0) if ("ens_minus_hres" in c and b != "B4") else None
+            c["lines"] = {"calibration_ok": ok, "calib_ratio": ratio, "powered": powered(c),
+                          "reported": {"G2_vs_hres": hres_line, "G4_auc": bool(c["auc"][1] > 0.70),
+                                       "day_1d": bool(c["ens_minus_clim"][1][2] < 0),
+                                       "station_only": bool(c["ens_minus_clim_station"][2] < 0),
+                                       "fragile_5d": bool(c["ens_minus_clim"][1][2] < 0 and not c["ens_minus_clim"][5][2] < 0)}}
+            cells[f"{tk}kn_{b}"] = c
+    adj = gr.holm({k: c["p1_crossed"][3] for k, c in cells.items() if c["lines"]["powered"]})
+    for k, c in cells.items():
+        ln = c["lines"]
+        ln["holm_p"] = adj.get(k)
+        if not ln["powered"]:
+            ln["verdict"] = "UNDERPOWERED"
+        else:
+            ln["verdict"] = "PASS" if (adj[k] < 0.05 and ln["calibration_ok"]) else "FAIL"
+    return cells, asos25
+
+
+def shift_truths(truths, days, span):
+    """C6 (amendment 2 B6): each station's records circularly shifted by `days` within [span[0], span[1]) (epoch minutes)."""
+    a, n = span[0], span[1] - span[0]
+    out = []
+    for tr in truths:
+        if tr is None:
+            out.append(None)
+            continue
+        t = a + (tr["t"] - a + days * 1440) % n
+        o = np.argsort(t, kind="stable")
+        cov = np.sort(a + (tr["cov"] - a + days * 1440) % n)
+        out.append({"kind": tr["kind"], "t": t[o], "g": tr["g"][o], "cov": cov})
+    return out
 
 
 def controls(rows):
@@ -481,7 +553,9 @@ def cmd_score(cache, out_dir, locked, fit_used, n_table_path, october=False):
     sha, _n = truth_hash(cache)
     if sha != truth["sha256"]:
         void.append(f"truth re-hash {sha[:12]} != frozen {truth['sha256'][:12]}")
-    rows_all, stations, dropped = build_rows(cache, locked, fit_used)
+    st = json.load(open(os.path.join(cache, "stations.json")))
+    truths = station_truth(cache, st, skip=locked)
+    rows_all, stations, dropped = build_rows(cache, locked, fit_used, truths=truths)
     rows = _subset(rows_all, ~rows_all["fit_used"])
     if n_table_path:                                     # amendment 1 A3: the score uses exactly the committed rows
         want = json.load(open(n_table_path))["by_bin"]
@@ -490,25 +564,33 @@ def cmd_score(cache, out_dir, locked, fit_used, n_table_path, october=False):
             void.append(f"rows {got} != committed n table {({b: want[b]['rows'] for b in BINS})}")
     else:
         void.append("no committed n table")
-    rep = {"gate": "gust-ens-risk-v1 (+ amendment 1)", "label": "recorded, not a claim (amendment 1 A7)",
+    rep = {"gate": "gust-ens-risk-v1 (+ amendments 1, 2)", "label": "recorded, not a claim (amendment 1 A7)",
            "n_rows": int(rows["obs"].size), "n_rows_fit_used": int(rows_all["fit_used"].sum()), "dropped_runs": dropped,
            "runs_scored": int(len(np.unique(rows["run"]))), "truth": truth, "truth_rehash": sha,
            "locked_dropped": len(locked & {s["id"].upper() for s in stations}),
            "stations": {"ndbc": sum(1 for s in stations if s["kind"] == "ndbc" and s["id"].upper() not in locked),
                         "asos": sum(1 for s in stations if s["kind"] == "asos" and s["id"].upper() not in locked)},
-           "reps": REPS, "controls": controls(rows), "cells": {}, "by_network": {}, "fit_used_cells": {}}
-    void += [k for k in ("C1", "C2", "C3", "C4") if not rep["controls"][k]["pass"]]
+           "reps": REPS, "controls": controls(rows), "by_network": {}, "fit_used_cells": {}}
+    rep["cells"], rep["asos_25kn_reported"] = decide(rows)
+    # C6: the whole decision rule under a dependent null (circular per-station shifts); any PASS voids the run
+    span = (_ep(datetime(2026, 10, 9, tzinfo=timezone.utc)), _ep(datetime.fromisoformat(truth["truth_end"])))
+    c6 = {}
+    for dd in (7, 14, 21):
+        rs, _s, _d = build_rows(cache, locked, fit_used, truths=shift_truths(truths, dd, span))
+        cells_sh, _a = decide(_subset(rs, ~rs["fit_used"]))
+        raw_p = [c["p1_crossed"][3] for c in cells_sh.values() if c["lines"]["powered"]]
+        c6[f"shift_{dd}d"] = {"passes": [k for k, c in cells_sh.items() if c["lines"]["verdict"] == "PASS"],
+                              "powered_cells": len(raw_p), "raw_p_below_0.05": int(sum(p < 0.05 for p in raw_p))}
+    n_raw = sum(v["powered_cells"] for v in c6.values())
+    rep["controls"]["C6"] = {"by_shift": c6, "pass": not any(v["passes"] for v in c6.values()),
+                             "calibration_warning": bool(n_raw and sum(v["raw_p_below_0.05"] for v in c6.values()) > 0.05 * n_raw)}
+    void += [k for k in ("C1", "C2", "C3", "C4", "C6") if not rep["controls"][k]["pass"]]
     if len(dropped) > DROP_MAX * len(RUNS):
         void.append(f"dropped runs {len(dropped)} > 10%")
     rep["void"] = void
     for tk, tm in gr.iter_cells():
         for b, leads in BINS.items():
             sel = np.isin(rows["lead"], leads)
-            if not sel.any():
-                continue
-            c, *_ = score_cell(rows, sel, tm)
-            c["lines"] = lines(c, b != "B4" and "ens_minus_hres" in c)
-            rep["cells"][f"{tk}kn_{b}"] = c
             for net in ("ndbc", "asos"):          # reported only
                 s2 = sel & (rows["net"] == net)
                 if s2.sum() > 0:
@@ -519,20 +601,14 @@ def cmd_score(cache, out_dir, locked, fit_used, n_table_path, october=False):
                 c3, *_ = score_cell(rows_all, fu, tm)
                 rep["fit_used_cells"][f"{tk}kn_{b}"] = {k: c3[k] for k in ("n", "n_events", "bss_clim", "auc")}
     if october:                                   # A6: QC'd October monthly NDBC truth, reported sensitivity only
-        st = json.load(open(os.path.join(cache, "stations.json")))
         tr_oct = station_truth(cache, st, skip=locked, ndbc_file="{id}.txt", ndbc_dir="ndbc_oct2026")
         tr_oct = [t if (t is not None and t["kind"] == "ndbc") else None for t in tr_oct]
         ro, _s, _d = build_rows(cache, locked, fit_used, truths=tr_oct)
         ro = _subset(ro, ~ro["fit_used"] & np.array([datetime.fromordinal(int(d)).month == 10 for d in ro["day"]], bool))
-        rep["october_monthly_sensitivity"] = {}
-        for tk, tm in gr.iter_cells():
-            for b, leads in BINS.items():
-                sel = np.isin(ro["lead"], leads)
-                if sel.sum() > 0:
-                    c4, *_ = score_cell(ro, sel, tm)
-                    rep["october_monthly_sensitivity"][f"{tk}kn_{b}"] = {
-                        "n": c4["n"], "n_events": c4["n_events"], "bss_clim": c4["bss_clim"],
-                        "ens_minus_clim": c4["ens_minus_clim"][1], "verdict_if_primary": lines(c4, False)["verdict"]}
+        cells_oct, _a = decide(ro)
+        rep["october_monthly_sensitivity"] = {k: {"n": c["n"], "n_events": c["n_events"], "bss_clim": c["bss_clim"],
+                                                  "p1_crossed": c["p1_crossed"], "verdict_if_primary": c["lines"]["verdict"]}
+                                              for k, c in cells_oct.items()}
     json.dump(rep, open(os.path.join(out_dir, "gust_ens_risk_report.json"), "w"), indent=1, default=float)
     print(markdown(rep))
     open(os.path.join(out_dir, "gust_ens_risk_report.md"), "w", encoding="utf-8").write(markdown(rep))
@@ -546,18 +622,20 @@ def _f(x, nd=3):
 def markdown(rep):
     L = [f"rows {rep['n_rows']}, runs {rep['runs_scored']}, stations NDBC {rep['stations']['ndbc']} / ASOS "
          f"{rep['stations']['asos']}, dropped {len(rep['dropped_runs'])}, VOID: {rep['void'] or 'no'}", "",
-         "| cell | n | events | ev days | freq | BS ens | BS clim | BSS clim | P1 ens-clim CI (day) | P1 station hi | 5d hi "
-         "| BS hres | ens-hres CI (1d) | 5d hi | REL | RES | p/freq | AUC [lo, hi] | BS med | BS p90 | verdict |", "|" + "---|" * 22]
+         "| cell | n | events | ev days | freq | BS ens (fair) | BS clim | BSS clim | P1 crossed [lo, hi] | p | Holm p "
+         "| day CI hi | station hi | 5d hi "
+         "| BS hres | ens-hres CI (1d) | 5d hi | REL | RES | slope | p/freq | AUC [lo, hi] | BS med | BS p90 | verdict |", "|" + "---|" * 26]
     for k, c in rep["cells"].items():
         ln = c["lines"]
         h = c.get("ens_minus_hres")
         L.append(f"| {k} | {c['n']} | {c['n_events']} | {c['event_days']} | {_f(c['event_freq'], 4)} | {_f(c['bs']['ens'], 4)} "
-                 f"| {_f(c['bs']['clim'], 4)} | {_f(c['bss_clim'])} | {_f(c['ens_minus_clim'][1][0], 4)} "
-                 f"[{_f(c['ens_minus_clim'][1][1], 4)}, {_f(c['ens_minus_clim'][1][2], 4)}] "
+                 f"| {_f(c['bs']['clim'], 4)} | {_f(c['bss_clim'])} | {_f(c['p1_crossed'][0], 4)} "
+                 f"[{_f(c['p1_crossed'][1], 4)}, {_f(c['p1_crossed'][2], 4)}] | {_f(c['p1_crossed'][3], 4)} | {_f(ln.get('holm_p'), 4)} "
+                 f"| {_f(c['ens_minus_clim'][1][2], 4)} "
                  f"| {_f(c['ens_minus_clim_station'][2], 4)} | {_f(c['ens_minus_clim'][5][2], 4)} "
                  f"| {_f(c['bs'].get('hres_same_rows'), 4)} | "
                  + (f"{_f(h[1][0], 4)} [{_f(h[1][1], 4)}, {_f(h[1][2], 4)}] | {_f(h[5][2], 4)}" if h else "- | -")
-                 + f" | {_f(c['murphy']['rel'], 4)} | {_f(c['murphy']['res'], 4)} | {_f(ln['calib_ratio'], 2)} "
+                 + f" | {_f(c['murphy']['rel'], 4)} | {_f(c['murphy']['res'], 4)} | {_f(c['calibration']['slope'], 2)} | {_f(ln['calib_ratio'], 2)} "
                  f"| {_f(c['auc'][0])} [{_f(c['auc'][1])}, {_f(c['auc'][2])}] | {_f(c['bs']['ens_med_01'], 4)} "
                  f"| {_f(c['bs']['ens_p90_01'], 4)} | {ln['verdict']} |")
     L += ["", "controls: " + json.dumps(rep["controls"], default=float)]

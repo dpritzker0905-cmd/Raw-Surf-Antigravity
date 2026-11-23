@@ -50,9 +50,10 @@ def test_truth_row_is_nan_without_coverage_and_max_within_the_window():
 def _rows(n_days=20, per=60, skill=True, seed=0):
     rng = np.random.default_rng(seed)
     n = n_days * per
-    truth = rng.gamma(4.0, 2.6, n)                                  # m/s; ~15-25% above 12.861
+    centre = rng.gamma(4.0, 2.6, n)                                 # m/s; ~15-25% above 12.861
+    truth = centre + rng.normal(0, 1.5, n)                          # truth and members exchangeable: calibrated
     noise = rng.normal(0, 1.5 if skill else 8.0, (n, gr.MEMBERS))
-    ens = (truth[:, None] if skill else rng.gamma(4.0, 2.6, n)[:, None]) + noise
+    ens = (centre[:, None] if skill else rng.gamma(4.0, 2.6, n)[:, None]) + noise
     day = np.repeat(np.arange(n_days) + 739000, per)
     run = np.repeat(np.arange(n_days) + 2026101000, per)
     return {"run": run, "lead": np.full(n, 24), "sta": np.tile(np.arange(per), n_days), "day": day, "obs": truth,
@@ -60,41 +61,65 @@ def _rows(n_days=20, per=60, skill=True, seed=0):
             "net": np.array(["ndbc"] * n), "ens": ens.astype(np.float32)}
 
 
-def test_a_skilful_ensemble_passes_its_cell_and_the_controls_behave():
-    rows = _rows()
-    sel = np.ones(rows["obs"].size, bool)
-    c, *_ = h.score_cell(rows, sel, gr.THRESHOLDS_MS[0])
-    ln = h.lines(c, True)
-    assert c["bss_clim"] > 0.3 and ln["P1_day"] and ln["P1_station"] and ln["reported"]["G4_auc"] and ln["verdict"] == "PASS"
+def _ndbc_asos(rows, every=3):
+    rows = dict(rows)
+    rows["net"] = np.where(np.arange(rows["obs"].size) % every == 0, "asos", "ndbc")
+    return rows
+
+
+def test_a_skilful_ensemble_passes_after_holm_and_the_controls_behave():
+    rows = _rows(n_days=30)
+    cells, _a = h.decide(rows, reps=500)
+    c = cells["25kn_B1"]
+    assert c["bss_clim"] > 0.3 and c["p1_crossed"][2] < 0 and c["lines"]["calibration_ok"]
+    assert c["lines"]["verdict"] == "PASS" and c["lines"]["holm_p"] < 0.05
+    assert c["bs"]["ens"] < c["bs"]["ens_raw"]                       # the fair Brier removes the finite-ensemble term
     ctl = h.controls(rows)
     assert ctl["C1"]["pass"] and ctl["C2"]["pass"] and ctl["C3"]["pass"] and ctl["C4"]["pass"], ctl
 
 
-def test_an_unskilful_ensemble_fails_g1():
-    rows = _rows(skill=False, seed=3)
-    c, *_ = h.score_cell(rows, np.ones(rows["obs"].size, bool), gr.THRESHOLDS_MS[0])
-    assert h.lines(c, True)["verdict"] == "FAIL"
+def test_an_unskilful_ensemble_fails():
+    rows = _rows(n_days=30, skill=False, seed=3)
+    cells, _a = h.decide(rows, reps=500)
+    assert cells["25kn_B1"]["lines"]["verdict"] == "FAIL"
 
 
-def test_too_few_events_is_underpowered():
-    rows = _rows(n_days=5, per=10)
-    c, *_ = h.score_cell(rows, np.ones(rows["obs"].size, bool), gr.THRESHOLDS_MS[2])
-    assert h.lines(c, True)["verdict"] == "UNDERPOWERED"
+def test_too_few_events_or_rows_is_underpowered():
+    cells, _a = h.decide(_rows(n_days=5, per=10), reps=200)
+    assert all(c["lines"]["verdict"] == "UNDERPOWERED" for c in cells.values())
+    assert cells["25kn_B1"]["lines"]["holm_p"] is None                # underpowered cells are not in the Holm family
 
 
-# ---- amendment 1 (A2-A4, A8) ---------------------------------------------------------------------------------------
-def test_p1_needs_both_bootstraps_and_reliability():
-    c = {"ens_minus_clim": {1: (-0.01, -0.02, -0.001), 5: (-0.01, -0.03, 0.001)}, "ens_minus_clim_station": (-0.01, -0.02, 0.002),
-         "murphy": {"rel": 0.001, "res": 0.01, "mean_p": 0.1, "obar": 0.1}, "auc": (0.8, 0.75, 0.85),
-         "n": 5000, "n_events": 200, "event_days": 20}
-    assert h.lines(c, False)["verdict"] == "FAIL"                       # the station-cluster CI crosses 0
-    c["ens_minus_clim_station"] = (-0.01, -0.02, -0.001)
-    ln = h.lines(c, False)
-    assert ln["verdict"] == "PASS" and ln["reported"]["fragile_5d"] is True     # 5-day blocks are reported, not deciding
-    c["murphy"] = dict(c["murphy"], rel=0.02)
-    assert h.lines(c, False)["verdict"] == "FAIL"                       # REL >= RES
-    c["murphy"] = dict(c["murphy"], rel=0.001)
-    assert h.lines(dict(c, n=999), False)["verdict"] == "UNDERPOWERED"  # A3: < 1,000 rows
+def test_asos_rows_leave_p1_at_25kn_only():
+    rows = _ndbc_asos(_rows(n_days=30))
+    cells, asos25 = h.decide(rows, reps=300)
+    n_ndbc = int((rows["net"] == "ndbc").sum())
+    assert cells["25kn_B1"]["n"] == n_ndbc and cells["34kn_B1"]["n"] == rows["obs"].size
+    assert asos25["25kn_B1_asos"]["n"] == rows["obs"].size - n_ndbc
+
+
+def test_a_miscalibrated_but_sharp_ensemble_fails_the_calibration_condition():
+    rows = _rows(n_days=30)
+    rows["ens"] = rows["ens"] + np.float32(6.0)                       # every member far too high: p >> event frequency
+    cells, _a = h.decide(rows, reps=300)
+    assert cells["25kn_B1"]["lines"]["calibration_ok"] is False and cells["25kn_B1"]["lines"]["verdict"] == "FAIL"
+
+
+def test_c6_circular_shift_keeps_records_and_breaks_the_pairing():
+    tr = [{"kind": "ndbc", "t": np.arange(0, 1440 * 30, 60), "g": np.arange(720, dtype=float), "cov": np.arange(0, 1440 * 30, 60)},
+          None]
+    sh = h.shift_truths(tr, 7, (0, 1440 * 30))
+    assert sh[1] is None and sorted(sh[0]["g"].tolist()) == sorted(tr[0]["g"].tolist())
+    assert sh[0]["t"][0] == 0 and sh[0]["g"][0] == float(720 - 7 * 24)  # the value now at t=0 came from 7 days before the end
+    assert np.all(np.diff(sh[0]["t"]) > 0) and np.all(np.diff(sh[0]["cov"]) >= 0)
+
+
+def test_reliability_classes_pool_to_fifty_rows():
+    k = np.repeat(np.arange(51), 20)
+    o = (np.random.default_rng(0).uniform(size=k.size) < k / 50).astype(float)
+    pts = h.reliability_classes(k, o, 1)
+    assert all(p["n"] >= 50 for p in pts[:-1]) and sum(p["n"] for p in pts) == k.size
+    assert all(p["consistency_95"][0] <= p["mean_p"] <= p["consistency_95"][1] for p in pts)
 
 
 def _cache(tmp_path, n_runs=2):

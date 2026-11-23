@@ -182,6 +182,75 @@ def cell_verdict(n_events: int, event_days: int, g1: Optional[bool], g1_5d: Opti
     return "FAIL"
 
 
+def fair_brier_rows(p: np.ndarray, o: np.ndarray, m: int = MEMBERS) -> np.ndarray:
+    """Per-row fair (ensemble-adjusted) Brier score for a member fraction p = k / m (amendment 2 B1):
+    (p - o)^2 - p (1 - p) / (m - 1). Its mean is unbiased for the Brier score of the infinite ensemble."""
+    p, o = np.asarray(p, float), np.asarray(o, float)
+    return (p - o) ** 2 - p * (1.0 - p) / (m - 1.0)
+
+
+def crossed_boot(diff: np.ndarray, station: Sequence, day: Sequence, reps: int = 10000, seed: int = 20261122,
+                 block_days: int = 3) -> Tuple[float, float, float, float]:
+    """(mean, lo, hi, p_one_sided) of the mean of a paired per-row difference under ONE two-way clustered bootstrap
+    (amendment 2 B2): stations and `block_days`-day blocks are resampled independently each replicate; a row's weight is
+    (draws of its station) x (draws of its block). p = (1 + #{replicate >= 0}) / (reps + 1): small when diff < 0."""
+    d = np.asarray(diff, float)
+    ok = np.isfinite(d)
+    d = d[ok]
+    if not d.size:
+        return (float("nan"),) * 4
+    su, si = np.unique(np.asarray(station)[ok], return_inverse=True)
+    bu, bi = np.unique(block_ids(np.asarray(day)[ok], block_days), return_inverse=True)
+    S = np.zeros((len(bu), len(su)))
+    N = np.zeros((len(bu), len(su)))
+    np.add.at(S, (bi, si), d)
+    np.add.at(N, (bi, si), 1.0)
+    rng = np.random.default_rng(seed)
+    cb = rng.multinomial(len(bu), np.full(len(bu), 1.0 / len(bu)), size=reps).astype(float)
+    cs = rng.multinomial(len(su), np.full(len(su), 1.0 / len(su)), size=reps).astype(float)
+    num = np.einsum("rb,bs,rs->r", cb, S, cs)
+    den = np.einsum("rb,bs,rs->r", cb, N, cs)
+    boot = num[den > 0] / den[den > 0]
+    p_one = (1.0 + float(np.sum(boot >= 0.0))) / (boot.size + 1.0)
+    return float(d.mean()), float(np.percentile(boot, 2.5)), float(np.percentile(boot, 97.5)), p_one
+
+
+def holm(pvals: Dict[str, float]) -> Dict[str, float]:
+    """Holm step-down adjusted p-values (monotone, capped at 1) for one family."""
+    items = sorted(pvals.items(), key=lambda kv: kv[1])
+    n, out, run = len(items), {}, 0.0
+    for i, (k, p) in enumerate(items):
+        run = max(run, min(1.0, (n - i) * p))
+        out[k] = run
+    return out
+
+
+def calibration_fit(p: np.ndarray, o: np.ndarray, m: int = MEMBERS, iters: int = 50) -> Tuple[float, float]:
+    """(intercept a, slope b) of logit P(o=1) = a + b logit(p'), p' = p clipped to [1/(2m), 1 - 1/(2m)], by Newton-Raphson
+    maximum likelihood (amendment 2 B4). NaN when o is constant or the fit does not converge."""
+    o = np.asarray(o, float)
+    if o.size == 0 or o.min() == o.max():
+        return float("nan"), float("nan")
+    lo = 1.0 / (2.0 * m)
+    pc = np.clip(np.asarray(p, float), lo, 1.0 - lo)
+    X = np.column_stack([np.ones_like(pc), np.log(pc / (1.0 - pc))])
+    beta = np.zeros(2)
+    for _ in range(iters):
+        eta = X @ beta
+        mu = 1.0 / (1.0 + np.exp(-eta))
+        w = mu * (1.0 - mu)
+        H = X.T @ (X * w[:, None])
+        g = X.T @ (o - mu)
+        try:
+            step = np.linalg.solve(H, g)
+        except np.linalg.LinAlgError:
+            return float("nan"), float("nan")
+        beta = beta + step
+        if np.max(np.abs(step)) < 1e-9:
+            return float(beta[0]), float(beta[1])
+    return float("nan"), float("nan")
+
+
 def window_max(times_min: np.ndarray, values: np.ndarray, end_min: int, window_h: int) -> float:
     """Largest value whose time (epoch minutes, SORTED ascending) lies in (end - window, end]; NaN when none."""
     t = np.asarray(times_min)
