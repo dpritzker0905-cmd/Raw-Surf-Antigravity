@@ -166,8 +166,7 @@ bar; a coverage below 80% is named in the result.
 
 ## 9. Stage 2 (named now; each needs its own gate before it serves)
 
-1. **CMEMS sea-level anomaly** as the spatial and long-lead anchor, epoch-reconciled as in the superseded
-   `tide-dynamic-sla-v1`: zero mean over 2016–2025 at the cell, E1/E2 tests.
+1. **CMEMS sea-level anomaly** as the spatial and long-lead anchor. Its rules are fixed in section 11.
 2. **STOFS-2D-Global or ETSS surge** as a storm override at short lead.
 3. **Wave setup** at the break.
 4. **Along-coast interpolation** of R to spot keys away from gauges, with a pre-registered serving radius and a
@@ -187,3 +186,50 @@ Also unmeasured: Alaska and the Pacific territories (no G3t gauge), and leads be
 - **Starting it is a dispatch** and needs David's typed word in the director session. Leg P runs on its own clock
   after the instrument merges.
 - **Result:** `results/tide-twl-v1.md`, committed after this file, as `gate_order_check.py` requires.
+
+## 11. Amendment 1 (2026-11-23 01:13Z, before any run): the director's rulings
+
+Recorded before any arm in this gate or in the stage-2 arm below has been computed.
+
+**1. TWL stays the stage-1 candidate.** Sections 2–8 already give it:
+- the outage fallback to anchor-only (6.6);
+- the storm-peak bar (6.4);
+- the per-gauge verdict and strata (3, 6);
+- coverage: at least 80% of hourly targets per leg, r24 needs 18 of 24 hours, and the anchor needs 50% of 60 days.
+
+**2. The CMEMS SLA arm (`AMSD` = A + M + SLA + D) is a stage-2 arm.** It is scored only under its own later gate,
+which must carry over these rules unchanged. They come from the superseded `tide-dynamic-sla-v1`, which never reached
+`dev`, and are fixed here:
+
+- **Epoch reconciliation:** SLA(t) = zos(t) − the 2016–2025 mean of zos at the same cell.
+  - zos comes from `cmems_mod_glo_phy_anfc_0.083deg_P1D-m`, at the nearest ocean cell.
+  - The 2016–2025 mean comes from the reanalysis `cmems_mod_glo_phy_my_0.083deg_P1D-m`, continued by `..._myint_...`.
+    Any constant offset between the reanalysis and the forecast product is measured over their overlap and removed.
+  - The chain is: A + D, the tide about the NTDE MSL; plus M, NTDE to the 2016–2025 mean; plus SLA, the 2016–2025
+    mean to today. Nothing is counted twice.
+  - The hourly `merged-sl` total sea level is not used.
+- **E1 (mechanical):** SLA's 2016–2025 mean is 0 within 0.002 m at every cell, else the run is VOID.
+- **E2 (epoch):** in 2026-05-10, |bias(observed − AMSD)| ≤ 0.02 m per gauge, else that gauge FAILS.
+- **E3 (diagnostic):** the 12-month SLA mean before 2026-11-15, reported beside the observed (12-month mean − epoch
+  MSL − M).
+- **Coverage:** SLA is 0, with no interpolation in time or space, on a missing CMEMS day, a masked cell, a cell more
+  than about 9 km from the gauge, or a cell with no reanalysis mean.
+  - Zeroed days stay in the metrics, and the zero rate is reported.
+  - Served label: "includes today's ocean anomaly (CMEMS)" when applied, "excludes today's ocean anomaly" whenever
+    zeroed or killed.
+- **Clamp, ruled (a):** SLA is clamped to **±0.30 m**, and the event bar stays at |bias| cut ≥ **0.15 m**. Reason: a
+  clamp at the size of the signal makes the test circular.
+  - The fire rate is reported per gauge and window.
+  - The unclamped arm is reported as a diagnostic, never in the verdict.
+  - The planted step for this arm is +0.10 m, inside the clamp.
+- **Per-gauge bars, as amendment 1 of `tide-dynamic-sla-v1` set them:**
+  - E2;
+  - the trailing 28 days: |bias| ≤ 0.05 m, RMSE ≤ 0.10 m;
+  - the event week: |bias| cut ≥ 0.15 m where |bias(AMD)| ≥ 0.15 m, otherwise no worse than 0.02 m;
+  - the null weeks: median no worse than 0.02 m in |bias| and RMSE.
+- **Strata:** the same strata and the same rule (a stratum serves only if every gauge in it passes). The Gulf Stream
+  coast and the small islands are flagged as places where CMEMS is expected to be weak.
+- **Its windows:** the event, trailing and null windows of the superseded gate, plus the prior looks recorded in
+  section 4. Its later gate must re-check those prior looks before it is stamped.
+
+**3. The #923 overlay parity fix belongs to #1149.** This is recorded in #1149's PR body, not in this gate.
