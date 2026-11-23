@@ -294,6 +294,7 @@ export function createOwnRasterLayer({
     wantPath: null, shown: null, onShown: null,
     blend: null,               // { from: path, t0, ms } while a step's value blend runs (BLEND_MS), else null
     isoColor: [1, 1, 1, 0.55],
+    opacityAt: null,           // (zoom) => opacity read in place of opacityStops (setOpacityAt; Gusts in dark: the wind field's), else null
     dz: null, dzTex: [], dzNext: 0,   // the elevation downscale: the decoded asset, its textures, the next tile to upload
     dzReadyAt: null, maxTex: null,    // when the last tile landed (the fade's start); MAX_TEXTURE_SIZE, read once
   };
@@ -509,7 +510,8 @@ export function createOwnRasterLayer({
       gl.uniform4f(st.loc.u_grid, f.bounds.west, f.bounds.south, dLon, dLat);
       gl.uniform3f(st.loc.u_size, f.cols, f.rows, wrapsLongitude(f) ? 1 : 0);
       gl.uniform3f(st.loc.u_lutMap, st.lutMap.min, st.lutMap.step, st.lutMap.n);
-      gl.uniform1f(st.loc.u_opacity, opacityAtZoom(opacityStops, st.map ? st.map.getZoom() : 2));
+      const oz = st.map ? st.map.getZoom() : 2;
+      gl.uniform1f(st.loc.u_opacity, st.opacityAt ? Number(st.opacityAt(oz)) || 0 : opacityAtZoom(opacityStops, oz));
       gl.uniform2f(st.loc.u_iso, iso, 1.2);
       gl.uniform4f(st.loc.u_isoColor, st.isoColor[0], st.isoColor[1], st.isoColor[2], st.isoColor[3]);
       // The elevation downscale, once every tile is resident (until then the field draws as is: never half a downscale).
@@ -541,6 +543,8 @@ export function createOwnRasterLayer({
     setLut(lut, map = lutMap) { st.lut = lut; st.lutMap = map; st.lutDirty = true; if (st.map) st.map.triggerRepaint(); },
     /** A (zoom) => strength read each frame (0 = the usual alpha-over field); null clears it. */
     setTint(fn) { st.tint = typeof fn === 'function' ? fn : null; if (st.map) st.map.triggerRepaint(); },
+    /** A (zoom) => opacity read each frame in place of the layer's opacity stops; null puts the stops back. */
+    setOpacityAt(fn) { st.opacityAt = typeof fn === 'function' ? fn : null; if (st.map) st.map.triggerRepaint(); },
     setIsobarColor(rgba) { st.isoColor = rgba; if (st.map) st.map.triggerRepaint(); },
     /** The elevation downscale's decoded asset ({ lattice, offset, step, lapse, tiles: [{ col0, cols, rows, data }] }), or null
      *  to draw the field as is. At most DZ_TILES_MAX tiles; anything else is refused (the field draws as is). */

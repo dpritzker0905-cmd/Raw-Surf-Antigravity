@@ -16,6 +16,7 @@ Build: PR #1150, `backend/services/weather_pipeline/nearshore_lite/`. Question t
 | A6 | A `swell` partition with Tp < 10 s takes the wind-sea shape (gamma 1.0, s = 4). | `spectrum.shape_params` |
 | A7 | Forward Euler at <= lambda/10 is accepted. **Convergence check at freeze:** halve the step on 20 targets; the median coefficient change must be < 1% and p95 < 3%. | `ray_trace.convergence`, recorded in each coefficient's meta |
 | A8 | A run that misses a floor or whose control misbehaves prints **VOID** explicitly. | `scorer.verdict` |
+| A9 | **Across-the-join pairing is DE-SLOPED.** Where two sources share no cells, pairing neighbouring cells adds bed slope x cell size (1:50 x 50 m = 1.0 m, the p95 trigger), so a clean join could tag SEAM. Overlap-only would leave non-overlapping joins unchecked, against the registered rule. Per join segment (8-connected join cells): fit a least-squares plane per side over a 3-cell band of water < 30 m, evaluate both planes at the shared edge (the segment centroid) and pair those two values. A side with fewer than 6 valid cells gives no pair; the number of such segments is reported per join (`unpaired_segments` in the seam table). Where sources overlap, the overlap is measured as before. | `driver.deslope_pairs`, `seam.SeamRow.unpaired` |
 
 ## Ship rule for tagged targets (section 6, COARSE rule generalised)
 - `SEAM` and `DATUM_1M` targets are computed and scored as registered: stratify only, no source swap, no exclusion.
