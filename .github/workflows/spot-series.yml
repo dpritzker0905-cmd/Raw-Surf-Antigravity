@@ -13,7 +13,9 @@
 #   Dry run:  Actions -> "Spot Forecast Series" -> Run workflow (defaults: 40 spots a job, 10 hub-parity spots).
 # Measured offline (synthetic catalogue, 1,773 spots, scripts/spot_series_ci.py synthetic): 102,834 frames a model,
 # 192 shards, 2.24 MB gzipped in all, mean 11.7 KB, max 17.9 KB. At CI's measured ~54 ms a frame that is ~93 min a
-# model, ~23 min a job at 4 jobs.
+# model, ~23 min a job at 4 jobs. ⚠️ MEASURED 2026-11-15 (dispatch 43734665312, 40 spots a job): 206-366 ms a frame,
+# 4-7x that estimate, so a full job (~1/4 of the catalogue) needs well over the 60-minute timeout; no automatic run
+# has ever completed (2026-11-22 diagnosis, PR body). The job logs "rate progress" lines to measure the real rate.
 # ⚠️ TIER: shards hold 14 days; the client must show only LayerAccessResolver's window. Anonymous CDN access would
 # expose 14 days to free users (as the map's static frames do) and needs an owner-approved storage policy for the
 # spot_series/ prefix. Both are owner decisions (PR body).
@@ -60,6 +62,10 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # 2026-11-22: every automatic run since 11-18 held 12 runners for the full 60-minute timeout and ended
+      # "cancelled" (nothing published), queueing every PR's CI behind it. 4 at a time leaves the rest of the
+      # account's runners for CI; the rating budget below makes an overrunning job fail loudly in ~15 min, not 60.
+      max-parallel: 4
       matrix:
         model: [GFS, EURO, ICON]
         job: [0, 1, 2, 3]
@@ -101,6 +107,9 @@ jobs:
           SURF_BIGHT_HS_EURO_WEIGHT: '0.5'
           # The series reaches +336 h, so warm the whole horizon (precompute warms 1 day: it rates +0/+3 h).
           PREFETCH_WINDOW_DAYS: '15'
+          # Not science: once 30% of this budget is spent, a job whose projected rating time exceeds it fails with
+          # the measured numbers instead of being killed silently at timeout-minutes (scripts/spot_series_ci.py).
+          SPOT_SERIES_RATE_BUDGET_MIN: '50'
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           WEATHER_PROXY_URL: ${{ secrets.WEATHER_PROXY_URL }}

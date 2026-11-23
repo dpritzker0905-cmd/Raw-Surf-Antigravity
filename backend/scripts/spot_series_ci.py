@@ -117,6 +117,32 @@ async def hub_parity(resolver, spots, model, base, rows, l2):
     return out
 
 
+PROGRESS_CHUNK = 25   # spots per progress line (25 spots x ~58 frames keeps every concurrency slot busy)
+
+
+async def rate_in_chunks(rate_fn, spots, budget_s=0.0, chunk=PROGRESS_CHUNK, clock=time.monotonic, log=None):
+    """Rate `spots` through `rate_fn(part) -> {spot_id: rec}` a chunk at a time, logging progress, and stop EARLY when
+    the projected job time overruns `budget_s` (0 = never). Returns (rows, overrun): `overrun` is None, or the dict the
+    caller logs and fails on. Each spot is rated exactly as one whole-list call rates it (the spots are independent),
+    so a run that finishes writes the same rows.
+
+    Why (2026-11-22): every automatic run since 11-18 hit the rate job's 60-minute timeout (12 jobs x 60 min, then
+    "cancelled", nothing published). The only completed run was the 11-15 40-spot dry run, at 206-366 ms a frame, not
+    the ~54 ms the workflow was sized on. A silent timeout spends an hour of 12 runners and says nothing; this fails
+    loudly once the projection is trustworthy (at least 30% of the budget spent) and frees the runners."""
+    log = log or logger
+    t0, rows, total = clock(), {}, len(spots)
+    for i in range(0, total, max(1, chunk)):
+        rows.update(await rate_fn(spots[i:i + chunk]))
+        done, el = len(rows), clock() - t0
+        proj = el * total / done if done else 0.0
+        log.info("rate progress: %d/%d spots, %.0f s elapsed, projected %.0f s", done, total, el, proj)
+        if budget_s and done < total and el >= 0.3 * budget_s and proj > budget_s:
+            return rows, {"done": done, "total": total, "elapsed_s": round(el, 1), "projected_s": round(proj, 1),
+                          "budget_s": round(budget_s, 1)}
+    return rows, None
+
+
 def cmd_rate(a) -> int:
     from services.weather_pipeline.spot_ratings_precompute import _make_point_resolver, fetch_active_spots_via_rest
     model = a.model.upper()
@@ -134,9 +160,16 @@ def cmd_rate(a) -> int:
     resolver = _make_point_resolver()
     asyncio.run(_prewarm(spots, model))
     horizon = SS.horizon_for(model)
+    ref = _ref_map()
+    budget_s = 60.0 * float(os.environ.get("SPOT_SERIES_RATE_BUDGET_MIN", "0") or 0)
     t0 = time.monotonic()
-    rows = asyncio.run(SS.rate_spot_series(resolver, spots, model, base, horizon, _ref_map()))
+    rows, overrun = asyncio.run(rate_in_chunks(
+        lambda part: SS.rate_spot_series(resolver, part, model, base, horizon, ref), spots, budget_s))
     elapsed = time.monotonic() - t0
+    if overrun:
+        logger.error("rate %s job %d/%d would overrun its budget (SPOT_SERIES_RATE_BUDGET_MIN): %s; failing early "
+                     "instead of holding the runner to the job timeout", model, a.job, a.jobs, json.dumps(overrun))
+        return 1
     n_frames = sum(len(r["rows"]) for r in rows.values())
     n_rated = sum(1 for r in rows.values() for f in r["rows"] if f.get("raw_score") is not None)
     meta = {"model": model, "job": a.job, "jobs": a.jobs, "base_time": SS._iso(base), "horizon_h": horizon,
