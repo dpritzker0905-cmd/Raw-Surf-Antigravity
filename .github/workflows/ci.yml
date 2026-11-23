@@ -15,7 +15,7 @@ on:
   push:
     branches: [dev, main, codex/reconcile-euro-dev-20261019]
   pull_request:
-    branches: [dev, main]
+    branches: [dev, main, ci-test/docs-fast-base]   # TEMP test base for the docs-only fast path; never merged
 
 # A new commit on a PR cancels that PR's older run of this workflow (the Actions queue was the bottleneck,
 # 2026-11-19). A push gets a group of its own (its run id): GitHub keeps only ONE pending run per group and
