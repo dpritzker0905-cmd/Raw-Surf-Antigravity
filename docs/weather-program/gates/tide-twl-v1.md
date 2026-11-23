@@ -69,8 +69,14 @@ The terms:
 - **τ:** one value per gauge, from the grid {6, 12, 24, 48, 96, 168, 336} h. For each scored 7-day block, τ is the grid
   value with the lowest mean RMSE over leads 6–168 h on that gauge's data STRICTLY BEFORE the block (rolling origin).
   No τ ever sees its own block.
-- **QC (the serving rule, applied in both legs):** drop observations carrying a CO-OPS quality flag. Then drop any
-  hour whose r departs from the trailing 24 h median by more than 4 robust sd (MAD × 1.4826).
+- **QC (the serving rule, applied in both legs to the observations that BUILD r only; never to truth; amendment 4,
+  13.4):**
+  1. Drop observations carrying a CO-OPS quality flag.
+  2. Then drop an hour as a spike only if all of these hold:
+     - its r departs from the trailing 24 h median by more than max(4 × 1.4826 × MAD, 0.15 m);
+     - it is part of a run of at most 2 such hours;
+     - the hours on BOTH sides of that run lie within the same threshold of the median.
+     A sustained departure, such as a surge onset, is never dropped.
 
 **Seiche and harbour oscillation.** The predictor uses only trailing means of at least 24 h, which low-pass out periods
 of 6–24 h and shorter. The truth is the raw hourly observation, because that is the water a surfer meets. RMSE against
@@ -340,7 +346,7 @@ the same as `coops_datums.json`):**
 | Leg | Product | Rule |
 |---|---|---|
 | R (retrospective) | `product=hourly_height` | VERIFIED hourly heights. Hours with no verified value are missing, and are never filled from preliminary data |
-| P (prospective, as served) | `product=water_level` | the 6-min series, preliminary or verified as returned (field `q`), sampled at minute 00. A row is dropped when any of its quality flags (field `f`) is non-zero, then by the 4-robust-sd rule of section 2 |
+| P (prospective, as served) | `product=water_level` | the 6-min series, preliminary or verified as returned (field `q`), sampled at minute 00. As TRUTH, a row is dropped only when any of its quality flags (field `f`) is non-zero. The spike rule of section 2 applies only to the copy of these observations that builds r (amendment 4, 13.4) |
 | NOAA control | `product=predictions&interval=h` | |
 
 The section 1 motivation numbers (`residual_persist.py`) used `water_level` preliminary at minute 00 against
@@ -349,3 +355,30 @@ The section 1 motivation numbers (`residual_persist.py`) used `water_level` prel
 **The reanalysis/analysis overlap window (stage-2 SLA arm):** calendar **2025-01-01 → 2025-12-31**. This is a
 model-to-model offset with no truth involved. If either product does not cover it in full, the latest 12 full months
 both cover are used, and named in the result.
+
+### 13.4 Amendment 4 (2026-11-23 01:34Z, before any run): QC must not eat the storm, and truth is not filtered
+
+The advisor's two stage-1 QC points from its read of `016b34538`, still open at `04da92bdb`.
+
+**1. The QC rule could drop the storm.** As written, it dropped any hour more than 4 robust sd from the trailing 24 h
+median. On a calm day the MAD is about 1–3 cm, so that threshold is about 0.06–0.18 m, and a real surge onset of
++0.15–0.30 m would have been dropped as a spike. PERSIST24, ANCHOR and TWL would then have lagged exactly the storms
+the storm-hour bar (6.4) exists to catch, and so would serving. The rule in section 2 now reads:
+
+- **Threshold:** max(4 × 1.4826 × MAD, **0.15 m**).
+- **Isolated spikes only:** a departure is dropped only when it lasts at most 2 consecutive hours AND the hours
+  immediately before and after both lie within the threshold of the median. A departure of 3 hours or more, or one
+  whose neighbour on either side is also departed, is real water and is kept.
+- **Reported per gauge and leg:** the number of hours dropped by the flag rule, the number dropped by the spike rule,
+  and the number of departures kept as sustained.
+- **A pinned instrument test:** a planted +0.25 m step lasting 12 h on a calm series (MAD 0.02 m) loses no hours to
+  QC, and a planted single-hour +0.40 m spike between agreeing neighbours is dropped. The instrument PR carries both
+  cases.
+
+**2. Truth is not filtered.** The spike rule applies ONLY to the observations that build r (r24 and the anchor), in
+both legs. Truth keeps every hour that carries no CO-OPS quality flag:
+- leg R: `hourly_height` as published;
+- leg P: `water_level` at minute 00 with any non-zero flag dropped.
+This reverses amendment 3's leg-P truth row, which ran the 4-sd filter on truth; that row is edited in place. A filter
+on truth would have removed the very storm hours the storm-hour bar scores. The instrument asserts that the truth set
+and the r-building set differ only by spike-rule drops, and reports their counts.
