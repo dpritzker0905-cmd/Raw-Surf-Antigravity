@@ -56,6 +56,7 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_STALE_CHIP__',
   // components/map/marineLateWash.test.js (the late wash, 2026-11-15): a seed that repairs a refused wash waits 150 ms, not 1 s
   '__RAW_DISABLE_UNVERIFIED_PIN_MARK__',   // unverifiedLocation.test.js (spots marking, #1087)
+  '__RAW_DISABLE_GUST_WINDOW_LABEL__',   // components/map/gustWindow.test.js ("kill switch: no label anywhere"; the gust window label, 2026-11-22)
   '__RAW_DISABLE_URGENT_WASH_SEED__',
   // tests/weatherAuthFetch.test.js ("kill switch: never a token, never a retry") and tests/sessionExpiredPrompt.test.js
   // ("kill switch and the auth page itself raise nothing"): #782, accounts only
@@ -115,8 +116,12 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_GUST_FIELD_TINT__',
   // gustsLayer.test.js ("the kill returns light to the wind field exactly; the legend follows the same rows"; 2026-11-18)
   '__RAW_DISABLE_GUST_LIGHT_FASTBAND__',
-  // gustsLayer.test.js ("dark keeps the table's alpha; the kill returns light and beach to it"; 2026-11-18)
+  // gustsLayer.test.js ("dark under its own kill keeps the table's alpha; the kill returns light and beach to it"; 2026-11-18)
   '__RAW_DISABLE_GUST_WIND_ALPHA__',
+  // gustsLayer.test.js ("before (the kill): calm drew ~10x the wind's colour and 20 kn about twice it"; 2026-11-22, dark field parity)
+  '__RAW_DISABLE_GUST_DARK_FIELD__',
+  // windDarkFieldVivid.test.js ("the kill returns dark to SRC_ALPHA (the squared law dev drew)"; 2026-11-22, dark wind field vivid)
+  '__RAW_DISABLE_DARK_WIND_VIVID__',
   // currentsLayer.test.js ("its kill restores the handheld radius"; 2026-11-15, own-only phone prefetch)
   '__RAW_DISABLE_OWN_ONLY_PREFETCH2__',
   // ownRasterDecode.test.js ("without a Worker (and under its kill) the same function runs on the main thread"; 2026-11-15)
@@ -168,6 +173,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CADENCE_STEP__',
   // components/map/TideReadout.test.js
   '__RAW_DISABLE_INFOBOX_TIDE__',
+  // components/map/tideOverlay.parity.test.js
+  '__RAW_DISABLE_TIDE_OVERLAY__',
   // hudResidentTruth.test.js
   '__RAW_DISABLE_HUD_RESIDENT_TRUTH__',
   // marineSeriesFrame.killSwitch.test.js

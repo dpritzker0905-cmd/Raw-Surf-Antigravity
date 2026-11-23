@@ -22,6 +22,7 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v5

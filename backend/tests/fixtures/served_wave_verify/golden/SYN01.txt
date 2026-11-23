@@ -1,0 +1,5 @@
+#YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD   PRES  ATMP  WTMP  DEWP  VIS PTDY  TIDE
+#yr  mo dy hr mn degT m/s  m/s     m   sec   sec degT   hPa  degC  degC  degC  nmi  hPa    ft
+2027 01 16 06 00 MM MM MM 1.5 12 8.0 270 MM MM MM MM MM MM MM
+2027 01 15 06 00 MM MM MM 1.2 11 7.5 350 MM MM MM MM MM MM MM
+2027 01 15 00 00 MM MM MM 1.0 10 7.0 99 MM MM MM MM MM MM MM
