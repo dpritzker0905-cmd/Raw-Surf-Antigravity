@@ -59,3 +59,11 @@ changes no gust palette (the #1176 lane) and no wind colour (the dark-wind-vivid
   was used instead. A real reduced-motion browser has not been checked for the same hang.
 - The default stays `flicker`; David watches the candidates in motion before the default flips.
 - Evidence: audit/gust-cue-ab-2026-11-22/ (README round 3, contrast/, rm-sheet-*, rm-clip-*).
+
+## The owner's pick (2026-11-23): hatch, ON
+- the owner (David) in the director session local_d6b521eb, 2026-11-23: "Hatch"; his choice read "Hatch, release file", which also released the Codex-reserved MapWeatherControls.js to #1205.
+- `GUST_CUE_DEFAULT` is now `hatch`, ON. Kill: `window.__RAW_DISABLE_GUST_HATCH__ = true` (colour only). The flicker,
+  width and none arms stay selectable through `window.__RAW_GUST_CUE__` or localStorage `rawGustCue`.
+- MapWeatherControls.js (released to this PR by that choice) keeps the legend key on all three layouts; the file stays
+  at 955 lines, under its grandfathered size.
+- SCOREBOARD row 2026-11-23 11:30Z (visual, ON with kill); ledger owner_action in ledger.d/claude--gust-cue-ab.jsonl.

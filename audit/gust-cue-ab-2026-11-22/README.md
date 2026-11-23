@@ -145,7 +145,9 @@ Sheets: `sheet-*.jpg` and `clip-*.webm` (all four arms, normal motion, cased hat
 - Panning was not recorded. The hatch phase is anchored to the map: a unit test pins that.
 - The whole particle animation has no pause control (WCAG 2.2.2). That is outside this A/B.
 
-## After the pick
+## The pick (2026-11-23): hatch
 
-The chosen cue becomes the default (`GUST_CUE_DEFAULT` in `windGustColour.js`), ON, with its kill above. The kill is
-already registered in `src/tests/killSwitch.inventory.test.js`. The legend key follows the cue automatically.
+The owner picked in the director session: "Hatch" (his choice read "Hatch, release file", which also released the
+Codex-reserved `MapWeatherControls.js` to #1205). `GUST_CUE_DEFAULT` in `windGustColour.js` is now `hatch`, ON. Kill:
+`window.__RAW_DISABLE_GUST_HATCH__ = true` (colour only), registered in `src/tests/killSwitch.inventory.test.js`. The
+flicker, width and none arms stay selectable with `window.__RAW_GUST_CUE__`. The legend key follows the cue.

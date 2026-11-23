@@ -1,6 +1,6 @@
 /**
  * GUST CUE A/B (windGustColour.gustCue, gustShaderSplice.js 'width', gustHatch.js 'hatch', GustCueKey.js): one build runs every
- * candidate; the default stays today's flicker until the owner picks; each cue's kill drops it to no cue; motion is never
+ * candidate; the default is the hatch (the owner's pick, 2026-11-23); each cue's kill drops it to no cue; motion is never
  * touched; the legend says what the cue means.
  */
 import React from 'react';
@@ -15,18 +15,21 @@ const NL = String.fromCharCode(10);
 const store = (v) => ({ getItem: (k) => (k === 'rawGustCue' ? v : null) });
 
 describe('gustCue lever', () => {
-  test('default is today\'s flicker; the window lever wins over storage; junk is ignored', () => {
-    expect(GUST_CUE_DEFAULT).toBe('flicker');
+  test('default is the hatch (the owner\'s pick, 2026-11-23); the window lever wins over storage; junk is ignored', () => {
+    expect(GUST_CUE_DEFAULT).toBe('hatch');
     expect(GUST_CUES).toEqual(['flicker', 'width', 'hatch', 'none']);
-    expect(gustCue({})).toBe('flicker');
+    expect(gustCue({})).toBe('hatch');
     expect(gustCue({ localStorage: store('hatch') })).toBe('hatch');
     expect(gustCue({ __RAW_GUST_CUE__: 'width', localStorage: store('hatch') })).toBe('width');
-    expect(gustCue({ __RAW_GUST_CUE__: 'sparkle', localStorage: store('nope') })).toBe('flicker');
-    expect(gustCue({ localStorage: { getItem: () => { throw new Error('blocked'); } } })).toBe('flicker');
+    expect(gustCue({ __RAW_GUST_CUE__: 'sparkle', localStorage: store('nope') })).toBe('hatch');
+    expect(gustCue({ __RAW_GUST_CUE__: 'flicker' })).toBe('flicker');   // the other arms stay selectable
+    expect(gustCue({ localStorage: { getItem: () => { throw new Error('blocked'); } } })).toBe('hatch');
   });
 
   test('each cue\'s own kill drops it to no cue, and only its own', () => {
-    expect(gustCue({ __RAW_DISABLE_GUST_FLICKER__: true })).toBe('none');
+    expect(gustCue({ __RAW_DISABLE_GUST_HATCH__: true })).toBe('none');   // the default's kill: colour only, as before any cue
+    expect(gustCue({ __RAW_GUST_CUE__: 'flicker', __RAW_DISABLE_GUST_FLICKER__: true })).toBe('none');
+    expect(gustCue({ __RAW_DISABLE_GUST_FLICKER__: true })).toBe('hatch');
     expect(gustCue({ __RAW_GUST_CUE__: 'width', __RAW_DISABLE_GUST_WIDTH__: true })).toBe('none');
     expect(gustCue({ __RAW_GUST_CUE__: 'hatch', __RAW_DISABLE_GUST_HATCH__: true })).toBe('none');
     expect(gustCue({ __RAW_GUST_CUE__: 'hatch', __RAW_DISABLE_GUST_WIDTH__: true })).toBe('hatch');
@@ -34,11 +37,12 @@ describe('gustCue lever', () => {
   });
 
   test('the flicker runs only under the flicker cue (and never under reduced motion)', () => {
-    expect(gustFlicker({}).on).toBe(true);
+    expect(gustFlicker({}).on).toBe(false);   // the default is the hatch
+    expect(gustFlicker({ __RAW_GUST_CUE__: 'flicker' }).on).toBe(true);
     expect(gustFlicker({ __RAW_GUST_CUE__: 'width' }).on).toBe(false);
     expect(gustFlicker({ __RAW_GUST_CUE__: 'hatch' }).on).toBe(false);
     expect(gustFlicker({ __RAW_GUST_CUE__: 'none' }).on).toBe(false);
-    expect(gustFlicker({ matchMedia: () => ({ matches: true }) }).on).toBe(false);
+    expect(gustFlicker({ __RAW_GUST_CUE__: 'flicker', matchMedia: () => ({ matches: true }) }).on).toBe(false);
   });
 });
 

@@ -119,15 +119,16 @@ export function gustFlicker(win = (typeof window !== 'undefined' ? window : null
 }
 
 /**
- * GUST CUE A/B (2026-11-22, owner to pick; audit/gust-cue-ab-2026-11-22 has the evidence). ONE build runs every candidate:
- *   'flicker' (today's default, above) | 'width' (gusty marks drawn wider ACROSS the flow, static; gustShaderSplice.js)
- *   | 'hatch' (static diagonal hatch over the field, gustHatch.js) | 'none' (colour only: the control).
+ * GUST CUE (A/B 2026-11-22, audit/gust-cue-ab-2026-11-22). The owner picked the HATCH on 2026-11-23 ("Hatch", relayed by
+ * the director session): it is the default, ON. Every arm stays selectable from one build:
+ *   'hatch' (the default: a static, cased diagonal hatch over the field, gustHatch.js) | 'flicker' (the old default, above)
+ *   | 'width' (gusty marks drawn wider ACROSS the flow, static; gustShaderSplice.js) | 'none' (colour only: the control).
  * Pick: window.__RAW_GUST_CUE__, else localStorage 'rawGustCue', else the default. Each cue's own kill drops it to 'none':
  * window.__RAW_DISABLE_GUST_FLICKER__, window.__RAW_DISABLE_GUST_WIDTH__, window.__RAW_DISABLE_GUST_HATCH__ (= true).
  * Motion is never touched.
  */
 export const GUST_CUES = Object.freeze(['flicker', 'width', 'hatch', 'none']);
-export const GUST_CUE_DEFAULT = 'flicker';
+export const GUST_CUE_DEFAULT = 'hatch';   // the owner's pick, 2026-11-23; kill: window.__RAW_DISABLE_GUST_HATCH__
 export function gustCue(win = (typeof window !== 'undefined' ? window : null)) {
   let cue = win && win.__RAW_GUST_CUE__;
   if (!GUST_CUES.includes(cue)) {

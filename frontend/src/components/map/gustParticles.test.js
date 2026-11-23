@@ -225,8 +225,9 @@ describe('the shader splice and its kill', () => {
 });
 
 describe('gust flicker (the non-colour gustiness cue)', () => {
-  test('the flicker: on by default, off under its kill and under prefers-reduced-motion', () => {
-    const win = (reduce) => ({ matchMedia: () => ({ matches: reduce }) });
+  test('the flicker: on when picked, off under its kill and under prefers-reduced-motion', () => {
+    // the default cue is the hatch since the owner's pick (2026-11-23, gustCue.test.js); the flicker runs when picked
+    const win = (reduce) => ({ __RAW_GUST_CUE__: 'flicker', matchMedia: () => ({ matches: reduce }) });
     expect(gustFlicker(win(false), 0).on).toBe(true);
     expect(gustFlicker(win(true), 0).on).toBe(false);
     expect(gustFlicker({ ...win(false), __RAW_DISABLE_GUST_FLICKER__: true }, 0).on).toBe(false);

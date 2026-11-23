@@ -110,9 +110,10 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CURRENT_GRID_PREWARM__',
   // currentNative.test.js ("off by default; the lever ... turns it on; its kill and the particles' gates win"; 2026-11-22)
   '__RAW_DISABLE_CURRENTS_NATIVE__',
-  // gustParticles.test.js ("the flicker: on by default, off under its kill and under prefers-reduced-motion"; 2026-11-18)
+  // gustParticles.test.js ("the flicker: on when picked, off under its kill and under prefers-reduced-motion"; 2026-11-18)
   '__RAW_DISABLE_GUST_FLICKER__',
-  // gustCue.test.js ("each cue's own kill drops it to no cue, and only its own"; 2026-11-22, gust cue A/B)
+  // gustCue.test.js ("each cue's own kill drops it to no cue, and only its own"; 2026-11-22, gust cue A/B; the HATCH kill
+  // is the default cue's kill since the owner's pick, 2026-11-23)
   '__RAW_DISABLE_GUST_WIDTH__',
   '__RAW_DISABLE_GUST_HATCH__',
   // gustParticles.test.js ("the gust field tints like the wind field on light and beach; both kills turn it off"; 2026-11-18)
