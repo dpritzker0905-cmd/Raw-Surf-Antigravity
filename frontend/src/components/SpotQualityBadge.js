@@ -1,5 +1,6 @@
 import React from 'react';
 import { RATING_LABEL, RATING_COLOR } from './map/surfRating';
+import { useNoteForecastShown } from './observations/forecastExposure';
 
 /**
  * Surf QUALITY on the spot hub (audit 15.0, 2026-09-26).
@@ -21,6 +22,7 @@ export const qualityLabel = (current) => {
 };
 
 export const SpotQualityBadge = ({ current, compact = false, textClass = '', mutedClass = '', cellBg = '' }) => {
+  useNoteForecastShown('quality_badge');  // blind-quality exposure (observations/forecastExposure)
   const aria = qualityLabel(current);
   if (!aria) return null;
   const level = current.rating_level;

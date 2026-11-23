@@ -90,6 +90,18 @@ class SurfObservation(Base):
     consent_training = Column(Boolean, nullable=True)
     consent_version = Column(String(32), nullable=True)
 
+    # BLIND SURF QUALITY (prerequisite of gates/surf-tide-v1.md section 0; SURF_TRUTH_BLIND_QUALITY, on by default
+    # with a kill switch). One of surf_rating.LEVELS, chosen in words on a screen that shows no forecast, no rating, no
+    # tide factor and no best_tide text. Stored ONLY when the server's own screen audit says the screen was blind
+    # (forecast_shown_before = false) AND the person's forecast-data consent is in force AND the app says it has not
+    # shown this spot's forecast earlier in the session.
+    # Otherwise the height is kept and the quality dropped with a flag. No XP or reward reads it.
+    quality_level = Column(String(16), nullable=True)
+    quality_version = Column(String(16), nullable=True)   # names the question and its seven labels ('blind_q1')
+    # The app's own record, a CLAIM: was this spot's forecast shown in this app session before the report? Null when
+    # the client did not say (older builds); a quality is stored only on an explicit false.
+    forecast_seen_claim = Column(Boolean, nullable=True)
+
     # One observation per parent report, enforced by the database too (the route's read-then-insert can race).
     # A NULL ref_id (a check-in observation made after today's check-in already existed) is not constrained.
     __table_args__ = (Index('ix_surf_observations_spot_received', 'spot_id', 'received_at'),
