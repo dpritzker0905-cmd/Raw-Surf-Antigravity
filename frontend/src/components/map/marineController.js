@@ -8,18 +8,8 @@ import {
   getSnapConfig,
   isViewportInsideCachedBounds
 } from './marineControllerUtils';
-import {
-  getBackendWeatherFlag,
-  getBackendCopernicusFlag,
-  getBackendIconMarineFlag,
-  getBackendMarineSystemFlag,
-  getSharedValidTime,
-  getSurfModeFlag,
-  updateDiagnostics,
-  updateProjectionDiag,
-  fetchBackendMarineGrid,
-  clampViewportBbox
-} from './backendWeatherServiceClient';
+import { getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getBackendMarineSystemFlag, getSharedValidTime, getSurfModeFlag, updateDiagnostics, updateProjectionDiag, fetchBackendMarineGrid, clampViewportBbox } from './backendWeatherServiceClient';
+import { bandRatedFor } from './partitionHeightOnly';
 import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
 import { coarseRatedForView } from './marineRatingBandRes';
 import { recordTruthStage } from './weatherTruthTracker';
@@ -48,6 +38,8 @@ import { extractMarineAtOffset } from './marineControllerExtractor';
 import { getMarineSeriesFrame, runBackgroundWarm } from './marineGridSeries'; import { warmSiblingLayer } from './marineSiblingWarm';
 import { publishServeDiag } from './marineServeDiag';
 import { prewarmGlobalMarineGrid, _rewarmWashBaseIfStale, registerPrewarmDeps } from './marineGlobalPrewarm';
+// The flavour the marine data lane asks for this layer: a partition is plain even in Rating mode (bug hunt 2026-11-22 D).
+const getMarineBandFlag = (layer) => bandRatedFor(getSurfModeFlag(), layer);
 
 // The GLOBAL-coarse prewarm and the coarse-bridge seed moved to marineGlobalPrewarm.js on 2026-08-11
 // (cut 2 of the 3-cut split that holds this file under the 800 LOC ratchet). They are RE-EXPORTED
@@ -196,7 +188,7 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
   // is_valid:false in surf mode), and a cross-mode cache hit committed the other mode's frame
   // (the plain/surf frame-mixing family). Folded into layerPart so every key template AND the
   // prefix-scan fallbacks inherit it.
-  const layerPart = (_isAllVarModel(wanted) ? 'all' : wantedLayer) + (getSurfModeFlag() ? '~surf' : '');
+  const layerPart = (_isAllVarModel(wanted) ? 'all' : wantedLayer) + (getMarineBandFlag(wantedLayer) ? '~surf' : '');
   const _finestRated = bounds ? ratedFinestCellDeg(`${wanted}_${layerPart}_`, wantedHour, bounds) : null;   // coarseRatedForView's 2x leg
   let exact = null;
   if (bounds) {
@@ -518,7 +510,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   if (!forceFetch) {
     // Mode-keyed like getModelSafeMarine (surf/plain frames must never cross-hit).
-    const layerPart = (_isAllVarModel(model) ? 'all' : activeLayer) + (getSurfModeFlag() ? '~surf' : '');
+    const layerPart = (_isAllVarModel(model) ? 'all' : activeLayer) + (getMarineBandFlag(activeLayer) ? '~surf' : '');
   const _finestRated = bounds ? ratedFinestCellDeg(`${model || 'GFS'}_${layerPart}_`, hourOffset, bounds) : null;   // coarseRatedForView's 2x leg
     const tileId = clampRes.selectedTileId || 'outside';
     aliasMarineHourByInstant(model, activeLayer, tileId, hourOffset);   // GRID_INSTANT_KEY (marineControllerCache.js): no refetch of a held instant

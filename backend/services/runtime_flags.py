@@ -53,6 +53,10 @@ GUARDED = {
     "ALERTS_FORECAST_WINDOWS": "0",     # D-065: up to 5 alerts/day before the cap fix (claude/alerts-dedupe-cap)
     "SURF_BIGHT_HS_CONSENSUS": "1",     # #707: hs_station +0.099 m [two-way 0.038, 0.182]; round-7 history +0.155, ON
     "SPOT_HUB_RATE_ONE_SPOT": "1",      # spot-hub phase 2 (#710): the hub on rate_one_spot; kill '0' = the old chain
+    "COPERNICUS_PEAK_PERIOD": "0",      # 2026-10-20 dark (#412): CMEMS VTPK peak period, not VTM10 energy period. READ BY
+    "ICON_PEAK_PERIOD": "0",            # FETCHER SUBPROCESSES via os.environ only: the workflow env is the switch and the kill.
+    "RATING_MISSING_SAMPLE_UNKNOWN": "1",  # bug-hunt B: a sampler "unavailable"/out-of-bounds placeholder is MISSING, not 0.
+                                        # ON by the owner's typed word 2026-11-22: "Yes, ship #1181 on". Kill '0'.
     "SURF_NEARSHORE_LITE": "0",         # MOP-lite (gate nearshore-moplite-v1): DARK until the gate passes; replaces only Kr + exposure
     "SURF_NEARSHORE_MOP": "1",          # CDIP MOP nearshore sea at California spots: nearshore judge 86/86 runs better,
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
@@ -64,6 +68,9 @@ GUARDED = {
                                         # unavailable), never Open-Meteo. Moves tide_fit and the SURF_TIDE_DEPTH cap
     "SURF_TIDE_CMEMS": "0",             # held OFF: the CMEMS sea level read directly, where the table has it. ON only after
                                         # the r2 parity run is read and passing AND the builder refuses a low fill count
+    "SURF_TIDE_WINDOW_FIX": "1",        # D-065 ON: owner 2026-11-23 "Yes, turn it on" (director session). The tide no longer
+                                        # freezes past ~72 h (window covers the valid time; >1.5 h from a sample = no tide, not
+                                        # stale). Moves tide_fit and the SURF_TIDE_DEPTH cap past day 3. Kill '0'. tests/test_tide_window.py
     "RATING_REF_PRIOR": "0",            # JAC-2 (#771): held OFF: -17.9 pt mean rating move on reference-less
                                         # spot-hours (480/480 moved, 414 level changes), no rating truth yet
     "FRAME_ENTITLEMENT": "0",           # O6 accounts only: EVERY static frame private + signed URLs. Held OFF: needs the
@@ -81,11 +88,15 @@ GUARDED = {
     "LOCATION_TIME_FIELD": "0",         # location_time phase 1 (#762): civil zone + civil day rows. Held OFF until
                                         # the D-065 prerequisites (SCOREBOARD row, history filter) land; tier-safe
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
+    "HUB_NOW_NEAREST_HOUR": "1",        # bug hunt 2026-11-22 E: hub/sim "now" = the map's nearest-hour anchor (was a
+                                        # floor: other 3-hourly product in :30-:59); kill '0' = the floor
     "SIDE_PATHS_THROUGH_CHAIN": "1",    # O4: /api/conditions preview rows = precomputed rate_one_spot frames (rated);
                                         # _breaking_ft fails CLOSED (never offshore Hs as surf); /api/surf-conditions
                                         # target-time height labelled an unrated estimate; kill '0'
     "RATING_BAND_ONE_CHAIN": "1",       # CMP-1: map rating band = estimate_surf_at on cached geometry + break depth;
                                         # band level == glyph level at 4,101 of 4,197 asset spot-seas, 0 unexplained
+    "BAND_PARTITION_HEIGHT_ONLY": "1",  # bug hunt 2026-11-22 D, option B: swell_1/swell_2/wind_waves show their own height, no
+                                        # surf rating (band_partition.py); the rating stays on waves; kill '0'
     "ICON_SWELL2_SERVE": "0",           # option B (#877): /grid + /point serve the stored ICON swell_2 blend (else
                                         # "unsupported"). Real-frame parity: = the mid-zoom map 0/120,184 cells; vs the
                                         # world-span map 924 cells (0.77%) <= 0.4 mm, same direction/period. Owner said

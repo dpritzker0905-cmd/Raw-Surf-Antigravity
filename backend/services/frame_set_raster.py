@@ -621,7 +621,7 @@ def build_frame_multi(planes, valid, run, sp):
         if fid != fb.FLOW_DIR_BYTE:
             p[fid] = np.where(bad_main, np.nan, p[fid])
     if fb.FLOW_DIR_BYTE in p:   # per 2 x 2 block at its anchor (frame_binary ANCHORS); the block's water, not the anchor, decides
-        p[fb.FLOW_DIR_BYTE] = fb.flow_dir_anchors(np.where(bad_main, np.nan, p[main]), p[fb.FLOW_DIR_BYTE])
+        p[fb.FLOW_DIR_BYTE] = fb.flow_dir_anchors(np.where(bad_main, np.nan, p[main]), p[fb.FLOW_DIR_BYTE], sp.get("dir_stride", 2))
     raw = fb.encode_planes(p, grid_of(sp)["bounds"], iso(valid), iso(run), uv_convention=sp.get("uv_convention", 0))
     gz = fb.gzip_frame(raw)
     _head, fields = fb.decode_plane(gz)
@@ -707,7 +707,8 @@ def make_index(cycle, frames, stats, spec=None):
         "set": fs.set_key(sp["target"]), **sp["target"], "run": iso(cycle), "cycle": iso(cycle), "runs": [iso(cycle)], "run_time": iso(cycle),
         "grid": {"cols": grid_of(sp)["cols"], "rows": grid_of(sp)["rows"],
                  "bounds": dict(zip(("west", "south", "east", "north"), grid_of(sp)["bounds"])),
-                 "row0": "south", "col0": "west", "wrap_column": False},
+                 "row0": "south", "col0": "west", "wrap_column": False,
+                 **({"flow_dir_stride": sp["dir_stride"]} if fb.FLOW_DIR_BYTE in (sp.get("fields") or ()) and sp.get("dir_stride") else {})},
         "coverage": round(len(built) / len(frames), 4) if frames else 0.0,
         "coverage_authoritative": round(len(built) / len(frames), 4) if frames else 0.0,
         "selection": "the frame whose valid_time equals the hour; none within 3 h -> no frame (no time interpolation)",

@@ -119,3 +119,56 @@ test('water temp drawn from the Copernicus ocean model (G4) credits Copernicus a
   expect(c.label).toMatch(/top half metre, hourly mean, 1\/6 degree cells \(not a skin temperature\)\. DWD ICON has no sea temperature/);
   for (const m of ['GFS', 'EURO']) expect(creditFor('water_temp', { water_temp: m }, {}).text).not.toMatch(/ocean model/);
 });
+
+test('an own-only model claimed with nothing drawn ("<MODEL>:idle", 2026-11-18) credits its own source, with no note and never Open-Meteo', () => {
+  const { setEngaged } = require('./ownRasterFrames');
+  act(() => setEngaged('temperature', 'ICON:idle'));
+  expect(creditFor('temperature').text).toBe('ICON · Datenbasis: Deutscher Wetterdienst');
+  act(() => setEngaged('satellite', 'EURO:idle'));
+  expect(creditFor('satellite').text).toBe('EURO · © ECMWF · CC BY 4.0');          // no "instantaneous" note: nothing is drawn
+  act(() => { setEngaged('temperature', false); setEngaged('satellite', false); });
+});
+
+test('ICON rain (2026-11-18) says on screen that it is an area mean whose local peaks can read low; GFS and EURO rain do not', () => {
+  const { setEngaged } = require('./ownRasterFrames');
+  act(() => setEngaged('rain', 'ICON'));
+  const c = creditFor('rain');
+  expect(c.text).toBe('ICON · Datenbasis: Deutscher Wetterdienst · area-averaged; local peaks can read low');
+  expect(c.title).toMatch(/averaged over each 0\.125 degree box \(about 14 km\), so the heaviest local downpours can read lower/);
+  expect(c.label).toMatch(/^ICON rain averaged over each 0\.125 degree box .* Data source: Deutscher Wetterdienst \(Datenbasis: Deutscher Wetterdienst\), ICON model/);
+  const { getByTestId } = render(<LayerDataCredit layer="rain" />);
+  const a = getByTestId('layer-data-credit');
+  expect(a.textContent).toBe(c.text);                           // visible text, in the legend's own (theme-aware) muted colour
+  expect(a.getAttribute('aria-label')).toBe(c.label);           // the full sentence for screen readers
+  expect(a.getAttribute('title')).toBe(c.title);
+  act(() => setEngaged('rain', 'GFS'));
+  expect(creditFor('rain').text).toBe('NOAA GFS');              // no note on GFS rain
+  act(() => setEngaged('rain', 'EURO'));
+  expect(creditFor('rain').text).toBe('EURO · © ECMWF · CC BY 4.0');
+  act(() => setEngaged('rain', false));
+});
+
+describe('the short gap-fill labels in each theme (the director, 2026-11-22): what is drawn, wrapping, full text in the tooltip', () => {
+  const { ThemeProvider } = require('../../contexts/ThemeContext');
+  const { setEngaged } = require('./ownRasterFrames');
+  afterEach(() => { act(() => { setEngaged('temperature', false); }); window.localStorage.removeItem('raw-surf-theme'); });
+  test.each([
+    ['light', 'ICON+GFS:fill:ICON', 'ICON → GFS · Datenbasis: Deutscher Wetterdienst'],
+    ['dark', 'ICON+GFS:fill:ICON', 'ICON → GFS · Datenbasis: Deutscher Wetterdienst'],
+    ['beach', 'ICON+GFS:fill:ICON', 'ICON → GFS · Datenbasis: Deutscher Wetterdienst'],
+    ['light', 'GFS:fill:ICON', 'GFS (stand-in)'],
+    ['dark', 'GFS:fill:ICON', 'GFS (stand-in)'],
+    ['beach', 'GFS:fill:ICON', 'GFS (stand-in)'],
+  ])('%s theme, %s -> "%s"', (theme, engaged, text) => {
+    window.localStorage.setItem('raw-surf-theme', theme);
+    act(() => setEngaged('temperature', engaged));
+    const { getByTestId } = render(<ThemeProvider><div className="text-gray-600 flex justify-between"><span>Air Temp</span><LayerDataCredit layer="temperature" /></div></ThemeProvider>);
+    const a = getByTestId('layer-data-credit');
+    expect(a.textContent).toBe(text);
+    expect(a.getAttribute('aria-label')).toMatch(/^Estimated: /);
+    expect(a.getAttribute('title')).toBe(a.getAttribute('aria-label'));   // the full text on hover
+    expect(a.className.split(' ')).toContain('min-w-0');                // wraps inside the legend row, never cut
+    expect(a.className.split(' ')).toContain('break-words');
+    expect(a.className.split(' ').filter((k) => k === 'shrink-0' || k === 'truncate' || /^text-(white|black|gray-[0-9]+|zinc-[0-9]+)$/.test(k))).toEqual([]);   // the legend's own theme colour, never cut
+  });
+});

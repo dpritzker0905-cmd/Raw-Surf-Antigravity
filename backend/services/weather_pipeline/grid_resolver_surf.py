@@ -51,6 +51,14 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
         p.grid.diagnostics = dict(p.grid.diagnostics or {})
         return p
 
+    # Bug hunt 2026-11-22 D (option B): a PARTITION layer shows its own height, never a surf rating; the rating is the total sea's
+    # (band_partition.py). Same shape as the coarse-extent skip below, which the client already renders as the honest field.
+    from services.weather_pipeline import band_partition as _bp
+    if _bp.height_only(layer):
+        product = _shallow_with_own_diagnostics(product)
+        product.grid.diagnostics["surf_transform"] = {"skipped": "partition_layer"}
+        return product
+
     _copied = False
     try:
         from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km

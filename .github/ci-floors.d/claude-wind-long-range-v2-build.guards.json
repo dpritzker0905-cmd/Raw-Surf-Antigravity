@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 62,
+  "files": 2,
+  "branch": "claude/wind-long-range-v2-build",
+  "date": "2026-11-22",
+  "note": "wind long-range v2 build PR 1 (guards lane claims test_wind_*)"
+}

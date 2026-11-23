@@ -39,6 +39,26 @@ logging.basicConfig(
 logger = logging.getLogger("precompute_ci")
 
 
+def _report_placeholder_tally() -> None:
+    """How often this run's ratings read a sampler placeholder (bug-hunt B; RATING_MISSING_SAMPLE_UNKNOWN). Log + the
+    Actions step summary. Reporting only: a failure here never fails the run."""
+    try:
+        import json as _json
+        from services.weather_pipeline.missing_sample import tally_summary
+        tally = tally_summary()
+        logger.info("Placeholder samples this run: %s", _json.dumps(tally, sort_keys=True))
+        path = os.environ.get("GITHUB_STEP_SUMMARY")
+        if path and tally:
+            lines = ["### Placeholder samples (rate_one_spot inputs)", "",
+                     "| model/domain | total | placeholder | share | failed resolve |", "|---|---|---|---|---|"]
+            for key, row in tally.items():
+                lines.append(f"| {key} | {row['total']} | {row['placeholder']} | {row['share']:.4%} | {row['none']} |")
+            with open(path, "a", encoding="utf-8") as fh:
+                fh.write("\n".join(lines) + "\n")
+    except Exception as e:  # noqa: BLE001 - reporting must never fail the precompute
+        logger.warning("Placeholder tally unavailable: %s", e)
+
+
 def main() -> int:
     if not (os.environ.get("SUPABASE_URL") and
             (os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY"))):
@@ -79,6 +99,7 @@ def main() -> int:
             from services.weather_pipeline.spot_ratings_precompute import run_spot_ratings_precompute
             n_spots, n_frames = run_spot_ratings_precompute()
             logger.info("Spot-ratings precompute complete: %d spots × %d frames → L2.", n_spots, n_frames)
+            _report_placeholder_tally()
             # ING-6: every model refused / below coverage returns (n, 0) without raising. Zero frames means
             # nothing was published, so the job must go RED, not green. Kill switch: PRECOMPUTE_FAIL_ON_ZERO_FRAMES=0.
             if not n_frames and os.environ.get("PRECOMPUTE_FAIL_ON_ZERO_FRAMES", "1") != "0":

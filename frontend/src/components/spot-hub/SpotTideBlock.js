@@ -14,6 +14,7 @@ import React from 'react';
 import { ArrowUp, ArrowDown, Droplets } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { spotHubP1Enabled, tideSourceLabel } from './spotHubP1Format';
+import { useNoteForecastShown } from '../observations/forecastExposure';
 
 function trendPillClass(rising, p1, isLight, isBeach) {
   if (!p1) return rising ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400';
@@ -29,6 +30,7 @@ function extremeClass(isHigh, p1, isLight, isBeach) {
 }
 
 export default function SpotTideBlock({ tideData, t, containerBorder, testId = 'spot-tide-block' }) {
+  useNoteForecastShown('tide_block');  // blind-quality exposure (observations/forecastExposure)
   if (!tideData || !Array.isArray(tideData.tides) || tideData.tides.length === 0) return null;
   const p1 = spotHubP1Enabled();
   const { isLight, isBeach } = t;
