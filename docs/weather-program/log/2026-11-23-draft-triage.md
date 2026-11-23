@@ -50,10 +50,51 @@ own C1 control. Read for the record only, it showed:
 A second read on rows already seen risks p-hacking, and the buoy skill gate remains to catch any real EURO height issue. EURO
 marine heights keep the vector-mean interpolation, and `SAMPLER_SCALAR_HEIGHT_MODELS` stays `GFS`.
 
-**Left as it is:** the EURO shadow lane (`SAMPLER_SCALAR_LEDGER_MODELS` includes EURO) keeps grading. Retiring it is not part of
-this decision.
+### The EURO shadow lane: turned off after forensics, testing and the three advisors
+
+The owner, 2026-11-23: "lets make sure turning it off it the SOTA way forward using forensics and testing. Then bouncing it
+off reflection, longcat, and subq".
+
+**Forensics** (dev 4c7b37304; forecast-ingest run 45142574342, 2026-11-23 10:47Z):
+- **Consumers:** nothing served or paging reads `raw_surf:EURO_SCALAR`. Its readers were:
+  - the retired D-073 read script;
+  - the shadow-only reports, which take any source generically: the MOS shadow, the paired direction/period report (it
+    strips `_SCALAR`) and the monitor table, which is informational for `raw_surf:*` lanes.
+- **Cost:** the skill ledger's pending queue held 59,520 of its 68,000 cap (87.5%). Past the cap, the farthest-lead rows of
+  every lane are evicted, which is how the instrument went dark on 08-04. EURO_SCALAR is one of 11 lanes, about 5.4k rows. CPU
+  is minor: the whole skill pass took about 30 s.
+
+**The change:**
+- `SAMPLER_SCALAR_LEDGER_MODELS` goes from `'GFS,EURO,ICON'` to `'GFS,ICON'` in `forecast-ingest.yml` and `precompute.yml`.
+- `ICON_SCALAR` stays, because ICON's flip is undecided.
+- The pin `test_both_ledger_lanes_declare_the_shadow_model_list_equal` now asserts ICON present and EURO absent.
+- EURO_SCALAR's scored history (2026-11-02 .. 11-23) stays in the scored files.
+- Re-arming EURO is a new decision; that pin changes with it.
+
+**Tests:**
+- **Lane diff:** offline, under each workflow's real step env, the graded lanes go from
+  `ICON, EURO, CONSENSUS, EURO_SCALAR, ICON_SCALAR` to `ICON, EURO, CONSENSUS, ICON_SCALAR`. Nothing else changes.
+- **Retirement harness:** synthetic scored history (6 buoys × 30 days × 3 leads × 8 sources) in three states: the lane on,
+  turned off 4 days ago with its old rows still in the window, and gone. Every report block the ledger builds ran in all
+  three states: the summary, MOS shadow, attribution, consensus and its shadow, OCF, direction/period and its paired report.
+  - **None raised.**
+  - **Other lanes unchanged:** every other lane's numbers are identical across the three states. The only changes are two
+    counts: MOS `rows_used` (34,560 -> 30,240) and the paired report's `n_kind_inferred` (25,920 -> 21,600).
+- **Test suites:** `test_sampler_scalar_marine_height`, `test_forecast_skill`, `test_flag_lane_parity`,
+  `test_euro_scalar_shadow_read` and `test_workflow_key_environment` pass, 203 tests, twice. The flake8 gate is clean.
+
+**Advisors** (same public brief, no secrets):
+- **SubQ:** TURN OFF. It adds a caution: this buys headroom but does not fix 87.5% occupancy.
+- **Reflection:** TURN OFF. It asks for a check that the generic reports cope with the lane absent and its history retained;
+  the harness above does that.
+- **LongCat:** TURN OFF WITH CONDITION. Treat the pending cap as a separately tracked issue, because one lane's 9% only
+  defers an eviction if lanes keep growing.
+
+**The cap condition (all three raised it):** after this change the steady state is about 54k of 68k. A NEW lane must add its
+own rows to the cap arithmetic in `forecast_skill.PENDING_MAX_ENTRIES`, as every past lane did. `pending_evicted_cap > 0` in the
+report is the early signal.
 
 ## Ledger
 
 The ledger lines are in `ledger.d/claude--draft-triage-2026-11-23.jsonl`: an owner_action (the owner's two decisions and
-the five closures they authorized) and a doc_write (this log). This change moves no served number, so it needs no SCOREBOARD row.
+the five closures they authorized) and a doc_write (this log), and an env_change (the EURO shadow lane off, on merge). No served number moves, so it needs no SCOREBOARD row.
