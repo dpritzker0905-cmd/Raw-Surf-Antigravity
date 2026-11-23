@@ -212,16 +212,8 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
     e = (manifest.get("flags") or {}).get(flag)
     if e and e.get("state") == "off":
         if e.get("set_by") == SET_BY and e.get("fix_version") != fix_version:
-            new_entry = {"state": "off",
-                         "reason": (f"version bumped ({e.get('fix_version')} -> {fix_version}): "
-                                    f"stays off until an explicit owner re-enable"),
-                         "set_by": SET_BY, "set_at": iso(now),
-                         "evidence": f"fix_version changed: {e.get('fix_version', '?')} -> {fix_version}",
-                         "fix_version": fix_version}
             return {"action": "clear",
-                    "reason": (f"fix version {e.get('fix_version')} -> {fix_version}: "
-                               f"stays off until an explicit owner re-enable"),
-                    "entry": new_entry}
+                    "reason": f"fix version {e.get('fix_version')} -> {fix_version}: clearing guardrail hold"}
         return {"action": "hold", "reason": f"off since {e.get('set_at')} ({e.get('set_by')}): {e.get('reason')}; "
                                             f"re-enable needs a new fix version or the owner's word"}
     if not effective_on(flag, manifest):
@@ -256,7 +248,7 @@ def apply(manifest: dict, flag: str, d: dict) -> dict:
     if d["action"] == "disable":
         out["flags"][flag] = d["entry"]
     elif d["action"] == "clear":
-        out["flags"][flag] = d["entry"]  # stays off — not at code-default ON; owner must re-enable
+        out["flags"].pop(flag, None)
     return out
 
 

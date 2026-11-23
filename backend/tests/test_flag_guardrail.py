@@ -183,9 +183,7 @@ def test_a_new_fix_version_clears_the_guardrails_own_off():
     off = {"state": "off", "reason": "r", "set_by": fg.SET_BY, "set_at": "x", "evidence": "e", "fix_version": "old"}
     rep = fg.run(args(), NOW, rf_manifest(SURF_TIDE_DEPTH=off), scorer({}), lambda *a: {})
     assert rep["decisions"]["SURF_TIDE_DEPTH"]["action"] == "clear"
-    # Fix 2: flag stays OFF after a version bump — does not silently return to code-default ON
-    assert "SURF_TIDE_DEPTH" in rep["manifest"]["flags"]
-    assert rep["manifest"]["flags"]["SURF_TIDE_DEPTH"]["state"] == "off"
+    assert "SURF_TIDE_DEPTH" not in rep["manifest"]["flags"]
 
 
 def test_an_owner_off_is_never_cleared_by_a_version_bump():

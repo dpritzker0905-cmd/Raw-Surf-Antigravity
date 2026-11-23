@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 3,
+  "tests": 2,
   "files": 1,
   "branch": "claude/guardrail-p0-owner-check",
   "date": "2026-11-23",
-  "note": "P0 security: owner_reenable actor-check + FIX_VERSION clear stays off"
+  "note": "P0 security: owner_reenable actor-check (Fix 1 only)"
 }

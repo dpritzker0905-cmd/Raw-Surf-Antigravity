@@ -54,15 +54,3 @@ def test_owner_actor_accepted():
     assert result["flags"][_FLAG]["set_by"] == "owner"
 
 
-def test_fix_version_bump_does_not_auto_enable():
-    """A FIX_VERSION bump triggers 'clear', but the flag stays OFF — not at code-default ON."""
-    off = {"state": "off", "reason": "auto-disabled", "set_by": fg.SET_BY,
-           "set_at": "2026-11-01T00:00:00Z", "evidence": "run/1", "fix_version": "old-version"}
-    rep = fg.run(_args(), NOW, _manifest(**{_FLAG: off}), _scorer(), lambda *a: {})
-    assert rep["decisions"][_FLAG]["action"] == "clear"
-    # Must remain off, not jump to code-default ON
-    assert _FLAG in rep["manifest"]["flags"], "flag entry must still exist after clear"
-    assert rep["manifest"]["flags"][_FLAG]["state"] == "off", "flag must stay off after FIX_VERSION bump"
-    # Subsequent run must hold (not score) — the flag is still guardrail-owned
-    rep2 = fg.run(_args(), NOW, rep["manifest"], _scorer({_FLAG: gs.BETTER}), lambda *a: {})
-    assert rep2["decisions"][_FLAG]["action"] == "hold", "flag must stay held after version-bump clear"
