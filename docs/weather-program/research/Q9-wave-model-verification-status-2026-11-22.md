@@ -95,6 +95,37 @@ Written after the ww3 MCP forecast calls failed for a second time, and before an
 
 **Pairing and stats:** unchanged from §6 (±30 min truth window, at least 2 non-null records, Hs bias/RMSE/SI, direction circular error, DPD descriptive). Label: descriptive, n=1 cycle.
 
+## 6b. Dated amendment (second), 2026-11-23 UTC, before any frame or new value was read
+
+Supersedes the source choice in §6a. The ERDDAP result in §7a is kept for the record and is labelled as the fallback path A.
+
+**Source B (primary):** our own stored GFS-Wave frames, as users see them.
+- Bucket `weather-frames`, read through the public object URL `<project>/storage/v1/object/public/weather-frames/…`. Anonymous fetch only. The service-role key is never used, and the live API is not used.
+- Index: `v1/latest.json` (run-keyed). Frame index format: encoding_version 1, transform_version 1 (see `frontend/src/components/map/staticFrames.js`, `loadIndex`).
+- Decoder: `decodeOwnField` in `frontend/src/components/map/ownRasterDecode.js`, reused as-is. Fetch: `fetchFrameBytes` in `staticFrames.js`. Writer side: `backend/services/noaa_gfs_wave_fetcher.py` (source dataset `ncep_gfswave025`).
+
+**Retention check: NOT PERFORMED.** The public project host is not in this worktree (`REACT_APP_SUPABASE_URL` is unset here, and no tracked file carries the real host). Nothing was fetched. Until the host is supplied, the retention result is "unknown", and no run is chosen.
+
+**Run rule (fixed now):** if 2026-11-20 or 2026-11-21 is listed in `latest.json`, use the oldest retained run with leads covering 24–48 h and buoy truth. If only the newest run is kept, report the 24–48 h bin as n = 0 and do not substitute another run.
+
+**Buoy-to-cell rule:** the nearest wet cell of the frame grid to each buoy, with the distance recorded. The frame grid resolution is read from the frame metadata before any value is used. If no wet cell lies within one frame-grid cell, the buoy is recorded as unavailable. 46086 and 44013 use the same rule. No fallback cell search is done.
+
+**Leads:** discrete steps at the frame's own forecast hours. Bin A is 0 ≤ lead < 24 h (lower bound inclusive, upper exclusive). Bin B is 24 h ≤ lead ≤ 48 h (both inclusive).
+
+**Period:** the frame's peak period (Tp) is compared with NDBC DPD. Mean-period comparisons are not made. Descriptive only.
+
+**Direction:** "from, degrees true", compared with NDBC MWD (also from, degrees true). Circular mean error. Sign is model minus obs, wrapped to (−180, 180].
+
+**NDBC QC:** a record is dropped when WVHT or MWD is null. Window = ±30 min around each valid hour. A pair needs ≥ 2 non-null WVHT records (Hs) or ≥ 2 non-null MWD records (direction). Minimum completeness per bin: at least 6 of 8 windows with truth. Below that, the bin is reported as failed (n below threshold), not filled.
+
+**Frame check:** the embedded run and valid time are compared with the key used to fetch. Record the SHA-256 of the frame bytes and the fetch timestamp (UTC).
+
+**Label:** descriptive, n = 1, no error bars.
+
+**Path C (NCEP byte-range decode check):** owed, not done. It needs David's word.
+
+**Path A (PacIOOS ww3_global):** fallback only, labelled "independent WW3 run, not our product". Never mixed into B's numbers.
+
 ## 7. Path B outcome (2026-11-22, after the pre-registration above)
 
 No forecast-vs-buoy pair was formed. Status: blocked on the forecast side, again.
