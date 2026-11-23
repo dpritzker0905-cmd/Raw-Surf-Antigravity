@@ -37,6 +37,9 @@ EXEMPT = {
     # opaque byte transport, pinned to the standard library by their own tests, whose readers are fenced
     "scripts/emos_bucket_io.py": "moves EMOS run files to and from the bucket unparsed; the fit (wind_emos_fit) is fenced",
     "scripts/gust_bucket_io.py": "moves gust-verify files to and from the bucket unparsed; the scorer (gust_verify_score) is fenced",
+    "scripts/admin_ops_bucket_io.py": "admin ops snapshot (#1239): COUNTS objects under the gust-verify and point-archive "
+                                      "prefixes and reads only the skill queue's length and target times; it reads no "
+                                      "observation value, names no station, and never scores or fits",
     # point-archive infrastructure: names the private bucket, reads no buoy value
     "services/point_archive/__init__.py": "package docstring",
     "services/point_archive/core.py": "path and key constants of the archive; reads nothing",
