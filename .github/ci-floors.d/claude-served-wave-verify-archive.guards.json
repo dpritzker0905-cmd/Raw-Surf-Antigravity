@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 16,
+  "files": 1,
+  "branch": "claude/served-wave-verify-archive",
+  "date": "2026-11-23",
+  "note": "served-wave-verify-v1: tests/test_point_archive_shared.py (guards claims tests/test_point_*.py)"
+}
