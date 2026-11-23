@@ -120,6 +120,20 @@ rows are `|raw - obs| - |C - obs|`, and for G4 `|raw - obs| - CRPS_C`. It is com
 - **Reported comparators** (they decide nothing): persistence (the #1063 definition), climatology (each station's training-window
   median), raw W, k*W and wind x 1.40.
 
+**Round 2 (2026-11-23; SubQ, Reflection and LongCat all flagged it; #1199 §1a): spatial holdout.**
+- **EMOS's own out-of-sample score uses held-out stations only.** That is the station-block CV above: 100 km blocks in 5 folds, and
+  every scored row comes from a fit that never saw its station or any station within its block.
+- **Every station EMOS fits on is FIT-USED.** That covers the CV training folds and, if it ships, the served refit on all stations.
+  Each one is tagged `fit_used` (consumer: "gust EMOS calibration, #1186") in #1199's frozen buoy list. From then on it can never
+  decide a served-wave or gust verification gate (#1199 §1a).
+- **EMOS never reads a LOCKED buoy.**
+  - The record is filtered by #1199's frozen LOCKED list, matched by its committed SHA-256, BEFORE any fit, score, diagnostic or
+    comparator.
+  - The fitter takes the list as an input (`--exclude-stations`) and reports the hash it used and how many stations it dropped.
+  - If #1199's LOCKED list is not frozen and committed when EMOS would be read, the read waits: NOT_READ, never run on the unfiltered
+    record.
+  - The 12-09 read therefore needs #1199 frozen first.
+
 **Gate, per model (all must pass; each model ships or stays raw on its own):**
 - G1 (the served number): the pooled MAE gain of C's median over the raw gust has a two-way 95% lower bound > 0.
 - G2 (no part made worse): in no lead bin x land/sea stratum is the two-way 95% UPPER bound of that gain below 0. Strata under 14
