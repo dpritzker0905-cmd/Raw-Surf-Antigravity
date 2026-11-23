@@ -1,0 +1,128 @@
+{
+ "eligibility": {
+  "gated_regions": 7,
+  "gust": {
+   "n": 2,
+   "regions_at_or_above_floor": [
+    "US_PACIFIC",
+    "US_ATLANTIC_GULF"
+   ],
+   "void": true
+  },
+  "min_regions": 3,
+  "min_stations_per_region": 10,
+  "trigger": "2 of 7 gated regions have >= 10 marine-exposed stations (wind) and 2 of 7 have >= 10 gust-eligible marine NDBC stations (gust); the threshold is 3",
+  "void": true,
+  "wind": {
+   "n": 2,
+   "regions_at_or_above_floor": [
+    "US_PACIFIC",
+    "US_ATLANTIC_GULF"
+   ],
+   "void": true
+  }
+ },
+ "inputs": {
+  "pairing_sha256": "f89b9ee1e2a96401a1d5e7835163c9dfd7e63ec5030a914397b59c197aaa52e3",
+  "stations_sha256": "ec87dc04d27caaab75cb3b021c0620f2acccb3f3d55a168b97394c61393602c8"
+ },
+ "notice": "VOID BY CONSTRUCTION, accepted by the owner before TEST. DESCRIPTIVE ONLY: no skill conclusion, positive or negative, may be drawn from this output, and nothing ships from it.",
+ "order_of_operations": [
+  "eligibility count (frozen list + pairing only)",
+  "VOID decision",
+  "holdout (amendment L1) and score-time coverage"
+ ],
+ "status": "VOID_BY_CONSTRUCTION",
+ "table": [
+  {
+   "gated": true,
+   "gust_eligible_marine_ndbc": 22,
+   "marine_asos": 0,
+   "marine_ndbc": 22,
+   "raw_asos": 14,
+   "raw_ndbc": 66,
+   "region": "US_PACIFIC"
+  },
+  {
+   "gated": true,
+   "gust_eligible_marine_ndbc": 34,
+   "marine_asos": 0,
+   "marine_ndbc": 34,
+   "raw_asos": 30,
+   "raw_ndbc": 193,
+   "region": "US_ATLANTIC_GULF"
+  },
+  {
+   "gated": true,
+   "gust_eligible_marine_ndbc": 0,
+   "marine_asos": 0,
+   "marine_ndbc": 0,
+   "raw_asos": 3,
+   "raw_ndbc": 8,
+   "region": "HAWAII"
+  },
+  {
+   "gated": true,
+   "gust_eligible_marine_ndbc": 0,
+   "marine_asos": 0,
+   "marine_ndbc": 0,
+   "raw_asos": 0,
+   "raw_ndbc": 3,
+   "region": "EUROPE_ATLANTIC"
+  },
+  {
+   "gated": true,
+   "gust_eligible_marine_ndbc": 0,
+   "marine_asos": 0,
+   "marine_ndbc": 0,
+   "raw_asos": 0,
+   "raw_ndbc": 0,
+   "region": "MEDITERRANEAN"
+  },
+  {
+   "gated": true,
+   "gust_eligible_marine_ndbc": 5,
+   "marine_asos": 0,
+   "marine_ndbc": 5,
+   "raw_asos": 13,
+   "raw_ndbc": 107,
+   "region": "ALASKA"
+  },
+  {
+   "gated": true,
+   "gust_eligible_marine_ndbc": 1,
+   "marine_asos": 0,
+   "marine_ndbc": 1,
+   "raw_asos": 0,
+   "raw_ndbc": 10,
+   "region": "CARIBBEAN_PR"
+  },
+  {
+   "gated": false,
+   "gust_eligible_marine_ndbc": 0,
+   "marine_asos": 0,
+   "marine_ndbc": 0,
+   "raw_asos": 0,
+   "raw_ndbc": 76,
+   "region": "GREAT_LAKES"
+  },
+  {
+   "gated": false,
+   "gust_eligible_marine_ndbc": 0,
+   "marine_asos": 0,
+   "marine_ndbc": 0,
+   "raw_asos": 0,
+   "raw_ndbc": 0,
+   "region": "BLACK_SEA"
+  },
+  {
+   "gated": false,
+   "gust_eligible_marine_ndbc": 0,
+   "marine_asos": 0,
+   "marine_ndbc": 0,
+   "raw_asos": 0,
+   "raw_ndbc": 0,
+   "region": "OTHER"
+  }
+ ]
+}
