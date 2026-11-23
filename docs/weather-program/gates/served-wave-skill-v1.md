@@ -1,15 +1,15 @@
 # Gate: served-wave-skill-v1
 Stamp: 2026-11-22 (research lead; DRAFT for the advisor, pre-registration only. It reads the point archive (`served-wave-verify-v1`, design #1168, build #1177), which has collected nothing yet. No row is read.)
 Candidate: the served offshore wave forecast (GFS, EURO and ICON members, as the map draws them), verified against matched NDBC buoys. This gate is the baseline that every later nearshore, period or consensus claim is scored against.
-Metric: ONE primary, P1 = the served Hs RMSE skill score against persistence, at the [24,48) h lead bin, Tier B (the 0.25° regional frames, where a box covers the buoy), per model, pooled over regions. SS = 1 - RMSE_served / RMSE_persist (section 3). Reported, not bars: Hs bias and RMSE at every lead bin, Tier A beside Tier B, and Tp and Tm MAE and bias with the period definition named.
+Metric: ONE primary, P1 = the served Hs RMSE skill score against OBSERVED persistence (the buoy's own Hs at the run's init time, held), at the [24,48) h lead bin, Tier B (the 0.25° regional frames, where a box covers the buoy), per model, pooled over regions. SS = 1 - RMSE_served / RMSE_persist (section 3). Reported, not bars: Hs bias and RMSE at every lead bin, Tier A beside Tier B, and Tp and Tm MAE and bias with the period definition named.
 Pass threshold: section 5. For a model's P1 to PASS, the lower one-sided 95 % bound of SS must be > 0.
-Controls: section 6. A planted +0.25 m Hs bias must lower SS below its unplanted value; a null (served vs served, independent resample) must read SS ≈ 0 difference; a decoder-parity check (the #1168 CI test) must pass on the scored window.
+Controls: section 6. A planted +0.25 m Hs bias, added to the SERVED arm only (persistence untouched), must lower SS below its unplanted value; a null (served vs served, independent resample) must read SS ≈ 0 difference; a decoder-parity check (the #1168 CI test) must pass on the scored window.
 Decision rule: PASS → that model's served Hs at [24,48) h, Tier B, is a verified baseline that later gates may compare against. Every other (tier, lead) is REPORTED, NOT VERIFIED: a later gate that needs one registers its own check. FAIL or INSUFFICIENT → no later gate may cite served skill for that model, lead and tier. Nothing ships or switches from this gate.
 Unmeasured items: Tier A as a pass/fail line (reported only); leads beyond 48 h as pass/fail lines (reported only); partitions (reported as indicative); CDIP stations (EXAM-only, reported in a separate table, never pooled); nearshore and surf height (this gate is offshore Hs at buoys).
 Served change: none.
 
 ## 0. Why one primary, and why persistence (director's SOTA directive, 2026-11-22: one primary metric, Holm, clustered bootstrap, n fixed in advance)
-- A verification gate needs a comparator, or "RMSE 0.4 m" means nothing. Persistence is the minimum bar a forecast must clear, and it needs no external data: the archive holds the run's own earliest step.
+- A verification gate needs a comparator, or "RMSE 0.4 m" means nothing. Persistence is the minimum bar a forecast must clear. It is the OBSERVED buoy value at the run's init time (advisor, 2026-11-22): a forecast must beat "the sea stays as it is now", measured, not the model's own first step, which would carry the model's analysis error into the reference.
 - [24,48) h is the bin Q9 could not fill (n = 0), and the first bin where a forecast must beat "it will be like now".
 - Tier B is primary because it is what surfers read at the coast. Tier A stays the common baseline, reported beside it (#1168 §2a).
 - **Second opinions are logged in section 9 before this is final.**
@@ -19,9 +19,11 @@ Served change: none.
 - **Window:** the first 42 days after the archive's 14-day coverage acceptance (#1168 §8) passes, fixed by that date and logged before any score is read.
 - **n fixed in advance:** for each model, P1 needs >= 300 collocated `ok` pairs in [24,48) h Tier B, from >= 10 buoys and >= 20 distinct runs. Below that, the model is INSUFFICIENT, not a fail.
 
-## 2. Persistence reference
-- For each (model, run, buoy), persistence is that run's own value at its earliest sampled step (lead ≈ 0-3 h), held for every later valid time.
-- This uses the same frame, cell and decoder as the forecast, so pipeline effects cancel.
+## 2. Persistence reference (OBSERVED; advisor, 2026-11-22)
+- For each (run, buoy), persistence is the buoy's OBSERVED Hs at the run's init time: the QC'd observation nearest `run_time` within ±30 min, from the shared truth snapshots. It is held for every later valid time.
+- It is the same for all three models at a given run time and buoy, so the SS differences between models are comparable.
+- A (run, buoy) with no QC'd observation within ±30 min of init has no persistence. Those pairs are dropped from P1 for every model, and the drop is counted.
+- **Trade-off, stated:** unlike a model-step reference, observed persistence does not cancel pipeline effects (decode, cell, fills). Those are measured separately by S-FID.
 
 ## 3. Statistic
 - RMSE over the window's pairs, per model, at [24,48) h, Tier B.
@@ -36,7 +38,7 @@ Served change: none.
 - Reported beside it, not a bar: SS point estimate, RMSE, bias.
 
 ## 6. Controls (a failed control voids the gate)
-- **Planted bias:** add +0.25 m to every served Hs in a copy. Its SS must fall below the unplanted SS, with the difference's bootstrap interval excluding 0.
+- **Planted bias (tested arm only; advisor, 2026-11-22):** add +0.25 m to every SERVED Hs in a copy. The observed persistence reference is NOT shifted. The planted copy's SS must fall below the unplanted SS, with the difference's bootstrap interval excluding 0.
 - **Null:** the served arm vs itself, under two independent bootstrap streams. The SS difference must cover 0.
 - **Parity:** the decoder-parity CI test must pass at the window's decoder version.
 
@@ -66,8 +68,19 @@ Asked 2026-11-22 with public context only (the design above and four candidate p
 | Fidelity as a pre-registered secondary? | yes (0.99) | (not asked) |
 | Strongest flaw | (not asked) | the primary covers only Tier B at 24-48 h, so it never validates Tier A or the other leads the gate is meant to baseline |
 
-**Decision (research lead):**
+**Advisor HOLD at `04aaf2635`, fixed in the next commit (before the freeze):
+1. Persistence is the OBSERVED buoy Hs at init, not the model's earliest step (sections 0, 2).
+2. The planted bias shifts only the tested (served) arm (section 6).
+
+Decision (research lead):**
 - **Keep A as the ONE primary.** Both opinions pick it, and it needs no external data.
 - **Persistence:** the two disagree. Persistence stays the primary's reference, with two brackets reported beside it: climatology below (S-CLIM) and the upstream model above (S-FID, GFS).
 - **Fidelity:** added as the pre-registered secondary S-FID, per SubQ's 0.99. It is the stronger reference, but it is GFS-only, so it cannot be the primary across three models.
 - **Scope flaw (Reflection), accepted:** the decision rule now says PASS verifies only Tier B at [24,48) h. Every other (tier, lead) is reported, not verified. Adding them as co-primaries would break the director's one-primary rule.
+
+**Re-check of the two fixes (SubQ snap-1.2, model confidence, 2026-11-22):**
+- Observed-at-init persistence is sounder than the model's earliest step: 0.93.
+- Planting the bias in the forecast arm only is the correct positive-control design: 0.98.
+- Dropping pairs with no observation at init, for all models alike, is acceptable: 0.96.
+
+The first-round opinions above were given on the model-step reference. The choice of primary (skill vs persistence) is unchanged by the fix.
