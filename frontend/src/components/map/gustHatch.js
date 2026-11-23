@@ -9,7 +9,7 @@
  * (base, plus the fine grid where resident: the same field the marks' G/W reads in gustShaderSplice.js).
  *
  * Geometry: one quad over the gust box per world copy, in Web Mercator; the fragment stage inverts Mercator for latitude,
- * so a quad (not a mesh) is exact. Lines are in DEVICE pixels at a constant CSS spacing (8 px desktop, 12 px on a phone),
+ * so a quad (not a mesh) is exact. Lines are in DEVICE pixels at a constant CSS spacing (10 px desktop, 14 px on a phone),
  * ANCHORED TO THE MAP: their phase is taken from a fixed Mercator point's screen position, so the hatch pans with the map.
  *
  * Kill: window.__RAW_DISABLE_GUST_HATCH__ = true (gustCue then falls back to no cue).
@@ -23,12 +23,18 @@ export const GUST_HATCH = Object.freeze({
   gusty: 1.5,           // single hatch from here (G/W)
   veryGusty: 2.0,       // cross-hatch from here
   edge: 0.08,           // soft threshold half-width (G/W units)
-  lineCss: 1.25,        // line width, CSS px
-  spacingCss: 8,        // desktop line spacing, CSS px
-  spacingPhoneCss: 12,  // phone (CSS width < 768) line spacing
-  // ink per theme (linear-ish sRGB 0..1) and alpha: tuned on the composited raster (audit/gust-cue-ab-2026-11-22)
-  ink: { dark: [1, 1, 1], light: [0.04, 0.09, 0.22], beach: [0.16, 0.11, 0.05] },
-  alpha: { dark: 0.30, light: 0.34, beach: 0.34 },
+  lineCss: 1.25,        // core line width, CSS px, measured ACROSS the line
+  haloCss: 1.0,         // the contrasting halo on each side of the core, CSS px (0 alpha = no halo)
+  spacingCss: 10,       // desktop line spacing, CSS px, measured across the lines
+  spacingPhoneCss: 14,  // phone (CSS width < 768) line spacing
+  // CONTRAST (WCAG 1.4.11, 3:1 against EVERY background the hatch can sit on: the whole gust palette over land and sea,
+  // audit/gust-cue-ab-2026-11-22/contrast). Dark: a white core alone reaches 3:1 at alpha 0.5. Light and beach: no single
+  // ink can (their dark fast-gust colours meet a dark line; at alpha 1.0 the worst case is 1.67:1 / 1.74:1), so a dark core
+  // rides a light halo, the casing the marks already use: one of the two always stands off the field.
+  core: { dark: [1, 1, 1], light: [0.04, 0.09, 0.22], beach: [0.16, 0.11, 0.05] },
+  coreAlpha: { dark: 0.58, light: 1.0, beach: 1.0 },
+  halo: { dark: [0, 0, 0], light: [1, 1, 1], beach: [1, 0.98, 0.92] },
+  haloAlpha: { dark: 0, light: 0.68, beach: 0.72 },
 });
 
 const VS = `
@@ -58,17 +64,19 @@ varying vec2 v_merc; varying vec2 v_px;
 uniform sampler2D u_gust; uniform vec4 u_gust_box; uniform vec2 u_gust_size; uniform float u_gust_max;
 uniform sampler2D u_wind; uniform vec2 u_wind_min; uniform vec2 u_wind_max; uniform vec4 u_wind_box;
 uniform sampler2D u_wind_fine; uniform vec2 u_fine_min; uniform vec2 u_fine_max; uniform vec4 u_fine_box; uniform float u_fine_on;
-uniform vec4 u_hatch;            // spacing (device px), line width (device px), anchor phase (x+y), anchor phase (x-y)
-uniform vec4 u_thresh;           // gusty, very gusty, edge, unused
-uniform vec4 u_ink;              // rgb, alpha
+uniform vec4 u_hatch;            // spacing (device px), core width (device px), anchor phase (x+y), anchor phase (x-y)
+uniform vec4 u_thresh;           // gusty, very gusty, edge, halo width each side (device px)
+uniform vec4 u_ink;              // core rgb, alpha
+uniform vec4 u_halo;             // halo rgb, alpha (0 = no halo)
 uniform vec4 u_base_reg; uniform vec4 u_fine_reg;   // point registration, as the marks sample the wind (gridPointRegistration.js)
 ${GLSL_PT_REG}
 float boxFrac(float lng, float lat, vec4 b, out vec2 f) {
   f = vec2(mod(lng - b.x + 720.0, 360.0) / max(b.z - b.x, 1e-3), (lat - b.y) / max(b.w - b.y, 1e-3));
   return step(0.0, f.x) * step(f.x, 1.0) * step(0.0, f.y) * step(f.y, 1.0);
 }
+// d is x +- y in device px; the distance ACROSS a 45-degree line is d / sqrt(2), so spacing and width are true px
 float lineAt(float d, float spacing, float width) {
-  float m = abs(fract(d / spacing) - 0.5) * spacing;   // distance (px) to the nearest line centre is spacing/2 - m
+  float m = abs(fract(d * 0.70710678 / spacing) - 0.5) * spacing;   // distance (px) to the nearest line centre is spacing/2 - m
   float dist = spacing * 0.5 - m;
   return 1.0 - smoothstep(width * 0.5 - 0.5, width * 0.5 + 0.5, dist);
 }
@@ -91,11 +99,13 @@ void main() {
   float one = smoothstep(u_thresh.x - u_thresh.z, u_thresh.x + u_thresh.z, gw);
   float two = smoothstep(u_thresh.y - u_thresh.z, u_thresh.y + u_thresh.z, gw);
   if (one <= 0.0) discard;
-  float a = lineAt(v_px.x + v_px.y + u_hatch.z, u_hatch.x, u_hatch.y) * one;
-  float b = lineAt(v_px.x - v_px.y + u_hatch.w, u_hatch.x, u_hatch.y) * two;
-  float cover = max(a, b) * u_ink.a;
-  if (cover <= 0.0) discard;
-  gl_FragColor = vec4(u_ink.rgb * cover, cover);        // premultiplied
+  float dA = v_px.x + v_px.y + u_hatch.z, dB = v_px.x - v_px.y + u_hatch.w;
+  float hw = u_hatch.y + 2.0 * u_thresh.w;
+  float core = max(lineAt(dA, u_hatch.x, u_hatch.y) * one, lineAt(dB, u_hatch.x, u_hatch.y) * two) * u_ink.a;
+  float halo = max(lineAt(dA, u_hatch.x, hw) * one, lineAt(dB, u_hatch.x, hw) * two) * u_halo.a;
+  float a = core + halo * (1.0 - core);                 // the core over its halo
+  if (a <= 0.0) discard;
+  gl_FragColor = vec4(u_ink.rgb * core + u_halo.rgb * halo * (1.0 - core), a);   // premultiplied
 }`;
 
 /** The hatch geometry for this frame (pure; exported for tests): device-px spacing and line width, map-anchored phases. */
@@ -104,12 +114,15 @@ export function hatchGeometry(matrix, screenW, screenH, dpr) {
   const phone = screenW / d < 768;
   const spacing = (phone ? GUST_HATCH.spacingPhoneCss : GUST_HATCH.spacingCss) * d;
   const width = Math.max(1, GUST_HATCH.lineCss * d);
+  const halo = Math.max(1, GUST_HATCH.haloCss * d);
   // anchor: the screen position (device px) of Mercator (0.5, 0.5), in double precision; the hatch phase follows it
   const m = matrix;
   const cx = m[0] * 0.5 + m[4] * 0.5 + m[12], cy = m[1] * 0.5 + m[5] * 0.5 + m[13], cw = m[3] * 0.5 + m[7] * 0.5 + m[15];
   const ax = (cx / cw * 0.5 + 0.5) * screenW, ay = (cy / cw * 0.5 + 0.5) * screenH;
-  const mod = (v) => ((v % spacing) + spacing) % spacing;
-  return { spacing, width, phaseSum: mod(-(ax + ay)), phaseDiff: mod(-(ax - ay)), phone };
+  // the phase is in d = x +- y units; the shader scales d by 1/sqrt(2), so one period of d is spacing * sqrt(2)
+  const period = spacing * Math.SQRT2;
+  const mod = (v) => ((v % period) + period) % period;
+  return { spacing, width, halo, period, phaseSum: mod(-(ax + ay)), phaseDiff: mod(-(ax - ay)), phone };
 }
 
 function programFor(engine, gl) {
@@ -165,9 +178,10 @@ export function drawGustHatch(gl, engine, ctx) {
   }
   bindWindPointReg(gl, P, ctx.wind.grid, f && f.windGrid);
   gl.uniform4f(U('u_hatch'), geo.spacing, geo.width, geo.phaseSum, geo.phaseDiff);
-  gl.uniform4f(U('u_thresh'), GUST_HATCH.gusty, GUST_HATCH.veryGusty, GUST_HATCH.edge, 0);
-  const ink = GUST_HATCH.ink[theme];
-  gl.uniform4f(U('u_ink'), ink[0], ink[1], ink[2], GUST_HATCH.alpha[theme]);
+  gl.uniform4f(U('u_thresh'), GUST_HATCH.gusty, GUST_HATCH.veryGusty, GUST_HATCH.edge, geo.halo);
+  const ink = GUST_HATCH.core[theme]; const halo = GUST_HATCH.halo[theme];
+  gl.uniform4f(U('u_ink'), ink[0], ink[1], ink[2], GUST_HATCH.coreAlpha[theme]);
+  gl.uniform4f(U('u_halo'), halo[0], halo[1], halo[2], GUST_HATCH.haloAlpha[theme]);
   const loc = gl.getAttribLocation(P, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, h.buf);
   gl.enableVertexAttribArray(loc);

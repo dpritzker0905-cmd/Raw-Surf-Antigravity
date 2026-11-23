@@ -73,11 +73,12 @@ describe('hatch cue (gustHatch.js)', () => {
   // a flat Mercator camera: world px = merc * worldPx - origin, clip = px / screen * 2 - 1 (column-major mat4)
   const cam = (worldPx, ox, oy, W, H) => [2 * worldPx / W, 0, 0, 0, 0, 2 * worldPx / H, 0, 0, 0, 0, 1, 0, -2 * ox / W - 1, -2 * oy / H - 1, 0, 1];
 
-  test('spacing is constant in CSS px: 8 on desktop, 12 on a phone, scaled by DPR; lines 1.25 css px', () => {
+  test('spacing is constant in CSS px across the lines: 10 on desktop, 14 on a phone, scaled by DPR; core 1.25, halo 1 css px', () => {
     const d = hatchGeometry(cam(1 << 20, 0, 0, 1440, 900), 1440, 900, 1);
-    expect(d.spacing).toBe(8); expect(d.width).toBe(1.25); expect(d.phone).toBe(false);
+    expect(d.spacing).toBe(10); expect(d.width).toBe(1.25); expect(d.halo).toBe(1); expect(d.phone).toBe(false);
+    expect(d.period).toBeCloseTo(10 * Math.SQRT2, 9);   // the period along x + y of a 45-degree line
     const p = hatchGeometry(cam(1 << 20, 0, 0, 1125, 2436), 1125, 2436, 3);   // a 375 css px phone at DPR 3
-    expect(p.phone).toBe(true); expect(p.spacing).toBe(36); expect(p.width).toBe(3.75);
+    expect(p.phone).toBe(true); expect(p.spacing).toBe(42); expect(p.width).toBe(3.75); expect(p.halo).toBe(3);
   });
 
   test('ANCHORED TO THE MAP: panning by any amount leaves the hatch at the same place on the map', () => {
@@ -85,13 +86,41 @@ describe('hatch cue (gustHatch.js)', () => {
     const a = hatchGeometry(cam(wp, 1000, 2000, W, H), W, H, 1);
     const b = hatchGeometry(cam(wp, 1000 + 37, 2000 - 5, W, H), W, H, 1);   // the map moved 37 px left, 5 px down
     // a screen point p shows map point p + origin; the line phase at a fixed MAP point must not change
-    const phaseAt = (g, ox, oy, mx, my) => (((mx - ox) + (my - oy) + g.phaseSum) % g.spacing + g.spacing) % g.spacing;
+    const phaseAt = (g, ox, oy, mx, my) => (((mx - ox) + (my - oy) + g.phaseSum) % g.period + g.period) % g.period;
     expect(phaseAt(a, 1000, 2000, 5000, 6000)).toBeCloseTo(phaseAt(b, 1037, 1995, 5000, 6000), 6);
   });
 
   test('thresholds: hatch from G/W 1.5, cross-hatch from 2.0; ink exists for every theme', () => {
     expect(GUST_HATCH.gusty).toBe(1.5); expect(GUST_HATCH.veryGusty).toBe(2.0);
-    for (const t of ['dark', 'light', 'beach']) { expect(GUST_HATCH.ink[t]).toHaveLength(3); expect(GUST_HATCH.alpha[t]).toBeGreaterThan(0); }
+    for (const t of ['dark', 'light', 'beach']) { expect(GUST_HATCH.core[t]).toHaveLength(3); expect(GUST_HATCH.halo[t]).toHaveLength(3); }
+  });
+
+  // WCAG 1.4.11 (3:1). The map canvas blends the premultiplied hatch ONE / ONE_MINUS_SRC_ALPHA on 8-bit sRGB, so a line pixel
+  // is ink * a + bg * (1 - a); the halo first, the core over it. The rendered check against every gust colour over land and sea
+  // is in audit/gust-cue-ab-2026-11-22 (contrast); this pins the design so a tweak cannot silently drop below 3:1.
+  const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const Y = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+  const cr = (a, b) => { const ya = Y(a), yb = Y(b); return (Math.max(ya, yb) + 0.05) / (Math.min(ya, yb) + 0.05); };
+  const over = (ink, a, bg) => bg.map((v, i) => ink[i] * a + v * (1 - a));
+  const edgeContrast = (t, bg) => {
+    const hp = over(GUST_HATCH.halo[t], GUST_HATCH.haloAlpha[t], bg);
+    const cp = over(GUST_HATCH.core[t], GUST_HATCH.coreAlpha[t], hp);
+    return Math.max(cr(cp, bg), cr(hp, bg));
+  };
+  const greys = (lo, hi) => Array.from({ length: hi - lo + 1 }, (_, i) => [(lo + i) / 255, (lo + i) / 255, (lo + i) / 255]);
+  const hues = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [0, 1, 1], [1, 0, 1], [0.5, 0, 0.5], [0, 0.4, 0.4], [0.6, 0.3, 0]];
+
+  test('light and beach: the cased line holds 3:1 against ANY background (every grey, saturated hues), core vs halo >= 7:1', () => {
+    for (const t of ['light', 'beach']) {
+      for (const bg of [...greys(0, 255), ...hues]) expect(edgeContrast(t, bg)).toBeGreaterThanOrEqual(3);
+      const hp = over(GUST_HATCH.halo[t], GUST_HATCH.haloAlpha[t], [0, 0, 0]);
+      expect(cr(over(GUST_HATCH.core[t], GUST_HATCH.coreAlpha[t], hp), hp)).toBeGreaterThanOrEqual(7);
+    }
+  });
+
+  test('dark: the white line alone holds 3:1 over the dark field (every grey up to sRGB 100; the measured dark field peaks at grey-equivalent 90)', () => {
+    expect(GUST_HATCH.haloAlpha.dark).toBe(0);
+    for (const bg of greys(0, 100)) expect(edgeContrast('dark', bg)).toBeGreaterThanOrEqual(3);
   });
 });
 

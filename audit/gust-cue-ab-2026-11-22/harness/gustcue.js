@@ -14,28 +14,35 @@ const PHONE = VIEW === 'phone';
 const W = PHONE ? 375 : 1440, H = PHONE ? 812 : 900, DPR = PHONE ? 2 : 1;
 const CENTER = (process.env.CENTER || '-40,38').split(',').map(Number);
 const ZOOM = +(process.env.ZOOM || (PHONE ? 3.2 : 4.2));
-const FACTORS = [1.0, 1.4, 1.7, 2.3];
+const FACTORS = (process.env.FACTORS || '1.0,1.4,1.7,2.3').split(',').map(Number);
 const FRAMES = +(process.env.FRAMES || 150);   // 150 frames ~ 2.5 s at 60 fps; the flicker gets its own longer temporal run
 const EVERY = +(process.env.EVERY || 2);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const T0 = Date.now(); const step = (m) => process.stderr.write('[' + ((Date.now() - T0) / 1000).toFixed(1) + 's] ' + m + '\n');
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const { browser, page, log } = await L.launch({ port: PORT, width: W, height: H, dpr: DPR,
-    contextOptions: PHONE ? { isMobile: true, hasTouch: true } : {} });
+    contextOptions: { ...(PHONE ? { isMobile: true, hasTouch: true } : {}), ...(process.env.REDUCED === 'emulate' ? { reducedMotion: 'reduce' } : {}) } });
   // read-only public frame CDN (Supabase storage public objects) is allowed through: the gust layer's own frames
   await page.route(/supabase\.co\/storage\/v1\/object\/public\//, (r) => (r.request().method() === 'GET' ? r.continue() : r.abort()));
-  await page.addInitScript(({ theme, cue }) => {
+  await page.addInitScript(({ theme, cue, reduced }) => {
     localStorage.setItem('raw-surf-theme', theme);
     localStorage.removeItem('rawGustCue');
     window.__RAW_DISABLE_OWN_LAYER_AVAILABILITY__ = true;
     window.__RAW_GUST_CUE__ = cue;
+    if (reduced) {   // the app's own reduced-motion paths read matchMedia (and the wind engine its test override)
+      window.__RAW_REDUCED_MOTION__ = true; const mm = window.matchMedia.bind(window);
+      window.matchMedia = (q) => (/prefers-reduced-motion:\s*reduce/.test(q)
+        ? { matches: true, media: q, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent() { return false; } }
+        : mm(q));
+    }
     // React Scan: never loaded (ab_lib answers unpkg with an empty script); belt and braces
     window.__REACT_SCAN_STATUS__ = 'hidden';
-  }, { theme: THEME, cue: CUE });
-  const out = { cue: CUE, theme: THEME, view: VIEW, W, H, DPR, center: CENTER, zoom: ZOOM, factors: FACTORS };
+  }, { theme: THEME, cue: CUE, reduced: process.env.REDUCED === '1' });
+  const out = { cue: CUE, theme: THEME, view: VIEW, W, H, DPR, center: CENTER, zoom: ZOOM, factors: FACTORS, reduced: process.env.REDUCED === '1' };
   try {
-    await L.openMap(page);
+    step("launched"); await L.openMap(page); step("map open");
     await L.jump(page, CENTER[0], CENTER[1], ZOOM);
     await sleep(2500);
     if (PHONE) {
@@ -48,6 +55,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     } else {
       await page.locator('button').filter({ hasText: /^\s*Gusts\s*$/ }).filter({ visible: true }).first().click();
     }
+    step("gusts picked");
     // wait for the wind engine's resident wind
     await page.waitForFunction(() => { const e = window.__WIND_ENGINE__; return !!(e && e._windData && e._windData.windGrid); }, null, { timeout: 60000 });
     await sleep(3000);
@@ -64,6 +72,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       await page.screenshot({ path: path.join(OUT, 'discover.png') });
       return;
     }
+    step("wind resident");
     // ---- controlled gust field over the view ----
     const inj = await page.evaluate(({ factors }) => {
       const e = window.__WIND_ENGINE__; const m = window.map;
@@ -110,6 +119,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     out.inject = inj;
     if (inj.error) throw Error(JSON.stringify(inj));
     await sleep(4000);
+    out.reducedSeen = await page.evaluate(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     // was it taken? the engine's gust texture should now be our field's size
     out.engineGust = await page.evaluate(() => { const g = window.__WIND_ENGINE__._gust; return g ? { cols: g.cols, rows: g.rows, bounds: g.bounds } : null; });
     // hide the UI chrome for the clean canvas strip; screenshot WITH UI first (legend key)
@@ -118,6 +128,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await page.screenshot({ path: path.join(OUT, 'ui.png') });
     out.key = await page.evaluate(() => { const k = document.querySelector('[data-gust-cue]'); return k ? { cue: k.getAttribute('data-gust-cue'), label: k.getAttribute('aria-label'), text: k.textContent } : null; });
     // frames from the WebGL canvas inside the render event
+    step("capturing");
     const frames = await page.evaluate(({ N, every }) => new Promise((resolve) => {
       const m = window.map; const cv = m.getCanvas(); const gl = cv.getContext('webgl2') || cv.getContext('webgl');
       const w = cv.width, h = cv.height; const bands = window.__AB_BANDS__;

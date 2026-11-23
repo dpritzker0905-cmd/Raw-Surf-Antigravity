@@ -13,10 +13,12 @@ from PIL import Image, ImageDraw, ImageFont
 
 AB, OUT, MET = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
 OUT.mkdir(parents=True, exist_ok=True)
-CUES = ['none', 'flicker', 'width', 'hatch']
+import os
+CUES = os.environ.get('CUES', 'none flicker width hatch').split()
+DISC = os.environ.get('DISC') == '1'   # the reduced-motion discrimination set: labels from classify_v2.json
 CUE_NAME = {'none': 'D none (colour only)', 'flicker': 'A flicker (today)', 'width': 'B width', 'hatch': 'C hatch'}
 THEMES = ['dark', 'light', 'beach']
-FACT = ['G/W 1.0', 'G/W 1.4', 'G/W 1.7', 'G/W 2.3']
+FACT = [f'G/W {f}' for f in os.environ.get('FACT', '1.0 1.4 1.7 2.3').split()]
 try:
     FONT = ImageFont.truetype('arial.ttf', 15); FONT_B = ImageFont.truetype('arialbd.ttf', 17)
 except OSError:
@@ -44,6 +46,13 @@ def ygamma(a):
 def label_for(view, theme, cue):
     if cue == 'none':
         return 'control'
+    if DISC:
+        r = met.get(f'{view}-{theme}')
+        if not r:
+            return ''
+        b = r['bands']
+        return (f"pattern-only: {b[2]['accuracy']*100:.0f}% gusty, {b[3]['accuracy']*100:.0f}% very gusty, "
+                f"{r['steady_false_rate']*100:.1f}% false in steady, travel dir within {max(x['travel_dir_diff_deg'] for x in b):.1f} deg")
     r = [x for x in met['table'] if x['view'] == view and x['theme'] == theme and x['cue'] == cue]
     if not r:
         return ''
@@ -69,7 +78,7 @@ for view in ['desktop', 'phone']:
         H = 36 + 26 + len(CUES) * (cell_h + 8)
         img = Image.new('RGB', (W, H), (245, 245, 245))
         dr = ImageDraw.Draw(img)
-        dr.text((10, 8), f'{view.upper()}  ·  {theme} theme  ·  luminance only (colour removed)  ·  full colour at right', fill=(0, 0, 0), font=FONT_B)
+        dr.text((10, 8), f'{view.upper()}  ·  {theme} theme  ·  luminance only (colour removed)' + ('  ·  REDUCED MOTION on' if DISC else '') + '  ·  full colour at right', fill=(0, 0, 0), font=FONT_B)
         for i, f in enumerate(FACT):
             dr.text((left + i * (cwS + 8) + 4, 38), f + (' (steady)' if i == 0 else ' (gusty)' if i >= 2 else ''), fill=(0, 0, 0), font=FONT)
         for r, cue in enumerate(CUES):

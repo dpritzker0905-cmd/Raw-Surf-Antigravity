@@ -44,3 +44,18 @@ still picks.
   alphas.
 Tested before the PR: every arm in dark, light and beach, at desktop 1440 px and phone 375 px (24 sessions). The PR
 changes no gust palette (the #1176 lane) and no wind colour (the dark-wind-vivid lane).
+
+## Round 3 (2026-11-23): hatch contrast to 3:1, then pattern-only discrimination (the director's request)
+- Contrast is measured against EVERY background: a 0 -> 75 kn gust ramp under the field, land and sea, marks off,
+  9.6-10.2k distinct colours per theme. A white line alone reaches 3:1 on dark (alpha 0.58 shipped, worst 3.53:1).
+  On light and beach no single ink can (worst 1.67:1 and 1.74:1 at alpha 1.0), so the line is cased: a dark core in a
+  light halo (worst 3.36:1 and 3.33:1). Rendered worst windows: 4.27 / 3.36 / 3.18 desktop, 4.37 / 3.55 / 3.43 phone.
+  Spacing is now 10 / 14 css px measured across the lines; the old 8 px was along x, really 5.7 px across.
+- Grayscale + reduced motion, desktop and 375 px, G/W 1.0 / 1.3 / 1.6 / 2.2: 100% gusty and 100% very gusty by pattern
+  alone, at most 0.3% false in steady air. Wind travel direction is within 4.3 deg of the no-cue arm. The classifier is
+  calibrated on the no-cue arm only and reads harmonics 1-3; a fundamental-only version scored 41-50% on desktop
+  light/beach cross-hatch (cancellation), and both results are kept.
+- Playwright's reducedMotion emulation hung the page right after the map opened, in both arms; the app-level path
+  was used instead. A real reduced-motion browser has not been checked for the same hang.
+- The default stays `flicker`; David watches the candidates in motion before the default flips.
+- Evidence: audit/gust-cue-ab-2026-11-22/ (README round 3, contrast/, rm-sheet-*, rm-clip-*).

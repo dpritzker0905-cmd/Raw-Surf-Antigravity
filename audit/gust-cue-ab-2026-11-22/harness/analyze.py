@@ -77,14 +77,20 @@ def pulse_feature(seq, dt):
 
 
 def hatch_feature(fr, spacing):
+    """spacing: px ACROSS the 45-degree lines (the cased hatch, 2026-11-23). The line repeats every spacing * sqrt(2) along x
+    and along y; a cased line (dark core, light halo) carries much of its energy in harmonics, so 1st-3rd are summed."""
     h, w = fr.shape
     x = (fr - fr.mean()) * np.outer(np.hanning(h), np.hanning(w))
     F = np.abs(np.fft.fft2(x)) / (h * w)
-    fy, fx = 1.0 / spacing * h, 1.0 / spacing * w
+    per = spacing * np.sqrt(2)
     tot = 0.0
     for sy in (1, -1):
-        cy, cx = int(round(sy * fy)) % h, int(round(fx)) % w
-        tot += F[np.ix_([(cy + k) % h for k in (-1, 0, 1)], [(cx + k) % w for k in (-1, 0, 1)])].max()
+        for k in (1, 2, 3):
+            fy, fx = k * h / per, k * w / per
+            if fx > w / 2 - 2 or fy > h / 2 - 2:
+                continue
+            cy, cx = int(round(sy * fy)) % h, int(round(fx)) % w
+            tot += F[np.ix_([(cy + j) % h for j in (-1, 0, 1)], [(cx + j) % w for j in (-1, 0, 1)])].max()
     return float(tot / (fr.mean() + 1e-3))
 
 
@@ -104,7 +110,7 @@ def session(d):
     times = np.asarray(m['times'], float) / 1000.0
     dt = float(np.median(np.diff(times))) if len(times) > 2 else 1 / 30
     phone = m['view'] == 'phone'
-    spacing = (12 if phone else 8) * m['DPR']
+    spacing = (14 if phone else 10) * m['DPR']   # across the lines (the cased hatch)
     feats = {'pulse': [], 'width': [], 'hatch': [], 'ink': [], 'level': []}
     for b in range(4):
         band = arr[:, b]
