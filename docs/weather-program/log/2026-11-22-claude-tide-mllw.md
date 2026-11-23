@@ -308,3 +308,23 @@ own predictions:
   after seeing the result would not be a test.
 - **What a fair next test needs:** a pre-registered gauge set that separates open-coast gauges (where surf spots
   are) from harbour gauges, scored with #1171's signed instrument, on a new tag with David's word.
+
+## 2026-11-23 02:56Z: datum parity run dispatched (owner's word); §9's timing disclosed
+
+**Owner's word, typed in the director session:** "Yes, run it", for the datum parity run. The director pushed the tag
+`tide-mllw-parity-datum-1` at #1171's head `e427002d7` at 02:52:46Z; this lane did not push it. The run is 45102683907
+(`tide-mllw-parity.yml`), queued. The gate is `gates/tide-datum-parity-v1.md` (#1183), with the verdict on the model D.
+
+**Timing of #1183's amendments:**
+
+| Amendment | Committed | Relative to dispatch (02:52:46Z) |
+|---|---|---|
+| §8, the MEASURED rule | `5e2fc6549`, 02:51Z | before; verified by the director |
+| §9, VOID controls made runnable | `d8d01b9af` 02:53:10Z; stamp fix `0642ad04b` 02:53:57Z | AFTER, by about 24 s; before any data was read |
+
+The director has asked the advisor whether §9 stands. Until the advisor rules, the run's artifact stays UNOPENED, even
+after it completes. If §9 is rejected, the run is VOID under section 4's original controls: the instrument has no
+planted-D option, and the finder check does not measure heights. A re-run would then need a new tag and David's word.
+
+The finder height extension (`finder_check.py --all26`, heights) is committed on this branch at `238f11ac9`
+(02:55Z), before any result.
