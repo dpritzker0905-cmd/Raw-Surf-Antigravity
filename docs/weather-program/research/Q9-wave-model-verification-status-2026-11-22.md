@@ -113,4 +113,28 @@ Notes for the next attempt:
 - Truth ends at 2026-11-22T23:40 UTC. For the 00z cycle, leads 0–24 h fall inside the observation window, but the 24–48 h bin is almost entirely in the future. Under §6, that bin stays n = 0.
 - The 46042 observations are usable: about 1 record every 10 min, roughly a third null, with hourly-mean gap handling per §6.
 
+## 7a. Path B result, ERDDAP ww3_global (descriptive, n = 1 cycle, not a skill claim)
+
+Run under the 2026-11-23 amendment in §6a. The valid-hour set was fixed before values were read. Model: ERDDAP `ww3_global` (Thgt, Tdir), nearest cell. Truth: NDBC WVHT and MWD, ±30 min window, ≥2 non-null records. Reference time 2026-11-20 00:00Z. Lead bins are offsets from that reference, not per-run leads. Hs = significant height in metres. Direction error = model Tdir minus NDBC MWD, circular mean.
+
+| Station | Bin | n (Hs) | Bias (model − obs), m | RMSE, m | SI | Mean obs Hs, m | n (dir) | Dir circ. mean error, ° |
+|---|---|---|---|---|---|---|---|---|
+| 46042 Monterey | 0–24 h | 8 | −1.73 | 1.77 | 0.44 | 4.05 | 8 | −16.6 |
+| 46042 Monterey | 24–48 h | 8 | −1.32 | 1.34 | 0.58 | 2.32 | 8 | −7.1 |
+| 46086 San Clemente | both | 0 | — | — | — | — | 0 | — |
+| 51201 Waimea | 0–24 h | 8 | −0.28 | 0.32 | 0.18 | 1.79 | 8 | +44.6 |
+| 51201 Waimea | 24–48 h | 8 | −0.01 | 0.09 | 0.05 | 1.68 | 8 | +42.9 |
+| 44013 Boston | 0–24 h | 8 | +0.15 | 0.18 | 0.50 | 0.36 | 7 | −17.2 |
+| 44013 Boston | 24–48 h | 8 | +0.02 | 0.09 | 0.47 | 0.18 | 1 | not reported (n < 2) |
+
+Notes:
+- **46086 unavailable.** The NDBC 84 h pull has no non-null WVHT or MWD for this station, so no truth exists for either bin. Recorded as unavailable, not filled from another source.
+- **46042 is a large miss, and it is not a skill result.** The model runs 1.3–1.7 m below NDBC at Monterey over this one cycle. The sign and size should be checked against the forecast cycle and the cell choice before any reading. The 37.0N, 237.5E cell is about 0.2° north and 0.1° west of the buoy; the land and coast mask at a 0.5° grid is not checked.
+- **51201 direction** shows a consistent +43–45° offset. That could be a convention issue (wave-from vs wave-to, or the Tdir definition) rather than model error; it is not verified here.
+- **44013 0–24 h direction** has 7 pairs; the 24–48 h direction bin has one window, so it is not reported.
+- **DPD / Tper** were not pulled in this run (the NDBC pull requested WVHT and MWD only). Not reported.
+- **Lead bins** are offsets from the 2026-11-20 00Z reference on a best-time-series product, so they are not forecast leads from a single run.
+
+Sources: ERDDAP `ww3_global` via `erddap_get_griddap_data` (PacIOOS), NDBC via `ndbc_get_observations`, `ndbc_get_station`. All read-only, run 2026-11-23 UTC. Scratch script: `scratchpad/q9_pairs.py`.
+
 Sources: ww3 MCP (`ww3_list_cycles`, `ww3_compare_forecast_with_buoy`, `ww3_get_forecast_at_point`), NDBC MCP (`ndbc_get_station`, `ndbc_get_observations`), all read-only, 2026-11-22.
