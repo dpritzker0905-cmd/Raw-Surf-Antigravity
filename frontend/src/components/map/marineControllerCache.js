@@ -12,6 +12,7 @@ import { extractMarineAtOffset } from './marineControllerExtractor';
 import { rollOffsetCache } from './offsetCacheAnchor';
 import { coarseRatedForView, ratedCellDeg } from './marineRatingBandRes';
 import { noteRequestDiet, requestDietOn } from './marineRequestDiet';
+import { activeView, noteCacheGrowth, registerCache } from './cacheBudget'; import { hourCacheEntries } from './cacheBudgetAdapters';
 // The flavour the marine data lane asks for this layer: a partition is plain even in Rating mode (bug hunt 2026-11-22 D).
 const getMarineBandFlag = (layer) => bandRatedFor(getSurfModeFlag(), layer);
 
@@ -72,6 +73,7 @@ class LRUMap extends Map {
     if (value) {
       super.delete(key);
       super.set(key, value);
+      value.__used = Date.now();   // the shared byte budget's recency (cacheBudget.js)
     }
     return value;
   }
@@ -102,6 +104,9 @@ class LRUMap extends Map {
 
 var PER_MODEL_HOUR_CACHE_MAX = 50;
 var _perModelHourCache = new LRUMap(PER_MODEL_HOUR_CACHE_MAX);
+// One byte budget across caches (2026-11-23, cacheBudget.js): another model's or layer's grids go first; the selected hour +-3 h of
+// the active view is pinned. An alias key shares its grid (counted once by the vectors array). Kill: __RAW_DISABLE_CACHE_BUDGET__.
+registerCache('marine-hour', { entries: () => hourCacheEntries(_perModelHourCache, activeView()), drop: (k) => (Map.prototype.delete.call(_perModelHourCache, k) ? 1 : null), cost: 3 });
 
 // The tile id the REQUEST side (clampViewportBbox) uses for world-bounds marine lookups. Kept here
 // so the store can mirror world grids under it — see the WORLD-GRID KEY ALIAS note in
@@ -270,6 +275,7 @@ export function _cacheMarineResult(model, hourOffset, data, layer, silent = fals
     signature
   };
   _perModelHourCache.set(key, entry);
+  noteCacheGrowth();
 
   // WORLD-GRID KEY ALIAS (MAR-01, 2026-07-26). This key is derived from the RESPONSE
   // (tile_id/region_id), but getModelSafeMarine looks up by the REQUEST-derived selectedTileId,

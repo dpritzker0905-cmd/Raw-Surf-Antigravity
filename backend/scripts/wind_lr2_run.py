@@ -28,6 +28,7 @@ import wind_lr2_rows as W  # noqa: E402
 import wind_lr2_runs as R  # noqa: E402
 import wind_lr2_score as SC  # noqa: E402
 import wind_lr2_truth as T  # noqa: E402
+from services import buoy_holdout  # noqa: E402
 
 UTC = timezone.utc
 CAL_ARMS = list(W.CAL_SETS)
@@ -65,7 +66,9 @@ def truth_fn_for(kind, cache, stations, window):
     for i, st in enumerate(stations):
         if st["kind"] == "ndbc":
             height[i] = st.get("anemometer_m")
-            if kind == "fit":
+            if not buoy_holdout.keep(st["id"]):
+                truth[i] = {}                       # a LOCKED buoy: no truth is read, so it makes no row
+            elif kind == "fit":
                 truth[i], _src = T.fit_truth(s, cache, st["id"], window[0], window[1])
             else:
                 truth[i], _src = T.truth_for_test(os.path.join(cache, "snapshots"), st["id"])

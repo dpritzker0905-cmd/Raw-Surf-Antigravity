@@ -36,6 +36,8 @@ from typing import Dict, Optional
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from services import buoy_holdout  # noqa: E402
 import wave_emos_core as W  # noqa: E402
 from emos_core import crps_ensemble  # noqa: E402
 
@@ -289,7 +291,12 @@ def score(T: Dict[str, np.ndarray], hist: Dict, upgrades=(), refit_first=None) -
 
 def load_table(path: str) -> Dict[str, np.ndarray]:
     with np.load(path, allow_pickle=False) as z:
-        return {k: z[k] for k in z.files}
+        T = {k: z[k] for k in z.files}
+    if "buoy" in T:                       # the locked-holdout fence, at load: rows of a LOCKED buoy never reach a score
+        keep = np.array([buoy_holdout.keep(b) for b in T["buoy"].astype(str)], dtype=bool)
+        if not keep.all():
+            T = {k: (v[keep] if v.ndim and len(v) == len(keep) else v) for k, v in T.items()}
+    return T
 
 
 def load_hist(path: Optional[str]) -> Dict:

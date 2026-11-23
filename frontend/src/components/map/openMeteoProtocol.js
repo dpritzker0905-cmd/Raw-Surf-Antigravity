@@ -5,7 +5,7 @@ import { LIVE_FETCHED_MODELS } from './openMeteoMetadata';
 import { OPEN_METEO_SPATIAL_BASE_URL, isOpenMeteoSpatialUrl } from './openMeteoEndpoints';
 import { reportProtocolRegistrationFailure } from './openMeteoProtocolFailure';
 import { RasterDecodeWork, rasterWorkEnabled } from './rasterDecodeWork';
-import { applyWaterTempLandFill } from './waterTempLandFill';
+import { applyWaterTempLandFill } from './waterTempLandFill'; import { isOwnDecodedOmEcho, trimDecodedOmTiles } from './decodedOmBudget';
 
 // F4: per-tile / per-frame console output is GATED. With console capture / React Scan / PostHog
 // active, an unconditional console.log per decoded tile materially amplifies tile-heavy
@@ -304,7 +304,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         const channel = new BroadcastChannel('om-decoded-tiles');
         channel.onmessage = (event) => {
           const payload = event.data;
-          if (payload && payload.cacheKey && window.__DECODED_OM_TILES__) {
+          if (payload && payload.cacheKey && window.__DECODED_OM_TILES__ && !isOwnDecodedOmEcho(window.__DECODED_OM_TILES__, payload)) {
             tileLog(`[OM-Protocol-Main] Decoded tile received. Variable: ${payload.variable}, Bounds: ${payload.bounds?.join(',')}, ValueCount: ${payload.values?.length}, Dimensions: ${payload.nx}x${payload.ny}, TimeIndex: ${payload.timeIndex}`);
             window.__DECODED_OM_TILES__.set(payload.cacheKey, {
               values: payload.values,
@@ -317,11 +317,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               ny: payload.ny,
               timeIndex: payload.timeIndex
             });
-            
-            if (window.__DECODED_OM_TILES__.size > 150) {
-              const oldestKey = window.__DECODED_OM_TILES__.keys().next().value;
-              window.__DECODED_OM_TILES__.delete(oldestKey);
-            }
+            trimDecodedOmTiles(window.__DECODED_OM_TILES__);   // the 150 FIFO, then the shared byte budget (decodedOmBudget.js)
           }
         };
         window.__OM_BROADCAST_CHANNEL__ = channel;
@@ -570,11 +566,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               ny: tilePayload.ny,
               timeIndex
             });
-            
-            if (window.__DECODED_OM_TILES__.size > 150) {
-              const oldestKey = window.__DECODED_OM_TILES__.keys().next().value;
-              window.__DECODED_OM_TILES__.delete(oldestKey);
-            }
+            trimDecodedOmTiles(window.__DECODED_OM_TILES__);
           }
 
           try {

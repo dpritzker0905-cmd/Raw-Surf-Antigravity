@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 20,
+  "files": 1,
+  "branch": "claude/admin-truth-switches-verification",
+  "date": "2026-11-23",
+  "note": "admin switch board + ops snapshot + verification view (P0-3/P1-6)"
+}

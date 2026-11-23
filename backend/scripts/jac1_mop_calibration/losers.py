@@ -1,6 +1,8 @@
+import sys; from pathlib import Path as _P; sys.path.insert(0, str(_P(__file__).resolve().parents[2]))
+from services import buoy_holdout  # noqa: E402  (#1199 LOCKED buoys: dropped at load)
 import json, numpy as np
 B = __import__('os').environ.get('JAC1_MOP_DIR', 'jac1_mop_work/')
-spots=json.load(open(B+'spots.json')); R=json.load(open(B+'binned.json'))
+spots=[s for s in json.load(open(B+'spots.json')) if buoy_holdout.keep(s['buoy'])]; R=json.load(open(B+'binned.json'))
 def wrap(a): return np.abs((a+180)%360-180)
 def fchain(th):
     a=np.cos(np.radians(th)); return 0.55+0.45*(0.10+0.90*np.maximum(0,a))

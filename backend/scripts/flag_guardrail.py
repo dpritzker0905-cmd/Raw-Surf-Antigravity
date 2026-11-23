@@ -273,9 +273,13 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
                                         "passes": new_shadow["passes"], "verdicts": new_shadow["verdicts"],
                                         "run_urls": new_shadow.get("run_urls", []), "proposed_at": iso(now)}
                             new_e = dict(new_e, shadow_proposal=proposal)
-                        return {"action": "shadow_proposal", "entry": new_e,
-                                "reason": (f"shadow PASS {new_shadow['passes']}/{new_shadow['required_passes']}: "
-                                           f"evidence recorded (commit {commit[:8]}); flag stays OFF until owner re-enables")}
+                            return {"action": "shadow_proposal", "entry": new_e,
+                                    "reason": (f"shadow PASS {new_shadow['passes']}/{new_shadow['required_passes']}: "
+                                               f"evidence recorded (commit {commit[:8]}); flag stays OFF until owner re-enables")}
+                        # Proposal already written; return hold so the actions log and acted.txt don't repeat every 6 h
+                        return {"action": "hold", "entry": new_e,
+                                "reason": (f"shadow: proposal already written for version {fix_version}; "
+                                           f"owner decides when to re-enable")}
                     return {"action": "hold", "entry": new_e,
                             "reason": (f"shadow pass {new_shadow['passes']}/{new_shadow['required_passes']}: "
                                        f"{verdict}")}

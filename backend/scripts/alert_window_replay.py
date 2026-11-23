@@ -52,6 +52,7 @@ BACKEND = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND not in sys.path:
     sys.path.insert(0, BACKEND)
 
+from services import buoy_holdout  # noqa: E402
 from services import surf_alert_windows as W  # noqa: E402
 from services.weather_pipeline.surf_point import estimate_surf_at, resolve_surf_geometry  # noqa: E402
 from services.weather_pipeline.surf_rating import compute_surf_rating  # noqa: E402
@@ -357,7 +358,8 @@ def main(argv=None):
     args = ap.parse_args(argv)
     arms, tiers = args.arms.split(","), args.tiers.split(",")
     jobs = [(args.data, si, name, sig, seed, args.step, arms, tiers, args.hysteresis)
-            for si in range(len(SPOTS)) for name in ALERTS for sig in args.sigma
+            for si in range(len(SPOTS)) if buoy_holdout.keep(SPOTS[si]["buoy"]) and buoy_holdout.keep(SPOTS[si]["wind"])
+            for name in ALERTS for sig in args.sigma
             for seed in range(args.seeds if sig else 1)]
     if args.jobs > 1:
         from multiprocessing import Pool

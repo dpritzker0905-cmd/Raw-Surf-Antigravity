@@ -52,6 +52,10 @@ import urllib.request
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from services import buoy_holdout  # noqa: E402  (#1199 LOCKED buoys: not even sampled as positions)
 
 BASE = "https://raw-surf-antigravity.onrender.com"
 LATEST_OBS = "https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt"
@@ -81,7 +85,7 @@ def buoy_coords(n, max_age_min=180):
             t = datetime(int(p[3]), int(p[4]), int(p[5]), int(p[6]), int(p[7]), tzinfo=timezone.utc)
         except Exception:
             continue
-        if 0 <= (now - t).total_seconds() / 60.0 <= max_age_min:
+        if 0 <= (now - t).total_seconds() / 60.0 <= max_age_min and buoy_holdout.keep(sid):
             out.append({"kind": "buoy", "id": sid, "lat": lat, "lon": lon})
     out.sort(key=lambda s: (round(s["lat"] / 10), round(s["lon"] / 10)))
     step = max(1, len(out) // n)

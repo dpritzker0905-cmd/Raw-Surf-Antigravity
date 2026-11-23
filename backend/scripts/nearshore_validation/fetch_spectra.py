@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 
 import numpy as np
 
-from config import CACHE, NDBC_YEARS, STATIONS
+from config import CACHE, NDBC_YEARS, STATIONS, buoy_holdout
 
 NDBC_RT = 'https://www.ndbc.noaa.gov/data/realtime2/{id}.{ext}'
 NDBC_HIST = 'https://www.ndbc.noaa.gov/data/historical/{kind}/{id}{code}{year}.txt.gz'
@@ -29,6 +29,8 @@ CDIP_RT = 'https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/realtime/{id}p1_rt.n
 
 
 def _get(url: str, cache_name: str) -> bytes:
+    if not buoy_holdout.allow_url(url):          # the LOCKED final holdout (#1199): never read, cached or not
+        raise FileNotFoundError(buoy_holdout.redact(f'locked holdout buoy, not read: {cache_name}'))
     path = CACHE / cache_name
     if path.exists() and path.stat().st_size > 0:
         return path.read_bytes()

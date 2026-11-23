@@ -33,6 +33,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from services import buoy_holdout
 from services.weather_pipeline.consensus_product import CONSENSUS_MEMBERS, equal_consensus  # noqa: F401 (re-export)
 
 PAIRS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -609,6 +610,8 @@ def fetch_station_hs(station: str, hours: float = 26.0, timeout: float = 90.0) -
         return fetch_ndbc_hs(station, hours=hours, timeout=timeout)
     url = (f"{THREDDS_RT}/{station}_rt.nc.ascii"
            f"?waveTime,waveHs,waveFlagPrimary")
+    if not buoy_holdout.allow_url(url):          # a LOCKED final-holdout buoy (#1199) reads as no recent data
+        return []
     req = urllib.request.Request(url, headers=UA)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         txt = r.read().decode("utf-8", "replace")
