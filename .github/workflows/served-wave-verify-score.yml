@@ -1,0 +1,166 @@
+name: Served-wave verify score (daily; dark until SERVED_WAVE_VERIFY=1)
+
+# Gate: docs/weather-program/gates/served-wave-verify-v1.md sections 7, 7a, 9, 10. Daily at 06:30 UTC (away from the pilots'
+# :45 slots) plus dispatch. Every job is SKIPPED unless the repo variable SERVED_WAVE_VERIFY is '1' (default '0' until the
+# owner's word), the same kill switch as the sampler. Never runs on the Render box.
+#   truth      one immutable hashed NDBC realtime2 snapshot per listed station (.txt + .spec), into the private archive
+#   score      downloads the raw records (the ONLY reader of them) and the truth snapshots, scores with NO credentials in the
+#              scoring step, publishes the tables to the PUBLIC weather-frames bucket (verify/served-wave/v1/scores/)
+#   verify     Mondays (or on dispatch): verify_archive over every prefix (mismatch / listed-but-missing / unlisted)
+#   snapshot   Mondays: the dated score tables committed to docs/weather-program/evidence/served-wave-verify/ by a PR to dev,
+#              opened with the PAT secret SERVED_WAVE_VERIFY_PR_TOKEN (by name; never GITHUB_TOKEN, so CI runs on that PR)
+# Credentials by NAME only, in the supabase-service environment.
+
+on:
+  schedule:
+    - cron: '30 6 * * *'
+  workflow_dispatch:
+    inputs:
+      verify:
+        description: 'Also run verify_archive now'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+concurrency:
+  group: served-wave-verify-score
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  truth:
+    if: ${{ vars.SERVED_WAVE_VERIFY == '1' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0
+      - name: Snapshot NDBC realtime2 for every listed station
+        working-directory: backend
+        env:
+          SERVED_WAVE_VERIFY: ${{ vars.SERVED_WAVE_VERIFY || '0' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/served_wave_verify_score.py --snapshot-truth
+
+  score:
+    needs: truth
+    if: ${{ always() && vars.SERVED_WAVE_VERIFY == '1' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0
+      - name: Download raw records and truth snapshots (the only reader of raw records)
+        working-directory: backend
+        env:
+          SERVED_WAVE_VERIFY: ${{ vars.SERVED_WAVE_VERIFY || '0' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/served_wave_verify_score.py --download "$RUNNER_TEMP/archive"
+      - name: Score (no credentials in this step)
+        working-directory: backend
+        env:
+          SERVED_WAVE_VERIFY: ${{ vars.SERVED_WAVE_VERIFY || '0' }}
+        run: python scripts/served_wave_verify_score.py --score "$RUNNER_TEMP/archive" --out "$RUNNER_TEMP/scores"
+      - name: Publish the score tables (public, read-only path)
+        working-directory: backend
+        env:
+          SERVED_WAVE_VERIFY: ${{ vars.SERVED_WAVE_VERIFY || '0' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/served_wave_verify_score.py --publish "$RUNNER_TEMP/scores"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: served-wave-verify-scores-${{ github.run_id }}
+          retention-days: 30
+          path: ${{ runner.temp }}/scores/
+
+  verify:
+    if: ${{ vars.SERVED_WAVE_VERIFY == '1' }}   # the step itself runs only on Mondays, or when dispatched with verify=true
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0
+      - name: Weekly verify_archive (Mondays on schedule)
+        working-directory: backend
+        env:
+          SERVED_WAVE_VERIFY: ${{ vars.SERVED_WAVE_VERIFY || '0' }}
+          FORCE: ${{ github.event.inputs.verify }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ "$FORCE" != "true" ] && [ "$(date -u +%u)" != "1" ]; then echo "not Monday: skipped"; exit 0; fi
+          python scripts/served_wave_verify_score.py --verify
+
+  snapshot:
+    needs: score
+    if: ${{ always() && needs.score.result == 'success' && vars.SERVED_WAVE_VERIFY == '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The snapshot PR is opened with a fine-grained PAT referenced by NAME (secret SERVED_WAVE_VERIFY_PR_TOKEN: this repo
+    # only, contents + pull requests read/write), NOT the workflow's GITHUB_TOKEN: GitHub does not run workflows on a push
+    # or a PR made with GITHUB_TOKEN, so CI would never run on the snapshot PR (advisor ruling on #1177, amendment 1 A3).
+    # The checkout carries the same token, so the push that opens the PR is the PAT's too. Unset -> skipped with a warning.
+    permissions:
+      contents: read
+    steps:
+      - name: Require the snapshot PR token
+        id: token
+        env:
+          PR_TOKEN: ${{ secrets.SERVED_WAVE_VERIFY_PR_TOKEN }}
+        run: |
+          if [ -z "$PR_TOKEN" ]; then
+            echo "::warning title=Served-wave snapshot skipped::secret SERVED_WAVE_VERIFY_PR_TOKEN is not set (the weekly snapshot PR needs a PAT so CI runs on it)"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v5
+        if: ${{ steps.token.outputs.ok == 'true' }}
+        with:
+          token: ${{ secrets.SERVED_WAVE_VERIFY_PR_TOKEN }}
+      - uses: actions/download-artifact@v4
+        if: ${{ steps.token.outputs.ok == 'true' }}
+        with:
+          name: served-wave-verify-scores-${{ github.run_id }}
+          path: ${{ runner.temp }}/scores
+      - name: Weekly dated snapshot of the score tables, by PR to dev (Mondays)
+        if: ${{ steps.token.outputs.ok == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.SERVED_WAVE_VERIFY_PR_TOKEN }}
+        run: |
+          if [ "$(date -u +%u)" != "1" ]; then echo "not Monday: no snapshot"; exit 0; fi
+          # amendment 2: only a scored document (the #1199 LOCKED list frozen, verified and excluded) is ever committed
+          if ! grep -q '"status":"scored"' "$RUNNER_TEMP/scores/scores.json"; then
+            echo "scores are not 'scored' (holdout NOT_READ: collect-only): no snapshot"; exit 0
+          fi
+          d=$(date -u +%Y-%m-%d)
+          dest="docs/weather-program/evidence/served-wave-verify/$d"
+          mkdir -p "$dest"
+          cp "$RUNNER_TEMP/scores/scores.json" "$dest/scores.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "bot/served-wave-verify-scores-$d"
+          git add "$dest"
+          git commit -m "docs(served-wave-verify): weekly score snapshot $d [skip render] [skip netlify]"
+          git push origin "bot/served-wave-verify-scores-$d"
+          gh pr create --base dev --head "bot/served-wave-verify-scores-$d" \
+            --title "docs(served-wave-verify): weekly score snapshot $d" \
+            --body "Dated copy of verify/served-wave/v1/scores/ (gate served-wave-verify-v1 section 7a). Tables only; no raw records."
