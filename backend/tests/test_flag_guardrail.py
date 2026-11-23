@@ -117,7 +117,7 @@ def _tmp_cache(tmp_path, monkeypatch):
 def args(**k):
     d = dict(enforce="0", cache_dir=os.path.join(os.environ.get("PYTEST_TMP_GUARD", "."), "gcache"), out="o",
              alert_cap=2, run_url="https://run", reenable="", owner_words="",
-             actor="owner")
+             actor="owner", owner_login="owner")
     d.update(k)
     return SimpleNamespace(**d)
 
@@ -183,7 +183,9 @@ def test_a_new_fix_version_clears_the_guardrails_own_off():
     off = {"state": "off", "reason": "r", "set_by": fg.SET_BY, "set_at": "x", "evidence": "e", "fix_version": "old"}
     rep = fg.run(args(), NOW, rf_manifest(SURF_TIDE_DEPTH=off), scorer({}), lambda *a: {})
     assert rep["decisions"]["SURF_TIDE_DEPTH"]["action"] == "clear"
-    assert "SURF_TIDE_DEPTH" not in rep["manifest"]["flags"]
+    # Fix 2: flag stays OFF after a version bump — does not silently return to code-default ON
+    assert "SURF_TIDE_DEPTH" in rep["manifest"]["flags"]
+    assert rep["manifest"]["flags"]["SURF_TIDE_DEPTH"]["state"] == "off"
 
 
 def test_an_owner_off_is_never_cleared_by_a_version_bump():
@@ -195,7 +197,8 @@ def test_an_owner_off_is_never_cleared_by_a_version_bump():
 def test_owner_reenable_needs_words_and_writes_on():
     with pytest.raises(ValueError):
         fg.owner_reenable(rf_manifest(), "SURF_TIDE_DEPTH", "", "owner", NOW)
-    new = fg.owner_reenable(rf_manifest(), "SURF_TIDE_DEPTH", "turn tide depth back on", "owner", NOW)
+    new = fg.owner_reenable(rf_manifest(), "SURF_TIDE_DEPTH", "turn tide depth back on", "owner", NOW,
+                            expected_owner="owner")
     assert new["flags"]["SURF_TIDE_DEPTH"]["state"] == "on" and new["flags"]["SURF_TIDE_DEPTH"]["set_by"] == "owner"
 
 
