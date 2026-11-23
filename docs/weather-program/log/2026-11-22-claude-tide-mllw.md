@@ -144,3 +144,21 @@ double-check first: CO-OPS monthly means at 16 US gauges, year-round. A + M + D 
 - Frontend map, spot-hub and src/tests: 538 suites, 7,555 tests pass.
 
 **Still waiting:** the parity-run tag needs David's separate word.
+
+## 2026-11-23 01:14Z: parity run dispatched (owner's word)
+
+**Owner's word, typed in the director session:** "Yes, run it". The director pushed the tag `tide-mllw-parity-1` at
+`5719af7be`; this lane did not push it. The run is `tide-mllw-parity.yml` run 45093427404, queued 01:14:29Z. It compares
+our hourly A + D (D from the model and from the CO-OPS sheet) with NOAA CO-OPS MLLW High/Low predictions at the 26 G3t
+gauges over 7 days.
+
+- The frame does not matter for this run: it measures A + D against NOAA's predictions, and M plays no part.
+- No numeric pass bar was registered for it. The advisor's condition 1 on #1144 was the epoch correction, not a parity
+  tolerance. The result is reported as measured, beside D's own measured accuracy (model 0.0135 m median; sheet ≤ 2 km
+  0.017 m).
+- **Expected seasonal offset.** NOAA's predictions carry the full seasonal cycle in their SA/SSA, at 0.044–0.094 m
+  amplitude at the six frame-check gauges (CO-OPS harcon). Our FES2022b A carries only the atlas Sa/Ssa, which the M1
+  log found mostly lacks the weather-driven and steric seasonal cycle. So a late-November height bias of a few
+  centimetres, of either sign by gauge, is expected and is not a datum error. At San Diego, for example, SA 0.076 m at
+  phase 180.5° gives about +0.035 m in late November.
+- The run is watched read-only. It will not be re-tagged or re-run on failure.
