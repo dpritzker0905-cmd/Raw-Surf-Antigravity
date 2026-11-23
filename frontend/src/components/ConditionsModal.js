@@ -551,7 +551,7 @@ const ConditionsModal = ({
           {/* Blind height: asked here, where no forecast is shown, before going live. */}
           {collectObservation && (
             <BlindHeightInput idPrefix="golive-obs" value={observation} onChange={setObservation}
-              defaultScale={defaultScaleFor(spot)} />
+              defaultScale={defaultScaleFor(spot)} askQuality />
           )}
 
           {/* Spot Notes. Its placeholder carries no example size: a number here would anchor the blind height. */}
@@ -563,7 +563,7 @@ const ConditionsModal = ({
             <Textarea aria-label="Spot notes"
               value={spotNotes}
               onChange={(e) => setSpotNotes(e.target.value)}
-              placeholder="E.g., clean lines, offshore wind, best at mid-tide..."
+              placeholder="What you see, in your own words"
               className="bg-card border-border text-foreground placeholder-muted-foreground resize-none h-20"
               maxLength={200}
               data-testid="spot-notes-input"

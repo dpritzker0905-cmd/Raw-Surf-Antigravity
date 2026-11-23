@@ -20,6 +20,7 @@
  * Kill switch: window.__RAW_DISABLE_SPOT_HUB_CHARTS__ = true restores every surface's previous output.
  */
 import { RATING_COLOR, RATING_LABEL } from '../../map/surfRating';
+import { formatTideHeight } from '../../map/tideReadoutFormat';
 
 const HOUR_MS = 3600 * 1000;
 export const LEVEL_KEYS = ['very_poor', 'poor', 'poor_fair', 'fair', 'fair_good', 'good', 'epic'];
@@ -167,14 +168,14 @@ export function windArrowDeg(word) {
 
 /**
  * The text equivalent of a bar (never colour alone): "Tue 13:00, 4.1 ft, Fair to Good, 8 kt offshore,
- * tide 0.6 m". `fmtHeight(meters)` formats in the user's unit. PURE.
+ * tide 0.6 m". `fmtHeight(meters)` formats in the user's unit; the tide follows `unit` too (the ft/m button). PURE.
  */
-export function frameDescription(f, fmtHeight) {
+export function frameDescription(f, fmtHeight, unit = 'm') {
   if (!f) return '';
   const parts = [f.label, f.heightM == null ? 'no surf height' : fmtHeight(f.heightM), levelWord(f.level)];
   if (f.levelLo && f.levelHi && f.levelLo !== f.levelHi) parts.push(`models range ${levelWord(f.levelLo)} to ${levelWord(f.levelHi)}`);
   if (f.windKt != null) parts.push(`${f.windKt} kt${f.windWord ? ` ${f.windWord}` : ''}`);
-  if (f.tideM != null) parts.push(`tide ${f.tideM.toFixed(1)} m`);
+  if (f.tideM != null) parts.push(`tide ${formatTideHeight(f.tideM, unit === 'ft' ? 'ft' : 'm')}`);
   return parts.join(', ');
 }
 

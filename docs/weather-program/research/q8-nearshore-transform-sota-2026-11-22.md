@@ -28,7 +28,7 @@ In California the EURO member serves CDIP MOP's nearshore forecast instead (D-06
 | D. Per-spot bias correction from check-ins | Plausible later. Needs volume (the Q7 floor logic) | Later |
 | E. A new breaker formula only | Breaker relationships remain uncertain [6]; our γ is already field-bounded | Small gain at best |
 
-SubQ ranked A first (p = 0.97). Its second was unclear: E at p = 0.46, D at 0.28.
+SubQ ranked A first (model confidence 0.97). Its second was unclear: E at 0.46, D at 0.28. These are the model's confidence weights in a ranking, not statistics or p-values (advisor limit on #1146, 2026-11-22).
 
 **The single biggest evidence-backed upgrade is A:** per-spot, partition-resolved linear transfer coefficients (a "MOP-lite" for the rest of the world). Each swell partition's height, and optionally its direction, is multiplied by a spot-specific coefficient looked up by the partition's period and direction. That replaces the global `Kr` and the cosine exposure for spots that have coefficients. The depth-limited cap and γ stay as they are.
 
