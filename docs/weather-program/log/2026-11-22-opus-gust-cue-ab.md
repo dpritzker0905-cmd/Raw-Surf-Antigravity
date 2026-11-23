@@ -32,3 +32,15 @@ choice. Full record: the director group's shared notes, GUST-CUE-AB-DESIGN-2026-
 - The owner's pick. It then becomes `GUST_CUE_DEFAULT`, ON, with its kill.
 - No real phone GPU check yet. Hatch contrast tuning (if hatch is picked).
 - No SCOREBOARD row: no served number moves.
+
+## Cue-choice round (director's SOTA directive, 2026-11-22; public context only)
+SubQ and Reflection were asked which one cue should ship as the default, given the measured evidence above. The owner
+still picks.
+- Reflection (Beam-1.0): **C hatch**. It is static, so it survives reduced motion, and it discriminates best; width is
+  too subtle and the flicker is unmeasurable. Risk: below 3:1 contrast on light and beach, plus phone clutter. Tune
+  first: raise the alpha to about 0.42 dark, 0.64 light, 0.70 beach.
+- SubQ (savant-1.4): **C hatch**. It has the strongest specificity (1.8-9.2x gusty, 0.97-1.03x steady and 1.4) and
+  works under reduced motion. Risk: light and beach contrast 1.7:1, and no real-phone test. Tune first: the same 3:1
+  alphas.
+Tested before the PR: every arm in dark, light and beach, at desktop 1440 px and phone 375 px (24 sessions). The PR
+changes no gust palette (the #1176 lane) and no wind colour (the dark-wind-vivid lane).
