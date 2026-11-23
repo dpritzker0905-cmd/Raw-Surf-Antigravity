@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 8,
+  "files": 1,
+  "branch": "claude/wind-lr2-gust-truth",
+  "date": "2026-11-23",
+  "note": "wind-lr2 gust truth (amendment G1): 8 tests, 1 file"
+}
