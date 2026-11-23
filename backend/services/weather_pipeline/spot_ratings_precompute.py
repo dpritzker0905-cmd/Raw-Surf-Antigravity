@@ -366,6 +366,8 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     a large spot list doesn't stampede the resolver. valid_time per frame = base_dt + hour (top-of-hour UTC)."""
     base = base_dt or _top_of_hour_utc()
     sem = asyncio.Semaphore(max(1, concurrency))
+    from services.weather_pipeline import missing_sample as _missing
+    _missing.reset_tally()   # the placeholder tally counts THIS run only (precompute_ci reports it)
 
     # LOCAL SIZE CALIBRATION (P-local): each spot's size gate saturates at its OWN good-day breaking height
     # (p80 climatology from spot_size_climatology), not a global 1.2 m — so a clean 2-3 ft day is fair-good at
