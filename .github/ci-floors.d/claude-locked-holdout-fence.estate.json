@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 29,
+  "tests": 35,
   "branch": "claude/locked-holdout-fence",
   "date": "2026-11-23",
-  "note": "#1199 LOCKED fence: tests/test_buoy_holdout.py (25) + test_buoy_holdout_guard.py (4)"
+  "note": "#1199 LOCKED fence: tests/test_buoy_holdout.py (31) + test_buoy_holdout_guard.py (4)"
 }

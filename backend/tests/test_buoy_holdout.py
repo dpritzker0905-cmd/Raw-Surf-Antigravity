@@ -135,12 +135,34 @@ def test_unreadable_list_locks_everything(root):
         "<locked>, <locked>, <locked> and <locked> failed; ERROR at row"
 
 
-@pytest.mark.parametrize("bad", ["../outside.json", "/etc/passwd", "C:/Windows/win.ini",
+@pytest.mark.parametrize("bad", ["../outside.json", "/etc/passwd", "C:/Windows/win.ini", "C:win.ini",
+                                 "//host/share/x.json", r"\\host\share\x.json", r"docs\..\..\x.json",
                                  "docs/../../outside.json"])
 def test_a_locked_list_path_outside_the_repo_quarantines(root, bad):
     _root(root, locked=["SYN99"])
     doc = json.loads((root / bh.BUOY_LIST).read_text(encoding="utf-8"))
     doc["holdout"]["locked_list"]["path"] = bad
+    (root / bh.BUOY_LIST).write_text(json.dumps(doc), encoding="utf-8")
+    st = bh.state()
+    assert st["status"] == "quarantine" and "inside the repository" in st["reason"]
+
+
+def test_path_confinement_is_the_same_on_every_platform():
+    """Pure-string decision (PurePosixPath + PureWindowsPath), so Linux CI and Windows give the same answer; a drive-letter
+    path is refused on Linux, not read as a relative path inside the repository (hosted CI, 2026-11-23)."""
+    ok = ["docs/weather-program/gates/served-wave-skill-v1-locked.json", "a.json", "docs/./x.json"]
+    bad = ["", "/x.json", "C:/x.json", "c:x.json", "//host/share/x", r"\\host\share\x", r"a\b.json", "../x.json",
+           "docs/../../x.json", "docs/../x.json"]
+    assert all(bh._inside_repo_relative(p) for p in ok)
+    assert not any(bh._inside_repo_relative(p) for p in bad)
+
+
+def test_an_absolute_path_outside_the_repo_quarantines(root, tmp_path_factory):
+    outside = tmp_path_factory.mktemp("outside") / "locked.json"      # a REAL file outside the repository root
+    outside.write_text("{}", encoding="utf-8")
+    _root(root, locked=["SYN99"])
+    doc = json.loads((root / bh.BUOY_LIST).read_text(encoding="utf-8"))
+    doc["holdout"]["locked_list"]["path"] = outside.as_posix()
     (root / bh.BUOY_LIST).write_text(json.dumps(doc), encoding="utf-8")
     st = bh.state()
     assert st["status"] == "quarantine" and "inside the repository" in st["reason"]

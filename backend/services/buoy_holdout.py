@@ -36,7 +36,7 @@ import json
 import os
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BUOY_LIST = "docs/weather-program/gates/served-wave-verify-v1-buoys.json"
@@ -77,6 +77,16 @@ def _norm(station_id):
     return m.group(1) if m else s
 
 
+def _inside_repo_relative(raw):
+    r"""True only for a repository-relative POSIX path. The SAME answer on every platform: a path that is rooted or
+    drive-anchored in EITHER convention ('/x', 'C:/x', 'C:x', '\\host\share'), holds a backslash, or climbs with '..'
+    is refused, so a Linux runner does not read 'C:/x' as a harmless relative path while Windows refuses it."""
+    if not raw or "\\" in raw:
+        return False
+    posix, win = PurePosixPath(raw), PureWindowsPath(raw)
+    return not (posix.is_absolute() or win.anchor or win.drive or ".." in posix.parts)
+
+
 def verify(doc, root):
     """(locked ids, sha256) of the recorded list, or None when none is recorded. Raises HoldoutError when it does not
     verify. `doc` is the parsed buoy list."""
@@ -86,10 +96,14 @@ def verify(doc, root):
         if any(s.get("locked") is not None for s in stations):
             raise HoldoutError("stations carry `locked` tags but no locked list is recorded")
         return None
-    rel = Path(str(ref["path"]))
-    if rel.anchor or ".." in rel.parts:                 # rooted ('/x', 'C:/x', 'C:x') or climbing out: refuse
-        raise HoldoutError(f"locked list path {ref['path']!r} must be relative and inside the repository")
-    path = Path(root) / rel
+    raw_path = str(ref["path"])
+    if not _inside_repo_relative(raw_path):
+        raise HoldoutError(f"locked list path {raw_path!r} must be relative and inside the repository")
+    path = Path(root) / PurePosixPath(raw_path)
+    try:                                                # a symlink or junction may still point out of the repository
+        path.resolve().relative_to(Path(root).resolve())
+    except ValueError:
+        raise HoldoutError(f"locked list path {raw_path!r} must be relative and inside the repository") from None
     if not path.is_file():
         raise HoldoutError(f"locked list {ref['path']} is recorded but missing")
     raw = path.read_bytes()
