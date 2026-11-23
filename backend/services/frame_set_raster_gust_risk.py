@@ -103,7 +103,8 @@ def risk_planes(counts, n_members=MEMBERS):
 # (1) Hidden, failing closed: every index says `display` false unless GUST_RISK_DISPLAY = '1' AND the gate's result file
 #     records PASS; nothing in the client reads this set (tests/test_frame_set_raster_gust_risk.py scans frontend/src).
 # (2) Budget: per run and per UTC day, bytes READ (counted on the wire) and bytes STORED (the gzip frames) have hard caps; a
-#     cap reached refuses every remaining step, nothing is uploaded (coverage refusal) and the step exits 1.
+#     cap reached refuses every remaining step, nothing is uploaded (coverage refusal) and the step exits 1. No wall-clock
+#     slot: every pilots run may try; a cycle already published costs a few ~2 MB index reads (publish_blocked).
 # (3) Retention: the publisher keeps the current and previous run (frame_set retention); on top, anything of this set older
 #     than MAX_AGE_DAYS is deleted on every run, and the daily budget records after 30 days.
 # (4) Provenance: every member message must carry the PINNED GRIB identity (centre, generating process, template); the
@@ -116,7 +117,6 @@ READ_CAP_RUN = 6.5e9                 # bytes; measured need ~6.05 GB (84 steps x
 READ_CAP_DAY = 6.5e9                 # bytes per UTC day across runs (bucket record budget/gust_risk_ens/<YYYYMMDD>.json)
 STORE_CAP_RUN = 45e6                 # bytes of gzip frames per run; measured 282-516 kB a frame (~36 MB a run)
 MAX_AGE_DAYS = 14
-PUBLISH_HOURS_UTC = "11,12,13,14,15"  # the 11:45 pilots run only (its later steps start by ~15Z; 03:45 and 19:45 cannot reach)
 PIN = {"centre": "ecmf", "generatingProcessIdentifier": 161, "productDefinitionTemplateNumber": 11}   # read 2026-11-23
 BUDGET_PREFIX = "budget/gust_risk_ens"
 
@@ -155,13 +155,15 @@ def display_allowed(path=None):
 
 
 def publish_blocked(now, path=None):
-    """The reason this run must not read or write, or None. (5) a recorded FAIL / VOID; (2) not the daily slot."""
+    """The reason this run must not read or write, or None: (5) a recorded FAIL / VOID.
+
+    There is NO wall-clock slot (removed 2026-11-23): GitHub started the 11:45 cron at 13:41Z, so a slot of UTC 11-15 would
+    quietly skip the publish on late days. The day is bounded by the guards that do not depend on the clock: the per-UTC-day
+    read cap (6.5 GB, recorded in the bucket), the per-run caps, and frame_set_raster.publish's "cycle already published"
+    check, after which a later run reads only the run-availability index (~2 MB) and stops."""
     state = gate_state(path)
     if state in ("FAIL", "VOID"):
         return f"auto-disabled: gate gust-ens-risk-v1 recorded {state}"
-    hours = {h.strip() for h in (os.environ.get("GUST_RISK_PUBLISH_HOURS_UTC") or PUBLISH_HOURS_UTC).split(",")}
-    if "any" not in hours and f"{now.astimezone(timezone.utc).hour:02d}" not in {h.zfill(2) for h in hours}:
-        return f"not the daily slot (UTC hour {now.astimezone(timezone.utc).hour:02d} not in {sorted(hours)})"
     return None
 
 
