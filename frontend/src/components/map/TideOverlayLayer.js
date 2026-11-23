@@ -63,7 +63,7 @@ export function TideOverlayCredit({ payloads, theme }) {
   const k = tideMarkerClasses(theme);
   return (
     <div data-testid="tide-overlay-credit"
-         className={`absolute bottom-8 left-2 z-10 max-w-[70vw] px-1.5 py-0.5 rounded-md border text-[9px] leading-tight shadow truncate ${k.box}`}>
+         className={`absolute top-40 md:top-auto md:bottom-8 left-2 z-10 max-w-[70vw] sm:max-w-sm px-1.5 py-0.5 rounded-md border text-[9px] leading-tight shadow whitespace-normal break-words ${k.box}`}>
       <span className={k.muted}>Tide data: </span>
       {[...seen.values()].map((c, i) => (
         <React.Fragment key={c.text}>

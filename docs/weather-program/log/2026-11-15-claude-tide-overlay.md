@@ -189,3 +189,31 @@ David released the Codex-reserved files (MapWeatherControls.js, usePointTide.js;
      `toolu_01YDFqDcG3dbYjw7VquJNqkV`).
    - Codex was also asked, in the shared note `CODEX-REVIEW-REQUEST-1101-2026-11-19.md`, whether #755 is live and
      which order it wants.
+
+
+## 2026-11-23 00:33Z: #923, the phone check of the overlay credit (the advisor's open item at b75a158c4)
+- **Run** offline only: `frontend/scripts/offline-backend/scn_tide_overlay_credit.js`.
+  - A production build (this branch) served locally. The ab_lib launcher answers every app-host request locally; the host
+    audit says "ok", and only basemap tiles and fonts left the machine.
+  - A local stub serves a credited own-tide /point-tide payload; three North Shore spots are stubbed.
+  - Viewport 375 x 812, DPR 2, mobile; the three themes; each with the map alone and with Waves on (the forecast timeline
+    open).
+- **What the first build showed** (`bottom-8`, truncating):
+  - the provider string is wider than `max-w-[70vw]` (262 px);
+  - worse, the credit sat at y 752-780, BEHIND the phone's bottom navigation, so it was invisible.
+  - At `bottom-28` the bottom nav cleared, but the open timeline panel (y about 660-736) covered it.
+- **Fix:**
+  - the credit WRAPS (`whitespace-normal break-words`, no truncate);
+  - on phones it sits TOP-LEFT below the Explore button (`top-40`), clear of the timeline, the wheel and the nav;
+  - desktop keeps `bottom-8` (`md:top-auto md:bottom-8`).
+- **Result**, all 6 states (light/dark/beach x map/timeline):
+  - the credit at x 8-270.5, y 216-244.5, two lines;
+  - not clipped;
+  - every one of 6 `elementFromPoint` probes across it hits the credit itself (nothing drawn on top);
+  - no overlap with the wheel.
+  - The full text is visible: "Tide data: FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) + Copernicus Marine", underlined
+    as a link.
+- **Screenshots** (`docs/weather-program/evidence/tide-overlay-credit-375/`): `tide-credit-375-light.png`,
+  `-light-wheel.png`, `-dark.png`, `-dark-wheel.png`, `-beach.png`, `-beach-wheel.png`; measurements in
+  `tide-credit-375.json`.
+- **Tests:** Jest 195 pass (10 suites); check_eslint passes.
