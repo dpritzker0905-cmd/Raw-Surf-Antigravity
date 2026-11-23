@@ -1,0 +1,569 @@
+{
+ "schema": "raw-surf/tide-parity-v2-gauge-class/1",
+ "rule": "gates/tide-parity-v2.md section 2",
+ "data": "NOAA NCEI ETOPO 2022 15s via CoastWatch ERDDAP; CO-OPS mdapi coordinates",
+ "gauges": {
+  "1611400": {
+   "class": "OPEN_COAST",
+   "d_path_km": 1.92,
+   "d_line_km": 1.78,
+   "detour": 1.079,
+   "constriction": null,
+   "start": [
+    21.9521,
+    -159.3562
+   ],
+   "target": [
+    21.9479,
+    -159.3396
+   ],
+   "target_z_m": -22.499609,
+   "fails": [],
+   "name": "Nawiliwili",
+   "lat": 21.9544,
+   "lng": -159.3561
+  },
+  "1612340": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 2.02,
+   "d_line_km": 1.9,
+   "detour": 1.063,
+   "constriction": {
+    "at": [
+     21.2937,
+     -157.8688
+    ],
+    "path_km": 1.1
+   },
+   "start": [
+    21.3021,
+    -157.8646
+   ],
+   "target": [
+    21.2854,
+    -157.8688
+   ],
+   "target_z_m": -32.93198,
+   "fails": [
+    "constriction"
+   ],
+   "name": "Honolulu",
+   "lat": 21.303333,
+   "lng": -157.86453
+  },
+  "1615680": {
+   "class": "OPEN_COAST",
+   "d_path_km": 1.85,
+   "d_line_km": 1.85,
+   "detour": 1.0,
+   "constriction": null,
+   "start": [
+    20.8938,
+    -156.4688
+   ],
+   "target": [
+    20.9104,
+    -156.4688
+   ],
+   "target_z_m": -21.115044,
+   "fails": [],
+   "name": "Kahului, Kahului Harbor",
+   "lat": 20.894945,
+   "lng": -156.469
+  },
+  "1617760": {
+   "class": "OPEN_COAST",
+   "d_path_km": 1.74,
+   "d_line_km": 1.64,
+   "detour": 1.058,
+   "constriction": null,
+   "start": [
+    19.7312,
+    -155.0563
+   ],
+   "target": [
+    19.7437,
+    -155.0479
+   ],
+   "target_z_m": -20.31178,
+   "fails": [],
+   "name": "Hilo, Hilo Bay, Kuhio Bay",
+   "lat": 19.730278,
+   "lng": -155.05556
+  },
+  "8443970": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 10.07,
+   "d_line_km": 9.01,
+   "detour": 1.118,
+   "constriction": {
+    "at": [
+     42.3521,
+     -71.0229
+    ],
+    "path_km": 2.86
+   },
+   "start": [
+    42.3521,
+    -71.0521
+   ],
+   "target": [
+    42.3396,
+    -70.9437
+   ],
+   "target_z_m": -22.106464,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "name": "Boston",
+   "lat": 42.35389,
+   "lng": -71.05028
+  },
+  "8452660": {
+   "class": "OPEN_COAST",
+   "d_path_km": 1.39,
+   "d_line_km": 1.39,
+   "detour": 1.0,
+   "constriction": null,
+   "start": [
+    41.5021,
+    -71.3271
+   ],
+   "target": [
+    41.5021,
+    -71.3438
+   ],
+   "target_z_m": -20.470858,
+   "fails": [],
+   "name": "Newport",
+   "lat": 41.504333,
+   "lng": -71.32614
+  },
+  "8531680": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 6.99,
+   "d_line_km": 5.52,
+   "detour": 1.267,
+   "constriction": {
+    "at": [
+     40.4729,
+     -74.0229
+    ],
+    "path_km": 1.29
+   },
+   "start": [
+    40.4688,
+    -74.0104
+   ],
+   "target": [
+    40.5146,
+    -73.9854
+   ],
+   "target_z_m": -21.77209,
+   "fails": [
+    "constriction"
+   ],
+   "name": "Sandy Hook",
+   "lat": 40.4669,
+   "lng": -74.0094
+  },
+  "8534720": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 12.37,
+   "d_line_km": 11.34,
+   "detour": 1.091,
+   "constriction": null,
+   "start": [
+    39.3563,
+    -74.4188
+   ],
+   "target": [
+    39.2938,
+    -74.3146
+   ],
+   "target_z_m": -20.553331,
+   "fails": [
+    "d_path>8km"
+   ],
+   "name": "Atlantic City",
+   "lat": 39.356667,
+   "lng": -74.41805
+  },
+  "8651370": {
+   "class": "OPEN_COAST",
+   "d_path_km": 4.93,
+   "d_line_km": 4.58,
+   "detour": 1.076,
+   "constriction": null,
+   "start": [
+    36.1812,
+    -75.7479
+   ],
+   "target": [
+    36.1896,
+    -75.6979
+   ],
+   "target_z_m": -20.03,
+   "fails": [],
+   "name": "Duck",
+   "lat": 36.1833,
+   "lng": -75.7467
+  },
+  "8658163": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 13.02,
+   "d_line_km": 11.89,
+   "detour": 1.095,
+   "constriction": null,
+   "start": [
+    34.2146,
+    -77.7854
+   ],
+   "target": [
+    34.1562,
+    -77.6771
+   ],
+   "target_z_m": -20.347113,
+   "fails": [
+    "d_path>8km"
+   ],
+   "name": "Wrightsville Beach",
+   "lat": 34.213306,
+   "lng": -77.7867
+  },
+  "8665530": {
+   "class": "UNCLASSIFIED",
+   "why": "no DEEP cell reachable through water within the box",
+   "start": [
+    32.78125,
+    -79.922917
+   ],
+   "name": "Charleston",
+   "lat": 32.780834,
+   "lng": -79.923615
+  },
+  "8720030": {
+   "class": "UNCLASSIFIED",
+   "why": "no DEEP cell reachable through water within the box",
+   "start": [
+    30.672917,
+    -81.464583
+   ],
+   "name": "Fernandina Beach",
+   "lat": 30.671356,
+   "lng": -81.46584
+  },
+  "8722670": {
+   "class": "OPEN_COAST",
+   "d_path_km": 1.66,
+   "d_line_km": 1.66,
+   "detour": 1.0,
+   "constriction": null,
+   "start": [
+    26.6146,
+    -80.0354
+   ],
+   "target": [
+    26.6146,
+    -80.0187
+   ],
+   "target_z_m": -33.32212,
+   "fails": [],
+   "name": "Lake Worth Pier, Atlantic Ocean",
+   "lat": 26.612778,
+   "lng": -80.034164
+  },
+  "8723214": {
+   "class": "OPEN_COAST",
+   "d_path_km": 7.51,
+   "d_line_km": 7.51,
+   "detour": 1.0,
+   "constriction": null,
+   "start": [
+    25.7312,
+    -80.1604
+   ],
+   "target": [
+    25.7312,
+    -80.0854
+   ],
+   "target_z_m": -32.873615,
+   "fails": [],
+   "name": "Virginia Key",
+   "lat": 25.7314,
+   "lng": -80.1618
+  },
+  "8726724": {
+   "class": "UNCLASSIFIED",
+   "why": "no DEEP cell reachable through water within the box",
+   "start": [
+    27.977083,
+    -82.83125
+   ],
+   "name": "Clearwater Beach",
+   "lat": 27.9783,
+   "lng": -82.8317
+  },
+  "8729840": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 13.66,
+   "d_line_km": 12.86,
+   "detour": 1.062,
+   "constriction": {
+    "at": [
+     30.3604,
+     -87.2062
+    ],
+    "path_km": 4.78
+   },
+   "start": [
+    30.4021,
+    -87.2104
+   ],
+   "target": [
+    30.2979,
+    -87.1521
+   ],
+   "target_z_m": -20.039888,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "name": "Pensacola",
+   "lat": 30.4044,
+   "lng": -87.2112
+  },
+  "8771510": {
+   "class": "UNCLASSIFIED",
+   "why": "no DEEP cell reachable through water within the box",
+   "start": [
+    29.285417,
+    -94.789583
+   ],
+   "name": "Galveston Pleasure Pier",
+   "lat": 29.2853,
+   "lng": -94.7894
+  },
+  "9410230": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.99,
+   "d_line_km": 0.91,
+   "detour": 1.098,
+   "constriction": null,
+   "start": [
+    32.8687,
+    -117.2562
+   ],
+   "target": [
+    32.8729,
+    -117.2646
+   ],
+   "target_z_m": -24.505148,
+   "fails": [],
+   "name": "La Jolla",
+   "lat": 32.86689,
+   "lng": -117.25714
+  },
+  "9410660": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 1.16,
+   "d_line_km": 1.16,
+   "detour": 1.0,
+   "constriction": {
+    "at": [
+     33.7188,
+     -118.2604
+    ],
+    "path_km": 1.16
+   },
+   "start": [
+    33.7188,
+    -118.2729
+   ],
+   "target": [
+    33.7188,
+    -118.2604
+   ],
+   "target_z_m": -21.63124,
+   "fails": [
+    "constriction"
+   ],
+   "name": "Los Angeles",
+   "lat": 33.72,
+   "lng": -118.272
+  },
+  "9413450": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.46,
+   "d_line_km": 0.46,
+   "detour": 1.0,
+   "constriction": null,
+   "start": [
+    36.6104,
+    -121.8896
+   ],
+   "target": [
+    36.6146,
+    -121.8896
+   ],
+   "target_z_m": -24.853064,
+   "fails": [],
+   "name": "Monterey",
+   "lat": 36.60889,
+   "lng": -121.89139
+  },
+  "9415020": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 2.6,
+   "d_line_km": 2.36,
+   "detour": 1.101,
+   "constriction": {
+    "at": [
+     37.9896,
+     -122.9604
+    ],
+    "path_km": 1.54
+   },
+   "start": [
+    37.9979,
+    -122.9729
+   ],
+   "target": [
+    37.9813,
+    -122.9562
+   ],
+   "target_z_m": -20.620714,
+   "fails": [
+    "constriction"
+   ],
+   "name": "Point Reyes",
+   "lat": 37.994167,
+   "lng": -122.97361
+  },
+  "9419750": {
+   "class": "OPEN_COAST",
+   "d_path_km": 2.08,
+   "d_line_km": 1.96,
+   "detour": 1.061,
+   "constriction": null,
+   "start": [
+    41.7437,
+    -124.1854
+   ],
+   "target": [
+    41.7313,
+    -124.2021
+   ],
+   "target_z_m": -20.413397,
+   "fails": [],
+   "name": "Crescent City",
+   "lat": 41.74561,
+   "lng": -124.18439
+  },
+  "9435380": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 4.91,
+   "d_line_km": 4.06,
+   "detour": 1.209,
+   "constriction": {
+    "at": [
+     44.6229,
+     -124.0563
+    ],
+    "path_km": 1.23
+   },
+   "start": [
+    44.6271,
+    -124.0438
+   ],
+   "target": [
+    44.6187,
+    -124.0938
+   ],
+   "target_z_m": -20.231153,
+   "fails": [
+    "constriction"
+   ],
+   "name": "South Beach",
+   "lat": 44.625446,
+   "lng": -124.044945
+  },
+  "9443090": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 1.58,
+   "d_line_km": 1.52,
+   "detour": 1.037,
+   "constriction": {
+    "at": [
+     48.3813,
+     -124.5938
+    ],
+    "path_km": 1.11
+   },
+   "start": [
+    48.3729,
+    -124.6021
+   ],
+   "target": [
+    48.3854,
+    -124.5938
+   ],
+   "target_z_m": -20.673841,
+   "fails": [
+    "constriction"
+   ],
+   "name": "Neah Bay",
+   "lat": 48.370724,
+   "lng": -124.601585
+  },
+  "9751639": {
+   "class": "OPEN_COAST",
+   "d_path_km": 3.13,
+   "d_line_km": 2.92,
+   "detour": 1.074,
+   "constriction": null,
+   "start": [
+    18.3313,
+    -64.9271
+   ],
+   "target": [
+    18.3062,
+    -64.9354
+   ],
+   "target_z_m": -20.107105,
+   "fails": [],
+   "name": "Charlotte Amalie",
+   "lat": 18.330584,
+   "lng": -64.925804
+  },
+  "9755371": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 2.64,
+   "d_line_km": 2.27,
+   "detour": 1.162,
+   "constriction": {
+    "at": [
+     18.4646,
+     -66.1229
+    ],
+    "path_km": 1.08
+   },
+   "start": [
+    18.4604,
+    -66.1146
+   ],
+   "target": [
+    18.4771,
+    -66.1271
+   ],
+   "target_z_m": -22.071405,
+   "fails": [
+    "constriction"
+   ],
+   "name": "San Juan, La Puntilla, San Juan Bay",
+   "lat": 18.458944,
+   "lng": -66.11642
+  }
+ }
+}

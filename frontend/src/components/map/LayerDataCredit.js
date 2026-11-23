@@ -1,6 +1,8 @@
 import React, { useSyncExternalStore } from 'react';
 import { getEngaged, subscribeEngaged } from './ownRasterFrames';
 import { getDownscaled, subscribeDownscaled } from './ownRasterDownscale';
+import { getRasterDrawn, subscribeRasterDrawn } from './rasterDrawnFrame';
+import { gustLeadHours, gustWindowLabel, gustWindowShort } from './gustWindow';
 
 // The data credit beside a raster layer's legend (2026-10-22). The map's attribution control is off (MapWebGL
 // attributionControl={false}), so nothing on screen credited the raster layers' sources:
@@ -56,11 +58,18 @@ const OWN_NOTE = {
   water_temp: (model) => (model === 'CMEMS'
     ? { text: ' · ocean model, top 0.5 m', label: 'Copernicus ocean model sea temperature: the top half metre, hourly mean, 1/6 degree cells (not a skin temperature). DWD ICON has no sea temperature of its own.' }
     : null),
-  gusts: (model) => withStormCaveat(model === 'GFS'
-    ? { text: ' · instantaneous', label: 'GFS surface wind gust at the valid time (instantaneous).' }
-    : { text: ' · peak since last step', label: model === 'EURO'
-      ? 'ECMWF 10fg / 10fg3: the strongest 10 m gust over the past 1 h (to 90 h), 3 h (to 144 h) or 6 h (to 240 h).'
-      : 'ICON VMAX_10M: the strongest 10 m gust since the previous output (1 h to 78 h, then 3 h).' }),
+  // THE GUST WINDOW AT THIS LEAD (2026-11-22, gustWindow.js): the visible text names the window of the frame on screen ("max over
+  // last 3 h"), the accessible name leads with the full words; without a drawn lead (or killed) the generic text as before.
+  gusts: (model, leadH) => {
+    const def = model === 'GFS'
+      ? { text: ' · instantaneous', label: 'GFS surface wind gust at the valid time (instantaneous).' }
+      : { text: ' · peak since last step', label: model === 'EURO'
+        ? 'ECMWF 10fg / 10fg3: the strongest 10 m gust over the past 1 h (to 90 h), 3 h (to 144 h) or 6 h (to 240 h).'
+        : 'ICON VMAX_10M: the strongest 10 m gust since the previous output (1 h to 78 h, then 3 h).' };
+    const short = gustWindowShort(model, leadH);
+    const words = gustWindowLabel(model, leadH);
+    return withStormCaveat(short && words ? { text: short, label: `${words}. ${def.label}` } : def);
+  },
   // ICON rain (2026-11-18, the advisor's suggestion on #1075, ordered by the director): our 0.125-degree set is an AREA MEAN of
   // DWD's model cells (G2: the median cell peak keeps 92-96 %, the sharpest ~10 % keep 74-85 %), so a local downpour can read
   // lower than the model's own cell. Said on screen; GFS and EURO rain carry no note.
@@ -92,7 +101,12 @@ const DOWNSCALE_NOTE = {
   temperature: { text: ' · terrain-adjusted', label: 'Adjusted to the real terrain height with NOAA ETOPO 2022 elevation (public domain), 6.5 C per km.' },
 };
 
-export function creditFor(layer, engaged = getEngaged(), downscaled = getDownscaled()) {
+/** The drawn frame's lead for a layer and model (the status line's shown record), or NaN. */
+function drawnLead(drawn, layer, model) {
+  const shown = drawn && drawn.layer === layer ? drawn.shown : null;
+  return shown && String(shown.model) === model && !shown.estimated ? gustLeadHours(shown) : NaN;
+}
+export function creditFor(layer, engaged = getEngaged(), downscaled = getDownscaled(), drawn = getRasterDrawn()) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_LAYER_DATA_CREDIT__ === true) return null;
   if (engaged && engaged[layer]) {
     // '<MODEL>:idle' (2026-11-18): an own-only model claimed with nothing drawn (killed, unpublished, pre-index). Its own source,
@@ -104,7 +118,7 @@ export function creditFor(layer, engaged = getEngaged(), downscaled = getDownsca
     if (state === 'fill') return fillCredit(models.split('+'), picked);
     // A note keyed `<layer>_<source>` (currents_giops) describes that source's field; otherwise the layer's own note.
     const note = OWN_NOTE[`${layer}_${model.toLowerCase()}`] || OWN_NOTE[layer];
-    const own = typeof note === 'function' ? note(model) : note;
+    const own = typeof note === 'function' ? note(model, drawnLead(drawn, layer, model)) : note;
     const n = own || (downscaled && downscaled[layer] ? DOWNSCALE_NOTE[layer] : null);
     return n ? { ...s, text: s.text + n.text, label: `${n.label} ${s.label}`, title: n.label } : s;
   }
@@ -121,7 +135,8 @@ const ALWAYS_NOTE = {
 export default function LayerDataCredit({ layer }) {
   const engaged = useSyncExternalStore(subscribeEngaged, getEngaged, getEngaged);
   const downscaled = useSyncExternalStore(subscribeDownscaled, getDownscaled, getDownscaled);
-  const c = creditFor(layer, engaged, downscaled);
+  const drawn = useSyncExternalStore(subscribeRasterDrawn, getRasterDrawn, getRasterDrawn);   // the gust window follows the drawn lead
+  const c = creditFor(layer, engaged, downscaled, drawn);
   if (!c) return null;
   return (
     <a href={c.href} target="_blank" rel="noopener noreferrer" aria-label={c.label} title={c.title} data-testid="layer-data-credit"
