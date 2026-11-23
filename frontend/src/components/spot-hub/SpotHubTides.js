@@ -10,8 +10,10 @@ import apiClient from '../../lib/apiClient';
 import logger from '../../utils/logger';
 import SpotTideBlock from './SpotTideBlock';
 import { spotHubP1Enabled } from './spotHubP1Format';
+import { useNoteForecastShown } from '../observations/forecastExposure';
 
 export default function SpotHubTides({ spotId, t, cardBg }) {
+  useNoteForecastShown('hub_tides');  // blind-quality exposure (observations/forecastExposure)
   const enabled = spotHubP1Enabled() && !!spotId;
   const [state, setState] = useState({ spotId: null, tideData: null });
 
