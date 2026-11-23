@@ -191,4 +191,44 @@ Notes:
 
 Sources: ERDDAP `ww3_global` via `erddap_get_griddap_data` (PacIOOS), NDBC via `ndbc_get_observations`, `ndbc_get_station`. All read-only, run 2026-11-23 UTC. Scratch script: `scratchpad/q9_pairs.py`.
 
+## 7b. Path B: our own stored GFS-Wave frames, 2026-11-22 12Z run (the main result; descriptive, n = 1 cycle, no error bars)
+
+Read under §6b (retention, cell, leads, QC, period and direction rules all fixed before any frame value). Frames read anonymously from the public `weather-frames` bucket (no key sent). Decoder: `decodeFieldCore` in `frontend/src/components/map/ownRasterDecode.js`, extracted verbatim and run unmodified.
+
+**Fetch and check record**
+- Fetched 2026-11-23 01:01:42 UTC.
+- Bundles, SHA-256 first 12 hex, equal to the index: `us_west_coast_socal` (410,482 B, 67429740b455 check ok), `us_northeast` (297,866 B, 216c3bef63f8 ok), `hawaii` (291,845 B, b518ac1f85dd ok).
+- Frame checks: 16 frames per set (leads 0–45 h at 3 h steps). Each frame's SHA-256 first 12 hex equals the index `sha12`. Embedded valid time equals the frame's `valid_time` (0 mismatches). Embedded run is 2026-11-22T12:00Z for all frames. Field IDs decoded: 0 (height), 1 (direction), 2 (period).
+- Frame grid: 0.25° (cols × rows and bounds from the index).
+
+**Nearest wet cell (height finite at the first retained frame), distance recorded**
+
+| Buoy | Set | Cell lat, lon | Distance | Within one cell (27.8 km)? |
+|---|---|---|---|---|
+| 46042 Monterey | us_west_coast_socal | 36.750, −122.500 | 9.2 km | yes |
+| 44013 Boston | us_northeast | 42.250, −70.750 | 13.4 km | yes |
+| 51201 Waimea | hawaii | 21.750, −158.000 | 15.0 km | yes |
+| 46086 San Clemente | us_west_coast_socal | — | — | not run: no NDBC WVHT in the window (see below) |
+
+**Leads and completeness**
+- Bin A (0 ≤ lead < 24 h): 8 frames, 5 with NDBC truth (leads 0, 3, 6, 9, 12 h). Completeness threshold is 6 of 8. **Bin A fails completeness.** The five pairs are shown as supplementary only, not as a bin result.
+- Bin B (24 ≤ lead ≤ 48 h): 8 frames, 0 with NDBC truth. NDBC ends 2026-11-23 00:26 UTC. **Bin B: n = 0.**
+
+**Supplementary, bin A only (5 windows, below completeness):**
+
+| Buoy | Hs n | Hs bias (model − obs), m | Hs RMSE, m | SI | Mean obs Hs, m | Dir n | Dir circ. mean error, ° | Tp vs DPD n | Tp bias, s | Tp RMSE, s |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 46042 Monterey | 5 | −0.11 | 0.32 | 0.12 | 2.63 | 5 | −14.0 | 5 | +1.38 | 2.34 |
+| 51201 Waimea | 5 | +0.15 | 0.18 | 0.08 | 2.17 | 5 | −7.0 | 5 | +1.91 | 2.17 |
+| 44013 Boston | 5 | −0.04 | 0.04 | 0.21 | 0.21 | 0 | — | 0 | — | — |
+
+- 44013: MWD and DPD are null in every window, so direction and period are not reported.
+- 46086: not run. The NDBC 84 h pull has no non-null WVHT or MWD, so there is no truth.
+
+**Read against path A (§7a), with care:** path A's −1.73 m bias for 46042 covers a different valid window (2026-11-20 00Z to 11-22 00Z). Path B's numbers cover 2026-11-22 12Z to 11-23 00Z. The two windows do not overlap, so path B does not test or reproduce the −1.73 m figure. A and B are reported separately and are not mixed. Path A's number stays an independent-run result, not our product's error, and the 46042 setup check in §7a is still open.
+
+**Owed:** path C (NCEP byte-range decode check) needs David's word and has not been done.
+
+Scratch: `scratchpad/q9_frames.mjs` (fetch, decode, pair) and `scratchpad/q9_frames_out.json` (full per-frame output). Sources: `weather-frames` public bucket (`v1/latest.json`, per-set index and bundle), NDBC `ndbc_get_observations` (WVHT, DPD, MWD). All read-only.
+
 Sources: ww3 MCP (`ww3_list_cycles`, `ww3_compare_forecast_with_buoy`, `ww3_get_forecast_at_point`), NDBC MCP (`ndbc_get_station`, `ndbc_get_observations`), all read-only, 2026-11-22.
