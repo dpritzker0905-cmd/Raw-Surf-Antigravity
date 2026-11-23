@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 5,
-  "files": 1,
+  "tests": 4,
+  "files": 0,
   "branch": "claude/guardrail-hybrid-shadow",
   "date": "2026-11-23",
-  "note": "HYBRID shadow-run: version_hold stays off, shadow scoring, evidence binding (D-087)"
+  "note": ""
 }
