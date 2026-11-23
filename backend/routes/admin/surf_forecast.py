@@ -481,7 +481,7 @@ _RATING_FLAGS = {"SURF_NEARSHORE_LITE": ("0", "[D-065 GUARDED, held OFF: gate ne
     "SURF_SEA_INPUTS_EVERY_CALLER": ("1", "[D-065 GUARDED, ON; accuracy not measured] hub, conditions, sim take /point's tide+MOP; kill '0'",
                                      "Render env (serve-side surfaces); the sim reads the served glyph's tide, no env"),
     "SIDE_PATHS_THROUGH_CHAIN": ("1", "[D-065 GUARDED, ON] O4: conditions rows from rate_one_spot frames, _breaking_ft fails closed, "
-                                     "target-time surf-conditions labelled unrated (side_paths.py); kill '0'", "Render env"),
+                                     "target-time surf-conditions labelled unrated (side_paths.py); kill '0'", "Render env"), "HUB_NOW_NEAREST_HOUR": ("1", "[D-065 GUARDED, ON; time alignment, guardrail BLIND] bug hunt 2026-11-22 E: hub and sim 'now' = the map's nearest-hour anchor (was a floor: a different 3-hourly product in minutes :30-:59); kill '0' = the floor. spot_hub_composition.current_valid_time", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
     "RATING_BAND_ONE_CHAIN": ("1", "[D-065 GUARDED, ON] CMP-1: map band = estimate_surf_at on cached geometry + break depth, "
                                    "eta 0 (band_chain.py); kill '0'", "Render env AND precompute.yml env (rated static frames)"),
     # CMP-3 (audit 2026-11-10). The rating's oversize gate read `break_depth_at` while the height's cap read the
@@ -489,7 +489,7 @@ _RATING_FLAGS = {"SURF_NEARSHORE_LITE": ("0", "[D-065 GUARDED, held OFF: gate ne
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": ("1", "[D-065 GUARDED, ON] the rating reads the served response's "
                                               "break_depth_m (the depth the height's cap used); kill switch '0' "
                                               "restores the independent break_depth_at read",
-                                         "Render env AND precompute.yml env"),
+                                         "Render env AND precompute.yml env"), "BAND_PARTITION_HEIGHT_ONLY": ("1", "[D-065 GUARDED, ON pending the owner's look at the screenshots; guardrail BLIND] bug hunt D, option B (overnight SubQ/Reflection/LongCat consensus the owner delegated): over swell_1/swell_2/wind_waves the map shows that partition's own height, no surf rating (the overlay skips; CI bakes no rated partition sets); the rating stays on waves, glyphs, hub, infobox; kill '0'. services/weather_pipeline/band_partition.py + frontend partitionHeightOnly.js", "runtime manifest (control/flags.json); the client kill is window.__RAW_DISABLE_PARTITION_HEIGHT_ONLY__ - keep Render env UNSET"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
     # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity
     # guard caught this one MISSING and it was right to, because an undeclared switch is invisible

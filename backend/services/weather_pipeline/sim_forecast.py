@@ -228,10 +228,10 @@ def prefetch_catalog_async() -> Optional[threading.Thread]:
     return t
 
 
-def current_valid_time() -> str:
-    """The forecast hour to sample: the current UTC hour, top of the hour."""
-    return datetime.now(timezone.utc).replace(
-        minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
+def current_valid_time(now: Optional[datetime] = None) -> str:
+    """The forecast hour to sample: the hub's and the map's "now" (nearest UTC hour, bug hunt 2026-11-22 item E)."""
+    from services.weather_pipeline.spot_hub_composition import current_valid_time as _hub_now
+    return _hub_now(now).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def fetch_point(domain: str, layer: str, lat: float, lng: float,

@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 20,
+  "files": 1,
+  "branch": "fix/band-rates-total-sea",
+  "date": "2026-11-23",
+  "note": "partitionHeightOnly.test.js (bug hunt D, option B)"
+}
