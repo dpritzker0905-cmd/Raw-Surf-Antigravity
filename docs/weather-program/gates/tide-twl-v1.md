@@ -2,7 +2,7 @@
 Stamp: 2026-11-23 01:11Z. This replaces `tide-dynamic-sla-v1` (stamped 01:00Z, amended 01:06Z; never run, no arm computed), at the director's request after the persistence measurement in section 1. No arm below has been computed. Prior looks are listed in section 4.
 Candidate: gauge-anchored total water level at NOAA CO-OPS gauges, TWL = A + D + R(L). R blends the trailing-24 h observed residual with a 60-day observed anchor, weighted by lead. Stage 1 only: no CMEMS, no surge model, no wave setup, no interpolation away from gauges.
 Metric: per gauge and lead (6, 24, 72, 168 h and 14 d), the RMSE and bias of (observed − arm), in metres, over hourly targets scored by rolling origin on held-out 7-day blocks. Truth is NOAA CO-OPS observed water level above MLLW. Never pooled.
-Pass threshold: section 6, per gauge.
+Pass threshold: amendment 5 (section 14) sets ONE primary decision. At the 24–48 h lead bin, at San Diego, San Francisco and Seattle, TWL beats the better simple benchmark (PERSIST24 or ANCHOR, chosen on training data). Each of the three one-sided paired block-bootstrap tests must be rejected at Holm-adjusted α = 0.05. Section 6's bars are now REPORTED SECONDARIES.
 - RMSE cut against A + D: ≥ 30% at 6–72 h, ≥ 15% at 168 h and 14 d.
 - |bias| ≤ 0.03 m at every lead.
 - No worse than PERSIST24 at 6–72 h, and better than ANCHOR at 168 h and 14 d.
@@ -10,7 +10,7 @@ Pass threshold: section 6, per gauge.
 - Outage fallback no worse than ANCHOR + 0.05 m.
 - 90% interval coverage reported.
 Controls: section 7. VOID controls: NOAA parity, the May baseline, the planted step. Reference arms: A + D, A + M + D, PERSIST24, ANCHOR.
-Decision rule: section 6. Each gauge passes or fails on its own. A stratum may serve only if every measured gauge in it passes. The gate passes only if San Diego, San Francisco and Seattle all pass, in the retrospective leg AND the prospective leg. A gauge, lead or leg that is not measured counts as a FAIL.
+Decision rule: amendment 5 (section 14). PASS iff the primary decision holds on leg R and leg P agrees in direction at the three gate gauges. Serving scope per stratum uses the same test, Holm within the stratum. VOID controls are unchanged. A gauge, lead or leg that is not measured counts as a FAIL.
 Unmeasured items: section 9. Spots away from gauges (stage 2), Alaska and the Pacific territories, surge-model and wave-setup terms (stage 2), and lead skill beyond 14 d.
 Served change: none from this gate. Built dark. A pass is an owner decision to serve it, per stratum, under D-065, with a kill switch and a SCOREBOARD row. Serving architecture is fixed in section 8.
 
@@ -382,3 +382,60 @@ both legs. Truth keeps every hour that carries no CO-OPS quality flag:
 This reverses amendment 3's leg-P truth row, which ran the 4-sd filter on truth; that row is edited in place. A filter
 on truth would have removed the very storm hours the storm-hour bar scores. The instrument asserts that the truth set
 and the r-building set differ only by spike-rule drops, and reports their counts.
+
+## 14. Amendment 5 (2026-11-23 03:11Z, before any TWL data): ONE primary decision; the rest reported
+
+**Why.** The design went to SubQ and Reflection, both advisory (log `2026-11-22-claude-tide-mllw.md`, 03:06Z).
+- **Reflection:** a cut against A + D can pass just by removing a persistent offset, as this window's +0.3–0.4 m West
+  Coast residual shows. The test must beat the simple benchmarks.
+- **Both:** an aggregation and uncertainty plan, a 3–7 d lead and a two-sided tail metric were missing.
+- **The director** (2026-11-23, with David's word that merging is fine): name ONE primary decision, because per-gauge
+  × per-lead bars without a multiplicity rule are many tests.
+
+No TWL data from any leg has been read.
+
+### 14.1 The primary decision (the only thing that decides PASS)
+
+| Element | Definition |
+|---|---|
+| **Gauges** | San Diego (9410170), San Francisco (9414290), Seattle (9447130): the gate gauges of section 3 |
+| **Lead bin** | **24–48 h**. Each origin's targets at leads 24, 30, 36, 42 and 48 h (a 6-hourly grid inside the bin). 30, 36, 42 and 48 h are added to the scored leads |
+| **Benchmark** | per gauge, the better of PERSIST24 and ANCHOR on that gauge's TRAINING data (all data before leg R's first scored block), fixed before scoring. It is never re-chosen on the scored data |
+| **Loss differential** | d = e_TWL² − e_bench², per origin, the mean over the bin's targets, with e = observed − arm (m) |
+| **Test** | one-sided H0: mean(d) ≥ 0. Paired moving-block bootstrap over origins: block 7 days, 2,000 resamples, seed 20261123. p = the share of resamples with mean(d*) ≥ 0 |
+| **Multiplicity** | Holm across the 3 gauges at family α = 0.05. PASS requires all three nulls REJECTED |
+| **Data** | leg R (verified; section 4, as moved by amendment 2) |
+| **Leg P** | a consistency condition, not a second test: at each gate gauge, leg P's mean(d) over the 24–48 h bin must be < 0. If not, the gate FAILS on non-replication |
+
+### 14.2 Serving scope (which strata may serve after a PASS)
+
+- A stratum may serve only if the same 24–48 h test, Holm-adjusted across that stratum's measured gauges, rejects at
+  every one of them on leg R, and leg P agrees in direction.
+- A stratum with an unmeasured gauge does not serve.
+- This decides scope, not PASS.
+
+### 14.3 Reported secondaries (never in the verdict)
+
+- **Section 6's bars**, per gauge and lead:
+  - the RMSE cut against A + D (30% at 6–72 h, 15% at 7–14 d);
+  - |bias| ≤ 0.03 m;
+  - against PERSIST24 at 0–72 h and against ANCHOR at 7–14 d;
+  - the storm-hour under-read;
+  - the outage fallback;
+  - the 90% interval coverage.
+- **The 120 h lead** (added; it fills the 3–7 d gap). Reported at every gauge.
+- **A two-sided storm metric** over the top 5% observed water-level hours, per gauge and lead: the mean signed error,
+  the UNDER-read share (error > +0.15 m) and the OVER-read share (error < −0.15 m).
+- **Per-gauge bootstrap 90% intervals** for the RMSE of TWL, PERSIST24, ANCHOR and A + D at every lead. Gauges are
+  never pooled.
+- **All 30 gauges, by stratum.** Following both advisors, no gauge is filtered out of the reports; the OPEN_COAST rule
+  belongs only to #1179.
+
+### 14.4 Unchanged
+
+The arms (section 2), QC (amendment 4), truth products (13.3), legs and windows (section 4 and amendment 2), VOID
+controls (section 7), serving architecture (section 8), and the stage-2 list (section 9).
+
+One addition to stage 2: blending with a product on another vertical reference (STOFS/ETSS, CMEMS) converts per station
+MLLW ↔ NAVD88 (VDatum or the geoid) at that boundary, and back to MLLW. Stage 1 stays entirely on MLLW, as both advisors
+recommend.
