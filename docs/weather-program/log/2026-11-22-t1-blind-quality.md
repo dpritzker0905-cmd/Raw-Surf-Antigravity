@@ -86,3 +86,15 @@ surfer's own word, not ours, and stays. The levels are the server's words and co
   Under the existing version, a change of words is refused. Covered by `tests/test_forecast_consent_wording.py`
   (including `test_default_wording_until_an_admin_publishes` and
   `test_a_version_keeps_its_text_and_a_new_version_asks_again`) and `LegalDocumentsEditor.test.js`.
+
+## The Codex-reserved map files are released by the owner (2026-11-23)
+
+- **Files:** `MapForecastOverlay.js` and `MapWeatherControls.js`. Each gets two added lines: the
+  `useNoteForecastShown` import and one call at the top of the component.
+- **Owner's word:** David, in the director's session (transcript 3285d99c-2bfe-40f6-8698-6474419931cc).
+  - At 2026-11-23T00:21:27Z the director asked: "Release the Codex-reserved files for #1149 and #1151, as you did for #923?"
+  - At 2026-11-23T00:23:23.455Z David answered "Yes, release them", his own input.
+- **Verified:** the advisor checked it in that transcript and recorded it in the shared `ADVISOR-MERGE-GATE.md`
+  (NOTE "#1149 / #1151 reserved files", 2026-11-23T00:24Z). The director logged it in the shared Codex note.
+- **Codex:** #755 must rebase over these two files.
+- **Unchanged:** the allowlist fallback is not needed and was not applied. The flag stays off. This lane does not merge.
