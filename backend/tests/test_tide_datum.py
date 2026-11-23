@@ -269,6 +269,40 @@ def test_parity_v2_signed_events_p90_and_tidal_band():
     assert raw[0]["height_err_m"] == pytest.approx(-0.05) and tb[0]["height_err_m"] == pytest.approx(0.0)
 
 
+def test_finder_unaffected_by_a_constant_datum_shift():
+    """gates/tide-datum-parity-v1.md amendment 3 (owner 2026-11-23 "Yes, re-run it"): a constant D moves no event time
+    and shifts every event height by exactly D, the planted-D identity the datum gate's VOID control needs. The old
+    1 mm rounding after adding D broke it on flat-topped turns (run 45102683907, VOID); the positive control below
+    shows this test can see that defect."""
+    from datetime import timedelta
+    from services.weather_pipeline import tide as T
+    t0 = datetime(2026, 11, 23, tzinfo=timezone.utc)
+    iso = [(t0 + timedelta(hours=i)).strftime("%Y-%m-%dT%H:00") for i in range(24 * 7)]
+    # a mixed tide with flat-topped turns: M2 + K1 + a small M4
+    base = [0.6 * math.cos(2 * math.pi * i / 12.42) + 0.35 * math.cos(2 * math.pi * i / 23.93 + 1.0)
+            + 0.08 * math.cos(4 * math.pi * i / 12.42) for i in range(len(iso))]
+    for dd in (0.01, 0.0124, 0.13):
+        a = T.tide_extrema(iso, [x + 0.25 for x in base])
+        b = T.tide_extrema(iso, [x + 0.25 + dd for x in base])
+        assert a and [e["type"] for e in a] == [e["type"] for e in b]
+        assert all(abs((ea["time"] - eb["time"]).total_seconds()) < 1e-6 for ea, eb in zip(a, b))
+        assert all(abs((eb["level_m"] - ea["level_m"]) - dd) < 1e-9 for ea, eb in zip(a, b))
+    # POSITIVE CONTROL: the old rounded path DOES move events (measured locally: up to 64 s for a sub-cm shift)
+    moved = 0.0
+    for dd in (0.0004, 0.0124, 0.0006):
+        a = T.tide_extrema(iso, [round(x + 0.25, 3) for x in base])
+        b = T.tide_extrema(iso, [round(x + 0.25 + dd, 3) for x in base])
+        moved = max(moved, max(abs((ea["time"] - eb["time"]).total_seconds()) for ea, eb in zip(a, b)))
+    assert moved > 6.0
+
+
+def test_parity_display_series_is_unrounded():
+    """The instrument feeds the finder the UNROUNDED A + D (amendment 3's only change); pinned on the source."""
+    src = open(os.path.join(HERE, "..", "scripts", "tide_datum", "parity_coops.py"), encoding="utf-8").read()
+    assert "lv = [float(x) + dval for x in series]" in src
+    assert "round(float(x) + dval" not in src
+
+
 def test_spot_shift_uses_exact_m_and_model_d_when_given():
     sys.path.insert(0, os.path.join(HERE, "..", "scripts", "tide_datum"))
     import spot_shift as SS

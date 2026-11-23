@@ -214,7 +214,9 @@ def main(argv=None):
             if noaa_tb is not None and a_tb is not None:
                 variants.append((tag + "_tb", a_tb, noaa_tb))
             for name, series, truth in variants:
-                lv = [round(float(x) + dval, 3) for x in series]   # the hourly display series, metres above MLLW
+                lv = [float(x) + dval for x in series]   # the hourly display series, metres above MLLW. UNROUNDED: a
+                # constant D must move no event (gates/tide-datum-parity-v1.md amendment 3; run 45102683907 was VOID
+                # because 1 mm rounding after adding D moved the finder's vertex by up to minutes)
                 ev = match_events(truth, T.tide_extrema(iso, lv))
                 allrows[name] += ev
                 row[name] = summarize_events(ev)
