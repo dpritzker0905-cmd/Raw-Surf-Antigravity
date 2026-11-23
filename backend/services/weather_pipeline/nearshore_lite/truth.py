@@ -2,26 +2,21 @@
 opener, so the tests never touch the network and the Render box never runs this (CI / offline only).
 
   * `parse_ndbc_stdmet`: NDBC standard-meteorological text (realtime2 and historical share one layout): WVHT (Hs, m), DPD (peak
-    period, s), MWD (mean wave direction FROM, deg true). Missing values (MM, 99.0, 999) become None.
+    period, s), MWD (mean wave direction FROM, deg true). Parsing and QC are the SHARED module's (`point_archive.qc`).
   * `select_stations`: the registered rules ONLY (directional, 10-40 m, not USACE FRF Duck, not assimilated into the driving
     model, no unresolved harbour structure within 1 km). Nothing is chosen by skill; CDIP stations are tagged EXAM-ONLY.
   * `open_window_deg`: the sheltered-subset geometry, from station position and bathymetry ONLY (no observed or forecast
     direction): the arc of bearings from which a straight 50 km line stays in water deeper than 50 m.
   * `presence`: share of TEST hours present, for the >= 70% rule.
-  * `snapshot`: an immutable hashed copy of a fetched series (NDBC realtime2 keeps only 45 days, so the 90-init window must be
+  * `snapshot`: an immutable hashed copy of a fetched series, in the shared archive's truth/ prefix (NDBC realtime2 keeps only 45 days, so the 90-init window must be
     archived as it goes).
 """
-import hashlib
 import json
 import math
-import os
-from datetime import datetime, timezone
+
+from services.point_archive import qc
 
 NDBC_HOST = "www.ndbc.noaa.gov"
-# Only the textual sentinel is global. NDBC's numeric fill values (WVHT/DPD 99.00, MWD 999) are NOT listed: a shared numeric
-# set would turn a valid 99 deg MWD into a hole in one direction bin. The per-field RANGES below exclude every numeric sentinel
-# (WVHT <= 30, DPD <= 40, MWD <= 360), so each field rejects only its own fill value.
-MISSING_TOKENS = {"MM"}
 SHELTER_LINE_KM = 50.0
 SHELTER_MIN_DEPTH_M = 50.0
 SHELTERED_WINDOW_DEG = 90.0
@@ -31,43 +26,19 @@ EXCLUDED_OWNERS = {"USACE-FRF", "FRF"}
 
 
 def realtime_url(station_id):
-    return f"https://{NDBC_HOST}/data/realtime2/{str(station_id).upper()}.txt"
+    return qc.realtime_url(station_id, "txt")
 
 
 def parse_ndbc_stdmet(text):
-    """Rows of {time (UTC datetime), hs_m, tp_s, dir_deg} from NDBC stdmet text. Raises ValueError without a header."""
-    cols, rows = None, []
-    for line in text.splitlines():
-        if not line.strip():
-            continue
-        if line.startswith("#"):
-            if cols is None:
-                cols = line.lstrip("#").split()
-            continue
-        if cols is None:
-            raise ValueError("NDBC text has no column header line")
-        v = dict(zip(cols, line.split()))
-        try:
-            yr = int(v.get("YY") or v.get("YYYY") or v["#YY"])
-            t = datetime(yr if yr > 99 else 2000 + yr, int(v["MM"]), int(v["DD"]), int(v["hh"]), int(v.get("mm", 0)),
-                         tzinfo=timezone.utc)
-        except (KeyError, ValueError):
-            continue
-        rows.append({"time": t, "hs_m": _num(v.get("WVHT"), lo=0.0, hi=30.0), "tp_s": _num(v.get("DPD"), lo=1.0, hi=40.0),
-                     "dir_deg": _num(v.get("MWD"), lo=0.0, hi=360.0)})
-    if cols is None:
-        raise ValueError("NDBC text has no column header line")
-    return rows
-
-
-def _num(tok, lo, hi):
-    if tok is None or tok in MISSING_TOKENS:
-        return None
-    try:
-        x = float(tok)
-    except ValueError:
-        return None
-    return x if (math.isfinite(x) and lo <= x <= hi) else None
+    """Rows of {time (UTC datetime), hs_m, tp_s, dir_deg} from NDBC stdmet text, through the SHARED QC module
+    (`point_archive.qc.parse_stdmet`: per-field ranges, 'MM' the only global missing, the stuck rule). A value the shared QC
+    flags for ANY reason (missing, out of range, stuck) is None here, so this lane and the served-wave lane cannot diverge.
+    Raises ValueError without a header."""
+    out = []
+    for r in qc.parse_stdmet(text):
+        bad = r.get("qc", {})
+        out.append({"time": r["time"], **{k: (None if k in bad else r[k]) for k in ("hs_m", "tp_s", "dir_deg")}})
+    return out
 
 
 def at_hour(rows, when, tol_min=30):
@@ -140,20 +111,11 @@ def is_sheltered(depth_at, lat, lon):
 
 
 # ---- snapshot --------------------------------------------------------------------------------------------------
-def snapshot(dirpath, station_id, fetched_utc_iso, text):
-    """Immutable hashed copy of a fetched NDBC series. Returns (path, sha256). Refuses to overwrite."""
-    os.makedirs(dirpath, exist_ok=True)
-    name = f"{str(station_id).upper()}_{fetched_utc_iso.replace(':', '').replace('-', '')}.txt"
-    path = os.path.join(dirpath, name)
-    if os.path.exists(path):
-        raise FileExistsError(f"{name} already archived")
-    b = text.encode("utf-8")
-    with open(path, "wb") as f:
-        f.write(b)
-    h = hashlib.sha256(b).hexdigest()
-    with open(os.path.join(dirpath, "SHA256SUMS"), "a", encoding="utf-8", newline="\n") as f:
-        f.write(f"{h}  {name}\n")
-    return path, h
+def snapshot(writer, station_id, fetched_utc, text):
+    """One immutable gzipped copy of a fetched NDBC realtime2 file in the SHARED truth/ prefix, through the shared
+    `point_archive.writer.ArchiveWriter` (it refuses to overwrite and lists the file in the prefix's SHA256SUMS).
+    Returns (path, sha256)."""
+    return writer.write_truth(station_id, "txt", fetched_utc, text)
 
 
 def fetch_realtime(station_id, opener):

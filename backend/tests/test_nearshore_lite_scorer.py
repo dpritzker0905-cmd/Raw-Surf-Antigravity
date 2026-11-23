@@ -156,21 +156,29 @@ def test_leak_control_flags_a_valid_time_before_the_freeze(tmp_path):
     assert scorer.control_leak(d, ["T1"], "2027-01-15T00:00Z", ["2027-01-14T23:00Z"]) is False
 
 
-# ---- archive ---------------------------------------------------------------------------------------------------
+# ---- archive (the SHARED point archive: services/point_archive) ----------------------------------------------------
+def _recs(run, target="T1", leads=range(0, 73), member="GFS"):
+    from services.weather_pipeline.nearshore_lite import records
+    rows = [{"target": target, "lead_h": h, "basis": "partitions",
+             "partitions": [{"h": 1.0, "tp": 12.0, "dir": 270.0, "kind": "swell"}], "total": {"h": 1.0, "tp": 12.0, "dir": 270.0}}
+            for h in leads]
+    return [records.build_record(run, member, {"id": target}, r, "v1", "lh", "rh") for r in rows]
+
+
 def test_archive_is_hashed_immutable_and_detects_tampering(tmp_path):
-    d = str(tmp_path / "arch")
-    rows = [{"target": "T1", "lead_h": h, "partitions": [{"h": 1.0, "tp": 12.0, "dir": 270.0, "kind": "swell"}]}
-            for h in range(0, 73)]
-    p, h = archive.archive_init(d, "2027-01-15T00:00Z", "GFS", rows)
-    assert archive.verify_archive(d) == [] and len(h) == 64
+    from services.point_archive import storage
+    store = storage.LocalStore(tmp_path)
+    w = archive._writer.ArchiveWriter(store)
+    p, h = archive.archive_run(w, "2027-01-15T00:00Z", "GFS", _recs("2027-01-15T00:00Z"))
+    assert p == "verify/point-archive/v1/nearshore_eval/gfs/20270115T0000Z.jsonl.gz"
+    assert archive.verify_archive(store, "GFS") == [] and len(h) == 64
     with pytest.raises(FileExistsError):
-        archive.archive_init(d, "2027-01-15T00:00Z", "GFS", rows)
-    assert archive.missing_run(d, ["T1"]) == []
-    archive.archive_init(d, "2027-01-16T00:00Z", "GFS", rows[:40])                  # a short init
-    assert archive.missing_run(d, ["T1"]) == ["20270116T0000Z.json"]
-    with open(p, "ab") as f:
-        f.write(b" ")
-    assert any("mismatch" in x for x in archive.verify_archive(d))
+        archive.archive_run(w, "2027-01-15T00:00Z", "GFS", _recs("2027-01-15T00:00Z"))
+    assert archive.missing_run(store, ["T1"], "GFS") == []
+    archive.archive_run(w, "2027-01-16T00:00Z", "GFS", _recs("2027-01-16T00:00Z", leads=range(0, 40)))   # a short run
+    assert archive.missing_run(store, ["T1"], "GFS") == ["20270116T0000Z.jsonl.gz"]
+    (tmp_path / p).write_bytes((tmp_path / p).read_bytes() + b" ")
+    assert any("mismatch" in x for x in archive.verify_archive(store, "GFS"))
 
 
 # ---- ship decision on stratified tags (advisor ruling) -----------------------------------------------------------

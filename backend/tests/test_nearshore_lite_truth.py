@@ -19,11 +19,12 @@ def utc(*a):
 
 
 def test_parse_reads_hs_tp_dir_and_drops_missing_sentinels():
-    rows = truth.parse_ndbc_stdmet(SAMPLE)
+    rows = truth.parse_ndbc_stdmet(SAMPLE)                      # the shared QC returns rows sorted by time, oldest first
     assert len(rows) == 4
-    assert rows[0] == {"time": utc(2027, 1, 16, 12), "hs_m": 1.2, "tp_s": 10.0, "dir_deg": 280.0}
-    assert rows[2]["hs_m"] is None and rows[2]["dir_deg"] is None                 # MM
-    assert rows[3]["hs_m"] is None and rows[3]["dir_deg"] is None                 # 99.00 / 999 sentinels
+    by = {r["time"]: r for r in rows}
+    assert by[utc(2027, 1, 16, 12)] == {"time": utc(2027, 1, 16, 12), "hs_m": 1.2, "tp_s": 10.0, "dir_deg": 280.0}
+    assert by[utc(2027, 1, 16, 11)]["hs_m"] is None and by[utc(2027, 1, 16, 11)]["dir_deg"] is None       # MM
+    assert by[utc(2027, 1, 16, 10)]["hs_m"] is None and by[utc(2027, 1, 16, 10)]["dir_deg"] is None       # 99.00 / 999 sentinels
 
 
 def _one(wvht="1.20", dpd="10.0", mwd="280"):
@@ -123,11 +124,29 @@ def test_land_or_unknown_depth_blocks_a_bearing():
     assert truth.open_window_deg(lambda la, lo: None, 33.0, -118.0) == 0.0
 
 
-def test_snapshot_is_hashed_and_immutable(tmp_path):
-    p, h = truth.snapshot(str(tmp_path), "46086", "2027-01-16T12:00Z", SAMPLE)
-    assert len(h) == 64 and (tmp_path / "SHA256SUMS").read_text().strip().endswith("46086_20270116T1200Z.txt")
+def test_snapshot_goes_to_the_shared_truth_prefix_hashed_and_immutable(tmp_path):
+    from datetime import datetime, timezone
+    from services.point_archive import storage, writer
+    store = storage.LocalStore(tmp_path)
+    w = writer.ArchiveWriter(store)
+    when = datetime(2027, 1, 16, 12, 0, tzinfo=timezone.utc)
+    p, h = truth.snapshot(w, "46086", when, SAMPLE)
+    assert p.startswith("verify/point-archive/v1/truth/46086/") and len(h) == 64
+    assert writer.verify_archive(store, "verify/point-archive/v1/truth/46086") == []
     with pytest.raises(FileExistsError):
-        truth.snapshot(str(tmp_path), "46086", "2027-01-16T12:00Z", SAMPLE)
+        truth.snapshot(w, "46086", when, SAMPLE)
+
+
+def test_the_parser_is_the_shared_qc_module_and_a_stuck_value_is_dropped():
+    from services.point_archive import qc
+    import inspect
+    assert "qc.parse_stdmet" in inspect.getsource(truth.parse_ndbc_stdmet)
+    assert not hasattr(truth, "MISSING_TOKENS") and not hasattr(truth, "_num")        # one QC, no private copy
+    head = "#YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD\n#yr  mo dy hr mn degT m/s  m/s     m   sec   sec degT\n"
+    body = "".join(f"2027 01 16 {h:02d} 00 270 5.0 6.0 1.20 10.0 7.5 280\n" for h in range(12, -1, -1))
+    rows = truth.parse_ndbc_stdmet(head + body)
+    assert qc.parse_stdmet(head + body)[-1]["qc"].get("hs_m") == "stuck"
+    assert rows[-1]["hs_m"] is None and rows[0]["hs_m"] == 1.2
 
 
 def test_fetch_goes_through_the_injected_opener_on_the_ndbc_host_only():
