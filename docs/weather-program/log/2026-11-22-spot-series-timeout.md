@@ -48,3 +48,13 @@ fix; it changes no served number, so it adds no SCOREBOARD row.
     'inconclusive'.
 - Commitment (`ledger.d/fix--spot-series-timeout-starvation.jsonl:2`): `SPOT_SERIES_PUBLISH` stays 0 until that
   dispatch reads 'identical' on GFS, EURO and ICON.
+
+## 2026-11-23 02:26Z: identity-check dispatch (owner: "Yes, run it")
+- The director dispatched run 45100260710 on ref `fix/spot-series-timeout-starvation` (@95c5fd69a) with limit=40,
+  hub_parity=0, identity_check=true. Ledger: `ledger.d/fix--spot-series-timeout-starvation.jsonl:3`.
+- It is queued behind run 45087479819 (concurrency group `spot-series`).
+- Expected to be refused: the `supabase-service` environment allows only `dev` and `main` (its deployment-branch
+  policies, read 2026-11-23), so no identity verdict can come from a PR-branch run. A real verdict needs #1174 merged,
+  then a dispatch on `dev`.
+- Watched read-only. No re-run, and `SPOT_SERIES_PUBLISH` stays 0; unsetting it needs David's word after GFS, EURO and
+  ICON all read 'identical'.
