@@ -190,3 +190,13 @@ minimum 25 kn in B1 and B2. Committed before any model value or truth is read.
   Each step read 2 MB of index plus 50 member messages of ~0.7 MB. The hindcast averaged 0.84 MB a message; the
   1.3-1.4 MB of 10-15 was the high end. A run is therefore ~3.2 GB read and ~36 MB stored, inside both caps.
 - Tests: 63 in the three gust-risk files (chain fragment +63, +3 files), plus the giops by-path test; run twice locally.
+
+## 2026-11-23 12:55Z · switch-on recorded (#1202 merged; frames published HIDDEN)
+- #1202 merged as `27c370944`. The director set repo variable `FRAME_RASTER_GUST_RISK=1` at 2026-11-23T12:54:41Z, on David's
+  word in the director session ("Follow best path to SOTA... maybe switch on to start, but run a test, if that is SOTA. Use
+  subq, longcat, and reflection") and the SubQ/Reflection/LongCat consensus to publish hidden.
+- `GUST_RISK_DISPLAY` stays unset, so every index says `display: false`. Nothing is shown and no served number moves.
+- Recorded: a ledger `flag_flip` line, a SCOREBOARD row (12:55Z) and a commitment to read back the first publishing
+  pilots run, read-only.
+  - The first run is expected at the 11:45Z slot on 2026-11-24; the 11-23 11:45Z run started before the variable was set.
+  - The read-back covers bytes read and stored against the caps, provenance, the prune and `display: false`.

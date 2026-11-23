@@ -218,8 +218,8 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
     e = (manifest.get("flags") or {}).get(flag)
     if e and e.get("state") == "off":
         if e.get("set_by") == SET_BY and e.get("fix_version") != fix_version:
-            return {"action": "clear", "reason": f"fix version {e.get('fix_version')} -> {fix_version}: the new "
-                                                 f"version runs at its code default and is judged afresh"}
+            return {"action": "clear",
+                    "reason": f"fix version {e.get('fix_version')} -> {fix_version}: clearing guardrail hold"}
         return {"action": "hold", "reason": f"off since {e.get('set_at')} ({e.get('set_by')}): {e.get('reason')}; "
                                             f"re-enable needs a new fix version or the owner's word"}
     if not effective_on(flag, manifest):
@@ -286,11 +286,16 @@ def save_watch(cache_dir: str, watch: dict) -> None:
         json.dump(watch, f, indent=1, sort_keys=True)
 
 
-def owner_reenable(manifest: dict, flag: str, words: str, actor: str, now: datetime) -> dict:
+def owner_reenable(manifest: dict, flag: str, words: str, actor: str, now: datetime,
+                   expected_owner: str = "") -> dict:
     if flag not in _rf.GUARDED:
         raise ValueError(f"{flag} is not a guarded flag")
     if not words or len(words.strip()) < 3:
         raise ValueError("re-enabling needs the owner's words, verbatim")
+    if not expected_owner:
+        raise ValueError("REPO_OWNER_LOGIN is not configured; cannot verify the actor; re-enable refused")
+    if actor.strip() != expected_owner.strip():
+        raise ValueError(f"actor '{actor}' is not the configured owner; re-enable refused")
     out = {"schema": _rf.SCHEMA, "flags": dict(manifest.get("flags") or {})}
     out["flags"][flag] = {"state": "on", "reason": f"owner re-enabled: {words.strip()}"[:900], "set_by": "owner",
                           "set_at": iso(now), "evidence": f"workflow_dispatch by {actor}",
@@ -456,7 +461,8 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
     enforce = args.enforce == "1"
     manifest = manifest if manifest is not None else read_manifest()
     if args.reenable:
-        new = owner_reenable(manifest, args.reenable, args.owner_words, args.actor, now)
+        new = owner_reenable(manifest, args.reenable, args.owner_words, args.actor, now,
+                             expected_owner=getattr(args, "owner_login", ""))
         report = {"mode": "enforce" if enforce else "dry-run", "reenable": args.reenable, "decisions": {}}
         if enforce:
             write_object(_rf.MANIFEST_KEY, json.dumps(new, indent=1).encode())
@@ -568,6 +574,7 @@ def main(argv=None) -> int:
     p.add_argument("--reenable", default="")
     p.add_argument("--owner-words", default="")
     p.add_argument("--actor", default=os.environ.get("GITHUB_ACTOR", ""))
+    p.add_argument("--owner-login", default=os.environ.get("REPO_OWNER_LOGIN", ""))
     a = p.parse_args(argv)
     os.makedirs(a.out, exist_ok=True)
     report = run(a)
