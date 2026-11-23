@@ -136,3 +136,14 @@ Nothing was edited, and no production call was made.
 2. **D:** the band rates the total sea, or a labelled per-partition quality?
 3. **C:** `rating-wind-gate-v1` (#1173). It ships dark, and the flip is on David's word with evidence.
 4. **E:** one rounding rule, round-to-nearest, with a parity test.
+
+## Correction (2026-11-22 22:00Z, research lead): the "claim inconsistency" is withdrawn
+- **What the section above said:** with shelf friction off, below-cap breaking height does not depend on depth, which contradicts the "wide shelf yields smaller surf" text.
+- **That reading was wrong.** Friction went off on 2026-09-28 on evidence, which this report did not check (`science_registry.SHELF_CF_SCALE_DEFAULT`):
+  - The model field at a wide-shelf spot is already shelf water: GFS-Wave (WAVEWATCH III) applies bed friction in its own source terms. At the spot, `/point` read 0.44 (Duck) to 0.66 (Cape Canaveral) of `/point` at the shelf edge.
+  - Adding cross-shelf friction from the edge therefore counted the shelf twice.
+  - The nearshore judge against CDIP nearshore buoys, on 48 wide-shelf station-hours (Duck, Wrightsville, Cape Canaveral, Fort Pierce): friction off was closer on 75-82 % of hours, with MAE 34-40 % lower.
+- **Why the repro misled:** it fed the SAME 2 m offshore sea to all four spots. Equal answers are then expected. In service, the wide-shelf reduction arrives through the smaller model Hs at the spot, not through the transform.
+- **Still true:** docstrings that attribute the reduction to the chain's own friction are stale and should say "via the model field". This is a wording issue, not a physics defect.
+- **The lesson:** the same one as L-S29 (search the program's own record first). The science registry held the answer.
+
