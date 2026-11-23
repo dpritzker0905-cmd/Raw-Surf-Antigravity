@@ -18,6 +18,7 @@
 // Usage (from this folder):  npm i; py -3.12 -m venv .venv; .venv/Scripts/python -m pip install coloraide==8.13
 //                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today] [--before-white] [--full-white] [--before-path] [--before-depth] [--before-step] [--land-l 0.75] [--as-uploaded [10-80:1]] [--as-uploaded-floor 4.9] [--index255]
 //                            node check.mjs --look moderate|deep|ink   (light's look A/B, window.__RAW_WIND_LIGHT_LOOK__)
+//                            node check.mjs [--no-gusts] [--before-gust-dark]   (the GUSTS vs WIND section at the end; README "Gusts vs Wind")
 // Exit code 1 with --strict when any RED line is printed (here or in the colour-blind check).
 import fs from 'fs';
 import path from 'path';
@@ -40,8 +41,8 @@ const { LIGHT_PATH, lightTables } = new Function(source(path.join(path.dirname(R
 const muteSrc = fs.readFileSync(path.join(HERE, '..', '..', 'src', 'components', 'map', 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '');
 const { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, windLandStepAsked, windLandWhite, setWindLandDepthGate } = new Function(muteSrc + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, windLandStepAsked, windLandWhite, setWindLandDepthGate };')();
 const { BEACH_PATH, beachPathRows } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windBeachPath.js')) + '; return { BEACH_PATH, beachPathRows };')();   // beach's path (no imports)
-const { resolveLegendRamp, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength, generateRampData } = new Function('DARK_RULES', 'DARK_WHITE', 'solveDarkRules', 'windLandWhite', 'setWindLandDepthGate', 'BEACH_PATH', 'beachPathRows', 'LIGHT_PATH', 'lightTables',
-  source(RAMP_SRC) + '; return { resolveLegendRamp, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength, generateRampData };')(DARK_RULES, DARK_WHITE, solveDarkRules, windLandWhite, setWindLandDepthGate, BEACH_PATH, beachPathRows, LIGHT_PATH, lightTables);
+const { resolveLegendRamp, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength, generateRampData, resolveThemeRamp, sampleRamp, windLegendStops } = new Function('DARK_RULES', 'DARK_WHITE', 'solveDarkRules', 'windLandWhite', 'setWindLandDepthGate', 'BEACH_PATH', 'beachPathRows', 'LIGHT_PATH', 'lightTables',
+  source(RAMP_SRC) + '; return { resolveLegendRamp, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength, generateRampData, resolveThemeRamp, sampleRamp, windLegendStops };')(DARK_RULES, DARK_WHITE, solveDarkRules, windLandWhite, setWindLandDepthGate, BEACH_PATH, beachPathRows, LIGHT_PATH, lightTables);
 const NO_MUTE = args.includes('--no-mute');
 // --mute-amount / --water-l: explore other mute settings (the app's own lever names, passed as levers).
 const LEVERS = { ...(arg('--mute-amount') ? { __RAW_WIND_BASEMAP_MUTE__: Number(arg('--mute-amount')) } : {}), ...(arg('--water-l') ? { __RAW_WIND_BASEMAP_WATER_L__: Number(arg('--water-l')) } : {}),
@@ -163,6 +164,74 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
   const wg = groundOf(theme, 'water', m.surfaces.water).map((x) => x / 255);
   const shown = K ? KS.water.filter(isBand).map((k) => [k[0], ...(look === 'ink' || rules ? markOn(k.slice(1), tintOver(m, k[0], sample(F, k[0]).slice(0, 3), wg), 'water') : k.slice(1, 4)), k[4]]) : null;
   out[theme] = { legendAdjacent: adj, rows, tintStops, ...(UP ? { tintUploaded, uploadedFloor: Number(arg('--as-uploaded-floor') || 5) } : {}), drawn: rules ? (windWhiteStreakOn(theme, LEVERS) ? 'white-streak' : 'dark-rules') : (look || 'today'), stops: { particle: P, field: F, ...(shown ? { marks: shown } : {}) } };
+}
+// GUSTS = WIND (2026-11-22): the Gusts layer draws the wind field's own colour for each knot (gustPalette.js) through a raster
+// of its own (ownRasterLayer.js), so "does a gust of N kn look like a wind of N kn" is a question about two COMPOSITES. Each is
+// modelled as the GPU lays it, from the app's own sources:
+//   wind, dark:        HEATMAP_FS writes (rgb a, a), blended SRC_ALPHA, ONE_MINUS_SRC_ALPHA -> rgb a^2 + map (1 - a), a = 0.48 law(kn)
+//   wind, light/beach: the multiply tint, map x mix(1, rgb, a s), a = opacity law(kn), s = v2FieldTint
+//   gusts, dark:       its LUT (bytes) at alpha A = lut.a opacity, MapLibre's premultiplied blend -> lut.rgb A + map (1 - A)
+//   gusts, light/beach: the same multiply as the wind with its own tint strength (gustParticles.gustFieldTint)
+// over the muted grounds the wind lines above use (dark: its water and the real map's land read under the wind). One line per theme
+// and ground: the largest dE00 over 0-75 kn at zooms 3, 5 and 8 (light: 0-40 kn; above 40 its gentler fast band differs ON PURPOSE,
+// D: David 2026-11-18, printed apart). RED above 1.0 dE00 (a just-noticeable difference). Gust colours are the wind's, so the
+// colour-blind passes above (cvd_check.py) are the gusts' too once these lines are green.
+// --no-gusts skips it; --before-gust-dark reads dark before its parity fix (window.__RAW_DISABLE_GUST_DARK_FIELD__).
+if (!args.includes('--no-gusts')) {
+  const MAPDIR = path.join(HERE, '..', '..', 'src', 'components', 'map');
+  const GW = { ...LEVERS, ...(args.includes('--before-gust-dark') ? { __RAW_DISABLE_GUST_DARK_FIELD__: true } : {}) };
+  const { WIND_FIELD_OPACITY, gustFieldTint } = new Function(source(path.join(MAPDIR, 'gustParticles.js')) + '; return { WIND_FIELD_OPACITY, gustFieldTint };')();
+  const { gustScale, gustFieldOpacity, WIND_FIELD_ALPHA } = new Function('huePathStops', 'resolveDrawnField', 'resolveThemeRamp', 'sampleRamp', 'windLegendStops', 'WIND_FIELD_OPACITY',
+    source(path.join(MAPDIR, 'gustPalette.js')) + '; return { gustScale, gustFieldOpacity, WIND_FIELD_ALPHA };')(huePathStops, resolveDrawnField, resolveThemeRamp, sampleRamp, windLegendStops, WIND_FIELD_OPACITY);
+  const rasterSrc = fs.readFileSync(path.join(MAPDIR, 'ownRasterLayer.js'), 'utf8');
+  const GUST_OPACITY_STOPS = JSON.parse(/export const GUST_OPACITY_STOPS = (\[[^;]*\]);/.exec(rasterSrc)[1]);
+  const opAt = (z) => { const s = GUST_OPACITY_STOPS; if (z <= s[0][0]) return s[0][1]; for (let i = 1; i < s.length; i++) if (z <= s[i][0]) return s[i - 1][1] + ((z - s[i - 1][0]) / (s[i][0] - s[i - 1][0])) * (s[i][1] - s[i - 1][1]); return s[s.length - 1][1]; };
+  const TINT = { light: 0.70 / 0.65, beach: 0.60 / 0.55 };   // WebGLWindUtils.V2_FIELD_TINT (keep in sync; the wind lines' MODEL k)
+  const DARK_GROUND = { water: [93, 117, 126], land: [58, 71, 79] };   // dark's water (MODEL) and the real map's land under the wind (mirror-jacobian.mjs)
+  console.log('\n=== GUSTS vs WIND, as composited (the same knot on the same ground: does a gust read as that wind?)' + (GW.__RAW_DISABLE_GUST_DARK_FIELD__ ? '  [dark BEFORE its parity fix]' : ''));
+  out.gusts = {};
+  for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dark'])) {
+    const F = huePathStops(resolveDrawnField(theme, LEVERS) || resolveThemeRamp(theme), LEVERS), [base, end] = WIND_FIELD_ALPHA[theme], W = WIND_FIELD_OPACITY[theme];
+    const law = (kn) => W * (base + (1 - base) * ss(0, end, kn));
+    const scale = gustScale(theme, GW), lutAt = (kn) => { let k = 0; while (k + 1 < scale.breakpoints.length && scale.breakpoints[k + 1] <= kn + 1e-9) k++; const c = scale.colors[k]; return [c[0] / 255, c[1] / 255, c[2] / 255, Math.round(Math.min(1, Math.max(0, c[3])) * 255) / 255]; };
+    const surfaces = theme === 'dark' ? DARK_GROUND : MODEL[theme].surfaces;
+    out.gusts[theme] = {};
+    for (const [surf, g0] of Object.entries(surfaces)) {
+      const g = (theme === 'dark' ? g0 : groundOf(theme, surf, g0)).map((x) => x / 255);
+      // THE PARTICLES (2026-11-22): a gust mark of N kn takes the marks' own row at N kn (resolveDrawnMarks: dark's rules / the white
+      // streak by ground in light and beach, dark's legend row in dark), laid by the engine's law (the colour at full light at alpha^2,
+      // the white streak's strength by ground, D-022), over the GUST field; a wind mark of N kn the same row over the WIND field.
+      const KM = resolveDrawnMarks(theme, LEVERS), Kp = huePathStops(KM[surf === 'water' ? 'water' : 'land'] || resolveThemeRamp(theme), LEVERS);
+      const markW = windWhiteStreakOn(theme, LEVERS) ? WHITE_STREAK.opacity * windWhiteStrength(theme, winOf(theme))[surf === 'water' ? 'sea' : 'land'] : (windDarkRulesOn(theme, LEVERS) ? DARK_RULES.opacity : 1);
+      const lay = (k, T) => { const w = k[3] * k[3] * markW; return T.map((x, j) => k[j] * w + x * (1 - w)); };
+      let worst = { de: 0 }, band = { de: 0 }, mark = { de: 0 }, lift = { d: 0 };
+      for (const z of [3, 5, 8]) for (let kn = 0; kn <= 75; kn += 0.5) {
+        const c = sample(F, kn), a = law(kn), l = lutAt(kn);
+        let wind, gust;
+        if (theme === 'dark') {
+          wind = g.map((x, i) => c[i] * a * a + x * (1 - a));
+          const A = l[3] * gustFieldOpacity(theme, z, opAt, GW);
+          gust = g.map((x, i) => l[i] * A + x * (1 - A));
+        } else {
+          wind = g.map((x, i) => x * (1 - Math.min(1, a * TINT[theme]) * (1 - c[i])));
+          const t = Math.min(1, l[3] * opAt(z) * gustFieldTint(theme, z, opAt, TINT[theme], GW));
+          gust = g.map((x, i) => x * (1 - t * (1 - l[i])));
+        }
+        const r = { de: de(wind, gust), kn, z, wind: wind.map((x) => Math.round(x * 255)), gust: gust.map((x) => Math.round(x * 255)) };
+        if (theme === 'light' && kn > 40) { if (r.de > band.de) band = r; } else if (r.de > worst.de) worst = r;
+        if (!(theme === 'light' && kn > 40)) {
+          const k = sample(Kp, kn), mw = lay(k, wind), mg = lay(k, gust), dm = de(mw, mg), dl = Math.abs((L(mg) - L(gust)) - (L(mw) - L(wind)));
+          if (dm > mark.de) mark = { de: dm, kn, z, wind: mw.map((x) => Math.round(x * 255)), gust: mg.map((x) => Math.round(x * 255)) };
+          if (dl > lift.d) lift = { d: dl, kn, z, windLift: L(mw) - L(wind), gustLift: L(mg) - L(gust) };
+        }
+      }
+      out.gusts[theme][surf] = { worst, mark, lift, ...(band.kn ? { fastBand: band } : {}) };
+      console.log(`[${flag(worst.de > 1.0, worst.de > 0.5)}] ${theme} ${surf}: gust vs wind composite, largest gap ${worst.de.toFixed(2)} dE00 at ${worst.kn} kn z${worst.z} (wind ${worst.wind} / gust ${worst.gust}; target <= 1.0)`);
+      console.log(`[${flag(mark.de > 1.0, mark.de > 0.5)}] ${theme} ${surf}: gust MARK vs wind mark (core over its field), largest gap ${mark.de.toFixed(2)} dE00 at ${mark.kn} kn z${mark.z} (target <= 1.0)`);
+      console.log(`[${flag(lift.d > 1.0, lift.d > 0.5)}] ${theme} ${surf}: a mark's lift off its field, gust vs wind, differs by at most ${lift.d.toFixed(2)} L* (${lift.kn} kn z${lift.z}: wind ${lift.windLift.toFixed(1)} / gust ${lift.gustLift.toFixed(1)}; target <= 1.0)`);
+      if (band.kn) console.log(`[${flag(false, false)}] ${theme} ${surf}: above 40 kn the gentler fast band (by design) differs by up to ${band.de.toFixed(1)} dE00 (${band.kn} kn)`);
+    }
+  }
 }
 const jsonPath = arg('--json') || path.join(os.tmpdir(), 'wind-color-check.json');
 fs.writeFileSync(jsonPath, JSON.stringify(out, null, 1));

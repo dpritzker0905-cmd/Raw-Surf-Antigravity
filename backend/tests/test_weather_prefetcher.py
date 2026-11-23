@@ -92,3 +92,48 @@ def test_prefetch_cap_keeps_nearest(monkeypatch, tmp_path):
     asyncio.run(prefetcher.prefetch_supabase_products())
     assert len(rec) == 2
     assert set(rec) == {"w0.json", "w1.json"}  # the two nearest hours
+
+
+# ── 2026-11-23: CI rating jobs warm ONE model, uncapped, with retries (spot-series never fit its 60-min timeout) ──
+
+def test_prefetch_models_limits_the_warm_set_and_unset_keeps_every_model(monkeypatch, tmp_path):
+    now = datetime.now(timezone.utc)
+    products = [_mk("GFS", "marine", "waves", now, name="g.json"), _mk("EURO", "marine", "waves", now, name="e.json"),
+                _mk("ICON", "wind", "wind", now, name="i.json")]
+    rec = _setup(monkeypatch, tmp_path, products)
+    monkeypatch.setenv("PREFETCH_MODELS", "gfs")
+    asyncio.run(prefetcher.prefetch_supabase_products())
+    assert rec == ["g.json"], "a one-model job warms only its model (case-insensitive)"
+    for f in tmp_path.iterdir():
+        f.unlink()
+    rec.clear()
+    monkeypatch.delenv("PREFETCH_MODELS")
+    asyncio.run(prefetcher.prefetch_supabase_products())
+    assert sorted(rec) == ["e.json", "g.json", "i.json"], "unset = every model: the serve box's boot is unchanged"
+
+
+def test_prefetch_retries_a_failed_download_only_when_asked(monkeypatch, tmp_path):
+    now = datetime.now(timezone.utc)
+    _setup(monkeypatch, tmp_path, [_mk("GFS", "marine", "waves", now, name="g.json")])
+    calls = []
+
+    class Flaky:
+        def download(self, fn):
+            calls.append(fn)
+            if len(calls) < 3:
+                raise RuntimeError("429")
+            return b"{}"
+
+    monkeypatch.setattr(prefetcher, "_get_supabase_storage",
+                        lambda: SimpleNamespace(storage=SimpleNamespace(from_=lambda _b: Flaky())))
+
+    async def no_sleep(_s):
+        return None
+    monkeypatch.setattr(prefetcher.asyncio, "sleep", no_sleep)
+    monkeypatch.delenv("PREFETCH_RETRIES", raising=False)
+    asyncio.run(prefetcher.prefetch_supabase_products())
+    assert calls == ["g.json"] and not (tmp_path / "g.json").exists(), "default: one attempt (serve box unchanged)"
+    calls.clear()
+    monkeypatch.setenv("PREFETCH_RETRIES", "3")
+    asyncio.run(prefetcher.prefetch_supabase_products())
+    assert len(calls) == 3 and (tmp_path / "g.json").exists(), "retried past two 429s"
