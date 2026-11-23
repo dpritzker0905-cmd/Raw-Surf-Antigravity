@@ -59,7 +59,9 @@ Stamp: 2026-11-23 03:38Z. Written before any score, count or verdict exists. Whe
 - This gate fits nothing itself. CLIM is leave-one-day-out, not a fitted model.
 
 ## A5 · Frozen inputs, committed on this PR before any score
-- `evidence/gust-ens-risk-2026-11-23/gust_ens_risk_stations.json`, sha256 `f6cc0720…bb636`:
+- `evidence/gust-ens-risk-2026-11-23/gust_ens_risk_stations.json`: sha256 of the committed file (LF line endings)
+  `a7c01e4b558d61b993e479b39e69134becf667bab16b51e9ecfcce39dcdad8e4`; the CRLF original the collector read hashes to
+  `f6cc0720076692778ca29e7e07f0fc440140ab6d5769f4a708fad1f6bc8bb636` (same content up to line endings):
   - frozen 2026-11-23 by `wind_lr_obs.select_stations` over 10-10..11-21;
   - 390 NDBC/C-MAN and 60 coastal ASOS.
 - `evidence/gust-ens-risk-2026-11-23/gust_ens_risk_truth.json`:

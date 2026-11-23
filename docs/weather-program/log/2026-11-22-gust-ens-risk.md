@@ -45,7 +45,8 @@ minimum 25 kn in B1 and B2. Committed before any model value or truth is read.
   - "recorded, not a claim" until the gust EMOS score after 12-09;
   - egress measured from the indices.
 - **Frozen inputs committed** (`evidence/gust-ens-risk-2026-11-23/`):
-  - station list, sha256 `f6cc0720076692778ca29e7e07f0fc440140ab6d5769f4a708fad1f6bc8bb636` (390 NDBC/C-MAN + 60 ASOS);
+  - station list (390 NDBC/C-MAN + 60 ASOS): committed (LF) sha256 `a7c01e4b558d61b993e479b39e69134becf667bab16b51e9ecfcce39dcdad8e4`;
+    the CRLF original the collector read is `f6cc0720076692778ca29e7e07f0fc440140ab6d5769f4a708fad1f6bc8bb636`;
   - `truth.json`, whose snapshot hash is `19cbc5064d66722e8e61abb759582d85195eb3fc828640a675ff036125a5e505`
     (768 files, end 02:42Z).
 - **Raw truth tarball:** in the shared notes folder of `local_7f4942af`, `gust-ens-risk-truth-2026-11-23.tar.gz`,
