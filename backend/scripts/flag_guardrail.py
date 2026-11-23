@@ -121,6 +121,9 @@ COVERAGE = {
                                       "fetches GFS only and a manifest off cannot reach it. Evidence: gates/peak-period-ship-v1.md"),
     "ICON_PEAK_PERIOD": (BLIND, "an ingest-time period definition read by fetcher subprocesses (os.environ); the replay "
                                 "fetches GFS only and a manifest off cannot reach it. Evidence: gates/peak-period-ship-v1.md"),
+    "RATING_MISSING_SAMPLE_UNKNOWN": (BLIND, "moves only spot-hours whose sample was a sampler placeholder "
+                                             "('unavailable' / out-of-bounds); the replay never serves one. Evidence: "
+                                             "tests/test_missing_sample_unknown.py and the placeholder census in its PR"),
     "RATING_BREAKER_TYPE": (RATING, "the quality score's breaker-type term; no observed rating exists"),
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": (RATING, "the quality score's oversize gate reads the height cap's depth "
                                                  "(CMP-3); the height is unchanged, no observed rating exists"),
