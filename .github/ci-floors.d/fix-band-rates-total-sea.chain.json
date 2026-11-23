@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 9,
+  "files": 1,
+  "branch": "fix/band-rates-total-sea",
+  "date": "2026-11-23",
+  "note": "partition layers show height, no rating (bug hunt D, option B)"
+}
