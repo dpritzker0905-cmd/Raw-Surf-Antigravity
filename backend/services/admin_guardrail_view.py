@@ -22,7 +22,10 @@ from core.supabase_auth import supabase_headers
 
 ACTIONS_KEY = "control/flags-actions.jsonl"
 WORKFLOW = "flag-guardrail.yml"
-SCHEDULE_UTC = "02:30, 08:30, 14:30 and 20:30 UTC"
+# The cron asks for these four times, but GitHub cron is best-effort (about two runs a day happen, inspection finding
+# 19): the text says so, and the Verification panel shows the real last runs.
+SCHEDULE_UTC = ("scheduled 02:30, 08:30, 14:30 and 20:30 UTC; GitHub's best-effort cron runs fewer, so see the last "
+                "runs under Verification and skill")
 DEFAULT_REPO = "dpritzker0905-cmd/Raw-Surf-Antigravity"   # public; GITHUB_REPOSITORY overrides
 MAX_ACTIONS = 200
 
