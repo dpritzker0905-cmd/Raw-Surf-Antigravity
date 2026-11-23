@@ -19,6 +19,7 @@ import { MODEL_METADATA_CACHE } from './LayerRegistry';
 import { getEngaged } from './ownRasterFrames';
 import { ESTIMATE_WORDS } from './drawnFrameReadout';
 import { formatReadoutDate } from './readoutDateFormat';
+import { gustLeadHours, gustWindowLabel } from './gustWindow';
 
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const PENDING_QUIET_MS = 300;
@@ -72,6 +73,7 @@ export function useRasterDrawnPublisher(activeLayers, activeSlots, omTileUrls, t
   }, [activeLayers, activeSlots, omTileUrls, targetSlotsRef]);
 }
 
+const withWindow = (r, gust) => (gust ? { ...r, text: `${r.text} · ${gust}` } : r);
 const fmtHour = (ms) => formatReadoutDate(new Date(ms), 'hour');
 const fmtClock = (ms) => formatReadoutDate(new Date(ms), 'clock');
 
@@ -90,17 +92,24 @@ export function describeRasterFrame(rec, layer, requestedMs) {
   if (!shown) return { state: 'pending', text: `Loading ${name} ${fmt(want.dataMs)}…` };
   if (shown.url !== want.url) {
     const models = shown.model && want.model && shown.model !== want.model;
+    // A gap fill's anchored frame carries '<MODEL>+GFS': said as "<MODEL> prediction" (ownRasterGapFill.js), never "ICON+GFS".
+    const said = (m) => (String(m).includes('+') ? `${String(m).split('+')[0]} prediction` : m);
     return { state: 'pending', text: models
-      ? `Loading ${want.model} ${name}… still showing ${shown.model} ${name}`
+      ? `Loading ${said(want.model)} ${name}… still showing ${said(shown.model)} ${name}`
       : `Loading ${fmt(want.dataMs)}… still showing ${fmt(shown.dataMs)}` };
   }
   // A stand-in past the picked model's range (own frames: GFS beyond EURO's 240 h / ICON's 180 h): the wave layers' words.
-  if (shown.estimated) return { state: 'estimated', text: `Estimated forecast: ${ESTIMATE_WORDS[shown.estimated] || 'estimated'}` };
+  // A gap-fill frame (ownRasterGapFill.js) carries `fill` (`coarse`: the model's own coarser set): the status line draws it in the warning tone (ForecastTimeStatus).
+  // Which gust is drawn (the frame's own model and lead): joined to a nearest / reduced line, or the line on its own.
+  const gust = layer === 'gusts' ? gustWindowLabel(shown.model, gustLeadHours(shown)) : null;
+  if (shown.estimated) return { state: 'estimated', ...(shown.fill || shown.coarse ? { fill: true } : {}), text: `Estimated forecast: ${ESTIMATE_WORDS[shown.estimated] || 'estimated'}` };
   if (layer !== 'radar' && Number.isFinite(requestedMs)) {
     const dh = Math.round((shown.dataMs - requestedMs) / 3600000);
-    if (dh !== 0 && Math.abs(dh) <= (shown.nearestMaxHours || 0)) return { state: 'nearest', text: `Showing ${fmt(shown.dataMs)}: the nearest stored forecast` };
+    if (dh !== 0 && Math.abs(dh) <= (shown.nearestMaxHours || 0)) return withWindow({ state: 'nearest', text: `Showing ${fmt(shown.dataMs)}: the nearest stored forecast` }, gust);
   }
   // TEXTURE FIT (ownRasterLayer.fitFieldToLimit): drawn downsampled because the field exceeds this device's texture limit: say so.
-  if (shown.drawnFactor > 1) return { state: 'reduced', text: `${name} drawn at 1/${shown.drawnFactor} detail: this device's graphics limit` };
-  return null;
+  if (shown.drawnFactor > 1) return withWindow({ state: 'reduced', text: `${name} drawn at 1/${shown.drawnFactor} detail: this device's graphics limit` }, gust);
+  // THE GUST WINDOW (gustWindow.js): the frame on screen is the one asked for, and the line says WHICH gust it is (instantaneous
+  // GFS, or ECMWF / ICON's maximum over the hours before the valid time), by the drawn frame's own lead. Quiet tone.
+  return gust ? { state: 'window', text: gust } : null;
 }
