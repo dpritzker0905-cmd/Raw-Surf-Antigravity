@@ -14,29 +14,9 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-KN_TO_MS = 1852.0 / 3600.0
-THRESHOLDS_KN = (25, 34, 48)
-THRESHOLDS_MS = tuple(round(k * KN_TO_MS, 3) for k in THRESHOLDS_KN)     # 12.861, 17.491, 24.693
-MEMBERS = 50
-
-
-# ---------------------------------------------------------------------------------------------- the ENS lattice
-def gust_param(step: int) -> str:
-    """The open-data parameter that carries the gust at `step`."""
-    return "10fg3" if 93 <= int(step) <= 144 else "10fg"
-
-
-def gust_window_h(step: int) -> int:
-    """Hours in the gust window ending at `step` (measured; the collector checks every message against this)."""
-    s = int(step)
-    if s <= 0:
-        raise ValueError("step 0 has no gust")
-    return 1 if s <= 90 else (3 if s <= 144 else 6)
-
-
-def native_steps(max_h: int = 360) -> List[int]:
-    """Every ENS step that carries a gust: 3-144 h by 3, 150-`max_h` by 6."""
-    return list(range(3, 145, 3)) + list(range(150, int(max_h) + 1, 6))
+from .ens_gust_schedule import (  # noqa: F401  (re-exported: the schedule lives in a numpy-free module)
+    KN_TO_MS, MEMBERS, THRESHOLDS_KN, THRESHOLDS_MS, gust_param, gust_window_h, native_steps,
+)
 
 
 # ---------------------------------------------------------------------------------------------- exceedance

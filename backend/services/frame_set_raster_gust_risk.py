@@ -27,10 +27,21 @@ import os
 import threading
 from datetime import timedelta, timezone
 
+# The schedule only, at load (no numpy): frame_set_raster loads this module, and the data-health monitor's freshness check reads
+# those tables on a bare python3 (run 45187283647 crashed here). The numpy core is imported where frames are built (_core()).
 try:
-    from services.weather_pipeline import ens_gust_risk_core as gr
+    from services.weather_pipeline import ens_gust_schedule as gs
 except ImportError:  # pragma: no cover - run by path, where `services` is not importable
-    from weather_pipeline import ens_gust_risk_core as gr
+    from weather_pipeline import ens_gust_schedule as gs
+
+
+def _core():
+    """ens_gust_risk_core (numpy), imported on first use."""
+    try:
+        from services.weather_pipeline import ens_gust_risk_core as gr
+    except ImportError:  # pragma: no cover - run by path
+        from weather_pipeline import ens_gust_risk_core as gr
+    return gr
 
 SET = "gust_risk_ens"
 CREDIT = ("Copyright ECMWF; ECMWF open data (IFS ENS, 50 members), CC BY 4.0; modified (share of members whose 10 m gust reaches "
@@ -44,9 +55,9 @@ SPEC = {
     "value_kind": "ensemble_gust_exceedance_pct", "value_unit": "%",
     "source_dataset": "ECMWF IFS ENS open data enfo ef 0p25, 50 pf members, 10fg (1 h max to 90 h, 6 h max from 150 h) / 10fg3 "
                       "(3 h max, 93-144 h); percent of members >= 25, 34, 48 kn",
-    "hours": tuple(gr.native_steps(360)), "source": "ens_gust_risk", "upstream_provider": "ecmwf",
+    "hours": tuple(gs.native_steps(360)), "source": "ens_gust_risk", "upstream_provider": "ecmwf",
     "credit": CREDIT, "license": LICENSE, "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
-    "thresholds_kn": gr.THRESHOLDS_KN,
+    "thresholds_kn": gs.THRESHOLDS_KN,
 }
 
 
@@ -72,7 +83,7 @@ def to_lattice(arr, meta):
     return np.roll(a, shift, axis=1) if shift else a
 
 
-def risk_planes(counts, n_members=gr.MEMBERS):
+def risk_planes(counts, n_members=gs.MEMBERS):
     """{field id: percent plane} from exceed_counts' uint8 [3, rows, cols]."""
     try:
         import frame_binary as fb
@@ -288,14 +299,14 @@ class EnsGustRiskSource:
     def fetch(self, cycle, f):
         import numpy as np
         self._check_budget()
-        want = f"{f - gr.gust_window_h(f)}-{f}"
+        want = f"{f - gs.gust_window_h(f)}-{f}"
 
         def reduce(arr, meta):
             if meta.get("step_range") != want:                  # eccodes is required: a missing window refuses the step
                 raise ValueError(f"gust window {meta.get('step_range')} != {want} at step {f}")
             self._check_identity(meta)
-            return gr.exceed_counts(to_lattice(arr, meta)[None].astype(np.float32))   # [3, 721, 1440] uint8 0/1
-        p = gr.gust_param(f)
+            return _core().exceed_counts(to_lattice(arr, meta)[None].astype(np.float32))   # [3, 721, 1440] uint8 0/1
+        p = gs.gust_param(f)
         try:
             from services.frame_set_raster import DECODE_LOCK      # ecCodes is not thread-safe: build_set runs 6 steps at once
             from services import frame_binary as fb
@@ -306,7 +317,7 @@ class EnsGustRiskSource:
                                        decode_lock=DECODE_LOCK)
         stack = got[p]                                              # [members, 3, 721, 1440] uint8
         members = stack[1:] if meta.get("has_cf") else stack
-        if members.shape[0] != gr.MEMBERS:
+        if members.shape[0] != gs.MEMBERS:
             raise ValueError(f"{members.shape[0]} perturbed members")
         planes = risk_planes(members.sum(axis=0, dtype=np.uint16))
         raw = fb.encode_planes(planes, (-180.0, -90.0, 179.75, 90.0), "1970-01-01T00:00:00Z", "1970-01-01T00:00:00Z")
