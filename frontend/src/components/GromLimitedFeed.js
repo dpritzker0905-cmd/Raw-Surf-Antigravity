@@ -140,11 +140,17 @@ const GromLimitedFeed = ({ gromStatus }) => {
                   {/* Post Media */}
                   {(post.thumbnail_url || post.media_url) && (
                     <div className="relative aspect-square bg-zinc-800">
-                      <img loading="lazy" decoding="async" 
-                        src={getFullUrl(post.thumbnail_url || post.media_url)} 
-                        alt="" 
-                        className="w-full h-full object-cover"
-                      />
+                      {post.media_type === 'video' && !post.thumbnail_url ? (
+                        <div className={`flex h-full w-full items-center justify-center p-4 text-center text-sm ${isLight ? 'bg-gray-100' : 'bg-zinc-800'} ${textSecondary}`}>
+                          Video preview unavailable
+                        </div>
+                      ) : (
+                        <img loading="lazy" decoding="async"
+                          src={getFullUrl(post.thumbnail_url || post.media_url)}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      )}
                     </div>
                   )}
                   
