@@ -62,7 +62,7 @@ events matched; otherwise NOT MEASURED, a FAIL of that station):
 
 1. median |h| ≤ **0.03 m**;
 2. p90 |h| ≤ **0.08 m** (nearest rank);
-3. per station, median |h| ≤ **0.10 m** at **≥ 37 of the 40** deciding stations (⌈0.923 × 40⌉);
+3. per station, median |h| ≤ **0.10 m** at **≥ 19 of the 20** deciding stations IN EACH STRATUM (⌈0.923 × 20⌉). The pooled form, ≥ 37 of 40 (⌈0.923 × 40⌉), is used ONLY in the reported pooled secondary;
 4. median SIGNED error within **±0.02 m**.
 
 **PRIMARY: PASS if and only if the HYBRID variant meets all four legs in EACH stratum independently** (NEIGHBOR and
