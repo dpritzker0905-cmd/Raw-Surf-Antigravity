@@ -3,7 +3,7 @@ import { fetchMarineData, getRemainingCooldown, getModelSafeMarine, isContainedI
 import { getMarineSeriesFrame } from './marineGridSeries';   // flavor-toggle instant cache commit
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
 import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag, getBackendWeatherFlag, getSurfModeFlag } from './backendWeatherServiceClient';
-import { bandRatedFor } from './partitionHeightOnly';
+import { bandRatedFor } from './partitionHeightOnly';   // D: a partition layer is asked plain in Rating mode (getMarineBandFlag)
 import { staticRatedReadySync } from './staticFrames';   // the rated mosaic in memory: the cached 50 ms lane (2026-11-15)
 import { updateDeprecationDiag } from './forecastSamplers';
 import { isInCooldown, clearCooldown } from './marineControllerUtils';
@@ -32,7 +32,6 @@ import { marineErrorOwnsDisplay } from './marineSeekIdentity';
 import { keepSwrRetryCount, noteRequestDiet, swrReaskScheduledFor } from './marineRequestDiet';
 import { isFlavorToggleSource, leasePendingStampOf } from './marineFlavorToggle';
 import { isAbandonedLive, cellDegOf, commitLaneSwitchRegionalFirst } from './marineFetchCoreBits';
-// The flavour the marine data lane asks for this layer: a partition is plain even in Rating mode (bug hunt 2026-11-22 D).
 const getMarineBandFlag = (layer) => bandRatedFor(getSurfModeFlag(), layer);
 
 /**
@@ -894,8 +893,7 @@ export function useMarineDataFetcherCore({
       const viewportHash = getViewportHash();
       const hasValidData = marineDataRef.current && marineDataRef.current.grid && marineDataRef.current.grid.vectors && marineDataRef.current.grid.vectors.length > 0;
       const isCorrectLayer = marineDataRef.current?.grid?.__componentLayer === (activeMarineLayerRef.current || 'waves');
-      // FLAVOR-MISMATCH BYPASS (2026-07-15) — the enqueue-side twin of the updateMarineGrid guard.
-      // See the updateMarineGrid comment for the full rationale (verified on the live map).
+      // FLAVOR-MISMATCH BYPASS (2026-07-15): the enqueue-side twin of the updateMarineGrid guard (rationale there, verified live).
       const _flavorMismatch = !!(marineDataRef.current?.grid?.ratingMode) !== getMarineBandFlag(activeMarineLayerRef.current || 'waves');
       const bypassDedupe = !hasValidData || !isCorrectLayer || _flavorMismatch || !!(marineDataRef.current?.stale || marineDataRef.current?.grid?.stale);
       if (!bypassDedupe && locks.lastHash === viewportHash && (now - locks.lastTime < 5 * 60 * 1000)) return;
