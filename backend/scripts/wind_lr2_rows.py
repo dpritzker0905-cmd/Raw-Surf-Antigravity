@@ -184,6 +184,9 @@ def build_rows(runs: Dict[datetime, dict], stations: List[dict], pairing: Dict[s
                 put("o_u", tr[0]), put("o_v", tr[1]), put("o_s", tr[2]), put("o_d", tr[3]), put("o_g", tr[4])
                 put("o_s_p7", t7[2] if t7 else float("nan"))
                 put("o_s_p48", t48[2] if t48 else float("nan"))
+                put("o_g_p7", t7[4] if t7 else float("nan"))                 # gust controls (shuffled / shifted truth)
+                put("o_g_p48", t48[4] if t48 else float("nan"))
+                put("hres240_g", float(z["cmp_hres_10fg_240"][i]) if "cmp_hres_10fg_240" in z else float("nan"))
                 put("hres240_s", float(np.hypot(z["cmp_hres_10u_240"][i], z["cmp_hres_10v_240"][i]))
                     if "cmp_hres_10u_240" in z else float("nan"))
                 for arm in set(list(CAL_SETS) + list(RAW_SETS) + ["CLIM_SERVE", "CLIM", "LOOP_PROXY", "GFS"]):
