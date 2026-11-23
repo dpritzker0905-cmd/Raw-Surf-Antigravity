@@ -199,3 +199,71 @@ time of this commit. Since our A + D lacks NOAA's seasonal term, our − NOAA is
 | 9443090 Neah Bay | 0.122 / 684.0 | 0.017 / 193.9 | +0.0318 | +0.0344 |
 | 9751639 Charlotte Amalie | 0.064 / 181.2 | 0.016 / 46.0 | +0.0293 | +0.0277 |
 | 9755371 San Juan, La Puntilla, San Juan Bay | 0.055 / 181.4 | 0.015 / 38.3 | +0.0234 | +0.0221 |
+
+## 2026-11-23 01:33Z: parity run 45093427404, verdict under the stamped bar: FAIL (timing, per gauge)
+
+**Order of events:**
+- The advisor stamped the bar (PARITY-BAR, PARITY-BAR-RULING) at 01:26:12Z, before any result.
+- S_g was frozen: research note commit at 01:28:03Z; this log at 01:32:16Z (`36ffe0675`).
+- The artifact `tide-mllw-parity` (`tide_mllw_parity.json`, generated 01:27:49Z) was opened after that. It is copied to
+  `research/tide-mllw-parity-run-45093427404.json`.
+
+**The bar, scored from the artifact as built:**
+
+| D variant | median \|height\| (≤ 0.06 m) | median \|time\| (≤ 10 min) | unmatched (≤ 2%) | gauges with median \|h\| ≤ 0.10 m AND median \|t\| ≤ 20 min (≥ 24 of 26) | Verdict |
+|---|---|---|---|---|---|
+| model (our 19-yr NTDE D; the served first source once CI fills it) | 0.0462 PASS | 8.4 PASS | 8 / 661 = 1.2% PASS | **19 / 26 FAIL** (height alone 24 / 26; time alone 20 / 26) | **FAIL** |
+| sheet (CO-OPS sheet D; the served gauge source) | 0.0361 PASS | 8.3 PASS | 8 / 661 = 1.2% PASS | **19 / 26 FAIL** (height alone 24 / 26; time alone 20 / 26) | **FAIL** |
+
+**Per gauge**, with S_g as a DIAGNOSTIC only. S_g is the mean of NOAA's seasonal SA/SSA over the window. Our A + D
+lacks it, so ours − NOAA is expected near −S_g.
+
+| Gauge | S_g (m) | model median \|h\| (m) | sheet median \|h\| (m) | median \|t\| (min) | model | sheet |
+|---|---|---|---|---|---|---|
+| 1611400 Nawiliwili | +0.023 | 0.011 | 0.023 | 21.2 | FAIL t | FAIL t |
+| 1612340 Honolulu | +0.018 | 0.015 | 0.023 | 18.7 | PASS | PASS |
+| 1615680 Kahului | +0.019 | 0.034 | 0.021 | 9.5 | PASS | PASS |
+| 1617760 Hilo | +0.025 | 0.031 | 0.041 | 10.1 | PASS | PASS |
+| 8443970 Boston | +0.002 | 0.088 | 0.037 | 4.5 | PASS | PASS |
+| 8452660 Newport | −0.002 | 0.034 | 0.030 | 12.7 | PASS | PASS |
+| 8531680 Sandy Hook | −0.004 | 0.060 | 0.052 | 25.2 | FAIL t | FAIL t |
+| 8534720 Atlantic City | +0.004 | 0.057 | 0.013 | 3.8 | PASS | PASS |
+| 8651370 Duck | +0.026 | 0.091 | 0.136 | 6.0 | PASS | FAIL h |
+| 8658163 Wrightsville Beach | +0.028 | 0.047 | 0.034 | 2.9 | PASS | PASS |
+| 8665530 Charleston | +0.042 | 0.055 | 0.041 | 12.2 | PASS | PASS |
+| 8720030 Fernandina Beach | +0.067 | 0.122 | 0.044 | 39.8 | FAIL h t | FAIL t |
+| 8722670 Lake Worth Pier | +0.085 | 0.096 | 0.093 | 2.4 | PASS | PASS |
+| 8723214 Virginia Key | +0.079 | 0.078 | 0.142 | 43.4 | FAIL t | FAIL h t |
+| 8726724 Clearwater Beach | +0.001 | 0.013 | 0.014 | 10.0 | PASS | PASS |
+| 8729840 Pensacola | −0.002 | 0.043 | 0.042 | 163.7 (8 of 22 unmatched) | FAIL t | FAIL t |
+| 8771510 Galveston | +0.025 | 0.048 | 0.040 | 2.8 | PASS | PASS |
+| 9410230 La Jolla | +0.017 | 0.019 | 0.013 | 1.8 | PASS | PASS |
+| 9410660 Los Angeles | +0.032 | 0.044 | 0.028 | 1.4 | PASS | PASS |
+| 9413450 Monterey | +0.029 | 0.039 | 0.035 | 3.4 | PASS | PASS |
+| 9415020 Point Reyes | +0.026 | 0.064 | 0.039 | 3.4 | PASS | PASS |
+| 9419750 Crescent City | +0.041 | 0.043 | 0.039 | 1.8 | PASS | PASS |
+| 9435380 South Beach | +0.087 | 0.134 | 0.092 | 17.0 | FAIL h | PASS |
+| 9443090 Neah Bay | +0.032 | 0.054 | 0.054 | 5.3 | PASS | PASS |
+| 9751639 Charlotte Amalie | +0.029 | 0.016 | 0.024 | 11.2 | PASS | PASS |
+| 9755371 San Juan | +0.023 | 0.058 | 0.036 | 24.1 | FAIL t | FAIL t |
+
+**What the failure is, as measured (no claim beyond the artifact):**
+1. **The verdict fails on TIMING.** Six gauges are over 20 min, identically in both D variants: Nawiliwili 21, San Juan
+   24, Sandy Hook 25, Fernandina 40, Virginia Key 43, and Pensacola 164 (with 8 unmatched).
+   - Time errors come from A (FES2022b at the gauge) and the served event finder, not from D: D shifts every height
+     by a constant and moves no event.
+   - So these timing errors are in the tide that `dev` already serves under the MSL label (#1132), and #1149 neither
+     adds nor removes them.
+   - Pensacola's tide is mainly diurnal with a small range, where the High/Low pairing is ambiguous. That accounts
+     for its 164 min median and its 8 unmatched events.
+2. **Height passes:** both medians are under 0.06 m, and both variants hold 24 / 26 gauges per gauge, exactly at the
+   line.
+   - The per-gauge height misses are: model at Fernandina (0.122) and South Beach (0.134); sheet at Duck (0.136) and
+     Virginia Key (0.142).
+   - At Lake Worth (0.096 / 0.093 against S_g 0.085) and South Beach (0.134 / 0.092 against 0.087), the error is
+     about S_g, so the season NOAA's predictions carry is the leading term. That is a diagnostic reading, not part of
+     the verdict.
+   - The sheet D at Duck (0.539) and Virginia Key (0.342) and the model D at Boston and Fernandina differ by about
+     0.06–0.13 m from the other source, which accounts for those misses.
+3. **The instrument fix (#1171)** was to become required only if HEIGHT failed. Height did not fail, so it stays a
+   follow-up, per the director's ruling. Nothing was re-tagged or re-run.
