@@ -7,6 +7,11 @@ parity run (45093427404) saw beyond this is the tide model A (FES2022b phase), n
 Read-only CO-OPS predictions (interval=h, 6 and hilo; MLLW, metric, GMT). No FES, no bucket, no live backend.
 
     python scripts/tide_datum/finder_check.py --start 2026-11-23 --days 7 --json out.json
+    python scripts/tide_datum/finder_check.py --start <day0> --all26 --json out.json   # gates/tide-datum-parity-v1 s9
+
+HEIGHTS (2026-11-23, gates/tide-datum-parity-v1.md amendment 2): each matched event also gets its HEIGHT error (ours -
+NOAA, m) on NOAA's own curve; `--all26` scores all 26 parity gauges (own_rules.G3T_M). The datum gate's finder VOID
+control: median |h| <= 0.01 m at every MEASURED gauge.
 """
 import argparse
 import json
@@ -60,6 +65,20 @@ def compare(noaa, ours):
     return out
 
 
+def compare_heights(noaa, ours):
+    """Per NOAA event: signed HEIGHT error ours - NOAA (m) of the nearest same-type event within MATCH_H, or None."""
+    out = []
+    for t0, kind, v in noaa:
+        best = None
+        for e in ours:
+            if e["type"] == kind:
+                dt = (e["time"] - t0).total_seconds() / 60.0
+                if abs(dt) <= MATCH_H * 60 and (best is None or abs(dt) < best[0]):
+                    best = (abs(dt), e["level_m"] - v)
+        out.append(None if best is None else best[1])
+    return out
+
+
 def summary(errs, n_ours):
     m = [abs(e) for e in errs if e is not None]
     return {"noaa_events": len(errs), "our_events": n_ours, "unmatched": sum(e is None for e in errs),
@@ -71,12 +90,18 @@ def main(argv=None):
     ap.add_argument("--start", required=True)
     ap.add_argument("--days", type=int, default=7)
     ap.add_argument("--json")
+    ap.add_argument("--all26", action="store_true", help="all 26 parity gauges (own_rules.G3T_M)")
     a = ap.parse_args(argv)
+    gauges = GAUGES
+    if a.all26:
+        sys.path.insert(0, str(HERE.parent / "tide_own"))
+        from own_rules import G3T_M
+        gauges = {sid: sid for sid in G3T_M}
     day0 = datetime.fromisoformat(a.start).replace(tzinfo=timezone.utc)
     stop = day0 + timedelta(days=a.days)
     lo, hi = day0 - timedelta(hours=6), stop + timedelta(hours=6)
     out = {"window": [a.start, a.days], "gauges": {}}
-    for sid, name in GAUGES.items():
+    for sid, name in gauges.items():
         hilo = [(_t(r["t"]), "High" if r["type"] == "H" else "Low", float(r["v"]))
                 for r in predictions(sid, day0, stop, "hilo") if r.get("type") in ("H", "L")]
         hilo = [e for e in hilo if day0 <= e[0] < stop]
@@ -87,6 +112,11 @@ def main(argv=None):
             errs = compare(hilo, ev)
             row[label] = summary(errs, sum(1 for e in ev if day0 <= e["time"] < stop))
             row[label + "_errors_min"] = [None if e is None else round(e, 1) for e in errs]
+            hs = compare_heights(hilo, ev)
+            hm = [abs(h) for h in hs if h is not None]
+            row[label]["median_abs_h_m"] = round(st.median(hm), 4) if hm else None
+            row[label]["max_abs_h_m"] = round(max(hm), 4) if hm else None
+            row[label + "_height_errors_m"] = [None if h is None else round(h, 4) for h in hs]
             row[label + "_events"] = [[e["time"].strftime("%m-%dT%H:%M"), e["type"], round(e["level_m"], 3)]
                                       for e in ev if day0 <= e["time"] < stop]
         out["gauges"][sid] = row
