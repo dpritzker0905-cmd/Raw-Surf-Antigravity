@@ -2398,6 +2398,42 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Reopen if:** an instrument that scores the served tide against observed water exists (G4), so the flag can be
   judged on evidence that can see it.
 
+### D-087 · HYBRID shadow-run replaces NO FLAP (supersedes the "FIX_VERSION clears" clause of D-065) (2026-11-23, decided by the owner)
+- **Owner's exact words (David, 17:12:09Z, director session):** Question asked: "should a switched-off feature
+  stay off until three hidden re-tests pass and you approve it?" Answer: **"Yes, use it."**
+- **Proposed by:** SubQ, Reflection and LongCat, all preferring the HYBRID over the existing NO FLAP clause.
+- **The rule as written:**
+  - After a guardrail auto-disable, a `FIX_VERSION` bump in `runtime_flags.py` **keeps the flag OFF**.
+  - The bump starts a **shadow run**: the guardrail scores the new version for
+    `SHADOW_REQUIRED_PASSES = 3` consecutive NOT_WORSE cycles (~18 h at the 6-h schedule).
+  - During the shadow run, `decide()` returns action `version_hold`; the flag entry gains a `shadow` dict
+    tracking `passes`, `fails`, and `verdicts`.
+  - **Evidence gate:** only replay-backed coverage (REPLAY or RATING) with a verdict of exactly NOT_WORSE
+    or BETTER and no sanity breach counts as a pass.
+    - A WORSE verdict or any sanity breach resets the consecutive pass count to 0 (fails accumulate).
+    - SKIPPED, NO_CHANGE, UNTESTABLE, and unknown verdicts are no-evidence: no pass, no reset.
+    - LEDGER and BLIND flags have external evidence; `decide()` returns "owner decides" and never writes
+      a `shadow_proposal` for them — only the owner can re-enable.
+  - After `SHADOW_REQUIRED_PASSES` consecutive qualifying passes, `decide()` returns `shadow_proposal` and
+    writes an evidence record (`feature_id + version + commit`) into `shadow_proposal` in the manifest
+    entry. **The flag stays OFF.** No auto-enable ever. The proposal is written only once.
+  - Evidence is recorded with `feature_id + version + commit` to prevent inheritance by renamed or
+    unrelated flags.
+  - **The owner may re-enable at any time regardless of shadow state; a passed shadow only PROPOSES
+    re-enable.** The owner's `workflow_dispatch` (`owner_reenable()`, actor-checked, D-074) is the only
+    mechanism that turns a flag back on.
+  - A later WORSE verdict may auto-disable it again under D-065 rules.
+  - The old `clear` action (flag removed from manifest on version bump) is replaced by `version_hold`.
+    The `clear` action remains in the code for external callers that may rely on it, but `decide()` no
+    longer produces it on a version bump.
+- **Why:** the old NO FLAP clause (FIX_VERSION clears the manifest entry, implicitly re-enabling the flag)
+  was too weak: a developer could bump the version with the same broken code and bypass the guardrail. The
+  HYBRID requires evidence of three consecutive non-harmful cycles before the owner can consider re-enabling.
+- **LongCat's safeguard (binding evidence):** shadow evidence recorded for a different `feature_id` or
+  `version` is rejected. This prevents an adversary from grafting another flag's evidence onto a held flag.
+- **Reopen if:** the 18 h (3 × 6 h) shadow window proves too slow for high-urgency fixes. A flag can still
+  be re-enabled immediately via the owner's workflow_dispatch, bypassing the shadow — but that leaves a gap
+  in the evidence chain, which the owner accepts.
 ### D-089 · Automatic floor catch-up PRs (`bot/floor-catchup-*`) auto-pass the advisor gate under three conditions (2026-11-23, decided by the owner)
 - **Owner, typed in the director session (2026-11-23 18:22:28Z, relayed by the director to the #1227 lane):** "Yes,
   auto-pass them". This follows "Yes, build it" (the same session, earlier that day), which approved the bot itself.
