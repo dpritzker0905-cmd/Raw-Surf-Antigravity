@@ -1,0 +1,674 @@
+{
+ "window": [
+  "2026-11-23",
+  7
+ ],
+ "rule": "comparator = self if OPEN_COAST, else nearest OPEN_COAST prediction station within 30 km (gauge_class rule)",
+ "gauges": {
+  "1611400": {
+   "name": "Nawiliwili",
+   "class": "OPEN_COAST",
+   "v1_abs_time_median_min": 21.2,
+   "our_signed_time_median_min": null,
+   "comparator": "1611400",
+   "comparator_name": "itself",
+   "lag_min": 0.0,
+   "paired": null
+  },
+  "1612340": {
+   "name": "Honolulu",
+   "class": "HARBOR_BAY",
+   "v1_abs_time_median_min": 18.7,
+   "our_signed_time_median_min": null,
+   "comparator": "1612480",
+   "comparator_name": "MOKU O LOE",
+   "comparator_km": 16.4,
+   "lag_min": 72.0,
+   "paired": 22,
+   "candidates_tried": [
+    [
+     "1612404",
+     "Pearl Harbor, Ford Island Ferry",
+     10.6,
+     "HARBOR_BAY"
+    ],
+    [
+     "1612366",
+     "Pearl Harbor Entrance, Bishop Point",
+     11.0,
+     "HARBOR_BAY"
+    ],
+    [
+     "1612401",
+     "Ford Island, Pearl Harbor",
+     12.5,
+     "HARBOR_BAY"
+    ],
+    [
+     "1612480",
+     "MOKU O LOE",
+     16.4,
+     "OPEN_COAST"
+    ]
+   ]
+  },
+  "1615680": {
+   "name": "Kahului, Kahului Harbor",
+   "class": "OPEN_COAST",
+   "v1_abs_time_median_min": 9.5,
+   "our_signed_time_median_min": null,
+   "comparator": "1615680",
+   "comparator_name": "itself",
+   "lag_min": 0.0,
+   "paired": null
+  },
+  "1617760": {
+   "name": "Hilo, Hilo Bay, Kuhio Bay",
+   "class": "OPEN_COAST",
+   "v1_abs_time_median_min": 10.1,
+   "our_signed_time_median_min": null,
+   "comparator": "1617760",
+   "comparator_name": "itself",
+   "lag_min": 0.0,
+   "paired": null
+  },
+  "8443970": {
+   "name": "Boston",
+   "class": "HARBOR_BAY",
+   "v1_abs_time_median_min": 4.5,
+   "our_signed_time_median_min": null,
+   "comparator": "8444312",
+   "comparator_name": "Moon Head",
+   "comparator_km": 7.0,
+   "lag_min": -1.0,
+   "paired": 27,
+   "candidates_tried": [
+    [
+     "8443838",
+     "Charlestown, Charles River entrance",
+     2.0,
+     "HARBOR_BAY"
+    ],
+    [
+     "8443725",
+     "Chelsea St. Bridge, Chelsea River",
+     4.3,
+     "HARBOR_BAY"
+    ],
+    [
+     "8443662",
+     "Amelia Earhart Dam, Mystic River",
+     5.1,
+     "HARBOR_BAY"
+    ],
+    [
+     "8444312",
+     "Moon Head",
+     7.0,
+     "OPEN_COAST"
+    ]
+   ]
+  },
+  "8452660": {
+   "name": "Newport",
+   "class": "OPEN_COAST",
+   "v1_abs_time_median_min": 12.7,
+   "our_signed_time_median_min": null,
+   "comparator": "8452660",
+   "comparator_name": "itself",
+   "lag_min": 0.0,
+   "paired": null
+  },
+  "8531680": {
+   "name": "Sandy Hook",
+   "class": "HARBOR_BAY",
+   "v1_abs_time_median_min": 25.2,
+   "our_signed_time_median_min": null,
+   "comparator": "8531712",
+   "comparator_name": "Highlands, Route 36 bridge",
+   "comparator_km": 8.2,
+   "lag_min": -14.0,
+   "paired": 27,
+   "candidates_tried": [
+    [
+     "8531662",
+     "Atlantic Highlands",
+     5.8,
+     "HARBOR_BAY"
+    ],
+    [
+     "8531712",
+     "Highlands, Route 36 bridge",
+     8.2,
+     "OPEN_COAST"
+    ]
+   ]
+  },
+  "8534720": {
+   "name": "Atlantic City",
+   "class": "HARBOR_BAY",
+   "v1_abs_time_median_min": 3.8,
+   "our_signed_time_median_min": null,
+   "comparator": null,
+   "comparator_name": "no OPEN_COAST prediction station within 30 km",
+   "lag_min": null,
+   "candidates_tried": [
+    [
+     "8534638",
+     "Absecon Channel, State Route 87 bridge",
+     3.2,
+     "HARBOR_BAY"
+    ],
+    [
+     "8534770",
+     "Ventnor City, ocean pier",
+     5.6,
+     "HARBOR_BAY"
+    ],
+    [
+     "8534657",
+     "Pleasantville, Lakes Bay, Great Egg Harbor Inlet",
+     9.1,
+     "HARBOR_BAY"
+    ],
+    [
+     "8534496",
+     "Brigantine Channel @ Hoffman Thorofare",
+     9.9,
+     "HARBOR_BAY"
+    ],
+    [
+     "8534540",
+     "Absecon, Absecon Creek, U.S. Hwy. 30 bridge",
+     10.2,
+     "HARBOR_BAY"
+    ],
+    [
+     "8534739",
+     "Dock Thorofare, Risley Channel",
+     10.5,
+     "HARBOR_BAY"
+    ]
+   ]
+  },
+  "8651370": {
+   "name": "Duck",
+   "class": "OPEN_COAST",
+   "v1_abs_time_median_min": 6.0,
+   "our_signed_time_median_min": null,
+   "comparator": "8651370",
+   "comparator_name": "itself",
+   "lag_min": 0.0,
+   "paired": null
+  },
+  "8658163": {
+   "name": "Wrightsville Beach",
+   "class": "HARBOR_BAY",
+   "v1_abs_time_median_min": 2.9,
+   "our_signed_time_median_min": null,
+   "comparator": null,
+   "comparator_name": "no OPEN_COAST prediction station within 30 km",
+   "lag_min": null,
+   "candidates_tried": [
+    [
+     "8658145",
+     "Shinn Point, ICWW",
+     2.4,
+     "HARBOR_BAY"
+    ],
+    [
+     "8658120",
+     "Wilmington",
+     15.4,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8657813",
+     "Hampstead",
+     15.9,
+     "HARBOR_BAY"
+    ],
+    [
+     "TEC2863",
+     "Castle Hayne, Northeast River",
+     20.3,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8658501",
+     "Orton Point",
+     22.4,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8658559",
+     "Wilmington Beach",
+     22.5,
+     "HARBOR_BAY"
+    ]
+   ]
+  },
+  "8665530": {
+   "name": "Charleston",
+   "class": "UNCLASSIFIED",
+   "v1_abs_time_median_min": 12.2,
+   "our_signed_time_median_min": null,
+   "comparator": null,
+   "comparator_name": "no OPEN_COAST prediction station within 30 km",
+   "lag_min": null,
+   "candidates_tried": [
+    [
+     "8665495",
+     "South Ashley Bridge",
+     3.1,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8665726",
+     "Fort Johnson",
+     4.0,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8665426",
+     "Shem Creek",
+     4.2,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8665775",
+     "James Island Creek, 1 mi. above ent.",
+     4.6,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8665613",
+     "Wappoo Creek, highway bridge",
+     4.9,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8665192",
+     "Hobcaw Point",
+     5.1,
+     "UNCLASSIFIED"
+    ]
+   ]
+  },
+  "8720030": {
+   "name": "Fernandina Beach",
+   "class": "UNCLASSIFIED",
+   "v1_abs_time_median_min": 39.8,
+   "our_signed_time_median_min": null,
+   "comparator": null,
+   "comparator_name": "no OPEN_COAST prediction station within 30 km",
+   "lag_min": null,
+   "candidates_tried": [
+    [
+     "8720011",
+     "CUT 1N FRONT RANGE, ST MARYS RIVER ENTR",
+     4.1,
+     "HARBOR_BAY"
+    ],
+    [
+     "8720058",
+     "Kingsley Creek, RR. bridge",
+     4.5,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8679997",
+     "St. Marys Entrance, North Jetty",
+     5.8,
+     "HARBOR_BAY"
+    ],
+    [
+     "8679945",
+     "Beach Creek ent., Cumberland Island",
+     6.2,
+     "HARBOR_BAY"
+    ],
+    [
+     "8720051",
+     "Lofton, Lanceford Creek",
+     6.3,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8720023",
+     "Chester, Bells River",
+     6.6,
+     "UNCLASSIFIED"
+    ]
+   ]
+  },
+  "8722670": {
+   "name": "Lake Worth Pier, Atlantic Ocean",
+   "class": "OPEN_COAST",
+   "v1_abs_time_median_min": 2.4,
+   "our_signed_time_median_min": null,
+   "comparator": "8722670",
+   "comparator_name": "itself",
+   "lag_min": 0.0,
+   "paired": null
+  },
+  "8723214": {
+   "name": "Virginia Key",
+   "class": "OPEN_COAST",
+   "v1_abs_time_median_min": 43.4,
+   "our_signed_time_median_min": null,
+   "comparator": "8723214",
+   "comparator_name": "itself",
+   "lag_min": 0.0,
+   "paired": null
+  },
+  "8726724": {
+   "name": "Clearwater Beach",
+   "class": "UNCLASSIFIED",
+   "v1_abs_time_median_min": 10.0,
+   "our_signed_time_median_min": null,
+   "comparator": null,
+   "comparator_name": "no OPEN_COAST prediction station within 30 km",
+   "lag_min": null,
+   "candidates_tried": [
+    [
+     "8726706",
+     "Clearwater",
+     3.6,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8726761",
+     "Dunedin, St. Joseph Sound",
+     5.4,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8726809",
+     "Honeymoon Island",
+     9.4,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8726819",
+     "Ozona",
+     11.3,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8726625",
+     "Indian Rocks Beach (inside)",
+     11.4,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8726689",
+     "Bay Aristocrat Village, Old Tampa Bay",
+     11.7,
+     "UNCLASSIFIED"
+    ]
+   ]
+  },
+  "8729840": {
+   "name": "Pensacola",
+   "class": "HARBOR_BAY",
+   "v1_abs_time_median_min": 163.7,
+   "our_signed_time_median_min": null,
+   "comparator": "8729807",
+   "comparator_name": "Pensacola Beach Pier",
+   "comparator_km": 10.8,
+   "lag_min": 189.0,
+   "paired": 14,
+   "candidates_tried": [
+    [
+     "8729868",
+     "Warrington, 2 miles south of",
+     8.9,
+     "HARBOR_BAY"
+    ],
+    [
+     "8729806",
+     "Fishing Bend, Santa Rosa Sound",
+     10.2,
+     "HARBOR_BAY"
+    ],
+    [
+     "8729807",
+     "Pensacola Beach Pier",
+     10.8,
+     "OPEN_COAST"
+    ]
+   ]
+  },
+  "8771510": {
+   "name": "Galveston Pleasure Pier",
+   "class": "UNCLASSIFIED",
+   "v1_abs_time_median_min": 2.8,
+   "our_signed_time_median_min": null,
+   "comparator": null,
+   "comparator_name": "no OPEN_COAST prediction station within 30 km",
+   "lag_min": null,
+   "candidates_tried": [
+    [
+     "8771450",
+     "GALVESTON, Galveston Channel",
+     2.8,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8771328",
+     "Port Bolivar",
+     8.9,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8771341",
+     "Galveston Bay Entrance, North Jetty",
+     10.2,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8771416",
+     "Galveston Bay Entrance, South Jetty",
+     10.4,
+     "UNCLASSIFIED"
+    ],
+    [
+     "8771486",
+     "GALVESTON RAILROAD BRIDGE",
+     10.6,
+     "UNCLASSIFIED"
+    ],
+    [
+     "TEC4513",
+     "Texas City, Turning Basin",
+     14.2,
+     "UNCLASSIFIED"
+    ]
+   ]
+  },
+  "9410230": {
+   "name": "La Jolla",
+   "class": "OPEN_COAST",
+   "v1_abs_time_median_min": 1.8,
+   "our_signed_time_median_min": null,
+   "comparator": "9410230",
+   "comparator_name": "itself",
+   "lag_min": 0.0,
+   "paired": null
+  },
+  "9410660": {
+   "name": "Los Angeles",
+   "class": "HARBOR_BAY",
+   "v1_abs_time_median_min": 1.4,
+   "our_signed_time_median_min": null,
+   "comparator": "9410650",
+   "comparator_name": "Cabrillo Beach",
+   "comparator_km": 1.5,
+   "lag_min": 0.0,
+   "paired": 27,
+   "candidates_tried": [
+    [
+     "9410650",
+     "Cabrillo Beach",
+     1.5,
+     "OPEN_COAST"
+    ]
+   ]
+  },
+  "9413450": {
+   "name": "Monterey",
+   "class": "OPEN_COAST",
+   "v1_abs_time_median_min": 3.4,
+   "our_signed_time_median_min": null,
+   "comparator": "9413450",
+   "comparator_name": "itself",
+   "lag_min": 0.0,
+   "paired": null
+  },
+  "9415020": {
+   "name": "Point Reyes",
+   "class": "HARBOR_BAY",
+   "v1_abs_time_median_min": 3.4,
+   "our_signed_time_median_min": null,
+   "comparator": "9414958",
+   "comparator_name": "Bolinas Lagoon",
+   "comparator_km": 27.6,
+   "lag_min": -53.0,
+   "paired": 27,
+   "candidates_tried": [
+    [
+     "9415228",
+     "Inverness, Tomales Bay",
+     16.2,
+     "HARBOR_BAY"
+    ],
+    [
+     "9415320",
+     "Reynolds, Tomales Bay",
+     18.7,
+     "HARBOR_BAY"
+    ],
+    [
+     "9415339",
+     "Marshall, Tomales Bay",
+     19.9,
+     "HARBOR_BAY"
+    ],
+    [
+     "9415396",
+     "Blakes Landing, Tomales Bay",
+     22.3,
+     "HARBOR_BAY"
+    ],
+    [
+     "9415469",
+     "Tomales Bay entrance",
+     26.0,
+     "HARBOR_BAY"
+    ],
+    [
+     "9414958",
+     "Bolinas Lagoon",
+     27.6,
+     "OPEN_COAST"
+    ]
+   ]
+  },
+  "9419750": {
+   "name": "Crescent City",
+   "class": "OPEN_COAST",
+   "v1_abs_time_median_min": 1.8,
+   "our_signed_time_median_min": null,
+   "comparator": "9419750",
+   "comparator_name": "itself",
+   "lag_min": 0.0,
+   "paired": null
+  },
+  "9435380": {
+   "name": "South Beach",
+   "class": "HARBOR_BAY",
+   "v1_abs_time_median_min": 17.0,
+   "our_signed_time_median_min": null,
+   "comparator": "9435827",
+   "comparator_name": "Depoe Bay",
+   "comparator_km": 20.5,
+   "lag_min": 14.5,
+   "paired": 28,
+   "candidates_tried": [
+    [
+     "9435385",
+     "YAQUINA USCG STA, NEWPORT",
+     0.8,
+     "HARBOR_BAY"
+    ],
+    [
+     "9435308",
+     "Weiser Point, Yaquina River",
+     4.6,
+     "HARBOR_BAY"
+    ],
+    [
+     "9435362",
+     "TOLEDO",
+     8.6,
+     "UNCLASSIFIED"
+    ],
+    [
+     "9435827",
+     "Depoe Bay",
+     20.5,
+     "OPEN_COAST"
+    ]
+   ]
+  },
+  "9443090": {
+   "name": "Neah Bay",
+   "class": "HARBOR_BAY",
+   "v1_abs_time_median_min": 5.3,
+   "our_signed_time_median_min": null,
+   "comparator": "9442861",
+   "comparator_name": "Makah Bay",
+   "comparator_km": 9.7,
+   "lag_min": 16.0,
+   "paired": 28,
+   "candidates_tried": [
+    [
+     "9442861",
+     "Makah Bay",
+     9.7,
+     "OPEN_COAST"
+    ]
+   ]
+  },
+  "9751639": {
+   "name": "Charlotte Amalie",
+   "class": "OPEN_COAST",
+   "v1_abs_time_median_min": 11.2,
+   "our_signed_time_median_min": null,
+   "comparator": "9751639",
+   "comparator_name": "itself",
+   "lag_min": 0.0,
+   "paired": null
+  },
+  "9755371": {
+   "name": "San Juan, La Puntilla, San Juan Bay",
+   "class": "HARBOR_BAY",
+   "v1_abs_time_median_min": 24.1,
+   "our_signed_time_median_min": null,
+   "comparator": "9754986",
+   "comparator_name": "Boca de Cangrejos",
+   "comparator_km": 13.2,
+   "lag_min": -10.5,
+   "paired": 26,
+   "candidates_tried": [
+    [
+     "9754986",
+     "Boca de Cangrejos",
+     13.2,
+     "OPEN_COAST"
+    ]
+   ]
+  }
+ }
+}

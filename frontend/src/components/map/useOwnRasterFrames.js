@@ -19,7 +19,7 @@ import {
 } from './ownRasterLayer';
 import { RASTER_NAMES, getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
 import { requestIsobars } from './isobarStore';
-import { GUST_LUT, gustScale } from './gustPalette';
+import { GUST_LUT, gustScale, gustDarkFieldOn, gustFieldOpacity } from './gustPalette';
 import { setShownGustField, gustFieldTint } from './gustParticles';
 import { setShownCurrentField, setOfPath } from './currentParticles';
 import { v2FieldTint } from './WebGLWindUtils';
@@ -290,6 +290,12 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     // so both kills act live.
     if (layer === 'gusts' && typeof L.setTint === 'function') {
       L.setTint((z) => gustFieldTint(theme, z, (zz) => opacityAtZoom(GUST_OPACITY_STOPS, zz), v2FieldTint(theme)));
+    }
+    // DARK FIELD PARITY (gustPalette.gustDarkFieldOn): dark draws at the wind field's own opacity (0.48), decided with the LUT just built.
+    if (layer === 'gusts' && typeof L.setOpacityAt === 'function') {
+      // Captured with the LUT, never re-read per frame: a kill set later must not pair this LUT with the other opacity.
+      const op = gustDarkFieldOn(theme) ? gustFieldOpacity(theme, 2, () => 0, {}) : null;
+      L.setOpacityAt(op === null ? null : () => op);
     }
     return () => { alive = false; };
   }, [engaged, layer, theme, gen]);
