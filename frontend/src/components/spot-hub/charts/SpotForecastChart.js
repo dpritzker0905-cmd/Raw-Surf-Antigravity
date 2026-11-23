@@ -22,6 +22,7 @@ import { Crown, Lock } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { getThemeTokens } from '../../../utils/themeTokens';
 import { formatHeightFromMeters, getHeightUnit } from '../../map/heightUnits';
+import { formatTideHeight } from '../../map/tideReadoutFormat';   // tide follows the ft/m button, signed
 import { getSeriesAnchorMs } from '../../map/backendWeatherServiceClient';
 import { modelDisplayName } from '../../map/modelDisplayName';
 import {
@@ -111,7 +112,7 @@ export function HourlyBars({ series, selected, onSelect, theme, unit, compact = 
       aria-valuemin={0}
       aria-valuemax={frames.length - 1}
       aria-valuenow={selected}
-      aria-valuetext={frameDescription(cur, fmt)}
+      aria-valuetext={frameDescription(cur, fmt, unit)}
       onKeyDown={onKeyDown}
       data-testid={compact ? 'spot-mini-chart-slider' : 'spot-chart-slider'}
       className="inline-block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-1"
@@ -285,7 +286,7 @@ export default function SpotForecastChart({ body, resolverHours, selectedOffsetH
           {levelWord(cur.level)}
         </span>
         {cur.windKt != null && ` · ${cur.windKt} kt ${cur.windWord || ''}`}
-        {cur.tideM != null && ` · tide ${cur.tideM.toFixed(1)} m`}
+        {cur.tideM != null && ` · tide ${formatTideHeight(cur.tideM, unit)}`}
       </p>
       <p className={`text-[10px] ${t.textSecondary}`}>
         Bar colour and word = surf rating. Arrows: ↑ offshore · ↔ cross-shore · ↓ onshore (kt).

@@ -19,6 +19,16 @@ const _inflight = new Map();
 
 export function clearPointTideCache() { _cache.clear(); _inflight.clear(); }
 
+/** The ONE /point-tide acquisition, shared by the infobox and the map tide overlay (tideOverlayModel.js): same
+ * cell key, same cache, same in-flight dedupe, so both surfaces evaluate the SAME payload. Never rejects. */
+export function loadPointTide(cell) { return load(cell); }
+
+/** Synchronous fresh-cache read: the payload, null (fresh miss), or undefined (never fetched / expired). */
+export function peekPointTide(cell) {
+  const hit = _cache.get(cell);
+  return isFresh(hit) ? hit.value : undefined;
+}
+
 function load(cell) {
   const hit = _cache.get(cell);
   if (isFresh(hit)) return Promise.resolve(hit.value);
