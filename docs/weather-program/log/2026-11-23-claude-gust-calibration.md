@@ -115,3 +115,17 @@ rows are `|raw - obs| - |C - obs|`, and for G4 `|raw - obs| - CRPS_C`. It is com
 `_RATING_FLAGS` parity, a kill switch, a SCOREBOARD row, the history filter). Coefficients are refitted on the trailing 45 days. It
 moves a served number, so D-065 applies, and the director (David) decides whether it ships ON or dark. A model that fails stays raw,
 and the result is recorded as a finding.
+
+**Amendment 1 (2026-11-23, written while building the fitter on SYNTHETIC data, before any fit on the real record; §1 is not edited).**
+1. POSITIVE 1 is computed on the rows that a FIT served in both arms. A stratum that falls back to RAW is the identity by design, so
+   it cannot absorb a bias. On the synthetic record, 4% of the rows were raw-fallback, and they alone moved C's MAE by 0.04.
+2. The CRPS check: 200,000 draws carry about 0.7% Monte Carlo noise (measured at mu = -1, sigma = 2). The test therefore uses 2,000,000
+   draws to 0.5%, plus a deterministic quadrature of the integral of (F - 1{x >= y})^2 to 0.1%. The closed form matches the quadrature
+   to 1e-6.
+3. NULL seeding: "seed 3" is one generator per (test week, station fold), `default_rng([3, week, fold])`, so the parallel jobs stay
+   deterministic.
+4. Implementation facts, stated: the dense target is read on the pairs `gust_verify_score.build_pairs` keeps, which needs the sparse
+   hourly observation present. A station whose GFS land flag is unknown counts as sea. The keyless CI rebuild (`gust-calibrate.yml`)
+   freezes its station list on the day it runs, so its list can differ slightly from the dev record's list (frozen 2026-11-19).
+5. Tooling: numpy only. The normal CDF is Numerical Recipes' erfc and its inverse is Acklam's, both tested against `math`. The
+   optimizer is a 5-parameter BFGS. Each model's CI job rebuilds GFS or EURO alone (`--models`) and fits with 4 worker processes.

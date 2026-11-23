@@ -1,0 +1,77 @@
+name: Gust calibration out-of-sample score (keyless; public archives; serves nothing)
+
+# WHY: the Gusts layer serves each model's raw gust, and the #1063 verification found wind x 1.40 beats it on MAE. This job fits
+# the pre-registered calibration (EMOS, a 0-truncated normal per model; docs/weather-program/log/2026-11-23-claude-gust-calibration.md
+# section 1) and scores it OUT OF SAMPLE (weekly origin x 5 station-block folds) against the raw gusts and wind x 1.40.
+# It names NO credential and writes nothing outside the runner. Each model's job rebuilds the record with the #1063 collector's own
+# backfill mode, from NOAA GFS on AWS, ECMWF's AWS mirror and NDBC's 45-day realtime2 files, then calibrates. The result is an
+# artifact. ICON has no archive, so it is read from the stored record by `gust-verify.yml mode=calibrate` on dev once it has >= 28
+# cycles. The registered window is 00Z 2026-10-09 .. 11-21. A later rerun loses the oldest cycles' observations as realtime2 rolls,
+# and the report says so in its row counts.
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/gust-calibrate.yml'
+      - 'backend/scripts/gust_calibrate.py'
+  workflow_dispatch:
+    inputs:
+      start:
+        description: 'first 00Z cycle YYYY-MM-DD'
+        default: '2026-10-09'
+      end:
+        description: 'last 00Z cycle YYYY-MM-DD'
+        default: '2026-11-21'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gust-calibrate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: '1'
+  GV: ${{ github.workspace }}/gv_data
+  START: ${{ github.event.inputs.start || '2026-10-09' }}
+  END: ${{ github.event.inputs.end || '2026-11-21' }}
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [GFS, EURO]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r backend/requirements.txt
+      - name: Rebuild the record from the public archives (no key, nothing uploaded)
+        working-directory: backend
+        timeout-minutes: 200
+        run: python scripts/gust_verify_collect.py backfill --cache "$GV" --models "${{ matrix.model }}" --start "$START" --end "$END"
+      - name: Calibrate and score out of sample
+        working-directory: backend
+        timeout-minutes: 120
+        run: |
+          python scripts/gust_calibrate.py --dir "$GV" --models "${{ matrix.model }}" --workers 4 \
+            --out "$GV/calib_report_${{ matrix.model }}.json" --md "$GV/calib_table_${{ matrix.model }}.md"
+      - name: The #1063 scorer on the same record (stdlib)
+        if: ${{ always() }}
+        run: python3 -I -S backend/scripts/gust_verify_score.py --dir "$GV" --out "$GV/score_report.json" --md "$GV/score_table.md"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gust-calibrate-${{ matrix.model }}
+          path: |
+            ${{ env.GV }}/collect_report_*.json
+            ${{ env.GV }}/calib_report_*.json
+            ${{ env.GV }}/calib_table_*.md
+            ${{ env.GV }}/score_report.json
+            ${{ env.GV }}/score_table.md
+          if-no-files-found: ignore
