@@ -53,3 +53,33 @@ minimum 25 kn in B1 and B2. Committed before any model value or truth is read.
   coastal ASOS**.
 - Tests: 32 new (chain lane; floor fragment `claude-gust-ens-risk-instrument.chain.json`, +32 tests, +3 files). The giops
   by-path test now also expects the `ens_gust_risk` source kind.
+
+## 2026-11-23 03:38Z · GO, the director's directive, and amendment 1 (before any score)
+- **David's word, relayed by the director (`local_d6b521eb`):** "Yes, run both", typed in the director session ~03:01Z,
+  confirming "Yes, run the 62 GB gust hindcast" in the advisor session. Scope: gate section 10 only. The daily
+  publisher (~6 GB a day) is NOT covered; #1202 is HELD.
+- **Order, disclosed:** the station freeze and truth snapshot ran 03:10-03:12Z. Collection started ~03:17Z, after
+  David's word, but before this session had read the GO or the advisor's order (#1195 merged first). Messages from
+  the gust lane (`local_7f4942af`, "pre-registration only") and an earlier director "STOP" were queued behind that start.
+  The director's latest message holds: collecting may continue, no score until #1195 merges carrying the frozen
+  inputs. #1202 is held and stays open (not closed).
+- **What was looked at:** one run file's format only (shapes; the max member value; five HRES and five member-mean values).
+  No pairing with any observation, and no count or score.
+- **Amendment 1** (`gates/gust-ens-risk-v1-amendment-1.md`):
+  - 10,000 reps;
+  - one primary P1 = the Brier difference vs CLIM, plus the reliability condition, under BOTH the day-block and the
+    station-cluster bootstrap; G2, G4 and the 5-day blocks are reported only;
+  - n fixed by a count-only table committed before the score;
+  - #1199 LOCKED buoys are dropped before any row, and fit-used stations never decide;
+  - October monthly stdmet named as a sensitivity only;
+  - "recorded, not a claim" until the gust EMOS score after 12-09;
+  - egress measured from the indices.
+- **Frozen inputs committed** (`evidence/gust-ens-risk-2026-11-23/`):
+  - station list (390 NDBC/C-MAN + 60 ASOS): committed (LF) sha256 `a7c01e4b558d61b993e479b39e69134becf667bab16b51e9ecfcce39dcdad8e4`;
+    the CRLF original the collector read is `f6cc0720076692778ca29e7e07f0fc440140ab6d5769f4a708fad1f6bc8bb636`;
+  - `truth.json`, whose snapshot hash is `19cbc5064d66722e8e61abb759582d85195eb3fc828640a675ff036125a5e505`
+    (768 files, end 02:42Z).
+- **Raw truth tarball:** in the shared notes folder of `local_7f4942af`, `gust-ens-risk-truth-2026-11-23.tar.gz`,
+  38,575,905 B, sha256 `0b2fce07590bf6373f2527ae8b2e3633af905f7fd36ad0a592366c8bd627d55a`.
+- **Freeze reads disclosed:** the freeze read every NDBC candidate's realtime2 file to count coverage, before any #1199
+  LOCKED list existed.
