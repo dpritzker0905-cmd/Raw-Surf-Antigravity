@@ -4,7 +4,7 @@ Candidate: ship `ICON_PEAK_PERIOD` (the GWAM partition-peak blend, p = 2) and `C
 Metric: H1 = the paired change in nearshore height MAE, ON minus OFF (m), at the graded stations (section 2), per flag. Reported beside it: height bias, period MAE vs DPD (a re-check of the 2026-10-20 rows), the rating level-shift rate, and the WIND-SEA stratum (DPD < 8 s).
 Pass threshold: section 4. NOT WORSE means the upper one-sided 95 % bound of ΔMAE is < +0.03 m pooled, and in every region that meets its floor. |bias| must not grow by more than 0.05 m.
 Controls: a null (OFF vs OFF re-run, which must come out NOT WORSE with ΔMAE about 0); a planted +0.10 m height offset on the ON arm in a fixed 30 % of rows, which must be detected as WORSE; floors per region.
-Decision rule: two legs (section 1a). `COPERNICUS_PEAK_PERIOD`: NOT WORSE on the retrospective leg R → it may ship ON under D-065 on David's word, and the prospective leg P must then also be NOT WORSE, or it is reverted. `ICON_PEAK_PERIOD`: P only. NOT WORSE on H1 for a flag → that flag may ship ON under D-065 on David's word (code default stays '0' until then; the switch is the workflow env), with a SCOREBOARD row. WORSE → no flip, and no re-tuning on this window.
+Decision rule: two legs (section 1a). `COPERNICUS_PEAK_PERIOD`: NOT WORSE on the retrospective leg R → it may ship ON under D-065 on David's word ONLY IF R's recorded leads are true forecast leads of 24-72 h (section 1a, review 2026-11-23); otherwise R is reported and P decides. When it does ship on R, the prospective leg P must then also be NOT WORSE, or it is reverted. `ICON_PEAK_PERIOD`: P only. NOT WORSE on H1 for a flag → that flag may ship ON under D-065 on David's word (code default stays '0' until then; the switch is the workflow env), with a SCOREBOARD row. WORSE → no flip, and no re-tuning on this window.
 Unmeasured items: wind sea under 8 s is reported as a LIMIT, not a bar (the period gets worse there: ICON 1.23 → 1.97 s, CMEMS 1.12 → 1.64 s MAE). SURF_PARTITIONS-on behaviour; the consensus period (`CONSENSUS_PERIOD_MEDIAN`); spots without a graded station.
 Served change: none from this gate.
 
@@ -32,7 +32,12 @@ Served change: none from this gate.
   3. **"Unseen" means:** no ON-arm height has ever been computed for this window. OFF-arm SERVED heights were seen in passing by the nearshore judge's routine runs (its own stations), which is disclosed. Nobody has read an ON-vs-OFF difference.
   4. **Same bars, controls, stations, QC and floors** as section 4. One look.
 - **Leg P, prospective:** as registered in section 1 (the 42 days ending 2026-12-31, leads 24-72 h). For CMEMS it CONFIRMS R. For ICON it is the only leg: DWD GWAM partition periods (`ppts`/`ppww`) are not known to be retained for past dates, so ICON has no R leg. If a retained archive is found, that is a new registration, not an amendment after the fact.
-- **R and P disagree** (R NOT WORSE, P WORSE): P wins. The flag is reverted (the workflow env back to '0') and the disagreement is recorded. A lead-insensitive effect that flips with lead is itself a finding.
+- **R may decide only on forecast data (review 2026-11-23; Reflection and LongCat both rated this high).** R can authorise a provisional CMEMS flip only if the build's per-file record shows TRUE FORECAST leads of 24-72 h (a run time and a valid time >= 24 h apart).
+  - If the archive holds best-estimate or analysis values (lead about 0, or unknowable), R is REPORTED ONLY. It answers "does the peak definition give better heights given the sea state?", which SubQ (0.93) judged informative, but it cannot authorise a flip. P alone then decides for CMEMS, as for ICON.
+  - Rationale: both arms share the same Hs, direction and wind, so analysis inputs do not favour either arm. But an analysis-time estimand is not the served forecast's, and the decision is about the served forecast.
+- **R and P disagree, both directions:**
+  - R NOT WORSE, P WORSE: P wins. The flag is reverted (the workflow env back to '0') and the disagreement is recorded.
+  - R WORSE, P NOT WORSE: P wins (the flag may ship on P under the same rule), and the disagreement is recorded. A lead-insensitive effect that flips with lead is itself a finding.
 
 ## 2. Truth and stations
 - **Stations:** the shared frozen buoy list, `nearshore_eval` tag (`served-wave-verify-v1` §0.1, built from #1156's `select_stations` rules: directional, 10-40 m, not USACE FRF Duck, not assimilated).
@@ -64,3 +69,8 @@ Served change: none from this gate.
 - **Wind sea under 8 s gets a worse period** (the 10-20 rows). This is reported as a stratum. A band-switched period (keep the energy period when wind sea dominates) would be a new registration.
 - **One season** (northern winter).
 - **The 10-20 period result** was one autumn window on Open-Meteo-sourced hindcasts (research only). Section 1 re-checks the period on this window.
+
+## 8. Three-way review, 2026-11-23 (the owner asked for every test to be run by SubQ, Reflection and LongCat)
+- **Reflection (high), LongCat:** R may use analysis or best-estimate fields, so it must not decide a flip. **Accepted:** R decides only on recorded forecast leads of 24-72 h, else it is reported only (section 1a).
+- **LongCat:** "P wins on disagreement" is undefined. **Accepted:** both disagreement directions are written out (section 1a).
+- **SubQ:** R on analyses is still informative for a definition question (0.93). Kept, as a reported leg.
