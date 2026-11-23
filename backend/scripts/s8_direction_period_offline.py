@@ -46,6 +46,7 @@ sys.path.insert(0, HERE)
 import peak_period_validation as ppv  # noqa: E402  (shared NDBC/Open-Meteo plumbing, on-disk cache)
 from services.weather_pipeline import skill_direction_period_paired as s8  # noqa: E402
 from services.weather_pipeline.skill_consensus import region_of  # noqa: E402
+from services import buoy_holdout  # noqa: E402  (the locked final buoy holdout, #1199)
 
 OM_MARINE = "https://marine-api.open-meteo.com/v1/marine"
 MODELS = {"raw_surf": "ncep_gfswave025", "raw_surf:EURO": "ecmwf_wam025", "raw_surf:ICON": "dwd_gwam"}
@@ -57,6 +58,8 @@ GFS_AWS = "https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.{d}/{c:02d}/wave/gridde
 def ndbc_hourly(buoy_id):
     """{hour datetime: {hs, dpd, apd, mwd, obs_time}} from realtime2: per hour the nearest record (<= 30 min) with the
     fewest missing wave fields, one record per hour so every field verifies against the same observation."""
+    if not buoy_holdout.keep(buoy_id):                 # a LOCKED holdout buoy reads as a station with no data
+        return {}
     try:
         txt = ppv.get(ppv.NDBC_RT.format(id=buoy_id), timeout=40).decode("utf-8", "replace")
     except Exception:
@@ -319,7 +322,7 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     start = datetime.fromisoformat(a.start).replace(tzinfo=timezone.utc)
     end = datetime.fromisoformat(a.end).replace(tzinfo=timezone.utc, hour=21)
-    buoys = [b for b in ppv.ndbc_wave_buoys(ppv.load_spots(), a.buoy_km) if region_of(b["id"]) != "other"]
+    buoys = [b for b in ppv.ndbc_wave_buoys(ppv.load_spots(), a.buoy_km) if region_of(b["id"]) != "other" and buoy_holdout.keep(b["id"])]
     if a.max_buoys:
         buoys = buoys[:a.max_buoys]
     print(f"[s8] {len(buoys)} buoys", flush=True)

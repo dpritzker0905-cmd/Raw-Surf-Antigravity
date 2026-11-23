@@ -23,6 +23,9 @@ import sys
 from array import array
 from datetime import datetime, timezone
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from services import buoy_holdout  # noqa: E402  (stdlib-only; #1199 LOCKED buoys dropped at load)
+
 MODELS = ("GFS", "EURO", "ICON")
 BINS = ((0, 23), (24, 47), (48, 71), (72, 119), (120, 240))
 GUST_FACTOR = 1.40                 # baseline (a), fixed in the pre-registration
@@ -76,6 +79,8 @@ def load_obs(d):
     merged = {}
     for path in _files(d, "obs"):
         for sid, rows in _load(path)["stations"].items():
+            if not buoy_holdout.keep(sid):
+                continue
             m = merged.setdefault(sid, {})
             for t, w, g in rows:
                 m[int(t)] = (w, g)

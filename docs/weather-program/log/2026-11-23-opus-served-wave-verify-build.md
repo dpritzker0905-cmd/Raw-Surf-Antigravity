@@ -110,3 +110,25 @@ Supersedes the "(not adopted)" line of the entry above.
   - Mutation-checked, each going red: scorer fence off, download fence off, redact made a no-op, SHA check off, NOT_READ download allowed.
   - The suite ran twice, 72 passed both times.
 - Slip: one mutation command contained a bare `python -` (house rule). It hung, was stopped with TaskStop, and the files were restored from backups and re-checked.
+
+## 2026-11-23: amendment 3, the #1199 LOCKED fence program-wide (branch claude/locked-holdout-fence)
+- Director's P0 (Fable inspection, finding 2): only the served-wave scorer filtered #1199's LOCKED buoys. The skill ledger, calibration, accuracy monitor, gust verification, EMOS and long-range wind read every buoy, and the breach would start at the freeze.
+- Built `services/buoy_holdout.py` (stdlib only) with three states:
+  - `none` today, an exact no-op;
+  - `verified` = the locked ids plus their aliases (id, WMO id, CDIP number);
+  - `quarantine` = a recorded list that does not verify, which fails closed and treats every listed buoy as locked.
+- `point_archive/holdout.py` now verifies through it, so there is one implementation.
+- Consults (public context only):
+  - SubQ (truncated at its token cap): drop locked rows before aggregation; aliases; archives and caches; scan beyond backend/; logs.
+  - Reflection: fail closed with no fallback to tags; a runtime complement to the static scan; one gateway.
+  - Adopted: quarantine with no tag fallback, aliases, `allow_url` as a runtime gate in every fetch path, the workflow scan.
+  - LongCat: preview only, awaiting the owner's approval of the payload hash (paid).
+- Routing: three subagents with disjoint file sets plus my own edits. 54 modules call the fence; 5 are declared collectors; 14 exemptions are reviewed in the guard.
+  - The guard caught one edit a subagent reported but never applied (`model_skill_census.py`); I fenced it myself, along with `euro_fallback_census.py` and `same_model_parity_probe.py`.
+  - `gust_verify_score.py` was a real reader with no fence. Its stdlib-only pin now admits exactly the fence, and checks the fence itself imports only the stdlib.
+- Tests:
+  - `test_buoy_holdout.py`: 21.
+  - `test_buoy_holdout_guard.py`: 4.
+  - `test_buoy_holdout_consumers.py`: 7 runtime canaries.
+  - Mutations each go red: allow_url forced open, drop made a no-op, one consumer's gate removed, aliases off.
+  - The regression run over every test file naming a changed module ran twice (see the PR).

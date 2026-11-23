@@ -17,11 +17,9 @@ The locked-list file contract (written by #1199's freeze, never by this lane):
 """
 from __future__ import annotations
 
-import hashlib
-import json
 import re
-from pathlib import Path
 
+from services import buoy_holdout
 from services.point_archive import buoys as buoylist
 
 NOT_READ = "NOT_READ"
@@ -30,32 +28,15 @@ LOCKED_LIST_PATH = "docs/weather-program/gates/served-wave-skill-v1-locked.json"
 REDACTED = "<locked>"
 
 
-class HoldoutError(ValueError):
-    """The frozen list is named but does not verify (missing, hash mismatch, unknown ids, tags disagree)."""
+HoldoutError = buoy_holdout.HoldoutError     # ONE verification for the whole program (services/buoy_holdout.py)
 
 
 def _verified_ids(doc, repo_root):
-    ref = (doc.get("holdout") or {}).get("locked_list")
-    if not ref:
-        return None
-    path = Path(repo_root) / ref["path"]
-    if not path.is_file():
-        raise HoldoutError(f"locked list {ref['path']} is named but missing")
-    raw = path.read_bytes()
-    got = hashlib.sha256(raw).hexdigest()
-    if got != ref["sha256"]:
-        raise HoldoutError(f"locked list {ref['path']} sha256 {got[:12]} != recorded {str(ref['sha256'])[:12]}")
-    body = json.loads(raw.decode("utf-8"))
-    ids = [str(i).upper() for i in body.get("locked") or []]
-    known = {s["id"].upper() for s in doc["stations"]}
-    unknown = sorted(set(ids) - known)
-    if unknown or not ids or len(set(ids)) != len(ids):
-        raise HoldoutError(f"locked list ids invalid ({len(unknown)} unknown, {len(ids)} listed)")
-    locked = frozenset(ids)
-    disagree = [s for s in doc["stations"] if s.get("locked") is not (s["id"].upper() in locked)]
-    if disagree:
-        raise HoldoutError(f"{len(disagree)} station `locked` tag(s) disagree with the locked list")
-    return locked, got
+    """(locked ids, sha256), None when no list is recorded; raises HoldoutError. buoy_holdout.verify is the only check;
+    this strict wrapper adds nothing but NOT_READ on failure (state() below)."""
+    if not (doc.get("holdout") or {}).get("locked_list"):
+        return None                                   # tags-without-list is reported by state() as its own NOT_READ
+    return buoy_holdout.verify(doc, repo_root)
 
 
 def state(doc, repo_root=buoylist.REPO_ROOT):

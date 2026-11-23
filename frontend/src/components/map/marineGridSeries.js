@@ -31,6 +31,7 @@ import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { exactGfsPlaybackEnabled } from './marinePlaybackPolicy';
 import { isThinnedWorldGrid } from './marineExactUpgrade';
 import { MarineSeriesCache } from './marineSeriesCache';
+import { activeView, noteCacheGrowth, registerCache } from './cacheBudget'; import { seriesEntries } from './cacheBudgetAdapters';
 import { finestCoveringSeriesFrame, nearestFrameInEntry, seriesEntryAnchorOk } from './marineSeriesFinerEntry';
 import { marineSeriesWorkBoundsEnabled } from './marineSeriesWorkPolicy';
 import { deferMarineSeries, marineSeriesCallerAborted, resetMarineSeriesDeferred } from './marineSeriesDeferred';
@@ -46,6 +47,9 @@ const getMarineBandFlag = (layer) => bandRatedFor(getSurfModeFlag(), layer);
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
 const _seriesCache = new MarineSeriesCache();
+// One byte budget across caches (2026-11-23, cacheBudget.js): pages of another model or layer go first; the page holding the
+// selected hour is pinned. Kill: window.__RAW_DISABLE_CACHE_BUDGET__ = true.
+registerCache('marine-series', { entries: () => seriesEntries(_seriesCache, activeView()), drop: (k) => (_seriesCache.delete(k) ? 1 : null), cost: 2 });
 const _inFlight = new Map();
 function hasLiveFlight(key) {
   const flight = _inFlight.get(key);
@@ -426,6 +430,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
 
 // Bound memory: the oldest page goes once the cache holds more than SERIES_MAX (/grid_series pages and static pages alike).
 function boundSeriesCache(key) {
+  noteCacheGrowth();   // the shared byte budget (cacheBudget.js) weighs every page against the other caches
   if (_seriesCache.size <= SERIES_MAX) return;
   const oldest = _seriesCache.keys().next().value;
   if (oldest !== undefined && oldest !== key) _seriesCache.delete(oldest);
@@ -536,6 +541,7 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
         ts: Date.now(), frames, hours: [f.hour_offset], bounds: sfb || bounds,
         model, layer, page, surf: surfFlavor, coarsePreview: false, revalCount: 0, h0: true, anchor: seriesAnchorTag(),
       });
+      noteCacheGrowth();
       if (typeof window !== 'undefined') {
         const dg = (window.__MARINE_SERIES_DIAG__ = window.__MARINE_SERIES_DIAG__ || { loads: 0, hits: 0, misses: 0 });
         dg.h0Loads = (dg.h0Loads || 0) + 1;

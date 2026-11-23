@@ -17,6 +17,8 @@ import math
 import os
 from datetime import datetime, timezone
 
+from services import buoy_holdout
+
 NDBC_HOST = "www.ndbc.noaa.gov"
 # Only the textual sentinel is global. NDBC's numeric fill values (WVHT/DPD 99.00, MWD 999) are NOT listed: a shared numeric
 # set would turn a valid 99 deg MWD into a hole in one direction bin. The per-field RANGES below exclude every numeric sentinel
@@ -158,10 +160,13 @@ def snapshot(dirpath, station_id, fetched_utc_iso, text):
 
 def fetch_realtime(station_id, opener):
     """Fetch one station's realtime2 text through an injected `opener(url) -> str` (tests inject; CI uses urllib).
-    Refuses any URL that is not https on the NDBC host."""
+    Refuses any URL that is not https on the NDBC host. A #1199 LOCKED holdout buoy reads as missing (None, the opener is
+    never called): this gate scores against what it fetches, and no gate reads a LOCKED buoy (amendment 3 fence)."""
     url = realtime_url(station_id)
     if not url.startswith(f"https://{NDBC_HOST}/"):
         raise ValueError(url)
+    if not buoy_holdout.allow_url(url):
+        return None
     return opener(url)
 
 

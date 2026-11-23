@@ -20,6 +20,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from services import buoy_holdout  # noqa: E402
 import emos_core as E  # noqa: E402
 import wind_emos_collect as C  # noqa: E402
 import wind_lr_obs as obs  # noqa: E402
@@ -118,7 +119,9 @@ def load_truth(session, cache, stations):
     st_obs, clim = [], []
     end = TEST[1] + timedelta(days=15)
     for st in stations:
-        if st["kind"] == "ndbc":
+        if st["kind"] == "ndbc" and buoy_holdout.is_locked(st["id"]):
+            o, years = {}, []            # a LOCKED buoy: its truth is never read, so it makes no row
+        elif st["kind"] == "ndbc":
             z = st["anemometer_m"]
             o = dict(obs.ndbc_year(session, cache, st["id"], 2025))
             o.update(obs.ndbc_window(session, cache, st["id"], months=tuple((2026, m) for m in range(1, 10))))
