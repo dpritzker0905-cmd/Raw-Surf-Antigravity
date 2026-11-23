@@ -249,3 +249,48 @@ def _legacy_reference_curve(monkeypatch):
     """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
     (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
     monkeypatch.setenv("RATING_REF_PRIOR", "0")
+
+
+# ── the rate job's progress + overrun budget (2026-11-22: every automatic run hit the 60-min timeout) ─────────────
+
+def test_chunked_rating_writes_the_rows_one_whole_call_writes():
+    spots = [dict(SPOTS[0], id=f"c{i}", longitude=-150.0 + 13 * i) for i in range(5)]
+    whole = _rate(spots=spots)["GFS"]
+    rows, overrun = asyncio.run(CLI.rate_in_chunks(
+        lambda part: SS.rate_spot_series(_resolver(), part, "GFS", BASE, SS.horizon_for("GFS")), spots, chunk=2))
+    assert overrun is None and rows == whole
+
+
+def test_a_job_projected_past_its_budget_fails_early_with_the_numbers():
+    calls, ticks = [], iter([0.0, 100.0, 200.0, 300.0, 400.0])
+
+    async def fake(part):
+        calls.append(len(part))
+        return {s["id"]: {"rows": []} for s in part}
+
+    spots = [{"id": f"x{i}"} for i in range(10)]
+    # 100 s a 2-spot chunk -> 500 s projected against a 300 s budget: no verdict before 30% (90 s) is spent, then stop.
+    rows, overrun = asyncio.run(CLI.rate_in_chunks(fake, spots, budget_s=300, chunk=2, clock=lambda: next(ticks)))
+    assert calls == [2] and len(rows) == 2
+    assert overrun == {"done": 2, "total": 10, "elapsed_s": 100.0, "projected_s": 500.0, "budget_s": 300.0}
+    ticks = iter([0.0, 10.0, 20.0, 30.0, 40.0, 50.0])
+    rows, overrun = asyncio.run(CLI.rate_in_chunks(fake, spots, budget_s=300, chunk=2, clock=lambda: next(ticks)))
+    assert overrun is None and len(rows) == 10, "inside the budget every spot is rated"
+
+
+def _doc(rows, sha="m1", base="2026-11-03T18:00:00Z", ms=50.0):
+    return {"base_time": base, "meta": {"manifest_sha": sha, "ms_per_frame": ms}, "spots": rows}
+
+
+def test_the_identity_check_passes_only_on_equal_rows_from_one_manifest():
+    r = {"s1": {"off": 0, "rows": [{"valid_time": "t0", "surf_height_m": 1.0, "score": 50},
+                                   {"valid_time": "t1", "surf_height_m": 1.2, "score": 55}]}}
+    same = CLI.compare_arms(_doc(r, ms=300.0), _doc(r, ms=40.0))
+    assert same["verdict"] == "identical" and same["frames_compared"] == 2
+    assert (same["capped_ms_per_frame"], same["full_ms_per_frame"]) == (300.0, 40.0)
+    moved = {"s1": {"off": 0, "rows": [r["s1"]["rows"][0], dict(r["s1"]["rows"][1], surf_height_m=1.3)]}}
+    diff = CLI.compare_arms(_doc(r), _doc(moved))
+    assert diff["verdict"] == "different" and diff["frames_different"] == 1
+    assert diff["examples"] == [{"spot": "s1", "valid_time": "t1", "diff": {"surf_height_m": [1.2, 1.3]}}]
+    assert CLI.compare_arms(_doc(r), _doc(r, sha="m2"))["verdict"] == "inconclusive", "an ingest between the arms"
+    assert CLI.compare_arms(_doc({}), _doc({}))["verdict"] == "different", "nothing compared is not a pass"

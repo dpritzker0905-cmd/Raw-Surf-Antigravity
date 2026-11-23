@@ -40,6 +40,7 @@ import { reconcileStaleBadge, latticeNearestMaxHours } from './drawnFrameReadout
 import { forecastHourMs, infoboxFrameView, ratingFrameNote } from './infoboxFrameTime';
 import { InfoboxFrameWords } from './InfoboxFrameWords';
 import { InfoboxSpotChart } from '../spot-hub/charts/SpotChartPanel';
+import { useNoteForecastShown } from '../observations/forecastExposure';
 
 export const MapForecastOverlay = ({
   forecastData,
@@ -62,6 +63,7 @@ export const MapForecastOverlay = ({
   isPlaying = false,
   user = null, onTimeChange = null, // spot-hub phase 4: the compact chart's tier, and the scrubber setter a bar moves
 }) => {
+  useNoteForecastShown('map_overlay');  // blind-quality exposure (observations/forecastExposure)
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { detailsExpanded, setDetailsExpanded, detailsRef, onDetailsKeyDown } = usePointDetailsDisclosure();

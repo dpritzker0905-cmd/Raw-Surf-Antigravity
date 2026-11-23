@@ -24,6 +24,9 @@ def commit_seam_table(dirpath, rows, filename="seam_table.csv"):
     path = os.path.join(dirpath, filename)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
+    summary, _ = seam_mod.summary_csv(rows)             # total pairs per target beside the median and p95
+    with open(os.path.splitext(path)[0] + ".summary.csv", "w", encoding="utf-8", newline="\n") as f:
+        f.write(summary)
     return path, sha
 
 
@@ -36,6 +39,14 @@ def freeze_targets(dirpath, targets, seam_table_path, seam_table_sha256):
         actual = hashlib.sha256(f.read()).hexdigest()
     if actual != seam_table_sha256:
         raise FreezeOrderError(f"seam table sha256 {actual} != the committed {seam_table_sha256}")
+    try:
+        table_rows = seam_mod.read_table(seam_table_path)        # the CURRENT format only; an old table is refused
+    except ValueError as e:
+        raise FreezeOrderError(f"seam table is not in the current format: {e}") from e
+    seam_targets = {r.target for r in table_rows if r.tag == seam_mod.SEAM}
+    for t in targets:
+        if (t["id"] in seam_targets) != ("SEAM" in (t.get("tags") or [])):
+            raise FreezeOrderError(f"{t['id']}: its SEAM tag does not match the committed seam table")
     for t in targets:
         if not t.get("datum_records"):
             raise FreezeOrderError(f"{t['id']}: no datum conversion record (gate 1a): refusing to freeze")
