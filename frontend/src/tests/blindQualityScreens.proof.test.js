@@ -37,6 +37,7 @@ const PURE = {
   'components/map/spotRatingsCdn.js': 'fetch client',
   'components/map/tideClient.js': 'fetch client',
   'components/map/usePointTide.js': 'data hook; rendered by map surfaces that record exposure',
+  'components/map/tideOverlayModel.js': 'tide overlay model; drawn only by TideOverlayLayer inside MapWebGL, which records map',
   'components/map/surfRating.js': 'rating helpers; no UI',
   'components/spot-hub/spotHubP1.js': 'window and tier helpers; no UI',
   'components/spot-hub/spotHubP1Format.js': 'formatting helpers; no UI',
