@@ -13,7 +13,8 @@ Served change: none.
   - Changing them after a fail-shaped hint would be metric shopping (director, 2026-11-22).
 - **Adds information only.** S1-S3 are reported in the same result, in a separate section headed "Secondaries (amendment 1; not decision-bearing)".
 - **Conflicts.** If the primary says revert and a secondary favours the lane, the revert stands. If the primary keeps the lane and a secondary disfavours it, the lane stays.
-  - In both cases the secondary is evidence for gate `rating-wind-coast-v1` only. That gate is the one place a switch of the primary metric can happen.
+  - D-071 grades the area-meaned MAP lane, not the rating. S1-S3 describe that field and are motivation for `rating-wind-coast-v1`, never its result or an input to it (advisor, ruling (b), 2026-11-22).
+  - Any switch of the primary metric happens only through `rating-wind-coast-v1`'s own pre-registered data.
 
 ## 2. Secondaries
 All three use the re-grade's own rows, leads, cycles and arms (LANE, GFS, RAW = native HRRR cell, as the script defines them) and its own 10 m height adjustment.
@@ -31,7 +32,7 @@ All three use the re-grade's own rows, leads, cycles and arms (LANE, GFS, RAW = 
 ### S2: coastal-station truth
 - **Stations:** NDBC `activestations.xml` rows with `type="fixed"` and `met="y"` (C-MAN and NOS/CO-OPS met stations mirrored by NDBC).
   - Inside the lane's full-weight zone (space weight 1).
-  - Kept only if an HRRR water cell lies within 3 km.
+  - Kept only if an HRRR water cell AND an HRRR land cell both lie within 3 km. This keeps coastal stations and excludes offshore platforms and lights (advisor, 2026-11-22).
   - Great Lakes box excluded (lat 41-49, lon -92.5 to -76).
   - Region split at -109° longitude (West / East+Gulf), the middle of D-071's -112..-106 ramp.
 - **Freeze.** The selected list (id, lat, lon, anemometer height, region) is written by the build and committed BEFORE any forecast is paired with these stations. Selection cannot change after pairing.
