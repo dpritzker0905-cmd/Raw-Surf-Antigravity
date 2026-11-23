@@ -13,9 +13,9 @@ import { sanitizePointTide, pointTideNote, formatPointTide, tideSourceLabel } fr
 import { frameDescription } from '../spot-hub/charts/spotSeriesModel';
 
 const BLOCK = {
-  datum: 'MLLW', label: 'above MLLW', offset_m: 0.77, msl_minus_mllw_m: 0.851, mean_level_removed_m: 0.081,
+  datum: 'MLLW', label: 'above MLLW', offset_m: 0.77, msl_minus_mllw_m: 0.851, mean_level_included_m: 0.081,
   source: 'gauge', source_label: 'NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km)', epoch: '1983-2001',
-  long_label: 'Tide height above MLLW (NOAA chart datum, 1983-2001 epoch), as a NOAA tide table shows it. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km).',
+  long_label: "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km).",
   negative_note: 'x',
 };
 
@@ -36,6 +36,12 @@ describe('tideDatumOf', () => {
       expect(m.offsetM).toBe(0);
     }
     expect(tideDatumOf('MLLW', 'model').sourceShort).toMatch(/19-yr/);
+  });
+  test('the compact pair (card, glyph, chart) carries the same honest frame wording as the full block', () => {
+    for (const d of [tideDatumOf('MLLW', 'model'), tideDatumOf(BLOCK)]) {
+      expect(d.long).toMatch(/average sea-level rise/);
+      expect(d.long).toMatch(/[Ee]xcludes today's ocean anomaly/);
+    }
   });
   test('client kill restores the served MSL level so the label and number agree', () => {
     window.__RAW_DISABLE_TIDE_MLLW__ = true;
@@ -71,7 +77,7 @@ describe('card row, hub line, chart', () => {
   test('hub source line swaps the MSL wording for the MLLW long label and keeps the credit', () => {
     const s = tideSourceLabel({ station_id: 'raw-surf:tide-own:am', tide_label: 'heights above local mean sea level',
       credit: 'CREDIT TEXT', datum: BLOCK });
-    expect(s).toMatch(/^Tide height above MLLW \(NOAA chart datum/);
+    expect(s).toMatch(/^Tide plus average sea-level rise, above MLLW \(NOAA chart datum/);
     expect(s).toMatch(/9410660 Los Angeles/);
     expect(s).toMatch(/CREDIT TEXT/);
     expect(s).not.toMatch(/local mean sea level/);

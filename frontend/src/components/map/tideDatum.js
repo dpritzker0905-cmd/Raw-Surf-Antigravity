@@ -41,7 +41,8 @@ export function tideDatumOf(info, src) {
   return {
     isMllw: true, short: MLLW_SHORT, offsetM: num(block.offset_m) ?? 0, source, sourceShort,
     long: typeof block.long_label === 'string' && block.long_label
-      ? block.long_label : `Tide height above MLLW (NOAA chart datum)${source ? `. Datum from ${source}` : ''}.`,
+      ? block.long_label
+      : `Tide plus average sea-level rise, above MLLW (NOAA chart datum). Excludes today's ocean anomaly and storm surge${source ? `. Datum from ${source}` : ''}.`,
     negativeNote: NEGATIVE_NOTE,
   };
 }

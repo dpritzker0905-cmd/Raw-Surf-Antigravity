@@ -53,6 +53,29 @@ sea-level rise since the epoch, M above a NOAA tide table. `offset_m` becomes D,
 `mean_level_included_m`. The long label says the display includes the rise (about M cm at the point) and excludes
 today's ocean anomaly and storm surge. The basis is the "Frame check" section below.
 
+**Consumer audit before the label change (2026-11-23).** Every reader of the datum block or its text, on this branch
+and on open PR #923:
+
+| Consumer | What it reads | Frame-dependent? | Done here |
+|---|---|---|---|
+| `tide_datum.datum_for` (backend) | builds `offset_m` and `long_label` | yes: the only place the frame wording is built | changed |
+| `/point-tide` → infobox `TideReadout.js` | full block (`datum_info`): short label, `long`, source, MSL line | through `long_label` only | none needed; the footer short text "above MLLW (NOAA chart datum)" stays true |
+| `/tides/{id}` → hub `SpotTideBlock.js`, `spotHubP1Format.tideSourceLabel` | full block | through `long_label` only | pin updated |
+| rating `tide` → card row (`forecastCardCompiler`, `pointTideNote`), glyph line (`tideClient.formatTideLine`) | compact pair (`datum`, `datum_src`) | yes: the client fallback text | changed in `tideDatum.js` to "Tide plus average sea-level rise, above MLLW … Excludes today's ocean anomaly and storm surge", with a test that the compact pair and the full block both say it |
+| spot series `td` + `tdd` → chart (`spotSeriesModel.frameDescription`, `SpotForecastChart` caption) | the `tdd` flag only | no: the text is "above MLLW", which is still true | none needed |
+| client kill `__RAW_DISABLE_TIDE_MLLW__` (`shownHeight`, `pointTideForDisplay`) | subtracts `offset_m` | no: value − D = A + M, the served level, in either frame | none needed |
+| #923 tide overlay (`tideOverlayModel.tideMarkerModel`) | the RAW `/point-tide` payload through `tideAt`, not through `pointTideForDisplay` | yes, and not frame-specific | NOT on this branch; owed by #923 (below) |
+
+What #923 owes when #1149 lands, whichever frame ships:
+1. **Map the marker height through `pointTideForDisplay`.** Otherwise, with the client kill on, the infobox goes back
+   to MSL while the marker stays on MLLW, which breaks #923's own G1 marker-equals-infobox parity.
+2. **Name the datum on the marker.** Its text and `aria-label` carry a height with no datum word; add `datum.short`.
+3. **Fix the docs wording.** #923's credit text, "Tide data: FES2022 (CNES; LEGOS, NOVELTIS, CLS via AVISO) +
+   Copernicus Marine", stays as it is. Its docs line, "FES2022 + the altimetry mean level, above local MSL", should
+   become "above MLLW at US points, else local MSL".
+4. **Expect merge conflicts.** #923 also edits `forecastCardCompiler.js`, `SpotForecastChart.js`,
+   `spotSeriesModel.js`, `spotHubP1Format.js` and the kill-switch inventory, all of which #1149 also edits.
+
 **Second opinion on the frame (Reflection, Beam-1.0, 2026-11-22, advisory).** Its strongest case against A + D:
 surfers need the water actually present. A + D reads about 0.1 m low, so a reef or rock call could be misjudged, and
 a secondary line may be too weak to correct the primary number. It would keep A + D only on evidence that comparing
@@ -128,7 +151,7 @@ on both sides in `tests/test_tide_datum.py`:
 | Element | Text |
 |---|---|
 | Short label | "above MLLW" / "above local MSL" |
-| Long label | "Tide height above MLLW (NOAA chart datum, 1983-2001 epoch), as a NOAA tide table shows it. Datum from \<source\>." |
+| Long label | "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about M cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge. Datum from \<source\>." The compact-pair fallback (card, glyph, chart) says the same in short. |
 | Negative values | "minus tide", with: "0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error." |
 | Transition line | "≈ X above local mean sea level" |
 

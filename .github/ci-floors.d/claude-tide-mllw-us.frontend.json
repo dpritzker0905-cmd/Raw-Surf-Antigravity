@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 7,
+  "tests": 8,
   "files": 1,
   "branch": "claude/tide-mllw-us",
-  "date": "2026-11-22",
-  "note": "tideDatum.test.js +12; tideClient fallback tests -6 +1 (D-082 removal)"
+  "date": "2026-11-23",
+  "note": "tideDatum.test.js +13 (incl. A+M+D compact-pair wording); tideClient fallback tests -6 +1 (D-082 removal)"
 }
