@@ -432,7 +432,21 @@ node dark-storm-crest.mjs --from 5 --strict                  # exit 1 if the shi
 
 The `MODEL` block in `check.mjs` must match `HEATMAP_FS` / `DRAW_FS` and the `TINT` / `SURFACES` / `BASEMAP` constants
 in `windFieldLut.test.js`: strengths, base alphas, ramp ends, particle opacities, and the measured water and land
-colours.
+colours. Dark's field LAW (premultiplied, below) is mirrored in `windFieldLut.test.js` (the `gpu` composite-hue and
+visibility ratchets), `windPaletteCvd.test.js` (`tintOver(..., gpu)`), `windDarkRules.test.js` (dark's own step) and the GUSTS
+vs WIND section; `windParticleContrast.test.js` mirrors DRAW_FS's casing model, which is alpha-over on purpose (see below).
+
+**Dark's field is premultiplied (2026-11-22, `dark-field-gpu.mjs`).** `HEATMAP_FS` writes `vec4(fieldRgb * a, a)` and the engine
+blends it `SRC_ALPHA, ONE_MINUS_SRC_ALPHA` (`windCanvasAlpha.js` `blendIntoMap`), so the screen holds `c a^2 + map (1 - a)`: a dim
+veil whose colour lands at a squared strength. Until then `check.mjs` judged `c a + map (1 - a)`. `node dark-field-gpu.mjs` reads it
+back from a GPU with the REAL heatmap shaders and dark's uploaded LUT: the colour laid fits `a^2` to 0.006 at every speed (and `a`
+misses by up to 0.254), and over dark's water the readback sits within 0.7/255 of `c a^2 + map (1 - a)` (63.7/255 off the old law).
+The canvas-alpha kill (`__RAW_DISABLE_WIND_OPAQUE_CANVAS__`) moves the canvas's alpha only (255 -> 191-213), never a colour byte.
+Evidence: `audit/dark-field-gpu-2026-11-22.json`. `node check.mjs --dark-alpha-over` prints the old lines. Under the true law
+dark's tint floor (9.0 dE00 at 7 kn), its hue-blend watch (6-8 kn) and its colour-blind tint (47-55 kn tritan 3.1) are RED:
+a finding for the owner, whose dark look is approved; no colour was changed. DRAW_FS's casing still models the field as
+alpha-over (`fieldY = mix(u_basemap_y, rampY, fieldA)`); it is inert under the default fixed pole (`windCasingFixedPole`), and
+only the kill `__RAW_DISABLE_WIND_FIXED_CASING__` reads it.
 
 Background: `reports/Color and motion tools for Claude.md` and `reports/Wind particle color basemap contrast.md`.
 
