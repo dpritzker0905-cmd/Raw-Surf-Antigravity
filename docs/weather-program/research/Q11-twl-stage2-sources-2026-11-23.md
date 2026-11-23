@@ -234,3 +234,15 @@ Test (SHEF-to-NetCDF offset, same model, same run `stofs_2d_glo.20261122/…t12z
 CO-OPS datums were read with the CO-OPS datum tool for each station.
 
 Result: `zeta` is referenced to mean sea level at both stations, so the README and NOMADS are right. The "above geoid" attribute is misleading and should not be used. A geoid reference would show a tens-of-metres offset, not 0.8–0.9 m. Two stations, one run: this is a descriptive check, not a general proof.
+
+## Update 2026-11-23: P-ETSS bias correction (lead's open item 1)
+
+Earlier notes said P-ETSS has no station bias correction. That is superseded for the current product:
+- A 2019 NWS paper says ETSS has station-based bias correction and P-ETSS did not at its first release. Source: [ETSS2p3 / P-ETSS1p1 document](https://slosh.nws.noaa.gov/docs/data/2019_ETSS2p3_P-ETSS1p1.pdf) (search-reported).
+- A 2019 AMS abstract says the same station bias correction used for ETSS was planned for P-ETSS. Source: [AMS 2019 paper 355246](https://ams.confex.com/ams/2019Annual/webprogram/Paper355246.html) (search-reported).
+- P-ETSS v1.4.5 (MDL notice, July 2026, search-reported, not read in full) lets bias calculation be switched off per station for 36 stations, and adds it for 9 Eastern Region and 4 Alaska Region stations. Bias correction is therefore station by station, not uniform.
+- SCN 25-57 lists bias-corrected SHEF files for P-ETSS, which agrees with the above.
+
+Consequence for the surge choice: a served P-ETSS station value may already be bias corrected. Adding our own correction on top could double-correct it. Check the per-station flag for each gauge before any correction is added.
+
+Still open: the P-ETSS horizon (open item 2). The SCN text I extracted does not state it.
