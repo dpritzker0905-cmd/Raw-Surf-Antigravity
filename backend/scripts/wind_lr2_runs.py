@@ -71,7 +71,9 @@ def region_of(lat: float, lon: float) -> str:
     """Region of a station. GREAT_LAKES is EXCLUDED (its NDBC buoys pass the buoy branch of the marine-exposed rule, so the
     flag is forced off in wind_lr2_geo.pair_list). BLACK_SEA is not one of the five registered regions: it is handled as
     OTHER (pooled coefficients, reported, no G6 line). The Mediterranean is the sea east of Gibraltar: the Atlantic Iberian,
-    Biscay and French/Spanish Atlantic surf coasts (Hossegor, Mundaka, Santander) belong to EUROPE_ATLANTIC."""
+    Biscay and French/Spanish Atlantic surf coasts (Hossegor, Mundaka, Santander) belong to EUROPE_ATLANTIC. Longitude is
+    normalised to -180..180 on entry (a 0..360 source such as 203 E is -157)."""
+    lon = ((float(lon) + 180.0) % 360.0) - 180.0
     if 41.3 <= lat <= 49.5 and -92.5 <= lon <= -76.0:
         return "GREAT_LAKES"
     if 18.0 <= lat <= 23.0 and -161.0 <= lon <= -154.0:

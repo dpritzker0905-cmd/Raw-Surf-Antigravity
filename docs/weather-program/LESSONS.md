@@ -1584,3 +1584,38 @@ A stored estimate can be estimated again in a browser branch with different sour
   coverage, resolution, model range). A difference between two views or devices can be the fixture's geometry, not a client branch.
 - Same class as the layer-animation lane's harness lesson: the instrument or the fixture is the first suspect.
 - Fixed: `WATER_CUTS` in `serve_synthetic.py` return the sea along the US Atlantic and Gulf coasts.
+
+### 2026-11-22 — L-S29 · Search the program's own memory before new research
+- **What happened:** research note Q10 (#1163) and gate `rating-wind-coast-v1` (#1165) were drafted from new literature and a fresh pier-vs-buoy read.
+  - The L6 lane had already measured the same question on 2026-11-02: HRRR beat served GFS by 1.17 rating points [0.57, 1.82] at 7 coastal anemometers (memory `research-wind-tide-nearshore-verification-2026-11-02`).
+  - Neither draft cited it until the research lead's own memory pass found it. Both were amended before any data was read.
+- **Rule:** before a research question or a gate, run `memq.py "<terms>" --repo` and `git grep` over `docs/weather-program/` for the question's nouns (source, metric, station ids). Cite what exists, or say that nothing was found.
+
+### 2026-11-22 — L-S30 · NDBC fill values are per field, never one global list
+- **What happened:** the first draft of `served-wave-verify-v1` (#1168) dropped NDBC "99.00, 999, 9999" globally. That deletes a valid 99° mean wave direction.
+  - #1156's `nearshore_lite/truth.py` already had it right: only the text sentinel `MM` is global, and numbers are rejected by per-field ranges (WVHT 0-30 m, DPD 1-40 s, MWD 0-360°).
+- **Rule:** reject a numeric fill by the field's physical range, never by a shared list of sentinels. Reuse the program's one QC module.
+
+### 2026-11-22 — L-S31 · One store per kind of record
+- **What happened:** two lanes designed point archives at the same time:
+  - the served-frame verification archive (#1168);
+  - the MOP-lite forward archive (#1156), which wrote to the job runner's `out_dir` and would not have outlived the job.
+
+  Two stores drift apart in buoy set, QC, time convention and retention. LongCat found it; neither lane did.
+- **Rule:** before designing a store, list the existing writers of the same kind of record. Extend the existing archive with a `purpose` tag instead of building a second one. Check that the store outlives the job that writes it.
+
+### 2026-11-22 — L-S32 · Gate wording the advisor holds on (recurring)
+- **A running registration:** add secondaries "reported beside" in a dated amendment committed before the data is read. Never change the primary metric after a fail-shaped hint; a new metric goes to a new gate (D-071 amendment 1, #1164).
+- **Fix the serving read now.** Write into the gate the read rule a pass would ship (which cell, at the SPOT coordinate). Name "measured at stations, not spots" as a limit (#1165).
+- **Planted controls must be able to move.** Draw a plant only from units it can change (a shift toward onshore cannot move calm or onshore hours). Test it unadjusted at one-sided p < 0.05, with no minimum effect size (#1165).
+- **Coastal means land AND water nearby.** A rule of "water within 3 km" admits offshore platforms and lights.
+- **Census by domain.** A count of expected records must use only the units inside the product's bounds, with an `out_of_domain` status (#1168).
+- **Keys.** Parity and verification reads use the anonymous public path, never the service-role key.
+
+### 2026-11-22 — L-S33 · Read the science registry before calling code inconsistent with its docs
+- **What happened:** the bug hunt (#1175) reported that, with shelf friction off, breaking height below the cap does not depend on depth, "contradicting" the wide-shelf text.
+  - The repro fed the SAME offshore sea to four spots.
+  - `science_registry.SHELF_CF_SCALE_DEFAULT` already recorded why friction is off: WW3 applies bed friction, so the model Hs at a shelf spot is already reduced, and the decision was CDIP-validated on 2026-09-28. The legacy arm has confirmed it since.
+- **Rule:**
+  - Before reporting a physics inconsistency, read the constant's entry in `science_registry.py` and search LESSONS.
+  - A repro with identical inputs cannot test an effect that lives in the inputs.

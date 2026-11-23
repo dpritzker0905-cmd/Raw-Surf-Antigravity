@@ -2,7 +2,8 @@
 frozen stations, plus (TEST only) the two served comparators' fields. Serves nothing; never calls the Raw Surf backend.
 
   python scripts/wind_lr2_collect.py list   --kind fit|test [--freeze-time ISO]      # the registered run list
-  python scripts/wind_lr2_collect.py collect --kind fit|test --cache C --shard 0/24  # DISPATCH NEEDS THE OWNER'S WORD
+  python scripts/wind_lr2_collect.py collect --kind fit|test --cache C --shard 0/12  # DISPATCH NEEDS THE OWNER'S WORD
+  python scripts/wind_lr2_collect.py snapshot --cache C --stations S.json          # weekly realtime2 snapshot
 
 Sources (amendment 1): AIGEFS `noaa-nws-graphcastgfs-pds` EAGLE_ensemble/aigefs.YYYYMMDD/HH/memNNN (sfc, UGRD/VGRD
 10 m, 6-hourly to f384, no gust). GEFS 0.5 deg `noaa-gefs-pds` pgrb2ap5 (UGRD/VGRD 10 m; the 0.25 deg `pgrb2sp25`
@@ -143,8 +144,9 @@ def _live_io():
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["list", "collect"])
-    ap.add_argument("--kind", choices=["fit", "test"], required=True)
+    ap.add_argument("cmd", choices=["list", "collect", "snapshot"])
+    ap.add_argument("--kind", choices=["fit", "test"], default="test")
+    ap.add_argument("--stations", default=None, help="snapshot: the frozen station JSON")
     ap.add_argument("--freeze-time", default=None, help="ISO UTC committer timestamp of the freeze commit (test only)")
     ap.add_argument("--cache", default=None)
     ap.add_argument("--shard", default="0/1")
@@ -157,7 +159,15 @@ def main(argv=None):
         print(f"{len(runs)} runs; last valid {R.last_valid(runs).isoformat()}; truth snapshots to {R.snapshot_end(runs):%Y-%m-%d}")
         return 0
     if not a.cache:
-        raise SystemExit("--cache is required for collect")
+        raise SystemExit("--cache is required")
+    if a.cmd == "snapshot":
+        import requests
+        import wind_lr2_truth as T
+        doc = json.load(open(a.stations or os.path.join(a.cache, "wind_lr2_stations.json")))
+        ids = [x["id"] for x in doc["ndbc"]]
+        n = T.save_snapshot(requests.Session(), os.path.join(a.cache, "snapshots"), ids, datetime.now(timezone.utc))
+        print(f"snapshot: saved {n} of {len(ids)} stations")
+        return 0
     import requests
     import wind_lr_obs as obs
     io, H = _live_io()
