@@ -58,3 +58,6 @@ fix; it changes no served number, so it adds no SCOREBOARD row.
   then a dispatch on `dev`.
 - Watched read-only. No re-run, and `SPOT_SERIES_PUBLISH` stays 0; unsetting it needs David's word after GFS, EURO and
   ICON all read 'identical'.
+- 02:27:38Z: the director CANCELLED run 45100260710 before any job ran (0 jobs; a PR ref gets no credentials).
+  Ledger: `ledger.d/fix--spot-series-timeout-starvation.jsonl:4` (corrects `:3`). Next: #1174 merges, then the director
+  dispatches on `dev` with the same inputs under the same "Yes, run it".
