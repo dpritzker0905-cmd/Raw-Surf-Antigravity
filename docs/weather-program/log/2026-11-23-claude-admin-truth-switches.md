@@ -102,3 +102,15 @@ arrows move, visible ring, live count), `GFS_WORLD_FULL_HORIZON` reads On from i
 One `admin-ops-snapshot.yml` run (schedule or dispatch) is green and its log line shows a non-null skill-pending
 count; then one admin read of `/admin/surf-forecast/switches` shows `GFS_WORLD_FULL_HORIZON` with a lane value from
 the repo variable (not "set in CI"). No load test; one read, `/api/health` before and after.
+
+## Follow-up: the inspection lane's three panel gaps (director asked; SubQ and Reflection, public text)
+Both reviewers gave the same answer to all three:
+1. **Accuracy-monitor MAE with n: SEPARATE PR.** The monitor GETs the live `/api/weather/buoy-calibration` and
+   persists nothing. Neither a 5th live call on the 1-CPU box nor the admin calling the computation itself is
+   acceptable. The safe design is for the monitor workflow to upload its summary JSON (MAE and bias per lead WITH n)
+   to the bucket and for the ops snapshot to copy it. Not done here: it changes another workflow.
+2. **Guardrail schedule text: fixed here.** `admin_guardrail_view.SCHEDULE_UTC` (and the client fallback) now says the
+   four times are only scheduled, that GitHub's best-effort cron runs fewer, and where the real last runs are.
+3. **`RATING_REF_PRIOR` description: fixed here, neutrally.** It now reads "code default OFF ... may be ON through the
+   runtime manifest: read the effective value and source on this row". It does not claim ON from STATE, because the
+   private manifest was not read.
