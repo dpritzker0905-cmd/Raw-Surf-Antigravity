@@ -111,7 +111,12 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
     expect(siblingAskKey('page', a)).not.toBe(siblingAskKey('page', { ...a, hourOffset: 51 }));
     expect(siblingAskKey('mini', a)).toBe(siblingAskKey('mini', { ...a, bounds: { ...BOUNDS, west: BOUNDS.west + 0.1 } }));   // same 1-deg box
     window.__SURF_MODE__ = true;
-    expect(siblingAskKey('mini', a)).toMatch(/\|surf\|/);
+    // Bug hunt 2026-11-22 D, option B: a partition layer is asked PLAIN even in Rating mode (partitionHeightOnly.js); the
+    // Waves layer carries the rating flavour, and the kill switch restores the partition's rated flavour.
+    expect(siblingAskKey('mini', a)).toMatch(/\|swell\|/);
+    expect(siblingAskKey('mini', { ...a, layer: 'waves' })).toMatch(/\|surf\|/);
+    window.__RAW_DISABLE_PARTITION_HEIGHT_ONLY__ = true;
+    try { expect(siblingAskKey('mini', a)).toMatch(/\|surf\|/); } finally { delete window.__RAW_DISABLE_PARTITION_HEIGHT_ONLY__; }
   });
 
   it('positive control: with __RAW_DISABLE_SIBLING_ASK_ONCE__ every warm asks the mini again, as before', async () => {
