@@ -317,7 +317,7 @@ The full notes are in the shared notes, `ADVISOR-EARLY-READ-1231-self-improving-
   - the 4-week VALIDATION replay is a sanity check that passes with <= 8 statistical issues (P(<= 8 | Poisson(4)) = 0.98 when the alarms work as designed);
   - the prospective WARN-only month is reported beside both.
 
-### 12.3 Inspector facts, folded after freeze (scope clarifications only; no rule form, constant or budget changes)
+### 12.3 Inspector facts, folded after freeze (clarifications plus TWO CONSERVATIVE OPERATING RULES: the read-time LOCKED filter on stored rows, and the D-072 level rules WARN-only until a passing replay; no rule form, constant or budget share changes)
 Source: the inspection lane's `LOOP-FACTS-FOR-RESEARCH-LEAD-2026-11-23.md` (shared notes, read at dev `78e7adb21`).
 - **The fence also covers STORED rows.** There is no single NDBC helper today: about six independent fetchers plus one-off scripts, and only `served_wave_verify_score.ndbc_get` is behind the holdout module.
   - Several readers fetch nothing themselves and read the skill ledger's stored rows instead (`forecast_accuracy_monitor.py`, `gate_v2.py` and others).
