@@ -2434,3 +2434,6 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Reopen if:** the 18 h (3 × 6 h) shadow window proves too slow for high-urgency fixes. A flag can still
   be re-enabled immediately via the owner's workflow_dispatch, bypassing the shadow — but that leaves a gap
   in the evidence chain, which the owner accepts.
+- **2026-11-23 follow-up (PR #1226):** `shadow_proposal` is idempotent — once written for a version,
+  further qualifying passes return `hold` ("proposal already written for version …; owner decides when to
+  re-enable") so the ACTIONS log and `acted.txt` don't grow every 6 hours while the owner decides.
