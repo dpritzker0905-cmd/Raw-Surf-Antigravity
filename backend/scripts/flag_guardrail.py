@@ -128,6 +128,8 @@ COVERAGE = {
     "RATING_REF_PRIOR": (RATING, "the quality score's size reference for spots with no climatology (JAC-2, #771); no "
                                  "observed rating exists. Evidence: MOP size-category agreement (#839)"),
     "ALERTS_FORECAST_WINDOWS": (VOLUME, "sent-alert volume per user-day against its cap"),
+    "BAND_PARTITION_HEIGHT_ONLY": (BLIND, "the map band on partition layers only (they show height, no rating); the replay rates "
+                                          "the glyph chain, untouched. Evidence: test_band_partition_height_only.py"),
     "SPOT_HUB_RATE_ONE_SPOT": (BLIND, "the spot hub's own route; the replay rates through rate_one_spot. Evidence: "
                                       "hub = glyph parity tests (unit, offline)"),
     "SURF_SEA_INPUTS_EVERY_CALLER": (BLIND, "the hub, conditions, surf-conditions and sim callers (#772); the glyph "

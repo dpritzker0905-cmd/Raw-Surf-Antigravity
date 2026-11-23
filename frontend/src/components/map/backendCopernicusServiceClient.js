@@ -5,18 +5,8 @@
  */
 
 import { BACKEND_URL } from '../../lib/apiClient';
-import {
-  GRID_URL,
-  POINT_URL,
-  getSharedValidTime,
-  clampViewportBbox,
-  getBackendCopernicusFlag,
-  latestTimeDiag,
-  PILOT_COVERAGE,
-  updateProjectionDiag,
-  fetchProductsManifest,
-  getSurfModeFlag
-} from './backendWeatherServiceClient';
+import { GRID_URL, POINT_URL, getSharedValidTime, clampViewportBbox, getBackendCopernicusFlag, latestTimeDiag, PILOT_COVERAGE, updateProjectionDiag, fetchProductsManifest, getSurfModeFlag } from './backendWeatherServiceClient';
+import { bandRatedFor } from './partitionHeightOnly';
 import { BoundedPointCache } from './BoundedPointCache';
 import { pointRequestIdentityEnabled, createPointRequestContext } from './pointRequestIdentity';
 import { marineValueValidityEnabled, marinePointValues } from './marinePointValues';
@@ -24,6 +14,8 @@ import { arrayMax } from './marineControllerUtils';
 import { staticEligible, tryStaticWorldGrid } from './staticFrames';
 import { readMarineFrameReceipt } from './marineFrameReceipt';
 import { hintIsForeign, pointModelGuardOn, productHintFor, refuseForeignReply } from './pointProductHint';
+// The flavour the marine data lane asks for this layer: a partition is plain even in Rating mode (bug hunt 2026-11-22 D).
+const getMarineBandFlag = (layer) => bandRatedFor(getSurfModeFlag(), layer);
 
 export const copernicusPointCache = new BoundedPointCache(50, 30000);
 
@@ -383,12 +375,12 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
   // surf=1 (2026-07-12): the EURO grid lane never requested the rating transform at all — the
   // GFS/ICON lane (fetchBackendMarineGrid) and the series lane both append it; EURO rating mode
   // silently served raw swell. Same flag + same mapper gate (ratingMode) as the other lanes.
-  const url = `${GRID_URL}?model=EURO&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}${getSurfModeFlag() ? '&surf=1' : ''}`;
+  const url = `${GRID_URL}?model=EURO&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}${getMarineBandFlag(layer) ? '&surf=1' : ''}`;
 
   try {
     // STATIC FRAMES (seam A, as fetchBackendMarineGrid; 2026-10-22): a world EURO waves box is answered from the pinned CDN
     // frame (staticFrames.js); any miss or error returns null and /grid is fetched exactly as before.
-    const surfNow = getSurfModeFlag();
+    const surfNow = getMarineBandFlag(layer);
     const staticJson = staticEligible({ model: 'EURO', layer, bbox: clampedBbox, surf: surfNow })
       ? await tryStaticWorldGrid({ model: 'EURO', layer, validTimeStr, clampedBbox, surf: surfNow, signal }) : null;
     const res = staticJson ? { ok: true, status: 200 } : await fetch(url, { signal });

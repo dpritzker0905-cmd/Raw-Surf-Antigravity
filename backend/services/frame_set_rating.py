@@ -64,9 +64,12 @@ def rated_regional_sets():
 def rated_publish_sets():
     """The rated step's sets in publish order (the budget stagger drops the tail first): the regional waves bundles (they paint),
     the GFS world waves set, the other regional layers, then the other world sets."""
+    from services.weather_pipeline import band_partition as _bp
     regional = rated_regional_sets()
     waves = [t for t in regional if t["layer"] == "waves"]
-    return tuple(waves) + RATED_SETS[:1] + tuple(t for t in regional if t["layer"] != "waves") + RATED_SETS[1:]
+    out = tuple(waves) + RATED_SETS[:1] + tuple(t for t in regional if t["layer"] != "waves") + RATED_SETS[1:]
+    # A partition layer is never rated (band_partition, bug hunt 2026-11-22 D): bake only what the band can be asked of.
+    return tuple(t for t in out if not _bp.height_only(t["layer"]))
 
 
 def paint_tier(target):
