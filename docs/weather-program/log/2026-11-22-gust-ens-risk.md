@@ -121,3 +121,29 @@ minimum 25 kn in B1 and B2. Committed before any model value or truth is read.
   exclusion).
 - LongCat was not asked: its one paid request on 2026-11-22 failed with a network error, and its billing outcome is
   unknown.
+
+## 2026-11-23 04:15Z · collection complete; measured egress (nothing scored)
+- **Collection** (local, serialized; one process with 4 run threads and every decode under one lock; never Render or
+  Supabase):
+  - 42 of 42 ECMWF 00Z runs collected, 0 dropped, 0 per-step errors;
+  - S3 answered "503 SlowDown" 55 times; every one was retried and recovered;
+  - 798 run-steps x 50 members x 450 stations, plus HRES on 638 steps;
+  - every member message's GRIB window was checked against the table; none differed.
+- **Station values kept:** 49 MB of run files. Tarball in the gust lane's shared notes folder:
+  `gust-ens-risk-runs-2026-11-23.tar.gz`, sha256 `4f61ca59ae83b7f3d69a35472572138aab9412585a754cd36651491bdedc9e54`.
+- **Egress, measured from the collected runs' own indices** (`gust_ens_risk_hindcast.py egress`, amendment 1 A8):
+
+| part | bytes | count |
+|---|---|---|
+| ENS member messages (10fg / 10fg3) | 33,511,624,905 | 39,900 |
+| HRES messages | 521,341,280 | 638 |
+| index files | 1,672,005,394 | 1,436 |
+| **collection total** | **35,704,971,579** (35.7 GB) | |
+| the measuring pass itself (index re-read) | 1,672,005,394 | |
+| **hindcast total** | **37,376,976,973** (37.4 GB) | under the approved 62 GB |
+
+  Earlier reads, all small, are not in the table:
+  - the window probe: 9 messages, ~13 MB;
+  - the publisher measurement: 3 steps x 50 messages, ~0.2 GB, plus 3 indices, ~6 MB;
+  - the truth snapshot and the station freeze: NDBC/IEM text, ~0.4 GB.
+- **Not done:** no count, no pairing, no score. These wait for #1195 to merge and #1199's LOCKED list to be frozen.
