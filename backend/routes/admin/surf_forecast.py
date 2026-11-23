@@ -16,7 +16,7 @@ report deletion, which is written to admin_logs.
 """
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -25,15 +25,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from services import runtime_flags as _rf
 from services.admin_flag_board import flag_rows
-from models import Profile, SurfReport, SurfSpot
-from routes.admin.core import log_admin_action
+from models import Profile, SurfSpot
 from deps.admin_auth import get_current_admin
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
-_RATING_FLAGS = {"SURF_NEARSHORE_LITE": ("0", "[D-065 GUARDED, held OFF: gate nearshore-moplite-v1 not yet run; guardrail BLIND] DARK MOP-lite: covered spots take a per-spot, partition-resolved refraction factor (offline backward ray tracing over public bathymetry, hash-frozen coefficients) in place of ONLY the global REFRACTION_KR and the cosine exposure factor; shoaling, the depth cap and the rating chain unchanged; kill '0'. services/weather_pipeline/nearshore_lite/", "code default; nothing sets it until the gate passes (then Render env AND forecast-ingest.yml AND precompute.yml env)"), "SURF_FACE_RANGE": ("1", "[D-065 ON, owner's typed word 2026-11-17 'it needs to be on, not dark'; NOT SCORED: gate NOT RUNNABLE (no physical breaker truth), guardrail BLIND; kill '0'] adds surf_face_low_m (same chain, no highest-tenth factor) and surf_face_high_m (= the served height) to /point and the spot rating row; the height, score and level are byte-identical. services/weather_pipeline/surf_point.py surf_face_range_at", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"), "SAMPLER_UNRESOLVED_STATIONS": ("1", "[D-065 GUARDED, ON, guardrail BLIND] NDBC 46267 by name (Strait of Juan de Fuca, unresolved at 0.25 deg): the station's point returns no data, not the open-Pacific cell 0.96 deg away (+1.5 m). Nothing else moves. services/weather_pipeline/unresolved_stations.py; kill '0'", "code default; no workflow or Render env sets it (a kill needs Render AND the ingest/precompute env, or the manifest)"), "ICON_SWELL2_SERVE": ("0", "[owner yes 2026-11-13 20:28 EST; flipped ON via the manifest after #877 merges] option B: /grid + /point serve the stored ICON swell_2 blend, else unsupported. services/weather_pipeline/icon_swell2_serve.py", "runtime manifest (control/flags.json, flag-guardrail reenable) - keep Render env UNSET; pairs with repo variable ICON_SWELL2_STORED=1"), "WEATHER_TIER_CLAMP": ("0", "[D-065 held OFF until weatherAuthFetch.js is live] O5 accounts only: no verified JWT = 401, else clamp to the tier window. services/weather_tier_clamp.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"), "WEATHER_ACCOUNT_RATE_LIMIT": ("1", "[kill '0'] per-account 429 + Retry-After on clamped reads and /frame-urls (in-process buckets; acts only once WEATHER_TIER_CLAMP / FRAME_ENTITLEMENT is on). services/weather_account_rate_limit.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"), "FRAME_WIND_GFS_HOURLY": ("1", "[D-065 ON, owner yes 2026-11-17 08:36 EST, guardrail BLIND, filter SKIPPED (no cached window); kill '0'] GFS global_mid wind stores NOAA's own hourly field f000-f120 (was 3-hourly; offline model-vs-model hold-out: the best interpolation left 0.89 m/s vector RMSE vs NOAA's own hour), so /grid wind and the ratings that read it move between 3-hourly steps. services/weather_pipeline/wind_mid_res_ingestion.py", "forecast-ingest-pilots.yml env (the global_mid wind ingest)"), "FRAME_OFFSET_PRODUCT": ("0", "[DARK, the director 2026-11-22; NOT SCORED: pre-registered in log 2026-11-22-claude-gapfill-offset-s-r.md, no skill claim] publishes the gap fill's MODEL - GFS offset sets (ICON 2 m temperature, EURO cloud; a running mean per UTC hour, 0.5 deg) read back from the frames just published. Nothing served moves: the client uses them only behind window.__RAW_RASTER_GAPFILL_OFFSET__. services/frame_set_offset.py", "forecast-ingest-pilots.yml env (repo variable FRAME_OFFSET_PRODUCT)"), "FRAME_ENTITLEMENT": ("0", "[D-065 held OFF until bucket weather-frames-private exists and the signer ships] O6 accounts only: every frame private, signed per class to accounts (/api/weather/frame-urls). services/frame_entitlement.py", "forecast-ingest-pilots.yml env (publisher) AND runtime manifest (signer)"),  # O5 #782 + O6 #783: on the opener line, this file sits at the 800-line cap
+_RATING_FLAGS = {"COPERNICUS_PEAK_PERIOD": ("0", "[DARK since 2026-10-20 (#412); owner decision pending; evidence plan gates/peak-period-ship-v1.md] the CMEMS (EURO point) lane fetches VTPK, a PEAK period, instead of VTM10 (an energy period ~0.84 x peak); period MAE vs NDBC 2.057 -> 1.540 s, worse under 8 s; height skill unscored. services/cmems_period_map.py", "forecast-ingest.yml AND forecast-ingest-pilots.yml AND precompute.yml env (fetchers read os.environ; the manifest cannot reach them) AND Render env"), "ICON_PEAK_PERIOD": ("0", "[DARK since 2026-10-20 (#412); owner decision pending; evidence plan gates/peak-period-ship-v1.md] the ICON lane blends the GWAM partition PEAK periods (ppts/ppww, p=2) instead of tm10; period MAE vs NDBC 2.362 -> 1.817 s, worse under 8 s; height skill unscored. services/gwam_peak_period.py", "forecast-ingest.yml AND forecast-ingest-pilots.yml AND precompute.yml env (fetchers read os.environ; the manifest cannot reach them)"), "SURF_NEARSHORE_LITE": ("0", "[D-065 GUARDED, held OFF: gate nearshore-moplite-v1 not yet run; guardrail BLIND] DARK MOP-lite: covered spots take a per-spot, partition-resolved refraction factor (offline backward ray tracing over public bathymetry, hash-frozen coefficients) in place of ONLY the global REFRACTION_KR and the cosine exposure factor; shoaling, the depth cap and the rating chain unchanged; kill '0'. services/weather_pipeline/nearshore_lite/", "code default; nothing sets it until the gate passes (then Render env AND forecast-ingest.yml AND precompute.yml env)"), "SURF_FACE_RANGE": ("1", "[D-065 ON, owner's typed word 2026-11-17 'it needs to be on, not dark'; NOT SCORED: gate NOT RUNNABLE (no physical breaker truth), guardrail BLIND; kill '0'] adds surf_face_low_m (same chain, no highest-tenth factor) and surf_face_high_m (= the served height) to /point and the spot rating row; the height, score and level are byte-identical. services/weather_pipeline/surf_point.py surf_face_range_at", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"), "SAMPLER_UNRESOLVED_STATIONS": ("1", "[D-065 GUARDED, ON, guardrail BLIND] NDBC 46267 by name (Strait of Juan de Fuca, unresolved at 0.25 deg): the station's point returns no data, not the open-Pacific cell 0.96 deg away (+1.5 m). Nothing else moves. services/weather_pipeline/unresolved_stations.py; kill '0'", "code default; no workflow or Render env sets it (a kill needs Render AND the ingest/precompute env, or the manifest)"), "ICON_SWELL2_SERVE": ("0", "[owner yes 2026-11-13 20:28 EST; flipped ON via the manifest after #877 merges] option B: /grid + /point serve the stored ICON swell_2 blend, else unsupported. services/weather_pipeline/icon_swell2_serve.py", "runtime manifest (control/flags.json, flag-guardrail reenable) - keep Render env UNSET; pairs with repo variable ICON_SWELL2_STORED=1"), "WEATHER_TIER_CLAMP": ("0", "[D-065 held OFF until weatherAuthFetch.js is live] O5 accounts only: no verified JWT = 401, else clamp to the tier window. services/weather_tier_clamp.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"), "WEATHER_ACCOUNT_RATE_LIMIT": ("1", "[kill '0'] per-account 429 + Retry-After on clamped reads and /frame-urls (in-process buckets; acts only once WEATHER_TIER_CLAMP / FRAME_ENTITLEMENT is on). services/weather_account_rate_limit.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"), "FRAME_WIND_GFS_HOURLY": ("1", "[D-065 ON, owner yes 2026-11-17 08:36 EST, guardrail BLIND, filter SKIPPED (no cached window); kill '0'] GFS global_mid wind stores NOAA's own hourly field f000-f120 (was 3-hourly; offline model-vs-model hold-out: the best interpolation left 0.89 m/s vector RMSE vs NOAA's own hour), so /grid wind and the ratings that read it move between 3-hourly steps. services/weather_pipeline/wind_mid_res_ingestion.py", "forecast-ingest-pilots.yml env (the global_mid wind ingest)"), "FRAME_OFFSET_PRODUCT": ("0", "[DARK, the director 2026-11-22; NOT SCORED: pre-registered in log 2026-11-22-claude-gapfill-offset-s-r.md, no skill claim] publishes the gap fill's MODEL - GFS offset sets (ICON 2 m temperature, EURO cloud; a running mean per UTC hour, 0.5 deg) read back from the frames just published. Nothing served moves: the client uses them only behind window.__RAW_RASTER_GAPFILL_OFFSET__. services/frame_set_offset.py", "forecast-ingest-pilots.yml env (repo variable FRAME_OFFSET_PRODUCT)"), "FRAME_ENTITLEMENT": ("0", "[D-065 held OFF until bucket weather-frames-private exists and the signer ships] O6 accounts only: every frame private, signed per class to accounts (/api/weather/frame-urls). services/frame_entitlement.py", "forecast-ingest-pilots.yml env (publisher) AND runtime manifest (signer)"),  # O5 #782 + O6 #783: on the opener line, this file sits at the 800-line cap
     "COPERNICUS_PEAK_PERIOD": ("0", "CMEMS (MFWAM) total wave_period from VTPK, the spectral PEAK period the surf chain is written for, instead of VTM10 (energy period Tm-1,0, kept as wave_period_tm10); CMEMS partitions keep VTM01 (no partition peak exists). services/cmems_period_map.py",
                                "forecast-ingest, forecast-ingest-pilots and precompute workflow env AND Render env together (Render serves the native CMEMS /point)"),
     "ICON_PEAK_PERIOD": ("0", "DWD GWAM partition PEAK periods ppts/ppww (were mean mpts/mpww) and a smooth blended total peak period (was tm10, kept as wave_period_tm10). services/gwam_peak_period.py",
@@ -489,7 +488,7 @@ _RATING_FLAGS = {"SURF_NEARSHORE_LITE": ("0", "[D-065 GUARDED, held OFF: gate ne
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": ("1", "[D-065 GUARDED, ON] the rating reads the served response's "
                                               "break_depth_m (the depth the height's cap used); kill switch '0' "
                                               "restores the independent break_depth_at read",
-                                         "Render env AND precompute.yml env"),
+                                         "Render env AND precompute.yml env"), "BAND_PARTITION_HEIGHT_ONLY": ("1", "[D-065 GUARDED, ON pending the owner's look at the screenshots; guardrail BLIND] bug hunt D, option B (overnight SubQ/Reflection/LongCat consensus the owner delegated): over swell_1/swell_2/wind_waves the map shows that partition's own height, no surf rating (the overlay skips; CI bakes no rated partition sets); the rating stays on waves, glyphs, hub, infobox; kill '0'. services/weather_pipeline/band_partition.py + frontend partitionHeightOnly.js", "runtime manifest (control/flags.json); the client kill is window.__RAW_DISABLE_PARTITION_HEIGHT_ONLY__ - keep Render env UNSET"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
     # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity
     # guard caught this one MISSING and it was right to, because an undeclared switch is invisible
@@ -755,46 +754,10 @@ async def local_size_preview(admin: Profile = Depends(get_current_admin),
     return report
 
 
-@router.get("/admin/surf-forecast/reports")
-async def get_recent_surf_reports(
-    hours: int = 168, limit: int = 200,
-    admin: Profile = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Recent user condition reports — the human observations that confirm Good/Epic and nudge scores
-    when RATING_OBS_GATE is on. Fresh (<=12 h) rows are the LIVE inputs; older rows are context."""
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=max(1, min(hours, 24 * 30)))
-    rows = (await db.execute(
-        select(SurfReport, SurfSpot.name)
-        .join(SurfSpot, SurfSpot.id == SurfReport.spot_id, isouter=True)
-        .where(SurfReport.created_at >= cutoff)
-        .order_by(SurfReport.created_at.desc())
-        .limit(max(1, min(limit, 500)))
-    )).all()
-    fresh_cut = datetime.now(timezone.utc) - timedelta(hours=12)
-    return {"count": len(rows), "reports": [{
-        "id": r.id, "spot_id": r.spot_id, "spot_name": name,
-        "user_id": r.user_id, "rating": r.rating, "conditions": r.conditions,
-        "wave_height": r.wave_height, "notes": r.notes,
-        "created_at": r.created_at.isoformat() if r.created_at else None,
-        "influences_rating_now": bool(r.created_at and r.created_at >= fresh_cut and r.rating is not None),
-    } for r, name in rows]}
-
-
-@router.delete("/admin/surf-forecast/reports/{report_id}")
-async def delete_surf_report(
-    report_id: str,
-    admin: Profile = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Moderation: remove a junk/abusive condition report. Takes effect on the next rating pass —
-    the confirmation/nudge reads only live rows."""
-    row = (await db.execute(select(SurfReport).where(SurfReport.id == report_id))).scalar_one_or_none()
-    if not row:
-        raise HTTPException(status_code=404, detail="Report not found")
-    await log_admin_action(db, admin.id, "delete_surf_report", "surf_report", report_id, {   # admin_logs: the trace
-        "spot_id": row.spot_id, "user_id": row.user_id, "rating": row.rating,
-        "created_at": row.created_at.isoformat() if row.created_at else None})
-    await db.delete(row)
-    await db.commit()
-    return {"deleted": report_id}
+# The condition-report moderation routes live in surf_forecast_reports.py (split 2026-11-22: this file sat at the
+# 800-line hook and the _RATING_FLAGS table stays here because tests read it from this file). Re-exported, and
+# their routes are mounted on this router, so callers and the app see no change.
+from routes.admin.surf_forecast_reports import (  # noqa: E402
+    delete_surf_report, get_recent_surf_reports, router as _reports_router)
+router.include_router(_reports_router)
+__all__ = ['router', '_RATING_FLAGS', 'delete_surf_report', 'get_recent_surf_reports']

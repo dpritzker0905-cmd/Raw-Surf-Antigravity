@@ -18,6 +18,8 @@ import { forecastReadout, forecastDayLabel } from './forecastReadout';
 import { responsiveWeatherOn } from './useMapChromeLayout'; import LayerDataCredit from './LayerDataCredit';
 import { marineWaveLegend } from './marineWavePalette';
 import WeatherLayerSheet, { useWeatherPanelDisclosure } from './WeatherLayerSheet';
+import { isPartitionHeightOnly } from './partitionHeightOnly';   // D, option B: a partition layer shows height, no rating
+import { PartitionHeightOnlyNote } from './PartitionHeightOnlyNote';
 import { buildGradientCSS, buildStops, evenStops, HEIGHT_VARIABLES } from './weatherControlLegend'; import { rasterLegend, rasterPaletteKey } from './rasterPalettes';
 import { useNoteForecastShown } from '../observations/forecastExposure';
 const ownLayerKilled = (name) => typeof window !== 'undefined' && (window[`__RAW_DISABLE_RASTER_OWN_${name}__`] === true || window.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true);
@@ -748,7 +750,7 @@ export var MapWeatherControls = ({
                 the map, both keys are true simultaneously — the rating key stacks ABOVE the
                 layer's own key instead of replacing it. Theme-aware via the shared textMuted/
                 bgClass variables (light / dark / beach). */}
-            {surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer) && (
+            {surfMode && isPartitionHeightOnly(activeLayer) && <PartitionHeightOnlyNote className={`text-[9px] ${textMuted}`} />}{surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer) && !isPartitionHeightOnly(activeLayer) && (
               <div className="mb-1.5">
                 <div className={`text-[9px] ${textMuted} mb-0.5`}>Surf Rating (coastal band)</div>
                 <div className="h-1.5 w-full rounded-full" style={{ background: surfLegend.gradientCSS }} />
@@ -821,7 +823,7 @@ export var MapWeatherControls = ({
             {legendConfig[activeLayer] && (
               <div className="weather-mobile-legend mb-2" data-legend-expanded={compactLegendOpen}>
                 {/* Stacked keys (rating never covers the layer key) — mirrors the desktop panel. */}
-                {surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer) && (
+                {surfMode && isPartitionHeightOnly(activeLayer) && <PartitionHeightOnlyNote className={`text-[9px] ${textMuted}`} />}{surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer) && !isPartitionHeightOnly(activeLayer) && (
                   <div className="mb-1.5">
                     <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1`}>Surf Rating (coastal band)</div>
                     <div className="h-1.5 w-full rounded-full" style={{ background: surfLegend.gradientCSS }} />
@@ -928,7 +930,7 @@ export var MapWeatherControls = ({
               {legendConfig[activeLayer] && (
                 <div className="mb-2">
                   {/* Stacked keys (rating never covers the layer key) — mirrors the desktop panel. */}
-                  {surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer) && (
+                  {surfMode && isPartitionHeightOnly(activeLayer) && <PartitionHeightOnlyNote className={`text-[9px] ${textMuted}`} />}{surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer) && !isPartitionHeightOnly(activeLayer) && (
                     <div className="mb-1.5">
                       <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1`}>Surf Rating (coastal band)</div>
                       <div className="h-1.5 w-full rounded-full" style={{ background: surfLegend.gradientCSS }} />
