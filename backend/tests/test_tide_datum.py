@@ -1,7 +1,7 @@
 """The US tide display above MLLW (services/weather_pipeline/tide_datum.py, flag SURF_TIDE_MLLW_US).
 
-Pins: the US boundary at every land or narrow-sea border; the epoch method (display = level - M + D, so a series that
-is A + M reads A + D, NOAA's prediction frame); the source order (gauge, model, interpolated) and its naming; MSL
+Pins: the US boundary at every land or narrow-sea border; the epoch method (display = level + D, so a series that
+is A + M reads A + M + D: tide plus average sea-level rise, M above NOAA's prediction frame); the source order (gauge, model, interpolated) and its naming; MSL
 everywhere the conditions fail; the physics fields untouched; the CI 19-year MLLW rule; and the served payloads."""
 import json
 import math
@@ -69,7 +69,7 @@ def test_gauge_within_2km_when_no_model_and_is_named():
     b = TD.datum_for(33.735, -118.27, s, enabled=True, stations=ST)
     assert b["datum"] == "MLLW" and b["source"] == "gauge" and b["stations"][0]["id"] == "9410660"
     assert "NOAA CO-OPS gauge 9410660 Los Angeles" in b["source_label"] and b["source_label"] in b["long_label"]
-    assert b["offset_m"] == pytest.approx(0.861 - 0.081) and b["mean_level_removed_m"] == pytest.approx(0.081)
+    assert b["offset_m"] == pytest.approx(0.861) and b["mean_level_included_m"] == pytest.approx(0.081)
     far = TD.datum_for(33.76, -118.27, s, enabled=True, stations=ST)          # ~4.4 km: not the point's own sheet
     assert far.get("source") != "gauge"
 
@@ -101,21 +101,23 @@ def test_msl_everywhere_a_condition_fails(enabled, lat, lng, series, reason):
     assert b["datum"] == "MSL" and b["offset_m"] == 0.0 and b["reason"] == reason and b["label"] == TD.MSL_SHORT
 
 
-def test_epoch_method_reads_noaa_prediction_frame():
-    """Served level = A + M. Display = level - M + D = A + D: mean D (NOAA's predicted mean above MLLW), a low tide of
-    A = -D reads 0, and the naive sum (level + D) would read exactly M higher."""
+def test_epoch_method_reads_tide_plus_average_rise():
+    """Served level = A + M. Display = level + D = A + M + D: mean D + M (NOAA's predicted mean above MLLW plus the
+    rise since the epoch), a low tide of A = -(D + M) reads 0, and the NOAA table (A + D) reads exactly M lower."""
     m, d = 0.12, 0.25
     b = TD.datum_for(29.31, -94.79, {"source": "am", "mean_level_m": m, "model_d_ntde_m": d}, enabled=True, stations=[])
     a = [math.sin(i / 2.0) * 0.2 for i in range(200)]
     shown = [TD.display_m(x + m, b) for x in a]
-    assert sum(shown) / len(shown) == pytest.approx(d + sum(a) / len(a), abs=1e-3)
-    assert TD.display_m(-d + m, b) == pytest.approx(0.0, abs=1e-9)
-    assert (a[5] + m + d) - TD.display_m(a[5] + m, b) == pytest.approx(m, abs=1e-3)
+    assert sum(shown) / len(shown) == pytest.approx(d + m + sum(a) / len(a), abs=1e-3)
+    assert TD.display_m(-d, b) == pytest.approx(0.0, abs=1e-9)
+    assert TD.display_m(a[5] + m, b) - (a[5] + d) == pytest.approx(m, abs=1e-3)
+    assert "average sea-level rise" in b["long_label"] and "excludes today's ocean anomaly" in b["long_label"]
+    assert "12 cm" in b["long_label"]
 
 
 def test_negative_values_are_valid_and_explained():
     b = TD.datum_for(34.10, -118.85, AM, enabled=True, stations=ST)
-    assert TD.display_m(-0.9 + 0.081, b) < 0 and "minus tide" in b["negative_note"] and "not an error" in b["negative_note"]
+    assert TD.display_m(-0.9, b) < 0 and "minus tide" in b["negative_note"] and "not an error" in b["negative_note"]
     assert TD.display_m(None, b) is None and TD.display_m(float("nan"), b) is None
 
 
@@ -211,7 +213,7 @@ async def test_tide_state_physics_height_untouched(monkeypatch):
     base = tide.tide_state_at(s["time"], s["level"], "2026-11-22T05:00:00Z")
     assert st["height_m"] == base["height_m"] and st["norm"] == base["norm"]
     assert st["datum"] == "MLLW" and st["datum_src"] == "model"
-    assert st["display_height_m"] == pytest.approx(base["height_m"] - 0.081 + 0.85, abs=1e-3)
+    assert st["display_height_m"] == pytest.approx(base["height_m"] + 0.85, abs=1e-3)
 
 
 @pytest.mark.asyncio

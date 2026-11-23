@@ -48,6 +48,11 @@ So M is the water's measured rise above the epoch's mean sea level. Across those
 Each MLLW point reports its own M as `mean_level_removed_m`. The MSL transition line (the served level) keeps M, so
 the water actually present runs about M above the MLLW number, just as it runs above NOAA's own predictions.
 
+**Frame changed to A + M + D (prepared for David's answer).** The display becomes level + D: tide plus the average
+sea-level rise since the epoch, M above a NOAA tide table. `offset_m` becomes D, and `mean_level_removed_m` becomes
+`mean_level_included_m`. The long label says the display includes the rise (about M cm at the point) and excludes
+today's ocean anomaly and storm surge. The basis is the "Frame check" section below.
+
 **Second opinion on the frame (Reflection, Beam-1.0, 2026-11-22, advisory).** Its strongest case against A + D:
 surfers need the water actually present. A + D reads about 0.1 m low, so a reef or rock call could be misjudged, and
 a secondary line may be too weak to correct the primary number. It would keep A + D only on evidence that comparing

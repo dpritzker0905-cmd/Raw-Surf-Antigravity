@@ -10,25 +10,26 @@ and carries the `datum` block so its label names the datum and the source. The P
 tide_fit, the SURF_TIDE_DEPTH cap and `water_level_m` stay on our mean-sea-level level (`tide_state.height_m`).
 
 THE CONVERSION (and the epoch, the advisor's condition 1):
-    above MLLW (t) = A(t) + D            where our served level is A(t) + M
-    i.e.  display = level - M + D        (offset_m = D - M)
+    above MLLW (t) = A(t) + M + D        where our served level is A(t) + M
+    i.e.  display = level + D            (offset_m = D)
   A  our FES2022b astronomical tide: zero mean, no mean level.
   M  the key's 2016-2025 mean level (altimetry, against the 1993-2012 reference), the `m` the table stores per key.
   D  MSL - MLLW at the point, a TIDAL-RANGE quantity on the 1983-2001 National Tidal Datum Epoch (or the station's
      published epoch).
   NOAA's tide predictions - the numbers in a NOAA tide table - are the astronomical tide about the EPOCH's MSL, read
-  against the epoch's MLLW: mean D, no sea-level change since the epoch. Adding D to our A + M would mix the two
-  frames: it reads HIGH against the NOAA table by M (measured, below). So M is removed and the display is A + D, the
-  NOAA table's own frame.
+  against the epoch's MLLW: mean D, no sea-level change since the epoch. Our display keeps M, so it reads M ABOVE
+  the NOAA table: tide plus the average sea-level rise since the epoch (frame A + M + D, 2026-11-23, replacing A + D:
+  research/tide-mllw-us-method-2026-11-22.md "Frame check" measured A + M + D within 0.011 m of observed water at San
+  Diego, San Francisco and Seattle in a quiet week, where A + D read 0.075-0.087 m low; neither follows a weather or
+  basin anomaly, which the label says).
   MEASURED: G3t (run 44166851340, 26 US gauges, observed water on each station's epoch MSL) found A alone 0.099 m LOW
   (median) and A + M +0.008 m: M is the measured rise of the water above the epoch MSL, 0.067-0.150 m at the gauges
   (Gulf 0.12-0.15, East 0.09-0.14, West 0.067-0.098, Hawaii 0.086-0.098; own_rules.G3T_M). That is the amount the
-  naive sum would read above the NOAA table, and what `mean_level_removed_m` reports per point. The water actually
-  present runs about that much ABOVE the displayed MLLW number, exactly as it runs above NOAA's own predictions; the
-  MSL line (the served level) keeps it.
+  display reads above the NOAA table, reported per point as `mean_level_included_m`. Today's anomaly (surge, a
+  basin-wide high, the seasonal cycle) is in neither the display nor the NOAA table.
   D's epoch: CO-OPS's superseded 1960-1978 datums move D by a few millimetres against 1983-2001 at the same stations
   (scripts/tide_datum/epoch_check.py measures it): the range is epoch-stable, the mean is not, which is why M (a mean)
-  is removed and D (a range) is used as published.
+  is our own (2016-2025) and D (a range) is used as published.
 
 THE SOURCE OF D, PER POINT (the advisor's condition 2; named in the payload and on the label), in this order:
   model         our own 19-year computation: A synthesised every 10 min over 1983-2001 at the point and NOAA's MLLW
@@ -196,14 +197,13 @@ def datum_for(lat, lng, series, enabled=None, stations=None) -> dict:
         near = neighbours(lat, lng, INTERP_KM, stations)[:INTERP_MAX_N]
         return _msl("interpolation-disagrees" if len(near) >= 2 else "no-datum-source", region)
     d, source, source_label, refs, epoch = got
-    return {"datum": "MLLW", "label": MLLW_SHORT, "offset_m": round(d - float(m), 4),
-            "msl_minus_mllw_m": round(d, 4), "mean_level_removed_m": round(float(m), 4),
+    return {"datum": "MLLW", "label": MLLW_SHORT, "offset_m": round(d, 4),
+            "msl_minus_mllw_m": round(d, 4), "mean_level_included_m": round(float(m), 4),
             "source": source, "source_label": source_label, "stations": refs, "epoch": epoch, "region": region,
-            "long_label": (f"Tide height above MLLW (NOAA chart datum, {epoch} epoch), built the way NOAA's own "
-                           f"predictions are, so it should match a NOAA tide table. Like NOAA's predictions it leaves out "
-                           f"sea-level rise since the epoch: the water here typically runs about "
-                           f"{round(float(m) * 100):d} cm higher, which the mean-sea-level line shows. "
-                           f"Datum from {source_label}."),
+            "long_label": (f"Tide plus average sea-level rise, above MLLW (NOAA chart datum, {epoch} epoch). It "
+                           f"includes the rise since the epoch (about {round(float(m) * 100):d} cm here, the 2016-2025 "
+                           f"mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly "
+                           f"and storm surge, which can add tens of centimetres. Datum from {source_label}."),
             "negative_note": NEGATIVE_NOTE}
 
 
