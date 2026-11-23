@@ -731,3 +731,34 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_OFFSET_PRODUCT: ${{ vars.FRAME_OFFSET_PRODUCT || '0' }}
         run: python scripts/publish_raster_frames.py --offset
+
+  # SERVED-WAVE VERIFY SAMPLER (gate docs/weather-program/gates/served-wave-verify-v1.md, sections 2 and 2a). DARK: skipped
+  # unless the repo variable SERVED_WAVE_VERIFY is '1' (default '0' until the owner's word). It runs AFTER the publish, sees
+  # exactly what that publish wrote, reads frames only through the anonymous PUBLIC path (the client's), decodes them with the
+  # client's own decodeFieldCore in Node, and writes only the private point archive (verify/point-archive/v1/served/). It can
+  # neither block nor slow the publish: its own job, `if: always()`, continue-on-error, a 10-minute timeout, never the Render box.
+  served-wave-verify-sample:
+    needs: ingest-pilots
+    if: ${{ always() && vars.SERVED_WAVE_VERIFY == '1' }}
+    continue-on-error: true
+    environment: supabase-service   # the key is used for the archive WRITE only
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: frontend/.node-version
+      - run: pip install numpy requests==2.31.0
+      - name: Sample the published wave frames at the frozen buoys
+        working-directory: backend
+        env:
+          SERVED_WAVE_VERIFY: ${{ vars.SERVED_WAVE_VERIFY || '0' }}
+          FRAME_EURO_SWELL_SETS: ${{ vars.FRAME_EURO_SWELL_SETS || '1' }}
+          FRAME_REGIONAL_BUNDLES_EURO_ICON: ${{ vars.FRAME_REGIONAL_BUNDLES_EURO_ICON || '1' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/served_wave_verify_sample.py
