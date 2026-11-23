@@ -50,6 +50,8 @@ def main(argv=None):
     if not fsr.enabled(args.set):
         print(f"[raster] {args.set}: off ({spec['env']}); skipped")
         return 0
+    if spec.get("guard"):                          # a set with its own guardrails runs its whole publish (gust_risk_ens)
+        return spec["guard"](args, spec, _sink, pub, fsr, _status)
     sink = _sink(args)
     source = fsr.make_source(spec)
     report = fsr.publish(source, sink, pub._uploader(sink), log=print, spec=spec)

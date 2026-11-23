@@ -67,12 +67,13 @@ def run_available(session, run: datetime, last_step: int = 336, base: str = AWS_
 def fetch_step(session, run: datetime, step: int, reduce_fn: Callable[[np.ndarray, dict], np.ndarray],
                params: Sequence[str] = PARAMS, base: str = AWS_BASE, prefer: str = "auto",
                perturbed: int = ec.PERTURBED, max_gap: int = 0, model: str = "ifs",
-               file_types: Sequence[str] = ("ef",)) -> Tuple[Dict[str, np.ndarray], dict]:
+               file_types: Sequence[str] = ("ef",), decode_lock=None) -> Tuple[Dict[str, np.ndarray], dict]:
     """{param: array[members, ...reduced]} for one step of one run. `pf` 1..`perturbed` are REQUIRED (any missing ->
     raise: a partial ensemble is never averaged). The control (`cf`, member 0) is included, FIRST, only when the run's
     index carries it for every wanted param (amendment 5: it left the open-data ef files on 2026-05-13 00Z). The
     returned meta says `has_cf` and `n_members`. IFS ENS ships all members in one `ef` file; AIFS-ENS
-    (model="aifs-ens") ships `cf` and `pf` files: pass file_types=("cf", "pf")."""
+    (model="aifs-ens") ships `cf` and `pf` files: pass file_types=("cf", "pf"). `decode_lock` (a threading.Lock): every GRIB
+    decode runs under it, for callers that fetch several steps at once (ecCodes is not thread-safe; frame_set_raster)."""
     sel_by_file = {}
     for typ in file_types:
         iurl = ef_url(base, run, step, "index", typ=typ, model=model)
@@ -95,11 +96,14 @@ def fetch_step(session, run: datetime, step: int, reduce_fn: Callable[[np.ndarra
         keys = [k for k in want if owner[k] == typ]
         if keys:
             meta_seen = _read_file(session, ef_url(base, run, step, "grib2", typ=typ, model=model), keys,
-                                   [sel_by_file[typ][k] for k in keys], out, reduce_fn, prefer, max_gap, pos) or meta_seen
+                                   [sel_by_file[typ][k] for k in keys], out, reduce_fn, prefer, max_gap, pos,
+                                   decode_lock) or meta_seen
     return {p: np.stack(v) for p, v in out.items()}, dict(meta_seen, has_cf=has_cf, n_members=len(members))
 
 
-def _read_file(session, url, keys, ranges, out, reduce_fn, prefer, max_gap, pos=None) -> dict:
+def _read_file(session, url, keys, ranges, out, reduce_fn, prefer, max_gap, pos=None, decode_lock=None) -> dict:
+    import contextlib
+    guard = decode_lock if decode_lock is not None else contextlib.nullcontext()
     meta_seen: dict = {}
     for start, end, ids in ec.coalesce(ranges, max_gap=max_gap):
         r = _get(session, url, headers={"Range": f"bytes={start}-{end - 1}"})
@@ -113,9 +117,11 @@ def _read_file(session, url, keys, ranges, out, reduce_fn, prefer, max_gap, pos=
             dec = {}
             for i, sk in zip(ids_sorted, span_keys):
                 off, ln = ranges[i]
-                dec.update(g2.decode_span(buf[off - start: off - start + ln], [sk], [sk], prefer=prefer))
+                with guard:
+                    dec.update(g2.decode_span(buf[off - start: off - start + ln], [sk], [sk], prefer=prefer))
         else:
-            dec = g2.decode_span(buf, span_keys, span_keys, prefer=prefer)
+            with guard:
+                dec = g2.decode_span(buf, span_keys, span_keys, prefer=prefer)
         for i, sk in zip(ids_sorted, span_keys):
             arr, meta = dec[sk]
             meta_seen = meta
