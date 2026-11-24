@@ -15,7 +15,7 @@ from database import get_db
 from utils.checkout_recovery import persist_pending_checkout
 from core.security import get_current_user_id
 from models import Profile, PaymentTransaction
-from utils.payment_fulfillment import fulfill_wallet_payment
+from utils.payment_fulfillment import fulfill_wallet_payment, is_live_seat_checkout
 from utils.crew_card_fulfillment import is_crew_card_payment, fulfill_crew_card_payment
 
 router = APIRouter()
@@ -314,7 +314,7 @@ async def get_checkout_status(
         )
         transaction = result.scalar_one_or_none()
         
-        if transaction:
+        if transaction and not is_live_seat_checkout(transaction):
             # Only update if not already processed
             if status.payment_status == "paid":
                 await fulfill_wallet_payment(db, transaction)
@@ -433,6 +433,22 @@ async def stripe_webhook(
             )
             transaction = result.scalar_one_or_none()
             
+            event_session = webhook_response.raw_event.get("data", {}).get("object", {})
+            live_event = (event_session.get("metadata") or {}).get("type") == "live_session_join"
+            saved_live = transaction is not None and is_live_seat_checkout(transaction)
+            if live_event or saved_live:
+                completed = webhook_response.event_type in (
+                    "checkout.session.completed", "checkout.session.async_payment_succeeded",
+                )
+                if completed and webhook_response.payment_status == "paid":
+                    if not saved_live:
+                        raise HTTPException(status_code=503, detail="Live checkout is not available yet")
+                    from routes.sessions.payments import settle_live_seat
+                    outcome = await settle_live_seat(db, transaction.session_id, transaction.user_id, unattended=True)
+                    if isinstance(outcome, dict) and outcome.get("status") == "unpaid":
+                        raise HTTPException(status_code=503, detail="Payment confirmation is pending")
+                return {"status": "received"}
+
             if transaction:
                 if webhook_response.payment_status == "paid":
                     if is_crew_card_payment(transaction):

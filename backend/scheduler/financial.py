@@ -337,7 +337,7 @@ async def cleanup_abandoned_stripe_sessions_task():
     import stripe
     import os
     
-    stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+    cleanup_key = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
     
     logger.info("[Scheduler] Running abandoned Stripe session cleanup...")
     
@@ -358,12 +358,16 @@ async def cleanup_abandoned_stripe_sessions_task():
             cleaned_count = 0
             dispatch_reset_count = 0
             
+            from utils.payment_fulfillment import is_live_seat_checkout
+
             for tx in abandoned_transactions:
+                if is_live_seat_checkout(tx):
+                    continue
                 try:
                     # Check actual Stripe session status
-                    if stripe.api_key and tx.session_id:
+                    if cleanup_key and tx.session_id:
                         try:
-                            stripe_session = stripe.checkout.Session.retrieve(tx.session_id)
+                            stripe_session = stripe.checkout.Session.retrieve(tx.session_id, api_key=cleanup_key)
                             if stripe_session.payment_status == 'paid':
                                 # Actually paid - update our record
                                 tx.payment_status = 'Completed'

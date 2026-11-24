@@ -119,7 +119,7 @@ def test_other_payment_types_cannot_become_wallet_credits(payments, kind):
 def test_live_seat_checkout_cannot_credit_a_wallet(payments):
     client, engine, _, _, _ = payments
     seed(engine, {'type': 'live_session_join', 'credits': 25})
-    response = client.post('/api/webhook/stripe', content=b'{}')
+    response = client.get('/api/payments/checkout/status/checkout-a', headers=headers('owner'))
     assert response.status_code == 200
     assert row(engine)['credit_balance'] == 10
     assert transaction(engine)['status'] == 'Pending'

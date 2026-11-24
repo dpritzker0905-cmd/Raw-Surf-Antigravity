@@ -29,6 +29,7 @@ from .financial import (
     cleanup_abandoned_stripe_sessions_task,
     check_credit_transaction_integrity_task,
 )
+from .live_seats import recover_live_seats
 from .metrics import aggregate_platform_metrics_task
 from .gallery import process_selection_deadline_expiry_task
 from .forecast import ingest_marine_forecast_task
@@ -160,6 +161,12 @@ def start_scheduler():
         IntervalTrigger(minutes=5),
         id='expire_booking_invites', name='Expire pending booking invites after 24 hours',
         replace_existing=True
+    )
+
+    scheduler.add_job(
+        tracked('recover_live_seats', 'Recover unattended live-seat checkouts', 'Every 5 minutes', recover_live_seats),
+        IntervalTrigger(minutes=5), id='recover_live_seats', name='Recover unattended live-seat checkouts',
+        replace_existing=True, max_instances=1, coalesce=True,
     )
 
     # Cleanup abandoned Stripe sessions — every 30 minutes

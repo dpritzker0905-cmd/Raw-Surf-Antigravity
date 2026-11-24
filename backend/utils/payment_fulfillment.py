@@ -16,6 +16,14 @@ from utils.credit_packages import package_credit_amount, validate_credit_package
 from utils.revenue_routing import is_hobbyist_creator, is_pro_creator
 
 
+def is_live_seat_checkout(transaction):
+    try:
+        metadata = json.loads(transaction.transaction_metadata or "{}")
+    except (TypeError, ValueError):
+        return False
+    return isinstance(metadata, dict) and metadata.get("type") == "live_session_join"
+
+
 def wallet_credit_amount(transaction):
     raw = transaction.transaction_metadata or '{}'
     try:

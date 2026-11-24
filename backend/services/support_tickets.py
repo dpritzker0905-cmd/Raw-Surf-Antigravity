@@ -53,6 +53,6 @@ def is_paid_seat_review(tx, metadata):
         and isinstance(metadata, dict) and metadata.get("type") == "live_session_join"
         and metadata.get("review_reason") in (
             "original_session_unavailable", "missing_original_session", "refund_unconfirmed",
-            "checkout_mismatch", "unverified_binding",
+            "checkout_mismatch", "unverified_binding", "missing_seat_receipt",
         )
     )

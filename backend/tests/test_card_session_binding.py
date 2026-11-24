@@ -36,14 +36,14 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
         db.add(LiveSession(
             id=target_id, photographer_id="pro", buyin_price=BUYIN,
             created_at=datetime.now(timezone.utc) - timedelta(hours=1),
-            status="ended" if case in ("ended", "replacement", "review_commit_durable", "review_commit_rolled_back") else "active",
+            status="ended" if case in ("ended", "replacement") else "active",
         ))
         if case in ("overlapping", "replacement", "newer_on_demand"):
             db.add(LiveSession(
                 id="later", photographer_id="pro", status="active",
                 session_mode="on_demand" if case == "newer_on_demand" else "live_join",
             ))
-        if case == "stopped":
+        if case in ("stopped", "review_commit_durable", "review_commit_rolled_back"):
             (await db.get(Profile, "pro")).is_shooting = False
         db.add(PaymentTransaction(
             session_id=checkout_id, user_id="owner", amount=BUYIN, currency="usd",
@@ -61,7 +61,7 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
     monkeypatch.setattr(payments, "STRIPE_API_KEY", "fixture")
     monkeypatch.setattr(payments, "checkout_emulation_allowed", lambda: False)
     monkeypatch.setattr(payments.stripe.checkout.Session, "retrieve", Mock(return_value=receipt))
-    refund = Mock()
+    refund = Mock(return_value=SimpleNamespace(status="succeeded"))
     refund_history = []
     monkeypatch.setattr(payments.stripe.Refund, "list", Mock(return_value=SimpleNamespace(data=refund_history)))
     monkeypatch.setattr(payments.stripe.Refund, "create", refund)
@@ -101,7 +101,7 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
             db.add(LiveSession(id="next", photographer_id="pro", status="active"))
             await db.commit()
     again = await harness.client.post("/api/sessions/complete-payment", **request)
-    if case in ("refund_unconfirmed", "refund_pending", "refund_commit_lost"):
+    if case in ("refund_unconfirmed", "refund_pending", "refund_commit_lost", "ended", "replacement"):
         refund.assert_called_once()
     else:
         refund.assert_not_called()
@@ -110,6 +110,12 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
         tx = (await db.scalars(select(PaymentTransaction))).one()
         seats = (await db.scalars(select(LiveSessionParticipant))).all()
         tickets = (await db.scalars(select(SupportTicket))).all()
+        if case in ("ended", "replacement"):
+            assert first.status_code == 409 and again.status_code == 400
+            assert "refunded" in first.json()["detail"].lower()
+            assert tx.status == tx.payment_status == "Refunded"
+            assert not seats and not tickets
+            return
         if case == "unpaid_mismatch":
             assert first.status_code == again.status_code == 400
             assert tx.payment_status == tx.status == "Pending"
@@ -145,7 +151,7 @@ async def test_paid_checkout_keeps_original_session(harness, monkeypatch, case):
                 assert reason in ("missing_original_session", "original_session_unavailable")
 
 
-    if case == "ended":
+    if case == "stopped":
         async with harness.maker() as db:
             (await db.get(Profile, "hobby")).is_admin = True
             await db.commit()
@@ -226,7 +232,7 @@ async def test_card_quote_through_seat_or_support(harness, monkeypatch, replaced
 
     checkout = SimpleNamespace(id="fixture-checkout", url="https://example.invalid/checkout")
     create = Mock(return_value=checkout)
-    refund = Mock()
+    refund = Mock(return_value=SimpleNamespace(status="succeeded"))
     monkeypatch.setattr(join, "STRIPE_API_KEY", "fixture")
     monkeypatch.setattr(payments, "STRIPE_API_KEY", "fixture")
     monkeypatch.setattr(payments, "checkout_emulation_allowed", lambda: False)
@@ -256,21 +262,21 @@ async def test_card_quote_through_seat_or_support(harness, monkeypatch, replaced
     confirm = {"headers": auth, "json": {"checkout_session_id": checkout.id}}
     first = await harness.client.post("/api/sessions/complete-payment", **confirm)
     again = await harness.client.post("/api/sessions/complete-payment", **confirm)
-    assert first.status_code == again.status_code == (409 if replaced else 200), first.text
+    assert first.status_code == (409 if replaced else 200), first.text
+    assert again.status_code == (400 if replaced else 200), again.text
     create.assert_called_once()
-    refund.assert_not_called()
+    if replaced:
+        refund.assert_called_once()
+    else:
+        refund.assert_not_called()
     async with harness.maker() as db:
         tx = (await db.scalars(select(PaymentTransaction))).one()
         seats = (await db.scalars(select(LiveSessionParticipant))).all()
         tickets = (await db.scalars(select(SupportTicket))).all()
         assert tx.amount == 17.50
         if replaced:
-            [ticket] = tickets
-            assert seats == [] and tx.status == "review_required"
-            assert first.json()["support_ticket_id"] == again.json()["support_ticket_id"] == ticket.id
-            assert ticket.related_transaction_id == tx.id
-            inbox = await harness.client.get(f"/api/support/tickets/{ticket.id}", headers=auth)
-            assert inbox.status_code == 200 and "17.50 USD" in inbox.json()["description"]
+            assert not tickets and not seats
+            assert tx.status == tx.payment_status == "Refunded"
         else:
             [seat] = seats
             assert tickets == [] and seat.amount_paid == 17.50

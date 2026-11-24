@@ -36,11 +36,17 @@ it.each([SpotSetupPanel, SessionSettingsModal])('keeps cents and zero when editi
   expect(input).toHaveValue(null);
   fireEvent.blur(input);
   expect(input).toHaveValue(25);
-  for (const value of ['17.50', '0']) {
-    fireEvent.change(input, { target: { value } });
-    expect(input).toHaveValue(Number(value));
-    expect(input.validity.stepMismatch).toBe(false);
-  }
+  fireEvent.change(input, { target: { value: '0' } });
+  fireEvent.blur(input);
+  expect(input).toHaveValue(25);
+  fireEvent.change(input, { target: { value: '17.50' } });
+  expect(input).toHaveValue(17.5);
+  const toggle = screen.getByRole('checkbox', { name: 'Free session' });
+  fireEvent.click(toggle);
+  expect(input).toBeDisabled();
+  expect(input).toHaveValue(0);
+  fireEvent.click(toggle);
+  expect(input).toHaveValue(17.5);
 });
 
 it.each([[0, 0], [17.5, 17.5], [null, 25]])(
