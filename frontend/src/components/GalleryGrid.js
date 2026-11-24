@@ -77,6 +77,11 @@ export const GalleryGridItem = ({
     <div
       className="relative aspect-square rounded-xl overflow-hidden bg-muted/50 group cursor-pointer"
       onClick={handleTap}
+      onBlur={(event) => {
+        if (showMenu && event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) {
+          setShowMenu(false);
+        }
+      }}
       data-testid={`gallery-item-${item.id}`}
     >
       {/* Selection checkbox in bulk mode */}

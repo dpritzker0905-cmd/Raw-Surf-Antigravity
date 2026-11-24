@@ -1,4 +1,5 @@
 import React from 'react';
+import userEvent from '@testing-library/user-event';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { GalleryGridItem } from './GalleryGrid';
@@ -6,6 +7,35 @@ import { GalleryGridItem } from './GalleryGrid';
 jest.mock('../utils/media', () => ({ getFullUrl: value => value, getOptimizedMediaUrl: () => null }));
 
 const item = { id: 'synthetic-photo', title: 'Synthetic photo' };
+
+test.each(['forward', 'backward'])('closes item actions when tabbing %s out of the tile', async direction => {
+  const user = userEvent.setup();
+  const edit = jest.fn();
+  const remove = jest.fn();
+  render(<>
+    <button>Before</button>
+    <GalleryGridItem item={item} onEdit={edit} onDelete={remove} />
+    <button>After</button>
+  </>);
+  const trigger = screen.getByRole('button', { name: 'Item actions' });
+  trigger.focus();
+  await user.keyboard('{Enter}');
+  expect(screen.getByRole('button', { name: 'Edit' })).toHaveFocus();
+  const shift = direction === 'backward';
+  await user.tab({ shift });
+  expect(shift ? trigger : screen.getByRole('button', { name: 'Delete' })).toHaveFocus();
+  expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await user.tab({ shift });
+  const destination = screen.getByRole('button', { name: shift ? 'Before' : 'After' });
+  expect(destination).toHaveFocus();
+  expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+  await user.keyboard('{Escape}');
+  expect(destination).toHaveFocus();
+  expect(edit).not.toHaveBeenCalled();
+  expect(remove).not.toHaveBeenCalled();
+});
+
 const setup = (theme, extra = {}) => {
   const callbacks = { onClick: jest.fn(), onEdit: jest.fn(), onDelete: jest.fn(), onSelect: jest.fn() };
   render(<div className={theme}><GalleryGridItem item={item} {...callbacks} {...extra} /></div>);
