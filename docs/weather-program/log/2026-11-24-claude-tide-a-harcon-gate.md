@@ -56,3 +56,18 @@ Append-only. Stamps come from `date -u`.
 - **Review:** SubQ and Reflection, public context only; dispositions are in the gate's §10. The first selection run
   was stopped before completion when the review changed the rule, and its output was discarded and never committed.
 - **Not done:** the tester code (its own PR). `flag_guardrail.py` is at 756/760 lines, so a block moves out first.
+
+## 18:44Z: tide-guard-v1 amendment 1 (the advisor's pre-code L1), before any tester code
+
+- **The advisor's read of #1278** at `3a7df56b4`: PASS-WITH-LIMITS. Leakage checks clean (0 violations); the type-S
+  truth is valid.
+- **`gates/tide-guard-v1-amendment-1.md`:**
+  - (a) the 36 h staleness test runs every cycle, never from a cached verdict;
+  - (b) the blind report counts UNTESTABLE cycles spanning ≥ 24 h, not builds;
+  - (c) it opens ONE issue, "TIDE guard blind: …", which matches none of the other three guardrail searches.
+- **Disclosed:**
+  - the near-lineage monitor 9418686 is reported every run (its reference is 4.865 km from its key's donor, so any
+    bias favours ON);
+  - an alternating WORSE / NOT_WORSE sequence resets the strike count.
+- **Next:** the tester code as its own gated PR, after moving a block out of `flag_guardrail.py`. The A build's
+  two-arm table is a separate PR.
