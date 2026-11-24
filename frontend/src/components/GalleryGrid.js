@@ -101,6 +101,7 @@ export const GalleryGridItem = ({
           onClick={handleMenuToggle}
           className="absolute top-2 right-2 z-30 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white opacity-80 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 transition-opacity active:scale-90"
           aria-label="Item actions"
+          data-gallery-action-id={item.id}
           aria-expanded={showMenu}
           aria-controls={showMenu ? menuId : undefined}
         >

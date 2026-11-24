@@ -77,8 +77,8 @@ export const useGalleryFolderActions = ({
         }
       }
       toast.success('Item deleted');
-      fetchGalleryItems(selectedGallery.id);
       fetchGalleries();
+      await fetchGalleryItems(selectedGallery.id);
     } catch (error) {
       toast.error(getErrorMessage(error, 'Failed to delete item'));
     } finally {

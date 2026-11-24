@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 6,
+  "files": 1,
+  "branch": "codex/gallery-menu-focus-exit",
+  "date": "2026-11-24",
+  "note": "Gallery deletion focus recovery"
+}
