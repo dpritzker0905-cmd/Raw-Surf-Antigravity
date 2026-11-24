@@ -78,7 +78,7 @@ def _report():
 
 def test_one_failed_head_is_retried():
     m, rep = _Model({TODAY: [False, False, True]}), _report()
-    jobs = C.plan_daily(m, TODAY, set(), rep, waits=(0, 0, 0))
+    jobs = C.plan_daily(m, TODAY, {"cycles/ICON_2026112100.json.gz"}, rep, waits=(0, 0, 0))
     assert [j[1] for j in jobs] == [TODAY] and rep["unavailable"] == []
 
 
@@ -98,8 +98,31 @@ def test_an_unstored_yesterday_is_still_collected_and_today_still_recorded():
 
 def test_a_stored_today_is_skipped_without_asking():
     m, rep = _Model({}), _report()
-    assert C.plan_daily(m, TODAY, {"cycles/ICON_2026112200.json.gz"}, rep, waits=(0, 0, 0)) == []
-    assert m.asked == [] and rep["skipped"] == ["cycles/ICON_2026112200.json.gz"]
+    both = {"cycles/ICON_2026112200.json.gz", "cycles/ICON_2026112100.json.gz"}
+    assert C.plan_daily(m, TODAY, both, rep, waits=(0, 0, 0)) == []
+    assert m.asked == [] and rep["skipped"] == ["cycles/ICON_2026112200.json.gz", "cycles/ICON_2026112100.json.gz"]
+
+
+def test_a_dropped_scheduled_run_is_caught_the_next_day():
+    """Advisor HOLD on #1255: today is available, but yesterday (its scheduled run dropped by GitHub) is neither stored nor
+    available any more (ICON keeps only its latest run). That must end red, not green."""
+    m, rep = _Model({TODAY: [True], YDAY: [False]}), _report()
+    jobs = C.plan_daily(m, TODAY, set(), rep, waits=(0, 0, 0), now=LATE)
+    assert [j[1] for j in jobs] == [TODAY] and rep["unavailable"] == ["ICON 2026112100"]
+
+
+def test_before_10z_a_missing_yesterday_is_still_red():
+    early = datetime(2026, 11, 22, 0, 1, tzinfo=timezone.utc)
+    m, rep = _Model({TODAY: [False], YDAY: [False]}), _report()
+    assert C.plan_daily(m, TODAY, set(), rep, waits=(0, 0, 0), now=early) == []
+    assert rep["not_yet_due"] == ["ICON 2026112200"] and rep["unavailable"] == ["ICON 2026112100"]
+
+
+def test_the_look_back_only_reports():
+    done = {"cycles/ICON_2026112200.json.gz", "cycles/ICON_2026112100.json.gz", "cycles/ICON_2026111900.json.gz"}
+    rep = _report()
+    assert C.plan_daily(_Model({}), TODAY, done, rep, waits=(0,), now=LATE) == []
+    assert rep["unavailable"] == [] and rep["missing_recent"] == ["ICON 2026112000", "ICON 2026111800"]
 
 
 # ---------------------------------------------------------------------------------------------------- wind EMOS daily (11-16)
@@ -137,8 +160,24 @@ def test_emos_a_transient_503_is_retried_and_collected(monkeypatch):
     e503 = RuntimeError("HTTP 503")
     _ef(monkeypatch, {("20261116", W.ef.ECMWF_BASE): [False], ("20261116", W.ef.AWS_BASE): [e503, True]})
     rep = {"skipped": [], "unavailable": [], "dropped": []}
-    assert W.daily_plan(None, NOW, set(), rep, waits=(0, 0, 0)) == [(datetime(2026, 11, 16, tzinfo=timezone.utc), W.ef.AWS_BASE)]
+    plan = W.daily_plan(None, NOW, {"2026111500.npz"}, rep, waits=(0, 0, 0))
+    assert plan == [(datetime(2026, 11, 16, tzinfo=timezone.utc), W.ef.AWS_BASE)]
     assert rep["unavailable"] == [] and W.daily_status(rep) == 0
+
+
+def test_emos_a_dropped_scheduled_run_is_caught_the_next_day(monkeypatch):
+    _ef(monkeypatch, {("20261116", W.ef.ECMWF_BASE): [True]})                 # today fine; 11-15 unreachable everywhere
+    rep = {"skipped": [], "unavailable": [], "dropped": []}
+    plan = W.daily_plan(None, NOW, set(), rep, waits=(0,))
+    assert [r for r, _ in plan] == [datetime(2026, 11, 16, tzinfo=timezone.utc)]
+    assert rep["unavailable"] == ["2026111500"] and W.daily_status(rep) == 3
+
+
+def test_emos_before_10z_a_missing_yesterday_is_still_red(monkeypatch):
+    _ef(monkeypatch, {})
+    rep = {"skipped": [], "unavailable": [], "dropped": []}
+    assert W.daily_plan(None, datetime(2026, 11, 16, 0, 1, tzinfo=timezone.utc), set(), rep, waits=(0,)) == []
+    assert rep["not_yet_due"] == ["2026111600"] and rep["unavailable"] == ["2026111500"] and W.daily_status(rep) == 3
 
 
 def test_emos_a_dropped_daily_run_ends_red():
@@ -212,3 +251,10 @@ def test_before_the_run_is_due_a_missing_today_is_not_a_miss(monkeypatch):
     plan = W.daily_plan(None, datetime(2026, 11, 16, 0, 1, tzinfo=timezone.utc), set(), rep2, waits=(0,))
     assert [r for r, _ in plan] == [datetime(2026, 11, 15, tzinfo=timezone.utc)]
     assert rep2["unavailable"] == [] and rep2["not_yet_due"] == ["2026111600"] and W.daily_status(rep2) == 0
+
+
+def test_only_the_keyless_dry_run_reports_instead_of_failing():
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    dry = open(os.path.join(root, ".github", "workflows", "gust-verify-dry-run.yml"), encoding="utf-8").read()
+    real = open(os.path.join(root, ".github", "workflows", "gust-verify.yml"), encoding="utf-8").read()
+    assert "daily --cache \"$GV\" --report-only" in dry and "--report-only" not in real

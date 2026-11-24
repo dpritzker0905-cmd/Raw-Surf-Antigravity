@@ -42,7 +42,7 @@ jobs:
         working-directory: backend
         timeout-minutes: 100
         run: |
-          python scripts/gust_verify_collect.py daily --cache "$GV"
+          python scripts/gust_verify_collect.py daily --cache "$GV" --report-only   # no stored record here: report misses, never fail
           python scripts/gust_verify_collect.py backfill --cache "$GV" --start "$(date -u -d '8 days ago' +%F)" --end "$(date -u -d '1 day ago' +%F)"
       - name: Score (stdlib)
         if: ${{ always() }}

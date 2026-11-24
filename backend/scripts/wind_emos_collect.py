@@ -103,30 +103,38 @@ def _probe(session, run, waits):
 PUBLISH_BY_H = 10      # the 00Z ENS is complete by ~07:40 UTC; before 10 UTC today's absence is expected, not a miss
 
 
+LOOKBACK_DAYS = 3      # days before yesterday whose missing runs are REPORTED (flag only)
+
+
 def daily_plan(session, now: datetime, done: set, report: dict, waits=None):
-    """[(run, base)] for the daily job: today's 00Z run if it is not stored and reachable (data.ecmwf.int first, the AWS
-    mirror second; probed again after each wait). Otherwise today is recorded as UNAVAILABLE, and yesterday is collected
-    only if it is not stored and still reachable. A day that is missed is never quietly skipped: the job ends red (main),
-    and a backfill slice (which skips stored runs) recovers it from the AWS mirror.
-    2026-11-16: a 503 from the mirror lost that day, and the old fallback to a stored yesterday would have hidden it."""
+    """[(run, base)] for the daily job. Nothing that goes missing is ever silent. Sources: data.ecmwf.int first, the AWS
+    mirror second, each probed again after each wait.
+    - TODAY: stored -> skip; reachable -> collect; not reachable -> `not_yet_due` before PUBLISH_BY_H (green), otherwise
+      `unavailable` (red).
+    - YESTERDAY, ALWAYS: stored -> skip; reachable -> collect; otherwise `unavailable` (red). A dropped scheduled run is
+      caught the next day (advisor HOLD on #1255). The ENS stays on the AWS mirror, so a backfill slice recovers it.
+    - The LOOKBACK_DAYS before yesterday: missing runs are listed in `missing_recent` (a report, not a failure).
+    2026-11-16: a 503 from the mirror lost that day."""
     waits = PROBE_WAITS if waits is None else waits
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    if f"{today:%Y%m%d%H}.npz" in done:
-        report["skipped"].append(f"{today:%Y%m%d%H}.npz")
-        return []
-    base = _probe(session, today, waits)
-    if base:
-        return [(today, base)]
-    if now < today + timedelta(hours=PUBLISH_BY_H):
-        report.setdefault("not_yet_due", []).append(f"{today:%Y%m%d%H}")     # recorded, not a miss
-    else:
-        report["unavailable"].append(f"{today:%Y%m%d%H}")
-    y = today - timedelta(days=1)
-    if f"{y:%Y%m%d%H}.npz" in done:
-        report["skipped"].append(f"{y:%Y%m%d%H}.npz")
-        return []
-    base = _probe(session, y, waits)
-    return [(y, base)] if base else []
+    out = []
+    for day, is_today in ((today, True), (today - timedelta(days=1), False)):
+        name = f"{day:%Y%m%d%H}.npz"
+        if name in done:
+            report["skipped"].append(name)
+            continue
+        base = _probe(session, day, waits)
+        if base:
+            out.append((day, base))
+        elif is_today and now < today + timedelta(hours=PUBLISH_BY_H):
+            report.setdefault("not_yet_due", []).append(f"{day:%Y%m%d%H}")
+        else:
+            report["unavailable"].append(f"{day:%Y%m%d%H}")
+    for k in range(2, 2 + LOOKBACK_DAYS):
+        d = today - timedelta(days=k)
+        if f"{d:%Y%m%d%H}.npz" not in done:
+            report.setdefault("missing_recent", []).append(f"{d:%Y%m%d%H}")
+    return out
 
 
 def existing_runs(cache: str) -> set:

@@ -1,6 +1,6 @@
 {
   "lane": "estate",
-  "tests": 26,
+  "tests": 32,
   "branch": "claude/gust-emos-loud-storage",
   "date": "2026-11-24",
   "note": "loud storage exits, recorded missed days, EURO retry ladder (test_storage_loud_exits.py)"

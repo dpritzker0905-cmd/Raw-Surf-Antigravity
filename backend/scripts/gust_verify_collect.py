@@ -324,29 +324,34 @@ def available_retried(model, cycle, waits=None):
 PUBLISH_BY_H = 10
 
 
+LOOKBACK_DAYS = 3      # days before yesterday whose missing runs are REPORTED (flag only; nothing is collected or failed)
+
+
 def plan_daily(model, today, done, report, waits=None, now=None):
-    """Today's run if it is stored (skip) or available (collect). Otherwise today is recorded as UNAVAILABLE, and yesterday is
-    collected only if it is not stored and still available.
-    2026-11-22: a single failed HEAD for ICON's 00Z made the old loop fall back to yesterday, find it stored, and stop. Today
-    was never recorded, the run stayed green, and by the next run DWD (which keeps only its latest 00Z run) had replaced the
-    file: ICON 2026-11-22 was lost for good."""
+    """The daily job's cycles for one model. Nothing that goes missing is ever silent.
+    - TODAY: stored -> skip; available -> collect; not available -> `not_yet_due` before PUBLISH_BY_H (green), otherwise
+      `unavailable` (red).
+    - YESTERDAY, ALWAYS, whatever today did and whatever the clock: stored -> skip; available -> collect; otherwise
+      `unavailable` (red). GitHub drops scheduled runs, and ICON keeps only its latest run, so a dropped day-D run is caught
+      by day D+1 here, never lost green (advisor HOLD on #1255).
+    - The LOOKBACK_DAYS before yesterday: a missing key is listed in `missing_recent`. That is a report, not a failure.
+    2026-11-22: one failed HEAD for ICON's 00Z sent the old loop to the stored yesterday, and the day was lost green."""
     out = []
-    tkey = f"cycles/{model.name}_{today:%Y%m%d%H}.json.gz"
-    if tkey in done:
-        report["skipped"].append(tkey)
-        return out
-    if available_retried(model, today, waits):
-        return [(model, today, tkey)]
-    if now is not None and now < today + timedelta(hours=PUBLISH_BY_H):
-        report.setdefault("not_yet_due", []).append(f"{model.name} {today:%Y%m%d%H}")   # recorded, not a miss
-    else:
-        report["unavailable"].append(f"{model.name} {today:%Y%m%d%H}")
     y = today - timedelta(days=1)
-    ykey = f"cycles/{model.name}_{y:%Y%m%d%H}.json.gz"
-    if ykey in done:
-        report["skipped"].append(ykey)
-    elif available_retried(model, y, waits):
-        out.append((model, y, ykey))
+    for day, is_today in ((today, True), (y, False)):
+        key = f"cycles/{model.name}_{day:%Y%m%d%H}.json.gz"
+        if key in done:
+            report["skipped"].append(key)
+        elif available_retried(model, day, waits):
+            out.append((model, day, key))
+        elif is_today and now is not None and now < today + timedelta(hours=PUBLISH_BY_H):
+            report.setdefault("not_yet_due", []).append(f"{model.name} {day:%Y%m%d%H}")
+        else:
+            report["unavailable"].append(f"{model.name} {day:%Y%m%d%H}")
+    for k in range(2, 2 + LOOKBACK_DAYS):
+        d = today - timedelta(days=k)
+        if f"cycles/{model.name}_{d:%Y%m%d%H}.json.gz" not in done:
+            report.setdefault("missing_recent", []).append(f"{model.name} {d:%Y%m%d%H}")
     return out
 
 
@@ -446,6 +451,8 @@ def main(argv=None):
     ap.add_argument("--start")
     ap.add_argument("--end")
     ap.add_argument("--models", default="GFS,EURO,ICON")
+    ap.add_argument("--report-only", action="store_true",
+                    help="the keyless PR dry run only: it starts with NO stored record, so a missed day is reported, not failed")
     a = ap.parse_args(argv)
     os.makedirs(a.cache, exist_ok=True)
     http = _http()
@@ -502,8 +509,9 @@ def main(argv=None):
         print(f"{okey}: {len(got)} stations, {len(missing)} without a file", flush=True)
     open(os.path.join(a.cache, f"collect_report_{a.cmd}.json"), "w").write(buoy_holdout.redact(json.dumps(report, indent=1)))
     if report["unavailable"]:              # loud, AFTER the collected files are written (the upload step runs on failure too)
-        print(buoy_holdout.redact(f"::error::today's run not collected: {', '.join(report['unavailable'])}"), flush=True)
-        return 3
+        level = "warning" if a.report_only else "error"
+        print(buoy_holdout.redact(f"::{level}::run not collected: {', '.join(report['unavailable'])}"), flush=True)
+        return 0 if a.report_only else 3
     return 0
 
 
