@@ -33,6 +33,9 @@ concurrency:
 jobs:
   ingest:
     environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
+    permissions:
+      contents: read
+      issues: write    # the storage-auth issue (scripts/storage_auth_check.py)
     runs-on: ubuntu-latest
     timeout-minutes: 165  # core ~57 min + calibration ~12; raised from 120 so the WORLDWIDE coastal pilot
                           # (runs LAST) actually COMPLETES instead of being starved — that starvation is why
@@ -54,6 +57,22 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
+
+      # FAIL LOUD ON A REJECTED STORAGE KEY (reliability lane, 2026-11-24): the 11-19/20 401 "Legacy API keys are disabled" took
+      # every lane down for 21-25 h, red runs that notified nobody. One GET of control/flags.json; a 401/403 seen twice = ::error
+      # and an owner-assigned storage-auth issue; accepted = close it. STORAGE_AUTH_CHECK: warn (default) | block (exit 2) | 0.
+      - name: Storage credential check (fail loud on 401/403)
+        id: storage_auth
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ vars.REPO_OWNER_LOGIN }}
+          LANE: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STORAGE_AUTH_CHECK: ${{ vars.STORAGE_AUTH_CHECK || 'warn' }}
+        run: python3 scripts/storage_auth_check.py
 
       - name: Install dependencies
         run: pip install -r backend/requirements.txt   # pygrib manylinux wheel bundles ecCodes — no apt step
