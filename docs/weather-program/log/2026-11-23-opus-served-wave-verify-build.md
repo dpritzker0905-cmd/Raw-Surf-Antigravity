@@ -147,5 +147,9 @@ Supersedes the "(not adopted)" line of the entry above.
 - **A served table is downstream.** `grade_wind_lane_ndbc.py --rows` feeds `sweep_wind_lane_weight.py`, which writes
   `services/weather_pipeline/wind_lane_skill_weights.json`, the table the served rating's wind lane reads. The committed
   table is unchanged. The NEXT regeneration will fit without the 15 LOCKED buoys, as #1236 L1 intends (whole buoy, all
-  data). A regeneration moves a served number, so it ships under the house rules (D-065: default ON, kill switch,
-  SCOREBOARD row, guardrail).
+  data). A regeneration moves a served number. Under **D-090** (advisor ruling, 2026-11-23, which supersedes "ships
+  under D-065") it ships **DARK** until the manifest reliability fix lands: the new table sits behind a default-off flag
+  and the committed table stays served. Shipping it ON later needs a kill switch, firing REPLAY/RATING coverage, a
+  pre-registered acceptance test, a SCOREBOARD row and the history filter.
+- **The advisor passed #1257 with limits.** It verified that a locked id is refused at encoding depths 0 to 8 and that an
+  open id passes at depths 0 to 6. Limit: never route non-buoy URLs through `allow_url`.
