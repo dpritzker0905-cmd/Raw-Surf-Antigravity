@@ -29,4 +29,9 @@ Two were refuted from the code:
 
 Its suggestion to also watch the CDIP thredds host was checked. The only modules that use that host outside the fenced ones read MOP **model** hindcasts (`jac1_mop_calibration/locate.py`, `rating_truth_mop.py`, `swell_exposure_normals_fit/measure_normals.py`), not buoy observations, so they are out of scope.
 
+**Follow-up (2026-11-23, after #1234 merged; director).** Three changes:
+- **The guard is per call site too.** Every expression that builds a per-station observation URL must sit in a function that calls the fence itself, unless the function is reviewed in `CALLSITE_REVIEWED` with its reason (5 today: two station-metadata lookups, the probe's fenced opener, the wind-lr2 snapshot collection, and the nearshore URL builder). A second unfenced fetch inside a fenced module now fails. The two gaps it found are fenced at the fetch: `grade_wind_lane_ndbc.observations` (fenced only by its caller's list until now) and `gust_ens_risk_hindcast.cmd_october` (its docstring said "minus LOCKED", but the loop did not check).
+- **ERDDAP.** CoastWatch `cwwcNDBC*` / `tabledap` NDBC and CDIP datasets count as buoy truth in the guard.
+- **`allow_url` percent-decodes before matching.** ERDDAP writes `station="<id>"`, which clients send as `station=%22<id>%22`; the digit-ending `%22` defeated the boundary, so a per-station ERDDAP fetch of a LOCKED buoy would have passed. No such fetch existed (the one ERDDAP reader queries every station and drops LOCKED ids at load).
+
 **Gating.** No served number moves, and no behaviour changes while no list is recorded. The fence acts only when #1199's freeze records the list in the buoy list (amendment 2, B6), and after this merges.

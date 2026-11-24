@@ -36,6 +36,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -198,6 +199,8 @@ def allow_url(url):
     if not ids:
         return True
     tail = re.sub(r"^[a-z]+://[^/]+", "", str(url), flags=re.I)
+    for _ in range(2):                                  # ERDDAP writes station="<id>" as station=%22<id>%22: decode first
+        tail = urllib.parse.unquote(tail)
     alt = "|".join(sorted((re.escape(i) for i in ids), key=len, reverse=True))
     return re.search(r"(?<![0-9A-Za-z])(" + alt + r")(?=$|[^0-9A-Za-z]|[hHpP]\d)", tail, re.IGNORECASE) is None
 

@@ -97,6 +97,11 @@ def test_verified_list_locks_ids_and_aliases(root):
     ("https://www.ndbc.noaa.gov/data/realtime2/46025.txt", True),
     ("https://www.ndbc.noaa.gov/data/realtime2/146225.txt", True),     # a longer id is not the locked one
     ("https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/realtime/1001p1_rt.nc", True),
+    # ERDDAP quotes the id, and clients percent-encode the quotes (once, or twice through a proxy): decoded first
+    ("https://coastwatch.pfeg.noaa.gov/erddap/tabledap/cwwcNDBCMet.csv?station,time,wvht&station=%2246225%22", False),
+    ("https://coastwatch.pfeg.noaa.gov/erddap/tabledap/cwwcNDBCMet.csv?station%2Ctime&station%3D%252246225%2522", False),
+    ('https://coastwatch.pfeg.noaa.gov/erddap/tabledap/cwwcNDBCMet.csv?station,time&station="46225"', False),
+    ("https://coastwatch.pfeg.noaa.gov/erddap/tabledap/cwwcNDBCMet.csv?station,time&station=%2246025%22", True),
 ])
 def test_allow_url_refuses_every_shape_naming_a_locked_station(root, url, ok):
     _root(root, locked=["100"])

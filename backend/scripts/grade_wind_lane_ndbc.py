@@ -168,7 +168,10 @@ def stations(s, cache, cycle):
 
 
 def observations(s, cache, sid):
-    """{datetime: (speed m/s, dir deg)} from NDBC realtime2 (the latest 45 days)."""
+    """{datetime: (speed m/s, dir deg)} from NDBC realtime2 (the latest 45 days). A #1199 LOCKED buoy reads as empty here
+    too, not only through the caller's station list (per-call-site guard)."""
+    if buoy_holdout.is_locked(sid):
+        return {}
     path = os.path.join(cache, "ndbc", f"{sid}.txt")
     if not os.path.exists(path):
         r = _get(s, f"{NDBC}/data/realtime2/{sid}.txt", tries=2)

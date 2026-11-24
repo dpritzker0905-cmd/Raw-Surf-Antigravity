@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 6,
+  "branch": "claude/holdout-guard-callsite",
+  "date": "2026-11-24",
+  "note": "guard follow-up: 4 ERDDAP allow_url cases + 2 per-call-site guard tests"
+}
