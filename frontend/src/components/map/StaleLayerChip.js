@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Clock, Info } from 'lucide-react';
 import { readRatedRunState, readWindStaleState } from './staleLayerState';
 import { getRasterDrawn, describeRasterSource, RASTER_STATUS_LAYERS } from './rasterDrawnFrame';
+import { readRunAge } from './runAgeReadout';
 
 /**
  * THE STALE-LAYER CHIP on the COLLAPSED phone timeline header (2026-11-16; David approved it 08:54 EST via the advisor, and gave it
@@ -28,6 +29,12 @@ export function readStaleChip({ model, layer, hour, windOn } = {}) {
   const rec = RASTER_STATUS_LAYERS.has(layer) ? getRasterDrawn() : null;
   const src = rec && rec.layer === layer ? describeRasterSource(rec.shown, layer, model) : null;
   if (src && src.state === 'standin') return { kind: 'source', short: src.text, text: src.text };
+  // A STALE MODEL RUN (reliability lane, 2026-11-24): the served cycle is past its model's cutoff (runAgeReadout.js, server verdict
+  // first). Last, so a lagging rating band or wind frame (more specific) still speaks first. Its kill is the run label's own.
+  if (layer !== 'radar') {
+    const run = readRunAge({ model, layer });
+    if (run && run.stale) return { kind: 'run', short: run.short, text: run.text };
+  }
   return null;
 }
 
