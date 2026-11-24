@@ -217,3 +217,29 @@ stricter or reported-only, and nothing is loosened.
 - a broken placebo is VOID;
 - fewer than 10 NEIGHBOR stations tested by the identity is VOID;
 - a stratum with fewer than 8 MEASURED stations or 0 paired events is VOID.
+
+## 11. Amendment 3 (2026-11-24 14:24Z, before any v2 tag and before any v2 data): measurability before vacuity
+
+**Why.** The advisor HELD #1270 at `6d01d3ba9` and #1171 at `f16864561` on a flaw in §10 (c′)'s own wording.
+- §4 already makes an unmeasured deciding station a FAIL: the per-station leg needs ≥ 19 of 20.
+- D cannot change measurability: MEASURED is decided by event matching, which a constant D does not move.
+- So when the finder control passes, a stratum with fewer than 19 MEASURED stations has already FAILED. §10 (c′), and
+  the (c) NEIGHBOR count, would turn that FAIL into a VOID.
+
+**The rule, in the advisor's words:**
+
+> "If the finder control passes and any stratum has < 19 MEASURED deciding stations after replacement, the run is FAIL
+> (§4 measurability), with the identities reported 'untestable where vacuous'; never VOID on vacuity. (c) and (c')
+> VOID only when the stratum has >= 19 MEASURED, or the finder fails."
+
+**Order of evaluation, as implemented:**
+1. **The finder control.** If it fails, the run is VOID.
+2. **Measurability.** Any stratum with fewer than 19 MEASURED deciding stations after replacement makes the run FAIL.
+   Where vacuous, the identities are reported as "untestable".
+3. **The identities.** They can VOID only where their stratum has ≥ 19 MEASURED:
+   - the (c) count (≥ 10 NEIGHBOR stations tested) and the (c′) minimums apply only there;
+   - a NON-vacuous mismatch (an identity tested and wrong) is VOID in any stratum, because the instrument itself
+     failed.
+4. **The bar** (§4), opened only if nothing above is VOID.
+
+**Unchanged:** everything else in §§1–10.
