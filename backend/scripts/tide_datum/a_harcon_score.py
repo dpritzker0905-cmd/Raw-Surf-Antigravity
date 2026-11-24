@@ -3,13 +3,14 @@ the instrument's JSON (a_harcon_parity.py), the vendored finder's JSON (finder_c
 station JSON. No network.
 
   1. FINDER (C1): finder median |h| <= 0.01 m at every scored station, else VOID.
-  2. MEASURABILITY: per stratum, the FINAL scored set after replacement (s4: FES undefined, the donor has no constants,
+  2. TESTED MISMATCHES, VOID ANYWHERE (#1270 s11 / #1171 ruling): C2 (own constants reproduce NOAA: median |h| <= 0.01 m
+     and median |t| <= 2 min) at every scored station AND every donor used; C3 (w = 0 -> fes, w = 1 -> donor, within
+     1e-6 m); C4 (no donor is itself or another scored station).
+  3. MEASURABILITY: per stratum, the FINAL scored set after replacement (s4: FES undefined, the donor has no constants,
      or no donor remains; re-selected after each replacement; at most 5 per stratum). FAIL, never VOID, if n < 19
-     MEASURED under fes, a sixth replacement, or any harcon measurability loss.
-  3. IDENTITIES: C2 (own constants reproduce NOAA: median |h| <= 0.01 m and median |t| <= 2 min) at every scored
-     station AND every donor used; C3 (w = 0 -> fes, w = 1 -> donor, within 1e-6 m); C4 (no donor is itself or another
-     scored station). A tested mismatch is VOID anywhere; an untestable identity is reported.
-  4. THE BAR (s5): HARBOR_BAY legs (a)-(f), OPEN_COAST (g)-(i), on the TIDAL BAND. PASS only if all nine hold.
+     MEASURED under fes, a sixth replacement, or any harcon measurability loss; untestable identities are vacuous there.
+  4. VACUITY: in a full run (no stratum thin), a C2 untestable or a missing C3 at a scored station or donor is VOID.
+  5. THE BAR (s5): HARBOR_BAY legs (a)-(f), OPEN_COAST (g)-(i), on the TIDAL BAND. PASS only if all nine hold.
 
     python scripts/tide_datum/a_harcon_score.py --run run.json --finder finder.json --out score.json
 """
@@ -177,13 +178,15 @@ def score(run, finder, stations_doc):
         if d:
             c2[f"donor {d['id']} (of {sid})"] = identity_ok(d.get("c2_donor"))
     c3 = {sid: [(donors.get(sid) or {}).get("c3_w0_max_m"), (donors.get(sid) or {}).get("c3_w1_max_m")] for sid in scored}
-    c3_bad = sorted(s for s, (a, b) in c3.items() if a is None or b is None or a > C3_TOL_M or b > C3_TOL_M)
+    c3_mism = sorted(s for s, (a, b) in c3.items() if a is not None and b is not None and (a > C3_TOL_M or b > C3_TOL_M))
+    c3_missing = sorted(s for s, (a, b) in c3.items() if a is None or b is None)
     c4_bad = sorted(s for s in scored if (donors.get(s) or {}).get("id") in set(scored) | {s})
     mism = sorted(k for k, (status, _) in c2.items() if status == "mismatch")
-    out["controls"].update(c2_identity={"pass": not mism, "mismatch": mism,
-                                        "untestable": sorted(k for k, (s, _) in c2.items() if s == "untestable"),
+    c2_vac = sorted(k for k, (s, _) in c2.items() if s == "untestable")
+    out["controls"].update(c2_identity={"pass": not mism, "mismatch": mism, "untestable": c2_vac,
                                         "detail": {k: v for k, (_, v) in c2.items()}},
-                           c3_blend={"pass": not c3_bad, "bad": c3_bad}, c4_loo={"pass": not c4_bad, "bad": c4_bad})
+                           c3_blend={"pass": not c3_mism, "mismatch": c3_mism, "missing": c3_missing},
+                           c4_loo={"pass": not c4_bad, "bad": c4_bad})
     out["strata"] = {k: {"quantities": q[k], "per_station": rows[k]} for k in final}
     out["reported"] = {k: {"event_tb": event_p90(per, donors, final[k]["ids"]),
                            "raw_band": legs(per, donors, final[k]["ids"], band="raw")[0]} for k in final}
@@ -191,12 +194,20 @@ def score(run, finder, stations_doc):
         arm: sum(1 for sid in final.get("HARBOR_BAY", {}).get("ids", [])
                  if (p := event_p90(per, donors, [sid])[arm]["p90_h_m"]) is not None and p <= MLLW_P90_M)
         for arm in ("fes", "harcon")}
+    # Precedence as ruled on #1270 s11 / #1171 (advisor HOLD on #1285): a TESTED mismatch is VOID anywhere, before the
+    # measurability return; a thin stratum is FAIL with vacuous identities 'untestable'; vacuity VOIDs only when no
+    # stratum is thin.
+    if mism or c3_mism or c4_bad:
+        out["verdict"] = "VOID"
+        out["why"] = "a tested identity mismatch (C2, C3 or C4): the instrument, not the candidate, failed"
+        return out
     if any(thin.values()):
         out["verdict"] = "FAIL"
-        out["why"] = "measurability (s5 step 2; never VOID)"
+        out["why"] = "measurability (s5 step 2; never VOID); untestable identities reported as vacuous"
         return out
-    if mism or c3_bad or c4_bad:
+    if c2_vac or c3_missing:
         out["verdict"] = "VOID"
+        out["why"] = "a full run with an untestable identity (C2 untestable or C3 missing at a scored station or donor)"
         return out
     # 4. THE BAR
     for k in final:

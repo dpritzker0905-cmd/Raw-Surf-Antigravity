@@ -24,7 +24,7 @@ Append-only. Stamps come from `date -u`.
   - replacement in the frozen order, with donors re-selected after each replacement;
   - reported: event-level p90, the raw band, donors, near twins (Ocean City 8570280 → 8570283, 0.752 km), and the
     forecast for the MLLW retest.
-- **Workflow:** `tide-a-harcon.yml`. Only a push of a tag `tide-a-harcon-v1-*` starts it (David's word, via the
+- **Workflow:** `tide-a-harcon.yml`. Only a push of a numbered tag `tide-a-harcon-v1-[0-9]*` starts it (David's word, via the
   director). Its jobs:
   - the AVISO download;
   - the C1 finder (the vendored `finder_check.py --stations`);
@@ -35,9 +35,33 @@ Append-only. Stamps come from `date -u`.
 - **Tests:** `tests/test_a_harcon_instrument.py`, 17 tests (estate lane; floor fragment +17). Not run against live
   data: it is predictions only, and the tag needs David's word.
 - **Next:** the two-arm table build (`am_h`, serve selection by flag, T6), as its own PR.
-- **Smoke test, 21:50Z.** The CO-OPS path (`truth_at`, `noaa_msl`, centring, `events_rows`) ran on a SEEN station
+- **Smoke test, 21:47Z (restamped from 21:50Z, which was ahead of its 21:47:08Z commit).** The CO-OPS path (`truth_at`, `noaa_msl`, centring, `events_rows`) ran on a SEEN station
   (The Battery, 8518750) over a PAST window (2026-11-01..04), so no gate station or window was read.
   - NOAA's own hourly curve, centred and run through the served finder, reproduces NOAA's 11 High/Low events: 11 of
     11 matched, median |h| 0.0007 m, median |t| 1.7 min.
   - pyTMD and PyFES are not installed locally, so `harcon_eval` and `fes_eval` (code the earlier tide gates already
     use) run only in CI.
+
+## 21:56Z: the advisor's HOLD on #1285 at 74d2ca457 (three items), fixed
+
+1. **Precedence, as ruled on #1270 §11 and #1171.** The order is now:
+   - the finder (VOID);
+   - TESTED mismatches (a C2 mismatch, C3 above tolerance, C4): VOID anywhere, BEFORE the measurability return;
+   - measurability: FAIL, with untestable identities treated as vacuous;
+   - vacuity: in a full run only, a C2 untestable or a missing C3 is VOID.
+
+   `c3_bad` is split into `mismatch` and `missing`. Tests, +5:
+   - thin + mismatch → VOID (C2 at a station, C2 at a donor, C3);
+   - thin + untestable → FAIL;
+   - full + untestable C2 (at a station, at a donor) → VOID;
+   - full + missing C3 → VOID;
+   - a planted FAIL stays FAIL.
+
+   The old test that expected a thin stratum with a mismatch to FAIL now covers the loss alone.
+2. **The smoke-test heading** is restamped to 21:47Z (it was 21:50Z, ahead of its 21:47:08Z commit). This is my own
+   unmerged text, edited in place on the director's instruction.
+3. **The tag glob** is narrowed to `tide-a-harcon-v1-[0-9]*`, so only a numbered tag starts the run; a test pins it.
+   The base-tag idea was withdrawn by the advisor.
+
+- **Fragment:** estate +22 (was +17).
+- **Checks:** the instrument, tide_own, workflow-condition and tide_window suites give 74 passed, twice.

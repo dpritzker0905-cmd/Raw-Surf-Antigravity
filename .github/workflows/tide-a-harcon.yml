@@ -5,11 +5,11 @@ name: Tide A harcon gate (A from NOAA harmonic constants vs FES2022b, leave-one-
 # backend/scripts/tide_datum/a_harcon_parity.py, finder control finder_check.py (vendored verbatim), scorer
 # a_harcon_score.py (pure). Measurement only: predictions only, no bucket write, nothing served, no live backend.
 # PyFES is GPL and runs only here; pyTMD (MIT) synthesises the constants; NOAA harcon is public domain (17 U.S.C. 105).
-# ONE-SHOT START: only a push of a tag `tide-a-harcon-v1-*` (on David's word, pushed by the director) starts it; no
+# ONE-SHOT START: only a push of a NUMBERED tag `tide-a-harcon-v1-[0-9]*` (on David's word, pushed by the director) starts it; no
 # branch push, schedule or dispatch. Credentials: AVISO only on the FES download step; CO-OPS is public.
 on:
   push:
-    tags: ['tide-a-harcon-v1-*']
+    tags: ['tide-a-harcon-v1-[0-9]*']
 permissions:
   contents: read
 concurrency:
