@@ -10,6 +10,7 @@ import {
   Check, X, Eye, Loader2, ChevronDown, ChevronUp, Users
 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
+import RequesterProfileLink from './RequesterProfileLink';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
@@ -95,14 +96,7 @@ const IncomingRequestCard = ({
               <p className={`font-bold text-lg ${textPrimary}`}>
                 {request.requester_name || 'New Request!'}
               </p>
-              {request.requester_username && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); window.open(`/profile/${request.requester_username}`, '_blank'); }}
-                  className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline transition-colors"
-                >
-                  @{request.requester_username}
-                </button>
-              )}
+              <RequesterProfileLink id={request.requester_id} username={request.requester_username} />
               <div className="flex items-center gap-2 mt-0.5">
                 <span className={`text-sm ${textSecondary}`}>{request.distance_miles?.toFixed(1) || '?'} mi away</span>
                 {request.requester_stance && (
