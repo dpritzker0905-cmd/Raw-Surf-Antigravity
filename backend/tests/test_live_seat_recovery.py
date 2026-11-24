@@ -5,6 +5,7 @@ import hmac
 import json
 import secrets
 import time
+from threading import Barrier
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
@@ -25,25 +26,38 @@ from tests.test_live_session_escrow import bearer, harness
 
 @pytest.mark.parametrize("case", ["duplicate", "sweep", "closed", "refund_pending", "legacy_completed",
                                    "unpaid", "expired", "cleanup", "emulator", "delayed_row",
-                                   "legacy_fulfilled", "legacy_ambiguous", "historical_closed", "missing_resource", "bad_signature", "provider_outage"])
+                                   "legacy_fulfilled", "legacy_ambiguous", "historical_closed", "missing_resource",
+                                   "same_mode_missing", "hosted_wrong_mode", "race", "bad_signature", "provider_outage"])
 async def test_unattended_live_seat(harness, monkeypatch, case):
+    if case == "race":
+        async with harness.maker() as db:
+            if db.bind.dialect.name != "postgresql":
+                pytest.skip("This three-way row lock test requires the disposable PostgreSQL harness")
     await check_outcome(harness, monkeypatch, case)
 
 
 async def check_outcome(harness, monkeypatch, case):
-    checkout_id = "synthetic-checkout"
+    missing = case in ("missing_resource", "same_mode_missing", "hosted_wrong_mode")
+    checkout_id = "cs_test_fixture" if missing else "synthetic-checkout"
     metadata = {"type": "live_session_join", "surfer_id": "owner", "photographer_id": "pro",
                 "live_session_id": "original", "amount": "25"}
     secret = secrets.token_hex(32)
     monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", secret)
     monkeypatch.setattr(billing, "STRIPE_API_KEY", "fixture")
-    monkeypatch.setattr(payments, "STRIPE_API_KEY", "fixture")
+    key_mode = "test" if case == "same_mode_missing" else "live"
+    monkeypatch.setattr(payments, "STRIPE_API_KEY", "sk_" + key_mode + "_" + secrets.token_hex(16))
     receipt = SimpleNamespace(id=checkout_id, mode="payment", client_reference_id="reference",
                               payment_status="unpaid" if case in ("unpaid", "expired") else "paid", amount_total=2500,
                               status={"unpaid": "open", "expired": "expired"}.get(case, "complete"), currency="usd",
                               payment_intent="intent", metadata=metadata)
     retrieve = Mock(return_value=receipt)
-    if case == "missing_resource":
+    if case == "race":
+        arrivals = Barrier(3)
+        def concurrent_retrieve(_checkout_id, *, api_key):
+            arrivals.wait(timeout=15)
+            return receipt
+        retrieve.side_effect = concurrent_retrieve
+    if missing:
         retrieve.side_effect = payments.stripe.error.InvalidRequestError("fixture missing", "id", code="resource_missing")
     monkeypatch.setattr(payments.stripe.checkout.Session, "retrieve", retrieve)
     refunds = Mock(return_value=SimpleNamespace(data=[]))
@@ -60,6 +74,8 @@ async def check_outcome(harness, monkeypatch, case):
             status=state, payment_status=state, created_at=datetime.now(timezone.utc)-age,
             updated_at=datetime.now(timezone.utc)-timedelta(minutes=10),
             transaction_metadata=json.dumps({**metadata, "checkout_provider": "emulator" if case == "emulator" else "stripe", "checkout_reference":"reference"}))
+        if case == "missing_resource":
+            transaction.transaction_metadata = json.dumps(metadata)
         if case != "delayed_row":
             db.add(transaction)
         if case in ("legacy_fulfilled", "legacy_ambiguous"):
@@ -91,9 +107,21 @@ async def check_outcome(harness, monkeypatch, case):
                 headers=bearer("owner"), json={"checkout_session_id":checkout_id}), event_post(),
                 recover_live_seats(harness.maker))
             assert browser.status_code == hook.status_code == 200
+            assert retrieve.call_count == 3
         elif case == "bad_signature":
             assert (await event_post()).status_code == 400
             retrieve.assert_not_called()
+        elif case in ("same_mode_missing", "hosted_wrong_mode"):
+            with pytest.raises(RuntimeError, match="need retry"):
+                await recover_live_seats(harness.maker)
+            async with harness.maker() as db:
+                row = (await db.scalars(select(PaymentTransaction))).one()
+                assert row.status == row.payment_status == "Pending"
+                assert not (await db.scalars(select(SupportTicket))).all()
+                row.updated_at = datetime.now(timezone.utc) - timedelta(hours=1)
+                await db.commit()
+            retrieve.side_effect = None
+            await recover_live_seats(harness.maker)
         elif case == "cleanup":
             import database as database_module
             from scheduler.financial import cleanup_abandoned_stripe_sessions_task
@@ -134,7 +162,7 @@ async def check_outcome(harness, monkeypatch, case):
         tickets = (await db.scalars(select(SupportTicket))).all()
         assert (await db.get(Profile, "owner")).credit_balance == 100
         if case in ("closed", "refund_pending"):
-            refund.assert_called_once_with(payment_intent="intent", idempotency_key=f"live-session-refund-{checkout_id}")
+            refund.assert_called_once_with(api_key=payments.STRIPE_API_KEY, payment_intent="intent", idempotency_key=f"live-session-refund-{checkout_id}")
         else:
             refund.assert_not_called()
         if case == "missing_resource":
@@ -159,3 +187,4 @@ async def check_outcome(harness, monkeypatch, case):
         else:
             assert transaction.status == "Completed" and len(seats) == 1 and not tickets
             assert seats[0].live_session_id == "original" and seats[0].amount_paid == 25
+            assert json.loads(transaction.transaction_metadata)["settled_participant_id"] == seats[0].id

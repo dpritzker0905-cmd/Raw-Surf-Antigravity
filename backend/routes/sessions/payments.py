@@ -61,6 +61,7 @@ async def recover_legacy_receipt(db, tx, saved):
         LiveSessionParticipant.photographer_id == photographer_id,
         LiveSessionParticipant.live_session_id == session_id,
         LiveSessionParticipant.payment_method == "card",
+        LiveSessionParticipant.status.in_(("active", "completed")),
         LiveSessionParticipant.amount_paid == tx.amount,
     ).limit(2).with_for_update())).all()
     if len(seats) != 1:
@@ -77,7 +78,7 @@ async def recover_legacy_receipt(db, tx, saved):
             return None
         if not isinstance(other, dict) or other.get("settled_participant_id") == seats[0]:
             return None
-        if other.get("photographer_id") == photographer_id and other.get("live_session_id") in (None, session_id):
+        if other.get("photographer_id") in (None, photographer_id) and other.get("live_session_id") in (None, session_id):
             return None
     tx.transaction_metadata = json.dumps({**saved, "settled_participant_id": seats[0]})
     await db.commit()
@@ -92,7 +93,7 @@ async def refund_live_seat(db, tx, metadata, checkout_id, intent, emulated):
             succeeded = refund.get("status") == "succeeded"
         else:
             refund = await asyncio.to_thread(
-                stripe.Refund.create, payment_intent=intent,
+                stripe.Refund.create, payment_intent=intent, api_key=STRIPE_API_KEY,
                 idempotency_key=f"live-session-refund-{checkout_id}",
             )
             succeeded = refund.status == "succeeded"
@@ -207,9 +208,16 @@ async def settle_live_seat(db, checkout_id, current_user_id, *, unattended=False
         else:
             # Retrieve the Stripe checkout session
             try:
-                checkout_session = await asyncio.to_thread(stripe.checkout.Session.retrieve, checkout_id)
+                checkout_session = await asyncio.to_thread(stripe.checkout.Session.retrieve, checkout_id, api_key=STRIPE_API_KEY)
             except stripe.error.InvalidRequestError as exc:
-                if exc.code != "resource_missing":
+                # A missing resource is indistinguishable from a wrong account
+                # for a hosted purchase. Keep that retryable after configuration
+                # is repaired. Only a legacy test ID under a live key is retired.
+                legacy_test = (
+                    provider is None and checkout_id.startswith("cs_test_")
+                    and STRIPE_API_KEY.startswith(("sk_live_", "rk_live_"))
+                )
+                if exc.code != "resource_missing" or not legacy_test:
                     raise
                 missing_resource = True
             if not missing_resource:
@@ -299,7 +307,7 @@ async def settle_live_seat(db, checkout_id, current_user_id, *, unattended=False
                 and checkout_session.amount_total == int(round(amount * 100))
                 and isinstance(payment_intent_id, str) and payment_intent_id
             ):
-                refunds = await asyncio.to_thread(stripe.Refund.list, payment_intent=payment_intent_id, limit=1)
+                refunds = await asyncio.to_thread(stripe.Refund.list, payment_intent=payment_intent_id, limit=1, api_key=STRIPE_API_KEY)
                 if refunds.data:
                     return await mark_paid_seat_review(db, tx, locked_checkout, "refund_unconfirmed")
                 receipt = await recover_legacy_receipt(db, tx, locked_checkout)
@@ -318,7 +326,7 @@ async def settle_live_seat(db, checkout_id, current_user_id, *, unattended=False
         if not used_emulator:
             # A paid Checkout Session stays paid even after a refund. Recheck the
             # intent under the checkout lock before granting a fresh seat.
-            refunds = await asyncio.to_thread(stripe.Refund.list, payment_intent=payment_intent_id, limit=1)
+            refunds = await asyncio.to_thread(stripe.Refund.list, payment_intent=payment_intent_id, limit=1, api_key=STRIPE_API_KEY)
             if refunds.data:
                 return await mark_paid_seat_review(db, tx, locked_checkout, "refund_unconfirmed")
 
