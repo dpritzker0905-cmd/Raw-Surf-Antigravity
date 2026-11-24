@@ -1,0 +1,17 @@
+{
+  "tag": "wind-lr2-clim-gust-1e7df526a8598fc1",
+  "asset": "wind_lr2_clim_gust-1e7df526a8598fc1.json",
+  "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/releases/download/wind-lr2-clim-gust-1e7df526a8598fc1/wind_lr2_clim_gust-1e7df526a8598fc1.json",
+  "sha256": "1e7df526a8598fc10e476318645829e792f5abd7cf6bdc3862d964f9954d01d8",
+  "bytes": 12810040,
+  "source_run": 45266543788,
+  "bucket_object": "calibration/wind-lr2/45266543788-1/wind-lr2-clim_gust-45266543788/wind_lr2_clim_gust.json",
+  "published_at": "2026-11-24T02:33:44Z",
+  "published_by": "the director session (local_d6b521eb), on the owner David answering \"Private + public copy (Recommended)\" on 2026-11-23",
+  "note": "the release contains only the asset named above; the committed sha256 file is the authority, not this record",
+  "verified_public_sha256": "1e7df526a8598fc10e476318645829e792f5abd7cf6bdc3862d964f9954d01d8",
+  "verified_public_bytes": 12810040,
+  "verified_by": "the director session (unauthenticated download of the public asset URL) and this lane (second, independent unauthenticated download), both equal to the committed hash",
+  "target": "dev",
+  "latest_flag_note": "created with --latest=false, but GitHub's /releases/latest API still returns this tag because it is the repository's only non-draft release; no workflow triggers on releases, so this is harmless"
+}

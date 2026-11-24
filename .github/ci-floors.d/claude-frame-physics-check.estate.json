@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 24,
+  "branch": "claude/frame-physics-check",
+  "date": "2026-11-24",
+  "note": "frame physics check (report-only)"
+}

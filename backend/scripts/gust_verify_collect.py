@@ -33,6 +33,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from services import buoy_holdout  # noqa: E402 - stdlib only
+
+buoy_holdout.declare_collector(__name__, "archives raw NDBC gust reports and model gusts at every station; scores nothing")
 
 LATEST_OBS = "https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt"
 STATION_META = "https://www.ndbc.noaa.gov/metadata/stationmetadata.xml"
@@ -46,6 +49,10 @@ ICON_STEPS = tuple(range(3, 181, 3))
 KN_PER_MS = 3600.0 / 1852.0
 GUST_VALID_KN = (0.0, 250.0)            # the gust specs' own physical range
 UA = "raw-surf-gust-verify (public data, one daily read)"
+EURO_RETRY_WAITS = (5, 15, 45, 120, 300)  # EURO only: 11-19's backfill (run 45251339050) dropped 31 of 64 steps after 5/15/45
+# A cycle stops WAITING to retry after 25 min, so a throttled backfill slice cannot run past the collect step's 120-min timeout
+# and lose every cycle not yet written.
+CYCLE_RETRY_BUDGET_S = 1500
 
 
 def euro_window(f):
@@ -208,11 +215,28 @@ def _euro_source(spec, base, exact_window):
 
         def _steps_for(self, f):                                 # the window is checked, not assumed (log section 1)
             return (f"{f - euro_window(f)}-{f}",) if exact_window else (str(f),)
+
+        def fetch(self, cycle, f):
+            """A throttled mirror answers the .index with an error page, which the publisher's source would read as "index
+            has no 10fg" (final-sounding, but transient). Checked here first, so the step is retried as what it is."""
+            r = self.http.get(self._stem(cycle, f) + ".index", timeout=60)
+            if not is_grib_index(r.status_code, r.text):
+                raise RuntimeError(f"index not a GRIB index (HTTP {r.status_code}; throttled mirror): retryable")
+            return super().fetch(cycle, f)
     return Euro
+
+
+def is_grib_index(status, text):
+    """ECMWF open-data .index files are JSON lines ({"param": ...}); anything else (an error page, an empty body) is not."""
+    if status != 200:
+        return False
+    first = (text or "").lstrip()[:1]
+    return first == "{"
 
 
 class EuroModel:
     name, steps = "EURO", EURO_STEPS
+    retry_waits = EURO_RETRY_WAITS              # the mirror throttles for minutes, not seconds (director, 2026-11-23)
 
     def __init__(self, http, base=None):
         from services import frame_set_raster as fsr
@@ -285,23 +309,81 @@ class IconModel:
 RETRY_WAITS = (5, 15, 45)               # seconds; the AWS mirror answers 503 under load (dry run 44392035963: 130 EURO steps)
 
 
-def collect_cycle(model, cycle, stations, workers=4, waits=RETRY_WAITS):
-    """{model, cycle, station_ids, steps:[{f, w, g, u}], dropped:[{f, why}]}; a step is retried after `waits`, then dropped
-    with its last reason, never filled. (A throttled .index comes back as an error page, which the source reads as "index has
-    no 10fg": the retry covers it too.)"""
+def available_retried(model, cycle, waits=None):
+    """model.available(cycle), asked again after each wait: one failed HEAD must not count as "not published"."""
+    import time
+    for wait in (0,) + tuple(RETRY_WAITS if waits is None else waits):
+        time.sleep(wait)
+        if model.available(cycle):
+            return True
+    return False
+
+
+# Every model's 00Z run is out by 10 UTC (GFS ~05Z, ICON ~04Z, EURO ~08Z); before that, today's absence is expected, not a
+# miss (the PR dry run at 00:01Z on 2026-11-24 flagged one falsely).
+PUBLISH_BY_H = 10
+
+
+LOOKBACK_DAYS = 3      # days before yesterday whose missing runs are REPORTED (flag only; nothing is collected or failed)
+
+
+def plan_daily(model, today, done, report, waits=None, now=None):
+    """The daily job's cycles for one model. Nothing that goes missing is ever silent.
+    - TODAY: stored -> skip; available -> collect; not available -> `not_yet_due` before PUBLISH_BY_H (green), otherwise
+      `unavailable` (red).
+    - YESTERDAY, ALWAYS, whatever today did and whatever the clock: stored -> skip; available -> collect; otherwise
+      `unavailable` (red). GitHub drops scheduled runs, and ICON keeps only its latest run, so a dropped day-D run is caught
+      by day D+1 here, never lost green (advisor HOLD on #1255).
+    - The DAY BEFORE YESTERDAY, ALWAYS: stored -> skip; still available (GFS and EURO usually are) -> COLLECT it, so two
+      consecutive dropped runs lose nothing; truly gone -> `missed_gap` (red).
+      Stated plainly (advisor limit (a) on #1258): a day that is truly gone turns TWO consecutive runs red, first as
+      yesterday (`unavailable`) and then as the day before yesterday (`missed_gap`). Further back it is report-only.
+    - The LOOKBACK_DAYS before that: a missing key is listed in `missing_recent` (a report, never red).
+    2026-11-22: one failed HEAD for ICON's 00Z sent the old loop to the stored yesterday, and the day was lost green."""
+    out = []
+    for k, day in enumerate((today, today - timedelta(days=1), today - timedelta(days=2))):
+        key = f"cycles/{model.name}_{day:%Y%m%d%H}.json.gz"
+        label = f"{model.name} {day:%Y%m%d%H}"
+        if key in done:
+            report["skipped"].append(key)
+        elif available_retried(model, day, waits):
+            out.append((model, day, key))
+        elif k == 0 and now is not None and now < today + timedelta(hours=PUBLISH_BY_H):
+            report.setdefault("not_yet_due", []).append(label)
+        elif k == 2:
+            report.setdefault("missed_gap", []).append(label)
+        else:
+            report["unavailable"].append(label)
+    for k in range(3, 3 + LOOKBACK_DAYS):
+        d = today - timedelta(days=k)
+        if f"cycles/{model.name}_{d:%Y%m%d%H}.json.gz" not in done:
+            report.setdefault("missing_recent", []).append(f"{model.name} {d:%Y%m%d%H}")
+    return out
+
+
+def collect_cycle(model, cycle, stations, workers=4, waits=None, budget_s=CYCLE_RETRY_BUDGET_S):
+    """{model, cycle, station_ids, steps:[{f, w, g, u}], dropped:[{f, why}]}; a step is retried after each of the model's
+    waits (EURO a longer ladder), then dropped with its last reason, never filled. No retry wait starts once the cycle's
+    budget would be passed: the step is dropped instead ("retry budget spent")."""
     import time
     nodes = [tuple(s["node"]) for s in stations]
+    waits = getattr(model, "retry_waits", RETRY_WAITS) if waits is None else waits
+    deadline = time.monotonic() + budget_s
 
     def one(f):
-        why = None
-        for wait in (0,) + tuple(waits):
+        why, tries = None, 0
+        for k, wait in enumerate((0,) + tuple(waits)):
+            if k and time.monotonic() + wait > deadline:
+                why = f"{why} (retry budget spent)"
+                break
             time.sleep(wait)
+            tries += 1
             try:
                 g, u = model.step(cycle, f, nodes)
                 return {"f": f, "w": model.window(f), "g": g, "u": u}, None
             except Exception as e:  # noqa: BLE001 - recorded with its reason
                 why = f"{type(e).__name__}: {str(e)[:160]}"
-        return None, {"f": f, "why": why, "attempts": 1 + len(waits)}
+        return None, {"f": f, "why": why, "attempts": tries}
     with ThreadPoolExecutor(workers) as ex:
         res = list(ex.map(one, model.steps))
     return {"model": model.name, "cycle": cycle.strftime("%Y%m%d%H"), "station_ids": [s["id"] for s in stations],
@@ -375,6 +457,8 @@ def main(argv=None):
     ap.add_argument("--start")
     ap.add_argument("--end")
     ap.add_argument("--models", default="GFS,EURO,ICON")
+    ap.add_argument("--report-only", action="store_true",
+                    help="the keyless PR dry run only: it starts with NO stored record, so a missed day is reported, not failed")
     a = ap.parse_args(argv)
     os.makedirs(a.cache, exist_ok=True)
     http = _http()
@@ -387,7 +471,7 @@ def main(argv=None):
         report["stations_frozen"] = len(stations)
     report["stations"] = len(stations)
     if a.cmd == "stations":
-        print(json.dumps(report))
+        print(buoy_holdout.redact(json.dumps(report)))
         return 0
     done = existing(a.cache)
     wanted = set(a.models.split(","))
@@ -397,17 +481,7 @@ def main(argv=None):
         for M in (GfsModel, EuroModel, IconModel):
             if M.name not in wanted:
                 continue
-            model = M(http)
-            for cyc in (today, today - timedelta(days=1)):
-                key = f"cycles/{M.name}_{cyc:%Y%m%d%H}.json.gz"
-                if key in done:
-                    report["skipped"].append(key)
-                    break
-                if model.available(cyc):
-                    jobs.append((model, cyc, key))
-                    break
-            else:
-                report["unavailable"].append(M.name)
+            jobs += plan_daily(M(http), today, done, report, now=now)
         obs_kind = "5day"
     else:
         start = datetime.fromisoformat(a.start).replace(tzinfo=timezone.utc)
@@ -439,7 +513,12 @@ def main(argv=None):
         write_gz(os.path.join(a.cache, okey + ".new"), doc)
         report["obs"] = {"key": okey, "stations": len(got), "missing": missing}
         print(f"{okey}: {len(got)} stations, {len(missing)} without a file", flush=True)
-    json.dump(report, open(os.path.join(a.cache, f"collect_report_{a.cmd}.json"), "w"), indent=1)
+    open(os.path.join(a.cache, f"collect_report_{a.cmd}.json"), "w").write(buoy_holdout.redact(json.dumps(report, indent=1)))
+    missed = report["unavailable"] + report.get("missed_gap", [])
+    if missed:                             # loud, AFTER the collected files are written (the upload step runs on failure too)
+        level = "warning" if a.report_only else "error"
+        print(buoy_holdout.redact(f"::{level}::run not collected: {', '.join(missed)}"), flush=True)
+        return 0 if a.report_only else 3
     return 0
 
 

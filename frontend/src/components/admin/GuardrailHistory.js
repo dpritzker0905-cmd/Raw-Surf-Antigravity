@@ -72,7 +72,7 @@ export default function GuardrailHistory({ refreshKey = 0 }) {
           <History className="h-4 w-4" aria-hidden="true" /> Guardrail (D-065)
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Fixes ship on. Every 6 hours ({data?.schedule_utc || '02:30, 08:30, 14:30 and 20:30 UTC'}) the guardrail scores
+          Fixes ship on. Up to every 6 hours ({data?.schedule_utc || 'scheduled 02:30, 08:30, 14:30 and 20:30 UTC; GitHub runs fewer'}) the guardrail scores
           each guarded fix on against off and can turn one off, with a written reason, through the runtime manifest. It
           only writes when the repository variable FLAG_GUARDRAIL_ENFORCE is 1; otherwise it reports in its GitHub issue.
         </p>

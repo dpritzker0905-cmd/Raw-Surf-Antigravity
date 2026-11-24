@@ -65,6 +65,7 @@ export function sampleDecodedOmValue({ variable, layerKey, lat, lng }, deps = {}
   // session when our own frames draw the layer (no .om slot at all): the inspection's finding 10.
   if (infoboxOwnFrameEnabled() && (!slot || !best || best.model !== slot.model || best.timeIndex !== slot.timeIndex)) return null;
   if (!best || !best.values || !best.nx || !best.ny || !best.bounds) return null;
+  best.__used = Date.now();   // the shared byte budget's recency (decodedOmBudget.js)
   const [w, s, e, n] = best.bounds;
   if (!(e > w) || !(n > s)) return null;
   const fx = (lng - w) / (e - w);

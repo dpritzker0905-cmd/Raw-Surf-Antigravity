@@ -11,11 +11,13 @@ For each GUARDED flag that is effectively ON (code default '1' and no manifest '
   3. DECIDES: a WORSE verdict or any sanity breach disables the flag: an 'off' entry in `control/flags.json` with a
      human-readable reason, the evidence and the fix version it judged.
 
-NO FLAP. The guardrail only ever writes 'off'. An 'off' it wrote stays off until EITHER the fix version changes
-(`runtime_flags.FIX_VERSION[flag]` bumped by a PR that changes the fix; the guardrail then clears its own entry and the
-new version runs and is judged afresh) OR the owner re-enables it (workflow_dispatch `reenable` with his words, which
-writes state 'on', set_by 'owner'). A later WORSE verdict may disable an owner re-enable again (disabling is always
-allowed); nothing turns a fix back on automatically.
+VERSION HOLD + SHADOW RUN (D-087, supersedes D-065 NO FLAP). The guardrail only ever writes 'off'. When a fix
+version is bumped (`runtime_flags.FIX_VERSION[flag]`), the hold stays; the guardrail starts a shadow run: scoring the
+new version for SHADOW_REQUIRED_PASSES (3) consecutive NOT_WORSE cycles (~18 h). After all passes it writes a
+shadow_proposal (evidence recorded with feature_id + version + commit) but still does NOT re-enable automatically. Only
+the owner's workflow_dispatch re-enable turns a flag back on (owner_reenable() checks the actor, D-074); a later
+WORSE verdict may disable it again. Nothing ever re-enables a flag automatically. The owner may re-enable at any
+time regardless of shadow state; a passed shadow only PROPOSES re-enable.
 
 DRY RUN is the default: the repo variable FLAG_GUARDRAIL_ENFORCE must be '1' for any write. In dry run the job
 reports what it WOULD do (job summary + an issue marked [dry run]) and writes nothing. The owner flips it:
@@ -65,6 +67,11 @@ if HERE not in sys.path:
 
 from services import runtime_flags as _rf  # noqa: E402
 from services.weather_pipeline import guardrail_stats as gs  # noqa: E402
+import flag_guardrail_physics as _phys  # noqa: E402  (the PHYSICS guard, Plan 4; split out at the 800-line cap)
+from flag_guardrail_physics import (  # noqa: E402,F401  (re-exported: callers and tests use flag_guardrail.<name>)
+    PHYSICS, PHYSICS_BLIND_KEY, PHYSICS_BLIND_RUNS, PHYSICS_ON_KEY, PHYSICS_RAILS, physics_read, physics_result,
+    write_guard_files,
+)
 
 ROLLING_DAYS = 14
 SETTLE_H = 24
@@ -76,6 +83,7 @@ VOLUME_FLAGS = {"ALERTS_FORECAST_WINDOWS": "surf_alert"}
 # look, not independent evidence). A non-worse run in between resets the count. Sanity breaches act at once.
 STRIKES = 2
 STRIKE_SPAN_H = 24
+SHADOW_REQUIRED_PASSES = 3  # consecutive NOT_WORSE cycles before a shadow_proposal is written (~18 h at 6-h schedule)
 # Flags whose kill switch REMOVES a service instead of restoring an older one. The guardrail reports a WORSE verdict or
 # a sanity breach for them but never writes 'off': a breach from a replay that cannot see the flag (they are BLIND)
 # must not take a whole service away from every user. Only the owner turns them off (#1132, the director 2026-11-22).
@@ -87,6 +95,8 @@ REPLAY, RATING, VOLUME, BLIND, LEDGER = "replay", "rating", "volume", "blind", "
 # Every GUARDED flag (and the ones open PRs add) with what can see it. Flags in eval_replay.UNREPLAYABLE are BLIND
 # automatically (their reason is the replay's own). Pre-declared names cost nothing until they are guarded.
 COVERAGE = {
+    "GFS_PARTITION_MASKED_AS_ZERO": (PHYSICS, "the frame physics check's R1 / R2 on the GFS world partition frames this "
+                                              "flag's ingest published (PHYSICS_RAILS); the replay archives no partitions"),
     "SAMPLER_UNRESOLVED_STATIONS": (BLIND, "one named buoy coordinate (NDBC 46267); no surf spot is within 0.6 deg, so "
                                            "the replay cannot exercise it. Evidence: the per-buoy split's no-served-row "
                                            "count (accuracy_per_buoy_split.unanswered)"),
@@ -200,6 +210,22 @@ def empty_manifest() -> dict:
     return {"schema": _rf.SCHEMA, "flags": {}}
 
 
+def snapshot_drift(manifest: dict, snapshot_kills=None) -> dict:
+    """D-090 cold-start floor: the live manifest's 'off' entries vs the committed snapshot's
+    (`services/runtime_flags_snapshot.json`). {} when they agree; else {missing, extra, text} where `missing` are kills a
+    cold process would LOSE during an outage (the dangerous side), `extra` are kills it would wrongly hold, and `text` is
+    the exact file to commit. The workflow opens an issue on any drift (no token here can commit it: no new secret)."""
+    live = {k: e for k, e in _rf.validate(manifest).items() if e["state"] == "off"}
+    snap = _rf.snapshot_kills() if snapshot_kills is None else snapshot_kills
+    missing, extra = sorted(set(live) - set(snap)), sorted(set(snap) - set(live))
+    if not missing and not extra:
+        return {}
+    doc = {"schema": _rf.SCHEMA, "note": "COLD-START FLOOR (runtime_flags.py, D-090): the 'off' entries of "
+           "control/flags.json, committed so a guardrail kill survives a process start during a manifest outage.",
+           "as_of": iso(utc_now()), "source": "flag-guardrail snapshot_drift", "flags": live}
+    return {"missing": missing, "extra": extra, "text": json.dumps(doc, indent=1, sort_keys=True) + "\n"}
+
+
 def effective_on(flag: str, manifest: dict) -> bool:
     e = (manifest.get("flags") or {}).get(flag)
     if e and str(e.get("state")).lower() in _rf.STATES:
@@ -207,18 +233,95 @@ def effective_on(flag: str, manifest: dict) -> bool:
     return _rf.GUARDED[flag] == "1"
 
 
-def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datetime, evidence: str = "") -> dict:
-    """{action: none|disable|clear|hold, entry?, reason}. Pure: the caller writes (or, in dry run, only reports)."""
+def _has_shadow(flag: str, manifest: dict) -> bool:
+    """True when this flag is in a shadow run (waiting for SHADOW_REQUIRED_PASSES passes before proposing re-enable)."""
+    e = (manifest.get("flags") or {}).get(flag)
+    return bool(e and e.get("set_by") == SET_BY and e.get("state") == "off" and "shadow" in e)
+
+
+def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datetime,
+           evidence: str = "", commit: str = "") -> dict:
+    """{action: none|disable|clear|hold|version_hold|shadow_proposal, entry?, reason}. Pure."""
     e = (manifest.get("flags") or {}).get(flag)
     if e and e.get("state") == "off":
-        if e.get("set_by") == SET_BY and e.get("fix_version") != fix_version:
-            return {"action": "clear", "reason": f"fix version {e.get('fix_version')} -> {fix_version}: the new "
-                                                 f"version runs at its code default and is judged afresh"}
+        if e.get("set_by") == SET_BY:
+            shadow = e.get("shadow")
+            if e.get("fix_version") != fix_version:
+                # Version bumped: keep off, start shadow run. The old clear path is replaced by the HYBRID (D-087).
+                init = {"feature_id": flag, "version": fix_version, "commit": commit,
+                        "required_passes": SHADOW_REQUIRED_PASSES, "passes": 0, "fails": 0,
+                        "verdicts": [], "run_urls": [], "started_at": iso(now)}
+                new_e = dict(e, fix_version=fix_version, shadow=init)
+                new_e.pop("shadow_proposal", None)
+                return {"action": "version_hold", "entry": new_e,
+                        "reason": (f"fix version {e.get('fix_version')} -> {fix_version}: "
+                                   f"flag stays OFF; shadow run started (need {SHADOW_REQUIRED_PASSES} consecutive passes)")}
+            if shadow:
+                if shadow.get("feature_id") != flag:
+                    return {"action": "hold", "entry": e,
+                            "reason": f"shadow evidence rejected: feature_id '{shadow.get('feature_id')}' != '{flag}'"}
+                if shadow.get("version") != fix_version:
+                    return {"action": "hold", "entry": e,
+                            "reason": (f"shadow stale: shadow is for version '{shadow.get('version')}', "
+                                       f"current is '{fix_version}'")}
+                verdict = result.get("verdict", gs.UNTESTABLE)
+                cov = result.get("coverage", "")
+                sanity = result.get("sanity") or []
+                new_shadow = dict(shadow)
+                new_shadow["verdicts"] = list(shadow.get("verdicts") or []) + [verdict]
+                if evidence:
+                    new_shadow["run_urls"] = list(shadow.get("run_urls") or []) + [evidence]
+                # LEDGER, BLIND and PHYSICS (its check reads only frames built with the flag ON): the owner re-enables
+                if cov in (LEDGER, BLIND, PHYSICS):
+                    new_e = dict(e, shadow=new_shadow)
+                    return {"action": "hold", "entry": new_e,
+                            "reason": f"shadow: {flag} is {cov}; evidence is external — owner decides when to re-enable"}
+                # WORSE verdict or sanity breach: reset pass count (like WORSE)
+                if verdict == gs.WORSE or sanity:
+                    new_shadow["passes"] = 0
+                    new_shadow["fails"] = new_shadow.get("fails", 0) + 1
+                    new_e = dict(e, shadow=new_shadow)
+                    new_e.pop("shadow_proposal", None)
+                    breach_detail = ("; breach: " + "; ".join(sanity)) if sanity else ""
+                    return {"action": "hold", "entry": new_e,
+                            "reason": (f"shadow FAIL ({verdict}{breach_detail}): consecutive pass count reset to 0 "
+                                       f"({new_shadow['fails']} total fail(s))")}
+                elif verdict in (gs.NOT_WORSE, gs.BETTER):
+                    # Genuine pass: replay-backed clean verdict, no breach
+                    new_shadow["passes"] = new_shadow.get("passes", 0) + 1
+                    new_e = dict(e, shadow=new_shadow)
+                    if new_shadow["passes"] >= new_shadow["required_passes"]:
+                        if not e.get("shadow_proposal"):  # write proposal only once
+                            proposal = {"feature_id": flag, "version": fix_version, "commit": commit,
+                                        "passes": new_shadow["passes"], "verdicts": new_shadow["verdicts"],
+                                        "run_urls": new_shadow.get("run_urls", []), "proposed_at": iso(now)}
+                            new_e = dict(new_e, shadow_proposal=proposal)
+                            return {"action": "shadow_proposal", "entry": new_e,
+                                    "reason": (f"shadow PASS {new_shadow['passes']}/{new_shadow['required_passes']}: "
+                                               f"evidence recorded (commit {commit[:8]}); flag stays OFF until owner re-enables")}
+                        # Proposal already written; return hold so the actions log and acted.txt don't repeat every 6 h
+                        return {"action": "hold", "entry": new_e,
+                                "reason": (f"shadow: proposal already written for version {fix_version}; "
+                                           f"owner decides when to re-enable")}
+                    return {"action": "hold", "entry": new_e,
+                            "reason": (f"shadow pass {new_shadow['passes']}/{new_shadow['required_passes']}: "
+                                       f"{verdict}")}
+                else:
+                    # SKIPPED, NO_CHANGE, UNTESTABLE, unknown: no-evidence — no pass, no reset
+                    new_e = dict(e, shadow=new_shadow)
+                    return {"action": "hold", "entry": new_e,
+                            "reason": (f"shadow: {verdict} — no evidence (no pass, no reset); "
+                                       f"{new_shadow.get('passes', 0)}/{new_shadow['required_passes']} passes so far")}
+            return {"action": "hold",
+                    "reason": (f"off since {e.get('set_at')} ({SET_BY}): same fix version {fix_version}; "
+                               f"bump FIX_VERSION to start a shadow run")}
         return {"action": "hold", "reason": f"off since {e.get('set_at')} ({e.get('set_by')}): {e.get('reason')}; "
-                                            f"re-enable needs a new fix version or the owner's word"}
+                                            f"re-enable needs the owner's explicit dispatch (owner decides)"}
     if not effective_on(flag, manifest):
         return {"action": "none", "reason": "not ON (code default off, no manifest entry): nothing to watch"}
     breach = result.get("sanity") or []
+    if _phys.untestable_keeps_strikes(result, breach):    # a PHYSICS UNTESTABLE keeps the strike counter (advisor, #1267)
+        return _phys.untestable_decision(flag, result, manifest)
     if result.get("verdict") == gs.WORSE and not breach:
         w = (manifest.get("watch") or {}).get(flag) or {}
         first = w.get("first_worse_at") or iso(now)
@@ -245,10 +348,12 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
 
 def apply(manifest: dict, flag: str, d: dict) -> dict:
     out = {"schema": _rf.SCHEMA, "flags": dict(manifest.get("flags") or {})}
-    if d["action"] == "disable":
+    if d["action"] in ("disable", "version_hold", "shadow_proposal"):
         out["flags"][flag] = d["entry"]
     elif d["action"] == "clear":
         out["flags"].pop(flag, None)
+    elif d["action"] == "hold" and "entry" in d:
+        out["flags"][flag] = d["entry"]
     return out
 
 
@@ -258,6 +363,8 @@ def next_watch(watch: dict, flag: str, d: dict) -> dict:
     out = dict(watch)
     if d["action"] == "strike":
         out[flag] = d["watch"]
+    elif d.get("keep_watch"):                # a PHYSICS UNTESTABLE: the count survives until a judged run
+        out[flag] = d["keep_watch"]
     else:
         out.pop(flag, None)
     return out
@@ -280,11 +387,16 @@ def save_watch(cache_dir: str, watch: dict) -> None:
         json.dump(watch, f, indent=1, sort_keys=True)
 
 
-def owner_reenable(manifest: dict, flag: str, words: str, actor: str, now: datetime) -> dict:
+def owner_reenable(manifest: dict, flag: str, words: str, actor: str, now: datetime,
+                   expected_owner: str = "") -> dict:
     if flag not in _rf.GUARDED:
         raise ValueError(f"{flag} is not a guarded flag")
     if not words or len(words.strip()) < 3:
         raise ValueError("re-enabling needs the owner's words, verbatim")
+    if not expected_owner:
+        raise ValueError("REPO_OWNER_LOGIN is not configured; cannot verify the actor; re-enable refused")
+    if actor.strip() != expected_owner.strip():
+        raise ValueError(f"actor '{actor}' is not the configured owner; re-enable refused")
     out = {"schema": _rf.SCHEMA, "flags": dict(manifest.get("flags") or {})}
     out["flags"][flag] = {"state": "on", "reason": f"owner re-enabled: {words.strip()}"[:900], "set_by": "owner",
                           "set_at": iso(now), "evidence": f"workflow_dispatch by {actor}",
@@ -311,14 +423,20 @@ def _creds():
     return base, _supabase_headers(key)
 
 
-def read_manifest() -> dict:
+def read_manifest(allow_missing: bool = False) -> dict:
+    """The live manifest. ONLY a 200 is a read. A 400/404 used to count as an empty manifest, and Supabase answers 400
+    for auth and bucket failures too, so an enforce run could rewrite the manifest WITHOUT every existing kill (D-090).
+    Now any non-200 raises and the run goes red. `allow_missing` (--allow-missing-manifest, a person's choice, never
+    the schedule) bootstraps an empty manifest on a 400/404 only."""
     import requests
     from services.weather_pipeline.store import WEATHER_BUCKET
     base, h = _creds()
     r = requests.get(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{_rf.MANIFEST_KEY}", headers=h, timeout=20)
-    if r.status_code in (400, 404):
+    if allow_missing and r.status_code in (400, 404):
         return empty_manifest()
-    r.raise_for_status()
+    if r.status_code != 200:
+        raise _rf.ManifestUnreadable(f"flags manifest read: HTTP {r.status_code} (not treated as empty; bootstrap a "
+                                     f"missing manifest with --allow-missing-manifest)")
     doc = r.json()
     _rf.validate(doc)
     return doc
@@ -407,7 +525,7 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
               "leads": "24,48,72", "step_h": 12, "cache_dir": cache_dir, "max_range_downloads": 900,
               "max_bytes": 3_000_000_000}
     results = {}
-    seen = [f for f in flags if (coverage(f) or (REPLAY, ""))[0] not in (BLIND, LEDGER)]
+    seen = [f for f in flags if (coverage(f) or (REPLAY, ""))[0] not in (BLIND, LEDGER, PHYSICS)]
     led = None
     try:                                     # once per run; also carries CONSENSUS_SERVE's readiness cells for the report
         led = (ledger or ledger_report)(now)
@@ -429,6 +547,8 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
             r = {"verdict": LEDGER_VERDICT.get((v or {}).get("state"), gs.UNTESTABLE),
                  "reasons": (v or {}).get("why") or [f"ledger {(v or {}).get('state') or 'unavailable'}: {why}"],
                  "ledger_state": (v or {}).get("state")}
+        elif cls == PHYSICS:            # judged in run() on the physics check (physics_result); never replayed
+            r = {"verdict": gs.UNTESTABLE, "reasons": [f"PHYSICS: {why}"], "sanity": []}
         elif cls == BLIND:
             # Never replay a blind flag: it would run as the baseline and read NO_CHANGE. The sanity sweep still runs.
             r = dof.evaluate(f, None) if replay is None else replay(f, None)
@@ -445,19 +565,20 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
     return results
 
 
-def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) -> dict:
+def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None, physics=None) -> dict:
     now = now or utc_now()
     enforce = args.enforce == "1"
-    manifest = manifest if manifest is not None else read_manifest()
+    manifest = manifest if manifest is not None else read_manifest(getattr(args, "allow_missing_manifest", False))
     if args.reenable:
-        new = owner_reenable(manifest, args.reenable, args.owner_words, args.actor, now)
+        new = owner_reenable(manifest, args.reenable, args.owner_words, args.actor, now,
+                             expected_owner=getattr(args, "owner_login", ""))
         report = {"mode": "enforce" if enforce else "dry-run", "reenable": args.reenable, "decisions": {}}
         if enforce:
             write_object(_rf.MANIFEST_KEY, json.dumps(new, indent=1).encode())
-        return dict(report, manifest=new)
+        return dict(report, manifest=new, snapshot_drift=snapshot_drift(new if enforce else manifest))
     watched = [f for f in sorted(_rf.GUARDED) if effective_on(f, manifest)
                or ((manifest.get("flags") or {}).get(f) or {}).get("set_by") == SET_BY]
-    on_now = [f for f in watched if effective_on(f, manifest)]
+    on_now = [f for f in watched if effective_on(f, manifest) or _has_shadow(f, manifest)]
     results = (scorer or score_flags)(on_now, now, args.cache_dir, args.out)
     ledger = results.pop("__ledger__", None)
     for f, ntype in VOLUME_FLAGS.items():
@@ -488,10 +609,14 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
                     r["reasons"] = list(r.get("reasons") or []) + [
                         f"REPORT-ONLY until released ({LEDGER_RELEASE_ENV}=1 after the research lead's READ of a real run; "
                         f"runs with a real verdict so far: {seen_real}): a FIRE is printed, not a strike"]
+    watch, on_since = _phys.track_on_since(watch, [f for f in PHYSICS_RAILS if f in _rf.GUARDED and effective_on(f, manifest)],
+                                           iso(now))
+    results, watch, guard_blind, guard_judged = _phys.physics_pass(results, watch, on_since, physics)
     decisions, new = {}, manifest
     for f in watched:
         d = decide(f, results.get(f, {"verdict": "UNTESTABLE", "reasons": ["not scored (held off)"]}),
-                   dict(new, watch=watch), _rf.FIX_VERSION.get(f, "1"), now, args.run_url)
+                   dict(new, watch=watch), _rf.FIX_VERSION.get(f, "1"), now, args.run_url,
+                   getattr(args, "commit", ""))
         decisions[f] = d
         new = apply(new, f, d)
         watch = next_watch(watch, f, d)
@@ -502,6 +627,7 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
     changed = new != manifest
     report = {"mode": "enforce" if enforce else "dry-run", "generated_utc": iso(now), "decisions": decisions,
               "results": results, "changed": changed, "watch": watch, "ledger": ledger, "plant_rates": plant_rates,
+              "guard_blind": guard_blind, "guard_judged": guard_judged,
               "ledger_commands": [ledger_command(f, d, args.run_url) for f, d in decisions.items()
                                   if d["action"] == "disable"]}
     if enforce and changed:
@@ -509,8 +635,10 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
         back = read_manifest()
         report["read_back_ok"] = back.get("flags") == new.get("flags")
         append_actions([{"at": iso(now), "flag": f, "action": d["action"], "reason": d["reason"],
-                         "run": args.run_url} for f, d in decisions.items() if d["action"] in ("disable", "clear")])
+                         "run": args.run_url} for f, d in decisions.items()
+                        if d["action"] in ("disable", "clear", "version_hold", "shadow_proposal")])
     report["manifest"] = new
+    report["snapshot_drift"] = snapshot_drift(new if enforce else manifest)
     return report
 
 
@@ -536,6 +664,8 @@ def markdown(report: dict) -> str:
             lines.append(f"| `{f}` | {(r['quantities'].get('hs_station') or {}).get('verdict')} | "
                          f"{(r['quantities'].get('hb_proxy') or {}).get('verdict')} | n {c.get('n')}, score moved "
                          f"{c.get('score_changed')}, level moved {c.get('level_changed')} |")
+    for line in report.get("guard_blind") or []:
+        lines += ["", f"**{line}** (reported only; blindness never disables a flag)"]
     blind = [f for f, r in sorted(results.items()) if r.get("coverage") == BLIND]
     if blind:
         lines += ["", f"BLIND to the replay (no evidence can turn these off here; sanity and the owner can): "
@@ -549,7 +679,34 @@ def markdown(report: dict) -> str:
                       + "; ".join(f"{k} {a}/{n}" for k, (a, n) in sorted(rates.items())), ""]
     for c in report.get("ledger_commands", []):
         lines += ["", "Ledger line owed (BRAIN_RULES section 23), for the next session's fragment:", "```", c, "```"]
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines + drift_lines(report.get("snapshot_drift") or {})) + "\n"
+
+
+# The DEDICATED P0 issue (advisor, #1263): its own title, so it is never buried as a comment on an old "Flag guardrail"
+# issue. The three guardrail-family titles stay unmatched by each other's searches: "Flag guardrail", "PHYSICS guard
+# blind" (#1267) and this one (no word "flag" or "guardrail" in it; tests/test_flag_guardrail.py pins that).
+P0_DRIFT_TITLE = "P0 cold-start snapshot drift: commit and deploy the kills snapshot within 24 h"
+
+
+def drift_lines(drift: dict) -> list:
+    """The markdown section for a cold-start snapshot drift ([] when none)."""
+    lines = []
+    if drift:
+        p0 = bool(drift["missing"])
+        lines += ["", f"### {'P0 · ' if p0 else ''}Cold-start snapshot drift (D-090)", ""]
+        if p0:
+            lines += [f"**P0 (advisor condition on #1261, 2026-11-24).** The guardrail killed served-number flag(s) "
+                      f"{', '.join(drift['missing'])}, and the committed snapshot does not hold the kill. A process that "
+                      "starts during a manifest outage would serve the killed fix again.", "",
+                      "- **Deadline: within 24 h of this run**, commit the file below in a one-file PR to `dev` AND have "
+                      "it deployed. Production (Render) deploys from `dev`, and the snapshot protects a cold start only "
+                      "once it is on that branch and live (check `/api/health` `version`).",
+                      "- **While this issue is open, no new served-number fix ships ON.**", ""]
+        lines += [f"Would LOSE on a cold start: {', '.join(drift['missing']) or 'none'}; would wrongly hold: "
+                  f"{', '.join(drift['extra']) or 'none'}. Exact file text for "
+                  "`backend/services/runtime_flags_snapshot.json`:", "",
+                  "```json", drift["text"].rstrip("\n"), "```"]
+    return lines
 
 
 def main(argv=None) -> int:
@@ -562,6 +719,10 @@ def main(argv=None) -> int:
     p.add_argument("--reenable", default="")
     p.add_argument("--owner-words", default="")
     p.add_argument("--actor", default=os.environ.get("GITHUB_ACTOR", ""))
+    p.add_argument("--owner-login", default=os.environ.get("REPO_OWNER_LOGIN", ""))
+    p.add_argument("--commit", default=os.environ.get("GITHUB_SHA", ""))
+    p.add_argument("--allow-missing-manifest", action="store_true",
+                   help="bootstrap: treat a 400/404 manifest read as empty (a person's choice, never the schedule)")
     a = p.parse_args(argv)
     os.makedirs(a.out, exist_ok=True)
     report = run(a)
@@ -571,14 +732,23 @@ def main(argv=None) -> int:
     with open(os.path.join(a.out, "guardrail.md"), "w", encoding="utf-8", newline="\n") as f:
         f.write(md)
     print(md)
-    acted = [f for f, d in report.get("decisions", {}).items() if d["action"] == "disable"]
+    acted = [f for f, d in report.get("decisions", {}).items()
+             if d["action"] in ("disable", "version_hold", "shadow_proposal")]
     reported = [f for f, d in report.get("decisions", {}).items() if d["action"] == "report"]
     for f in reported:                                  # a breach the guardrail may not act on must still reach someone
         print(f"::warning title=Flag guardrail: {f} reported, NOT disabled::"
               f"{report['decisions'][f]['reason'][:300]}")
     with open(os.path.join(a.out, "acted.txt"), "w", encoding="utf-8") as f:
         # the workflow opens or appends the guardrail issue whenever this is non-empty
-        f.write(" ".join(acted + [f"{x}(reported-not-disabled)" for x in reported]))
+        d = report.get("snapshot_drift") or {}
+        # tags share NO word with the P0 issue title (its search is word-based); the P0 issue itself is opened separately
+        drift = (["kill-missing-from-committed-floor(see-critical-issue)"] if d.get("missing")
+                 else ["committed-floor-holds-a-cleared-kill"]) if d else []
+        f.write(" ".join(acted + [f"{x}(reported-not-disabled)" for x in reported] + drift))
+    if d.get("missing"):                                # the workflow opens ONE dedicated P0 issue from this file
+        with open(os.path.join(a.out, "p0_drift.md"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("\n".join(drift_lines(d)).lstrip("\n") + "\n")
+    write_guard_files(a.out, report)
     return 0
 
 

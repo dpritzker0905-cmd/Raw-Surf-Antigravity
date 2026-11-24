@@ -8,10 +8,14 @@ Serves nothing; the parsing is `wind_lr_obs`'s, imported, not copied.
 import glob
 import math
 import os
+import sys
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 import wind_lr_obs as obs
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from services import buoy_holdout  # noqa: E402
 
 Rec = Tuple[float, float, float]            # (wspd, gust, wdir) at station height
 Truth = Dict[datetime, Rec]
@@ -29,6 +33,8 @@ def fit_truth(s, cache: str, sid: str, start: datetime, end: datetime,
               year_reader: Callable = obs.ndbc_year, month_reader: Optional[Callable] = None) -> Tuple[Truth, Dict[str, int]]:
     """NDBC FIT truth for [start, end]: annual stdmet for each completed calendar year touched, the monthly stdmet files
     for months of the current/unfinished year. Returns (records, {source: n}). realtime2 is never read here."""
+    if buoy_holdout.is_locked(sid):                         # a LOCKED buoy: no truth is read (the locked-holdout fence)
+        return {}, {"annual": 0, "monthly": 0}
     month_reader = month_reader or (lambda s_, c_, sid_, y_, m_: obs.ndbc_window(s_, c_, sid_, months=((y_, m_),)))
     now_year = datetime.now(timezone.utc).year
     out: Truth = {}
@@ -68,6 +74,8 @@ def load_snapshots(snap_dir: str, sid: str) -> Truth:
     """Merge every snapshot for one station. Snapshots overlap by design (45-day window, weekly); the same record is
     read the same way in each, and the EARLIEST snapshot that holds a record wins (what was seen first)."""
     out: Truth = {}
+    if buoy_holdout.is_locked(sid):                         # archived by save_snapshot, never read before the window
+        return out
     for p in sorted(glob.glob(os.path.join(snap_dir, "*", f"{sid.upper()}.txt"))):
         for t, r in obs.parse_ndbc_stdmet(open(p, encoding="utf-8").read()).items():
             out.setdefault(t, r)
@@ -116,3 +124,20 @@ def pairing_table(stations: Sequence[dict], spots: Sequence[dict], crosses_land:
 def station_ok(truth: Truth, start: datetime, end: datetime, need_gust: bool = False) -> bool:
     """>= 70% hourly records over the window (reported at SCORE time; never used to pick stations by skill)."""
     return obs.hourly_coverage(truth, start, end, need_gust) >= 0.70
+
+
+def coverage_report(truth: Truth, start: datetime, end: datetime, threshold: float = 0.70) -> dict:
+    """Per-station coverage over the TEST valid window (advisor ruling 2026-11-23T12:45:02Z): the fraction of window hours with a
+    wind record (WSPD and WDIR present) and, separately, with a GST record. `ok_wind` / `ok_gust` mark >= `threshold`; they feed
+    the floor counts and the report ONLY and never drop a row from scoring."""
+    hours = max(1.0, (end - start).total_seconds() / 3600.0)
+    wind, gust = set(), set()
+    for t, (w, g, d) in truth.items():
+        if start <= t <= end:
+            h = t.replace(minute=0, second=0)
+            if w == w and d == d:
+                wind.add(h)
+            if g == g:
+                gust.add(h)
+    cw, cg = len(wind) / hours, len(gust) / hours
+    return {"wind": round(cw, 4), "gust": round(cg, 4), "ok_wind": bool(cw >= threshold), "ok_gust": bool(cg >= threshold)}

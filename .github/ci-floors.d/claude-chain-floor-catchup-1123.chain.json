@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 0,
+  "files": 1,
+  "branch": "claude/chain-floor-catchup-1123",
+  "date": "2026-11-23",
+  "note": "catch-up: dev chain MIN_FILES 261 vs 262 observed (run 45222648842 @8f7cd099), files budget 0; MIN_PASSED 4399 vs 4405 is within its budget of 6, so +0 tests"
+}

@@ -41,8 +41,12 @@ def test_list_is_exactly_the_freeze_of_its_committed_inputs():
     doc = buoylist.load()
     again = mod.freeze(load(mod.POOL), load(mod.CATALOGUE), load(mod.BOXES), doc["frozen_at"])
     # version 2 (amendment 2) = the version 1 freeze, unchanged, + the committed fit-used census
-    again = mod.tag(again, load(mod.FIT_USED), (doc.get("holdout") or {}).get("locked_list"))
+    again = mod.tag(again, load(mod.FIT_USED), None)
+    # #1199's freeze (amendment 1): the LOCKED list recorded on top, outside list_hash, so the archive's pinned hash holds
+    again = mod.record_lock(again, (buoylist.REPO_ROOT / mod.LOCKED_PATH).read_bytes())
     assert again == doc
+    assert buoylist.list_hash(doc) == (buoylist.LIST_PATH.parent / (buoylist.LIST_PATH.name + ".sha256")).read_text(
+        encoding="utf-8").split()[0]
     assert doc["version"] == "served-wave-verify-v1-buoys/2"
 
 

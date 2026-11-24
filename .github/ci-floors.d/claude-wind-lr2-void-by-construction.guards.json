@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 11,
+  "files": 1,
+  "branch": "claude/wind-lr2-void-by-construction",
+  "date": "2026-11-23",
+  "note": "tests/test_wind_lr2_void.py: 11 cases (reproducible count table, exact VOID trigger, symmetric table, descriptive form strips decisions, every section stamped, VOID in every file name, shipping refused, cmd_score order, registration status + descriptive-only doc)"
+}

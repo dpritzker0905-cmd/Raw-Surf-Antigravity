@@ -39,6 +39,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline import sim_forecast   # noqa: E402
+from services import buoy_holdout   # noqa: E402  (the locked final buoy holdout, #1199)
 
 # Open-water NDBC stations with a wide geographic and climatic spread — short-period wind seas
 # (Gulf, FL, Great Lakes-adjacent Atlantic) through long-period Pacific groundswell (Hawaii, West
@@ -70,6 +71,8 @@ def ndbc_latest(station):
     """Newest usable row of NDBC realtime2. Columns:
     YY MM DD hh mm WDIR WSPD GST WVHT DPD APD MWD PRES ATMP WTMP DEWP VIS PTDY TIDE"""
     url = f"https://www.ndbc.noaa.gov/data/realtime2/{station}.txt"
+    if not buoy_holdout.allow_url(url):
+        return None, "no data"
     req = urllib.request.Request(url, headers={"User-Agent": "raw-surf-validation/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=25) as r:
@@ -109,6 +112,8 @@ def main():
 
     rows = []
     for stn, (lat, lng, label, regime) in BUOYS.items():
+        if not buoy_holdout.keep(stn):
+            continue
         obs, err = ndbc_latest(stn)
         if not obs:
             print(f"{stn:<8}{label:<20}{regime:<24}{err}")

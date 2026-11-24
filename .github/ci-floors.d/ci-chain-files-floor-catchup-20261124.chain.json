@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 0,
+  "files": 1,
+  "branch": "ci/chain-files-floor-catchup-20261124",
+  "date": "2026-11-24",
+  "note": "catch-up: dev chain MIN_FILES 268 vs 269 observed (run 45417339355); no tests added here"
+}

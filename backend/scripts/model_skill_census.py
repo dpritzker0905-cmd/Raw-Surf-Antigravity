@@ -71,6 +71,7 @@ MODELS = ("GFS", "ICON", "EURO")
 # skill ledger now bands the same way — two copies of a band table diverge only on a boundary, and
 # a census that disagrees with the ledger about what "flat" means is worse than no census.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from services import buoy_holdout  # noqa: E402
 from services.weather_pipeline.forecast_skill import OBS_BANDS as BANDS  # noqa: E402
 
 
@@ -108,7 +109,7 @@ def parse_latest_obs_waves(text, now, max_age_min):
         if age < 0 or age > max_age_min:
             continue
         out.append({"id": sid, "lat": lat, "lon": lon, "obs_hs_m": h, "age_min": round(age, 1)})
-    return out
+    return buoy_holdout.drop(out, "id")            # #1199 LOCKED buoys dropped at load
 
 
 def _mae(v):

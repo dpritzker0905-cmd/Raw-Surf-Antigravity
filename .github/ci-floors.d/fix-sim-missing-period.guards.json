@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 12,
+  "files": 1,
+  "branch": "fix/sim-missing-period",
+  "date": "2026-11-23",
+  "note": "sim missing period = unknown (bug hunt F)"
+}

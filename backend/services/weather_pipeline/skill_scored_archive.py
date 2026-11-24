@@ -22,6 +22,8 @@ import calendar
 from datetime import date, datetime, timezone
 from typing import Callable, List, Mapping, Optional, Tuple
 
+from services import buoy_holdout
+
 SCORED_PREFIX = "calibration/skill/scored-"
 DAY_SEGMENTS_FROM = "2026-10"     # first month whose new rows go to one object per UTC day
 
@@ -82,4 +84,7 @@ def read_month(month: str, through: date,
             part, there = load(key)
         rows.extend(part)
         exists = exists or there
-    return rows, exists
+    # LOCKED final buoy holdout (#1199): every reader of the scored archive comes through here, so a locked buoy's
+    # rows leave at load. The ledger's own writes do NOT use read_month (forecast_skill loads objects directly), so
+    # the archive itself still keeps them for the locked window.
+    return buoy_holdout.drop(rows, "buoy_id"), exists

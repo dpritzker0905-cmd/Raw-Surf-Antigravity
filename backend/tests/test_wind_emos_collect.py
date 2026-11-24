@@ -58,8 +58,11 @@ def test_daily_target_survives_throttling_and_falls_back():
         if base == C.ef.ECMWF_BASE:
             raise RuntimeError("HTTP 503")                 # throttled: the next source is tried
         return run.day == 16
+    rep = {"skipped": [], "unavailable": []}
     with patch.object(C.ef, "run_available", side_effect=avail):
-        run, base = C.daily_target(None, now)
-    assert run == datetime(2026, 11, 16, tzinfo=timezone.utc) and base == C.ef.AWS_BASE
+        plan = C.daily_plan(None, now, {"2026111500.npz"}, rep, waits=(0,))
+    assert plan == [(datetime(2026, 11, 16, tzinfo=timezone.utc), C.ef.AWS_BASE)] and rep["unavailable"] == []
+    rep = {"skipped": [], "unavailable": []}
     with patch.object(C.ef, "run_available", side_effect=RuntimeError("HTTP 503")):
-        assert C.daily_target(None, now) == (None, None)   # never a crash
+        assert C.daily_plan(None, now, set(), rep, waits=(0,)) == []   # never a crash
+    assert rep["unavailable"] == ["2026111600", "2026111500"]          # and never a quiet miss (today AND yesterday)

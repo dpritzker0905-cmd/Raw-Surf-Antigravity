@@ -16,15 +16,24 @@ COST: the manifest is read at most once per TTL (default 300 s, `RUNTIME_FLAGS_T
 a process blocks for at most `RUNTIME_FLAGS_TIMEOUT_S` (default 2 s); every later refresh runs in a background thread
 while readers keep the cached copy, so a request never waits on storage after the first.
 
-FAIL-SAFE: an unreadable, malformed or absent manifest never raises. A reader keeps the LAST GOOD manifest for up to
+FAIL-SAFE: an unreadable, malformed or absent manifest never raises. ONLY an HTTP 200 with a valid document is a good
+read; any other status (400, 401, 403, 404, 5xx) is UNKNOWN, never "no overrides" (D-090 relies on the guardrail's
+'off' entries, and a 400/404 used to clear every one of them at once). A reader keeps the LAST GOOD manifest for up to
 `RUNTIME_FLAGS_MAX_STALE_S` (default 6 h); past that only its 'off' entries are kept (an outage never resurrects a
-killed fix) and everything else falls back to the code default, as it does when no manifest was ever read.
-`RUNTIME_FLAGS_MANIFEST=0` disables the manifest entirely
-(tests, local runs); with no `SUPABASE_URL` it is never contacted.
+killed fix) and everything else falls back to the code default.
+COLD START during an outage (no good read yet in this process: every Render restart, every CI process): the 'off'
+entries of the COMMITTED SNAPSHOT `runtime_flags_snapshot.json` (beside this file) hold as a floor, so a killed fix
+stays killed. The first good read replaces the floor entirely (an owner re-enable wins as soon as storage answers).
+The guardrail reports when the snapshot's kills drift from the live manifest's (`flag_guardrail.snapshot_drift`).
+Design: SubQ + Reflection, 2026-11-24 (both: a committed snapshot, fresh 200 authoritative; they differed on adding a
+local file cache or a raw-GitHub fetch, so neither is here).
+`RUNTIME_FLAGS_MANIFEST=0` disables the manifest AND the snapshot floor entirely
+(tests, local runs); with no `SUPABASE_URL` the bucket is never contacted (the snapshot floor still holds).
 
 WRITER: only the guardrail workflow (`.github/workflows/flag-guardrail.yml`), with its existing CI secrets named
 SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. No value of either appears in this repository.
 """
+import json
 import logging
 import os
 import threading
@@ -105,16 +114,44 @@ GUARDED = {
                                          # the open-Pacific cell 0.96 deg away (+1.5 m). Nothing else moves; kill '0'.
                                          # GUARDRAIL BLIND: no surf spot is within 0.6 deg, so the replay reads NO_CHANGE.
                                          # The monitor improves because the station's rows LEAVE the score
+    "GFS_PARTITION_MASKED_AS_ZERO": "1",  # Plan 4 (2026-11-24): a MASKED GFS-Wave partition subcell is zero energy where
+                                         # the total is valid (_fetch_partition_mask). ON by the owner's word "Ship ON with
+                                         # guard (Recommended)"; guard = the physics check's R1/R2 (flag_guardrail PHYSICS).
+                                         # Resolved in the PARENT and passed in the fetcher payload; kill '0'
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it
 # judged; a new version clears that 'off' so the changed fix runs and is judged afresh (the no-flap rule's only
 # automatic way back on; the other is the owner's word).
 FIX_VERSION = {name: "2026-11-04" for name in GUARDED}
+FIX_VERSION["GFS_PARTITION_MASKED_AS_ZERO"] = "2026-11-24"
 
 _lock = threading.Lock()
 _cache: Dict[str, object] = {"flags": None, "read_at": 0.0, "good_at": 0.0, "refreshing": False, "error": None}
 _fetcher: Optional[Callable[[], Optional[dict]]] = None      # tests inject; None = the bucket
+SNAPSHOT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runtime_flags_snapshot.json")
+_snapshot: Dict[str, object] = {"kills": None, "error": None}   # tests inject {"kills": {...}}
+
+
+class ManifestUnreadable(RuntimeError):
+    """A non-200 manifest read: the state is UNKNOWN (never an empty, good manifest)."""
+
+
+def snapshot_kills() -> Dict[str, dict]:
+    """The 'off' entries of the committed snapshot (the cold-start floor). Unreadable = {} with the error recorded."""
+    with _lock:
+        if _snapshot["kills"] is not None:
+            return dict(_snapshot["kills"])
+    try:
+        with open(SNAPSHOT_PATH, encoding="utf-8") as fh:
+            kills = {k: e for k, e in validate(json.load(fh)).items() if e["state"] == "off"}
+        err = None
+    except Exception as e:                               # noqa: BLE001 - fail safe, recorded
+        kills, err = {}, f"{type(e).__name__}: {e}"[:200]
+        logger.warning(f"[runtime-flags] committed snapshot unreadable, no cold-start floor: {e}")
+    with _lock:
+        _snapshot["kills"], _snapshot["error"] = kills, err
+    return dict(kills)
 
 
 def _f(name: str, default: float) -> float:
@@ -150,9 +187,10 @@ def _fetch_bucket() -> Optional[dict]:
     url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{MANIFEST_KEY}?cb={int(time.time() * 1000)}"
     resp = requests.get(url, headers={**supabase_headers(key), "Cache-Control": "no-cache"},
                         timeout=_f("RUNTIME_FLAGS_TIMEOUT_S", 2.0))
-    if resp.status_code in (400, 404):
-        return {"schema": SCHEMA, "flags": {}}           # no manifest yet = nothing overridden (a good read)
-    resp.raise_for_status()
+    if resp.status_code != 200:
+        # D-090: a 400/404 is NOT "no manifest, nothing overridden". Supabase answers 400 for a missing object AND for
+        # auth/bucket failures, so it is unknown: keep the last good read, else the committed snapshot's kills.
+        raise ManifestUnreadable(f"HTTP {resp.status_code}")
     return resp.json()
 
 
@@ -194,7 +232,7 @@ def _manifest() -> Dict[str, dict]:
     with _lock:
         flags, good_at = _cache["flags"], float(_cache["good_at"])
     if flags is None:
-        return {}
+        return snapshot_kills()                          # cold start, nothing good read yet: the committed kills hold
     if time.time() - good_at > _f("RUNTIME_FLAGS_MAX_STALE_S", 6 * 3600.0):
         # Past the staleness bound only the KILLS survive (Reflection review 2026-11-04): a storage outage must not
         # resurrect a fix the guardrail turned off; an 'on' entry falls back to the code default.
@@ -209,7 +247,9 @@ def resolve(name: str, default: str) -> dict:
         return {"value": v, "source": "env", "entry": None}
     e = _manifest().get(name)
     if e is not None:
-        return {"value": STATES[e["state"]], "source": "manifest", "entry": e}
+        with _lock:
+            src = "manifest" if _cache["flags"] is not None else "snapshot"
+        return {"value": STATES[e["state"]], "source": src, "entry": e}
     return {"value": default, "source": "default", "entry": None}
 
 
@@ -229,11 +269,16 @@ def on(name: str) -> bool:
 def status() -> dict:
     with _lock:
         return {"read_at": _cache["read_at"], "good_at": _cache["good_at"], "error": _cache["error"],
-                "entries": len(_cache["flags"] or {}), "ttl_s": ttl_s(), "key": MANIFEST_KEY}
+                "entries": len(_cache["flags"] or {}), "ttl_s": ttl_s(), "key": MANIFEST_KEY,
+                "floor": "manifest" if _cache["flags"] is not None else "snapshot",
+                "snapshot_kills": len(_snapshot["kills"] or {}), "snapshot_error": _snapshot["error"]}
 
 
-def _reset_for_tests(fetcher: Optional[Callable[[], Optional[dict]]] = None) -> None:
+def _reset_for_tests(fetcher: Optional[Callable[[], Optional[dict]]] = None,
+                     snapshot: Optional[Dict[str, dict]] = None) -> None:
+    """`snapshot`: the cold-start kills to use ({} = none); None re-reads the committed file on first use."""
     global _fetcher
     with _lock:
         _cache.update({"flags": None, "read_at": 0.0, "good_at": 0.0, "refreshing": False, "error": None})
+        _snapshot.update({"kills": None if snapshot is None else dict(snapshot), "error": None})
     _fetcher = fetcher

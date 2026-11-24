@@ -131,6 +131,7 @@ def test_armed_it_dispatches_only_the_lane_whose_slot_was_missed(clean):
         "forecast-ingest.yml": [_run("2026-09-28T08:40:00Z")],             # 12:15 slot only 5 min old
         "forecast-ingest-pilots.yml": [_run("2026-09-28T10:10:47Z")],       # 11:45 slot missed
         "mop-nearshore-ingest.yml": [_run("2026-09-28T06:50:00Z")],         # 06:40 slot served
+        "data-health-monitor.yml": [_run("2026-09-28T12:01:00Z")],          # 12:00 slot served
     })
     out = WD.run_once(now=now, http=http)
     assert [u for u, _h, _j in http.posts] == [

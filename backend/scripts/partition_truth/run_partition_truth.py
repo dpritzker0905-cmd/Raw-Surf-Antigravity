@@ -23,6 +23,7 @@ from scripts.partition_truth import gfswave_partitions as gw
 from scripts.partition_truth import ndbc_spectra as nd
 from scripts.partition_truth import partitioner as P
 from scripts.partition_truth import score as sc
+from services import buoy_holdout
 
 STATIONS = ("46025 46026 46042 46054 46086 46059 46002 46005 46006 46013 46014 46022 46027 46050 46041 46029 46087 "
             "51001 51002 51003 51004 51101 51201 51202 41002 41004 41008 41010 41025 41043 41047 41049").split()
@@ -144,7 +145,7 @@ def main(argv=None):
     pos = nd.station_positions(set(a.stations))
     stations = {}
     for s in a.stations:
-        st = nd.load_station(s) if s in pos else None
+        st = nd.load_station(s) if s in pos and buoy_holdout.keep(s) else None
         if st:
             stations[s] = st
     pos = {s: pos[s] for s in stations}
@@ -188,7 +189,7 @@ def main(argv=None):
             result["slot_diagnostics"][f"+{lead}h"] = dict(d)
         elif which.startswith("match:"):
             result["match_counts"][f"+{lead}h/{which[6:]}"] = dict(d)
-    text = json.dumps(result, indent=1, default=str)
+    text = buoy_holdout.redact(json.dumps(result, indent=1, default=str))
     if a.out:
         with open(a.out, "w", encoding="utf-8") as fh:
             fh.write(text)

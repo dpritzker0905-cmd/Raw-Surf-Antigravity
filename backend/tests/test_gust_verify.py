@@ -37,7 +37,17 @@ def _imports(name):
 
 @pytest.mark.parametrize("name", ["gust_verify_score.py", "gust_bucket_io.py"])
 def test_scorer_and_storage_are_standard_library_only(name):
-    assert _imports(name) <= STDLIB, _imports(name) - STDLIB
+    # the scorer may import ONE project module, the #1199 holdout fence, which is itself standard library only
+    allowed = STDLIB | ({"services"} if name == "gust_verify_score.py" else set())
+    assert _imports(name) <= allowed, _imports(name) - allowed
+    if name == "gust_verify_score.py":
+        assert "from services import buoy_holdout" in open(os.path.join(SCRIPTS, name), encoding="utf-8").read()
+        tree = ast.parse(open(os.path.join(SCRIPTS, "..", "services", "buoy_holdout.py"), encoding="utf-8").read())
+        mods = {a.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
+        mods |= {(n.module or "").split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+        # urllib: standard library, used ONLY for urllib.parse.unquote in allow_url (percent-decoding, #1257); still no
+        # third-party package (no requests, no httpx), so `python3 -I -S` keeps working
+        assert mods <= {"__future__", "hashlib", "json", "os", "re", "sys", "pathlib", "urllib"}, mods
 
 
 # ------------------------------------------------------------------------------------------------ collector parsing

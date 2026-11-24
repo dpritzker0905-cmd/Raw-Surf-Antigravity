@@ -1,0 +1,261 @@
+[
+ {
+  "lead_h": 0,
+  "swell_1": {
+   "blocks": 9088,
+   "moved_share": 0.1425,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.115,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.28,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "swell_2": {
+   "blocks": 8541,
+   "moved_share": 0.2993,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.173,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.605,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "wind_waves": {
+   "blocks": 8276,
+   "moved_share": 0.4847,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.87,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.72,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "R2_as_built": 0.2137,
+  "R1_as_built": 0.0195,
+  "R2_fixed": 0.0075,
+  "R1_fixed": 0.0
+ },
+ {
+  "lead_h": 24,
+  "swell_1": {
+   "blocks": 9063,
+   "moved_share": 0.1704,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.185,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.376,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "swell_2": {
+   "blocks": 8303,
+   "moved_share": 0.3168,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.193,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.646,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "wind_waves": {
+   "blocks": 8138,
+   "moved_share": 0.4805,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.982,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.72,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "R2_as_built": 0.2294,
+  "R1_as_built": 0.0259,
+  "R2_fixed": 0.0093,
+  "R1_fixed": 0.0001
+ },
+ {
+  "lead_h": 72,
+  "swell_1": {
+   "blocks": 9083,
+   "moved_share": 0.1899,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.235,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.388,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "swell_2": {
+   "blocks": 8254,
+   "moved_share": 0.3516,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.259,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.669,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "wind_waves": {
+   "blocks": 7892,
+   "moved_share": 0.5201,
+   "drop_m_p50": 0.013,
+   "drop_m_p95": 1.05,
+   "drop_rel_p50": 0.009,
+   "drop_rel_p95": 0.75,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "R2_as_built": 0.2488,
+  "R1_as_built": 0.029,
+  "R2_fixed": 0.011,
+  "R1_fixed": 0.0
+ },
+ {
+  "lead_h": 120,
+  "swell_1": {
+   "blocks": 9174,
+   "moved_share": 0.1537,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.139,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.293,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "swell_2": {
+   "blocks": 8537,
+   "moved_share": 0.3362,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.216,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.664,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "wind_waves": {
+   "blocks": 7646,
+   "moved_share": 0.5408,
+   "drop_m_p50": 0.019,
+   "drop_m_p95": 1.062,
+   "drop_rel_p50": 0.016,
+   "drop_rel_p95": 0.75,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "R2_as_built": 0.2402,
+  "R1_as_built": 0.0249,
+  "R2_fixed": 0.0083,
+  "R1_fixed": 0.0
+ },
+ {
+  "lead_h": 168,
+  "swell_1": {
+   "blocks": 8985,
+   "moved_share": 0.1663,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.235,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.328,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "swell_2": {
+   "blocks": 8257,
+   "moved_share": 0.3194,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.244,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.661,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "wind_waves": {
+   "blocks": 7849,
+   "moved_share": 0.5196,
+   "drop_m_p50": 0.011,
+   "drop_m_p95": 0.932,
+   "drop_rel_p50": 0.008,
+   "drop_rel_p95": 0.75,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "R2_as_built": 0.2147,
+  "R1_as_built": 0.0285,
+  "R2_fixed": 0.0095,
+  "R1_fixed": 0.0001
+ },
+ {
+  "lead_h": 240,
+  "swell_1": {
+   "blocks": 9051,
+   "moved_share": 0.155,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.162,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.293,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "swell_2": {
+   "blocks": 8409,
+   "moved_share": 0.3149,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.222,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.646,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "wind_waves": {
+   "blocks": 7902,
+   "moved_share": 0.4939,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.987,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.72,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "R2_as_built": 0.2092,
+  "R1_as_built": 0.0246,
+  "R2_fixed": 0.0092,
+  "R1_fixed": 0.0
+ },
+ {
+  "lead_h": 336,
+  "swell_1": {
+   "blocks": 9083,
+   "moved_share": 0.1402,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.119,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.293,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "swell_2": {
+   "blocks": 8486,
+   "moved_share": 0.3049,
+   "drop_m_p50": 0.0,
+   "drop_m_p95": 0.207,
+   "drop_rel_p50": 0.0,
+   "drop_rel_p95": 0.622,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "wind_waves": {
+   "blocks": 7922,
+   "moved_share": 0.5304,
+   "drop_m_p50": 0.014,
+   "drop_m_p95": 0.905,
+   "drop_rel_p50": 0.016,
+   "drop_rel_p95": 0.75,
+   "never_rose": true,
+   "nan_before_value_after": 0
+  },
+  "R2_as_built": 0.2038,
+  "R1_as_built": 0.0222,
+  "R2_fixed": 0.0077,
+  "R1_fixed": 0.0002
+ }
+]

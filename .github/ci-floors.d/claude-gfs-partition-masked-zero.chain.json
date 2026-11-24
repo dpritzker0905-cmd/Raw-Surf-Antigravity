@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 28,
+  "files": 1,
+  "branch": "claude/gfs-partition-masked-zero",
+  "date": "2026-11-24",
+  "note": "GFS_PARTITION_MASKED_AS_ZERO (Plan 4)"
+}

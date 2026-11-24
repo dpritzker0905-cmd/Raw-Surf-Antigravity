@@ -68,6 +68,8 @@ def not_read_doc(doc, now, info):
 
 
 def snapshot_truth(writer, doc, now, opener=ndbc_get, pause=0.3):
+    """COLLECTION (#1199: locked buoys are still archived): every listed station's realtime2 files, locked included; the
+    printed report is redacted by main(). Every other mode reads through holdout.state() / buoy_holdout."""
     out = {"written": 0, "missing": [], "failed": []}
     for s in buoylist.stations(doc):
         for kind in ("txt", "spec"):
