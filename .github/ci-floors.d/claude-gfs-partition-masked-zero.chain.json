@@ -1,6 +1,6 @@
 {
   "lane": "chain",
-  "tests": 27,
+  "tests": 28,
   "files": 1,
   "branch": "claude/gfs-partition-masked-zero",
   "date": "2026-11-24",

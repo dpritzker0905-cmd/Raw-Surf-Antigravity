@@ -114,3 +114,7 @@ Owner's ruling, relayed by the director (local_d6b521eb): "Ship ON with guard (R
   (`guard-judged.txt`). It only reports.
 - Tests: 26 in `test_gfs_partition_masked_zero.py`. Run twice with the 5 guardrail suites, the physics check and runtime
   flags: 138 passed both times. Mutating either the strike-keeping branch or the blind trigger turns a test red.
+- 2026-11-24, advisor title hold: the blind issue is now titled "PHYSICS guard blind: ..." (no "Flag guardrail"), its search
+  filters to that prefix, and the main guardrail issue's search excludes it (jq filter). Pinned by a test that also runs the
+  real jq filters where jq exists (CI). Note for the next change: `flag_guardrail.py` is at 785 of 800 lines, so the PHYSICS
+  helpers must move to their own module first.

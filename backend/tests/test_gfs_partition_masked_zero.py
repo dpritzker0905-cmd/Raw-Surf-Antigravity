@@ -461,3 +461,29 @@ def test_fresh_layers_are_judged_and_stale_ones_named():
     assert set(rep["index_run_times"]) == {"GFS/marine/waves/global_mid", "GFS/marine/swell_1/global_mid"}
     r = fg.physics_result(FLAG, dict(_report(0.01, 0.0), stale_skipped=rep["stale_skipped"]), ON_SINCE)
     assert r["verdict"] == gs.NOT_WORSE and "swell_2" in " ".join(r["reasons"])
+
+
+def _jq_of(line):
+    return line.split("--jq '", 1)[1].rsplit("'", 1)[0]
+
+
+def test_the_blind_issue_and_the_main_guardrail_issue_never_share_a_search():
+    """Advisor hold on #1267: a DISABLE notice must never be appended to the blind issue (a judged run auto-closes it)."""
+    import shutil
+    import subprocess
+    wf = open(os.path.join(os.path.dirname(os.path.dirname(HERE)), ".github", "workflows", "flag-guardrail.yml"),
+              encoding="utf-8").read()
+    main_line = next(ln for ln in wf.splitlines() if '--search "Flag guardrail in:title"' in ln)
+    blind_line = next(ln for ln in wf.splitlines() if '--search "\\"PHYSICS guard blind\\" in:title"' in ln)
+    blind_step = wf[wf.index("- name: Open or close the GUARD-BLIND issue"):]
+    title = blind_step.split('--title "', 1)[1].split('"', 1)[0]
+    assert "flag guardrail" not in title.lower() and title.startswith("PHYSICS guard blind")
+    assert 'contains("PHYSICS guard blind") | not' in _jq_of(main_line)         # the main search excludes the blind issue
+    assert 'startswith("PHYSICS guard blind")' in _jq_of(blind_line)             # the blind search finds only its own
+    issues = [{"number": 5, "title": title}, {"number": 7, "title": "[dry run] Flag guardrail: SURF_TIDE_DEPTH"}]
+    if shutil.which("jq"):                                                       # CI runners have jq: run the real filters
+        run = lambda f: subprocess.run(["jq", "-r", f], input=json.dumps(issues), capture_output=True, text=True).stdout.strip()
+        assert run(_jq_of(main_line)) == "7"
+        assert run(_jq_of(blind_line)) == "5"
+        assert run(_jq_of(main_line)) and subprocess.run(["jq", "-r", _jq_of(main_line)], input=json.dumps(issues[:1]),
+                                                          capture_output=True, text=True).stdout.strip() == ""
