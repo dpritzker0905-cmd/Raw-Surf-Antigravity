@@ -470,23 +470,45 @@ def _jq_of(line):
     return line.split("--jq '", 1)[1].rsplit("'", 1)[0]
 
 
-def test_the_blind_issue_and_the_main_guardrail_issue_never_share_a_search():
-    """Advisor hold on #1267: a DISABLE notice must never be appended to the blind issue (a judged run auto-closes it)."""
+MAIN_JQ = ('[.[] | select((.title | contains("Flag guardrail")) and (.title | contains("PHYSICS guard blind") | not) '
+           'and (.title | startswith("P0 cold-start snapshot drift") | not))][0].number // empty')
+BLIND_JQ = '[.[] | select(.title | startswith("PHYSICS guard blind"))][0].number // empty'
+P0_JQ = '[.[] | select(.title | startswith("P0 cold-start snapshot drift"))][0].number // empty'
+SEMANTICS = {   # the jq filters above, in Python, so the three-way check also runs where jq is absent
+    MAIN_JQ: lambda t: "Flag guardrail" in t and "PHYSICS guard blind" not in t and not t.startswith("P0 cold-start snapshot drift"),
+    BLIND_JQ: lambda t: t.startswith("PHYSICS guard blind"),
+    P0_JQ: lambda t: t.startswith("P0 cold-start snapshot drift"),
+}
+
+
+def test_the_three_guardrail_issues_never_match_each_others_searches():
+    """Advisor holds on #1267 (and #1263's P0 issue): a DISABLE notice must never land on the blind issue (a judged run
+    auto-closes it) or on the P0 issue, and the P0 step must never mistake the MAIN issue for its own: #1263 writes the acted
+    tag "P0-cold-start-snapshot-drift-24h" into the main title, and GitHub's word search for "P0 cold-start snapshot drift"
+    matches it. Each search therefore keeps only its OWN title by exact prefix (its jq)."""
     import shutil
     import subprocess
     wf = open(os.path.join(os.path.dirname(os.path.dirname(HERE)), ".github", "workflows", "flag-guardrail.yml"),
               encoding="utf-8").read()
-    main_line = next(ln for ln in wf.splitlines() if '--search "Flag guardrail in:title"' in ln)
-    blind_line = next(ln for ln in wf.splitlines() if '--search "\\"PHYSICS guard blind\\" in:title"' in ln)
-    blind_step = wf[wf.index("- name: Open or close the GUARD-BLIND issue"):]
-    title = blind_step.split('--title "', 1)[1].split('"', 1)[0]
-    assert "flag guardrail" not in title.lower() and title.startswith("PHYSICS guard blind")
-    assert 'contains("PHYSICS guard blind") | not' in _jq_of(main_line)         # the main search excludes the blind issue
-    assert 'startswith("PHYSICS guard blind")' in _jq_of(blind_line)             # the blind search finds only its own
-    issues = [{"number": 5, "title": title}, {"number": 7, "title": "[dry run] Flag guardrail: SURF_TIDE_DEPTH"}]
-    if shutil.which("jq"):                                                       # CI runners have jq: run the real filters
-        run = lambda f: subprocess.run(["jq", "-r", f], input=json.dumps(issues), capture_output=True, text=True).stdout.strip()
-        assert run(_jq_of(main_line)) == "7"
-        assert run(_jq_of(blind_line)) == "5"
-        assert run(_jq_of(main_line)) and subprocess.run(["jq", "-r", _jq_of(main_line)], input=json.dumps(issues[:1]),
-                                                          capture_output=True, text=True).stdout.strip() == ""
+    lines = wf.splitlines()
+    main_line = next(ln for ln in lines if '--search "Flag guardrail in:title"' in ln)
+    blind_line = next(ln for ln in lines if '--search "\\"PHYSICS guard blind\\" in:title"' in ln)
+    p0_line = next((ln for ln in lines if '--search "P0 cold-start snapshot drift in:title"' in ln), None)
+    blind_title = wf[wf.index("- name: Open or close the GUARD-BLIND issue"):].split('--title "', 1)[1].split('"', 1)[0]
+    searches = {"main": _jq_of(main_line), "blind": _jq_of(blind_line)}
+    titles = {"main": "[dry run] Flag guardrail: SURF_TIDE_DEPTH P0-cold-start-snapshot-drift-24h", "blind": blind_title}
+    assert searches["main"] == MAIN_JQ and searches["blind"] == BLIND_JQ
+    if p0_line is not None:                                         # #1263's dedicated P0 step (on dev once #1263 merged)
+        searches["p0"] = _jq_of(p0_line)
+        titles["p0"] = next(ln for ln in lines if 'title="P0 cold-start snapshot drift' in ln).split('title="', 1)[1].rstrip('"')
+        assert searches["p0"] == P0_JQ
+    assert "flag guardrail" not in blind_title.lower() and "flag guardrail" not in titles.get("p0", "").lower()
+    for who, jq in searches.items():                                # each search finds its own title and no other
+        for whose, title in titles.items():
+            assert SEMANTICS[jq](title) == (who == whose), (who, whose, title)
+    if shutil.which("jq"):                                          # CI runners have jq: the real filters agree
+        issues = [{"number": i, "title": t} for i, t in enumerate(titles.values(), start=1)]
+        want = {k: str(i) for i, k in enumerate(titles, start=1)}
+        for who, jq in searches.items():
+            got = subprocess.run(["jq", "-r", jq], input=json.dumps(issues), capture_output=True, text=True).stdout.strip()
+            assert got == want[who], (who, got)

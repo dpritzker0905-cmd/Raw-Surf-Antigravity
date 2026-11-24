@@ -94,7 +94,7 @@ jobs:
           [ -n "$acted" ] || exit 0
           tag="[dry run] "; [ "$ENFORCE" = "1" ] && tag=""
           title="${tag}Flag guardrail: ${acted}"
-          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Flag guardrail in:title" --json number,title --jq '[.[] | select(.title | contains("PHYSICS guard blind") | not)][0].number // empty')"
+          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Flag guardrail in:title" --json number,title --jq '[.[] | select((.title | contains("Flag guardrail")) and (.title | contains("PHYSICS guard blind") | not) and (.title | startswith("P0 cold-start snapshot drift") | not))][0].number // empty')"
           if [ -n "$n" ]; then gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body-file "$f"
           else gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$f"; fi
 
