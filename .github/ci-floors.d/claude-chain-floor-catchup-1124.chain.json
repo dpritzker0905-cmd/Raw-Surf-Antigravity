@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 5,
+  "files": 1,
+  "branch": "claude/chain-floor-catchup-1124",
+  "date": "2026-11-24",
+  "note": "catch-up: dev chain 267 files / 4456 vs 268 / 4467 observed (run 45292711755 @6680d383); files budget 0, passed budget 6, so +1 file +5 tests -> 268 / 4461"
+}
