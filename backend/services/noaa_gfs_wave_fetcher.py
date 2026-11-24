@@ -32,6 +32,7 @@ USAGE:
 import os
 import sys
 import json
+import functools
 import time
 import uuid
 import tempfile
@@ -164,6 +165,10 @@ try:
 except ImportError:
     from services._fetch_native_cell import (LAND_HALF, enabled as _native_enabled, is_native,  # package
                                              multi_conf_at, native_multi, native_reduce, views)
+try:   # Plan 4 (2026-11-24): a MASKED partition is zero energy where the total is valid; flag GFS_PARTITION_MASKED_AS_ZERO
+    import _fetch_partition_mask as _pmask  # script-by-path
+except ImportError:
+    from services import _fetch_partition_mask as _pmask  # package
 
 # Scalar block aggregation (2026-07-04, wind_waves tri-model forensics): heights = block RMS,
 # periods = H²-weighted block mean — symmetric with the direction block means. PARTITIONED WW3
@@ -402,6 +407,7 @@ def fetch_global_coarse(payload):
     export_confidence = blockmean and os.environ.get("NOAA_COARSE_DIR_CONFIDENCE", "1") != "0"
     # Per-partition confidence (R x coverage) — see PARTITION_DIR_CONFIDENCE_OM.
     export_part_conf = blockmean and os.environ.get("NOAA_PARTITION_DIR_CONFIDENCE", "1") != "0"
+    mask_zero = _pmask.payload_value(payload)   # resolved by the PARENT (runtime_flags) and passed in the payload
     # accumulator: point index -> {om_var -> [values per timestep]}; the confidence series is
     # initialized WITH the whitelisted variables so failed steps keep every series time-aligned.
     series_keys = OM_ORDER + ([DIR_CONFIDENCE_OM] if export_confidence else [])
@@ -480,6 +486,7 @@ def fetch_global_coarse(payload):
             for mi, om in enumerate(OM_ORDER):
                 vals = msgs[mi].values  # masked array (land/missing masked)
                 arrs[om] = np.ma.filled(np.ma.asarray(vals, dtype=float), np.nan)
+            _pm = _pmask.prepare(arrs) if mask_zero else {}   # zero-filled partition heights (totals untouched)
             if band_census_due:      # logging only (stderr); never raises; kill COASTAL_BAND_CENSUS=0
                 band_census_due = False
                 try:
@@ -549,6 +556,10 @@ def fetch_global_coarse(payload):
                 # A PARTITION direction also exports R x coverage, because energy weighting only
                 # ever sees subcells where the train exists — see PARTITION_DIR_CONFIDENCE_OM.
                 part_conf_key = PARTITION_DIR_CONFIDENCE_OM.get(om) if export_part_conf else None
+                _empty_nan, _support = om in _pm, "finite"   # Plan 4 Fix A (heights) and Fix B (conf denominator)
+                _orig, arr = arr, _pm.get(om, arr)
+                if part_conf_key and h_arr is not None and DIR_TO_HEIGHT[om] in _pm:
+                    h_arr, _support = _pm[DIR_TO_HEIGHT[om]], "height"
                 for rid, rmap in idx_by.items():
                     series = series_by[rid]
                     half = half_by[rid]
@@ -563,7 +574,8 @@ def fetch_global_coarse(payload):
                     # Kill: FETCH_VECTOR_BLOCKMEAN=0.
                     _reduces = h_arr is not None or is_height or p_h_arr is not None
                     if nat and _reduces:   # this variable's scalar form, for the per-point fallback below
-                        _fn, _gr = ((energy_mean_direction_block_partition_conf, (arr, h_arr))
+                        _fn, _gr = ((functools.partial(energy_mean_direction_block_partition_conf, support=_support),
+                                     (arr, h_arr))
                                     if h_arr is not None and part_conf_key else
                                     (energy_mean_direction_block, (arr, h_arr)) if h_arr is not None else
                                     (energy_mean_height_block, (arr,)) if is_height else
@@ -573,8 +585,11 @@ def fetch_global_coarse(payload):
                         _cs = np.fromiter((p[1] for p in rmap), dtype=np.intp, count=len(rmap))
                         # moved unchanged to _fetch_region_reduce (2026-11-16): the 0.5 world tier calls it too
                         _got = _reduce.variable(arr, h_arr, is_height, p_h_arr, part_conf_key, _hs_native,
-                                                _rs, _cs, half, nat)
+                                                _rs, _cs, half, nat, _support)
                         _vals, _pconfs = _got if _got is not None else (None, None)
+                        if _empty_nan and _vals is not None:   # a block with no train before the fill stays no-data
+                            _vals = _pmask.keep_absent(_vals, _rs, _cs, functools.partial(
+                                _pmask.old_reduction, _orig, is_height, _hs_native, half, nat))
                         if _vals is not None:
                             for pi in range(len(rmap)):
                                 if _pconfs is not None:
@@ -593,7 +608,7 @@ def fetch_global_coarse(payload):
                                     round(float(_pconf), 4) if _pconf is not None else None)
                         elif h_arr is not None and part_conf_key:
                             x, _pconf = energy_mean_direction_block_partition_conf(
-                                arr, h_arr, r, c, half, True)
+                                arr, h_arr, r, c, half, True, _support)
                             series[pi][part_conf_key].append(
                                 round(float(_pconf), 4) if _pconf is not None else None)
                         elif h_arr is not None:
@@ -605,6 +620,9 @@ def fetch_global_coarse(payload):
                             x = energy_mean_scalar_block(arr, p_h_arr, r, c, half, True)
                         else:
                             x = arr[r, c]
+                        if _empty_nan and x == 0.0:   # a train absent from the whole block: no-data, as before the fill
+                            x = float(_pmask.keep_absent([x], [r], [c], functools.partial(
+                                _pmask.old_reduction, _orig, is_height, _hs_native, half, nat))[0])
                         series[pi][om].append(round(float(x), 4) if x == x else None)  # x==x drops NaN
             grbs.close()
 

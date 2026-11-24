@@ -87,9 +87,22 @@ NEVER_AUTO_DISABLE = {
 }
 
 REPLAY, RATING, VOLUME, BLIND, LEDGER = "replay", "rating", "volume", "blind", "ledger"
+# PHYSICS (2026-11-24, Plan 4): judged on the publish-time physics check (services/frame_physics_check.py) of the frames the
+# flag's own ingest published, not on the replay. Rails pre-registered BEFORE the flag shipped (plan amendment 2026-11-24,
+# SubQ / Reflection), far above the measured fixed rate (2-deg R2 1.05 %, R1 0.00 %) and the native rate (R2 1.1-1.3 %):
+#   above `worse`  -> WORSE (the usual 2 strikes over >= 24 h disable);   above `breach` -> a sanity breach, disabled at once
+#   (back near the unfixed 22 % / 2.5 %). Frames registered before the flag was first seen ON are never judged.
+PHYSICS = "physics"
+PHYSICS_RAILS = {
+    "GFS_PARTITION_MASKED_AS_ZERO": {"model": "GFS", "worse": {"energy_closure": 0.05, "partition_le_total": 0.005},
+                                     "breach": {"energy_closure": 0.15, "partition_le_total": 0.02}},
+}
+PHYSICS_ON_KEY = "__physics_on_since__"   # in the watch cache: when each PHYSICS flag was first seen effectively ON
 # Every GUARDED flag (and the ones open PRs add) with what can see it. Flags in eval_replay.UNREPLAYABLE are BLIND
 # automatically (their reason is the replay's own). Pre-declared names cost nothing until they are guarded.
 COVERAGE = {
+    "GFS_PARTITION_MASKED_AS_ZERO": (PHYSICS, "the frame physics check's R1 / R2 on the GFS world partition frames this "
+                                              "flag's ingest published (PHYSICS_RAILS); the replay archives no partitions"),
     "SAMPLER_UNRESOLVED_STATIONS": (BLIND, "one named buoy coordinate (NDBC 46267); no surf spot is within 0.6 deg, so "
                                            "the replay cannot exercise it. Evidence: the per-buoy split's no-served-row "
                                            "count (accuracy_per_buoy_split.unanswered)"),
@@ -248,8 +261,8 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
                 new_shadow["verdicts"] = list(shadow.get("verdicts") or []) + [verdict]
                 if evidence:
                     new_shadow["run_urls"] = list(shadow.get("run_urls") or []) + [evidence]
-                # LEDGER and BLIND: external evidence; only the owner decides when to re-enable
-                if cov in (LEDGER, BLIND):
+                # LEDGER, BLIND and PHYSICS (its check reads only frames built with the flag ON): the owner re-enables
+                if cov in (LEDGER, BLIND, PHYSICS):
                     new_e = dict(e, shadow=new_shadow)
                     return {"action": "hold", "entry": new_e,
                             "reason": f"shadow: {flag} is {cov}; evidence is external — owner decides when to re-enable"}
@@ -492,7 +505,7 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
               "leads": "24,48,72", "step_h": 12, "cache_dir": cache_dir, "max_range_downloads": 900,
               "max_bytes": 3_000_000_000}
     results = {}
-    seen = [f for f in flags if (coverage(f) or (REPLAY, ""))[0] not in (BLIND, LEDGER)]
+    seen = [f for f in flags if (coverage(f) or (REPLAY, ""))[0] not in (BLIND, LEDGER, PHYSICS)]
     led = None
     try:                                     # once per run; also carries CONSENSUS_SERVE's readiness cells for the report
         led = (ledger or ledger_report)(now)
@@ -514,6 +527,8 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
             r = {"verdict": LEDGER_VERDICT.get((v or {}).get("state"), gs.UNTESTABLE),
                  "reasons": (v or {}).get("why") or [f"ledger {(v or {}).get('state') or 'unavailable'}: {why}"],
                  "ledger_state": (v or {}).get("state")}
+        elif cls == PHYSICS:            # judged in run() on the physics check (physics_result); never replayed
+            r = {"verdict": gs.UNTESTABLE, "reasons": [f"PHYSICS: {why}"], "sanity": []}
         elif cls == BLIND:
             # Never replay a blind flag: it would run as the baseline and read NO_CHANGE. The sanity sweep still runs.
             r = dof.evaluate(f, None) if replay is None else replay(f, None)
@@ -530,7 +545,41 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
     return results
 
 
-def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) -> dict:
+def physics_result(flag: str, report: dict, on_since: str) -> dict:
+    """The guardrail result for a PHYSICS flag from one physics-check report (frame_physics_report.run_check). Pure.
+    UNTESTABLE when the report failed, holds no cells, or any of the model's frames was registered before `on_since`."""
+    rails = PHYSICS_RAILS[flag]
+    model = rails["model"]
+    if not report or report.get("error"):
+        return {"verdict": gs.UNTESTABLE, "reasons": [f"physics check unavailable: {(report or {}).get('error')}"],
+                "sanity": [], "coverage": PHYSICS}
+    times = [t for k, t in (report.get("index_run_times") or {}).items() if k.startswith(model + "/")]
+    if not times or not on_since or any((t or "") < on_since for t in times):
+        return {"verdict": gs.UNTESTABLE, "sanity": [], "coverage": PHYSICS,
+                "reasons": [f"{model} frames registered before the flag was first seen ON ({on_since}): not judged"]}
+    m = (report.get("summary") or {}).get(model) or {}
+    got = {rule: (m.get(rule) or {}).get("rate") for rule in rails["worse"]}
+    cells = (m.get("energy_closure") or {}).get("cells") or 0
+    if not cells or any(v is None for v in got.values()):
+        return {"verdict": gs.UNTESTABLE, "reasons": [f"no {model} partition cells checked"], "sanity": [], "coverage": PHYSICS}
+    line = ", ".join(f"{r} {got[r]:.2%}" for r in sorted(got))
+    breach = [f"physics breach: {r} {got[r]:.2%} > {rails['breach'][r]:.2%} ({cells:,} cells, {report.get('frames_read')} frames)"
+              for r in sorted(got) if got[r] > rails["breach"][r]]
+    worse = [r for r in got if got[r] > rails["worse"][r]]
+    verdict = gs.WORSE if worse else gs.NOT_WORSE
+    return {"verdict": verdict, "sanity": breach, "coverage": PHYSICS, "physics": got,
+            "reasons": [f"physics {line} (rails WORSE {rails['worse']}, breach {rails['breach']})"]}
+
+
+def physics_read() -> dict:
+    """One physics-check read of the PUBLIC frames bucket (anonymous GETs; the guardrail's own SUPABASE_URL)."""
+    import frame_physics_report as fpr
+    base = os.environ.get("SUPABASE_URL", "").rstrip("/") + "/storage/v1/object/public/weather-frames"
+    models = sorted({r["model"] for r in PHYSICS_RAILS.values()})
+    return fpr.run_check(fpr.Reader(fpr._public_reader(base), 120), models=tuple(models))
+
+
+def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None, physics=None) -> dict:
     now = now or utc_now()
     enforce = args.enforce == "1"
     manifest = manifest if manifest is not None else read_manifest()
@@ -574,6 +623,21 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
                     r["reasons"] = list(r.get("reasons") or []) + [
                         f"REPORT-ONLY until released ({LEDGER_RELEASE_ENV}=1 after the research lead's READ of a real run; "
                         f"runs with a real verdict so far: {seen_real}): a FIRE is printed, not a strike"]
+    on_since = dict(watch.get(PHYSICS_ON_KEY) or {})
+    for f in PHYSICS_RAILS:
+        if f in _rf.GUARDED and effective_on(f, manifest):
+            on_since.setdefault(f, iso(now))
+        else:
+            on_since.pop(f, None)
+    watch = dict(watch, **{PHYSICS_ON_KEY: on_since})
+    phys = [f for f in results if f in PHYSICS_RAILS]
+    if phys:
+        try:
+            preport = (physics or physics_read)()
+        except Exception as e:                                   # noqa: BLE001 - an outage is UNTESTABLE, never a breach
+            preport = {"error": f"{type(e).__name__}: {e}"[:300]}
+        for f in phys:
+            results[f] = dict(results[f], **physics_result(f, preport, on_since.get(f)))
     decisions, new = {}, manifest
     for f in watched:
         d = decide(f, results.get(f, {"verdict": "UNTESTABLE", "reasons": ["not scored (held off)"]}),

@@ -76,6 +76,11 @@ async def fetch_gfs_marine_global_coarse(
     # byte-identical and the fetcher's scalar default keeps governing.
     if resolutions:
         payload["resolutions"] = {k: float(v) for k, v in resolutions.items()}
+    # Plan 4 (2026-11-24): resolved HERE, in the parent, through runtime_flags (env > manifest > code default) and passed down:
+    # the fetcher subprocess never reads it from os.environ, so a guardrail auto-off in control/flags.json reaches it.
+    from services import runtime_flags as _rf
+    from services._fetch_partition_mask import PAYLOAD_KEY
+    payload[PAYLOAD_KEY] = _rf.flag("GFS_PARTITION_MASKED_AS_ZERO")
     script = os.path.join(os.path.dirname(__file__), "noaa_gfs_wave_fetcher.py")
 
     # HARD ceiling — a BACKSTOP, not the primary control. The fetcher's own NOAA_FETCH_BUDGET_S

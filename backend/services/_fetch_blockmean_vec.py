@@ -225,7 +225,7 @@ def multi_dir_conf_batch(pairs, fallback_dir_arr, rs, cs, half, wrap_cols, scala
     return out_d, out_c, out_p
 
 
-def partition_dir_conf_batch(dir_arr, h_arr, rs, cs, half, wrap_cols, scalar_fn):
+def partition_dir_conf_batch(dir_arr, h_arr, rs, cs, half, wrap_cols, scalar_fn, support="finite"):
     """Batch `energy_mean_direction_block_partition_conf` -> (directions, confidences).
 
     ⚠️ THE CONFIDENCE IS `R x coverage`, AND THE COVERAGE TERM IS THE WHOLE POINT. R alone measures
@@ -246,8 +246,8 @@ def partition_dir_conf_batch(dir_arr, h_arr, rs, cs, half, wrap_cols, scalar_fn)
         ri, ci = rs[interior], cs[interior]
         d = _gather(dir_arr, ri, ci, half, ncols, wrap_cols)
         h = _gather(h_arr, ri, ci, half, ncols, wrap_cols)
-        finite = np.isfinite(d) & np.isfinite(h)
-        ok = finite & (h > 0.0)
+        ok = np.isfinite(d) & np.isfinite(h) & (h > 0.0)
+        finite = np.isfinite(h) if support == "height" else (np.isfinite(d) & np.isfinite(h))   # Fix B: see _fetch_common
         e = np.where(ok, h * h, 0.0)
         rad = np.deg2rad(np.where(ok, d, 0.0))
         s = (e * np.sin(rad)).sum(axis=(1, 2))
