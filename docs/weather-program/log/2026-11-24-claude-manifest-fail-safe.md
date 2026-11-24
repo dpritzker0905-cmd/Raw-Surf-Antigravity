@@ -38,3 +38,14 @@ The snapshot cannot be refreshed automatically without a PAT (a new secret), so 
 
 The live manifest (guardrail run 45307619337, dry-run mode) holds 0 kills and 2 owner 'on' entries, so the committed
 snapshot holds no kills and no served value moves. No SCOREBOARD row: no served number changes.
+
+## Correction (2026-11-24 18:49Z)
+
+"guardrail run 45307619337, dry-run mode" above is WRONG. That run's report reads `mode: enforce` (the repo variable
+`FLAG_GUARDRAIL_ENFORCE` is `1`, set 2026-11-05T01:01Z); I misread the printed `enforce False` (mode, then
+`changed=False`) as "dry-run". The guardrail ENFORCES: a WORSE verdict writes a real kill to `control/flags.json`. The
+manifest facts stand (0 kills, 2 owner 'on' entries at that run), so the committed snapshot holding no kills was still
+correct. Do not rely on the guardrail being dry.
+Verified directly by the director: runs 45307619337 (01:47Z) and 45396929979 (12:47Z) both log
+`FLAG_GUARDRAIL_ENFORCE: 1` and the header `## Flag guardrail (enforce)`. Lesson L-P50 (LESSONS.md): read the mode from
+that header, not from the `[dry run]` template line or a terse print.

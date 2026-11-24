@@ -1632,3 +1632,12 @@ A stored estimate can be estimated again in a browser branch with different sour
     dev tip. Read it with `gh run list --workflow=ci.yml --branch=dev --event=push --status=success --limit 1`.
   - Do not "fix" the cancelled runs by setting cancel-in-progress true for dev: merges land every few minutes against
     a ~25 min run, so dev would never finish a green run and the floor readers (staleness, catch-up) would starve.
+
+### 2026-11-24 — L-P50 · Read the guardrail's mode from its own header, never from a template line or a terse print (#1281)
+- **What happened:** a lane reported the flag guardrail as "dry-run" in a session log, the #1261 PR body and a handover
+  note. It has ENFORCED since 2026-11-05 (`FLAG_GUARDRAIL_ENFORCE=1`), so its kills are real. Two easy misreads produce
+  "dry": a terse print of the report (`enforce False` is mode `enforce`, then `changed=False`), and the workflow's shell
+  template `tag="[dry run] "; [ "$ENFORCE" = "1" ] && tag=""`, which clears the tag when enforcing.
+- **Rule:** read the mode from the run's report header `## Flag guardrail (enforce)` / `(dry-run)` in its log or step
+  summary, or from `gh variable list` (`FLAG_GUARDRAIL_ENFORCE`). Never from a template line, and never from a
+  one-line print of fields without their names.
