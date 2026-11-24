@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 11,
+  "files": 1,
+  "branch": "claude/run-age-label",
+  "date": "2026-11-24",
+  "note": "always-on run age label (RunAgeLabel.test.js)"
+}

@@ -41,7 +41,13 @@ LANES: Dict[str, Tuple[str, str]] = {
     "forecast-ingest.yml": ("15", "*/4"),
     "forecast-ingest-pilots.yml": ("45", "3,11,19"),
     "mop-nearshore-ingest.yml": ("40", "*/6"),
+    # The STALENESS ALARM itself (reliability lane, 2026-11-24): GitHub ran its '*/30' about once every 7 h (inspection
+    # 2026-11-23), so a stale map went unnoticed for most of a day. From here it runs every 30 min off GitHub's cron,
+    # and its alert step opens an owner-assigned issue (data-health-monitor.yml). GitHub's own cron stays as the backup.
+    "data-health-monitor.yml": ("*/30", "*"),
 }
+# Per-lane grace where the default (GRACE_MIN) would swallow every slot: a 30-min cron is never 30 min late.
+LANE_GRACE_MIN: Dict[str, int] = {"data-health-monitor.yml": 10}
 
 _last: Dict[str, dict] = {}   # workflow -> the latest decision, for /api/health
 
@@ -123,7 +129,8 @@ def run_once(now: Optional[datetime] = None, http=None) -> Dict[str, dict]:
             resp = http.get(f"{base}/runs", headers=_headers(), params={"per_page": 10}, timeout=20)
             if resp.status_code != 200:
                 raise RuntimeError(f"runs listing HTTP {resp.status_code}")
-            fire, why = decide(resp.json().get("workflow_runs") or [], now, daily_slots(minute, hour))
+            fire, why = decide(resp.json().get("workflow_runs") or [], now, daily_slots(minute, hour),
+                               LANE_GRACE_MIN.get(wf, GRACE_MIN))
             if fire:
                 post = http.post(f"{base}/dispatches", headers=_headers(), json={"ref": REF}, timeout=20)
                 if post.status_code != 204:

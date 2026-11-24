@@ -496,10 +496,11 @@ def test_the_three_guardrail_issues_never_match_each_others_searches():
     p0_line = next((ln for ln in lines if '--search "P0 cold-start snapshot drift in:title"' in ln), None)
     blind_title = wf[wf.index("- name: Open or close the GUARD-BLIND issue"):].split('--title "', 1)[1].split('"', 1)[0]
     searches = {"main": _jq_of(main_line), "blind": _jq_of(blind_line)}
-    titles = {"main": "[dry run] Flag guardrail: SURF_TIDE_DEPTH P0-cold-start-snapshot-drift-24h", "blind": blind_title}
+    titles = {"main": "[dry run] Flag guardrail: SURF_TIDE_DEPTH kill-missing-from-committed-floor(see-critical-issue)", "blind": blind_title}
     assert searches["main"] == MAIN_JQ and searches["blind"] == BLIND_JQ
     if p0_line is not None:                                         # #1263's dedicated P0 step (on dev once #1263 merged)
-        searches["p0"] = _jq_of(p0_line)
+        searches["p0"] = (_jq_of(p0_line) if "--jq '" in p0_line   # inline, or (as #1263 merged it) a P0_JQ='...' line
+                          else next(ln for ln in lines if ln.strip().startswith("P0_JQ=")).split("P0_JQ='", 1)[1].rsplit("'", 1)[0])
         titles["p0"] = next(ln for ln in lines if 'title="P0 cold-start snapshot drift' in ln).split('title="', 1)[1].rstrip('"')
         assert searches["p0"] == P0_JQ
     assert "flag guardrail" not in blind_title.lower() and "flag guardrail" not in titles.get("p0", "").lower()
