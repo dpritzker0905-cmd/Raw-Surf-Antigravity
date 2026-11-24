@@ -528,7 +528,7 @@ and nothing ships with a caveat. A new gate tests hybrid D: the NOAA sheet withi
 Both flagged the pooled primary masking a stratum, and HARKing. LongCat's request was built (preview `payload_sha256`
 5b5a833d…) but NOT sent, because its tool requires the user's own approval of that hash.
 
-## 2026-11-24 15:20Z: datum gate v2 dispatched (owner's word); finder control committed BEFORE the artifact
+## 2026-11-24 15:08Z: datum gate v2 dispatched (owner's word); finder control committed BEFORE the artifact
 
 **Dispatch.** The owner answered "Yes, tag and run (Recommended)" to "Tag and run it?" in the director session, at
 about 15:05Z. The director pushed the annotated tag `tide-datum-parity-v2-1` on #1171's `1d92f7564` at 15:05:44Z. It
