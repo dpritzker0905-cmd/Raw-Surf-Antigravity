@@ -35,3 +35,24 @@ Append-only. Stamps come from `date -u`.
 - **Gate §3:** a dated PRE-DATA note now records the base, the sha256 values and the command. It also states the
   instrument's dependency (`parity_coops`, `finder_check` must be vendored or wait for #1171), flags the Ocean City
   near-twin donor (0.752 km), and records the widened exclusion scan for future gates.
+
+## 18:28Z: tide-guard-v1 pre-registered (the TIDE guardrail family), before any data
+
+- **Why:** David, about 17:05Z, via the director: "Build tide tester first (Recommended)". The order is this gate,
+  then the tester code, then the A instrument, then the tagged A run.
+- **Gate:** `gates/tide-guard-v1.md`.
+  - The tester scores the served table's two A arms (`am_h` ON, `am` OFF) against NOAA High/Low predictions at 40
+    SUBORDINATE monitors, in two disjoint 7-day windows per build.
+  - Its sanity breaches act at once.
+  - Acceptance needs the T1–T6 unit and integration tests, plus five planted controls in a sandbox on the first real
+    two-arm build.
+  - It is REPORT-ONLY until `TIDE_GUARD_RELEASED=1`.
+- **Monitors:** `scripts/tide_datum/guard_select.py`, output `research/tide-guard-v1-stations.json`.
+  - Snapshot: `research/tide-guard-v1-tp-snapshot.json` (fetched 2026-11-24, with `reference_id`).
+  - The donor and w are taken at the key.
+  - A monitor's reference is never its key's donor.
+  - No monitor, reference or donor is a `tide-a-harcon-v1` station.
+  - 1387 eligible; 20 + 10 per stratum.
+- **Review:** SubQ and Reflection, public context only; dispositions are in the gate's §10. The first selection run
+  was stopped before completion when the review changed the rule, and its output was discarded and never committed.
+- **Not done:** the tester code (its own PR). `flag_guardrail.py` is at 756/760 lines, so a block moves out first.
