@@ -17,7 +17,7 @@ async def recover_live_seats(maker=async_session_maker):
     now = datetime.now(timezone.utc)
     stale = now - timedelta(minutes=5)
     last_checked = func.coalesce(tx.updated_at, tx.created_at, datetime(1970, 1, 1, tzinfo=timezone.utc))
-    eligible = or_(
+    eligible = (tx.status != "verification_required") & or_(
         tx.payment_status.in_(("Pending", "Abandoned")),
         (tx.payment_status == "Completed") & ~tx.transaction_metadata.contains('"settled_participant_id"'),
     )

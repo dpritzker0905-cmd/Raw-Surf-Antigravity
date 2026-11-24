@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Input } from '../ui/input';
 
 export default function BuyInPriceInput({ price, onPriceChange, className }) {
-  const [empty, setEmpty] = useState(false);
+  const [draft, setDraft] = useState(null);
   const previousPrice = useRef(25);
   const free = price === 0;
 
@@ -16,18 +16,18 @@ export default function BuyInPriceInput({ price, onPriceChange, className }) {
         max="500"
         className={className}
         disabled={free}
-        value={empty && !free ? '' : (price ?? 25)}
+        value={free ? 0 : (draft ?? price ?? 25)}
         onChange={event => {
           const value = event.target.valueAsNumber;
           const valid = Number.isFinite(value) && value > 0;
-          setEmpty(!valid);
+          setDraft(event.target.value);
           onPriceChange(valid ? value : 25);
         }}
-        onBlur={() => setEmpty(false)}
+        onBlur={() => setDraft(null)}
       />
       <label>
         <input type="checkbox" checked={free} onChange={event => {
-          setEmpty(false);
+          setDraft(null);
           if (event.target.checked) {
             previousPrice.current = price > 0 ? price : 25;
             onPriceChange(0);

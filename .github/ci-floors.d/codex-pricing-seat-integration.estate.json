@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 20,
+  "tests": 24,
   "branch": "codex/pricing-seat-integration",
   "date": "2026-11-24",
-  "note": "Eight earlier integration cases plus twelve unattended live-seat payment and recovery cases"
+  "note": "Eight previous integration cases and sixteen unattended checkout and historical recovery cases"
 }

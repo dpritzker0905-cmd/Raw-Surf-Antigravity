@@ -24,7 +24,7 @@ afterAll(() => {
 });
 beforeEach(() => jest.clearAllMocks());
 
-it.each([SpotSetupPanel, SessionSettingsModal])('keeps cents and zero when editing the buy-in', Form => {
+it.each([SpotSetupPanel, SessionSettingsModal])('keeps cents and requires an explicit free-session choice', Form => {
   function Settings() {
     const [sessionSettings, setSessionSettings] = useState({ price_per_join: 40 });
     return <Form spot={{ name: 'Fixture' }} isOpen expandedSections={{ buyin: true }}
@@ -36,6 +36,10 @@ it.each([SpotSetupPanel, SessionSettingsModal])('keeps cents and zero when editi
   expect(input).toHaveValue(null);
   fireEvent.blur(input);
   expect(input).toHaveValue(25);
+  fireEvent.change(input, { target: { value: '0' } });
+  expect(input).toHaveValue(0);
+  fireEvent.change(input, { target: { value: '0.50' } });
+  expect(input).toHaveValue(0.5);
   fireEvent.change(input, { target: { value: '0' } });
   fireEvent.blur(input);
   expect(input).toHaveValue(25);
