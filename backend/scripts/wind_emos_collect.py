@@ -83,19 +83,58 @@ def collect_run(session, run: datetime, lats, lons, leads=LEADS, base: str = ef.
     return pack_run(out, has_cf=all(has_cf))
 
 
-def daily_target(session, now: datetime):
-    """(run, base) for the daily job: today's or yesterday's 00Z run, from data.ecmwf.int first (it keeps the newest
-    runs) and the AWS mirror second. A throttled or failing check is not a crash: (None, None) means no run today, and
-    a later backfill slice collects the day (it skips runs already stored)."""
-    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    for run in (today, today - timedelta(days=1)):
+PROBE_WAITS = (5, 15, 45)   # seconds between availability probes (the AWS mirror answers 503 under load)
+
+
+def _probe(session, run, waits):
+    """The first source that has the run complete, asked again after each wait; None if neither ever does."""
+    import time
+    for wait in (0,) + tuple(waits):
+        time.sleep(wait)
         for base in (ef.ECMWF_BASE, ef.AWS_BASE):
             try:
                 if ef.run_available(session, run, max(LEADS), base=base):
-                    return run, base
-            except Exception as e:  # noqa: BLE001 - class only; the next source is tried
+                    return base
+            except Exception as e:  # noqa: BLE001 - class only; the next source / probe is tried
                 print(f"daily: {run:%Y%m%d}00 on {'ecmwf' if base == ef.ECMWF_BASE else 'aws'}: {type(e).__name__}")
-    return None, None
+    return None
+
+
+PUBLISH_BY_H = 10      # the 00Z ENS is complete by ~07:40 UTC; before 10 UTC today's absence is expected, not a miss
+
+
+LOOKBACK_DAYS = 3      # days before yesterday whose missing runs are REPORTED (flag only)
+
+
+def daily_plan(session, now: datetime, done: set, report: dict, waits=None):
+    """[(run, base)] for the daily job. Nothing that goes missing is ever silent. Sources: data.ecmwf.int first, the AWS
+    mirror second, each probed again after each wait.
+    - TODAY: stored -> skip; reachable -> collect; not reachable -> `not_yet_due` before PUBLISH_BY_H (green), otherwise
+      `unavailable` (red).
+    - YESTERDAY, ALWAYS: stored -> skip; reachable -> collect; otherwise `unavailable` (red). A dropped scheduled run is
+      caught the next day (advisor HOLD on #1255). The ENS stays on the AWS mirror, so a backfill slice recovers it.
+    - The LOOKBACK_DAYS before yesterday: missing runs are listed in `missing_recent` (a report, not a failure).
+    2026-11-16: a 503 from the mirror lost that day."""
+    waits = PROBE_WAITS if waits is None else waits
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    out = []
+    for day, is_today in ((today, True), (today - timedelta(days=1), False)):
+        name = f"{day:%Y%m%d%H}.npz"
+        if name in done:
+            report["skipped"].append(name)
+            continue
+        base = _probe(session, day, waits)
+        if base:
+            out.append((day, base))
+        elif is_today and now < today + timedelta(hours=PUBLISH_BY_H):
+            report.setdefault("not_yet_due", []).append(f"{day:%Y%m%d%H}")
+        else:
+            report["unavailable"].append(f"{day:%Y%m%d%H}")
+    for k in range(2, 2 + LOOKBACK_DAYS):
+        d = today - timedelta(days=k)
+        if f"{d:%Y%m%d%H}.npz" not in done:
+            report.setdefault("missing_recent", []).append(f"{d:%Y%m%d%H}")
+    return out
 
 
 def existing_runs(cache: str) -> set:
@@ -135,19 +174,17 @@ def main(argv=None) -> int:
     stations = load_stations(a.cache)
     land, meta = obs.gfs_land(s, a.cache)
     lats, lons = H.sample_points(stations, land, meta)
-    base = ef.AWS_BASE
+    done = existing_runs(a.cache)
+    report = {"runs": [], "dropped": [], "skipped": [], "unavailable": [], "stations": len(stations), "leads": list(LEADS)}
     if a.cmd == "daily":
-        run, base = daily_target(s, datetime.now(timezone.utc))
-        runs = [run] if run else []
-        if not runs:
-            print("daily: no complete 00Z run reachable (throttled or not yet published); a later backfill slice collects it")
+        plan = daily_plan(s, datetime.now(timezone.utc), done, report)
+        if not plan and report["unavailable"]:
+            print("daily: today's 00Z run not reachable after retries; recorded as unavailable (a backfill slice recovers it)")
     else:
         start = datetime.fromisoformat(a.start).replace(tzinfo=timezone.utc)
         end = datetime.fromisoformat(a.end).replace(tzinfo=timezone.utc)
-        runs = shard(runs_between(max(start, PERIOD[0]), end), a.shard)
-    done = existing_runs(a.cache)
-    report = {"runs": [], "dropped": [], "skipped": [], "stations": len(stations), "leads": list(LEADS)}
-    for r in runs:
+        plan = [(r, ef.AWS_BASE) for r in shard(runs_between(max(start, PERIOD[0]), end), a.shard)]
+    for r, base in plan:
         name = f"{r:%Y%m%d%H}.npz"
         if name in done:
             report["skipped"].append(name)
@@ -164,6 +201,16 @@ def main(argv=None) -> int:
     report["retries"] = dict(ef.RETRY_STATS)
     json.dump(report, open(os.path.join(a.cache, f"collect_report_{a.cmd}_{a.shard.replace('/', 'of')}.json"), "w"), indent=1)
     print(json.dumps({k: (len(v) if isinstance(v, list) else v) for k, v in report.items()}))
+    return daily_status(report) if a.cmd == "daily" else 0
+
+
+def daily_status(report: dict) -> int:
+    """3 (red) when the daily job missed a run, unreachable or dropped; 0 otherwise. Loud AFTER the run files are written,
+    so the workflow's upload step (which runs on failure too) still stores what was collected."""
+    if report["unavailable"] or report["dropped"]:
+        print(f"::error::daily EMOS run not collected: unavailable {report['unavailable']}, dropped "
+              f"{[d['run'] for d in report['dropped']]}", flush=True)
+        return 3
     return 0
 
 
