@@ -133,9 +133,47 @@ def test_the_finder_comes_first_and_voids():
 
 
 def test_a_harcon_measurability_loss_fails_its_stratum_and_is_never_void():
-    per = run({"H0": station(matched=3), "H1": station(c2=(0.2, 30.0))})       # plus a C2 mismatch: still FAIL
-    r = S.score(per, finder(), held())
+    r = S.score(run({"H0": station(matched=3)}), finder(), held())
     assert r["verdict"] == "FAIL" and r["measurability"]["HARBOR_BAY"]["harcon_loss"] == ["H0"]
+
+
+# ---- precedence as ruled on #1270 s11 / #1171 (advisor HOLD on #1285 at 74d2ca457) ----------------------------------
+def test_thin_plus_a_tested_mismatch_is_void():
+    for bad in ({"H1": station(c2=(0.2, 30.0))}, {"H1": station(dc2=(0.2, 30.0))}, {"H1": station(c3=(0.01, 0.0))}):
+        r = S.score(run(dict(bad, H0=station(matched=3))), finder(), held())
+        assert r["measurability"]["HARBOR_BAY"]["fail"] and r["verdict"] == "VOID", bad
+
+
+def test_thin_plus_an_untestable_identity_is_fail_not_void():
+    h1 = station()
+    h1["c2_station"] = {"error": "no constants"}
+    r = S.score(run({"H0": station(matched=3), "H1": h1}), finder(), held())
+    assert r["controls"]["c2_identity"]["untestable"] == ["station H1"] and r["verdict"] == "FAIL"
+
+
+def test_a_full_run_with_an_untestable_c2_is_void():
+    for where in ("c2_station", "c2_donor"):
+        s = station()
+        if where == "c2_station":
+            s["c2_station"] = {"error": "no constants"}
+        else:
+            s["donors"][0]["c2_donor"] = {"rows": rows(0.0, 0.0, matched=0)}
+        r = S.score(run({"H1": s}), finder(), held())
+        assert r["verdict"] == "VOID" and r["controls"]["c2_identity"]["untestable"], where
+
+
+def test_a_full_run_with_a_missing_c3_is_void():
+    s = station()
+    s["donors"][0]["c3_w1_max_m"] = None
+    r = S.score(run({"H1": s}), finder(), held())
+    assert r["verdict"] == "VOID" and r["controls"]["c3_blend"]["missing"] == ["H1"]
+    assert r["controls"]["c3_blend"]["mismatch"] == []
+
+
+def test_a_planted_fail_stays_fail():
+    per = run({f"H{i}": station(fes=(0.60, 120.0), har=(0.30, 60.0)) for i in range(20)})
+    r = S.score(per, finder(), held())
+    assert r["verdict"] == "FAIL" and not r["strata"]["HARBOR_BAY"]["legs"]["a_abs_h"]
 
 
 def test_a_tested_identity_mismatch_voids_before_the_bar():
@@ -175,7 +213,7 @@ def test_near_twins_are_reported_never_a_leg():
 
 def test_the_workflow_only_a_tag_starts_and_it_scores_with_the_vendored_finder():
     wf = open(os.path.join(REPO, ".github", "workflows", "tide-a-harcon.yml"), encoding="utf-8").read()
-    assert "tags: ['tide-a-harcon-v1-*']" in wf
+    assert "tags: ['tide-a-harcon-v1-[0-9]*']" in wf and "tide-a-harcon-v1-*" not in wf   # a numbered tag only
     assert "schedule:" not in wf and "workflow_dispatch" not in wf and "branches:" not in wf
     assert "finder_check.py --start 2027-02-01 --days 14 --stations" in wf and "a_harcon_score.py" in wf
     assert "SUPABASE" not in wf and "onrender" not in wf                       # predictions only
