@@ -1059,7 +1059,7 @@ const MapWebGL = ({
           mapRef={innerMapRef}
           surfMode={surfMode}
           spotRatings={spotRatings}
-          clusterRatings={clusterRatings}
+          clusterRatings={clusterRatings} timeOffsetHours={timeOffsetHours}
         />
         {/* Tide add-on: per-cell tide markers at the visible spots; the hour re-evaluates cached payloads only. */}
         <TideOverlayLayer spotClusters={spotClusters} timeOffsetHours={timeOffsetHours} mapInstance={mapInstance} userTier={userTier} />

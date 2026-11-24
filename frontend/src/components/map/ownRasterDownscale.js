@@ -95,7 +95,11 @@ export function loadDownscale(variant = preferredVariant()) {
 // ── which layers are drawn terrain-adjusted right now (the legend credit names the elevation source while one is) ──────────
 let _on = Object.freeze({});
 const _subs = new Set();
-export function setDownscaled(layer, on) {
+// The asset each downscaled layer draws with (the infobox reads it to add the same lapse * dz at its point, ownFrameReadout.js).
+const _assetOf = {};
+export const getDownscaleAsset = (layer) => (_on[layer] ? _assetOf[layer] || null : null);
+export function setDownscaled(layer, on, asset = null) {
+  _assetOf[layer] = on ? asset : null;
   if (!!_on[layer] === !!on) return;
   _on = Object.freeze({ ..._on, [layer]: !!on });
   for (const fn of _subs) { try { fn(); } catch (e) { /* a subscriber's error is its own */ } }

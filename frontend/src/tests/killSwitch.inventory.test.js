@@ -186,6 +186,10 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_INFOBOX_TIDE__',
   // components/map/tideOverlay.parity.test.js
   '__RAW_DISABLE_TIDE_OVERLAY__',
+  // components/map/glyphTide.test.js (finding 9: one tide per glyph, DARK)
+  '__RAW_DISABLE_GLYPH_TIDE_OWN__',
+  // components/map/ownFrameReadout.test.js (finding 10: the infobox reads the frame the map draws, DARK)
+  '__RAW_DISABLE_INFOBOX_OWN_FRAME__',
   // components/map/rasterSourceWords.test.js (pass 13: which model a raster draws, in words)
   '__RAW_DISABLE_RASTER_SOURCE_WORDS__',
   // hudResidentTruth.test.js
