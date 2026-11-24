@@ -1,20 +1,28 @@
-"""Sessions payments — complete payment flow."""
+"""Sessions payments â€” complete payment flow."""
+import asyncio
 import json
 import logging
 import os
 import stripe
 import stripe_mcp_server
 import sqlite3
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 from fastapi import Depends, HTTPException, APIRouter
-from sqlalchemy import select
+from fastapi.responses import JSONResponse
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
 from core.security import dev_identity_allowed, get_current_user_id
-from models import LiveSession, Notification, Profile
-from models import LiveSessionParticipant, PaymentTransaction
+from models import Notification, Profile
+from models import LiveSession, LiveSessionParticipant, PaymentTransaction
+from services.support_tickets import is_paid_seat_review, paid_seat_ticket
 from services import live_session_escrow
+from utils.credits import clean_amount
 from .join import CompletePaymentRequest
+from utils.live_buyin import current_live_session
+from .card_session import REVIEW_MESSAGE
 
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
 if STRIPE_API_KEY:
@@ -22,6 +30,85 @@ if STRIPE_API_KEY:
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def save_paid_seat_review(db, tx):
+    try:
+        ticket_id = await paid_seat_ticket(db, tx)
+        await db.commit()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Could not confirm the payment review. Check with support before paying again.") from exc
+    message = REVIEW_MESSAGE if tx.status != "verification_required" else (
+        "We could not verify this checkout. Check your support inbox before paying again."
+    )
+    return JSONResponse(status_code=409, content={"detail": message, "support_ticket_id": ticket_id})
+
+
+async def mark_paid_seat_review(db, tx, metadata, reason):
+    tx.payment_status = "Paid"
+    tx.status = "review_required"
+    tx.transaction_metadata = json.dumps({**metadata, "review_reason": reason})
+    return await save_paid_seat_review(db, tx)
+
+
+async def recover_legacy_receipt(db, tx, saved):
+    """Attach an existing seat only when no other checkout could have purchased it."""
+    session_id, photographer_id = saved.get("live_session_id"), saved.get("photographer_id")
+    if not session_id or not photographer_id:
+        return None
+    seats = (await db.scalars(select(LiveSessionParticipant.id).where(
+        LiveSessionParticipant.surfer_id == tx.user_id,
+        LiveSessionParticipant.photographer_id == photographer_id,
+        LiveSessionParticipant.live_session_id == session_id,
+        LiveSessionParticipant.payment_method == "card",
+        LiveSessionParticipant.status.in_(("active", "completed")),
+        LiveSessionParticipant.amount_paid == tx.amount,
+    ).limit(2).with_for_update())).all()
+    if len(seats) != 1:
+        return None
+    other_attempts = await db.scalars(select(PaymentTransaction.transaction_metadata).where(
+        PaymentTransaction.user_id == tx.user_id, PaymentTransaction.id != tx.id,
+        PaymentTransaction.amount == tx.amount,
+        PaymentTransaction.transaction_metadata.contains('"live_session_join"'),
+    ))
+    for raw in other_attempts:
+        try:
+            other = json.loads(raw)
+        except (TypeError, ValueError):
+            return None
+        if not isinstance(other, dict) or other.get("settled_participant_id") == seats[0]:
+            return None
+        if other.get("photographer_id") in (None, photographer_id) and other.get("live_session_id") in (None, session_id):
+            return None
+    tx.transaction_metadata = json.dumps({**saved, "settled_participant_id": seats[0]})
+    await db.commit()
+    return {"success": True, "message": "Session already activated", "session_id": seats[0]}
+
+
+async def refund_live_seat(db, tx, metadata, checkout_id, intent, emulated):
+    """Called while holding the checkout lock, before any seat commit."""
+    try:
+        if emulated:
+            refund = stripe_mcp_server.stripe_refund_payment(intent)
+            succeeded = refund.get("status") == "succeeded"
+        else:
+            refund = await asyncio.to_thread(
+                stripe.Refund.create, payment_intent=intent, api_key=STRIPE_API_KEY,
+                idempotency_key=f"live-session-refund-{checkout_id}",
+            )
+            succeeded = refund.status == "succeeded"
+    except Exception:
+        logger.exception("Live session refund could not be confirmed")
+        succeeded = False
+    try:
+        if not succeeded:
+            await db.refresh(tx)
+            return await mark_paid_seat_review(db, tx, metadata, "refund_unconfirmed")
+        tx.payment_status = tx.status = "Refunded"
+        await db.commit()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Could not confirm the payment outcome. Contact support before paying again.") from exc
+    return None
 
 
 def checkout_emulation_allowed() -> bool:
@@ -41,19 +128,17 @@ async def complete_session_payment(
     current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Complete a live session join after successful Stripe payment.
-    
-    IDEMPOTENCY: Uses SELECT FOR UPDATE on PaymentTransaction to prevent race conditions
-    when multiple requests hit this endpoint simultaneously (e.g., React strict mode double-fire).
-    """
-    from sqlalchemy import text
-    
+    return await settle_live_seat(db, data.checkout_session_id, current_user_id)
+
+
+async def settle_live_seat(db, checkout_id, current_user_id, *, unattended=False):
+    """Verify the saved buyer's checkout and serialize all fulfillment on its row."""
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=500, detail="Payment processing not configured")
 
     # Only the surfer who started this checkout may complete it; checked before any verification.
     owner_result = await db.execute(
-        select(PaymentTransaction).where(PaymentTransaction.session_id == data.checkout_session_id)
+        select(PaymentTransaction).where(PaymentTransaction.session_id == checkout_id)
     )
     owner_tx = owner_result.scalar_one_or_none()
     if not owner_tx:
@@ -61,10 +146,24 @@ async def complete_session_payment(
     if owner_tx.user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot complete another user's payment")
 
-    used_emulator = data.checkout_session_id.startswith("cs_test_") and checkout_emulation_allowed()
-    payment_verified = False
+    try:
+        saved_checkout = json.loads(owner_tx.transaction_metadata or "{}")
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=409, detail="Invalid saved checkout")
+    if not isinstance(saved_checkout, dict):
+        raise HTTPException(status_code=409, detail="Invalid saved checkout")
+    provider = saved_checkout.get("checkout_provider")
+    if unattended and (provider == "emulator" or saved_checkout.get("emulator_payment_intent")):
+        return {"status": "local_checkout"}
+    used_emulator = (
+        not unattended
+        and checkout_emulation_allowed()
+        and (provider == "emulator" or (provider is None and checkout_id.startswith("cs_test_")))
+    )
+    if provider == "emulator" and not used_emulator:
+        raise HTTPException(status_code=409, detail="Test checkout must be restarted")
     payment_intent_id = None
-    refund_attempted = False
+    missing_resource = False
     refund_successful = False
     
     try:
@@ -75,7 +174,7 @@ async def complete_session_payment(
             # Look up surfer and photographer details from our PaymentTransaction table first
             # since it contains transaction_metadata
             tx_lookup = await db.execute(
-                select(PaymentTransaction).where(PaymentTransaction.session_id == data.checkout_session_id)
+                select(PaymentTransaction).where(PaymentTransaction.session_id == checkout_id)
             )
             tx_record = tx_lookup.scalar_one_or_none()
             
@@ -84,37 +183,21 @@ async def complete_session_payment(
                 
             metadata = json.loads(tx_record.transaction_metadata)
             
-            # Auto-succeed in stripe_payments cache and retrieve payment_intent_id
-            try:
-                conn = sqlite3.connect(stripe_mcp_server.DB_PATH, timeout=10.0)
-                cursor = conn.cursor()
-                
-                # Check for pending payment to auto-succeed
-                cursor.execute("SELECT payment_intent_id, metadata FROM stripe_payments WHERE status = 'requires_payment_method'")
-                pending_payments = cursor.fetchall()
-                for pi_id, meta_str in pending_payments:
-                    meta = json.loads(meta_str or "{}")
-                    if meta.get("surfer_id") == metadata.get("surfer_id") and meta.get("photographer_id") == metadata.get("photographer_id"):
-                        cursor.execute("UPDATE stripe_payments SET status = 'succeeded' WHERE payment_intent_id = ?", (pi_id,))
-                        conn.commit()
-                        payment_intent_id = pi_id
-                        break
-                
-                # If not found in pending, check succeeded payments
-                if not payment_intent_id:
-                    cursor.execute("SELECT payment_intent_id, metadata FROM stripe_payments WHERE status = 'succeeded'")
-                    succeeded_payments = cursor.fetchall()
-                    for pi_id, meta_str in succeeded_payments:
-                        meta = json.loads(meta_str or "{}")
-                        if meta.get("surfer_id") == metadata.get("surfer_id") and meta.get("photographer_id") == metadata.get("photographer_id"):
-                            payment_intent_id = pi_id
-                            break
-                conn.close()
-            except Exception as e:
-                logger.error(f"Failed to auto-succeed or find mock stripe payment in cache: {e}")
-                
-            payment_verified = True
-            
+            payment_intent_id = metadata.get("emulator_payment_intent")
+            if not payment_intent_id:
+                raise HTTPException(status_code=409, detail="Test checkout must be restarted")
+
+            from contextlib import closing
+
+            with closing(sqlite3.connect(stripe_mcp_server.DB_PATH, timeout=10.0)) as conn, conn:
+                settled = conn.execute(
+                    "UPDATE stripe_payments SET status = 'succeeded' WHERE payment_intent_id = ? "
+                    "AND status IN ('requires_payment_method', 'succeeded')",
+                    (payment_intent_id,),
+                )
+                if settled.rowcount != 1:
+                    raise HTTPException(status_code=400, detail="Test payment is unavailable")
+
             # Create a mock session object
             class MockSession:
                 def __init__(self, metadata, payment_status, payment_intent):
@@ -124,120 +207,202 @@ async def complete_session_payment(
             checkout_session = MockSession(metadata, payment_status, payment_intent_id)
         else:
             # Retrieve the Stripe checkout session
-            checkout_session = stripe.checkout.Session.retrieve(data.checkout_session_id)
-            
-            if checkout_session.payment_status != 'paid':
-                raise HTTPException(status_code=400, detail="Payment not completed")
-                
-            payment_verified = True
-            payment_intent_id = getattr(checkout_session, 'payment_intent', None)
-            if not payment_intent_id and isinstance(checkout_session, dict):
-                payment_intent_id = checkout_session.get("payment_intent")
-        
-        metadata = checkout_session.metadata
-        if metadata.get('type') != 'live_session_join':
-            raise HTTPException(status_code=400, detail="Invalid session type")
-        
-        surfer_id = metadata.get('surfer_id')
-        photographer_id = metadata.get('photographer_id')
-        amount = float(metadata.get('amount', 0))
-        
+            try:
+                checkout_session = await asyncio.to_thread(stripe.checkout.Session.retrieve, checkout_id, api_key=STRIPE_API_KEY)
+            except stripe.error.InvalidRequestError as exc:
+                # A missing resource is indistinguishable from a wrong account
+                # for a hosted purchase. Keep that retryable after configuration
+                # is repaired. Only a legacy test ID under a live key is retired.
+                legacy_test = (
+                    provider is None and checkout_id.startswith("cs_test_")
+                    and STRIPE_API_KEY.startswith(("sk_live_", "rk_live_"))
+                )
+                if exc.code != "resource_missing" or not legacy_test:
+                    raise
+                missing_resource = True
+            if not missing_resource:
+
+                if checkout_session.payment_status != 'paid':
+                    if unattended:
+                        if getattr(checkout_session, "status", None) == "expired":
+                            await db.execute(update(PaymentTransaction).where(
+                                PaymentTransaction.session_id == checkout_id,
+                                PaymentTransaction.user_id == current_user_id,
+                                PaymentTransaction.payment_status.in_(("Pending", "Abandoned")),
+                            ).values(payment_status="Expired", status="Expired"))
+                            await db.commit()
+                        return {"status": "unpaid"}
+                    raise HTTPException(status_code=400, detail="Payment not completed")
+
+                payment_intent_id = getattr(checkout_session, 'payment_intent', None)
+                if not payment_intent_id and isinstance(checkout_session, dict):
+                    payment_intent_id = checkout_session.get("payment_intent")
+
         # ============ ATOMIC IDEMPOTENCY CHECK WITH ROW LOCK ============
         # Use FOR UPDATE to lock the row while we check and update status
         # This prevents concurrent requests from both passing the check
         tx_result = await db.execute(
             select(PaymentTransaction)
-            .where(PaymentTransaction.session_id == data.checkout_session_id)
-            .with_for_update()  # Row-level lock
+            .where(PaymentTransaction.session_id == checkout_id)
+            .with_for_update().execution_options(populate_existing=True)
         )
         tx = tx_result.scalar_one_or_none()
+        if tx is None:
+            raise HTTPException(status_code=409, detail="Could not confirm the saved checkout")
+        locked_checkout = json.loads(tx.transaction_metadata or "{}")
         
+        if tx.user_id != current_user_id:
+            raise HTTPException(status_code=403, detail="Cannot complete another user's payment")
+        if locked_checkout.get("type") != "live_session_join":
+            raise HTTPException(status_code=409, detail="Invalid saved live checkout")
         # If already completed, return success (idempotent)
-        if tx and tx.payment_status == 'Completed':
-            return {"success": True, "message": "Session already activated"}
-            
+        if tx.payment_status == 'Completed' and locked_checkout.get("settled_participant_id"):
+            return {"success": True, "message": "Session already activated",
+                    "session_id": locked_checkout["settled_participant_id"]}
+
         # If already refunded, raise error
-        if tx and tx.payment_status == 'Refunded':
-            refund_attempted = True
+        if tx.payment_status == 'Refunded':
+            if unattended:
+                return {"status": "refunded"}
             raise HTTPException(status_code=400, detail="Payment has been refunded")
-        
-        # Also check if participant already exists (belt + suspenders)
-        existing_participant_result = await db.execute(
-            select(LiveSessionParticipant)
-            .where(LiveSessionParticipant.surfer_id == surfer_id)
-            .where(LiveSessionParticipant.photographer_id == photographer_id)
-            .where(LiveSessionParticipant.payment_method == 'card')
-            .where(LiveSessionParticipant.status == 'active')
+        if tx.status == 'review_required':
+            if is_paid_seat_review(tx, locked_checkout):
+                return await save_paid_seat_review(db, tx)
+            raise HTTPException(status_code=409, detail=REVIEW_MESSAGE)
+        if tx.status == "verification_required" or missing_resource:
+            tx.status = "verification_required"
+            tx.transaction_metadata = json.dumps({**locked_checkout, "review_reason": "checkout_unverifiable"})
+            return await save_paid_seat_review(db, tx)
+        metadata = checkout_session.metadata or {}
+        surfer_id = metadata.get("surfer_id")
+        photographer_id = metadata.get("photographer_id")
+        amount = clean_amount(metadata.get("amount"))
+        bound_session_id = locked_checkout.get("live_session_id")
+        provider = locked_checkout.get("checkout_provider")
+        if (
+            metadata.get("type") != "live_session_join"
+            or surfer_id != current_user_id or not photographer_id or amount is None
+            or photographer_id != locked_checkout.get("photographer_id")
+            or bound_session_id != metadata.get("live_session_id")
+        ):
+            return await mark_paid_seat_review(db, tx, locked_checkout, "checkout_mismatch")
+        if provider == "stripe" and (
+            checkout_session.id != checkout_id
+            or checkout_session.mode != "payment"
+            or not locked_checkout.get("checkout_reference")
+            or checkout_session.client_reference_id != locked_checkout["checkout_reference"]
+            or checkout_session.amount_total != int(round(amount * 100))
+            or amount != clean_amount(tx.amount)
+            or checkout_session.currency != tx.currency
+            or not isinstance(payment_intent_id, str) or not payment_intent_id
+        ):
+            return await mark_paid_seat_review(db, tx, locked_checkout, "checkout_mismatch")
+
+        if tx.payment_status == "Completed":
+            # For receipts predating provider references, require independent provider
+            # agreement before attributing any existing seat to this purchase.
+            if not used_emulator and (
+                checkout_session.id == checkout_id and checkout_session.mode == "payment"
+                and amount == clean_amount(tx.amount) and checkout_session.currency == tx.currency
+                and checkout_session.amount_total == int(round(amount * 100))
+                and isinstance(payment_intent_id, str) and payment_intent_id
+            ):
+                refunds = await asyncio.to_thread(stripe.Refund.list, payment_intent=payment_intent_id, limit=1, api_key=STRIPE_API_KEY)
+                if refunds.data:
+                    return await mark_paid_seat_review(db, tx, locked_checkout, "refund_unconfirmed")
+                receipt = await recover_legacy_receipt(db, tx, locked_checkout)
+                if receipt is not None:
+                    return receipt
+            return await mark_paid_seat_review(db, tx, locked_checkout, "missing_seat_receipt")
+        if not used_emulator and provider != "stripe":
+            return await mark_paid_seat_review(db, tx, locked_checkout, "unverified_binding")
+        # Old purchases may already have been handled manually. Never issue a
+        # new seat or refund automatically when the compensation history is uncertain.
+        created_at = tx.created_at
+        if created_at and created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        if created_at is None or created_at < datetime.now(timezone.utc) - timedelta(days=7):
+            return await mark_paid_seat_review(db, tx, locked_checkout, "historical_checkout")
+        if not used_emulator:
+            # A paid Checkout Session stays paid even after a refund. Recheck the
+            # intent under the checkout lock before granting a fresh seat.
+            refunds = await asyncio.to_thread(stripe.Refund.list, payment_intent=payment_intent_id, limit=1, api_key=STRIPE_API_KEY)
+            if refunds.data:
+                return await mark_paid_seat_review(db, tx, locked_checkout, "refund_unconfirmed")
+
+        # Lock in the same order on each completion: checkout, photographer, session.
+        # Until the binding can be checked, a database failure is retryable.
+        surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
+        surfer = surfer_result.scalar_one_or_none()
+        photographer_result = await db.execute(
+            select(Profile).where(Profile.id == photographer_id).options(selectinload(Profile.current_spot)).with_for_update()
         )
-        if existing_participant_result.scalar_one_or_none():
-            # Mark transaction as completed if not already
-            if tx and tx.payment_status != 'Completed':
-                tx.payment_status = 'Completed'
-                tx.status = 'Completed'
-                await db.commit()
-            return {"success": True, "message": "Session already activated"}
+        photographer = photographer_result.scalar_one_or_none()
+        if surfer and photographer:
+            active_live_session = await db.scalar(current_live_session(photographer_id).with_for_update(read=True))
+            if (
+                not bound_session_id or not photographer.is_shooting
+                or active_live_session is None or active_live_session.id != bound_session_id
+            ):
+                original_status = None
+                if bound_session_id:
+                    original_status = await db.scalar(select(LiveSession.status).where(
+                        LiveSession.id == bound_session_id, LiveSession.photographer_id == photographer_id,
+                    ).with_for_update(read=True))
+                if original_status in ("ended", "completed"):
+                    review = await refund_live_seat(db, tx, locked_checkout, checkout_id, payment_intent_id, used_emulator)
+                    if review is not None:
+                        return review
+                    if unattended:
+                        return {"status": "refunded"}
+                    raise HTTPException(status_code=409, detail="The original live session ended. Payment refunded.")
+                reason = "original_session_unavailable" if bound_session_id else "missing_original_session"
+                return await mark_paid_seat_review(db, tx, locked_checkout, reason)
         
         # Use a nested transaction (savepoint) to isolate mutations while keeping the outer row lock active.
         try:
             async with db.begin_nested():
                 # ============ CLAIM THE TRANSACTION IMMEDIATELY ============
                 # Mark as Completed BEFORE creating participant to win any race
-                if tx:
-                    tx.payment_status = 'Completed'
-                    tx.status = 'Completed'
-                    await db.flush()  # Flush immediately - other concurrent requests will now see 'Completed'
-                
-                # Get surfer and photographer
-                surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
-                surfer = surfer_result.scalar_one_or_none()
-                
-                photographer_result = await db.execute(
-                    select(Profile).where(Profile.id == photographer_id).options(selectinload(Profile.current_spot)).with_for_update()
-                )
-                photographer = photographer_result.scalar_one_or_none()
+                tx.payment_status = 'Completed'
+                tx.status = 'Completed'
+                await db.flush()
                 
                 if not surfer or not photographer:
                     raise HTTPException(status_code=404, detail="User or photographer not found")
                 
-                # Get selfie_url from our stored transaction
-                selfie_url = None
-                if tx and tx.transaction_metadata:
-                    tx_data = json.loads(tx.transaction_metadata)
-                    selfie_url = tx_data.get('selfie_url')
-                
-                # Find the active live session for this photographer to link the participant
-                active_ls_result = await db.execute(
-                    select(LiveSession)
-                    .where(LiveSession.photographer_id == photographer_id)
-                    .where(LiveSession.status == 'active')
-                    .order_by(LiveSession.created_at.desc())
-                    .limit(1)
+                active_seat = await db.scalar(
+                    select(LiveSessionParticipant.id).where(
+                        LiveSessionParticipant.surfer_id == surfer_id,
+                        LiveSessionParticipant.photographer_id == photographer_id,
+                        LiveSessionParticipant.status == 'active',
+                    ).limit(1)
                 )
-                active_live_session = active_ls_result.scalar_one_or_none()
+                if active_seat is not None:
+                    raise HTTPException(status_code=409, detail="Already in this session")
+
+                # Get selfie_url from our stored transaction
+                selfie_url = locked_checkout.get('selfie_url')
                 
                 # CaptureSession: Calculate photos included in buy-in
                 photos_included = 0
-                if active_live_session and active_live_session.photos_included:
+                if active_live_session.photos_included:
                     photos_included = active_live_session.photos_included
                 else:
                     photos_included = photographer.live_session_photos_included or 3
                 
                 # Lock pricing at join time (same as credit path)
-                if active_live_session:
-                    locked_web = active_live_session.session_price_web or photographer.photo_price_web or photographer.live_photo_price_web or 3.0
-                    locked_standard = active_live_session.session_price_standard or photographer.photo_price_standard or photographer.live_photo_price_standard or 5.0
-                    locked_high = active_live_session.session_price_high or photographer.photo_price_high or photographer.live_photo_price_high or 10.0
-                else:
-                    locked_web = photographer.photo_price_web or photographer.live_photo_price_web or 3.0
-                    locked_standard = photographer.photo_price_standard or photographer.live_photo_price_standard or 5.0
-                    locked_high = photographer.photo_price_high or photographer.live_photo_price_high or 10.0
+                locked_web = active_live_session.session_price_web or photographer.photo_price_web or photographer.live_photo_price_web or 3.0
+                locked_standard = active_live_session.session_price_standard or photographer.photo_price_standard or photographer.live_photo_price_standard or 5.0
+                locked_high = active_live_session.session_price_high or photographer.photo_price_high or photographer.live_photo_price_high or 10.0
                 
                 # Create the session participant
                 participant = LiveSessionParticipant(
+                    id=str(uuid4()),
                     surfer_id=surfer_id,
                     photographer_id=photographer_id,
-                    spot_id=photographer.current_spot_id,
-                    live_session_id=active_live_session.id if active_live_session else None,
+                    spot_id=active_live_session.surf_spot_id,
+                    live_session_id=bound_session_id,
                     selfie_url=selfie_url,
                     participant_role='participant',
                     status='active',
@@ -254,6 +419,7 @@ async def complete_session_payment(
                 # the delivered media, or after 7 days (services/live_session_escrow.py).
                 live_session_escrow.hold(participant, amount)
                 db.add(participant)
+                tx.transaction_metadata = json.dumps({**locked_checkout, "settled_participant_id": str(participant.id)})
 
                 # Notify photographer (card payment path was missing this)
                 card_notification = Notification(
@@ -277,25 +443,14 @@ async def complete_session_payment(
             # The nested transaction is automatically rolled back, releasing any locks acquired inside it
             # (but the outer transaction's row-level lock on PaymentTransaction remains active).
             # Perform Stripe refund rollback
-            if payment_verified and payment_intent_id:
-                refund_attempted = True
-                try:
-                    if used_emulator:
-                        stripe_mcp_server.stripe_refund_payment(payment_intent_id)
-                    else:
-                        stripe.Refund.create(payment_intent=payment_intent_id)
-                    refund_successful = True
-                except Exception as refund_err:
-                    logger.error(f"Stripe refund failed during nested transaction rollback: {refund_err}")
-                
-                try:
-                    if tx:
-                        tx.payment_status = 'Refunded' if refund_successful else 'Failed'
-                        tx.status = 'Refunded' if refund_successful else 'Failed'
-                        await db.commit()
-                except Exception as db_err:
-                    logger.error(f"Failed to update PaymentTransaction status to Refunded/Failed: {db_err}")
-            
+            if payment_intent_id:
+                review = await refund_live_seat(db, tx, locked_checkout, checkout_id, payment_intent_id, used_emulator)
+                if review is not None:
+                    return review
+                if unattended:
+                    return {"status": "refunded"}
+                refund_successful = True
+
             # Re-raise or wrap nested exception
             if isinstance(nested_err, HTTPException):
                 if refund_successful:
@@ -306,7 +461,8 @@ async def complete_session_payment(
                         nested_err.detail = f"{nested_err.detail}. Payment refunded."
                 raise nested_err
             else:
-                detail_msg = f"Failed to complete session: {str(nested_err)}"
+                logger.exception("Live session seat creation failed")
+                detail_msg = "Failed to complete session"
                 if refund_successful:
                     detail_msg += ". Payment refunded."
                 raise HTTPException(status_code=500, detail=detail_msg)
@@ -325,123 +481,44 @@ async def complete_session_payment(
         except Exception as push_err:
             logger.warning(f"Failed to send card session join push: {push_err}")
         
-        # Commit outer transaction
-        await db.commit()
-        
-        return {
+        receipt = {
             "success": True,
             "message": "Successfully joined session",
             "session_id": str(participant.id),
             "photographer_name": photographer.full_name
         }
+        try:
+            await db.commit()
+        except Exception as exc:
+            try:
+                await db.rollback()
+                durable_result = await db.execute(
+                    select(PaymentTransaction.payment_status, PaymentTransaction.transaction_metadata).where(
+                        PaymentTransaction.session_id == checkout_id,
+                        PaymentTransaction.user_id == current_user_id,
+                    )
+                )
+                durable = durable_result.one_or_none()
+                if durable is not None and durable.payment_status == 'Completed':
+                    settled_id = json.loads(durable.transaction_metadata).get("settled_participant_id")
+                    if settled_id:
+                        return {**receipt, "session_id": settled_id}
+            except Exception:
+                logger.exception("Could not confirm the card join transaction")
+            raise HTTPException(
+                status_code=503,
+                detail="Could not confirm the session join. Check your session before retrying.",
+            ) from exc
+        return receipt
         
-    except HTTPException as e:
-        if not refund_attempted:
-            await db.rollback()
-            refunded = False
-            if payment_verified and payment_intent_id:
-                refund_attempted = True
-                try:
-                    if used_emulator:
-                        stripe_mcp_server.stripe_refund_payment(payment_intent_id)
-                    else:
-                        stripe.Refund.create(payment_intent=payment_intent_id)
-                    refunded = True
-                    refund_successful = True
-                except Exception as refund_err:
-                    logger.error(f"Stripe refund failed during HTTPException rollback: {refund_err}")
-                
-                try:
-                    tx_lookup = await db.execute(
-                        select(PaymentTransaction).where(PaymentTransaction.session_id == data.checkout_session_id)
-                    )
-                    tx = tx_lookup.scalar_one_or_none()
-                    if tx:
-                        tx.payment_status = 'Refunded' if refunded else 'Failed'
-                        tx.status = 'Refunded' if refunded else 'Failed'
-                        await db.commit()
-                except Exception as db_err:
-                    logger.error(f"Failed to update PaymentTransaction status to Refunded/Failed: {db_err}")
-            
-            if refunded:
-                if isinstance(e.detail, dict):
-                    e.detail["refunded"] = True
-                    e.detail["message"] = f"{e.detail.get('message', e.detail.get('error', ''))}. Payment refunded."
-                else:
-                    e.detail = f"{e.detail}. Payment refunded."
-        raise e
-
-    except stripe.error.StripeError as e:
-        if not refund_attempted:
-            await db.rollback()
-            refunded = False
-            if payment_verified and payment_intent_id:
-                refund_attempted = True
-                try:
-                    if used_emulator:
-                        stripe_mcp_server.stripe_refund_payment(payment_intent_id)
-                    else:
-                        stripe.Refund.create(payment_intent=payment_intent_id)
-                    refunded = True
-                    refund_successful = True
-                except Exception as refund_err:
-                    logger.error(f"Stripe refund failed during StripeError rollback: {refund_err}")
-                
-                try:
-                    tx_lookup = await db.execute(
-                        select(PaymentTransaction).where(PaymentTransaction.session_id == data.checkout_session_id)
-                    )
-                    tx = tx_lookup.scalar_one_or_none()
-                    if tx:
-                        tx.payment_status = 'Refunded' if refunded else 'Failed'
-                        tx.status = 'Refunded' if refunded else 'Failed'
-                        await db.commit()
-                except Exception as db_err:
-                    logger.error(f"Failed to update PaymentTransaction status to Refunded/Failed: {db_err}")
-            
-            detail_msg = f"Payment verification failed: {str(e)}"
-            if refunded:
-                detail_msg += ". Payment refunded."
-            raise HTTPException(status_code=500, detail=detail_msg)
-        else:
-            raise HTTPException(status_code=500, detail=f"Payment verification failed: {str(e)}")
-
-    except Exception as e:
-        if not refund_attempted:
-            await db.rollback()
-            refunded = False
-            if payment_verified and payment_intent_id:
-                refund_attempted = True
-                try:
-                    if used_emulator:
-                        stripe_mcp_server.stripe_refund_payment(payment_intent_id)
-                    else:
-                        stripe.Refund.create(payment_intent=payment_intent_id)
-                    refunded = True
-                    refund_successful = True
-                except Exception as refund_err:
-                    logger.error(f"Stripe refund failed during Exception rollback: {refund_err}")
-                
-                try:
-                    tx_lookup = await db.execute(
-                        select(PaymentTransaction).where(PaymentTransaction.session_id == data.checkout_session_id)
-                    )
-                    tx = tx_lookup.scalar_one_or_none()
-                    if tx:
-                        tx.payment_status = 'Refunded' if refunded else 'Failed'
-                        tx.status = 'Refunded' if refunded else 'Failed'
-                        await db.commit()
-                except Exception as db_err:
-                    logger.error(f"Failed to update PaymentTransaction status to Refunded/Failed: {db_err}")
-            
-            detail_msg = f"Failed to complete session: {str(e)}"
-            if refunded:
-                detail_msg += ". Payment refunded."
-            raise HTTPException(status_code=500, detail=detail_msg)
-        else:
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(status_code=500, detail=f"Failed to complete session: {str(e)}")
-
-
-
+    except HTTPException:
+        await db.rollback()
+        raise
+    except stripe.error.StripeError as exc:
+        await db.rollback()
+        logger.exception("Live session payment verification failed")
+        raise HTTPException(status_code=500, detail="Payment verification failed") from exc
+    except Exception as exc:
+        await db.rollback()
+        logger.exception("Live session payment completion failed")
+        raise HTTPException(status_code=500, detail="Failed to complete session") from exc

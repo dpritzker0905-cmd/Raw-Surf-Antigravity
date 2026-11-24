@@ -5,8 +5,8 @@ from core.security import get_user_id_from_jwt_or_query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
-from utils.live_buyin import resolve_live_buyin
-from models import LiveSession, Profile
+from utils.live_buyin import current_live_session, session_buyin
+from models import Profile
 from models import LiveSessionParticipant
 
 router = APIRouter()
@@ -49,13 +49,8 @@ async def get_session_pricing(
     
     # Get active session if exists
     active_session = None
-    if data.session_mode == 'live_join':
-        session_result = await db.execute(
-            select(LiveSession)
-            .where(LiveSession.photographer_id == data.photographer_id)
-            .where(LiveSession.status == 'active')
-        )
-        active_session = session_result.scalar_one_or_none()
+    if data.session_mode == 'live_join' and photographer.is_shooting:
+        active_session = await db.scalar(current_live_session(data.photographer_id))
     
     # Calculate pricing based on mode
     pricing = {
@@ -78,7 +73,7 @@ async def get_session_pricing(
     
     # Mode-specific entry fees and photos included
     if data.session_mode == 'live_join':
-        pricing['entry_fee'] = resolve_live_buyin(photographer.live_buyin_price, photographer.session_price)
+        pricing['entry_fee'] = session_buyin(photographer, active_session)
         if active_session:
             pricing['photos_included'] = active_session.photos_included or photographer.live_session_photos_included or 3
         else:

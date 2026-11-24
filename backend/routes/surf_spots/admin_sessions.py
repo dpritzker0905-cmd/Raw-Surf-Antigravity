@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import logging
 
 from database import get_db
+from utils.live_buyin import current_live_session, session_buyin
 from deps.admin_auth import get_current_admin
 from models import Profile, SurfSpot, RoleEnum, LiveSession
 from .schemas import SimulateLiveRequest, SimulateLiveResponse, ForceStartSessionRequest
@@ -166,12 +167,7 @@ async def get_admin_active_sessions(admin: Profile = Depends(get_current_admin),
     
     sessions = []
     for p in shooting_photographers:
-        session_result = await db.execute(
-            select(LiveSession).where(LiveSession.photographer_id == p.id)
-            .where(LiveSession.status == 'active')
-            .order_by(LiveSession.started_at.desc()).limit(1)
-        )
-        live_session = session_result.scalar_one_or_none()
+        live_session = await db.scalar(current_live_session(p.id))
         sessions.append({
             "id": live_session.id if live_session else p.id,
             "photographer_id": p.id, "photographer_name": p.full_name,
@@ -180,7 +176,7 @@ async def get_admin_active_sessions(admin: Profile = Depends(get_current_admin),
             "started_at": p.shooting_started_at.isoformat() if p.shooting_started_at else None,
             "participant_count": live_session.participant_count if live_session else 0,
             "total_earnings": float(live_session.total_earnings or 0) if live_session else 0,
-            "buyin_price": float(p.session_price or 25)
+            "buyin_price": session_buyin(p, live_session)
         })
     return sessions
 

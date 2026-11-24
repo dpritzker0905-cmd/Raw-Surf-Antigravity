@@ -5,8 +5,11 @@ from the join and released when the buyer acts on their delivered gallery (not m
 7 days after the join; an early-leave refund cancels the hold, once per surfer per session.
 Real JWT + HTTP for join and leave, an ephemeral SQLite ORM, and the real release sweep.
 """
+import json
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import httpx
 import pytest
@@ -18,9 +21,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from core.security import create_access_token
 from database import Base, get_db
-from models import CreditTransaction, LiveSessionParticipant, PaymentTransaction, Profile, RoleEnum, SurferGalleryItem, SurferPhotoSubscription, SurferSelectionQuota
+from models import CreditTransaction, LiveSession, LiveSessionParticipant, PaymentTransaction, Profile, RoleEnum, SurferGalleryItem, SurferPhotoSubscription, SurferSelectionQuota
+from routes.admin import support
 from routes.bookings import booking_lifecycle
 from routes.sessions import join as session_join
+from routes.sessions import payments
 from routes.sessions.schemas import JoinSessionRequest
 from services import live_session_escrow as escrow
 
@@ -44,6 +49,15 @@ async def harness(tmp_path):
 
     async with engine.begin() as connection:
         await connection.run_sync(create_all)
+    try:
+        async with seeded_seat_harness(engine) as seeded:
+            yield seeded
+    finally:
+        await engine.dispose()
+
+
+@asynccontextmanager
+async def seeded_seat_harness(engine):
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as db:
         db.add(Profile(id='owner', user_id='owner', email='owner@example.invalid', role=RoleEnum.SURFER,
@@ -56,6 +70,8 @@ async def harness(tmp_path):
 
     app = FastAPI()
     app.include_router(session_join.router, prefix='/api')
+    app.include_router(support.router, prefix='/api')
+    app.include_router(payments.router, prefix='/api')
     app.include_router(booking_lifecycle.router, prefix='/api')
 
     async def dependency():
@@ -66,7 +82,106 @@ async def harness(tmp_path):
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
                                  base_url='http://fixture.invalid') as client:
         yield SimpleNamespace(client=client, maker=maker)
-    await engine.dispose()
+
+
+@pytest.mark.parametrize("emulate", [False, True])
+async def test_card_join_creates_checkout_with_configured_provider(harness, monkeypatch, emulate):
+    async with harness.maker() as db:
+        db.add(LiveSession(id="checkout-original", photographer_id="pro", buyin_price=BUYIN))
+        await db.commit()
+    provider_url = "https://checkout.stripe.com/c/pay/fixture"
+    hosted = Mock(return_value=SimpleNamespace(id="cs_test_hosted_fixture", url=provider_url))
+    emulated = Mock(return_value={
+        "checkout_session_id": "cs_test_emulated_fixture",
+        "url": provider_url, "payment_intent_id": "pi_test_fixture",
+    })
+    monkeypatch.setattr(session_join, "STRIPE_API_KEY", "test-fixture")
+    monkeypatch.setattr(payments, "checkout_emulation_allowed", lambda: emulate)
+    monkeypatch.setattr(session_join.stripe.checkout.Session, "create", hosted)
+    monkeypatch.setattr(session_join.stripe_mcp_server, "stripe_create_checkout_session", emulated)
+
+    response = await harness.client.post(
+        "/api/sessions/join?surfer_id=owner", headers=bearer("owner"),
+        json={"photographer_id": "pro", "payment_method": "card", "origin_url": "https://dev--rawsurf.netlify.app"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["requires_payment"] is True
+    assert response.json()["checkout_url"] == provider_url
+    async with harness.maker() as db:
+        payment = (await db.scalars(select(PaymentTransaction))).one()
+        assert payment.session_id == response.json()["session_id"]
+        assert payment.user_id == "owner"
+        assert payment.amount == BUYIN and payment.currency == "usd"
+        assert payment.payment_status == "Pending"
+        saved = json.loads(payment.transaction_metadata)
+        assert saved["live_session_id"] == "checkout-original"
+        assert (await db.scalars(select(LiveSessionParticipant))).all() == []
+    if emulate:
+        hosted.assert_not_called()
+        emulated.assert_called_once()
+        assert emulated.call_args.kwargs["metadata_dict"]["live_session_id"] == saved["live_session_id"]
+        assert saved["checkout_provider"] == "emulator"
+        assert saved["emulator_payment_intent"] == "pi_test_fixture"
+    else:
+        emulated.assert_not_called()
+        hosted.assert_called_once()
+        request = hosted.call_args.kwargs
+        assert request["metadata"]["live_session_id"] == saved["live_session_id"]
+        assert request["line_items"][0]["price_data"]["unit_amount"] == 2500
+        assert request["mode"] == "payment"
+        assert request["success_url"].endswith("checkout_session_id={CHECKOUT_SESSION_ID}")
+        assert saved["checkout_provider"] == "stripe"
+        assert saved["checkout_reference"] == request["client_reference_id"]
+
+
+async def test_card_join_refuses_an_untrusted_return_origin(harness, monkeypatch):
+    hosted = Mock()
+    monkeypatch.setattr(session_join, "STRIPE_API_KEY", "test-fixture")
+    monkeypatch.setattr(payments, "checkout_emulation_allowed", lambda: False)
+    monkeypatch.setattr(session_join.stripe.checkout.Session, "create", hosted)
+
+    response = await harness.client.post(
+        "/api/sessions/join?surfer_id=owner", headers=bearer("owner"),
+        json={"photographer_id": "pro", "payment_method": "card", "origin_url": "https://example.invalid"},
+    )
+    assert response.status_code == 400
+    hosted.assert_not_called()
+
+
+@pytest.mark.parametrize("selected_method", ["card", "credits"])
+async def test_subscription_coverage_bypasses_selected_payment_method(harness, monkeypatch, selected_method):
+    hosted = Mock()
+    emulated = Mock()
+    monkeypatch.setattr(session_join, "STRIPE_API_KEY", "test-fixture")
+    monkeypatch.setattr(session_join.stripe.checkout.Session, "create", hosted)
+    monkeypatch.setattr(session_join.stripe_mcp_server, "stripe_create_checkout_session", emulated)
+    async with harness.maker() as db:
+        db.add(SurferPhotoSubscription(
+            id="included-buyin", surfer_id="owner", photographer_id="pro",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+            live_session_buyins_remaining=1, amount_paid=BUYIN, payment_method="credits",
+        ))
+        await db.commit()
+
+    response = await harness.client.post(
+        "/api/sessions/join?surfer_id=owner", headers=bearer("owner"),
+        json={"photographer_id": "pro", "payment_method": selected_method},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["subscription_covered"] is True
+    assert response.json()["amount_paid"] == 0
+    assert not response.json().get("requires_payment")
+    hosted.assert_not_called()
+    emulated.assert_not_called()
+    async with harness.maker() as db:
+        seat = (await db.scalars(select(LiveSessionParticipant))).one()
+        assert seat.payment_method == "subscription"
+        assert seat.payment_credit_transaction_id is None
+        assert seat.escrow_status is None
+        assert (await db.get(SurferPhotoSubscription, "included-buyin")).live_session_buyins_remaining == 0
+        assert (await db.get(Profile, "owner")).credit_balance == 100
+        assert (await db.scalars(select(CreditTransaction))).all() == []
+        assert (await db.scalars(select(PaymentTransaction))).all() == []
 
 
 async def join(h, photographer='pro'):

@@ -10,6 +10,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { usePersona } from '../contexts/PersonaContext';
 
 import apiClient from '../lib/apiClient';
+import { paidSeatSupportPath } from './support/supportRoutes';
 
 import { Users, Zap, Radio, History, CalendarClock, UserPlus, Mail, Target, Search, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
@@ -244,8 +245,14 @@ export const Bookings = () => {
             setLiveSessions(sessionsRes.data || []);
           }
         } catch (error) {
+          const data = error.response?.data;
+          const ticketPath = paidSeatSupportPath(error.response);
+          if (ticketPath) {
+            navigate(ticketPath, { replace: true });
+            return;
+          }
           logger.error('Complete session payment error:', error);
-          toast.error(error.response?.data?.detail || 'Payment received - session will be activated shortly');
+          toast.error(typeof data?.detail === 'string' ? data.detail : 'Could not confirm your seat. Check with support before paying again.');
         }
         
         // Clear the URL params

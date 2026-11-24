@@ -526,6 +526,9 @@ export const AdminSupportDashboard = () => {
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <h4 className={`font-medium ${textClass}`}>{ticketDetail.subject}</h4>
                   <p className="text-sm text-muted-foreground mt-1">{ticketDetail.description}</p>
+                  {ticketDetail.related_transaction_id && (
+                    <p className="text-sm break-all">Payment reference <code>{ticketDetail.related_transaction_id}</code></p>
+                  )}
                   <div className="flex flex-wrap gap-2 mt-2">
                     <Badge className={getPriorityColor(ticketDetail.priority)}>{ticketDetail.priority}</Badge>
                     <Badge className={getStatusColor(ticketDetail.status)}>{ticketDetail.status?.replace('_', ' ')}</Badge>

@@ -125,10 +125,10 @@ const SpotHubPhotographers = ({
                       <p className="text-[9px] text-gray-500">per hour</p>
                     </div>
                   );
-                } else if (isLive && photographer.session_price) {
+                } else if (isLive) {
                   return (
                     <div className="text-right">
-                      <p className="text-sm font-bold text-emerald-400">${photographer.session_price}</p>
+                      <p className="text-sm font-bold text-emerald-400">${photographer.live_buyin_price ?? photographer.session_price ?? 25}</p>
                       <p className="text-[9px] text-gray-500">per session</p>
                     </div>
                   );

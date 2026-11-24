@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 26,
+  "branch": "codex/pricing-seat-integration",
+  "date": "2026-11-24",
+  "note": "Eight prior integration cases plus eighteen SQLite-compatible recovery cases; concurrent row locks are qualified separately on PostgreSQL"
+}

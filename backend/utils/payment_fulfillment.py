@@ -16,6 +16,14 @@ from utils.credit_packages import package_credit_amount, validate_credit_package
 from utils.revenue_routing import is_hobbyist_creator, is_pro_creator
 
 
+def is_live_seat_checkout(transaction):
+    try:
+        metadata = json.loads(transaction.transaction_metadata or "{}")
+    except (TypeError, ValueError):
+        return False
+    return isinstance(metadata, dict) and metadata.get("type") == "live_session_join"
+
+
 def wallet_credit_amount(transaction):
     raw = transaction.transaction_metadata or '{}'
     try:
@@ -26,7 +34,7 @@ def wallet_credit_amount(transaction):
     if not isinstance(metadata, dict):
         raise ValueError('Invalid payment metadata')
     kind = metadata.get('type')
-    if kind in ('subscription', 'photo_subscription', 'grom_subscription', 'crew_share'):
+    if kind in ('subscription', 'photo_subscription', 'grom_subscription', 'crew_share', 'live_session_join'):
         return None  # Dedicated handlers own these entitlements.
     if kind == 'wallet_credit_pack':
         return package_credit_amount(metadata, transaction.amount)

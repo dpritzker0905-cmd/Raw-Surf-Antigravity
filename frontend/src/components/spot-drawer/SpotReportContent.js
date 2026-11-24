@@ -167,7 +167,7 @@ const SpotReportContent = ({
                     <p className="text-white font-medium text-sm">{shooter.full_name}</p>
                     <div className="flex items-center gap-2">
                       <p className="text-gray-400 text-xs">
-                        ${shooter.session_price || 25} buy-in
+                        ${shooter.live_buyin_price ?? shooter.session_price ?? 25} buy-in
                       </p>
                       {shooter.live_photo_price && shooter.general_photo_price && 
                        shooter.live_photo_price < shooter.general_photo_price && (

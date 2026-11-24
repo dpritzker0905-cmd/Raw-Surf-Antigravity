@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom';
 import apiClient from '../../lib/apiClient';
 import SupportInbox from './SupportInbox';
-import { supportAuthParams, supportReturnPath } from './supportRoutes';
+import { paidSeatSupportPath, supportAuthParams, supportReturnPath } from './supportRoutes';
 
 let mockUser = { id: 'fixture-owner' };
 let mockTicket;
@@ -145,6 +145,12 @@ test('support auth return survives tab/category changes and rejects other destin
   expect(supportAuthParams(params, { tab: 'signup', category: 'surfer' })).toEqual({ tab: 'signup', category: 'surfer', redirect: path });
   for (const invalid of ['//outside.invalid', 'https://outside.invalid', '/support/tickets/../admin', `${path}?token=anything`, '/support/tickets/no-id']) expect(supportReturnPath(invalid)).toBeNull();
   expect(supportReturnPath('/support')).toBe('/support');
+  const id = path.split('/').pop();
+  expect(paidSeatSupportPath({ status: 409, data: { support_ticket_id: id.toUpperCase() } })).toBe(path.toLowerCase());
+  expect(paidSeatSupportPath({ status: 503, data: { support_ticket_id: id } })).toBeNull();
+  for (const value of [null, {}, '/support', '../admin', id + '?checkout=private']) {
+    expect(paidSeatSupportPath({ status: 409, data: { support_ticket_id: value } })).toBeNull();
+  }
 });
 
 test('all owner tickets remain reachable and failed page retry performs only GET', async () => {

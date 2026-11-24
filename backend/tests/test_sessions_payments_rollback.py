@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, timezone
 import sqlite3
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -26,6 +27,7 @@ async def test_complete_payment_stripe_error_triggers_rollback(monkeypatch):
     mock_db.commit = AsyncMock()
     owned_tx = MagicMock(spec=PaymentTransaction)
     owned_tx.user_id = "usr_surfer"
+    owned_tx.transaction_metadata = None
     owned_result = MagicMock()
     owned_result.scalar_one_or_none.return_value = owned_tx
     mock_db.execute = AsyncMock(return_value=owned_result)
@@ -50,7 +52,7 @@ async def test_complete_payment_stripe_error_triggers_rollback(monkeypatch):
         )
         
     assert response.status_code == 500
-    assert "Payment verification failed: Mock Stripe Error" in response.json()["detail"]
+    assert response.json()["detail"] == "Payment verification failed"
     
     # Assert rollback was called
     mock_db.rollback.assert_called_once()
@@ -72,6 +74,7 @@ async def test_complete_payment_database_error_refunds_stripe_live(monkeypatch):
     mock_tx = MagicMock(spec=PaymentTransaction)
     mock_tx.payment_status = "Pending"
     mock_tx.status = "Pending"
+    mock_tx.created_at = datetime.now(timezone.utc)
     mock_tx.user_id = "usr_surfer"
     mock_tx.transaction_metadata = json.dumps({
         "type": "live_session_join",
@@ -118,6 +121,18 @@ async def test_complete_payment_database_error_refunds_stripe_live(monkeypatch):
     
     # Mock retrieve to return paid session
     mock_checkout_session = MagicMock()
+    monkeypatch.setattr(stripe.Refund, "list", MagicMock(return_value=MagicMock(data=[])))
+    mock_tx.amount = 25.0
+    mock_tx.currency = "usd"
+    mock_tx.transaction_metadata = json.dumps({
+        **json.loads(mock_tx.transaction_metadata), "checkout_provider": "stripe",
+        "checkout_reference": "fixture-ref",
+    })
+    mock_checkout_session.id = "cs_live_1234"
+    mock_checkout_session.mode = "payment"
+    mock_checkout_session.client_reference_id = "fixture-ref"
+    mock_checkout_session.amount_total = 2500
+    mock_checkout_session.currency = "usd"
     mock_checkout_session.payment_status = "paid"
     mock_checkout_session.payment_intent = "pi_live_1234"
     mock_checkout_session.metadata = {
@@ -128,7 +143,7 @@ async def test_complete_payment_database_error_refunds_stripe_live(monkeypatch):
     }
     
     with patch("stripe.checkout.Session.retrieve", return_value=mock_checkout_session) as mock_retrieve, \
-         patch("stripe.Refund.create") as mock_refund:
+         patch("stripe.Refund.create", return_value=MagicMock(status="succeeded")) as mock_refund:
         
         response = client.post(
             "/api/sessions/complete-payment",
@@ -139,8 +154,10 @@ async def test_complete_payment_database_error_refunds_stripe_live(monkeypatch):
         assert response.status_code == 404
         assert "User or photographer not found. Payment refunded." in response.json()["detail"]
         
-        mock_retrieve.assert_called_once_with("cs_live_1234")
-        mock_refund.assert_called_once_with(payment_intent="pi_live_1234")
+        mock_retrieve.assert_called_once_with("cs_live_1234", api_key=payments.STRIPE_API_KEY)
+        mock_refund.assert_called_once_with(
+            api_key=payments.STRIPE_API_KEY, payment_intent="pi_live_1234", idempotency_key="live-session-refund-cs_live_1234"
+        )
         mock_db.commit.assert_called_once()
         assert mock_tx.payment_status == "Refunded"
         assert mock_tx.status == "Refunded"
@@ -174,13 +191,15 @@ async def test_complete_payment_database_error_refunds_stripe_mock(monkeypatch):
     mock_tx = MagicMock(spec=PaymentTransaction)
     mock_tx.payment_status = "Pending"
     mock_tx.status = "Pending"
+    mock_tx.created_at = datetime.now(timezone.utc)
     mock_tx.user_id = "usr_surfer"
     mock_tx.transaction_metadata = json.dumps({
         "type": "live_session_join",
         "surfer_id": "usr_surfer",
         "photographer_id": "usr_photog",
         "selfie_url": "https://example.com/selfie.jpg",
-        "amount": 25.0
+        "amount": 25.0,
+        "emulator_payment_intent": "pi_test_5678",
     })
 
     async def mock_execute(statement, *args, **kwargs):

@@ -20,7 +20,7 @@ const tickets = ['A', 'B'].map(id => ({
 }));
 const detail = id => ({
   ...tickets.find(ticket => ticket.id === id), description: `Details for ${id}`,
-  category: 'other', user: { id: `fixture-${id}` }, messages: [],
+  related_transaction_id: `local-payment-${id}`, category: 'other', user: { id: `fixture-${id}` }, messages: [],
 });
 const pending = () => {
   let resolve, reject;
@@ -173,6 +173,7 @@ test('same-ticket reply refresh retains selection and clears only the sent draft
   fireEvent.click(send());
   await waitFor(() => expect(apiClient.post).toHaveBeenCalledTimes(1));
   await screen.findByText('Ticket: TEST-A');
+  expect(screen.getByText('local-payment-A')).toBeInTheDocument();
   expect(editor()).toHaveValue('');
   expect(apiClient.post).toHaveBeenCalledWith('/admin/support/tickets/A/reply', {
     message: 'A public reply', is_internal_note: false, client_message_id: expect.any(String),

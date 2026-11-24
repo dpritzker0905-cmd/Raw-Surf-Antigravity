@@ -5,6 +5,8 @@ subject before any verification. The local checkout emulator may stand in for St
 process identifies itself as local/test and the key is not live; everywhere else a checkout id is
 verified with Stripe whatever it looks like.
 """
+import json
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -28,6 +30,7 @@ def owned_checkout(monkeypatch):
     """A mock DB whose checkout belongs to usr_surfer; restores the override afterwards."""
     tx = MagicMock(spec=PaymentTransaction)
     tx.user_id = "usr_surfer"
+    tx.transaction_metadata = None
     result = MagicMock()
     result.scalar_one_or_none.return_value = tx
     db = MagicMock()
@@ -72,8 +75,47 @@ def test_test_shaped_id_is_verified_with_stripe_when_emulation_is_not_allowed(ow
             headers=bearer("usr_surfer"),
         )
     assert response.status_code == 400
-    retrieve.assert_called_once_with("cs_test_abc")
+    retrieve.assert_called_once_with("cs_test_abc", api_key=payments.STRIPE_API_KEY)
     emulator.assert_not_called()
+
+
+@pytest.mark.parametrize("changed", [
+    {"amount_total": 2600},
+    {"currency": "eur"},
+    {"client_reference_id": "different-attempt"},
+])
+def test_hosted_checkout_requires_exact_stripe_payment(owned_checkout, monkeypatch, changed):
+    tx = owned_checkout.execute.return_value.scalar_one_or_none.return_value
+    tx.amount = 25.0
+    tx.currency = "usd"
+    tx.transaction_metadata = json.dumps({
+        "type": "live_session_join", "checkout_provider": "stripe", "checkout_reference": "fixture-attempt",
+        "photographer_id": "usr_photog",
+    })
+    monkeypatch.setattr(payments, "checkout_emulation_allowed", lambda: True)
+    checkout = SimpleNamespace(**{
+        "id": "cs_test_abc", "mode": "payment", "payment_status": "paid",
+        "payment_intent": "pi_test_fixture", "amount_total": 2500,
+        "currency": "usd", "client_reference_id": "fixture-attempt",
+        "metadata": {
+            "type": "live_session_join", "surfer_id": "usr_surfer",
+            "photographer_id": "usr_photog", "amount": "25.00",
+        },
+        **changed,
+    })
+    monkeypatch.setattr(payments, "paid_seat_ticket", AsyncMock(return_value="fixture-ticket"))
+    with patch("stripe.checkout.Session.retrieve", return_value=checkout) as retrieve, \
+            patch("stripe.Refund.create") as refund:
+        response = client.post(
+            "/api/sessions/complete-payment", json={"checkout_session_id": "cs_test_abc"},
+            headers=bearer("usr_surfer"),
+        )
+    assert response.status_code == 409
+    retrieve.assert_called_once_with("cs_test_abc", api_key=payments.STRIPE_API_KEY)
+    refund.assert_not_called()
+    owned_checkout.commit.assert_awaited_once()
+    assert response.json()["support_ticket_id"] == "fixture-ticket"
+    assert json.loads(tx.transaction_metadata)["review_reason"] == "checkout_mismatch"
 
 
 @pytest.mark.parametrize("dev_ok, key, expected", [
