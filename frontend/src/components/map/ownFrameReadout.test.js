@@ -4,8 +4,12 @@
  * no-data corners, air temperature's lapse * dz); the card's number, words and accessible name per layer, gusts and currents
  * included; an engaged layer never falls back to another source; the strict .om sampler; flag off = the old cards.
  */
+import React from 'react';
+import { render, act } from '@testing-library/react';
 import { fieldValueAt, directionTowardAt, ownFrameValueAt, ownFrameCards, noteShownFrame, getShownFrame,
-  _resetOwnFrameReadoutForTest, infoboxOwnFrameEnabled, visibilityWords } from './ownFrameReadout';
+  _resetOwnFrameReadoutForTest, infoboxOwnFrameEnabled, visibilityWords, useOwnFrameValue } from './ownFrameReadout';
+import { setEngaged, _resetOwnRasterFramesForTest } from './ownRasterFrames';
+import { setDownscaled, _resetDownscaleForTest } from './ownRasterDownscale';
 import { compileForecastCards } from './forecastCardCompiler';
 import { sampleDecodedOmValue } from './decodedOmSampler';
 import { downscaleAt } from './ownRasterLayer';
@@ -170,6 +174,41 @@ describe('the infobox: the own frame replaces the layer\'s cards (one number per
       const own = ownFrameCards({ engaged: true, layer, value: 12, validMs: SEL, runMs: SEL, model: 'GFS' }, { selectedMs: SEL });
       expect(compileForecastCards({ ...base, activeLayer: layer, ownFrameCards: own }).length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('flag off = behaviour-identical: the hook subscribes to nothing (the advisor\'s hold on #1219)', () => {
+  // A probe component counting its renders, fed the same events the map's raster layer emits while scrubbing.
+  let renders = 0;
+  function Probe() { renders += 1; useOwnFrameValue('pressure', 12, -95); return null; }
+  const fire = () => act(() => {
+    noteShownFrame('pressure', { path: `p${renders}`, field: plane(), model: 'GFS' });   // a frame cut
+    setEngaged('pressure', 'GFS');                                                        // an engagement change
+    setDownscaled('pressure', true, null);                                                // a terrain correction coming
+    setDownscaled('pressure', false);
+    setEngaged('pressure', false);
+  });
+  afterEach(() => { _resetOwnRasterFramesForTest(); _resetDownscaleForTest(); });
+  it('flag OFF: frame cuts, engagement and terrain events cause 0 re-renders', () => {
+    delete process.env.REACT_APP_INFOBOX_OWN_FRAME;
+    renders = 0;
+    render(<Probe />);
+    expect(renders).toBe(1);
+    fire(); fire(); fire();
+    expect(renders).toBe(1);
+  });
+  it('kill switch set: 0 re-renders too', () => {
+    window.__RAW_DISABLE_INFOBOX_OWN_FRAME__ = true;
+    renders = 0;
+    render(<Probe />);
+    fire();
+    expect(renders).toBe(1);
+  });
+  it('flag ON (positive control): the same events do re-render, so the probe can see them', () => {
+    renders = 0;
+    render(<Probe />);
+    fire();
+    expect(renders).toBeGreaterThan(1);
   });
 });
 

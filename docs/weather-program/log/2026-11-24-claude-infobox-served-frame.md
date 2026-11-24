@@ -57,3 +57,25 @@ is recorded in a SCOREBOARD row dated 2026-11-24 17:45Z.
   scripted wheel stays at hour 0 on a phone, so a different frame is shown there; the card still equals the frame on
   screen.
 - **Screenshots:** the beach desktop and light phone cards read cleanly.
+
+## The advisor's hold at 5a11e28e0, item 2: flags off was not behaviour-identical
+
+- **The finding (via the lead).** `useOwnFrameValue`'s effect subscribed to the shown-frame, downscale and engaged events
+  unconditionally. With the flag off, every frame cut therefore re-rendered the infobox while scrubbing.
+- **The fix.** Inside the effect, `if (!infoboxOwnFrameEnabled()) return undefined;`. The hook call stays unconditional
+  (hook order). With the flag off or the kill switch set, nothing is subscribed.
+- **Tests.** Three in `ownFrameReadout.test.js` (21 in the file), using a render-counting probe fed the events the raster
+  layer emits while scrubbing (a frame cut, an engagement change, a terrain correction):
+  - flag OFF: 0 re-renders over three bursts;
+  - kill switch set: 0 re-renders;
+  - flag ON, the positive control: the same events do re-render.
+- **Mutation check.** With the gate removed, the two flag-off tests fail (2 failed, 19 passed); with it restored, all 21
+  pass.
+- **Floor fragment:** +2 suites / +31 tests.
+- **Item 1 (`MapForecastOverlay.js` is Codex-RESERVED; this PR adds 4 lines, at 799 of 800).** Not resolved here: the lead
+  is taking it to David. That file is not touched further.
+- **Checks, twice on the fix.**
+  - Jest whole tree: 758 of 758 suites and 9986 of 9986 tests in both runs, including `src/components/map` (512 / 7324)
+    and `src/tests` (37 / 371).
+  - `check_eslint.js`: clean both times.
+  - Production build: passes both times.

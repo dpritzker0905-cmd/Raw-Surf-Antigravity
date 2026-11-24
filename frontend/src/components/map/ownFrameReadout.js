@@ -110,6 +110,9 @@ export function ownFrameValueAt(layer, lat, lng, deps = {}) {
 export function useOwnFrameValue(layer, lat, lng) {
   const [, bump] = useReducer((x) => x + 1, 0);
   useEffect(() => {
+    // FLAG OFF = BEHAVIOUR-IDENTICAL (the advisor's hold on #1219): no subscription, so a frame cut, a terrain correction or an
+    // engagement change never re-renders the infobox while it reads the old sources. The hook call itself stays unconditional.
+    if (!infoboxOwnFrameEnabled()) return undefined;
     const offShown = subscribeShownFrame((l) => { if (l === layer) bump(); });
     const offDz = subscribeDownscaled(bump);
     const offEngaged = subscribeEngaged(bump);
