@@ -6,7 +6,22 @@ from datetime import datetime, timezone
 
 import pytest
 
+from services import buoy_holdout
 from services.weather_pipeline import buoy_calibration as bc
+
+
+@pytest.fixture(autouse=True)
+def _no_locked_list(tmp_path, monkeypatch):
+    """These tests pin the calibration MECHANICS on real station ids. They must not depend on which buoys #1199's draw
+    happened to lock, so the holdout reads an unrecorded list here. The fence itself is pinned with a planted list in
+    test_buoy_holdout_consumers.py (the calibration-fetch canary included)."""
+    p = tmp_path / buoy_holdout.BUOY_LIST
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text('{"holdout": {"locked_list": null}, "stations": []}', encoding="utf-8")
+    monkeypatch.setenv(buoy_holdout.ENV_ROOT, str(tmp_path))
+    buoy_holdout.reset_cache()
+    yield
+    buoy_holdout.reset_cache()
 
 # Two NDBC realtime2 rows (newest first), with a 'MM' missing marker in the trailing met columns.
 NDBC_SAMPLE = """#YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD   PRES  ATMP  WTMP  DEWP  VIS PTDY  TIDE

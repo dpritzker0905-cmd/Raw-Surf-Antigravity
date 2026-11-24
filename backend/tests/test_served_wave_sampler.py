@@ -231,3 +231,29 @@ def test_a_whole_job_failure_leaves_a_marker(tmp_path):
     assert path.startswith("verify/point-archive/v1/served/_sampler_fail/20270115T0350Z-")
     body = json.loads(LocalStore(tmp_path).read(path))
     assert body["status"] == "sampler_fail" and body["cause"] == "job"
+
+
+def test_a_locked_buoy_is_still_sampled_and_archived(tmp_path, monkeypatch):
+    """#1199: the served forecasts at a LOCKED buoy are ARCHIVED for the 2027-03/04 look. The sampler is a collector, so the
+    program-wide fence, verified here with S2 locked, must not stop it (the scorer seals the rows; its own tests pin that)."""
+    from services import buoy_holdout
+    raw = (json.dumps({"seed": 1199, "locked": ["S2"]}) + chr(10)).encode("utf-8")
+    root = tmp_path / "repo"
+    lp = root / "docs/weather-program/gates/served-wave-skill-v1-locked.json"
+    lp.parent.mkdir(parents=True, exist_ok=True)
+    lp.write_bytes(raw)
+    rec = {"holdout": {"locked_list": {"path": "docs/weather-program/gates/served-wave-skill-v1-locked.json",
+                                       "sha256": hashlib.sha256(raw).hexdigest()}},
+           "stations": [{**s, "locked": s["id"] == "S2"} for s in _doc()["stations"]]}
+    (root / buoy_holdout.BUOY_LIST).write_text(json.dumps(rec), encoding="utf-8")
+    monkeypatch.setenv(buoy_holdout.ENV_ROOT, str(root))
+    buoy_holdout.reset_cache()
+    assert buoy_holdout.state()["status"] == "verified" and buoy_holdout.is_locked("S2")
+    fr, store = Frames(), LocalStore(tmp_path / "archive")
+    s = ss.Sampler(_doc(), fr, ArchiveWriter(store), log=lambda *_: None)
+    w1 = world_index(fr, "waves", R1)
+    s.run({"sets": {"GFS/marine/waves/global_mid": {"index": w1}}})
+    rows = [x for x in _rows(store, "gfs", R1) if x["row_type"] == "record"]
+    assert {x["station_id"] for x in rows} >= {"S1", "S2", "S3"}
+    assert [x for x in rows if x["station_id"] == "S2" and x["status"] == "ok"]
+    buoy_holdout.reset_cache()

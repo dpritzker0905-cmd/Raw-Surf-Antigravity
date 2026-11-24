@@ -1,0 +1,128 @@
+{
+ "draw": "regions in lexicographic order, ONE random.Random(1199) stream across them, per region rng.sample(sorted(eligible ids), k_r) without replacement",
+ "drawn_from_buoy_list_hash": "656a7a27a2a3de26a36036568794e8ef7de26668901f16c55d055c2d76d248b9",
+ "drawn_from_buoy_list_version": "served-wave-verify-v1-buoys/2",
+ "eligible": {
+  "alaska": [
+   "46035",
+   "46060",
+   "46061",
+   "46070",
+   "46072",
+   "46073",
+   "46075",
+   "46076",
+   "46077",
+   "46078",
+   "46080",
+   "46083",
+   "46084"
+  ],
+  "canada": [
+   "44137",
+   "44139",
+   "44150",
+   "46004",
+   "46146",
+   "46147",
+   "46181",
+   "46183",
+   "46185",
+   "46207",
+   "46208"
+  ],
+  "caribbean": [
+   "41053",
+   "41056",
+   "42057",
+   "42058",
+   "42060"
+  ],
+  "gulf": [
+   "42001",
+   "42002",
+   "42012",
+   "42036",
+   "42039",
+   "42055"
+  ],
+  "hawaii": [
+   "51000",
+   "51003",
+   "51101"
+  ],
+  "open_ocean": [
+   "41040",
+   "41041",
+   "41044",
+   "41046",
+   "41047",
+   "41048",
+   "46059",
+   "46085"
+  ],
+  "us_east": [
+   "41009",
+   "41010",
+   "41013",
+   "44007",
+   "44008",
+   "44011",
+   "44013",
+   "44014",
+   "44027",
+   "44065"
+  ],
+  "us_west": [
+   "46002",
+   "46005",
+   "46011",
+   "46012",
+   "46013",
+   "46015",
+   "46022",
+   "46028",
+   "46042",
+   "46047",
+   "46050",
+   "46053",
+   "46069",
+   "46088",
+   "46089"
+  ]
+ },
+ "eligible_rule": "#1199 amendment 1 (owner ruling 2026-11-23, '71 unfitted buoys (Recommended)'): eligible = the frozen list's stations with exam_only false and fit_used false (the VERIFY candidates), tags as committed in this list",
+ "fraction": 0.2,
+ "gate": "docs/weather-program/gates/served-wave-skill-v1.md",
+ "k": {
+  "alaska": 3,
+  "canada": 2,
+  "caribbean": 1,
+  "gulf": 1,
+  "hawaii": 1,
+  "open_ocean": 2,
+  "us_east": 2,
+  "us_west": 3
+ },
+ "locked": [
+  "41009",
+  "41010",
+  "41041",
+  "41047",
+  "42001",
+  "42058",
+  "46004",
+  "46053",
+  "46060",
+  "46077",
+  "46083",
+  "46088",
+  "46089",
+  "46208",
+  "51003"
+ ],
+ "n_eligible": 71,
+ "rounding": "k_r = floor(0.2 * n_r + 0.5), computed exactly as (2 * n_r + 5) // 10; regions with n_r = 0 draw nothing",
+ "seed": 1199,
+ "stratified_by": "region"
+}

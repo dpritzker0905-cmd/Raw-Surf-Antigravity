@@ -64,12 +64,13 @@ def _truth(exp, ids):
 
 # ---------------------------------------------------------------- the committed list (version 2)
 
-def test_committed_list_is_collect_only_until_1199_freezes():
+def test_committed_list_is_frozen_by_1199_and_ready():
+    """#1199's freeze (amendment 1): the LOCKED list is recorded and verifies, so the scorer is READY and drops it."""
     doc = buoylist.load()
     status, info = holdout.state(doc)
-    assert status == holdout.NOT_READ and info["error"] is False
-    assert doc["holdout"]["locked_list"] is None
-    assert all(s["locked"] is None for s in doc["stations"])
+    assert status == holdout.READY and len(info["locked"]) == 15
+    assert doc["holdout"]["locked_list"]["path"] == holdout.LOCKED_LIST_PATH
+    assert all(s["locked"] is (s["id"].upper() in info["locked"]) for s in doc["stations"])
 
 
 def test_committed_fit_used_tags_follow_the_census():
@@ -272,3 +273,49 @@ def test_cli_broken_locked_list_fails_loud_and_reads_nothing(tmp_path, monkeypat
 def test_snapshot_workflow_commits_only_a_scored_document():
     wf = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "served-wave-verify-score.yml").read_text(encoding="utf-8")
     assert "grep -q '\"status\":\"scored\"'" in wf
+
+
+@pytest.mark.parametrize("attempt", [1, 2])
+def test_locked_buoys_are_stored_but_never_readable_outside_the_window(tmp_path, monkeypatch, capsys, attempt):
+    """#1199 section 1a: a LOCKED buoy is still ARCHIVED (its truth snapshots and the served forecasts at it), so the one
+    pre-registered look in 2027-03/04 has data, and it is SEALED from every other read. Run with the PROGRAM-WIDE fence
+    (services/buoy_holdout) verified on the same record, so a collector that the fence silently stopped would fail here."""
+    from services import buoy_holdout
+    cli = _mod(SCORE_CLI, f"swv_score_cli_sealed_{attempt}")
+    doc, records, exp = _golden()
+    root = tmp_path / "repo"
+    v2 = _v2(doc, {LOCKED_ID}, root)
+    (root / buoy_holdout.BUOY_LIST).parent.mkdir(parents=True, exist_ok=True)
+    (root / buoy_holdout.BUOY_LIST).write_text(json.dumps(v2), encoding="utf-8")
+    monkeypatch.setenv(buoy_holdout.ENV_ROOT, str(root))
+    buoy_holdout.reset_cache()
+    assert buoy_holdout.state()["status"] == "verified" and buoy_holdout.is_locked(LOCKED_ID)
+    # STORED: the daily truth snapshot fetches and writes the locked buoy like every other (collection is never fenced)
+    store = LocalStore(tmp_path / "bucket")
+    asked = []
+    opener = lambda url: asked.append(url) or (GOLDEN / f"{url.rsplit('/', 1)[1].split('.')[0]}.txt").read_text(encoding="utf-8") \
+        if url.endswith(".txt") else None
+    got = cli.snapshot_truth(ArchiveWriter(store), v2, core.parse_time(exp["fetched_at"]), opener=opener, pause=0)
+    assert any(LOCKED_ID in u for u in asked)
+    stored = list((tmp_path / "bucket" / core.truth_prefix(LOCKED_ID)).glob("*"))
+    assert stored and got["written"] == len(buoylist.stations(v2))      # every listed buoy, the locked one included
+    # ... and the served forecast records at it are archived too (the sampler writes rows for every listed buoy)
+    w = ArchiveWriter(store)
+    by_run = {}
+    for r in records:
+        by_run.setdefault((r["model"], r["run_time"]), []).append(r)
+    for (model, run), rows in sorted(by_run.items()):
+        w.write_immutable(core.run_path("served", model, core.parse_time(run)), gzip_bytes(jsonl_bytes(rows)))
+    assert any(r.get("station_id") == LOCKED_ID for r in records)
+    # SEALED: the scorer's download never copies its truth, the load drops its rows, nothing printed or published names it
+    dl, out = tmp_path / "dl", tmp_path / "out"
+    (tmp_path / "list.json").write_text(json.dumps(v2), encoding="utf-8")
+    rc, cap = _run(cli, monkeypatch, capsys, ["--buoy-list", str(tmp_path / "list.json"), "--repo-root", str(root),
+                                              "--asof", exp["asof"], "--local-store", str(tmp_path / "bucket"),
+                                              "--download", str(dl), "--score", str(dl), "--out", str(out)])
+    assert rc == 0, cap.out + cap.err
+    assert not [p for p in dl.rglob("*") if p.is_file() and LOCKED_ID in str(p)]
+    body = (out / "scores.json").read_text(encoding="utf-8")
+    assert LOCKED_ID not in body and LOCKED_ID not in cap.out + cap.err
+    assert stored == list((tmp_path / "bucket" / core.truth_prefix(LOCKED_ID)).glob("*"))   # still there, untouched
+    buoy_holdout.reset_cache()

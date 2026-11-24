@@ -163,6 +163,54 @@ def tag(doc, census, locked_list=None):
                                             "open": [o["consumer"] for o in census.get("open", [])]}}}
 
 
+LOCKED_PATH = "docs/weather-program/gates/served-wave-skill-v1-locked.json"
+LOCK_SEED = 1199
+LOCK_FRACTION = "0.2"
+ELIGIBLE_RULE = ("#1199 amendment 1 (owner ruling 2026-11-23, '71 unfitted buoys (Recommended)'): eligible = the frozen list's "
+                 "stations with exam_only false and fit_used false (the VERIFY candidates), tags as committed in this list")
+ROUNDING_RULE = "k_r = floor(0.2 * n_r + 0.5), computed exactly as (2 * n_r + 5) // 10; regions with n_r = 0 draw nothing"
+DRAW_RULE = ("regions in lexicographic order, ONE random.Random(1199) stream across them, per region "
+             "rng.sample(sorted(eligible ids), k_r) without replacement")
+
+
+def eligible(doc):
+    """{region: sorted ids} of the VERIFY candidates: not exam_only, not fit_used (#1199 amendment 1). Empty regions omitted."""
+    out = {}
+    for s in doc["stations"]:
+        if not s.get("exam_only") and not s.get("fit_used"):
+            out.setdefault(s["region"], []).append(s["id"].upper())
+    return {r: sorted(ids) for r, ids in sorted(out.items())}
+
+
+def lock_count(n):
+    return (2 * n + 5) // 10                          # floor(0.2 n + 0.5), exact in integers
+
+
+def draw(doc):
+    """The LOCKED list document for `doc` (a version 2 list). Deterministic: the same list always draws the same buoys."""
+    import random
+    pool = eligible(doc)
+    rng = random.Random(LOCK_SEED)
+    picked, ks = [], {}
+    for region in sorted(pool):
+        ks[region] = lock_count(len(pool[region]))
+        picked += rng.sample(pool[region], ks[region])
+    return {"gate": HOLDOUT_GATE, "seed": LOCK_SEED, "fraction": float(LOCK_FRACTION), "stratified_by": "region",
+            "eligible_rule": ELIGIBLE_RULE, "rounding": ROUNDING_RULE, "draw": DRAW_RULE,
+            "drawn_from_buoy_list_hash": buoylist.list_hash(doc), "drawn_from_buoy_list_version": doc["version"],
+            "eligible": pool, "k": ks, "n_eligible": sum(len(v) for v in pool.values()), "locked": sorted(picked)}
+
+
+def record_lock(doc, raw):
+    """`doc` with the LOCKED list recorded: holdout.locked_list {path, sha256 of the file's raw bytes} and every station's
+    `locked` tag. Neither field is in list_hash (buoys.FREEZE_FILLED_*), so the archive's pinned hash does not move."""
+    import hashlib
+    ids = set(json.loads(raw.decode("utf-8"))["locked"])
+    rows = [{**s, "locked": s["id"].upper() in ids} for s in doc["stations"]]
+    holdout = {**doc["holdout"], "locked_list": {"path": LOCKED_PATH, "sha256": hashlib.sha256(raw).hexdigest()}}
+    return {**doc, "stations": rows, "holdout": holdout}
+
+
 def boxes_from_public(frames):
     latest = json.loads(frames.get("v1/latest.json", bust=True))
     sets = {}
@@ -186,6 +234,7 @@ def main(argv=None):
     ap.add_argument("--boxes-from-public", metavar="OUT")
     ap.add_argument("--freeze", action="store_true")
     ap.add_argument("--tag", action="store_true")
+    ap.add_argument("--draw-locked", action="store_true", help="#1199's freeze: draw and record the LOCKED list (once)")
     ap.add_argument("--out", default=str(buoylist.LIST_PATH))
     a = ap.parse_args(argv)
     if a.boxes_from_public:
@@ -215,6 +264,21 @@ def main(argv=None):
         h = buoylist.list_hash(buoylist.load(a.out))
         Path(a.out + ".sha256").write_text(f"{h}  {Path(a.out).name}\n", encoding="utf-8", newline="\n")
         print(f"[tag] {sum(s['fit_used'] for s in doc['stations'])} fit_used of {len(doc['stations'])}; buoy_list_hash {h}")
+    if a.draw_locked:
+        current = buoylist.load(a.out)
+        if (current.get("holdout") or {}).get("locked_list"):
+            raise SystemExit("draw refused: a LOCKED list is already recorded (no redraw, #1199 amendment 1 condition 2)")
+        before = buoylist.list_hash(current)
+        locked_doc = draw(current)
+        raw = (json.dumps(locked_doc, indent=1, sort_keys=True) + "\n").encode("utf-8")
+        (buoylist.REPO_ROOT / LOCKED_PATH).write_bytes(raw)
+        doc = record_lock(current, raw)
+        problems = buoylist.validate(doc)
+        if problems or buoylist.list_hash(doc) != before:
+            raise SystemExit("draw refused: " + ("; ".join(problems) or "the buoy list hash moved"))
+        Path(a.out).write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+        print(f"[draw] {len(locked_doc['locked'])} LOCKED of {locked_doc['n_eligible']} eligible (ids not printed: public "
+              f"logs); per region {locked_doc['k']}; buoy_list_hash unchanged {before}")
 
 
 if __name__ == "__main__":

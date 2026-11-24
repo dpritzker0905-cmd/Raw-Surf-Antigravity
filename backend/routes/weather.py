@@ -629,7 +629,9 @@ async def get_capabilities():
     Returns the backend-owned capabilities matrix for weather, marine, and wind models.
     """
     from services.weather_pipeline.capabilities import get_weather_capabilities
-    return get_weather_capabilities()
+    from services.weather_pipeline.run_age import run_age_for_rows   # 2026-11-24: the served cycle's age on every row
+    import asyncio
+    return await asyncio.to_thread(lambda: run_age_for_rows(get_weather_capabilities()))   # a manifest read: off the loop
 
 @router.post("/client-diagnostics")
 async def post_client_diagnostics(report: ClientDiagnosticReport):
