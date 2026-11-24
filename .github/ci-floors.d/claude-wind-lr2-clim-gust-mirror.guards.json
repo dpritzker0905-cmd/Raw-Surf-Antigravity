@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 10,
+  "files": 1,
+  "branch": "claude/wind-lr2-clim-gust-mirror",
+  "date": "2026-11-23",
+  "note": "tests/test_wind_lr2_gust_mirror.py: 10 cases (ordered sources always verified, unreadable falls through, mismatch refuses, record/notes/workflow consistency)"
+}

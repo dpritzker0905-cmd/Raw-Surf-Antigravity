@@ -1,0 +1,12 @@
+{
+  "tag": "wind-lr2-clim-gust-1e7df526a8598fc1",
+  "asset": "wind_lr2_clim_gust-1e7df526a8598fc1.json",
+  "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/releases/download/wind-lr2-clim-gust-1e7df526a8598fc1/wind_lr2_clim_gust-1e7df526a8598fc1.json",
+  "sha256": "1e7df526a8598fc10e476318645829e792f5abd7cf6bdc3862d964f9954d01d8",
+  "bytes": 12810040,
+  "source_run": 45266543788,
+  "bucket_object": "calibration/wind-lr2/45266543788-1/wind-lr2-clim_gust-45266543788/wind_lr2_clim_gust.json",
+  "published_at": null,
+  "published_by": null,
+  "note": "published_at / published_by are filled by a follow-up commit once the release exists; the URL is fixed by tag + asset name"
+}
