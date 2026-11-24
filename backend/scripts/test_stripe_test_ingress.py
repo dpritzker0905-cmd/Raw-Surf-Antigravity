@@ -25,10 +25,10 @@ class ReceiverTest(unittest.TestCase):
         }, clear=True)
         self.env.start()
         self.addCleanup(self.env.stop)
-        self.event = {'id': 'evt_local', 'object': 'event', 'type': 'product.created',
+        self.event = {'id': 'evt_local', 'object': 'event', 'type': 'test_helpers.test_clock.created',
                       'livemode': False, 'data': {'object': {
-                          'object': 'product', 'id': 'prod_local', 'livemode': False,
-                          'active': False, 'metadata': {'rawsurf_1274_canary': self.tag}}}}
+                          'object': 'test_helpers.test_clock', 'id': 'clock_local', 'livemode': False,
+                          'status': 'ready', 'name': self.tag}}}
         self.save = Mock()
 
     def post(self, offset=0, secret=None):
@@ -45,10 +45,10 @@ class ReceiverTest(unittest.TestCase):
 
     def test_correlated_canary(self):
         self.assertEqual(self.post(), 200)
-        self.save.assert_called_once_with('evt_local', 'product.created', 'prod_local')
+        self.save.assert_called_once_with('evt_local', 'test_helpers.test_clock.created', 'clock_local')
 
-    def test_unrelated_product(self):
-        self.event['data']['object']['metadata'] = {}
+    def test_unrelated_clock(self):
+        self.event['data']['object']['name'] = 'other'
         self.assertEqual(self.post(), 204)
         self.save.assert_not_called()
 

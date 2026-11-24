@@ -62,11 +62,11 @@ def receive(body, signature, secret, canary, save):
         if not re.fullmatch(r"evt_[A-Za-z0-9_]{1,240}", event_id) or obj.get("livemode") is not False:
             return 400, "invalid"
         obj_id = obj["id"]
-        if kind == "product.created":
-            tag = (obj.get("metadata") or {}).get("rawsurf_1274_canary", "")
+        if kind == "test_helpers.test_clock.created":
+            tag = obj.get("name") or ""
             if not canary or not hmac.compare_digest(canary, tag):
                 return 204, "ignored"
-            if obj.get("object") != "product" or obj.get("active") is not False or not re.fullmatch(r"prod_[A-Za-z0-9_]{1,240}", obj_id):
+            if obj.get("object") != "test_helpers.test_clock" or obj.get("status") != "ready" or not re.fullmatch(r"clock_[A-Za-z0-9_]{1,240}", obj_id):
                 return 400, "invalid"
         elif kind in CHECKOUT:
             if obj.get("object") != "checkout.session" or not re.fullmatch(r"cs_test_[A-Za-z0-9_]{1,230}", obj_id):

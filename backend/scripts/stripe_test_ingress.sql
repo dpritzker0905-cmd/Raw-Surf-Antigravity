@@ -7,7 +7,7 @@ CREATE TABLE rawsurf_1274_ingress.receipts (
     object_id text NOT NULL,
     received_at timestamptz NOT NULL DEFAULT statement_timestamp(),
     livemode boolean NOT NULL DEFAULT false CHECK (NOT livemode),
-    CHECK ((event_type = 'product.created' AND object_id ~ '^prod_[A-Za-z0-9_]{1,240}$')
+    CHECK ((event_type = 'test_helpers.test_clock.created' AND object_id ~ '^clock_[A-Za-z0-9_]{1,240}$')
         OR (event_type IN ('checkout.session.completed', 'checkout.session.async_payment_succeeded')
             AND object_id ~ '^cs_test_[A-Za-z0-9_]{1,230}$'))
 );
