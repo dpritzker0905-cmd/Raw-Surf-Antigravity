@@ -118,3 +118,42 @@ def test_report_only_never_fails(monkeypatch, state):
     assert ffc.main(["--report-only"]) == 0
     want = {"ok": 0, "mismatch": 1, "inconclusive": 3, "shrinks": 0, "fragments-only": 0}[state]
     assert ffc.main([]) == want
+
+
+def test_a_deleted_fragment_is_found_and_warned_never_blocking(tmp_path, monkeypatch, capsys):
+    """Advisor L2 on #1277: deleting a fragment lowers a floor; it is WARNED about, and never fails the check."""
+    def git(*a):
+        subprocess.run(["git", *a], cwd=tmp_path, check=True, capture_output=True)
+    git("init", "-q")
+    git("config", "user.email", "t@example.invalid")
+    git("config", "user.name", "t")
+    d = tmp_path / ".github" / "ci-floors.d"
+    d.mkdir(parents=True)
+    (d / "theirs.estate.json").write_text(json.dumps({"lane": "estate", "tests": 3}), encoding="utf-8")
+    git("add", "-A")
+    git("commit", "-qm", "base")
+    base = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True).stdout.strip()
+    (d / "theirs.estate.json").unlink()
+    git("add", "-A")
+    git("commit", "-qm", "pr deletes a fragment")
+    monkeypatch.setattr(ffc, "REPO", tmp_path)
+    assert ffc.deleted_fragments(base) == ["theirs.estate.json"]
+    row = {"lane": "estate", "state": "ok", "why": "", "delta_tests": 0, "delta_files": 0, "frag_tests": 0,
+           "frag_files": 0, "fragments": [], "errors": [], "merge_base": "a" * 40,
+           "deleted_fragments": ["theirs.estate.json"]}
+    monkeypatch.setattr(ffc, "run", lambda b: [row])
+    assert ffc.main([]) == 0                                                   # blocking mode still passes
+    out = capsys.readouterr().out
+    assert "::warning title=Floor fragment deleted::this PR deletes theirs.estate.json" in out
+    assert "**Deleted fragment(s)**" in ffc.report([row])
+
+
+def test_the_job_sits_above_the_staleness_comment_and_declares_no_permissions():
+    """Advisor L3 on #1277: the staleness job's comment block (which says `permissions:` is declared only there) must
+    stay attached to that job."""
+    text = CI.read_text(encoding="utf-8")
+    ours, staleness = text.index("\n  backend-floor-fragment-check:\n"), text.index("\n  backend-floor-staleness:\n")
+    between = text[ours:staleness]
+    assert "THE RATCHETS ABOVE DO NOT WATCH THEMSELVES" in between                # the staleness comment follows our job
+    assert "PR-TIME FLOOR FRAGMENT CHECK" in text[:ours]                          # our comment precedes it
+    assert "permissions" not in yaml.safe_load(text)["jobs"]["backend-floor-fragment-check"]

@@ -92,6 +92,13 @@ def side(backend_dir: Path) -> dict:
                    "errors": [e for e in errors if e in fs]} for lane, fs in files.items()}
 
 
+def deleted_fragments(base_sha: str, head: str = "HEAD") -> list:
+    """Fragment files this PR DELETES (advisor L2 on #1277). Deleting one lowers a floor; that is the owner's compaction
+    (`rederive_floor.py --compact`, a PR of its own), so a feature PR doing it is WARNED about, never blocked."""
+    gone = _git("diff", "--name-only", "--diff-filter=D", base_sha, head, "--", FRAG_REL).split()
+    return sorted(os.path.basename(p) for p in gone if p.endswith(".json"))
+
+
 def own_fragments(base_sha: str, head: str = "HEAD") -> dict:
     """{lane: {"tests", "files", "names"}}: the fragments this PR added or changed (head minus merge base)."""
     out = {lane: {"tests": 0, "files": 0, "names": []} for lane in LANES}
@@ -157,8 +164,9 @@ def run(base_ref: str) -> list:
     finally:
         subprocess.run(["git", "worktree", "remove", "--force", str(tmp / "base")], cwd=REPO, capture_output=True)
         shutil.rmtree(tmp, ignore_errors=True)
-    frags = own_fragments(mb)
-    return [dict(verdict(lane, head_side[lane], base_side[lane], frags[lane]), merge_base=mb) for lane in LANES]
+    frags, gone = own_fragments(mb), deleted_fragments(mb)
+    return [dict(verdict(lane, head_side[lane], base_side[lane], frags[lane]), merge_base=mb, deleted_fragments=gone)
+            for lane in LANES]
 
 
 def report(rows: list) -> str:
@@ -170,6 +178,9 @@ def report(rows: list) -> str:
     for r in rows:
         if r["state"] != "ok":
             lines += ["", f"**{r['lane']}: {r['state']}**: {r['why']}"] + ([f"Fix: `{r['fix']}`"] if r.get("fix") else [])
+    gone = rows[0].get("deleted_fragments") or []
+    if gone:
+        lines += ["", f"**Deleted fragment(s)** (a lowered floor; compaction belongs in its own PR): {', '.join(gone)}"]
     return "\n".join(lines) + "\n"
 
 
@@ -196,6 +207,10 @@ def main(argv=None) -> int:
     for r in rows:
         if r["state"] in ("inconclusive", "shrinks"):
             print(f"::warning title=Floor fragment check {r['state']} ({r['lane']})::{r['why']}")
+    gone = rows[0].get("deleted_fragments") or []
+    if gone:                                            # advisor L2: a lowered floor is WARNED about, never blocking
+        print(f"::warning title=Floor fragment deleted::this PR deletes {', '.join(gone)} (lowers a floor); "
+              f"compaction (rederive_floor.py --compact) belongs in a PR of its own")
     if a.report_only:
         return 0
     if bad:
