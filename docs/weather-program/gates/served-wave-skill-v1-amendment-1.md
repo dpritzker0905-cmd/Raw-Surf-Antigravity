@@ -1,6 +1,13 @@
 # Amendment 1 to served-wave-skill-v1 (#1199): the LOCKED freeze, and what "eligible" means
-Date: 2026-11-23. This commit is the freeze. It records the LOCKED list and freezes, in ONE commit, the fit_used tags it
-was drawn against, the eligible lists and the draw. Section 1a is not edited.
+Date: 2026-11-23. This commit is the freeze. The `fit_used`, `fit_used_by` and `exam_only` tags it draws against PREDATE
+it: they were committed with the version 2 buoy list (amendment 2 of served-wave-verify-v1, census taken 2026-11-23), and
+this commit does not change them. What is NEW here, in one commit:
+- the eligible lists derived from those tags;
+- the draw;
+- the LOCKED list file and its SHA-256 in `holdout.locked_list`;
+- each station's `locked` tag.
+
+Section 1a is not edited.
 
 **Rulings (David, 2026-11-23, relayed by the director session `local_d6b521eb`):**
 - Scope: **"Whole buoy, all data (Recommended)"**. LOCKED covers the whole buoy and every variable it reports. The
@@ -13,7 +20,7 @@ SubQ and Reflection reached the same pool independently before the ruling. LongC
 ## The rule
 | | |
 |---|---|
-| Eligible | The stations of the frozen buoy list (`served-wave-verify-v1-buoys.json`, version 2) with `exam_only` false and `fit_used` false: the VERIFY candidates, with tags as committed in this same commit. CDIP buoys are exam-only and never pooled. A fit_used buoy is already contaminated for wave skill, so locking it buys no clean evidence. |
+| Eligible | The stations of the frozen buoy list (`served-wave-verify-v1-buoys.json`, version 2) with `exam_only` false and `fit_used` false: the VERIFY candidates, using the tags as they stood before this commit (unchanged by it). CDIP buoys are exam-only and never pooled. A fit_used buoy is already contaminated for wave skill, so locking it buys no clean evidence. |
 | Per region | `k_r = floor(0.2 n_r + 0.5)`, computed exactly as `(2 n_r + 5) // 10`. A region with `n_r = 0` draws nothing. |
 | Draw | Regions in lexicographic order. ONE `random.Random(1199)` stream across them. Per region, `rng.sample(sorted(eligible ids), k_r)` without replacement. Code: `served_wave_verify_freeze_buoys.py --draw-locked`. |
 
@@ -31,7 +38,7 @@ SubQ and Reflection reached the same pool independently before the ruling. LongC
   reproduces the LOCKED file byte for byte. Mutations of the seed or of the eligibility rule turn that test red.
 
 ## Binding conditions (David's ruling makes them binding)
-1. **One commit.** The fit_used tags, the eligible lists and the draw are frozen together, here.
+1. **One commit.** The eligible lists, the draw and the LOCKED record are frozen together, here, against the fit_used tags already committed (which this commit does not change).
 2. **No unlock, no redraw, no substitution** until the single look in the LOCKED WINDOW (2027-03-01 to 2027-04-30), which
    supports the served wave claim only. A later fit or census item that wants a LOCKED buoy fails closed: the fit skips
    the buoy or aborts. `--draw-locked` refuses to run once a list is recorded. A later fit_used tag on an UNLOCKED buoy
@@ -65,3 +72,22 @@ author could not read. That item asks whoever freezes this list to read the set 
   disagree), every listed buoy is treated as locked. The fence then prints a banner and, in GitHub Actions, an
   `::error title=LOCKED holdout quarantine::` annotation, naming no buoy. CI fails first:
   `test_committed_record_is_verified_not_quarantined` pins the committed record as verified.
+
+## The archive for the window look (checked 2026-11-23, at the advisor's request)
+The holdout only means something if the LOCKED buoys' observations, and our served forecasts at them, are still archived
+for the 2027-03-01 to 2027-04-30 look. Both are, sealed from every other read:
+- **Truth:** `served_wave_verify_score.py --snapshot-truth` writes the realtime2 `.txt` / `.spec` of EVERY listed station,
+  the 15 included. Its opener has no fence; collection is never fenced.
+- **Forecasts:** the sampler (`served_wave_verify_sample.py`, a declared collector) writes served-frame rows at EVERY
+  listed buoy.
+- **Sealed:** the scorer's `--download` never copies a LOCKED station's truth, its load drops LOCKED rows, `--publish`
+  refuses a body that names one, and every printed line is redacted.
+- **Pinned by two tests, under the program-wide fence verified on the same record:**
+  - `test_locked_buoys_are_stored_but_never_readable_outside_the_window` (truth and records stored, then sealed);
+  - `test_a_locked_buoy_is_still_sampled_and_archived` (the sampler keeps sampling a locked buoy).
+  Making the snapshot skip the locked buoy turns the first one red.
+- **Not archived:** the skill ledger (`buoy_calibration`) stops collecting the 15 (amendment 3, known limits). Ledger rows
+  are not the instrument of the wave claim, so the window look reads the point archive above. Wind and gust truth at the 15
+  is not archived by any collector, which is consistent with the claim being wave-only.
+- **Still to come:** the window look's reader is not built. It needs its own pre-registered, ledger-logged PR before
+  2027-03-01. Until then, no code path reads a LOCKED buoy.
