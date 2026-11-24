@@ -118,3 +118,9 @@ Owner's ruling, relayed by the director (local_d6b521eb): "Ship ON with guard (R
   filters to that prefix, and the main guardrail issue's search excludes it (jq filter). Pinned by a test that also runs the
   real jq filters where jq exists (CI). Note for the next change: `flag_guardrail.py` is at 785 of 800 lines, so the PHYSICS
   helpers must move to their own module first.
+- 2026-11-24, ahead of #1263 (which lands first and also edits `flag_guardrail.py` main() and the workflow): the PHYSICS
+  guard moved to `backend/scripts/flag_guardrail_physics.py` (constants, `physics_result`, `physics_read`, `physics_pass`,
+  `write_guard_files`), re-exported by `flag_guardrail`. `flag_guardrail.py` went from 785 to 707 lines; a test keeps it under
+  760. No behaviour change: 164 tests passed twice. After #1263 merges: a plain dev merge, resolved by hand, and the three
+  issue titles ("Flag guardrail", "PHYSICS guard blind", "P0 cold-start snapshot drift") re-checked against each other's
+  searches.

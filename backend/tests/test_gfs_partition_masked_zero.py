@@ -370,8 +370,11 @@ def test_run_records_when_the_flag_was_first_on_and_judges_only_newer_frames(mon
 
 
 def test_the_guard_reads_physics_through_the_same_rule_module_as_the_report():
-    src = open(fg.__file__, encoding="utf-8").read()
+    import flag_guardrail_physics as fgp
+    src = open(fgp.__file__, encoding="utf-8").read()                # the PHYSICS helpers' own module (800-line split)
     assert "import frame_physics_report as fpr" in src and "fpr.run_check" in src
+    assert fg.physics_result is fgp.physics_result and fg.PHYSICS_RAILS is fgp.PHYSICS_RAILS
+    assert len(open(fg.__file__, encoding="utf-8").read().splitlines()) < 760   # room under the 800 cap for #1263's merge
     assert not math.isnan(fg.PHYSICS_RAILS[FLAG]["worse"]["energy_closure"])
 
 
