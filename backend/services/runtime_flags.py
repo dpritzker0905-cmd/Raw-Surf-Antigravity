@@ -77,7 +77,10 @@ GUARDED = {
                                         # unavailable), never Open-Meteo. Moves tide_fit and the SURF_TIDE_DEPTH cap
     "SURF_TIDE_CMEMS": "0",             # held OFF: the CMEMS sea level read directly, where the table has it. ON only after
                                         # the r2 parity run is read and passing AND the builder refuses a low fill count
-    "SURF_TIDE_WINDOW_FIX": "1",        # D-065 ON: owner 2026-11-23 "Yes, turn it on" (director session). The tide no longer
+    "SURF_TIDE_A_HARCON": "0",          # held OFF (tide-a-harcon-v1 + tide-guard-v1 L3): A from NOAA harmonic constants near
+                                        # CO-OPS stations (am_h). ON only after the A gate PASSES AND the TIDE tester's T4
+                                        # accepts on a real two-arm build. Inert until the A build writes am_h. Kill '0' = FES.
+    "SURF_TIDE_WINDOW_FIX": "1",       # D-065 ON: owner 2026-11-23 "Yes, turn it on" (director session). The tide no longer
                                         # freezes past ~72 h (window covers the valid time; >1.5 h from a sample = no tide, not
                                         # stale). Moves tide_fit and the SURF_TIDE_DEPTH cap past day 3. Kill '0'. tests/test_tide_window.py
     "RATING_REF_PRIOR": "0",            # JAC-2 (#771): held OFF: -17.9 pt mean rating move on reference-less
