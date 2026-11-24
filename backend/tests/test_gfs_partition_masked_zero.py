@@ -360,12 +360,12 @@ def test_run_records_when_the_flag_was_first_on_and_judges_only_newer_frames(mon
         return {f: {"verdict": gs.NOT_WORSE, "reasons": [], "sanity": []} for f in flags}
     monkeypatch.setattr(fg, "save_watch", lambda *a: None)
     old_frames = _report(0.22, 0.025, run_time="2026-11-24T00:00:00Z")
-    rep = fg.run(args, T0, fg.empty_manifest(), scorer, lambda *a: {}, watch={}, physics=lambda: old_frames)
+    rep = fg.run(args, T0, fg.empty_manifest(), scorer, lambda *a: {}, watch={}, physics=lambda since=None: old_frames)
     assert rep["watch"][fg.PHYSICS_ON_KEY][FLAG] == fg.iso(T0)
     assert rep["decisions"][FLAG]["action"] == "none"              # frames older than the first ON sighting: never judged
     new_frames = _report(0.22, 0.025, run_time=fg.iso(T0 + timedelta(hours=4)))
     rep2 = fg.run(args, T0 + timedelta(hours=6), fg.empty_manifest(), scorer, lambda *a: {}, watch=rep["watch"],
-                  physics=lambda: new_frames)
+                  physics=lambda since=None: new_frames)
     assert rep2["decisions"][FLAG]["action"] == "disable"
 
 
@@ -373,3 +373,91 @@ def test_the_guard_reads_physics_through_the_same_rule_module_as_the_report():
     src = open(fg.__file__, encoding="utf-8").read()
     assert "import frame_physics_report as fpr" in src and "fpr.run_check" in src
     assert not math.isnan(fg.PHYSICS_RAILS[FLAG]["worse"]["energy_closure"])
+
+
+# ------------------------------------------------------------------ advisor hold on #1267: strikes survive UNTESTABLE; GUARD-BLIND
+
+UNTESTABLE = {"verdict": gs.UNTESTABLE, "reasons": ["outage"], "sanity": [], "coverage": fg.PHYSICS}
+
+
+def _step(flag, result, watch, now):
+    d = fg.decide(flag, result, dict(fg.empty_manifest(), watch=watch), rf.FIX_VERSION[flag], now)
+    return d, fg.next_watch(watch, flag, d)
+
+
+def test_worse_untestable_worse_still_disables():
+    worse = fg.physics_result(FLAG, _report(0.08, 0.0), ON_SINCE)
+    d1, w = _step(FLAG, worse, {}, T0)
+    assert d1["action"] == "strike"
+    d2, w = _step(FLAG, UNTESTABLE, w, T0 + timedelta(hours=6))
+    assert d2["action"] == "none" and w[FLAG]["strikes"] == 1 and w[FLAG]["first_worse_at"] == fg.iso(T0)
+    d3, w = _step(FLAG, worse, w, T0 + timedelta(hours=fg.STRIKE_SPAN_H))
+    assert d3["action"] == "disable"
+
+
+def test_only_a_judged_not_worse_clears_the_strikes():
+    worse = fg.physics_result(FLAG, _report(0.08, 0.0), ON_SINCE)
+    _, w = _step(FLAG, worse, {}, T0)
+    _, w = _step(FLAG, fg.physics_result(FLAG, _report(0.01, 0.0), ON_SINCE), w, T0 + timedelta(hours=6))
+    assert FLAG not in w
+
+
+def test_untestable_alone_never_disables():
+    w = {}
+    for i in range(12):
+        d, w = _step(FLAG, UNTESTABLE, w, T0 + timedelta(hours=6 * i))
+        assert d["action"] == "none" and "entry" not in d
+
+
+def _args(tmp_path):
+    return types.SimpleNamespace(enforce="0", reenable=None, cache_dir=str(tmp_path), out=str(tmp_path), run_url="u",
+                                 alert_cap=5, commit="c")
+
+
+def _scorer(flags, now, c, o):
+    return {f: {"verdict": gs.NOT_WORSE, "reasons": [], "sanity": []} for f in flags}
+
+
+def test_four_untestable_runs_open_guard_blind_and_a_judged_run_closes_it(monkeypatch, tmp_path):
+    monkeypatch.setattr(fg, "save_watch", lambda *a: None)
+    watch, t = {}, T0
+    for i in range(fg.PHYSICS_BLIND_RUNS):
+        rep = fg.run(_args(tmp_path), t, fg.empty_manifest(), _scorer, lambda *a: {}, watch=watch,
+                     physics=lambda since=None: {"error": "storage 503"})
+        watch, t = rep["watch"], t + timedelta(hours=6)
+        assert rep["decisions"][FLAG]["action"] == "none"          # blindness never disables
+        assert bool(rep["guard_blind"]) == (i + 1 >= fg.PHYSICS_BLIND_RUNS)
+    assert "GUARD-BLIND" in rep["guard_blind"][0] and "GUARD-BLIND" in fg.markdown(rep)
+    fg.write_guard_files(str(tmp_path), rep)
+    assert (tmp_path / "guard-blind.txt").read_text().startswith("GUARD-BLIND") and (tmp_path / "guard-judged.txt").read_text() == ""
+    fresh = _report(0.01, 0.0, run_time=fg.iso(t))
+    rep = fg.run(_args(tmp_path), t + timedelta(hours=1), fg.empty_manifest(), _scorer, lambda *a: {}, watch=watch,
+                 physics=lambda since=None: fresh)
+    assert rep["guard_blind"] == [] and rep["guard_judged"] == [FLAG]
+    assert FLAG not in rep["watch"][fg.PHYSICS_BLIND_KEY]
+    fg.write_guard_files(str(tmp_path), rep)
+    assert (tmp_path / "guard-blind.txt").read_text() == "" and (tmp_path / "guard-judged.txt").read_text() == FLAG
+
+
+def test_the_workflow_opens_one_guard_blind_issue_and_closes_it_on_a_judged_run():
+    wf = open(os.path.join(os.path.dirname(os.path.dirname(HERE)), ".github", "workflows", "flag-guardrail.yml"),
+              encoding="utf-8").read()
+    step = wf[wf.index("- name: Open or close the GUARD-BLIND issue"):]
+    assert "guard-blind.txt" in step and "guard-judged.txt" in step
+    assert '[ -n "$n" ] || gh issue create' in step                 # ONE issue: never a second while one is open
+    assert "gh issue close" in step
+
+
+def test_fresh_layers_are_judged_and_stale_ones_named():
+    import frame_physics_report as fpr
+    latest = {"sets": {f"GFS/marine/{lay}/global_mid": {"index": f"i/{lay}.json"} for lay in ("waves", "swell_1", "swell_2")}}
+    idx = {f"i/{lay}.json": {"run": "2026-11-25T00:00:00Z", "frames": [],
+                             "run_time": "2026-11-24T00:00:00Z" if lay == "swell_2" else "2026-11-25T03:00:00Z"}
+           for lay in ("waves", "swell_1", "swell_2")}
+    store = dict(idx, **{"v1/latest.json": latest})
+    rd = fpr.Reader(lambda p: json.dumps(store[p]).encode() if p in store else None, 10)
+    rep = fpr.run_check(rd, models=("GFS",), fresh_since=ON_SINCE)
+    assert set(rep["stale_skipped"]) == {"GFS/marine/swell_2/global_mid"}
+    assert set(rep["index_run_times"]) == {"GFS/marine/waves/global_mid", "GFS/marine/swell_1/global_mid"}
+    r = fg.physics_result(FLAG, dict(_report(0.01, 0.0), stale_skipped=rep["stale_skipped"]), ON_SINCE)
+    assert r["verdict"] == gs.NOT_WORSE and "swell_2" in " ".join(r["reasons"])

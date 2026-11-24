@@ -98,6 +98,23 @@ jobs:
           if [ -n "$n" ]; then gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body-file "$f"
           else gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$f"; fi
 
+      # GUARD-BLIND (advisor hold on #1267): a PHYSICS-guarded flag that is ON but has been UNTESTABLE for 4+ consecutive runs
+      # (~24 h) gets ONE open issue; the next run that judges it again closes that issue. Report only: it never disables a flag.
+      - name: Open or close the GUARD-BLIND issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          d="$RUNNER_TEMP/guardrail-out"
+          [ -f "$d/guard-blind.txt" ] || exit 0
+          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "GUARD-BLIND in:title" --json number --jq '.[0].number')"
+          if [ -s "$d/guard-blind.txt" ]; then
+            [ -n "$n" ] || gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "Flag guardrail GUARD-BLIND: a physics guard has judged nothing for 24 h" --body-file "$d/guard-blind.txt"
+          elif [ -s "$d/guard-judged.txt" ] && [ -n "$n" ]; then
+            gh issue close "$n" --repo "$GITHUB_REPOSITORY" --comment "Judged again this run: $(tr '\n' ' ' < "$d/guard-judged.txt")"
+          fi
+
       - name: Upload the guardrail report
         if: always()
         uses: actions/upload-artifact@v4

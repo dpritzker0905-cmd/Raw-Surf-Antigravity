@@ -103,3 +103,14 @@ Owner's ruling, relayed by the director (local_d6b521eb): "Ship ON with guard (R
 - Tests: `tests/test_gfs_partition_masked_zero.py` (20), plus one native-cell test; the native-cell suite runs its oracle with
   the fill off. Mutations of the fill, the no-train rule and Fix B each turn a test red. 274 neighbouring tests pass.
 - Offline measurement (SCOREBOARD row 2026-11-24 06:00Z): R2 0.75-1.10 %, R1 <= 0.02 % at every lead from 0 to 336 h.
+
+## 2026-11-24 · #1267: the advisor's two guard gaps fixed
+- (a) A PHYSICS UNTESTABLE now KEEPS the strike counter and `first_worse_at` (`decide` returns `keep_watch`, `next_watch`
+  keeps it). Only a judged NOT_WORSE clears them, so WORSE, UNTESTABLE, WORSE disables. UNTESTABLE alone never disables.
+- (b) Fresh layers are judged on their own. `frame_physics_report.run_check(fresh_since=...)` skips layers registered before
+  the flag was first seen ON and names them (`stale_skipped`), and the verdict's reasons list them.
+  Consecutive UNTESTABLE runs are counted. At 4 (~24 h) the run writes a GUARD-BLIND line (summary, warning annotation,
+  `guard-blind.txt`), and `flag-guardrail.yml` opens ONE issue. It closes that issue on the next judged run
+  (`guard-judged.txt`). It only reports.
+- Tests: 26 in `test_gfs_partition_masked_zero.py`. Run twice with the 5 guardrail suites, the physics check and runtime
+  flags: 138 passed both times. Mutating either the strike-keeping branch or the blind trigger turns a test red.
