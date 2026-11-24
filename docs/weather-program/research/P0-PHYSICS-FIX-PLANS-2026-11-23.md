@@ -343,3 +343,27 @@ D-087 applies: after an auto-off, a `FIX_VERSION` bump plus 3 NOT_WORSE cycles, 
    scope; it is Plan 2's.
 4. **Regional tiers:** the native-cell path mixes up to four subcells. The 0.5-deg arm (R2 6.65 % to 1.42 %) bounds it
    from above. The fix covers it through the same `_fetch_region_reduce` wiring.
+
+**Panel on the ON-with-guard design (2026-11-24).** SubQ (subq-savant-1.4) and Reflection (Beam-1.0) both returned
+APPROVE WITH CHANGES. Both say: ship Fix B ON; no ICON flag. LongCat was not sent (no owner-approved payload hash).
+Their required changes, as adopted:
+1. **"Masked means no energy" is verified natively, not assumed.** At 0.25 deg, where every partition present is
+   counted, the median of sum(p^2)/H^2 is 0.99. The partitions that ARE present already close the total, so the
+   masked ones carry no energy.
+2. **Union support (SubQ's counterexample).** If a partition is finite where the total is NaN, "new <= old" could
+   fail. The block support is therefore the UNION of total-valid and partition-finite subcells. That keeps the fix
+   monotone, and a test pins it.
+3. **An all-masked block stays NaN, never 0.** The scalar fallback is unchanged. Periods and directions of a zeroed
+   partition are untouched: they come from the existing energy-weighted reducers, which skip zero-energy subcells.
+4. **Guard bounds, pre-registered, per resolution.** These are rail bounds above the acceptance target, not the
+   target itself:
+   - 2-deg world tier: R2 > 5 % or R1 > 0.5 %, in two consecutive guardrail reads.
+   - Attribution: the breach record carries the frame count, the cell count and the sampled leads.
+   - A breach auto-disables (the D-090 tester) and is reported in the guardrail summary; the guard never re-enables
+     (D-087).
+5. **Lower-bound diagnostic.** The physics check also reports cells where sum(p^2) < 0.9 H^2 ("under_closed"), so an
+   over-zeroing would show. It is reported per lead, not gated.
+6. **Fix B ON**, with coverage clamped to [0, 1] and its numerator restricted to the same support. Test: a train
+   covering 1 of 64 subcells gives coverage 1/64.
+7. **Passive monitors.** ICON gets a monitor: the physics check keeps reading ICON's R1 and R2 every run. The
+   env-propagation test, the kill-switch test and the absent-manifest-entry test are required.
