@@ -548,3 +548,49 @@ or is read.
 - Hourly, as served: the largest per-station median |h| is **0.0043 m** (limit 0.01); none over.
 - Every station had NOAA events; the largest median |t| is 10.1 min (timing is reported, not judged here).
 - `research/tide-datum-parity-v2-finder-2026-12-01.json`.
+
+## 2026-11-24 15:13Z: datum gate v2 (run 45421486227): controls PASS; verdict FAIL
+
+**Run and procedure.**
+- The run completed at 15:12:10Z, conclusion success, AFTER the finder control was committed (15:08:34Z, `642e43213`).
+- The artifact records `window_start` 2026-12-01, mode `v2-heldout-loo`, 7 days, 50 stations, and no station errors,
+  so no replacement was needed.
+- The artifact was opened once, and scored once with `datum_v2_score.py` at the tagged `1d92f7564`. The first
+  invocation crashed at import, before reading any data, because Python's `-I` mode leaves the script folder off the
+  import path. The single scoring is the second invocation.
+- Saved as `research/tide-datum-parity-v2-run-45421486227.json` and `research/tide-datum-parity-v2-score-45421486227.json`.
+
+**Controls (§5, §§9–11), all PASS, run first:**
+- **Finder:** the largest per-station median |h| is 0.0043 m.
+- **Planted-D identity:** tested at 17 NEIGHBOR stations, exact.
+- **Placebo shift identity:** exactly +0.100 m in both strata, on 453 and 378 paired events.
+
+**MEASURED (§8 and §11):** NEIGHBOR 18 of 20, MODEL 15 of 20. Both are below 19, so by §11 the run is FAIL on
+measurability alone. Five MODEL and two NEIGHBOR deciding stations matched under 70% of NOAA's events, in Gulf, Texas,
+Alaska and North Carolina sounds.
+
+**Bar (§4, the hybrid, tidal band, per stratum):**
+
+| Stratum | median \|h\| ≤ 0.03 | p90 ≤ 0.08 | per station ≥ 19 of 20 | signed within ±0.02 | Result |
+|---|---|---|---|---|---|
+| NEIGHBOR | 0.0606 FAIL | 0.3126 FAIL | 13 FAIL | −0.0146 pass | **FAIL** |
+| MODEL | 0.0542 FAIL | 0.3231 FAIL | 12 FAIL | −0.0095 pass | **FAIL** |
+
+**VERDICT: FAIL** (the intersection fails in both strata, by the bar and by measurability). There is NO re-run (§4).
+
+**Reported only, not the verdict:**
+- **Model D** does better than the neighbour sheet in the NEIGHBOR stratum: median 0.046 against 0.064, and 15 against
+  12 stations passing.
+- **The p90 tail of about 0.3 m** comes from estuary and harbour stations where our A misses badly, whatever the D:
+  Randalls Island, East River (0.56 m), Provorotni Island, Alaska (1.51 m), St Lucie Inlet, North Beach Causeway,
+  Colonial Beach on the Potomac.
+- **At Randalls Island the neighbour sheet's D** (1.03 m, 1.4 km away) and our model D (1.56 m) differ by 0.53 m: a
+  2 km neighbour in a tidal strait is not the station's datum.
+- **Donor distances:** 19 donors, 0.21–1.90 km (median 1.37 km); none co-located.
+
+**What it decides.** #1149 stays HELD: the datum gate v2 FAILED.
+- The held-out type-R stations are mostly estuaries, rivers and harbours, the same limit §7 names. There, the
+  failure is dominated by the tide A, not by the choice of D.
+- Under the gate there is no re-run. Any further datum work is a NEW pre-registered gate, for example one restricted
+  to open-coast stations by a frozen rule, or with an A-side improvement first. That is for the director, the advisor
+  and the owner.
