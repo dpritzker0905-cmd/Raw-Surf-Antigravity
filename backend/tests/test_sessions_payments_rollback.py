@@ -154,9 +154,9 @@ async def test_complete_payment_database_error_refunds_stripe_live(monkeypatch):
         assert response.status_code == 404
         assert "User or photographer not found. Payment refunded." in response.json()["detail"]
         
-        mock_retrieve.assert_called_once_with("cs_live_1234")
+        mock_retrieve.assert_called_once_with("cs_live_1234", api_key=payments.STRIPE_API_KEY)
         mock_refund.assert_called_once_with(
-            payment_intent="pi_live_1234", idempotency_key="live-session-refund-cs_live_1234"
+            api_key=payments.STRIPE_API_KEY, payment_intent="pi_live_1234", idempotency_key="live-session-refund-cs_live_1234"
         )
         mock_db.commit.assert_called_once()
         assert mock_tx.payment_status == "Refunded"
