@@ -51,10 +51,18 @@ on:
       - '.github/workflows/loc-check.yml'
 
 # A new commit on a PR cancels that PR's older run of this workflow (the Actions queue was the bottleneck,
-# 2026-11-19). A push gets a group of its own (its run id): GitHub keeps only ONE pending run per group and
-# replaces it even with cancel-in-progress false, so a shared push group would drop queued dev/main runs.
+# 2026-11-19). PUSHES TO DEV SHARE ONE GROUP, `push-dev` (2026-11-23, owner: "Yes, small CI PR"): GitHub keeps
+# one RUNNING and only the NEWEST PENDING run per group (default `queue: single`), and cancel-in-progress stays
+# false for pushes, so a running dev CI is never killed and every merge in between drops its pending run. Before
+# this each push had its own group (run id) and 15 full runs (~25 min each) queued on dev in one afternoon,
+# starving every PR. Dev CI is now "latest wins": not every merge gets a dev run of its own. The readers already
+# cope (floor-catchup.yml fires only on a green run; ci_floor_staleness.py reads the newest green run;
+# ci_floor_overlift.py walks every commit since it). Do NOT also cancel the running one: merges land every few
+# minutes, so dev would never finish a green run and both floor readers would starve.
+# Pushes to main (the production promotion) or any other branch keep a group per run: each keeps its evidence.
+# Pinned by backend/tests/test_ci_push_concurrency.py.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || (github.event_name == 'push' && github.ref == 'refs/heads/dev') && 'push-dev' || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

@@ -324,6 +324,7 @@ def lines_for(dd, ch, res, verdict):
 
 def main():
     from scripts.forecast_accuracy_monitor import _fetch_scored_month
+    from services import buoy_holdout      # the LOCKED final buoy holdout (#1199)
     through = (datetime.now(timezone.utc) + timedelta(days=1)).date()
     rows = []
     for m in ("2026-08", "2026-09", "2026-10", "2026-11"):      # the archive starts in August; warm-up days before it are empty
@@ -331,7 +332,7 @@ def main():
         if got is None:
             print("REFUSED: scored month %s could not be read (blind is not empty)" % m)
             return 3
-        rows += got
+        rows += buoy_holdout.drop(got, "buoy_id")
     dd, ch, res, verdict = checks(A.index_rows(rows))
     print("\n".join(lines_for(dd, ch, res, verdict)))
     return 0 if verdict == "PASS" else 2

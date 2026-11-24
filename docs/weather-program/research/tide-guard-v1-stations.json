@@ -1,0 +1,2156 @@
+{
+ "schema": "raw-surf/tide-guard-v1-stations/1",
+ "rule": "gates/tide-guard-v1.md section 3",
+ "seed": 20261126,
+ "n_monitor": 20,
+ "n_reserve": 10,
+ "act_km": 20.0,
+ "snapshot": "tide-guard-v1-tp-snapshot.json",
+ "excluded_seen": 280,
+ "excluded_gate_refs": [
+  "8410714",
+  "8410834",
+  "8414781",
+  "8418606",
+  "8419317",
+  "8443187",
+  "8446166",
+  "8453033",
+  "8455137",
+  "8510448",
+  "8511907",
+  "8512769",
+  "8515921",
+  "8516501",
+  "8516614",
+  "8516881",
+  "8518699",
+  "8535835",
+  "8570280",
+  "8570691",
+  "8571421",
+  "8630308",
+  "8632869",
+  "8653951",
+  "8655875",
+  "8656590",
+  "8677344",
+  "8678322",
+  "8720494",
+  "8720554",
+  "8728728",
+  "8728912",
+  "8730561",
+  "8760889",
+  "8773767",
+  "9445016",
+  "9445133",
+  "9447883",
+  "9448576",
+  "9450581",
+  "9451247",
+  "9451287",
+  "9451321",
+  "9451376",
+  "9451561",
+  "9451853",
+  "9452421",
+  "9454642",
+  "9454755",
+  "9455145",
+  "9455204",
+  "9455558",
+  "9458917",
+  "9462711",
+  "9465374",
+  "9465438",
+  "9469338",
+  "9751364",
+  "9751768",
+  "9755679"
+ ],
+ "eligible": 1387,
+ "skipped": {
+  "8551201": "UNCLASSIFIED",
+  "8574857": "UNCLASSIFIED",
+  "8517519": "UNCLASSIFIED",
+  "TEC3425": "UNCLASSIFIED",
+  "8638455": "UNCLASSIFIED",
+  "8722146": "UNCLASSIFIED",
+  "8726651": "UNCLASSIFIED",
+  "8531526": "UNCLASSIFIED",
+  "8664541": "UNCLASSIFIED",
+  "8660275": "UNCLASSIFIED",
+  "8763506": "UNCLASSIFIED",
+  "8749704": "UNCLASSIFIED",
+  "8660166": "UNCLASSIFIED",
+  "TEC4309": "UNCLASSIFIED",
+  "8530095": "UNCLASSIFIED",
+  "8518905": "UNCLASSIFIED",
+  "8667259": "UNCLASSIFIED",
+  "8726425": "UNCLASSIFIED",
+  "8746819": "UNCLASSIFIED",
+  "9434132": "UNCLASSIFIED",
+  "8724093": "key taken",
+  "8674962": "UNCLASSIFIED",
+  "8661529": "UNCLASSIFIED",
+  "8662796": "UNCLASSIFIED",
+  "8447385": "UNCLASSIFIED",
+  "TEC2831": "UNCLASSIFIED",
+  "8667199": "UNCLASSIFIED",
+  "8771801": "UNCLASSIFIED",
+  "9415205": "UNCLASSIFIED",
+  "8417391": "UNCLASSIFIED",
+  "8667062": "UNCLASSIFIED",
+  "9414525": "UNCLASSIFIED",
+  "8667630": "UNCLASSIFIED",
+  "9434032": "UNCLASSIFIED",
+  "8661067": "UNCLASSIFIED",
+  "8668091": "UNCLASSIFIED",
+  "8537353": "UNCLASSIFIED",
+  "8668511": "UNCLASSIFIED",
+  "8724919": "UNCLASSIFIED",
+  "8722951": "key taken",
+  "8663781": "UNCLASSIFIED",
+  "8667074": "UNCLASSIFIED",
+  "8579135": "UNCLASSIFIED",
+  "8726904": "UNCLASSIFIED",
+  "9414632": "UNCLASSIFIED",
+  "8723575": "UNCLASSIFIED",
+  "TEC3787": "UNCLASSIFIED",
+  "8676012": "UNCLASSIFIED",
+  "8638449": "UNCLASSIFIED",
+  "8533005": "key taken",
+  "8665145": "UNCLASSIFIED",
+  "TEC3783": "UNCLASSIFIED",
+  "8638418": "UNCLASSIFIED",
+  "8519789": "UNCLASSIFIED",
+  "8764165": "UNCLASSIFIED",
+  "8675779": "UNCLASSIFIED",
+  "8667309": "UNCLASSIFIED",
+  "8720833": "UNCLASSIFIED",
+  "8720097": "UNCLASSIFIED",
+  "8724948": "UNCLASSIFIED",
+  "8537488": "UNCLASSIFIED",
+  "8664515": "UNCLASSIFIED",
+  "8764931": "UNCLASSIFIED",
+  "8724098": "key taken",
+  "8532921": "key taken",
+  "8728464": "UNCLASSIFIED",
+  "8667089": "UNCLASSIFIED",
+  "8725889": "UNCLASSIFIED",
+  "8551973": "UNCLASSIFIED",
+  "8764256": "UNCLASSIFIED",
+  "8726988": "UNCLASSIFIED",
+  "9414511": "UNCLASSIFIED",
+  "9415402": "UNCLASSIFIED",
+  "8542425": "UNCLASSIFIED",
+  "8551702": "UNCLASSIFIED",
+  "9465342": "UNCLASSIFIED",
+  "8726282": "key taken"
+ },
+ "classes": {
+  "8724192": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 11.45,
+   "detour": 1.026,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8551201": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8574857": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "9454157": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.74,
+   "detour": 1.145,
+   "fails": [],
+   "why": null
+  },
+  "8517519": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "TEC3425": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8638455": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "9450351": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.0,
+   "detour": null,
+   "fails": [],
+   "why": null
+  },
+  "8575787": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 12.45,
+   "detour": 1.065,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8722146": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8726651": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8531526": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "9414637": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 21.53,
+   "detour": 1.068,
+   "fails": [
+    "d_path>8km"
+   ],
+   "why": null
+  },
+  "9440574": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 6.49,
+   "detour": 1.123,
+   "fails": [
+    "constriction"
+   ],
+   "why": null
+  },
+  "8515764": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 7.43,
+   "detour": 1.09,
+   "fails": [
+    "constriction"
+   ],
+   "why": null
+  },
+  "8444012": {
+   "class": "OPEN_COAST",
+   "d_path_km": 1.84,
+   "detour": 1.111,
+   "fails": [],
+   "why": null
+  },
+  "8664541": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8660275": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8763506": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8668223": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 22.62,
+   "detour": 1.014,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8749704": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8660166": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8726254": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 14.39,
+   "detour": 1.023,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "TEC4309": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "9418686": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 7.09,
+   "detour": 1.047,
+   "fails": [
+    "constriction"
+   ],
+   "why": null
+  },
+  "8530095": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8518905": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8667259": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8462925": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 14.02,
+   "detour": 1.084,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "9415009": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 1.05,
+   "detour": 1.057,
+   "fails": [
+    "constriction"
+   ],
+   "why": null
+  },
+  "8534049": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 20.88,
+   "detour": 1.199,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8726425": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8746819": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8724062": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 9.43,
+   "detour": 1.017,
+   "fails": [
+    "d_path>8km"
+   ],
+   "why": null
+  },
+  "9434132": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8534296": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 14.54,
+   "detour": 1.054,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8656937": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 9.37,
+   "detour": 1.023,
+   "fails": [
+    "d_path>8km"
+   ],
+   "why": null
+  },
+  "8674962": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8532885": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 5.27,
+   "detour": 1.427,
+   "fails": [
+    "detour>1.30",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8661529": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8662796": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8533631": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 10.88,
+   "detour": 1.091,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8638776": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 11.91,
+   "detour": 1.171,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "9454574": {
+   "class": "OPEN_COAST",
+   "d_path_km": 1.27,
+   "detour": 1.094,
+   "fails": [],
+   "why": null
+  },
+  "9462367": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 1.62,
+   "detour": 1.0,
+   "fails": [
+    "constriction"
+   ],
+   "why": null
+  },
+  "8447385": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8517394": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 11.07,
+   "detour": 1.091,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "9462944": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 7.99,
+   "detour": 1.155,
+   "fails": [
+    "constriction"
+   ],
+   "why": null
+  },
+  "TEC2831": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8667199": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8723971": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 10.43,
+   "detour": 1.121,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8771801": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8534048": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 11.2,
+   "detour": 1.159,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8530772": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 20.83,
+   "detour": 1.673,
+   "fails": [
+    "d_path>8km",
+    "detour>1.30",
+    "constriction"
+   ],
+   "why": null
+  },
+  "TWC1131": {
+   "class": "OPEN_COAST",
+   "d_path_km": 6.59,
+   "detour": 1.011,
+   "fails": [],
+   "why": null
+  },
+  "9457321": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 1.05,
+   "detour": 2.162,
+   "fails": [
+    "detour>1.30",
+    "constriction"
+   ],
+   "why": null
+  },
+  "9415205": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8417391": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "9446671": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.0,
+   "detour": null,
+   "fails": [],
+   "why": null
+  },
+  "8667062": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "9445938": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.31,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "8450948": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 10.52,
+   "detour": 1.434,
+   "fails": [
+    "d_path>8km",
+    "detour>1.30",
+    "constriction"
+   ],
+   "why": null
+  },
+  "9454798": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.0,
+   "detour": null,
+   "fails": [],
+   "why": null
+  },
+  "8722946": {
+   "class": "OPEN_COAST",
+   "d_path_km": 1.66,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "9414525": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8447506": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 15.36,
+   "detour": 1.18,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "9447814": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.0,
+   "detour": null,
+   "fails": [],
+   "why": null
+  },
+  "8578240": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.95,
+   "detour": 1.104,
+   "fails": [],
+   "why": null
+  },
+  "8723583": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.84,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "8444601": {
+   "class": "OPEN_COAST",
+   "d_path_km": 5.42,
+   "detour": 1.04,
+   "fails": [],
+   "why": null
+  },
+  "8667630": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "9434032": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8722607": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 7.27,
+   "detour": 1.331,
+   "fails": [
+    "detour>1.30",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8661067": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8636623": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 11.38,
+   "detour": 1.0,
+   "fails": [
+    "d_path>8km"
+   ],
+   "why": null
+  },
+  "8729152": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 13.66,
+   "detour": 1.472,
+   "fails": [
+    "d_path>8km",
+    "detour>1.30",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8415809": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 2.0,
+   "detour": 1.0,
+   "fails": [
+    "constriction"
+   ],
+   "why": null
+  },
+  "8668091": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8537353": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "9415142": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 1.46,
+   "detour": 1.0,
+   "fails": [
+    "constriction"
+   ],
+   "why": null
+  },
+  "8668511": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "9413617": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.37,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "8760412": {
+   "class": "OPEN_COAST",
+   "d_path_km": 7.99,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "8724919": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8663781": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8723303": {
+   "class": "OPEN_COAST",
+   "d_path_km": 7.1,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "8535309": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 16.18,
+   "detour": 1.144,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8667074": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8579135": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8571072": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 14.62,
+   "detour": 1.018,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8726904": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8535962": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 14.43,
+   "detour": 1.097,
+   "fails": [
+    "d_path>8km"
+   ],
+   "why": null
+  },
+  "9441038": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 8.34,
+   "detour": 1.053,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8514594": {
+   "class": "OPEN_COAST",
+   "d_path_km": 1.39,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "9414632": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "1617277": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.43,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "8656518": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 22.6,
+   "detour": 1.057,
+   "fails": [
+    "d_path>8km"
+   ],
+   "why": null
+  },
+  "8723575": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "TEC3787": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8676012": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8638449": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8665145": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "TEC3783": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8638418": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8519789": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8724405": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 15.97,
+   "detour": 1.066,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "9418865": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 17.32,
+   "detour": 1.131,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "TWC2071": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.0,
+   "detour": null,
+   "fails": [],
+   "why": null
+  },
+  "8577940": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 13.3,
+   "detour": 1.073,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8764165": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8675779": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8667309": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8720833": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8449287": {
+   "class": "OPEN_COAST",
+   "d_path_km": 3.25,
+   "detour": 1.106,
+   "fails": [],
+   "why": null
+  },
+  "9455304": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.23,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "8515336": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 6.96,
+   "detour": 1.049,
+   "fails": [
+    "constriction"
+   ],
+   "why": null
+  },
+  "8720097": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8533935": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 11.2,
+   "detour": 1.255,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8571752": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 13.14,
+   "detour": 1.889,
+   "fails": [
+    "d_path>8km",
+    "detour>1.30",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8722404": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 9.29,
+   "detour": 1.084,
+   "fails": [
+    "d_path>8km"
+   ],
+   "why": null
+  },
+  "8724948": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8669133": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 18.62,
+   "detour": 1.439,
+   "fails": [
+    "d_path>8km",
+    "detour>1.30",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8537488": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8664515": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8578853": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 10.43,
+   "detour": 1.099,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8678688": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 8.14,
+   "detour": 1.094,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8764931": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8761732": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 18.05,
+   "detour": 1.043,
+   "fails": [
+    "d_path>8km"
+   ],
+   "why": null
+  },
+  "TEC2837": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 20.57,
+   "detour": 1.064,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8722557": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 3.52,
+   "detour": 1.052,
+   "fails": [
+    "constriction"
+   ],
+   "why": null
+  },
+  "8518993": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 17.71,
+   "detour": 1.056,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8414692": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 1.96,
+   "detour": 1.041,
+   "fails": [
+    "constriction"
+   ],
+   "why": null
+  },
+  "8722654": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 17.32,
+   "detour": 1.182,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "TWC1893": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.7,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "8728464": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "9449211": {
+   "class": "OPEN_COAST",
+   "d_path_km": 3.14,
+   "detour": 1.108,
+   "fails": [],
+   "why": null
+  },
+  "8652737": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 7.34,
+   "detour": 1.107,
+   "fails": [
+    "constriction"
+   ],
+   "why": null
+  },
+  "8667089": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8725889": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "9445388": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.0,
+   "detour": null,
+   "fails": [],
+   "why": null
+  },
+  "8551973": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8764256": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8535163": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 10.04,
+   "detour": 1.165,
+   "fails": [
+    "d_path>8km"
+   ],
+   "why": null
+  },
+  "9451238": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.78,
+   "detour": 1.137,
+   "fails": [],
+   "why": null
+  },
+  "8726988": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8416501": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.33,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "8531095": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 21.44,
+   "detour": 1.625,
+   "fails": [
+    "d_path>8km",
+    "detour>1.30",
+    "constriction"
+   ],
+   "why": null
+  },
+  "9452064": {
+   "class": "OPEN_COAST",
+   "d_path_km": 0.25,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "8533780": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 12.36,
+   "detour": 1.112,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "9414511": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "9415415": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 17.95,
+   "detour": 1.076,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8723622": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 11.46,
+   "detour": 1.084,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "9415402": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8571881": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 16.94,
+   "detour": 1.079,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8542425": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8724485": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 14.23,
+   "detour": 1.023,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "9410777": {
+   "class": "OPEN_COAST",
+   "d_path_km": 2.13,
+   "detour": 1.062,
+   "fails": [],
+   "why": null
+  },
+  "8720232": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 8.68,
+   "detour": 1.148,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "8464445": {
+   "class": "OPEN_COAST",
+   "d_path_km": 4.63,
+   "detour": 1.0,
+   "fails": [],
+   "why": null
+  },
+  "8551702": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8515421": {
+   "class": "HARBOR_BAY",
+   "d_path_km": 11.94,
+   "detour": 1.03,
+   "fails": [
+    "d_path>8km",
+    "constriction"
+   ],
+   "why": null
+  },
+  "9465342": {
+   "class": "UNCLASSIFIED",
+   "d_path_km": null,
+   "detour": null,
+   "fails": null,
+   "why": "no DEEP cell reachable through water within the box"
+  },
+  "8669167": {
+   "class": "OPEN_COAST",
+   "d_path_km": 3.35,
+   "detour": 1.057,
+   "fails": [],
+   "why": null
+  }
+ },
+ "strata": {
+  "HARBOR_BAY": {
+   "monitor": [
+    "8724192",
+    "8575787",
+    "9414637",
+    "9440574",
+    "8515764",
+    "8668223",
+    "8726254",
+    "9418686",
+    "8462925",
+    "9415009",
+    "8534049",
+    "8724062",
+    "8534296",
+    "8656937",
+    "8532885",
+    "8533631",
+    "8638776",
+    "9462367",
+    "8517394",
+    "9462944"
+   ],
+   "reserve": [
+    "8723971",
+    "8534048",
+    "8530772",
+    "9457321",
+    "8450948",
+    "8447506",
+    "8722607",
+    "8636623",
+    "8729152",
+    "8415809"
+   ],
+   "names": {
+    "8724192": "Big Pine Key, Coupon Bight",
+    "8575787": "Rhode River (County Wharf)",
+    "9414637": "San Mateo Bridge (east end)",
+    "9440574": "Columbia River entrance (N. Jetty)",
+    "8515764": "Gilgo Heading",
+    "8668223": "Hwy. 170 bridge",
+    "8726254": "Perico Bayou",
+    "9418686": "Hookton Slough",
+    "8462925": "Essex",
+    "9415009": "Point San Pedro",
+    "8534049": "Parker Run, upper end",
+    "8724062": "Molasses Key Channel, Molasses Keys",
+    "8534296": "Seven Island, Newmans Thorofare",
+    "8656937": "Cape Lookout (ocean)",
+    "8532885": "Ocean Beach",
+    "8533631": "High Bar",
+    "8638776": "Little Creek, NAB",
+    "9462367": "Driftwood Bay",
+    "8517394": "Barren Island, Rockaway Inlet",
+    "9462944": "St. Catherine Cove",
+    "8723971": "Boot Key Harbor bridge, Boot Key",
+    "8534048": "Beach Haven Crest",
+    "8530772": "Kearny Point",
+    "9457321": "Big Bay, Shuyak Island",
+    "8450948": "Anthony Point",
+    "8447506": "Wychmere Harbor",
+    "8722607": "Palm Beach",
+    "8636623": "Windmill Point Light",
+    "8729152": "Alligator Bayou",
+    "8415809": "Tenants Harbor"
+   },
+   "reference_id": {
+    "8724192": "8724580",
+    "8575787": "8574680",
+    "9414637": "9414290",
+    "9440574": "9439040",
+    "8515764": "8531680",
+    "8668223": "8670870",
+    "8726254": "8726520",
+    "9418686": "9418767",
+    "8462925": "8461490",
+    "9415009": "9414290",
+    "8534049": "8531680",
+    "8724062": "8724580",
+    "8534296": "8531680",
+    "8656937": "8654400",
+    "8532885": "8531680",
+    "8533631": "8531680",
+    "8638776": "8638863",
+    "9462367": "9462620",
+    "8517394": "8531680",
+    "9462944": "9462620",
+    "8723971": "8724580",
+    "8534048": "8531680",
+    "8530772": "8518750",
+    "9457321": "9455500",
+    "8450948": "8452660",
+    "8447506": "8443970",
+    "8722607": "8723178",
+    "8636623": "8638863",
+    "8729152": "8729840",
+    "8415809": "8418150"
+   },
+   "key": {
+    "8724192": [
+     24.7,
+     -81.3
+    ],
+    "8575787": [
+     38.9,
+     -76.5
+    ],
+    "9414637": [
+     37.6,
+     -122.2
+    ],
+    "9440574": [
+     46.3,
+     -124.1
+    ],
+    "8515764": [
+     40.6,
+     -73.4
+    ],
+    "8668223": [
+     32.4,
+     -80.8
+    ],
+    "8726254": [
+     27.5,
+     -82.7
+    ],
+    "9418686": [
+     40.7,
+     -124.2
+    ],
+    "8462925": [
+     41.3,
+     -72.4
+    ],
+    "9415009": [
+     38.0,
+     -122.4
+    ],
+    "8534049": [
+     39.6,
+     -74.3
+    ],
+    "8724062": [
+     24.7,
+     -81.2
+    ],
+    "8534296": [
+     39.5,
+     -74.3
+    ],
+    "8656937": [
+     34.6,
+     -76.5
+    ],
+    "8532885": [
+     40.0,
+     -74.1
+    ],
+    "8533631": [
+     39.8,
+     -74.1
+    ],
+    "8638776": [
+     36.9,
+     -76.2
+    ],
+    "9462367": [
+     53.0,
+     -168.7
+    ],
+    "8517394": [
+     40.6,
+     -73.9
+    ],
+    "9462944": [
+     55.0,
+     -163.5
+    ],
+    "8723971": [
+     24.7,
+     -81.1
+    ],
+    "8534048": [
+     39.6,
+     -74.2
+    ],
+    "8530772": [
+     40.7,
+     -74.1
+    ],
+    "9457321": [
+     58.6,
+     -152.6
+    ],
+    "8450948": [
+     41.6,
+     -71.2
+    ],
+    "8447506": [
+     41.7,
+     -70.1
+    ],
+    "8722607": [
+     26.7,
+     -80.0
+    ],
+    "8636623": [
+     37.6,
+     -76.2
+    ],
+    "8729152": [
+     30.2,
+     -85.8
+    ],
+    "8415809": [
+     44.0,
+     -69.2
+    ]
+   },
+   "key_donor": {
+    "8724192": {
+     "id": "8723970",
+     "d_km": 19.585
+    },
+    "8575787": {
+     "id": "8575512",
+     "d_km": 9.486
+    },
+    "9414637": {
+     "id": "9414458",
+     "d_km": 5.172
+    },
+    "9440574": {
+     "id": "9440581",
+     "d_km": 4.636
+    },
+    "8515764": {
+     "id": "8516155",
+     "d_km": 8.967
+    },
+    "8668223": {
+     "id": "8667633",
+     "d_km": 11.495
+    },
+    "8726254": {
+     "id": "8726347",
+     "d_km": 12.762
+    },
+    "9418686": {
+     "id": "9418723",
+     "d_km": 3.186
+    },
+    "8462925": {
+     "id": "8463701",
+     "d_km": 11.555
+    },
+    "9415009": {
+     "id": "9415056",
+     "d_km": 3.646
+    },
+    "8534049": {
+     "id": "8534319",
+     "d_km": 10.419
+    },
+    "8724062": {
+     "id": "8723970",
+     "d_km": 9.524
+    },
+    "8534296": {
+     "id": "8534319",
+     "d_km": 2.335
+    },
+    "8656937": {
+     "id": "8656841",
+     "d_km": 3.804
+    },
+    "8532885": {
+     "id": "8533051",
+     "d_km": 10.054
+    },
+    "8533631": {
+     "id": "8533615",
+     "d_km": 4.375
+    },
+    "8638776": {
+     "id": "8638671",
+     "d_km": 6.97
+    },
+    "9462367": {
+     "id": "9462450",
+     "d_km": 13.236
+    },
+    "8517394": {
+     "id": "8517756",
+     "d_km": 3.538
+    },
+    "9462944": {
+     "id": "9462948",
+     "d_km": 5.326
+    },
+    "8723971": {
+     "id": "8723970",
+     "d_km": 1.388
+    },
+    "8534048": {
+     "id": "8534319",
+     "d_km": 14.792
+    },
+    "8530772": {
+     "id": "8530882",
+     "d_km": 4.493
+    },
+    "9457321": {
+     "id": "9457313",
+     "d_km": 12.243
+    },
+    "8450948": {
+     "id": "8451552",
+     "d_km": 6.128
+    },
+    "8447506": {
+     "id": "8447495",
+     "d_km": 5.035
+    },
+    "8722607": {
+     "id": "8722588",
+     "d_km": 9.324
+    },
+    "8636623": {
+     "id": "8636580",
+     "d_km": 8.094
+    },
+    "8729152": {
+     "id": "8729142",
+     "d_km": 6.729
+    },
+    "8415809": {
+     "id": "8415709",
+     "d_km": 8.106
+    }
+   }
+  },
+  "OPEN_COAST": {
+   "monitor": [
+    "9454157",
+    "9450351",
+    "8444012",
+    "9454574",
+    "TWC1131",
+    "9446671",
+    "9445938",
+    "9454798",
+    "8722946",
+    "9447814",
+    "8578240",
+    "8723583",
+    "8444601",
+    "9413617",
+    "8760412",
+    "8723303",
+    "8514594",
+    "1617277",
+    "TWC2071",
+    "8449287"
+   ],
+   "reserve": [
+    "9455304",
+    "TWC1893",
+    "9449211",
+    "9445388",
+    "9451238",
+    "8416501",
+    "9452064",
+    "9410777",
+    "8464445",
+    "8669167"
+   ],
+   "names": {
+    "9454157": "Comfort Cove, Port Gravina",
+    "9450351": "Saltery Point",
+    "8444012": "Deer Island (south end)",
+    "9454574": "Patton Bay",
+    "TWC1131": "Stanwood, Stillaguamish River",
+    "9446671": "Devils Head, Drayton Passage",
+    "9445938": "Clam Bay, Rich Passage",
+    "9454798": "Culross Bay, Wells Passage",
+    "8722946": "Mayan Lake",
+    "9447814": "Glendale, Whidbey Island",
+    "8578240": "Piney Point, Md.",
+    "8723583": "Carysfort Reef",
+    "8444601": "Nantasket Beach, Weir River",
+    "9413617": "General Fish Company Pier",
+    "8760412": "North Pass, Pass a Loutre",
+    "8723303": "Soldier Key",
+    "8514594": "Port Jefferson Harbor entrance",
+    "1617277": "Mahukona",
+    "TWC2071": "Uganik Passage",
+    "8449287": "Nomans Land",
+    "9455304": "Beauty Bay, Nuka Bay",
+    "TWC1893": "Hanning Bay",
+    "9449211": "Bellingham",
+    "9445388": "Ayock Point",
+    "9451238": "Greys Island",
+    "8416501": "New Harbor, Muscongus Bay",
+    "9452064": "Holkham Bay, Wood Spit",
+    "9410777": "El Segundo, Santa Monica Bay",
+    "8464445": "Guilford Harbor",
+    "8669167": "Port Royal Plantation, Hilton Head Island"
+   },
+   "reference_id": {
+    "9454157": "9454050",
+    "9450351": "9451600",
+    "8444012": "8443970",
+    "9454574": "9454050",
+    "TWC1131": "9447130",
+    "9446671": "9447130",
+    "9445938": "9447130",
+    "9454798": "9454050",
+    "8722946": "8723178",
+    "9447814": "9447130",
+    "8578240": "8594900",
+    "8723583": "8723178",
+    "8444601": "8443970",
+    "9413617": "9413450",
+    "8760412": "8760551",
+    "8723303": "8723178",
+    "8514594": "8467150",
+    "1617277": "1617760",
+    "TWC2071": "9455500",
+    "8449287": "8452660",
+    "9455304": "9455090",
+    "TWC1893": "9454050",
+    "9449211": "9444900",
+    "9445388": "9447130",
+    "9451238": "9450460",
+    "8416501": "8418150",
+    "9452064": "9452210",
+    "9410777": "9410660",
+    "8464445": "8467150",
+    "8669167": "8670870"
+   },
+   "key": {
+    "9454157": [
+     60.7,
+     -146.1
+    ],
+    "9450351": [
+     55.2,
+     -132.8
+    ],
+    "8444012": [
+     42.3,
+     -71.0
+    ],
+    "9454574": [
+     59.9,
+     -147.4
+    ],
+    "TWC1131": [
+     48.2,
+     -122.4
+    ],
+    "9446671": [
+     47.2,
+     -122.8
+    ],
+    "9445938": [
+     47.6,
+     -122.5
+    ],
+    "9454798": [
+     60.7,
+     -148.2
+    ],
+    "8722946": [
+     26.1,
+     -80.1
+    ],
+    "9447814": [
+     47.9,
+     -122.4
+    ],
+    "8578240": [
+     38.1,
+     -76.5
+    ],
+    "8723583": [
+     25.2,
+     -80.2
+    ],
+    "8444601": [
+     42.3,
+     -70.9
+    ],
+    "9413617": [
+     36.8,
+     -121.8
+    ],
+    "8760412": [
+     29.2,
+     -89.0
+    ],
+    "8723303": [
+     25.6,
+     -80.2
+    ],
+    "8514594": [
+     41.0,
+     -73.1
+    ],
+    "1617277": [
+     20.2,
+     -155.9
+    ],
+    "TWC2071": [
+     57.8,
+     -153.3
+    ],
+    "8449287": [
+     41.3,
+     -70.8
+    ],
+    "9455304": [
+     59.5,
+     -150.6
+    ],
+    "TWC1893": [
+     60.0,
+     -147.7
+    ],
+    "9449211": [
+     48.7,
+     -122.5
+    ],
+    "9445388": [
+     47.5,
+     -123.1
+    ],
+    "9451238": [
+     56.5,
+     -132.5
+    ],
+    "8416501": [
+     43.9,
+     -69.5
+    ],
+    "9452064": [
+     57.7,
+     -133.6
+    ],
+    "9410777": [
+     33.9,
+     -118.4
+    ],
+    "8464445": [
+     41.3,
+     -72.7
+    ],
+    "8669167": [
+     32.2,
+     -80.7
+    ]
+   },
+   "key_donor": {
+    "9454157": {
+     "id": "9454124",
+     "d_km": 6.65
+    },
+    "9450351": {
+     "id": "9450364",
+     "d_km": 1.472
+    },
+    "8444012": {
+     "id": "8444525",
+     "d_km": 4.439
+    },
+    "9454574": {
+     "id": "9454562",
+     "d_km": 2.785
+    },
+    "TWC1131": {
+     "id": "9448043",
+     "d_km": 11.076
+    },
+    "9446671": {
+     "id": "9446705",
+     "d_km": 9.704
+    },
+    "9445938": {
+     "id": "9445958",
+     "d_km": 10.161
+    },
+    "9454798": {
+     "id": "9454794",
+     "d_km": 8.739
+    },
+    "8722946": {
+     "id": "8722956",
+     "d_km": 2.632
+    },
+    "9447814": {
+     "id": "9447659",
+     "d_km": 15.905
+    },
+    "8578240": {
+     "id": "8635750",
+     "d_km": 11.966
+    },
+    "8723583": {
+     "id": "8723506",
+     "d_km": 16.77
+    },
+    "8444601": {
+     "id": "8444162",
+     "d_km": 3.22
+    },
+    "9413617": {
+     "id": "9413631",
+     "d_km": 5.138
+    },
+    "8760412": {
+     "id": "8760417",
+     "d_km": 4.317
+    },
+    "8723303": {
+     "id": "8723355",
+     "d_km": 8.89
+    },
+    "8514594": {
+     "id": "8514560",
+     "d_km": 5.894
+    },
+    "1617277": {
+     "id": "1617433",
+     "d_km": 19.608
+    },
+    "TWC2071": {
+     "id": "9457493",
+     "d_km": 8.784
+    },
+    "8449287": {
+     "id": "8448725",
+     "d_km": 6.623
+    },
+    "9455304": {
+     "id": "9455258",
+     "d_km": 13.874
+    },
+    "TWC1893": {
+     "id": "9454616",
+     "d_km": 6.615
+    },
+    "9449211": {
+     "id": "9449161",
+     "d_km": 15.375
+    },
+    "9445388": {
+     "id": "9445478",
+     "d_km": 15.757
+    },
+    "9451238": {
+     "id": "9451204",
+     "d_km": 7.698
+    },
+    "8416501": {
+     "id": "8416731",
+     "d_km": 7.401
+    },
+    "9452064": {
+     "id": "9452067",
+     "d_km": 6.674
+    },
+    "9410777": {
+     "id": "9410840",
+     "d_km": 15.169
+    },
+    "8464445": {
+     "id": "8463701",
+     "d_km": 14.498
+    },
+    "8669167": {
+     "id": "8668918",
+     "d_km": 8.181
+    }
+   }
+  }
+ }
+}

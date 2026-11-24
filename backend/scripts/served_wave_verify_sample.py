@@ -22,10 +22,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from services import buoy_holdout  # noqa: E402
 from services.point_archive import buoys as buoylist  # noqa: E402
 from services.point_archive import served_sampler as ss  # noqa: E402
 from services.point_archive.storage import LocalStore, PublicFrames, SupabaseStore  # noqa: E402
 from services.point_archive.writer import ArchiveWriter  # noqa: E402
+
+
+buoy_holdout.declare_collector(__name__, "archives served frames at EVERY listed buoy, locked included (#1199: locked buoys "
+                               "still have records written); reads no truth, scores nothing, prints no station id")
 
 
 def enabled(env=None):

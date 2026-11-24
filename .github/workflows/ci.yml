@@ -18,10 +18,18 @@ on:
     branches: [dev, main]
 
 # A new commit on a PR cancels that PR's older run of this workflow (the Actions queue was the bottleneck,
-# 2026-11-19). A push gets a group of its own (its run id): GitHub keeps only ONE pending run per group and
-# replaces it even with cancel-in-progress false, so a shared push group would drop queued dev/main runs.
+# 2026-11-19). PUSHES TO DEV SHARE ONE GROUP, `push-dev` (2026-11-23, owner: "Yes, small CI PR"): GitHub keeps
+# one RUNNING and only the NEWEST PENDING run per group (default `queue: single`), and cancel-in-progress stays
+# false for pushes, so a running dev CI is never killed and every merge in between drops its pending run. Before
+# this each push had its own group (run id) and 15 full runs (~25 min each) queued on dev in one afternoon,
+# starving every PR. Dev CI is now "latest wins": not every merge gets a dev run of its own. The readers already
+# cope (floor-catchup.yml fires only on a green run; ci_floor_staleness.py reads the newest green run;
+# ci_floor_overlift.py walks every commit since it). Do NOT also cancel the running one: merges land every few
+# minutes, so dev would never finish a green run and both floor readers would starve.
+# Pushes to main (the production promotion) or any other branch keep a group per run: each keeps its evidence.
+# Pinned by backend/tests/test_ci_push_concurrency.py.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || (github.event_name == 'push' && github.ref == 'refs/heads/dev') && 'push-dev' || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -745,7 +753,7 @@ jobs:
           sed 's/^/  guard: /' /tmp/guard_files.txt
           FILES=$(tr '\n' ' ' < /tmp/guard_files.txt)
           # Retain slow-phase evidence to distinguish test cost from job setup time.
-          python -m pytest $FILES -q --durations=30 --junitxml=guards.xml
+          python -m pytest $FILES -q -rs --durations=30 --junitxml=guards.xml
 
       # Shrink-only ratchet on COVERAGE, run even when pytest already failed so a collapse in what
       # was collected is reported rather than hidden behind the first red test.
@@ -1348,7 +1356,18 @@ jobs:
           test -s /tmp/chain_files.txt || { echo "::error::--lane chain selected NO files"; exit 1; }
           sed 's/^/  chain: /' /tmp/chain_files.txt
           FILES=$(tr '\n' ' ' < /tmp/chain_files.txt)
-          python -m pytest $FILES -q --junitxml=chain.xml
+          python -m pytest $FILES -q -rs --junitxml=chain.xml
+
+      # The chain lane allows a few skips; -rs names them in the log, and this keeps the per-test junit record (which test
+      # passed, which skipped and why) inspectable after the run (advisor, #1271). Test selection and floors are unchanged.
+      - name: Preserve the chain lane's junit record
+        if: always() && needs.changes.outputs.docs_only != 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: chain-junit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: backend/chain.xml
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: "🔍 Assert the forecast-chain guards actually ran"
         if: always() && needs.changes.outputs.docs_only != 'true'
@@ -2051,7 +2070,7 @@ jobs:
           python scripts/ci_test_lanes.py --lane estate > /tmp/estate_files.txt
           sed 's/^/  estate: /' /tmp/estate_files.txt
           FILES=$(tr '\n' ' ' < /tmp/estate_files.txt)
-          python -m pytest $FILES -q --timeout=120 --junitxml=estate.xml \
+          python -m pytest $FILES -q -rs --timeout=120 --junitxml=estate.xml \
             -p tests.sqlite_lifecycle_census --sqlite-lifetime-report=sqlite-lifetime.json \
             -W error::pytest.PytestUnhandledThreadExceptionWarning \
             -W error::pytest.PytestUnraisableExceptionWarning
@@ -2570,6 +2589,43 @@ jobs:
           print(f"estate: {len(selected)} files selected, {len(mods)} produced results, "
                 f"{passed} passed, 0 silent.")
           PY
+
+  # PR-TIME FLOOR FRAGMENT CHECK (2026-11-24, advisor's cause walk): 18 estate tests slipped past the ratchet because a
+  # floor is a MINIMUM, so a PR that under-declares its fragment passes its own run and only surfaces later as dev
+  # staleness (#1155 +1, #1234 +2, #1228 +15 with no fragment). This COLLECTS each backend lane at the PR head and at its
+  # merge base and compares the delta with the PR's own ci-floors.d fragments (scripts/floor_fragment_check.py), printing
+  # the exact rederive_floor.py command on a mismatch. REPORT-ONLY until it has bedded in: repo variable
+  # FLOOR_FRAGMENT_CHECK=block makes a mismatch fail the job. Fragments-only (catch-up) PRs are not checked here.
+  backend-floor-fragment-check:
+    needs: changes
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.changes.outputs.docs_only != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0        # the merge base and its tree (a worktree) are read
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # Same two-step install as the lanes (requirements.txt pins httpx below what fastmcp needs; the overlay lifts it).
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install -q -r requirements.txt
+          pip install -q -r requirements-dev.txt
+
+      - name: "🔍 Do this PR's floor fragments equal the tests it adds?"
+        working-directory: backend
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          FLOOR_FRAGMENT_CHECK: ${{ vars.FLOOR_FRAGMENT_CHECK || 'report' }}
+        run: |
+          mode=""; [ "$FLOOR_FRAGMENT_CHECK" = "block" ] || mode="--report-only"
+          python scripts/floor_fragment_check.py --base "origin/$BASE_REF" $mode
 
   # ⛔⛔ THE RATCHETS ABOVE DO NOT WATCH THEMSELVES, AND ON 2026-08-11 NONE OF THEM WAS CURRENT.
   # Measured in one sweep against each lane's own green run on origin/dev @ 1b447f44 (31509178910):

@@ -1,0 +1,7 @@
+{
+ "schema": "raw-surf/runtime-flags/1",
+ "note": "COLD-START FLOOR (runtime_flags.py, D-090): the 'off' entries of control/flags.json, committed so a guardrail kill survives a process start during a manifest outage. Only 'off' entries are applied, and only until the first good read. Keep it equal to the live manifest's kills: the flag guardrail opens an issue on drift with the exact text to commit.",
+ "as_of": "2026-11-24T01:51:54Z",
+ "source": "flag-guardrail run 45307619337 (manifest read: 0 'off' entries; 2 owner 'on' entries, not floored)",
+ "flags": {}
+}

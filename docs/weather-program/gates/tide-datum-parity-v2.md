@@ -143,3 +143,103 @@ approval of that hash.
 |---|---|
 | Independent truth (observations) | NOT ADOPTED: the claim is agreement with NOAA predictions, stated as such |
 | A permutation max-statistic in place of four thresholds | NOT ADOPTED: the bar stays #1183's |
+
+## 9. Amendment 1 (2026-11-24 13:59Z, before any v2 tag and before any v2 data): the placebo becomes an exact shift identity
+
+**Why.** The advisor HELD #1171 (the v2 instrument) at `9800ab361` (2026-11-23 12:32Z). As written in §5 and the header,
+"D_hybrid + 0.10 m must FAIL the signed leg" can turn a real FAIL into a VOID.
+- Suppose the hybrid's own median signed error in a stratum is near −0.10 m: a genuine bias FAIL.
+- The placebo's then sits near 0 and PASSES the signed leg.
+- The "control failed", so the run is VOID, and a true FAIL is never recorded.
+
+A control must test the instrument, never the outcome.
+
+**The new rule.** The placebo control, VOID-only and replacing §5's placebo line and the header's "must FAIL":
+- In EACH stratum, over the MEASURED deciding stations, compute median signed(placebo_tb) − median signed(hybrid_tb)
+  on the same matched events.
+- It must equal **+0.10 m within 0.002 m**.
+- Otherwise the run is VOID: the instrument did not carry a known +0.10 m datum error through to the signed error, so
+  its heights cannot judge D.
+
+This is an exact identity: adding a constant to D moves no event, and shifts every signed height error by exactly that
+constant. The pinned test on #1171 (the finder is unaffected by a constant shift) already shows it. It holds whatever
+the hybrid's own error is, so it can never convert a FAIL into a VOID.
+
+**Unchanged:** the candidate, the held-out stations (`665ca6521`), the window (2026-12-01 → 12-08), the bar (§4,
+per stratum, 19 of 20), the ONE primary decision (an intersection over both strata), the other two controls (the
+planted-D identity and the finder), the order (controls first; the bar opened only if all pass), the replacement rule
+and cap, and "no re-run".
+
+**Where it is implemented:** `backend/scripts/tide_datum/datum_v2_score.py` on #1171. A planted-FAIL test shows the
+new placebo no longer VOIDs a real FAIL, and a broken-placebo test shows it still VOIDs an instrument that does not
+carry the shift.
+
+Pre-registered text above this section is not rewritten. Where §5 or the header say "must FAIL", this section governs.
+
+**The event set is frozen (advisory review, 2026-11-24, public context only).**
+- **Both reviewers agreed** the rule is correct and outcome-independent:
+  - SubQ (`subq-savant-1.4`): "correctly decoupled from the hybrid's bias and cannot turn a real FAIL into VOID".
+  - Reflection (`Beam-1.0-501B-A23B`): "outcome-independent".
+- **Their condition, adopted:** compute both medians on the SAME matched events. Concretely, per MEASURED deciding
+  station, the NOAA events matched in BOTH `hybrid_tb` and `placebo_tb`, paired by NOAA event time. The MEASURED set is
+  decided by `hybrid_tb` alone, so the shift cannot change it.
+- **Rounding:** the instrument writes signed errors to 0.0001 m. That is well inside the 0.002 m tolerance, and the
+  series is unrounded (#1183 amendment 3).
+- **Both noted:** the identity certifies that the instrument carries a datum error through, not that the bar is right.
+  That is all a VOID-only control is for.
+- **LongCat:** not consulted. Its tool needs the owner's own approval, and the earlier request was never sent.
+
+## 10. Amendment 2 (2026-11-24 14:03Z, before any v2 tag and before any v2 data): the rest of the advisor's #1171 HOLD
+
+The advisor's HOLD on #1171 at `9800ab361` also required the following, in the same pre-data amendment. All are
+stricter or reported-only, and nothing is loosened.
+
+- **(b) Donor exclusion is the SCORED set.** A NEIGHBOR station's donor excludes every SCORED station: the deciding
+  stations AND the reserves the run scores (the first 5 per stratum), not only the deciding ones. This is stricter
+  than §2's "not itself a deciding station", and it is what the instrument does (`parity_coops.choose_donor` with the
+  scored set). Where §2 says otherwise, this governs.
+- **(c) The planted-D identity must not be vacuous.** A NEIGHBOR station with no donor falls back to the model D, so
+  its model and hybrid variants are trivially identical.
+  - The identity counts only where both the model and the donor-sheet variants exist and share at least 1 matched
+    event.
+  - It is VOID unless it is tested at **≥ 10 NEIGHBOR stations**, with that count reported.
+  - Otherwise, as before: event times within 0.1 min, and heights differing by exactly d_nsheet − d_model within
+    0.002 m.
+- **(c′) The placebo identity (§9) must not be vacuous.** It is VOID for a stratum with fewer than **8 MEASURED
+  deciding stations**, or with **0 paired events**. It is never a vacuous PASS. The MEASURED count and the
+  paired-event count are reported per stratum.
+- **(d) Donor distance is reported, never a bar.** The run reports the distribution of donor distances: count,
+  minimum, median and maximum in km. It flags co-located sheets (≤ 0.05 km) by station, because such a donor is
+  close to the station's own sheet.
+
+**Implemented in** `datum_v2_score.py` on #1171, with pinned tests:
+- the planted FAIL from §9 is still FAIL, not VOID;
+- a broken placebo is VOID;
+- fewer than 10 NEIGHBOR stations tested by the identity is VOID;
+- a stratum with fewer than 8 MEASURED stations or 0 paired events is VOID.
+
+## 11. Amendment 3 (2026-11-24 14:24Z, before any v2 tag and before any v2 data): measurability before vacuity
+
+**Why.** The advisor HELD #1270 at `6d01d3ba9` and #1171 at `f16864561` on a flaw in §10 (c′)'s own wording.
+- §4 already makes an unmeasured deciding station a FAIL: the per-station leg needs ≥ 19 of 20.
+- D cannot change measurability: MEASURED is decided by event matching, which a constant D does not move.
+- So when the finder control passes, a stratum with fewer than 19 MEASURED stations has already FAILED. §10 (c′), and
+  the (c) NEIGHBOR count, would turn that FAIL into a VOID.
+
+**The rule, in the advisor's words:**
+
+> "If the finder control passes and any stratum has < 19 MEASURED deciding stations after replacement, the run is FAIL
+> (§4 measurability), with the identities reported 'untestable where vacuous'; never VOID on vacuity. (c) and (c')
+> VOID only when the stratum has >= 19 MEASURED, or the finder fails."
+
+**Order of evaluation, as implemented:**
+1. **The finder control.** If it fails, the run is VOID.
+2. **Measurability.** Any stratum with fewer than 19 MEASURED deciding stations after replacement makes the run FAIL.
+   Where vacuous, the identities are reported as "untestable".
+3. **The identities.** They can VOID only where their stratum has ≥ 19 MEASURED:
+   - the (c) count (≥ 10 NEIGHBOR stations tested) and the (c′) minimums apply only there;
+   - a NON-vacuous mismatch (an identity tested and wrong) is VOID in any stratum, because the instrument itself
+     failed.
+4. **The bar** (§4), opened only if nothing above is VOID.
+
+**Unchanged:** everything else in §§1–10.

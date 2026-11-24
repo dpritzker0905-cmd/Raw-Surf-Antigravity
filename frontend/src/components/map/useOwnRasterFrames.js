@@ -30,6 +30,7 @@ import {
   planWindow, setEngaged, setWanted, tel, ownWindowRadius,
 } from './ownRasterFrames';
 import { FILL_MODEL } from './ownRasterGapFill';
+import { noteShownFrame } from './ownFrameReadout';
 
 export const ownLayerId = (layer) => `own-raster-${layer}`;
 
@@ -240,10 +241,14 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
           // the entry the step asked for when it is this file (two entries may share one file)
           const e = st.wantEntry && st.wantEntry.path === path ? st.wantEntry : st.byPath.get(path);
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
-            fill: !!(e && e.gap), coarse: !!(e && e.coarse), nearestMaxHours: st.nearestMaxHours || 1, drawnFactor: drawnFactor || 1 };
+            fill: !!(e && e.gap), coarse: !!(e && e.coarse), nearestMaxHours: st.nearestMaxHours || 1, drawnFactor: drawnFactor || 1,
+            // the drawn field's own longitude spacing (degrees), read from its decoded grid: the source line names it (rasterDrawnFrame)
+            gridDeg: field && field.cols > 1 && field.bounds ? (field.bounds.east - field.bounds.west) / (field.cols - 1) : null };
           emitOwnShown(layer, path);                     // synchronous: the isobars cut with the field, in the same frame
           if (layer === 'gusts') setShownGustField(field || null);   // the wind particles take their colour from it (gustParticles.js)
           if (layer === 'currents') setShownCurrentField(field || null, setOfPath(path));   // the particles flow on it (currentParticles.js)
+          // the infobox reads THIS field (the one the GPU was given), with the shown entry's model (ownFrameReadout.js)
+          noteShownFrame(layer, path ? { path, field, model: st.shownRec.model, estimated: st.shownRec.estimated, fill: st.shownRec.fill } : null);
           if (path && st.widen) Promise.resolve().then(() => { if (st.widen) st.widen(); });   // first frame on screen: prefetch now
           // A gap-fill frame reports '<MODEL(S)>:fill:<PICKED>': the credit names every source in it and says it is an estimate.
           const rec = st.shownRec;
@@ -265,6 +270,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       emitOwnShown(layer, null);
       if (layer === 'gusts') setShownGustField(null);
       if (layer === 'currents') setShownCurrentField(null);
+      noteShownFrame(layer, null);
     };
   }, [engaged, mapInstance, layer, beforeId]);
 
@@ -308,7 +314,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     let alive = true;
     loadDownscale(ref.current.dzVariant).then((asset) => {
       if (!alive || ref.current.layerObj !== L || !asset) return;
-      if (L.setDownscale(asset)) setDownscaled(layer, true);
+      if (L.setDownscale(asset)) setDownscaled(layer, true, asset);
     });
     // The layer outlives a model switch (its GL effect does not depend on the model): clear the correction on the way out, so a
     // switch to EURO or ICON never keeps GFS's terrain correction on another model's field.

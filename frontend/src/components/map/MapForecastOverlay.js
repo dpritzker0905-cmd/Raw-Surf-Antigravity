@@ -4,6 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { getHeightUnit } from './heightUnits';
 import { describeLayerSubstitution, describeStaleHour } from './modelProvenance';
 import { resolveDisplayedSlot, sampleDecodedOmValue } from './decodedOmSampler';
+import { useOwnFrameValue, ownFrameCards } from './ownFrameReadout';
 import {
   sampleFromMarineGrid,
   fetchExactMarinePoint,
@@ -466,6 +467,8 @@ export const MapForecastOverlay = ({
     lat: pointLat, lng: pointLng, model: activeModel, timeOffsetHours: settledOffset,
   });
 
+  // Finding 10 (DARK, ownFrameReadout.js): a layer drawn from OUR frames reads that frame (same model, hour, field, shader math).
+  const ownFrame = useOwnFrameValue(activeLayer, pointLat, pointLng);
   // Temp-pair infobox v2: Water Temp samples the client-decoded grid the raster renders from
   // (display-consistent — the active slot URL names model+timeIndex; SST is on no point lane).
   const sampledWaterTempC = activeLayer === 'water_temp'
@@ -530,6 +533,7 @@ export const MapForecastOverlay = ({
     getClampedValue,
     getBiasAdjustedLocal,
     isLoading,
+    ownFrameCards: ownFrameCards(ownFrame, { selectedMs: forecastSelectionMs(timeOffsetHours), isLoading }),
     isHeldExactPoint: frameView.held,
     ratingNote: ratingFrameNote(surfRating, frameView.refMs)
   });

@@ -110,3 +110,70 @@ Supersedes the "(not adopted)" line of the entry above.
   - Mutation-checked, each going red: scorer fence off, download fence off, redact made a no-op, SHA check off, NOT_READ download allowed.
   - The suite ran twice, 72 passed both times.
 - Slip: one mutation command contained a bare `python -` (house rule). It hung, was stopped with TaskStop, and the files were restored from backups and re-checked.
+
+## 2026-11-23: amendment 3, the #1199 LOCKED fence program-wide (branch claude/locked-holdout-fence)
+- Director's P0 (Fable inspection, finding 2): only the served-wave scorer filtered #1199's LOCKED buoys. The skill ledger, calibration, accuracy monitor, gust verification, EMOS and long-range wind read every buoy, and the breach would start at the freeze.
+- Built `services/buoy_holdout.py` (stdlib only) with three states:
+  - `none` today, an exact no-op;
+  - `verified` = the locked ids plus their aliases (id, WMO id, CDIP number);
+  - `quarantine` = a recorded list that does not verify, which fails closed and treats every listed buoy as locked.
+- `point_archive/holdout.py` now verifies through it, so there is one implementation.
+- Consults (public context only):
+  - SubQ (truncated at its token cap): drop locked rows before aggregation; aliases; archives and caches; scan beyond backend/; logs.
+  - Reflection: fail closed with no fallback to tags; a runtime complement to the static scan; one gateway.
+  - Adopted: quarantine with no tag fallback, aliases, `allow_url` as a runtime gate in every fetch path, the workflow scan.
+  - LongCat: preview only, awaiting the owner's approval of the payload hash (paid).
+- Routing: three subagents with disjoint file sets plus my own edits. 54 modules call the fence; 5 are declared collectors; 14 exemptions are reviewed in the guard.
+  - The guard caught one edit a subagent reported but never applied (`model_skill_census.py`); I fenced it myself, along with `euro_fallback_census.py` and `same_model_parity_probe.py`.
+  - `gust_verify_score.py` was a real reader with no fence. Its stdlib-only pin now admits exactly the fence, and checks the fence itself imports only the stdlib.
+- Tests:
+  - `test_buoy_holdout.py`: 21.
+  - `test_buoy_holdout_guard.py`: 4.
+  - `test_buoy_holdout_consumers.py`: 7 runtime canaries.
+  - Mutations each go red: allow_url forced open, drop made a no-op, one consumer's gate removed, aliases off.
+  - The regression run over every test file naming a changed module ran twice (see the PR).
+
+## #1199 LOCKED freeze (2026-11-23, after #1234 and #1236)
+- **Rulings** (David, relayed by the director): scope "Whole buoy, all data (Recommended)"; pool "71 unfitted buoys
+  (Recommended)". SubQ and Reflection reached the same pool independently. LongCat was down.
+- **Draw:** `served_wave_verify_freeze_buoys.py --draw-locked` locked 15 of 71 eligible buoys: alaska 3, canada 2,
+  caribbean 1, gulf 1, hawaii 1, open_ocean 2, us_east 2, us_west 3. The buoy list hash is unchanged (`656a7a27…`;
+  locked fields sit outside `list_hash`). The fence state is `verified`. No LOCKED id is in any fit-used consumer set.
+- **Loud quarantine:** a stderr banner, plus an `::error::` annotation in Actions. CI pins the committed record as verified.
+- **Pins:** redrawing from the committed list reproduces the LOCKED file byte for byte. A changed seed, or fit_used
+  buoys made eligible, each turn the pin red. `--draw-locked` refuses to run once a list is recorded.
+- **Census open item** (wind/gust EMOS): resolved in the text of amendment 1 without a census change. EMOS has fit
+  nothing, and a census change would move the list hash.
+- **Rules:** `gates/served-wave-skill-v1-amendment-1.md`.
+
+## Fence additions on #1234 after the merges from dev (2026-11-23)
+- **`nearshore_lite/truth.py` (#1155):** fenced. `fetch_realtime` is a truth reader that the MOP-lite gate scores against.
+  A LOCKED buoy now reads as missing (`None`), and the opener is never called. Station selection is unchanged (metadata).
+  A canary is in `test_buoy_holdout_consumers.py`. Nothing calls `fetch_realtime` yet besides its own tests, so no
+  nearshore score moves. No live lane owns #1155 / #1157 (director, 2026-11-23); the guard forces future scoring through
+  the fence.
+- **`scripts/admin_ops_bucket_io.py` (#1239):** EXEMPT, the 15th entry. It counts objects only and reads no observation
+  value.
+- **A slip:** the intermediate #1234 head `b8d8137e1` was pushed red on the guard, because the push was not gated on the
+  test. It was fixed forward at `873a40438`. Pushes are now gated on the guard passing.
+
+## Guard follow-up #1257, advisor hold (2026-11-23)
+- **The decode bypass was real.** `station=%25252246225%252522` decoded a FIXED two times gives `%2246225%22`. The `%22`
+  ends in a digit, which defeated the id boundary, so `allow_url` ALLOWED a LOCKED id. `allow_url` now decodes until the
+  text stops changing (at most 6 passes), then FAILS CLOSED if any `%XX` escape survives. Tests cover encoding depths
+  1 to 5, beyond the bound, lower-case and mixed-case hex, and ids encoded digit by digit. Restoring the two fixed passes
+  turns 4 of them red.
+- **Two reason texts were wrong and are corrected:**
+  - the probe: its refusal is in `_get()`, not `urllib_opener`;
+  - `grade_wind_lane_ndbc.anemometer_m`: its `_get()` refuses a LOCKED URL, so it does NOT keep a LOCKED buoy's metadata.
+- **New test:** both `anemometer_m` lookups take only the height. `station_page.php` also shows the latest observations,
+  and neither lookup prints, logs or writes anything from the page.
+- **A served table is downstream.** `grade_wind_lane_ndbc.py --rows` feeds `sweep_wind_lane_weight.py`, which writes
+  `services/weather_pipeline/wind_lane_skill_weights.json`, the table the served rating's wind lane reads. The committed
+  table is unchanged. The NEXT regeneration will fit without the 15 LOCKED buoys, as #1236 L1 intends (whole buoy, all
+  data). A regeneration moves a served number. Under **D-090** (advisor ruling, 2026-11-23, which supersedes "ships
+  under D-065") it ships **DARK** until the manifest reliability fix lands: the new table sits behind a default-off flag
+  and the committed table stays served. Shipping it ON later needs a kill switch, firing REPLAY/RATING coverage, a
+  pre-registered acceptance test, a SCOREBOARD row and the history filter.
+- **The advisor passed #1257 with limits.** It verified that a locked id is refused at encoding depths 0 to 8 and that an
+  open id passes at depths 0 to 6. Limit: never route non-buoy URLs through `allow_url`.

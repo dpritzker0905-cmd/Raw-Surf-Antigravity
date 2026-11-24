@@ -48,6 +48,22 @@ jobs:
         with:
           python-version: '3.12'
 
+      # FAIL LOUD ON A REJECTED STORAGE KEY (reliability lane, 2026-11-24): the 11-19/20 401 "Legacy API keys are disabled" took
+      # every lane down for 21-25 h, red runs that notified nobody. One GET of control/flags.json; a 401/403 seen twice = ::error
+      # and an owner-assigned storage-auth issue; accepted = close it. STORAGE_AUTH_CHECK: warn (default) | block (exit 2) | 0.
+      - name: Storage credential check (fail loud on 401/403)
+        id: storage_auth
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ vars.REPO_OWNER_LOGIN }}
+          LANE: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STORAGE_AUTH_CHECK: ${{ vars.STORAGE_AUTH_CHECK || 'warn' }}
+        run: python3 scripts/storage_auth_check.py
+
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -q -r requirements.txt
@@ -68,6 +84,9 @@ jobs:
           # G1a: the consensus ledger guard is REPORT-ONLY until this repo variable is '1', set after the research
           # lead's READ of a real run (a ledger FIRE is printed, never a strike, before that). Name only, no secret.
           LEDGER_GUARD_RELEASED: ${{ vars.LEDGER_GUARD_RELEASED || '0' }}
+          # TIDE family (gates/tide-guard-v1.md s7): REPORT-ONLY until this repo variable is '1', set after a human READ of a
+          # real run with the planted controls (T4) passing. Name only, no secret.
+          TIDE_GUARD_RELEASED: ${{ vars.TIDE_GUARD_RELEASED || '0' }}
           RUNTIME_FLAGS_MANIFEST: '0'
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REENABLE: ${{ inputs.reenable }}
@@ -94,9 +113,69 @@ jobs:
           [ -n "$acted" ] || exit 0
           tag="[dry run] "; [ "$ENFORCE" = "1" ] && tag=""
           title="${tag}Flag guardrail: ${acted}"
-          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Flag guardrail in:title" --json number --jq '.[0].number')"
+          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Flag guardrail in:title" --json number,title --jq '[.[] | select((.title | contains("Flag guardrail")) and (.title | contains("PHYSICS guard blind") | not) and (.title | startswith("P0 cold-start snapshot drift") | not))][0].number // empty')"
           if [ -n "$n" ]; then gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body-file "$f"
           else gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$f"; fi
+
+      # GUARD-BLIND (advisor hold on #1267): a PHYSICS-guarded flag that is ON but has been UNTESTABLE for 4+ consecutive runs
+      # (~24 h) gets ONE open issue; the next run that judges it again closes that issue. Report only: it never disables a flag.
+      # Its title never contains "Flag guardrail" and the main issue's search excludes it (advisor, #1267): a DISABLE notice must
+      # never land on the blind issue, which a judged run auto-closes.
+      - name: Open or close the GUARD-BLIND issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          d="$RUNNER_TEMP/guardrail-out"
+          [ -f "$d/guard-blind.txt" ] || exit 0
+          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"PHYSICS guard blind\" in:title" --json number,title --jq '[.[] | select(.title | startswith("PHYSICS guard blind"))][0].number // empty')"
+          if [ -s "$d/guard-blind.txt" ]; then
+            [ -n "$n" ] || gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "PHYSICS guard blind: a physics guard has judged nothing for 24 h" --body-file "$d/guard-blind.txt"
+          elif [ -s "$d/guard-judged.txt" ] && [ -n "$n" ]; then
+            gh issue close "$n" --repo "$GITHUB_REPOSITORY" --comment "Judged again this run: $(tr '\n' ' ' < "$d/guard-judged.txt")"
+          fi
+
+      # TIDE GUARD-BLIND (tide-guard-v1 amendment 1 s2-s3): a TIDE-guarded flag UNTESTABLE for >= 3 consecutive CYCLES spanning
+      # >= 24 h gets ONE open issue, titled exactly flag_guardrail_tide.BLIND_TITLE; the next judged run closes it. Report only.
+      # Its title shares no word with the other three searches ("Flag guardrail", "PHYSICS guard blind", "P0 cold-start
+      # snapshot drift"), and theirs fail its startswith filter (tests/test_flag_guardrail_tide.py pins all four ways).
+      - name: Open or close the TIDE guard blind issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          d="$RUNNER_TEMP/guardrail-out"
+          [ -f "$d/tide-blind.txt" ] || exit 0
+          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"TIDE guard blind\" in:title" --json number,title --jq '[.[] | select(.title | startswith("TIDE guard blind"))][0].number // empty')"
+          if [ -s "$d/tide-blind.txt" ]; then
+            if [ -n "$n" ]; then gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body-file "$d/tide-blind.txt"
+            else gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "TIDE guard blind: the tide tester could not judge the served tide for 24 h" --body-file "$d/tide-blind.txt"; fi
+          elif [ -s "$d/tide-judged.txt" ] && [ -n "$n" ]; then
+            gh issue close "$n" --repo "$GITHUB_REPOSITORY" --comment "Judged again this run: $(tr '\n' ' ' < "$d/tide-judged.txt")"
+          fi
+
+      # P0 COLD-START SNAPSHOT DRIFT (advisor condition on #1261, D-090): a served-number kill the committed snapshot lacks gets its
+      # OWN issue (title scripts/flag_guardrail.P0_DRIFT_TITLE, severity:critical, assigned to the owner), opened ONCE, so it is
+      # never buried under an old "Flag guardrail" issue's comments. Deadline in its body: commit AND deploy within 24 h.
+      - name: Open the P0 snapshot-drift issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ vars.REPO_OWNER_LOGIN }}
+        run: |
+          f="$RUNNER_TEMP/guardrail-out/p0_drift.md"
+          [ -f "$f" ] || exit 0
+          title="P0 cold-start snapshot drift: commit and deploy the kills snapshot within 24 h"
+          # in:title search is word-based, so it can also return other issues sharing these words: keep only titles that START
+          # with the P0 prefix (tests/test_flag_guardrail.py runs this exact filter); `// empty` = nothing found.
+          P0_JQ='[.[] | select(.title | startswith("P0 cold-start snapshot drift"))][0].number // empty'
+          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "P0 cold-start snapshot drift in:title" --json number,title --jq "$P0_JQ")"
+          if [ -n "$n" ]; then echo "P0 drift issue #$n already open"; exit 0; fi
+          gh label create "severity:critical" --repo "$GITHUB_REPOSITORY" --color b60205 --description "Page now" --force >/dev/null
+          assignee=(); [ -n "$OWNER" ] && assignee=(--assignee "$OWNER")
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$f" --label "severity:critical" "${assignee[@]}"
 
       - name: Upload the guardrail report
         if: always()

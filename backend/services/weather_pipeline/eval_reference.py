@@ -26,6 +26,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
+from services import buoy_holdout
 from services.weather_pipeline import gate_v2_truth as truth
 
 NDBC_RT = "https://www.ndbc.noaa.gov/data/realtime2/{id}.{ext}"
@@ -76,6 +77,8 @@ def load_stations(path: str) -> dict:
             raise RegistryError(f"{s['id']}: role must be nearshore or offshore")
         if s["role"] == "nearshore" and not s.get("anchor_spot"):
             raise RegistryError(f"{s['id']}: a nearshore station needs an anchor_spot (the served input it grades)")
+    if "stations" in obj:                       # the LOCKED final buoy holdout (#1199) is never read
+        obj["stations"] = buoy_holdout.drop(obj["stations"], "id")
     return obj
 
 

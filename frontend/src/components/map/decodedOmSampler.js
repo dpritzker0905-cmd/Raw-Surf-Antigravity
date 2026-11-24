@@ -15,7 +15,9 @@
  * ocean-fill landmask's deep interior (land) → null.
  */
 
-const SLOT_URL_RE = /data_spatial\/([a-z0-9_]+)\/latest\.json\?time_step=valid_times_(\d+)/;
+import { infoboxOwnFrameEnabled } from './ownFrameReadout';
+
+const SLOT_URL_RE =/data_spatial\/([a-z0-9_]+)\/latest\.json\?time_step=valid_times_(\d+)/;
 
 /** Resolve the model + timeIndex the layer is currently RENDERING from its slot ring. */
 export function resolveDisplayedSlot(map, layerKey) {
@@ -58,7 +60,12 @@ export function sampleDecodedOmValue({ variable, layerKey, lat, lng }, deps = {}
     if (slot && t.timeIndex === slot.timeIndex) { best = t; break; }
     if (!best || (t.timestamp || 0) > (best.timestamp || 0)) best = t; // newest fallback
   }
+  // STRICT (with the infobox own-frame readout, ownFrameReadout.js; DARK): only the tile of the slot ON SCREEN (its model and
+  // time index). The newest-of-any fallback above read another hour or model under this one, or a tile left from earlier in the
+  // session when our own frames draw the layer (no .om slot at all): the inspection's finding 10.
+  if (infoboxOwnFrameEnabled() && (!slot || !best || best.model !== slot.model || best.timeIndex !== slot.timeIndex)) return null;
   if (!best || !best.values || !best.nx || !best.ny || !best.bounds) return null;
+  best.__used = Date.now();   // the shared byte budget's recency (decodedOmBudget.js)
   const [w, s, e, n] = best.bounds;
   if (!(e > w) || !(n > s)) return null;
   const fx = (lng - w) / (e - w);

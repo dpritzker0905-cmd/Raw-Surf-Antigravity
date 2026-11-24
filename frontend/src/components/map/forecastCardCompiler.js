@@ -88,7 +88,10 @@ export function compileForecastCards({
   // moved, the answer has not). Its numbers stay, marked provisional like a first paint, beside the words that say so.
   isHeldExactPoint = false,
   // The Rating row's "from <time>" when the badge answered from another frame than the Surf number (P2).
-  ratingNote = null
+  ratingNote = null,
+  // Finding 10 (DARK, ownFrameReadout.js): the active layer is drawn from OUR frames, so its cards are THAT frame's value
+  // (built by ownFrameCards), replacing the point-forecast / .om sample cards below. null = not applicable (flag off, .om layer).
+  ownFrameCards = null
 }) {
   const cards = [];
   const strictValues = marineValueValidityEnabled();
@@ -176,7 +179,10 @@ export function compileForecastCards({
     };
   };
 
-  if (activeLayer === 'rain' || activeLayer === 'radar' || activeLayer === 'precipitation') {
+  const ownWeather = Array.isArray(ownFrameCards) && ownFrameCards.length ? ownFrameCards : null;
+  if (ownWeather) cards.push(...ownWeather);
+
+  if (!ownWeather && (activeLayer === 'rain' || activeLayer === 'radar' || activeLayer === 'precipitation')) {
     const hasSnow = snowfall != null && snowfall > 0;
     const hasRain = precip != null && precip > 0 && (!hasSnow || (temp != null && temp > 2));
     const isSnowOnly = hasSnow && !hasRain;
@@ -226,7 +232,7 @@ export function compileForecastCards({
     }
   }
 
-  if (activeLayer === 'pressure' || activeLayer === 'pressure_msl' || activeLayer === 'msl_pressure') {
+  if (!ownWeather && (activeLayer === 'pressure' || activeLayer === 'pressure_msl' || activeLayer === 'msl_pressure')) {
     cards.push({ icon: Gauge, label: 'Pressure', value: pressure != null ? `${Math.round(pressure)} hPa${_prov}` : '--', color: 'text-rose-400', provisional: isProvisionalPaint });
   }
 
@@ -234,24 +240,24 @@ export function compileForecastCards({
   // temperature_2m that already flows here (°C); Water Temp samples the CLIENT-DECODED grid the
   // raster is rendering (decodedOmSampler — SST is on neither backend point lane). °F per the
   // legend convention. Water Temp null over the landmask's NaN interior reads "Land".
-  if (activeLayer === 'temperature') {
+  if (!ownWeather && activeLayer === 'temperature') {
     const c = temp != null ? temp : sampledAirTempC; // point forecast first; decoded-grid fallback
     const f = c != null ? Math.round(c * 9 / 5 + 32) : null;
     cards.push({ icon: Thermometer, label: 'Air Temp', value: f != null ? `${f}°F` : (isLoading ? 'Loading' : '--'), color: 'text-orange-400' });
   }
 
-  if (activeLayer === 'water_temp') {
+  if (!ownWeather && activeLayer === 'water_temp') {
     const f = sampledWaterTempC != null ? Math.round(sampledWaterTempC * 9 / 5 + 32) : null;
     cards.push({ icon: Thermometer, label: 'Water Temp', value: f != null ? `${f}°F` : (isLoading ? 'Loading' : 'Land / no data'), color: 'text-sky-400' });
   }
 
-  if (activeLayer === 'satellite' || activeLayer === 'cloud_cover') {
+  if (!ownWeather && (activeLayer === 'satellite' || activeLayer === 'cloud_cover')) {
     const cloudVal = sampledCloudCover?.value;
     const value = cloudVal != null ? `${Math.round(cloudVal)}%` : (isLoading ? 'Loading' : '--');
     cards.push({ icon: Cloud, label: 'Cloud Cover', value, color: 'text-sky-300' });
   }
 
-  if (activeLayer === 'fog' || activeLayer === 'visibility') {
+  if (!ownWeather && (activeLayer === 'fog' || activeLayer === 'visibility')) {
     const visVal = sampledVisibility?.value;
     let value = '--';
     if (visVal != null) {
