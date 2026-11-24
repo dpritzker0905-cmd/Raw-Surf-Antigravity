@@ -6,7 +6,10 @@
   "bytes": 12810040,
   "source_run": 45266543788,
   "bucket_object": "calibration/wind-lr2/45266543788-1/wind-lr2-clim_gust-45266543788/wind_lr2_clim_gust.json",
-  "published_at": null,
-  "published_by": null,
-  "note": "published_at / published_by are filled by a follow-up commit once the release exists; the URL is fixed by tag + asset name"
+  "published_at": "2026-11-24T02:33:44Z",
+  "published_by": "the director session (local_d6b521eb), on the owner David answering \"Private + public copy (Recommended)\" on 2026-11-23",
+  "note": "the release contains only the asset named above; the committed sha256 file is the authority, not this record",
+  "verified_public_sha256": "1e7df526a8598fc10e476318645829e792f5abd7cf6bdc3862d964f9954d01d8",
+  "verified_public_bytes": 12810040,
+  "verified_by": "the director session (unauthenticated download of the public asset URL) and this lane (second, independent unauthenticated download), both equal to the committed hash"
 }
