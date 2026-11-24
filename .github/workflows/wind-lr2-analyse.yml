@@ -126,6 +126,7 @@ jobs:
           path: |
             ${{ runner.temp }}/wlr2/*.json
             ${{ runner.temp }}/wlr2/*.json.sha256
+            ${{ runner.temp }}/wlr2/*.VOID.md
             ${{ runner.temp }}/wlr2/*.npz
 
   archive:

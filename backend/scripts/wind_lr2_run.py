@@ -27,6 +27,7 @@ import wind_lr2_gust as GU  # noqa: E402
 import wind_lr2_rows as W  # noqa: E402
 import wind_lr2_runs as R  # noqa: E402
 import wind_lr2_score as SC  # noqa: E402
+import wind_lr2_void as VD  # noqa: E402
 import wind_lr2_truth as T  # noqa: E402
 from services import buoy_holdout  # noqa: E402
 
@@ -130,6 +131,20 @@ def load_gust_table(a):
         raise SystemExit(f"REFUSED: CLIM_GUST table: {e}")
 
 
+def write_score_report(doc, out, eligibility_rows, eligibility):
+    """The only writer of the score report. VOID by construction (the eligibility count): descriptive only, stamped in every section,
+    VOID in every file name, no decision or ship field, and the plain `out` path is NOT written. Otherwise the registered report."""
+    doc["eligibility"] = eligibility
+    doc["eligibility_table"] = {"rows": eligibility_rows}
+    if eligibility["void"]:
+        paths = VD.write_outputs(doc, out, eligibility_rows)
+        print(VD.STATUS, eligibility["trigger"], paths)
+        return paths
+    json.dump(doc, open(out, "w"), indent=1, default=float)
+    print(doc["verdict"], doc["void_reasons"])
+    return [out]
+
+
 def cmd_score(a):
     man = json.load(open(a.manifest))
     coefs = load_coefs(a.cache)
@@ -139,6 +154,10 @@ def cmd_score(a):
     clim_gust = load_gust_table(a)                                      # BEFORE any station, run or truth is read
     stations = load_stations(a.cache)
     pairing = json.load(open(freeze_files(a.cache)["pairing"]))
+    # ORDER OF OPERATIONS (fixed before TEST): 1. the ELIGIBILITY COUNT from the frozen list and the pairing alone; 2. VOID by
+    # construction if fewer than 3 gated regions have >= 10 marine-exposed stations; 3. only THEN truth, holdout and coverage.
+    eligibility_rows = VD.count_table(stations, pairing)
+    eligibility = VD.eligibility(eligibility_rows)
     runs = load_runs(os.path.join(a.cache, "runs_test"))
     inits = R.test_window_runs(datetime.fromisoformat(a.freeze_time) if a.freeze_time else None)
     fn, truth = truth_fn_for("test", a.cache, stations, (min(inits), R.snapshot_end(inits)))
@@ -156,8 +175,7 @@ def cmd_score(a):
     doc["station_coverage"] = cov            # reported per station; used for floor counts only, never a row filter
     # amendment G1, serial: the gust family is evaluated AFTER wind, reads the wind result and never writes to it
     doc["gust"] = GU.score_gust(rows, doc, stations, pairing, cov, clim_gust)
-    json.dump(doc, open(a.out, "w"), indent=1, default=float)
-    print(doc["verdict"], doc["void_reasons"])
+    write_score_report(doc, a.out, eligibility_rows, eligibility)
     return 0
 
 
