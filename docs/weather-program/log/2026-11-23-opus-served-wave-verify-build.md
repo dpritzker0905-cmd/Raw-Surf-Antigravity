@@ -132,3 +132,20 @@ Supersedes the "(not adopted)" line of the entry above.
   - `test_buoy_holdout_consumers.py`: 7 runtime canaries.
   - Mutations each go red: allow_url forced open, drop made a no-op, one consumer's gate removed, aliases off.
   - The regression run over every test file naming a changed module ran twice (see the PR).
+
+## Guard follow-up #1257, advisor hold (2026-11-23)
+- **The decode bypass was real.** `station=%25252246225%252522` decoded a FIXED two times gives `%2246225%22`. The `%22`
+  ends in a digit, which defeated the id boundary, so `allow_url` ALLOWED a LOCKED id. `allow_url` now decodes until the
+  text stops changing (at most 6 passes), then FAILS CLOSED if any `%XX` escape survives. Tests cover encoding depths
+  1 to 5, beyond the bound, lower-case and mixed-case hex, and ids encoded digit by digit. Restoring the two fixed passes
+  turns 4 of them red.
+- **Two reason texts were wrong and are corrected:**
+  - the probe: its refusal is in `_get()`, not `urllib_opener`;
+  - `grade_wind_lane_ndbc.anemometer_m`: its `_get()` refuses a LOCKED URL, so it does NOT keep a LOCKED buoy's metadata.
+- **New test:** both `anemometer_m` lookups take only the height. `station_page.php` also shows the latest observations,
+  and neither lookup prints, logs or writes anything from the page.
+- **A served table is downstream.** `grade_wind_lane_ndbc.py --rows` feeds `sweep_wind_lane_weight.py`, which writes
+  `services/weather_pipeline/wind_lane_skill_weights.json`, the table the served rating's wind lane reads. The committed
+  table is unchanged. The NEXT regeneration will fit without the 15 LOCKED buoys, as #1236 L1 intends (whole buoy, all
+  data). A regeneration moves a served number, so it ships under the house rules (D-065: default ON, kill switch,
+  SCOREBOARD row, guardrail).

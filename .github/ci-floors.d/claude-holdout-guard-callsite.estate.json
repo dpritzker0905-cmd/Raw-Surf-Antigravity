@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 6,
+  "tests": 17,
   "branch": "claude/holdout-guard-callsite",
   "date": "2026-11-24",
-  "note": "guard follow-up: 4 ERDDAP allow_url cases + 2 per-call-site guard tests"
+  "note": "guard follow-up: 4 ERDDAP + 10 encoding-depth/mixed-case allow_url cases; 3 guard tests (per call site x2, anemometer no-log)"
 }

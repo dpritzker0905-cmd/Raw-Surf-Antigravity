@@ -118,11 +118,14 @@ def test_the_guard_catches_a_planted_reader():
 STATION_OBS = re.compile(r"realtime2/|data/historical/|data/stdmet/|view_text_file|download_data|data/5day2|data/derived2"
                          r"|cdip/(?:realtime|archive)/|station_page\.php|cwwcNDBC")
 CALLSITE_REVIEWED = {
-    "scripts/grade_wind_lane_ndbc.py::anemometer_m": "station METADATA (anemometer height from station_page.php), not an "
-                                                     "observation; a LOCKED buoy keeps its metadata",
-    "scripts/wind_lr_obs.py::anemometer_m": "station METADATA for the wind-lr2 freeze; must stay unfenced or a freeze drops "
-                                            "LOCKED buoys for lack of a height (wind-long-range-v2 amendment L1, Freeze order)",
-    "scripts/served_wave_verify_probe_buoys.py::probe": "fetches only through urllib_opener, which refuses a LOCKED URL",
+    "scripts/grade_wind_lane_ndbc.py::anemometer_m": "station METADATA (anemometer height from station_page.php), height "
+                                                     "only (the page also shows observations: never logged or cached, "
+                                                     "pinned below); its _get() transport refuses a LOCKED URL (allow_url)",
+    "scripts/wind_lr_obs.py::anemometer_m": "station METADATA for the wind-lr2 freeze, height only (never logged or cached, "
+                                            "pinned below); must stay unfenced or a freeze drops LOCKED buoys for lack of a "
+                                            "height (wind-long-range-v2 amendment L1, Freeze order)",
+    "scripts/served_wave_verify_probe_buoys.py::probe": "fetches only through _get(), which refuses a LOCKED URL "
+                                                        "(allow_url) before it calls the opener",
     "scripts/wind_lr2_truth.py::save_snapshot": "COLLECTION: archives every station's realtime2 verbatim (LOCKED buoys are "
                                                 "still collected, #1199 section 1a); the snapshot reader drops LOCKED ids",
     "services/weather_pipeline/nearshore_lite/truth.py::realtime_url": "URL builder only; its one fetch path, fetch_realtime, "
@@ -186,3 +189,38 @@ def test_the_call_site_guard_catches_a_second_unfenced_fetch_in_a_fenced_module(
         ""])
     assert _calls_fence(planted)                            # the module-level test is satisfied by `fenced` ...
     assert _station_url_builders(planted) == ["second"]     # ... the call-site test is not
+
+
+def test_anemometer_metadata_lookups_never_log_or_cache_the_page(tmp_path, monkeypatch, capsys, caplog):
+    """station_page.php also SHOWS the latest observations, so the two reviewed metadata lookups (CALLSITE_REVIEWED
+    `anemometer_m`) must take the height and nothing else: no print, no log line, no file written from the page."""
+    import importlib.util
+    import logging
+    sentinel = "WVHT 9.87 m OBSERVATION-SENTINEL"
+    page = f"<b>Anemometer height:</b> 4.1 m above site elevation<br>{sentinel}"
+
+    class R:
+        status_code, text, content = 200, page, page.encode()
+
+    class S:
+        def get(self, url, **kw):
+            return R()
+
+    import tempfile
+    from services import buoy_holdout                       # an unrecorded list: this pins logging, not which ids are locked
+    repo = Path(tempfile.mkdtemp())
+    (repo / buoy_holdout.BUOY_LIST).parent.mkdir(parents=True, exist_ok=True)
+    (repo / buoy_holdout.BUOY_LIST).write_text('{"holdout": {"locked_list": null}, "stations": []}', encoding="utf-8")
+    monkeypatch.setenv(buoy_holdout.ENV_ROOT, str(repo))
+    buoy_holdout.reset_cache()
+    monkeypatch.chdir(tmp_path)
+    caplog.set_level(logging.DEBUG)
+    for rel in ("scripts/wind_lr_obs.py", "scripts/grade_wind_lane_ndbc.py"):
+        spec = importlib.util.spec_from_file_location("anem_" + rel.split("/")[-1][:-3], BACKEND / rel)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        assert mod.anemometer_m(S(), "41004") == 4.1, rel
+    cap = capsys.readouterr()
+    assert sentinel not in cap.out + cap.err + caplog.text
+    assert not [p for p in tmp_path.rglob("*") if p.is_file()]
+    buoy_holdout.reset_cache()
