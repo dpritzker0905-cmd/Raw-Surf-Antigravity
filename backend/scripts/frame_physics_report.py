@@ -39,7 +39,7 @@ def enabled():
     return os.environ.get("FRAME_PHYSICS_CHECK", "1") != "0"
 
 
-def _int_env(name, default):
+def _env_int(name, default):
     try:
         return max(1, int(os.environ.get(name, str(default))))
     except ValueError:
@@ -174,9 +174,9 @@ def main(argv=None):
         report = {"version": 1, "killed": True}
     else:
         try:
-            reader = Reader(_sink_reader(args.frames_dir, args.public_base), _int_env("FRAME_PHYSICS_MAX_FRAMES", 240))
-            report = run_check(reader, step_h=_int_env("FRAME_PHYSICS_LEAD_STEP_H", 24),
-                               max_times=_int_env("FRAME_PHYSICS_MAX_TIMES", 15))
+            reader = Reader(_sink_reader(args.frames_dir, args.public_base), _env_int("FRAME_PHYSICS_MAX_FRAMES", 240))
+            report = run_check(reader, step_h=_env_int("FRAME_PHYSICS_LEAD_STEP_H", 24),
+                               max_times=_env_int("FRAME_PHYSICS_MAX_TIMES", 15))
         except BaseException as e:  # noqa: BLE001 -- report-only: a check failure is reported, never raised
             if isinstance(e, KeyboardInterrupt):
                 raise
