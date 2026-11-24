@@ -753,7 +753,7 @@ jobs:
           sed 's/^/  guard: /' /tmp/guard_files.txt
           FILES=$(tr '\n' ' ' < /tmp/guard_files.txt)
           # Retain slow-phase evidence to distinguish test cost from job setup time.
-          python -m pytest $FILES -q --durations=30 --junitxml=guards.xml
+          python -m pytest $FILES -q -rs --durations=30 --junitxml=guards.xml
 
       # Shrink-only ratchet on COVERAGE, run even when pytest already failed so a collapse in what
       # was collected is reported rather than hidden behind the first red test.
@@ -1356,7 +1356,18 @@ jobs:
           test -s /tmp/chain_files.txt || { echo "::error::--lane chain selected NO files"; exit 1; }
           sed 's/^/  chain: /' /tmp/chain_files.txt
           FILES=$(tr '\n' ' ' < /tmp/chain_files.txt)
-          python -m pytest $FILES -q --junitxml=chain.xml
+          python -m pytest $FILES -q -rs --junitxml=chain.xml
+
+      # The chain lane allows a few skips; -rs names them in the log, and this keeps the per-test junit record (which test
+      # passed, which skipped and why) inspectable after the run (advisor, #1271). Test selection and floors are unchanged.
+      - name: Preserve the chain lane's junit record
+        if: always() && needs.changes.outputs.docs_only != 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: chain-junit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: backend/chain.xml
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: "🔍 Assert the forecast-chain guards actually ran"
         if: always() && needs.changes.outputs.docs_only != 'true'
@@ -2059,7 +2070,7 @@ jobs:
           python scripts/ci_test_lanes.py --lane estate > /tmp/estate_files.txt
           sed 's/^/  estate: /' /tmp/estate_files.txt
           FILES=$(tr '\n' ' ' < /tmp/estate_files.txt)
-          python -m pytest $FILES -q --timeout=120 --junitxml=estate.xml \
+          python -m pytest $FILES -q -rs --timeout=120 --junitxml=estate.xml \
             -p tests.sqlite_lifecycle_census --sqlite-lifetime-report=sqlite-lifetime.json \
             -W error::pytest.PytestUnhandledThreadExceptionWarning \
             -W error::pytest.PytestUnraisableExceptionWarning
