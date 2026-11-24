@@ -294,33 +294,6 @@ jobs:
         if: ${{ !cancelled() && steps.rated_publish.outcome == 'failure' }}
         run: echo "::warning title=Rated static frames publish failed::publish_frame_images.py --only rated exited non-zero; the published rated indexes stay. See the Rated static frames summary."
 
-      # FRAME PHYSICS CHECK (2026-11-23, check lane; services/frame_physics_check.py). REPORT-ONLY: AFTER both frames steps it reads
-      # what was just published (latest.json -> the GFS / ICON / EURO world marine indexes -> a sample of frames: lead 0, then one
-      # every 24 h) and reports four laws per model: partition Hs <= total Hs, sum of partition energies <= total energy, no valid
-      # cell at 0 m / 0 s, one source and one run per model button. It writes nothing to any bucket, never changes a value and
-      # exits 0 whatever it finds; the table goes to the run summary and the JSON to the artifact `frame-physics-report`.
-      # Egress ~10 MB a run (162 frames measured on the public bucket 2026-11-23). ON; KILL: repository variable FRAME_PHYSICS_CHECK = '0'.
-      - name: Frame physics check (report-only; kill FRAME_PHYSICS_CHECK=0)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_PHYSICS_CHECK || '1') != '0' }}
-        continue-on-error: true
-        timeout-minutes: 10
-        working-directory: backend
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          FRAME_PHYSICS_CHECK: ${{ vars.FRAME_PHYSICS_CHECK || '1' }}
-        run: python scripts/frame_physics_report.py --out frame_physics_report.json
-
-      - name: Upload the frame physics report
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_PHYSICS_CHECK || '1') != '0' }}
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: frame-physics-report-${{ github.run_id }}-${{ github.run_attempt }}
-          path: backend/frame_physics_report.json
-          if-no-files-found: ignore
-          retention-days: 30
-
       # RASTER STATIC FRAMES (2026-10-23, free-GRIB raster phase 1, services/frame_set_raster.py): GFS mean-sea-level pressure
       # (NOAA pgrb2.0p25 PRMSL by .idx byte range from AWS Open Data, every second point = 720 x 361 at 0.5 deg, f000-f336 every
       # 3 h) as RSWF frames in the same public bucket, set GFS/weather/pressure/global_0p5. Its OWN step, after the frames step
@@ -765,6 +738,34 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_OFFSET_PRODUCT: ${{ vars.FRAME_OFFSET_PRODUCT || '0' }}
         run: python scripts/publish_raster_frames.py --offset
+
+      # FRAME PHYSICS CHECK (2026-11-23, check lane; services/frame_physics_check.py). REPORT-ONLY: the LAST step of this job (after every
+      # raster step, so it can never take their time; advisor, #1264), it reads
+      # what was just published (latest.json -> the GFS / ICON / EURO world marine indexes -> a sample of frames: lead 0, then one
+      # every 24 h) and reports four laws per model: partition Hs <= total Hs, sum of partition energies <= total energy, no valid
+      # cell at 0 m / 0 s, one source and one run per model button. It writes nothing to any bucket, never changes a value and
+      # exits 0 whatever it finds; the table goes to the run summary and the JSON to the artifact `frame-physics-report`.
+      # Egress ~10 MB a run (162 frames measured on the public bucket 2026-11-23). ON; KILL: repository variable FRAME_PHYSICS_CHECK = '0'.
+      - name: Frame physics check (report-only; kill FRAME_PHYSICS_CHECK=0)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_PHYSICS_CHECK || '1') != '0' }}
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: backend
+        env:
+          # READ-ONLY: anonymous GETs on the PUBLIC frames bucket (what a browser reads); no service-role key is given to this step.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          FRAME_PHYSICS_CHECK: ${{ vars.FRAME_PHYSICS_CHECK || '1' }}
+        run: python scripts/frame_physics_report.py --public-base "$SUPABASE_URL/storage/v1/object/public/weather-frames" --out frame_physics_report.json
+
+      - name: Upload the frame physics report
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_PHYSICS_CHECK || '1') != '0' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: frame-physics-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: backend/frame_physics_report.json
+          if-no-files-found: ignore
+          retention-days: 30
 
   # SERVED-WAVE VERIFY SAMPLER (gate docs/weather-program/gates/served-wave-verify-v1.md, sections 2 and 2a). DARK: skipped
   # unless the repo variable SERVED_WAVE_VERIFY is '1' (default '0' until the owner's word). It runs AFTER the publish, sees

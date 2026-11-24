@@ -299,3 +299,17 @@ def test_script_frame_cap_bounds_egress(tmp_path, monkeypatch):
 def test_tolerances_are_the_rescans_and_far_above_the_codec():
     assert fpc.TOL_PARTITION_M >= 50 * fb.TOLERANCE[fb.HEIGHT]
     assert math.isclose(fpc.TOL_ENERGY_FRAC, 0.10) and math.isclose(fpc.MIN_TOTAL_M, 0.25)
+
+
+def test_workflow_step_is_read_only_and_runs_after_every_raster_step():
+    """Advisor limits on #1264: the step holds no service-role key (it reads the PUBLIC bucket anonymously) and is the last
+    step of the ingest job, after every raster publish, so it can never take their time."""
+    from pathlib import Path
+    wf = (Path(__file__).resolve().parents[2] / ".github/workflows/forecast-ingest-pilots.yml").read_text(encoding="utf-8")
+    job = wf.split("\n  served-wave-verify-sample:")[0]
+    start = job.index("- name: Frame physics check")
+    step = job[start:job.index("- name: Upload the frame physics report")]
+    assert "SUPABASE_SERVICE_ROLE_KEY" not in step
+    assert "--public-base" in step and "continue-on-error: true" in step
+    assert "publish_raster_frames.py" not in job[start:]          # no raster step after it
+    assert job.rindex("publish_raster_frames.py") < start

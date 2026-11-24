@@ -2,7 +2,7 @@
 """Per-run PHYSICAL-CONSISTENCY report of the published world marine frames (2026-11-23). REPORT-ONLY, ON, kill switch.
 
 Runs in forecast-ingest-pilots.yml AFTER the frames steps: reads v1/latest.json and the world (`global_mid`) marine run indexes
-of GFS, ICON and EURO from the frames bucket, decodes a SAMPLE of their frames (lead 0, then one every
+of GFS, ICON and EURO from the PUBLIC frames bucket (anonymous GETs, --public-base; no key), decodes a SAMPLE of their frames (lead 0, then one every
 FRAME_PHYSICS_LEAD_STEP_H hours, default 24, to the end of each set) and applies the four rules of services/frame_physics_check.py:
 partition <= total, energy closure, no valid zero, one source and one run per model button. Writes the JSON report to --out (the
 workflow uploads it as an artifact) and a table to $GITHUB_STEP_SUMMARY.
@@ -132,7 +132,7 @@ def run_check(reader, step_h=24, max_times=15, models=MODELS):
 
 def _public_reader(base):
     """Anonymous GETs on the PUBLIC frames bucket (what a browser reads): `base` = <SUPABASE_URL>/storage/v1/object/public/weather-frames.
-    For offline sanity runs; the workflow reads through the publisher's own sink."""
+    The workflow reads this way (advisor, #1264): a read-only check holds no service-role key."""
     import urllib.error
     import urllib.request
 
@@ -159,7 +159,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--frames-dir", help="offline: a publish_frame_images --out-dir instead of the frames bucket")
     ap.add_argument("--public-base",
-                    help="offline: read the PUBLIC bucket anonymously at this base URL "
+                    help="read the PUBLIC bucket anonymously at this base URL (the workflow's mode) "
                          "(<SUPABASE_URL>/storage/v1/object/public/weather-frames)")
     ap.add_argument("--out", default="frame_physics_report.json", help="where the JSON report is written")
     args = ap.parse_args(argv)

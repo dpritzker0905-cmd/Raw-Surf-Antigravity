@@ -208,6 +208,13 @@ PR. Flip ON only after the reliability lane's manifest fix lands and coverage ex
   nearshore buoys' measured Hs at the MOP points (the replay's `hs_station` quantity), paired, with a 95 % bootstrap
   interval on the MAE difference that must not exclude "not worse"; scatter reported, not only MAE.
 
+**Advisor limits on #1264 (2026-11-24).**
+- **Plan 2 B1 needs a release:** the label touches `frontend/src/components/map/MapWeatherControls.js`, which is
+  Codex-reserved. B1 cannot start until Codex or David releases that file; the plan says so and waits for it.
+- **Plan 1 changes SERVED partitions:** the total stays bit-identical, but the tail's served swell_1, swell_2 and
+  wind_waves heights change wherever the projection scales them. At flip time David must be told that in plain words
+  (which layers, which hours, the share of cells scaled), not only that "the total is unchanged".
+
 **Cross-cutting (SubQ).** The physics check is the sanity tester for all three flags: a `decide()` sanity input
 "violations of this flag's rule rose while the flag is on" disables it. That is the second D-090 test; the first
 (a WORSE replay disables it) needs the archives above, which is why each fix stays dark until they exist.
