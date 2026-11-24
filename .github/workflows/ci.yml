@@ -1358,6 +1358,17 @@ jobs:
           FILES=$(tr '\n' ' ' < /tmp/chain_files.txt)
           python -m pytest $FILES -q -rs --junitxml=chain.xml
 
+      # The chain lane allows a few skips; -rs names them in the log, and this keeps the per-test junit record (which test
+      # passed, which skipped and why) inspectable after the run (advisor, #1271). Test selection and floors are unchanged.
+      - name: Preserve the chain lane's junit record
+        if: always() && needs.changes.outputs.docs_only != 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: chain-junit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: backend/chain.xml
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: "🔍 Assert the forecast-chain guards actually ran"
         if: always() && needs.changes.outputs.docs_only != 'true'
         working-directory: backend
