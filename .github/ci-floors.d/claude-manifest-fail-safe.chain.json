@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 8,
+  "files": 0,
+  "branch": "claude/manifest-fail-safe",
+  "date": "2026-11-24",
+  "note": "D-090 guardrail refuses a non-200 manifest, snapshot drift (test_flag_guardrail)"
+}
