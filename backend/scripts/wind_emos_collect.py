@@ -112,13 +112,16 @@ def daily_plan(session, now: datetime, done: set, report: dict, waits=None):
     - TODAY: stored -> skip; reachable -> collect; not reachable -> `not_yet_due` before PUBLISH_BY_H (green), otherwise
       `unavailable` (red).
     - YESTERDAY, ALWAYS: stored -> skip; reachable -> collect; otherwise `unavailable` (red). A dropped scheduled run is
-      caught the next day (advisor HOLD on #1255). The ENS stays on the AWS mirror, so a backfill slice recovers it.
-    - The LOOKBACK_DAYS before yesterday: missing runs are listed in `missing_recent` (a report, not a failure).
+      caught the next day (advisor HOLD on #1255).
+    - The DAY BEFORE YESTERDAY, ALWAYS: stored -> skip; reachable (the AWS mirror keeps the ENS) -> COLLECT, so two
+      consecutive dropped runs lose nothing; truly unreachable -> `missed_gap` (red). A day truly gone turns TWO consecutive
+      runs red, first as yesterday and then as the day before yesterday (advisor limit (a) on #1258).
+    - The LOOKBACK_DAYS before that: missing runs are listed in `missing_recent` (a report, never red).
     2026-11-16: a 503 from the mirror lost that day."""
     waits = PROBE_WAITS if waits is None else waits
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     out = []
-    for day, is_today in ((today, True), (today - timedelta(days=1), False)):
+    for k, day in enumerate((today, today - timedelta(days=1), today - timedelta(days=2))):
         name = f"{day:%Y%m%d%H}.npz"
         if name in done:
             report["skipped"].append(name)
@@ -126,11 +129,13 @@ def daily_plan(session, now: datetime, done: set, report: dict, waits=None):
         base = _probe(session, day, waits)
         if base:
             out.append((day, base))
-        elif is_today and now < today + timedelta(hours=PUBLISH_BY_H):
+        elif k == 0 and now < today + timedelta(hours=PUBLISH_BY_H):
             report.setdefault("not_yet_due", []).append(f"{day:%Y%m%d%H}")
+        elif k == 2:
+            report.setdefault("missed_gap", []).append(f"{day:%Y%m%d%H}")
         else:
             report["unavailable"].append(f"{day:%Y%m%d%H}")
-    for k in range(2, 2 + LOOKBACK_DAYS):
+    for k in range(3, 3 + LOOKBACK_DAYS):
         d = today - timedelta(days=k)
         if f"{d:%Y%m%d%H}.npz" not in done:
             report.setdefault("missing_recent", []).append(f"{d:%Y%m%d%H}")
@@ -207,9 +212,9 @@ def main(argv=None) -> int:
 def daily_status(report: dict) -> int:
     """3 (red) when the daily job missed a run, unreachable or dropped; 0 otherwise. Loud AFTER the run files are written,
     so the workflow's upload step (which runs on failure too) still stores what was collected."""
-    if report["unavailable"] or report["dropped"]:
-        print(f"::error::daily EMOS run not collected: unavailable {report['unavailable']}, dropped "
-              f"{[d['run'] for d in report['dropped']]}", flush=True)
+    if report["unavailable"] or report["dropped"] or report.get("missed_gap"):
+        print(f"::error::daily EMOS run not collected: unavailable {report['unavailable']}, missed gap "
+              f"{report.get('missed_gap', [])}, dropped {[d['run'] for d in report['dropped']]}", flush=True)
         return 3
     return 0
 

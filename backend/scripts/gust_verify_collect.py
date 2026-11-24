@@ -334,21 +334,27 @@ def plan_daily(model, today, done, report, waits=None, now=None):
     - YESTERDAY, ALWAYS, whatever today did and whatever the clock: stored -> skip; available -> collect; otherwise
       `unavailable` (red). GitHub drops scheduled runs, and ICON keeps only its latest run, so a dropped day-D run is caught
       by day D+1 here, never lost green (advisor HOLD on #1255).
-    - The LOOKBACK_DAYS before yesterday: a missing key is listed in `missing_recent`. That is a report, not a failure.
+    - The DAY BEFORE YESTERDAY, ALWAYS: stored -> skip; still available (GFS and EURO usually are) -> COLLECT it, so two
+      consecutive dropped runs lose nothing; truly gone -> `missed_gap` (red).
+      Stated plainly (advisor limit (a) on #1258): a day that is truly gone turns TWO consecutive runs red, first as
+      yesterday (`unavailable`) and then as the day before yesterday (`missed_gap`). Further back it is report-only.
+    - The LOOKBACK_DAYS before that: a missing key is listed in `missing_recent` (a report, never red).
     2026-11-22: one failed HEAD for ICON's 00Z sent the old loop to the stored yesterday, and the day was lost green."""
     out = []
-    y = today - timedelta(days=1)
-    for day, is_today in ((today, True), (y, False)):
+    for k, day in enumerate((today, today - timedelta(days=1), today - timedelta(days=2))):
         key = f"cycles/{model.name}_{day:%Y%m%d%H}.json.gz"
+        label = f"{model.name} {day:%Y%m%d%H}"
         if key in done:
             report["skipped"].append(key)
         elif available_retried(model, day, waits):
             out.append((model, day, key))
-        elif is_today and now is not None and now < today + timedelta(hours=PUBLISH_BY_H):
-            report.setdefault("not_yet_due", []).append(f"{model.name} {day:%Y%m%d%H}")
+        elif k == 0 and now is not None and now < today + timedelta(hours=PUBLISH_BY_H):
+            report.setdefault("not_yet_due", []).append(label)
+        elif k == 2:
+            report.setdefault("missed_gap", []).append(label)
         else:
-            report["unavailable"].append(f"{model.name} {day:%Y%m%d%H}")
-    for k in range(2, 2 + LOOKBACK_DAYS):
+            report["unavailable"].append(label)
+    for k in range(3, 3 + LOOKBACK_DAYS):
         d = today - timedelta(days=k)
         if f"cycles/{model.name}_{d:%Y%m%d%H}.json.gz" not in done:
             report.setdefault("missing_recent", []).append(f"{model.name} {d:%Y%m%d%H}")
@@ -508,9 +514,10 @@ def main(argv=None):
         report["obs"] = {"key": okey, "stations": len(got), "missing": missing}
         print(f"{okey}: {len(got)} stations, {len(missing)} without a file", flush=True)
     open(os.path.join(a.cache, f"collect_report_{a.cmd}.json"), "w").write(buoy_holdout.redact(json.dumps(report, indent=1)))
-    if report["unavailable"]:              # loud, AFTER the collected files are written (the upload step runs on failure too)
+    missed = report["unavailable"] + report.get("missed_gap", [])
+    if missed:                             # loud, AFTER the collected files are written (the upload step runs on failure too)
         level = "warning" if a.report_only else "error"
-        print(buoy_holdout.redact(f"::{level}::run not collected: {', '.join(report['unavailable'])}"), flush=True)
+        print(buoy_holdout.redact(f"::{level}::run not collected: {', '.join(missed)}"), flush=True)
         return 0 if a.report_only else 3
     return 0
 
