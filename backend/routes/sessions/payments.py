@@ -6,6 +6,7 @@ import os
 import stripe
 import stripe_mcp_server
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from fastapi import Depends, HTTPException, APIRouter
 from fastapi.responses import JSONResponse
@@ -37,7 +38,10 @@ async def save_paid_seat_review(db, tx):
         await db.commit()
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Could not confirm the payment review. Check with support before paying again.") from exc
-    return JSONResponse(status_code=409, content={"detail": REVIEW_MESSAGE, "support_ticket_id": ticket_id})
+    message = REVIEW_MESSAGE if tx.status != "verification_required" else (
+        "We could not verify this checkout. Check your support inbox before paying again."
+    )
+    return JSONResponse(status_code=409, content={"detail": message, "support_ticket_id": ticket_id})
 
 
 async def mark_paid_seat_review(db, tx, metadata, reason):
@@ -45,6 +49,39 @@ async def mark_paid_seat_review(db, tx, metadata, reason):
     tx.status = "review_required"
     tx.transaction_metadata = json.dumps({**metadata, "review_reason": reason})
     return await save_paid_seat_review(db, tx)
+
+
+async def recover_legacy_receipt(db, tx, saved):
+    """Attach an existing seat only when no other checkout could have purchased it."""
+    session_id, photographer_id = saved.get("live_session_id"), saved.get("photographer_id")
+    if not session_id or not photographer_id:
+        return None
+    seats = (await db.scalars(select(LiveSessionParticipant.id).where(
+        LiveSessionParticipant.surfer_id == tx.user_id,
+        LiveSessionParticipant.photographer_id == photographer_id,
+        LiveSessionParticipant.live_session_id == session_id,
+        LiveSessionParticipant.payment_method == "card",
+        LiveSessionParticipant.amount_paid == tx.amount,
+    ).limit(2).with_for_update())).all()
+    if len(seats) != 1:
+        return None
+    other_attempts = await db.scalars(select(PaymentTransaction.transaction_metadata).where(
+        PaymentTransaction.user_id == tx.user_id, PaymentTransaction.id != tx.id,
+        PaymentTransaction.amount == tx.amount,
+        PaymentTransaction.transaction_metadata.contains('"live_session_join"'),
+    ))
+    for raw in other_attempts:
+        try:
+            other = json.loads(raw)
+        except (TypeError, ValueError):
+            return None
+        if not isinstance(other, dict) or other.get("settled_participant_id") == seats[0]:
+            return None
+        if other.get("photographer_id") == photographer_id and other.get("live_session_id") in (None, session_id):
+            return None
+    tx.transaction_metadata = json.dumps({**saved, "settled_participant_id": seats[0]})
+    await db.commit()
+    return {"success": True, "message": "Session already activated", "session_id": seats[0]}
 
 
 async def refund_live_seat(db, tx, metadata, checkout_id, intent, emulated):
@@ -125,6 +162,7 @@ async def settle_live_seat(db, checkout_id, current_user_id, *, unattended=False
     if provider == "emulator" and not used_emulator:
         raise HTTPException(status_code=409, detail="Test checkout must be restarted")
     payment_intent_id = None
+    missing_resource = False
     refund_successful = False
     
     try:
@@ -168,24 +206,30 @@ async def settle_live_seat(db, checkout_id, current_user_id, *, unattended=False
             checkout_session = MockSession(metadata, payment_status, payment_intent_id)
         else:
             # Retrieve the Stripe checkout session
-            checkout_session = await asyncio.to_thread(stripe.checkout.Session.retrieve, checkout_id)
-            
-            if checkout_session.payment_status != 'paid':
-                if unattended:
-                    if getattr(checkout_session, "status", None) == "expired":
-                        await db.execute(update(PaymentTransaction).where(
-                            PaymentTransaction.session_id == checkout_id,
-                            PaymentTransaction.user_id == current_user_id,
-                            PaymentTransaction.payment_status.in_(("Pending", "Abandoned")),
-                        ).values(payment_status="Expired", status="Expired"))
-                        await db.commit()
-                    return {"status": "unpaid"}
-                raise HTTPException(status_code=400, detail="Payment not completed")
-                
-            payment_intent_id = getattr(checkout_session, 'payment_intent', None)
-            if not payment_intent_id and isinstance(checkout_session, dict):
-                payment_intent_id = checkout_session.get("payment_intent")
-        
+            try:
+                checkout_session = await asyncio.to_thread(stripe.checkout.Session.retrieve, checkout_id)
+            except stripe.error.InvalidRequestError as exc:
+                if exc.code != "resource_missing":
+                    raise
+                missing_resource = True
+            if not missing_resource:
+
+                if checkout_session.payment_status != 'paid':
+                    if unattended:
+                        if getattr(checkout_session, "status", None) == "expired":
+                            await db.execute(update(PaymentTransaction).where(
+                                PaymentTransaction.session_id == checkout_id,
+                                PaymentTransaction.user_id == current_user_id,
+                                PaymentTransaction.payment_status.in_(("Pending", "Abandoned")),
+                            ).values(payment_status="Expired", status="Expired"))
+                            await db.commit()
+                        return {"status": "unpaid"}
+                    raise HTTPException(status_code=400, detail="Payment not completed")
+
+                payment_intent_id = getattr(checkout_session, 'payment_intent', None)
+                if not payment_intent_id and isinstance(checkout_session, dict):
+                    payment_intent_id = checkout_session.get("payment_intent")
+
         # ============ ATOMIC IDEMPOTENCY CHECK WITH ROW LOCK ============
         # Use FOR UPDATE to lock the row while we check and update status
         # This prevents concurrent requests from both passing the check
@@ -204,14 +248,10 @@ async def settle_live_seat(db, checkout_id, current_user_id, *, unattended=False
         if locked_checkout.get("type") != "live_session_join":
             raise HTTPException(status_code=409, detail="Invalid saved live checkout")
         # If already completed, return success (idempotent)
-        if tx.payment_status == 'Completed':
-            receipt = {"success": True, "message": "Session already activated"}
-            participant_id = locked_checkout.get("settled_participant_id")
-            if not participant_id:
-                return await mark_paid_seat_review(db, tx, locked_checkout, "missing_seat_receipt")
-            receipt["session_id"] = participant_id
-            return receipt
-            
+        if tx.payment_status == 'Completed' and locked_checkout.get("settled_participant_id"):
+            return {"success": True, "message": "Session already activated",
+                    "session_id": locked_checkout["settled_participant_id"]}
+
         # If already refunded, raise error
         if tx.payment_status == 'Refunded':
             if unattended:
@@ -221,14 +261,16 @@ async def settle_live_seat(db, checkout_id, current_user_id, *, unattended=False
             if is_paid_seat_review(tx, locked_checkout):
                 return await save_paid_seat_review(db, tx)
             raise HTTPException(status_code=409, detail=REVIEW_MESSAGE)
+        if tx.status == "verification_required" or missing_resource:
+            tx.status = "verification_required"
+            tx.transaction_metadata = json.dumps({**locked_checkout, "review_reason": "checkout_unverifiable"})
+            return await save_paid_seat_review(db, tx)
         metadata = checkout_session.metadata or {}
         surfer_id = metadata.get("surfer_id")
         photographer_id = metadata.get("photographer_id")
         amount = clean_amount(metadata.get("amount"))
         bound_session_id = locked_checkout.get("live_session_id")
         provider = locked_checkout.get("checkout_provider")
-        if not used_emulator and provider != "stripe":
-            return await mark_paid_seat_review(db, tx, locked_checkout, "unverified_binding")
         if (
             metadata.get("type") != "live_session_join"
             or surfer_id != current_user_id or not photographer_id or amount is None
@@ -248,6 +290,31 @@ async def settle_live_seat(db, checkout_id, current_user_id, *, unattended=False
         ):
             return await mark_paid_seat_review(db, tx, locked_checkout, "checkout_mismatch")
 
+        if tx.payment_status == "Completed":
+            # For receipts predating provider references, require independent provider
+            # agreement before attributing any existing seat to this purchase.
+            if not used_emulator and (
+                checkout_session.id == checkout_id and checkout_session.mode == "payment"
+                and amount == clean_amount(tx.amount) and checkout_session.currency == tx.currency
+                and checkout_session.amount_total == int(round(amount * 100))
+                and isinstance(payment_intent_id, str) and payment_intent_id
+            ):
+                refunds = await asyncio.to_thread(stripe.Refund.list, payment_intent=payment_intent_id, limit=1)
+                if refunds.data:
+                    return await mark_paid_seat_review(db, tx, locked_checkout, "refund_unconfirmed")
+                receipt = await recover_legacy_receipt(db, tx, locked_checkout)
+                if receipt is not None:
+                    return receipt
+            return await mark_paid_seat_review(db, tx, locked_checkout, "missing_seat_receipt")
+        if not used_emulator and provider != "stripe":
+            return await mark_paid_seat_review(db, tx, locked_checkout, "unverified_binding")
+        # Old purchases may already have been handled manually. Never issue a
+        # new seat or refund automatically when the compensation history is uncertain.
+        created_at = tx.created_at
+        if created_at and created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        if created_at is None or created_at < datetime.now(timezone.utc) - timedelta(days=7):
+            return await mark_paid_seat_review(db, tx, locked_checkout, "historical_checkout")
         if not used_emulator:
             # A paid Checkout Session stays paid even after a refund. Recheck the
             # intent under the checkout lock before granting a fresh seat.

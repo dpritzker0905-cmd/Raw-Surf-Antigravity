@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, timezone
 import sqlite3
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -73,6 +74,7 @@ async def test_complete_payment_database_error_refunds_stripe_live(monkeypatch):
     mock_tx = MagicMock(spec=PaymentTransaction)
     mock_tx.payment_status = "Pending"
     mock_tx.status = "Pending"
+    mock_tx.created_at = datetime.now(timezone.utc)
     mock_tx.user_id = "usr_surfer"
     mock_tx.transaction_metadata = json.dumps({
         "type": "live_session_join",
@@ -189,6 +191,7 @@ async def test_complete_payment_database_error_refunds_stripe_mock(monkeypatch):
     mock_tx = MagicMock(spec=PaymentTransaction)
     mock_tx.payment_status = "Pending"
     mock_tx.status = "Pending"
+    mock_tx.created_at = datetime.now(timezone.utc)
     mock_tx.user_id = "usr_surfer"
     mock_tx.transaction_metadata = json.dumps({
         "type": "live_session_join",

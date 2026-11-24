@@ -33,12 +33,15 @@ async def paid_seat_ticket(db, tx):
         return ticket_id
 
     priority = TicketPriorityEnum.HIGH
+    unverified = tx.status == "verification_required"
+    payment_summary = ("We could not verify this checkout with the payment provider." if unverified
+                       else f"We received your payment of {tx.amount:.2f} {tx.currency.upper()}.")
     db.add(SupportTicket(
         id=ticket_id, ticket_number=await generate_ticket_number(db), user_id=tx.user_id,
         related_transaction_id=tx.id, category=TicketCategoryEnum.BILLING, priority=priority,
-        sla_due_at=calculate_sla_due(priority), tags=["live-seat", "paid-review"],
-        subject="Paid for a live session but did not receive a seat",
-        description=(f"We received your payment of {tx.amount:.2f} {tx.currency.upper()}. "
+        sla_due_at=calculate_sla_due(priority), tags=["live-seat", "verification-review" if unverified else "paid-review"],
+        subject="Live session checkout needs verification" if unverified else "Paid for a live session but did not receive a seat",
+        description=(f"{payment_summary} "
                      "Your original live session could not be confirmed. Support will follow up "
                      "in this ticket. Please do not pay again for this session."),
     ))
@@ -53,6 +56,6 @@ def is_paid_seat_review(tx, metadata):
         and isinstance(metadata, dict) and metadata.get("type") == "live_session_join"
         and metadata.get("review_reason") in (
             "original_session_unavailable", "missing_original_session", "refund_unconfirmed",
-            "checkout_mismatch", "unverified_binding", "missing_seat_receipt",
+            "checkout_mismatch", "unverified_binding", "missing_seat_receipt", "historical_checkout",
         )
     )
