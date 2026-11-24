@@ -50,15 +50,18 @@ def total_direction(arr, partition_pairs, total_h, hs_native, rs, cs, half, nat)
         total_h_arr=total_h, ramp_lo=DIR_TOTAL_COHERENCE_RAMP_LO, ramp_hi=DIR_TOTAL_COHERENCE_RAMP_HI)
 
 
-def variable(arr, h_arr, is_height, p_h_arr, part_conf, hs_native, rs, cs, half, nat):
+def variable(arr, h_arr, is_height, p_h_arr, part_conf, hs_native, rs, cs, half, nat, part_support="finite"):
     """One variable's reduction for nodes (rs, cs): (values, partition confidences or None), or None when the variable has no
     reduction (the caller then samples arr[r, c], as the loop always did).
     h_arr: the height weighting a DIRECTION (None otherwise); is_height: a height (block RMS); p_h_arr: the height weighting a
-    PERIOD; part_conf: export the partition's R x coverage confidence with its direction."""
+    PERIOD; part_conf: export the partition's R x coverage confidence with its direction; part_support: its coverage
+    denominator, "finite" (as always) or "height" (_fetch_partition_mask Fix B: zero-filled subcells count too)."""
+    import functools
     import numpy as np
     reduces = h_arr is not None or is_height or p_h_arr is not None
     if nat and reduces:   # the exact native cell; a LAND cell answers from its centred 3x3
-        bt, fn, gr = ((partition_dir_conf_batch, energy_mean_direction_block_partition_conf, (arr, h_arr))
+        bt, fn, gr = ((functools.partial(partition_dir_conf_batch, support=part_support),
+                       functools.partial(energy_mean_direction_block_partition_conf, support=part_support), (arr, h_arr))
                       if h_arr is not None and part_conf else
                       (direction_block_batch, energy_mean_direction_block, (arr, h_arr)) if h_arr is not None else
                       (height_block_batch, energy_mean_height_block, (arr,)) if is_height else
@@ -69,7 +72,8 @@ def variable(arr, h_arr, is_height, p_h_arr, part_conf, hs_native, rs, cs, half,
     if h_arr is not None and part_conf:
         return partition_dir_conf_batch(
             arr, h_arr, rs, cs, half, True,
-            lambda _r, _c, _h=half: energy_mean_direction_block_partition_conf(arr, h_arr, _r, _c, _h, True))
+            lambda _r, _c, _h=half: energy_mean_direction_block_partition_conf(arr, h_arr, _r, _c, _h, True, part_support),
+            support=part_support)
     if h_arr is not None:
         return direction_block_batch(
             arr, h_arr, rs, cs, half, True,

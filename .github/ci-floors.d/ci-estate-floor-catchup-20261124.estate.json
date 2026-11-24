@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 18,
+  "branch": "ci/estate-floor-catchup-20261124",
+  "date": "2026-11-24",
+  "note": "catch-up: dev estate MIN_PASSED 4737 vs 4757 observed (run 45439356346); unfragmented: +1 #1155, +2 #1234, +15 #1228; no tests added here"
+}

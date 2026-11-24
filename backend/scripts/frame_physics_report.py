@@ -83,18 +83,25 @@ def _axes(head):
     return lat, lng
 
 
-def run_check(reader, step_h=24, max_times=15, models=MODELS):
-    """The report dict (no I/O beyond `reader`)."""
+def run_check(reader, step_h=24, max_times=15, models=MODELS, fresh_since=None):
+    """The report dict (no I/O beyond `reader`). `fresh_since` (the guardrail, flag_guardrail.PHYSICS): a layer whose index was
+    registered before it is SKIPPED and named in `stale_skipped`, so the fresh layers are judged on their own."""
     latest = reader.json(LATEST) or {}
     sets = latest.get("sets") or {}
-    prov_rows, time_rows, indexes_read = [], [], {}
+    prov_rows, time_rows, indexes_read, run_times, stale = [], [], {}, {}, {}
     for model in models:
         indexes = {}
         for layer in fpc.MARINE_LAYERS:
             rec = sets.get(set_key(model, layer)) or {}
             if rec.get("index"):
-                indexes[layer] = reader.json(rec["index"])
+                idx = reader.json(rec["index"])
+                rt = (idx or {}).get("run_time")                                      # registration time (the guard)
+                if fresh_since and (rt or "") < fresh_since:
+                    stale[set_key(model, layer)] = rt
+                    continue
+                indexes[layer] = idx
                 indexes_read[set_key(model, layer)] = rec["index"]
+                run_times[set_key(model, layer)] = rt
         if not indexes:
             continue
         prov_rows.append(fpc.provenance(model, indexes))
@@ -124,7 +131,7 @@ def run_check(reader, step_h=24, max_times=15, models=MODELS):
             time_rows.append(row)
     summary = fpc.summarize(prov_rows, time_rows)
     return {"version": 1, "checked_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "latest_written_at": latest.get("written_at"), "indexes": indexes_read,
+            "latest_written_at": latest.get("written_at"), "indexes": indexes_read, "index_run_times": run_times, "stale_skipped": stale,
             "lead_step_h": step_h, "summary": summary, "verdicts": fpc.verdicts(summary),
             "provenance": prov_rows, "times": time_rows, "frames_read": reader.frames_read,
             "frames_capped": reader.frames_capped, "bytes_read": reader.bytes_read}
