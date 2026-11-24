@@ -94,7 +94,7 @@ def _recent(closed, now: datetime):
 
 
 def decide(severity: str, reasons, open_issues, run_url: str = "", force: bool = False, recent_closed=None,
-           now: datetime = None) -> dict:
+           now: datetime = None, census_skipped: bool = False) -> dict:
     """The one action for the workflow. `open_issues` / `recent_closed`: [{number, title, labels:[{name}], closedAt}]."""
     now = now or datetime.now(timezone.utc)
     prefix = TEST_TAG if force else ""
@@ -130,6 +130,11 @@ def decide(severity: str, reasons, open_issues, run_url: str = "", force: bool =
     have = max((_rank(n.split(":", 1)[1]) for n in have_labels if n.startswith("severity:")), default=0)
     recovering = RECOVERING in have_labels
     if severity == "none":
+        if census_skipped:
+            # OFF-CADENCE (advisor, #1263): the regional census did not run, so "healthy" here is only half a reading. It
+            # neither advances `recovering` nor closes: an issue a failed census opened would otherwise close after two
+            # health-only runs and reopen at the next census, flapping every 3 h.
+            return dict(base, action="none", number=current["number"], held="census skipped: recovery not advanced")
         if recovering:
             return dict(base, action="close", number=current["number"],
                         body=f"Recovered: two consecutive healthy runs. {('Run: ' + run_url) if run_url else ''}".strip())
@@ -168,8 +173,8 @@ def main(argv=None) -> int:
     else:
         health, code = _load(a.health), a.code
     sev, reasons = assess(health, code, a.page_hours, a.raster, a.regional)
-    json.dump(decide(sev, reasons, _load(a.open_issues) or [], a.run_url, a.force_stale, _load(a.recent_closed) or []),
-              sys.stdout)
+    json.dump(decide(sev, reasons, _load(a.open_issues) or [], a.run_url, a.force_stale, _load(a.recent_closed) or [],
+                     census_skipped=a.regional == "skipped"), sys.stdout)
     return 0
 
 

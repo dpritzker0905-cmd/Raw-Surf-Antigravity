@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 1,
+  "tests": 3,
   "files": 0,
   "branch": "claude/staleness-alert",
   "date": "2026-11-24",
-  "note": "P0 drift issue text (test_flag_guardrail)"
+  "note": "P0 drift issue text + dedicated P0 issue (test_flag_guardrail)"
 }

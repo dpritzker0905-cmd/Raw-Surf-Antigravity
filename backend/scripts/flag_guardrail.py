@@ -660,7 +660,18 @@ def markdown(report: dict) -> str:
                       + "; ".join(f"{k} {a}/{n}" for k, (a, n) in sorted(rates.items())), ""]
     for c in report.get("ledger_commands", []):
         lines += ["", "Ledger line owed (BRAIN_RULES section 23), for the next session's fragment:", "```", c, "```"]
-    drift = report.get("snapshot_drift") or {}
+    return "\n".join(lines + drift_lines(report.get("snapshot_drift") or {})) + "\n"
+
+
+# The DEDICATED P0 issue (advisor, #1263): its own title, so it is never buried as a comment on an old "Flag guardrail"
+# issue. The three guardrail-family titles stay unmatched by each other's searches: "Flag guardrail", "PHYSICS guard
+# blind" (#1267) and this one (no word "flag" or "guardrail" in it; tests/test_flag_guardrail.py pins that).
+P0_DRIFT_TITLE = "P0 cold-start snapshot drift: commit and deploy the kills snapshot within 24 h"
+
+
+def drift_lines(drift: dict) -> list:
+    """The markdown section for a cold-start snapshot drift ([] when none)."""
+    lines = []
     if drift:
         p0 = bool(drift["missing"])
         lines += ["", f"### {'P0 · ' if p0 else ''}Cold-start snapshot drift (D-090)", ""]
@@ -676,7 +687,7 @@ def markdown(report: dict) -> str:
                   f"{', '.join(drift['extra']) or 'none'}. Exact file text for "
                   "`backend/services/runtime_flags_snapshot.json`:", "",
                   "```json", drift["text"].rstrip("\n"), "```"]
-    return "\n".join(lines) + "\n"
+    return lines
 
 
 def main(argv=None) -> int:
@@ -713,6 +724,9 @@ def main(argv=None) -> int:
         d = report.get("snapshot_drift") or {}
         drift = (["P0-cold-start-snapshot-drift-24h"] if d.get("missing") else ["cold-start-snapshot-drift"]) if d else []
         f.write(" ".join(acted + [f"{x}(reported-not-disabled)" for x in reported] + drift))
+    if d.get("missing"):                                # the workflow opens ONE dedicated P0 issue from this file
+        with open(os.path.join(a.out, "p0_drift.md"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("\n".join(drift_lines(d)).lstrip("\n") + "\n")
     return 0
 
 

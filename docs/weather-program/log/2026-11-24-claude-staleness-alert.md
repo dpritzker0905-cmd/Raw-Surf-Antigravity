@@ -43,3 +43,11 @@ probe. Making it run needs an outside account (healthchecks.io or similar), whic
   commit AND deploy the one-file snapshot, says no new served-number fix ships ON while it is open, and gives the exact
   file text. Production (Render) deploys from `dev`: the live `/api/health` version was `f37de972a`, dev's #1261 merge.
   The snapshot protects a cold start only once it is on `dev` and deployed.
+- **Second advisor round.**
+  - (a) An off-cadence run (census skipped) neither advances `recovering` nor closes, so an issue a failed census
+    opened cannot flap every 3 h.
+  - (b) `REGION_CENSUS_EVERY_H` of 0 or a non-number falls back to 3.
+  - (c) A lost served-number kill opens a DEDICATED issue, once, titled "P0 cold-start snapshot drift: commit and
+    deploy the kills snapshot within 24 h" (severity:critical, assigned to the owner). Its title shares no search words
+    with "Flag guardrail" or "PHYSICS guard blind" (#1267), which is pinned. #1267 resolves its `main()` conflict by
+    hand after this lands.

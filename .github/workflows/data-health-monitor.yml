@@ -168,6 +168,7 @@ jobs:
           EVERY_H: ${{ vars.REGION_CENSUS_EVERY_H || '3' }}
           EVENT: ${{ github.event_name }}
         run: |
+          case "$EVERY_H" in ''|*[!0-9]*|0) EVERY_H=3 ;; esac   # 0 or non-numeric would break the modulo: default 3
           h=$(date -u +%-H); m=$(date -u +%-M)
           if [ "$EVENT" = "schedule" ] || { [ $((h % EVERY_H)) -eq 0 ] && [ "$m" -lt 30 ]; }; then due=1; else due=0; fi
           echo "census due: $due (event $EVENT, $(date -u +%H:%M)Z, every ${EVERY_H} h)"

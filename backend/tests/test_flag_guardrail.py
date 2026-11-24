@@ -4,6 +4,7 @@ No network, no storage: the guardrail's scorer, manifest and volume reader are i
 import os
 import random
 import sys
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -316,3 +317,35 @@ def test_drift_that_only_over_holds_is_not_p0_and_the_issue_title_says_which(tmp
         rf_manifest(SURF_TIDE_DEPTH=off), {})))
     fg.main(["--out", str(tmp_path)])
     assert (tmp_path / "acted.txt").read_text(encoding="utf-8") == "P0-cold-start-snapshot-drift-24h"
+
+
+GUARDRAIL_FAMILY_TITLES = {"Flag guardrail": "Flag guardrail: SURF_TIDE_DEPTH",
+                           "PHYSICS guard blind": "PHYSICS guard blind: a check could not run",
+                           "P0 cold-start snapshot drift": fg.P0_DRIFT_TITLE}
+
+
+def test_the_p0_drift_gets_its_own_issue_and_the_titles_never_match_each_others_search(tmp_path, monkeypatch):
+    """Advisor (c) on #1263: a P0 drift is a DEDICATED issue, never a comment buried on an old "Flag guardrail" issue."""
+    off = {"state": "off", "reason": "t", "set_by": fg.SET_BY, "set_at": "x", "evidence": "y"}
+    rep = {"mode": "enforce", "decisions": {}, "results": {},
+           "snapshot_drift": fg.snapshot_drift(rf_manifest(SURF_TIDE_DEPTH=off), {})}
+    monkeypatch.setattr(fg, "run", lambda a: rep)
+    fg.main(["--out", str(tmp_path)])
+    body = (tmp_path / "p0_drift.md").read_text(encoding="utf-8")
+    assert body.startswith("### P0 · Cold-start snapshot drift") and "within 24 h" in body and "```json" in body
+    for search, _ in GUARDRAIL_FAMILY_TITLES.items():   # GitHub `in:title` search is word-based: no title holds another's words
+        words = set(search.lower().split())
+        hits = [t for k, t in GUARDRAIL_FAMILY_TITLES.items() if words <= set(t.lower().replace(":", " ").split())]
+        assert hits == [GUARDRAIL_FAMILY_TITLES[search]], (search, hits)
+    wf = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "flag-guardrail.yml").read_text(encoding="utf-8")
+    assert f'title="{fg.P0_DRIFT_TITLE}"' in wf and '--search "P0 cold-start snapshot drift in:title"' in wf
+    assert '--label "severity:critical"' in wf
+
+
+def test_no_p0_file_without_a_lost_kill(tmp_path, monkeypatch):
+    off = {"state": "off", "reason": "t", "set_by": fg.SET_BY, "set_at": "x", "evidence": "y"}
+    rep = {"mode": "enforce", "decisions": {}, "results": {},
+           "snapshot_drift": fg.snapshot_drift(rf_manifest(), {"SURF_TIDE_DEPTH": off})}   # over-holds only
+    monkeypatch.setattr(fg, "run", lambda a: rep)
+    fg.main(["--out", str(tmp_path)])
+    assert not (tmp_path / "p0_drift.md").exists()

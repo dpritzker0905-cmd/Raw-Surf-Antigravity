@@ -142,3 +142,32 @@ def test_the_render_dispatcher_fires_the_monitor_off_githubs_cron():
     assert fire, why
     fire, _ = WD.decide([], datetime(2026, 11, 24, 9, 5, tzinfo=timezone.utc), slots, grace)
     assert not fire                                                          # inside its grace: GitHub may still fire
+
+
+def test_an_off_cadence_run_never_advances_recovery_so_a_census_issue_does_not_flap():
+    """Advisor (a) on #1263: a regional failure, then two runs where the census was SKIPPED: the issue stays open."""
+    sev, why = sa.assess(FRESH, "200", 7.0, regional="failure")
+    opened = sa.decide(sev, why, [])
+    assert opened["action"] == "open" and sev == "high"
+    issue = _issue(7, "high")
+    for _ in range(2):                                    # health-only runs: the census was skipped (off-cadence)
+        sev, why = sa.assess(FRESH, "200", 7.0, regional="skipped")
+        d = sa.decide(sev, why, [issue], census_skipped=True)
+        assert sev == "none" and d["action"] == "none" and "census skipped" in d["held"]
+    assert sa.decide("none", [], [issue], census_skipped=False)["action"] == "recovering"   # a census run counts
+
+
+def test_the_cli_passes_a_skipped_census_through(tmp_path):
+    (tmp_path / "h.json").write_text(json.dumps(FRESH), encoding="utf-8")
+    (tmp_path / "o.json").write_text(json.dumps([_issue(7, "high")]), encoding="utf-8")
+    out = subprocess.run([sys.executable, str(HERE.parent / "scripts" / "staleness_alert.py"), "--health",
+                          str(tmp_path / "h.json"), "--code", "200", "--regional", "skipped",
+                          "--open-issues", str(tmp_path / "o.json")], capture_output=True, text=True, check=True).stdout
+    assert json.loads(out)["action"] == "none"
+
+
+def test_census_every_h_falls_back_to_3_on_zero_or_garbage():
+    doc = yaml.safe_load(WF.read_text(encoding="utf-8"))
+    run = next(s for s in doc["jobs"]["check"]["steps"] if s.get("id") == "cadence")["run"]
+    assert "case \"$EVERY_H\" in ''|*[!0-9]*|0) EVERY_H=3 ;; esac" in run
+    assert run.index("EVERY_H=3") < run.index("% EVERY_H")
