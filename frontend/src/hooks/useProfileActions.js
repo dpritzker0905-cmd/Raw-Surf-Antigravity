@@ -38,14 +38,21 @@ const useProfileActions = ({
   onFollowMutationStart,
 }) => {
 
-  const fetchProfile = async (retryCount = 0) => {
+  const fetchProfile = async (signal, retryCount = 0) => {
+    if (signal.aborted) return;
     if (!profileUserId) {
       setLoading(false);
       return;
     }
     
+    if (profile?.id !== profileUserId) {
+      setLoading(true);
+      setProfile(null);
+    }
+
     try {
-      const response = await apiClient.get(`/profiles/${profileUserId}`);
+      const response = await apiClient.get(`/profiles/${profileUserId}`, { signal });
+      if (signal.aborted) return;
       setProfile(response.data);
       if (isOwnProfile && user) {
         setEditData({
@@ -60,6 +67,7 @@ const useProfileActions = ({
         });
       }
     } catch (error) {
+      if (signal.aborted) return;
       logger.error('Failed to load profile:', error);
       // Race condition fix: On own profile, the backend row may not be
       // committed yet right after signup/login. Retry up to 3 times with
@@ -68,7 +76,7 @@ const useProfileActions = ({
         const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
         logger.info(`[ProfileRace] Retry ${retryCount + 1}/3 in ${delay}ms`);
         await new Promise(r => setTimeout(r, delay));
-        return fetchProfile(retryCount + 1);
+        return await fetchProfile(signal, retryCount + 1);
       }
       if (error.response?.status === 404) {
         toast.error('User not found');
@@ -77,25 +85,26 @@ const useProfileActions = ({
         toast.error('Failed to load profile');
       }
     } finally {
-      setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   };
 
-  const fetchStreak = async () => {
+  const fetchStreak = async (signal) => {
     try {
-      const response = await apiClient.get(`/streak/${profileUserId}`);
-      setStreak(response.data);
+      const response = await apiClient.get(`/streak/${profileUserId}`, { signal });
+      if (!signal.aborted) setStreak(response.data);
     } catch (error) {
-      logger.error('Error fetching streak:', error);
+      if (!signal.aborted) logger.error('Error fetching streak:', error);
     }
   };
 
-  const fetchSocialStats = async () => {
+  const fetchSocialStats = async (signal) => {
     try {
       const [followersRes, followingRes] = await Promise.all([
-        apiClient.get(`/followers/${profileUserId}`).catch(() => ({ data: [] })),
-        apiClient.get(`/following/${profileUserId}`).catch(() => ({ data: [] }))
+        apiClient.get(`/followers/${profileUserId}`, { signal }).catch(() => ({ data: [] })),
+        apiClient.get(`/following/${profileUserId}`, { signal }).catch(() => ({ data: [] }))
       ]);
+      if (signal.aborted) return;
       setSocialStats({
         followers: followersRes.data?.length || 0,
         following: followingRes.data?.length || 0
@@ -105,30 +114,30 @@ const useProfileActions = ({
     }
   };
 
-  const fetchContentStats = async () => {
+  const fetchContentStats = async (signal) => {
     try {
-      const response = await apiClient.get(`/profile/${profileUserId}/stats`);
-      setContentStats(response.data);
+      const response = await apiClient.get(`/profile/${profileUserId}/stats`, { signal });
+      if (!signal.aborted) setContentStats(response.data);
     } catch (error) {
-      logger.error('Error fetching content stats:', error);
+      if (!signal.aborted) logger.error('Error fetching content stats:', error);
     }
   };
 
-  const fetchImpactScore = async () => {
+  const fetchImpactScore = async (signal) => {
     try {
-      const response = await apiClient.get(`/impact/public/${profileUserId}`);
-      setImpactScore(response.data);
+      const response = await apiClient.get(`/impact/public/${profileUserId}`, { signal });
+      if (!signal.aborted) setImpactScore(response.data);
     } catch (error) {
-      logger.error('Error fetching impact score:', error);
+      if (!signal.aborted) logger.error('Error fetching impact score:', error);
     }
   };
 
-  const fetchGamificationStats = async () => {
+  const fetchGamificationStats = async (signal) => {
     try {
-      const response = await apiClient.get(`/gamification/user/${profileUserId}`);
-      setGamificationStats(response.data);
+      const response = await apiClient.get(`/gamification/user/${profileUserId}`, { signal });
+      if (!signal.aborted) setGamificationStats(response.data);
     } catch (error) {
-      logger.error('Error fetching gamification stats:', error);
+      if (!signal.aborted) logger.error('Error fetching gamification stats:', error);
     }
   };
 

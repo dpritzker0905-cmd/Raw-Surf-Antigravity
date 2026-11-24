@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 8,
+  "files": 2,
+  "branch": "codex/profile-note-navigation",
+  "date": "2026-11-21",
+  "note": "Profile note navigation, delayed reads and mutation completion"
+}

@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import ProfileNoteReadError from './profile/ProfileNoteReadError';
 import { NOTE_EMOJIS } from '../constants/emojis';
 
 /**
@@ -19,6 +20,9 @@ export const ProfileNoteModal = ({
   noteText,
   setNoteText,
   noteSubmitting,
+  noteReadStatus = 'ready',
+  canCreateNote = true,
+  onRetry,
   onCreateNote,
   onDeleteNote,
 }) => (
@@ -26,11 +30,13 @@ export const ProfileNoteModal = ({
     <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-sm">
       <DialogHeader>
         <DialogTitle className="text-xl font-bold text-center">
-          {isOwnProfile ? (userNote ? 'Your Note' : 'Share a Note') : `${profileName}'s Note`}
+          {isOwnProfile ? (userNote || !canCreateNote ? 'Your Note' : 'Share a Note') : `${profileName}'s Note`}
         </DialogTitle>
       </DialogHeader>
       
       <div className="py-4">
+        {noteReadStatus === 'error' && <ProfileNoteReadError onRetry={onRetry} />}
+        {noteReadStatus === 'loading' && !userNote && <p role="status">Checking for a note...</p>}
         {/* Viewing someone else's note */}
         {!isOwnProfile && userNote && (
           <div className="text-center space-y-4">
@@ -45,7 +51,7 @@ export const ProfileNoteModal = ({
         )}
         
         {/* Own profile - create/edit note */}
-        {isOwnProfile && (
+        {isOwnProfile && (userNote || canCreateNote) && (
           <div className="space-y-4">
             {userNote ? (
               // Show existing note with option to delete

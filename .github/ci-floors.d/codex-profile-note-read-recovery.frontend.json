@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 5,
+  "files": 0,
+  "branch": "codex/profile-note-read-recovery",
+  "date": "2026-11-21",
+  "note": "Profile note read failure, explicit retry and draft recovery"
+}

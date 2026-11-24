@@ -36,6 +36,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import useProfileActions from '../hooks/useProfileActions';
+import useProfileStats from '../hooks/useProfileStats';
 import { TaggedPhotoModal } from './TaggedPhotoModal';
 import GoLiveModal from './GoLiveModal';
 import { PhotographerAvailability } from './PhotographerAvailability';
@@ -92,9 +93,10 @@ export const Profile = () => {
   
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [streak, setStreak] = useState({ current_streak: 0, longest_streak: 0, total_check_ins: 0 });
-  const [socialStats, setSocialStats] = useState({ followers: 0, following: 0 });
-  const [contentStats, setContentStats] = useState({ posts: 0, photos: 0, videos: 0, session_shots: 0, saved: 0, tagged: 0 });
+  const {
+    streak, socialStats, contentStats, impactScore, gamificationStats,
+    setStreak, setSocialStats, setContentStats, setImpactScore, setGamificationStats,
+  } = useProfileStats(profileUserId, user?.id);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const followStatusGateRef = useRef(null);
@@ -126,12 +128,6 @@ export const Profile = () => {
   const [showTaggedPhotoModal, setShowTaggedPhotoModal] = useState(false);
   const [selectedTaggedPhoto, setSelectedTaggedPhoto] = useState(null);
   
-  // Impact Score
-  const [impactScore, setImpactScore] = useState(null);
-  
-  // Gamification
-  const [gamificationStats, setGamificationStats] = useState({ total_xp: 0, badges: [], recent_xp_transactions: [] });
-
   // Go Live Modal
   const [showGoLiveModal, setShowGoLiveModal] = useState(false);
 
@@ -165,17 +161,19 @@ export const Profile = () => {
     if (authLoading) return;
     
     if (profileUserId) {
-      fetchProfile();
-      fetchStreak();
-      fetchSocialStats();
-      fetchContentStats();
-      fetchImpactScore();
-      fetchGamificationStats();
+      const controller = new AbortController();
+      fetchProfile(controller.signal);
+      fetchStreak(controller.signal);
+      fetchSocialStats(controller.signal);
+      fetchContentStats(controller.signal);
+      fetchImpactScore(controller.signal);
+      fetchGamificationStats(controller.signal);
       notesHook.fetchUserNote(); // Fetch the profile user's note
       if (!isOwnProfile && user) {
         checkFollowStatus();
         blockHook.checkBlockStatus();
       }
+      return () => controller.abort();
     }
   }, [profileUserId, isOwnProfile, authLoading, user]);
 
@@ -688,6 +686,9 @@ export const Profile = () => {
         userNote={notesHook.userNote}
         noteText={notesHook.noteText}
         setNoteText={notesHook.setNoteText}
+        noteReadStatus={notesHook.noteReadStatus}
+        canCreateNote={notesHook.canCreateNote}
+        onRetry={notesHook.fetchUserNote}
         noteSubmitting={notesHook.noteSubmitting}
         onCreateNote={notesHook.handleCreateNote}
         onDeleteNote={notesHook.handleDeleteNote}
