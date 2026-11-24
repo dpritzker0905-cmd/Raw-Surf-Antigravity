@@ -65,8 +65,19 @@ def scan(connection, nonce):
           AND rolconnlimit = 1 AND 'default_transaction_read_only=on' = ANY(rolconfig)
           AND NOT EXISTS (SELECT FROM pg_auth_members WHERE member=r.oid)
           AND NOT has_schema_privilege(r.oid, 'public', 'CREATE')
-          AND NOT has_any_column_privilege(r.oid, 'public.payment_transactions', 'INSERT,UPDATE,REFERENCES')
-          AND NOT has_table_privilege(r.oid, 'public.payment_transactions', 'DELETE,TRUNCATE,TRIGGER')
+          AND row_security_active('public.payment_transactions')
+          AND NOT EXISTS (
+              SELECT FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+              WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','f') AND (
+                  has_table_privilege(r.oid,c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+                  OR has_any_column_privilege(r.oid,c.oid,'INSERT,UPDATE,REFERENCES')
+                  OR (c.oid <> 'public.payment_transactions'::regclass
+                      AND has_any_column_privilege(r.oid,c.oid,'SELECT'))))
+          AND NOT EXISTS (
+              SELECT FROM pg_attribute WHERE attrelid='public.payment_transactions'::regclass
+                AND attnum>0 AND NOT attisdropped
+                AND has_column_privilege(r.oid,attrelid,attnum,'SELECT') IS DISTINCT FROM
+                    (attname IN ('id','status','payment_status','transaction_metadata','updated_at','created_at')))
     """), {"role": ROLE}).scalar_one()
     return identity, waiting_count(connection)
 
@@ -75,13 +86,15 @@ def main():
     nonce = "rs1274w_" + secrets.token_hex(12)
     engine = dev_engine(os.environ, nonce)
     last_success = 0.0
+    health_lock = threading.Lock()
 
     class Health(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path not in ("/", "/health"):
                 self.send_error(404)
                 return
-            ok = bool(last_success and time.monotonic() - last_success < 2 * INTERVAL)
+            with health_lock:
+                ok = bool(last_success and time.monotonic() - last_success < 2 * INTERVAL)
             data = json.dumps({"mode": "read-only-seat-worker", "ready": ok,
                                "commit": os.environ["RENDER_GIT_COMMIT"]}).encode()
             self.send_response(200 if ok else 503)
@@ -97,10 +110,12 @@ def main():
             try:
                 with engine.begin() as connection:
                     pid, waiting = scan(connection, nonce)
-                last_success = time.monotonic()
-                print(f"seat_worker_scan {nonce} pid={pid} eligible={waiting} mode=read-only", flush=True)
+                with health_lock:
+                    last_success = time.monotonic()
+                print(f"seat_worker_scan {nonce} pid={pid} eligible={waiting} limit=100 mode=read-only", flush=True)
             except Exception as exc:
-                last_success = 0.0
+                with health_lock:
+                    last_success = 0.0
                 logging.error("DEV seat scan failed (%s)", type(exc).__name__)
                 engine.dispose()
             time.sleep(INTERVAL)
