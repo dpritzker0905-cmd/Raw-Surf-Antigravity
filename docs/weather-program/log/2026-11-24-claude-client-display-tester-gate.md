@@ -40,3 +40,29 @@ Branch `claude/gate-client-display-tester` from dev ac7aadff7. Documentation onl
     known-bad flag.
 - **Order:** this gate, then the code PR, then the results (a later commit), then the flip on the owner's word via the
   director.
+
+## Amendment 1 (19:01Z): the advisor's hold on #1282 at 11058b8c4
+
+The advisor confirmed: it drives the real SPA; an independent decode plus an oracle; decide() per flag; fail-closed after 3
+INCONCLUSIVE; propose-only re-enable; cold start CLOSED; and the kill list as a hook dependency. Three items were held. The
+fix is a dated, append-only amendment in the gate itself; the original text stands.
+
+- **(2) A read-only LIVE-CDN leg for section A** (the lead chose the advisor's option (a)).
+  - The SPA reads the public frame CDN, with `/api` still mocked: no Render and no Supabase API.
+  - Each row is pinned to the exact shown frame path, and the bytes the page received are decoded.
+  - A path change twice in a row means INCONCLUSIVE, never WORSE.
+  - Every 6 h. There is no sidecar oracle live, which is disclosed.
+  - The glyph stays fixture-only, because its payload comes from Render. Disclosed.
+- **(3) "Unmeasured" means harness failure only, with a recorded cause.**
+  - A missing number where the reference has a value is WORSE; a number where the reference has none is SANITY.
+  - Floors per flag (A 112 of 140, B 12 of 15) and per set (16 of 20). P3, P4 and B's past-coverage rows must be 100%
+    measured.
+  - Every unmeasured row is listed with its cause. A row with no cause counts as WORSE.
+- **(4) The write path.**
+  - The browser test job has no secret and emits a schema-checked verdict artifact.
+  - A separate writer job (schedule, `dev` push or dispatch, never `pull_request`) runs one fixed script that can write only
+    `v1/control/client_kills(.staging).json`. The allowlist is asserted before any network call, and unit-tested.
+  - A narrower credential IS feasible: a dedicated Postgres role plus a `storage.objects` RLS policy limited to that bucket
+    and name, used through a JWT with that role. It is **proposed, not created**: David must approve the migration and the
+    secret.
+  - Until then the writer does not write production.

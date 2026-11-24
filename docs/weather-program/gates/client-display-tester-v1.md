@@ -223,3 +223,116 @@ Three seeded INCONCLUSIVE runs in a row must write `off` to staging. One or two 
    the client store and its tests.
 3. A3-A5 run and recorded in `results/client-display-tester-v1.md`.
 4. The flip PR (both build flags ON) under the tester, on the owner's word via the director.
+
+---
+
+## Amendment 1 (2026-11-24T19:01Z, before any code and before any run; the advisor's hold on #1282 at 11058b8c4)
+
+This amendment is append-only. The text above stands as written. Where this section says something different, this section
+governs. The lead chose the advisor's option (a) for item 2.
+
+### A1.1 A read-only LIVE-CDN leg for section A (the infobox)
+
+**Why.** The fixture leg is a CI regression test. A fixed fixture cannot see the live mismatches these flags exist to fix
+(another run, a newly published set, the real grids). So section A runs in two legs.
+
+**Two legs, two cadences.**
+- **FIXTURE leg:** as written above. It runs every 6 h, on `dev` frontend pushes and on dispatch.
+- **LIVE leg:** the same 7 layer and model sets, 4 points and 5 hours (140 rows), with the SPA reading the **public frame
+  CDN** (the published `weather-frames` objects). Every 6 h, and on dispatch.
+
+**What the live leg may touch.**
+- `/api` stays mocked, exactly as in the fixture leg. The live leg makes **no request to Render and none to any Supabase
+  API**, only GETs of public frame objects.
+- The host audit must show no other live host. Anything else is a LEAK, so SANITY.
+
+**Which frame is compared.** Each row is pinned to the exact frame path the app recorded as shown (`getShownFrame`). The
+paths are immutable (run-stamped).
+- The reference decodes those same bytes, captured from the page's own response. That adds no extra GET; a Node re-fetch
+  happens only if the capture is missing.
+- If the shown path changes during a row (a new run published mid-row), the row is retried once. If it changes again, the
+  row is INCONCLUSIVE, never WORSE.
+
+**The third oracle.** There is no generator sidecar for live frames, so the live leg's reference is the independent Node
+decode alone. This is disclosed. The fixture leg keeps the sidecar oracle.
+
+**Section B (the glyph tide) stays fixture-only.** Its payload (`/point-tide`, spot ratings) comes from Render, which the
+tester never calls. Disclosed.
+
+**Load.** About 35 frame objects per live run, the ones the page draws anyway, every 6 h: GET-only reads of public CDN
+objects. Never Render.
+
+**Verdicts.** Verdicts and decide() apply per leg. A WORSE or SANITY in **either** leg turns the flag off. INCONCLUSIVE
+streaks are counted per leg.
+
+### A1.2 What "unmeasured" means, the floors, and the required rows
+
+**Re-classification.**
+- "Unmeasured" now means a **harness failure only**: a timeout, a missing fixture frame or sidecar, a browser or script
+  exception, an unreachable CDN object, or the live leg's double path change.
+- The card is judged by what it shows, never excused:
+  - **a missing card number where the reference has a value is WORSE**;
+  - **a card number where the reference has no value is SANITY**.
+
+**Floors.** All must hold, per leg; otherwise the leg is INCONCLUSIVE. These replace the single 80% floor above.
+
+| scope | rows | floor |
+|---|---|---|
+| per flag: section A, `INFOBOX_OWN_FRAME` | 140 | at least 80% measured (112) |
+| per flag: section B, `GLYPH_TIDE_OWN` | 15 | at least 80% measured (12) |
+| per layer and model set (each of the 7) | 20 | at least 80% measured (16) |
+| every P3 row (antimeridian) and every P4 row (no-data) | each set | 100% measured |
+| section B, hour 60 (past coverage) | 3 | 100% measured |
+
+**Report.** Every unmeasured row is listed in the verdict artifact with its cause: `timeout`, `missing_fixture`,
+`missing_sidecar`, `exception:<type>`, `cdn_unreachable` or `path_changed_twice`. A row with no cause recorded counts as
+WORSE (the harness may not drop rows silently).
+
+### A1.3 The write path: the test job holds no secret
+
+**Job 1, the browser test (`client-display-tester`).**
+- Runs both legs. Its permissions are `contents: read` and nothing else; it has **no secret** in its environment.
+- It emits a verdict artifact (`client-tester-verdict.json`: the leg, the rows, the causes, the per-flag verdict, the
+  commit and the run id), validated against a JSON schema committed with the code.
+- It may run on `pull_request` (fixture leg only) as a regression check, and then never writes anything.
+
+**Job 2, the writer (`client-kills-writer`).**
+- Separate job, guarded by `if: github.event_name == 'schedule' || github.event_name == 'push' || github.event_name ==
+  'workflow_dispatch'`, with `push` limited to `dev`. **Never `pull_request`**, so code from a fork or branch never reaches
+  the credential.
+- It runs ONE fixed script, `backend/scripts/client_kills_writer.py`, which:
+  1. reads and validates the artifact against the schema;
+  2. runs `decide()` with the stored state;
+  3. writes ONLY object keys matching `^v1/control/client_kills(\.staging)?\.json$` in the `weather-frames` bucket.
+- **The allowlist is asserted before any network call.** Any other key raises, with no request made. Unit tests prove a
+  refused key sends zero requests, including: a key outside the prefix, a path traversal, the private bucket, a second
+  bucket, and an upper-case variant.
+- The script never writes `off: false`. Clearing a kill is a separate `workflow_dispatch` input that only the owner uses
+  (D-087), and that path is tested too.
+
+**The credential.**
+- Feasibility: a narrower credential than `SUPABASE_SERVICE_ROLE_KEY` is **feasible**, as a dedicated Postgres role plus a
+  `storage.objects` RLS policy. That policy grants INSERT and UPDATE only where `bucket_id = 'weather-frames'` and
+  `name` matches `v1/control/client_kills%.json`, with no SELECT on any other object, no DELETE and no other bucket. The job
+  then presents a JWT whose `role` claim is that role.
+- This repository already manages `storage.objects` policies by migration (`2026-11-11_weather_frames_private_bucket.sql`).
+- **Not created here.** Creating the role, the policy and the signed token needs David: a migration applied to production,
+  and a new Actions secret named by name only (for example `CLIENT_KILLS_WRITER_JWT`).
+  - Proposed: the code PR ships the migration file and the writer coded for the narrow credential, but does not apply or
+    mint it.
+  - Until David approves it, the writer job is not enabled to write production (`v1/control/client_kills.json`). It may
+    write only the staging object (`client_kills.staging.json`), and only with the narrow credential, so the A4 drills
+    need it too.
+  - If David instead allows `SUPABASE_SERVICE_ROLE_KEY` in the writer job only, that is his call to record. The path
+    allowlist then becomes the only guard, which is why the narrow credential is recommended.
+
+**Acceptance additions.**
+- **A2b:** the allowlist tests and the job-guard tests: the workflow file is parsed in a test, which asserts the writer job
+  has no `pull_request` trigger and the test job references no secret.
+- **A4:** the positive controls run in both legs where they apply. a, c, d and f in the live leg are injected via the
+  tester-only build. The CDN-swap control (f) is fixture-only, because the live CDN is never altered.
+
+**Unmeasured, added.**
+- The live leg's third oracle (none).
+- Section B on live data (fixture-only by design).
+- The writer's production write, until David approves the credential.
