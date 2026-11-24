@@ -1,7 +1,7 @@
 # 2026-11-24: pilots second time-left gate (before the ICON 0.125 steps) measured and dropped
 
 Session: ingest-health, a side session of the director (local_d6b521eb). Docs only; nothing served changes.
-Context: #1228 (merged to dev at 719df1b4a) added one gate, `ci_job_budget.py`, that skips the whole raster block when less
+Context: #1228 (squash-merged as 19c3f7354; the gated head 719df1b4a) added one gate, `ci_job_budget.py`, that skips the whole raster block when less
 than 45 min of the 300 min job budget remain (kill switch `JOB_BUDGET_GATE=0`). The director asked whether a second gate
 before the ICON 0.125 steps was also needed. Measured first, read-only (`gh run view`), step wall times in minutes.
 
