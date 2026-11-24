@@ -1,8 +1,8 @@
 {
   "lane": "chain",
   "tests": 7,
-  "files": 0,
+  "files": 1,
   "branch": "claude/run-age-label",
   "date": "2026-11-24",
-  "note": "serve-side run-age cutoff (test_run_age)"
+  "note": "serve-side run-age cutoff (test_run_age, a new chain file)"
 }
