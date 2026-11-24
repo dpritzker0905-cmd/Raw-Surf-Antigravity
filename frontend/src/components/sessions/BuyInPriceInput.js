@@ -32,7 +32,7 @@ export default function BuyInPriceInput({ price, onPriceChange, invalid, setInva
       />
       {invalid && <p id={errorId}>Enter $0.01 to $500 in whole cents, or select Free session.</p>}
       <label>
-        <input type="checkbox" checked={free} onChange={event => {
+        <input type="checkbox" aria-label="Free session" checked={free} onChange={event => {
           setDraft(null);
           setInvalid(false);
           if (event.target.checked) {

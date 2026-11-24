@@ -89,19 +89,20 @@ const SessionSettingsModal = ({
 
             {/* Collapsible Section: Session Buy-in */}
             <div className={`rounded-xl border ${borderClass} overflow-hidden`}>
-              <button aria-label="Dollar Sign"
+              <button aria-expanded={Boolean(expandedSections.buyin)}
                 onClick={() => toggleSection('buyin')}
                 className={`w-full flex items-center justify-between p-3 ${isLight ? 'bg-gray-50 hover:bg-gray-100' : 'bg-zinc-800/50 hover:bg-zinc-800'} transition-colors`}
               >
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-5 h-5 text-green-400" />
                   <span className={`font-bold ${textPrimaryClass}`}>Session Buy-in</span>
-                  <span className={`text-sm ${textSecondaryClass}`}>(${sessionSettings.price_per_join})</span>
+                  <span className={`text-sm ${textSecondaryClass}`}>
+                    {invalidBuyIn ? 'Price needs correction' : `($${sessionSettings.price_per_join})`}
+                  </span>
                 </div>
                 <ChevronDown className={`w-5 h-5 ${textSecondaryClass} transition-transform ${expandedSections.buyin ? 'rotate-180' : ''}`} />
               </button>
-              {expandedSections.buyin && (
-                <div className="p-3 space-y-3 border-t border-inherit">
+                <div hidden={!expandedSections.buyin} className="p-3 space-y-3 border-t border-inherit">
                   <div className="space-y-2">
                     <Label className={textSecondaryClass}>Buy-in Price (to join session)</Label>
                     <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
@@ -152,7 +153,6 @@ const SessionSettingsModal = ({
                     </div>
                   </div>
                 </div>
-              )}
             </div>
 
             {/* Collapsible Section: Resolution-Based Pricing */}

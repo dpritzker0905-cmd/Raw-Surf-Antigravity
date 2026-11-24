@@ -88,6 +88,39 @@ it.each([
   expect(submit).toHaveBeenLastCalledWith(17.5);
 });
 
+it('keeps an invalid buy-in blocked when collapsed and discards the edit when dismissed', async () => {
+  const save = jest.fn();
+  function Settings() {
+    const [open, setOpen] = useState(true);
+    const [expanded, setExpanded] = useState(true);
+    const [settings, setSettings] = useState({ price_per_join: 40 });
+    return <>
+      <button onClick={() => setOpen(true)}>Open settings</button>
+      <SessionSettingsModal isOpen={open} onClose={() => setOpen(false)}
+        expandedSections={{ buyin: expanded }} toggleSection={() => setExpanded(value => !value)}
+        sessionSettings={settings} setSessionSettings={setSettings} commissionRate={0}
+        handleSaveSettings={() => save(settings.price_per_join)} />
+    </>;
+  }
+  const user = userEvent.setup();
+  render(<Settings />);
+  const price = () => screen.getByRole('spinbutton', { name: 'Session buy-in price' });
+  await user.clear(price());
+  await user.type(price(), '0');
+  const toggle = screen.getByText('Session Buy-in').closest('button');
+  await user.click(toggle);
+  const action = screen.getByTestId('save-settings-btn');
+  expect(action).toBeDisabled();
+  await user.click(action);
+  expect(save).not.toHaveBeenCalled();
+  await user.click(toggle);
+  expect(price()).toHaveValue(0);
+  await user.click(screen.getByRole('button', { name: 'Cancel' }));
+  await user.click(screen.getByRole('button', { name: 'Open settings' }));
+  expect(price()).toHaveValue(40);
+  expect(screen.getByTestId('save-settings-btn')).toBeEnabled();
+});
+
 it.each([[0, 0], [17.5, 17.5], [null, 25]])(
   'loads gallery buy-in %s and sends %s through map go-live', async (price, expected) => {
     apiClient.get.mockImplementation(async path => ({

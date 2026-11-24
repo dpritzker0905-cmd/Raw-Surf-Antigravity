@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 15,
+  "tests": 16,
   "files": 2,
   "branch": "codex/paid-seat-postgres-ci",
   "date": "2026-11-24",
-  "note": "Integrated live-price and spot-quote suites, including invalid checkout intent"
+  "note": "Integrated live-price and spot-quote suites including invalid intent, collapse and dismissal"
 }
