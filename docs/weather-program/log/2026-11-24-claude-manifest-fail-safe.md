@@ -46,3 +46,6 @@ snapshot holds no kills and no served value moves. No SCOREBOARD row: no served 
 `changed=False`) as "dry-run". The guardrail ENFORCES: a WORSE verdict writes a real kill to `control/flags.json`. The
 manifest facts stand (0 kills, 2 owner 'on' entries at that run), so the committed snapshot holding no kills was still
 correct. Do not rely on the guardrail being dry.
+Verified directly by the director: runs 45307619337 (01:47Z) and 45396929979 (12:47Z) both log
+`FLAG_GUARDRAIL_ENFORCE: 1` and the header `## Flag guardrail (enforce)`. Lesson L-P50 (LESSONS.md): read the mode from
+that header, not from the `[dry run]` template line or a terse print.
