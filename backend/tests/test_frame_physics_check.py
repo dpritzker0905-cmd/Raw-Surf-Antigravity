@@ -311,5 +311,7 @@ def test_workflow_step_is_read_only_and_runs_after_every_raster_step():
     step = job[start:job.index("- name: Upload the frame physics report")]
     assert "SUPABASE_SERVICE_ROLE_KEY" not in step
     assert "--public-base" in step and "continue-on-error: true" in step
+    assert "id: frame_physics " in step                      # #1265's REPORT_ONLY_STEP_IDS names both ids
+    assert "id: frame_physics_upload" in job[job.index("- name: Upload the frame physics report"):]
     assert "publish_raster_frames.py" not in job[start:]          # no raster step after it
     assert job.rindex("publish_raster_frames.py") < start
