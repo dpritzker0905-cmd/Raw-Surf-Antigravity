@@ -317,7 +317,7 @@ jobs:
       # stored product, so it does not wait on the ingest. A cycle latest.json already lists uploads nothing. The client half
       # is dark (raster-instant session): publishing changes nothing a user sees. Off: repo variable FRAME_RASTER_PRESSURE=0.
       - name: Publish raster static frames (pressure; client dark)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_PRESSURE || '1') != '0' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_PRESSURE || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
@@ -331,7 +331,7 @@ jobs:
       # cloud_pct), each as its own step with its own budget (FRAME_RASTER_BUDGET_S, 420 s) and a 12-minute timeout (each ran in about a minute on a real cycle), after pressure (one latest.json writer at a time). OFF until
       # switched on: repo variables FRAME_RASTER_TEMPERATURE=1 / FRAME_RASTER_CLOUD=1 (the client is dark either way).
       - name: Publish raster static frames (temperature; off unless FRAME_RASTER_TEMPERATURE=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE == '1' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
@@ -345,7 +345,7 @@ jobs:
       # the static elevation-difference asset (NOAA ETOPO 2022 minus GFS terrain, services/raster_downscale.py). Built once; the
       # script exits at once when the published descriptor is current. Off unless FRAME_RASTER_TEMP_DZ=1 (the client is dark).
       - name: Publish the temperature downscale asset (off unless FRAME_RASTER_TEMP_DZ=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMP_DZ == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMP_DZ == '1' }}
         continue-on-error: true
         timeout-minutes: 15
         working-directory: backend
@@ -356,7 +356,7 @@ jobs:
         run: python scripts/publish_temp_downscale.py
 
       - name: Publish raster static frames (cloud cover; off unless FRAME_RASTER_CLOUD=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD == '1' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
@@ -368,7 +368,7 @@ jobs:
       # Cloud cover at 0.25 deg (the owner, 2026-10-25: "Go with your recommendation if that is state of the art"): the same
       # instantaneous TCDC on NCEP's full 0.25-degree grid. Off unless FRAME_RASTER_CLOUD_0P25=1; the client is dark either way.
       - name: Publish raster static frames (cloud cover 0.25 deg; off unless FRAME_RASTER_CLOUD_0P25=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD_0P25 == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD_0P25 == '1' }}
         continue-on-error: true
         timeout-minutes: 15
         working-directory: backend
@@ -381,7 +381,7 @@ jobs:
       # step before each hour, mm/h, on the 0.25-degree grid; hourly to f120, then 3-hourly (192 frames, about 2 byte ranges
       # each). Off unless FRAME_RASTER_PRECIP=1; the client draws it only behind a dark lever.
       - name: Publish raster static frames (GFS precipitation; off unless FRAME_RASTER_PRECIP=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP == '1' }}
         continue-on-error: true
         timeout-minutes: 15
         working-directory: backend
@@ -394,7 +394,7 @@ jobs:
       # totals differenced to the mean rate over each 3-hour (to 144 h) or 6-hour step, 00/12Z cycles, 64 frames. Off unless
       # FRAME_RASTER_PRECIP_EURO=1; no client reads it yet.
       - name: Publish raster static frames (EURO precipitation; off unless FRAME_RASTER_PRECIP_EURO=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP_EURO == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP_EURO == '1' }}
         continue-on-error: true
         timeout-minutes: 15
         working-directory: backend
@@ -407,7 +407,7 @@ jobs:
       # step before each hour and box-averaged onto the 0.25-degree grid; hourly to 78 h, 3-hourly to 180 h, 00/12Z runs, 112
       # frames (223 files of about 2 MB). Off unless FRAME_RASTER_PRECIP_ICON=1; no client reads it yet.
       - name: Publish raster static frames (ICON precipitation; off unless FRAME_RASTER_PRECIP_ICON=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP_ICON == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP_ICON == '1' }}
         continue-on-error: true
         timeout-minutes: 20
         working-directory: backend
@@ -420,7 +420,7 @@ jobs:
       # ICON precipitation at 0.125 deg (G2, 2026-11-16): the same rates by a supersampled area mean onto ICON's own resolution
       # (DWD's 0.125-degree nearest-neighbour map, about 50 MB, read once per publish). ON by default since 2026-11-17 (owner rule: ship on); kill FRAME_RASTER_PRECIP_ICON_0P125=0.
       - name: Publish raster static frames (ICON precipitation 0.125 deg; ON, kill FRAME_RASTER_PRECIP_ICON_0P125=0)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_PRECIP_ICON_0P125 || '1') != '0' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_PRECIP_ICON_0P125 || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 30
         working-directory: backend
@@ -435,7 +435,7 @@ jobs:
       # same stream the box's ecmwf_opendata_fetcher reads, 00/12Z cycles (0-240 h; 3-hourly to 144 h, then 6-hourly), onto
       # the GFS set's 0.5-degree lattice. OFF until switched on: repo variable FRAME_RASTER_PRESSURE_EURO=1 (client dark).
       - name: Publish raster static frames (EURO pressure; off unless FRAME_RASTER_PRESSURE_EURO=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRESSURE_EURO == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRESSURE_EURO == '1' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
@@ -449,7 +449,7 @@ jobs:
       # dwd_icon_pressure_fetcher reads, 00/12Z runs (0-180 h, every 3 h), box-averaged onto the lattice once per run
       # (frame_set_raster_sources: method + measured error). OFF until switched on: repo variable FRAME_RASTER_PRESSURE_ICON=1.
       - name: Publish raster static frames (ICON pressure; off unless FRAME_RASTER_PRESSURE_ICON=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRESSURE_ICON == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRESSURE_ICON == '1' }}
         continue-on-error: true
         timeout-minutes: 30
         working-directory: backend
@@ -466,7 +466,7 @@ jobs:
       # temperature TMP:surface (0.25 deg, 3-hourly); EURO / ICON 2 m temperature on the 0.5-degree lattice; EURO water_temp =
       # ECMWF skt (0.25 deg). Offline cost per run: docs/weather-program/log/2026-11-14-opus-raster-fog-temp.md.
       - name: Publish raster static frames (GFS fog; off unless FRAME_RASTER_FOG=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_FOG == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_FOG == '1' }}
         continue-on-error: true
         timeout-minutes: 15
         working-directory: backend
@@ -477,7 +477,7 @@ jobs:
         run: python scripts/publish_raster_frames.py --set fog
 
       - name: Publish raster static frames (GFS water temperature; ON, kill FRAME_RASTER_WATER_TEMP=0)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_WATER_TEMP || '1') != '0' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_WATER_TEMP || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
@@ -488,7 +488,7 @@ jobs:
         run: python scripts/publish_raster_frames.py --set water_temp
 
       - name: Publish raster static frames (EURO temperature; off unless FRAME_RASTER_TEMPERATURE_EURO=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE_EURO == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE_EURO == '1' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
@@ -501,7 +501,7 @@ jobs:
       # The same ECMWF 2t at 0.25 deg, every point (Open-Meteo serves EURO 2t from ifs025; the director's rule: own frames only
       # where at least as fine as today's .om grid). Off unless FRAME_RASTER_TEMPERATURE_EURO_0P25=1.
       - name: Publish raster static frames (EURO temperature 0.25 deg; off unless FRAME_RASTER_TEMPERATURE_EURO_0P25=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE_EURO_0P25 == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE_EURO_0P25 == '1' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
@@ -513,7 +513,7 @@ jobs:
 
       # EURO total cloud cover (ECMWF open data tcc, 0.25 deg every point; G3, 2026-11-16). ON by default since 2026-11-17 (owner rule: ship on); kill FRAME_RASTER_CLOUD_EURO=0.
       - name: Publish raster static frames (EURO cloud cover; ON, kill FRAME_RASTER_CLOUD_EURO=0)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_CLOUD_EURO || '1') != '0' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_CLOUD_EURO || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
@@ -524,7 +524,7 @@ jobs:
         run: python scripts/publish_raster_frames.py --set cloud_cover_euro
 
       - name: Publish raster static frames (ICON temperature; ON, kill FRAME_RASTER_TEMPERATURE_ICON=0)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_TEMPERATURE_ICON || '1') != '0' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_TEMPERATURE_ICON || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 30
         working-directory: backend
@@ -538,7 +538,7 @@ jobs:
       # ICON 2 m temperature at 0.125 deg by nearest cell (G1 option (a), 2026-11-16): DWD's own 0.125 map, the .om dwd_icon grid.
       # ON by default since 2026-11-17 (owner rule: ship on); kill FRAME_RASTER_TEMPERATURE_ICON_0P125=0.
       - name: Publish raster static frames (ICON temperature 0.125 deg; ON, kill FRAME_RASTER_TEMPERATURE_ICON_0P125=0)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_TEMPERATURE_ICON_0P125 || '1') != '0' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_TEMPERATURE_ICON_0P125 || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 30
         working-directory: backend
@@ -550,7 +550,7 @@ jobs:
         run: python scripts/publish_raster_frames.py --set temperature_icon_0p125
 
       - name: Publish raster static frames (EURO water temperature; off unless FRAME_RASTER_WATER_TEMP_EURO=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_WATER_TEMP_EURO == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_WATER_TEMP_EURO == '1' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
@@ -564,7 +564,7 @@ jobs:
       # pressure's hours (193). Its own step, budget and timeout (the pilots job is near its limit; offline cost in
       # docs/weather-program/log/2026-11-15-opus-gusts-currents.md). Off unless FRAME_RASTER_GUST=1.
       - name: Publish raster static frames (GFS gusts; off unless FRAME_RASTER_GUST=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_GUST == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_GUST == '1' }}
         continue-on-error: true
         timeout-minutes: 15
         working-directory: backend
@@ -580,7 +580,7 @@ jobs:
       # previous step, 0.25 deg, 65 frames) and DWD ICON VMAX_10M (max since the previous output, nearest cell onto 0.25 deg,
       # 111 frames, 00/12Z). Off unless FRAME_RASTER_GUST_EURO=1 / FRAME_RASTER_GUST_ICON=1.
       - name: Publish raster static frames (EURO gusts; off unless FRAME_RASTER_GUST_EURO=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_GUST_EURO == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_GUST_EURO == '1' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
@@ -592,7 +592,7 @@ jobs:
         run: python scripts/publish_raster_frames.py --set gust_euro
 
       - name: Publish raster static frames (ICON gusts; off unless FRAME_RASTER_GUST_ICON=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_GUST_ICON == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_GUST_ICON == '1' }}
         continue-on-error: true
         timeout-minutes: 30
         working-directory: backend
@@ -610,7 +610,7 @@ jobs:
       # own step, budget and timeout (offline cost: docs/weather-program/log/2026-11-15-opus-gusts-currents.md). Off unless
       # FRAME_RASTER_CURRENTS=1.
       - name: Publish raster static frames (Copernicus currents; off unless FRAME_RASTER_CURRENTS=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS == '1' }}
         continue-on-error: true
         timeout-minutes: 15
         working-directory: backend
@@ -632,7 +632,7 @@ jobs:
       # is strict (any failed frame, or no complete run in 3 days, exits 1); later steps still run (!cancelled()). The key
       # comes only from this job's supabase-service environment. DARK: off unless FRAME_RASTER_CURRENTS_GIOPS = '1'.
       - name: Publish raster static frames (Canada GIOPS currents; off unless FRAME_RASTER_CURRENTS_GIOPS=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_GIOPS == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_GIOPS == '1' }}
         timeout-minutes: 10
         working-directory: backend
         env:
@@ -651,7 +651,7 @@ jobs:
       # own lever, ownRasterFrames.js). The step never continues on error (the advisor's gate, 2026-11-22): a failed publish (exit 1) turns the
       # run red; every later step's `!cancelled()` still runs it. Upstream not ready yet (no cycle) exits 0.
       - name: Publish raster static frames (NOAA RTOFS currents; off unless FRAME_RASTER_CURRENTS_RTOFS=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_RTOFS == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_RTOFS == '1' }}
         timeout-minutes: 20
         working-directory: backend
         env:
@@ -673,7 +673,7 @@ jobs:
       # try (no clock slot; a published cycle costs one ~2 MB index), 14-day prune, GRIB identity pinned, FAIL / VOID turns it off.
       # The pinned decoder is ecCodes (pygrib carries neither the window nor the identity), installed by this step only.
       - name: Publish raster static frames (ECMWF ENS gust risk; off unless FRAME_RASTER_GUST_RISK=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_GUST_RISK == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_GUST_RISK == '1' }}
         timeout-minutes: 40
         working-directory: backend
         env:
@@ -695,7 +695,7 @@ jobs:
       # on error (the advisor's gate on #1145, as RTOFS and GIOPS): a failed publish (exit 1) turns the run red; every later step's
       # `!cancelled()` still runs it. Upstream not ready yet (no bulletin) exits 0.
       - name: Publish raster static frames (native 1/12-deg Copernicus currents on the surf boxes; off unless FRAME_RASTER_CURRENTS_NATIVE=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_NATIVE == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS_NATIVE == '1' }}
         timeout-minutes: 15
         working-directory: backend
         env:
@@ -711,7 +711,7 @@ jobs:
       # (docs/weather-program/log/2026-11-17-opus-g4-copernicus-sst.md). ON by default (David 2026-11-17); kill: the repository
       # variable FRAME_RASTER_WATER_TEMP_CMEMS = '0'.
       - name: Publish raster static frames (Copernicus water temp 1/6 deg; on, kill FRAME_RASTER_WATER_TEMP_CMEMS=0)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_WATER_TEMP_CMEMS || '1') != '0' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_WATER_TEMP_CMEMS || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 20
         working-directory: backend
@@ -727,7 +727,7 @@ jobs:
       # read of each hour's file feeding all three sets. Gate and costs: docs/weather-program/log/2026-11-18-opus-gfs-sflux-frames.md
       # (about 10-12 min, about 1.17 GB a run for the three). ON; each set's kill is its variable '0'; the step runs while any is on.
       - name: Publish raster static frames (GFS 0.117 deg sflux temperature, water temp, rain; ON, kill each FRAME_RASTER_*_0P117=0)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && ((vars.FRAME_RASTER_TEMPERATURE_0P117 || '1') != '0' || (vars.FRAME_RASTER_WATER_TEMP_0P117 || '1') != '0' || (vars.FRAME_RASTER_PRECIP_0P117 || '1') != '0') && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && ((vars.FRAME_RASTER_TEMPERATURE_0P117 || '1') != '0' || (vars.FRAME_RASTER_WATER_TEMP_0P117 || '1') != '0' || (vars.FRAME_RASTER_PRECIP_0P117 || '1') != '0') }}
         continue-on-error: true
         timeout-minutes: 35
         working-directory: backend
@@ -745,7 +745,7 @@ jobs:
       # after the raster steps; one latest.json writer at a time). Off unless FRAME_OFFSET_PRODUCT=1 (registered in _RATING_FLAGS);
       # the client reads it only behind its own dark lever. services/frame_set_offset.py.
       - name: Publish the gap-fill offset sets (off unless FRAME_OFFSET_PRODUCT=1)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_OFFSET_PRODUCT == '1' && steps.budget.outputs.go != 'false' }}
+        if: ${{ !cancelled() && steps.budget.outputs.go != 'false' && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_OFFSET_PRODUCT == '1' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
