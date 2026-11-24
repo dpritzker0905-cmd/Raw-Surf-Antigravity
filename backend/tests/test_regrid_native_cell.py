@@ -70,7 +70,7 @@ class _Grbs:
         pass
 
 
-def _run(monkeypatch, native: str, vector: str = "1", resolution: float = 0.25):
+def _run(monkeypatch, native: str, vector: str = "1", resolution: float = 0.25, masked_zero: str = "0"):
     import services.noaa_gfs_wave_fetcher as fetcher
     monkeypatch.setitem(sys.modules, "pygrib", types.SimpleNamespace(open=lambda _p: _Grbs()))
     for k, v in {"NOAA_COARSE_DIR_BLOCKMEAN": "1", "NOAA_COARSE_SCALAR_BLOCKMEAN": "1",
@@ -93,10 +93,31 @@ def _run(monkeypatch, native: str, vector: str = "1", resolution: float = 0.25):
         return types.SimpleNamespace(status_code=206, content=b"\x00" * n)
 
     monkeypatch.setattr(__import__("requests"), "get", _get)
+    # masked_zero: GFS_PARTITION_MASKED_AS_ZERO as the parent passes it (Plan 4, 2026-11-24). This suite pins the native-cell
+    # MECHANICS against a NaN-skipping oracle, so it runs with the fill off; test_gfs_partition_masked_zero pins the fill.
     points, ok, failed, times = fetcher.fetch_global_coarse(
-        {"bbox": BBOX, "resolution": resolution, "forecast_days": 1, "output_path": ""})
+        {"bbox": BBOX, "resolution": resolution, "forecast_days": 1, "output_path": "",
+         "partition_masked_as_zero": masked_zero})
     assert ok > 0 and points
     return points
+
+
+def test_flag_on_with_the_partition_fill_a_water_node_keeps_its_exact_native_cell(monkeypatch):
+    """Plan 4 with REGRID_NATIVE_CELL: a WATER node is its own cell either way (a masked partition there reads no-data, not
+    0 m); only a LAND node's centred 3 x 3 may change, where masked water subcells now count as zero energy."""
+    off = _run(monkeypatch, "1", masked_zero="0")
+    on = _run(monkeypatch, "1", masked_zero="1")
+    changed_water = 0
+    for p, q in zip(off, on):
+        r, c = _rc(p)
+        water = np.isfinite(_f("wave_height")[r, c])
+        for var in ("swell_wave_height", "secondary_swell_wave_height", "wind_wave_height"):
+            a, b = p["hourly"][var], q["hourly"][var]
+            if water:
+                changed_water += a != b
+            else:
+                assert all(y is None or x is None or y <= x + 1e-9 for x, y in zip(a, b))
+    assert changed_water == 0
 
 
 def _rc(p):

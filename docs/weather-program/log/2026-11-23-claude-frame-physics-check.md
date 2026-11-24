@@ -84,3 +84,43 @@ The masked-partition fix plan is appended to `research/P0-PHYSICS-FIX-PLANS-2026
 zero. At the 2-deg tier the served wind-wave height is 2.41x the corrected one at p90. The fix is planned dark (BLIND
 to the replay): flag `PARTITION_MASKED_AS_ZERO`, plus a separate `PARTITION_COVERAGE_MASKED` for the
 direction-confidence denominator. Not yet panel-reviewed.
+
+## 2026-11-24 · Plan 4 BUILT: GFS_PARTITION_MASKED_AS_ZERO (branch claude/gfs-partition-masked-zero, stacked on #1264)
+Owner's ruling, relayed by the director (local_d6b521eb): "Ship ON with guard (Recommended)". Must NOT merge before #1261
+(the manifest fail-safe), per the advisor.
+- Step 0: ICON's DWD GWAM never masks a partition (0.0 % NaN where the total is valid; absent = 0.0), so the fix is inert there
+  and no ICON flag was built. `SURF_PARTITIONS` is '0' in every lane, so no surf height or rating moves. CMEMS not read
+  (credentials only CI holds; EURO is Plan 2's).
+- Code: `services/_fetch_partition_mask.py` (fill, `keep_absent`, `old_reduction`, `payload_value`); the GFS fetcher fills the
+  three partition heights where the total is valid and re-checks only exact-0.0 results against the unfilled reduction, so a
+  block with no train stays no-data while a real 0.0 is kept (caught by `test_regrid_native_cell`: a first "0.0 -> no-data"
+  rule would have erased genuine zeros). Fix B: the partition confidence counts zero-filled subcells in its denominator
+  (`support="height"`). The flag is resolved by the PARENT (`noaa_marine_service`, `runtime_flags.flag`) and passed in the
+  fetcher payload; no fetcher reads it from the environment.
+- Guard: `flag_guardrail` coverage class PHYSICS. Rails pre-registered: WORSE above R2 5 % / R1 0.5 % (2 strikes over >= 24 h),
+  breach above R2 15 % / R1 2 % (disabled at once). Frames registered before the guardrail first saw the flag ON are never
+  judged. In a shadow run a PHYSICS flag holds (its check cannot see a fix that is off): the owner re-enables (D-087).
+- Tests: `tests/test_gfs_partition_masked_zero.py` (20), plus one native-cell test; the native-cell suite runs its oracle with
+  the fill off. Mutations of the fill, the no-train rule and Fix B each turn a test red. 274 neighbouring tests pass.
+- Offline measurement (SCOREBOARD row 2026-11-24 06:00Z): R2 0.75-1.10 %, R1 <= 0.02 % at every lead from 0 to 336 h.
+
+## 2026-11-24 · #1267: the advisor's two guard gaps fixed
+- (a) A PHYSICS UNTESTABLE now KEEPS the strike counter and `first_worse_at` (`decide` returns `keep_watch`, `next_watch`
+  keeps it). Only a judged NOT_WORSE clears them, so WORSE, UNTESTABLE, WORSE disables. UNTESTABLE alone never disables.
+- (b) Fresh layers are judged on their own. `frame_physics_report.run_check(fresh_since=...)` skips layers registered before
+  the flag was first seen ON and names them (`stale_skipped`), and the verdict's reasons list them.
+  Consecutive UNTESTABLE runs are counted. At 4 (~24 h) the run writes a GUARD-BLIND line (summary, warning annotation,
+  `guard-blind.txt`), and `flag-guardrail.yml` opens ONE issue. It closes that issue on the next judged run
+  (`guard-judged.txt`). It only reports.
+- Tests: 26 in `test_gfs_partition_masked_zero.py`. Run twice with the 5 guardrail suites, the physics check and runtime
+  flags: 138 passed both times. Mutating either the strike-keeping branch or the blind trigger turns a test red.
+- 2026-11-24, advisor title hold: the blind issue is now titled "PHYSICS guard blind: ..." (no "Flag guardrail"), its search
+  filters to that prefix, and the main guardrail issue's search excludes it (jq filter). Pinned by a test that also runs the
+  real jq filters where jq exists (CI). Note for the next change: `flag_guardrail.py` is at 785 of 800 lines, so the PHYSICS
+  helpers must move to their own module first.
+- 2026-11-24, ahead of #1263 (which lands first and also edits `flag_guardrail.py` main() and the workflow): the PHYSICS
+  guard moved to `backend/scripts/flag_guardrail_physics.py` (constants, `physics_result`, `physics_read`, `physics_pass`,
+  `write_guard_files`), re-exported by `flag_guardrail`. `flag_guardrail.py` went from 785 to 707 lines; a test keeps it under
+  760. No behaviour change: 164 tests passed twice. After #1263 merges: a plain dev merge, resolved by hand, and the three
+  issue titles ("Flag guardrail", "PHYSICS guard blind", "P0 cold-start snapshot drift") re-checked against each other's
+  searches.
