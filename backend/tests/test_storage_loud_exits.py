@@ -69,6 +69,7 @@ class _Model:
 
 TODAY = datetime(2026, 11, 22, tzinfo=timezone.utc)
 YDAY = datetime(2026, 11, 21, tzinfo=timezone.utc)
+LATE = datetime(2026, 11, 22, 18, 33, tzinfo=timezone.utc)      # the 11-22 run's real time: today's run was long due
 
 
 def _report():
@@ -84,14 +85,14 @@ def test_one_failed_head_is_retried():
 def test_a_stored_yesterday_never_hides_a_missed_today():
     """The 2026-11-22 case: today unavailable, yesterday stored. The miss is recorded, not skipped quietly."""
     m, rep = _Model({TODAY: [False]}), _report()
-    jobs = C.plan_daily(m, TODAY, {"cycles/ICON_2026112100.json.gz"}, rep, waits=(0, 0, 0))
+    jobs = C.plan_daily(m, TODAY, {"cycles/ICON_2026112100.json.gz"}, rep, waits=(0, 0, 0), now=LATE)
     assert jobs == [] and rep["unavailable"] == ["ICON 2026112200"]
     assert rep["skipped"] == ["cycles/ICON_2026112100.json.gz"] and m.asked.count(TODAY) == 4
 
 
 def test_an_unstored_yesterday_is_still_collected_and_today_still_recorded():
     m, rep = _Model({TODAY: [False], YDAY: [True]}), _report()
-    jobs = C.plan_daily(m, TODAY, set(), rep, waits=(0, 0, 0))
+    jobs = C.plan_daily(m, TODAY, set(), rep, waits=(0, 0, 0), now=LATE)
     assert [j[1] for j in jobs] == [YDAY] and rep["unavailable"] == ["ICON 2026112200"]
 
 
@@ -198,3 +199,16 @@ def test_an_error_page_is_not_a_grib_index():
     assert not C.is_grib_index(503, '{"param": "10fg"}')
     assert not C.is_grib_index(200, "<?xml version='1.0'?><Error><Code>SlowDown</Code></Error>")
     assert not C.is_grib_index(200, "")
+
+
+def test_before_the_run_is_due_a_missing_today_is_not_a_miss(monkeypatch):
+    """The PR dry run at 00:01Z on 2026-11-24 found no 11-24 runs (not yet published) and wrongly ended red."""
+    early = datetime(2026, 11, 22, 0, 1, tzinfo=timezone.utc)
+    m, rep = _Model({TODAY: [False], YDAY: [True]}), _report()
+    jobs = C.plan_daily(m, TODAY, set(), rep, waits=(0, 0, 0), now=early)
+    assert [j[1] for j in jobs] == [YDAY] and rep["unavailable"] == [] and rep["not_yet_due"] == ["ICON 2026112200"]
+    monkeypatch.setattr(W.ef, "run_available", lambda session, run, lead, base: run.day == 15)
+    rep2 = {"skipped": [], "unavailable": [], "dropped": []}
+    plan = W.daily_plan(None, datetime(2026, 11, 16, 0, 1, tzinfo=timezone.utc), set(), rep2, waits=(0,))
+    assert [r for r, _ in plan] == [datetime(2026, 11, 15, tzinfo=timezone.utc)]
+    assert rep2["unavailable"] == [] and rep2["not_yet_due"] == ["2026111600"] and W.daily_status(rep2) == 0

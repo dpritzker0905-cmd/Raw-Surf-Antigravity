@@ -100,6 +100,9 @@ def _probe(session, run, waits):
     return None
 
 
+PUBLISH_BY_H = 10      # the 00Z ENS is complete by ~07:40 UTC; before 10 UTC today's absence is expected, not a miss
+
+
 def daily_plan(session, now: datetime, done: set, report: dict, waits=None):
     """[(run, base)] for the daily job: today's 00Z run if it is not stored and reachable (data.ecmwf.int first, the AWS
     mirror second; probed again after each wait). Otherwise today is recorded as UNAVAILABLE, and yesterday is collected
@@ -114,7 +117,10 @@ def daily_plan(session, now: datetime, done: set, report: dict, waits=None):
     base = _probe(session, today, waits)
     if base:
         return [(today, base)]
-    report["unavailable"].append(f"{today:%Y%m%d%H}")
+    if now < today + timedelta(hours=PUBLISH_BY_H):
+        report.setdefault("not_yet_due", []).append(f"{today:%Y%m%d%H}")     # recorded, not a miss
+    else:
+        report["unavailable"].append(f"{today:%Y%m%d%H}")
     y = today - timedelta(days=1)
     if f"{y:%Y%m%d%H}.npz" in done:
         report["skipped"].append(f"{y:%Y%m%d%H}.npz")

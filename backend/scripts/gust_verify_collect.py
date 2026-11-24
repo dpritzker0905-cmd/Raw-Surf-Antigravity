@@ -319,7 +319,12 @@ def available_retried(model, cycle, waits=None):
     return False
 
 
-def plan_daily(model, today, done, report, waits=None):
+# Every model's 00Z run is out by 10 UTC (GFS ~05Z, ICON ~04Z, EURO ~08Z); before that, today's absence is expected, not a
+# miss (the PR dry run at 00:01Z on 2026-11-24 flagged one falsely).
+PUBLISH_BY_H = 10
+
+
+def plan_daily(model, today, done, report, waits=None, now=None):
     """Today's run if it is stored (skip) or available (collect). Otherwise today is recorded as UNAVAILABLE, and yesterday is
     collected only if it is not stored and still available.
     2026-11-22: a single failed HEAD for ICON's 00Z made the old loop fall back to yesterday, find it stored, and stop. Today
@@ -332,7 +337,10 @@ def plan_daily(model, today, done, report, waits=None):
         return out
     if available_retried(model, today, waits):
         return [(model, today, tkey)]
-    report["unavailable"].append(f"{model.name} {today:%Y%m%d%H}")
+    if now is not None and now < today + timedelta(hours=PUBLISH_BY_H):
+        report.setdefault("not_yet_due", []).append(f"{model.name} {today:%Y%m%d%H}")   # recorded, not a miss
+    else:
+        report["unavailable"].append(f"{model.name} {today:%Y%m%d%H}")
     y = today - timedelta(days=1)
     ykey = f"cycles/{model.name}_{y:%Y%m%d%H}.json.gz"
     if ykey in done:
@@ -460,7 +468,7 @@ def main(argv=None):
         for M in (GfsModel, EuroModel, IconModel):
             if M.name not in wanted:
                 continue
-            jobs += plan_daily(M(http), today, done, report)
+            jobs += plan_daily(M(http), today, done, report, now=now)
         obs_kind = "5day"
     else:
         start = datetime.fromisoformat(a.start).replace(tzinfo=timezone.utc)
