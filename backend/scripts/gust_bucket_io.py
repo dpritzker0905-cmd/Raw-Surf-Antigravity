@@ -58,9 +58,8 @@ def list_keys(prefix):
     while True:
         body = json.dumps({"prefix": prefix, "limit": 1000, "offset": offset}).encode()
         st, data = _req("POST", f"/storage/v1/object/list/{BUCKET}", body, "application/json")
-        if st != 200:
-            print(f"list {prefix}: HTTP {st}")
-            return names
+        if st != 200:                     # loud: on 2026-11-19 a 401 here read as an empty bucket and a day was lost
+            raise SystemExit(f"storage read failed: list {prefix}: HTTP {st}")
         page = json.loads(data or b"[]")
         names += [p["name"] for p in page if p.get("name")]
         if len(page) < 1000:
@@ -68,9 +67,19 @@ def list_keys(prefix):
         offset += 1000
 
 
+ABSENT = (400, 404)        # Supabase answers a missing object with 400 or 404: absent, not a failure
+STORED = (200, 201)
+DUPLICATE = (400, 409)     # create-only: the object is already there
+
+
 def get(key):
+    """The object, None when it does not exist, and a LOUD exit on any other answer (401, 403, 5xx, no response)."""
     st, data = _req("GET", f"/storage/v1/object/{BUCKET}/{key}")
-    return data if st == 200 else None
+    if st == 200:
+        return data
+    if st in ABSENT:
+        return None
+    raise SystemExit(f"storage read failed: GET {key}: HTTP {st}")
 
 
 def put_new(key, blob):
@@ -105,17 +114,24 @@ def main(argv):
                         got += 1
             print(f"downloaded {got} files")
         return 0
-    sent = 0
+    sent, bad = 0, []
     sp = os.path.join(d, "stations.json.new")
     if os.path.exists(sp):
-        print(f"stations upload: HTTP {put_new(f'{PREFIX}/stations.json', open(sp, 'rb').read())}")
+        st = put_new(f'{PREFIX}/stations.json', open(sp, 'rb').read())
+        print(f"stations upload: HTTP {st}")
+        if st not in STORED + DUPLICATE:
+            bad.append(st)
     for sub in SUBDIRS:
         for name in sorted(os.listdir(os.path.join(d, sub))):
             if name.endswith(".json.gz.new"):
                 st = put_new(f"{PREFIX}/{sub}/{name[:-4]}", open(os.path.join(d, sub, name), "rb").read())
                 print(f"{sub}/{name[:-4]}: HTTP {st}")
-                sent += st in (200, 201)
+                sent += st in STORED
+            if st not in STORED + DUPLICATE:
+                bad.append(st)
     print(f"uploaded {sent} files")
+    if bad:                               # loud: a refused write must not leave a green run and a missing day
+        raise SystemExit(f"storage write failed: {len(bad)} object(s), HTTP {sorted(set(bad))}")
     return 0
 
 
