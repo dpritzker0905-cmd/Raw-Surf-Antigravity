@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 2,
+  "branch": "claude/missed-day-gap-red",
+  "date": "2026-11-24",
+  "note": "missed-gap red (test_storage_loud_exits.py)"
+}

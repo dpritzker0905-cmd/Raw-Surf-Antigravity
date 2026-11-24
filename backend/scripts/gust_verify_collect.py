@@ -334,7 +334,9 @@ def plan_daily(model, today, done, report, waits=None, now=None):
     - YESTERDAY, ALWAYS, whatever today did and whatever the clock: stored -> skip; available -> collect; otherwise
       `unavailable` (red). GitHub drops scheduled runs, and ICON keeps only its latest run, so a dropped day-D run is caught
       by day D+1 here, never lost green (advisor HOLD on #1255).
-    - The LOOKBACK_DAYS before yesterday: a missing key is listed in `missing_recent`. That is a report, not a failure.
+    - The LOOKBACK_DAYS before yesterday: a missing key is listed in `missing_recent` (a report). The DAY BEFORE YESTERDAY,
+      if missing, is also `missed_gap` (red): it was never "yesterday" to any run, so two or more consecutive scheduled runs
+      were dropped, and this is the first run that can see it. Further back it is report-only, so a lost day is red once.
     2026-11-22: one failed HEAD for ICON's 00Z sent the old loop to the stored yesterday, and the day was lost green."""
     out = []
     y = today - timedelta(days=1)
@@ -352,6 +354,8 @@ def plan_daily(model, today, done, report, waits=None, now=None):
         d = today - timedelta(days=k)
         if f"cycles/{model.name}_{d:%Y%m%d%H}.json.gz" not in done:
             report.setdefault("missing_recent", []).append(f"{model.name} {d:%Y%m%d%H}")
+            if k == 2:   # a day that was never "yesterday" to a run (2+ consecutive runs dropped): its first appearance, red
+                report.setdefault("missed_gap", []).append(f"{model.name} {d:%Y%m%d%H}")
     return out
 
 
@@ -508,9 +512,10 @@ def main(argv=None):
         report["obs"] = {"key": okey, "stations": len(got), "missing": missing}
         print(f"{okey}: {len(got)} stations, {len(missing)} without a file", flush=True)
     open(os.path.join(a.cache, f"collect_report_{a.cmd}.json"), "w").write(buoy_holdout.redact(json.dumps(report, indent=1)))
-    if report["unavailable"]:              # loud, AFTER the collected files are written (the upload step runs on failure too)
+    missed = report["unavailable"] + report.get("missed_gap", [])
+    if missed:                             # loud, AFTER the collected files are written (the upload step runs on failure too)
         level = "warning" if a.report_only else "error"
-        print(buoy_holdout.redact(f"::{level}::run not collected: {', '.join(report['unavailable'])}"), flush=True)
+        print(buoy_holdout.redact(f"::{level}::run not collected: {', '.join(missed)}"), flush=True)
         return 0 if a.report_only else 3
     return 0
 

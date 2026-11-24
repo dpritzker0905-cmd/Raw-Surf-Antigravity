@@ -113,7 +113,8 @@ def daily_plan(session, now: datetime, done: set, report: dict, waits=None):
       `unavailable` (red).
     - YESTERDAY, ALWAYS: stored -> skip; reachable -> collect; otherwise `unavailable` (red). A dropped scheduled run is
       caught the next day (advisor HOLD on #1255). The ENS stays on the AWS mirror, so a backfill slice recovers it.
-    - The LOOKBACK_DAYS before yesterday: missing runs are listed in `missing_recent` (a report, not a failure).
+    - The LOOKBACK_DAYS before yesterday: missing runs are listed in `missing_recent` (a report). The day before yesterday, if
+      missing, is also `missed_gap` (red): two or more consecutive runs were dropped and this run is the first to see it.
     2026-11-16: a 503 from the mirror lost that day."""
     waits = PROBE_WAITS if waits is None else waits
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -134,6 +135,8 @@ def daily_plan(session, now: datetime, done: set, report: dict, waits=None):
         d = today - timedelta(days=k)
         if f"{d:%Y%m%d%H}.npz" not in done:
             report.setdefault("missing_recent", []).append(f"{d:%Y%m%d%H}")
+            if k == 2:   # a day that was never "yesterday" to a run (2+ consecutive runs dropped): its first appearance, red
+                report.setdefault("missed_gap", []).append(f"{d:%Y%m%d%H}")
     return out
 
 
@@ -207,9 +210,9 @@ def main(argv=None) -> int:
 def daily_status(report: dict) -> int:
     """3 (red) when the daily job missed a run, unreachable or dropped; 0 otherwise. Loud AFTER the run files are written,
     so the workflow's upload step (which runs on failure too) still stores what was collected."""
-    if report["unavailable"] or report["dropped"]:
-        print(f"::error::daily EMOS run not collected: unavailable {report['unavailable']}, dropped "
-              f"{[d['run'] for d in report['dropped']]}", flush=True)
+    if report["unavailable"] or report["dropped"] or report.get("missed_gap"):
+        print(f"::error::daily EMOS run not collected: unavailable {report['unavailable']}, missed gap "
+              f"{report.get('missed_gap', [])}, dropped {[d['run'] for d in report['dropped']]}", flush=True)
         return 3
     return 0
 
