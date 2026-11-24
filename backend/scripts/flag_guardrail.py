@@ -72,6 +72,9 @@ from flag_guardrail_physics import (  # noqa: E402,F401  (re-exported: callers a
     PHYSICS, PHYSICS_BLIND_KEY, PHYSICS_BLIND_RUNS, PHYSICS_ON_KEY, PHYSICS_RAILS, physics_read, physics_result,
     write_guard_files,
 )
+from flag_guardrail_drift import P0_DRIFT_TITLE, drift_lines, snapshot_drift  # noqa: E402,F401  (moved at the cap)
+import flag_guardrail_tide as _tide  # noqa: E402  (the TIDE family, gates/tide-guard-v1.md + amendment 1)
+from flag_guardrail_tide import TIDE  # noqa: E402
 
 ROLLING_DAYS = 14
 SETTLE_H = 24
@@ -95,6 +98,8 @@ REPLAY, RATING, VOLUME, BLIND, LEDGER = "replay", "rating", "volume", "blind", "
 # Every GUARDED flag (and the ones open PRs add) with what can see it. Flags in eval_replay.UNREPLAYABLE are BLIND
 # automatically (their reason is the replay's own). Pre-declared names cost nothing until they are guarded.
 COVERAGE = {
+    "SURF_TIDE_A_HARCON": (TIDE, "the served table's two A arms vs NOAA predictions at 40 subordinate monitors "
+                                  "(gates/tide-guard-v1.md; REPORT-ONLY until TIDE_GUARD_RELEASED=1)"),
     "GFS_PARTITION_MASKED_AS_ZERO": (PHYSICS, "the frame physics check's R1 / R2 on the GFS world partition frames this "
                                               "flag's ingest published (PHYSICS_RAILS); the replay archives no partitions"),
     "SAMPLER_UNRESOLVED_STATIONS": (BLIND, "one named buoy coordinate (NDBC 46267); no surf spot is within 0.6 deg, so "
@@ -210,22 +215,6 @@ def empty_manifest() -> dict:
     return {"schema": _rf.SCHEMA, "flags": {}}
 
 
-def snapshot_drift(manifest: dict, snapshot_kills=None) -> dict:
-    """D-090 cold-start floor: the live manifest's 'off' entries vs the committed snapshot's
-    (`services/runtime_flags_snapshot.json`). {} when they agree; else {missing, extra, text} where `missing` are kills a
-    cold process would LOSE during an outage (the dangerous side), `extra` are kills it would wrongly hold, and `text` is
-    the exact file to commit. The workflow opens an issue on any drift (no token here can commit it: no new secret)."""
-    live = {k: e for k, e in _rf.validate(manifest).items() if e["state"] == "off"}
-    snap = _rf.snapshot_kills() if snapshot_kills is None else snapshot_kills
-    missing, extra = sorted(set(live) - set(snap)), sorted(set(snap) - set(live))
-    if not missing and not extra:
-        return {}
-    doc = {"schema": _rf.SCHEMA, "note": "COLD-START FLOOR (runtime_flags.py, D-090): the 'off' entries of "
-           "control/flags.json, committed so a guardrail kill survives a process start during a manifest outage.",
-           "as_of": iso(utc_now()), "source": "flag-guardrail snapshot_drift", "flags": live}
-    return {"missing": missing, "extra": extra, "text": json.dumps(doc, indent=1, sort_keys=True) + "\n"}
-
-
 def effective_on(flag: str, manifest: dict) -> bool:
     e = (manifest.get("flags") or {}).get(flag)
     if e and str(e.get("state")).lower() in _rf.STATES:
@@ -321,6 +310,8 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
         return {"action": "none", "reason": "not ON (code default off, no manifest entry): nothing to watch"}
     breach = result.get("sanity") or []
     if _phys.untestable_keeps_strikes(result, breach):    # a PHYSICS UNTESTABLE keeps the strike counter (advisor, #1267)
+        return _phys.untestable_decision(flag, result, manifest)
+    if _tide.keeps_strikes(result, breach):              # a TIDE UNTESTABLE or CACHED cycle (tide-guard-v1 s5)
         return _phys.untestable_decision(flag, result, manifest)
     if result.get("verdict") == gs.WORSE and not breach:
         w = (manifest.get("watch") or {}).get(flag) or {}
@@ -525,7 +516,7 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
               "leads": "24,48,72", "step_h": 12, "cache_dir": cache_dir, "max_range_downloads": 900,
               "max_bytes": 3_000_000_000}
     results = {}
-    seen = [f for f in flags if (coverage(f) or (REPLAY, ""))[0] not in (BLIND, LEDGER, PHYSICS)]
+    seen = [f for f in flags if (coverage(f) or (REPLAY, ""))[0] not in (BLIND, LEDGER, PHYSICS, TIDE)]
     led = None
     try:                                     # once per run; also carries CONSENSUS_SERVE's readiness cells for the report
         led = (ledger or ledger_report)(now)
@@ -547,6 +538,8 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
             r = {"verdict": LEDGER_VERDICT.get((v or {}).get("state"), gs.UNTESTABLE),
                  "reasons": (v or {}).get("why") or [f"ledger {(v or {}).get('state') or 'unavailable'}: {why}"],
                  "ledger_state": (v or {}).get("state")}
+        elif cls == TIDE:               # judged in run() on the served table vs NOAA (flag_guardrail_tide); never replayed
+            r = {"verdict": gs.UNTESTABLE, "reasons": [f"TIDE: {why}"], "sanity": []}
         elif cls == PHYSICS:            # judged in run() on the physics check (physics_result); never replayed
             r = {"verdict": gs.UNTESTABLE, "reasons": [f"PHYSICS: {why}"], "sanity": []}
         elif cls == BLIND:
@@ -565,7 +558,7 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
     return results
 
 
-def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None, physics=None) -> dict:
+def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None, physics=None, tide=None) -> dict:
     now = now or utc_now()
     enforce = args.enforce == "1"
     manifest = manifest if manifest is not None else read_manifest(getattr(args, "allow_missing_manifest", False))
@@ -612,6 +605,7 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None, ph
     watch, on_since = _phys.track_on_since(watch, [f for f in PHYSICS_RAILS if f in _rf.GUARDED and effective_on(f, manifest)],
                                            iso(now))
     results, watch, guard_blind, guard_judged = _phys.physics_pass(results, watch, on_since, physics)
+    results, watch, tide_blind, tide_judged = _tide.tide_pass(results, watch, now, **(tide or {}))
     decisions, new = {}, manifest
     for f in watched:
         d = decide(f, results.get(f, {"verdict": "UNTESTABLE", "reasons": ["not scored (held off)"]}),
@@ -627,7 +621,8 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None, ph
     changed = new != manifest
     report = {"mode": "enforce" if enforce else "dry-run", "generated_utc": iso(now), "decisions": decisions,
               "results": results, "changed": changed, "watch": watch, "ledger": ledger, "plant_rates": plant_rates,
-              "guard_blind": guard_blind, "guard_judged": guard_judged,
+              "guard_blind": guard_blind, "guard_judged": guard_judged, "tide_blind": tide_blind,
+              "tide_judged": tide_judged,
               "ledger_commands": [ledger_command(f, d, args.run_url) for f, d in decisions.items()
                                   if d["action"] == "disable"]}
     if enforce and changed:
@@ -679,34 +674,7 @@ def markdown(report: dict) -> str:
                       + "; ".join(f"{k} {a}/{n}" for k, (a, n) in sorted(rates.items())), ""]
     for c in report.get("ledger_commands", []):
         lines += ["", "Ledger line owed (BRAIN_RULES section 23), for the next session's fragment:", "```", c, "```"]
-    return "\n".join(lines + drift_lines(report.get("snapshot_drift") or {})) + "\n"
-
-
-# The DEDICATED P0 issue (advisor, #1263): its own title, so it is never buried as a comment on an old "Flag guardrail"
-# issue. The three guardrail-family titles stay unmatched by each other's searches: "Flag guardrail", "PHYSICS guard
-# blind" (#1267) and this one (no word "flag" or "guardrail" in it; tests/test_flag_guardrail.py pins that).
-P0_DRIFT_TITLE = "P0 cold-start snapshot drift: commit and deploy the kills snapshot within 24 h"
-
-
-def drift_lines(drift: dict) -> list:
-    """The markdown section for a cold-start snapshot drift ([] when none)."""
-    lines = []
-    if drift:
-        p0 = bool(drift["missing"])
-        lines += ["", f"### {'P0 · ' if p0 else ''}Cold-start snapshot drift (D-090)", ""]
-        if p0:
-            lines += [f"**P0 (advisor condition on #1261, 2026-11-24).** The guardrail killed served-number flag(s) "
-                      f"{', '.join(drift['missing'])}, and the committed snapshot does not hold the kill. A process that "
-                      "starts during a manifest outage would serve the killed fix again.", "",
-                      "- **Deadline: within 24 h of this run**, commit the file below in a one-file PR to `dev` AND have "
-                      "it deployed. Production (Render) deploys from `dev`, and the snapshot protects a cold start only "
-                      "once it is on that branch and live (check `/api/health` `version`).",
-                      "- **While this issue is open, no new served-number fix ships ON.**", ""]
-        lines += [f"Would LOSE on a cold start: {', '.join(drift['missing']) or 'none'}; would wrongly hold: "
-                  f"{', '.join(drift['extra']) or 'none'}. Exact file text for "
-                  "`backend/services/runtime_flags_snapshot.json`:", "",
-                  "```json", drift["text"].rstrip("\n"), "```"]
-    return lines
+    return "\n".join(lines + _tide.lines(report) + drift_lines(report.get("snapshot_drift") or {})) + "\n"
 
 
 def main(argv=None) -> int:
@@ -749,6 +717,7 @@ def main(argv=None) -> int:
         with open(os.path.join(a.out, "p0_drift.md"), "w", encoding="utf-8", newline="\n") as f:
             f.write("\n".join(drift_lines(d)).lstrip("\n") + "\n")
     write_guard_files(a.out, report)
+    _tide.write_files(a.out, report)
     return 0
 
 
