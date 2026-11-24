@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 17,
+  "tests": 22,
   "branch": "claude/storage-auth-loud",
   "date": "2026-11-24",
-  "note": "storage 401/403 fails loud + issue (test_storage_auth_check)"
+  "note": "storage auth: warn default, allow-list, confirm, scrub (test_storage_auth_check)"
 }

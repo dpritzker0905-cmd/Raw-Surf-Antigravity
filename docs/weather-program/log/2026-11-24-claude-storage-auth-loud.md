@@ -28,3 +28,18 @@ guardrail. It is stdlib only and runs before `pip install`.
 
 A VALID key against the bucket endpoint was not tried here (no service key on this machine). The first lane run after
 merge prints "storage credential accepted" or an inconclusive warning; read it.
+
+## Advisor limits folded in (2026-11-24, before merge)
+
+- **Allow-list, not keywords.** A rejection is a 401/403, an inner statusCode 401/403, or one of "Legacy API keys are
+  disabled", "signature verification failed", "Invalid API key", "Invalid Compact JWS", "Unauthorized". The 400
+  "headers must have required property 'authorization'" is a request-shape answer, graded UNKNOWN: it warns only.
+- **Confirmed twice.** A rejection must repeat about 10 s later.
+- **Modes.** `STORAGE_AUTH_CHECK`: `warn` is the workflow default at merge (issue, exit 0); `block`/`1` exits 2; `0` is
+  off. Moving the default to `block` is a variable change for the owner's word, via the director. Not done here.
+- **Same read as production.** The probe reads `control/flags.json` with `supabase_headers`, the same request
+  `runtime_flags` and the guardrail make, so a valid key's 200 is the known case.
+- **Verification after merge.** The first lane run inside `supabase-service` logs "storage credential accepted (HTTP
+  200, control/flags.json)". Read it.
+- **Scrubbing.** The key value and any `sb_secret_` / `sb_publishable_` / `eyJ` token are scrubbed from Supabase's
+  message before it is printed or posted.
