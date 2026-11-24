@@ -305,3 +305,41 @@ replay cannot see a partition height") and under the advisor's ruling.
 of a block. At the 2-deg world tier the wind-wave height falls by more than half in one block in ten (p90 ratio 2.41),
 and more on the 10-deg tier. Totals, periods, directions, glyphs and ratings do not move unless `SURF_PARTITIONS` is
 on. If ICON or EURO share the mask behaviour (step 0), their partition heights fall the same way.
+
+### Plan 4 · AMENDMENT 2026-11-24 (overrides the coverage and ship lines above)
+**Owner's ruling (David, answered in the director session local_d6b521eb, relayed 2026-11-24):** "Ship ON with guard
+(Recommended)". It was given after SubQ (0.88 for ON) and Reflection (dark unless the owner accepts the risks).
+
+**Ship design.**
+- `GFS_PARTITION_MASKED_AS_ZERO` has code default `"1"` (ON) and kill switch `"0"`. It is in `runtime_flags.GUARDED`
+  and `_RATING_FLAGS`, with lane parity.
+- **It must not be ON in production before #1261 (the manifest fail-safe) merges** (the advisor's prerequisite). The
+  PR is held for merge until then.
+- Fix B (`PARTITION_COVERAGE_MASKED`) has the same root and gets the same treatment unless the panel says otherwise.
+- The scheduler resolves the flag with `runtime_flags.flag()` in the parent and passes it into the fetcher
+  subprocess env. Without that, an auto-disable never reaches the fetcher.
+
+**The guard.** The physics check's R1 and R2 for the flag's scope (GFS world partitions) feed `flag_guardrail` as a
+sanity input. Two `decide()` tests prove the auto-off fires:
+1. A WORSE R2 (the flag ON, R2 above the pre-registered bound) disables the flag.
+2. A sanity breach disables the flag.
+
+D-087 applies: after an auto-off, a `FIX_VERSION` bump plus 3 NOT_WORSE cycles, then the owner re-enables.
+
+**Step 0, done 2026-11-24.**
+1. **`SURF_PARTITIONS`:** pinned `'0'` in `forecast-ingest.yml:105`, `precompute.yml:137`, `spot-series.yml` and
+   `sim-parity-monitor.yml`. The lane-parity rule requires Render to match, so no breaking height or rating reads a
+   partition, and this fix moves no surf height. Render's env itself was not read; the parity rule is the evidence.
+2. **ICON (DWD GWAM) does NOT mask absent partitions.** On run 2026-11-22 12Z, leads 24, 72 and 168 h, with GRIB read
+   offline from DWD open data: where the total is valid, `shts` and `shww` are NaN in 0.0 % of cells and exactly 0.0
+   in 17.7 %.
+   - Those 0.0 cells are almost all cells where the TOTAL is 0.0 too (12 % of the grid, all three fields 0). They are
+     the ICON "valid zero" cells of rescan finding 5, a separate defect.
+   - Native R1 and R2 are 0.0 %. Block RMS at 7 or 8 native cells gives 0.0 % with or without the fix.
+   - **So the fix is INERT for ICON. No ICON flag is built:** an inert flag is BLIND by D-090's own wording.
+   - ICON's served R2 (14.7 %) comes from elsewhere (the estimated tail, Plan 1), not from this mechanism.
+   - Evidence: `evidence/2026-11-24-gfs-native-r2/dwd_mask.py`.
+3. **EURO / CMEMS:** not read. The NetCDF needs Copernicus credentials that only CI holds. EURO is out of this fix's
+   scope; it is Plan 2's.
+4. **Regional tiers:** the native-cell path mixes up to four subcells. The 0.5-deg arm (R2 6.65 % to 1.42 %) bounds it
+   from above. The fix covers it through the same `_fetch_region_reduce` wiring.
