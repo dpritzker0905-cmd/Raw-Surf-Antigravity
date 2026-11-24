@@ -27,3 +27,19 @@ probe. Making it run needs an outside account (healthchecks.io or similar), whic
 - If the Render box is down, nothing dispatches; GitHub's cron then still runs the monitor, which reads "unreachable"
   and opens a critical issue.
 - If both GitHub Actions and the box are down, only an external probe would notice (see above).
+
+## Advisor limits folded in (2026-11-24, before merge)
+
+- **(a) One-box rule.** Measured, not load-tested: over the last 25 monitor runs (GitHub step timings) the
+  `/api/health/data` poll took 1 s median (max 2 s) and the regional census, which reads `/api/weather/products`, 2 s
+  median (max 24 s), consistent with the cached once-per-manifest-version encode. Even so, on box-dispatched runs the
+  census now runs only every `REGION_CENSUS_EVERY_H` hours (default 3); GitHub's own schedule runs keep it every time.
+  `/api/health/data` stays every 30 min.
+- **(b) Hysteresis.** An issue closes only after two consecutive healthy runs (label `recovering` on the first). A
+  relapse removes the label. A flapping outage reopens the issue closed within 24 h instead of opening a new one.
+- **(c) [TEST] issues.** A leftover [TEST] issue is closed on the next run. It is never escalated, reopened or adopted.
+- **#1261 operating condition (D-090).** When the guardrail kills a served-number flag and the committed snapshot lacks
+  the kill, the guardrail issue says **P0** (title tag `P0-cold-start-snapshot-drift-24h`). It sets a 24 h deadline to
+  commit AND deploy the one-file snapshot, says no new served-number fix ships ON while it is open, and gives the exact
+  file text. Production (Render) deploys from `dev`: the live `/api/health` version was `f37de972a`, dev's #1261 merge.
+  The snapshot protects a cold start only once it is on `dev` and deployed.

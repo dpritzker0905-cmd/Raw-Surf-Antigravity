@@ -10,28 +10,45 @@ WHAT (pure; the workflow runs the `gh` commands this prints):
   severity  critical = /api/health/data unreachable, non-200, unparseable, or status 'critical'
             high     = a lane older than the page bound, or the raster / regional freshness step failed
             none     = healthy
-  action    open      no open stale-data issue and severity != none
-            escalate  an open one exists at a LOWER severity (title + labels move up, one comment)
-            close     an open one exists and severity is none (one recovery comment, then closed)
-            none      otherwise. An open issue at the same or a higher severity is NOT commented again, so a long
-                      outage is one notification, not one every 30 min.
+  action    open       no open stale-data issue, none closed in the last REOPEN_WINDOW_H, and severity != none
+            reopen     no open one, but one closed within REOPEN_WINDOW_H: reopened (one thread per flapping outage)
+            escalate   the open one is at a LOWER severity (title + labels move up, one comment)
+            recovering the open one and a healthy run: label `recovering`, one comment ("healthy 1/2")
+            close      the open one is already `recovering` and this run is healthy too: closed (HYSTERESIS: two
+                       consecutive healthy runs before an issue closes; advisor limit (b) on #1263)
+            relapse    the open one is `recovering` and this run is not healthy: the label comes off, one comment
+            none       otherwise. An open issue at the same or a higher severity is NOT commented again, so a long
+                       outage is one notification, not one every 30 min.
+  close_tests  every decision also lists leftover [TEST] issues to close (a forced-stale run whose close failed). A
+               [TEST] issue is never escalated, reopened or adopted as the real one (advisor limit (c)).
   --force-stale  the one forced-stale proof: a synthetic stale body, a title marked [TEST], and the workflow closes it
                  in the same run. It never touches a real open issue.
 
 Usage: python scripts/staleness_alert.py --health /tmp/health.json --code 200 --page-hours 7 \
-         --raster success --regional failure --open-issues issues.json [--force-stale] > decision.json
+         --raster success --regional failure --open-issues open.json --recent-closed closed.json [--force-stale]
 """
 import argparse
 import json
 import sys
+from datetime import datetime, timedelta, timezone
 
 LABEL = "stale-data"
+RECOVERING = "recovering"
 SEVERITIES = ("none", "high", "critical")           # ordered
 TEST_TAG = "[TEST forced-stale] "
+REOPEN_WINDOW_H = 24.0
 
 
 def _rank(sev: str) -> int:
     return SEVERITIES.index(sev) if sev in SEVERITIES else 0
+
+
+def _labels(issue) -> set:
+    return {str(lb.get("name", "")) for lb in (issue or {}).get("labels") or []}
+
+
+def _is_test(issue) -> bool:
+    return str((issue or {}).get("title", "")).startswith(TEST_TAG)
 
 
 def assess(health, code: str, page_hours: float, raster: str = "success", regional: str = "success"):
@@ -61,8 +78,25 @@ def forced_body() -> dict:
             "lanes": {"core": {"age_h": 25.0}, "ratings": {"age_h": 21.0}}}
 
 
-def decide(severity: str, reasons, open_issues, run_url: str = "", force: bool = False) -> dict:
-    """The one action for the workflow. `open_issues`: [{number, title, labels:[{name}]}] with the stale-data label."""
+def _recent(closed, now: datetime):
+    """The newest non-[TEST] issue closed within REOPEN_WINDOW_H, or None."""
+    best, best_t = None, None
+    for i in closed or []:
+        if _is_test(i):
+            continue
+        try:
+            t = datetime.fromisoformat(str(i.get("closedAt", "")).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if now - t <= timedelta(hours=REOPEN_WINDOW_H) and (best_t is None or t > best_t):
+            best, best_t = i, t
+    return best
+
+
+def decide(severity: str, reasons, open_issues, run_url: str = "", force: bool = False, recent_closed=None,
+           now: datetime = None) -> dict:
+    """The one action for the workflow. `open_issues` / `recent_closed`: [{number, title, labels:[{name}], closedAt}]."""
+    now = now or datetime.now(timezone.utc)
     prefix = TEST_TAG if force else ""
     title = f"{prefix}Stale data: {severity.upper()} - the served forecast is not being refreshed"
     body = "\n".join([
@@ -72,28 +106,49 @@ def decide(severity: str, reasons, open_issues, run_url: str = "", force: bool =
         "",
         f"Run: {run_url}" if run_url else "",
         "Raised by the Data Health Monitor (`scripts/staleness_alert.py`). It runs every 30 min from the Render box's",
-        "dispatcher (`services/workflow_dispatch.py`), with GitHub's own cron as a backup. It closes itself on recovery.",
-        "First checks: `/api/health/data`, the forecast-ingest and precompute runs, and a 401/403 from storage",
-        "(the 11-19/20 credential failure).",
+        "dispatcher (`services/workflow_dispatch.py`), with GitHub's own cron as a backup. It closes itself after two",
+        "consecutive healthy runs. First checks: `/api/health/data`, the forecast-ingest and precompute runs, and a",
+        "401/403 from storage (the 11-19/20 credential failure).",
     ]).strip() + "\n"
     labels = [LABEL, f"severity:{severity}"]
+    tests = [i for i in (open_issues or []) if _is_test(i)]
+    base = {"severity": severity, "close_tests": [] if force else [i["number"] for i in tests]}
     if force:
-        return {"action": "open", "severity": severity, "title": title, "body": body, "labels": labels, "test": True}
-    real = [i for i in (open_issues or []) if not str(i.get("title", "")).startswith(TEST_TAG)]
+        return dict(base, action="open", title=title, body=body, labels=labels, test=True)
+    real = [i for i in (open_issues or []) if not _is_test(i)]
     current = real[0] if real else None
+    sev_labels = [f"severity:{s}" for s in SEVERITIES[1:] if s != severity]
     if current is None:
         if severity == "none":
-            return {"action": "none", "severity": severity}
-        return {"action": "open", "severity": severity, "title": title, "body": body, "labels": labels}
-    have = max((_rank(lb.get("name", "").split(":", 1)[1]) for lb in current.get("labels") or []
-                if str(lb.get("name", "")).startswith("severity:")), default=0)
+            return dict(base, action="none")
+        prev = _recent(recent_closed, now)
+        if prev is not None:
+            return dict(base, action="reopen", number=prev["number"], title=title, body=body, labels=labels,
+                        remove_labels=sorted((set(sev_labels) | {RECOVERING}) & _labels(prev)))
+        return dict(base, action="open", title=title, body=body, labels=labels)
+    have_labels = _labels(current)
+    have = max((_rank(n.split(":", 1)[1]) for n in have_labels if n.startswith("severity:")), default=0)
+    recovering = RECOVERING in have_labels
     if severity == "none":
-        return {"action": "close", "severity": severity, "number": current["number"],
-                "body": f"Recovered: the monitor reads healthy. {('Run: ' + run_url) if run_url else ''}".strip()}
+        if recovering:
+            return dict(base, action="close", number=current["number"],
+                        body=f"Recovered: two consecutive healthy runs. {('Run: ' + run_url) if run_url else ''}".strip())
+        return dict(base, action="recovering", number=current["number"], labels=[RECOVERING],
+                    body=f"Healthy 1/2: closes after the next healthy run. {('Run: ' + run_url) if run_url else ''}".strip())
     if _rank(severity) > have:
-        return {"action": "escalate", "severity": severity, "number": current["number"], "title": title, "body": body,
-                "labels": labels, "remove_labels": [f"severity:{s}" for s in SEVERITIES[1:] if s != severity]}
-    return {"action": "none", "severity": severity, "number": current["number"]}
+        return dict(base, action="escalate", number=current["number"], title=title, body=body, labels=labels,
+                    remove_labels=sorted((set(sev_labels) | {RECOVERING}) & have_labels))
+    if recovering:
+        return dict(base, action="relapse", number=current["number"], remove_labels=[RECOVERING], body=body)
+    return dict(base, action="none", number=current["number"])
+
+
+def _load(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
 
 
 def main(argv=None) -> int:
@@ -104,25 +159,17 @@ def main(argv=None) -> int:
     p.add_argument("--raster", default="success")
     p.add_argument("--regional", default="success")
     p.add_argument("--open-issues", default="")
+    p.add_argument("--recent-closed", default="")
     p.add_argument("--run-url", default="")
     p.add_argument("--force-stale", action="store_true")
     a = p.parse_args(argv)
     if a.force_stale:
         health, code = forced_body(), "200"
     else:
-        try:
-            with open(a.health, encoding="utf-8") as fh:
-                health = json.load(fh)
-        except (OSError, ValueError):
-            health = None
-        code = a.code
-    try:
-        with open(a.open_issues, encoding="utf-8") as fh:
-            issues = json.load(fh)
-    except (OSError, ValueError):
-        issues = []
+        health, code = _load(a.health), a.code
     sev, reasons = assess(health, code, a.page_hours, a.raster, a.regional)
-    json.dump(decide(sev, reasons, issues, a.run_url, a.force_stale), sys.stdout)
+    json.dump(decide(sev, reasons, _load(a.open_issues) or [], a.run_url, a.force_stale, _load(a.recent_closed) or []),
+              sys.stdout)
     return 0
 
 

@@ -662,10 +662,19 @@ def markdown(report: dict) -> str:
         lines += ["", "Ledger line owed (BRAIN_RULES section 23), for the next session's fragment:", "```", c, "```"]
     drift = report.get("snapshot_drift") or {}
     if drift:
-        lines += ["", "### Cold-start snapshot drift (D-090)", "",
-                  "The committed `backend/services/runtime_flags_snapshot.json` does not hold the live kills. A process "
-                  f"that starts during a manifest outage would LOSE: {', '.join(drift['missing']) or 'none'}; would "
-                  f"wrongly hold: {', '.join(drift['extra']) or 'none'}. Commit this file in a PR to dev:", "",
+        p0 = bool(drift["missing"])
+        lines += ["", f"### {'P0 · ' if p0 else ''}Cold-start snapshot drift (D-090)", ""]
+        if p0:
+            lines += [f"**P0 (advisor condition on #1261, 2026-11-24).** The guardrail killed served-number flag(s) "
+                      f"{', '.join(drift['missing'])}, and the committed snapshot does not hold the kill. A process that "
+                      "starts during a manifest outage would serve the killed fix again.", "",
+                      "- **Deadline: within 24 h of this run**, commit the file below in a one-file PR to `dev` AND have "
+                      "it deployed. Production (Render) deploys from `dev`, and the snapshot protects a cold start only "
+                      "once it is on that branch and live (check `/api/health` `version`).",
+                      "- **While this issue is open, no new served-number fix ships ON.**", ""]
+        lines += [f"Would LOSE on a cold start: {', '.join(drift['missing']) or 'none'}; would wrongly hold: "
+                  f"{', '.join(drift['extra']) or 'none'}. Exact file text for "
+                  "`backend/services/runtime_flags_snapshot.json`:", "",
                   "```json", drift["text"].rstrip("\n"), "```"]
     return "\n".join(lines) + "\n"
 
@@ -701,7 +710,8 @@ def main(argv=None) -> int:
               f"{report['decisions'][f]['reason'][:300]}")
     with open(os.path.join(a.out, "acted.txt"), "w", encoding="utf-8") as f:
         # the workflow opens or appends the guardrail issue whenever this is non-empty
-        drift = ["cold-start-snapshot-drift"] if report.get("snapshot_drift") else []
+        d = report.get("snapshot_drift") or {}
+        drift = (["P0-cold-start-snapshot-drift-24h"] if d.get("missing") else ["cold-start-snapshot-drift"]) if d else []
         f.write(" ".join(acted + [f"{x}(reported-not-disabled)" for x in reported] + drift))
     return 0
 

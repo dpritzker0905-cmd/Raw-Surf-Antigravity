@@ -6,6 +6,7 @@ permission and the force input; the Render dispatcher fires the monitor off GitH
 import json
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -52,18 +53,61 @@ def test_one_issue_per_outage():
     assert sa.decide("high", why, [_issue(7, "critical")])["action"] == "none"       # never de-escalates noisily
     up = sa.decide("critical", why, [_issue(7, "high")])
     assert up["action"] == "escalate" and up["number"] == 7 and up["remove_labels"] == ["severity:high"]
-    down = sa.decide("none", [], [_issue(7, "high")])
-    assert down["action"] == "close" and down["number"] == 7
     assert sa.decide("none", [], [])["action"] == "none"
+
+
+def _recovering(n, sev):
+    i = _issue(n, sev)
+    i["labels"].append({"name": sa.RECOVERING})
+    return i
+
+
+def test_hysteresis_two_healthy_runs_before_a_close_and_a_relapse_resets():
+    """Advisor limit (b) on #1263: one healthy run never closes an issue."""
+    one = sa.decide("none", [], [_issue(7, "high")])
+    assert one["action"] == "recovering" and one["number"] == 7 and one["labels"] == [sa.RECOVERING]
+    two = sa.decide("none", [], [_recovering(7, "high")])
+    assert two["action"] == "close" and two["number"] == 7 and "two consecutive healthy runs" in two["body"]
+    back = sa.decide("high", ["lane x"], [_recovering(7, "high")])
+    assert back["action"] == "relapse" and back["remove_labels"] == [sa.RECOVERING]
+    worse = sa.decide("critical", ["x"], [_recovering(7, "high")])
+    assert worse["action"] == "escalate" and worse["remove_labels"] == ["recovering", "severity:high"]
+
+
+def test_a_flapping_outage_reopens_the_recent_issue_instead_of_opening_a_new_one():
+    now = datetime(2026, 11, 24, 12, tzinfo=timezone.utc)
+    closed = [dict(_issue(7, "high"), closedAt="2026-11-24T06:00:00Z"),
+              dict(_issue(9, "critical", title=sa.TEST_TAG + "Stale data"), closedAt="2026-11-24T11:00:00Z")]
+    d = sa.decide("critical", ["x"], [], recent_closed=closed, now=now)
+    assert d["action"] == "reopen" and d["number"] == 7 and d["remove_labels"] == ["severity:high"]   # never the [TEST] one
+    old = [dict(_issue(7, "high"), closedAt="2026-11-22T06:00:00Z")]                                 # > 24 h ago
+    assert sa.decide("critical", ["x"], [], recent_closed=old, now=now)["action"] == "open"
 
 
 def test_the_forced_stale_proof_opens_a_test_issue_and_never_touches_a_real_one():
     sev, why = sa.assess(sa.forced_body(), "200", 7.0)
     assert sev == "critical"
     d = sa.decide(sev, why, [_issue(7, "high")], force=True)
-    assert d["action"] == "open" and d["test"] and d["title"].startswith(sa.TEST_TAG)
-    # and a leftover [TEST] issue is never mistaken for the real outage issue
-    assert sa.decide("high", why, [_issue(9, "critical", title=sa.TEST_TAG + "Stale data")])["action"] == "open"
+    assert d["action"] == "open" and d["test"] and d["title"].startswith(sa.TEST_TAG) and d["close_tests"] == []
+
+
+def test_a_leftover_test_issue_is_closed_and_never_escalated_or_adopted():
+    """Advisor limit (c) on #1263: a [TEST] issue a failed close left open must not become the real issue and lose its
+    [TEST] prefix through an escalation."""
+    left = _issue(9, "high", title=sa.TEST_TAG + "Stale data: HIGH")
+    d = sa.decide("critical", ["x"], [left])
+    assert d["action"] == "open" and d["close_tests"] == [9] and not d["title"].startswith(sa.TEST_TAG)
+    assert sa.decide("none", [], [left]) == {"severity": "none", "close_tests": [9], "action": "none"}
+
+
+def test_census_cadence_on_dispatched_runs():
+    doc = yaml.safe_load(WF.read_text(encoding="utf-8"))
+    steps = doc["jobs"]["check"]["steps"]
+    ids = [s.get("id") for s in steps]
+    assert ids.index("cadence") < ids.index("regional")
+    assert "steps.cadence.outputs.census == '1'" in steps[ids.index("regional")]["if"]
+    run = steps[ids.index("cadence")]["run"]
+    assert '"$EVENT" = "schedule"' in run and "EVERY_H" in run
 
 
 def test_the_cli_end_to_end_forced_stale(tmp_path):

@@ -299,3 +299,20 @@ def test_a_disable_reports_the_snapshot_drift_in_the_issue_text(monkeypatch):
     assert rep["snapshot_drift"]["missing"] == ["SURF_TIDE_DEPTH"]
     md = fg.markdown(rep)
     assert "Cold-start snapshot drift" in md and "runtime_flags_snapshot.json" in md
+    # the advisor's operating condition on #1261: P0, a 24 h commit-and-deploy deadline, no served-number fix ON meanwhile,
+    # the deploy branch named, and the exact file text
+    assert "### P0 · Cold-start snapshot drift" in md and "within 24 h" in md
+    assert "no new served-number fix ships ON" in md and "Render) deploys from `dev`" in md
+    assert '"SURF_TIDE_DEPTH"' in md.split("```json")[1]
+
+
+def test_drift_that_only_over_holds_is_not_p0_and_the_issue_title_says_which(tmp_path, monkeypatch):
+    off = {"state": "off", "reason": "t", "set_by": fg.SET_BY, "set_at": "x", "evidence": "y"}
+    rep = {"mode": "enforce", "decisions": {}, "results": {},
+           "snapshot_drift": fg.snapshot_drift(rf_manifest(), {"SURF_TIDE_DEPTH": off})}
+    md = fg.markdown(rep)
+    assert "Cold-start snapshot drift" in md and "P0" not in md
+    monkeypatch.setattr(fg, "run", lambda a: dict(rep, snapshot_drift=fg.snapshot_drift(
+        rf_manifest(SURF_TIDE_DEPTH=off), {})))
+    fg.main(["--out", str(tmp_path)])
+    assert (tmp_path / "acted.txt").read_text(encoding="utf-8") == "P0-cold-start-snapshot-drift-24h"

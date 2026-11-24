@@ -157,10 +157,26 @@ jobs:
           if [ -z "$SUPABASE_URL" ]; then echo "::warning::SUPABASE_URL unset: raster freshness not checked"; exit 0; fi
           python3 scripts/raster_set_freshness.py --base "${SUPABASE_URL%/}/storage/v1/object/public/weather-frames" --fail-on-stale
 
+      # CENSUS CADENCE (advisor limit (a) on #1263, the one-box rule): the Render dispatcher runs this monitor every 30 min, and the
+      # census reads /api/weather/products (~18k products). That read is the cached, once-per-manifest-version encode (median 2 s,
+      # max 24 s end to end over the last 25 runs, step timings 2026-11-24), but the regional tiers' own bounds are 8-32 h, so on
+      # dispatched runs it runs only every REGION_CENSUS_EVERY_H hours (default 3). GitHub's own schedule runs keep it every time.
+      - name: Census cadence
+        id: cadence
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        env:
+          EVERY_H: ${{ vars.REGION_CENSUS_EVERY_H || '3' }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          h=$(date -u +%-H); m=$(date -u +%-M)
+          if [ "$EVENT" = "schedule" ] || { [ $((h % EVERY_H)) -eq 0 ] && [ "$m" -lt 30 ]; }; then due=1; else due=0; fi
+          echo "census due: $due (event $EVENT, $(date -u +%H:%M)Z, every ${EVERY_H} h)"
+          echo "census=$due" >> "$GITHUB_OUTPUT"
+
       - name: Regional product run-age census
         id: regional
         # Global paging must not hide the finer regional diagnosis (run 34849338600).
-        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' && steps.cadence.outputs.census == '1' }}
         env:
           BASE: ${{ vars.HEALTH_BASE || 'https://raw-surf-antigravity.onrender.com' }}
           PAGING: ${{ vars.REGION_HEALTH_PAGING || '1' }}
@@ -197,20 +213,25 @@ jobs:
         run: |
           set -euo pipefail
           for l in "stale-data:b60205:Served data is not being refreshed" "severity:critical:b60205:Page now" \
-                   "severity:high:d93f0b:Act today"; do
+                   "severity:high:d93f0b:Act today" "recovering:0e8a16:One healthy run; closes after the next"; do
             n="${l%%:*}"; rest="${l#*:}"; [ "$n" = "severity" ] && { n="severity:${rest%%:*}"; rest="${rest#*:}"; }
             gh label create "$n" --repo "$GITHUB_REPOSITORY" --color "${rest%%:*}" --description "${rest#*:}" --force >/dev/null
           done
           gh issue list --repo "$GITHUB_REPOSITORY" --label stale-data --state open --json number,title,labels > /tmp/open.json || echo '[]' > /tmp/open.json
+          gh issue list --repo "$GITHUB_REPOSITORY" --label stale-data --state closed --limit 5 --json number,title,labels,closedAt > /tmp/closed.json || echo '[]' > /tmp/closed.json
           force=""; [ "$FORCE" = "1" ] && force="--force-stale"
           python3 scripts/staleness_alert.py --health /tmp/health.json --code "$(cat /tmp/health.code 2>/dev/null || echo 000)" \
             --page-hours "$PAGE_HOURS" --raster "$RASTER" --regional "$REGIONAL" --open-issues /tmp/open.json \
-            --run-url "$RUN_URL" $force > /tmp/decision.json
+            --recent-closed /tmp/closed.json --run-url "$RUN_URL" $force > /tmp/decision.json
           cat /tmp/decision.json; echo
-          action=$(python3 -c "import json;print(json.load(open('/tmp/decision.json'))['action'])")
-          j() { python3 -c "import json,sys;d=json.load(open('/tmp/decision.json'));v=d.get(sys.argv[1]);print(','.join(v) if isinstance(v,list) else (v or ''))" "$1"; }
+          j() { python3 -c "import json,sys;d=json.load(open('/tmp/decision.json'));v=d.get(sys.argv[1]);print(','.join(str(x) for x in v) if isinstance(v,list) else ('' if v is None else v))" "$1"; }
+          action="$(j action)"; num="$(j number)"
+          rm=(); [ -n "$(j remove_labels)" ] && rm=(--remove-label "$(j remove_labels)")   # only labels the issue carries
           j body > /tmp/body.md
           assignee=""; [ -n "$OWNER" ] && assignee="--assignee $OWNER"
+          for t in $(j close_tests | tr ',' ' '); do      # a [TEST] issue a failed close left open (advisor limit (c))
+            gh issue close "$t" --repo "$GITHUB_REPOSITORY" --comment "Leftover forced-stale TEST issue, closed by $RUN_URL." || true
+          done
           case "$action" in
             open)
               url=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$(j title)" --body-file /tmp/body.md --label "$(j labels)" $assignee)
@@ -219,10 +240,20 @@ jobs:
                 gh issue close "$url" --repo "$GITHUB_REPOSITORY" --comment "Forced-stale test passed: opened and assigned by run $RUN_URL, closed by the same run."
                 echo "forced-stale test: opened and closed $url"
               fi ;;
+            reopen)
+              gh issue reopen "$num" --repo "$GITHUB_REPOSITORY"
+              gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --title "$(j title)" --add-label "$(j labels)" "${rm[@]}" $assignee
+              gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md ;;
             escalate)
-              gh issue edit "$(j number)" --repo "$GITHUB_REPOSITORY" --title "$(j title)" --add-label "$(j labels)" --remove-label "$(j remove_labels)"
-              gh issue comment "$(j number)" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md ;;
+              gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --title "$(j title)" --add-label "$(j labels)" "${rm[@]}"
+              gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md ;;
+            recovering)
+              gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --add-label recovering
+              gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md ;;
+            relapse)
+              gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --remove-label recovering
+              gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md ;;
             close)
-              gh issue close "$(j number)" --repo "$GITHUB_REPOSITORY" --comment "$(j body)" ;;
-            *) echo "no issue change (severity $(python3 -c "import json;print(json.load(open('/tmp/decision.json'))['severity'])"))" ;;
+              gh issue close "$num" --repo "$GITHUB_REPOSITORY" --comment "$(j body)" ;;
+            *) echo "no issue change (severity $(j severity))" ;;
           esac
