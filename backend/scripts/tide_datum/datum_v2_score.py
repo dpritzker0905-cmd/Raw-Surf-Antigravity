@@ -152,13 +152,14 @@ def score(art, heldout, finder):
     #    D cannot change measurability, so vacuity there is reported "untestable", never VOID.
     n_meas = {k: sum(1 for sid in dec[k]["ids"] if sid in mset) for k in dec}
     thin = {k: n_meas[k] < BAR["gauges_needed"] or not dec[k]["measurable"] for k in dec}
+    any_thin = any(thin.values())    # s11: ANY thin stratum makes the run FAIL; vacuity anywhere is then 'untestable'
     # 3. THE IDENTITIES: a tested-and-wrong identity is VOID anywhere (the instrument failed); vacuity is VOID only in a
     #    stratum that is fully measured (>= 19).
     ident = {sid: identity(per.get(sid) or {}) for sid in ids_nb if sid in mset}
     tested = sorted(sid for sid, v in ident.items() if v[3] >= 1 and "nsheet" in ((per.get(sid) or {}).get("d") or {}))
     id_mismatch = sorted(sid for sid in tested if not ident[sid][0])
     id_vacuous = len(tested) < MIN_IDENTITY_STATIONS
-    id_status = ("mismatch" if id_mismatch else "untestable" if id_vacuous and thin.get("NEIGHBOR")
+    id_status = ("mismatch" if id_mismatch else "untestable" if id_vacuous and any_thin
                  else "vacuous" if id_vacuous else "pass")
     placebo = {k: placebo_identity(per, dec[k]["ids"], mset) for k in dec}
     pl_status = {}
@@ -166,7 +167,7 @@ def score(art, heldout, finder):
         if v["diff_m"] is not None and abs(v["diff_m"] - PLACEBO_SHIFT_M) > PLACEBO_TOL_M:
             pl_status[k] = "mismatch"
         elif v["diff_m"] is None:
-            pl_status[k] = "untestable" if thin[k] else "vacuous"
+            pl_status[k] = "untestable" if any_thin else "vacuous"
         else:
             pl_status[k] = "pass"
     out["controls"] = {"finder_heights": {"pass": not fin_bad, "over_or_missing": fin_bad},
@@ -180,7 +181,7 @@ def score(art, heldout, finder):
         return out                                                # the bar is NOT opened
     # 4. THE BAR (s4). A thin stratum fails its per-station leg; its FAIL is never turned into a VOID.
     out["strata"] = {k: legs(per, dec[k]["ids"], "hybrid_tb") for k in dec}
-    ok = not any(thin.values()) and all(out["strata"][k]["pass"] for k in dec)
+    ok = not any_thin and all(out["strata"][k]["pass"] for k in dec)
     out["verdict"] = "PASS" if ok else "FAIL"
     out["reported"] = {f"{k}:{v}": legs(per, dec[k]["ids"], v)["aggregate"] for k in dec for v in ("model_tb", "nsheet_tb", "hybrid")}
     return out

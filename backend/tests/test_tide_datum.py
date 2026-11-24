@@ -437,6 +437,20 @@ def test_v2_scorer_intersection_placebo_and_replacement_cap():
             row[key] = [dict(e, height_err_m=None, ours_m=None) for e in row[key]]
     r = V.score(thin_nb, held, fin)
     assert r["verdict"] == "FAIL" and r["controls"]["planted_d_identity"]["status"] == "untestable"
+    # CROSS-STRATUM (s11 "ANY stratum"): MODEL thin (7 MEASURED), finder OK, NEIGHBOR full but only 9 tested ->
+    # the identity's vacuity is 'untestable' (any stratum thin) and the run is FAIL, never VOID
+    cross = art(0.01, 0.01)
+    for i in range(13):
+        for key in ("hybrid_tb_events", "placebo_tb_events", "model_tb_events"):
+            cross["per_gauge"][f"M{i}"][key] = [dict(e, height_err_m=None, ours_m=None) for e in cross["per_gauge"][f"M{i}"][key]]
+    for i in range(11):                                       # NEIGHBOR stays fully MEASURED, 9 keep a donor
+        row = cross["per_gauge"][f"N{i}"]
+        row["d"].pop("nsheet")
+        row.pop("nsheet_tb_events")
+    r = V.score(cross, held, fin)
+    assert r["measured_by_stratum"] == {"NEIGHBOR": 20, "MODEL": 7}
+    assert r["controls"]["planted_d_identity"]["tested_stations"] == 9
+    assert r["controls"]["planted_d_identity"]["status"] == "untestable" and r["verdict"] == "FAIL"
     # a TESTED identity that is WRONG is VOID even in a thin stratum (the instrument itself failed)
     wrong = art(0.01, 0.01)
     wrong["per_gauge"]["N0"]["nsheet_tb_events"] = [dict(e, height_err_m=e["height_err_m"] + 0.05)
