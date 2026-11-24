@@ -7,8 +7,11 @@ Order (VOID-only controls first; the bar is opened only if all pass; no re-run):
                MEASURABLE (the gate FAILS). No other replacement.
   CONTROLS     planted-D identity at NEIGHBOR stations (model_tb vs nsheet_tb: same event times within 0.1 min, signed
                heights differ by exactly d_nsheet - d_model within 0.002 m); finder heights (finder_check --stations
-               JSON: hourly median |h| <= 0.01 m at every MEASURED deciding station); PLACEBO (placebo_tb must FAIL the
-               signed leg, |median signed| > 0.02 m, in BOTH strata).
+               JSON: hourly median |h| <= 0.01 m at every MEASURED deciding station); PLACEBO as an EXACT SHIFT
+               IDENTITY (gate amendment 1, #1270): per stratum, median signed(placebo_tb) - median signed(hybrid_tb)
+               over the SAME matched events (paired by NOAA time at the MEASURED stations, MEASURED decided by
+               hybrid_tb alone) = +0.10 m within 0.002 m. Independent of the outcome: it can never turn a FAIL
+               into a VOID.
   BAR          per stratum, on hybrid_tb over MEASURED stations (>= 70% and >= 8 NOAA events matched, else a FAIL):
                median |h| <= 0.03; p90 <= 0.08 (nearest rank); per-station median <= 0.10 at >= 19 of 20; median signed
                within +-0.02. PRIMARY: PASS iff BOTH strata pass all four (intersection).
@@ -30,6 +33,38 @@ except ImportError:                                               # imported as 
 CAP = 5
 BAR = {"median": 0.03, "p90": 0.08, "gauge": 0.10, "gauges_needed": 19, "signed": 0.02}
 ID_TIME_MIN, ID_HEIGHT_M, FINDER_H_M = 0.1, 0.002, 0.01
+PLACEBO_SHIFT_M, PLACEBO_TOL_M = 0.10, 0.002
+MIN_IDENTITY_STATIONS, MIN_MEASURED_PER_STRATUM, COLOCATED_KM = 10, 8, 0.05   # gate amendment 2 (#1270 s10)
+
+
+def placebo_identity(per, ids, measured_ids):
+    """PURE (gate amendment 1): {ok, diff_m, events} for one stratum. Both medians on the SAME frozen events: at each
+    MEASURED station, the NOAA events matched in BOTH hybrid_tb and placebo_tb, paired by NOAA event time."""
+    h, p = [], []
+    for sid in ids:
+        if sid not in measured_ids:
+            continue
+        row = per.get(sid) or {}
+        a = {e["time"]: e["height_err_m"] for e in row.get("hybrid_tb_events") or [] if e.get("height_err_m") is not None}
+        b = {e["time"]: e["height_err_m"] for e in row.get("placebo_tb_events") or [] if e.get("height_err_m") is not None}
+        for t in sorted(set(a) & set(b)):
+            h.append(a[t])
+            p.append(b[t])
+    n_meas = sum(1 for sid in ids if sid in measured_ids)
+    if not h or n_meas < MIN_MEASURED_PER_STRATUM:          # s10 (c'): never a vacuous PASS
+        return {"ok": False, "diff_m": None, "events": len(h), "measured": n_meas}
+    diff = st.median(p) - st.median(h)
+    return {"ok": abs(diff - PLACEBO_SHIFT_M) <= PLACEBO_TOL_M, "diff_m": round(diff, 5), "events": len(h),
+            "measured": n_meas}
+
+
+def donor_distances(per, ids):
+    """REPORTED, never a bar (s10 d): donor distances at the scored NEIGHBOR stations, co-located sheets flagged."""
+    km = {sid: (per.get(sid) or {}).get("donor", {}).get("km") for sid in ids if (per.get(sid) or {}).get("donor")}
+    vals = sorted(v for v in km.values() if v is not None)
+    return {"count": len(vals), "min_km": vals[0] if vals else None, "median_km": st.median(vals) if vals else None,
+            "max_km": vals[-1] if vals else None,
+            "colocated": sorted(k for k, v in km.items() if v is not None and v <= COLOCATED_KM)}
 
 
 def deciding_after_replacement(heldout, per, cap=CAP):
@@ -106,13 +141,16 @@ def score(art, heldout, finder):
                     if per.get(sid, {}).get("hybrid_tb_events") is not None and measured(per[sid]["hybrid_tb_events"])["measured"]]
     ids_nb = dec.get("NEIGHBOR", {}).get("ids", [])
     ident = {sid: identity(per.get(sid) or {}) for sid in ids_nb if sid in measured_ids}
+    tested = sorted(sid for sid, v in ident.items() if v[3] >= 1 and "nsheet" in ((per.get(sid) or {}).get("d") or {}))
     fin_bad = {sid: (finder.get(sid) or {}).get("hourly", {}).get("median_abs_h_m") for sid in measured_ids
                if (finder.get(sid) is None) or ((finder[sid]["hourly"].get("median_abs_h_m") or 0) > FINDER_H_M)}
-    placebo = {k: legs(per, dec[k]["ids"], "placebo_tb")["aggregate"]["median_signed_h_m"] for k in dec}
-    placebo_ok = all(v is not None and abs(v) > BAR["signed"] for v in placebo.values())
-    out["controls"] = {"planted_d_identity": {"pass": all(v[0] for v in ident.values()), "per_station": ident},
+    placebo = {k: placebo_identity(per, dec[k]["ids"], set(measured_ids)) for k in dec}
+    placebo_ok = all(v["ok"] for v in placebo.values())
+    out["controls"] = {"planted_d_identity": {"pass": all(v[0] for v in ident.values()) and len(tested) >= MIN_IDENTITY_STATIONS,
+                                              "tested_stations": len(tested), "per_station": ident},
                        "finder_heights": {"pass": not fin_bad, "over_or_missing": fin_bad},
-                       "placebo": {"pass": placebo_ok, "median_signed_by_stratum": placebo}}
+                       "placebo": {"pass": placebo_ok, "shift_identity_by_stratum": placebo}}
+    out["donor_distance_km"] = donor_distances(per, ids_nb)
     if not all(c["pass"] for c in out["controls"].values()):
         out["verdict"] = "VOID"
         return out                                                # the bar is NOT opened

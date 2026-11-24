@@ -389,9 +389,42 @@ def test_v2_scorer_intersection_placebo_and_replacement_cap():
     # intersection: NEIGHBOR passes, MODEL's signed bias fails -> FAIL (a pooled primary could have passed)
     r = V.score(art(0.01, 0.05), held, fin)
     assert r["verdict"] == "FAIL" and r["strata"]["NEIGHBOR"]["pass"] and not r["strata"]["MODEL"]["pass"]
-    # placebo: a +0.10 m D must FAIL the signed leg; a run whose placebo passes is VOID and the bar is never opened
+    # PLANTED FAIL (gate amendment 1, #1270): a hybrid biased -0.09 m in both strata FAILS the signed leg; its
+    # placebo (-0.09 + 0.10 = +0.01) would have PASSED that leg, which the old "placebo must FAIL" rule turned into a
+    # VOID. The shift identity holds (+0.10 exactly), so the run is NOT void and the real FAIL is recorded.
     r = V.score(art(-0.09, -0.09), held, fin)
+    assert r["controls"]["placebo"]["pass"] and r["verdict"] == "FAIL"
+    assert all(abs(v["diff_m"] - 0.10) < 1e-9 for v in r["controls"]["placebo"]["shift_identity_by_stratum"].values())
+    assert not r["strata"]["NEIGHBOR"]["legs"]["signed"] and not r["strata"]["MODEL"]["legs"]["signed"]
+    # BROKEN PLACEBO: an instrument that does not carry the +0.10 m shift (placebo == hybrid) is VOID, bar unopened
+    broken = art(0.01, 0.01)
+    for row in broken["per_gauge"].values():
+        if "hybrid_tb_events" in row:
+            row["placebo_tb_events"] = [dict(e) for e in row["hybrid_tb_events"]]
+    r = V.score(broken, held, fin)
     assert r["verdict"] == "VOID" and not r["controls"]["placebo"]["pass"] and "strata" not in r
+    # s10 (c): the planted-D identity is VOID unless tested at >= 10 NEIGHBOR stations (no-donor stations are trivial)
+    few = art(0.01, 0.01)
+    for i in range(11):                                       # 9 NEIGHBOR stations keep a donor
+        row = few["per_gauge"][f"N{i}"]
+        row["d"].pop("nsheet")
+        row.pop("nsheet_tb_events")
+    r = V.score(few, held, fin)
+    assert r["verdict"] == "VOID" and r["controls"]["planted_d_identity"]["tested_stations"] == 9
+    assert not r["controls"]["planted_d_identity"]["pass"] and "strata" not in r
+    # s10 (c'): a stratum with < 8 MEASURED stations cannot vacuously pass the placebo identity: VOID
+    thin = art(0.01, 0.01)
+    for i in range(13):                                       # 7 MODEL stations stay MEASURED
+        for key in ("hybrid_tb_events", "placebo_tb_events", "model_tb_events"):
+            thin["per_gauge"][f"M{i}"][key] = [dict(e, height_err_m=None, ours_m=None) for e in thin["per_gauge"][f"M{i}"][key]]
+    r = V.score(thin, held, fin)
+    assert r["verdict"] == "VOID" and r["controls"]["placebo"]["shift_identity_by_stratum"]["MODEL"]["measured"] == 7
+    # s10 (d): donor distances are reported, co-located sheets flagged (never a bar)
+    near = art(0.01, 0.01)
+    for i in range(20):
+        near["per_gauge"][f"N{i}"]["donor"] = {"id": f"D{i}", "km": 0.02 if i == 0 else 1.0 + i / 20}
+    r = V.score(near, held, fin)
+    assert r["verdict"] == "PASS" and r["donor_distance_km"]["count"] == 20 and r["donor_distance_km"]["colocated"] == ["N0"]
     # replacement: 2 FES-undefined deciders are replaced in the frozen reserve order
     r = V.score(art(0.01, 0.01, undefined=("M3", "M7")), held, fin)
     assert r["deciding"]["MODEL"]["replaced"] == [["M3", "MR0"], ["M7", "MR1"]] and r["verdict"] == "PASS"
