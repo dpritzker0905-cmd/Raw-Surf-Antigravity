@@ -94,7 +94,11 @@ def test_gust_verify_scorer_drops_a_locked_station_at_load(locked_root, tmp_path
     assert set(gs.load_obs(str(d))) == {OPEN}
 
 
-def test_nothing_is_dropped_when_no_list_is_recorded():
+def test_nothing_is_dropped_when_no_list_is_recorded(tmp_path, monkeypatch):
+    (tmp_path / bh.BUOY_LIST).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / bh.BUOY_LIST).write_text(json.dumps({"holdout": {"locked_list": None},
+                                                     "stations": [{"id": LOCKED, "locked": None}]}), encoding="utf-8")
+    monkeypatch.setenv(bh.ENV_ROOT, str(tmp_path))
     bh.reset_cache()
     assert bh.state()["status"] == "none"
     from services.weather_pipeline import skill_scored_archive as ssa
