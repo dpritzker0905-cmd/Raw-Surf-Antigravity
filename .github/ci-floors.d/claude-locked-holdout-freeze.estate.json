@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 3,
+  "branch": "claude/locked-holdout-freeze",
+  "date": "2026-11-23",
+  "note": "#1199 freeze: tests/test_buoy_holdout.py replaces the no-op pin with 4 freeze pins"
+}
