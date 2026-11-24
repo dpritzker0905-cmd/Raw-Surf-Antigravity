@@ -14,7 +14,7 @@
 
 import { buildFieldRampTexture, drawnMarkRampData, windLookKey, windDarkRulesOn, windWhiteStrength } from './WindColorRamp'; import { bindLandMask } from './windLandMask'; import { bindCalmAir } from './windCalmAir'; import { syncParticleStateFormat, applyParticleStateUniforms } from './particleState';
 import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tierKeepsOver, tierOuter } from './windTierMosaic';
-import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk'; import { blendIntoMap } from './windCanvasAlpha'; import { trailVeilUniform } from './windTrailVeil';
+import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk'; import { blendIntoMap } from './windCanvasAlpha'; import { windFieldSrcFactor } from './windDarkFieldVivid'; import { trailVeilUniform } from './windTrailVeil';
 import {
   createTexture, bindWindPointReg, unbindTexture, createFBO, bindTexture, encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
   resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN, resolveWindSpeedRef
@@ -26,7 +26,7 @@ import {
 } from './WebGLWindEngineInit';
 import { recordTruthStage } from './weatherTruthTracker'; import { refreshWindSpeedScale } from './windDeliveryCoalesce';
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { advTeardownNeeded } from './advFboSync';
-import { setGustField, clearGustField, setGustMode, gustColourActive, gustModeBlank, rampMaxFor, bindGustColour, GUST_UNIT } from './windGustColour';   // Gusts: wind motion, gust colour (gustParticles.js)
+import { setGustField, clearGustField, setGustMode, gustColourActive, gustModeBlank, rampMaxFor, bindGustColour, GUST_UNIT } from './windGustColour'; import { drawGustHatch } from './gustHatch';   // Gusts: wind motion, gust colour (gustParticles.js)
 
 function latToMercatorY(lat) {
   var latClamped = Math.max(-85.051129, Math.min(85.051129, lat));
@@ -574,11 +574,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
 
   // Step 0: Draw live wind-speed heatmap from the same forecast grid used by particles.
   // GUSTS: the gust raster under the particles IS the field (gustParticles.js), so this pass is skipped and never stacks on it.
+  var heatmapOpacity = effectiveTheme === 'dark' ? 0.48 : (effectiveTheme === 'light' ? 0.65 : 0.55);   // OUTSIDE the skipped pass: DRAW_FS's casing reads it too (u_field_opacity; was undefined in gust mode, 2026-11-22)
   if (!gustColourActive(this)) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.enable(gl.BLEND);
-  if (_ft > 0) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); else blendIntoMap(gl, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // field tint: multiply
+  if (_ft > 0) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); else blendIntoMap(gl, windFieldSrcFactor(gl, effectiveTheme), gl.ONE_MINUS_SRC_ALPHA); // field tint: multiply; else premultiplied in dark (windDarkFieldVivid.js)
   gl.useProgram(this.heatmapProgram); gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_field_tint'), _ft);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), dataBoundsMinX, bounds.south);
@@ -586,8 +587,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_wind'), 0);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
-  // v3.20: Theme-dynamic heatmap opacity for premium look per theme (increased contrast: light=0.65, beach=0.55, dark=0.48)
-  var heatmapOpacity = effectiveTheme === 'dark' ? 0.48 : (effectiveTheme === 'light' ? 0.65 : 0.55);
+  // v3.20: Theme-dynamic heatmap opacity for premium look per theme (increased contrast: light=0.65, beach=0.55, dark=0.48), set above
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_max_speed'), this._maxWindSpeed);
@@ -695,7 +695,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
       if (heatUVLoc !== -1) gl.disableVertexAttribArray(heatUVLoc);
     }
-  }   // end Step 0 (skipped in gust mode)
+  } else { drawGustHatch(gl, this, { fbo: webglState.prevFBO, matrix: mat4, screenW: screenWidth, screenH: screenHeight, theme: effectiveTheme, offsets: worldOffsets || (z < 3.5 ? [0.0, -360.0, 360.0] : [0.0]), wind: { texture: this._windData.texture, uMin: this._windData.uMin, uMax: this._windData.uMax, box: [dataBoundsMinX, bounds.south, dataBoundsMaxX, bounds.north], grid: windGrid }, fine: fine && !fineCrosses ? fine : null }); }   // end Step 0 (skipped in gust mode); there the free slot draws the gustiness HATCH when that A/B cue is picked (gustHatch.js)
 
   // Step 1: Advect particles (ping-pong). The state format follows its kill (particleState.js; a flip reseeds, trails kept).
   syncParticleStateFormat(gl, this, () => this.reinitParticles(gl, { keepTrails: true }));
@@ -1024,7 +1024,7 @@ WebGLWindEngine.prototype.dispose = function(gl) {
   disposeEngine(this, gl);
 };
 /** Gusts (gustParticles.js): the gust field on screen colours the marks; null returns the engine to the Wind layer exactly. */
-WebGLWindEngine.prototype.setGustField = function(gl, field) { setGustField(this, gl, field); };
+WebGLWindEngine.prototype.setGustField = function(gl, field, opts) { setGustField(this, gl, field, opts); };   // opts: currents (currentParticles.js)
 WebGLWindEngine.prototype.setGustMode = function(on) { setGustMode(this, on); };   // Gusts picked (true) or not: keyed on the selected layer, not a loaded texture (windGustColour.setGustMode)
 /**
  * v3.11.2r1: Clear all framebuffers called on layer deactivation

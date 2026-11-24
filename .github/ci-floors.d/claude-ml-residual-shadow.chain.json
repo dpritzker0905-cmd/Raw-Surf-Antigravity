@@ -1,8 +1,0 @@
-{
-  "lane": "chain",
-  "tests": 5,
-  "files": 0,
-  "branch": "claude/ml-residual-shadow",
-  "date": "2026-11-16",
-  "note": "ML residual shadow (2026-11-16): +5 passed in CI (2 more skip without scikit-learn)"
-}

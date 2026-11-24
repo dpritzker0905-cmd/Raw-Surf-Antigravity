@@ -38,8 +38,10 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   const marineFallback = useMarineFallbackState();
   const rasterRec = useRasterDrawnFrame();
   const isRaster = RASTER_STATUS_LAYERS.has(layer);
-  const rasterReadout = isRaster ? describeRasterFrame(rasterRec, layer, layer === 'radar' ? radarMs : Date.now() + hour * 3600000) : null;
-  const rasterPendingKey = rasterReadout && rasterReadout.state === 'pending' ? rasterReadout.text : null;
+  const rasterReadout = isRaster ? describeRasterFrame(rasterRec, layer, layer === 'radar' ? radarMs : Date.now() + hour * 3600000, model) : null;
+  // A stand-in line ("EURO fog unavailable: NOAA GFS shown") waits the same quiet time as a pending one: a model switch's in-between
+  // render (the new button, the old frame's record) never flashes it.
+  const rasterPendingKey = rasterReadout && (rasterReadout.state === 'pending' || rasterReadout.state === 'standin') ? rasterReadout.text : null;
   const [rasterShowPending, setRasterShowPending] = useState(false);
   useEffect(() => {
     setRasterShowPending(false);
@@ -58,7 +60,7 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   // The newest verified cycle the manifest names, so a held frame can say "from an older run" (drawnFrameReadout holdReason).
   const latestRunMs = isRaster || readoutOff ? null : latestKnownRunMs(model, layer);
   const veilReadout = isRaster ? null : describeColdVeil(veil, { layer });
-  const readout = veilReadout || (isRaster ? (rasterReadout && (rasterReadout.state !== 'pending' || rasterShowPending) ? rasterReadout : null)
+  const readout = veilReadout || (isRaster ? (rasterReadout && ((rasterReadout.state !== 'pending' && rasterReadout.state !== 'standin') || rasterShowPending) ? rasterReadout : null)
     : (readoutOff ? null : (drawn ? describeDrawnFrame({ model, layer, hour, instantMs, labelMs, nearestMaxHours, latestRunMs }, drawn)
       : (nothingDrawnNow(layer) ? describeNothingDrawn({ hour, labelMs }) : null))));   // D2: nothing of ours on screen: only the load
   // A drawn grid this coarse is said in words (EURO swells are a 10.3-degree grid at every zoom): one quiet line, all themes.
@@ -127,7 +129,8 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
       {heldLine}
       <div role="status" aria-live="polite" data-drawn-state={readout.state} aria-busy={readout.state === 'pending' ? true : undefined}
         data-hold-indicator={longPending ? 'on' : undefined} data-cold-veil={readout.veil || undefined}
-        className={`mt-1 text-xs ${readout.state === 'pending' || readout.state === 'held' ? tone : quiet}`}>
+        data-gap-fill={readout.fill ? 'on' : undefined}
+        className={`mt-1 text-xs ${readout.fill || readout.state === 'standin' ? tone : (readout.state === 'pending' || readout.state === 'held' ? tone : quiet)}`}>
         {longPending && (
           <span aria-hidden="true" data-testid="hold-indicator"
             className="inline-block w-1.5 h-1.5 mr-1.5 align-middle rounded-full bg-current animate-pulse motion-reduce:animate-none" />

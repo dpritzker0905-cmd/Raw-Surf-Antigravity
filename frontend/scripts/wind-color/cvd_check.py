@@ -37,6 +37,8 @@ def main():
     data = json.load(open(sys.argv[1], encoding="utf-8"))
     red = 0
     for theme, t in data.items():
+        if "stops" not in t:   # not a theme: check.mjs's GUSTS vs WIND section ("gusts", 2026-11-22) has its own lines
+            continue
         stops = t["stops"]["particle"]
         legend = [(f"{a[0]}-{b[0]} kn", a[1:4], b[1:4]) for a, b in zip(stops, stops[1:])]
         d, label, kind = worst_pair(legend)

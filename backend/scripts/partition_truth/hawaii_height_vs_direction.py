@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 
 from scripts.partition_truth.hawaii_gate import CLASSES, WINDOW, ad
+from services import buoy_holdout
 
 BUOYS = ("51201", "51202", "51206", "51211", "51212")
 
@@ -56,7 +57,7 @@ def main(argv=None):
     t0 = datetime.fromisoformat(WINDOW[0]).replace(tzinfo=timezone.utc)
     t1 = datetime.fromisoformat(WINDOW[1]).replace(tzinfo=timezone.utc) + timedelta(hours=23)
     pos = nd.station_positions(set(BUOYS))
-    buoys = [{"id": b, "lat": pos[b][0], "lon": pos[b][1]} for b in BUOYS if b in pos]
+    buoys = [{"id": b, "lat": pos[b][0], "lon": pos[b][1]} for b in BUOYS if b in pos and buoy_holdout.keep(b)]
     print('buoys with position:', [b['id'] for b in buoys], file=sys.stderr)
     obs = {b["id"]: s8o.ndbc_hourly(b["id"]) for b in buoys}
     fc = _fetch_height(ppv, s8o, buoys, t0, t1)

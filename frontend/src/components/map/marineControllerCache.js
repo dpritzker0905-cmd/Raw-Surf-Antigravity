@@ -5,22 +5,16 @@ import {
   HOURLY_CACHE_TTL, PER_MODEL_HOUR_CACHE_TTL, persistCache, hydrateCache,
   isViewportInsideCachedBounds, findClosestHourIndex
 } from './marineControllerUtils';
-import {
-  getBackendWeatherFlag,
-  getBackendCopernicusFlag,
-  getBackendIconMarineFlag,
-  getSharedValidTime,
-  getSurfModeFlag,
-  updateDiagnostics,
-  updateCopernicusDiagnostics,
-  updateProjectionDiag,
-  clampViewportBbox
-} from './backendWeatherServiceClient';
+import { getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getSharedValidTime, getSurfModeFlag, updateDiagnostics, updateCopernicusDiagnostics, updateProjectionDiag, clampViewportBbox } from './backendWeatherServiceClient';
+import { bandRatedFor } from './partitionHeightOnly';
 import { recordTruthStage } from './weatherTruthTracker';
 import { extractMarineAtOffset } from './marineControllerExtractor';
 import { rollOffsetCache } from './offsetCacheAnchor';
 import { coarseRatedForView, ratedCellDeg } from './marineRatingBandRes';
 import { noteRequestDiet, requestDietOn } from './marineRequestDiet';
+import { activeView, noteCacheGrowth, registerCache } from './cacheBudget'; import { hourCacheEntries } from './cacheBudgetAdapters';
+// The flavour the marine data lane asks for this layer: a partition is plain even in Rating mode (bug hunt 2026-11-22 D).
+const getMarineBandFlag = (layer) => bandRatedFor(getSurfModeFlag(), layer);
 
 // --- CACHES ---
 var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
@@ -79,6 +73,7 @@ class LRUMap extends Map {
     if (value) {
       super.delete(key);
       super.set(key, value);
+      value.__used = Date.now();   // the shared byte budget's recency (cacheBudget.js)
     }
     return value;
   }
@@ -109,6 +104,9 @@ class LRUMap extends Map {
 
 var PER_MODEL_HOUR_CACHE_MAX = 50;
 var _perModelHourCache = new LRUMap(PER_MODEL_HOUR_CACHE_MAX);
+// One byte budget across caches (2026-11-23, cacheBudget.js): another model's or layer's grids go first; the selected hour +-3 h of
+// the active view is pinned. An alias key shares its grid (counted once by the vectors array). Kill: __RAW_DISABLE_CACHE_BUDGET__.
+registerCache('marine-hour', { entries: () => hourCacheEntries(_perModelHourCache, activeView()), drop: (k) => (Map.prototype.delete.call(_perModelHourCache, k) ? 1 : null), cost: 3 });
 
 // The tile id the REQUEST side (clampViewportBbox) uses for world-bounds marine lookups. Kept here
 // so the store can mirror world grids under it — see the WORLD-GRID KEY ALIAS note in
@@ -140,7 +138,7 @@ export function aliasMarineHourByInstant(model, layer, tileId, hourOffset) {
     if (!requestDietOn('GRID_INSTANT_KEY') || !tileId || !Number.isFinite(hourOffset) || !instantAliasEligible(m, l, hourOffset)) return false;
     if (!(m === 'GFS' ? getBackendWeatherFlag() : m === 'ICON' ? getBackendIconMarineFlag() : getBackendCopernicusFlag())) return false;
     rollHourCache();
-    const modelLayer = `${m}_${(_isAllVarModel(m) ? 'all' : l) + (getSurfModeFlag() ? '~surf' : '')}_`;
+    const modelLayer = `${m}_${(_isAllVarModel(m) ? 'all' : l) + (getMarineBandFlag(l) ? '~surf' : '')}_`;
     const prefix = `${modelLayer}${tileId}_`;
     if (_perModelHourCache.has(prefix + hourOffset)) return false;
     const now = Date.now();
@@ -250,7 +248,7 @@ export function _cacheMarineResult(model, hourOffset, data, layer, silent = fals
   const vecLen = data.grid?.vectors?.length || 0;
   if (vecLen === 0 || data.grid?.renderable === false) return;
   // Mode-keyed (2026-07-03): surf-banded and plain products must never cross-hit (frame mixing).
-  const layerPart = (_isAllVarModel(model) ? 'all' : (layer || 'waves')) + (getSurfModeFlag() ? '~surf' : '');
+  const layerPart = (_isAllVarModel(model) ? 'all' : (layer || 'waves')) + (getMarineBandFlag(layer || 'waves') ? '~surf' : '');
   const tileId = data.tile_id || data.region_id || data.grid?.region_id || 'unknown';
   rollHourCache();
   const key = `${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`;
@@ -277,6 +275,7 @@ export function _cacheMarineResult(model, hourOffset, data, layer, silent = fals
     signature
   };
   _perModelHourCache.set(key, entry);
+  noteCacheGrowth();
 
   // WORLD-GRID KEY ALIAS (MAR-01, 2026-07-26). This key is derived from the RESPONSE
   // (tile_id/region_id), but getModelSafeMarine looks up by the REQUEST-derived selectedTileId,
@@ -509,7 +508,7 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
   const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
 
   if (isBackendActive) {
-    const layerPart = (_isAllVarModel(model) ? 'all' : layer) + (getSurfModeFlag() ? '~surf' : '');
+    const layerPart = (_isAllVarModel(model) ? 'all' : layer) + (getMarineBandFlag(layer) ? '~surf' : '');
     const clampRes = clampViewportBbox(bounds, layer, model, 'marine');
     const tileId = clampRes.selectedTileId || 'outside';
     rollHourCache();

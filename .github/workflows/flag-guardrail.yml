@@ -9,7 +9,8 @@ name: Flag guardrail (D-065, live; dry run until enforced)
 # It never calls the Render backend. It is the ONLY writer of control/flags.json. Secrets by NAME only.
 # DRY RUN by default: with FLAG_GUARDRAIL_ENFORCE unset or '0' it writes nothing and reports what it would do.
 # The owner enforces it with: gh variable set FLAG_GUARDRAIL_ENFORCE --body 1
-# NO FLAP: it only writes 'off'; a fix comes back on with a new runtime_flags.FIX_VERSION or the owner's word
+# HYBRID (D-087): it only writes 'off'; a FIX_VERSION bump keeps the flag off and starts a shadow run (N=3
+# consecutive NOT_WORSE cycles, ~18 h); only after that does the owner's word turn it back on
 # (dispatch with reenable + owner_words, which still needs FLAG_GUARDRAIL_ENFORCE '1' to write).
 
 on:
@@ -47,6 +48,22 @@ jobs:
         with:
           python-version: '3.12'
 
+      # FAIL LOUD ON A REJECTED STORAGE KEY (reliability lane, 2026-11-24): the 11-19/20 401 "Legacy API keys are disabled" took
+      # every lane down for 21-25 h, red runs that notified nobody. One GET of control/flags.json; a 401/403 seen twice = ::error
+      # and an owner-assigned storage-auth issue; accepted = close it. STORAGE_AUTH_CHECK: warn (default) | block (exit 2) | 0.
+      - name: Storage credential check (fail loud on 401/403)
+        id: storage_auth
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ vars.REPO_OWNER_LOGIN }}
+          LANE: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STORAGE_AUTH_CHECK: ${{ vars.STORAGE_AUTH_CHECK || 'warn' }}
+        run: python3 scripts/storage_auth_check.py
+
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -q -r requirements.txt
@@ -71,9 +88,14 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REENABLE: ${{ inputs.reenable }}
           OWNER_WORDS: ${{ inputs.owner_words }}
+          # REPO_OWNER_LOGIN: the repo owner's GitHub login, stored as a repo variable (not a secret — not sensitive).
+          # Set it once with: gh variable set REPO_OWNER_LOGIN --body <login>
+          # owner_reenable() fails closed if this is unset, so a misconfigured workflow cannot be bypassed.
+          REPO_OWNER_LOGIN: ${{ vars.REPO_OWNER_LOGIN }}
         run: |
           python scripts/flag_guardrail.py --cache-dir "$RUNNER_TEMP/guardrail-cache" --out "$RUNNER_TEMP/guardrail-out" \
-            --reenable "$REENABLE" --owner-words "$OWNER_WORDS"
+            --reenable "$REENABLE" --owner-words "$OWNER_WORDS" --owner-login "$REPO_OWNER_LOGIN" \
+            --commit "$GITHUB_SHA"
           cat "$RUNNER_TEMP/guardrail-out/guardrail.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open or update the guardrail issue
@@ -91,6 +113,27 @@ jobs:
           n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Flag guardrail in:title" --json number --jq '.[0].number')"
           if [ -n "$n" ]; then gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body-file "$f"
           else gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$f"; fi
+
+      # P0 COLD-START SNAPSHOT DRIFT (advisor condition on #1261, D-090): a served-number kill the committed snapshot lacks gets its
+      # OWN issue (title scripts/flag_guardrail.P0_DRIFT_TITLE, severity:critical, assigned to the owner), opened ONCE, so it is
+      # never buried under an old "Flag guardrail" issue's comments. Deadline in its body: commit AND deploy within 24 h.
+      - name: Open the P0 snapshot-drift issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ vars.REPO_OWNER_LOGIN }}
+        run: |
+          f="$RUNNER_TEMP/guardrail-out/p0_drift.md"
+          [ -f "$f" ] || exit 0
+          title="P0 cold-start snapshot drift: commit and deploy the kills snapshot within 24 h"
+          # in:title search is word-based, so it can also return other issues sharing these words: keep only titles that START
+          # with the P0 prefix (tests/test_flag_guardrail.py runs this exact filter); `// empty` = nothing found.
+          P0_JQ='[.[] | select(.title | startswith("P0 cold-start snapshot drift"))][0].number // empty'
+          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "P0 cold-start snapshot drift in:title" --json number,title --jq "$P0_JQ")"
+          if [ -n "$n" ]; then echo "P0 drift issue #$n already open"; exit 0; fi
+          gh label create "severity:critical" --repo "$GITHUB_REPOSITORY" --color b60205 --description "Page now" --force >/dev/null
+          assignee=(); [ -n "$OWNER" ] && assignee=(--assignee "$OWNER")
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$f" --label "severity:critical" "${assignee[@]}"
 
       - name: Upload the guardrail report
         if: always()

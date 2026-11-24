@@ -45,7 +45,7 @@ describe('layer gating', () => {
   test('the wind fetch, the particle layer and the colour mode all follow the same gate', () => {
     expect(src('WeatherEngine.js')).toMatch(/isWindActive = useMemo\(\s*\(\) => windParticlesWanted\(activeLayers\)/);
     const m = src('MapWebGL.js');
-    expect(m).toContain('active={windParticlesWanted(activeLayers)}');
+    expect(m).toContain('active={windParticlesWanted(activeLayers) || currentFlow}');   // Currents flow on it too (currentParticles.js)
     expect(m).toContain('gustColour={gustColourMode(activeLayers)}');
   });
 });
@@ -155,8 +155,9 @@ describe('engine and shaders', () => {
     expect(e).toContain('WebGLWindEngine.prototype.setGustMode = function(on) { setGustMode(this, on); };');
     const l = src('WebGLWindLayer.js');
     expect(l).toContain('engine.setGustMode(gustColourRef.current)');   // a new engine starts in the picked mode
-    expect(l).toContain('engine.setGustMode(gustColour);');             // and follows the pick
-    expect(l).toContain('gustColourRef.current = gustColour;');
+    expect(l).toContain('engine.setGustMode(colourMode);');             // and follows the pick (gust, or current: currentParticles.js)
+    expect(l).toContain('gustColourRef.current = colourMode;');
+    expect(l).toContain("const colourMode = gustColour ? true : (currentFlow ? 'current' : false);");
   });
 
   // Advisor hold 2 on #1079: past the gust range the particles drop the last frame's colours.
@@ -196,7 +197,8 @@ describe('the shader splice and its kill', () => {
   };
 
   test('killed before load: no gust code in either draw shader (the Wind draw pass exactly)', () => {
-    const k = loadShaders({ __RAW_DISABLE_GUST_PARTICLES__: true });
+    // the splice is shared with the Currents particles (2026-11-22): it stands down only with both kills set
+    const k = loadShaders({ __RAW_DISABLE_GUST_PARTICLES__: true, __RAW_DISABLE_CURRENT_PARTICLES__: true });
     for (const s of [k.DRAW_VS, k.DRAW_FS]) {
       expect(s).not.toMatch(/u_gust|v_cspeed|v_flick|u_ramp_max/);
     }
@@ -223,8 +225,9 @@ describe('the shader splice and its kill', () => {
 });
 
 describe('gust flicker (the non-colour gustiness cue)', () => {
-  test('the flicker: on by default, off under its kill and under prefers-reduced-motion', () => {
-    const win = (reduce) => ({ matchMedia: () => ({ matches: reduce }) });
+  test('the flicker: on when picked, off under its kill and under prefers-reduced-motion', () => {
+    // the default cue is the hatch since the owner's pick (2026-11-23, gustCue.test.js); the flicker runs when picked
+    const win = (reduce) => ({ __RAW_GUST_CUE__: 'flicker', matchMedia: () => ({ matches: reduce }) });
     expect(gustFlicker(win(false), 0).on).toBe(true);
     expect(gustFlicker(win(true), 0).on).toBe(false);
     expect(gustFlicker({ ...win(false), __RAW_DISABLE_GUST_FLICKER__: true }, 0).on).toBe(false);

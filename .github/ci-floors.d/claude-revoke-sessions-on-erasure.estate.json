@@ -1,7 +1,0 @@
-{
-  "lane": "estate",
-  "tests": 12,
-  "branch": "claude/revoke-sessions-on-erasure",
-  "date": "2026-11-18",
-  "note": "session revocation incl. startup load and table lock"
-}

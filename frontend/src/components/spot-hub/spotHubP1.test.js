@@ -129,6 +129,17 @@ describe('tides', () => {
     expect(tideSourceLabel({ station_id: '8721604' })).toBe('Data from NOAA Tides & Currents');
   });
 
+  test('our own tide shows its exact attribution, never an Open-Meteo line (PR B)', () => {
+    const credit = 'The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely '
+      + 'available by AVISO. Mean sea level: Generated using E.U. Copernicus Marine Service Information.';
+    const line = tideSourceLabel({ source: 'global', station_id: 'raw-surf:tide-own:am', credit,
+      tide_label: 'Tide: astronomical prediction + average sea level (no storm surge); heights above local mean sea level' });
+    expect(line).toContain('funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely available by AVISO');
+    expect(line).toContain('Copernicus Marine');
+    expect(line).not.toMatch(/Open-Meteo/);
+    expect(tideSourceLabel({ source: 'global', station_id: 'raw-surf:tide-own:am', credit: '' })).not.toMatch(/Open-Meteo/);
+  });
+
   const RESPONSE = { source: 'precomputed', rating: { score: 60, level: 'good', tide: { height_m: 0.4, norm: 0.7, trend: 'rising' } } };
 
   test('pointRatingClient passes rating.tide through; no tide, no key', () => {
@@ -149,6 +160,18 @@ describe('tides', () => {
     expect(list[i - 1].label).toBe('Rating');
     expect(list[i]).toMatchObject({ value: '+1.3 ft, Rising', note: 'model estimate, mean sea level',
       ariaLabel: 'Tide (model estimate, mean sea level): +1.3 feet, Rising' });
+  });
+
+  test('the Tide row follows the ft/m button like the wave heights (owner 2026-11-15)', () => {
+    const list = compileForecastCards({
+      activeLayer: 'waves', activeModel: 'GFS', isLoading: false, isExactPointAuthority: true,
+      exactPointStatus: 'exact_success', waveHeight: 1, wavePeriod: 12, waveDir: 270, degToCompass: () => 'W',
+      heightUnit: 'm', surfRating: mapPointRatingResponse(RESPONSE),
+      useExactPoint: { wave_height: 1, wave_period: 12, wave_direction: 270, surf_height_m: 2, surf_regime: 'shoaling', surf_nearshore: true },
+    });
+    expect(list.find((c) => c.label === 'Tide')).toMatchObject({ value: '+0.4 m, Rising',
+      ariaLabel: 'Tide (model estimate, mean sea level): +0.4 meters, Rising' });
+    expect(formatPointTide(sanitizePointTide({ height_m: -0.34, trend: 'falling' }), 'm')).toBe('−0.3 m, Falling');
   });
 
   test('no tide in the answer: no Tide row at all', () => {

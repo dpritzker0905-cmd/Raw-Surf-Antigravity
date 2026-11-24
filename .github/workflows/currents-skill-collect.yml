@@ -1,0 +1,144 @@
+name: Currents skill v1 collection (offline evidence, serves nothing)
+
+# Registration: docs/weather-program/gates/currents-skill-v1.md (sections 2, 3, 9). Reads the PUBLIC frames bucket (each arm's
+# published set), the Copernicus ARCO store (native 1/12 subset), HFRNet via ERDDAP and Copernicus NRT drifters; never calls
+# the Raw Surf backend; writes no Storage object except the archive copy (calibration/ prefix) and no manifest or product.
+# Every run needs the owner's typed word (registration section 9: "fetches and dispatches need David's word"):
+#   - a manual dispatch carries it in `owner_word_ref`;
+#   - the OPTIONAL schedule (amendment 1, A11: one word for the whole TEST window) runs only while the repo variable
+#     CURRENTS_SKILL_SCHEDULE is '1', CURRENTS_SKILL_OWNER_WORD_REF names where the word was given, and today is on or before
+#     CURRENTS_SKILL_UNTIL (YYYY-MM-DD). All three are unset by default, so the schedule is OFF and every scheduled run skips.
+#     Daily: frames + native; Mondays also the HF-radar snapshot and the drifters.
+# Secrets by NAME, only in the jobs that need them, in the supabase-service environment.
+#   daily     after each 00Z init's sets are published: frames (CMEMS_025, GIOPS_025, RTOFS_025) + native 1/12 (CMEMS_083)
+#   hfr       weekly HF-radar snapshot (the ERDDAP window rolls)
+#   drifters  Copernicus NRT drifters (subset latest for pass 1, monthly for the ONE pass 2)
+
+on:
+  workflow_dispatch:
+    inputs:
+      what:
+        description: 'daily (frames + native), hfr (weekly snapshot) or drifters'
+        required: true
+        type: choice
+        options: ['daily', 'hfr', 'drifters']
+      owner_word_ref:
+        description: 'Where the owner typed the dispatch word (session or message reference). Required.'
+        required: true
+      cycle:
+        description: 'daily only: the 00Z init (YYYY-MM-DD) for the native subset; empty = today'
+        required: false
+        default: ''
+      drifter_subset:
+        description: 'drifters only: latest (pass 1) or monthly (pass 2)'
+        required: false
+        default: 'latest'
+        type: choice
+        options: ['latest', 'monthly']
+  schedule:
+    - cron: '15 21 * * *'        # after the 19:45 UTC pilots run publishes the day's 00Z sets; OFF unless the repo variables say so
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+concurrency:
+  group: currents-skill-collect-${{ github.event_name }}-${{ github.event.inputs.what }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    # A scheduled run with CURRENTS_SKILL_SCHEDULE unset is SKIPPED here (not red): the schedule is off by default.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.CURRENTS_SKILL_SCHEDULE == '1' }}
+    runs-on: ubuntu-latest
+    outputs:
+      what: ${{ steps.plan.outputs.what }}
+    steps:
+      - name: The owner's word is required; the schedule stops after its end date
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          WHAT: ${{ github.event.inputs.what }}
+          OWNER_WORD_REF: ${{ github.event.inputs.owner_word_ref }}
+          SCHEDULE_WORD_REF: ${{ vars.CURRENTS_SKILL_OWNER_WORD_REF }}
+          UNTIL: ${{ vars.CURRENTS_SKILL_UNTIL }}
+        run: |
+          if [ "$EVENT" = "schedule" ]; then
+            test -n "$SCHEDULE_WORD_REF" || { echo "CURRENTS_SKILL_OWNER_WORD_REF is required"; exit 1; }
+            test -n "$UNTIL" || { echo "CURRENTS_SKILL_UNTIL is required"; exit 1; }
+            if [[ "$(date -u +%F)" > "$UNTIL" ]]; then echo "what=none" >> "$GITHUB_OUTPUT"; exit 0; fi
+            plan="daily"
+            if [ "$(date -u +%u)" = "1" ]; then plan="daily hfr drifters"; fi
+            echo "what=$plan" >> "$GITHUB_OUTPUT"
+          else
+            test -n "$OWNER_WORD_REF" || { echo "owner_word_ref is required"; exit 1; }
+            echo "what=$WHAT" >> "$GITHUB_OUTPUT"
+          fi
+
+  collect:
+    needs: [guard]
+    if: ${{ needs.guard.outputs.what != 'none' }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0 numcodecs netCDF4==1.7.4 "copernicusmarine==2.4.1"
+      - name: Frames (every arm's published set) and the native 1/12 subset
+        if: ${{ contains(needs.guard.outputs.what, 'daily') }}
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          CYCLE: ${{ github.event.inputs.cycle }}
+        run: |
+          python scripts/currents_skill_collect.py frames --out "$RUNNER_TEMP/cs/frames-run"
+          python scripts/currents_skill_collect.py native --out "$RUNNER_TEMP/cs/native-run" --cycle "$CYCLE"
+      - name: HF radar snapshot (all regions)
+        if: ${{ contains(needs.guard.outputs.what, 'hfr') }}
+        working-directory: backend
+        run: python scripts/currents_skill_collect.py hfr --out "$RUNNER_TEMP/cs/hfr-run"
+      - name: Copernicus NRT drifters (credentials by name, read by the toolbox)
+        if: ${{ contains(needs.guard.outputs.what, 'drifters') }}
+        working-directory: backend
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+          SUBSET: ${{ github.event.inputs.drifter_subset || 'latest' }}
+        run: python scripts/currents_skill_collect.py drifters --out "$RUNNER_TEMP/cs/drifters-run" --subset "$SUBSET"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: currents-skill-${{ github.event_name }}-${{ github.run_id }}
+          retention-days: 90
+          path: ${{ runner.temp }}/cs/
+
+  archive:
+    # Artifacts expire after 90 days: copy every artifact and its sha256 to the weather bucket (calibration/ prefix) and log the
+    # hashes. SHA256SUMS is written LAST (no SUMS = an incomplete archive, never read as evidence).
+    needs: [collect]
+    if: ${{ always() && (needs.collect.result == 'success' || needs.collect.result == 'failure') }}
+    runs-on: ubuntu-latest
+    environment: supabase-service
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install requests==2.31.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: currents-skill-*
+          path: ${{ runner.temp }}/art
+      - name: Copy to the weather bucket with sha256
+        working-directory: backend
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/currents_skill_archive.py --src "$RUNNER_TEMP/art" --prefix "calibration/currents-skill/$RUN_ID-$RUN_ATTEMPT"

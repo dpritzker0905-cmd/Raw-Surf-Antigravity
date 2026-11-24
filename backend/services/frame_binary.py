@@ -98,6 +98,22 @@ TEMP_C, CLOUD_PCT, RATING, PRECIP_MM_H, VISIBILITY_M = 7, 8, 9, 10, 11
 GUST_KN_BAND, CURRENT_KN_BAND = 12, 13
 BAND_FIELDS = (GUST_KN_BAND, CURRENT_KN_BAND)
 BAND_SATURATED = 255
+# ONE-BYTE FLOW DIRECTION (2026-11-22, the Currents particles): the direction the water flows TOWARD, code = round(d / 1.40625)
+# mod 256 (no missing code: validity rides on the frame's speed band, as field 1's does). It returns the direction lever A
+# dropped from the currents frames so the client can advect particles on the current's own u / v.
+# ANCHORS (measured 2026-11-22 on the live Copernicus hour, f024 of the 00Z cycle: band alone 424,568 B gzipped; + this field
+# at every cell in 256 steps 1,062,761 B, +150 %): the particle grid is 0.5 deg, so the publisher writes ONE direction per
+# 2 x 2 block (the block's VECTOR mean, flow_dir_anchors) at its south-west cell (even row, even column), in 64 steps (5.625 deg,
+# code = 4 x step index), and 0 elsewhere: 577,872 B (+36 %). Readers take the anchor cells only (currentParticles.js).
+FLOW_DIR_BYTE = 14
+FLOW_DIR_STRIDE = 2
+# ENSEMBLE GUST RISK (2026-11-23, gate gust-ens-risk-v1, DARK): the percent of the 50 ECMWF ENS members whose gust reaches 25 / 34 /
+# 48 kn, one byte each (code 1 = 0 %, 101 = 100 %, 0 = no data; the cloud field's layout). 50 members give even percents only, so the
+# codes are exact (frame_set_raster_gust_risk).
+GUST_P25_PCT, GUST_P34_PCT, GUST_P48_PCT = 15, 16, 17
+GUST_RISK_FIELDS = (GUST_P25_PCT, GUST_P34_PCT, GUST_P48_PCT)
+FLOW_DIR_LEVELS = 64
+CIRCULAR_FIELDS = (DIRECTION, FLOW_DIR_BYTE)
 # The client's LUT index is floor((v - min) / step + 1e-3) (ownRasterLayer's shader): the encoder takes the band by the SAME rule,
 # so a cell's palette entry is identical before and after (a value within 0.001 step under an edge already drew the next band).
 # The cost: the decode error bound is half a step + 0.001 step (TOLERANCE below).
@@ -105,7 +121,9 @@ BAND_INDEX_EPS = 1e-3
 FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s", DIR_CONFIDENCE: "dir_confidence",
                SPEED: "speed", LANE_WEIGHT: "lane_weight", PRESSURE_HPA: "pressure_hpa", TEMP_C: "temp_c",
                CLOUD_PCT: "cloud_pct", RATING: "rating", PRECIP_MM_H: "precip_mm_h",
-               VISIBILITY_M: "visibility_m", GUST_KN_BAND: "gust_kn_band", CURRENT_KN_BAND: "current_kn_band"}
+               VISIBILITY_M: "visibility_m", GUST_KN_BAND: "gust_kn_band", CURRENT_KN_BAND: "current_kn_band",
+               FLOW_DIR_BYTE: "flow_direction_byte", GUST_P25_PCT: "gust_p25kn_pct", GUST_P34_PCT: "gust_p34kn_pct",
+               GUST_P48_PCT: "gust_p48kn_pct"}
 
 # (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data;
 # speed (knots, the wind products' unit; the index meta carries value_unit) does the same at 0.01.
@@ -124,6 +142,10 @@ FIELD_SPECS = {
     VISIBILITY_M: (2, 1, 0, 1.0, -1.0),       # raster (fog): code 1 = 0 m, 0 = no data; top code 65534 m
     GUST_KN_BAND: (1, 0, 0, 0.5, -0.25),      # band (above): code k -> (k - 1) x 0.5 + 0.25 kn; 255 = saturated (>= 127 kn)
     CURRENT_KN_BAND: (1, 0, 0, 0.02, -0.01),  # band: code k -> (k - 1) x 0.02 + 0.01 kn; 255 = saturated (>= 5.08 kn)
+    FLOW_DIR_BYTE: (1, 0, NO_MISSING, 360.0 / 256.0, 0.0),   # direction toward, 1.40625 deg; code wraps mod 256 (above)
+    GUST_P25_PCT: (1, 0, 0, 1.0, -1.0),       # ensemble gust risk: code 1 = 0 %, 101 = 100 %, 0 = no data
+    GUST_P34_PCT: (1, 0, 0, 1.0, -1.0),
+    GUST_P48_PCT: (1, 0, 0, 1.0, -1.0),
 }
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
 WIND_FIELDS = (DIRECTION, SPEED)
@@ -155,6 +177,10 @@ TOLERANCE = {
     VISIBILITY_M: _half_step(VISIBILITY_M),      # 1 m step        -> 0.5 m
     GUST_KN_BAND: _half_step(GUST_KN_BAND) + 0.5 * 1e-3,       # 0.5 kn band -> 0.25 kn + the index eps (unsaturated cells)
     CURRENT_KN_BAND: _half_step(CURRENT_KN_BAND) + 0.02 * 1e-3,  # 0.02 kn band -> 0.01 kn + the index eps
+    FLOW_DIR_BYTE: _half_step(FLOW_DIR_BYTE),    # 1.40625 deg step -> 0.703 deg (compared on the circle)
+    GUST_P25_PCT: _half_step(GUST_P25_PCT),      # 1 % step -> 0.5 % (the values are whole even percents: exact)
+    GUST_P34_PCT: _half_step(GUST_P34_PCT),
+    GUST_P48_PCT: _half_step(GUST_P48_PCT),
 }
 POSITION_TOL_DEG = 1e-6
 # Marine u, v rebuilt from the decoded height and direction, against the stored u, v the normalizer computed from the
@@ -309,7 +335,9 @@ def _epoch(ts):
     if not ts:
         return float("nan")
     try:
-        return datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone(timezone.utc).timestamp()
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        # a naive timestamp is UTC, never the host's local time (bug hunt 2026-11-22)
+        return (dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt).timestamp()
     except ValueError:
         return float("nan")
 
@@ -498,6 +526,8 @@ def encode_planes(planes, bounds, valid_time, model_run_time, uv_convention=0):
             if ok.any() and arr[ok].min() < 0:
                 raise ValueError(f"field {fid}: a band field holds non-negative values only")
             codes[ok] = np.minimum(np.floor(arr[ok] / scale + BAND_INDEX_EPS).astype(np.int64) + 1, BAND_SATURATED)
+        elif fid == FLOW_DIR_BYTE:   # on the circle: 359.5 deg rounds to code 256 and wraps to 0 (= 0 deg)
+            codes[ok] = np.rint(np.mod(arr[ok], 360.0) / scale).astype(np.int64) % 256
         else:
             codes[ok] = np.rint((arr[ok] - offset) / scale).astype(np.int64)
         if ok.any() and (codes[ok].min() < lowest or codes[ok].max() > top):
@@ -506,6 +536,30 @@ def encode_planes(planes, bounds, valid_time, model_run_time, uv_convention=0):
         raw = codes.astype("<u2" if nb == 2 else "u1").tobytes()
         body.append(raw[0::2] + raw[1::2] if (layout == 1 and nb == 2) else raw)
     return bytes(head) + b"".join(body)
+
+
+def flow_dir_anchors(speed, direction, stride=FLOW_DIR_STRIDE, levels=FLOW_DIR_LEVELS):
+    """The FLOW_DIR_BYTE plane (ANCHORS above) from a speed plane and a direction-toward plane on one lattice (NaN = no data):
+    each stride x stride block's vector mean direction, quantised to `levels` steps, at the block's first cell (row and column
+    multiples of `stride`); 0.0 everywhere else and in blocks with no water. PURE."""
+    import numpy as np
+    s_ = np.asarray(speed, dtype=float)
+    d_ = np.asarray(direction, dtype=float)
+    ok = np.isfinite(s_) & np.isfinite(d_)
+    rad = np.radians(np.where(ok, d_, 0.0))
+    u = np.where(ok, s_ * np.sin(rad), 0.0)
+    v = np.where(ok, s_ * np.cos(rad), 0.0)
+    rows, cols = s_.shape
+    rr, cc = -(-rows // stride), -(-cols // stride)
+    pad = lambda a: np.pad(a, ((0, rr * stride - rows), (0, cc * stride - cols)))
+    bu = pad(u).reshape(rr, stride, cc, stride).sum((1, 3))
+    bv = pad(v).reshape(rr, stride, cc, stride).sum((1, 3))
+    bn = pad(ok.astype(float)).reshape(rr, stride, cc, stride).sum((1, 3))
+    step = 360.0 / levels
+    q = np.mod(np.rint(np.mod(np.degrees(np.arctan2(bu, bv)), 360.0) / step), levels) * step
+    out = np.zeros((rows, cols), dtype=float)
+    out[::stride, ::stride] = np.where(bn > 0, q, 0.0)
+    return out
 
 
 def band_saturated(fid, values):

@@ -6,9 +6,12 @@ import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMar
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
 import MapMarkerLayers from './MapMarkerLayers';
+import TideOverlayLayer from './TideOverlayLayer';
 import { WindParticleOverlay } from './WindParticleOverlay';
 import { WebGLWindLayer } from './WebGLWindLayer';
 import { windParticlesWanted, gustColourMode } from './gustParticles';
+import { currentFlowMode } from './currentParticles';
+import { useCurrentFlowGrid } from './currentNative';
 import { WebGLMarineLayer } from './WebGLMarineLayer';
 import { OceanMask } from './OceanMask';
 import { useWeatherEngine } from './WeatherEngine';
@@ -65,6 +68,7 @@ import LongPressMarker from './LongPressMarker';
 import './scrubPerfProbe';   // installs window.__SCRUB_PROBE__ (dev scrub/animation re-render harness, backlog #1)
 import { planAnchorMoves } from './waterTempAnchor';
 import { useMarineWebglRecovery } from './useMarineWebglRecovery';
+import { useNoteForecastShown } from '../observations/forecastExposure';
 
 const MapWebGL = ({
   effectiveLocation,
@@ -92,8 +96,8 @@ const MapWebGL = ({
   longPressLocation,
   onMarineDataChange,
 }) => {
-  // v3.9.7: Explicit init never at import time
-  ensureMapLibreInit();
+  useNoteForecastShown('map');  // blind-quality exposure (observations/forecastExposure)
+  ensureMapLibreInit();  // v3.9.7: explicit init, never at import time
   if (typeof window !== 'undefined') {
     window.__MODEL_METADATA_CACHE__ = MODEL_METADATA_CACHE;
   }
@@ -280,6 +284,11 @@ const MapWebGL = ({
     activeModel,
     forecastDays
   });
+  // CURRENTS (currentParticles.js): with Currents picked (and neither Wind nor Gusts) the wind engine flows on the current field
+  // on screen. Kill: window.__RAW_DISABLE_CURRENT_PARTICLES__ = true. Inside a surf box, with the native sets on (DARK,
+  // currentNative.js: window.__RAW_CURRENTS_NATIVE__), the box's own 1/12-deg Copernicus cells instead of the world grid.
+  const currentFlow = currentFlowMode(activeLayers);
+  const currentGrid = useCurrentFlowGrid(currentFlow, mapInstance);
 
   // Shared Marine Orchestrator
   const { marineData } = useMarineOrchestrator({
@@ -1052,16 +1061,19 @@ const MapWebGL = ({
           spotRatings={spotRatings}
           clusterRatings={clusterRatings}
         />
+        {/* Tide add-on: per-cell tide markers at the visible spots; the hour re-evaluates cached payloads only. */}
+        <TideOverlayLayer spotClusters={spotClusters} timeOffsetHours={timeOffsetHours} mapInstance={mapInstance} userTier={userTier} />
         {/* Keep the WebGL wind engine RESIDENT (gated by `active`) — same rationale as the
             marine layer above: avoid disposing/rebuilding the 147,456-particle engine on
             every wind toggle. render() no-ops + clears once when active=false. */}
         {!webglWindFailed ? (
           <WebGLWindLayer
             mapInstance={mapInstance}
-            active={windParticlesWanted(activeLayers)}
+            active={windParticlesWanted(activeLayers) || currentFlow}
             gustColour={gustColourMode(activeLayers)}
-            data={windData}
-            deliveryQueue={windDeliveryQueue}
+            currentFlow={currentFlow}
+            data={currentFlow ? currentGrid : windData}
+            deliveryQueue={currentFlow ? null : windDeliveryQueue}
             revision={windRevision?.current || 0}
             theme={theme}
             onError={onWindWebglError}

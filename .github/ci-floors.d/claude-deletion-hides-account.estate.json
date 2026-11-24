@@ -1,7 +1,0 @@
-{
-  "lane": "estate",
-  "tests": 8,
-  "branch": "claude/deletion-hides-account",
-  "date": "2026-11-19",
-  "note": "pending deletion hides the account"
-}

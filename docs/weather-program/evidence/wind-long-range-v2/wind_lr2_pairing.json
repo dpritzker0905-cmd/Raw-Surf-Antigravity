@@ -1,0 +1,2617 @@
+{
+ "41029": {
+  "marine": true,
+  "shore_normal": 106.4,
+  "spot": "a3e8c742-45ee-4bbd-9dbc-12e2066d0469"
+ },
+ "41033": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": "e44aca34-c6dc-4174-972e-c01f79f5c00b"
+ },
+ "41038": {
+  "marine": true,
+  "shore_normal": 120.8,
+  "spot": "3d8e903e-ed41-414e-a072-13cde1bd5640"
+ },
+ "41053": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "41056": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "41066": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "41068": {
+  "marine": true,
+  "shore_normal": 83.7,
+  "spot": "91b0a98f-26a7-4741-a1e9-08bc5ae84f69"
+ },
+ "41069": {
+  "marine": true,
+  "shore_normal": 71.6,
+  "spot": "86b1edba-0cde-42c1-a880-c10c08366d69"
+ },
+ "42012": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "42043": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "42044": {
+  "marine": true,
+  "shore_normal": 79.7,
+  "spot": "8528a838-5089-4a7a-97dc-c391e461fed3"
+ },
+ "42085": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44007": {
+  "marine": true,
+  "shore_normal": 113.5,
+  "spot": "1472367c-8228-4787-8e4d-787c2f3f7bfa"
+ },
+ "44009": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44013": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44020": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44029": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44030": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44032": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44033": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44034": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44042": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44058": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44062": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44063": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44065": {
+  "marine": true,
+  "shore_normal": 82.5,
+  "spot": "2920b898-fe7e-4cfc-a749-b5cc96c17dbf"
+ },
+ "44069": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44072": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44074": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44080": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "44258": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "45132": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "45142": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "45143": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "45149": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "45154": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46011": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46013": {
+  "marine": true,
+  "shore_normal": 254.0,
+  "spot": "5bcf341a-0fc8-47af-b561-d351e2593891"
+ },
+ "46014": {
+  "marine": true,
+  "shore_normal": 267.2,
+  "spot": "705f75f7-a414-430f-875e-a7b54c8978af"
+ },
+ "46015": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46022": {
+  "marine": true,
+  "shore_normal": 294.8,
+  "spot": "3a1682c3-7945-4416-b43f-bd6262d948b4"
+ },
+ "46025": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46026": {
+  "marine": true,
+  "shore_normal": 173.2,
+  "spot": "70beabff-a315-42c8-b3a0-c89236535b2e"
+ },
+ "46027": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46041": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46042": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46050": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46053": {
+  "marine": true,
+  "shore_normal": 201.2,
+  "spot": "1c76a94d-6105-4a0a-a6d8-74d378ac156f"
+ },
+ "46054": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46060": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46061": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46077": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46081": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46087": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46088": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46092": {
+  "marine": true,
+  "shore_normal": 275.4,
+  "spot": "6f14cf3f-4e67-4775-93ea-a07c7cb3afd8"
+ },
+ "46097": {
+  "marine": true,
+  "shore_normal": 269.8,
+  "spot": "7f6b7563-8ba1-4785-a930-1bb1a0da2643"
+ },
+ "46118": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46119": {
+  "marine": true,
+  "shore_normal": 265.7,
+  "spot": "1f6e163a-61d7-49a0-b818-05a6907e7990"
+ },
+ "46131": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46145": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46146": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46147": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46181": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "46206": {
+  "marine": true,
+  "shore_normal": null,
+  "spot": null
+ },
+ "62107": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "62304": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "62305": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "AAF": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "AAMC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ABYA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ACK": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ACXS1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ADKA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "AGI": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "AJXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ALIA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "AMAA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "AMRL1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ANMN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ANPT2": {
+  "marine": false,
+  "shore_normal": 118.9,
+  "spot": "6d0f00ba-6674-42ce-ae0a-a9ce724ea812"
+ },
+ "ANR": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ANVC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "APCF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "APMA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "APNM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "APXF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ASTO3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ATGM1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ATKA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ATP": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "AUGA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "AWRT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BABT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BARN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BCFM2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BCTP1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BDRN4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BEXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BFTN7": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BGXN3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BIGM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BISM2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BKBF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BLIA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BLIF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BLTM2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BLTM3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BMTW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BQX": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BRHC3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BRND1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BSBM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BSCA1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BUFN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BURL1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BUZM3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": "2e5b18ae-ab50-4a6c-b645-6f63c58e4b72"
+ },
+ "BVS": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BYGL1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "BZST2": {
+  "marine": false,
+  "shore_normal": 100.1,
+  "spot": "8ba67fe9-a2ba-4901-b243-eda28e1c57ce"
+ },
+ "CAMM2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CAPL1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CASM1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CAVN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CBLO1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CDEA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CDRF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CDXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CEC": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CECC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CFWM1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CHAO3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CHBV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": "2dfcf5ac-03dc-4b21-b08b-0226ca498208"
+ },
+ "CHCM2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CHII2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CHSV3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CHTS1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CHYV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CKYF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CLKN7": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CLSM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CLW": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CMAN4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CMLN3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CMTI2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CNDO1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CNII2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "COXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CPMW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CPNW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CPSA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CPTR1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CPXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CQX": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CRGA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CRVA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CRYV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CSIM3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CSPA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CSXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CWBF1": {
+  "marine": true,
+  "shore_normal": 273.7,
+  "spot": "1fb04810-9c3e-489f-a180-3dee9c141b53"
+ },
+ "CXHN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "CXLM2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DBLN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DCXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DELD1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DESW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DHXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DILA1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DISW3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DOMV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DPHA1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DPLA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DPXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DRSD1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DTLM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "DUKN7": {
+  "marine": true,
+  "shore_normal": 68.9,
+  "spot": "10a48b4e-46ab-4428-b188-ae2043122b49"
+ },
+ "DULM5": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "EDE": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "EINL1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ELXC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "EMAT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "EPTT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ERXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ESPP4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "EYW": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "EZP": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FAIO1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FBIS1": {
+  "marine": true,
+  "shore_normal": 160.7,
+  "spot": "5fba1b6f-b5bc-4f47-b0fd-9b821ba403ba"
+ },
+ "FFA": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FFIA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FHR": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FILA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FMRF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FOXR1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FPKG1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": "b7048810-7cf2-45ae-abaa-2f4fa4452a96"
+ },
+ "FPST2": {
+  "marine": true,
+  "shore_normal": 135.3,
+  "spot": "11dfc6d5-5f8f-4696-9c4b-d6f7aa352209"
+ },
+ "FPTM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FRDF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FRDW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FRMA1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FRWL1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FSKM2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FTGM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "FTPC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GBK": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GBWW3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GBXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GDXM6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GEXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GISL1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GIXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GLX": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GNJT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GPXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GRCM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GRMM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GRRT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GTLM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GTRM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GUL": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "GUXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "HAF": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "HAXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "HBYC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "HCGN7": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "HHLO1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "HLNM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "HMRA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "HMSA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "HQM": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "HRBM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "HRRH1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "HXD": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ICAC1": {
+  "marine": true,
+  "shore_normal": 230.5,
+  "spot": "043c051f-2e48-4666-9cd2-f0c4ec729ecb"
+ },
+ "IKT": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ILOH1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "IOSN3": {
+  "marine": false,
+  "shore_normal": 101.3,
+  "spot": "10a07895-3c11-4513-8c3e-0a5ba8a61028"
+ },
+ "IRDT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "JCRN4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "JLXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "JMLA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "JMPN7": {
+  "marine": true,
+  "shore_normal": 120.8,
+  "spot": "3d8e903e-ed41-414e-a072-13cde1bd5640"
+ },
+ "JNEA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "JOXP4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "JSL": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KATA1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KCXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KECA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KEXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KGCA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KGXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KLIH1": {
+  "marine": false,
+  "shore_normal": 339.5,
+  "spot": "2544ca50-ef6b-47c8-9b10-049298a9a15c"
+ },
+ "KMXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KNXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KOZA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KPTN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KPTV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KTNF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KWHH1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "KWNW3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "LAPW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "LDTM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "LJAC1": {
+  "marine": false,
+  "shore_normal": 248.2,
+  "spot": "19d843e0-993a-4311-b4ce-3d36f78cd2b7"
+ },
+ "LJPC1": {
+  "marine": false,
+  "shore_normal": 248.2,
+  "spot": "19d843e0-993a-4311-b4ce-3d36f78cd2b7"
+ },
+ "LKWF1": {
+  "marine": true,
+  "shore_normal": 94.9,
+  "spot": "b8e76555-4e19-4ae2-95d3-c19c4091240b"
+ },
+ "LLR": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "LMFS1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "LNDC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "LONF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "LPNM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "LQAT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "LTBV3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "LTRM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "LWSD1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "LWTV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MACM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MAXT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MBET2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MBIN7": {
+  "marine": false,
+  "shore_normal": 120.8,
+  "spot": "3d8e903e-ed41-414e-a072-13cde1bd5640"
+ },
+ "MBNN7": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MCGA1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MCGM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MCYI3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MEYC1": {
+  "marine": false,
+  "shore_normal": 275.4,
+  "spot": "6f14cf3f-4e67-4775-93ea-a07c7cb3afd8"
+ },
+ "MGIP4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MGPT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MGZP4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MHBT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MHRN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MISM1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MIST2": {
+  "marine": true,
+  "shore_normal": 118.9,
+  "spot": "6d0f00ba-6674-42ce-ae0a-a9ce724ea812"
+ },
+ "MIXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MKGM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MKQ": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MKY": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MLSC1": {
+  "marine": true,
+  "shore_normal": 275.4,
+  "spot": "6f14cf3f-4e67-4775-93ea-a07c7cb3afd8"
+ },
+ "MLWW3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MNMM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MNPV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MOKH1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MRHO1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MRKA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MRNA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MROS1": {
+  "marine": true,
+  "shore_normal": 132.8,
+  "spot": "72849e22-83e5-4bc6-92bb-fd4f3dd1800f"
+ },
+ "MRYA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MSY": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MTBF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": "cba42c84-2c8f-45e8-9e4f-d180c6d608af"
+ },
+ "MTH": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MVXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MXXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MYPF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "MZXC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NABM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NAXR1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NBGM3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NBLP1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NCDV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NCHT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NFDF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NGP": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NGU": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NIWS1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NKTA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NKXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NLXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NMTA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NMXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NPDW3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NPXN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NREP1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NSI": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NSXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NTBC1": {
+  "marine": false,
+  "shore_normal": 201.9,
+  "spot": "31224425-2f57-4129-9f69-089cd1205ac7"
+ },
+ "NWCL1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NWHC3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NWPR1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": "45c7e8da-abcd-456b-85d4-89f143876c35"
+ },
+ "NWWH1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NXF": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "NZY": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OCIM2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OKH": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OKXC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OLCN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OLSA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OMHC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OOUH1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OPTF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ORIN7": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ORS": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OSGN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OTNM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OWMO1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OWXO1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "OXR": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PAAE": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PACF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PACT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PACZ": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PAGM": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PAHN": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PAHP": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PAMK": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PAOU": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PASA": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PASH": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PASO": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PAXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PAYA": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PBFW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PBPA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PCBF1": {
+  "marine": true,
+  "shore_normal": 214.4,
+  "spot": "b0aef40f-878b-4de2-87ac-e441e2f83e37"
+ },
+ "PCLF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PCNT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PCOC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PCXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PDVR1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PEGF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PEXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PGXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PHNG": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PHNY": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PHTO": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PILA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PILL1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PILM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PKBW3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PLXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PNGW3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PNLM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "POKA": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PORO3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PORT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "POTA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PPIZ": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PPTA1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PPTM2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PPXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PRDA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PRHH1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PRTA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PRYC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PSBC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PSBM1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PSLC1": {
+  "marine": false,
+  "shore_normal": 233.0,
+  "spot": "7e5ea9cc-639d-41d7-bbd3-d0ad1b6216a8"
+ },
+ "PSTL1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PTAT2": {
+  "marine": true,
+  "shore_normal": 118.9,
+  "spot": "6d0f00ba-6674-42ce-ae0a-a9ce724ea812"
+ },
+ "PTAW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PTBM6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PTCR1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PTGC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PTIM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PTIT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PTLA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PTWW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PVDR1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PWAW3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "PXOC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "RCKM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "RCMC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "RCPT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "RDDA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "RIXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "RKXF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "RLOT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ROAM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ROBN4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "RPLV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "RPRN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "RSJT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "RTAT2": {
+  "marine": false,
+  "shore_normal": 118.9,
+  "spot": "8918821d-ec0d-4cea-ad6b-fda5720d9e99"
+ },
+ "RTYC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "S31": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SAN": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SAPF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SAUF1": {
+  "marine": true,
+  "shore_normal": 79.6,
+  "spot": "a7bba47e-b92d-4c73-a97d-bd73d376438b"
+ },
+ "SAXG1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SBIO1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SBLM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SCXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SDHN4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SDIA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SDRT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SFXC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SGNW3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SHBL1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SHXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SIPF1": {
+  "marine": true,
+  "shore_normal": 68.2,
+  "spot": "de43d26a-dbe9-4239-ba03-db6fb45c402a"
+ },
+ "SISW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SJNP4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": "15bc71e2-5984-499a-ac51-5f80d07eb54b"
+ },
+ "SJSN4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SKCF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SKDA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SKXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SLVM5": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SLXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SNDA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SPXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SRLM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SRST2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SRXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "STXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SVNM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SVXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SWPM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SWXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SXHW3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "SXXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TAWM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TBIM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TCBM2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TCMW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TESL1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TGXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "THLO1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "THRO1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TIXC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TKEA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TKPN6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TOKW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TPAF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TPLM2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TPXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TRDF1": {
+  "marine": false,
+  "shore_normal": 110.7,
+  "spot": "146967fa-73f4-4041-a61a-048a8eb0b8da"
+ },
+ "TRTP1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TWCO1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "TXPT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "ULRA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "UNLA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "UPBC1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "UQXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "VAKF1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "VDXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "VDZA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "VENF1": {
+  "marine": true,
+  "shore_normal": 252.3,
+  "spot": "c2ac6ca3-2c3b-499a-b83f-332221e2069e"
+ },
+ "VOA": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "VTBT2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "W29": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WAHV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WASD2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WATS1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WAXM3": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WBF": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WBXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WCXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WDSV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WEXM1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WFXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WGXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WHRI2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WIXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WKXA1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WLXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WNEM4": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WPOW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WPTW1": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WRXA2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "WYCM6": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "X59": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "XER": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "XMR": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "YKTV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ },
+ "YRSV2": {
+  "marine": false,
+  "shore_normal": null,
+  "spot": null
+ }
+}

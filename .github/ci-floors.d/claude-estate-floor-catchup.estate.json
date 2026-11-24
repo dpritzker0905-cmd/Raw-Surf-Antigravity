@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 1,
+  "branch": "claude/estate-floor-catchup",
+  "date": "2026-11-22",
+  "note": "catch-up: dev estate floor 4282 vs 4285 observed (runs 45042189545 @70e3b0c5 and 45044682269 @f6f5b456f), budget 2, so 4283"
+}

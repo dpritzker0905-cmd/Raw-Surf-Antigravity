@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 5,
+  "files": 1,
+  "branch": "codex/message-recipient-search",
+  "date": "2026-11-21",
+  "note": "Message recipient search recovery and request ownership"
+}

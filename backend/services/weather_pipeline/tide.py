@@ -15,6 +15,7 @@ import asyncio
 from contextlib import asynccontextmanager
 import logging
 import math
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -301,10 +302,13 @@ def tide_trend_at(extrema, at):
     return None
 
 
-def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dict]:
+def tide_state_at(times, levels, valid_time, window_h: int = 12, max_gap_h: Optional[float] = None) -> Optional[dict]:
     """PURE: tide state at ``valid_time`` from an hourly (times, levels) series. Returns
     {height_m, norm (0..1 within the surrounding ±window_h tidal window), trend ('rising'|'falling'|'slack')}
-    or None when the series can't be used. ``valid_time`` is an ISO-8601 UTC string or datetime."""
+    or None when the series can't be used. ``valid_time`` is an ISO-8601 UTC string or datetime.
+
+    ``max_gap_h``: when given, None if the nearest sample is farther than that from ``valid_time`` (a valid time
+    outside the series gets NO tide, never the edge sample's). None (the default) keeps the nearest-sample behaviour."""
     if not times or not levels or len(times) != len(levels):
         return None
     req = valid_time if isinstance(valid_time, datetime) else _parse_iso(valid_time)
@@ -324,6 +328,8 @@ def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dic
         if best_d is None or d < best_d:
             best_i, best_d = i, d
     if best_i is None:
+        return None
+    if max_gap_h is not None and best_d > max_gap_h * 3600:
         return None
     height = levels[best_i]
     # local min/max over ±window_h (a tidal day) for the normalized position
@@ -348,11 +354,38 @@ def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dic
     return {"height_m": round(height, 3), "norm": round(norm, 3), "trend": trend}
 
 
+def tide_source() -> str:
+    """'own' (the served default: our table, `tide_own`: our FES2022b + altimetry mean-level tide, and the CMEMS sea
+    level read directly where SURF_TIDE_CMEMS is on), 'off' (the kill switch SURF_TIDE_OWN=0: no tide, an honest
+    "unavailable") or 'legacy' (the raw test env TIDE_LEGACY_OPEN_METEO=1 ONLY: the old Open-Meteo acquisition, kept so
+    its unit tests run until it is deleted).
+
+    The owner, 2026-11-18 ~23:00Z (via the director): no Open-Meteo in any user data (licence); internal testing only.
+    No served path reaches Open-Meteo: 'legacy' is never read from the runtime manifest, and tests/test_tide_own.py
+    pins that no deploy or workflow sets it. A missing or stale table is "unavailable", NOT an Open-Meteo fallback.
+    """
+    if os.environ.get("TIDE_LEGACY_OPEN_METEO") == "1":
+        return "legacy"
+    from services.runtime_flags import on
+    return "own" if on("SURF_TIDE_OWN") else "off"
+
+
+def _prefer_cmems() -> bool:
+    from services.runtime_flags import on
+    return on("SURF_TIDE_CMEMS")
+
+
 async def fetch_tide_hourly(lat, lng, client=None, forecast_days: int = 3) -> Optional[dict]:
-    """Fetch the hourly tide series (sea_level_height_msl) for (lat,lng) from Open-Meteo Marine, TTL-cached by
-    rounded coords. Returns {"time":[...], "level":[...]} or None. Uses an injected async client when given
-    (tests). Unavailable data returns None; caller cancellation propagates."""
+    """The hourly tide series for (lat,lng): {"time":[...], "level":[m...], "source": "cmems"|"am", "label", "credit"}
+    or None (tide unavailable: no table, a stale table, a key the table lacks, or the kill switch). Never Open-Meteo
+    outside the test-only legacy path. Caller cancellation propagates."""
     key = _round_key(lat, lng)
+    source = tide_source()
+    if source == "own":
+        from services.weather_pipeline import tide_own
+        return await tide_own.fetch_series(key, forecast_days, _prefer_cmems())
+    if source == "off":
+        return None
     return await _within_budget(_fetch_point(key, client, forecast_days), [key],
                                 _TIDE_POINT_TIMEOUT_S, None)
 
@@ -411,9 +444,20 @@ async def prewarm_tide_cache(latlngs, client=None, forecast_days: int = 3, chunk
     cold-fetch ~900 spot-cells one request at a time inside rate_one_spot (quota + tail latency); batched
     it's ~10 requests for ~1500 spots. Requests use the ROUNDED key coords, exactly what fetch_tide_hourly
     would request, so the seeded entries have the same values as the per-spot path. Failures cool down
-    without seeding data; cancellation propagates. Returns the number of cells seeded."""
+    without seeding data; cancellation propagates. Returns the number of cells seeded.
+    On the served source one table read covers every key and nothing is fetched from Open-Meteo; the batch request
+    below runs only on the test-only legacy path."""
     keys = _prewarm_keys(latlngs, forecast_days=forecast_days)
     seeded = 0
+    source = tide_source()
+    if source != "legacy":                           # served: one table read covers every key; never Open-Meteo
+        if source == "off":
+            return 0
+        from services.weather_pipeline import tide_own
+        prefer = _prefer_cmems()
+        for k in keys:
+            seeded += int(await tide_own.fetch_series(k, forecast_days, prefer) is not None)
+        return seeded
     for i in range(0, len(keys), chunk_size):
         chunk = keys[i:i + chunk_size]
         if time.monotonic() < _TIDE_RATE_LIMIT_UNTIL:
@@ -442,13 +486,44 @@ async def _prewarm_chunk(chunk, client, forecast_days):
         return sum(int(_store_series(k, item, forecast_days, now)) for k, item in zip(chunk, results))
 
 
+TIDE_MAX_DAYS = 16          # the 14-day horizon plus the part of today before now and a margin; tide_own publishes ~90
+TIDE_MAX_GAP_H = 1.5        # a sample farther than this from the valid time is not that time's tide
+WINDOW_FIX_FLAG = "SURF_TIDE_WINDOW_FIX"
+
+
+def _days_covering(now, valid) -> int:
+    """PURE: the forecast_days (from 00Z of ``now``'s day) whose window covers ``valid`` plus TIDE_MAX_GAP_H;
+    at least today's 3, at most TIDE_MAX_DAYS. None or an unparseable time: 3."""
+    req = valid if isinstance(valid, datetime) else _parse_iso(valid) if valid else None
+    if req is None:
+        return 3
+    if req.tzinfo is None:
+        req = req.replace(tzinfo=timezone.utc)
+    day0 = now.astimezone(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    hours = (req - day0).total_seconds() / 3600.0 + TIDE_MAX_GAP_H + 1.0
+    return max(3, min(TIDE_MAX_DAYS, int(math.ceil(hours / 24.0))))
+
+
 async def tide_norm_at(lat, lng, valid_time, client=None) -> Optional[dict]:
     """Convenience: fetch + resolve the tide state at a spot for ``valid_time``. Returns the tide_state_at dict
-    ({height_m, norm, trend}) or None. The `norm` feeds surf_rating.tide_fit; the rest is for explainability."""
-    series = await fetch_tide_hourly(lat, lng, client=client)
+    ({height_m, norm, trend}) or None. The `norm` feeds surf_rating.tide_fit; the rest is for explainability.
+
+    SURF_TIDE_WINDOW_FIX (2026-11-23, dark, default "0"): with it OFF this fetches the default 3 days from 00Z today
+    and takes the nearest sample, so every valid time past ~49-72 h gets the LAST sample's height (a frozen tide in
+    tide_fit and in the SURF_TIDE_DEPTH cap: /point, the precompute, the hub's 14-day plan). With it ON the request
+    covers the valid time (`_days_covering`) and a sample farther than TIDE_MAX_GAP_H is refused (None: the callers'
+    neutral eta and tide factor), never a stale one. tests/test_tide_window.py."""
+    from services.runtime_flags import on
+    if not on(WINDOW_FIX_FLAG):
+        series = await fetch_tide_hourly(lat, lng, client=client)
+        if not series:
+            return None
+        return tide_state_at(series["time"], series["level"], valid_time)
+    days = _days_covering(datetime.now(timezone.utc), valid_time)
+    series = await fetch_tide_hourly(lat, lng, client=client, forecast_days=days)
     if not series:
         return None
-    return tide_state_at(series["time"], series["level"], valid_time)
+    return tide_state_at(series["time"], series["level"], valid_time, max_gap_h=TIDE_MAX_GAP_H)
 
 
 def _reset_tide_cache_for_test():

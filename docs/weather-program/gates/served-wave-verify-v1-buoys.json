@@ -1,0 +1,3561 @@
+{
+ "frozen_at": "2026-11-23T01:58:38Z",
+ "gate": "docs/weather-program/gates/served-wave-verify-v1.md",
+ "holdout": {
+  "fit_used_census": {
+   "canon_sha256": "6d5ee973c091982da86c5a32728a400d23c0fc155a474ac631e312e73952d231",
+   "open": [
+    "wind / gust EMOS (backend/scripts/wind_emos_collect.py, wind_emos_fit.py, emos_core.py)"
+   ],
+   "path": "docs/weather-program/gates/served-wave-verify-v1-fit-used.json",
+   "taken_at": "2026-11-23"
+  },
+  "gate": "docs/weather-program/gates/served-wave-skill-v1.md",
+  "locked_list": {
+   "path": "docs/weather-program/gates/served-wave-skill-v1-locked.json",
+   "sha256": "21274fc6e7cf7d53f2627cf2838a9541e16adfb996687404d57a4d52c2f49b19"
+  },
+  "rule": "#1199 section 1a: LOCKED buoys are archived like every other, but the scorer reads none of them and every published table and printed line excludes them, keyed to the frozen LOCKED list by its SHA-256. Until locked_list is recorded, the scorer is collect-only (NOT_READ) and publishes nothing. fit_used buoys stay in this lane's indicative tables, tagged, and #1199's P1 excludes them."
+ },
+ "inputs": {
+  "boxes_latest_written_at": "2026-11-22T23:15:56Z",
+  "boxes_read_at": "2026-11-23T01:55:09Z",
+  "catalogue_probed_at": "2026-11-23T01:54:39Z",
+  "pool": "pool-2026-11-22"
+ },
+ "rules": {
+  "active_max_age_days": 3,
+  "active_min_wvht_rows": 20,
+  "cdip_cap_per_region": 2,
+  "min_depth_m": 20.0,
+  "nearshore_eval": "#1156 truth.select_stations: directional, 10-40 m, not USACE FRF Duck, not assimilated into the driving model, no unresolved harbour structure within 1 km. The first four are evaluated here; the harbour criterion is the nearshore lane's (gate 0.4), so no station carries the tag yet.",
+  "regional_box": "(section 2a): per (model, set), a buoy's box is the regional box whose bounds contain it; if several do, the\none where the buoy lies farthest from the box edge (km: the shortest distance to any of the four edges, longitude scaled by\ncos(lat)); ties go to the lexically smallest region_id. A buoy in no box has Tier A only (`no_regional_tier`).",
+  "sheltered": "sheltered = the station lies inside a named bay, sound, strait or channel, or in the lee of a named island chain or headland, as written per station in the pool file's `sheltered` map (the feature is recorded); absent = exposed",
+  "targets": {
+   "alaska": 5,
+   "canada": 8,
+   "caribbean": 6,
+   "gulf": 8,
+   "hawaii": 8,
+   "open_ocean": 10,
+   "us_east": 15,
+   "us_west": 20
+  },
+  "total": 100
+ },
+ "stations": [
+  {
+   "depth_m": 35.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "41004",
+   "lat": 32.502,
+   "locked": false,
+   "lon": -79.099,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": true,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {
+    "EURO/waves": "us_southeast_midatlantic",
+    "GFS/swell_1": "us_southeast_midatlantic",
+    "GFS/swell_2": "us_southeast_midatlantic",
+    "GFS/waves": "us_southeast_midatlantic",
+    "GFS/wind_waves": "us_southeast_midatlantic",
+    "ICON/swell_1": "us_southeast_midatlantic",
+    "ICON/waves": "us_southeast_midatlantic",
+    "ICON/wind_waves": "us_southeast_midatlantic"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41004",
+   "wvht_rows_at_probe": 3051
+  },
+  {
+   "depth_m": 42.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "41009",
+   "lat": 28.508,
+   "locked": true,
+   "lon": -80.185,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {
+    "EURO/waves": "florida_east_coast",
+    "GFS/swell_1": "florida_east_coast",
+    "GFS/swell_2": "florida_east_coast",
+    "GFS/waves": "florida_east_coast",
+    "GFS/wind_waves": "florida_east_coast",
+    "ICON/swell_1": "florida_east_coast",
+    "ICON/waves": "florida_east_coast",
+    "ICON/wind_waves": "florida_east_coast"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41009",
+   "wvht_rows_at_probe": 3011
+  },
+  {
+   "depth_m": 903.1,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "41010",
+   "lat": 28.86,
+   "locked": true,
+   "lon": -78.478,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41010",
+   "wvht_rows_at_probe": 3074
+  },
+  {
+   "depth_m": 30.8,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "41013",
+   "lat": 33.436,
+   "locked": false,
+   "lon": -77.764,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": true,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {
+    "EURO/waves": "us_southeast_midatlantic",
+    "GFS/swell_1": "us_southeast_midatlantic",
+    "GFS/swell_2": "us_southeast_midatlantic",
+    "GFS/waves": "us_southeast_midatlantic",
+    "GFS/wind_waves": "us_southeast_midatlantic",
+    "ICON/swell_1": "us_southeast_midatlantic",
+    "ICON/waves": "us_southeast_midatlantic",
+    "ICON/wind_waves": "us_southeast_midatlantic"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41013",
+   "wvht_rows_at_probe": 3392
+  },
+  {
+   "depth_m": 61.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "41025",
+   "lat": 35.026,
+   "locked": false,
+   "lon": -75.38,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {
+    "EURO/waves": "us_southeast_midatlantic",
+    "GFS/swell_1": "us_southeast_midatlantic",
+    "GFS/swell_2": "us_southeast_midatlantic",
+    "GFS/waves": "us_southeast_midatlantic",
+    "GFS/wind_waves": "us_southeast_midatlantic",
+    "ICON/swell_1": "us_southeast_midatlantic",
+    "ICON/waves": "us_southeast_midatlantic",
+    "ICON/wind_waves": "us_southeast_midatlantic"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41025",
+   "wvht_rows_at_probe": 3049
+  },
+  {
+   "depth_m": 5069.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "41040",
+   "lat": 14.568,
+   "locked": false,
+   "lon": -53.037,
+   "name": "NORTH EQUATORIAL ONE- 470 NM East of Martinique",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "open_ocean",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41040",
+   "wvht_rows_at_probe": 3194
+  },
+  {
+   "depth_m": 3506.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "41041",
+   "lat": 14.259,
+   "locked": true,
+   "lon": -46.052,
+   "name": "NORTH EQUATORIAL TWO - 890 NM East of Martinique",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "open_ocean",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41041",
+   "wvht_rows_at_probe": 3247
+  },
+  {
+   "depth_m": 5235.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "41043",
+   "lat": 21.083,
+   "locked": false,
+   "lon": -64.853,
+   "name": "NE PUERTO RICO - 170 NM NNE of San Juan, PR",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "open_ocean",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41043",
+   "wvht_rows_at_probe": 3202
+  },
+  {
+   "depth_m": 5419.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "41044",
+   "lat": 21.582,
+   "locked": false,
+   "lon": -58.63,
+   "name": "NE ST MARTIN - 330 NM NE St Martin Is",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "open_ocean",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41044",
+   "wvht_rows_at_probe": 3240
+  },
+  {
+   "depth_m": 5553.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "41046",
+   "lat": 23.84,
+   "locked": false,
+   "lon": -68.34,
+   "name": "EAST BAHAMAS - 335 NM East of San Salvador Is,  Bahamas",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "open_ocean",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41046",
+   "wvht_rows_at_probe": 3175
+  },
+  {
+   "depth_m": 5328.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "41047",
+   "lat": 27.557,
+   "locked": true,
+   "lon": -71.48,
+   "name": "NE BAHAMAS - 350 NM ENE of Nassau, Bahamas",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "open_ocean",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41047",
+   "wvht_rows_at_probe": 3139
+  },
+  {
+   "depth_m": 5368.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "41048",
+   "lat": 31.878,
+   "locked": false,
+   "lon": -69.722,
+   "name": "WEST BERMUDA - 240 NM West of Bermuda",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "open_ocean",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41048",
+   "wvht_rows_at_probe": 3124
+  },
+  {
+   "depth_m": 5480.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "41049",
+   "lat": 27.505,
+   "locked": false,
+   "lon": -62.271,
+   "name": "SOUTH BERMUDA - 300 NM SSE of Bermuda",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "open_ocean",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41049",
+   "wvht_rows_at_probe": 3174
+  },
+  {
+   "depth_m": 32.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "41053",
+   "lat": 18.474,
+   "locked": false,
+   "lon": -66.099,
+   "name": "San Juan, PR",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": true,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Caribbean Integrated Coastal Ocean Observing System (CarICOOS)",
+   "purposes": [
+    "served"
+   ],
+   "region": "caribbean",
+   "regional_box": {
+    "GFS/swell_1": "caribbean_pr_dr",
+    "GFS/swell_2": "caribbean_pr_dr",
+    "GFS/waves": "caribbean_pr_dr",
+    "GFS/wind_waves": "caribbean_pr_dr"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41053",
+   "wvht_rows_at_probe": 2144
+  },
+  {
+   "depth_m": 30.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "41056",
+   "lat": 18.261,
+   "locked": false,
+   "lon": -65.464,
+   "name": "Vieques Island, PR",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": true,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Caribbean Integrated Coastal Ocean Observing System (CarICOOS)",
+   "purposes": [
+    "served"
+   ],
+   "region": "caribbean",
+   "regional_box": {
+    "GFS/swell_1": "caribbean_pr_dr",
+    "GFS/swell_2": "caribbean_pr_dr",
+    "GFS/waves": "caribbean_pr_dr",
+    "GFS/wind_waves": "caribbean_pr_dr"
+   },
+   "sheltered": "Vieques Passage (between Puerto Rico and the Virgin Islands)",
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "sheltered",
+   "wmo_id": "41056",
+   "wvht_rows_at_probe": 2145
+  },
+  {
+   "depth_m": 15.2,
+   "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
+   "gulf": false,
+   "id": "41112",
+   "lat": 30.709,
+   "locked": false,
+   "lon": -81.292,
+   "name": "Offshore Fernandina Beach, FL (132)",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": true,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": null,
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {
+    "EURO/waves": "florida_east_coast",
+    "GFS/swell_1": "florida_east_coast",
+    "GFS/swell_2": "florida_east_coast",
+    "GFS/waves": "florida_east_coast",
+    "GFS/wind_waves": "florida_east_coast",
+    "ICON/swell_1": "florida_east_coast",
+    "ICON/waves": "florida_east_coast",
+    "ICON/wind_waves": "florida_east_coast"
+   },
+   "sheltered": null,
+   "source": "cdip",
+   "spec": true,
+   "stratum": "nearshore",
+   "wmo_id": "41112",
+   "wvht_rows_at_probe": 2148
+  },
+  {
+   "depth_m": 9.8,
+   "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
+   "gulf": false,
+   "id": "41113",
+   "lat": 28.4,
+   "locked": false,
+   "lon": -80.533,
+   "name": "Cape Canaveral Nearshore, FL (143)",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": null,
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {
+    "EURO/waves": "florida_east_coast",
+    "GFS/swell_1": "florida_east_coast",
+    "GFS/swell_2": "florida_east_coast",
+    "GFS/waves": "florida_east_coast",
+    "GFS/wind_waves": "florida_east_coast",
+    "ICON/swell_1": "florida_east_coast",
+    "ICON/waves": "florida_east_coast",
+    "ICON/wind_waves": "florida_east_coast"
+   },
+   "sheltered": null,
+   "source": "cdip",
+   "spec": true,
+   "stratum": "nearshore",
+   "wmo_id": "41113",
+   "wvht_rows_at_probe": 2139
+  },
+  {
+   "depth_m": 32.9,
+   "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
+   "gulf": false,
+   "id": "41115",
+   "lat": 18.376,
+   "locked": false,
+   "lon": -67.28,
+   "name": "Rincon, Puerto Rico (181)",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": true,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Caribbean Integrated Coastal Ocean Observing System (CarICOOS)",
+   "purposes": [
+    "served"
+   ],
+   "region": "caribbean",
+   "regional_box": {
+    "GFS/swell_1": "caribbean_pr_dr",
+    "GFS/swell_2": "caribbean_pr_dr",
+    "GFS/waves": "caribbean_pr_dr",
+    "GFS/wind_waves": "caribbean_pr_dr"
+   },
+   "sheltered": null,
+   "source": "cdip",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41115",
+   "wvht_rows_at_probe": 1917
+  },
+  {
+   "depth_m": 23.3,
+   "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
+   "gulf": false,
+   "id": "41117",
+   "lat": 29.999,
+   "locked": false,
+   "lon": -81.079,
+   "name": "St. Augustine, FL (194)",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": true,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "U.S. Army Corps of Engineers",
+   "purposes": [
+    "served"
+   ],
+   "region": "caribbean",
+   "regional_box": {
+    "EURO/waves": "florida_east_coast",
+    "GFS/swell_1": "florida_east_coast",
+    "GFS/swell_2": "florida_east_coast",
+    "GFS/waves": "florida_east_coast",
+    "GFS/wind_waves": "florida_east_coast",
+    "ICON/swell_1": "florida_east_coast",
+    "ICON/waves": "florida_east_coast",
+    "ICON/wind_waves": "florida_east_coast"
+   },
+   "sheltered": null,
+   "source": "cdip",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "41117",
+   "wvht_rows_at_probe": 2150
+  },
+  {
+   "depth_m": 3195.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": true,
+   "id": "42001",
+   "lat": 25.922,
+   "locked": true,
+   "lon": -89.638,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "gulf",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "42001",
+   "wvht_rows_at_probe": 3156
+  },
+  {
+   "depth_m": 3208.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": true,
+   "id": "42002",
+   "lat": 25.95,
+   "locked": false,
+   "lon": -93.78,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "gulf",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "42002",
+   "wvht_rows_at_probe": 3131
+  },
+  {
+   "depth_m": 27.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": true,
+   "id": "42012",
+   "lat": 30.061,
+   "locked": false,
+   "lon": -87.547,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": true,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "gulf",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "42012",
+   "wvht_rows_at_probe": 3775
+  },
+  {
+   "depth_m": 53.3,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": true,
+   "id": "42036",
+   "lat": 28.5,
+   "locked": false,
+   "lon": -84.505,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "gulf",
+   "regional_box": {
+    "EURO/waves": "florida_east_coast",
+    "GFS/swell_1": "florida_east_coast",
+    "GFS/swell_2": "florida_east_coast",
+    "GFS/waves": "florida_east_coast",
+    "GFS/wind_waves": "florida_east_coast",
+    "ICON/swell_1": "florida_east_coast",
+    "ICON/waves": "florida_east_coast",
+    "ICON/wind_waves": "florida_east_coast"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "42036",
+   "wvht_rows_at_probe": 3219
+  },
+  {
+   "depth_m": 297.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": true,
+   "id": "42039",
+   "lat": 28.768,
+   "locked": false,
+   "lon": -86.024,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "gulf",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "42039",
+   "wvht_rows_at_probe": 3145
+  },
+  {
+   "depth_m": 3608.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": true,
+   "id": "42055",
+   "lat": 22.14,
+   "locked": false,
+   "lon": -94.112,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "gulf",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "42055",
+   "wvht_rows_at_probe": 3204
+  },
+  {
+   "depth_m": 412.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "42057",
+   "lat": 16.975,
+   "locked": false,
+   "lon": -81.578,
+   "name": "Western Caribbean - 195 NM WSW of Negril, Jamaica",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "caribbean",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "42057",
+   "wvht_rows_at_probe": 3199
+  },
+  {
+   "depth_m": 3953.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "42058",
+   "lat": 14.114,
+   "locked": true,
+   "lon": -75.949,
+   "name": "Central Caribbean - 210 NM SSE of Kingston, Jamaica",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "caribbean",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "42058",
+   "wvht_rows_at_probe": 3210
+  },
+  {
+   "depth_m": 1556.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "42060",
+   "lat": 16.428,
+   "locked": false,
+   "lon": -63.21,
+   "name": "Caribbean Valley - 63 NM WSW of Montserrat",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "caribbean",
+   "regional_box": {
+    "GFS/swell_1": "caribbean_pr_dr",
+    "GFS/swell_2": "caribbean_pr_dr",
+    "GFS/waves": "caribbean_pr_dr",
+    "GFS/wind_waves": "caribbean_pr_dr"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "42060",
+   "wvht_rows_at_probe": 3239
+  },
+  {
+   "depth_m": 94.0,
+   "exam_only": true,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": true,
+   "id": "42099",
+   "lat": 27.352,
+   "locked": false,
+   "lon": -84.275,
+   "name": "Offshore St. Petersburg, FL (144)",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": null,
+   "purposes": [
+    "served"
+   ],
+   "region": "gulf",
+   "regional_box": {
+    "EURO/waves": "florida_east_coast",
+    "GFS/swell_1": "florida_east_coast",
+    "GFS/swell_2": "florida_east_coast",
+    "GFS/waves": "florida_east_coast",
+    "GFS/wind_waves": "florida_east_coast",
+    "ICON/swell_1": "florida_east_coast",
+    "ICON/waves": "florida_east_coast",
+    "ICON/wind_waves": "florida_east_coast"
+   },
+   "sheltered": null,
+   "source": "cdip",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "42099",
+   "wvht_rows_at_probe": 2149
+  },
+  {
+   "depth_m": 49.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "44007",
+   "lat": 43.525,
+   "locked": false,
+   "lon": -70.14,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {
+    "EURO/waves": "us_northeast",
+    "GFS/swell_1": "us_northeast",
+    "GFS/swell_2": "us_northeast",
+    "GFS/waves": "us_northeast",
+    "GFS/wind_waves": "us_northeast",
+    "ICON/swell_1": "us_northeast",
+    "ICON/waves": "us_northeast",
+    "ICON/wind_waves": "us_northeast"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "44007",
+   "wvht_rows_at_probe": 2985
+  },
+  {
+   "depth_m": 73.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "44008",
+   "lat": 40.5,
+   "locked": false,
+   "lon": -69.254,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {
+    "EURO/waves": "us_northeast",
+    "GFS/swell_1": "us_northeast",
+    "GFS/swell_2": "us_northeast",
+    "GFS/waves": "us_northeast",
+    "GFS/wind_waves": "us_northeast",
+    "ICON/swell_1": "us_northeast",
+    "ICON/waves": "us_northeast",
+    "ICON/wind_waves": "us_northeast"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "44008",
+   "wvht_rows_at_probe": 3236
+  },
+  {
+   "depth_m": 90.2,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "44011",
+   "lat": 41.088,
+   "locked": false,
+   "lon": -66.546,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "44011",
+   "wvht_rows_at_probe": 3234
+  },
+  {
+   "depth_m": 64.6,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "44013",
+   "lat": 42.346,
+   "locked": false,
+   "lon": -70.651,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {
+    "EURO/waves": "us_northeast",
+    "GFS/swell_1": "us_northeast",
+    "GFS/swell_2": "us_northeast",
+    "GFS/waves": "us_northeast",
+    "GFS/wind_waves": "us_northeast",
+    "ICON/swell_1": "us_northeast",
+    "ICON/waves": "us_northeast",
+    "ICON/wind_waves": "us_northeast"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "44013",
+   "wvht_rows_at_probe": 3025
+  },
+  {
+   "depth_m": 49.1,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "44014",
+   "lat": 36.603,
+   "locked": false,
+   "lon": -74.837,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {
+    "EURO/waves": "us_southeast_midatlantic",
+    "GFS/swell_1": "us_southeast_midatlantic",
+    "GFS/swell_2": "us_southeast_midatlantic",
+    "GFS/waves": "us_southeast_midatlantic",
+    "GFS/wind_waves": "us_southeast_midatlantic",
+    "ICON/swell_1": "us_southeast_midatlantic",
+    "ICON/waves": "us_southeast_midatlantic",
+    "ICON/wind_waves": "us_southeast_midatlantic"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "44014",
+   "wvht_rows_at_probe": 3622
+  },
+  {
+   "depth_m": 40.2,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
+   "gulf": false,
+   "id": "44025",
+   "lat": 40.258,
+   "locked": false,
+   "lon": -73.175,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {
+    "EURO/waves": "us_northeast",
+    "GFS/swell_1": "us_northeast",
+    "GFS/swell_2": "us_northeast",
+    "GFS/waves": "us_northeast",
+    "GFS/wind_waves": "us_northeast",
+    "ICON/swell_1": "us_northeast",
+    "ICON/waves": "us_northeast",
+    "ICON/wind_waves": "us_northeast"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "44025",
+   "wvht_rows_at_probe": 1688
+  },
+  {
+   "depth_m": 188.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "44027",
+   "lat": 44.284,
+   "locked": false,
+   "lon": -67.301,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "44027",
+   "wvht_rows_at_probe": 3088
+  },
+  {
+   "depth_m": 26.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "44065",
+   "lat": 40.368,
+   "locked": false,
+   "lon": -73.701,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": true,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_east",
+   "regional_box": {
+    "EURO/waves": "us_northeast",
+    "GFS/swell_1": "us_northeast",
+    "GFS/swell_2": "us_northeast",
+    "GFS/waves": "us_northeast",
+    "GFS/wind_waves": "us_northeast",
+    "ICON/swell_1": "us_northeast",
+    "ICON/waves": "us_northeast",
+    "ICON/wind_waves": "us_northeast"
+   },
+   "sheltered": "New York Bight apex (Ambrose, behind Long Island and New Jersey)",
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "sheltered",
+   "wmo_id": "44065",
+   "wvht_rows_at_probe": 3051
+  },
+  {
+   "depth_m": 4000.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "44137",
+   "lat": 42.26,
+   "locked": false,
+   "lon": -62.03,
+   "name": "East Scotia Slope",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "exposed",
+   "wmo_id": "44137",
+   "wvht_rows_at_probe": 25
+  },
+  {
+   "depth_m": 1500.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "44139",
+   "lat": 44.24,
+   "locked": false,
+   "lon": -57.1,
+   "name": "Banqureau Banks",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "exposed",
+   "wmo_id": "44139",
+   "wvht_rows_at_probe": 24
+  },
+  {
+   "depth_m": 1300.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "44150",
+   "lat": 42.5,
+   "locked": false,
+   "lon": -64.02,
+   "name": "La Have Bank",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "exposed",
+   "wmo_id": "44150",
+   "wvht_rows_at_probe": 25
+  },
+  {
+   "depth_m": 58.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
+   "gulf": false,
+   "id": "44258",
+   "lat": 44.5,
+   "locked": false,
+   "lon": -63.4,
+   "name": "Halifax Harbour",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {},
+   "sheltered": "Halifax Harbour approaches",
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "sheltered",
+   "wmo_id": "44258",
+   "wvht_rows_at_probe": 25
+  },
+  {
+   "depth_m": 3438.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46002",
+   "lat": 42.56,
+   "locked": false,
+   "lon": -130.523,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46002",
+   "wvht_rows_at_probe": 3382
+  },
+  {
+   "depth_m": 3600.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46004",
+   "lat": 50.93,
+   "locked": true,
+   "lon": -136.1,
+   "name": "Middle Nomad",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "exposed",
+   "wmo_id": "46004",
+   "wvht_rows_at_probe": 25
+  },
+  {
+   "depth_m": 2811.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46005",
+   "lat": 46.147,
+   "locked": false,
+   "lon": -131.077,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46005",
+   "wvht_rows_at_probe": 3390
+  },
+  {
+   "depth_m": 416.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46011",
+   "lat": 34.937,
+   "locked": false,
+   "lon": -120.999,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46011",
+   "wvht_rows_at_probe": 2963
+  },
+  {
+   "depth_m": 208.8,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46012",
+   "lat": 37.356,
+   "locked": false,
+   "lon": -122.881,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46012",
+   "wvht_rows_at_probe": 1079
+  },
+  {
+   "depth_m": 128.3,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46013",
+   "lat": 38.235,
+   "locked": false,
+   "lon": -123.317,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "GFS/swell_1": "us_pacific_northwest",
+    "GFS/swell_2": "us_pacific_northwest",
+    "GFS/waves": "us_pacific_northwest",
+    "GFS/wind_waves": "us_pacific_northwest"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46013",
+   "wvht_rows_at_probe": 3210
+  },
+  {
+   "depth_m": 335.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "46014",
+   "lat": 39.225,
+   "locked": false,
+   "lon": -123.98,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "GFS/swell_1": "us_pacific_northwest",
+    "GFS/swell_2": "us_pacific_northwest",
+    "GFS/waves": "us_pacific_northwest",
+    "GFS/wind_waves": "us_pacific_northwest"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46014",
+   "wvht_rows_at_probe": 3133
+  },
+  {
+   "depth_m": 446.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46015",
+   "lat": 42.754,
+   "locked": false,
+   "lon": -124.839,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "GFS/swell_1": "us_pacific_northwest",
+    "GFS/swell_2": "us_pacific_northwest",
+    "GFS/waves": "us_pacific_northwest",
+    "GFS/wind_waves": "us_pacific_northwest"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46015",
+   "wvht_rows_at_probe": 3217
+  },
+  {
+   "depth_m": 456.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46022",
+   "lat": 40.716,
+   "locked": false,
+   "lon": -124.54,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "GFS/swell_1": "us_pacific_northwest",
+    "GFS/swell_2": "us_pacific_northwest",
+    "GFS/waves": "us_pacific_northwest",
+    "GFS/wind_waves": "us_pacific_northwest"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46022",
+   "wvht_rows_at_probe": 3208
+  },
+  {
+   "depth_m": 868.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "46025",
+   "lat": 33.765,
+   "locked": false,
+   "lon": -119.077,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": "Santa Monica Basin (behind the Channel Islands)",
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "sheltered",
+   "wmo_id": "46025",
+   "wvht_rows_at_probe": 3103
+  },
+  {
+   "depth_m": 53.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "46026",
+   "lat": 37.75,
+   "locked": false,
+   "lon": -122.838,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46026",
+   "wvht_rows_at_probe": 3629
+  },
+  {
+   "depth_m": 60.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "46027",
+   "lat": 41.84,
+   "locked": false,
+   "lon": -124.382,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "GFS/swell_1": "us_pacific_northwest",
+    "GFS/swell_2": "us_pacific_northwest",
+    "GFS/waves": "us_pacific_northwest",
+    "GFS/wind_waves": "us_pacific_northwest"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46027",
+   "wvht_rows_at_probe": 3135
+  },
+  {
+   "depth_m": 1136.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46028",
+   "lat": 35.763,
+   "locked": false,
+   "lon": -121.9,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46028",
+   "wvht_rows_at_probe": 3095
+  },
+  {
+   "depth_m": 135.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "46029",
+   "lat": 46.148,
+   "locked": false,
+   "lon": -124.508,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "GFS/swell_1": "us_pacific_northwest",
+    "GFS/swell_2": "us_pacific_northwest",
+    "GFS/waves": "us_pacific_northwest",
+    "GFS/wind_waves": "us_pacific_northwest"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46029",
+   "wvht_rows_at_probe": 3122
+  },
+  {
+   "depth_m": 3696.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46035",
+   "lat": 57.034,
+   "locked": false,
+   "lon": -177.468,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46035",
+   "wvht_rows_at_probe": 3308
+  },
+  {
+   "depth_m": 131.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "46041",
+   "lat": 47.351,
+   "locked": false,
+   "lon": -124.741,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "GFS/swell_1": "us_pacific_northwest",
+    "GFS/swell_2": "us_pacific_northwest",
+    "GFS/waves": "us_pacific_northwest",
+    "GFS/wind_waves": "us_pacific_northwest"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46041",
+   "wvht_rows_at_probe": 3098
+  },
+  {
+   "depth_m": 1710.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46042",
+   "lat": 36.787,
+   "locked": false,
+   "lon": -122.408,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46042",
+   "wvht_rows_at_probe": 3092
+  },
+  {
+   "depth_m": 1390.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46047",
+   "lat": 32.418,
+   "locked": false,
+   "lon": -119.535,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46047",
+   "wvht_rows_at_probe": 3586
+  },
+  {
+   "depth_m": 149.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46050",
+   "lat": 44.679,
+   "locked": false,
+   "lon": -124.535,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "GFS/swell_1": "us_pacific_northwest",
+    "GFS/swell_2": "us_pacific_northwest",
+    "GFS/waves": "us_pacific_northwest",
+    "GFS/wind_waves": "us_pacific_northwest"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46050",
+   "wvht_rows_at_probe": 3240
+  },
+  {
+   "depth_m": 417.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46053",
+   "lat": 34.246,
+   "locked": true,
+   "lon": -119.842,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": "Santa Barbara Channel (behind the Channel Islands)",
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "sheltered",
+   "wmo_id": "46053",
+   "wvht_rows_at_probe": 2957
+  },
+  {
+   "depth_m": 454.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "46054",
+   "lat": 34.274,
+   "locked": false,
+   "lon": -120.468,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": "Santa Barbara Channel west entrance (behind Point Conception)",
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "sheltered",
+   "wmo_id": "46054",
+   "wvht_rows_at_probe": 3479
+  },
+  {
+   "depth_m": 4620.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46059",
+   "lat": 38.067,
+   "locked": false,
+   "lon": -129.895,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "open_ocean",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46059",
+   "wvht_rows_at_probe": 3502
+  },
+  {
+   "depth_m": 430.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46060",
+   "lat": 60.571,
+   "locked": true,
+   "lon": -146.795,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": "Prince William Sound",
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "sheltered",
+   "wmo_id": "46060",
+   "wvht_rows_at_probe": 3354
+  },
+  {
+   "depth_m": 215.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46061",
+   "lat": 60.231,
+   "locked": false,
+   "lon": -146.84,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46061",
+   "wvht_rows_at_probe": 3440
+  },
+  {
+   "depth_m": 985.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46069",
+   "lat": 33.657,
+   "locked": false,
+   "lon": -120.227,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46069",
+   "wvht_rows_at_probe": 3110
+  },
+  {
+   "depth_m": 3848.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46070",
+   "lat": 55.048,
+   "locked": false,
+   "lon": 175.246,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46070",
+   "wvht_rows_at_probe": 3708
+  },
+  {
+   "depth_m": 3589.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46072",
+   "lat": 51.645,
+   "locked": false,
+   "lon": -172.145,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46072",
+   "wvht_rows_at_probe": 3795
+  },
+  {
+   "depth_m": 3445.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46073",
+   "lat": 54.985,
+   "locked": false,
+   "lon": -171.874,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46073",
+   "wvht_rows_at_probe": 3455
+  },
+  {
+   "depth_m": 2731.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46075",
+   "lat": 53.93,
+   "locked": false,
+   "lon": -160.763,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46075",
+   "wvht_rows_at_probe": 3277
+  },
+  {
+   "depth_m": 200.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46076",
+   "lat": 59.508,
+   "locked": false,
+   "lon": -148.005,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46076",
+   "wvht_rows_at_probe": 3540
+  },
+  {
+   "depth_m": 200.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46077",
+   "lat": 57.869,
+   "locked": true,
+   "lon": -154.211,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": "Shelikof Strait (behind Kodiak Island)",
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "sheltered",
+   "wmo_id": "46077",
+   "wvht_rows_at_probe": 3343
+  },
+  {
+   "depth_m": 5361.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46078",
+   "lat": 55.561,
+   "locked": false,
+   "lon": -152.599,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46078",
+   "wvht_rows_at_probe": 3278
+  },
+  {
+   "depth_m": 220.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46080",
+   "lat": 57.91,
+   "locked": false,
+   "lon": -150.129,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46080",
+   "wvht_rows_at_probe": 3406
+  },
+  {
+   "depth_m": 131.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46083",
+   "lat": 58.276,
+   "locked": true,
+   "lon": -138.024,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46083",
+   "wvht_rows_at_probe": 3348
+  },
+  {
+   "depth_m": 1149.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46084",
+   "lat": 56.614,
+   "locked": false,
+   "lon": -136.04,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "alaska",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46084",
+   "wvht_rows_at_probe": 3403
+  },
+  {
+   "depth_m": 3749.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46085",
+   "lat": 55.84,
+   "locked": false,
+   "lon": -142.895,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "open_ocean",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46085",
+   "wvht_rows_at_probe": 3453
+  },
+  {
+   "depth_m": 1862.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "46086",
+   "lat": 32.504,
+   "locked": false,
+   "lon": -118.029,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": "Southern California Bight (behind San Clemente Island)",
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "sheltered",
+   "wmo_id": "46086",
+   "wvht_rows_at_probe": 1182
+  },
+  {
+   "depth_m": 259.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "46087",
+   "lat": 48.493,
+   "locked": false,
+   "lon": -124.727,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "GFS/swell_1": "us_pacific_northwest",
+    "GFS/swell_2": "us_pacific_northwest",
+    "GFS/waves": "us_pacific_northwest",
+    "GFS/wind_waves": "us_pacific_northwest"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46087",
+   "wvht_rows_at_probe": 2768
+  },
+  {
+   "depth_m": 115.5,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46088",
+   "lat": 48.332,
+   "locked": true,
+   "lon": -123.179,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "GFS/swell_1": "us_pacific_northwest",
+    "GFS/swell_2": "us_pacific_northwest",
+    "GFS/waves": "us_pacific_northwest",
+    "GFS/wind_waves": "us_pacific_northwest"
+   },
+   "sheltered": "Salish Sea (Haro Strait / Strait of Juan de Fuca, inside Vancouver Island)",
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "sheltered",
+   "wmo_id": "46088",
+   "wvht_rows_at_probe": 3597
+  },
+  {
+   "depth_m": 2360.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46089",
+   "lat": 45.928,
+   "locked": true,
+   "lon": -125.815,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "GFS/swell_1": "us_pacific_northwest",
+    "GFS/swell_2": "us_pacific_northwest",
+    "GFS/waves": "us_pacific_northwest",
+    "GFS/wind_waves": "us_pacific_northwest"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "46089",
+   "wvht_rows_at_probe": 3307
+  },
+  {
+   "depth_m": 42.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46146",
+   "lat": 49.34,
+   "locked": false,
+   "lon": -123.73,
+   "name": "Halibut Bank",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {},
+   "sheltered": "Strait of Georgia",
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "sheltered",
+   "wmo_id": "46146",
+   "wvht_rows_at_probe": 25
+  },
+  {
+   "depth_m": 2000.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46147",
+   "lat": 51.83,
+   "locked": false,
+   "lon": -131.22,
+   "name": "South Moresby",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "exposed",
+   "wmo_id": "46147",
+   "wvht_rows_at_probe": 24
+  },
+  {
+   "depth_m": 23.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46181",
+   "lat": 53.83,
+   "locked": false,
+   "lon": -128.83,
+   "name": "Nanakwa Shoal",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": true,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {},
+   "sheltered": "Hecate Strait (behind Haida Gwaii)",
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "sheltered",
+   "wmo_id": "46181",
+   "wvht_rows_at_probe": 25
+  },
+  {
+   "depth_m": 65.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46183",
+   "lat": 53.62,
+   "locked": false,
+   "lon": -131.1,
+   "name": "North Hecate Strait",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {},
+   "sheltered": "Hecate Strait (behind Haida Gwaii)",
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "sheltered",
+   "wmo_id": "46183",
+   "wvht_rows_at_probe": 25
+  },
+  {
+   "depth_m": 230.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46185",
+   "lat": 52.42,
+   "locked": false,
+   "lon": -129.79,
+   "name": "South Hecate Strait",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {},
+   "sheltered": "Hecate Strait (behind Haida Gwaii)",
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "sheltered",
+   "wmo_id": "46185",
+   "wvht_rows_at_probe": 25
+  },
+  {
+   "depth_m": 72.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
+   "gulf": false,
+   "id": "46206",
+   "lat": 48.84,
+   "locked": false,
+   "lon": -126.0,
+   "name": "La Perouse Bank",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {
+    "GFS/swell_1": "us_pacific_northwest",
+    "GFS/swell_2": "us_pacific_northwest",
+    "GFS/waves": "us_pacific_northwest",
+    "GFS/wind_waves": "us_pacific_northwest"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "exposed",
+   "wmo_id": "46206",
+   "wvht_rows_at_probe": 25
+  },
+  {
+   "depth_m": 2125.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46207",
+   "lat": 50.87,
+   "locked": false,
+   "lon": -129.92,
+   "name": "East Dellwood",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "exposed",
+   "wmo_id": "46207",
+   "wvht_rows_at_probe": 25
+  },
+  {
+   "depth_m": 2950.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46208",
+   "lat": 52.52,
+   "locked": true,
+   "lon": -132.69,
+   "name": "West Moresby",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": false,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Environment and Climate Change Canada",
+   "purposes": [
+    "served"
+   ],
+   "region": "canada",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": false,
+   "stratum": "exposed",
+   "wmo_id": "46208",
+   "wvht_rows_at_probe": 25
+  },
+  {
+   "depth_m": 483.0,
+   "exam_only": true,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "46222",
+   "lat": 33.614,
+   "locked": false,
+   "lon": -118.314,
+   "name": "San Pedro, CA (092)",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": null,
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": "San Pedro Bay (behind the Channel Islands and Palos Verdes)",
+   "source": "cdip",
+   "spec": true,
+   "stratum": "sheltered",
+   "wmo_id": "46222",
+   "wvht_rows_at_probe": 2150
+  },
+  {
+   "depth_m": 1049.8,
+   "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
+   "gulf": false,
+   "id": "46232",
+   "lat": 32.517,
+   "locked": false,
+   "lon": -117.425,
+   "name": "Point Loma South, CA  (191)",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": null,
+   "purposes": [
+    "served"
+   ],
+   "region": "us_west",
+   "regional_box": {
+    "EURO/waves": "us_west_coast_socal",
+    "GFS/swell_1": "us_west_coast_socal",
+    "GFS/swell_2": "us_west_coast_socal",
+    "GFS/waves": "us_west_coast_socal",
+    "GFS/wind_waves": "us_west_coast_socal",
+    "ICON/swell_1": "us_west_coast_socal",
+    "ICON/waves": "us_west_coast_socal",
+    "ICON/wind_waves": "us_west_coast_socal"
+   },
+   "sheltered": "Southern California Bight (behind the Channel Islands)",
+   "source": "cdip",
+   "spec": true,
+   "stratum": "sheltered",
+   "wmo_id": "46232",
+   "wvht_rows_at_probe": 2153
+  },
+  {
+   "depth_m": 4848.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "51000",
+   "lat": 23.534,
+   "locked": false,
+   "lon": -153.752,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "hawaii",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "51000",
+   "wvht_rows_at_probe": 3293
+  },
+  {
+   "depth_m": 4895.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "51001",
+   "lat": 24.475,
+   "locked": false,
+   "lon": -162.03,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "hawaii",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "51001",
+   "wvht_rows_at_probe": 3821
+  },
+  {
+   "depth_m": 4979.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "51002",
+   "lat": 17.07,
+   "locked": false,
+   "lon": -157.755,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "hawaii",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "51002",
+   "wvht_rows_at_probe": 3526
+  },
+  {
+   "depth_m": 5034.1,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "51003",
+   "lat": 19.151,
+   "locked": true,
+   "lon": -160.617,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "hawaii",
+   "regional_box": {
+    "EURO/waves": "hawaii",
+    "GFS/swell_1": "hawaii",
+    "GFS/swell_2": "hawaii",
+    "GFS/waves": "hawaii",
+    "GFS/wind_waves": "hawaii",
+    "ICON/swell_1": "hawaii",
+    "ICON/waves": "hawaii",
+    "ICON/wind_waves": "hawaii"
+   },
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "51003",
+   "wvht_rows_at_probe": 3815
+  },
+  {
+   "depth_m": 5272.0,
+   "exam_only": false,
+   "fit_used": true,
+   "fit_used_by": [
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "51004",
+   "lat": 17.504,
+   "locked": false,
+   "lon": -152.197,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "hawaii",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "51004",
+   "wvht_rows_at_probe": 3530
+  },
+  {
+   "depth_m": 4847.0,
+   "exam_only": false,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "51101",
+   "lat": 24.34,
+   "locked": false,
+   "lon": -162.073,
+   "name": null,
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "National Data Buoy Center",
+   "purposes": [
+    "served"
+   ],
+   "region": "hawaii",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "ndbc",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "51101",
+   "wvht_rows_at_probe": 3654
+  },
+  {
+   "depth_m": 200.0,
+   "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits",
+    "wave_emos_l1"
+   ],
+   "gulf": false,
+   "id": "51201",
+   "lat": 21.671,
+   "locked": false,
+   "lon": -158.118,
+   "name": "Waimea Bay, HI (106)",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Pacific Islands Ocean Observing System (PacIOOS)",
+   "purposes": [
+    "served"
+   ],
+   "region": "hawaii",
+   "regional_box": {
+    "EURO/waves": "hawaii",
+    "GFS/swell_1": "hawaii",
+    "GFS/swell_2": "hawaii",
+    "GFS/waves": "hawaii",
+    "GFS/wind_waves": "hawaii",
+    "ICON/swell_1": "hawaii",
+    "ICON/waves": "hawaii",
+    "ICON/wind_waves": "hawaii"
+   },
+   "sheltered": null,
+   "source": "cdip",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "51201",
+   "wvht_rows_at_probe": 2150
+  },
+  {
+   "depth_m": 345.0,
+   "exam_only": true,
+   "fit_used": true,
+   "fit_used_by": [
+    "skill_ledger_fits"
+   ],
+   "gulf": false,
+   "id": "51206",
+   "lat": 19.779,
+   "locked": false,
+   "lon": -154.97,
+   "name": "Hilo, Hawaii, HI (188)",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Pacific Islands Ocean Observing System (PacIOOS)",
+   "purposes": [
+    "served"
+   ],
+   "region": "hawaii",
+   "regional_box": {
+    "EURO/waves": "hawaii",
+    "GFS/swell_1": "hawaii",
+    "GFS/swell_2": "hawaii",
+    "GFS/waves": "hawaii",
+    "GFS/wind_waves": "hawaii",
+    "ICON/swell_1": "hawaii",
+    "ICON/waves": "hawaii",
+    "ICON/wind_waves": "hawaii"
+   },
+   "sheltered": "Hilo Bay (lee of the Big Island to north swell)",
+   "source": "cdip",
+   "spec": true,
+   "stratum": "sheltered",
+   "wmo_id": "51206",
+   "wvht_rows_at_probe": 2152
+  },
+  {
+   "depth_m": 540.0,
+   "exam_only": true,
+   "fit_used": false,
+   "fit_used_by": [],
+   "gulf": false,
+   "id": "52201",
+   "lat": 7.078,
+   "locked": false,
+   "lon": 171.384,
+   "name": "Kalo, Majuro, Marshall Islands (163)",
+   "nearshore_eval_checks": {
+    "depth_10_40_m": false,
+    "directional": true,
+    "harbour_unresolved_within_1km": "pending (nearshore lane, gate 0.4)",
+    "not_assimilated": true,
+    "not_usace_frf": true
+   },
+   "owner": "Pacific Islands Ocean Observing System (PacIOOS)",
+   "purposes": [
+    "served"
+   ],
+   "region": "other",
+   "regional_box": {},
+   "sheltered": null,
+   "source": "cdip",
+   "spec": true,
+   "stratum": "exposed",
+   "wmo_id": "52201",
+   "wvht_rows_at_probe": 764
+  }
+ ],
+ "version": "served-wave-verify-v1-buoys/2"
+}

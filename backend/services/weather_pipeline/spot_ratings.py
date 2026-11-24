@@ -21,6 +21,7 @@ from typing import Optional
 
 from services.weather_pipeline.schemas import NormalizedPointResponse
 from services.weather_pipeline.cycle_provenance import time_provenance
+from services.weather_pipeline import missing_sample as _missing
 from services.weather_pipeline.surf_rating import compute_surf_rating
 
 logger = logging.getLogger(__name__)
@@ -130,7 +131,11 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     try:
         marine = await resolver.resolve_point(
             model=model, domain="marine", layer="waves", lat=lat, lng=lng, valid_time_str=valid_time)
-        if isinstance(marine, NormalizedPointResponse) and marine.point is not None:
+        _missing.note(marine if isinstance(marine, NormalizedPointResponse) else None, "marine", model)
+        # RATING_MISSING_SAMPLE_UNKNOWN (dark): the sampler's zero-filled "unavailable"/out-of-bounds placeholder is
+        # treated as a failed resolve (no height, no rating), never as 0 m of surf. Off: byte-identical.
+        if (isinstance(marine, NormalizedPointResponse) and marine.point is not None
+                and not _missing.skip(marine)):
             # ★ WHICH MODEL RUN THIS SCORE IS FROM. `valid_time` says which HOUR it describes and
             # nothing about which FORECAST OF that hour — and the two are routinely far apart,
             # because the point resolver serves REGIONAL products on independent ingest cadences.
@@ -174,7 +179,11 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     try:
         wind = await resolver.resolve_point(
             model=model, domain="wind", layer="wind", lat=lat, lng=lng, valid_time_str=valid_time)
-        if isinstance(wind, NormalizedPointResponse) and wind.point is not None:
+        _missing.note(wind if isinstance(wind, NormalizedPointResponse) else None, "wind", model)
+        # Same rule for wind: a placeholder is NOT 0 kt (that grades as glassy, the best wind). It is left unset, so
+        # the rating takes `wind_quality(None)`, the engine's neutral for unknown wind. Off: byte-identical.
+        if (isinstance(wind, NormalizedPointResponse) and wind.point is not None
+                and not _missing.skip(wind)):
             # ⚠️ ITS OWN RUN, always. Marine and wind are ingested by different jobs and shared a
             # run at 0 of 4 spots measured 2026-07-31 (Mavericks 07:27 vs 08:10, Bells Beach 04:07
             # vs 14:44). One `run_time` would describe only half the inputs to the score.
@@ -204,7 +213,8 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         try:
             from services.weather_pipeline.bathymetry import bed_slope_at
             from services.weather_pipeline.surf_transform import iribarren
-            breaker_xi = iribarren(bed_slope_at(lat, lng), surf_h, period)
+            # DEEP-WATER xi0: H0 is the OFFSHORE Hs, never the breaking height (bug hunt 2026-11-22 G: ~21% low)
+            breaker_xi = iribarren(bed_slope_at(lat, lng), offshore_h, period)
         except Exception as e:
             logger.debug(f"[spot-ratings] breaker-type resolve failed for {spot.get('id')}: {e}")
     # Nearshore BREAK depth (not the shelf depth) — the oversize gate's tier-2 capacity signal, so a

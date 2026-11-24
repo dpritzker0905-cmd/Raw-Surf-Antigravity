@@ -16,15 +16,24 @@ COST: the manifest is read at most once per TTL (default 300 s, `RUNTIME_FLAGS_T
 a process blocks for at most `RUNTIME_FLAGS_TIMEOUT_S` (default 2 s); every later refresh runs in a background thread
 while readers keep the cached copy, so a request never waits on storage after the first.
 
-FAIL-SAFE: an unreadable, malformed or absent manifest never raises. A reader keeps the LAST GOOD manifest for up to
+FAIL-SAFE: an unreadable, malformed or absent manifest never raises. ONLY an HTTP 200 with a valid document is a good
+read; any other status (400, 401, 403, 404, 5xx) is UNKNOWN, never "no overrides" (D-090 relies on the guardrail's
+'off' entries, and a 400/404 used to clear every one of them at once). A reader keeps the LAST GOOD manifest for up to
 `RUNTIME_FLAGS_MAX_STALE_S` (default 6 h); past that only its 'off' entries are kept (an outage never resurrects a
-killed fix) and everything else falls back to the code default, as it does when no manifest was ever read.
-`RUNTIME_FLAGS_MANIFEST=0` disables the manifest entirely
-(tests, local runs); with no `SUPABASE_URL` it is never contacted.
+killed fix) and everything else falls back to the code default.
+COLD START during an outage (no good read yet in this process: every Render restart, every CI process): the 'off'
+entries of the COMMITTED SNAPSHOT `runtime_flags_snapshot.json` (beside this file) hold as a floor, so a killed fix
+stays killed. The first good read replaces the floor entirely (an owner re-enable wins as soon as storage answers).
+The guardrail reports when the snapshot's kills drift from the live manifest's (`flag_guardrail.snapshot_drift`).
+Design: SubQ + Reflection, 2026-11-24 (both: a committed snapshot, fresh 200 authoritative; they differed on adding a
+local file cache or a raw-GitHub fetch, so neither is here).
+`RUNTIME_FLAGS_MANIFEST=0` disables the manifest AND the snapshot floor entirely
+(tests, local runs); with no `SUPABASE_URL` the bucket is never contacted (the snapshot floor still holds).
 
 WRITER: only the guardrail workflow (`.github/workflows/flag-guardrail.yml`), with its existing CI secrets named
 SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. No value of either appears in this repository.
 """
+import json
 import logging
 import os
 import threading
@@ -53,11 +62,24 @@ GUARDED = {
     "ALERTS_FORECAST_WINDOWS": "0",     # D-065: up to 5 alerts/day before the cap fix (claude/alerts-dedupe-cap)
     "SURF_BIGHT_HS_CONSENSUS": "1",     # #707: hs_station +0.099 m [two-way 0.038, 0.182]; round-7 history +0.155, ON
     "SPOT_HUB_RATE_ONE_SPOT": "1",      # spot-hub phase 2 (#710): the hub on rate_one_spot; kill '0' = the old chain
+    "COPERNICUS_PEAK_PERIOD": "0",      # 2026-10-20 dark (#412): CMEMS VTPK peak period, not VTM10 energy period. READ BY
+    "ICON_PEAK_PERIOD": "0",            # FETCHER SUBPROCESSES via os.environ only: the workflow env is the switch and the kill.
+    "RATING_MISSING_SAMPLE_UNKNOWN": "1",  # bug-hunt B: a sampler "unavailable"/out-of-bounds placeholder is MISSING, not 0.
+                                        # ON by the owner's typed word 2026-11-22: "Yes, ship #1181 on". Kill '0'.
+    "SURF_NEARSHORE_LITE": "0",         # MOP-lite (gate nearshore-moplite-v1): DARK until the gate passes; replaces only Kr + exposure
     "SURF_NEARSHORE_MOP": "1",          # CDIP MOP nearshore sea at California spots: nearshore judge 86/86 runs better,
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
     "SURF_FACE_RANGE": "1",             # ON by the owner's typed word 2026-11-17 ("it needs to be on, not dark"): adds the
                                         # H1/3-H1/10 face range beside the height. NOT SCORED: its gate needs physical breaker
                                         # truth and is NOT RUNNABLE (log 2026-11-16-fable-surf-face-range-gate.md); kill '0'
+    "SURF_TIDE_OWN": "1",               # owner 2026-11-18 ~23:00Z: no Open-Meteo in user data (licence). The served tide is
+                                        # our table (tide_own); a missing/stale table or kill '0' = NO tide (honest
+                                        # unavailable), never Open-Meteo. Moves tide_fit and the SURF_TIDE_DEPTH cap
+    "SURF_TIDE_CMEMS": "0",             # held OFF: the CMEMS sea level read directly, where the table has it. ON only after
+                                        # the r2 parity run is read and passing AND the builder refuses a low fill count
+    "SURF_TIDE_WINDOW_FIX": "1",        # D-065 ON: owner 2026-11-23 "Yes, turn it on" (director session). The tide no longer
+                                        # freezes past ~72 h (window covers the valid time; >1.5 h from a sample = no tide, not
+                                        # stale). Moves tide_fit and the SURF_TIDE_DEPTH cap past day 3. Kill '0'. tests/test_tide_window.py
     "RATING_REF_PRIOR": "0",            # JAC-2 (#771): held OFF: -17.9 pt mean rating move on reference-less
                                         # spot-hours (480/480 moved, 414 level changes), no rating truth yet
     "FRAME_ENTITLEMENT": "0",           # O6 accounts only: EVERY static frame private + signed URLs. Held OFF: needs the
@@ -75,11 +97,15 @@ GUARDED = {
     "LOCATION_TIME_FIELD": "0",         # location_time phase 1 (#762): civil zone + civil day rows. Held OFF until
                                         # the D-065 prerequisites (SCOREBOARD row, history filter) land; tier-safe
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
+    "HUB_NOW_NEAREST_HOUR": "1",        # bug hunt 2026-11-22 E: hub/sim "now" = the map's nearest-hour anchor (was a
+                                        # floor: other 3-hourly product in :30-:59); kill '0' = the floor
     "SIDE_PATHS_THROUGH_CHAIN": "1",    # O4: /api/conditions preview rows = precomputed rate_one_spot frames (rated);
                                         # _breaking_ft fails CLOSED (never offshore Hs as surf); /api/surf-conditions
                                         # target-time height labelled an unrated estimate; kill '0'
     "RATING_BAND_ONE_CHAIN": "1",       # CMP-1: map rating band = estimate_surf_at on cached geometry + break depth;
                                         # band level == glyph level at 4,101 of 4,197 asset spot-seas, 0 unexplained
+    "BAND_PARTITION_HEIGHT_ONLY": "1",  # bug hunt 2026-11-22 D, option B: swell_1/swell_2/wind_waves show their own height, no
+                                        # surf rating (band_partition.py); the rating stays on waves; kill '0'
     "ICON_SWELL2_SERVE": "0",           # option B (#877): /grid + /point serve the stored ICON swell_2 blend (else
                                         # "unsupported"). Real-frame parity: = the mid-zoom map 0/120,184 cells; vs the
                                         # world-span map 924 cells (0.77%) <= 0.4 mm, same direction/period. Owner said
@@ -98,6 +124,29 @@ FIX_VERSION = {name: "2026-11-04" for name in GUARDED}
 _lock = threading.Lock()
 _cache: Dict[str, object] = {"flags": None, "read_at": 0.0, "good_at": 0.0, "refreshing": False, "error": None}
 _fetcher: Optional[Callable[[], Optional[dict]]] = None      # tests inject; None = the bucket
+SNAPSHOT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runtime_flags_snapshot.json")
+_snapshot: Dict[str, object] = {"kills": None, "error": None}   # tests inject {"kills": {...}}
+
+
+class ManifestUnreadable(RuntimeError):
+    """A non-200 manifest read: the state is UNKNOWN (never an empty, good manifest)."""
+
+
+def snapshot_kills() -> Dict[str, dict]:
+    """The 'off' entries of the committed snapshot (the cold-start floor). Unreadable = {} with the error recorded."""
+    with _lock:
+        if _snapshot["kills"] is not None:
+            return dict(_snapshot["kills"])
+    try:
+        with open(SNAPSHOT_PATH, encoding="utf-8") as fh:
+            kills = {k: e for k, e in validate(json.load(fh)).items() if e["state"] == "off"}
+        err = None
+    except Exception as e:                               # noqa: BLE001 - fail safe, recorded
+        kills, err = {}, f"{type(e).__name__}: {e}"[:200]
+        logger.warning(f"[runtime-flags] committed snapshot unreadable, no cold-start floor: {e}")
+    with _lock:
+        _snapshot["kills"], _snapshot["error"] = kills, err
+    return dict(kills)
 
 
 def _f(name: str, default: float) -> float:
@@ -133,9 +182,10 @@ def _fetch_bucket() -> Optional[dict]:
     url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{MANIFEST_KEY}?cb={int(time.time() * 1000)}"
     resp = requests.get(url, headers={**supabase_headers(key), "Cache-Control": "no-cache"},
                         timeout=_f("RUNTIME_FLAGS_TIMEOUT_S", 2.0))
-    if resp.status_code in (400, 404):
-        return {"schema": SCHEMA, "flags": {}}           # no manifest yet = nothing overridden (a good read)
-    resp.raise_for_status()
+    if resp.status_code != 200:
+        # D-090: a 400/404 is NOT "no manifest, nothing overridden". Supabase answers 400 for a missing object AND for
+        # auth/bucket failures, so it is unknown: keep the last good read, else the committed snapshot's kills.
+        raise ManifestUnreadable(f"HTTP {resp.status_code}")
     return resp.json()
 
 
@@ -177,7 +227,7 @@ def _manifest() -> Dict[str, dict]:
     with _lock:
         flags, good_at = _cache["flags"], float(_cache["good_at"])
     if flags is None:
-        return {}
+        return snapshot_kills()                          # cold start, nothing good read yet: the committed kills hold
     if time.time() - good_at > _f("RUNTIME_FLAGS_MAX_STALE_S", 6 * 3600.0):
         # Past the staleness bound only the KILLS survive (Reflection review 2026-11-04): a storage outage must not
         # resurrect a fix the guardrail turned off; an 'on' entry falls back to the code default.
@@ -192,7 +242,9 @@ def resolve(name: str, default: str) -> dict:
         return {"value": v, "source": "env", "entry": None}
     e = _manifest().get(name)
     if e is not None:
-        return {"value": STATES[e["state"]], "source": "manifest", "entry": e}
+        with _lock:
+            src = "manifest" if _cache["flags"] is not None else "snapshot"
+        return {"value": STATES[e["state"]], "source": src, "entry": e}
     return {"value": default, "source": "default", "entry": None}
 
 
@@ -212,11 +264,16 @@ def on(name: str) -> bool:
 def status() -> dict:
     with _lock:
         return {"read_at": _cache["read_at"], "good_at": _cache["good_at"], "error": _cache["error"],
-                "entries": len(_cache["flags"] or {}), "ttl_s": ttl_s(), "key": MANIFEST_KEY}
+                "entries": len(_cache["flags"] or {}), "ttl_s": ttl_s(), "key": MANIFEST_KEY,
+                "floor": "manifest" if _cache["flags"] is not None else "snapshot",
+                "snapshot_kills": len(_snapshot["kills"] or {}), "snapshot_error": _snapshot["error"]}
 
 
-def _reset_for_tests(fetcher: Optional[Callable[[], Optional[dict]]] = None) -> None:
+def _reset_for_tests(fetcher: Optional[Callable[[], Optional[dict]]] = None,
+                     snapshot: Optional[Dict[str, dict]] = None) -> None:
+    """`snapshot`: the cold-start kills to use ({} = none); None re-reads the committed file on first use."""
     global _fetcher
     with _lock:
         _cache.update({"flags": None, "read_at": 0.0, "good_at": 0.0, "refreshing": False, "error": None})
+        _snapshot.update({"kills": None if snapshot is None else dict(snapshot), "error": None})
     _fetcher = fetcher

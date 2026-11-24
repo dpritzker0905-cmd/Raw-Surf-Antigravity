@@ -16,6 +16,7 @@ import { SpotConditions } from '../SpotConditions';
 import { SpotVerificationNudge } from '../SpotVerificationNudge';
 import { SpotOfTheDayBadge, GeofenceUpgradeCTA } from './SpotDrawerHelpers';
 import { getFullUrl } from '../../utils/media';
+import { useNoteForecastShown } from '../observations/forecastExposure';
 
 const SpotReportContent = ({
   spot,
@@ -48,6 +49,7 @@ const SpotReportContent = ({
   isBeach,
   timeOffsetHours = 0,
 }) => {
+  useNoteForecastShown('spot_drawer');  // blind-quality exposure (observations/forecastExposure)
   const navigate = useNavigate();
 
   return (

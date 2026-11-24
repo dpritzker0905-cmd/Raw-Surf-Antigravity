@@ -33,6 +33,9 @@ concurrency:
 jobs:
   ingest:
     environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main)
+    permissions:
+      contents: read
+      issues: write    # the storage-auth issue (scripts/storage_auth_check.py)
     runs-on: ubuntu-latest
     timeout-minutes: 165  # core ~57 min + calibration ~12; raised from 120 so the WORLDWIDE coastal pilot
                           # (runs LAST) actually COMPLETES instead of being starved — that starvation is why
@@ -54,6 +57,22 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
+
+      # FAIL LOUD ON A REJECTED STORAGE KEY (reliability lane, 2026-11-24): the 11-19/20 401 "Legacy API keys are disabled" took
+      # every lane down for 21-25 h, red runs that notified nobody. One GET of control/flags.json; a 401/403 seen twice = ::error
+      # and an owner-assigned storage-auth issue; accepted = close it. STORAGE_AUTH_CHECK: warn (default) | block (exit 2) | 0.
+      - name: Storage credential check (fail loud on 401/403)
+        id: storage_auth
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ vars.REPO_OWNER_LOGIN }}
+          LANE: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STORAGE_AUTH_CHECK: ${{ vars.STORAGE_AUTH_CHECK || 'warn' }}
+        run: python3 scripts/storage_auth_check.py
 
       - name: Install dependencies
         run: pip install -r backend/requirements.txt   # pygrib manylinux wheel bundles ecCodes — no apt step
@@ -125,7 +144,7 @@ jobs:
           ICON_PEAK_PERIOD: '0'         # DECLARED AT DEFAULT (2026-10-20, dark; served periods): '1' fetches DWD GWAM partition PEAK periods ppts/ppww (were mean mpts/mpww) and serves a smooth blended total peak period (was tm10, kept as wave_period_tm10). services/gwam_peak_period.py. Moves served heights and ratings: flip ONLY on the owner's word, in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml AND precompute.yml together (not a Render flag).
           ICON_PEAK_PERIOD_SHARPNESS: '2'  # DECLARED AT DEFAULT (2026-10-20): blend exponent for ICON_PEAK_PERIOD (w ~ (H^2 Tp)^p). Inert while ICON_PEAK_PERIOD is '0'. Same value in all three lanes.
           SAMPLER_SCALAR_LEDGER: '1'    # ARMED (2026-09-30, serves nothing): the skill ledger grades a `raw_surf:GFS_SCALAR` lane, the served GFS product sampled with a SCALAR height (sampler.force_scalar_height), on the same buoys, hours and leads as `raw_surf`, so the SAMPLER_SCALAR_HEIGHT flip is decided on paired buoy truth. Retires itself once that switch serves. Its rows fit because PENDING_MAX_ENTRIES was raised to 54,000 in the same PR (it had bound at 29,477 of 30,000). Both ledger lanes carry it: forecast-ingest.yml and precompute.yml. Kill: '0'.
-          SAMPLER_SCALAR_LEDGER_MODELS: 'GFS,EURO,ICON'  # ARMED (2026-11-01, serves nothing): which models get a scalar shadow lane while SAMPLER_SCALAR_LEDGER is '1' (skill_scalar_lanes.py; code default 'GFS'). Adds `raw_surf:EURO_SCALAR` and `raw_surf:ICON_SCALAR` beside `raw_surf:EURO` / `raw_surf:ICON`, so naming EURO or ICON in SAMPLER_SCALAR_HEIGHT_MODELS is decided on paired buoy truth (the infobox under-read where corner directions diverge, e.g. 15.5N 108.5W EURO 4.00 m vs map 7.85 m on 2026-10-28). GFS_SCALAR stays retired (GFS serves the scalar). Each shadow retires itself when its model's flip serves. PENDING_MAX_ENTRIES raised to 64,000 in the same PR. Same value in forecast-ingest.yml and precompute.yml. Kill: 'GFS'.
+          SAMPLER_SCALAR_LEDGER_MODELS: 'GFS,ICON'  # EURO RETIRED 2026-11-23 (owner: #663 retired; this lane's only decision is gone; log/2026-11-23-draft-triage.md). ARMED (2026-11-01, serves nothing): which models get a scalar shadow lane while SAMPLER_SCALAR_LEDGER is '1' (skill_scalar_lanes.py; code default 'GFS'). ICON_SCALAR stays: it decides ICON's own flip on paired buoy truth. EURO_SCALAR's scored history (2026-11-02 .. 11-23) stays in the scored files; re-arm by adding EURO back. Same value in forecast-ingest.yml and precompute.yml. Kill: 'GFS'.
           FORECAST_SKILL_NOAA_BULL: ${{ vars.FORECAST_SKILL_NOAA_BULL || '1' }}  # ON (2026-11-16, serves nothing): the skill ledger's NOAA GFS-Wave station-bulletin reference lane `noaa:gfswave_station` (skill_noaa_bulletin.py, D-072 v2). Kill without a commit: `gh variable set FORECAST_SKILL_NOAA_BULL --body 0`. Same repo variable in forecast-ingest.yml and precompute.yml.
           CONSENSUS_SERVE: '0'          # DECLARED AT DEFAULT (2026-09-29, dark): '1' SERVES the equal GFS/EURO/ICON mean in place of GFS marine waves on every surface (consensus_serve.ServedStore; D-009's flip), with GFS kept where a cell was not blended; the ledger adds a raw_surf:GFS_RAW baseline lane. FLIP ONLY TOGETHER: forecast-ingest.yml, precompute.yml AND the live service's env, on the owner's word and the shadow's evidence.
           CONSENSUS_SERVE_KEEP_GFS: ''  # DECLARED AT DEFAULT (2026-09-30, dark): regional-tile region_ids that keep GFS while CONSENSUS_SERVE is '1' ('' = none, D-006's global equal mean). Recommended 'hawaii' (ledger seq 215: out of sample the equal mean loses to GFS only there; hawaii-only -1.9% vs equal, -16% vs GFS). Amends D-006: the owner's word, set TOGETHER with CONSENSUS_SERVE here, in the other rating lane AND the live service's env.
@@ -158,6 +177,7 @@ jobs:
       # client sends the new lane's window (the next ~48 h) to /grid until the pilots lane republishes (~40% of the day).
       # Never fails the cycle. Off: repository variable WIND_LANE_FRAMES_REBUILD = '0'.
       - name: Rebuild the lane-window static wind frames
+        id: rebuild_the_lane_window_static_wind_frames
         if: ${{ !cancelled() }}
         continue-on-error: true
         timeout-minutes: 10
@@ -177,6 +197,7 @@ jobs:
       # ON: repository variable MODEL_SPREAD_PUBLISH = '1' (Settings > Secrets and variables > Actions > Variables).
       # Knobs (code defaults): MODEL_SPREAD_LEAD_STEP_H 24, MODEL_SPREAD_MAX_FRAMES 8, MODEL_SPREAD_RETAIN_DAYS 21.
       - name: Collect GFS/EURO/ICON wave-height spread (dark data)
+        id: collect_gfs_euro_icon_wave_height_spread_dark_da
         if: ${{ success() && vars.MODEL_SPREAD_PUBLISH == '1' }}
         continue-on-error: true
         timeout-minutes: 20
@@ -185,3 +206,17 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python scripts/publish_model_spread.py
+
+      # NO FAIL-GREEN (reliability lane, 2026-11-24). The publish steps above run with continue-on-error so one failing set never
+      # stops the others; but the run then ended GREEN with a set unpublished (measured: 5 of 60 green pilots runs and 1 of 60
+      # green core runs since 2026-11-10/15 had a step exit non-zero, e.g. 2026-11-20 05:02Z the wind-lane rebuild published
+      # nothing during the credential outage). This reads every step's outcome AFTER all of them ran and ends the run RED, naming
+      # each masked failure. The other steps still ran; precompute triggers on any conclusion. Report-only (warn, stay green):
+      # repo variable PUBLISH_FAIL_GREEN_OK=1. scripts/publish_outcome_gate.py; tests/test_publish_outcome_gate.py.
+      - name: No fail-green (end red when a continue-on-error step failed)
+        if: ${{ !cancelled() }}
+        working-directory: backend
+        env:
+          STEPS_JSON: ${{ toJSON(steps) }}
+          REPORT_ONLY: ${{ vars.PUBLISH_FAIL_GREEN_OK || '0' }}
+        run: python3 scripts/publish_outcome_gate.py

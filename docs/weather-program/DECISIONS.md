@@ -2109,6 +2109,17 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   is found that moved served MAE without moving the same-model delta.
 - **Rollback:** the current behaviour is the repo variables as they are today (`ACCURACY_PAIRED_REFERENCE_MARGIN_M`
   0.10, `ACCURACY_PAIRED_GATE` 1); the change would ship behind its own kill switch.
+- **Status update 2026-11-23: DECIDED (appended; the entry above is unchanged).**
+  - The owner (David) answered the director's question in the director session (local_d6b521eb) at 2026-11-23T18:50:01Z, choosing the option labelled exactly: "Adopt D-072 (Recommended)".
+  - **What this decides:** the three-rule split above (the same-model regression, the hole buoys with their own bound, best_match on common keys) replaces the single pooled +0.10 m RED, as written.
+  - **What it does not do:** it builds nothing and changes no repo variable. The bounds marked PROVISIONAL above must still be re-derived from a row backfill of the pre-onset window alone, before any rule can page.
+  - **Where it is used:** it is the level-alarm component of `gates/self-improving-loop-v1.md` (#1231).
+  - **Fact, appended 2026-11-23 (true whatever the owner decides):** the D-072 v2 replay FAILED as registered (SCOREBOARD 2026-11-16, rule 2 fired on 0 of 5 days); the adopted rules page nothing until a passing replay is on record.
+- **Status update 2026-11-23 (second): back to PROPOSED (appended; the DECIDED line above stays as history).**
+  - The owner (David) answered in the director session on 2026-11-23, choosing the options labelled exactly: "Back to proposed (Recommended)" for D-072, and "Note only, keep red" for the monitor.
+  - **Reason:** the v2 replay FAILED as registered (rule 2 fired on 0 of 5 days, SCOREBOARD 2026-11-16), the bound may not be lowered after the fact, and rule 1 v2 was restated after its data was seen. So any fixed rule 2 (and rule 1, out of sample) must pass a NEW registration on unseen data before D-072 can be decided. SubQ and Reflection, asked separately, both recommended this; LongCat was unavailable.
+  - **The monitor (note only):** `forecast-accuracy-monitor.yml` stays RED as it is, and no workflow, threshold or output text changes. The RED that began on 2026-11-10 is, on the evidence in this entry, weather plus the hole buoys, not a regression in our chain (the same-model control moved in our favour). Read it that way until a registered D-072 replaces the rule.
+  - `gates/self-improving-loop-v1.md` (#1231) already runs the D-072 level rules WARN-only until a passing replay (its section 12.3), so it needs no change.
 
 ### D-074 · Open-Meteo is test-only; served data comes from free primary sources (GRIB, CMEMS) (2026-11-15, decided)
 - **Owner, verbatim:**
@@ -2377,3 +2388,120 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Supersedes** D-084's "the consent's served version names the FILLED words". It now names the Company details
   revision.
 - **Reopen if** counsel says that a corrected name or link under an unchanged consent version is not valid consent.
+
+### D-086 · A guarded flag whose kill REMOVES a service is reported, never auto-disabled (amends D-065 for ONE named flag: SURF_TIDE_OWN) (2026-11-22, decided by the owner)
+- **Owner, typed in the tide lane's session (2026-11-22 about 15:09Z):** "Yes, approve D-086".
+- **Proposed by:** the tide lane in #1132, at the advisor's direction, relayed by the director on 2026-11-22. The advisor
+  judged it justified in substance, but it is the owner's decision.
+- **The rule as written:** a flag qualifies ONLY when its kill switch removes a service rather than restoring an older
+  one.
+  - For a qualifying flag, the live guardrail (`flag-guardrail.yml`) REPORTS a WORSE verdict or a sanity breach.
+  - The report shows as action `report`, a `::warning` annotation, and the guardrail issue opened or appended.
+  - It never writes 'off' to `control/flags.json`. Only the owner turns the flag off.
+- **The one flag:** `SURF_TIDE_OWN` (`flag_guardrail.NEVER_AUTO_DISABLE`). Its kill serves NO tide at all, not the old
+  Open-Meteo tide (D-082 removed that fallback).
+- **Why:** the flag is BLIND to the replay, which fetches Open-Meteo's tide by date and never reads our table. A breach
+  the guardrail cannot attribute to the flag would otherwise take the tide away from every user.
+- **What D-065 keeps:** every other flag, `SURF_TIDE_CMEMS` included (its kill restores our harmonic tide), is still
+  disabled on WORSE (two strikes) or on a sanity breach.
+- **If David declines:** remove `NEVER_AUTO_DISABLE`, which restores D-065 unchanged for this flag. Its test,
+  `test_the_served_tide_is_blind_and_never_auto_disabled`, changes with it.
+- **Reopen if:** an instrument that scores the served tide against observed water exists (G4), so the flag can be
+  judged on evidence that can see it.
+
+### D-087 · HYBRID shadow-run replaces NO FLAP (supersedes the "FIX_VERSION clears" clause of D-065) (2026-11-23, decided by the owner)
+- **Owner's exact words (David, 17:12:09Z, director session):** Question asked: "should a switched-off feature
+  stay off until three hidden re-tests pass and you approve it?" Answer: **"Yes, use it."**
+- **Proposed by:** SubQ, Reflection and LongCat, all preferring the HYBRID over the existing NO FLAP clause.
+- **The rule as written:**
+  - After a guardrail auto-disable, a `FIX_VERSION` bump in `runtime_flags.py` **keeps the flag OFF**.
+  - The bump starts a **shadow run**: the guardrail scores the new version for
+    `SHADOW_REQUIRED_PASSES = 3` consecutive NOT_WORSE cycles (~18 h at the 6-h schedule).
+  - During the shadow run, `decide()` returns action `version_hold`; the flag entry gains a `shadow` dict
+    tracking `passes`, `fails`, and `verdicts`.
+  - **Evidence gate:** only replay-backed coverage (REPLAY or RATING) with a verdict of exactly NOT_WORSE
+    or BETTER and no sanity breach counts as a pass.
+    - A WORSE verdict or any sanity breach resets the consecutive pass count to 0 (fails accumulate).
+    - SKIPPED, NO_CHANGE, UNTESTABLE, and unknown verdicts are no-evidence: no pass, no reset.
+    - LEDGER and BLIND flags have external evidence; `decide()` returns "owner decides" and never writes
+      a `shadow_proposal` for them — only the owner can re-enable.
+  - After `SHADOW_REQUIRED_PASSES` consecutive qualifying passes, `decide()` returns `shadow_proposal` and
+    writes an evidence record (`feature_id + version + commit`) into `shadow_proposal` in the manifest
+    entry. **The flag stays OFF.** No auto-enable ever. The proposal is written only once.
+  - Evidence is recorded with `feature_id + version + commit` to prevent inheritance by renamed or
+    unrelated flags.
+  - **The owner may re-enable at any time regardless of shadow state; a passed shadow only PROPOSES
+    re-enable.** The owner's `workflow_dispatch` (`owner_reenable()`, actor-checked, D-074) is the only
+    mechanism that turns a flag back on.
+  - A later WORSE verdict may auto-disable it again under D-065 rules.
+  - The old `clear` action (flag removed from manifest on version bump) is replaced by `version_hold`.
+    The `clear` action remains in the code for external callers that may rely on it, but `decide()` no
+    longer produces it on a version bump.
+- **Why:** the old NO FLAP clause (FIX_VERSION clears the manifest entry, implicitly re-enabling the flag)
+  was too weak: a developer could bump the version with the same broken code and bypass the guardrail. The
+  HYBRID requires evidence of three consecutive non-harmful cycles before the owner can consider re-enabling.
+- **LongCat's safeguard (binding evidence):** shadow evidence recorded for a different `feature_id` or
+  `version` is rejected. This prevents an adversary from grafting another flag's evidence onto a held flag.
+- **Reopen if:** the 18 h (3 × 6 h) shadow window proves too slow for high-urgency fixes. A flag can still
+  be re-enabled immediately via the owner's workflow_dispatch, bypassing the shadow — but that leaves a gap
+  in the evidence chain, which the owner accepts.
+- **2026-11-23 follow-up (PR #1226):** `shadow_proposal` is idempotent — once written for a version,
+  further qualifying passes return `hold` ("proposal already written for version …; owner decides when to
+  re-enable") so the ACTIONS log and `acted.txt` don't grow every 6 hours while the owner decides.
+
+### D-089 · Automatic floor catch-up PRs (`bot/floor-catchup-*`) auto-pass the advisor gate under three conditions (2026-11-23, decided by the owner)
+- **Owner, typed in the director session (2026-11-23 18:22:28Z, relayed by the director to the #1227 lane):** "Yes,
+  auto-pass them". This follows "Yes, build it" (the same session, earlier that day), which approved the bot itself.
+- **Number:** D-087 is claimed by two open PRs (#1223, #1226) and D-088 is their likely renumber, so this takes D-089.
+- **What the bot is:** `floor-catchup.yml` runs `backend/scripts/floor_catchup.py` after every green dev CI push run.
+  It opens or updates ONE `bot/floor-catchup-<run_id>` PR holding only its own `.github/ci-floors.d` fragments. That
+  PR's floors match the reading exactly (set-from = observed passed, MIN_FILES = observed files). It never merges.
+- **The rule:** a `bot/floor-catchup-*` PR AUTO-PASSES the advisor gate (no advisor read; the merge loop may merge it)
+  only when ALL THREE hold:
+  1. Every file it changes is `.github/ci-floors.d/<its own branch slug>.<lane>.json`.
+  2. Every fragment's `tests` and `files` is an integer >= 0. `ci_floor_fragments.validate` already refuses anything
+     else and fails CI closed.
+  3. `backend-floor-staleness` is green, including its fragments-only over-lift step (`scripts/ci_floor_overlift.py`:
+     no touched lane's set-from or MIN_FILES above the last green dev reading). Every other required check is green
+     too.
+- **Anything else goes to the advisor**, including:
+  - a commit on the bot branch by anyone but the bot (a human commit);
+  - any change to `backend/scripts/floor_catchup.py`, `backend/scripts/ci_floor_overlift.py`,
+    `.github/workflows/floor-catchup.yml`, or the floor lines in `.github/workflows/ci.yml` (the base literals, the
+    lane floor steps, `backend-floor-staleness`);
+  - a fragment for another branch's slug, or a deleted fragment that is not the bot's own.
+- **Why:** on 2026-11-23 three manual catch-ups (#1209, #1213, #1224) each turned every open PR red on
+  `backend-floor-staleness` until a rebuild round. A catch-up whose numbers are the reading itself, checked by the
+  over-lift step in seconds, carries nothing for the advisor to judge. Holding it for a read only stretches that red
+  window.
+- **Reopen if:** an auto-passed catch-up is merged and a lane then fails its floor on dev (an over-lift the step
+  missed), or the bot's output ever needs a judgement call the three conditions do not encode.
+
+### D-090 · All fixes, served-number fixes included, ship ON behind a kill switch WITH guardrail replay coverage that turns them off; no feasible coverage = dark with a stated reason (amends D-001; restates and tightens D-065) (2026-11-23, decided by the owner)
+- **Owner's exact words (David, director session local_d6b521eb, 2026-11-23):**
+  - typed at 23:51:45Z: "I like fixes being on automatically with a tester, that switches it off if it doesn't work. SOTA"
+  - then, asked whether this also covers fixes that move served surf numbers (heights, ratings), the dialog answer at 23:51:58Z: **"Yes, all fixes (Recommended)"**
+- **What it amends:** D-001 (served numbers change only dark-then-flip). D-001's text is unchanged above. D-065 already superseded it with default ON plus a guardrail; this entry makes the "tester" a REQUIREMENT for every fix, served-number fixes included, instead of a general policy.
+- **The rule:**
+  1. **Default ON + kill switch, in BOTH registries:** every fix, including any fix that moves a served surf height, rating, glyph, hub or sim value, ships with its code default ON and a kill switch read through `runtime_flags.flag()`.
+     - It is registered in BOTH `runtime_flags.GUARDED` AND `_RATING_FLAGS` (`backend/routes/admin/surf_forecast.py`), with lane parity held by `tests/test_flag_lane_parity.py`.
+     - Both are required because `flag_guardrail` watches only `sorted(_rf.GUARDED)` (`backend/scripts/flag_guardrail.py`, the `watched` list near line 544). A flag outside GUARDED has no tester at all, whatever its other registrations.
+     - Client-only fixes use `window.__RAW_DISABLE_<NAME>__`, and they count as having no replay coverage unless a client-side tester is named (rule 4).
+  2. **The tester is required, and proven to FIRE:** the fix has `flag_guardrail` REPLAY or RATING coverage, so a failed or WORSE replay auto-disables it through `control/flags.json` with a written reason.
+     - **Coverage counts only with two tests in the fix's PR:**
+       - one where a WORSE replay result for THAT flag makes `decide()` disable it;
+       - a separate one where a sanity breach for THAT flag makes `decide()` disable it.
+     - A replay that cannot see the flag (it reads NO_CHANGE, "inert") is NOT coverage. That flag is BLIND and falls under rule 4.
+     - Re-enable follows D-087's HYBRID shadow run: a `FIX_VERSION` bump keeps the flag off until 3 consecutive NOT_WORSE cycles, and then the owner re-enables it.
+  3. **Pre-registered acceptance test plus a SCOREBOARD row** for each fix, written before its result is read. The pre-merge history filter (`default-on-filter.yml`, D-065 item 2) still applies.
+  4. **No feasible coverage = ships DARK, as before,** and its PR and SCOREBOARD row must say WHY replay coverage is not feasible (for example: no buoy truth for that quantity, or the fix serves no number a replay can score). "BLIND" is not a default; it is a stated exception.
+  5. **Visible coverage:** the admin switch panel (#1239) shows each flag's coverage class (REPLAY / RATING / BLIND), so a fix that is ON but untested cannot look the same as a tested one.
+  6. **Unchanged:** D-086 (a flag whose kill REMOVES a service is reported, never auto-disabled: SURF_TIDE_OWN), alert volume caps, ONE FORECAST COMPOSITION, and the 14-day horizon / tier contract.
+- **Why this matters now:** inspection P1-4 (2026-11-23) found 25 of about 36 default-ON flags are BLIND to the guardrail replay. Under this rule they are ON without the required tester.
+- **Transition for the flags that are ON today without coverage (binding):**
+  - They STAY AS THEY ARE: no mass flip, off or on. Switching a served flag off is itself a served change, so it needs the owner's word.
+  - Each one leaves the gap only by getting coverage (rules 1 and 2, both tests included) or a recorded reason why coverage is not feasible (rule 4: a SCOREBOARD row plus a line in this entry's ledger fragment).
+  - The coverage sweep is a dated ledger commitment (`ledger.d/docs--decide-d090.jsonl`), checked at its due date. A flag still uncovered then is reported to the owner by name, never switched by the sweep.
+- **Related:** D-065 (default ON, history filter, live guardrail), D-087 (the HYBRID shadow run, owner re-enables), D-089 (floor catch-up auto-pass; it is the same "automatic where the rule is mechanical" principle, cited for consistency, not changed).
+- **Reopen if:** the owner says so, or the guardrail auto-disables a covered fix that the owner judges was fine (then the test or its margin is what gets fixed, by a new entry).
+

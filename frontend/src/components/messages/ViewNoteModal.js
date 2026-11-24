@@ -3,7 +3,7 @@
  * Shows note author, content, reply input, and engagement stats.
  * Extracted from MessagesPage.js for maintainability.
  */
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { X, Send } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
@@ -17,28 +17,50 @@ const cacheBustUrl = (url) => {
   return `${url}${separator}cb=${Date.now()}`;
 };
 
-const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
+const ViewNoteModal = ({ isOpen, note, currentUserId, ...actions }) => {
+  if (!isOpen || !note?.id || !currentUserId) return null;
+
+  return (
+    <NoteReplyDialog key={JSON.stringify([currentUserId, note.id])}
+      note={note} currentUserId={currentUserId} {...actions} />
+  );
+};
+
+const NoteReplyDialog = ({ note, currentUserId, onClose, onReply, onOpenConversation }) => {
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
-  
+  const pending = useRef(false);
+
+  // A dismissed dialog can still have a reply in flight.
+  useLayoutEffect(() => () => { pending.current = false; }, []);
+
   const handleReply = async () => {
-    if (!replyText.trim() || isReplying) return;
-    
+    const text = replyText.trim();
+    if (!text || pending.current) return;
+    pending.current = true;
     setIsReplying(true);
+
+    let conversationId;
     try {
-      await onReply(note.id, replyText.trim());
-      setReplyText('');
-      onClose();
-      toast.success('Reply sent as message');
-    } catch (error) {
-      toast.error('Failed to send reply');
-    } finally {
-      setIsReplying(false);
+      conversationId = await onReply(note.id, text);
+    } catch {
+      if (pending.current) {
+        pending.current = false;
+        setIsReplying(false);
+        toast.error('Failed to send reply');
+      }
+      return;
     }
+
+    if (!pending.current) return;
+    pending.current = false;
+    setIsReplying(false);
+    setReplyText('');
+    onClose();
+    toast.success('Reply sent as message');
+    if (conversationId) onOpenConversation(conversationId);
   };
-  
-  if (!isOpen || !note) return null;
-  
+
   const resolvedNoteAvatar = note.user_avatar ? getFullUrl(note.user_avatar) : null;
   const avatarWithCacheBust = cacheBustUrl(resolvedNoteAvatar);
   
@@ -52,7 +74,7 @@ const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-full overflow-hidden bg-muted relative">
             {avatarWithCacheBust ? (
-              <img loading="lazy" 
+              <img
                 src={avatarWithCacheBust} 
                 alt="" 
                 className="w-full h-full object-cover"
@@ -89,6 +111,7 @@ const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
         {note.user_id !== currentUserId && (
           <div className="flex gap-2">
             <Input aria-label="Reply to note..."
+              disabled={isReplying}
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               placeholder="Reply to note..."

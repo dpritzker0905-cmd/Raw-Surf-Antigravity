@@ -92,7 +92,9 @@ const FIELD = { now: huePathStops(resolveDrawnField('light', {}), {}), was: hueP
 /** Light's field ON SCREEN at `kn` over its muted land or sea: `arm` is 'now' (the default) or 'was' (the kill). */
 const onScreen = (arm, kn, surface = 'land') => { const F = sampleRamp(FIELD[arm], kn), s = strength(kn); return BARE[surface].map((v, i) => v * (1 - s * (1 - F[i]))); };
 const DARK_LEGEND = huePathStops(resolveThemeRamp('dark'), {}), DARK_LAND = [18, 20, 26].map((v) => v / 255);   // the dark style's land (the wind bench's offline colour)
-/** Dark's field on screen over its land: field x alpha squared + map x (1 - alpha). */
+/** Dark's field on screen over its land AS LIGHT'S PATH WAS TUNED AGAINST IT: field x alpha squared + map x (1 - alpha). Since
+ *  2026-11-22 dark draws field x alpha + map x (1 - alpha) (windDarkFieldVivid.js) and this squared law only under its kill
+ *  (window.__RAW_DISABLE_DARK_WIND_VIVID__); light did not change, so these pins keep the reference it was designed against. */
 const darkOn = (kn) => { const a = 0.48 * (0.44 + 0.56 * ss(0, 5, kn)), F = sampleRamp(DARK_LEGEND, kn); return DARK_LAND.map((g, i) => F[i] * a * a + g * (1 - a)); };
 const BEAUFORT = [3, 6, 10, 16, 21, 27, 33, 40, 47, 55, 63, 75], SURFACES = ['land', 'water'];
 /** How many times a hue turns back along speed (steps under 4 degrees and greys do not count). */
@@ -221,10 +223,10 @@ describe('the engine\'s own call shape: no lever object, the kill on the real wi
 });
 
 describe('the order is dark\'s: the hue runs one way with speed', () => {
-  it('dark is read by the engine\'s own law: its field is written premultiplied and blended with SRC_ALPHA, so it lands at alpha squared', () => {
+  it('dark is read by the engine\'s own law: its field is written premultiplied and blended ONE (windDarkFieldVivid.js), so it lands at alpha (alpha squared under its kill, the law darkOn below keeps)', () => {
     const SHADERS = fs.readFileSync(path.join(__dirname, 'WebGLWindShaders.js'), 'utf8'), ENGINE = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
     expect(SHADERS).toMatch(/: vec4\(fieldRgb \* alpha, alpha\);/);
-    expect(ENGINE).toMatch(/else blendIntoMap\(gl, gl\.SRC_ALPHA, gl\.ONE_MINUS_SRC_ALPHA\); \/\/ field tint: multiply/);
+    expect(ENGINE).toContain('else blendIntoMap(gl, windFieldSrcFactor(gl, effectiveTheme), gl.ONE_MINUS_SRC_ALPHA); // field tint: multiply');   // windDarkFieldVivid.js (2026-11-22; SRC_ALPHA, alpha squared, under its kill)
     // blendIntoMap (windCanvasAlpha.js, D-027) hands the COLOUR's two factors through in both of its arms; only the canvas's own alpha is kept
     const ALPHA = fs.readFileSync(path.join(__dirname, 'windCanvasAlpha.js'), 'utf8');
     expect(ALPHA).toMatch(/gl\.blendFuncSeparate\(src, dst, gl\.ZERO, gl\.ONE\);/); expect(ALPHA).toMatch(/else gl\.blendFunc\(src, dst\);/);

@@ -1,0 +1,13 @@
+{
+  "_doc": "ONE 'now' rule for the map and the spot hub: UTC now rounded to the NEAREST whole hour, a half hour rounds UP. Pinned by frontend/src/tests/nowAnchorParity.test.js (getSeriesAnchorMs) AND backend/tests/test_hub_now_anchor_parity.py (spot_hub_composition.current_valid_time). Bug hunt 2026-11-22 item E: the hub floored, the map rounded, so at 10:40Z the hub served the 09Z 3-hourly product and the map 12Z.",
+  "cases": [
+    {"now": "2026-11-22T10:00:00.000Z", "anchor": "2026-11-22T10:00:00.000Z"},
+    {"now": "2026-11-22T10:29:59.999Z", "anchor": "2026-11-22T10:00:00.000Z"},
+    {"now": "2026-11-22T10:30:00.000Z", "anchor": "2026-11-22T11:00:00.000Z"},
+    {"now": "2026-11-22T10:40:00.000Z", "anchor": "2026-11-22T11:00:00.000Z"},
+    {"now": "2026-11-22T10:59:59.999Z", "anchor": "2026-11-22T11:00:00.000Z"},
+    {"now": "2026-11-22T01:45:00.000Z", "anchor": "2026-11-22T02:00:00.000Z"},
+    {"now": "2026-11-22T23:31:00.000Z", "anchor": "2026-11-23T00:00:00.000Z"},
+    {"now": "2026-12-31T23:59:00.000Z", "anchor": "2027-01-01T00:00:00.000Z"}
+  ]
+}

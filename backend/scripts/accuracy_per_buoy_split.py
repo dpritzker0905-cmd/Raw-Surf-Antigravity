@@ -445,6 +445,7 @@ def main():
     ap.add_argument("--days", type=int, default=WINDOW_DAYS)
     args = ap.parse_args()
     from scripts.forecast_accuracy_monitor import _fetch_scored_month
+    from services import buoy_holdout      # the LOCKED final buoy holdout (#1199)
     now = datetime.now(timezone.utc)
     through = (now + timedelta(days=1)).date()
     months = sorted({(now - timedelta(days=d)).strftime("%Y-%m") for d in range(max(args.days, GATE_WINDOW_DAYS) + 1)})
@@ -454,7 +455,7 @@ def main():
         if got is None:
             print("REFUSED: scored month %s could not be read (blind is not empty)" % m)
             return 3
-        rows += got
+        rows += buoy_holdout.drop(got, "buoy_id")
     idx = index_rows(rows, now, args.days)
     lines, ok = report_lines(idx, now, args.days, rows=rows)
     if args.days != GATE_WINDOW_DAYS:

@@ -77,7 +77,7 @@ describe('wiring', () => {
     expect(HEATMAP_FS).toContain('gl_FragColor = u_field_tint > 0.0 ? vec4(mix(vec3(1.0), fieldRgb, clamp(alpha * u_field_tint, 0.0, 1.0)), 1.0) : vec4(fieldRgb * alpha, alpha);');
   });
   it('the field pass multiplies (keeping the destination alpha) only when tinting', () => {
-    expect(src).toContain('if (_ft > 0) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); else blendIntoMap(gl, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);');   // untinted: the colour's blend as before, the canvas's alpha kept too (windCanvasAlpha.js, D-027)
+    expect(src).toContain('if (_ft > 0) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); else blendIntoMap(gl, windFieldSrcFactor(gl, effectiveTheme), gl.ONE_MINUS_SRC_ALPHA);');   // untinted: SRC_ALPHA as before (ONE for dark's premultiplied field, windDarkFieldVivid.js), the canvas's alpha kept too (windCanvasAlpha.js, D-027)
     expect(src).toContain("gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_field_tint'), _ft);");
   });
   it('every premultiplied site follows _premul (the fade, the composite blend, the clean-buffer flip), never _v2.theme alone', () => {

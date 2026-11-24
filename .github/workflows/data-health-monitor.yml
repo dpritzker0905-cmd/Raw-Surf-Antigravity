@@ -14,10 +14,19 @@ name: Data Health Monitor
 on:
   schedule:
     - cron: '*/30 * * * *'   # every 30 min (ingest cron refreshes every 4h; this detects a stall well within a cycle)
-  workflow_dispatch: {}
+  # Also dispatched every 30 min by the Render box (services/workflow_dispatch.py LANES), because GitHub ran this cron
+  # about once every 7 h (inspection 2026-11-23). force_stale=1 is the one forced-stale proof of the alert path: it opens
+  # a [TEST] issue assigned to the owner and closes it in the same run.
+  workflow_dispatch:
+    inputs:
+      force_stale:
+        description: "1 = prove the alert: open a [TEST] stale-data issue and close it in this run"
+        required: false
+        default: "0"
 
 permissions:
   contents: read
+  issues: write     # the stale-data issue (scripts/staleness_alert.py): GITHUB_TOKEN only, no new secret
 
 concurrency:
   group: data-health-monitor
@@ -32,11 +41,13 @@ jobs:
         id: checkout
 
       - name: Poll /api/health/data
+        id: health
         env:
           HEALTH_URL: ${{ vars.HEALTH_URL || 'https://raw-surf-antigravity.onrender.com/api/health/data' }}
         run: |
           set -o pipefail
           code=$(curl -sS -o /tmp/health.json -w '%{http_code}' --max-time 60 "$HEALTH_URL" || echo "000")
+          echo "$code" > /tmp/health.code
           echo "GET $HEALTH_URL -> HTTP $code"
           python3 - <<'PY' || echo "(unparseable/empty body)"
           import json
@@ -102,6 +113,7 @@ jobs:
       # the PUBLIC latest.json must list it with a run younger than RASTER_STALE_HOURS (default 30 h; one bound for every set).
       # A set switched on but not yet published is a WARNING (its first publish is a few hours away), not a failure.
       - name: Raster frame-set freshness
+        id: raster
         if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -130,6 +142,10 @@ jobs:
           FRAME_RASTER_GUST_EURO: ${{ vars.FRAME_RASTER_GUST_EURO }}
           FRAME_RASTER_GUST_ICON: ${{ vars.FRAME_RASTER_GUST_ICON }}
           FRAME_RASTER_CURRENTS: ${{ vars.FRAME_RASTER_CURRENTS }}
+          FRAME_RASTER_CURRENTS_GIOPS: ${{ vars.FRAME_RASTER_CURRENTS_GIOPS }}
+          FRAME_RASTER_CURRENTS_RTOFS: ${{ vars.FRAME_RASTER_CURRENTS_RTOFS }}
+          FRAME_RASTER_CURRENTS_NATIVE: ${{ vars.FRAME_RASTER_CURRENTS_NATIVE }}
+          FRAME_RASTER_GUST_RISK: ${{ vars.FRAME_RASTER_GUST_RISK }}
           FRAME_RASTER_WATER_TEMP_CMEMS: ${{ vars.FRAME_RASTER_WATER_TEMP_CMEMS }}
           FRAME_RASTER_TEMPERATURE_0P117: ${{ vars.FRAME_RASTER_TEMPERATURE_0P117 }}
           FRAME_RASTER_WATER_TEMP_0P117: ${{ vars.FRAME_RASTER_WATER_TEMP_0P117 }}
@@ -141,9 +157,41 @@ jobs:
           if [ -z "$SUPABASE_URL" ]; then echo "::warning::SUPABASE_URL unset: raster freshness not checked"; exit 0; fi
           python3 scripts/raster_set_freshness.py --base "${SUPABASE_URL%/}/storage/v1/object/public/weather-frames" --fail-on-stale
 
-      - name: Regional product run-age census
-        # Global paging must not hide the finer regional diagnosis (run 34849338600).
+      # MARINE / WIND / RATED FRAME SETS (reliability lane, 2026-11-24): REPORT ONLY until the bounds are read against a week
+      # of runs. The client has no age check and a failed publish keeps the old index. This reads the same public latest.json,
+      # warns per model+family past its bound (FRAME_STALE_HOURS_<MODEL>), and shows how far each rated set trails its marine
+      # set. First read: 60 of 80 GFS rated sets past 18 h, up to 12 h behind marine.
+      - name: Marine / wind / rated frame-set freshness (report only)
         if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        working-directory: backend
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then echo "::warning::SUPABASE_URL unset: frame-set freshness not checked"; exit 0; fi
+          python3 scripts/frame_set_freshness.py --base "${SUPABASE_URL%/}/storage/v1/object/public/weather-frames" || \
+            echo "::warning::frame-set freshness could not read latest.json"
+
+      # CENSUS CADENCE (advisor limit (a) on #1263, the one-box rule): the Render dispatcher runs this monitor every 30 min, and the
+      # census reads /api/weather/products (~18k products). That read is the cached, once-per-manifest-version encode (median 2 s,
+      # max 24 s end to end over the last 25 runs, step timings 2026-11-24), but the regional tiers' own bounds are 8-32 h, so on
+      # dispatched runs it runs only every REGION_CENSUS_EVERY_H hours (default 3). GitHub's own schedule runs keep it every time.
+      - name: Census cadence
+        id: cadence
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        env:
+          EVERY_H: ${{ vars.REGION_CENSUS_EVERY_H || '3' }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          case "$EVERY_H" in ''|*[!0-9]*|0) EVERY_H=3 ;; esac   # 0 or non-numeric would break the modulo: default 3
+          h=$(date -u +%-H); m=$(date -u +%-M)
+          if [ "$EVENT" = "schedule" ] || { [ $((h % EVERY_H)) -eq 0 ] && [ "$m" -lt 30 ]; }; then due=1; else due=0; fi
+          echo "census due: $due (event $EVENT, $(date -u +%H:%M)Z, every ${EVERY_H} h)"
+          echo "census=$due" >> "$GITHUB_OUTPUT"
+
+      - name: Regional product run-age census
+        id: regional
+        # Global paging must not hide the finer regional diagnosis (run 34849338600).
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' && steps.cadence.outputs.census == '1' }}
         env:
           BASE: ${{ vars.HEALTH_BASE || 'https://raw-surf-antigravity.onrender.com' }}
           PAGING: ${{ vars.REGION_HEALTH_PAGING || '1' }}
@@ -161,3 +209,66 @@ jobs:
             python3 scripts/product_run_age_census.py --base "$BASE" || true
             echo "::warning::Regional run-age census is in NON-PAGING mode (REGION_HEALTH_PAGING=0)."
           fi
+
+      # THE NOTIFICATION (reliability lane, 2026-11-24). A red run reaches nobody who is not watching Actions; the
+      # 11-19/20 credential failure was silent for 21-25 h. One issue labelled stale-data + severity:<level>, assigned to
+      # the owner (repo variable REPO_OWNER_LOGIN, a login, not a secret): opened once, escalated once, closed on
+      # recovery. scripts/staleness_alert.py decides; tests/test_staleness_alert.py pins it.
+      - name: Stale-data issue (open / escalate / close)
+        if: ${{ always() && steps.checkout.outcome == 'success' }}
+        working-directory: backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ vars.REPO_OWNER_LOGIN }}
+          FORCE: ${{ inputs.force_stale || '0' }}
+          PAGE_HOURS: ${{ vars.HEALTH_PAGE_HOURS || '7' }}
+          RASTER: ${{ steps.raster.outcome }}
+          REGIONAL: ${{ steps.regional.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          for l in "stale-data:b60205:Served data is not being refreshed" "severity:critical:b60205:Page now" \
+                   "severity:high:d93f0b:Act today" "recovering:0e8a16:One healthy run; closes after the next"; do
+            n="${l%%:*}"; rest="${l#*:}"; [ "$n" = "severity" ] && { n="severity:${rest%%:*}"; rest="${rest#*:}"; }
+            gh label create "$n" --repo "$GITHUB_REPOSITORY" --color "${rest%%:*}" --description "${rest#*:}" --force >/dev/null
+          done
+          gh issue list --repo "$GITHUB_REPOSITORY" --label stale-data --state open --json number,title,labels > /tmp/open.json || echo '[]' > /tmp/open.json
+          gh issue list --repo "$GITHUB_REPOSITORY" --label stale-data --state closed --limit 5 --json number,title,labels,closedAt > /tmp/closed.json || echo '[]' > /tmp/closed.json
+          force=""; [ "$FORCE" = "1" ] && force="--force-stale"
+          python3 scripts/staleness_alert.py --health /tmp/health.json --code "$(cat /tmp/health.code 2>/dev/null || echo 000)" \
+            --page-hours "$PAGE_HOURS" --raster "$RASTER" --regional "$REGIONAL" --open-issues /tmp/open.json \
+            --recent-closed /tmp/closed.json --run-url "$RUN_URL" $force > /tmp/decision.json
+          cat /tmp/decision.json; echo
+          j() { python3 -c "import json,sys;d=json.load(open('/tmp/decision.json'));v=d.get(sys.argv[1]);print(','.join(str(x) for x in v) if isinstance(v,list) else ('' if v is None else v))" "$1"; }
+          action="$(j action)"; num="$(j number)"
+          rm=(); [ -n "$(j remove_labels)" ] && rm=(--remove-label "$(j remove_labels)")   # only labels the issue carries
+          j body > /tmp/body.md
+          assignee=""; [ -n "$OWNER" ] && assignee="--assignee $OWNER"
+          for t in $(j close_tests | tr ',' ' '); do      # a [TEST] issue a failed close left open (advisor limit (c))
+            gh issue close "$t" --repo "$GITHUB_REPOSITORY" --comment "Leftover forced-stale TEST issue, closed by $RUN_URL." || true
+          done
+          case "$action" in
+            open)
+              url=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$(j title)" --body-file /tmp/body.md --label "$(j labels)" $assignee)
+              echo "opened $url"
+              if [ "$FORCE" = "1" ]; then
+                gh issue close "$url" --repo "$GITHUB_REPOSITORY" --comment "Forced-stale test passed: opened and assigned by run $RUN_URL, closed by the same run."
+                echo "forced-stale test: opened and closed $url"
+              fi ;;
+            reopen)
+              gh issue reopen "$num" --repo "$GITHUB_REPOSITORY"
+              gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --title "$(j title)" --add-label "$(j labels)" "${rm[@]}" $assignee
+              gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md ;;
+            escalate)
+              gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --title "$(j title)" --add-label "$(j labels)" "${rm[@]}"
+              gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md ;;
+            recovering)
+              gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --add-label recovering
+              gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md ;;
+            relapse)
+              gh issue edit "$num" --repo "$GITHUB_REPOSITORY" --remove-label recovering
+              gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md ;;
+            close)
+              gh issue close "$num" --repo "$GITHUB_REPOSITORY" --comment "$(j body)" ;;
+            *) echo "no issue change (severity $(j severity))" ;;
+          esac

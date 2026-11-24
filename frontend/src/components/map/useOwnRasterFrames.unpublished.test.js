@@ -7,8 +7,10 @@
  */
 import React, { useLayoutEffect } from 'react';
 import { act, render, renderHook, waitFor } from '@testing-library/react';
-import { useOwnRasterFrames, HANDOVER_LAYERS } from './useOwnRasterFrames';
-import { _resetOwnRasterFramesForTest, tel } from './ownRasterFrames';
+import { useOwnRasterFrames, HANDOVER_LAYERS, OWN_ONLY_RETRY_MS } from './useOwnRasterFrames';
+import { useOwnRasterLayers } from './useOwnRasterLayers';
+import { _resetOwnRasterFramesForTest, tel, getEngaged } from './ownRasterFrames';
+import { creditFor } from './LayerDataCredit';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 import { createOwnRasterLayer } from './ownRasterLayer';
 
@@ -107,6 +109,7 @@ describe('a layer whose set is not published yet falls back to .om (lever on)', 
     delete window.__RAW_RASTER_OWN_FRAMES__;
     for (const layer of ['fog', 'water_temp', 'temperature']) for (const model of ['GFS', 'EURO', 'ICON']) {
       if (layer === 'water_temp' && model === 'ICON') continue;   // G4: ON by default, its unpublished miss is the test below
+      if (layer === 'temperature' && model === 'ICON') continue;   // ON by default since 2026-11-18 (the 0.125-degree set)
       expect(run(layer, model).result.current).toBe(false);
     }
     expect(getPinnedIndex).not.toHaveBeenCalled();
@@ -118,6 +121,103 @@ describe('a layer whose set is not published yet falls back to .om (lever on)', 
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     expect(getPinnedIndex).toHaveBeenCalled();          // it asked for its own set...
     expect(h.result.current).toBe(false);               // ...found none published, and the .om path draws (as before)
+  });
+
+  test('ICON air temperature engages without the lever (2026-11-18); its kill stops our frames and STILL never hands it to .om', () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    run('temperature', 'ICON');
+    expect(getPinnedIndex).toHaveBeenCalledWith('ICON/weather/temperature/global_0p125');
+    for (const kill of ['__RAW_DISABLE_RASTER_OWN_TEMPERATURE__', '__RAW_DISABLE_RASTER_OWN_FRAMES__']) {
+      getPinnedIndex.mockClear();
+      window[kill] = true;
+      try {
+        expect(run('temperature', 'ICON').result.current).toBe(true);   // claimed: no Open-Meteo, the status line says unavailable
+        expect(getPinnedIndex).not.toHaveBeenCalled();                  // and our frames are off too
+      } finally {
+        delete window[kill];
+      }
+    }
+    staticSetEnabled.mockImplementation((key) => key !== 'ICON/weather/temperature/global_0p125');   // the per-set kill
+    expect(run('temperature', 'ICON').result.current).toBe(true);
+  });
+
+  test('THE KILL NEVER REQUESTS .om: under every kill the .om layer list drops ICON air temperature; GFS keeps it', () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    const omLayersFor = (model) => renderHook(() => useOwnRasterLayers({
+      mapInstance: null, activeModel: model, activeLayers: ['temperature'], timeOffsetHours: 0, theme: 'dark',
+    })).result.current;
+    for (const kill of [null, '__RAW_DISABLE_RASTER_OWN_TEMPERATURE__', '__RAW_DISABLE_RASTER_OWN_FRAMES__']) {
+      if (kill) window[kill] = true;
+      try {
+        expect(omLayersFor('ICON')).toEqual([]);              // MapWebGL's .om list (and its temporal preloader) never sees it
+        expect(omLayersFor('GFS')).toEqual(['temperature']);  // unchanged: GFS is not flipped
+      } finally {
+        if (kill) delete window[kill];
+      }
+    }
+    staticFramesEnabled.mockReturnValue(false);               // the static-frames global kill
+    expect(omLayersFor('ICON')).toEqual([]);
+  });
+
+  test('NO .om FALLBACK for ICON air temperature (2026-11-18): an unpublished set keeps the layer claimed and says unavailable', async () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    getPinnedIndex.mockResolvedValue(null);                            // no set in latest.json
+    const { result } = run('temperature', 'ICON');
+    expect(result.current).toBe(true);                                 // claimed at once: no cold-toggle .om draw either
+    await waitFor(() => expect(tel().misses.no_index).toBeGreaterThan(0));
+    expect(result.current).toBe(true);                                 // still claimed after the miss: nothing draws, never .om
+    const { result: gfs } = run('temperature', 'GFS');                 // GFS is not flipped: unchanged
+    expect(gfs.current).toBe(false);
+  });
+
+  test('the credit never says Open-Meteo for ICON temperature while it is claimed with nothing drawn (unpublished or killed)', async () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    getPinnedIndex.mockResolvedValue(null);
+    run('temperature', 'ICON');
+    await waitFor(() => expect(getEngaged().temperature).toBe('ICON:idle'));
+    expect(creditFor('temperature').text).toBe('ICON · Datenbasis: Deutscher Wetterdienst');   // its own source, no note, not Open-Meteo
+    _resetOwnRasterFramesForTest();
+    window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true;
+    try {
+      run('temperature', 'ICON');
+      await waitFor(() => expect(getEngaged().temperature).toBe('ICON:idle'));
+      expect(creditFor('temperature').text).not.toMatch(/Open-Meteo/);
+    } finally {
+      delete window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__;
+    }
+  });
+
+  test('RETRY: one failed index read does not latch "unavailable" for the session; the retry kill restores the latch', async () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    jest.useFakeTimers();
+    try {
+      getPinnedIndex.mockResolvedValue(null);
+      const first = run('temperature', 'ICON');
+      await waitFor(() => expect(tel().misses.no_index).toBe(1));
+      const asked = getPinnedIndex.mock.calls.length;
+      await act(async () => { jest.advanceTimersByTime(OWN_ONLY_RETRY_MS + 1); });
+      await waitFor(() => expect(getPinnedIndex.mock.calls.length).toBeGreaterThan(asked));   // asked again
+      first.unmount();                                                                       // its retries end with it
+      _resetOwnRasterFramesForTest();
+      getPinnedIndex.mockClear();
+      window.__RAW_DISABLE_RASTER_OWN_RETRY__ = true;
+      run('temperature', 'ICON');
+      await waitFor(() => expect(tel().misses.no_index).toBe(1));
+      const once = getPinnedIndex.mock.calls.length;
+      await act(async () => { jest.advanceTimersByTime(3 * OWN_ONLY_RETRY_MS); });
+      expect(getPinnedIndex.mock.calls.length).toBe(once);                                   // latched, as before
+    } finally {
+      delete window.__RAW_DISABLE_RASTER_OWN_RETRY__;
+      jest.useRealTimers();
+    }
+  });
+
+  test('the credit never says Open-Meteo for a claimed own-only model with nothing drawn (2026-11-18): it names DWD', async () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    getPinnedIndex.mockResolvedValue(null);
+    run('rain', 'ICON');
+    await waitFor(() => expect(getEngaged().rain).toBe('ICON:idle'));
+    expect(creditFor('rain').text).toBe('ICON · Datenbasis: Deutscher Wetterdienst');   // no area-averaged note: nothing is drawn
   });
 });
 

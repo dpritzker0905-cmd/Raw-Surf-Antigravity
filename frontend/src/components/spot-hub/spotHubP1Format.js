@@ -47,12 +47,17 @@ export function sanitizePointTide(tide) {
   return { heightM: m, heightFt: Math.round(m * M_TO_FT * 10) / 10, trend };
 }
 
-/** "+1.3 ft, Rising" (signed: mean sea level is the datum, so a low tide reads below zero). */
-export function formatPointTide(t) {
+/**
+ * "+1.3 ft, Rising" or, with unit 'm', "+0.4 m, Rising": the tide follows the ft/m button like every wave height
+ * (owner 2026-11-15). Signed: mean sea level is the datum, so a low tide reads below zero. Default 'ft' keeps
+ * callers that pass no unit unchanged.
+ */
+export function formatPointTide(t, unit = 'ft') {
   if (!t) return null;
-  const ft = t.heightFt;
-  const sign = ft > 0 ? '+' : ft < 0 ? '−' : '';
-  return `${sign}${Math.abs(ft).toFixed(1)} ft${t.trend ? `, ${t.trend}` : ''}`;
+  const metric = unit === 'm';
+  const v = metric ? Math.round(t.heightM * 10) / 10 : t.heightFt;
+  const sign = v > 0 ? '+' : v < 0 ? '−' : '';
+  return `${sign}${Math.abs(v).toFixed(1)} ${metric ? 'm' : 'ft'}${t.trend ? `, ${t.trend}` : ''}`;
 }
 
 /**
@@ -62,6 +67,13 @@ export function formatPointTide(t) {
  * NOAA line true.
  */
 export function tideSourceLabel(tideData) {
+  // PR B: our own tide table names its source and carries the exact attribution its licences ask for (the AVISO
+  // FES2022 acknowledgement + the Copernicus Marine credit); show that text, never an Open-Meteo line.
+  if (tideData && String(tideData.station_id || '').startsWith('raw-surf:tide-own:')) {
+    const credit = typeof tideData.credit === 'string' ? tideData.credit.trim() : '';
+    const label = typeof tideData.tide_label === 'string' && tideData.tide_label.trim() ? `${tideData.tide_label.trim()}. ` : '';
+    return `${label}${credit ? `${credit} ` : ''}Times in your time zone.`;
+  }
   const global = tideData && (tideData.source === 'global'
     || String(tideData.station_id || '').startsWith('open-meteo'));
   return global

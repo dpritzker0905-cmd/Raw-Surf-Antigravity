@@ -8,9 +8,13 @@ Truth hierarchy (do not mix them up):
      the breaking step, and it is sparse (n is printed with every number);
   3. reference breaking formulas are NOT truth; they are labelled "reference" wherever they appear.
 """
+import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+if str(HERE.parents[1]) not in sys.path:
+    sys.path.insert(0, str(HERE.parents[1]))           # backend/, for the holdout fence
+from services import buoy_holdout  # noqa: E402  the LOCKED final buoy holdout (#1199)
 CACHE = HERE / 'cache'
 OUT = HERE / 'out'
 
@@ -33,6 +37,13 @@ BEACHES = {
     '143': [('Jetty Park / Port Canaveral', 28.4061, -80.589), ('Cocoa Beach Pier', 28.3655, -80.5995)],
     '134': [('North Hutchinson Island', 27.549, -80.325)],
 }
+
+# THE LOCKED FINAL BUOY HOLDOUT (#1199): a locked station (by its own id or its NDBC/WMO rebroadcast id) leaves every
+# table here before anything fetches or reads it, and so does every pair or beach that needs it. A no-op until the
+# locked list is frozen.
+STATIONS = {k: v for k, v in STATIONS.items() if buoy_holdout.keep(k) and not buoy_holdout.is_locked(v.get('ndbc'))}
+PAIRS = [p for p in PAIRS if p['offshore'] in STATIONS and p['nearshore'] in STATIONS]
+BEACHES = {k: v for k, v in BEACHES.items() if k in STATIONS}
 
 # Splits: explore on 2023-2024, judge on the HOLD-OUT (2025 and the 2026 realtime window). Never tune on the hold-out.
 EXPLORE_YEARS = (2023, 2024)

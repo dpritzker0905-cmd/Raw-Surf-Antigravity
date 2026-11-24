@@ -164,11 +164,12 @@ def cmems_fill(keys_pts, start, hours, work, now):
                                     disable_progress_bar=True)
             ds = xr.open_dataset(work / name).load()
             (work / name).unlink(missing_ok=True)
+            tsl = OR.surface_tyx(ds, "total_sea_level")                         # drops the one-level depth dim
         except Exception as e:                                                   # noqa: BLE001 - per tile
-            log(f"cmems tile {tile}: {type(e).__name__}")
+            log(f"cmems tile {tile}: {type(e).__name__}: {str(e)[:200]}")
             continue
         idx = [OR.hour_index(start, t) for t in ds.time.values.astype("datetime64[s]").astype("int64")]
-        lats, lons, tsl = ds.latitude.values, ds.longitude.values, ds["total_sea_level"].values
+        lats, lons = ds.latitude.values, ds.longitude.values
         for k in ks:
             cell = OR.nearest_cell(lats, lons, keys_pts[k])
             if cell is None:

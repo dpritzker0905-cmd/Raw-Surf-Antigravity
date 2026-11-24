@@ -228,10 +228,10 @@ def prefetch_catalog_async() -> Optional[threading.Thread]:
     return t
 
 
-def current_valid_time() -> str:
-    """The forecast hour to sample: the current UTC hour, top of the hour."""
-    return datetime.now(timezone.utc).replace(
-        minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
+def current_valid_time(now: Optional[datetime] = None) -> str:
+    """The forecast hour to sample: the hub's and the map's "now" (nearest UTC hour, bug hunt 2026-11-22 item E)."""
+    from services.weather_pipeline.spot_hub_composition import current_valid_time as _hub_now
+    return _hub_now(now).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def fetch_point(domain: str, layer: str, lat: float, lng: float,
@@ -409,6 +409,26 @@ def _validated_baseline(marine_point, wind_point):
     return baseline, None
 
 
+def _period_unknown_reason(marine_point) -> Optional[str]:
+    """The default path's one input check (bug hunt 2026-11-22 item F): a nonzero swell with no usable period is
+    UNKNOWN, never period 0, which the estimate reads as no surf (0.0 m, `calm`) where the glyph says unknown.
+    A true calm (height 0) keeps period 0. Kill switch SIM_MISSING_PERIOD_UNKNOWN='0' = the old 0.0."""
+    try:
+        height = float(marine_point.get("speed"))
+    except (TypeError, ValueError):
+        return None                       # the height's own handling is unchanged
+    if not math.isfinite(height) or height <= 0:
+        return None
+    raw = marine_point.get("period")
+    try:
+        period = None if isinstance(raw, bool) else float(raw)
+    except (TypeError, ValueError, OverflowError):
+        period = None
+    if period is None or not math.isfinite(period) or period <= 0:
+        return "no swell period at this coordinate (unknown, not flat)"
+    return None
+
+
 def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
                         ) -> Tuple[Optional[Dict[str, float]], Dict[str, Any]]:
     """The app's forecast at a coordinate, for `valid_time` or the current hour.
@@ -454,9 +474,17 @@ def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
     wind_time = identities["wind"]["served_valid_time"]
     alignment = "unknown" if not marine_time or not wind_time else (
         "aligned" if marine_time == wind_time else "mixed")
-    missing = [name for name, ok in (("marine", mp.get("speed") is not None),
-                                     ("wind", wp.get("speed") is not None)) if not ok]
+    # RATING_MISSING_SAMPLE_UNKNOWN (dark, bug-hunt B): the sampler's zero-filled "unavailable"/out-of-bounds placeholder
+    # is no data, the same as an absent speed, never a measured 0 m / 0 kt. Off: byte-identical.
+    from services.weather_pipeline import missing_sample as _missing
+    _placeholder = _missing.MISSING_METHODS if _missing.enabled() else frozenset()
+    missing = [name for name, ok in (("marine", mp.get("speed") is not None
+                                      and mp.get("interpolation_method") not in _placeholder),
+                                     ("wind", wp.get("speed") is not None
+                                      and wp.get("interpolation_method") not in _placeholder)) if not ok]
     baseline, invalid_reason = _validated_baseline(mp, wp) if strict_inputs else (None, None)
+    if not strict_inputs and not missing and os.environ.get("SIM_MISSING_PERIOD_UNKNOWN", "1") != "0":
+        invalid_reason = _period_unknown_reason(mp)
     if missing or invalid_reason:
         reason = f"no {' and '.join(missing)} data at this coordinate" if missing else invalid_reason
         out = (None, {"reason": reason,

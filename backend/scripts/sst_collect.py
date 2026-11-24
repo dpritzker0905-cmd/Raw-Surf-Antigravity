@@ -29,6 +29,11 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from services import buoy_holdout  # noqa: E402 - stdlib only
+
+buoy_holdout.declare_collector(__name__, "archives the Copernicus SST bulletin at every frozen NDBC WTMP station; scores nothing")
+
 GEO = ("https://s3.waw3-1.cloudferro.com/mdl-arco-geo-014/arco/GLOBAL_ANALYSISFORECAST_PHY_001_024/"
        "cmems_mod_glo_phy_anfc_0.083deg_PT1H-m_202406/geoChunked.zarr")
 LATEST_OBS = "https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt"
@@ -245,7 +250,7 @@ def main(argv=None, http=None, store=None, now=None):
             report.update(run=name, store_end=content["store_end"], hours=content["n"], chunks_read=content["chunks_read"],
                           stations_all_missing=missing)
     json.dump(report, open(os.path.join(a.cache, f"collect_report_sst_{a.mode}.json"), "w"), indent=1)
-    print(json.dumps(report))
+    print(buoy_holdout.redact(json.dumps(report)))
     return 0
 
 
