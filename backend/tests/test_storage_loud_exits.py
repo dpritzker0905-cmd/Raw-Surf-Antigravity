@@ -98,9 +98,9 @@ def test_an_unstored_yesterday_is_still_collected_and_today_still_recorded():
 
 def test_a_stored_today_is_skipped_without_asking():
     m, rep = _Model({}), _report()
-    both = {"cycles/ICON_2026112200.json.gz", "cycles/ICON_2026112100.json.gz"}
-    assert C.plan_daily(m, TODAY, both, rep, waits=(0, 0, 0)) == []
-    assert m.asked == [] and rep["skipped"] == ["cycles/ICON_2026112200.json.gz", "cycles/ICON_2026112100.json.gz"]
+    three = ["cycles/ICON_2026112200.json.gz", "cycles/ICON_2026112100.json.gz", "cycles/ICON_2026112000.json.gz"]
+    assert C.plan_daily(m, TODAY, set(three), rep, waits=(0, 0, 0)) == []
+    assert m.asked == [] and rep["skipped"] == three
 
 
 def test_a_dropped_scheduled_run_is_caught_the_next_day():
@@ -122,8 +122,8 @@ def test_the_look_back_reports_and_only_the_day_before_yesterday_is_red():
     done = {"cycles/ICON_2026112200.json.gz", "cycles/ICON_2026112100.json.gz", "cycles/ICON_2026111900.json.gz"}
     rep = _report()
     assert C.plan_daily(_Model({}), TODAY, done, rep, waits=(0,), now=LATE) == []
-    assert rep["unavailable"] == [] and rep["missing_recent"] == ["ICON 2026112000", "ICON 2026111800"]
-    assert rep["missed_gap"] == ["ICON 2026112000"]                     # k = 2: red once; 11-18 (k = 4) only reported
+    assert rep["unavailable"] == [] and rep["missed_gap"] == ["ICON 2026112000"]          # day-2, truly gone: red
+    assert rep["missing_recent"] == ["ICON 2026111800", "ICON 2026111700"]                # further back: report only
 
 
 def test_two_consecutive_dropped_runs_are_red_on_the_first_run_after():
@@ -136,6 +136,15 @@ def test_two_consecutive_dropped_runs_are_red_on_the_first_run_after():
     assert rep["missed_gap"] == ["ICON 2026112000"]
 
 
+def test_a_day_before_yesterday_still_available_is_collected_not_lost():
+    """Advisor limit (b) on #1258: GFS and EURO keep their runs, so after two dropped runs day-2 is RECOVERED, not reported."""
+    d2 = datetime(2026, 11, 20, tzinfo=timezone.utc)
+    m, rep = _Model({TODAY: [True], YDAY: [True], d2: [True]}), _report()
+    m.name = "GFS"
+    jobs = C.plan_daily(m, TODAY, {f"cycles/GFS_202611{d}00.json.gz" for d in (17, 18, 19)}, rep, waits=(0,), now=LATE)
+    assert [j[1] for j in jobs] == [TODAY, YDAY, d2] and "missed_gap" not in rep and rep["unavailable"] == []
+
+
 def test_emos_two_consecutive_dropped_runs_are_red(monkeypatch):
     _ef(monkeypatch, {("20261116", W.ef.ECMWF_BASE): [True], ("20261115", W.ef.ECMWF_BASE): [True]})
     rep = {"skipped": [], "unavailable": [], "dropped": []}
@@ -143,6 +152,11 @@ def test_emos_two_consecutive_dropped_runs_are_red(monkeypatch):
     plan = W.daily_plan(None, NOW, done, rep, waits=(0,))
     assert len(plan) == 2 and rep["unavailable"] == [] and rep["missed_gap"] == ["2026111400"]
     assert W.daily_status(rep) == 3
+    _ef(monkeypatch, {("20261116", W.ef.ECMWF_BASE): [True], ("20261115", W.ef.ECMWF_BASE): [True],
+                      ("20261114", W.ef.AWS_BASE): [True]})                    # the mirror still has 11-14: recovered
+    rep3 = {"skipped": [], "unavailable": [], "dropped": []}
+    plan3 = W.daily_plan(None, NOW, done, rep3, waits=(0,))
+    assert [r.day for r, _ in plan3] == [16, 15, 14] and "missed_gap" not in rep3 and W.daily_status(rep3) == 0
     rep2 = {"skipped": [], "unavailable": [], "dropped": []}
     W.daily_plan(None, NOW, done | {"2026111400.npz"}, rep2, waits=(0,))
     assert "missed_gap" not in rep2 and W.daily_status(rep2) == 0                 # nothing missing at k = 2: green
