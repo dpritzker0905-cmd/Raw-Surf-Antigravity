@@ -4,6 +4,7 @@ No network, no storage: the guardrail's scorer, manifest and volume reader are i
 import os
 import random
 import sys
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -299,3 +300,113 @@ def test_a_disable_reports_the_snapshot_drift_in_the_issue_text(monkeypatch):
     assert rep["snapshot_drift"]["missing"] == ["SURF_TIDE_DEPTH"]
     md = fg.markdown(rep)
     assert "Cold-start snapshot drift" in md and "runtime_flags_snapshot.json" in md
+    # the advisor's operating condition on #1261: P0, a 24 h commit-and-deploy deadline, no served-number fix ON meanwhile,
+    # the deploy branch named, and the exact file text
+    assert "### P0 · Cold-start snapshot drift" in md and "within 24 h" in md
+    assert "no new served-number fix ships ON" in md and "Render) deploys from `dev`" in md
+    assert '"SURF_TIDE_DEPTH"' in md.split("```json")[1]
+
+
+def test_drift_that_only_over_holds_is_not_p0_and_the_issue_title_says_which(tmp_path, monkeypatch):
+    off = {"state": "off", "reason": "t", "set_by": fg.SET_BY, "set_at": "x", "evidence": "y"}
+    rep = {"mode": "enforce", "decisions": {}, "results": {},
+           "snapshot_drift": fg.snapshot_drift(rf_manifest(), {"SURF_TIDE_DEPTH": off})}
+    md = fg.markdown(rep)
+    assert "Cold-start snapshot drift" in md and "P0" not in md
+    monkeypatch.setattr(fg, "run", lambda a: dict(rep, snapshot_drift=fg.snapshot_drift(
+        rf_manifest(SURF_TIDE_DEPTH=off), {})))
+    fg.main(["--out", str(tmp_path)])
+    assert (tmp_path / "acted.txt").read_text(encoding="utf-8") == "kill-missing-from-committed-floor(see-critical-issue)"
+
+
+GUARDRAIL_FAMILY_TITLES = {"Flag guardrail": "Flag guardrail: SURF_TIDE_DEPTH",
+                           "PHYSICS guard blind": "PHYSICS guard blind: a check could not run",
+                           "P0 cold-start snapshot drift": fg.P0_DRIFT_TITLE}
+
+
+def test_the_p0_drift_gets_its_own_issue_and_the_titles_never_match_each_others_search(tmp_path, monkeypatch):
+    """Advisor (c) on #1263: a P0 drift is a DEDICATED issue, never a comment buried on an old "Flag guardrail" issue."""
+    off = {"state": "off", "reason": "t", "set_by": fg.SET_BY, "set_at": "x", "evidence": "y"}
+    rep = {"mode": "enforce", "decisions": {}, "results": {},
+           "snapshot_drift": fg.snapshot_drift(rf_manifest(SURF_TIDE_DEPTH=off), {})}
+    monkeypatch.setattr(fg, "run", lambda a: rep)
+    fg.main(["--out", str(tmp_path)])
+    body = (tmp_path / "p0_drift.md").read_text(encoding="utf-8")
+    assert body.startswith("### P0 · Cold-start snapshot drift") and "within 24 h" in body and "```json" in body
+    for search, _ in GUARDRAIL_FAMILY_TITLES.items():   # GitHub `in:title` search is word-based: no title holds another's words
+        words = set(search.lower().split())
+        hits = [t for k, t in GUARDRAIL_FAMILY_TITLES.items() if words <= set(t.lower().replace(":", " ").split())]
+        assert hits == [GUARDRAIL_FAMILY_TITLES[search]], (search, hits)
+    wf = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "flag-guardrail.yml").read_text(encoding="utf-8")
+    assert f'title="{fg.P0_DRIFT_TITLE}"' in wf and '--search "P0 cold-start snapshot drift in:title"' in wf
+    assert '--label "severity:critical"' in wf
+
+
+def test_no_p0_file_without_a_lost_kill(tmp_path, monkeypatch):
+    off = {"state": "off", "reason": "t", "set_by": fg.SET_BY, "set_at": "x", "evidence": "y"}
+    rep = {"mode": "enforce", "decisions": {}, "results": {},
+           "snapshot_drift": fg.snapshot_drift(rf_manifest(), {"SURF_TIDE_DEPTH": off})}   # over-holds only
+    monkeypatch.setattr(fg, "run", lambda a: rep)
+    fg.main(["--out", str(tmp_path)])
+    assert not (tmp_path / "p0_drift.md").exists()
+
+
+def _p0_jq():
+    import re
+    wf = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "flag-guardrail.yml").read_text(encoding="utf-8")
+    return re.search(r"P0_JQ='([^']+)'", wf).group(1)
+
+
+def _word_search(query, issues):
+    """GitHub `in:title` search, mirrored: every query word appears among the title's words (case-insensitive)."""
+    import re
+    tok = lambda s: set(re.findall(r"[a-z0-9]+", s.lower()))  # noqa: E731
+    return [i for i in issues if tok(query) <= tok(i["title"])]
+
+
+def _jq_mirror(issues):
+    """Python mirror of P0_JQ: the first issue whose title STARTS with the P0 prefix, else '' (// empty)."""
+    hits = [i for i in issues if i["title"].startswith("P0 cold-start snapshot drift")]
+    return str(hits[0]["number"]) if hits else ""
+
+
+# Four title sets (advisor, #1263): the main issue carrying the OLD tag (its words match the P0 search), the PHYSICS blind
+# issue, the P0 issue, and none. The P0 lookup must find only the P0 issue, and an empty result must open a new one.
+TITLE_SETS = {
+    "main-with-tag": ([{"number": 11, "title": "Flag guardrail: SURF_TIDE_DEPTH P0-cold-start-snapshot-drift-24h"}], ""),
+    "blind": ([{"number": 12, "title": "PHYSICS guard blind: a check could not run"}], ""),
+    "p0": ([{"number": 13, "title": fg.P0_DRIFT_TITLE}], "13"),
+    "none": ([], ""),
+}
+
+
+@pytest.mark.parametrize("name", sorted(TITLE_SETS))
+def test_the_p0_lookup_finds_only_the_p0_issue(name):
+    issues, want = TITLE_SETS[name]
+    searched = _word_search("P0 cold-start snapshot drift", issues)   # what `gh issue list --search` may return
+    assert _jq_mirror(searched) == want
+    assert "startswith(\"P0 cold-start snapshot drift\")" in _p0_jq() and "// empty" in _p0_jq()
+
+
+def test_the_p0_jq_filter_with_real_jq():
+    """The exact P0_JQ string through real jq (present on GitHub's ubuntu runners; skipped where it is not installed)."""
+    import json
+    import shutil
+    import subprocess
+    if not shutil.which("jq"):
+        pytest.skip("jq not installed here; the Python mirror above covers the same four sets")
+    everything = [i for issues, _ in TITLE_SETS.values() for i in issues]
+    for issues, want in list(TITLE_SETS.values()) + [(everything, "13")]:
+        out = subprocess.run(["jq", "-r", _p0_jq()], input=json.dumps(issues), capture_output=True, text=True,
+                             check=True).stdout.strip()
+        assert out == want, (issues, out)
+
+
+def test_the_new_main_title_tags_share_no_word_with_the_p0_search(tmp_path, monkeypatch):
+    off = {"state": "off", "reason": "t", "set_by": fg.SET_BY, "set_at": "x", "evidence": "y"}
+    for live, snap in ((rf_manifest(SURF_TIDE_DEPTH=off), {}), (rf_manifest(), {"SURF_TIDE_DEPTH": off})):
+        rep = {"mode": "enforce", "decisions": {}, "results": {}, "snapshot_drift": fg.snapshot_drift(live, snap)}
+        monkeypatch.setattr(fg, "run", lambda a, rep=rep: rep)
+        fg.main(["--out", str(tmp_path)])
+        main_title = "Flag guardrail: " + (tmp_path / "acted.txt").read_text(encoding="utf-8")
+        assert _word_search("P0 cold-start snapshot drift", [{"number": 1, "title": main_title}]) == []

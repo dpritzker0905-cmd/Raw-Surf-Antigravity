@@ -660,14 +660,34 @@ def markdown(report: dict) -> str:
                       + "; ".join(f"{k} {a}/{n}" for k, (a, n) in sorted(rates.items())), ""]
     for c in report.get("ledger_commands", []):
         lines += ["", "Ledger line owed (BRAIN_RULES section 23), for the next session's fragment:", "```", c, "```"]
-    drift = report.get("snapshot_drift") or {}
+    return "\n".join(lines + drift_lines(report.get("snapshot_drift") or {})) + "\n"
+
+
+# The DEDICATED P0 issue (advisor, #1263): its own title, so it is never buried as a comment on an old "Flag guardrail"
+# issue. The three guardrail-family titles stay unmatched by each other's searches: "Flag guardrail", "PHYSICS guard
+# blind" (#1267) and this one (no word "flag" or "guardrail" in it; tests/test_flag_guardrail.py pins that).
+P0_DRIFT_TITLE = "P0 cold-start snapshot drift: commit and deploy the kills snapshot within 24 h"
+
+
+def drift_lines(drift: dict) -> list:
+    """The markdown section for a cold-start snapshot drift ([] when none)."""
+    lines = []
     if drift:
-        lines += ["", "### Cold-start snapshot drift (D-090)", "",
-                  "The committed `backend/services/runtime_flags_snapshot.json` does not hold the live kills. A process "
-                  f"that starts during a manifest outage would LOSE: {', '.join(drift['missing']) or 'none'}; would "
-                  f"wrongly hold: {', '.join(drift['extra']) or 'none'}. Commit this file in a PR to dev:", "",
+        p0 = bool(drift["missing"])
+        lines += ["", f"### {'P0 · ' if p0 else ''}Cold-start snapshot drift (D-090)", ""]
+        if p0:
+            lines += [f"**P0 (advisor condition on #1261, 2026-11-24).** The guardrail killed served-number flag(s) "
+                      f"{', '.join(drift['missing'])}, and the committed snapshot does not hold the kill. A process that "
+                      "starts during a manifest outage would serve the killed fix again.", "",
+                      "- **Deadline: within 24 h of this run**, commit the file below in a one-file PR to `dev` AND have "
+                      "it deployed. Production (Render) deploys from `dev`, and the snapshot protects a cold start only "
+                      "once it is on that branch and live (check `/api/health` `version`).",
+                      "- **While this issue is open, no new served-number fix ships ON.**", ""]
+        lines += [f"Would LOSE on a cold start: {', '.join(drift['missing']) or 'none'}; would wrongly hold: "
+                  f"{', '.join(drift['extra']) or 'none'}. Exact file text for "
+                  "`backend/services/runtime_flags_snapshot.json`:", "",
                   "```json", drift["text"].rstrip("\n"), "```"]
-    return "\n".join(lines) + "\n"
+    return lines
 
 
 def main(argv=None) -> int:
@@ -701,8 +721,14 @@ def main(argv=None) -> int:
               f"{report['decisions'][f]['reason'][:300]}")
     with open(os.path.join(a.out, "acted.txt"), "w", encoding="utf-8") as f:
         # the workflow opens or appends the guardrail issue whenever this is non-empty
-        drift = ["cold-start-snapshot-drift"] if report.get("snapshot_drift") else []
+        d = report.get("snapshot_drift") or {}
+        # tags share NO word with the P0 issue title (its search is word-based); the P0 issue itself is opened separately
+        drift = (["kill-missing-from-committed-floor(see-critical-issue)"] if d.get("missing")
+                 else ["committed-floor-holds-a-cleared-kill"]) if d else []
         f.write(" ".join(acted + [f"{x}(reported-not-disabled)" for x in reported] + drift))
+    if d.get("missing"):                                # the workflow opens ONE dedicated P0 issue from this file
+        with open(os.path.join(a.out, "p0_drift.md"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("\n".join(drift_lines(d)).lstrip("\n") + "\n")
     return 0
 
 

@@ -114,6 +114,27 @@ jobs:
           if [ -n "$n" ]; then gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body-file "$f"
           else gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$f"; fi
 
+      # P0 COLD-START SNAPSHOT DRIFT (advisor condition on #1261, D-090): a served-number kill the committed snapshot lacks gets its
+      # OWN issue (title scripts/flag_guardrail.P0_DRIFT_TITLE, severity:critical, assigned to the owner), opened ONCE, so it is
+      # never buried under an old "Flag guardrail" issue's comments. Deadline in its body: commit AND deploy within 24 h.
+      - name: Open the P0 snapshot-drift issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ vars.REPO_OWNER_LOGIN }}
+        run: |
+          f="$RUNNER_TEMP/guardrail-out/p0_drift.md"
+          [ -f "$f" ] || exit 0
+          title="P0 cold-start snapshot drift: commit and deploy the kills snapshot within 24 h"
+          # in:title search is word-based, so it can also return other issues sharing these words: keep only titles that START
+          # with the P0 prefix (tests/test_flag_guardrail.py runs this exact filter); `// empty` = nothing found.
+          P0_JQ='[.[] | select(.title | startswith("P0 cold-start snapshot drift"))][0].number // empty'
+          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "P0 cold-start snapshot drift in:title" --json number,title --jq "$P0_JQ")"
+          if [ -n "$n" ]; then echo "P0 drift issue #$n already open"; exit 0; fi
+          gh label create "severity:critical" --repo "$GITHUB_REPOSITORY" --color b60205 --description "Page now" --force >/dev/null
+          assignee=(); [ -n "$OWNER" ] && assignee=(--assignee "$OWNER")
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$f" --label "severity:critical" "${assignee[@]}"
+
       - name: Upload the guardrail report
         if: always()
         uses: actions/upload-artifact@v4
