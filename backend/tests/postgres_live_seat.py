@@ -1,5 +1,6 @@
 """PostgreSQL-only qualification, invoked explicitly by the paid-seat CI job."""
 import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -13,7 +14,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.schema import CreateSchema
 
 from database import Base
-from models import LiveSessionParticipant
+from models import LiveSessionParticipant, PaymentTransaction
+from scripts.live_seat_readonly_worker import waiting_count
 from tests.test_live_seat_recovery import check_outcome
 from tests.test_live_session_escrow import seeded_seat_harness
 
@@ -79,3 +81,22 @@ async def test_browser_webhook_sweep_converge(legacy_engine, monkeypatch):
         await conn.exec_driver_sql(MIGRATION.read_text(encoding="utf-8"))
     async with seeded_seat_harness(legacy_engine) as harness:
         await check_outcome(harness, monkeypatch, "race")
+
+
+async def test_readonly_worker_leaves_eligible_checkout_unclaimed(legacy_engine):
+    previous = datetime.now(timezone.utc) - timedelta(hours=1)
+    async with seeded_seat_harness(legacy_engine) as harness:
+        async with harness.maker() as db:
+            transaction = PaymentTransaction(
+                id="readonly-test", user_id="owner", session_id="readonly-checkout",
+                amount=25, transaction_metadata='{"type":"live_session_join"}',
+                created_at=previous, updated_at=previous,
+            )
+            db.add(transaction)
+            await db.commit()
+        async with legacy_engine.begin() as connection:
+            await connection.exec_driver_sql("SET TRANSACTION READ ONLY")
+            assert await connection.run_sync(waiting_count) == 1
+        async with harness.maker() as db:
+            observed = await db.get(PaymentTransaction, "readonly-test")
+            assert (observed.updated_at, observed.payment_status, observed.status) == (previous, "Pending", "Pending")

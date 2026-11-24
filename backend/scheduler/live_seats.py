@@ -2,9 +2,10 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import update
 from database import async_session_maker
 from models import PaymentTransaction
+from services.live_seat_queue import last_checked, needs_recovery, pending_seat_ids
 
 logger = logging.getLogger(__name__)
 
@@ -16,16 +17,8 @@ async def recover_live_seats(maker=async_session_maker):
     tx = PaymentTransaction
     now = datetime.now(timezone.utc)
     stale = now - timedelta(minutes=5)
-    last_checked = func.coalesce(tx.updated_at, tx.created_at, datetime(1970, 1, 1, tzinfo=timezone.utc))
-    eligible = tx.status.is_distinct_from("verification_required") & or_(
-        tx.payment_status.in_(("Pending", "Abandoned")),
-        (tx.payment_status == "Completed") & ~tx.transaction_metadata.contains('"settled_participant_id"'),
-    )
     async with maker() as db:
-        ids = (await db.scalars(select(tx.id).where(
-            eligible, tx.transaction_metadata.contains('"live_session_join"'),
-            last_checked <= stale,
-        ).order_by(last_checked, tx.id).limit(100))).all()
+        ids = (await db.scalars(pending_seat_ids(tx, stale))).all()
 
     failures = 0
     for tx_id in ids:
@@ -34,7 +27,7 @@ async def recover_live_seats(maker=async_session_maker):
                 # Rotate attempted rows to the back even on provider failure. A crash
                 # after this short claim makes the row eligible again in five minutes.
                 claimed = await db.scalar(update(tx).where(
-                    tx.id == tx_id, eligible, last_checked <= stale,
+                    tx.id == tx_id, needs_recovery(tx), last_checked(tx) <= stale,
                 ).values(updated_at=now).returning(tx))
                 if claimed is None:
                     continue
