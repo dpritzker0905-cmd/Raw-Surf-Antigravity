@@ -37,3 +37,18 @@ Evidence: inspection 2026-11-23 finding 4 ("a stuck model run is served with no 
 - **In the browser:** `/map` needs a sign-in against the live backend.
 - **Health:** probed before and after the attempt, 200 both times.
 - **The server field:** it starts with the next Render deploy. Until then the client reads its own manifest.
+
+## Advisor fixes (2026-11-24, before merge)
+
+- **(a) Frozen verdict.** `stale = served.stale === true || ageH > cutoffH`. The server's verdict is frozen when
+  `/capabilities` loads, while the age is recomputed, so an open page now turns stale as the hours pass. The test case:
+  a verdict of stale false with a cycle 25 h old shows stale and the chip.
+- **(b) Memo key.** The backend memo holds the manifest OBJECT and compares with `is`; `id()` could be reused by a later
+  manifest at a freed address.
+- **Client fallback.** It reads GLOBAL products only (`latestGlobalRunMs`), the same rule as the server. A newer regional
+  tile never stands in for the world run.
+- **What `run_age` is.** It is the NEWEST global cycle in the manifest for that model and layer, not necessarily the
+  cycle of the frame drawn at this hour. The drawn frame's own run keeps its existing "from an older run" words.
+- **EURO.** It shows a label only where a global EURO product with a verified cycle exists. Where only regional tiles
+  carry a layer, server and client both give no label, never a regional stand-in. `/api/health/data` lists EURO/marine
+  as a global lane. The advisor expects EURO to fall back to the client reading; check it in the browser after deploy.

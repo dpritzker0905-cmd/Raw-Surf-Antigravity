@@ -81,3 +81,18 @@ def test_capabilities_carry_run_age_on_every_row(monkeypatch):
     gfs = next(r for r in rows if r["model"] == "GFS" and r["domain"] == "marine" and r["layer"] == "waves")
     assert gfs["run_age"]["cycle"] == "2026-11-23T12:00:00Z" and gfs["run_age"]["cutoff_h"] == 18.0
     caps.validate_capabilities_contract(rows)                                  # the contract still holds
+
+
+def test_the_memo_is_keyed_on_the_object_not_its_address(monkeypatch):
+    """Advisor (#1268): id() of a freed manifest can be reused by the next one, which would serve stale cycles. The memo
+    holds the object; a NEW manifest object (even one Python puts at the same address) is always recomputed."""
+    calls = []
+    real = ra.newest_cycles
+    monkeypatch.setattr(ra, "newest_cycles", lambda products: calls.append(1) or real(products))
+    m1 = SimpleNamespace(products=[_p(cycle="2026-11-23T00:00:00Z")])
+    assert ra._cached_newest(m1)[("GFS", "marine", "waves")]["cycle"].hour == 0
+    assert ra._cached_newest(m1) and len(calls) == 1                               # same object: memo hit
+    monkeypatch.setattr(ra, "id", lambda o: 42, raising=False)                     # even if every address collided
+    m2 = SimpleNamespace(products=[_p(cycle="2026-11-23T12:00:00Z")])
+    assert ra._cached_newest(m2)[("GFS", "marine", "waves")]["cycle"].hour == 12   # recomputed, the new cycle
+    assert len(calls) == 2 and ra._memo["manifest"] is m2

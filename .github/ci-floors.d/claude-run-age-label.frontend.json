@@ -1,6 +1,6 @@
 {
   "lane": "frontend",
-  "tests": 9,
+  "tests": 11,
   "files": 1,
   "branch": "claude/run-age-label",
   "date": "2026-11-24",

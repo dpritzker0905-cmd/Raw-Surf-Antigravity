@@ -7,12 +7,34 @@
  * ONE SOURCE: the server's verdict first, the `run_age` field /api/weather/capabilities carries on every row
  * (backend/services/weather_pipeline/run_age.py: the newest VERIFIED cycle, its age, the cutoff, stale or not). If the server does
  * not send it (older backend, RUN_AGE_SERVE=0), the client reads the newest verified cycle in its cached manifest
- * (marineDrawnFrame.latestKnownRunMs) against the SAME cutoffs. That fallback is labelled as the client's own reading.
+ * (latestGlobalRunMs below: GLOBAL products only, as the server) against the SAME cutoffs. That fallback is labelled as the client's own reading.
  * Used by RunAgeLabel.js (the line under the timeline), StaleLayerChip.js (a stale run on the collapsed phone header) and the
  * collapsed header's time button. Kill: window.__RAW_DISABLE_RUN_AGE_LABEL__ = true (all three).
  */
-import { latestKnownRunMs } from './marineDrawnFrame';
+import { getCachedManifest } from './backendWeatherServiceClientCoverage';
 import { formatRunLocal } from './readoutDateFormat';
+
+/** The client fallback: the newest VERIFIED cycle among the cached manifest's GLOBAL products for {model, layer}, the same
+ * rule as the server (run_age.py), so a regional pilot tile never stands in for the world run. One scan per manifest+key. */
+const _globalRun = new WeakMap();
+export function latestGlobalRunMs(model, layer) {
+  const manifest = getCachedManifest();
+  if (!manifest || !Array.isArray(manifest.products) || !model || !layer) return null;
+  let byKey = _globalRun.get(manifest);
+  if (!byKey) { byKey = new Map(); _globalRun.set(manifest, byKey); }
+  const m = String(model).toUpperCase();
+  const key = `${m}|${layer}`;
+  if (byKey.has(key)) return byKey.get(key);
+  let best = null;
+  for (const p of manifest.products) {
+    if (!p || String(p.model || '').toUpperCase() !== m || p.layer !== layer || p.model_run_time_status !== 'known') continue;
+    if (!String(p.region_id || '').startsWith('global') && p.coverage_mode !== 'global_tile') continue;
+    const ms = Date.parse(p.model_run_time || '');
+    if (Number.isFinite(ms) && (best == null || ms > best)) best = ms;
+  }
+  byKey.set(key, best);
+  return best;
+}
 
 export const CUTOFF_H = { GFS: 18, EURO: 30, ICON: 30, ECMWF_ENS: 30, CMEMS: 48 };   // = run_age.CUTOFF_H (pinned by test)
 const DEFAULT_CUTOFF_H = 30;
@@ -48,14 +70,16 @@ export function readRunAge({ model, layer, nowMs = Date.now() } = {}) {
     source = served.source || null;
     by = 'server';
   } else {
-    cycleMs = latestKnownRunMs(m, layer);
+    cycleMs = latestGlobalRunMs(m, layer);
     cutoffH = CUTOFF_H[m] || DEFAULT_CUTOFF_H;
     by = 'client';
   }
   if (!Number.isFinite(cycleMs)) return null;
   if (!Number.isFinite(cutoffH)) cutoffH = CUTOFF_H[m] || DEFAULT_CUTOFF_H;
   const ageH = Math.max(0, Math.round((nowMs - cycleMs) / HOUR_MS));
-  const stale = by === 'server' && typeof served.stale === 'boolean' ? served.stale : ageH > cutoffH;
+  // The server's verdict is frozen when /capabilities loads, while the age is recomputed now: an open page must still turn
+  // stale as the hours pass (advisor, #1268). So stale = the server said so OR the age now is past the cutoff.
+  const stale = (served && served.stale === true) || ageH > cutoffH;
   const when = formatRunLocal(cycleMs);
   const text = `${m} model run ${when ? `${when} (${utcHour(cycleMs)})` : utcHour(cycleMs)}, ${ageH} h old`
     + (stale ? `, older than ${cutoffH} h: newer runs have not arrived` : '')

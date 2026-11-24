@@ -26,7 +26,7 @@ CUTOFF_H = {"GFS": 18.0, "EURO": 30.0, "ICON": 30.0, "ECMWF_ENS": 30.0, "CMEMS":
 DEFAULT_CUTOFF_H = 30.0
 
 _lock = threading.Lock()
-_memo: Dict[str, object] = {"manifest_id": None, "newest": {}}
+_memo: Dict[str, object] = {"manifest": None, "newest": {}}   # holds the OBJECT: compared with `is`, never by id()
 
 
 def enabled() -> bool:
@@ -86,13 +86,15 @@ def describe(entry: Optional[dict], model: str, now: datetime) -> Optional[dict]
 
 
 def _cached_newest(manifest) -> Dict[Tuple[str, str, str], dict]:
-    """newest_cycles, recomputed only when the manifest OBJECT changes (ProductStore caches it by file mtime)."""
+    """newest_cycles, recomputed only when the manifest OBJECT changes (ProductStore caches it by file mtime). The memo
+    holds a strong reference and compares with `is`: an id() key could match a LATER manifest allocated at a freed
+    address and serve its predecessor's cycles (advisor, #1268)."""
     with _lock:
-        if _memo["manifest_id"] == id(manifest):
+        if _memo["manifest"] is manifest:
             return _memo["newest"]    # type: ignore[return-value]
     newest = newest_cycles(getattr(manifest, "products", None) or [])
     with _lock:
-        _memo["manifest_id"], _memo["newest"] = id(manifest), newest
+        _memo["manifest"], _memo["newest"] = manifest, newest
     return newest
 
 
@@ -117,4 +119,4 @@ def run_age_for_rows(rows, manifest=None, now: Optional[datetime] = None):
 
 def _reset_for_tests() -> None:
     with _lock:
-        _memo.update({"manifest_id": None, "newest": {}})
+        _memo.update({"manifest": None, "newest": {}})
