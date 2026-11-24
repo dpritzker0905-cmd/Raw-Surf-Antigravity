@@ -67,6 +67,11 @@ if HERE not in sys.path:
 
 from services import runtime_flags as _rf  # noqa: E402
 from services.weather_pipeline import guardrail_stats as gs  # noqa: E402
+import flag_guardrail_physics as _phys  # noqa: E402  (the PHYSICS guard, Plan 4; split out at the 800-line cap)
+from flag_guardrail_physics import (  # noqa: E402,F401  (re-exported: callers and tests use flag_guardrail.<name>)
+    PHYSICS, PHYSICS_BLIND_KEY, PHYSICS_BLIND_RUNS, PHYSICS_ON_KEY, PHYSICS_RAILS, physics_read, physics_result,
+    write_guard_files,
+)
 
 ROLLING_DAYS = 14
 SETTLE_H = 24
@@ -90,6 +95,8 @@ REPLAY, RATING, VOLUME, BLIND, LEDGER = "replay", "rating", "volume", "blind", "
 # Every GUARDED flag (and the ones open PRs add) with what can see it. Flags in eval_replay.UNREPLAYABLE are BLIND
 # automatically (their reason is the replay's own). Pre-declared names cost nothing until they are guarded.
 COVERAGE = {
+    "GFS_PARTITION_MASKED_AS_ZERO": (PHYSICS, "the frame physics check's R1 / R2 on the GFS world partition frames this "
+                                              "flag's ingest published (PHYSICS_RAILS); the replay archives no partitions"),
     "SAMPLER_UNRESOLVED_STATIONS": (BLIND, "one named buoy coordinate (NDBC 46267); no surf spot is within 0.6 deg, so "
                                            "the replay cannot exercise it. Evidence: the per-buoy split's no-served-row "
                                            "count (accuracy_per_buoy_split.unanswered)"),
@@ -264,8 +271,8 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
                 new_shadow["verdicts"] = list(shadow.get("verdicts") or []) + [verdict]
                 if evidence:
                     new_shadow["run_urls"] = list(shadow.get("run_urls") or []) + [evidence]
-                # LEDGER and BLIND: external evidence; only the owner decides when to re-enable
-                if cov in (LEDGER, BLIND):
+                # LEDGER, BLIND and PHYSICS (its check reads only frames built with the flag ON): the owner re-enables
+                if cov in (LEDGER, BLIND, PHYSICS):
                     new_e = dict(e, shadow=new_shadow)
                     return {"action": "hold", "entry": new_e,
                             "reason": f"shadow: {flag} is {cov}; evidence is external — owner decides when to re-enable"}
@@ -313,6 +320,8 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
     if not effective_on(flag, manifest):
         return {"action": "none", "reason": "not ON (code default off, no manifest entry): nothing to watch"}
     breach = result.get("sanity") or []
+    if _phys.untestable_keeps_strikes(result, breach):    # a PHYSICS UNTESTABLE keeps the strike counter (advisor, #1267)
+        return _phys.untestable_decision(flag, result, manifest)
     if result.get("verdict") == gs.WORSE and not breach:
         w = (manifest.get("watch") or {}).get(flag) or {}
         first = w.get("first_worse_at") or iso(now)
@@ -354,6 +363,8 @@ def next_watch(watch: dict, flag: str, d: dict) -> dict:
     out = dict(watch)
     if d["action"] == "strike":
         out[flag] = d["watch"]
+    elif d.get("keep_watch"):                # a PHYSICS UNTESTABLE: the count survives until a judged run
+        out[flag] = d["keep_watch"]
     else:
         out.pop(flag, None)
     return out
@@ -514,7 +525,7 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
               "leads": "24,48,72", "step_h": 12, "cache_dir": cache_dir, "max_range_downloads": 900,
               "max_bytes": 3_000_000_000}
     results = {}
-    seen = [f for f in flags if (coverage(f) or (REPLAY, ""))[0] not in (BLIND, LEDGER)]
+    seen = [f for f in flags if (coverage(f) or (REPLAY, ""))[0] not in (BLIND, LEDGER, PHYSICS)]
     led = None
     try:                                     # once per run; also carries CONSENSUS_SERVE's readiness cells for the report
         led = (ledger or ledger_report)(now)
@@ -536,6 +547,8 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
             r = {"verdict": LEDGER_VERDICT.get((v or {}).get("state"), gs.UNTESTABLE),
                  "reasons": (v or {}).get("why") or [f"ledger {(v or {}).get('state') or 'unavailable'}: {why}"],
                  "ledger_state": (v or {}).get("state")}
+        elif cls == PHYSICS:            # judged in run() on the physics check (physics_result); never replayed
+            r = {"verdict": gs.UNTESTABLE, "reasons": [f"PHYSICS: {why}"], "sanity": []}
         elif cls == BLIND:
             # Never replay a blind flag: it would run as the baseline and read NO_CHANGE. The sanity sweep still runs.
             r = dof.evaluate(f, None) if replay is None else replay(f, None)
@@ -552,7 +565,7 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
     return results
 
 
-def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) -> dict:
+def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None, physics=None) -> dict:
     now = now or utc_now()
     enforce = args.enforce == "1"
     manifest = manifest if manifest is not None else read_manifest(getattr(args, "allow_missing_manifest", False))
@@ -596,6 +609,9 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
                     r["reasons"] = list(r.get("reasons") or []) + [
                         f"REPORT-ONLY until released ({LEDGER_RELEASE_ENV}=1 after the research lead's READ of a real run; "
                         f"runs with a real verdict so far: {seen_real}): a FIRE is printed, not a strike"]
+    watch, on_since = _phys.track_on_since(watch, [f for f in PHYSICS_RAILS if f in _rf.GUARDED and effective_on(f, manifest)],
+                                           iso(now))
+    results, watch, guard_blind, guard_judged = _phys.physics_pass(results, watch, on_since, physics)
     decisions, new = {}, manifest
     for f in watched:
         d = decide(f, results.get(f, {"verdict": "UNTESTABLE", "reasons": ["not scored (held off)"]}),
@@ -611,6 +627,7 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
     changed = new != manifest
     report = {"mode": "enforce" if enforce else "dry-run", "generated_utc": iso(now), "decisions": decisions,
               "results": results, "changed": changed, "watch": watch, "ledger": ledger, "plant_rates": plant_rates,
+              "guard_blind": guard_blind, "guard_judged": guard_judged,
               "ledger_commands": [ledger_command(f, d, args.run_url) for f, d in decisions.items()
                                   if d["action"] == "disable"]}
     if enforce and changed:
@@ -647,6 +664,8 @@ def markdown(report: dict) -> str:
             lines.append(f"| `{f}` | {(r['quantities'].get('hs_station') or {}).get('verdict')} | "
                          f"{(r['quantities'].get('hb_proxy') or {}).get('verdict')} | n {c.get('n')}, score moved "
                          f"{c.get('score_changed')}, level moved {c.get('level_changed')} |")
+    for line in report.get("guard_blind") or []:
+        lines += ["", f"**{line}** (reported only; blindness never disables a flag)"]
     blind = [f for f, r in sorted(results.items()) if r.get("coverage") == BLIND]
     if blind:
         lines += ["", f"BLIND to the replay (no evidence can turn these off here; sanity and the owner can): "
@@ -729,6 +748,7 @@ def main(argv=None) -> int:
     if d.get("missing"):                                # the workflow opens ONE dedicated P0 issue from this file
         with open(os.path.join(a.out, "p0_drift.md"), "w", encoding="utf-8", newline="\n") as f:
             f.write("\n".join(drift_lines(d)).lstrip("\n") + "\n")
+    write_guard_files(a.out, report)
     return 0
 
 

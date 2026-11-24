@@ -177,7 +177,7 @@ def energy_mean_direction_block(dir_arr, h_arr, r: int, c: int, half: int, wrap_
 
 
 def energy_mean_direction_block_partition_conf(dir_arr, h_arr, r: int, c: int, half: int,
-                                               wrap_cols: bool):
+                                               wrap_cols: bool, support: str = "finite"):
     """A PARTITION's block direction plus an honest confidence — ``(direction_deg, conf)``.
 
     ⚠️⚠️ WHY A PARTITION NEEDS ITS OWN CONFIDENCE, DIFFERENT FROM THE TOTAL'S (2026-07-31, measured).
@@ -210,8 +210,9 @@ def energy_mean_direction_block_partition_conf(dir_arr, h_arr, r: int, c: int, h
         max(0, c - half), min(ncols, c + half))
     d = dir_arr[r0:r1][:, cols_idx]
     h = h_arr[r0:r1][:, cols_idx]
-    finite = np.isfinite(d) & np.isfinite(h)
-    ok = finite & (h > 0.0)
+    ok = np.isfinite(d) & np.isfinite(h) & (h > 0.0)
+    # support "height" (_fetch_partition_mask, Fix B): the denominator counts every subcell with a height, zero-filled ones too
+    finite = np.isfinite(h) if support == "height" else (np.isfinite(d) & np.isfinite(h))
     n_finite = int(np.count_nonzero(finite))
     if not ok.any():
         x = dir_arr[r, c]

@@ -114,12 +114,17 @@ GUARDED = {
                                          # the open-Pacific cell 0.96 deg away (+1.5 m). Nothing else moves; kill '0'.
                                          # GUARDRAIL BLIND: no surf spot is within 0.6 deg, so the replay reads NO_CHANGE.
                                          # The monitor improves because the station's rows LEAVE the score
+    "GFS_PARTITION_MASKED_AS_ZERO": "1",  # Plan 4 (2026-11-24): a MASKED GFS-Wave partition subcell is zero energy where
+                                         # the total is valid (_fetch_partition_mask). ON by the owner's word "Ship ON with
+                                         # guard (Recommended)"; guard = the physics check's R1/R2 (flag_guardrail PHYSICS).
+                                         # Resolved in the PARENT and passed in the fetcher payload; kill '0'
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it
 # judged; a new version clears that 'off' so the changed fix runs and is judged afresh (the no-flap rule's only
 # automatic way back on; the other is the owner's word).
 FIX_VERSION = {name: "2026-11-04" for name in GUARDED}
+FIX_VERSION["GFS_PARTITION_MASKED_AS_ZERO"] = "2026-11-24"
 
 _lock = threading.Lock()
 _cache: Dict[str, object] = {"flags": None, "read_at": 0.0, "good_at": 0.0, "refreshing": False, "error": None}
