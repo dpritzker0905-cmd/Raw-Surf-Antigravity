@@ -694,6 +694,8 @@ def cmd_october(s, cache):
     os.makedirs(d, exist_ok=True)
     h, got = hashlib.sha256(), 0
     for c in st["ndbc"]:
+        if buoy_holdout.is_locked(c["id"]):                 # "minus LOCKED", enforced here, not only at the station freeze
+            continue
         p = os.path.join(d, f"{c['id']}.txt")
         if not os.path.exists(p):
             r = obs._get(s, f"{obs.NDBC}/data/stdmet/Oct/{c['id'].upper()}.txt", tries=3)
