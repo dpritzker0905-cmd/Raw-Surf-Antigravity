@@ -527,3 +527,24 @@ and nothing ships with a caveat. A new gate tests hybrid D: the NOAA sheet withi
 **Advisory review, public context only:** SubQ and Reflection answered; the gate's §8 records what was adopted and why.
 Both flagged the pooled primary masking a stratum, and HARKing. LongCat's request was built (preview `payload_sha256`
 5b5a833d…) but NOT sent, because its tool requires the user's own approval of that hash.
+
+## 2026-11-24 15:20Z: datum gate v2 dispatched (owner's word); finder control committed BEFORE the artifact
+
+**Dispatch.** The owner answered "Yes, tag and run (Recommended)" to "Tag and run it?" in the director session, at
+about 15:05Z. The director pushed the annotated tag `tide-datum-parity-v2-1` on #1171's `1d92f7564` at 15:05:44Z. It
+cites #1270's §§9–11 as fixed at `689cddc33`.
+- The run is 45421486227 (`tide-mllw-parity.yml`).
+- Ledger: dispatch `:7`; commitment `:8`, due 2026-11-25T00:00Z: score once and record the verdict.
+- The advisor's limits: L1, the tag cites #1270 at `689cddc33`; L2, score strictly, with NO re-run; L3, #1171 stays
+  held with #1149.
+
+**What the run reads.** NOAA CO-OPS PREDICTIONS only: High/Low on MLLW, plus `harcon.json` for SA/SSA. It reads no
+measured water level and no `hourly_height`, confirmed in the tagged code. Harmonic predictions for 2026-12-01..08 are
+already published, so the earliest valid run date is 2026-11-24, as the gate's §3 says. No window observation exists
+or is read.
+
+**Finder control (§5), committed before the artifact is opened.** `finder_check.py --stations` at the tagged
+`1d92f7564`, window 2026-12-01 → 12-08, all 50 scored stations (deciding plus 5 reserves per stratum).
+- Hourly, as served: the largest per-station median |h| is **0.0043 m** (limit 0.01); none over.
+- Every station had NOAA events; the largest median |t| is 10.1 min (timing is reported, not judged here).
+- `research/tide-datum-parity-v2-finder-2026-12-01.json`.
