@@ -23,3 +23,9 @@ CREDITS = {
            f"Licence: {FES_LICENCE}"),
     "cmems": f"{CMEMS_CREDIT} (Global Ocean Physics Analysis and Forecast, https://doi.org/10.48670/moi-00016).",
 }
+# am_h (gates/tide-a-harcon-v1.md s2, served only under SURF_TIDE_A_HARCON): near a NOAA CO-OPS harmonic station the
+# astronomical tide comes from NOAA's published harmonic constants (a US Government work, public domain, 17 U.S.C. 105),
+# blended into FES2022b, so both credits are carried.
+NOAA_HARCON_CREDIT = ("Astronomical tide near NOAA stations: NOAA National Ocean Service, Center for Operational "
+                      "Oceanographic Products and Services (CO-OPS), harmonic constituents (public domain)")
+CREDITS["am_h"] = f"{NOAA_HARCON_CREDIT}; blended with: {CREDITS['am']}"

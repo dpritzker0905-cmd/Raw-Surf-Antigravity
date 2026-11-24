@@ -91,12 +91,19 @@ def main(argv=None):
     ap.add_argument("--days", type=int, default=7)
     ap.add_argument("--json")
     ap.add_argument("--all26", action="store_true", help="all 26 parity gauges (own_rules.G3T_M)")
+    ap.add_argument("--stations", help="tide-datum-parity-v2: the frozen held-out JSON (deciding + 5 reserves)")
     a = ap.parse_args(argv)
     gauges = GAUGES
     if a.all26:
         sys.path.insert(0, str(HERE.parent / "tide_own"))
         from own_rules import G3T_M
         gauges = {sid: sid for sid in G3T_M}
+    if a.stations:
+        held = json.loads(Path(a.stations).read_text(encoding="utf-8"))
+        gauges = {}
+        for k, s in held["strata"].items():
+            for sid in s["deciding"] + s["reserve"][:5]:
+                gauges[sid] = f"{sid} ({k})"
     day0 = datetime.fromisoformat(a.start).replace(tzinfo=timezone.utc)
     stop = day0 + timedelta(days=a.days)
     lo, hi = day0 - timedelta(hours=6), stop + timedelta(hours=6)

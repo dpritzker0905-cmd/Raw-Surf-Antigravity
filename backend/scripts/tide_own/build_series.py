@@ -258,6 +258,8 @@ def main():
     work = Path(args.work)
     work.mkdir(parents=True, exist_ok=True)
     spots = json.loads(Path(args.spots).read_text(encoding="utf-8"))
+    import harcon_arm as HA                                      # am_h (tide-a-harcon-v1 s2) + the TIDE guard's keys
+    spots = list(spots) + HA.monitor_spots()
     keys_pts = OR.keys_from_spots(spots)
     log(f"{len(spots)} spots -> {len(keys_pts)} keys")
 
@@ -279,7 +281,7 @@ def main():
         subset_wrapped(path, name, keys_pts, boxes, scratch)
     start, hours = OR.window(now)
     times = arms.to_np([start + timedelta(hours=i) for i in range(hours)])
-    out_keys, n_a = {}, 0
+    out_keys, n_a, a_by_key = {}, 0, {}
     for k, (la, lo) in keys_pts.items():
         a = None
         if (boxes / OR.safe_dir(k)).exists():
@@ -288,11 +290,27 @@ def main():
             except Exception as e:                                               # noqa: BLE001 - per key
                 log(f"{k}: FES failed ({type(e).__name__})")
         n_a += a is not None
+        a_by_key[k] = a
         out_keys[k] = OR.levels_mm(a, (m_cache.get(k) or {}).get("m"))
     n_d = compute_d(keys_pts, m_cache, boxes, args.d_budget_min * 60.0)
     mc_path.write_text(json.dumps(m_cache, sort_keys=True), encoding="utf-8")
     log(f"MLLW (NTDE): {n_d} computed this run; {sum('d_ntde' in v for v in m_cache.values())} keys have it")
     doc = OR.table(now, start, hours, out_keys, m_cache)
+    harcon_cache = {}
+
+    def harcon(sid):
+        if sid not in harcon_cache:
+            try:
+                harcon_cache[sid] = S.coops_harcon(sid)
+            except Exception as e:                                               # noqa: BLE001 - per donor
+                log(f"harcon {sid}: {type(e).__name__}")
+                harcon_cache[sid] = []
+        return harcon_cache[sid]
+    am_h, am_h_meta = HA.build_am_h(keys_pts, a_by_key, {k: (m_cache.get(k) or {}).get("m") for k in keys_pts},
+                                    HA.universe(), harcon, arms.harcon_eval, times, OR.levels_mm)
+    doc["am_h"] = {k: v for k, v in am_h.items() if k in doc["keys"] and v and any(x is not None for x in v)}
+    doc["am_h_donors"] = {k: am_h_meta[k] for k in doc["am_h"]}
+    log(f"am_h (NOAA harcon blend) at {len(doc['am_h'])} keys from {len(harcon_cache)} donor stations")
     if args.cmems == "1":
         doc["cmems"] = cmems_fill(keys_pts, start, hours, work / "cmems", now)
         doc["cmems_dataset"] = OR.CMEMS_DATASET

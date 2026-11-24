@@ -217,6 +217,8 @@ def encode_table(doc):
     out["keys"] = {k: encode_i16(v) for k, v in doc.get("keys", {}).items()}
     if "cmems" in doc:
         out["cmems"] = {k: encode_i16(v) for k, v in doc["cmems"].items()}
+    if "am_h" in doc:                               # the harcon arm (tide-a-harcon-v1 s2), same compact form
+        out["am_h"] = {k: encode_i16(v) for k, v in doc["am_h"].items()}
     out["encoding"] = "i16le-base64"
     out["credits"] = dict(CREDITS)                  # the attribution is STORED with every table (advisor, PR B (b))
     return out
@@ -235,6 +237,9 @@ CREDITS = {
            f"Licence: {_FES_LICENCE}"),
     "cmems": f"{_CMEMS_CREDIT} (Global Ocean Physics Analysis and Forecast, https://doi.org/10.48670/moi-00016).",
 }
+_NOAA_HARCON_CREDIT = ("Astronomical tide near NOAA stations: NOAA National Ocean Service, Center for Operational "
+                       "Oceanographic Products and Services (CO-OPS), harmonic constituents (public domain)")
+CREDITS["am_h"] = f"{_NOAA_HARCON_CREDIT}; blended with: {CREDITS['am']}"
 
 
 def utc(*a):
