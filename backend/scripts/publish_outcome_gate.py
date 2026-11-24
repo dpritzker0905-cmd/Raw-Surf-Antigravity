@@ -15,10 +15,21 @@ import os
 import sys
 
 
+# REPORT-ONLY steps (advisor, 2026-11-24, merge order #1265 -> #1228 -> #1264): a masked failure of these WARNS and never
+# turns the run red. `budget` is #1228's job time-left gate (its failure means "could not measure", the raster steps then run
+# as before); `frame_physics` is #1264's physics check (report-only by design). Every continue-on-error step still needs an id.
+REPORT_ONLY_STEP_IDS = frozenset({"budget", "frame_physics"})
+
+
 def masked_failures(steps: dict) -> list:
     """Step ids whose outcome is failure while their conclusion is success (continue-on-error masked it). PURE."""
     return sorted(k for k, v in (steps or {}).items()
                   if isinstance(v, dict) and v.get("outcome") == "failure" and v.get("conclusion") == "success")
+
+
+def split(masked: list) -> tuple:
+    """(publish failures that turn the run red, report-only failures that only warn). PURE."""
+    return [k for k in masked if k not in REPORT_ONLY_STEP_IDS], [k for k in masked if k in REPORT_ONLY_STEP_IDS]
 
 
 def main(env=None) -> int:
@@ -28,9 +39,11 @@ def main(env=None) -> int:
     except ValueError:
         print("::warning title=No fail-green::STEPS_JSON unreadable; masked publish failures not checked")
         return 0
-    bad = masked_failures(steps)
+    bad, warn_only = split(masked_failures(steps))
+    for k in warn_only:
+        print(f"::warning title=Report-only step failed::step '{k}' failed; it is report-only, the run stays green")
     if not bad:
-        print(f"No masked failures among {len(steps)} id'd steps.")
+        print(f"No masked publish failures among {len(steps)} id'd steps.")
         return 0
     level = "warning" if env.get("REPORT_ONLY") == "1" else "error"
     for k in bad:

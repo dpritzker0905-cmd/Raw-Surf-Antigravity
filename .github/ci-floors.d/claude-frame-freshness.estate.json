@@ -1,6 +1,6 @@
 {
   "lane": "estate",
-  "tests": 9,
+  "tests": 10,
   "branch": "claude/frame-freshness",
   "date": "2026-11-24",
   "note": "no fail-green gate + frame-set freshness (test_publish_outcome_gate)"

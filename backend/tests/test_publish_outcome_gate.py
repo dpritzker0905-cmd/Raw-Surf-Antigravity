@@ -41,21 +41,57 @@ def test_the_gate_fails_red_and_report_only_warns(capsys):
     assert gate.main({"STEPS_JSON": "{not json"}) == 0                  # an unreadable context never fails the run
 
 
+def test_report_only_steps_warn_and_never_turn_the_run_red(capsys):
+    """#1228's `budget` gate and #1264's `frame_physics` check are report-only (advisor, 2026-11-24)."""
+    assert gate.REPORT_ONLY_STEP_IDS == {"budget", "frame_physics"}
+    js = json.dumps({s: {"outcome": "failure", "conclusion": "success"} for s in ("budget", "frame_physics")})
+    assert gate.main({"STEPS_JSON": js}) == 0
+    out = capsys.readouterr().out
+    assert "::warning title=Report-only step failed::step 'budget'" in out and "::error" not in out
+    both = json.dumps({"budget": {"outcome": "failure", "conclusion": "success"},
+                       "rated_publish": {"outcome": "failure", "conclusion": "success"}})
+    assert gate.main({"STEPS_JSON": both}) == 1                          # a publish failure still turns it red
+
+
+def _gate_index(steps):
+    return next(i for i, s in enumerate(steps) if s.get("name", "").startswith("No fail-green"))
+
+
 @pytest.mark.parametrize("wf,job", JOBS)
 def test_every_continue_on_error_step_is_visible_to_the_gate(wf, job):
     steps = yaml.safe_load((WF / wf).read_text(encoding="utf-8"))["jobs"][job]["steps"]
     coe = [s["name"] for s in steps if s.get("continue-on-error") and "id" not in s]
     assert not coe, f"{wf}: continue-on-error steps without an id (the gate cannot see them): {coe}"
-    last = steps[-1]
-    assert last["name"].startswith("No fail-green") and last["if"] == "${{ !cancelled() }}"
-    assert last["env"]["STEPS_JSON"] == "${{ toJSON(steps) }}" and "publish_outcome_gate.py" in last["run"]
-    assert set(last["env"]) == {"STEPS_JSON", "REPORT_ONLY"}
+    g = _gate_index(steps)
+    gate_step = steps[g]
+    assert gate_step["if"] == "${{ !cancelled() }}"
+    assert gate_step["env"]["STEPS_JSON"] == "${{ toJSON(steps) }}" and "publish_outcome_gate.py" in gate_step["run"]
+    assert set(gate_step["env"]) == {"STEPS_JSON", "REPORT_ONLY"}
+    # the gate runs AFTER every publish (continue-on-error, not report-only) step; report-only steps may follow it
+    late = [s["id"] for s in steps[g + 1:] if s.get("continue-on-error") and s["id"] not in gate.REPORT_ONLY_STEP_IDS]
+    assert not late, f"{wf}: publish steps after the gate (it cannot see their outcome): {late}"
+
+
+# The only step outputs allowed in these jobs (toJSON(steps) lands in a PUBLIC log): #1228's budget gate, exactly these.
+ALLOWED_OUTPUTS = {"budget": {"go", "elapsed_min", "remaining_min"}}
 
 
 @pytest.mark.parametrize("wf,job", JOBS)
-def test_no_step_writes_outputs_so_the_steps_context_holds_only_outcomes(wf, job):
-    """toJSON(steps) lands in a PUBLIC log; with no step outputs it is ids, outcomes and conclusions only."""
-    assert "GITHUB_OUTPUT" not in (WF / wf).read_text(encoding="utf-8")
+def test_only_the_budget_step_writes_outputs_and_only_its_three(wf, job):
+    """toJSON(steps) lands in a PUBLIC log: ids, outcomes and conclusions, plus only the budget gate's three numbers."""
+    import re
+    steps = yaml.safe_load((WF / wf).read_text(encoding="utf-8"))["jobs"][job]["steps"]
+    for s in steps:
+        run = s.get("run") or ""
+        sources = [run] + [(HERE.parents[1] / "backend" / m).read_text(encoding="utf-8")
+                           for m in re.findall(r"(scripts/[\w./-]+\.py)", run) if (HERE.parents[1] / "backend" / m).exists()]
+        writes = any("GITHUB_OUTPUT" in src for src in sources)
+        if not writes:
+            continue
+        assert s.get("id") in ALLOWED_OUTPUTS, f"{wf}: step {s.get('name')!r} writes step outputs"
+        text = "\n".join(sources)
+        for name in ALLOWED_OUTPUTS[s["id"]]:
+            assert name in text, f"budget output {name} missing"
 
 
 NOW = datetime(2026, 11, 24, 3, 10, tzinfo=timezone.utc)
