@@ -45,7 +45,9 @@ def test_scorer_and_storage_are_standard_library_only(name):
         tree = ast.parse(open(os.path.join(SCRIPTS, "..", "services", "buoy_holdout.py"), encoding="utf-8").read())
         mods = {a.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
         mods |= {(n.module or "").split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
-        assert mods <= {"__future__", "hashlib", "json", "os", "re", "sys", "pathlib"}, mods
+        # urllib: standard library, used ONLY for urllib.parse.unquote in allow_url (percent-decoding, #1257); still no
+        # third-party package (no requests, no httpx), so `python3 -I -S` keeps working
+        assert mods <= {"__future__", "hashlib", "json", "os", "re", "sys", "pathlib", "urllib"}, mods
 
 
 # ------------------------------------------------------------------------------------------------ collector parsing

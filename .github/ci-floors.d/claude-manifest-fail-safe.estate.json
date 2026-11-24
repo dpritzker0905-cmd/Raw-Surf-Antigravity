@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 15,
+  "branch": "claude/manifest-fail-safe",
+  "date": "2026-11-24",
+  "note": "D-090 manifest fail-safe: non-200 = unknown, committed kills floor (test_runtime_flags)"
+}

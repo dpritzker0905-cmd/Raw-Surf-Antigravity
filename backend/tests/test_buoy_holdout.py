@@ -148,6 +148,11 @@ def test_verified_list_locks_ids_and_aliases(root):
     ("https://www.ndbc.noaa.gov/data/realtime2/46025.txt", True),
     ("https://www.ndbc.noaa.gov/data/realtime2/146225.txt", True),     # a longer id is not the locked one
     ("https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/realtime/1001p1_rt.nc", True),
+    # ERDDAP quotes the id, and clients percent-encode the quotes (once, or twice through a proxy): decoded first
+    ("https://coastwatch.pfeg.noaa.gov/erddap/tabledap/cwwcNDBCMet.csv?station,time,wvht&station=%2246225%22", False),
+    ("https://coastwatch.pfeg.noaa.gov/erddap/tabledap/cwwcNDBCMet.csv?station%2Ctime&station%3D%252246225%2522", False),
+    ('https://coastwatch.pfeg.noaa.gov/erddap/tabledap/cwwcNDBCMet.csv?station,time&station="46225"', False),
+    ("https://coastwatch.pfeg.noaa.gov/erddap/tabledap/cwwcNDBCMet.csv?station,time&station=%2246025%22", True),
 ])
 def test_allow_url_refuses_every_shape_naming_a_locked_station(root, url, ok):
     _root(root, locked=["100"])
@@ -231,3 +236,38 @@ def test_strict_scorer_wrapper_uses_the_same_verification(root):
 
 def test_collectors_are_declared_not_silent():
     assert bh.declare_collector("x.y", "archives raw truth") == "archives raw truth"
+
+
+def _encode(text, times):
+    from urllib.parse import quote
+    for _ in range(times):
+        text = quote(text, safe="")
+    return text
+
+
+@pytest.mark.parametrize("times", [1, 2, 3, 4, 5])
+def test_allow_url_refuses_a_locked_id_under_any_encoding_depth(root, times):
+    """Advisor, #1257: '%25252246225%252522' decoded a FIXED two times leaves '%2246225%22', whose digit-ending escape
+    defeated the id boundary, so the URL was ALLOWED. Decoding now repeats until the text stops changing."""
+    _root(root, locked=["100"])
+    base = "https://coastwatch.pfeg.noaa.gov/erddap/tabledap/cwwcNDBCMet.csv?station,time&station="
+    assert not bh.allow_url(base + _encode('"46225"', times))
+    assert bh.allow_url(base + _encode('"46025"', times))           # an open id at the same depth still passes
+
+
+def test_allow_url_fails_closed_when_escapes_survive_the_bound(root):
+    _root(root, locked=["100"])
+    base = "https://coastwatch.pfeg.noaa.gov/erddap/tabledap/cwwcNDBCMet.csv?station="
+    assert not bh.allow_url(base + _encode('"46225"', bh._MAX_DECODE + 2))
+    assert not bh.allow_url(base + _encode('"46025"', bh._MAX_DECODE + 2))   # undecodable: refused, never guessed open
+
+
+@pytest.mark.parametrize("url", [
+    "https://x/erddap/tabledap/cwwcNDBCMet.csv?station%3d%2246225%22",          # lower-case hex
+    "https://x/erddap/tabledap/cwwcNDBCMet.csv?q=%2a46225%2A",                   # %2a / %2A mixed
+    "https://www.ndbc.noaa.gov/data/realtime2/%34%36%32%32%35.txt",              # the id itself, digit by digit
+    "https://www.ndbc.noaa.gov/data/realtime2/%2534%2536%2532%2532%2535.txt",    # ... and double-encoded
+])
+def test_allow_url_refuses_mixed_case_and_per_character_encodings(root, url):
+    _root(root, locked=["100"])
+    assert not bh.allow_url(url)

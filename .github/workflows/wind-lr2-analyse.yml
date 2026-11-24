@@ -31,8 +31,10 @@ permissions:
 jobs:
   fetch-clim-gust:
     # Amendment G1 / design (b): the ONE job that holds the service key for the score command. Minimal on purpose: checkout, a
-    # pinned requests, one step that reads one object from the PRIVATE weather bucket and verifies it against the COMMITTED sha256
-    # (fail closed). The key is scoped to that single step by NAME. Dispatch on dev only; there is no pull_request trigger.
+    # pinned requests, one step that reads one object from the PRIVATE weather bucket (then, only if the bucket cannot be READ, the
+    # public release asset named by its hash) and verifies EVERY source against the COMMITTED sha256 (fail closed). The key is
+    # scoped to that single step by NAME. Dispatch on dev only; there is no pull_request trigger. The remaining barrier is the
+    # supabase-service environment approval gate: a branch that is not allowed to use the environment never receives the key.
     if: ${{ github.event.inputs.command == 'score' && github.ref == 'refs/heads/dev' }}
     runs-on: ubuntu-latest
     environment: supabase-service
@@ -52,7 +54,7 @@ jobs:
         run: |
           test -n "$OWNER_WORD_REF" || exit 1
           mkdir -p "$RUNNER_TEMP/clim_gust"
-          python scripts/wind_lr2_gust.py fetch-table --object calibration/wind-lr2/45266543788-1/wind-lr2-clim_gust-45266543788/wind_lr2_clim_gust.json --hash ../docs/weather-program/evidence/wind-long-range-v2/wind_lr2_clim_gust.json.sha256 --out "$RUNNER_TEMP/clim_gust/wind_lr2_clim_gust.json"
+          python scripts/wind_lr2_gust.py fetch-table --object calibration/wind-lr2/45266543788-1/wind-lr2-clim_gust-45266543788/wind_lr2_clim_gust.json --hash ../docs/weather-program/evidence/wind-long-range-v2/wind_lr2_clim_gust.json.sha256 --out "$RUNNER_TEMP/clim_gust/wind_lr2_clim_gust.json" --public-url https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/releases/download/wind-lr2-clim-gust-1e7df526a8598fc1/wind_lr2_clim_gust-1e7df526a8598fc1.json
       - uses: actions/upload-artifact@v4
         with:
           name: clim-gust-verified-${{ github.run_id }}-${{ github.run_attempt }}
@@ -94,6 +96,10 @@ jobs:
         with:
           name: clim-gust-verified-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/wlr2/clim_gust
+      - name: Refuse loudly without the verified CLIM_GUST table (score only)
+        if: ${{ github.event.inputs.command == 'score' }}
+        run: |
+          test -s "$RUNNER_TEMP/wlr2/clim_gust/wind_lr2_clim_gust.json" || { printf 'REFUSED: the verified CLIM_GUST table is absent; no score without it\n' >&2; exit 1; }
       - name: Run the command
         working-directory: backend
         env:
@@ -120,6 +126,7 @@ jobs:
           path: |
             ${{ runner.temp }}/wlr2/*.json
             ${{ runner.temp }}/wlr2/*.json.sha256
+            ${{ runner.temp }}/wlr2/*.VOID.md
             ${{ runner.temp }}/wlr2/*.npz
 
   archive:

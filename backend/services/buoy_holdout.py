@@ -36,6 +36,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -196,6 +197,10 @@ def _pattern(ids):
     return re.compile(r"(?<![0-9A-Za-z])(" + alt + r")(?![0-9A-Za-z])", re.IGNORECASE)
 
 
+_MAX_DECODE = 6
+_ESCAPE = re.compile(r"%[0-9A-Fa-f]{2}")
+
+
 def allow_url(url):
     """False when `url` names a locked station (or everything is quarantined); the fetch must not happen. A station is
     named when its id stands alone in the URL's path or query, or is followed directly by NDBC's historical `h<year>` /
@@ -208,6 +213,16 @@ def allow_url(url):
     if not ids:
         return True
     tail = re.sub(r"^[a-z]+://[^/]+", "", str(url), flags=re.I)
+    # ERDDAP writes station="<id>" as station=%22<id>%22, and proxies re-encode: decode until the text stops changing
+    # (bounded), then FAIL CLOSED if any %XX escape survives. A fixed number of passes let '%25252246225' through
+    # (advisor, #1257): it decodes twice to '%2246225', and the digit-ending escape defeats the id boundary.
+    for _ in range(_MAX_DECODE):
+        once = urllib.parse.unquote(tail)
+        if once == tail:
+            break
+        tail = once
+    if _ESCAPE.search(tail):
+        return False
     alt = "|".join(sorted((re.escape(i) for i in ids), key=len, reverse=True))
     return re.search(r"(?<![0-9A-Za-z])(" + alt + r")(?=$|[^0-9A-Za-z]|[hHpP]\d)", tail, re.IGNORECASE) is None
 
