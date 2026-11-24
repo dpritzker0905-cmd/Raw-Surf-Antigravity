@@ -89,9 +89,14 @@ def test_only_the_budget_step_writes_outputs_and_only_its_three(wf, job):
         if not writes:
             continue
         assert s.get("id") in ALLOWED_OUTPUTS, f"{wf}: step {s.get('name')!r} writes step outputs"
-        text = "\n".join(sources)
-        for name in ALLOWED_OUTPUTS[s["id"]]:
-            assert name in text, f"budget output {name} missing"
+        # EXACTLY the allowed names: every `name={` written on a line that mentions GITHUB_OUTPUT (ci_job_budget.py writes
+        # f"go={...}\nelapsed_min={...}\nremaining_min={...}\n" there)
+        written = set()
+        for src in sources:
+            for line in src.splitlines():
+                if "GITHUB_OUTPUT" in line:
+                    written |= set(re.findall(r'(?:^|\\n|["\'])(\w+)=\{', line))
+        assert written == ALLOWED_OUTPUTS[s["id"]], f"{s['id']} writes {sorted(written)}"
 
 
 NOW = datetime(2026, 11, 24, 3, 10, tzinfo=timezone.utc)
