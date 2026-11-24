@@ -79,3 +79,13 @@ is recorded in a SCOREBOARD row dated 2026-11-24 17:45Z.
     and `src/tests` (37 / 371).
   - `check_eslint.js`: clean both times.
   - Production build: passes both times.
+
+## The Codex-reserved file (the advisor's hold, item 1): recorded where Codex will see it
+
+MapForecastOverlay.js (Codex-RESERVED): +4 lines (ownFrameReadout import, useOwnFrameValue call, ownFrameCards prop),
+released by David's dialog answer 'Yes, allow the 4 lines' at 2026-11-24 18:41:27Z. The release covers exactly these 4
+lines; any further edit or split needs Codex or David.
+
+The four, as committed: the `ownFrameReadout` import line, a one-line comment plus the `useOwnFrameValue` call, and
+the `ownFrameCards` prop passed to `compileForecastCards`. The file is at 799 of 800 lines and is not touched further.
+Item 2 (the flags-off re-render) was fixed at 48a2eac96 and awaits the re-gate.
