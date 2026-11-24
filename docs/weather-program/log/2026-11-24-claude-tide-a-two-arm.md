@@ -35,3 +35,23 @@ Append-only. Stamps come from `date -u`.
   even while the flag is OFF (#1283's rule for an arm present but unjudgeable).
 - **No served change:** `SURF_TIDE_A_HARCON` stays '0'. The table gains `am_h` and `am_h_donors`; `am` is unchanged.
   No SCOREBOARD row.
+
+## 22:00Z: the advisor's early read of #1286 (no blocker), with two items folded in
+
+- **The advisor's read:**
+  - the build runs in Actions, not on Render;
+  - the serve imports are clean;
+  - existing keys' bytes are unchanged with the flag OFF;
+  - the credit is right.
+- **(a) DISCLOSED (and a SCOREBOARD row, 22:00Z):** the 60 TIDE-guard monitor and reserve keys are NEW keys in the
+  table. Once their M is computed they get an `am` series (FES2022b A + M), the same arm every key serves. This is a
+  small, benign served change while the flag is OFF. `am_h` is served only when the flag is ON.
+- **(b) The composition limit, BINDING:**
+  - When `SURF_TIDE_A_HARCON` is ON, the serve order is: `cmems` (only when `SURF_TIDE_CMEMS` is on and the table
+    is fresh), then `am_h`, then `am`.
+  - So a future `SURF_TIDE_CMEMS` flip would pre-empt `am_h` wherever CMEMS has a series. The TIDE guard would then
+    be judging an arm users no longer see.
+  - Any `SURF_TIDE_CMEMS` flip must therefore RE-GATE both the composition and the TIDE guard (`tide-guard-v1`)
+    before it ships.
+- **Owed:** after the first `tide-own-series` build that writes `am_h`, report that build step's run time, and its
+  `am_h` key and donor counts (the build log line), to the director.
