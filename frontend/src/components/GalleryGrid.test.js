@@ -1,7 +1,8 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import { GalleryGridItem } from './GalleryGrid';
+import { GalleryGrid, GalleryGridItem } from './GalleryGrid';
 
 jest.mock('../utils/media', () => ({ getFullUrl: value => value, getOptimizedMediaUrl: () => null }));
 
@@ -78,20 +79,41 @@ describe.each(['light', 'dark', 'beach'])('Gallery item actions in %s', theme =>
     expect(trigger).toHaveFocus();
   });
 
-  test('bulk selection and absent callbacks preserve existing visibility and selection', () => {
-    const callbacks = setup(theme, { bulkSelectMode: true });
+  test('bulk toggles identify the item and expose its current selection', () => {
+    const onItemSelect = jest.fn();
+    const onItemClick = jest.fn();
+    const items = [item, { id: 'untitled-video', media_type: 'video' }];
+    const props = { items, bulkSelectMode: true, onItemSelect, onItemClick, theme };
+    const { rerender } = render(<GalleryGrid {...props} />);
+    expect(screen.queryByRole('button', { name: /^Open / })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Item actions' })).not.toBeInTheDocument();
+    const toggle = screen.getByRole('button', { name: 'Select Synthetic photo', pressed: false });
+    fireEvent.click(toggle);
+    expect(onItemSelect).toHaveBeenCalledTimes(1);
+    expect(onItemSelect).toHaveBeenCalledWith(item.id);
+    rerender(<GalleryGrid {...props} selectedItems={new Set([item.id])} />);
+    expect(screen.getByRole('button', { name: 'Select Synthetic photo', pressed: true })).toBe(toggle);
+    expect(screen.getByRole('button', { name: 'Select video 2', pressed: false })).toBeVisible();
     fireEvent.click(screen.getByTestId(`gallery-item-${item.id}`));
-    expect(callbacks.onSelect).toHaveBeenCalledWith(item.id);
-    expect(callbacks.onClick).not.toHaveBeenCalled();
+    expect(onItemSelect).toHaveBeenCalledTimes(2);
+    expect(onItemSelect).toHaveBeenLastCalledWith(item.id);
+    expect(onItemClick).not.toHaveBeenCalled();
   });
 
-  test('read-only items retain detail activation without action controls', () => {
+  test('read-only items open by keyboard and pointer', async () => {
+    const user = userEvent.setup();
     const onClick = jest.fn();
     setup(theme, { onEdit: undefined, onDelete: undefined, onClick });
     expect(screen.queryByRole('button', { name: 'Item actions' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTestId(`gallery-item-${item.id}`));
-    expect(onClick).toHaveBeenCalledWith(item);
+    const open = screen.getByRole('button', { name: 'Open Synthetic photo' });
+    await user.tab();
+    expect(open).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(onClick).toHaveBeenCalledTimes(1);
+    await user.keyboard(' ');
+    expect(onClick).toHaveBeenCalledTimes(2);
+    await user.click(open);
+    expect(onClick.mock.calls).toEqual([[item], [item], [item]]);
   });
 
   test('delete-only action receives focus and unmount removes Escape handling', () => {

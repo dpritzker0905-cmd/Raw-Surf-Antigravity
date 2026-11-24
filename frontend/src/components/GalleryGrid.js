@@ -14,6 +14,7 @@ import { getFullUrl, getOptimizedMediaUrl } from '../utils/media';
 
 export const GalleryGridItem = ({
   item,
+  position = 1,
   isSelected = false,
   bulkSelectMode = false,
   isDeleting = false,
@@ -24,6 +25,7 @@ export const GalleryGridItem = ({
   _theme = 'dark'
 }) => {
   const isVideo = item.media_type === 'video' || item.type === 'video';
+  const itemLabel = item.title?.trim() || `${isVideo ? 'video' : 'photo'} ${position}`;
   const [imgError, setImgError] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const videoRef = useRef(null);
@@ -79,9 +81,19 @@ export const GalleryGridItem = ({
       onClick={handleTap}
       data-testid={`gallery-item-${item.id}`}
     >
+      {!bulkSelectMode && onClick && (
+        <button
+          type="button"
+          aria-label={`Open ${itemLabel}`}
+          className="absolute inset-0 z-[2] rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        />
+      )}
       {/* Selection checkbox in bulk mode */}
       {bulkSelectMode && (
-        <button aria-label="Confirm"
+        <button
+          type="button"
+          aria-label={`Select ${itemLabel}`}
+          aria-pressed={isSelected}
           onClick={(e) => { e.stopPropagation(); onSelect?.(item.id); }}
           className={`absolute top-2 left-2 z-20 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${
             isSelected
@@ -89,7 +101,7 @@ export const GalleryGridItem = ({
               : 'bg-black/40 border-white/60 backdrop-blur-sm'
           }`}
         >
-          {isSelected && <Check className="w-4 h-4 text-white" />}
+          {isSelected && <Check aria-hidden="true" className="w-4 h-4 text-white" />}
         </button>
       )}
 
@@ -262,10 +274,11 @@ export const GalleryGrid = ({
 
   return (
     <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-${gap}`}>
-      {items.map((item) => (
+      {items.map((item, index) => (
         <GalleryGridItem
           key={item.id}
           item={item}
+          position={index + 1}
           isSelected={selectedItems.has(item.id)}
           bulkSelectMode={bulkSelectMode}
           isDeleting={deletingItemId === item.id}
