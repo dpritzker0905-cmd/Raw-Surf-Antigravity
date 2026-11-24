@@ -246,3 +246,56 @@ def test_p_worse_tests_the_margin_shifted_null():
     m = gs.two_way(its)
     assert m["testable"] and m["mean_gain"] < 0
     assert m["p_worse"] > 0.5, m
+
+
+# ---- D-090: the guardrail never reads a 400/404 as an empty manifest (an enforce run would rewrite the manifest
+# without every existing kill), and it reports drift between the live kills and the committed cold-start snapshot. ----
+
+class _GResp:
+    def __init__(self, code):
+        self.status_code = code
+
+    def json(self):
+        return {"schema": rf.SCHEMA, "flags": {}}
+
+
+@pytest.mark.parametrize("code", [400, 401, 403, 404, 500])
+def test_read_manifest_refuses_a_non_200(monkeypatch, code):
+    import requests
+    monkeypatch.setattr(fg, "_creds", lambda: ("https://example.invalid", {}))
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _GResp(code))
+    with pytest.raises(rf.ManifestUnreadable):
+        fg.read_manifest()
+
+
+def test_read_manifest_bootstraps_empty_only_by_a_persons_choice(monkeypatch):
+    import requests
+    monkeypatch.setattr(fg, "_creds", lambda: ("https://example.invalid", {}))
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _GResp(404))
+    assert fg.read_manifest(allow_missing=True) == fg.empty_manifest()
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _GResp(401))
+    with pytest.raises(rf.ManifestUnreadable):                    # an auth failure is never "missing"
+        fg.read_manifest(allow_missing=True)
+
+
+def test_snapshot_drift_names_the_kills_a_cold_process_would_lose_and_gives_the_file():
+    import json
+    off = {"state": "off", "reason": "t", "set_by": fg.SET_BY, "set_at": "x", "evidence": "y"}
+    live = rf_manifest(SURF_TIDE_DEPTH=off, RATING_REF_PRIOR=dict(off, state="on"))
+    assert fg.snapshot_drift(live, {"SURF_TIDE_DEPTH": off}) == {}
+    d = fg.snapshot_drift(live, {"RATING_OBS_GATE": off})
+    assert d["missing"] == ["SURF_TIDE_DEPTH"] and d["extra"] == ["RATING_OBS_GATE"]
+    assert set(rf.validate(json.loads(d["text"]))) == {"SURF_TIDE_DEPTH"}   # kills only; an owner 'on' is not floored
+
+
+def test_a_disable_reports_the_snapshot_drift_in_the_issue_text(monkeypatch):
+    monkeypatch.setattr(fg, "write_object", lambda *a, **k: None)
+    monkeypatch.setattr(fg, "append_actions", lambda lines: None)
+    monkeypatch.setattr(rf, "snapshot_kills", lambda: {})
+    monkeypatch.setattr(fg, "read_manifest", lambda *a: {"schema": rf.SCHEMA, "flags": {}})
+    rep = fg.run(args(enforce="1"), NOW, rf_manifest(), scorer({"SURF_TIDE_DEPTH": gs.WORSE}), lambda *a: {},
+                 watch=STRUCK)
+    assert rep["decisions"]["SURF_TIDE_DEPTH"]["action"] == "disable"
+    assert rep["snapshot_drift"]["missing"] == ["SURF_TIDE_DEPTH"]
+    md = fg.markdown(rep)
+    assert "Cold-start snapshot drift" in md and "runtime_flags_snapshot.json" in md
