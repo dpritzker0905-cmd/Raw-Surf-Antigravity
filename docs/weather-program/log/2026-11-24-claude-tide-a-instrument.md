@@ -86,3 +86,25 @@ Append-only. Stamps come from `date -u`.
   - the failure escaping the real `get_json` and the verbatim `finder_check`;
   - the per-station runner; the scorer VOIDs; the workflow; the fixed constants and the hash.
 - The instrument tests' workflow assertion now names `paced_finder.py`.
+
+## 22:35Z: amendment 3 (PRE-DATA): the advisor-approved pacing design v2 with R1 and R2, replacing amendment 2's mechanism
+
+- **The advisor's ruling, relayed by the director:** it APPROVED pacing design v2, including the change from a
+  swallowed `{}` to `CoopsUnavailable` as error handling only.
+  - **R1:** "no run" requires BOTH no score from a complete run JSON AND nothing outcome-bearing printed or uploaded.
+    After two consecutive infra no-runs, stop and diagnose.
+  - **R2:** an abort writes `outcome.json` as `no_run_infra` and exits non-zero.
+- **This head replaces amendment 2's "record and VOID" mechanism** (`dda212a93`, which never ran). A CO-OPS failure
+  after the bounded backoff now ABORTS the step with no verdict, instead of producing a VOID.
+  - `paced_finder.py` is removed. Both steps run through `paced_run.py`.
+  - The instrument is back to `319d59086` except for the atomic `complete` write.
+  - The scorer is back to `319d59086` except that `main()` refuses an incomplete run.
+- **New in `coops_pacing.py`:**
+  - the `http.client` guard (CO-OPS only, GET only, no body) and the request audit;
+  - a startup gap;
+  - the step budget (`--budget-s`);
+  - an abort when Retry-After asks for more than 900 s.
+- **Tests:** `test_coops_pacing.py` now has 17 (was 13), including R1 (b) pinned on the instrument's single print
+  call, and R2 (the outcome file and exit 3). Fragment: estate +39.
+- **Stamp correction:** the amendment heading was first written as 22:47Z against a 22:35Z clock, and corrected
+  before committing.

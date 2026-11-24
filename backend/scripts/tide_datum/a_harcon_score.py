@@ -159,18 +159,9 @@ def score(run, finder, stations_doc):
     bad = {s: ((fin.get(s) or {}).get("hourly") or {}).get("median_abs_h_m") for s in scored
            if (((fin.get(s) or {}).get("hourly") or {}).get("median_abs_h_m") is None)
            or fin[s]["hourly"]["median_abs_h_m"] > FINDER_H_M}
-    out["controls"] = {"c1_finder": {"pass": not bad, "over_or_missing": bad,
-                                     "harness_failures": finder.get("harness_failures") or []}}
+    out["controls"] = {"c1_finder": {"pass": not bad, "over_or_missing": bad}}
     if bad:
         out["verdict"] = "VOID"
-        return out
-    # 1b. THE HARNESS (amendment 2): an instrument whose CO-OPS requests failed after the bounded backoff, or a run file
-    #     that is not complete, is VOID: infrastructure, never a FAIL and never a replacement.
-    if run.get("harness_failures") or not run.get("complete"):
-        out["controls"]["harness"] = {"pass": False, "complete": bool(run.get("complete")),
-                                      "failures": run.get("harness_failures") or []}
-        out["verdict"] = "VOID"
-        out["why"] = "harness failure (amendment 2): the instrument could not complete its CO-OPS requests"
         return out
     # 2. MEASURABILITY
     q, rows = {}, {}
@@ -234,7 +225,10 @@ def main(argv=None):
                                               "research" / "tide-a-harcon-v1-stations.json"))
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
-    r = score(*(json.loads(Path(p).read_text(encoding="utf-8")) for p in (a.run, a.finder, a.stations)))
+    run, finder, stations = (json.loads(Path(p).read_text(encoding="utf-8")) for p in (a.run, a.finder, a.stations))
+    if not run.get("complete"):                # amendment 3: no score from an incomplete run file (no outcome)
+        raise SystemExit("REFUSED: the run JSON is not complete; no score (amendment 3)")
+    r = score(run, finder, stations)
     with open(a.out, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(r, fh, indent=1, default=str)
     print("VERDICT", r["verdict"], json.dumps(r.get("controls", {}), default=str)[:800])

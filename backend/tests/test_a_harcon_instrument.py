@@ -95,7 +95,7 @@ def run(override=None, oc_har=(0.20, 30.0)):
         for i in range(5):
             per[f"{p}R{i}"] = station(donor=f"D{p}R{i}") if p == "H" else station(har=oc_har, donor=f"D{p}R{i}")
     per.update(override or {})
-    return {"per_station": per, "window_start": "2027-02-01", "complete": True, "harness_failures": []}
+    return {"per_station": per, "window_start": "2027-02-01", "complete": True}
 
 
 def finder(bad=()):
@@ -215,5 +215,5 @@ def test_the_workflow_only_a_tag_starts_and_it_scores_with_the_vendored_finder()
     wf = open(os.path.join(REPO, ".github", "workflows", "tide-a-harcon.yml"), encoding="utf-8").read()
     assert "tags: ['tide-a-harcon-v1-[0-9]*']" in wf and "tide-a-harcon-v1-*" not in wf   # a numbered tag only
     assert "schedule:" not in wf and "workflow_dispatch" not in wf and "branches:" not in wf
-    assert "paced_finder.py --start 2027-02-01 --days 14 --stations" in wf and "a_harcon_score.py" in wf
+    assert "finder_check.py --start 2027-02-01 --days 14 --stations" in wf and "a_harcon_score.py" in wf
     assert "SUPABASE" not in wf and "onrender" not in wf                       # predictions only
