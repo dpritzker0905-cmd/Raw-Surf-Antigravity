@@ -203,6 +203,22 @@ def empty_manifest() -> dict:
     return {"schema": _rf.SCHEMA, "flags": {}}
 
 
+def snapshot_drift(manifest: dict, snapshot_kills=None) -> dict:
+    """D-090 cold-start floor: the live manifest's 'off' entries vs the committed snapshot's
+    (`services/runtime_flags_snapshot.json`). {} when they agree; else {missing, extra, text} where `missing` are kills a
+    cold process would LOSE during an outage (the dangerous side), `extra` are kills it would wrongly hold, and `text` is
+    the exact file to commit. The workflow opens an issue on any drift (no token here can commit it: no new secret)."""
+    live = {k: e for k, e in _rf.validate(manifest).items() if e["state"] == "off"}
+    snap = _rf.snapshot_kills() if snapshot_kills is None else snapshot_kills
+    missing, extra = sorted(set(live) - set(snap)), sorted(set(snap) - set(live))
+    if not missing and not extra:
+        return {}
+    doc = {"schema": _rf.SCHEMA, "note": "COLD-START FLOOR (runtime_flags.py, D-090): the 'off' entries of "
+           "control/flags.json, committed so a guardrail kill survives a process start during a manifest outage.",
+           "as_of": iso(utc_now()), "source": "flag-guardrail snapshot_drift", "flags": live}
+    return {"missing": missing, "extra": extra, "text": json.dumps(doc, indent=1, sort_keys=True) + "\n"}
+
+
 def effective_on(flag: str, manifest: dict) -> bool:
     e = (manifest.get("flags") or {}).get(flag)
     if e and str(e.get("state")).lower() in _rf.STATES:
@@ -396,14 +412,20 @@ def _creds():
     return base, _supabase_headers(key)
 
 
-def read_manifest() -> dict:
+def read_manifest(allow_missing: bool = False) -> dict:
+    """The live manifest. ONLY a 200 is a read. A 400/404 used to count as an empty manifest, and Supabase answers 400
+    for auth and bucket failures too, so an enforce run could rewrite the manifest WITHOUT every existing kill (D-090).
+    Now any non-200 raises and the run goes red. `allow_missing` (--allow-missing-manifest, a person's choice, never
+    the schedule) bootstraps an empty manifest on a 400/404 only."""
     import requests
     from services.weather_pipeline.store import WEATHER_BUCKET
     base, h = _creds()
     r = requests.get(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{_rf.MANIFEST_KEY}", headers=h, timeout=20)
-    if r.status_code in (400, 404):
+    if allow_missing and r.status_code in (400, 404):
         return empty_manifest()
-    r.raise_for_status()
+    if r.status_code != 200:
+        raise _rf.ManifestUnreadable(f"flags manifest read: HTTP {r.status_code} (not treated as empty; bootstrap a "
+                                     f"missing manifest with --allow-missing-manifest)")
     doc = r.json()
     _rf.validate(doc)
     return doc
@@ -533,14 +555,14 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
 def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) -> dict:
     now = now or utc_now()
     enforce = args.enforce == "1"
-    manifest = manifest if manifest is not None else read_manifest()
+    manifest = manifest if manifest is not None else read_manifest(getattr(args, "allow_missing_manifest", False))
     if args.reenable:
         new = owner_reenable(manifest, args.reenable, args.owner_words, args.actor, now,
                              expected_owner=getattr(args, "owner_login", ""))
         report = {"mode": "enforce" if enforce else "dry-run", "reenable": args.reenable, "decisions": {}}
         if enforce:
             write_object(_rf.MANIFEST_KEY, json.dumps(new, indent=1).encode())
-        return dict(report, manifest=new)
+        return dict(report, manifest=new, snapshot_drift=snapshot_drift(new if enforce else manifest))
     watched = [f for f in sorted(_rf.GUARDED) if effective_on(f, manifest)
                or ((manifest.get("flags") or {}).get(f) or {}).get("set_by") == SET_BY]
     on_now = [f for f in watched if effective_on(f, manifest) or _has_shadow(f, manifest)]
@@ -599,6 +621,7 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None) ->
                          "run": args.run_url} for f, d in decisions.items()
                         if d["action"] in ("disable", "clear", "version_hold", "shadow_proposal")])
     report["manifest"] = new
+    report["snapshot_drift"] = snapshot_drift(new if enforce else manifest)
     return report
 
 
@@ -637,6 +660,13 @@ def markdown(report: dict) -> str:
                       + "; ".join(f"{k} {a}/{n}" for k, (a, n) in sorted(rates.items())), ""]
     for c in report.get("ledger_commands", []):
         lines += ["", "Ledger line owed (BRAIN_RULES section 23), for the next session's fragment:", "```", c, "```"]
+    drift = report.get("snapshot_drift") or {}
+    if drift:
+        lines += ["", "### Cold-start snapshot drift (D-090)", "",
+                  "The committed `backend/services/runtime_flags_snapshot.json` does not hold the live kills. A process "
+                  f"that starts during a manifest outage would LOSE: {', '.join(drift['missing']) or 'none'}; would "
+                  f"wrongly hold: {', '.join(drift['extra']) or 'none'}. Commit this file in a PR to dev:", "",
+                  "```json", drift["text"].rstrip("\n"), "```"]
     return "\n".join(lines) + "\n"
 
 
@@ -652,6 +682,8 @@ def main(argv=None) -> int:
     p.add_argument("--actor", default=os.environ.get("GITHUB_ACTOR", ""))
     p.add_argument("--owner-login", default=os.environ.get("REPO_OWNER_LOGIN", ""))
     p.add_argument("--commit", default=os.environ.get("GITHUB_SHA", ""))
+    p.add_argument("--allow-missing-manifest", action="store_true",
+                   help="bootstrap: treat a 400/404 manifest read as empty (a person's choice, never the schedule)")
     a = p.parse_args(argv)
     os.makedirs(a.out, exist_ok=True)
     report = run(a)
@@ -669,7 +701,8 @@ def main(argv=None) -> int:
               f"{report['decisions'][f]['reason'][:300]}")
     with open(os.path.join(a.out, "acted.txt"), "w", encoding="utf-8") as f:
         # the workflow opens or appends the guardrail issue whenever this is non-empty
-        f.write(" ".join(acted + [f"{x}(reported-not-disabled)" for x in reported]))
+        drift = ["cold-start-snapshot-drift"] if report.get("snapshot_drift") else []
+        f.write(" ".join(acted + [f"{x}(reported-not-disabled)" for x in reported] + drift))
     return 0
 
 
