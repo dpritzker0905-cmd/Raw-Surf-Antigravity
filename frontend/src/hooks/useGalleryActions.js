@@ -1,4 +1,5 @@
 // File: frontend/src/hooks/useGalleryActions.js
+import { useLayoutEffect, useRef } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -81,6 +82,9 @@ const useGalleryActions = ({
   setBrokenCoverImages,
   gallery,
 }) => {
+  const bulkDeletePending = useRef(false);
+  const galleryVisit = useRef(0);
+  useLayoutEffect(() => () => { galleryVisit.current += 1; }, [user?.id, selectedGallery?.id]);
 
   const fetchGallery = async () => {
     try {
@@ -231,6 +235,7 @@ const useGalleryActions = ({
   };
 
   const handleBulkDelete = async () => {
+    if (bulkDeletePending.current) return;
     if (selectedItems.size === 0) {
       toast.error('No items selected');
       return;
@@ -239,10 +244,13 @@ const useGalleryActions = ({
   };
 
   const executeBulkDelete = async () => {
+    if (bulkDeletePending.current || selectedItems.size === 0) return;
+    bulkDeletePending.current = true;
+    const visit = galleryVisit.current;
     setFolderActionLoading(true);
     try {
       const itemIds = Array.from(selectedItems);
-      await Promise.all(itemIds.map(async (itemId) => {
+      const outcomes = await Promise.allSettled(itemIds.map(async (itemId) => {
         try {
           if (selectedGallery) {
             await apiClient.delete(`/galleries/${selectedGallery.id}/items/${itemId}?photographer_id=${user.id}`);
@@ -257,6 +265,20 @@ const useGalleryActions = ({
           }
         }
       }));
+      if (visit !== galleryVisit.current) return;
+      const removed = new Set(itemIds.filter((_, index) => outcomes[index].status === 'fulfilled'));
+      if (removed.size === 0) {
+        toast.error(getErrorMessage(outcomes[0].reason, 'Failed to delete items'));
+        return;
+      }
+      if (removed.size < itemIds.length) {
+        const updateItems = selectedGallery ? setGalleryItems : setGallery;
+        updateItems(items => items.filter(item => !removed.has(item.id)));
+        setSelectedItems(current => new Set([...current].filter(id => !removed.has(id))));
+        folderActions.fetchGalleries();
+        toast.error(`Deleted ${removed.size} of ${itemIds.length} items. Retry the remaining items.`);
+        return;
+      }
       toast.success(`Deleted ${itemIds.length} item${itemIds.length > 1 ? 's' : ''}`);
       clearSelection();
       if (folderActions && folderActions.fetchGalleries) {
@@ -270,8 +292,8 @@ const useGalleryActions = ({
     } catch (error) {
       toast.error(getErrorMessage(error, 'Failed to delete items'));
     } finally {
+      bulkDeletePending.current = false;
       setFolderActionLoading(false);
-      setDeleteConfirm(null);
     }
   };
 
