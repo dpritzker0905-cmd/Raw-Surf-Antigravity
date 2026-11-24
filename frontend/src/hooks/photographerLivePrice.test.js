@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import userEvent from '@testing-library/user-event';
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import SpotSetupPanel from '../components/spot-drawer/SpotSetupPanel';
 import SessionSettingsModal from '../components/sessions/SessionSettingsModal';
@@ -35,14 +36,14 @@ it.each([SpotSetupPanel, SessionSettingsModal])('keeps cents and requires an exp
   fireEvent.change(input, { target: { value: '' } });
   expect(input).toHaveValue(null);
   fireEvent.blur(input);
-  expect(input).toHaveValue(25);
+  expect(input).toHaveValue(null);
   fireEvent.change(input, { target: { value: '0' } });
   expect(input).toHaveValue(0);
   fireEvent.change(input, { target: { value: '0.50' } });
   expect(input).toHaveValue(0.5);
   fireEvent.change(input, { target: { value: '0' } });
   fireEvent.blur(input);
-  expect(input).toHaveValue(25);
+  expect(input).toHaveValue(0);
   fireEvent.change(input, { target: { value: '17.50' } });
   expect(input).toHaveValue(17.5);
   const toggle = screen.getByRole('checkbox', { name: 'Free session' });
@@ -51,6 +52,40 @@ it.each([SpotSetupPanel, SessionSettingsModal])('keeps cents and requires an exp
   expect(input).toHaveValue(0);
   fireEvent.click(toggle);
   expect(input).toHaveValue(17.5);
+});
+
+it.each([
+  [SpotSetupPanel, 'continue-to-conditions-btn'], [SessionSettingsModal, 'save-settings-btn'],
+])('requires a valid buy-in before accepting the settings', async (Editor, actionId) => {
+  const submit = jest.fn();
+  function Settings() {
+    const [settings, setSettings] = useState({ price_per_join: 40 });
+    const save = () => submit(settings.price_per_join);
+    return <Editor isOpen expandedSections={{ buyin: true }} spot={{ name: 'Test' }}
+      sessionSettings={settings} setSessionSettings={setSettings} commissionRate={0}
+      onConfirmGoLive={save} handleSaveSettings={save} />;
+  }
+  const user = userEvent.setup();
+  render(<Settings />);
+  const price = screen.getByRole('spinbutton', { name: 'Session buy-in price' });
+  const action = screen.getByTestId(actionId);
+  await user.clear(price);
+  await user.type(price, '0{Enter}');
+  expect(price).toHaveFocus();
+  expect(price).toHaveValue(0);
+  expect(price).toHaveAccessibleDescription(/select Free session/);
+  expect(action).toBeDisabled();
+  await user.click(action);
+  expect(submit).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('checkbox', { name: 'Free session' }));
+  await user.click(action);
+  expect(submit).toHaveBeenLastCalledWith(0);
+  await user.click(screen.getByRole('checkbox', { name: 'Free session' }));
+  expect(price).toHaveValue(40);
+  await user.clear(price);
+  await user.type(price, '17.50');
+  await user.click(action);
+  expect(submit).toHaveBeenLastCalledWith(17.5);
 });
 
 it.each([[0, 0], [17.5, 17.5], [null, 25]])(

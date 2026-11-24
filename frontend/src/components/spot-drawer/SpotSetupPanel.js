@@ -20,6 +20,7 @@ const SpotSetupPanel = ({
   goLiveLoading,
   onConfirmGoLive,
 }) => {
+  const [invalidBuyIn, setInvalidBuyIn] = React.useState(false);
   // Calculate live savings - only show in promotional mode
   const liveSavings = sessionSettings.pricing_mode === 'promotional'
     ? (sessionSettings.photo_price_high || sessionSettings.general_photo_price) - sessionSettings.live_photo_price
@@ -78,6 +79,7 @@ const SpotSetupPanel = ({
         <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-xl">
           <span className="text-2xl font-bold text-white">$</span>
           <BuyInPriceInput
+            invalid={invalidBuyIn} setInvalid={setInvalidBuyIn}
             price={sessionSettings.price_per_join}
             onPriceChange={price => setSessionSettings(prev => ({ ...prev, price_per_join: price }))}
             className="bg-transparent border-none text-2xl font-bold text-white text-center"
@@ -171,7 +173,7 @@ const SpotSetupPanel = ({
       {/* Continue Button - Opens Conditions Modal */}
       <Button aria-label="Loader2"
         onClick={onConfirmGoLive}
-        disabled={goLiveLoading}
+        disabled={goLiveLoading || invalidBuyIn}
         className="w-full h-12 bg-zinc-700 hover:bg-zinc-600 text-white font-bold text-lg"
         data-testid="continue-to-conditions-btn"
       >

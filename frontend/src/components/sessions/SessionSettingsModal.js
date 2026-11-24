@@ -19,6 +19,7 @@ const SessionSettingsModal = ({
   liveSavings, handleSaveSettings, isLight, textPrimaryClass, textSecondaryClass,
   borderClass, inputBgClass
 }) => {
+  const [invalidBuyIn, setInvalidBuyIn] = React.useState(false);
   return (
       <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass}`}>
@@ -106,6 +107,7 @@ const SessionSettingsModal = ({
                     <div className={`flex items-center gap-3 p-3 rounded-xl ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
                       <span className={`text-2xl font-bold ${textPrimaryClass}`}>$</span>
                       <BuyInPriceInput
+                        invalid={invalidBuyIn} setInvalid={setInvalidBuyIn}
                         price={sessionSettings.price_per_join}
                         onPriceChange={price => setSessionSettings(prev => ({ ...prev, price_per_join: price }))}
                         className={`${inputBgClass} ${textPrimaryClass} text-2xl font-bold h-12 text-center`}
@@ -618,6 +620,7 @@ const SessionSettingsModal = ({
             </Button>
             <Button aria-label="Confirm"
               onClick={handleSaveSettings}
+              disabled={invalidBuyIn}
               className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-medium"
               data-testid="save-settings-btn"
             >
