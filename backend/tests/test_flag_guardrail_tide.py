@@ -262,6 +262,44 @@ def test_T5_the_module_names_no_backend_host():
     assert "onrender" not in src and "/api/weather" not in src and "raw-surf-backend" not in src
 
 
+# ---- judged while OFF (advisor HOLD on #1283): T4 and the null readings must exist BEFORE the flip --------------------
+def _args():
+    return argparse.Namespace(enforce="0", reenable="", owner_words="", actor="", cache_dir="c", out="o", alert_cap=2,
+                              run_url="run")
+
+
+def test_with_the_flag_off_the_tide_pass_still_judges_and_records_t4_but_never_decides(monkeypatch):
+    monkeypatch.setattr(fg, "save_watch", lambda *a: None)
+    off = {"schema": rf.SCHEMA, "flags": {}}                         # the code default '0': not watched
+    doc = _doc()
+    doc["am_h"] = {k: [v + 100 for v in vals] for k, vals in doc["keys"].items()}     # a real breach on the ON arm
+    rep = fg.run(_args(), now=NOW, manifest=off, watch={}, volumes=lambda *a: {},
+                 scorer=lambda flags, n, c, o: {f: {"verdict": gs.UNTESTABLE, "coverage": fg.TIDE, "sanity": []}
+                                                for f in flags},
+                 tide={"read": lambda e: (doc, "e", False), "fetch": _noaa, "monitors": MONITORS})
+    r = rep["results"][FLAG]
+    assert r["observe_only"] and r["build"] == T.iso(STAMP) and any(s.startswith("b5") for s in r["sanity"])
+    assert {k: v["pass"] for k, v in r["planted"].items()} == {k: True for k in T.PLANTS}       # the T4 record exists
+    assert FLAG not in rep["decisions"] and FLAG not in rep["manifest"]["flags"] and not rep["changed"]
+    assert FLAG in rep["tide_judged"] and "observe only, never decided" in fg.markdown(rep)
+
+
+def test_with_the_flag_off_and_no_on_arm_yet_nothing_is_fetched_and_nothing_is_blind(monkeypatch):
+    monkeypatch.setattr(fg, "save_watch", lambda *a: None)
+    doc = _doc()
+    doc.pop("am_h")
+    calls = []
+    w = {}
+    for h in (0, 12, 24, 30):
+        rep = fg.run(_args(), now=NOW + timedelta(hours=h), manifest={"schema": rf.SCHEMA, "flags": {}}, watch=w,
+                     volumes=lambda *a: {}, scorer=lambda flags, n, c, o: {},
+                     tide={"read": lambda e: (doc, "e", False), "fetch": lambda *a: calls.append(a) or [],
+                           "monitors": MONITORS})
+        w = rep["watch"]
+    assert not calls and not rep["tide_blind"] and rep["results"][FLAG]["no_arm"]
+    assert FLAG not in rep["decisions"]
+
+
 # ---- run() end to end -------------------------------------------------------------------------------------------------
 def test_run_judges_the_tide_flag_and_reports_it(monkeypatch):
     monkeypatch.setattr(fg, "save_watch", lambda *a: None)

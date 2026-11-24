@@ -32,3 +32,24 @@ Append-only. Stamps come from `date -u`.
   - amendment 1's three rules, and run() end to end.
   - The neighbouring suites pass: 228 passed, 1 skipped, under the backend venv on Python 3.12.
 - **Not done:** the A two-arm table (its own PR, with T6), and a real build for T4. The flag stays OFF.
+
+## 21:31Z: the advisor's HOLD on #1283 at 3c809e5fc (one structural gap), fixed
+
+- **The gap:** `tide_pass` ran only over watched flags, so with `SURF_TIDE_A_HARCON` at its default '0' the tester
+  never judged a real build. T4 and the null readings could never exist before the flip that requires them: a
+  deadlock.
+- **The fix:** `run()` now gives every `TIDE_FLAGS` flag a result, marked `observe_only` when the flag is not watched.
+  Such a result feeds only three things, never `decide()`: the report, the blind counter and the T4 record. The
+  decision loop reads `watched` only.
+- **Added with it:**
+  - A table with no ON arm yet is UNTESTABLE ("no two-arm table yet") with no NOAA call.
+  - While the flag is OFF, that does not count toward the blind issue: today's production table has no `am_h`, and
+    otherwise the job would make about 40 NOAA calls per cycle and open a blind issue within a day.
+  - With the flag ON, the same state still counts as blind.
+- **Tests:** +2.
+  - With the manifest OFF: a judged TIDE result (the build, a real b5 breach observed), a full planted T4 record, and
+    NO `decisions` entry, no manifest write, no change.
+  - With the flag OFF and no ON arm: zero NOAA calls and no blind line over 30 h.
+- **Floor fragment:** chain +26 tests (was +24), +1 file.
+- **Checks:** the suites give 230 passed and 1 skipped, twice (Python 3.12). flake8 CI gate and file size OK.
+  `flag_guardrail.py` is at 728 lines.

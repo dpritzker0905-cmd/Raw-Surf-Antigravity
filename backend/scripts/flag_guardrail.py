@@ -605,6 +605,9 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None, ph
     watch, on_since = _phys.track_on_since(watch, [f for f in PHYSICS_RAILS if f in _rf.GUARDED and effective_on(f, manifest)],
                                            iso(now))
     results, watch, guard_blind, guard_judged = _phys.physics_pass(results, watch, on_since, physics)
+    for f in _tide.TIDE_FLAGS:      # judged whatever its state (advisor HOLD on #1283): OFF feeds only the report, the blind
+        if f not in watched:        # counter and the T4 record; the decision loop below reads `watched` only, so no kill
+            results[f] = {"verdict": gs.UNTESTABLE, "coverage": TIDE, "sanity": [], "observe_only": True}
     results, watch, tide_blind, tide_judged = _tide.tide_pass(results, watch, now, **(tide or {}))
     decisions, new = {}, manifest
     for f in watched:

@@ -341,6 +341,9 @@ def cycle(flag: str, watch: dict, now: datetime, read=None, fetch=None, monitors
                     reasons=[f"build {stamp} already judged {r.get('verdict')}: no new strike"]), watch
     if doc is None:
         return {"verdict": gs.UNTESTABLE, "sanity": [], "coverage": TIDE, "reasons": ["table not re-read"]}, watch
+    if not doc.get(TIDE_FLAGS[flag]):                        # no ON arm in the table yet: nothing to judge, no NOAA call
+        return {"verdict": gs.UNTESTABLE, "sanity": [], "coverage": TIDE, "build": stamp, "no_arm": True,
+                "reasons": [f"no two-arm table yet: build {stamp} has no '{TIDE_FLAGS[flag]}' field"]}, watch
     replaced = list((watch.get(K_REPL) or {}).get(flag) or [])
     strata = active_monitors(strata0, reserve, replaced)
     mon = {i: keys[i] for v in strata.values() for i in v}
@@ -399,6 +402,9 @@ def tide_pass(results: dict, watch: dict, now: datetime, read=None, fetch=None, 
         with guarded():
             r, watch = cycle(f, watch, now, read, fetch, monitors)
         results[f] = dict(results[f], **report_only(r))
+        if results[f].get("observe_only") and results[f].get("no_arm"):
+            blind_state.pop(f, None)                          # OFF and no ON arm yet: nothing to be blind about
+            continue
         if results[f]["verdict"] == gs.UNTESTABLE and not results[f].get("sanity") and not results[f].get("report_only"):
             b = dict(blind_state.get(f) or {"n": 0, "first": iso(now)})
             b["n"] += 1
@@ -424,7 +430,8 @@ def lines(report: dict) -> list:
         nl = (r.get("near_lineage") or {}).get("verdict_without")
         pl = ", ".join("%s %s%s %s" % (k, v["verdict"], " breach" if v["sanity"] else "", "ok" if v["pass"] else "FAIL")
                        for k, v in (r.get("planted") or {}).items()) or "not run"
-        out += ["", f"TIDE `{f}`: build {r.get('build')}, verdict {r.get('cached_verdict') or r.get('verdict')}; "
+        obs = " (flag not ON: observe only, never decided)" if r.get("observe_only") else ""
+        out += ["", f"TIDE `{f}`{obs}: build {r.get('build')}, verdict {r.get('cached_verdict') or r.get('verdict')}; "
                 f"without near-lineage {', '.join(NEAR_LINEAGE)}: {nl}; WORSE builds in 14 d: {r.get('worse_builds_14d')}; "
                 f"planted (sandbox) {pl}"]
         if r.get("report_only"):
