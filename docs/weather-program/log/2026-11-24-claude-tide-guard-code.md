@@ -53,3 +53,16 @@ Append-only. Stamps come from `date -u`.
 - **Floor fragment:** chain +26 tests (was +24), +1 file.
 - **Checks:** the suites give 230 passed and 1 skipped, twice (Python 3.12). flake8 CI gate and file size OK.
   `flag_guardrail.py` is at 728 lines.
+
+## 21:36Z: the advisor's one-line HOLD on #1283 at 10ab1e6b4, fixed
+
+- **The hole:** the exemption `not doc.get('am_h')` was also true for a PRESENT but EMPTY arm. A buggy A build
+  writing `"am_h": {}` would have passed as "no arm yet", been exempt from the blind count while OFF, and T4 would
+  never have run.
+- **The fix:** `if TIDE_FLAGS[flag] not in doc:`, so only an absent key is exempt. An empty arm is judged:
+  UNTESTABLE, and counted.
+- **A second change was needed for the counting to work:** a cached UNTESTABLE build now stays UNTESTABLE on later
+  cycles. Before, it read as CACHED, which counts as judged and would have reset the blind counter on the same build.
+- **Test:** +1. With the flag OFF and `am_h: {}`, 5 cycles over 24 h produce the blind line, with no decision.
+  Mutation check: with the old line restored, the test fails.
+- **Fragment:** chain +27, +1 file. The suites give 231 passed and 1 skipped, twice. flake8 and file size OK.

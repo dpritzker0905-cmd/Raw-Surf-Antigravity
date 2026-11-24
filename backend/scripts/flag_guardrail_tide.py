@@ -337,11 +337,14 @@ def cycle(flag: str, watch: dict, now: datetime, read=None, fetch=None, monitors
                 "reasons": [f"tide build {stamp} is {age_h:.0f} h old (> {STALE_H} h): stale, judged every cycle"]}, watch
     if cache.get("stamp") == stamp and cache.get("result"):
         r = dict(cache["result"])
+        if r.get("verdict") == gs.UNTESTABLE:                # an unjudged build stays UNTESTABLE (still blind), never CACHED
+            return dict(r, sanity=[], coverage=TIDE, reasons=[f"build {stamp} could not be judged (cached)"]), watch
         return dict(r, verdict=CACHED, cached_verdict=r.get("verdict"), sanity=[], coverage=TIDE,
                     reasons=[f"build {stamp} already judged {r.get('verdict')}: no new strike"]), watch
     if doc is None:
         return {"verdict": gs.UNTESTABLE, "sanity": [], "coverage": TIDE, "reasons": ["table not re-read"]}, watch
-    if not doc.get(TIDE_FLAGS[flag]):                        # no ON arm in the table yet: nothing to judge, no NOAA call
+    if TIDE_FLAGS[flag] not in doc:                          # the ON arm's KEY is absent: no NOAA call. An EMPTY arm is
+        # judged (UNTESTABLE, counted toward blind): a buggy build writing "am_h": {} must not pass as "no arm yet".
         return {"verdict": gs.UNTESTABLE, "sanity": [], "coverage": TIDE, "build": stamp, "no_arm": True,
                 "reasons": [f"no two-arm table yet: build {stamp} has no '{TIDE_FLAGS[flag]}' field"]}, watch
     replaced = list((watch.get(K_REPL) or {}).get(flag) or [])

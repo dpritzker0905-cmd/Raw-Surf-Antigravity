@@ -300,6 +300,21 @@ def test_with_the_flag_off_and_no_on_arm_yet_nothing_is_fetched_and_nothing_is_b
     assert FLAG not in rep["decisions"]
 
 
+def test_with_the_flag_off_an_empty_on_arm_is_judged_untestable_and_counted_blind(monkeypatch):
+    """Advisor HOLD on #1283 at 10ab1e6b4: only an ABSENT key is 'no arm yet'. A present but empty arm ('am_h': {}) is
+    a broken build: UNTESTABLE, counted, and over 5 cycles spanning 24 h it opens the blind line."""
+    monkeypatch.setattr(fg, "save_watch", lambda *a: None)
+    doc = _doc({})
+    w = {}
+    for h in (0, 6, 12, 18, 24):
+        rep = fg.run(_args(), now=NOW + timedelta(hours=h), manifest={"schema": rf.SCHEMA, "flags": {}}, watch=w,
+                     volumes=lambda *a: {}, scorer=lambda flags, n, c, o: {},
+                     tide={"read": lambda e: (doc, "e", False), "fetch": _noaa, "monitors": MONITORS})
+        w = rep["watch"]
+        assert rep["results"][FLAG]["verdict"] == gs.UNTESTABLE and not rep["results"][FLAG].get("no_arm")
+    assert rep["tide_blind"] and "5 cycles over 24 h" in rep["tide_blind"][0] and FLAG not in rep["decisions"]
+
+
 # ---- run() end to end -------------------------------------------------------------------------------------------------
 def test_run_judges_the_tide_flag_and_reports_it(monkeypatch):
     monkeypatch.setattr(fg, "save_watch", lambda *a: None)
