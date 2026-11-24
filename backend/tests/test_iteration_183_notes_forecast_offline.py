@@ -63,19 +63,10 @@ class TestForecastAPI:
 class TestNotesAPI:
     """Test Notes API endpoints"""
     
-    def test_get_user_note_endpoint(self):
-        """GET /api/notes/user/{user_id} should return note data"""
-        # Use a known user ID from test credentials
-        user_id = "d3eb9019-d16f-4374-b432-4d168a96a00f"  # Kelly Slater
-        viewer_id = user_id  # Viewing own note
-        
-        response = requests.get(f"{BASE_URL}/api/notes/user/{user_id}?viewer_id={viewer_id}")
-        assert response.status_code == 200, f"Failed to get user note: {response.text}"
-        
-        data = response.json()
-        # Response should have note (can be null) and is_mutual_follower
-        assert 'note' in data or 'is_mutual_follower' in data, "Response missing expected keys"
-    
+    def test_profile_note_requires_sign_in(self):
+        response = requests.get(f"{BASE_URL}/api/notes/user/synthetic-profile", timeout=10)
+        assert response.status_code == 401
+
     def test_get_notes_feed_endpoint(self):
         """GET /api/notes/feed should return notes feed"""
         user_id = "d3eb9019-d16f-4374-b432-4d168a96a00f"

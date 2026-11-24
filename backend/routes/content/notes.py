@@ -14,7 +14,7 @@ import json
 import asyncio
 from database import get_db
 from models import UserNote, NoteReply, NoteReaction, Profile, Follow, Conversation, Notification
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from models import Message
 
 # Import OneSignal service for push notifications
@@ -191,7 +191,7 @@ async def get_my_note(
 @router.get("/user/{target_user_id}")
 async def get_user_note(
     target_user_id: str,
-    viewer_id: str = Query(..., description="ID of the user viewing the profile"),
+    viewer_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """

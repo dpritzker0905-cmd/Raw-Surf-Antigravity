@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 7,
+  "branch": "codex/profile-note-identity",
+  "date": "2026-11-21",
+  "note": "Authenticated reader and mutual-follower visibility on profile notes"
+}
