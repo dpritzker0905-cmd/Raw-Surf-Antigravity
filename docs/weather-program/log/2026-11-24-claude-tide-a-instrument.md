@@ -65,3 +65,24 @@ Append-only. Stamps come from `date -u`.
 
 - **Fragment:** estate +22 (was +17).
 - **Checks:** the instrument, tide_own, workflow-condition and tide_window suites give 74 passed, twice.
+
+## 22:24Z: amendment 2 (PRE-DATA), the pacing and error-handling fix, after v1-1 = NO RUN (infra)
+
+- **The ruling, relayed by the director:** v1-1 = NO RUN (infra). ONE registered re-run, `tide-a-harcon-v1-2`, is
+  allowed on David's typed word, on this fixed head. The record is #1287.
+- **Gate §10, amendment 2:** every CO-OPS call is paced (≥ 2 s apart; 403, 429, 5xx, connection, timeout and
+  truncated or non-JSON bodies back off exponentially with jitter, honour Retry-After, and are bounded at 600 s); then
+  a HARNESS failure. A 400 or 404 is a harness failure at once.
+  - **C1:** the verbatim `finder_check.py`, one station at a time (`paced_finder.py`). A failure is recorded and the
+    output is always written. A missing row at a scored station is C1 VOID.
+  - **The instrument:** run through `paced_run.py`. A harness failure is recorded per station; the JSON is atomic,
+    with `complete` and `harness_failures`.
+  - **The scorer:** a harness failure or an incomplete run is VOID, right after C1.
+  - **Verifying the diff:** `git diff -w` shows the instrument change is the `try`/`except HarnessFailure` around the
+    per-station body, the truth failure raised as a harness failure, and the atomic write. The indentation is the only
+    other change.
+- **Tests:** `tests/test_coops_pacing.py`, 13 (estate lane):
+  - spacing; backoff; Retry-After; the bound; a 400; a truncated body vs a 200 error-JSON; other hosts;
+  - the failure escaping the real `get_json` and the verbatim `finder_check`;
+  - the per-station runner; the scorer VOIDs; the workflow; the fixed constants and the hash.
+- The instrument tests' workflow assertion now names `paced_finder.py`.

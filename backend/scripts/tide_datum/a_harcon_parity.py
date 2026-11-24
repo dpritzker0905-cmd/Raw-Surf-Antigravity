@@ -21,6 +21,7 @@ CI (repo root):  python backend/scripts/tide_datum/a_harcon_parity.py --fes-cach
 """
 import argparse
 import json
+import os
 import statistics as st
 import sys
 import urllib.request
@@ -35,6 +36,7 @@ for sub in ("tide_own", "tide_fes"):
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(BACKEND))
 import a_harcon_vendor as V                                       # noqa: E402  (verbatim from 1d92f7564)
+from coops_pacing import HarnessFailure                           # noqa: E402  (amendment 2: infra, never data)
 from a_harcon_frozen import _km                                   # noqa: E402  (verbatim from c29f234df)
 from services.weather_pipeline import tide as T                   # noqa: E402  (the served event finder)
 
@@ -179,47 +181,53 @@ def main(argv=None):
         rows = events_rows(tr["hilo"], tr["raw_mean"], hours, [float(x) for x in own], day0, stop)
         return {"rows": rows}
 
-    per = {}
+    per, harness = {}, []
     for sid, stratum in cand:
         la, lo = pts[sid]
         row = {"stratum": stratum, "name": by_id[sid]["name"], "lat": la, "lng": lo}
-        d = boxes / OR.safe_dir(sid)
-        fes = arms.fes_eval(d, la, lo, npt) if d.exists() else None
-        fes_tb = arms.fes_eval(d, la, lo, npt, exclude=("Sa", "Ssa")) if d.exists() else None
-        if fes is None or fes_tb is None:
-            per[sid] = dict(row, fes_undefined=True)
-            continue
-        fes, fes_tb = [float(x) for x in fes], [float(x) for x in fes_tb]
         try:
-            tr = truth(sid)
-        except Exception as e:                                     # noqa: BLE001 - a CO-OPS failure is reported
-            per[sid] = dict(row, error=f"CO-OPS {type(e).__name__}")
-            continue
-        row.update(noaa_events=len(tr["hilo"]), fes_tb=events_rows(tr["hilo_tb"], tr["tb_mean"], hours, fes_tb, day0, stop),
-                   fes_raw=events_rows(tr["hilo"], tr["raw_mean"], hours, fes, day0, stop),
-                   c2_station=identity(sid, la, lo), donors=[])
-        for dn in donor_prefix(sid, la, lo, universe, cand_ids):
-            hc = harcon(dn["id"])
-            syn = arms.harcon_eval(hc, npt) if hc else None
-            ent = dict(dn, has_constants=syn is not None)
-            if syn is not None:
-                don = [float(x) for x in syn]
-                lp = noaa_long_period([r for r in hc if r[1] in ("SA", "SSA")], hours)
-                don_tb = [x - s for x, s in zip(don, lp)]
-                arm_tb, arm_raw = blend(dn["w"], don_tb, fes_tb), blend(dn["w"], don, fes)
-                ent.update(harcon_tb=events_rows(tr["hilo_tb"], tr["tb_mean"], hours, arm_tb, day0, stop),
-                           harcon_raw=events_rows(tr["hilo"], tr["raw_mean"], hours, arm_raw, day0, stop),
-                           c3_w0_max_m=max(abs(x - y) for x, y in zip(blend(0.0, don_tb, fes_tb), fes_tb)),
-                           c3_w1_max_m=max(abs(x - y) for x, y in zip(blend(1.0, don_tb, fes_tb), don_tb)),
-                           c2_donor=identity(dn["id"], by_id[dn["id"]]["lat"], by_id[dn["id"]]["lng"]))
-            row["donors"].append(ent)
-        per[sid] = row
-        print(sid, stratum, len(row["donors"]), "donor(s)", flush=True)
+            d = boxes / OR.safe_dir(sid)
+            fes = arms.fes_eval(d, la, lo, npt) if d.exists() else None
+            fes_tb = arms.fes_eval(d, la, lo, npt, exclude=("Sa", "Ssa")) if d.exists() else None
+            if fes is None or fes_tb is None:
+                per[sid] = dict(row, fes_undefined=True)
+                continue
+            fes, fes_tb = [float(x) for x in fes], [float(x) for x in fes_tb]
+            try:
+                tr = truth(sid)
+            except Exception as e:                                     # noqa: BLE001 - amendment 2: a failure to
+                raise HarnessFailure(f"NOAA truth at {sid}: {type(e).__name__}") from None   # fetch truth is infra
+            row.update(noaa_events=len(tr["hilo"]), fes_tb=events_rows(tr["hilo_tb"], tr["tb_mean"], hours, fes_tb, day0, stop),
+                       fes_raw=events_rows(tr["hilo"], tr["raw_mean"], hours, fes, day0, stop),
+                       c2_station=identity(sid, la, lo), donors=[])
+            for dn in donor_prefix(sid, la, lo, universe, cand_ids):
+                hc = harcon(dn["id"])
+                syn = arms.harcon_eval(hc, npt) if hc else None
+                ent = dict(dn, has_constants=syn is not None)
+                if syn is not None:
+                    don = [float(x) for x in syn]
+                    lp = noaa_long_period([r for r in hc if r[1] in ("SA", "SSA")], hours)
+                    don_tb = [x - s for x, s in zip(don, lp)]
+                    arm_tb, arm_raw = blend(dn["w"], don_tb, fes_tb), blend(dn["w"], don, fes)
+                    ent.update(harcon_tb=events_rows(tr["hilo_tb"], tr["tb_mean"], hours, arm_tb, day0, stop),
+                               harcon_raw=events_rows(tr["hilo"], tr["raw_mean"], hours, arm_raw, day0, stop),
+                               c3_w0_max_m=max(abs(x - y) for x, y in zip(blend(0.0, don_tb, fes_tb), fes_tb)),
+                               c3_w1_max_m=max(abs(x - y) for x, y in zip(blend(1.0, don_tb, fes_tb), don_tb)),
+                               c2_donor=identity(dn["id"], by_id[dn["id"]]["lat"], by_id[dn["id"]]["lng"]))
+                row["donors"].append(ent)
+            per[sid] = row
+            print(sid, stratum, len(row["donors"]), "donor(s)", flush=True)
+        except HarnessFailure as e:              # amendment 2: recorded; the scorer VOIDs the run, never a FAIL
+            harness.append({"station": sid, "why": str(e)[:300]})
+            per[sid] = dict(row, harness_error=str(e)[:300])
+            print("HARNESS FAILURE", sid, e, flush=True)
     out = {"schema": "raw-surf/tide-a-harcon-v1-run/1", "gate": "gates/tide-a-harcon-v1.md",
            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "window_start": a.start,
-           "days": a.days, "candidates": [[i, k] for i, k in cand], "per_station": per}
-    with open(a.json, "w", encoding="utf-8", newline="\n") as fh:
+           "days": a.days, "candidates": [[i, k] for i, k in cand], "per_station": per,
+           "harness_failures": harness, "complete": True}
+    with open(a.json + ".tmp", "w", encoding="utf-8", newline="\n") as fh:   # atomic: never a partial run file
         json.dump(out, fh, indent=1, default=str)
+    os.replace(a.json + ".tmp", a.json)
 
 
 if __name__ == "__main__":

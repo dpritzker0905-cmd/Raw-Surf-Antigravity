@@ -159,9 +159,18 @@ def score(run, finder, stations_doc):
     bad = {s: ((fin.get(s) or {}).get("hourly") or {}).get("median_abs_h_m") for s in scored
            if (((fin.get(s) or {}).get("hourly") or {}).get("median_abs_h_m") is None)
            or fin[s]["hourly"]["median_abs_h_m"] > FINDER_H_M}
-    out["controls"] = {"c1_finder": {"pass": not bad, "over_or_missing": bad}}
+    out["controls"] = {"c1_finder": {"pass": not bad, "over_or_missing": bad,
+                                     "harness_failures": finder.get("harness_failures") or []}}
     if bad:
         out["verdict"] = "VOID"
+        return out
+    # 1b. THE HARNESS (amendment 2): an instrument whose CO-OPS requests failed after the bounded backoff, or a run file
+    #     that is not complete, is VOID: infrastructure, never a FAIL and never a replacement.
+    if run.get("harness_failures") or not run.get("complete"):
+        out["controls"]["harness"] = {"pass": False, "complete": bool(run.get("complete")),
+                                      "failures": run.get("harness_failures") or []}
+        out["verdict"] = "VOID"
+        out["why"] = "harness failure (amendment 2): the instrument could not complete its CO-OPS requests"
         return out
     # 2. MEASURABILITY
     q, rows = {}, {}

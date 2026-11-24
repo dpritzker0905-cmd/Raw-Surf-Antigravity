@@ -56,7 +56,7 @@ jobs:
   gate:
     needs: download
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 200
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -70,12 +70,15 @@ jobs:
           path: fes_cache
           key: fes2022b-aharcon-${{ github.run_id }}-${{ github.run_attempt }}
           fail-on-cache-miss: true
-      - name: C1 finder control (vendored finder_check.py, the scored candidates, fixed window)
-        timeout-minutes: 40
-        run: python backend/scripts/tide_datum/finder_check.py --start 2027-02-01 --days 14 --stations docs/weather-program/research/tide-a-harcon-v1-stations.json --json tide_a_harcon_finder.json
-      - name: Instrument (both arms, donors, C2 and C3 records)
-        timeout-minutes: 90
-        run: python backend/scripts/tide_datum/a_harcon_parity.py --fes-cache fes_cache --work a_work --start 2027-02-01 --days 14 --json tide_a_harcon_run.json
+      # Amendment 2 (v1-1 = NO RUN, infra 403): every CO-OPS request is paced (>= 2 s apart) and backs off with jitter on
+      # 403/429/5xx, bounded at about 10 min a request, then a HARNESS failure that is recorded, never swallowed: a missing
+      # finder row at a scored station is C1 VOID, and an instrument harness failure is VOID, in the scorer.
+      - name: C1 finder control (vendored finder_check.py, one station at a time, paced; the scored candidates, fixed window)
+        timeout-minutes: 60
+        run: python backend/scripts/tide_datum/paced_finder.py --start 2027-02-01 --days 14 --stations docs/weather-program/research/tide-a-harcon-v1-stations.json --json tide_a_harcon_finder.json
+      - name: Instrument (both arms, donors, C2 and C3 records; paced)
+        timeout-minutes: 120
+        run: python backend/scripts/tide_datum/paced_run.py backend/scripts/tide_datum/a_harcon_parity.py --fes-cache fes_cache --work a_work --start 2027-02-01 --days 14 --json tide_a_harcon_run.json
       - name: Score (pure; precedence finder -> measurability -> identities -> bar)
         run: python backend/scripts/tide_datum/a_harcon_score.py --run tide_a_harcon_run.json --finder tide_a_harcon_finder.json --out tide_a_harcon_score.json
       - uses: actions/upload-artifact@v4
@@ -86,5 +89,6 @@ jobs:
             tide_a_harcon_run.json
             tide_a_harcon_finder.json
             tide_a_harcon_score.json
+            coops_requests.jsonl
           if-no-files-found: ignore
           retention-days: 30

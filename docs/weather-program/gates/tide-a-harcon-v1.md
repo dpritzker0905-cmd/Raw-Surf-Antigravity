@@ -265,3 +265,51 @@ used: it needs David's approval of its payload.
 | A 75% win rate, and multiplicity across legs (Reflection 9) | KEPT: an intersection needs no correction; disclosed in section 5 |
 | C1's availability (Reflection 7) | NOTED: NOAA serves hourly predictions for future dates; v2 used the same |
 | DARK follows only as "not built", not as "infeasible" (SubQ 12; Reflection 12) | ADOPTED: section 7 now says feasible-not-built, may not ship ON, and dark-before-tester is the owner's call |
+
+## 10. Amendment 2 (2026-11-24 22:24Z, PRE-DATA): v1-1 = NO RUN (infra); request pacing and harness failures
+
+Written before any outcome of this gate exists. Where this section and the text above differ, this section holds.
+
+**The ruling** (the advisor's, relayed by the director, 2026-11-24):
+- **v1-1 = NO RUN (infra).** Run 45497184958, tag `tide-a-harcon-v1-1` on `319d59086`, got HTTP 403 from CO-OPS in C1
+  (`finder_check`) after 47 of the 50 candidates. The instrument and scorer never ran. No arm, donor, identity or leg
+  was computed, and there is no artifact.
+- **Disclosed:** the 47 C1 control rows printed in the job log were seen. They are independent of both arms and are
+  recomputed identically, so the advisor rules them immaterial.
+- **ONE registered re-run, `tide-a-harcon-v1-2`, is allowed** on David's typed word. It uses the same stations, window,
+  metric, bar, controls, precedence and scorer, tagged on this fixed #1285 head. **No third run without a new ruling.**
+
+**The fix: pacing and error handling only.** Every other rule above is unchanged.
+1. **Every CO-OPS request is paced** (`scripts/tide_datum/coops_pacing.py`). That covers the finder AND the instrument:
+   the truth (hilo, hourly), the candidate and donor constants, and C2.
+   - At least 2.0 s between the starts of any two CO-OPS requests, retries included.
+   - On 403, 429, 5xx, a connection error, a timeout, or a truncated or non-JSON body: exponential backoff with jitter
+     (15 s doubling, at most 120 s a wait, plus up to 25 % jitter), honouring `Retry-After`. It is bounded at 600 s from
+     the request's first attempt (about 10 min a request).
+   - Then it is a **HARNESS FAILURE**. Any other HTTP status (400, 404) is a harness failure at once: for this run's
+     known stations, CO-OPS signals "no data" with a 200 (an empty constants list, or an error JSON), which stays data.
+   - The constants are fixed in code, the module's sha256 is pinned by a test, and requests to any other host are
+     untouched.
+2. **A harness failure is never data and never crashes the step blind.**
+   - It is a `BaseException`, so no `except Exception` turns it into "no constants" (a replacement cause) or "not
+     MEASURED".
+   - **C1:** the VERBATIM `finder_check.py` (its hash test kept) is run one station at a time
+     (`paced_finder.py`). A station that hits a harness failure is recorded and skipped, the merged JSON is always
+     written, and a missing finder row at a scored station is **C1 VOID** in the scorer.
+   - **The instrument** (run through `paced_run.py`) records a harness failure at a station (a failure to fetch the
+     truth counts as one) and keeps going. It writes its JSON atomically with `"complete": true` and a
+     `harness_failures` list.
+   - **The scorer**, right after C1: any instrument harness failure, or a run file without `"complete": true`, is
+     **VOID**. It is never a FAIL and never a replacement.
+3. **Workflow.** Both CO-OPS steps run through the paced runners. The step timeouts become 60 min (finder) and 120 min
+   (instrument), and the job's 200 min. The request log `coops_requests.jsonl` joins the artifact (upload
+   `if: always()`).
+4. **Sizing (no gate data read).** About 447 CO-OPS requests (the finder 150; the instrument 198 predictions + 99
+   constants at 99 unique stations), at 0.5 requests/s or less: about 19 min without backoff, against the v1-1 burst of
+   about 1.2 requests/s.
+
+**Hashes at this amendment:**
+- `coops_pacing.py`: `2af2c60058115c499fc631387c09f6c5fea0e52c9d47a32a3f52d1b056a60d64` (pinned);
+- `paced_finder.py`: `4f8c055c30e6fa716d846002cf836e915c3dc8718e2c6025e10fe2a4abdd3d05`;
+- `paced_run.py`: `9ef3a1214d795326a80270c272b43c5f66bf813304fc89b9b6442d239a5b3c6c`.
+- `finder_check.py` and `a_harcon_vendor.py` are unchanged (pinned).
