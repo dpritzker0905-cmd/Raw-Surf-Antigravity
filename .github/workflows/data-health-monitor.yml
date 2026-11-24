@@ -14,10 +14,19 @@ name: Data Health Monitor
 on:
   schedule:
     - cron: '*/30 * * * *'   # every 30 min (ingest cron refreshes every 4h; this detects a stall well within a cycle)
-  workflow_dispatch: {}
+  # Also dispatched every 30 min by the Render box (services/workflow_dispatch.py LANES), because GitHub ran this cron
+  # about once every 7 h (inspection 2026-11-23). force_stale=1 is the one forced-stale proof of the alert path: it opens
+  # a [TEST] issue assigned to the owner and closes it in the same run.
+  workflow_dispatch:
+    inputs:
+      force_stale:
+        description: "1 = prove the alert: open a [TEST] stale-data issue and close it in this run"
+        required: false
+        default: "0"
 
 permissions:
   contents: read
+  issues: write     # the stale-data issue (scripts/staleness_alert.py): GITHUB_TOKEN only, no new secret
 
 concurrency:
   group: data-health-monitor
@@ -32,11 +41,13 @@ jobs:
         id: checkout
 
       - name: Poll /api/health/data
+        id: health
         env:
           HEALTH_URL: ${{ vars.HEALTH_URL || 'https://raw-surf-antigravity.onrender.com/api/health/data' }}
         run: |
           set -o pipefail
           code=$(curl -sS -o /tmp/health.json -w '%{http_code}' --max-time 60 "$HEALTH_URL" || echo "000")
+          echo "$code" > /tmp/health.code
           echo "GET $HEALTH_URL -> HTTP $code"
           python3 - <<'PY' || echo "(unparseable/empty body)"
           import json
@@ -102,6 +113,7 @@ jobs:
       # the PUBLIC latest.json must list it with a run younger than RASTER_STALE_HOURS (default 30 h; one bound for every set).
       # A set switched on but not yet published is a WARNING (its first publish is a few hours away), not a failure.
       - name: Raster frame-set freshness
+        id: raster
         if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -146,6 +158,7 @@ jobs:
           python3 scripts/raster_set_freshness.py --base "${SUPABASE_URL%/}/storage/v1/object/public/weather-frames" --fail-on-stale
 
       - name: Regional product run-age census
+        id: regional
         # Global paging must not hide the finer regional diagnosis (run 34849338600).
         if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
         env:
@@ -165,3 +178,51 @@ jobs:
             python3 scripts/product_run_age_census.py --base "$BASE" || true
             echo "::warning::Regional run-age census is in NON-PAGING mode (REGION_HEALTH_PAGING=0)."
           fi
+
+      # THE NOTIFICATION (reliability lane, 2026-11-24). A red run reaches nobody who is not watching Actions; the
+      # 11-19/20 credential failure was silent for 21-25 h. One issue labelled stale-data + severity:<level>, assigned to
+      # the owner (repo variable REPO_OWNER_LOGIN, a login, not a secret): opened once, escalated once, closed on
+      # recovery. scripts/staleness_alert.py decides; tests/test_staleness_alert.py pins it.
+      - name: Stale-data issue (open / escalate / close)
+        if: ${{ always() && steps.checkout.outcome == 'success' }}
+        working-directory: backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ vars.REPO_OWNER_LOGIN }}
+          FORCE: ${{ inputs.force_stale || '0' }}
+          PAGE_HOURS: ${{ vars.HEALTH_PAGE_HOURS || '7' }}
+          RASTER: ${{ steps.raster.outcome }}
+          REGIONAL: ${{ steps.regional.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          for l in "stale-data:b60205:Served data is not being refreshed" "severity:critical:b60205:Page now" \
+                   "severity:high:d93f0b:Act today"; do
+            n="${l%%:*}"; rest="${l#*:}"; [ "$n" = "severity" ] && { n="severity:${rest%%:*}"; rest="${rest#*:}"; }
+            gh label create "$n" --repo "$GITHUB_REPOSITORY" --color "${rest%%:*}" --description "${rest#*:}" --force >/dev/null
+          done
+          gh issue list --repo "$GITHUB_REPOSITORY" --label stale-data --state open --json number,title,labels > /tmp/open.json || echo '[]' > /tmp/open.json
+          force=""; [ "$FORCE" = "1" ] && force="--force-stale"
+          python3 scripts/staleness_alert.py --health /tmp/health.json --code "$(cat /tmp/health.code 2>/dev/null || echo 000)" \
+            --page-hours "$PAGE_HOURS" --raster "$RASTER" --regional "$REGIONAL" --open-issues /tmp/open.json \
+            --run-url "$RUN_URL" $force > /tmp/decision.json
+          cat /tmp/decision.json; echo
+          action=$(python3 -c "import json;print(json.load(open('/tmp/decision.json'))['action'])")
+          j() { python3 -c "import json,sys;d=json.load(open('/tmp/decision.json'));v=d.get(sys.argv[1]);print(','.join(v) if isinstance(v,list) else (v or ''))" "$1"; }
+          j body > /tmp/body.md
+          assignee=""; [ -n "$OWNER" ] && assignee="--assignee $OWNER"
+          case "$action" in
+            open)
+              url=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$(j title)" --body-file /tmp/body.md --label "$(j labels)" $assignee)
+              echo "opened $url"
+              if [ "$FORCE" = "1" ]; then
+                gh issue close "$url" --repo "$GITHUB_REPOSITORY" --comment "Forced-stale test passed: opened and assigned by run $RUN_URL, closed by the same run."
+                echo "forced-stale test: opened and closed $url"
+              fi ;;
+            escalate)
+              gh issue edit "$(j number)" --repo "$GITHUB_REPOSITORY" --title "$(j title)" --add-label "$(j labels)" --remove-label "$(j remove_labels)"
+              gh issue comment "$(j number)" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md ;;
+            close)
+              gh issue close "$(j number)" --repo "$GITHUB_REPOSITORY" --comment "$(j body)" ;;
+            *) echo "no issue change (severity $(python3 -c "import json;print(json.load(open('/tmp/decision.json'))['severity'])"))" ;;
+          esac

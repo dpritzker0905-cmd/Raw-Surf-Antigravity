@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 13,
+  "branch": "claude/staleness-alert",
+  "date": "2026-11-24",
+  "note": "staleness alert: test_staleness_alert (12) + the monitor lane in test_workflow_dispatch (1)"
+}
