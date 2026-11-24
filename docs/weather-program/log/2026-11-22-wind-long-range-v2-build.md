@@ -57,3 +57,4 @@ The eligibility count (committed pairing run 45282727875 + the frozen list) find
 
 ## Public mirror published and verified (2026-11-24T02:33:44Z)
 Release `wind-lr2-clim-gust-1e7df526a8598fc1` (non-draft, not latest, target dev) holds only `wind_lr2_clim_gust-1e7df526a8598fc1.json` (12,810,040 bytes). Two independent unauthenticated downloads of the public asset URL (the director session, and this lane) both hash to `1e7df526a8598fc10e476318645829e792f5abd7cf6bdc3862d964f9954d01d8`, equal to the committed hash file. `wind_lr2_clim_gust.release.json` now records `published_at`, `published_by` and the verification.
+Note for the record: the release was created with `--latest=false` and target `dev`, but GitHub's `/releases/latest` API returns this tag because it is the repository's only non-draft release. No workflow triggers on releases, so this is harmless.
