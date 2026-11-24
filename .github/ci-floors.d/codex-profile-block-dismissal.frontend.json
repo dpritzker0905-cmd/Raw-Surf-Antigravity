@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 5,
+  "files": 0,
+  "branch": "codex/profile-block-dismissal",
+  "date": "2026-11-21",
+  "note": "Four block-dialog dismissal paths and failed-request retry preserve correct draft ownership"
+}
