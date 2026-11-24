@@ -20,5 +20,9 @@ docs-only PRs, and is REPORT-ONLY until repo variable `FLOOR_FRAGMENT_CHECK=bloc
 - **#1228 head `719df1b4a`, base `f37de972a`:** estate **+15 tests, fragment 0, mismatch**. It printed
   `python backend/scripts/rederive_floor.py --lane estate --add 15 --note "<what the tests are>"`.
 - **#1268 (control):** chain +7 tests and **+1 file**, against a fragment of 7 tests and 0 files. That was a real miss of
-  mine (no `--add-files` for the new `test_run_age.py`); fixed on #1268 at `4c3ba8e1c`.
+  mine (no `--add-files` for the new `test_run_age.py`). The pre-test read #1268's own delta against its merge base
+  `3b0407247` (the #1266 merge, 13:16Z), before the director's catch-up #1272 (`cf8b74090`, 16:10Z).
+  **Superseded by #1272:** #1268 had already merged (13:59Z, head `33d72454f`) when I pushed a fragment fix `4c3ba8e1c` to
+  its branch. That commit is on no path to dev and gets no PR, because #1272's chain MIN_FILES 268 to 269 already absorbed
+  the +1 file, and a second fragment would count it twice.
 - **This PR on itself:** estate +15 against a fragment of +15: ok.
