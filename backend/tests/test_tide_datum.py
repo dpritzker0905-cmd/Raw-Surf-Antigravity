@@ -412,13 +412,37 @@ def test_v2_scorer_intersection_placebo_and_replacement_cap():
     r = V.score(few, held, fin)
     assert r["verdict"] == "VOID" and r["controls"]["planted_d_identity"]["tested_stations"] == 9
     assert not r["controls"]["planted_d_identity"]["pass"] and "strata" not in r
-    # s10 (c'): a stratum with < 8 MEASURED stations cannot vacuously pass the placebo identity: VOID
+    # s11 (measurability before vacuity): with the finder passing, a stratum with < 19 MEASURED has already FAILED
+    # (s4); D cannot change measurability, so the vacuous placebo is reported 'untestable' and the run is FAIL, not VOID.
     thin = art(0.01, 0.01)
     for i in range(13):                                       # 7 MODEL stations stay MEASURED
         for key in ("hybrid_tb_events", "placebo_tb_events", "model_tb_events"):
             thin["per_gauge"][f"M{i}"][key] = [dict(e, height_err_m=None, ours_m=None) for e in thin["per_gauge"][f"M{i}"][key]]
     r = V.score(thin, held, fin)
-    assert r["verdict"] == "VOID" and r["controls"]["placebo"]["shift_identity_by_stratum"]["MODEL"]["measured"] == 7
+    assert r["verdict"] == "FAIL" and r["measured_by_stratum"]["MODEL"] == 7
+    assert r["controls"]["placebo"]["status_by_stratum"]["MODEL"] == "untestable" and r["controls"]["placebo"]["pass"]
+    assert not r["strata"]["MODEL"]["legs"]["per_gauge"]
+    # the SAME thin case with a FAILING finder is VOID: the finder comes first
+    bad_fin = dict(fin)
+    bad_fin["M15"] = {"hourly": {"median_abs_h_m": 0.05}}       # a MEASURED MODEL station
+    r = V.score(thin, held, bad_fin)
+    assert r["verdict"] == "VOID" and not r["controls"]["finder_heights"]["pass"] and "strata" not in r
+    # s11 for (c): a NEIGHBOR stratum with < 19 MEASURED makes the < 10 identity count 'untestable', and the run FAIL
+    thin_nb = art(0.01, 0.01)
+    for i in range(11):
+        row = thin_nb["per_gauge"][f"N{i}"]
+        row["d"].pop("nsheet")
+        row.pop("nsheet_tb_events")
+        for key in ("hybrid_tb_events", "placebo_tb_events", "model_tb_events"):
+            row[key] = [dict(e, height_err_m=None, ours_m=None) for e in row[key]]
+    r = V.score(thin_nb, held, fin)
+    assert r["verdict"] == "FAIL" and r["controls"]["planted_d_identity"]["status"] == "untestable"
+    # a TESTED identity that is WRONG is VOID even in a thin stratum (the instrument itself failed)
+    wrong = art(0.01, 0.01)
+    wrong["per_gauge"]["N0"]["nsheet_tb_events"] = [dict(e, height_err_m=e["height_err_m"] + 0.05)
+                                                    for e in wrong["per_gauge"]["N0"]["nsheet_tb_events"]]
+    r = V.score(wrong, held, fin)
+    assert r["verdict"] == "VOID" and r["controls"]["planted_d_identity"]["status"] == "mismatch"
     # s10 (d): donor distances are reported, co-located sheets flagged (never a bar)
     near = art(0.01, 0.01)
     for i in range(20):

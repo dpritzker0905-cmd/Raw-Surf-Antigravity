@@ -12,6 +12,9 @@ Order (VOID-only controls first; the bar is opened only if all pass; no re-run):
                over the SAME matched events (paired by NOAA time at the MEASURED stations, MEASURED decided by
                hybrid_tb alone) = +0.10 m within 0.002 m. Independent of the outcome: it can never turn a FAIL
                into a VOID.
+  PRECEDENCE   (gate amendment 3, s11) finder first (fail = VOID); then measurability (< 19 MEASURED in a stratum = FAIL,
+               identities 'untestable where vacuous'); then the identities (a tested mismatch = VOID anywhere; vacuity
+               = VOID only in a stratum with >= 19 MEASURED); then the bar.
   BAR          per stratum, on hybrid_tb over MEASURED stations (>= 70% and >= 8 NOAA events matched, else a FAIL):
                median |h| <= 0.03; p90 <= 0.08 (nearest rank); per-station median <= 0.10 at >= 19 of 20; median signed
                within +-0.02. PRIMARY: PASS iff BOTH strata pass all four (intersection).
@@ -140,22 +143,44 @@ def score(art, heldout, finder):
     measured_ids = [sid for k in dec for sid in dec[k]["ids"]
                     if per.get(sid, {}).get("hybrid_tb_events") is not None and measured(per[sid]["hybrid_tb_events"])["measured"]]
     ids_nb = dec.get("NEIGHBOR", {}).get("ids", [])
-    ident = {sid: identity(per.get(sid) or {}) for sid in ids_nb if sid in measured_ids}
-    tested = sorted(sid for sid, v in ident.items() if v[3] >= 1 and "nsheet" in ((per.get(sid) or {}).get("d") or {}))
+    mset = set(measured_ids)
+    out["donor_distance_km"] = donor_distances(per, ids_nb)
+    # 1. THE FINDER FIRST (gate amendment 3, s11): a failed finder is VOID, whatever else holds.
     fin_bad = {sid: (finder.get(sid) or {}).get("hourly", {}).get("median_abs_h_m") for sid in measured_ids
                if (finder.get(sid) is None) or ((finder[sid]["hourly"].get("median_abs_h_m") or 0) > FINDER_H_M)}
-    placebo = {k: placebo_identity(per, dec[k]["ids"], set(measured_ids)) for k in dec}
-    placebo_ok = all(v["ok"] for v in placebo.values())
-    out["controls"] = {"planted_d_identity": {"pass": all(v[0] for v in ident.values()) and len(tested) >= MIN_IDENTITY_STATIONS,
-                                              "tested_stations": len(tested), "per_station": ident},
-                       "finder_heights": {"pass": not fin_bad, "over_or_missing": fin_bad},
-                       "placebo": {"pass": placebo_ok, "shift_identity_by_stratum": placebo}}
-    out["donor_distance_km"] = donor_distances(per, ids_nb)
+    # 2. MEASURABILITY (s4): a stratum with < 19 MEASURED deciding stations after replacement has already FAILED;
+    #    D cannot change measurability, so vacuity there is reported "untestable", never VOID.
+    n_meas = {k: sum(1 for sid in dec[k]["ids"] if sid in mset) for k in dec}
+    thin = {k: n_meas[k] < BAR["gauges_needed"] or not dec[k]["measurable"] for k in dec}
+    # 3. THE IDENTITIES: a tested-and-wrong identity is VOID anywhere (the instrument failed); vacuity is VOID only in a
+    #    stratum that is fully measured (>= 19).
+    ident = {sid: identity(per.get(sid) or {}) for sid in ids_nb if sid in mset}
+    tested = sorted(sid for sid, v in ident.items() if v[3] >= 1 and "nsheet" in ((per.get(sid) or {}).get("d") or {}))
+    id_mismatch = sorted(sid for sid in tested if not ident[sid][0])
+    id_vacuous = len(tested) < MIN_IDENTITY_STATIONS
+    id_status = ("mismatch" if id_mismatch else "untestable" if id_vacuous and thin.get("NEIGHBOR")
+                 else "vacuous" if id_vacuous else "pass")
+    placebo = {k: placebo_identity(per, dec[k]["ids"], mset) for k in dec}
+    pl_status = {}
+    for k, v in placebo.items():
+        if v["diff_m"] is not None and abs(v["diff_m"] - PLACEBO_SHIFT_M) > PLACEBO_TOL_M:
+            pl_status[k] = "mismatch"
+        elif v["diff_m"] is None:
+            pl_status[k] = "untestable" if thin[k] else "vacuous"
+        else:
+            pl_status[k] = "pass"
+    out["controls"] = {"finder_heights": {"pass": not fin_bad, "over_or_missing": fin_bad},
+                       "planted_d_identity": {"pass": id_status in ("pass", "untestable"), "status": id_status,
+                                              "tested_stations": len(tested), "mismatch": id_mismatch, "per_station": ident},
+                       "placebo": {"pass": all(s in ("pass", "untestable") for s in pl_status.values()),
+                                   "status_by_stratum": pl_status, "shift_identity_by_stratum": placebo}}
+    out["measured_by_stratum"] = n_meas
     if not all(c["pass"] for c in out["controls"].values()):
         out["verdict"] = "VOID"
         return out                                                # the bar is NOT opened
+    # 4. THE BAR (s4). A thin stratum fails its per-station leg; its FAIL is never turned into a VOID.
     out["strata"] = {k: legs(per, dec[k]["ids"], "hybrid_tb") for k in dec}
-    ok = all(dec[k]["measurable"] for k in dec) and all(out["strata"][k]["pass"] for k in dec)
+    ok = not any(thin.values()) and all(out["strata"][k]["pass"] for k in dec)
     out["verdict"] = "PASS" if ok else "FAIL"
     out["reported"] = {f"{k}:{v}": legs(per, dec[k]["ids"], v)["aggregate"] for k in dec for v in ("model_tb", "nsheet_tb", "hybrid")}
     return out
