@@ -29,3 +29,18 @@ Append-only. Stamps come from `date -u`.
 - **Verdict:** NONE. There is no SCOREBOARD row, because no number was produced.
 - **Not retried.** Whether this counts as "no run" under the gate's no-re-run rule, and the request-pacing fix, are
   with the advisor (asked by the director). Any new tag needs David's word.
+
+## 22:17Z: the advisor's ruling: v1-1 = NO RUN (infra)
+
+- **The ruling (relayed by the director, 2026-11-24):**
+  - v1-1 = **NO RUN (infra)**.
+  - ONE registered re-run, `tide-a-harcon-v1-2`, is allowed on David's typed word, with the same stations, window,
+    bar and scorer, tagged on the fixed #1285 head.
+  - No third run without a new ruling.
+- **Disclosed: the 47 C1 rows were SEEN.** The job log printed the C1 finder control rows (NOAA's own curve through
+  the served finder) for 47 of the 50 candidates before the 403, and this session read them while diagnosing. The
+  advisor rules they do not matter: they are independent of both arms (A_FES and A_HARCON never enter them), and
+  v1-2 recomputes them identically from NOAA's predictions.
+- **Recorded:** the ledger has a decision line for the ruling. The SCOREBOARD row reads "NO RUN (infra); no number".
+- **The fix** (CO-OPS request pacing, and harness failures that are never swallowed) comes as a dated PRE-DATA
+  amendment plus a new #1285 head. Nothing has been tagged.
