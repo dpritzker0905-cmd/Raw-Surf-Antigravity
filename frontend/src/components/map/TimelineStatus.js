@@ -2,6 +2,7 @@ import React from 'react';
 import ForecastTimeStatus from './ForecastTimeStatus';
 import WindLaneStatus from './WindLaneStatus';
 import WindTimeStatus from './WindTimeStatus';
+import RunAgeLabel from './RunAgeLabel';
 
 // The status lines under the forecast timeline, rendered once by MapWeatherControls' renderTimeline, so the desktop
 // panel and both mobile layouts all carry them: the displayed-forecast-time check, and the wind model at this hour
@@ -10,6 +11,7 @@ export default function TimelineStatus({ model, layer, hour, theme, showTime, sh
   return (
     <>
       {showTime && <ForecastTimeStatus model={model} layer={layer} hour={hour} theme={theme} radarMs={radarMs} />}
+      {layer !== 'radar' && <RunAgeLabel model={model} layer={layer} theme={theme} />}
       <WindLaneStatus theme={theme} active={!!showWind} />
       <WindTimeStatus model={model} hour={hour} theme={theme} active={!!windOn} />
     </>

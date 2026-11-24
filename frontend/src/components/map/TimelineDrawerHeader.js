@@ -1,9 +1,26 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import StaleLayerChip from './StaleLayerChip';
+import { readRunAge } from './runAgeReadout';
+
+/** The served run's age for the collapsed header (runAgeReadout.js; reliability lane 2026-11-24): the phone with the drawer shut
+ * shows no status line, so "GFS run 15 h" rides on the always-visible time button. Kill: window.__RAW_DISABLE_RUN_AGE_LABEL__. */
+function useRunAge(model, layer) {
+  const read = () => (model && layer && layer !== 'radar' ? readRunAge({ model, layer }) : null);
+  const [run, setRun] = useState(read);
+  useEffect(() => {
+    setRun(read());
+    const timer = setInterval(() => setRun(read()), 60000);
+    const t0 = setTimeout(() => setRun(read()), 3000);   // capabilities may land after mount
+    return () => { clearInterval(timer); clearTimeout(t0); };
+  }, [model, layer]);
+  return run;
+}
 
 /** Retain the original paired surfboard handles with equal left/right inset. */
 /** `stale` ({ model, layer, hour, windOn }): the selection the stale-layer chip reads (StaleLayerChip.js); shown only while collapsed. */
 export default function TimelineDrawerHeader({ expanded, onToggle, timeLabel, textClass = '', stale = null }) {
+  const run = useRunAge(stale && stale.model, stale && stale.layer);
+  const verb = expanded ? 'Close timeline' : 'Timeline';
   const handle = side => <button type="button" className={`weather-surfboard-handle group rounded-lg ${textClass}`}
     aria-label={`${expanded ? 'Close' : 'Open'} timeline, ${side} surfboard handle`} aria-expanded={expanded}
     aria-controls="weather-mobile-timeline-body" onClick={onToggle}>
@@ -16,7 +33,9 @@ export default function TimelineDrawerHeader({ expanded, onToggle, timeLabel, te
   const header = <div className="weather-compact-timeline-header">
     {handle('left')}
     <button type="button" className={`weather-drawer-time text-[11px] rounded-lg ${textClass}`} aria-expanded={expanded}
-      aria-controls="weather-mobile-timeline-body" onClick={onToggle}>{`${expanded ? 'Close timeline' : 'Timeline'} \u00b7 ${timeLabel}`}</button>
+      aria-controls="weather-mobile-timeline-body" onClick={onToggle}
+      aria-label={run ? `${verb}, ${timeLabel}. ${run.text}` : undefined} data-run-age={run ? (run.stale ? 'stale' : 'ok') : undefined}>
+      {`${verb} \u00b7 ${timeLabel}${run ? ` \u00b7 ${run.model} run ${run.ageH} h` : ''}`}</button>
     {handle('right')}
   </div>;
   if (expanded || !stale) return header;

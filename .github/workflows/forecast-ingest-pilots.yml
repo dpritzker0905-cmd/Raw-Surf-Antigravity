@@ -800,6 +800,37 @@ jobs:
           FRAME_OFFSET_PRODUCT: ${{ vars.FRAME_OFFSET_PRODUCT || '0' }}
         run: python scripts/publish_raster_frames.py --offset
 
+      # FRAME PHYSICS CHECK (2026-11-23, check lane; services/frame_physics_check.py). REPORT-ONLY: after every publish and raster step
+      # (so it can never take their time; advisor, #1264) and just before the "No fail-green" gate (#1265), which lists both of its
+      # step ids as report-only (publish_outcome_gate.REPORT_ONLY_STEP_IDS). It reads
+      # what was just published (latest.json -> the GFS / ICON / EURO world marine indexes -> a sample of frames: lead 0, then one
+      # every 24 h) and reports four laws per model: partition Hs <= total Hs, sum of partition energies <= total energy, no valid
+      # cell at 0 m / 0 s, one source and one run per model button. It writes nothing to any bucket, never changes a value and
+      # exits 0 whatever it finds; the table goes to the run summary and the JSON to the artifact `frame-physics-report`.
+      # Egress ~10 MB a run (162 frames measured on the public bucket 2026-11-23). ON; KILL: repository variable FRAME_PHYSICS_CHECK = '0'.
+      - name: Frame physics check (report-only; kill FRAME_PHYSICS_CHECK=0)
+        id: frame_physics           # report-only (publish_outcome_gate.REPORT_ONLY_STEP_IDS): a failure warns, never turns the run red
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_PHYSICS_CHECK || '1') != '0' }}
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: backend
+        env:
+          # READ-ONLY: anonymous GETs on the PUBLIC frames bucket (what a browser reads); no service-role key is given to this step.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          FRAME_PHYSICS_CHECK: ${{ vars.FRAME_PHYSICS_CHECK || '1' }}
+        run: python scripts/frame_physics_report.py --public-base "$SUPABASE_URL/storage/v1/object/public/weather-frames" --out frame_physics_report.json
+
+      - name: Upload the frame physics report
+        id: frame_physics_upload    # report-only too (publish_outcome_gate.REPORT_ONLY_STEP_IDS)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_PHYSICS_CHECK || '1') != '0' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: frame-physics-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: backend/frame_physics_report.json
+          if-no-files-found: ignore
+          retention-days: 30
+
       # NO FAIL-GREEN (reliability lane, 2026-11-24). The publish steps above run with continue-on-error so one failing set never
       # stops the others; but the run then ended GREEN with a set unpublished (measured: 5 of 60 green pilots runs and 1 of 60
       # green core runs since 2026-11-10/15 had a step exit non-zero, e.g. 2026-11-20 05:02Z the wind-lane rebuild published
