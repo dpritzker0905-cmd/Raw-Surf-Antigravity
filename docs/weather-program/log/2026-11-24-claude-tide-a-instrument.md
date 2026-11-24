@@ -108,3 +108,17 @@ Append-only. Stamps come from `date -u`.
   call, and R2 (the outcome file and exit 3). Fragment: estate +39.
 - **Stamp correction:** the amendment heading was first written as 22:47Z against a 22:35Z clock, and corrected
   before committing.
+
+## 22:42Z: merged origin/dev (after #1286's squash), and a follow-up named
+
+- **The merge:** #1286 merged to dev at 22:28:59Z (`98c3bc1d8`, head `47d20de21`), carrying this branch's instrument
+  as of `319d59086`. That put #1285 in conflict with dev.
+  - origin/dev was plain-merged in (the director's merge `6f01d178b`; this session's identical-tree merge `8a39599ff` was not pushed). The six add/add conflicts all had dev's side byte-identical to
+    `319d59086`, and resolved to this branch's side.
+  - `git diff origin/dev...HEAD` is now only amendment 3's pacing and error handling (`coops_pacing.py`,
+    `paced_run.py`, the instrument's atomic `complete` write, the scorer's refusal of an incomplete run), the
+    workflow, `test_coops_pacing.py` (17 tests), gate §10–§11, this log, and the fragment. The fragment goes from 22
+    to 39: +17 over dev, the pacing tests only.
+- **Follow-up, a later PR (not this one):** the daily `tide-own-series` build (#1286's `harcon_arm`, now on dev)
+  fetches donor constants through `sources.get_json` WITHOUT pacing. Under throttling a key just gets no `am_h` (FES
+  serves), so nothing is mis-served, but the build should run under the same paced opener.
