@@ -1,6 +1,6 @@
 {
   "lane": "frontend",
-  "tests": 6,
+  "tests": 7,
   "files": 1,
   "branch": "codex/gallery-menu-focus-exit",
   "date": "2026-11-24",

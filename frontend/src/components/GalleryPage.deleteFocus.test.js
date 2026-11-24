@@ -3,10 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { GalleryPage } from './GalleryPage';
 import apiClient from '../lib/apiClient';
+import { toast } from 'sonner';
 
 const mockTheme = 'dark';
 const mockUser = { id: 'photographer-a', role: 'Photographer' };
 const mockPricing = { generalSettings: null, lastUpdated: 0 };
+jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 jest.mock('react-router-dom', () => ({ useNavigate: () => jest.fn() }), { virtual: true });
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
 jest.mock('../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: mockTheme }), useThemeName: () => mockTheme }));
@@ -32,11 +34,14 @@ async function openDelete(ids, removed, user) {
   const trigger = within(tile).getByRole('button', { name: 'Item actions' });
   trigger.focus();
   await user.keyboard('{Enter}');
-  await user.keyboard('{Tab}{Enter}');
+  const remove = within(tile).getByRole('button', { name: 'Delete' });
+  remove.focus();
+  await user.keyboard('{Enter}');
   return { trigger, dialog: await screen.findByRole('dialog', { name: 'Confirm Delete' }) };
 }
 
 beforeEach(() => {
+  jest.clearAllMocks();
   apiClient.get.mockReset().mockResolvedValue({ data: [] });
   apiClient.delete.mockReset();
 });
@@ -81,10 +86,29 @@ test('closing during deletion leaves focus on a control that survives the refres
   apiClient.delete.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
   const { dialog } = await openDelete(['a'], 'a', user);
   await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+  const pending = within(dialog).getByRole('button', { name: 'Deleting…' });
+  expect(pending).toHaveFocus();
+  expect(pending).toHaveAttribute('aria-disabled', 'true');
+  await user.keyboard('{Enter}');
+  expect(apiClient.delete).toHaveBeenCalledTimes(1);
   await user.keyboard('{Escape}');
   const back = screen.getByRole('button', { name: 'Go back' });
   await waitFor(() => expect(back).toHaveFocus());
   await act(async () => finish({ data: {} }));
   await screen.findByText('No items in this gallery yet');
   expect(back).toHaveFocus();
+});
+
+test('a failed refresh preserves the known survivors of a successful deletion', async () => {
+  const user = userEvent.setup();
+  apiClient.delete.mockResolvedValue({ data: {} });
+  apiClient.get.mockImplementation(url => url.startsWith('/galleries/gallery-a/items?')
+    ? Promise.reject(new Error('synthetic readback failure')) : Promise.resolve({ data: [] }));
+  const { dialog } = await openDelete(['a', 'b', 'c'], 'b', user);
+  await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+  await waitFor(() => expect(within(screen.getByTestId('gallery-item-c')).getByRole('button', { name: 'Item actions' })).toHaveFocus());
+  expect(screen.queryByTestId('gallery-item-b')).not.toBeInTheDocument();
+  expect(screen.getByTestId('gallery-item-a')).toBeInTheDocument();
+  expect(toast.success).toHaveBeenCalledWith('Item deleted');
+  expect(toast.error).toHaveBeenCalledWith('Could not refresh the remaining gallery items');
 });

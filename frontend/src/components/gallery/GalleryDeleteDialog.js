@@ -34,6 +34,7 @@ export function GalleryDeleteDialog({ deleteConfirm, setDeleteConfirm, deletingI
   }
 
   async function confirmDelete() {
+    if (deletingItemId || returnTo.current?.pending) return;
     const request = deleteConfirm;
     if (request?.type === 'bulk') {
       executeBulkDelete();
@@ -68,7 +69,7 @@ export function GalleryDeleteDialog({ deleteConfirm, setDeleteConfirm, deletingI
           </Button>
           <Button
             className="bg-red-500 hover:bg-red-600 text-white"
-            disabled={Boolean(deletingItemId)}
+            aria-disabled={Boolean(deletingItemId)}
             onClick={confirmDelete}
           >
             {deletingItemId ? 'Deleting…' : 'Delete'}
