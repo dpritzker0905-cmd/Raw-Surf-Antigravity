@@ -47,6 +47,11 @@ LABELS = {                       # (label, credit): the credit is the exact attr
     "cmems": ("Tide: ocean model sea level (tide + currents; no storm-surge guarantee)", CREDITS["cmems"]),
     "am": ("Tide: astronomical prediction + average sea level (no storm surge); heights above local mean sea level",
            CREDITS["am"]),
+    # SURF_TIDE_A_HARCON (gates/tide-a-harcon-v1.md s2): the same arm with A from NOAA's harmonic constants near a CO-OPS
+    # station (w = 1 within 10 km, linear to 0 at 25 km, FES2022b beyond). Built at every key where w > 0; served only
+    # when the flag is ON, else `am`. The TIDE guardrail (scripts/flag_guardrail_tide.py) judges it against `am`.
+    "am_h": ("Tide: astronomical prediction + average sea level (no storm surge); heights above local mean sea level",
+             CREDITS["am_h"]),
 }
 _TTL_S = env_float("TIDE_OWN_TTL_S", 3600.0)
 _FAIL_COOLDOWN_S = 300.0
@@ -126,7 +131,12 @@ def validate(doc) -> Optional[dict]:
         return None
     if hours <= 0 or not _series_ok(am, hours) or not _series_ok(cm, hours):
         return None
-    return {"start": start, "hours": hours, "am": _pack(am), "cmems": _pack(cm), "generated_at": generated}
+    ah = doc.get("am_h") or {}
+    if not _series_ok(ah, hours):                 # a malformed harcon arm is DROPPED (FES serves), never the whole table
+        logger.warning("[tide-own] am_h has an unexpected shape: dropped, the FES arm serves")
+        ah = {}
+    return {"start": start, "hours": hours, "am": _pack(am), "cmems": _pack(cm), "am_h": _pack(ah),
+            "generated_at": generated}
 
 
 def _decode(raw: bytes) -> dict:
@@ -282,7 +292,7 @@ def _slice(table, vals, forecast_days, now):
 
 
 def series_from_table(table: Optional[dict], key, forecast_days: int, now: datetime,
-                      prefer_cmems: bool = True) -> Optional[dict]:
+                      prefer_cmems: bool = True, prefer_harcon: bool = False) -> Optional[dict]:
     """PURE: {"time": ["YYYY-MM-DDTHH:00", ...], "level": [m, ...], "source", "label", "credit"} from 00Z today for
     `forecast_days` days (the window the old request returned, so callers see the same shape), truncated to the
     series' end. `cmems` first when preferred, present for the key AND from a table generated in the last
@@ -292,9 +302,10 @@ def series_from_table(table: Optional[dict], key, forecast_days: int, now: datet
         return None
     k = key_str(key)
     cmems_fresh = (now - table["generated_at"]).total_seconds() <= _CMEMS_MAX_AGE_S
-    order = ("cmems", "am") if (prefer_cmems and cmems_fresh) else ("am",)
+    am = ("am_h", "am") if prefer_harcon else ("am",)          # SURF_TIDE_A_HARCON: am_h where built, else am
+    order = (("cmems",) if (prefer_cmems and cmems_fresh) else ()) + am
     for src in order:
-        vals = table[src].get(k)
+        vals = (table.get(src) or {}).get(k)
         if vals is None:
             continue
         s = _slice(table, vals, forecast_days, now)
@@ -312,7 +323,7 @@ async def fetch_series(key, forecast_days: int = 3, prefer_cmems: bool = True) -
     # T3's fast path: a fresh table, a cooldown, or a load already running with a table in hand answers at once, with
     # no executor hop (warm callers never queue behind the one worker).
     if table is not None and (now - read_at < _TTL_S or now < fail_until or _load_gate.locked()):
-        return series_from_table(table, key, forecast_days, datetime.now(timezone.utc), prefer_cmems)
+        return series_from_table(table, key, forecast_days, datetime.now(timezone.utc), prefer_cmems, _prefer_harcon())
     try:
         loop = asyncio.get_running_loop()
         table = await asyncio.wait_for(loop.run_in_executor(_EXECUTOR, _load_sync, now), _TIMEOUT_S + 1.0)
@@ -320,7 +331,14 @@ async def fetch_series(key, forecast_days: int = 3, prefer_cmems: bool = True) -
         logger.warning("[tide-own] table load exceeded its budget")
         with _lock:
             table = _state["table"]
-    return series_from_table(table, key, forecast_days, datetime.now(timezone.utc), prefer_cmems)
+    return series_from_table(table, key, forecast_days, datetime.now(timezone.utc), prefer_cmems, _prefer_harcon())
+
+
+def _prefer_harcon() -> bool:
+    """SURF_TIDE_A_HARCON, read at serve time through runtime_flags (env > manifest > code default '0'): the kill acts
+    on the next request, no rebuild (tide-guard-v1 s2, T6)."""
+    from services.runtime_flags import on
+    return on("SURF_TIDE_A_HARCON")
 
 
 def _reset_for_tests(fetcher=None, prev_fetcher=None, disk_path=None) -> None:
