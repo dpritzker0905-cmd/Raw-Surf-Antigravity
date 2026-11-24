@@ -76,6 +76,36 @@ No water level, prediction, harmonic constant or datum value is read.
 - **The code is the rule.** Where this prose and `a_harcon_select.py` differ, the code at this commit governs, and the
   frozen JSON is its output.
 
+**PRE-DATA note, 2026-11-24 16:55Z (appended; before any data; the advisor's provenance HOLD on #1273 at `51ac1794d`).**
+- **The base the selection first ran on:** #1149's branch at `c29f234df`. As first committed, the selector imported
+  `tide_us_region.us_region` and `tide_datum._km`, and read the v2 snapshot. All three existed only on that branch. On
+  dev's tree the seen-scan finds 90 ids, not 280, so the selection would differ. The advisor reproduced 280, 853 and
+  30 + 30 on `c29f234df`.
+- **The fix: vendoring.** Three inputs now travel with this gate, so it runs from dev whether or not #1149 merges:
+  - `backend/scripts/tide_datum/a_harcon_frozen.py`: `us_region` and `_km`, verbatim from `c29f234df`;
+  - the v2 snapshot, byte-identical;
+  - the frozen seen list, `research/tide-a-harcon-v1-seen.json`. It is the 280 ids `seen_ids()` finds over
+    `c29f234df`'s research tree, equal to the committed `seen_excluded`.
+
+  The selector reads the frozen list. `--rescan` fails unless a re-scan of the current tree equals it.
+- **Reproduced on this PR's own tree.** The tree has dev plus this PR's files, with no #1149 modules present. Command,
+  from `backend/`:
+  `python scripts/tide_datum/a_harcon_select.py --out <file>`.
+  The output is byte-identical to the committed stations JSON: the same 60 stations, 280 excluded, 853 eligible.
+- **sha256 (LF bytes, as committed):**
+  - `research/tide-datum-parity-v2-tp-snapshot.json`: `7e24d1b295629f10be3eb5851237bc3f2b9384f8d1b1372a3f6ae8493d347e65`
+  - `research/tide-a-harcon-v1-stations.json`: `ff00cf54e5591c1eaa781ddb93f1a019378184b9ab98807949c6c327f1800c5e`
+  - `research/tide-a-harcon-v1-seen.json` (the sorted seen-id list): `63aa089b087867a9771f99c02facb34c4bb8d1ffe5567566213dd4631e3d82a0`
+- **The instrument must run on these vendored inputs** (or on `c29f234df`). It also needs `parity_coops.match` and
+  `finder_check.py`, which are not on dev today: they are on #1149 and #1171. The instrument PR must vendor them
+  verbatim, or depend on #1171 merging first, and must say which.
+- **The run report must flag near-twin donors** (d < 1 km). One is known now, from metadata only: OPEN_COAST
+  8570280 Ocean City (Fishing Pier), whose section-2 donor is 8570283 Ocean City Inlet at 0.752 km. It stays in the
+  set, because the rule chose it. The report states it beside the result. This is not a leg.
+- **For FUTURE gates (the advisor):** widen the exclusion scan beyond `research/tide-*.json` to every committed
+  artifact that names a station. The advisor's broader scan found 0 extra overlap with this gate's 60 stations, so
+  this gate is unchanged.
+
 ## 4. Window, instrument and replacement
 
 - **Window (fresh, fixed):** 2027-02-01 00:00Z → 2027-02-15 00:00Z, 14 days, one spring-neap cycle. No data from it

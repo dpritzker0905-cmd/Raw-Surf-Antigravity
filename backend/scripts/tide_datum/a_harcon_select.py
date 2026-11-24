@@ -23,6 +23,12 @@ Rule (station METADATA only: no water levels, predictions, harmonic constants or
 
 Read-only: NOAA CoastWatch ERDDAP (ETOPO 2022) for the class. No CO-OPS data call, no bucket, no backend.
 
+PROVENANCE (gate section 3, PRE-DATA note; advisor HOLD on #1273): the selection first ran on #1149's branch at
+c29f234df. It now runs from dev on VENDORED inputs (a_harcon_frozen.py, verbatim us_region and _km), the vendored
+snapshot, and the FROZEN seen list research/tide-a-harcon-v1-seen.json (the 280 ids seen_ids() found on c29f234df's
+tree; dev's tree lacks most of those artifacts). `--rescan` re-runs seen_ids() on the current tree and fails unless it
+equals the frozen list (meaningful only on a tree that carries the v1/v2 artifacts).
+
     python scripts/tide_datum/a_harcon_select.py --out ../docs/weather-program/research/tide-a-harcon-v1-stations.json
 """
 import argparse
@@ -34,13 +40,12 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent.parent
-sys.path.insert(0, str(HERE.parent.parent))
 sys.path.insert(0, str(HERE))
-from services.weather_pipeline.tide_us_region import us_region  # noqa: E402
-from services.weather_pipeline.tide_datum import _km  # noqa: E402
+from a_harcon_frozen import us_region, _km  # noqa: E402  (vendored verbatim from c29f234df)
 
 RESEARCH = REPO / "docs" / "weather-program" / "research"
 SNAPSHOT = RESEARCH / "tide-datum-parity-v2-tp-snapshot.json"
+SEEN_FILE = RESEARCH / "tide-a-harcon-v1-seen.json"
 SEED, N_DECIDE, N_RESERVE, R_OUT_KM = 20261125, 20, 10, 25.0
 _ID = re.compile(r"^\d{7}$")
 
@@ -67,6 +72,11 @@ def seen_ids(research=RESEARCH):
             continue
         walk(json.loads(p.read_text(encoding="utf-8")))
     return ids
+
+
+def frozen_seen(path=SEEN_FILE):
+    """The frozen seen set (gate section 3 PRE-DATA note): the ids seen_ids() found on c29f234df's tree."""
+    return set(json.loads(Path(path).read_text(encoding="utf-8"))["ids"])
 
 
 def universe(snapshot=SNAPSHOT):
@@ -105,11 +115,14 @@ def walk_order(order, near, classify_fn, n_decide=N_DECIDE, n_reserve=N_RESERVE)
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
+    ap.add_argument("--rescan", action="store_true", help="also re-scan this tree and require it to equal the frozen list")
     a = ap.parse_args(argv)
     import gauge_class as G
     pool = universe()
     by_id = {s["id"]: s for s in pool}
-    seen = seen_ids()
+    seen = frozen_seen()
+    if a.rescan and seen_ids() != seen:
+        raise SystemExit("seen_ids() on this tree differs from the frozen list: not the c29f234df tree")
     near = {s["id"]: in_range(s, pool) for s in pool}
     eligible = sorted(s["id"] for s in pool if s["id"] not in seen and near[s["id"]])
     order = list(eligible)
@@ -135,7 +148,8 @@ def main(argv=None):
         out["strata"][k] = {"deciding": ids[:N_DECIDE], "reserve": ids[N_DECIDE:],
                             "names": {i: by_id[i]["name"] for i in ids}}
         print(k, len(ids), ids[:N_DECIDE])
-    Path(a.out).write_text(json.dumps(out, indent=1) + "\n", encoding="utf-8")
+    with open(a.out, "w", encoding="utf-8", newline="\n") as f:       # LF on every OS, so the sha256 is stable
+        f.write(json.dumps(out, indent=1) + "\n")
 
 
 if __name__ == "__main__":
