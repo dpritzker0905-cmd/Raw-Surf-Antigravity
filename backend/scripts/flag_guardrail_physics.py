@@ -28,6 +28,20 @@ PHYSICS_BLIND_KEY = "__physics_untestable_runs__"
 PHYSICS_BLIND_RUNS = 4
 
 
+def untestable_keeps_strikes(result: dict, breach: list) -> bool:
+    """A PHYSICS flag judged UNTESTABLE (no breach): decide() must neither strike nor clear."""
+    return result.get("coverage") == PHYSICS and result.get("verdict") == gs.UNTESTABLE and not breach
+
+
+def untestable_decision(flag: str, result: dict, manifest: dict) -> dict:
+    """No evidence either way: KEEP the strike counter and first_worse_at (advisor hold on #1267), so WORSE, UNTESTABLE, WORSE
+    still disables (next_watch keeps `keep_watch`). Only a judged NOT_WORSE clears it. Never a disable on its own."""
+    kept = ((manifest.get("watch") or {}).get(flag)) or None
+    return {"action": "none", "keep_watch": kept,
+            "reason": (f"UNTESTABLE (strikes kept: {(kept or {}).get('strikes', 0)}): "
+                       f"{'; '.join(result.get('reasons') or [])}")[:400]}
+
+
 def physics_result(flag: str, report: dict, on_since: str) -> dict:
     """The guardrail result for a PHYSICS flag from one physics-check report (frame_physics_report.run_check). Pure.
     UNTESTABLE when the report failed, holds no cells, or any of the model's frames was registered before `on_since`."""
@@ -63,6 +77,18 @@ def physics_read(fresh_since=None) -> dict:
     base = os.environ.get("SUPABASE_URL", "").rstrip("/") + "/storage/v1/object/public/weather-frames"
     models = sorted({r["model"] for r in PHYSICS_RAILS.values()})
     return fpr.run_check(fpr.Reader(fpr._public_reader(base), 120), models=tuple(models), fresh_since=fresh_since)
+
+
+def track_on_since(watch: dict, on_flags: list, now_iso: str):
+    """(watch, on_since): when each PHYSICS flag was first seen effectively ON; a flag not ON now loses its stamp, so frames
+    built before a re-enable are never judged as the fix's."""
+    on_since = dict(watch.get(PHYSICS_ON_KEY) or {})
+    for f in PHYSICS_RAILS:
+        if f in on_flags:
+            on_since.setdefault(f, now_iso)
+        else:
+            on_since.pop(f, None)
+    return dict(watch, **{PHYSICS_ON_KEY: on_since}), on_since
 
 
 def physics_pass(results: dict, watch: dict, on_since: dict, physics=None):

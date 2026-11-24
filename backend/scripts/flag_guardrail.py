@@ -304,13 +304,8 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
     if not effective_on(flag, manifest):
         return {"action": "none", "reason": "not ON (code default off, no manifest entry): nothing to watch"}
     breach = result.get("sanity") or []
-    if result.get("coverage") == PHYSICS and result.get("verdict") == gs.UNTESTABLE and not breach:
-        # No evidence either way: KEEP the strike counter and first_worse_at (advisor hold on #1267), so WORSE, UNTESTABLE, WORSE
-        # still disables. Only a judged NOT_WORSE clears it. Never a disable on its own.
-        kept = ((manifest.get("watch") or {}).get(flag)) or None
-        return {"action": "none", "keep_watch": kept,
-                "reason": (f"UNTESTABLE (strikes kept: {(kept or {}).get('strikes', 0)}): "
-                           f"{'; '.join(result.get('reasons') or [])}")[:400]}
+    if _phys.untestable_keeps_strikes(result, breach):    # a PHYSICS UNTESTABLE keeps the strike counter (advisor, #1267)
+        return _phys.untestable_decision(flag, result, manifest)
     if result.get("verdict") == gs.WORSE and not breach:
         w = (manifest.get("watch") or {}).get(flag) or {}
         first = w.get("first_worse_at") or iso(now)
@@ -592,13 +587,8 @@ def run(args, now=None, manifest=None, scorer=None, volumes=None, watch=None, ph
                     r["reasons"] = list(r.get("reasons") or []) + [
                         f"REPORT-ONLY until released ({LEDGER_RELEASE_ENV}=1 after the research lead's READ of a real run; "
                         f"runs with a real verdict so far: {seen_real}): a FIRE is printed, not a strike"]
-    on_since = dict(watch.get(PHYSICS_ON_KEY) or {})
-    for f in PHYSICS_RAILS:
-        if f in _rf.GUARDED and effective_on(f, manifest):
-            on_since.setdefault(f, iso(now))
-        else:
-            on_since.pop(f, None)
-    watch = dict(watch, **{PHYSICS_ON_KEY: on_since})
+    watch, on_since = _phys.track_on_since(watch, [f for f in PHYSICS_RAILS if f in _rf.GUARDED and effective_on(f, manifest)],
+                                           iso(now))
     results, watch, guard_blind, guard_judged = _phys.physics_pass(results, watch, on_since, physics)
     decisions, new = {}, manifest
     for f in watched:
