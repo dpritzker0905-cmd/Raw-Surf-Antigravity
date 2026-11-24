@@ -86,9 +86,12 @@ const useGalleryActions = ({
   useLayoutEffect(() => () => {
     if (copyRequest.current) {
       copyRequest.current = null;
+      setSelectedItems(new Set());
+      setBulkSelectMode(false);
+      setShowCopyToFolderModal(false);
       setFolderActionLoading(false);
     }
-  }, [user?.id, selectedGallery?.id, setFolderActionLoading]);
+  }, [user?.id, selectedGallery?.id, setSelectedItems, setBulkSelectMode, setShowCopyToFolderModal, setFolderActionLoading]);
 
   const fetchGallery = async () => {
     try {
