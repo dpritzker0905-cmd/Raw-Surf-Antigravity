@@ -722,7 +722,9 @@ def main(argv=None) -> int:
     with open(os.path.join(a.out, "acted.txt"), "w", encoding="utf-8") as f:
         # the workflow opens or appends the guardrail issue whenever this is non-empty
         d = report.get("snapshot_drift") or {}
-        drift = (["P0-cold-start-snapshot-drift-24h"] if d.get("missing") else ["cold-start-snapshot-drift"]) if d else []
+        # tags share NO word with the P0 issue title (its search is word-based); the P0 issue itself is opened separately
+        drift = (["kill-missing-from-committed-floor(see-critical-issue)"] if d.get("missing")
+                 else ["committed-floor-holds-a-cleared-kill"]) if d else []
         f.write(" ".join(acted + [f"{x}(reported-not-disabled)" for x in reported] + drift))
     if d.get("missing"):                                # the workflow opens ONE dedicated P0 issue from this file
         with open(os.path.join(a.out, "p0_drift.md"), "w", encoding="utf-8", newline="\n") as f:

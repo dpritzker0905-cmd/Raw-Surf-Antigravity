@@ -110,7 +110,10 @@ jobs:
           f="$RUNNER_TEMP/guardrail-out/p0_drift.md"
           [ -f "$f" ] || exit 0
           title="P0 cold-start snapshot drift: commit and deploy the kills snapshot within 24 h"
-          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "P0 cold-start snapshot drift in:title" --json number --jq '.[0].number')"
+          # in:title search is word-based, so it can also return other issues sharing these words: keep only titles that START
+          # with the P0 prefix (tests/test_flag_guardrail.py runs this exact filter); `// empty` = nothing found.
+          P0_JQ='[.[] | select(.title | startswith("P0 cold-start snapshot drift"))][0].number // empty'
+          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "P0 cold-start snapshot drift in:title" --json number,title --jq "$P0_JQ")"
           if [ -n "$n" ]; then echo "P0 drift issue #$n already open"; exit 0; fi
           gh label create "severity:critical" --repo "$GITHUB_REPOSITORY" --color b60205 --description "Page now" --force >/dev/null
           assignee=(); [ -n "$OWNER" ] && assignee=(--assignee "$OWNER")
