@@ -75,7 +75,8 @@ GUARDED = {
     "SURF_TIDE_OWN": "1",               # owner 2026-11-18 ~23:00Z: no Open-Meteo in user data (licence). The served tide is
                                         # our table (tide_own); a missing/stale table or kill '0' = NO tide (honest
                                         # unavailable), never Open-Meteo. Moves tide_fit and the SURF_TIDE_DEPTH cap
-    "SURF_TIDE_MLLW_US": "1",           # D-065 ON (owner 2026-11-22 "Ship it on", via the director): US tide DISPLAY above
+    "SURF_TIDE_MLLW_US": "0",           # HELD OFF 2026-11-24: datum gate v2 FAILED (run 45421486227). Was D-065 ON
+                                        # (owner 2026-11-22 "Ship it on", via the director). US tide DISPLAY above
                                         # MLLW (NOAA chart datum), tide_datum.py; display only (the
                                         # rating, the depth cap and water_level_m stay on MSL). D-065 guardrails;
                                         # kill '0' = every point above local mean sea level, as before

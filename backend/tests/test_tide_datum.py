@@ -121,13 +121,14 @@ def test_negative_values_are_valid_and_explained():
     assert TD.display_m(None, b) is None and TD.display_m(float("nan"), b) is None
 
 
-def test_flag_registered_on_by_owner_word():
-    """D-065 ON: the owner, 2026-11-22, typed in the director session: "Ship it on"."""
+def test_flag_registered_held_off_after_the_v2_fail():
+    """HELD OFF 2026-11-24: tide-datum-parity-v2 FAILED (run 45421486227), so the code default is "0" until
+    tide-a-harcon-v1 and an MLLW retest pass. (It was D-065 ON: the owner, 2026-11-22, "Ship it on".)"""
     from services.runtime_flags import GUARDED
     from routes.admin.surf_forecast import _RATING_FLAGS
     sys.path.insert(0, os.path.join(HERE, "..", "scripts"))
     import flag_guardrail as fg
-    assert TD.FLAG in GUARDED and TD.FLAG in _RATING_FLAGS and GUARDED[TD.FLAG] == _RATING_FLAGS[TD.FLAG][0] == "1"
+    assert TD.FLAG in GUARDED and TD.FLAG in _RATING_FLAGS and GUARDED[TD.FLAG] == _RATING_FLAGS[TD.FLAG][0] == "0"
     assert fg.coverage(TD.FLAG)[0] == fg.BLIND and TD.FLAG not in fg.NEVER_AUTO_DISABLE
 
 
