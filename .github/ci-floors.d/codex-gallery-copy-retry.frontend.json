@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 1,
+  "files": 1,
+  "branch": "codex/gallery-copy-retry",
+  "date": "2026-11-24",
+  "note": "Retry only unacknowledged gallery copies"
+}

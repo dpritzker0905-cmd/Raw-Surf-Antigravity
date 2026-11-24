@@ -1,4 +1,5 @@
 // File: frontend/src/hooks/useGalleryActions.js
+import { useRef, useLayoutEffect } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -81,6 +82,13 @@ const useGalleryActions = ({
   setBrokenCoverImages,
   gallery,
 }) => {
+  const copyRequest = useRef(null);
+  useLayoutEffect(() => () => {
+    if (copyRequest.current) {
+      copyRequest.current = null;
+      setFolderActionLoading(false);
+    }
+  }, [user?.id, selectedGallery?.id, setFolderActionLoading]);
 
   const fetchGallery = async () => {
     try {
@@ -202,18 +210,33 @@ const useGalleryActions = ({
   };
 
   const handleCopyToFolder = async (targetFolderId) => {
+    if (copyRequest.current) return;
     if (selectedItems.size === 0) {
       toast.error('No items selected');
       return;
     }
+    const itemIds = Array.from(selectedItems);
+    copyRequest.current = itemIds;
     setFolderActionLoading(true);
     try {
-      const itemIds = Array.from(selectedItems);
-      await Promise.all(itemIds.map(itemId => 
+      const outcomes = await Promise.allSettled(itemIds.map(itemId =>
         apiClient.post(`/gallery/item/${itemId}/copy?photographer_id=${user.id}`, {
           target_gallery_id: targetFolderId
         })
       ));
+      if (copyRequest.current !== itemIds) return;
+      const copied = new Set(itemIds.filter((_, index) => outcomes[index].status === 'fulfilled'));
+      if (copied.size === 0) {
+        toast.error(getErrorMessage(outcomes[0].reason, 'Failed to copy items'));
+        return;
+      }
+      if (copied.size < itemIds.length) {
+        setSelectedItems(current => new Set([...current].filter(id => !copied.has(id))));
+        folderActions.fetchGalleries();
+        if (selectedGallery?.id === targetFolderId) folderActions.fetchGalleryItems(targetFolderId);
+        toast.error(`Copied ${copied.size} of ${itemIds.length} items. Retry the remaining items.`);
+        return;
+      }
       toast.success(`Copied ${itemIds.length} item${itemIds.length > 1 ? 's' : ''} to folder`);
       setShowCopyToFolderModal(false);
       clearSelection();
@@ -226,7 +249,10 @@ const useGalleryActions = ({
     } catch (error) {
       toast.error(getErrorMessage(error, 'Failed to copy items'));
     } finally {
-      setFolderActionLoading(false);
+      if (copyRequest.current === itemIds) {
+        copyRequest.current = null;
+        setFolderActionLoading(false);
+      }
     }
   };
 
