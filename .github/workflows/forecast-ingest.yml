@@ -158,6 +158,7 @@ jobs:
       # client sends the new lane's window (the next ~48 h) to /grid until the pilots lane republishes (~40% of the day).
       # Never fails the cycle. Off: repository variable WIND_LANE_FRAMES_REBUILD = '0'.
       - name: Rebuild the lane-window static wind frames
+        id: rebuild_the_lane_window_static_wind_frames
         if: ${{ !cancelled() }}
         continue-on-error: true
         timeout-minutes: 10
@@ -177,6 +178,7 @@ jobs:
       # ON: repository variable MODEL_SPREAD_PUBLISH = '1' (Settings > Secrets and variables > Actions > Variables).
       # Knobs (code defaults): MODEL_SPREAD_LEAD_STEP_H 24, MODEL_SPREAD_MAX_FRAMES 8, MODEL_SPREAD_RETAIN_DAYS 21.
       - name: Collect GFS/EURO/ICON wave-height spread (dark data)
+        id: collect_gfs_euro_icon_wave_height_spread_dark_da
         if: ${{ success() && vars.MODEL_SPREAD_PUBLISH == '1' }}
         continue-on-error: true
         timeout-minutes: 20
@@ -185,3 +187,17 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python scripts/publish_model_spread.py
+
+      # NO FAIL-GREEN (reliability lane, 2026-11-24). The publish steps above run with continue-on-error so one failing set never
+      # stops the others; but the run then ended GREEN with a set unpublished (measured: 5 of 60 green pilots runs and 1 of 60
+      # green core runs since 2026-11-10/15 had a step exit non-zero, e.g. 2026-11-20 05:02Z the wind-lane rebuild published
+      # nothing during the credential outage). This reads every step's outcome AFTER all of them ran and ends the run RED, naming
+      # each masked failure. The other steps still ran; precompute triggers on any conclusion. Report-only (warn, stay green):
+      # repo variable PUBLISH_FAIL_GREEN_OK=1. scripts/publish_outcome_gate.py; tests/test_publish_outcome_gate.py.
+      - name: No fail-green (end red when a continue-on-error step failed)
+        if: ${{ !cancelled() }}
+        working-directory: backend
+        env:
+          STEPS_JSON: ${{ toJSON(steps) }}
+          REPORT_ONLY: ${{ vars.PUBLISH_FAIL_GREEN_OK || '0' }}
+        run: python3 scripts/publish_outcome_gate.py
