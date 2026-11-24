@@ -218,3 +218,90 @@ PR. Flip ON only after the reliability lane's manifest fix lands and coverage ex
 **Cross-cutting (SubQ).** The physics check is the sanity tester for all three flags: a `decide()` sanity input
 "violations of this flag's rule rose while the flag is on" disables it. That is the second D-090 test; the first
 (a WORSE replay disables it) needs the archives above, which is why each fix stays dark until they exist.
+
+---
+
+## Plan 4 · Masked partitions inflate the block-averaged partition heights (added 2026-11-24; owner: "Yes, plan it here")
+
+**Defect (measured, not inferred).** NOAA's GFS-Wave GRIB marks a partition that holds no energy in a cell as MISSING
+(bitmap), never 0.0. Where the total is valid (cycle 2026-11-23 12Z), swell_1 is masked in 10 % of cells, swell_2 in
+23-24 %, wind_waves in 34-37 %, and exactly 0.0 in 0 %. The fetcher fills the mask with NaN
+(`backend/services/noaa_gfs_wave_fetcher.py:481-482`), and the block height reduction
+(`_fetch_common.energy_mean_height_block` and its batch twin `_fetch_blockmean_vec.height_block_batch`) takes the RMS
+over FINITE subcells only. Its docstring assumes absent partitions arrive as 0.0 and are counted. So a partition's
+block height is the RMS over only the subcells where that train exists, and it reads high against a total averaged
+over the whole block. Evidence: `evidence/2026-11-24-gfs-native-r2/` (`native_r2.py`, `rms_test.py`, `tiers.py`).
+
+| GFS, lead 72 h | R1 / R2 as built (masked skipped) | R1 / R2 with masked counted as 0 where the total is valid | as built / fixed partition height, p50 and p90 |
+|---|---|---|---|
+| native 0.25 deg | 0.07 % / 1.28 % | (same) | 1 |
+| 0.5 deg blocks | 0.35 % / 6.65 % | 0.05 % / 1.42 % | wind_waves p90 1.41 |
+| 2 deg blocks (world tier) | 2.99 % / 24.5 % | 0.00 % / 1.05 % | swell_1 p90 1.17; swell_2 p90 1.57; wind_waves p50 1.01, p90 **2.41** |
+| 10 deg blocks (coarse tier) | 10.8 % / 63.2 % | 0.00 % / 0.63 % | swell_2 p90 2.03; wind_waves p50 1.19, p90 2.14 |
+
+The served world read (2026-11-23: GFS R1 2.5 %, R2 22.0 %) matches the 2-deg "as built" arm. The rule's tolerance is
+not touched: natively it passes.
+
+**Who serves these numbers.** The partition map layers (swell_1, swell_2 and wind_waves heights, in frames and
+`/grid`), the infobox's swell rows and the `/point` partition rows. The surf height and rating read partitions only
+when `SURF_PARTITIONS` is on (code default `"0"`: `point_resolution.py:129`, `spot_conditions.py:212`); step 0
+confirms Render's value. The TOTAL is unaffected (it has no mask holes inside the ocean), so the main wave layer, the
+glyph heights and the ratings do not move while `SURF_PARTITIONS` is off.
+
+**Step 0 (reads, before code).**
+1. Render's `SURF_PARTITIONS` value (env and manifest), to know whether any surf number moves.
+2. ICON: does DWD GWAM's GRIB mask absent partitions too? `dwd_gwam_fetcher.py` uses the same helper, and served ICON
+   R2 is 14.7 %. Read one GRIB per variable from DWD open data, offline.
+3. EURO partitions: does the CMEMS NetCDF use a fill value or 0.0 for an absent partition
+   (`copernicus_global_fetcher.py`, `energy_mean_height_lonspan`)?
+4. The regional tiers' native-cell path (`_fetch_native_cell.native_reduce`, half 1 on doubled views) can still mix up
+   to four subcells; measure it on the same cycle.
+
+**Fix A (heights; recommended).** A partition-aware height reduction. For a PARTITION height field, a subcell where
+the partition is NaN but the TOTAL (`wave_height`) is finite counts as zero energy; a subcell where the total is also
+NaN (land, ice) stays excluded. The total, every period and every direction are untouched.
+- Add `energy_mean_partition_height_block(p_arr, total_arr, ...)` to `_fetch_common.py` and its batch twin to
+  `_fetch_blockmean_vec.py`, parity-pinned scalar against batch like the existing pair; add the lonspan form for
+  Copernicus if step 0.3 calls for it. Wire it in where `is_height` is chosen today (`_fetch_region_reduce.py:64/78`,
+  `dwd_gwam_fetcher.py:298-346`, the GFS world loop), for `swell_wave_height`, `secondary_swell_wave_height` and
+  `wind_wave_height` only.
+- By construction a partition height can only fall or stay (adding zeros to an RMS lowers it), and a block with no
+  masked subcell is bit-identical.
+- Flag `PARTITION_MASKED_AS_ZERO`, code default `"0"` (dark), in `runtime_flags.GUARDED` and `_RATING_FLAGS`.
+  ⚠️ The fetchers run as SUBPROCESSES and read `os.environ` (like `ICON_PEAK_PERIOD`). The scheduler must resolve the
+  flag with `runtime_flags.flag()` in the parent and pass the value into the subprocess env; otherwise a guardrail
+  auto-disable written to `control/flags.json` would never reach the fetcher. A test pins that hand-off.
+
+**Fix B (direction confidence; same root, separate flag).** `energy_mean_direction_block_partition_conf` computes
+`coverage = subcells with energy / FINITE subcells`, assuming absent partitions are 0.0. With masked partitions the
+denominator shrinks, so a partition covering 1 of 64 subcells can report full coverage and the crest fade does not
+fade. Fix: count total-valid subcells in the denominator. Flag `PARTITION_COVERAGE_MASKED`, default `"0"`. It moves
+the animation's fade, not a height.
+
+**Pre-registered acceptance (written 2026-11-24, before any fix exists).**
+1. Physics check on the GFS world tier, after the first ingest with the flag on: R1 <= 0.1 % and R2 <= 1.5 % at every
+   sampled lead (measured target 1.05 %; native 1.1-1.3 %). The same check with the flag off is the control and must
+   still read about 22 %.
+2. Total `wave_height`, every period and every direction: bit-identical (Fix A).
+3. Every partition height: new <= old in every block (a property test on planted masks), and bit-identical in a block
+   with no masked subcell.
+4. Reported, not judged: per tier and partition, the share of blocks that moved and the p50 / p90 of new / old.
+5. Truth, report-only (no gate; the holdout fence is respected). At the NDBC stations OUTSIDE the 100-station
+   verification list that publish spectral swell and wind-wave heights (SwH, WWH), compare served GFS swell_1 and
+   wind_waves before and after at one moment. Expectation stated now: the "after" bias is closer to zero. WW3's
+   partition definitions differ from NDBC's split, so this is a direction-of-change read, not a skill score.
+6. If step 0.1 finds `SURF_PARTITIONS` on: report the breaking height and rating at the 77 `rate_one_spot` parity
+   spots before and after. This plan then also needs the D-090 surf-number treatment below.
+
+**Coverage under D-090.** BLIND: the guardrail replay is GFS-only and archives no partitions
+(`eval_replay.UNREPLAYABLE["SURF_PARTITIONS"]`). It ships DARK under rule 4 (reason: "no archived partition truth; the
+replay cannot see a partition height") and under the advisor's ruling.
+- The sanity tester exists: R1 / R2 rising on the flag's tier while the flag is on is a sanity breach `decide()` can
+  act on (the second D-090 test).
+- The first test (a WORSE replay disables it) needs a partition archive at NDBC spectral stations. That is the same
+  archive Plan 1 asks for, so one archive serves both plans.
+
+**What David must be told at flip time.** GFS's served swell and wind-wave HEIGHTS fall where a train covers only part
+of a block. At the 2-deg world tier the wind-wave height falls by more than half in one block in ten (p90 ratio 2.41),
+and more on the 10-deg tier. Totals, periods, directions, glyphs and ratings do not move unless `SURF_PARTITIONS` is
+on. If ICON or EURO share the mask behaviour (step 0), their partition heights fall the same way.

@@ -76,3 +76,11 @@ Windows wheel). Same rule constants as the check. Scripts and output: `evidence/
 - This is a SERVED-NUMBER defect (GFS world partition heights read high in partially covered blocks), outside this
   PR. Not checked: the regional tiers' reduction paths, the native-cell path (`_fetch_native_cell`), and the DWD GWAM
   fetcher that shares `energy_mean_height_block` (ICON R2 14.7 % may be the same mechanism).
+
+## 2026-11-24 · Plan 4 written (owner: "Yes, plan it here")
+The masked-partition fix plan is appended to `research/P0-PHYSICS-FIX-PLANS-2026-11-23.md` as Plan 4. New measurement
+(`evidence/2026-11-24-gfs-native-r2/tiers.py`, lead 72 h): the inflation grows with block size. R2 as built is
+6.65 % (0.5 deg), 24.5 % (2 deg) and 63.2 % (10 deg), against 1.42 / 1.05 / 0.63 % with masked partitions counted as
+zero. At the 2-deg tier the served wind-wave height is 2.41x the corrected one at p90. The fix is planned dark (BLIND
+to the replay): flag `PARTITION_MASKED_AS_ZERO`, plus a separate `PARTITION_COVERAGE_MASKED` for the
+direction-confidence denominator. Not yet panel-reviewed.
