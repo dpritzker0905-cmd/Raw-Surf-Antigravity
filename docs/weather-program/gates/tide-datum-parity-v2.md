@@ -188,3 +188,32 @@ Pre-registered text above this section is not rewritten. Where §5 or the header
 - **Both noted:** the identity certifies that the instrument carries a datum error through, not that the bar is right.
   That is all a VOID-only control is for.
 - **LongCat:** not consulted. Its tool needs the owner's own approval, and the earlier request was never sent.
+
+## 10. Amendment 2 (2026-11-24 14:03Z, before any v2 tag and before any v2 data): the rest of the advisor's #1171 HOLD
+
+The advisor's HOLD on #1171 at `9800ab361` also required the following, in the same pre-data amendment. All are
+stricter or reported-only, and nothing is loosened.
+
+- **(b) Donor exclusion is the SCORED set.** A NEIGHBOR station's donor excludes every SCORED station: the deciding
+  stations AND the reserves the run scores (the first 5 per stratum), not only the deciding ones. This is stricter
+  than §2's "not itself a deciding station", and it is what the instrument does (`parity_coops.choose_donor` with the
+  scored set). Where §2 says otherwise, this governs.
+- **(c) The planted-D identity must not be vacuous.** A NEIGHBOR station with no donor falls back to the model D, so
+  its model and hybrid variants are trivially identical.
+  - The identity counts only where both the model and the donor-sheet variants exist and share at least 1 matched
+    event.
+  - It is VOID unless it is tested at **≥ 10 NEIGHBOR stations**, with that count reported.
+  - Otherwise, as before: event times within 0.1 min, and heights differing by exactly d_nsheet − d_model within
+    0.002 m.
+- **(c′) The placebo identity (§9) must not be vacuous.** It is VOID for a stratum with fewer than **8 MEASURED
+  deciding stations**, or with **0 paired events**. It is never a vacuous PASS. The MEASURED count and the
+  paired-event count are reported per stratum.
+- **(d) Donor distance is reported, never a bar.** The run reports the distribution of donor distances: count,
+  minimum, median and maximum in km. It flags co-located sheets (≤ 0.05 km) by station, because such a donor is
+  close to the station's own sheet.
+
+**Implemented in** `datum_v2_score.py` on #1171, with pinned tests:
+- the planted FAIL from §9 is still FAIL, not VOID;
+- a broken placebo is VOID;
+- fewer than 10 NEIGHBOR stations tested by the identity is VOID;
+- a stratum with fewer than 8 MEASURED stations or 0 paired events is VOID.
