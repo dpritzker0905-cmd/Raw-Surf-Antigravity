@@ -158,8 +158,9 @@ def _sink_reader(frames_dir, public_base=None):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--frames-dir", help="offline: a publish_frame_images --out-dir instead of the frames bucket")
-    ap.add_argument("--public-base", help="offline: read the PUBLIC bucket anonymously at this base URL "
-                                           "(<SUPABASE_URL>/storage/v1/object/public/weather-frames)")
+    ap.add_argument("--public-base",
+                    help="offline: read the PUBLIC bucket anonymously at this base URL "
+                         "(<SUPABASE_URL>/storage/v1/object/public/weather-frames)")
     ap.add_argument("--out", default="frame_physics_report.json", help="where the JSON report is written")
     args = ap.parse_args(argv)
     if not enabled():
