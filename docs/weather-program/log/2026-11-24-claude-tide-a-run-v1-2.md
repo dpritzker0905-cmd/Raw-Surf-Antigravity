@@ -34,7 +34,7 @@ series, does not reproduce NOAA's High/Low within 2 min and 0.01 m at those reco
 (on NOAA's OWN hourly curve) had time medians of 0.4–4 min. So the 2.0 min C2 time bar sits at or below the hourly
 finder's own resolution for about a third of the records. That is a diagnosis for the advisor, not a ruling.
 
-### Reported only (the verdict is VOID; these decide nothing)
+### NOT A RESULT (VOID run; exploratory only, never evidence: never to be cited)
 
 These are tidal-band numbers over the n stations MEASURED under fes.
 
@@ -69,3 +69,19 @@ for 30 days.
 The gate allows no re-run, and v1-2 was the one registered re-run. #1149 (the MLLW display) stays a DRAFT with
 SURF_TIDE_MLLW_US held at '0'. SURF_TIDE_A_HARCON stays OFF. What follows (a gate v2 with a C2 identity that fits the
 hourly finder's resolution, or otherwise) is the advisor's and David's call.
+
+## 23:18Z: v1 CLOSED as VOID (the advisor), and the numbers relabelled
+
+- **The advisor verified v1-2 = VOID independently** (an identical re-score).
+  - v1 is **CLOSED as VOID**, and v1-2 **counts as a run** under R1. There is **no v1-3**.
+  - **HARBOR_BAY measurability would have FAILED on its own** (n = 17 < 19, plus a harcon loss), so nothing in v1
+    supports a PASS.
+  - `SURF_TIDE_A_HARCON` stays OFF, and #1149 stays a DRAFT.
+- **Relabelled on the advisor's instruction:**
+  - The leg-level numbers above are **NOT A RESULT** (a VOID run; exploratory only, never evidence) and must never be
+    cited. The heading above is relabelled in place (unmerged text).
+  - The SCOREBOARD row no longer carries them.
+  - From v2 on, VOID-run legs are withheld from SCOREBOARD summaries.
+- **Next:** David chose "New test v2" (dialog at about 23:2xZ, relayed by the director). `tide-a-harcon-v2` is to be
+  pre-registered before any data, with the candidate and bar verbatim from v1, and only the controls and the
+  instrument's resolution changed.
