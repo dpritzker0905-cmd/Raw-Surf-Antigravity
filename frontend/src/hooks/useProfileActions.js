@@ -38,14 +38,21 @@ const useProfileActions = ({
   onFollowMutationStart,
 }) => {
 
-  const fetchProfile = async (retryCount = 0) => {
+  const fetchProfile = async (signal, retryCount = 0) => {
+    if (signal.aborted) return;
     if (!profileUserId) {
       setLoading(false);
       return;
     }
     
+    if (profile?.id !== profileUserId) {
+      setLoading(true);
+      setProfile(null);
+    }
+
     try {
-      const response = await apiClient.get(`/profiles/${profileUserId}`);
+      const response = await apiClient.get(`/profiles/${profileUserId}`, { signal });
+      if (signal.aborted) return;
       setProfile(response.data);
       if (isOwnProfile && user) {
         setEditData({
@@ -60,6 +67,7 @@ const useProfileActions = ({
         });
       }
     } catch (error) {
+      if (signal.aborted) return;
       logger.error('Failed to load profile:', error);
       // Race condition fix: On own profile, the backend row may not be
       // committed yet right after signup/login. Retry up to 3 times with
@@ -68,7 +76,7 @@ const useProfileActions = ({
         const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
         logger.info(`[ProfileRace] Retry ${retryCount + 1}/3 in ${delay}ms`);
         await new Promise(r => setTimeout(r, delay));
-        return fetchProfile(retryCount + 1);
+        return await fetchProfile(signal, retryCount + 1);
       }
       if (error.response?.status === 404) {
         toast.error('User not found');
@@ -77,7 +85,7 @@ const useProfileActions = ({
         toast.error('Failed to load profile');
       }
     } finally {
-      setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   };
 
