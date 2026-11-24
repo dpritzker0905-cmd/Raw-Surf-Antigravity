@@ -747,6 +747,7 @@ jobs:
       # exits 0 whatever it finds; the table goes to the run summary and the JSON to the artifact `frame-physics-report`.
       # Egress ~10 MB a run (162 frames measured on the public bucket 2026-11-23). ON; KILL: repository variable FRAME_PHYSICS_CHECK = '0'.
       - name: Frame physics check (report-only; kill FRAME_PHYSICS_CHECK=0)
+        id: frame_physics           # report-only (#1265 REPORT_ONLY_STEP_IDS): a finding warns, never turns the run red
         if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_PHYSICS_CHECK || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 10
@@ -758,6 +759,7 @@ jobs:
         run: python scripts/frame_physics_report.py --public-base "$SUPABASE_URL/storage/v1/object/public/weather-frames" --out frame_physics_report.json
 
       - name: Upload the frame physics report
+        id: frame_physics_upload    # report-only too (#1265 REPORT_ONLY_STEP_IDS)
         if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_PHYSICS_CHECK || '1') != '0' }}
         continue-on-error: true
         uses: actions/upload-artifact@v4
