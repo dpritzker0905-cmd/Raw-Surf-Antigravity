@@ -1,0 +1,90 @@
+name: Tide A harcon gate (A from NOAA harmonic constants vs FES2022b, leave-one-out at fresh stations)
+# WHY: gates/tide-a-harcon-v1.md. At the frozen fresh stations (research/tide-a-harcon-v1-stations.json, vendored inputs),
+# over the FIXED window 2027-02-01..15: A_HARCON (the nearest other type-R station's NOAA constants, w = 1 within 10 km,
+# linear to 0 at 25 km, FES2022b beyond) vs A_FES, against CO-OPS High/Low predictions. Instrument
+# backend/scripts/tide_datum/a_harcon_parity.py, finder control finder_check.py (vendored verbatim), scorer
+# a_harcon_score.py (pure). Measurement only: predictions only, no bucket write, nothing served, no live backend.
+# PyFES is GPL and runs only here; pyTMD (MIT) synthesises the constants; NOAA harcon is public domain (17 U.S.C. 105).
+# ONE-SHOT START: only a push of a NUMBERED tag `tide-a-harcon-v1-[0-9]*` (on David's word, pushed by the director) starts it; no
+# branch push, schedule or dispatch. Credentials: AVISO only on the FES download step; CO-OPS is public.
+on:
+  push:
+    tags: ['tide-a-harcon-v1-[0-9]*']
+permissions:
+  contents: read
+concurrency:
+  group: tide-a-harcon
+  cancel-in-progress: false
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (offline-only dependencies, pinned as the tide gates)
+        run: pip install "pyfes==2026.5.2" "paramiko==5.1.0" netCDF4 numpy scipy xarray h5netcdf pandas lxml pyyaml
+      - name: Restore FES2022b downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: fes_cache
+          key: fes2022b-aharcon-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            fes2022b-mllw-
+            fes2022b-own-
+            fes2022b-g4p-
+            fes2022b-g3t-
+      - name: Download FES2022b (AVISO, pinned host key; cached files skipped)
+        timeout-minutes: 320
+        env:
+          AVISO_USERNAME: ${{ secrets.AVISO_USERNAME }}
+          AVISO_PASSWORD: ${{ secrets.AVISO_PASSWORD }}
+        run: python backend/scripts/tide_own/build_series.py --spots /dev/null --download-fes-only --fes-cache fes_cache
+      - name: Drop partial files before saving
+        if: always()
+        run: |
+          mkdir -p fes_cache
+          rm -f fes_cache/*.part
+      - name: Save FES2022b downloads
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: fes_cache
+          key: fes2022b-aharcon-${{ github.run_id }}-${{ github.run_attempt }}
+  gate:
+    needs: download
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (offline-only dependencies, pinned as the tide gates)
+        run: pip install "pyfes==2026.5.2" "pyTMD==3.1.0" "timescale==0.1.3" "paramiko==5.1.0" netCDF4 numpy scipy xarray h5netcdf pandas lxml pyyaml
+      - name: Restore FES2022b downloads (this run's)
+        uses: actions/cache/restore@v4
+        with:
+          path: fes_cache
+          key: fes2022b-aharcon-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+      - name: C1 finder control (vendored finder_check.py, the scored candidates, fixed window)
+        timeout-minutes: 40
+        run: python backend/scripts/tide_datum/finder_check.py --start 2027-02-01 --days 14 --stations docs/weather-program/research/tide-a-harcon-v1-stations.json --json tide_a_harcon_finder.json
+      - name: Instrument (both arms, donors, C2 and C3 records)
+        timeout-minutes: 90
+        run: python backend/scripts/tide_datum/a_harcon_parity.py --fes-cache fes_cache --work a_work --start 2027-02-01 --days 14 --json tide_a_harcon_run.json
+      - name: Score (pure; precedence finder -> measurability -> identities -> bar)
+        run: python backend/scripts/tide_datum/a_harcon_score.py --run tide_a_harcon_run.json --finder tide_a_harcon_finder.json --out tide_a_harcon_score.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tide-a-harcon-v1
+          path: |
+            tide_a_harcon_run.json
+            tide_a_harcon_finder.json
+            tide_a_harcon_score.json
+          if-no-files-found: ignore
+          retention-days: 30
