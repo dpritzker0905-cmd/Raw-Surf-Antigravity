@@ -1,4 +1,7 @@
-import json, netCDF4, numpy as np, os
+import json, netCDF4, numpy as np, os, sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from services import buoy_holdout  # noqa: E402  (the locked final buoy holdout, #1199)
 B = __import__('os').environ.get('JAC1_MOP_DIR', 'jac1_mop_work/')
 T0=1640995200  # 2022-01-01
 T1=1743465600  # 2025-04-01
@@ -18,7 +21,9 @@ os.makedirs(B+'dl/npz',exist_ok=True)
 for b in sorted(set(s['buoy'] for s in spots)):
     f=B+f'dl/npz/{b}.npz'
     if os.path.exists(f): continue
-    d=netCDF4.Dataset(f'https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/archive/{b}/{b}_historic.nc')
+    u=f'https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/archive/{b}/{b}_historic.nc'
+    if not (buoy_holdout.keep(b[:-2]) and buoy_holdout.allow_url(u)): continue   # LOCKED holdout buoy: never fetched
+    d=netCDF4.Dataset(u)
     t=d['waveTime']; i0=bsearch(t,T0); i1=bsearch(t,T1)
     print(b,len(t),i0,i1)
     np.savez(f,t=np.asarray(t[i0:i1]),hs=np.ma.filled(d['waveHs'][i0:i1],np.nan),dp=np.ma.filled(d['waveDp'][i0:i1],np.nan),tp=np.ma.filled(d['waveTp'][i0:i1],np.nan),fl=np.ma.filled(d['waveFlagPrimary'][i0:i1],9))

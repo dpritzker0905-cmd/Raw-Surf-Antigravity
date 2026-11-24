@@ -31,6 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.weather_pipeline import ens_gust_risk_core as gr  # noqa: E402
 from services.weather_pipeline import ens_wind_core as ec  # noqa: E402
 from services.weather_pipeline import ens_wind_fetch as ef  # noqa: E402
+from services import buoy_holdout  # noqa: E402 - the locked-holdout fence
 
 import wind_lr_obs as obs  # noqa: E402
 
@@ -151,7 +152,7 @@ def station_truth(cache, st, skip=frozenset(), ndbc_file="{id}_realtime2.txt", n
     A station in `skip` (amendment 1 A4: #1199's LOCKED buoys) is None, and its file is never opened."""
     out = []
     for c in st["ndbc"]:
-        if c["id"] in skip:
+        if c["id"] in skip or buoy_holdout.is_locked(c["id"]):
             out.append(None)
             continue
         p = os.path.join(cache, ndbc_dir, ndbc_file.format(id=c["id"]))
@@ -693,6 +694,8 @@ def cmd_october(s, cache):
     os.makedirs(d, exist_ok=True)
     h, got = hashlib.sha256(), 0
     for c in st["ndbc"]:
+        if buoy_holdout.is_locked(c["id"]):                 # "minus LOCKED", enforced here, not only at the station freeze
+            continue
         p = os.path.join(d, f"{c['id']}.txt")
         if not os.path.exists(p):
             r = obs._get(s, f"{obs.NDBC}/data/stdmet/Oct/{c['id'].upper()}.txt", tries=3)
@@ -732,7 +735,7 @@ def main(argv=None):
         return cmd_egress(s, a.cache, a.out or os.path.join(a.cache, "egress.json"))
     if a.cmd == "october":
         return cmd_october(s, a.cache)
-    locked = read_id_list(a.locked, "locked")
+    locked = read_id_list(a.locked, "locked") | buoy_holdout.locked()     # the recorded fence, too (empty until frozen)
     fit_used = read_id_list(a.fit_used, a.fit_used_key)
     if not a.locked:
         print(f"{a.cmd} refused: #1199's frozen LOCKED list is required (amendment 1 A4)", file=sys.stderr)

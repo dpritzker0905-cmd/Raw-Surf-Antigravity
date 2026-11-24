@@ -69,7 +69,7 @@ def test_workflow_wiring():
     run = " ".join(s.get("run", "") for s in bf["steps"])
     assert "needs.plan.outputs.start" in run and "needs.plan.outputs.end" in run and "stored no run" in run
     nxt = [s for s in plan["steps"] if s.get("id") == "next"][0]["run"]
-    assert "python3 -I -S" in nxt and "--first 2025-07 --last 2026-10" in nxt
+    assert "python3 -I -S" in nxt and "--first 2025-07 --last 2026-11 --daily-from 2026-11-16" in nxt
 
 
 def test_coverage_counts_failed_and_lost_days_as_missing(tmp_path):
@@ -83,3 +83,26 @@ def test_coverage_counts_failed_and_lost_days_as_missing(tmp_path):
     assert "2026111700" not in cov["runs_missing_daily"]
     assert ["2025070100", "2026111600", 504] in cov["gaps_over_2_days"]                 # 2025-07-01 .. 2026-11-16 unbroken
     assert all(g[2] > 2 for g in cov["gaps_over_2_days"])
+
+
+# ---------------------------------------------------------------------------------------------------- extended to 2026-11 (C)
+DAILY_ERA = [f"202611{d:02d}00.npz" for d in range(16, 23)]
+ALL_BACKFILL = [f"{y}{m:02d}1500.npz" for y, m in [(2025, m) for m in range(7, 13)] + [(2026, m) for m in range(1, 11)]]
+
+
+def test_daily_runs_never_move_the_cursor():
+    p = N.plan(JUNE + DAILY_ERA, "2025-07", "2026-11", daily_from="2026-11-16")
+    assert p["month"] == "2025-07"
+    # the bug the daily_from rule prevents: November's daily runs would end the backfill before it began
+    assert N.plan(JUNE + DAILY_ERA, "2025-07", "2026-11")["go"] == "false"
+
+
+def test_the_last_slice_is_november_1_to_15_then_it_stops():
+    p = N.plan(JUNE + ALL_BACKFILL + DAILY_ERA, "2025-07", "2026-11", daily_from="2026-11-16")
+    assert p == {"go": "true", "start": "2026-11-01", "end": "2026-11-15", "month": "2026-11"}
+    done = N.plan(JUNE + ALL_BACKFILL + ["2026110500.npz"] + DAILY_ERA, "2025-07", "2026-11", daily_from="2026-11-16")
+    assert done["go"] == "false"
+
+
+def test_a_daily_era_starting_on_the_first_leaves_no_slice():
+    assert N.plan(JUNE + ALL_BACKFILL, "2025-07", "2026-11", daily_from="2026-11-01")["go"] == "false"

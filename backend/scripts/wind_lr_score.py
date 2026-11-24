@@ -19,6 +19,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
+from services import buoy_holdout
 from services.weather_pipeline import ens_wind_core as ec
 
 import wind_lr_obs as obs
@@ -288,7 +289,9 @@ def main_score(session, cache, stations, out_dir) -> int:
     start, end = WINDOW[0], OBS_END
     st_obs, clim = [], []
     for st in stations:
-        if st["kind"] == "ndbc":
+        if st["kind"] == "ndbc" and buoy_holdout.is_locked(st["id"]):
+            o, years = {}, []                 # a LOCKED buoy: its truth is never read, so it makes no row
+        elif st["kind"] == "ndbc":
             o = obs.ndbc_window(session, cache, st["id"])
             z = st["anemometer_m"]
             fix = (lambda x, z=z: obs.to_10m(x, z))

@@ -59,6 +59,7 @@ export function sampleDecodedOmValue({ variable, layerKey, lat, lng }, deps = {}
     if (!best || (t.timestamp || 0) > (best.timestamp || 0)) best = t; // newest fallback
   }
   if (!best || !best.values || !best.nx || !best.ny || !best.bounds) return null;
+  best.__used = Date.now();   // the shared byte budget's recency (decodedOmBudget.js)
   const [w, s, e, n] = best.bounds;
   if (!(e > w) || !(n > s)) return null;
   const fx = (lng - w) / (e - w);

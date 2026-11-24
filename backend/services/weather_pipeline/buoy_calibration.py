@@ -19,7 +19,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from core.supabase_auth import supabase_headers
-
+from services import buoy_holdout   # the LOCKED final buoy holdout (#1199): never fetched, never summarised here
 logger = logging.getLogger(__name__)
 
 NDBC_REALTIME_URL = "https://www.ndbc.noaa.gov/data/realtime2/{station}.txt"
@@ -334,9 +334,9 @@ def parse_ndbc_obs(text: str, now: Optional[datetime] = None) -> Optional[dict]:
 async def fetch_ndbc_latest(station_id: str, client=None) -> Optional[dict]:
     """Fetch + parse the latest NDBC observation for a station. Uses an injected httpx-like async client when
     given (tests), else a short-lived httpx.AsyncClient. Returns the obs dict or None (missing/error)."""
-    if not station_id:
+    url = NDBC_REALTIME_URL.format(station=str(station_id or "").strip().upper())
+    if not station_id or not buoy_holdout.allow_url(url):      # a LOCKED holdout buoy reads as missing
         return None
-    url = NDBC_REALTIME_URL.format(station=str(station_id).strip().upper())
     try:
         if client is not None:
             resp = await client.get(url)
@@ -770,7 +770,7 @@ def run_buoy_calibration() -> tuple:
             merged = merge_residual_archive(existing, archive_rows_from_report(report))
             upload_calibration_l2(store, merged, BUOY_RESIDUAL_ARCHIVE_KEY,
                                   strict=True, overwrite=exists)
-            report["archive"] = build_archive_summary(merged)
+            report["archive"] = build_archive_summary(buoy_holdout.drop(merged, "buoy_id"))   # archived, never summarised
             logger.info("[buoy-calibration] residual archive: %d entries across %d buoys.",
                         len(merged), report["archive"]["n_buoys"])
             # Permanent retention (2026-07-30 phase 5): the hot archive above is a ~14-day rolling

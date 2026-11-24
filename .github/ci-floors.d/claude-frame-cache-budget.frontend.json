@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 39,
+  "files": 3,
+  "branch": "claude/frame-cache-budget",
+  "date": "2026-11-23",
+  "note": "cacheBudget.test.js + cacheBudgetAdapters.test.js + decodedOmBudget.test.js (#1247, the shared cache byte budget)"
+}

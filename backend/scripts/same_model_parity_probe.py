@@ -183,6 +183,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from services.weather_pipeline.buoy_calibration import fetch_ndbc_station_coords, parse_station_coords
+    from services import buoy_holdout
     cal = _get_json(f"{BASE}/api/weather/buoy-calibration")
     ids = sorted({str(s.get("buoy_id")).upper() for s in cal.get("spots") or [] if s.get("buoy_id")})
     if args.stations:
@@ -190,7 +191,7 @@ def main(argv=None) -> int:
             coords = parse_station_coords(f.read())
     else:
         coords = asyncio.run(fetch_ndbc_station_coords())
-    buoys = {b: coords[b] for b in ids if b in coords}
+    buoys = {b: coords[b] for b in ids if b in coords and buoy_holdout.keep(b)}      # #1199 LOCKED buoys skipped
     if args.limit:
         buoys = dict(list(buoys.items())[:args.limit])
     report = run(buoys, datetime.now(timezone.utc))

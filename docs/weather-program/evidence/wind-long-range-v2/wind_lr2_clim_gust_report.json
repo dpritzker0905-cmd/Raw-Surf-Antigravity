@@ -1,0 +1,3063 @@
+{
+ "n_stations_with_records": 398,
+ "sha256_table": "1e7df526a8598fc10e476318645829e792f5abd7cf6bdc3862d964f9954d01d8",
+ "skipped": {
+  "BCTP1": "anemometer height 179.6 outside 1.0-50.0 m",
+  "GRCM4": "anemometer height 185.82 outside 1.0-50.0 m",
+  "KMXA2": "anemometer height 70.0 outside 1.0-50.0 m",
+  "TRTP1": "anemometer height 223.7 outside 1.0-50.0 m",
+  "UPBC1": "anemometer height 100.0 outside 1.0-50.0 m"
+ },
+ "stations": {
+  "41029": {
+   "empty_years": [],
+   "records": 12814
+  },
+  "41033": {
+   "empty_years": [],
+   "records": 13075
+  },
+  "41038": {
+   "empty_years": [],
+   "records": 13439
+  },
+  "41053": {
+   "empty_years": [],
+   "records": 14076
+  },
+  "41056": {
+   "empty_years": [],
+   "records": 12830
+  },
+  "41066": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4186
+  },
+  "41068": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022
+   ],
+   "records": 1590
+  },
+  "41069": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022
+   ],
+   "records": 2502
+  },
+  "42012": {
+   "empty_years": [],
+   "records": 13299
+  },
+  "42043": {
+   "empty_years": [
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 2260
+  },
+  "42044": {
+   "empty_years": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 1330
+  },
+  "42085": {
+   "empty_years": [],
+   "records": 13451
+  },
+  "44007": {
+   "empty_years": [],
+   "records": 14316
+  },
+  "44009": {
+   "empty_years": [],
+   "records": 10262
+  },
+  "44013": {
+   "empty_years": [],
+   "records": 13455
+  },
+  "44020": {
+   "empty_years": [],
+   "records": 12913
+  },
+  "44029": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 355
+  },
+  "44030": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 354
+  },
+  "44032": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 312
+  },
+  "44033": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 353
+  },
+  "44034": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 354
+  },
+  "44042": {
+   "empty_years": [],
+   "records": 11354
+  },
+  "44058": {
+   "empty_years": [],
+   "records": 10489
+  },
+  "44062": {
+   "empty_years": [],
+   "records": 10771
+  },
+  "44063": {
+   "empty_years": [],
+   "records": 9844
+  },
+  "44065": {
+   "empty_years": [],
+   "records": 14094
+  },
+  "44069": {
+   "empty_years": [
+    2025
+   ],
+   "records": 590
+  },
+  "44072": {
+   "empty_years": [],
+   "records": 10810
+  },
+  "44074": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "44080": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 377
+  },
+  "44258": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "45132": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "45142": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "45143": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "45149": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "45154": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "46011": {
+   "empty_years": [],
+   "records": 13810
+  },
+  "46013": {
+   "empty_years": [],
+   "records": 12092
+  },
+  "46014": {
+   "empty_years": [],
+   "records": 14494
+  },
+  "46015": {
+   "empty_years": [
+    2023
+   ],
+   "records": 7919
+  },
+  "46022": {
+   "empty_years": [],
+   "records": 12577
+  },
+  "46025": {
+   "empty_years": [],
+   "records": 14256
+  },
+  "46026": {
+   "empty_years": [],
+   "records": 12449
+  },
+  "46027": {
+   "empty_years": [],
+   "records": 13580
+  },
+  "46041": {
+   "empty_years": [],
+   "records": 12705
+  },
+  "46042": {
+   "empty_years": [
+    2024,
+    2025
+   ],
+   "records": 10922
+  },
+  "46050": {
+   "empty_years": [],
+   "records": 14168
+  },
+  "46053": {
+   "empty_years": [],
+   "records": 14482
+  },
+  "46054": {
+   "empty_years": [],
+   "records": 13630
+  },
+  "46060": {
+   "empty_years": [],
+   "records": 12119
+  },
+  "46061": {
+   "empty_years": [],
+   "records": 11827
+  },
+  "46077": {
+   "empty_years": [
+    2016
+   ],
+   "records": 12052
+  },
+  "46081": {
+   "empty_years": [],
+   "records": 12784
+  },
+  "46087": {
+   "empty_years": [
+    2021
+   ],
+   "records": 11503
+  },
+  "46088": {
+   "empty_years": [],
+   "records": 12706
+  },
+  "46092": {
+   "empty_years": [],
+   "records": 0
+  },
+  "46097": {
+   "empty_years": [],
+   "records": 0
+  },
+  "46118": {
+   "empty_years": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "46119": {
+   "empty_years": [
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "46131": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "46145": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "46146": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "46147": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "46181": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "46206": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "62107": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "62304": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "62305": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "AAMC1": {
+   "empty_years": [],
+   "records": 13353
+  },
+  "ABYA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023
+   ],
+   "records": 2268
+  },
+  "ACXS1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "ADKA2": {
+   "empty_years": [],
+   "records": 13473
+  },
+  "AJXA2": {
+   "empty_years": [
+    2016,
+    2021,
+    2022
+   ],
+   "records": 8041
+  },
+  "ALIA2": {
+   "empty_years": [],
+   "records": 13255
+  },
+  "AMAA2": {
+   "empty_years": [],
+   "records": 11960
+  },
+  "AMRL1": {
+   "empty_years": [],
+   "records": 12960
+  },
+  "ANMN6": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "ANPT2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 12063
+  },
+  "ANVC1": {
+   "empty_years": [],
+   "records": 13440
+  },
+  "APCF1": {
+   "empty_years": [],
+   "records": 13635
+  },
+  "APMA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4694
+  },
+  "APNM4": {
+   "empty_years": [],
+   "records": 13772
+  },
+  "APXF1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "ASTO3": {
+   "empty_years": [
+    2024
+   ],
+   "records": 11299
+  },
+  "ATGM1": {
+   "empty_years": [],
+   "records": 12769
+  },
+  "ATKA2": {
+   "empty_years": [],
+   "records": 11786
+  },
+  "AUGA2": {
+   "empty_years": [],
+   "records": 13861
+  },
+  "AWRT2": {
+   "empty_years": [],
+   "records": 13617
+  },
+  "BABT2": {
+   "empty_years": [],
+   "records": 13701
+  },
+  "BARN6": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 823
+  },
+  "BCFM2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 35
+  },
+  "BDRN4": {
+   "empty_years": [],
+   "records": 12962
+  },
+  "BEXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4458
+  },
+  "BFTN7": {
+   "empty_years": [],
+   "records": 13687
+  },
+  "BGXN3": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "BIGM4": {
+   "empty_years": [],
+   "records": 14274
+  },
+  "BISM2": {
+   "empty_years": [],
+   "records": 13575
+  },
+  "BKBF1": {
+   "empty_years": [
+    2018,
+    2019,
+    2020
+   ],
+   "records": 7689
+  },
+  "BLIA2": {
+   "empty_years": [],
+   "records": 14028
+  },
+  "BLIF1": {
+   "empty_years": [],
+   "records": 13055
+  },
+  "BLTM2": {
+   "empty_years": [],
+   "records": 13726
+  },
+  "BLTM3": {
+   "empty_years": [],
+   "records": 13791
+  },
+  "BMTW1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 3828
+  },
+  "BRHC3": {
+   "empty_years": [],
+   "records": 13401
+  },
+  "BRND1": {
+   "empty_years": [],
+   "records": 9631
+  },
+  "BSBM4": {
+   "empty_years": [],
+   "records": 12335
+  },
+  "BSCA1": {
+   "empty_years": [],
+   "records": 0
+  },
+  "BUFN6": {
+   "empty_years": [],
+   "records": 13711
+  },
+  "BURL1": {
+   "empty_years": [],
+   "records": 13033
+  },
+  "BUZM3": {
+   "empty_years": [],
+   "records": 13390
+  },
+  "BYGL1": {
+   "empty_years": [],
+   "records": 7436
+  },
+  "BZST2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 12234
+  },
+  "CAMM2": {
+   "empty_years": [],
+   "records": 10448
+  },
+  "CAPL1": {
+   "empty_years": [],
+   "records": 13725
+  },
+  "CASM1": {
+   "empty_years": [],
+   "records": 3039
+  },
+  "CAVN6": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023
+   ],
+   "records": 1444
+  },
+  "CBLO1": {
+   "empty_years": [
+    2021
+   ],
+   "records": 9106
+  },
+  "CDEA2": {
+   "empty_years": [],
+   "records": 600
+  },
+  "CDRF1": {
+   "empty_years": [
+    2024,
+    2025
+   ],
+   "records": 11011
+  },
+  "CDXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 7869
+  },
+  "CECC1": {
+   "empty_years": [],
+   "records": 13771
+  },
+  "CFWM1": {
+   "empty_years": [],
+   "records": 13682
+  },
+  "CHAO3": {
+   "empty_years": [],
+   "records": 13137
+  },
+  "CHBV2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11327
+  },
+  "CHCM2": {
+   "empty_years": [],
+   "records": 13698
+  },
+  "CHII2": {
+   "empty_years": [],
+   "records": 13981
+  },
+  "CHSV3": {
+   "empty_years": [],
+   "records": 12648
+  },
+  "CHTS1": {
+   "empty_years": [],
+   "records": 12989
+  },
+  "CHYV2": {
+   "empty_years": [],
+   "records": 13657
+  },
+  "CKYF1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022
+   ],
+   "records": 3215
+  },
+  "CLKN7": {
+   "empty_years": [],
+   "records": 13632
+  },
+  "CLSM4": {
+   "empty_years": [],
+   "records": 14510
+  },
+  "CMAN4": {
+   "empty_years": [],
+   "records": 13740
+  },
+  "CMLN3": {
+   "empty_years": [
+    2016,
+    2017,
+    2018
+   ],
+   "records": 13
+  },
+  "CMTI2": {
+   "empty_years": [],
+   "records": 13770
+  },
+  "CNDO1": {
+   "empty_years": [],
+   "records": 12638
+  },
+  "CNII2": {
+   "empty_years": [],
+   "records": 9940
+  },
+  "COXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023
+   ],
+   "records": 1464
+  },
+  "CPMW1": {
+   "empty_years": [],
+   "records": 12895
+  },
+  "CPNW1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018
+   ],
+   "records": 9102
+  },
+  "CPSA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023
+   ],
+   "records": 984
+  },
+  "CPTR1": {
+   "empty_years": [],
+   "records": 11249
+  },
+  "CPXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4617
+  },
+  "CRGA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019
+   ],
+   "records": 0
+  },
+  "CRVA2": {
+   "empty_years": [],
+   "records": 13691
+  },
+  "CRYV2": {
+   "empty_years": [],
+   "records": 12789
+  },
+  "CSIM3": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "CSPA2": {
+   "empty_years": [],
+   "records": 11773
+  },
+  "CSXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4289
+  },
+  "CWBF1": {
+   "empty_years": [],
+   "records": 13596
+  },
+  "CXHN6": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 563
+  },
+  "CXLM2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 889
+  },
+  "DBLN6": {
+   "empty_years": [],
+   "records": 14112
+  },
+  "DCXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 220
+  },
+  "DELD1": {
+   "empty_years": [],
+   "records": 13624
+  },
+  "DESW1": {
+   "empty_years": [],
+   "records": 12310
+  },
+  "DHXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 3929
+  },
+  "DILA1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4577
+  },
+  "DISW3": {
+   "empty_years": [],
+   "records": 13121
+  },
+  "DOMV2": {
+   "empty_years": [],
+   "records": 13767
+  },
+  "DPHA1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+   ],
+   "records": 0
+  },
+  "DPLA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4520
+  },
+  "DPXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4700
+  },
+  "DRSD1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "DTLM4": {
+   "empty_years": [],
+   "records": 13704
+  },
+  "DUKN7": {
+   "empty_years": [],
+   "records": 13706
+  },
+  "DULM5": {
+   "empty_years": [],
+   "records": 13501
+  },
+  "EINL1": {
+   "empty_years": [],
+   "records": 13005
+  },
+  "ELXC1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "EMAT2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11397
+  },
+  "EPTT2": {
+   "empty_years": [],
+   "records": 13585
+  },
+  "ERXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 9855
+  },
+  "ESPP4": {
+   "empty_years": [],
+   "records": 12333
+  },
+  "FAIO1": {
+   "empty_years": [],
+   "records": 12567
+  },
+  "FBIS1": {
+   "empty_years": [
+    2024,
+    2025
+   ],
+   "records": 10446
+  },
+  "FFIA2": {
+   "empty_years": [],
+   "records": 14125
+  },
+  "FILA2": {
+   "empty_years": [],
+   "records": 14063
+  },
+  "FMRF1": {
+   "empty_years": [],
+   "records": 13518
+  },
+  "FOXR1": {
+   "empty_years": [],
+   "records": 13562
+  },
+  "FPKG1": {
+   "empty_years": [],
+   "records": 12994
+  },
+  "FPST2": {
+   "empty_years": [
+    2016,
+    2017
+   ],
+   "records": 10236
+  },
+  "FPTM4": {
+   "empty_years": [],
+   "records": 11905
+  },
+  "FRDF1": {
+   "empty_years": [],
+   "records": 13468
+  },
+  "FRDW1": {
+   "empty_years": [],
+   "records": 13205
+  },
+  "FRMA1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022
+   ],
+   "records": 3184
+  },
+  "FRWL1": {
+   "empty_years": [],
+   "records": 10954
+  },
+  "FSKM2": {
+   "empty_years": [],
+   "records": 13630
+  },
+  "FTGM4": {
+   "empty_years": [],
+   "records": 12001
+  },
+  "FTPC1": {
+   "empty_years": [],
+   "records": 13806
+  },
+  "GBWW3": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019
+   ],
+   "records": 7430
+  },
+  "GBXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4467
+  },
+  "GDXM6": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "GEXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019
+   ],
+   "records": 7942
+  },
+  "GISL1": {
+   "empty_years": [],
+   "records": 13490
+  },
+  "GIXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 10705
+  },
+  "GNJT2": {
+   "empty_years": [],
+   "records": 13626
+  },
+  "GPXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+   ],
+   "records": 5180
+  },
+  "GRMM4": {
+   "empty_years": [],
+   "records": 13070
+  },
+  "GRRT2": {
+   "empty_years": [],
+   "records": 12946
+  },
+  "GTLM4": {
+   "empty_years": [],
+   "records": 12169
+  },
+  "GTRM4": {
+   "empty_years": [],
+   "records": 12475
+  },
+  "GUXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11212
+  },
+  "HAXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11281
+  },
+  "HBYC1": {
+   "empty_years": [],
+   "records": 4310
+  },
+  "HCGN7": {
+   "empty_years": [],
+   "records": 13718
+  },
+  "HHLO1": {
+   "empty_years": [],
+   "records": 13141
+  },
+  "HLNM4": {
+   "empty_years": [],
+   "records": 13673
+  },
+  "HMRA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "HMSA2": {
+   "empty_years": [],
+   "records": 12432
+  },
+  "HRBM4": {
+   "empty_years": [],
+   "records": 13663
+  },
+  "HRRH1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "ICAC1": {
+   "empty_years": [],
+   "records": 9068
+  },
+  "ILOH1": {
+   "empty_years": [],
+   "records": 13682
+  },
+  "IOSN3": {
+   "empty_years": [],
+   "records": 13720
+  },
+  "IRDT2": {
+   "empty_years": [],
+   "records": 12290
+  },
+  "JCRN4": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "JLXA2": {
+   "empty_years": [
+    2016,
+    2017
+   ],
+   "records": 11183
+  },
+  "JMLA2": {
+   "empty_years": [],
+   "records": 11534
+  },
+  "JMPN7": {
+   "empty_years": [],
+   "records": 13687
+  },
+  "JNEA2": {
+   "empty_years": [],
+   "records": 13339
+  },
+  "JOXP4": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "KATA1": {
+   "empty_years": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "KCXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2025
+   ],
+   "records": 1833
+  },
+  "KECA2": {
+   "empty_years": [],
+   "records": 13604
+  },
+  "KEXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11011
+  },
+  "KGCA2": {
+   "empty_years": [],
+   "records": 13590
+  },
+  "KGXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4659
+  },
+  "KLIH1": {
+   "empty_years": [],
+   "records": 13596
+  },
+  "KNXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4592
+  },
+  "KOZA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 3728
+  },
+  "KPTN6": {
+   "empty_years": [],
+   "records": 13538
+  },
+  "KPTV2": {
+   "empty_years": [],
+   "records": 13545
+  },
+  "KTNF1": {
+   "empty_years": [
+    2024,
+    2025
+   ],
+   "records": 10673
+  },
+  "KWHH1": {
+   "empty_years": [],
+   "records": 13519
+  },
+  "KWNW3": {
+   "empty_years": [],
+   "records": 13772
+  },
+  "LAPW1": {
+   "empty_years": [],
+   "records": 12908
+  },
+  "LDTM4": {
+   "empty_years": [],
+   "records": 13495
+  },
+  "LJAC1": {
+   "empty_years": [],
+   "records": 13512
+  },
+  "LJPC1": {
+   "empty_years": [],
+   "records": 0
+  },
+  "LKWF1": {
+   "empty_years": [],
+   "records": 13089
+  },
+  "LMFS1": {
+   "empty_years": [],
+   "records": 13706
+  },
+  "LNDC1": {
+   "empty_years": [],
+   "records": 12776
+  },
+  "LONF1": {
+   "empty_years": [],
+   "records": 10422
+  },
+  "LPNM4": {
+   "empty_years": [],
+   "records": 13727
+  },
+  "LQAT2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 5322
+  },
+  "LTBV3": {
+   "empty_years": [],
+   "records": 11704
+  },
+  "LTRM4": {
+   "empty_years": [],
+   "records": 13720
+  },
+  "LWSD1": {
+   "empty_years": [],
+   "records": 13479
+  },
+  "LWTV2": {
+   "empty_years": [],
+   "records": 13672
+  },
+  "MACM4": {
+   "empty_years": [],
+   "records": 13486
+  },
+  "MAXT2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "MBET2": {
+   "empty_years": [],
+   "records": 12814
+  },
+  "MBIN7": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019
+   ],
+   "records": 7384
+  },
+  "MBNN7": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+   ],
+   "records": 7063
+  },
+  "MCGA1": {
+   "empty_years": [],
+   "records": 13664
+  },
+  "MCGM4": {
+   "empty_years": [],
+   "records": 13740
+  },
+  "MCYI3": {
+   "empty_years": [],
+   "records": 12775
+  },
+  "MEYC1": {
+   "empty_years": [],
+   "records": 7349
+  },
+  "MGIP4": {
+   "empty_years": [],
+   "records": 12861
+  },
+  "MGPT2": {
+   "empty_years": [],
+   "records": 13543
+  },
+  "MGZP4": {
+   "empty_years": [],
+   "records": 8423
+  },
+  "MHBT2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019
+   ],
+   "records": 7899
+  },
+  "MHRN6": {
+   "empty_years": [],
+   "records": 14025
+  },
+  "MISM1": {
+   "empty_years": [],
+   "records": 10214
+  },
+  "MIST2": {
+   "empty_years": [
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "MIXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+   ],
+   "records": 4642
+  },
+  "MKGM4": {
+   "empty_years": [],
+   "records": 13587
+  },
+  "MLSC1": {
+   "empty_years": [
+    2017
+   ],
+   "records": 0
+  },
+  "MLWW3": {
+   "empty_years": [],
+   "records": 12420
+  },
+  "MNMM4": {
+   "empty_years": [],
+   "records": 13696
+  },
+  "MNPV2": {
+   "empty_years": [],
+   "records": 13507
+  },
+  "MOKH1": {
+   "empty_years": [],
+   "records": 13076
+  },
+  "MRHO1": {
+   "empty_years": [],
+   "records": 13638
+  },
+  "MRKA2": {
+   "empty_years": [],
+   "records": 14042
+  },
+  "MRNA2": {
+   "empty_years": [],
+   "records": 11449
+  },
+  "MROS1": {
+   "empty_years": [],
+   "records": 6161
+  },
+  "MRYA2": {
+   "empty_years": [],
+   "records": 12057
+  },
+  "MTBF1": {
+   "empty_years": [],
+   "records": 13413
+  },
+  "MVXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11337
+  },
+  "MXXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11234
+  },
+  "MYPF1": {
+   "empty_years": [],
+   "records": 13402
+  },
+  "MZXC1": {
+   "empty_years": [],
+   "records": 13400
+  },
+  "NABM4": {
+   "empty_years": [],
+   "records": 13803
+  },
+  "NAXR1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "NBGM3": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022
+   ],
+   "records": 4005
+  },
+  "NBLP1": {
+   "empty_years": [],
+   "records": 13699
+  },
+  "NCDV2": {
+   "empty_years": [],
+   "records": 13609
+  },
+  "NCHT2": {
+   "empty_years": [],
+   "records": 12654
+  },
+  "NFDF1": {
+   "empty_years": [
+    2018
+   ],
+   "records": 10883
+  },
+  "NIWS1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "NKTA2": {
+   "empty_years": [],
+   "records": 13628
+  },
+  "NKXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11221
+  },
+  "NLXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 3560
+  },
+  "NMTA2": {
+   "empty_years": [],
+   "records": 13606
+  },
+  "NMXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4460
+  },
+  "NPDW3": {
+   "empty_years": [],
+   "records": 12009
+  },
+  "NPXN6": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "NREP1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018
+   ],
+   "records": 0
+  },
+  "NSXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4734
+  },
+  "NTBC1": {
+   "empty_years": [],
+   "records": 13354
+  },
+  "NWCL1": {
+   "empty_years": [],
+   "records": 13511
+  },
+  "NWHC3": {
+   "empty_years": [],
+   "records": 13447
+  },
+  "NWPR1": {
+   "empty_years": [],
+   "records": 13549
+  },
+  "NWWH1": {
+   "empty_years": [],
+   "records": 13560
+  },
+  "OCIM2": {
+   "empty_years": [],
+   "records": 13560
+  },
+  "OKXC1": {
+   "empty_years": [],
+   "records": 12176
+  },
+  "OLCN6": {
+   "empty_years": [],
+   "records": 13443
+  },
+  "OLSA2": {
+   "empty_years": [],
+   "records": 13042
+  },
+  "OMHC1": {
+   "empty_years": [],
+   "records": 13127
+  },
+  "OOUH1": {
+   "empty_years": [],
+   "records": 13718
+  },
+  "OPTF1": {
+   "empty_years": [],
+   "records": 13671
+  },
+  "ORIN7": {
+   "empty_years": [],
+   "records": 13683
+  },
+  "OSGN6": {
+   "empty_years": [],
+   "records": 13765
+  },
+  "OTNM4": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019
+   ],
+   "records": 6614
+  },
+  "OWMO1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "OWXO1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "PACF1": {
+   "empty_years": [],
+   "records": 13532
+  },
+  "PACT2": {
+   "empty_years": [],
+   "records": 13719
+  },
+  "PAXA2": {
+   "empty_years": [
+    2016,
+    2017
+   ],
+   "records": 10018
+  },
+  "PBFW1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "PBPA2": {
+   "empty_years": [],
+   "records": 11606
+  },
+  "PCBF1": {
+   "empty_years": [],
+   "records": 13734
+  },
+  "PCLF1": {
+   "empty_years": [],
+   "records": 12678
+  },
+  "PCNT2": {
+   "empty_years": [],
+   "records": 12168
+  },
+  "PCOC1": {
+   "empty_years": [],
+   "records": 12784
+  },
+  "PCXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4207
+  },
+  "PDVR1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 3041
+  },
+  "PEGF1": {
+   "empty_years": [
+    2016,
+    2017
+   ],
+   "records": 10184
+  },
+  "PEXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4708
+  },
+  "PGXA2": {
+   "empty_years": [
+    2016,
+    2017
+   ],
+   "records": 10087
+  },
+  "PILA2": {
+   "empty_years": [],
+   "records": 14113
+  },
+  "PILL1": {
+   "empty_years": [],
+   "records": 13658
+  },
+  "PILM4": {
+   "empty_years": [],
+   "records": 13961
+  },
+  "PKBW3": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "PLXA2": {
+   "empty_years": [],
+   "records": 13459
+  },
+  "PNGW3": {
+   "empty_years": [
+    2018,
+    2019
+   ],
+   "records": 8977
+  },
+  "PNLM4": {
+   "empty_years": [],
+   "records": 12636
+  },
+  "PORO3": {
+   "empty_years": [],
+   "records": 13747
+  },
+  "PORT2": {
+   "empty_years": [],
+   "records": 13635
+  },
+  "POTA2": {
+   "empty_years": [],
+   "records": 13272
+  },
+  "PPTA1": {
+   "empty_years": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "PPTM2": {
+   "empty_years": [],
+   "records": 13362
+  },
+  "PPXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 3265
+  },
+  "PRDA2": {
+   "empty_years": [],
+   "records": 12991
+  },
+  "PRHH1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022
+   ],
+   "records": 3405
+  },
+  "PRTA2": {
+   "empty_years": [],
+   "records": 11940
+  },
+  "PRYC1": {
+   "empty_years": [],
+   "records": 3784
+  },
+  "PSBC1": {
+   "empty_years": [],
+   "records": 13052
+  },
+  "PSBM1": {
+   "empty_years": [],
+   "records": 13578
+  },
+  "PSLC1": {
+   "empty_years": [],
+   "records": 13832
+  },
+  "PSTL1": {
+   "empty_years": [],
+   "records": 10195
+  },
+  "PTAT2": {
+   "empty_years": [],
+   "records": 13376
+  },
+  "PTAW1": {
+   "empty_years": [],
+   "records": 13115
+  },
+  "PTBM6": {
+   "empty_years": [],
+   "records": 13525
+  },
+  "PTCR1": {
+   "empty_years": [],
+   "records": 13651
+  },
+  "PTGC1": {
+   "empty_years": [
+    2024,
+    2025
+   ],
+   "records": 9409
+  },
+  "PTIM4": {
+   "empty_years": [],
+   "records": 13666
+  },
+  "PTIT2": {
+   "empty_years": [],
+   "records": 13239
+  },
+  "PTLA2": {
+   "empty_years": [],
+   "records": 12100
+  },
+  "PTWW1": {
+   "empty_years": [],
+   "records": 13804
+  },
+  "PVDR1": {
+   "empty_years": [],
+   "records": 12211
+  },
+  "PWAW3": {
+   "empty_years": [],
+   "records": 11961
+  },
+  "PXOC1": {
+   "empty_years": [],
+   "records": 12614
+  },
+  "RCKM4": {
+   "empty_years": [],
+   "records": 13394
+  },
+  "RCMC1": {
+   "empty_years": [],
+   "records": 13437
+  },
+  "RCPT2": {
+   "empty_years": [],
+   "records": 10334
+  },
+  "RDDA2": {
+   "empty_years": [],
+   "records": 13162
+  },
+  "RIXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11001
+  },
+  "RKXF1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "RLOT2": {
+   "empty_years": [],
+   "records": 13547
+  },
+  "ROAM4": {
+   "empty_years": [],
+   "records": 12516
+  },
+  "ROBN4": {
+   "empty_years": [],
+   "records": 13656
+  },
+  "RPLV2": {
+   "empty_years": [],
+   "records": 13017
+  },
+  "RPRN6": {
+   "empty_years": [],
+   "records": 13139
+  },
+  "RSJT2": {
+   "empty_years": [],
+   "records": 13344
+  },
+  "RTAT2": {
+   "empty_years": [],
+   "records": 13480
+  },
+  "RTYC1": {
+   "empty_years": [],
+   "records": 13521
+  },
+  "SAPF1": {
+   "empty_years": [],
+   "records": 13509
+  },
+  "SAUF1": {
+   "empty_years": [],
+   "records": 14032
+  },
+  "SAXG1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "SBIO1": {
+   "empty_years": [],
+   "records": 12420
+  },
+  "SBLM4": {
+   "empty_years": [],
+   "records": 13880
+  },
+  "SCXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11163
+  },
+  "SDHN4": {
+   "empty_years": [],
+   "records": 13560
+  },
+  "SDIA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11016
+  },
+  "SDRT2": {
+   "empty_years": [],
+   "records": 13554
+  },
+  "SFXC1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "SGNW3": {
+   "empty_years": [],
+   "records": 14005
+  },
+  "SHBL1": {
+   "empty_years": [],
+   "records": 13273
+  },
+  "SHXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11311
+  },
+  "SIPF1": {
+   "empty_years": [],
+   "records": 0
+  },
+  "SISW1": {
+   "empty_years": [],
+   "records": 13693
+  },
+  "SJNP4": {
+   "empty_years": [],
+   "records": 10885
+  },
+  "SJSN4": {
+   "empty_years": [],
+   "records": 8972
+  },
+  "SKCF1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019
+   ],
+   "records": 6701
+  },
+  "SKDA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 139
+  },
+  "SKXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11295
+  },
+  "SLVM5": {
+   "empty_years": [
+    2019
+   ],
+   "records": 10485
+  },
+  "SLXA2": {
+   "empty_years": [
+    2016,
+    2017
+   ],
+   "records": 11176
+  },
+  "SNDA2": {
+   "empty_years": [],
+   "records": 13381
+  },
+  "SPXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+   ],
+   "records": 6602
+  },
+  "SRLM4": {
+   "empty_years": [],
+   "records": 0
+  },
+  "SRST2": {
+   "empty_years": [],
+   "records": 8071
+  },
+  "SRXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4686
+  },
+  "STXA2": {
+   "empty_years": [
+    2016
+   ],
+   "records": 11380
+  },
+  "SVNM4": {
+   "empty_years": [],
+   "records": 11592
+  },
+  "SVXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2025
+   ],
+   "records": 3018
+  },
+  "SWPM4": {
+   "empty_years": [],
+   "records": 13793
+  },
+  "SWXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4619
+  },
+  "SXHW3": {
+   "empty_years": [],
+   "records": 11145
+  },
+  "SXXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+   ],
+   "records": 6842
+  },
+  "TAWM4": {
+   "empty_years": [],
+   "records": 11158
+  },
+  "TBIM4": {
+   "empty_years": [],
+   "records": 11734
+  },
+  "TCBM2": {
+   "empty_years": [],
+   "records": 13364
+  },
+  "TCMW1": {
+   "empty_years": [],
+   "records": 14173
+  },
+  "TESL1": {
+   "empty_years": [],
+   "records": 13611
+  },
+  "TGXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023
+   ],
+   "records": 1656
+  },
+  "THLO1": {
+   "empty_years": [],
+   "records": 10339
+  },
+  "THRO1": {
+   "empty_years": [],
+   "records": 13727
+  },
+  "TIXC1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "TKEA2": {
+   "empty_years": [],
+   "records": 11410
+  },
+  "TKPN6": {
+   "empty_years": [
+    2016,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 419
+  },
+  "TOKW1": {
+   "empty_years": [],
+   "records": 13710
+  },
+  "TPAF1": {
+   "empty_years": [],
+   "records": 7634
+  },
+  "TPLM2": {
+   "empty_years": [],
+   "records": 13487
+  },
+  "TPXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 839
+  },
+  "TRDF1": {
+   "empty_years": [],
+   "records": 13521
+  },
+  "TWCO1": {
+   "empty_years": [
+    2016,
+    2017
+   ],
+   "records": 7421
+  },
+  "TXPT2": {
+   "empty_years": [],
+   "records": 13631
+  },
+  "ULRA2": {
+   "empty_years": [],
+   "records": 1159
+  },
+  "UNLA2": {
+   "empty_years": [],
+   "records": 13686
+  },
+  "UQXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4054
+  },
+  "VAKF1": {
+   "empty_years": [],
+   "records": 13632
+  },
+  "VDXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4647
+  },
+  "VDZA2": {
+   "empty_years": [],
+   "records": 13525
+  },
+  "VENF1": {
+   "empty_years": [
+    2025
+   ],
+   "records": 12503
+  },
+  "VTBT2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+   ],
+   "records": 6721
+  },
+  "WAHV2": {
+   "empty_years": [],
+   "records": 13639
+  },
+  "WASD2": {
+   "empty_years": [],
+   "records": 13625
+  },
+  "WATS1": {
+   "empty_years": [],
+   "records": 11853
+  },
+  "WAXM3": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "WBXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 261
+  },
+  "WCXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+   ],
+   "records": 4819
+  },
+  "WDSV2": {
+   "empty_years": [],
+   "records": 12882
+  },
+  "WEXM1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "WFXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+   ],
+   "records": 269
+  },
+  "WGXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4248
+  },
+  "WHRI2": {
+   "empty_years": [],
+   "records": 10468
+  },
+  "WIXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 4619
+  },
+  "WKXA1": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "WLXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  },
+  "WNEM4": {
+   "empty_years": [],
+   "records": 13654
+  },
+  "WPOW1": {
+   "empty_years": [],
+   "records": 14013
+  },
+  "WPTW1": {
+   "empty_years": [],
+   "records": 13207
+  },
+  "WRXA2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+   ],
+   "records": 3606
+  },
+  "WYCM6": {
+   "empty_years": [],
+   "records": 13211
+  },
+  "YKTV2": {
+   "empty_years": [],
+   "records": 13648
+  },
+  "YRSV2": {
+   "empty_years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "records": 0
+  }
+ },
+ "years": [
+  2016,
+  2025
+ ]
+}

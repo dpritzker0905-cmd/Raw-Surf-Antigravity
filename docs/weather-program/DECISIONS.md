@@ -2445,6 +2445,10 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Reopen if:** the 18 h (3 × 6 h) shadow window proves too slow for high-urgency fixes. A flag can still
   be re-enabled immediately via the owner's workflow_dispatch, bypassing the shadow — but that leaves a gap
   in the evidence chain, which the owner accepts.
+- **2026-11-23 follow-up (PR #1226):** `shadow_proposal` is idempotent — once written for a version,
+  further qualifying passes return `hold` ("proposal already written for version …; owner decides when to
+  re-enable") so the ACTIONS log and `acted.txt` don't grow every 6 hours while the owner decides.
+
 ### D-089 · Automatic floor catch-up PRs (`bot/floor-catchup-*`) auto-pass the advisor gate under three conditions (2026-11-23, decided by the owner)
 - **Owner, typed in the director session (2026-11-23 18:22:28Z, relayed by the director to the #1227 lane):** "Yes,
   auto-pass them". This follows "Yes, build it" (the same session, earlier that day), which approved the bot itself.
@@ -2472,3 +2476,32 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   window.
 - **Reopen if:** an auto-passed catch-up is merged and a lane then fails its floor on dev (an over-lift the step
   missed), or the bot's output ever needs a judgement call the three conditions do not encode.
+
+### D-090 · All fixes, served-number fixes included, ship ON behind a kill switch WITH guardrail replay coverage that turns them off; no feasible coverage = dark with a stated reason (amends D-001; restates and tightens D-065) (2026-11-23, decided by the owner)
+- **Owner's exact words (David, director session local_d6b521eb, 2026-11-23):**
+  - typed at 23:51:45Z: "I like fixes being on automatically with a tester, that switches it off if it doesn't work. SOTA"
+  - then, asked whether this also covers fixes that move served surf numbers (heights, ratings), the dialog answer at 23:51:58Z: **"Yes, all fixes (Recommended)"**
+- **What it amends:** D-001 (served numbers change only dark-then-flip). D-001's text is unchanged above. D-065 already superseded it with default ON plus a guardrail; this entry makes the "tester" a REQUIREMENT for every fix, served-number fixes included, instead of a general policy.
+- **The rule:**
+  1. **Default ON + kill switch, in BOTH registries:** every fix, including any fix that moves a served surf height, rating, glyph, hub or sim value, ships with its code default ON and a kill switch read through `runtime_flags.flag()`.
+     - It is registered in BOTH `runtime_flags.GUARDED` AND `_RATING_FLAGS` (`backend/routes/admin/surf_forecast.py`), with lane parity held by `tests/test_flag_lane_parity.py`.
+     - Both are required because `flag_guardrail` watches only `sorted(_rf.GUARDED)` (`backend/scripts/flag_guardrail.py`, the `watched` list near line 544). A flag outside GUARDED has no tester at all, whatever its other registrations.
+     - Client-only fixes use `window.__RAW_DISABLE_<NAME>__`, and they count as having no replay coverage unless a client-side tester is named (rule 4).
+  2. **The tester is required, and proven to FIRE:** the fix has `flag_guardrail` REPLAY or RATING coverage, so a failed or WORSE replay auto-disables it through `control/flags.json` with a written reason.
+     - **Coverage counts only with two tests in the fix's PR:**
+       - one where a WORSE replay result for THAT flag makes `decide()` disable it;
+       - a separate one where a sanity breach for THAT flag makes `decide()` disable it.
+     - A replay that cannot see the flag (it reads NO_CHANGE, "inert") is NOT coverage. That flag is BLIND and falls under rule 4.
+     - Re-enable follows D-087's HYBRID shadow run: a `FIX_VERSION` bump keeps the flag off until 3 consecutive NOT_WORSE cycles, and then the owner re-enables it.
+  3. **Pre-registered acceptance test plus a SCOREBOARD row** for each fix, written before its result is read. The pre-merge history filter (`default-on-filter.yml`, D-065 item 2) still applies.
+  4. **No feasible coverage = ships DARK, as before,** and its PR and SCOREBOARD row must say WHY replay coverage is not feasible (for example: no buoy truth for that quantity, or the fix serves no number a replay can score). "BLIND" is not a default; it is a stated exception.
+  5. **Visible coverage:** the admin switch panel (#1239) shows each flag's coverage class (REPLAY / RATING / BLIND), so a fix that is ON but untested cannot look the same as a tested one.
+  6. **Unchanged:** D-086 (a flag whose kill REMOVES a service is reported, never auto-disabled: SURF_TIDE_OWN), alert volume caps, ONE FORECAST COMPOSITION, and the 14-day horizon / tier contract.
+- **Why this matters now:** inspection P1-4 (2026-11-23) found 25 of about 36 default-ON flags are BLIND to the guardrail replay. Under this rule they are ON without the required tester.
+- **Transition for the flags that are ON today without coverage (binding):**
+  - They STAY AS THEY ARE: no mass flip, off or on. Switching a served flag off is itself a served change, so it needs the owner's word.
+  - Each one leaves the gap only by getting coverage (rules 1 and 2, both tests included) or a recorded reason why coverage is not feasible (rule 4: a SCOREBOARD row plus a line in this entry's ledger fragment).
+  - The coverage sweep is a dated ledger commitment (`ledger.d/docs--decide-d090.jsonl`), checked at its due date. A flag still uncovered then is reported to the owner by name, never switched by the sweep.
+- **Related:** D-065 (default ON, history filter, live guardrail), D-087 (the HYBRID shadow run, owner re-enables), D-089 (floor catch-up auto-pass; it is the same "automatic where the rule is mechanical" principle, cited for consistency, not changed).
+- **Reopen if:** the owner says so, or the guardrail auto-disables a covered fix that the owner judges was fine (then the test or its margin is what gets fixed, by a new entry).
+

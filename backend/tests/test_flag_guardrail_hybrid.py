@@ -1,6 +1,6 @@
 """HYBRID shadow-run design (D-087): stays off on FIX_VERSION bump; shadow scoring; evidence binding.
 
-Nine end-to-end tests:
+Ten end-to-end tests:
   1. FIX_VERSION bump → version_hold; flag stays off with shadow init.
   2. N-1 passes then one more NOT_WORSE → shadow_proposal; flag still off, no auto-enable.
   3. WORSE during shadow → consecutive pass count resets; proposal never fires.
@@ -10,6 +10,7 @@ Nine end-to-end tests:
   7. NO_CHANGE ×3 → no proposal (no-evidence: no pass, no reset).
   8. Sanity breach during shadow → pass count resets like WORSE.
   9. LEDGER coverage flag → never proposes; owner decides.
+ 10. Proposal already written → subsequent passes return hold, not shadow_proposal.
 """
 import os
 import sys
@@ -182,3 +183,20 @@ def test_ledger_flag_never_proposes():
     assert d["action"] == "hold"
     assert "shadow_proposal" not in d.get("entry", {})
     assert "owner decides" in d["reason"]
+
+
+def test_shadow_proposal_already_written_returns_hold():
+    """Once shadow_proposal is written, subsequent qualifying passes return hold — not shadow_proposal —
+    so the actions log and acted.txt don't repeat every 6 hours."""
+    off = _off_entry(shadow=_shadow(passes=fg.SHADOW_REQUIRED_PASSES - 1))
+    # First qualifying pass: shadow_proposal written
+    rep1 = fg.run(_args(), NOW, _manifest(SURF_TIDE_DEPTH=off),
+                  _scorer({_FLAG: gs.NOT_WORSE}), lambda *a: {})
+    assert rep1["decisions"][_FLAG]["action"] == "shadow_proposal"
+    e = rep1["manifest"]["flags"][_FLAG]
+    assert "shadow_proposal" in e
+    # Second qualifying pass: proposal already there → hold, not shadow_proposal
+    rep2 = fg.run(_args(), NOW, _manifest(SURF_TIDE_DEPTH=e),
+                  _scorer({_FLAG: gs.NOT_WORSE}), lambda *a: {})
+    assert rep2["decisions"][_FLAG]["action"] == "hold"
+    assert "shadow_proposal" in rep2["manifest"]["flags"][_FLAG]  # preserved
