@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 15,
+  "branch": "claude/floor-fragment-check",
+  "date": "2026-11-24",
+  "note": "PR-time floor fragment check (test_floor_fragment_check)"
+}
