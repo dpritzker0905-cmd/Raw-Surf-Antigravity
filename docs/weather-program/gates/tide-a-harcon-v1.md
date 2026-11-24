@@ -313,3 +313,54 @@ Written before any outcome of this gate exists. Where this section and the text 
 - `paced_finder.py`: `4f8c055c30e6fa716d846002cf836e915c3dc8718e2c6025e10fe2a4abdd3d05`;
 - `paced_run.py`: `9ef3a1214d795326a80270c272b43c5f66bf813304fc89b9b6442d239a5b3c6c`.
 - `finder_check.py` and `a_harcon_vendor.py` are unchanged (pinned).
+
+## 11. Amendment 3 (2026-11-24 22:35Z, PRE-DATA): the advisor-approved pacing design v2, with R1 and R2; supersedes §10 where they differ
+
+Written before any outcome of this gate exists. Where this section and §10 differ, this section holds. §10's ruling
+paragraph (v1-1 = NO RUN (infra); the 47 C1 rows disclosed; one registered re-run) is unchanged, except that R1 below
+now defines "no run".
+
+**The advisor approved pacing design v2** (relayed by the director, 2026-11-24). The design is in
+`side-session-notes/tide-a-harcon-v1-pacing-design-DRAFT-v2.md`. The advisor confirmed that turning a swallowed `{}`
+into `CoopsUnavailable` is error handling only: it restores the gate's intent, and the DATA path for "no constants"
+(a 200 with an empty list) is unchanged. Two refinements:
+
+- **R1, the no-outcome rule (adopted and tightened).** A tagged attempt is NOT a run only if BOTH:
+  - (a) no score came from a complete run JSON; AND
+  - (b) no outcome-bearing quantity (arm series, errors, match rows, C2/C3, legs) reached the log or any artifact.
+
+  Only C1 rows, donor counts and request-log lines may appear. (b) is pinned by a test: the instrument prints only
+  `sid stratum N donor(s)`. Each re-run needs David's typed word. After two consecutive infra no-runs, STOP and
+  diagnose (a possible IP block) before a third.
+- **R2.** On abort the step exits non-zero AND `outcome.json` is written:
+  `{"status": "no_run_infra", "step", "station", "attempts", "why"}`. A final `if: always()` step writes it when no
+  step did: `scored` with the verdict; `run_without_score` when a complete run JSON exists without a score, which is a
+  run under R1 (b); else `no_run_infra`.
+
+**The mechanism.** This is pacing and error handling only. No vendored byte changes, and the instrument's diff from
+`319d59086` is the atomic write with `"complete": true`.
+1. **`coops_pacing.py`**, installed by `paced_run.py` around BOTH CO-OPS steps (the vendored `finder_check.py` and the
+   instrument):
+   - **Pacing:** ≥ 2.0 s between the starts of CO-OPS requests, retries included, plus a startup gap in each process.
+   - **Verification and classification:** the body is read and verified as JSON inside the guard. A well-formed 200 is
+     DATA. Any non-200, connection error, timeout, or truncated or non-JSON body is INFRA.
+   - **Backoff:** 15 s doubling to at most 120 s, plus up to 25 % jitter, honouring `Retry-After` (seconds or
+     HTTP-date). It aborts at once if `Retry-After` asks for more than 900 s, if 600 s have passed since the request's
+     first attempt, or if the next wait would pass the step budget (`--budget-s`: 3300 s for C1, 6900 s for the
+     instrument). A 400 or 404 aborts at once.
+   - **The abort** is `CoopsUnavailable`, a `BaseException`. No `except Exception` (the real `sources.get_json`, the
+     vendored `finder_check`, the instrument's helpers) can turn it into "no constants" or "not MEASURED".
+2. **The http.client guard:** every CO-OPS request is counted. Any non-GET, any body, or any other host is refused.
+   The audit requires the http-layer count to equal the wrapper count.
+3. **No partial outcome:**
+   - The instrument writes its JSON atomically with `"complete": true`.
+   - The scorer REFUSES a run without it (exit non-zero, no score file).
+   - An abort stops the job before the scorer.
+   - The request log and `outcome.json` are uploaded `if: always()`.
+4. **§10's per-station finder runner and its "harness failure → VOID" scoring are WITHDRAWN.** An infrastructure
+   failure is now never a verdict, VOID included. The scorer's precedence, bar and controls are as before §10.
+
+**Hashes at this amendment:**
+- `coops_pacing.py`: `e1f68909290937028d40818d6f30b062396263502da5185c9d52a58ca0c1cfde` (pinned);
+- `paced_run.py`: `4c69e34f530fa9dfb06874a6d2d0de96c608cd1fead39d552b93ebe5e27a13a8`.
+- `finder_check.py` and `a_harcon_vendor.py` are unchanged (pinned).
