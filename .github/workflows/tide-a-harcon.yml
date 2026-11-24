@@ -56,7 +56,7 @@ jobs:
   gate:
     needs: download
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 200
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -70,14 +70,33 @@ jobs:
           path: fes_cache
           key: fes2022b-aharcon-${{ github.run_id }}-${{ github.run_attempt }}
           fail-on-cache-miss: true
-      - name: C1 finder control (vendored finder_check.py, the scored candidates, fixed window)
-        timeout-minutes: 40
-        run: python backend/scripts/tide_datum/finder_check.py --start 2027-02-01 --days 14 --stations docs/weather-program/research/tide-a-harcon-v1-stations.json --json tide_a_harcon_finder.json
-      - name: Instrument (both arms, donors, C2 and C3 records)
-        timeout-minutes: 90
-        run: python backend/scripts/tide_datum/a_harcon_parity.py --fes-cache fes_cache --work a_work --start 2027-02-01 --days 14 --json tide_a_harcon_run.json
-      - name: Score (pure; precedence finder -> measurability -> identities -> bar)
+      # Amendment 3 (v1-1 = NO RUN, infra 403; the advisor-approved pacing design v2 with R1 and R2): every CO-OPS request
+      # runs under paced_run.py: >= 2 s apart, a verified JSON body, backoff with jitter bounded per request and by the
+      # step budget. A CO-OPS failure after that ABORTS the step (exit 3) with outcome.json "no_run_infra"; no later step
+      # runs, so no score exists. The vendored finder_check.py is unchanged.
+      - name: C1 finder control (vendored finder_check.py, paced; the scored candidates, fixed window)
+        timeout-minutes: 60
+        run: python backend/scripts/tide_datum/paced_run.py --budget-s 3300 --outcome outcome.json backend/scripts/tide_datum/finder_check.py --start 2027-02-01 --days 14 --stations docs/weather-program/research/tide-a-harcon-v1-stations.json --json tide_a_harcon_finder.json
+      - name: Instrument (both arms, donors, C2 and C3 records; paced)
+        timeout-minutes: 120
+        run: python backend/scripts/tide_datum/paced_run.py --budget-s 6900 --outcome outcome.json backend/scripts/tide_datum/a_harcon_parity.py --fes-cache fes_cache --work a_work --start 2027-02-01 --days 14 --json tide_a_harcon_run.json
+      - name: Score (pure; precedence finder -> measurability -> identities -> bar; refuses an incomplete run)
         run: python backend/scripts/tide_datum/a_harcon_score.py --run tide_a_harcon_run.json --finder tide_a_harcon_finder.json --out tide_a_harcon_score.json
+      - name: Outcome (R2; always)
+        if: always()
+        run: |
+          if [ ! -f outcome.json ]; then
+            if [ -f tide_a_harcon_score.json ]; then
+              python -c "import json; v=json.load(open('tide_a_harcon_score.json'))['verdict']; json.dump({'status': 'scored', 'verdict': v}, open('outcome.json', 'w'))"
+            elif [ -f tide_a_harcon_run.json ]; then
+              # outcome-bearing data exists without a score: under R1 this IS a run (not "no run"); the advisor rules
+              echo '{"status": "run_without_score", "note": "a complete run JSON exists but no score; R1 (b) fails, so this is a run"}' > outcome.json
+            else
+              # L2: an unknown crash is NOT infra; only paced_run's own abort (which writes outcome.json itself) is no_run_infra
+              echo '{"status": "no_run_unknown", "step": "unknown (a timeout or a crash before any score)", "station": null, "attempts": null}' > outcome.json
+            fi
+          fi
+          cat outcome.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -86,5 +105,7 @@ jobs:
             tide_a_harcon_run.json
             tide_a_harcon_finder.json
             tide_a_harcon_score.json
+            coops_requests.jsonl
+            outcome.json
           if-no-files-found: ignore
           retention-days: 30

@@ -65,3 +65,60 @@ Append-only. Stamps come from `date -u`.
 
 - **Fragment:** estate +22 (was +17).
 - **Checks:** the instrument, tide_own, workflow-condition and tide_window suites give 74 passed, twice.
+
+## 22:24Z: amendment 2 (PRE-DATA), the pacing and error-handling fix, after v1-1 = NO RUN (infra)
+
+- **The ruling, relayed by the director:** v1-1 = NO RUN (infra). ONE registered re-run, `tide-a-harcon-v1-2`, is
+  allowed on David's typed word, on this fixed head. The record is #1287.
+- **Gate §10, amendment 2:** every CO-OPS call is paced (≥ 2 s apart; 403, 429, 5xx, connection, timeout and
+  truncated or non-JSON bodies back off exponentially with jitter, honour Retry-After, and are bounded at 600 s); then
+  a HARNESS failure. A 400 or 404 is a harness failure at once.
+  - **C1:** the verbatim `finder_check.py`, one station at a time (`paced_finder.py`). A failure is recorded and the
+    output is always written. A missing row at a scored station is C1 VOID.
+  - **The instrument:** run through `paced_run.py`. A harness failure is recorded per station; the JSON is atomic,
+    with `complete` and `harness_failures`.
+  - **The scorer:** a harness failure or an incomplete run is VOID, right after C1.
+  - **Verifying the diff:** `git diff -w` shows the instrument change is the `try`/`except HarnessFailure` around the
+    per-station body, the truth failure raised as a harness failure, and the atomic write. The indentation is the only
+    other change.
+- **Tests:** `tests/test_coops_pacing.py`, 13 (estate lane):
+  - spacing; backoff; Retry-After; the bound; a 400; a truncated body vs a 200 error-JSON; other hosts;
+  - the failure escaping the real `get_json` and the verbatim `finder_check`;
+  - the per-station runner; the scorer VOIDs; the workflow; the fixed constants and the hash.
+- The instrument tests' workflow assertion now names `paced_finder.py`.
+
+## 22:35Z: amendment 3 (PRE-DATA): the advisor-approved pacing design v2 with R1 and R2, replacing amendment 2's mechanism
+
+- **The advisor's ruling, relayed by the director:** it APPROVED pacing design v2, including the change from a
+  swallowed `{}` to `CoopsUnavailable` as error handling only.
+  - **R1:** "no run" requires BOTH no score from a complete run JSON AND nothing outcome-bearing printed or uploaded.
+    After two consecutive infra no-runs, stop and diagnose.
+  - **R2:** an abort writes `outcome.json` as `no_run_infra` and exits non-zero.
+- **This head replaces amendment 2's "record and VOID" mechanism** (`dda212a93`, which never ran). A CO-OPS failure
+  after the bounded backoff now ABORTS the step with no verdict, instead of producing a VOID.
+  - `paced_finder.py` is removed. Both steps run through `paced_run.py`.
+  - The instrument is back to `319d59086` except for the atomic `complete` write.
+  - The scorer is back to `319d59086` except that `main()` refuses an incomplete run.
+- **New in `coops_pacing.py`:**
+  - the `http.client` guard (CO-OPS only, GET only, no body) and the request audit;
+  - a startup gap;
+  - the step budget (`--budget-s`);
+  - an abort when Retry-After asks for more than 900 s.
+- **Tests:** `test_coops_pacing.py` now has 17 (was 13), including R1 (b) pinned on the instrument's single print
+  call, and R2 (the outcome file and exit 3). Fragment: estate +39.
+- **Stamp correction:** the amendment heading was first written as 22:47Z against a 22:35Z clock, and corrected
+  before committing.
+
+## 22:42Z: merged origin/dev (after #1286's squash), and a follow-up named
+
+- **The merge:** #1286 merged to dev at 22:28:59Z (`98c3bc1d8`, head `47d20de21`), carrying this branch's instrument
+  as of `319d59086`. That put #1285 in conflict with dev.
+  - origin/dev was plain-merged in (the director's merge `6f01d178b`; this session's identical-tree merge `8a39599ff` was not pushed). The six add/add conflicts all had dev's side byte-identical to
+    `319d59086`, and resolved to this branch's side.
+  - `git diff origin/dev...HEAD` is now only amendment 3's pacing and error handling (`coops_pacing.py`,
+    `paced_run.py`, the instrument's atomic `complete` write, the scorer's refusal of an incomplete run), the
+    workflow, `test_coops_pacing.py` (17 tests), gate §10–§11, this log, and the fragment. The fragment goes from 22
+    to 39: +17 over dev, the pacing tests only.
+- **Follow-up, a later PR (not this one):** the daily `tide-own-series` build (#1286's `harcon_arm`, now on dev)
+  fetches donor constants through `sources.get_json` WITHOUT pacing. Under throttling a key just gets no `am_h` (FES
+  serves), so nothing is mis-served, but the build should run under the same paced opener.

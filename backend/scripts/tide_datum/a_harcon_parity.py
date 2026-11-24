@@ -21,6 +21,7 @@ CI (repo root):  python backend/scripts/tide_datum/a_harcon_parity.py --fes-cach
 """
 import argparse
 import json
+import os
 import statistics as st
 import sys
 import urllib.request
@@ -217,9 +218,10 @@ def main(argv=None):
         print(sid, stratum, len(row["donors"]), "donor(s)", flush=True)
     out = {"schema": "raw-surf/tide-a-harcon-v1-run/1", "gate": "gates/tide-a-harcon-v1.md",
            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "window_start": a.start,
-           "days": a.days, "candidates": [[i, k] for i, k in cand], "per_station": per}
-    with open(a.json, "w", encoding="utf-8", newline="\n") as fh:
+           "days": a.days, "candidates": [[i, k] for i, k in cand], "per_station": per, "complete": True}
+    with open(a.json + ".tmp", "w", encoding="utf-8", newline="\n") as fh:   # amendment 3: atomic, never a partial file
         json.dump(out, fh, indent=1, default=str)
+    os.replace(a.json + ".tmp", a.json)
 
 
 if __name__ == "__main__":

@@ -225,7 +225,10 @@ def main(argv=None):
                                               "research" / "tide-a-harcon-v1-stations.json"))
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
-    r = score(*(json.loads(Path(p).read_text(encoding="utf-8")) for p in (a.run, a.finder, a.stations)))
+    run, finder, stations = (json.loads(Path(p).read_text(encoding="utf-8")) for p in (a.run, a.finder, a.stations))
+    if not run.get("complete"):                # amendment 3: no score from an incomplete run file (no outcome)
+        raise SystemExit("REFUSED: the run JSON is not complete; no score (amendment 3)")
+    r = score(run, finder, stations)
     with open(a.out, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(r, fh, indent=1, default=str)
     print("VERDICT", r["verdict"], json.dumps(r.get("controls", {}), default=str)[:800])
