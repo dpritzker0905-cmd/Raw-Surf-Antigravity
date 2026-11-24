@@ -117,7 +117,7 @@ def _interior_spy(monkeypatch):
     return stats
 
 
-def _run(monkeypatch, vector_flag, part_conf="1", resolution=30.0, bbox=None):
+def _run(monkeypatch, vector_flag, part_conf="1", resolution=30.0, bbox=None, masked_zero=None):
     import services.noaa_gfs_wave_fetcher as fetcher
 
     monkeypatch.setitem(sys.modules, "pygrib", types.SimpleNamespace(open=lambda _p: _Grbs()))
@@ -153,6 +153,8 @@ def _run(monkeypatch, vector_flag, part_conf="1", resolution=30.0, bbox=None):
     monkeypatch.setattr(__import__("requests"), "get", _get)
     payload = {"bbox": bbox or {"west": -180.0, "south": -80.0, "east": 180.0, "north": 85.0},
                "resolution": resolution, "forecast_days": 1, "output_path": ""}
+    if masked_zero is not None:   # GFS_PARTITION_MASKED_AS_ZERO as the parent passes it (Plan 4); None = the code default
+        payload["partition_masked_as_zero"] = masked_zero
     return fetcher.fetch_global_coarse(payload)
 
 
