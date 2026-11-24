@@ -92,7 +92,8 @@ jobs:
               # outcome-bearing data exists without a score: under R1 this IS a run (not "no run"); the advisor rules
               echo '{"status": "run_without_score", "note": "a complete run JSON exists but no score; R1 (b) fails, so this is a run"}' > outcome.json
             else
-              echo '{"status": "no_run_infra", "step": "unknown (a timeout or a crash before any score)", "station": null, "attempts": null}' > outcome.json
+              # L2: an unknown crash is NOT infra; only paced_run's own abort (which writes outcome.json itself) is no_run_infra
+              echo '{"status": "no_run_unknown", "step": "unknown (a timeout or a crash before any score)", "station": null, "attempts": null}' > outcome.json
             fi
           fi
           cat outcome.json

@@ -218,6 +218,9 @@ def test_the_workflow_runs_both_coops_steps_paced_with_an_outcome():
     assert "paced_run.py --budget-s 6900 --outcome outcome.json backend/scripts/tide_datum/a_harcon_parity.py" in wf
     assert "Outcome (R2; always)" in wf and "coops_requests.jsonl" in wf and "outcome.json" in wf
     assert "run: python backend/scripts/tide_datum/finder_check.py" not in wf          # never the unpaced finder
+    # advisor L2: the Outcome step's fallback for an unknown crash is never laundered as infra
+    outcome_step = wf.split("Outcome (R2; always)", 1)[1].split("upload-artifact", 1)[0]
+    assert '"status": "no_run_unknown"' in outcome_step and '"status": "no_run_infra"' not in outcome_step
 
 
 def test_the_pacing_constants_are_fixed_and_the_module_is_pinned():
