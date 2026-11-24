@@ -145,6 +145,48 @@ jobs:
           OPENAI_BUDGET_POSTGRES_TEST: '1'
         run: python -m pytest tests/test_openai_budget.py -q --timeout=60
 
+  paid-seat-postgres:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: live_seat_test
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d live_seat_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - name: Check the seat migration and three-way recovery race
+        env:
+          LIVE_SEAT_TEST_PORT: '5432'
+        run: |
+          python -m pytest -v --timeout=90 --junitxml=seat-results.xml \
+            tests/postgres_live_seat.py::test_existing_active_duplicates_stop_migration \
+            tests/postgres_live_seat.py::test_browser_webhook_sweep_converge
+          python - <<'PY'
+          from xml.etree import ElementTree
+          cases = ElementTree.parse("seat-results.xml").findall(".//testcase")
+          if len(cases) != 2 or any(case.find("skipped") is not None for case in cases):
+              raise SystemExit("Both PostgreSQL seat checks must execute")
+          PY
+
   lint-and-build:
     needs: changes
     # !cancelled(): if `changes` itself fails, this job still runs IN FULL (empty output != 'true'),

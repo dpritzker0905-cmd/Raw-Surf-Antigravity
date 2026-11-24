@@ -6,6 +6,7 @@ from the join and released when the buyer acts on their delivered gallery (not m
 Real JWT + HTTP for join and leave, an ephemeral SQLite ORM, and the real release sweep.
 """
 import json
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -48,6 +49,15 @@ async def harness(tmp_path):
 
     async with engine.begin() as connection:
         await connection.run_sync(create_all)
+    try:
+        async with seeded_seat_harness(engine) as seeded:
+            yield seeded
+    finally:
+        await engine.dispose()
+
+
+@asynccontextmanager
+async def seeded_seat_harness(engine):
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as db:
         db.add(Profile(id='owner', user_id='owner', email='owner@example.invalid', role=RoleEnum.SURFER,
@@ -72,7 +82,6 @@ async def harness(tmp_path):
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
                                  base_url='http://fixture.invalid') as client:
         yield SimpleNamespace(client=client, maker=maker)
-    await engine.dispose()
 
 
 @pytest.mark.parametrize("emulate", [False, True])
