@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 3,
+  "files": 1,
+  "branch": "codex/watermark-load-before-save",
+  "date": "2026-11-25",
+  "note": "Require a current profile read before saving watermark settings"
+}
