@@ -17,6 +17,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from services.gallery_covers import archived_cover_selection, display_cover_url
 from core.security import get_optional_user_id
 from .ownership import verified_viewer
 from models import (
@@ -67,6 +68,8 @@ async def create_gallery(
     photographer_roles = [RoleEnum.GROM_PARENT, RoleEnum.HOBBYIST, RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]
     if photographer.role not in photographer_roles:
         raise HTTPException(status_code=403, detail="Only photographers can create galleries")
+    if await archived_cover_selection(db, photographer_id, data.cover_image_url):
+        raise HTTPException(status_code=404, detail="Gallery item not found")
     
     gallery = Gallery(
         photographer_id=photographer_id,
@@ -114,7 +117,7 @@ async def get_gallery(
     viewer_id = verified_viewer(viewer_id, token_user_id)  # a query claim alone is anonymous
     
     result = await db.execute(
-        select(Gallery)
+        select(Gallery, display_cover_url())
         .where(Gallery.id == gallery_id)
         .options(
             selectinload(Gallery.photographer),
@@ -122,10 +125,10 @@ async def get_gallery(
             selectinload(Gallery.live_session)
         )
     )
-    gallery = result.scalar_one_or_none()
-    
-    if not gallery:
+    row = result.one_or_none()
+    if row is None:
         raise HTTPException(status_code=404, detail="Gallery not found")
+    gallery, cover_url = row
     
     # Increment view count
     gallery.view_count += 1
@@ -227,7 +230,7 @@ async def get_gallery(
         "photographer_avatar": gallery.photographer.avatar_url if gallery.photographer else None,
         "title": gallery.title,
         "description": gallery.description,
-        "cover_image_url": gallery.cover_image_url,
+        "cover_image_url": cover_url,
         "surf_spot_name": gallery.surf_spot.name if gallery.surf_spot else None,
         "item_count": len(items),
         "view_count": gallery.view_count,
@@ -281,6 +284,8 @@ async def update_gallery(
     if data.description is not None:
         gallery.description = data.description
     if data.cover_image_url is not None:
+        if await archived_cover_selection(db, photographer_id, data.cover_image_url):
+            raise HTTPException(status_code=404, detail="Gallery item not found")
         gallery.cover_image_url = data.cover_image_url
     if data.is_public is not None:
         gallery.is_public = data.is_public

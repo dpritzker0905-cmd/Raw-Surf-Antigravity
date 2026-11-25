@@ -319,7 +319,7 @@ async def get_gallery_item(
     """Get a single gallery item"""
     result = await db.execute(
         select(GalleryItem)
-        .where(GalleryItem.id == item_id)
+        .where(GalleryItem.id == item_id, GalleryItem.is_deleted.is_not(True))
         .options(selectinload(GalleryItem.photographer), selectinload(GalleryItem.spot))
     )
     item = result.scalar_one_or_none()

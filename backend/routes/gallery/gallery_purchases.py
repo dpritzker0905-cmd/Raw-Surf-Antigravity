@@ -4,7 +4,7 @@ Gallery Purchases — purchase, claim, download, and watermark operations.
 Extracted from items.py (v86) to keep each module under 800 LOC.
 """
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -394,13 +394,13 @@ async def get_watermarked_preview(
     # Get the item with photographer info
     result = await db.execute(
         select(GalleryItem)
-        .where(GalleryItem.id == item_id)
+        .where(GalleryItem.id == item_id, GalleryItem.is_deleted.is_not(True))
         .options(selectinload(GalleryItem.photographer))
     )
     item = result.scalar_one_or_none()
     
     if not item:
-        raise HTTPException(status_code=404, detail="Gallery item not found")
+        raise HTTPException(status_code=404, detail="Gallery item not found", headers={"Cache-Control": "private, no-store"})
     
     # Check if viewer has purchased this item
     is_purchased = False
@@ -415,11 +415,11 @@ async def get_watermarked_preview(
     
     # If purchased, return original preview URL (no watermark)
     if is_purchased:
-        return {
+        return JSONResponse({
             "preview_url": item.preview_url,
             "is_watermarked": False,
             "access_type": "purchased"
-        }
+        }, headers={"Cache-Control": "private, no-store"})
     
     # Get photographer's watermark settings if available
     photographer = item.photographer
@@ -462,7 +462,7 @@ async def get_watermarked_preview(
         media_type="image/jpeg",
         headers={
             "Content-Disposition": f"inline; filename=preview_{item_id}.jpg",
-            "Cache-Control": "public, max-age=3600"  # Cache for 1 hour
+            "Cache-Control": "private, no-store"
         }
     )
 

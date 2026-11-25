@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 26,
+  "branch": "codex/gallery-archive-preview",
+  "date": "2026-11-25",
+  "note": "Archived standalone previews, cover selection and gallery-card regressions"
+}

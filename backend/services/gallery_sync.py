@@ -9,6 +9,7 @@ Handles automatic gallery creation and pricing sync for all session types:
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import case, select, update
+from .gallery_covers import clear_covers_before_purge
 from models import (
     Gallery, GalleryItem, GalleryPurchase, PhotoTag, Profile, SurfSpot, Booking, DispatchRequest,
     LiveSession, SurferSelectionQuota, SurferGalleryItem, GalleryTierEnum,
@@ -380,6 +381,8 @@ async def safe_delete_gallery_item(
     recipients.update(tag.surfer_id for tag in tags if tag.can_claim_free)
     recipients.update(row.surfer_id for row in paid_items)
 
+    if not recipients:
+        await clear_covers_before_purge(db, item)
     if item.gallery_id and not item.is_deleted:
         await db.execute(
             update(Gallery).where(Gallery.id == item.gallery_id).values(

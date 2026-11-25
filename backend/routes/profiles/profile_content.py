@@ -18,6 +18,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from database import get_db
+from services.gallery_covers import display_cover_url, display_media_url
 from models import (
     Profile, Post, SavedPost, TaggedMedia, UserMedia, 
     GalleryItem, PostLike, Gallery, LiveSession, ConditionReport,
@@ -152,7 +153,8 @@ async def get_session_shots(
     if is_photographer:
         # Get galleries from live sessions with condition report media as thumbnail
         gallery_result = await db.execute(
-            select(Gallery, LiveSession, ConditionReport)
+            select(Gallery, LiveSession, ConditionReport,
+                   display_media_url(Gallery.photographer_id, ConditionReport.media_url), display_cover_url())
             .join(LiveSession, Gallery.live_session_id == LiveSession.id)
             .outerjoin(ConditionReport, ConditionReport.live_session_id == LiveSession.id)
             .where(Gallery.photographer_id == user_id)
@@ -163,21 +165,21 @@ async def get_session_shots(
         )
         galleries = gallery_result.all()
         
-        for gallery, live_session, condition_report in galleries:
+        for gallery, live_session, condition_report, report_url, cover_url in galleries:
             # Use condition report media as thumbnail, fallback to gallery cover
             thumbnail = None
             media_type = 'image'
             
-            if condition_report and condition_report.media_url:
-                thumbnail = condition_report.media_url
+            if condition_report and report_url:
+                thumbnail = report_url
                 media_type = condition_report.media_type or 'image'
-            elif gallery.cover_image_url:
-                thumbnail = gallery.cover_image_url
+            elif cover_url:
+                thumbnail = cover_url
             
             # Count gallery items
             item_count_result = await db.execute(
                 select(func.count(GalleryItem.id))
-                .where(GalleryItem.gallery_id == gallery.id)
+                .where(GalleryItem.gallery_id == gallery.id, GalleryItem.is_deleted.is_not(True))
             )
             item_count = item_count_result.scalar() or 0
             

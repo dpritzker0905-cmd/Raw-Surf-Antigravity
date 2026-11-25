@@ -16,6 +16,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from services.gallery_covers import display_cover_url
 from core.security import get_current_user_id
 from .ownership import require_gallery_photographer
 from models import (
@@ -492,7 +493,7 @@ async def get_photographer_public_galleries(
     """
     await assert_owner_listed(db, photographer_id)
     result = await db.execute(
-        select(Gallery)
+        select(Gallery, display_cover_url())
         .where(
             Gallery.photographer_id == photographer_id,
             Gallery.is_public == True
@@ -501,14 +502,14 @@ async def get_photographer_public_galleries(
         .offset(offset)
         .limit(limit)
     )
-    galleries = result.scalars().all()
+    galleries = result.all()
     
     public_galleries = []
-    for g in galleries:
+    for g, cover_url in galleries:
         # Get first few preview items for thumbnails
         items_result = await db.execute(
             select(GalleryItem)
-            .where(GalleryItem.gallery_id == g.id, GalleryItem.is_deleted == False)
+            .where(GalleryItem.gallery_id == g.id, GalleryItem.is_deleted.is_not(True), GalleryItem.is_public.is_(True))
             .order_by(GalleryItem.created_at.asc())
             .limit(6)
         )
@@ -518,7 +519,7 @@ async def get_photographer_public_galleries(
             "id": g.id,
             "title": g.title,
             "description": g.description,
-            "cover_image_url": g.cover_image_url or (preview_items[0].preview_url if preview_items else None),
+            "cover_image_url": cover_url or (preview_items[0].preview_url if preview_items else None),
             "session_type": g.session_type,
             "session_date": g.session_date.isoformat() if g.session_date else None,
             "item_count": g.item_count or len(preview_items),

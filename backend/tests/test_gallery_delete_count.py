@@ -6,7 +6,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload
 
-from models import Gallery, GalleryItem, GalleryPurchase, PhotoTag, Profile, RoleEnum, SurferGalleryItem
+from models import AccountDeletion, Gallery, GalleryItem, GalleryPurchase, PhotoTag, Profile, RoleEnum, SurferGalleryItem
 from routes.gallery.gallery_purchases import claim_free_photo, download_gallery_item, purchase_gallery_item
 from routes.gallery.schemas import PurchaseRequest
 from routes.gallery.collections import get_gallery, remove_item_from_gallery
@@ -40,7 +40,7 @@ async def sessions():
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     try:
         async with engine.begin() as conn:
-            for model in (Profile, Gallery, GalleryItem, GalleryPurchase, PhotoTag, SurferGalleryItem):
+            for model in (Profile, AccountDeletion, Gallery, GalleryItem, GalleryPurchase, PhotoTag, SurferGalleryItem):
                 await conn.run_sync(model.__table__.create)
         factory = async_sessionmaker(engine, expire_on_commit=False)
         async with factory.begin() as db:
