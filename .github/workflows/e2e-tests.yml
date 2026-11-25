@@ -105,15 +105,33 @@ jobs:
       - name: Start the in-runner synthetic weather backend
         run: bash frontend/scripts/offline-backend/ci_weather_backend.sh start
 
-      - name: Wait for the Netlify dev preview to serve THIS commit
+      # ⬆ 2026-11-25 (director, at David's request: false reds): Netlify never builds a commit whose message carries
+      # `[skip netlify]` / `[skip ci]`, so waiting for THAT commit always failed after 20 min (runs 45470009231,
+      # 45501339887, 45510009683). The frontend twin of --same-backend below: wait for the newest commit Netlify DOES
+      # build when the skipped commits changed nothing it builds ("earlier"); SKIP the lane with a notice when they did
+      # ("skip": the served bundle would be stale). backend/scripts/e2e_frontend_target.py decides; kill
+      # E2E_NETLIFY_TARGET=0 (repo variable) restores "wait for HEAD".
+      - name: Which Netlify build should this commit be tested on?
+        id: netlify_target
         if: github.event_name == 'push'
         env:
+          E2E_NETLIFY_TARGET: ${{ vars.E2E_NETLIFY_TARGET || '1' }}
+        run: |
+          python3 backend/scripts/e2e_frontend_target.py HEAD | tee -a "$GITHUB_OUTPUT"
+          if grep -q '^skip=true' "$GITHUB_OUTPUT"; then
+            echo "::notice title=E2E skipped (Netlify skip marker)::$(grep '^reason=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2-)"
+          fi
+
+      - name: Wait for the Netlify dev preview to serve THIS commit (or the build it ships in)
+        if: github.event_name == 'push' && steps.netlify_target.outputs.skip != 'true'
+        env:
           SITE: https://dev--rawsurf.netlify.app
+          TARGET: ${{ steps.netlify_target.outputs.target }}
         run: |
           # `update-sw-version.js` stamps `git rev-parse --short HEAD`, whose length is ADAPTIVE
           # (7, 8, 9...). Comparing against a fixed --short=N would never match and this job would
           # fail forever. So: PREFIX-match the served value against the full SHA.
-          full="$(git rev-parse HEAD)"
+          full="${TARGET:-$(git rev-parse HEAD)}"
           echo "waiting for $SITE to serve a BUILD_VERSION that prefixes $full"
           for i in $(seq 1 60); do
             got="$(curl -fsS --max-time 20 "$SITE/service-worker.js" 2>/dev/null \
@@ -135,14 +153,17 @@ jobs:
           exit 1
 
       - uses: actions/setup-node@v5
+        if: steps.netlify_target.outputs.skip != 'true'
         with:
           node-version: '24.22.1'
 
       - name: Install dependencies
+        if: steps.netlify_target.outputs.skip != 'true'
         working-directory: frontend
         run: npm ci
 
       - name: Select E2E qualification scope
+        if: steps.netlify_target.outputs.skip != 'true'
         id: e2e_scope
         working-directory: frontend
         run: |
@@ -150,12 +171,14 @@ jobs:
           node scripts/e2eHarnessScope.cjs
 
       - name: Verify correlated synthetic series diagnostics
+        if: steps.netlify_target.outputs.skip != 'true'
         working-directory: frontend
         run: |
           python -m unittest discover -s scripts/offline-backend -p 'test_*diagnostics.py' -v
           node --test scripts/seriesDiagnostics.test.cjs
 
       - name: Install Playwright browsers
+        if: steps.netlify_target.outputs.skip != 'true'
         working-directory: frontend
         # ⛔ WAS `chromium webkit`, and it was wrong the whole time — invisibly, because this job
         # had never executed a single test. playwright.config.js defines FOUR projects: Mobile
@@ -199,7 +222,7 @@ jobs:
       #   its first spot-hub load mid-restore; the re-run on a restored box passed in 10 s. The decision lives in
       #   backend/scripts/e2e_backend_ready.py (stdlib, unit-tested by tests/test_e2e_backend_ready.py).
       - name: Wait for the Render backend to serve THIS commit and finish restoring
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && steps.netlify_target.outputs.skip != 'true'
         env:
           API: https://raw-surf-antigravity.onrender.com
         # --same-backend: Render's build filter skips frontend-only and docs-only commits, so a box still on an earlier commit
@@ -209,9 +232,11 @@ jobs:
       # Fails the job (with the server log) rather than run weather specs against nothing: weather requests are never
       # forwarded to the live box, so an absent local backend would turn into a wall of 502s, not a silent fallback.
       - name: Wait for the in-runner synthetic weather backend
+        if: steps.netlify_target.outputs.skip != 'true'
         run: bash frontend/scripts/offline-backend/ci_weather_backend.sh wait 120
 
       - name: Run E2E tests
+        if: steps.netlify_target.outputs.skip != 'true'
         # Stop the test step before the job bound so always() can retain failure traces.
         timeout-minutes: 40
         working-directory: frontend
@@ -256,7 +281,7 @@ jobs:
       # The receipt, on the run page: weather requests answered in the runner vs weather responses from the live box
       # (must be 0; offlineWeather.js already fails any test that saw one). One ledger row per test attempt.
       - name: Weather routing receipt
-        if: always()
+        if: always() && steps.netlify_target.outputs.skip != 'true'
         run: |
           node - <<'JS'
           const fs = require('fs');
@@ -282,7 +307,7 @@ jobs:
           JS
 
       - name: Seeded UI isolation receipt
-        if: always()
+        if: always() && steps.netlify_target.outputs.skip != 'true'
         run: |
           node - <<'JS'
           const fs = require('fs');
@@ -304,7 +329,7 @@ jobs:
           JS
 
       - name: Upload request isolation receipts
-        if: always()
+        if: always() && steps.netlify_target.outputs.skip != 'true'
         uses: actions/upload-artifact@v6
         with:
           name: e2e-request-isolation
@@ -315,7 +340,7 @@ jobs:
 
       # Only the runner-owned synthetic server's log: never browser state, headers or env dumps.
       - name: Upload synthetic server log
-        if: always()
+        if: always() && steps.netlify_target.outputs.skip != 'true'
         uses: actions/upload-artifact@v6
         with:
           name: synthetic-weather-server-log
@@ -324,7 +349,7 @@ jobs:
           retention-days: 14
 
       - name: Upload test results
-        if: always()
+        if: always() && steps.netlify_target.outputs.skip != 'true'
         uses: actions/upload-artifact@v6
         with:
           name: playwright-report
