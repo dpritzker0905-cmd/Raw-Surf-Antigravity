@@ -189,3 +189,9 @@ Read-only diagnosis, asked by the director after the reliability lane's frame-fr
   still had an index when the run read it). `frame_set.retention_deletes` is not reused: it refuses an empty keep set on purpose.
 - Kill `FRAME_RATED_PRUNE=0`. No served number moves. Tests: 4 new in `tests/test_rated_retire.py`, twice; dropping the run-once
   guard or the publisher's call turns a test red.
+- 2026-11-25, advisor limits on #1322 (PASS-WITH-LIMITS; prefix safety verified): `FRAME_RATED_PRUNE` is now DRY BY DEFAULT
+  (repo variable, `|| 'dry'` in forecast-ingest-pilots.yml). Dry lists every qualifying set: count, bytes, first and last path to
+  the step summary, and the full list in `backend/rated_prune_list.json`, uploaded as the `rated-prune-list-<run>` artifact
+  (report-only step `rated_prune_upload`). Merging deletes nothing. `'1'` deletes (David's step after he approves the dry-run totals,
+  about 62 sets / 1,240 objects / 0.12 GB) and logs each set's deleted count for audit; `'0'` is off; any other value reads as
+  dry. Soft-delete not built (the advisor recommended against it). Tests: 7 in `test_rated_retire.py` for the prune, twice.

@@ -135,12 +135,15 @@ def _retired(prev_index="v1/gfs/marine/swell_1/global_mid_rated/index/a.json"):
 
 
 def test_prune_deletes_a_retired_sets_objects_and_nothing_beside_them(tmp_path, monkeypatch):
-    monkeypatch.delenv("FRAME_RATED_PRUNE", raising=False)
+    monkeypatch.setenv("FRAME_RATED_PRUNE", "1")                      # the real delete is explicit (David's step)
+    monkeypatch.chdir(tmp_path)
     sink = pub.LocalSink(tmp_path)
     _objects(tmp_path, "v1/gfs/marine/swell_1/global_mid_rated", ["20261123T060000Z/f1.bin", "index/a.json"])
     _objects(tmp_path, "v1/gfs/marine/swell_1/global_mid", ["20261125T000000Z/plain.bin"])          # the PLAIN sibling set
     _objects(tmp_path, "v1/gfs/marine/waves/global_mid_rated", ["20261125T000000Z/live.bin"])      # a live rated set
-    out = fsr.prune_retired(sink, {STALE: _retired()}, [STALE], NOW, "w", log=lambda *a: None)
+    logs = []
+    out = fsr.prune_retired(sink, {STALE: _retired()}, [STALE], NOW, "w", log=logs.append)
+    assert any("PRUNED, 2 object(s) deleted" in m and STALE in m for m in logs)          # per-set audit line
     assert out[STALE]["pruned"] == 2 and out[STALE]["empty"] is True and "index" not in out[STALE]
     assert not (tmp_path / "v1/gfs/marine/swell_1/global_mid_rated").exists() or not any(
         (tmp_path / "v1/gfs/marine/swell_1/global_mid_rated").rglob("*.*"))
@@ -167,7 +170,8 @@ def test_prune_runs_once_and_the_kill_switch_stops_it(tmp_path, monkeypatch):
 
 
 def test_publisher_prunes_an_already_retired_set_and_records_it(tmp_path, monkeypatch):
-    monkeypatch.delenv("FRAME_RATED_PRUNE", raising=False)
+    monkeypatch.setenv("FRAME_RATED_PRUNE", "1")
+    monkeypatch.chdir(tmp_path)
     out = tmp_path / "o"
     _tree(out, {STALE: _retired()})
     _objects(out, "v1/gfs/marine/swell_1/global_mid_rated", ["20261123T060000Z/f1.bin", "index/a.json"])
@@ -180,3 +184,45 @@ def test_publisher_prunes_an_already_retired_set_and_records_it(tmp_path, monkey
     latest = json.loads((out / "v1" / "latest.json").read_text())
     assert latest["sets"][STALE]["pruned"] == 2 and "index" not in latest["sets"][STALE]
     assert not any((out / "v1/gfs/marine/swell_1/global_mid_rated").rglob("*.bin"))
+
+
+def test_dry_is_the_default_it_lists_reports_and_deletes_nothing(tmp_path, monkeypatch):
+    """Advisor limit (2) on #1322: merging deletes nothing. The default lists every qualifying set's objects (count, bytes, first
+    and last path to the step summary; the full list to PRUNE_LIST) and records nothing."""
+    monkeypatch.delenv("FRAME_RATED_PRUNE", raising=False)
+    monkeypatch.chdir(tmp_path)
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    assert fsr.prune_mode() == "dry"
+    root = tmp_path / "o"
+    _objects(root, "v1/gfs/marine/swell_1/global_mid_rated", ["20261123T060000Z/a.bin", "index/a.json"])
+    logs = []
+    out = fsr.prune_retired(pub.LocalSink(root), {STALE: _retired()}, [STALE], NOW, "w", log=logs.append)
+    assert out == {}                                                  # no record changes in a dry run
+    assert (root / "v1/gfs/marine/swell_1/global_mid_rated/20261123T060000Z/a.bin").exists()
+    plan = json.loads((tmp_path / fsr.PRUNE_LIST).read_text())
+    assert plan["mode"] == "dry" and plan["sets"] == 1 and plan["objects"] == 2 and plan["bytes"] == 2
+    row = plan["rows"][0]
+    assert row["first"].endswith("20261123T060000Z/a.bin") and row["last"].endswith("index/a.json") and len(row["paths"]) == 2
+    md = summary.read_text()
+    assert "DRY RUN (nothing deleted" in md and f"| `{STALE}` | 2 | 2 |" in md
+    assert any("DRY RUN: 2 object(s)" in m for m in logs)
+
+
+def test_an_unknown_prune_value_reads_as_dry_never_delete(monkeypatch):
+    for v in ("yes", "true", "delete", "", "Dry"):
+        monkeypatch.setenv("FRAME_RATED_PRUNE", v)
+        assert fsr.prune_mode() == "dry"
+    monkeypatch.setenv("FRAME_RATED_PRUNE", "1")
+    assert fsr.prune_mode() == "1"
+
+
+def test_the_workflow_defaults_to_dry_and_uploads_the_list_report_only():
+    wf = open(os.path.join(os.path.dirname(os.path.dirname(HERE)), ".github", "workflows", "forecast-ingest-pilots.yml"),
+              encoding="utf-8").read()
+    assert "FRAME_RATED_PRUNE: ${{ vars.FRAME_RATED_PRUNE || 'dry' }}" in wf
+    step = wf[wf.index("Upload the retired rated sets' prune list"):]
+    step = step[:step.index("retention-days")]
+    assert "id: rated_prune_upload" in step and "continue-on-error: true" in step and "backend/rated_prune_list.json" in step
+    import publish_outcome_gate as gate
+    assert "rated_prune_upload" in gate.REPORT_ONLY_STEP_IDS
