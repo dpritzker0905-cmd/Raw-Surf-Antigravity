@@ -1,0 +1,95 @@
+# 2026-11-25 · claude · tide-mllw-tester-v1: the pre-registration (DRAFT)
+
+Append-only. Stamps come from `date -u`.
+
+## 02:19Z: draft gate `gates/tide-mllw-tester-v1.md` (David's decision A; the advisor's binding requirements)
+
+- **Scope:** a datum-only tester for `SURF_TIDE_MLLW_US`.
+  - It runs report-only for 14 days on the SHADOW block (`datum_for(..., enabled=True)`), leave-one-out on the
+    monitor's own sheet.
+  - A PASS opens a `tide-mllw-proposal` issue assigned to the owner and never flips the flag (D-087).
+  - Once David re-enables the flag, WORSE (two strikes ≥ 24 h apart) and breaches disable it (D-090), through
+    decide().
+- **The statistic:** per monitor, the signed MEAN over hourly t of displayed MLLW − NOAA MLLW prediction −
+  `mean_level_included_m` (the block's disclosed rise since the epoch). The raw mean is reported.
+  - Per window, F is the median over monitors.
+  - Bar: |F| ≤ 0.02 m per D-source stratum (MODEL / SHEET).
+- **The review (SubQ subq-savant-1.4 and Reflection Beam-1.0, public text only), adopted:**
+  - mean, not median, per window;
+  - strata by D source, assigned from inputs before any prediction is read;
+  - the fleet count rule;
+  - WORSE needs both 7-day halves;
+  - FLEET BREACH on the full window;
+  - a wiring bound on the mean term;
+  - 13 planted controls and boundary tests.
+  - Null-simulation calibration was NOT adopted (the bars are a priori).
+- **Not yet done:**
+  - the station freeze (script + frozen JSON, metadata only);
+  - the advisor's read of this draft;
+  - the code PR (TIDE_DATUM family, the build's monitor keys, the issue/countdown, the tests);
+  - the Switch Board panel PR.
+
+## 02:25Z: amendment 1 (§10, PRE-DATA): the advisor's design read
+
+- **Blocking, adopted:** the long-period terms are removed on BOTH sides of e(t), unconditionally.
+  - NOAA side: the station's SA + SSA (NOAA convention) plus MF + MM.
+  - Our side: FES Sa, Ssa, Mf and Mm, written per monitor key by the build (`am_lp`).
+  - The uncorrected mean is reported beside s.
+  - The amplitudes on both sides are recorded at the freeze (inputs only).
+  - Controls: (n), the seasonal swap with s unchanged ±0.002 m; (a), the identity with LP_ours := LP_noaa.
+  - `tide_datum.py`'s "in neither" docstring is treated as unverified.
+  - A pre-flip note for #1149 is carried beside L2.
+- **Adopted with conditions:**
+  - source drift makes a monitor NOT MEASURED, never re-stratified;
+  - the expected per-stratum counts are published from inputs before the freeze, and the selection is amended pre-data
+    if MODEL or SHEET cannot reach 15;
+  - n_fleet counts MEASURED monitors, with boundaries at 20 and 15;
+  - (k) has the tolerance 0.005 m;
+  - (g) has its expected verdict written out;
+  - (o) covers forced source drift.
+- **No null calibration** is confirmed.
+- **The station freeze is still NOT done.** It comes next, in a pre-data commit with the counts and amplitudes.
+
+## 14:52Z: amendments 1-3 and the station FREEZE (pre-data)
+
+- **§10, amendment 1 (the advisor's design read):**
+  - long-period terms removed on both sides;
+  - source drift → NOT MEASURED;
+  - n_fleet boundaries;
+  - exact controls (g), (k), (n) and (o).
+- **§11, amendment 2:**
+  - SHEET is 0 by construction (model D resolves first everywhere it exists), so the decision strata are geography and
+    every monitor is MODEL;
+  - the gauge and interpolation paths are reachable while a key lacks model D (r1, which is EVERY key until #1149's
+    `compute_d` has run; and r2), so (p4) adds ≤ 1 % SHEET share for a proposal.
+- **§12, amendment 3:** type R only (type S has no hourly predictions and mostly no constants); type R is not a random
+  sample (disclosed); the superseded run's inputs are listed and its artifacts kept.
+- **The freeze:** 80 type-R stations (20 + 20 per geography); NOAA LP constants for all 80 (SA median 0.071 m, max
+  0.430 m); request audit 80 × `harcon.json`, all 200. The sha256 values are in §12.
+- **Process note:** the first type-R run was killed overnight before writing its output. The script now checkpoints
+  each ETOPO classification (`--checkpoint`).
+
+## 15:09Z: the advisor VERIFIED the freeze (`69aa37305`); the owed pre-data docs
+
+- **Recorded in §12 and §8:**
+  - 69 of the 80 frozen stations (35 of 40 monitors) are datum v2 held-out RESERVES that datum v2 never read. The
+    tester consumes them; no future datum test may treat them as fresh. Ledger fragment
+    `claude--tide-mllw-tester-gate.jsonl:1`.
+  - REQ-1: the NOAA convention is reproduced at Longview (9440422) and Point Hope (9491873) to ≤ 0.002 m RMS, with and
+    without SA/SSA.
+  - REQ-2: Atka (9461710) has no MF/MM, so LP_noaa there is SA + SSA only.
+  - The pre-flip seasonal-mismatch note beside L2: about 0.1 m typical and up to about 0.66 m riverine. A D PASS is not
+    agreement with NOAA tables, and the long_label must be reworded before any flip.
+
+## 15:20Z: amendment 4 (§13, PRE-DATA): REQ-1 amended; the NOAA convention fixed; MSF added to LP_noaa
+
+- **REQ-1 is now a one-off calibration on running means (the advisor):** every 14-day and 29-day running mean of
+  NOAA − our synthesis must be within ±0.003 m over 2025, at Longview and Point Hope, with and without SA/SSA. It never
+  runs per build.
+- **The first run FAILED at Longview:** 4.15 mm (14-day). That record is kept, with its audit.
+  - The cause was MSF (0.139 m) and MM (0.077 m) synthesised by pyTMD, about 5 mm off NOAA each.
+  - Fixed in the convention (`noaa_lp.py`: Schureman MM/MF; MSF as the compound S2 − M2), never the bar.
+  - The rerun PASSED: Longview 0.14 / 0.06 mm, Point Hope 0.04 / 0.02 mm.
+- **LP_noaa now includes MSF** (NOAA predicts it; FES has no MSF wave).
+- **The per-build tester is pure Python:** no pyTMD.
+- The calibration files and code are in the code PR, and the hashes are in §13.
