@@ -1,5 +1,5 @@
 # Gate: tide-mllw-tester-v1 (the datum-only tester for SURF_TIDE_MLLW_US)
-Stamp: 2026-11-25 02:14Z (draft); SubQ and Reflection reviews adopted 02:17Z (§9). This text comes before any tester
+Stamp: 2026-11-25 02:14Z (draft); SubQ and Reflection reviews adopted 02:17Z (§9); the advisor's design read adopted as amendment 1, 02:25Z (§10). This text comes before any tester data and before the monitor stations are frozen.
 data and before the monitor stations are frozen.
 Candidate: a TIDE_DATUM family for `flag_guardrail`. It watches `SURF_TIDE_MLLW_US`, the US tide display above MLLW
 (`tide_datum.datum_for`, #1149). That flag is HELD OFF (code default `"0"`) after the datum gate v2 FAIL.
@@ -245,3 +245,69 @@ A ledger commitment covers it and the tester (`claude--tide-mllw-us.jsonl:10`, d
 | Missing controls: negative offsets, units, time shift, mean-term errors, spike, one-stratum, boundaries (both) | ADOPTED: §6 T3 boundaries and T4 controls c, e–i, k–m |
 | Calibrate thresholds by null simulation (Reflection) | NOT ADOPTED: the bars are the advisor's and the director's, a priori. Control (a) is the exact null, and the result's per-monitor raw means are published |
 | A 29-day mean is better than 14 days (SubQ) | PARTLY: the PROPOSAL is decided on the 29-day view; enforcement uses 14 days split into two halves, so it reacts within days |
+
+## 10. Amendment 1 (2026-11-25 02:25Z, PRE-DATA): the advisor's design read of the draft
+
+Written before any station freeze, table read or prediction read. Where this section and §§2–8 differ, it holds.
+
+**1. Seasonal and long-period terms are removed on BOTH sides (the advisor's blocking change).**
+- **The flaw:** the served A is FES2022b with the long-period equilibrium tide (`arms.fes_eval`), so it carries
+  modelled Sa, Ssa, Mf and Mm. NOAA's predictions carry each station's FITTED SA and SSA (often 5–15 cm on the Gulf
+  and East coasts), plus MF and MM.
+  - Over a 7- or 14-day window these terms are nearly constant, and they differ between the two sides, so they would
+    enter e(t) as a false datum offset.
+  - `tide_datum.py`'s docstring line "the seasonal cycle ... is in neither the display nor the NOAA table" is treated
+    as UNVERIFIED and is not relied on.
+- **The rule (unconditional, so it needs no data to decide):** e(t) is computed on the long-period-free parts of both
+  sides:
+  `e(t) = [displayed_MLLW(t) − LP_ours(t)] − [NOAA_MLLW_prediction(t) − LP_noaa(t)] − mean_level_included_m`.
+  - **LP_noaa:** the station's own SA + SSA from its `harcon.json`, in NOAA's predictor convention
+    (`metrics.noaa_long_period`), plus MF + MM synthesised from the same constants (`arms.harcon_eval` on those two
+    rows only).
+  - **LP_ours:** FES2022b's Sa + Ssa + Mf + Mm at the monitor key, written per monitor key by the build beside `am`
+    (a code-PR requirement: `am_lp`, the same synthesis `fes_eval` uses).
+  - **The UNCORRECTED mean** (long-period terms left in) is reported beside s for every monitor, with the window means
+    of LP_noaa and LP_ours.
+- **Inputs recorded at the freeze (pre-data, inputs only):** for every monitor and reserve, the amplitudes of SA,
+  SSA, MF and MM from its `harcon.json`, and of FES Sa, Ssa, Mf and Mm at its key, are published with the freeze.
+  They are constants, never outcomes.
+- **Planted control (n) (seasonal swap):** at every monitor, the display's LP_ours is replaced by LP_noaa, and the
+  build's `am_lp` with it.
+  - Expect s unchanged within ±0.002 m.
+  - Expect the UNCORRECTED mean to move by the window mean of (LP_noaa − LP_ours).
+- **The §6 (a) identity** becomes NOAA's prediction + `mean_level_included_m`, with LP_ours := LP_noaa. Every s is
+  0 ± 0.001 m.
+- **Diagnostic only (the advisor's recommendation):** each monitor's `mean_level_included_m` is reported beside the
+  G3t regional M (`own_rules.G3T_M`: Gulf 0.12–0.15, East 0.09–0.14, West 0.067–0.098, Hawaii 0.086–0.098 m). It is
+  never a verdict.
+- **A pre-flip note for #1149, carried beside L2:** the long_label's "reads that much above a NOAA tide table" holds
+  as an ANNUAL average only where NOAA includes SA. That wording must be re-checked before any MLLW flip.
+
+**2. Source drift, and the expected counts.**
+- **Source drift:** a monitor whose LIVE D source (MODEL or SHEET under LOO) differs from its frozen one is NOT
+  MEASURED for that build, listed as "source drift", and never re-stratified.
+- **The counts:** the freeze commit publishes the per-stratum counts EXPECTED from inputs (the first table's
+  `model_d_ntde_m` and the sheet list), before any prediction is read. If MODEL or SHEET cannot reach 15 measured
+  monitors from the monitors plus reserves, the selection is amended in that same pre-data commit (by a dated rule),
+  never after data.
+
+**3. The fleet count.**
+- **n_fleet** counts the MEASURED monitors (both strata) in the window.
+- **(b1)'s threshold** is min(3, ⌈0.1 × n_fleet⌉): 3 at n_fleet ≥ 21, and 2 at n_fleet = 20 down to 11.
+- **T3 adds boundaries** at n_fleet = 20 and n_fleet = 15, threshold 2 at both: exactly 1 exceedance gives no (b1),
+  and exactly 2 gives (b1).
+
+**4. The controls, made exact.**
+- **(g) mean term omitted** from the tester's subtraction. s equals each monitor's raw (mean-term-included) mean,
+  m ≈ 0.07–0.15 m at US gauges (G3t).
+  - **Expected verdict:** BREACH by (b1) whenever ≥ min(3, ⌈0.1 n_fleet⌉) monitors have |m| > 0.05 m.
+  - Otherwise WORSE iff |median m| > 0.02 m in both halves in some stratum, else NOT_WORSE.
+  - The tester must report exactly the verdict decide() derives from those numbers, and that verdict must match this
+    rule.
+- **(k) +60 min:** expect |s(shifted) − s(served)| ≤ 0.005 m at every monitor, and NOT_WORSE.
+- **(n):** as in item 1.
+- **(o) forced source drift:** one monitor's live source is forced to differ from its frozen one. Expect that monitor
+  NOT MEASURED ("source drift"), never re-stratified, and every other monitor unchanged.
+
+**5. No null calibration:** confirmed by the advisor, valid now that item 1 removes the seasonal contamination.
+Control (a) is the exact null.
