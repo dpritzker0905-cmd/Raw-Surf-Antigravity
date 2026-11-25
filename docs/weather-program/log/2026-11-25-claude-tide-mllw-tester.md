@@ -49,3 +49,22 @@ Append-only. Stamps come from `date -u`.
   - (o) covers forced source drift.
 - **No null calibration** is confirmed.
 - **The station freeze is still NOT done.** It comes next, in a pre-data commit with the counts and amplitudes.
+
+## 14:52Z: amendments 1-3 and the station FREEZE (pre-data)
+
+- **§10, amendment 1 (the advisor's design read):**
+  - long-period terms removed on both sides;
+  - source drift → NOT MEASURED;
+  - n_fleet boundaries;
+  - exact controls (g), (k), (n) and (o).
+- **§11, amendment 2:**
+  - SHEET is 0 by construction (model D resolves first everywhere it exists), so the decision strata are geography and
+    every monitor is MODEL;
+  - the gauge and interpolation paths are reachable while a key lacks model D (r1, which is EVERY key until #1149's
+    `compute_d` has run; and r2), so (p4) adds ≤ 1 % SHEET share for a proposal.
+- **§12, amendment 3:** type R only (type S has no hourly predictions and mostly no constants); type R is not a random
+  sample (disclosed); the superseded run's inputs are listed and its artifacts kept.
+- **The freeze:** 80 type-R stations (20 + 20 per geography); NOAA LP constants for all 80 (SA median 0.071 m, max
+  0.430 m); request audit 80 × `harcon.json`, all 200. The sha256 values are in §12.
+- **Process note:** the first type-R run was killed overnight before writing its output. The script now checkpoints
+  each ETOPO classification (`--checkpoint`).

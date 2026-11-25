@@ -225,6 +225,8 @@ A ledger commitment covers it and the tester (`claude--tide-mllw-us.jsonl:10`, d
 - **Timing:** blind by design (§6 k); tide-guard judges it.
 - **`am_h` keys (L1):** while `SURF_TIDE_A_HARCON` is ON, `am_h`-served keys carry no m/d and show local MSL. This
   tester reads the `am` arm only. The two flags do not go ON together until that is decided.
+- **Type R only (§12):** the monitors are harmonic stations, not a random sample of the coast. They under-represent shallow back-bay and estuary keys. A PASS speaks for type-R-like locations, and the proposal says so.
+- **The gauge and interpolation D paths** serve only while a key lacks model D (§11 r1, r2). They are measured by the datum gates, not by this tester, which counts their share every build.
 - **Datum-sheet epochs other than 1983–2001** (a few Alaska and Gulf sheets): their D is compared on their own epoch;
   reported per monitor.
 - **Long-period tide error:** the 14-day mean leaves the Mf, Mm and Ssa parts of A's error. The 29-day view reduces Mf
@@ -311,3 +313,142 @@ Written before any station freeze, table read or prediction read. Where this sec
 
 **5. No null calibration:** confirmed by the advisor, valid now that item 1 removes the seasonal contamination.
 Control (a) is the exact null.
+
+## 11. Amendment 2 (2026-11-25 02:31Z, PRE-DATA): the expected counts force the decision strata back to geography
+
+Written before any table or prediction is read, as §10 item 2 requires ("if MODEL or SHEET cannot reach 15, the
+selection is amended in that same pre-data commit"). Where this section and §3, §5 or §10 differ, it holds.
+
+- **The expected counts, from the code path (inputs only):**
+  - `build_series.py` computes our 19-year D (`d_ntde`) for EVERY US key where FES2022b is defined, caches it for good,
+    and the table carries it per key (`own_rules.table` → `d`).
+  - `tide_datum.resolve_d` takes our model D FIRST.
+  - A key where FES is undefined has no `am`, so `datum_for` returns MSL ("no-mean-level") and the monitor is NOT
+    MEASURED, whatever the sheets say.
+  - Hence: every MEASURED monitor resolves to **MODEL**, and **SHEET = 0 by construction**. The sheet and interpolation
+    paths are only reached where model D is still unfilled (a transient: the build fills `d_ntde` within its budget, and
+    the monitor keys are added by the code PR).
+  - SHEET cannot reach 15, so the selection is amended now.
+- **The amendment:**
+  - The decision strata are **geography**: HARBOR_BAY and OPEN_COAST (§3's classifier), 20 monitors and 20 reserves
+    each, every one MODEL-sourced.
+  - The D source is still recorded per monitor and build. A monitor whose live source is not MODEL is NOT MEASURED
+    ("source drift", §10 item 2), listed, and never re-stratified.
+  - Bar, WORSE, breaches and the proposal are unchanged, applied per GEOGRAPHY stratum (§5 with "stratum" =
+    HARBOR_BAY / OPEN_COAST).
+- **What this tests:** our own 19-year D at held-out stations, against NOAA's datum-sheet-based MLLW predictions.
+  - Leave-one-out is moot: model D reads no sheet. The removal of the monitor's own sheet stays in the code, so a
+    transient sheet path is still honest.
+  - A defect in the gauge or interpolation paths cannot be seen here, because production does not reach them while
+    model D exists. Disclosed in §8.
+- **Reported at the first table, before any prediction:** the count of monitor keys with `d` filled (MODEL) and
+  without (NOT MEASURED until filled), per stratum.
+- **The freeze (this commit):**
+  - `research/tide-mllw-tester-v1-stations.json`, by `scripts/tide_datum/mllw_tester_select.py` (seed 20261128).
+  - Exclusions:
+    - every id in `tide-a-harcon-v2-excluded.json`;
+    - the v2 pre-flight set, the v2 candidates and their prefix donors;
+    - every gauge that datum v1 or datum v2 READ, and its sheet donor, from their run JSONs.
+    - Datum v2's frozen "reserve" lists its whole unread pool, so its run JSON is the record of what was read.
+  - The LP amplitudes required by §10 item 1 are recorded as follows:
+    - NOAA side: SA, SSA, MF and MM from each monitor's and reserve's `harcon.json` (paced reads, constants only). They
+      are committed with the freeze.
+    - FES side: Sa, Ssa, Mf and Mm at each key. This needs the FES2022b files, which exist only in CI. It is recorded by
+      the code PR's first, inputs-only step, before any prediction is read, and committed before the first tested
+      build.
+- **(Added 2026-11-25 03:37Z, PRE-DATA.) Are the gauge and interpolation paths dead code? (the advisor's heads-up, answered from inputs)** No. They are
+  reachable, but only where a key has a served `am` series with a finite M and NO positive model D:
+  - **(r1) Before a key's model D is filled.** This is transient, but on day one it covers EVERY key.
+    - `compute_d` arrives with #1149. The two latest production builds (tide-own-series runs 45472970889, 2026-11-24,
+      and 45260147149, 2026-11-23) log "served (A and M) at 1061 of 1061 keys" and no "MLLW (NTDE)" line. So today no
+      key has model D.
+    - After #1149, each build fills `d_ntde` within its time budget (`compute_d(..., budget_s)`) and caches it for good.
+      Until a key is filled, a flag-ON display there resolves D from a sheet within 2 km or by interpolation.
+    - The fill progress is logged every build ("MLLW (NTDE): N computed this run; K keys have it"), so the unfilled
+      count is 1061 − K.
+  - **(r2) At a key whose NTDE synthesis raises on every build.** `compute_d` logs it and writes no marker, so it
+    retries every build, and the sheet or interpolation path serves there for as long as it keeps failing. It is
+    counted in the same log line.
+  - **Not reachable:**
+    - a key where FES is undefined: `d_ntde_unavailable` is set, but such a key has no A, so no `am`, and is MSL;
+    - a key with no FES box: no A, so MSL;
+    - a key outside the region: `compute_d`'s `in_us` and `datum_for`'s `us_region` are the same function
+      (`tide_us_region.in_us = us_region(...) is not None`), so there is no gap between them;
+    - an off-grid key, i.e. a spot whose key is not in the table: no series, so MSL;
+    - a non-positive model D: impossible for any tide with a range, because `d_ntde` is MSL − MLLW of A.
+- **Consequences, adopted:**
+  - **No proposal while (r1) is large.** The tester records, per build, the count of US keys served with a non-MODEL D
+    (from the K in the build log and the monitor keys), and its share of all US keys. (p4, added to §5's PASS rule):
+    for the 14 report-only days, ≤ 1 % of served US keys resolve through SHEET. Otherwise the proposal waits, because
+    the flag would mostly be showing the untested paths.
+  - **Once ON:** if the SHEET share rises above 5 % of US keys on two consecutive builds (an NTDE fill regression), the
+    tester opens an owner report. This is not a disable: D from a sheet within 2 km was measured at a 0.017 m
+    leave-one-out median (`tide_datum.py` GAUGE_KM).
+  - **SHEET-path coverage:** the gauge and interpolation paths are the ones the datum gates v1 and v2 measured. A
+    defect in them during (r1) is outside this tester's decision and is named in §8.
+
+## 12. Amendment 3 (2026-11-25 03:47Z, PRE-DATA): monitors must be HARMONIC (type R) stations
+
+Written before any NOAA prediction, water level or served table has been read. Where this section and §3 or §11
+differ, it holds.
+
+- **The flaw, found while recording §10's NOAA-side amplitudes:** the first selection run drew from every
+  tide-prediction station with a datum sheet, so 35 of its 80 stations were SUBORDINATE (type S). That run's output had
+  sha256 `eee72e98…b204cf10`, was never committed, and is superseded here.
+  - CO-OPS publishes High/Low predictions only for type S stations, not the hourly series the §4 statistic needs.
+  - Most type S stations have no `harcon.json`, so LP_noaa (§10 item 1) cannot be formed.
+  - The 80 `harcon.json` reads made for the amplitudes are constants (inputs); their audit showed 80 requests, all to
+    `harcon.json`.
+- **The rule:** the universe is the TYPE R stations of the snapshot (harmonic stations with hourly predictions and
+  published constants), with datum sheets, inside `us_region`, minus the §3/§11 exclusions. That leaves 755 eligible.
+- **Everything else is unchanged:**
+  - the seed (20261128), the walk, the one-per-key rule, the classifier;
+  - 20 monitors and 20 reserves per geography.
+  - The classifier's ETOPO results from the first run are reused as a cache. They come from the same deterministic rule
+    on station coordinates, and that is disclosed.
+- **Re-recorded:** the NOAA-side SA, SSA, MF and MM amplitudes are read again for the new 80 stations (constants only)
+  and committed with the freeze.
+- **(Added 2026-11-25 04:08Z, PRE-DATA; the advisor's two notes on §12.)**
+  - **Type R is not a random sample of the US coast.** NOAA keeps harmonic (type R) stations where long records
+    justify them: ports, major harbours and open-coast reference gauges. Subordinate stations fill in bays, rivers and
+    marshes.
+    - So these monitors over-represent well-observed, larger-water locations, and under-represent the shallow back-bay
+      and estuary keys, where our A is worst (datum v2's tail: estuaries, rivers, harbours).
+    - The tester's PASS therefore speaks for D at type-R-like locations. It is not a coastline-wide average. The
+      proposal issue must say so, and §8 lists it.
+  - **Exactly what the superseded run (`eee72e98…`) read, so that "inputs only" stays checkable:**
+    - committed repository files: `backend/data/tide_datum/coops_datums.json`, `research/tide-guard-v1-tp-snapshot.json`,
+      and the exclusion sources of §11 (`tide-a-harcon-v2-excluded.json`, `-preflight-set.json`, `-stations.json`, the
+      datum v1 and v2 run JSONs) plus `a_harcon_select`'s vendored universe;
+    - ETOPO 2022 geometry from NOAA CoastWatch ERDDAP, one tile per station, for `gauge_class.classify`;
+    - for the amplitude step, 80 CO-OPS `harcon.json` reads (published constants) for its 80 stations, and nothing else.
+    - Both artifacts are committed for audit:
+      - `research/tide-mllw-tester-v1-stations-superseded.json` (that run's output, unchanged);
+      - `research/tide-mllw-tester-v1-superseded-lp-requests.jsonl` (its `paced_run` audit: 80 requests, all
+        `harcon.json`, all HTTP 200).
+    - That run read no prediction, no water level and no served table.
+- **FROZEN (2026-11-25 14:52Z, PRE-DATA; no prediction, water level or served table read).** All sha256 values are of
+  the committed LF bytes:
+  - `research/tide-mllw-tester-v1-stations.json`, `058c9b369fc2257aa80cac9122c2ec8ca8f27c5b7cdb709501a4ec6d3dcc97d7`.
+    - Schema /2, seed 20261128, type R only.
+    - 755 eligible, 585 excluded, 128 skipped (UNCLASSIFIED or key taken).
+    - HARBOR_BAY 20 + 20, OPEN_COAST 20 + 20, all type R.
+  - `research/tide-mllw-tester-v1-lp-noaa.json`, `89f2946b88fa71909a0df2efc401198b4a6a4de2f704a08bd54e17999b84d579`.
+    - SA, SSA, MF and MM from all 80 stations' `harcon.json` (constants only; every station has published constants).
+    - Amplitudes across the 80, min / median / max (m): SA 0 / 0.071 / 0.430; SSA 0 / 0.016 / 0.227; MF (79 stations)
+      0 / 0 / 0.033; MM (79) 0 / 0 / 0.077.
+    - These confirm §10 item 1's premise: NOAA's fitted SA alone is ~7 cm at the median station.
+  - `research/tide-mllw-tester-v1-lp-noaa-requests.jsonl`, `bbcaf5714ca927d46a8dc91d04048926f854e5584e3a2d771c63e12387e838c6`:
+    the `paced_run` audit. 80 requests, all `harcon.json`, all HTTP 200.
+  - Superseded, kept for audit:
+    - `research/tide-mllw-tester-v1-stations-superseded.json`, `eee72e98dd182c1250bba8464df41346884af9275400902ec0425446b204cf10`;
+    - `research/tide-mllw-tester-v1-superseded-lp-requests.jsonl`, `14c79db5eae3734f5abcec9070e4ca538e0c381a526721f86d79f22048b9cf10`.
+  - Reproduce: `mllw_tester_select.py`, using `--class-cache` on the superseded output and `--checkpoint` (ETOPO results
+    per station). The first type-R run was killed overnight (exit 4) before writing anything; this rerun is the freeze.
+- **Still owed before the first tested build (the code PR):**
+  - FES Sa, Ssa, Mf and Mm at the 80 keys (§10 item 1, our side; inputs only, in CI);
+  - the expected MODEL / NOT-MEASURED counts from the first table (§11);
+  - the advisor's two carry items:
+    - (i) a check that reproduces a NOAA-published hourly prediction at a station from its `harcon.json`, with and
+      without SA/SSA;
+    - (ii) a test that `am − am_lp` equals the short-period-only synthesis at one key.
