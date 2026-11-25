@@ -72,6 +72,37 @@ def rated_publish_sets():
     return tuple(t for t in out if not _bp.height_only(t["layer"]))
 
 
+def retired_rated_sets():
+    """Rated sets the publish list no longer carries (2026-11-25, frames lane): since bug hunt 2026-11-22 D a PARTITION layer is never
+    rated (band_partition.height_only), so rated_publish_sets() stopped baking the GFS / ICON swell_1, swell_2 and wind_waves rated
+    sets, but their latest.json records stayed, frozen at the last run built (2026-11-23 00Z / 06Z), and read as 55-61 h stale sets
+    in the freshness report while the rated step reported success. The rated step now RETIRES those records (retired_record).
+    Reversible by itself: BAND_PARTITION_HEIGHT_ONLY=0 puts the sets back in the publish list, which rewrites their records.
+    Kill: FRAME_RATED_RETIRE=0 (no record is retired)."""
+    if os.environ.get("FRAME_RATED_RETIRE", "1") == "0":
+        return ()
+    live = {_key(t) for t in rated_publish_sets()}
+    every = tuple(rated_regional_sets()) + RATED_SETS
+    return tuple(t for t in every if _key(t) not in live)
+
+
+def _key(t):
+    from services import frame_set as fs
+    return fs.set_key(t)
+
+
+def retired_record(previous_entry, written_at, writer):
+    """The latest.json record of a rated set the publisher no longer builds: no index (so no client can pair an old rated index with
+    today's plain frames), `empty`, the reason, and the index it replaces. None when there is nothing to retire (no record, or one
+    already retired)."""
+    if not previous_entry or (previous_entry.get("empty") and previous_entry.get("retired")):
+        return None
+    return {"empty": True, "retired": "partition_height_only",
+            "reason": "a partition layer is never rated (band_partition, bug hunt 2026-11-22 D): no rated frames are built",
+            "previous_index": previous_entry.get("index") or previous_entry.get("previous_index"),
+            "written_at": written_at, "writer": writer}
+
+
 def paint_tier(target):
     """PAINT FIRST (2026-11-16, the rating-band lane; ON, kill FRAME_RATING_PAINT_FIRST=0). The publisher's FAIR ORDER (publish_order:
     the set written longest ago first, 2026-11-12) also ran the rated step, and overrode the list order above. With ~84 rated sets

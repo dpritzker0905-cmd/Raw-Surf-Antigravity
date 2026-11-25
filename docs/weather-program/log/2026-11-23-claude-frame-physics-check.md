@@ -124,3 +124,20 @@ Owner's ruling, relayed by the director (local_d6b521eb): "Ship ON with guard (R
   760. No behaviour change: 164 tests passed twice. After #1263 merges: a plain dev merge, resolved by hand, and the three
   issue titles ("Flag guardrail", "PHYSICS guard blind", "P0 cold-start snapshot drift") re-checked against each other's
   searches.
+
+## 2026-11-25 · A: "GFS rated sets stale" was orphan records, not a failing publish (branch claude/frames-orphan-rated-gust-retry)
+Read-only diagnosis, asked by the director after the reliability lane's frame-freshness report (GFS rated sets 54.8 h).
+- The public `latest.json` (written 2026-11-25 08:34Z) has every GFS `waves` rated set at run 25 00Z (13 h). The stale entries
+  are ALL partition rated sets: GFS swell_1 / swell_2 / wind_waves (world + regional) and ICON swell_1 / wind_waves, frozen at
+  run 23 00Z or 06Z (55-61 h), last written 11-23 08:44Z / 15:03Z.
+- Cause: since bug hunt 2026-11-22 D a partition layer is never rated, and `frame_set_rating.rated_publish_sets()` drops every
+  `band_partition.height_only` layer. The rated step therefore publishes 22 sets (GFS waves 20 + EURO + ICON waves); job logs of
+  runs 45547177899 and 45492100615 show `"sets": 22, skipped_budget 0`, GFS/marine/waves/global_mid_rated built 129/129 each
+  run. The partition records were never retired, so the freshness report read them as stale sets.
+- Users do not see them: the client asks a partition layer in the PLAIN flavour even with Rating on
+  (`partitionHeightOnly.bandRatedFor`), so nothing reads a rated partition set.
+- Fix: `frame_set_rating.retired_rated_sets()` (the rated sets the publish list no longer carries) and `retired_record()`; the
+  rated step writes the retirement with its next real pointer move (`publish_frame_sets(retire=...)`), and
+  `frame_set_freshness.check` reads an `empty` record as `empty`, never stale. Kill `FRAME_RATED_RETIRE=0`; reverses itself if
+  `BAND_PARTITION_HEIGHT_ONLY=0` (the sets are published again). No served number moves. Tests: `tests/test_rated_retire.py` (7),
+  twice; mutating the retire loop or the freshness rule turns a test red.
