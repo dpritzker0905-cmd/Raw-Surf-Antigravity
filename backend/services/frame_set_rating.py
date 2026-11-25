@@ -103,6 +103,31 @@ def retired_record(previous_entry, written_at, writer):
             "written_at": written_at, "writer": writer}
 
 
+def prune_retired(sink, latest_sets, retire_keys, written_at, writer, log=print):
+    """L2 of #1316 (2026-11-25): a RETIRED rated set still held its last two runs' objects (measured on the public bucket that
+    day: 62 sets, 1,002 world frames 55.9 MB + 114 regional bundles 66.2 MB + 124 index files, about 0.12 GB, fixed). Retention
+    never touches a set the publisher no longer builds, so this deletes them ONCE: only for a set whose CURRENT latest.json record is
+    already retired (`retired_record`: empty, no index, so no client can be pointed at these objects) and not yet `pruned`.
+    Returns {key: the record with `pruned` = objects deleted}, written with the next pointer move; deleting twice is harmless.
+    Kill: FRAME_RATED_PRUNE=0."""
+    if os.environ.get("FRAME_RATED_PRUNE", "1") == "0":
+        return {}
+    from services import frame_set as fs
+    targets = {fs.set_key(t): t for t in retired_rated_sets()}
+    out = {}
+    for key in retire_keys:
+        rec, target = (latest_sets or {}).get(key), targets.get(key)
+        if not rec or target is None or rec.get("index") or rec.get("retired") != "partition_height_only" or "pruned" in rec:
+            continue
+        prefix = fs.set_prefix(target) + "/"
+        gone = [p for p in sink.list(fs.set_prefix(target)) if p.startswith(prefix)]
+        if gone:
+            sink.delete(gone)
+        log(f"[frames] {key}: retired rated set pruned, {len(gone)} object(s) deleted")
+        out[key] = dict(rec, pruned=len(gone), written_at=written_at, writer=writer)
+    return out
+
+
 def paint_tier(target):
     """PAINT FIRST (2026-11-16, the rating-band lane; ON, kill FRAME_RATING_PAINT_FIRST=0). The publisher's FAIR ORDER (publish_order:
     the set written longest ago first, 2026-11-12) also ran the rated step, and overrode the list order above. With ~84 rated sets

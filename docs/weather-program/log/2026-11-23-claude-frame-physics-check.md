@@ -179,3 +179,13 @@ Read-only diagnosis, asked by the director after the reliability lane's frame-fr
 - L3: the narrowed re-try's bytes are counted: every request goes through `_CountingSession`, so a re-read counts toward the
   per-run read cap and the 6.5 GB per-UTC-day record (`add_day_used` runs in `finally`).
 - L4: narrowing applies to steps that START after the first exhausted throttle; up to 6 steps already in flight keep running.
+
+## 2026-11-25 · L2 of #1316: prune the retired rated sets' objects (branch claude/prune-retired-rated)
+- Size, read from the public bucket 2026-11-25: the 62 retired rated sets' current + previous indexes name 1,002 world frames
+  (55.9 MB), 114 regional bundles (66.2 MB) and 124 index files: about 0.12 GB, fixed (a retired set gets no new objects).
+- `frame_set_rating.prune_retired`: deletes everything under a retired set's prefix, ONCE, and only when that set's CURRENT
+  latest.json record is already retired (no index, so no client can be pointed at the objects); the record then carries
+  `pruned` = objects deleted, written with the next pointer move. A set retired in this run is pruned in the next (its record
+  still had an index when the run read it). `frame_set.retention_deletes` is not reused: it refuses an empty keep set on purpose.
+- Kill `FRAME_RATED_PRUNE=0`. No served number moves. Tests: 4 new in `tests/test_rated_retire.py`, twice; dropping the run-once
+  guard or the publisher's call turns a test red.

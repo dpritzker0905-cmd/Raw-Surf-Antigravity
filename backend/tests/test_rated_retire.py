@@ -120,3 +120,63 @@ def test_only_a_retired_record_reads_empty_a_bundle_explicit_empty_still_reads_n
     assert rows["GFS/marine/waves/azores"]["verdict"] == "no_run"            # as before #1316
     table = "\n".join(fresh.summary(list(rows.values())))
     assert "| empty (retired) |" in table and "| GFS | rated | 1 | 0 | 1 |" in table
+
+
+# ---- L2 of #1316: a RETIRED set's objects are deleted once (prune_retired) -------------------------------------------------
+def _objects(root, key_prefix, names):
+    for n in names:
+        p = root / key_prefix / n
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(b"x")
+
+
+def _retired(prev_index="v1/gfs/marine/swell_1/global_mid_rated/index/a.json"):
+    return fsr.retired_record({"index": prev_index, "run": "2026-11-23T06:00:00Z"}, NOW, "w")
+
+
+def test_prune_deletes_a_retired_sets_objects_and_nothing_beside_them(tmp_path, monkeypatch):
+    monkeypatch.delenv("FRAME_RATED_PRUNE", raising=False)
+    sink = pub.LocalSink(tmp_path)
+    _objects(tmp_path, "v1/gfs/marine/swell_1/global_mid_rated", ["20261123T060000Z/f1.bin", "index/a.json"])
+    _objects(tmp_path, "v1/gfs/marine/swell_1/global_mid", ["20261125T000000Z/plain.bin"])          # the PLAIN sibling set
+    _objects(tmp_path, "v1/gfs/marine/waves/global_mid_rated", ["20261125T000000Z/live.bin"])      # a live rated set
+    out = fsr.prune_retired(sink, {STALE: _retired()}, [STALE], NOW, "w", log=lambda *a: None)
+    assert out[STALE]["pruned"] == 2 and out[STALE]["empty"] is True and "index" not in out[STALE]
+    assert not (tmp_path / "v1/gfs/marine/swell_1/global_mid_rated").exists() or not any(
+        (tmp_path / "v1/gfs/marine/swell_1/global_mid_rated").rglob("*.*"))
+    assert (tmp_path / "v1/gfs/marine/swell_1/global_mid/20261125T000000Z/plain.bin").exists()
+    assert (tmp_path / "v1/gfs/marine/waves/global_mid_rated/20261125T000000Z/live.bin").exists()
+
+
+def test_prune_never_touches_a_set_whose_record_still_has_an_index(tmp_path):
+    sink = pub.LocalSink(tmp_path)
+    _objects(tmp_path, "v1/gfs/marine/swell_1/global_mid_rated", ["20261123T060000Z/f1.bin"])
+    live = {"index": "v1/gfs/marine/swell_1/global_mid_rated/index/a.json", "run": "2026-11-23T06:00:00Z"}
+    assert fsr.prune_retired(sink, {STALE: live}, [STALE], NOW, "w", log=lambda *a: None) == {}
+    assert (tmp_path / "v1/gfs/marine/swell_1/global_mid_rated/20261123T060000Z/f1.bin").exists()
+
+
+def test_prune_runs_once_and_the_kill_switch_stops_it(tmp_path, monkeypatch):
+    sink = pub.LocalSink(tmp_path)
+    _objects(tmp_path, "v1/gfs/marine/swell_1/global_mid_rated", ["20261123T060000Z/f1.bin"])
+    done = dict(_retired(), pruned=7)
+    assert fsr.prune_retired(sink, {STALE: done}, [STALE], NOW, "w", log=lambda *a: None) == {}     # already pruned
+    monkeypatch.setenv("FRAME_RATED_PRUNE", "0")
+    assert fsr.prune_retired(sink, {STALE: _retired()}, [STALE], NOW, "w", log=lambda *a: None) == {}
+    assert (tmp_path / "v1/gfs/marine/swell_1/global_mid_rated/20261123T060000Z/f1.bin").exists()
+
+
+def test_publisher_prunes_an_already_retired_set_and_records_it(tmp_path, monkeypatch):
+    monkeypatch.delenv("FRAME_RATED_PRUNE", raising=False)
+    out = tmp_path / "o"
+    _tree(out, {STALE: _retired()})
+    _objects(out, "v1/gfs/marine/swell_1/global_mid_rated", ["20261123T060000Z/f1.bin", "index/a.json"])
+    (tmp_path / "manifest.json").write_text(json.dumps({"products": []}))
+    monkeypatch.setattr(fsr, "ChainInputs", lambda *a, **k: None)
+    monkeypatch.setattr(pub.fs, "publish_set", _fake_publish("v1/gfs/marine/waves/global_mid_rated/index/20261125T000000Z-cd.json"))
+    live_target = next(t for t in fsr.RATED_SETS if fs.set_key(t) == LIVE)
+    pub.publish_frame_sets(pub.LocalCache(tmp_path), pub.LocalSink(out), sets=[live_target], budget_s=600, retire=[STALE],
+                           log=lambda *a: None)
+    latest = json.loads((out / "v1" / "latest.json").read_text())
+    assert latest["sets"][STALE]["pruned"] == 2 and "index" not in latest["sets"][STALE]
+    assert not any((out / "v1/gfs/marine/swell_1/global_mid_rated").rglob("*.bin"))
