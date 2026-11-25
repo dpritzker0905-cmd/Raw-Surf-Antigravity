@@ -219,6 +219,8 @@ def encode_table(doc):
         out["cmems"] = {k: encode_i16(v) for k, v in doc["cmems"].items()}
     if "am_h" in doc:                               # the harcon arm (tide-a-harcon-v1 s2), same compact form
         out["am_h"] = {k: encode_i16(v) for k, v in doc["am_h"].items()}
+    if "am_lp" in doc:                              # the MLLW tester's long-period part (never served), same form
+        out["am_lp"] = {k: encode_i16(v) for k, v in doc["am_lp"].items()}
     out["encoding"] = "i16le-base64"
     out["credits"] = dict(CREDITS)                  # the attribution is STORED with every table (advisor, PR B (b))
     return out

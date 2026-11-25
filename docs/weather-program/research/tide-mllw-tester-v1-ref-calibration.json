@@ -1,0 +1,51 @@
+{
+ "bar_m": 0.003,
+ "gate": "gates/tide-mllw-tester-v1.md s12 REQ-1",
+ "pass": true,
+ "schema": "raw-surf/tide-mllw-tester-v1-ref-calibration/1",
+ "stations": {
+  "9440422": {
+   "hours_with_prediction": 8760,
+   "with_sa_ssa": {
+    "max_running_14d_m": 0.00014,
+    "max_running_29d_m": 6e-05,
+    "n": 8760,
+    "pass": true,
+    "rms_m": 0.0045,
+    "yearly_mean_m": 0.0
+   },
+   "without_sa_ssa": {
+    "max_running_14d_m": 0.00014,
+    "max_running_29d_m": 6e-05,
+    "n": 8760,
+    "pass": true,
+    "rms_m": 0.0045,
+    "yearly_mean_m": 0.0
+   }
+  },
+  "9491873": {
+   "hours_with_prediction": 8760,
+   "with_sa_ssa": {
+    "max_running_14d_m": 4e-05,
+    "max_running_29d_m": 2e-05,
+    "n": 8760,
+    "pass": true,
+    "rms_m": 0.00048,
+    "yearly_mean_m": 0.0
+   },
+   "without_sa_ssa": {
+    "max_running_14d_m": 4e-05,
+    "max_running_29d_m": 2e-05,
+    "n": 8760,
+    "pass": true,
+    "rms_m": 0.00048,
+    "yearly_mean_m": 0.0
+   }
+  }
+ },
+ "windows_h": {
+  "14d": 336,
+  "29d": 696
+ },
+ "year": 2025
+}

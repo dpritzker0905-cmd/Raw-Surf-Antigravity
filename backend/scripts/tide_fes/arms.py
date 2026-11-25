@@ -45,6 +45,33 @@ def fes_eval(sid_dir, lat, lng, dates, exclude=()):
     return out
 
 
+def fes_parts(sid_dir, lat, lng, dates, exclude=(), only=None):
+    """(ocean tide m, long-period equilibrium m) as SEPARATE arrays, or None where FES has no value. The same PyFES
+    evaluation as fes_eval (same files, same settings, same nodal corrections), so fes_eval == tide + lp exactly when
+    `exclude` and `only` are empty. `only`: keep just these constituent stems (e.g. one long-period wave).
+    tide-mllw-tester-v1 s10: the served A's long-period part is A - (tide without Sa, Ssa, Mf, Mm), lp included."""
+    import pyfes                                              # GPL - offline job only
+    keep = {p.stem: str(p) for p in sorted(sid_dir.glob("*.nc"))
+            if p.stem not in exclude and (only is None or p.stem in only)}
+    tag = "".join("-" + e for e in exclude) + ("-only-" + "-".join(sorted(only)) if only else "")
+    cfg = sid_dir / f"fes-parts{tag}.yaml"
+    body = ["engine: darwin", "tide:", "  cartesian:", "    latitude: lat", "    longitude: lon",
+            "    amplitude: amplitude", "    phase: phase", "    paths:"]
+    body += [f"      {k}: {v}" for k, v in keep.items()]
+    cfg.write_text("\n".join(body) + "\n", encoding="utf-8")
+    config = pyfes.config.load(str(cfg))
+    tide_out, lp_out = np.empty(len(dates)), np.empty(len(dates))
+    for i in range(0, len(dates), 200_000):
+        d = dates[i:i + 200_000]
+        tide, lp, flags = pyfes.evaluate_tide(config.models["tide"], d, np.full(d.shape, lng % 360.0),
+                                              np.full(d.shape, lat), settings=config.settings)
+        if i == 0 and int(np.asarray(flags)[0]) == 0:
+            return None
+        tide_out[i:i + len(d)] = np.asarray(tide) / 100.0
+        lp_out[i:i + len(d)] = np.asarray(lp) / 100.0
+    return tide_out, lp_out
+
+
 _EOT20 = {}
 
 

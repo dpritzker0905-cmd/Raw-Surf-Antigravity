@@ -1,0 +1,6 @@
+{"attempt": 1, "bytes": 165839, "cls": "data", "interval": "h", "path": "/api/prod/datagetter", "station": "9440422", "status": 200, "t": 1795619850.3707948}
+{"attempt": 1, "bytes": 170531, "cls": "data", "interval": "h", "path": "/api/prod/datagetter", "station": "9440422", "status": 200, "t": 1795619852.3719332}
+{"attempt": 1, "bytes": 13719, "cls": "data", "interval": null, "path": "/mdapi/prod/webapi/stations/9440422/harcon.json", "station": "9440422", "status": 200, "t": 1795619854.3694925}
+{"attempt": 1, "bytes": 167987, "cls": "data", "interval": "h", "path": "/api/prod/datagetter", "station": "9491873", "status": 200, "t": 1795619863.329845}
+{"attempt": 1, "bytes": 168870, "cls": "data", "interval": "h", "path": "/api/prod/datagetter", "station": "9491873", "status": 200, "t": 1795619865.3233843}
+{"attempt": 1, "bytes": 11754, "cls": "data", "interval": null, "path": "/mdapi/prod/webapi/stations/9491873/harcon.json", "station": "9491873", "status": 200, "t": 1795619867.3249283}

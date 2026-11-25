@@ -259,8 +259,16 @@ def main():
     work.mkdir(parents=True, exist_ok=True)
     spots = json.loads(Path(args.spots).read_text(encoding="utf-8"))
     import harcon_arm as HA                                      # am_h (tide-a-harcon-v1 s2) + the TIDE guard's keys
+    import mllw_lp as ML                                         # the MLLW tester's keys + am_lp (tide-mllw-tester-v1)
     spots = list(spots) + HA.monitor_spots()
+    base_keys = OR.keys_from_spots(spots)
+    tester_keys = ML.keys_enabled()
+    if tester_keys:                       # an AVAILABILITY change (the advisor): kill TIDE_MLLW_TESTER_KEYS=0 omits them
+        spots = spots + ML.monitor_spots()
     keys_pts = OR.keys_from_spots(spots)
+    log(f"MLLW tester keys: {'ON' if tester_keys else 'OFF (TIDE_MLLW_TESTER_KEYS=0)'}; "
+        f"{len(keys_pts) - len(base_keys)} NEW cells (no spot or guard key), "
+        f"{len(OR.keys_from_spots(ML.monitor_spots())) - (len(keys_pts) - len(base_keys)) if tester_keys else 0} already keyed")
     log(f"{len(spots)} spots -> {len(keys_pts)} keys")
 
     mc_path = Path(args.m_cache)
@@ -316,6 +324,10 @@ def main():
     # keep the FES arm), so a silent loss of am_h coverage shows in the log.
     log(f"am_h skipped donors (synthesis raised): {len(skipped)}"
         + (f" ({', '.join(f'{d} {c}' for d, c in sorted(skipped.items()))})" if skipped else ""))
+    if tester_keys:
+        am_lp, lp_check, lp_amps = ML.build(keys_pts, boxes, times, a_by_key,
+                                            {k: (m_cache.get(k) or {}).get("m") for k in keys_pts}, arms, OR, log)
+        doc["am_lp"], doc["am_lp_check"], doc["am_lp_amp"] = am_lp, lp_check, lp_amps
     if args.cmems == "1":
         doc["cmems"] = cmems_fill(keys_pts, start, hours, work / "cmems", now)
         doc["cmems_dataset"] = OR.CMEMS_DATASET

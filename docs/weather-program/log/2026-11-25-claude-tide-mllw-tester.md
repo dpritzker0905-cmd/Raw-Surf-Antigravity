@@ -93,3 +93,96 @@ Append-only. Stamps come from `date -u`.
 - **LP_noaa now includes MSF** (NOAA predicts it; FES has no MSF wave).
 - **The per-build tester is pure Python:** no pyTMD.
 - The calibration files and code are in the code PR, and the hashes are in §13.
+
+## 15:06Z: the tester code (its own PR, stacked on the gate #1306)
+
+- **`tide_datum/mllw_tester_core.py` (PURE):**
+  - e(t) with long-period terms removed on both sides, minus m;
+  - the window mean, MEASURED (≥ 90 %), and F (the median);
+  - the (b1) threshold min(3, ⌈0.1 n⌉), b2, b3 (|m| ≤ 0.30), WORSE (both halves), FLEET BREACH (twice);
+  - the 29-day pool, the proposal (p1)-(p4), and the sheet report.
+- **`tide_datum/mllw_tester_run.py`:** one cycle per new build, inside the read-only guard (bucket and CO-OPS only).
+  - Carry (i): reproduce NOAA's hourly prediction at seen station 8518750 over a past window, with and without SA/SSA
+    (median ≤ 0.01 m, p95 ≤ 0.03 m). If it fails, the build is UNTESTABLE.
+  - The display exactly as served (`datum_for(enabled=True)`, leave-one-out), LP_noaa (SA/SSA in NOAA's convention plus
+    MF/MM), the SHEET share, and replacements.
+  - The 15 planted controls (T4, sandbox).
+  - Output: result / summary / proposal / sheet-report files.
+- **The build (`tide_own/mllw_lp.py` + `build_series.py`):**
+  - the 80 monitor keys, and `am_lp` = A − short-period, from `arms.fes_parts` (the SAME PyFES evaluation);
+  - carry (ii): a self-check at one key, (am − am_lp) = SP + M within 1 mm and A == tide + lp within 1e-6 m. A failure
+    drops `am_lp` and never fails the build;
+  - the FES-side LP4 amplitudes at every monitor key (s10's record).
+- **`flag_guardrail_tide_datum.py` + 2 lines in `flag_guardrail.decide()`:**
+  - a TIDE_DATUM UNTESTABLE or CACHED cycle keeps the strikes;
+  - WORSE strikes and breaches disable through the generic `decide()`;
+  - REPORT-ONLY until `TIDE_DATUM_GUARD_RELEASED=1`.
+  - The enforcement wiring into `run()` (reading the tester's record) is a later PR, before any release.
+- **The workflow `tide-mllw-tester.yml`:**
+  - triggered by tide-own-series completing on dev (plus a daily fallback);
+  - pyTMD installed;
+  - the state is cached;
+  - a tracking-issue countdown comment every cycle;
+  - ONE `tide-mllw-proposal` issue (assigned to `vars.REPO_OWNER_LOGIN`) when the proposal is ready. It never writes
+    the flag.
+- **Tests:** `test_mllw_tester.py`, 39 tests (chain).
+  - the core and every boundary;
+  - T1 and T2 through `decide()`;
+  - T3 transitions;
+  - T4 on a synthetic set (all 15 controls pass, and a blinded tester fails b and c);
+  - T5, T6, and the `am_lp` check.
+- **Not verifiable locally:** the build changes and the runner need PyFES, pyTMD and the bucket. Their first real run is
+  T4 on the first real table; until it passes, the tester is not accepted.
+- **15:13Z, the advisor's code requirements (folded in before the PR):**
+  - **REQ-1:** `ref_check` reproduces NOAA's hourly MSL prediction from `harcon.json` at Longview (9440422) and Point
+    Hope (9491873) over the fixed past window [2026-09-01, 2026-09-15), at ≤ 0.002 m RMS, with and without SA/SSA. A
+    failure makes every build UNTESTABLE.
+  - **REQ-2:** a test pins Atka (9461710): no MF/MM rows, so LP_noaa = SA + SSA only, and `harcon_eval` is never called.
+  - **The first-table step is inputs only:** `inputs_record` writes the per-stratum MODEL / NOT-MEASURED counts and the
+    FES LP4 amplitudes from the table, before any NOAA read. `--inputs-only` stops there.
+  - Tests: 43 (chain fragment +43 / +1).
+- **15:23Z, a correction to the 15:06Z and 15:13Z bullets above (superseded by §13 and the advisor's rulings):**
+  - The per-build reference check (seen station 8518750, then Longview / Point Hope RMS) is REMOVED from the runner.
+    REQ-1 is the one-off `mllw_tester_ref_calibration.py` (running means, ±0.003 m, 2025). Its first run failed and its
+    rerun passed after the convention fix; both are committed.
+  - LP_noaa uses `noaa_lp.lp3` (MM, MF and MSF in NOAA's convention), not `harcon_eval`, so the tester workflow no
+    longer installs pyTMD.
+  - **The availability items (the advisor):**
+    - (a) the build logs the NEW-cell count;
+    - (b) a test that prior keys are byte-equal;
+    - (c) the SCOREBOARD row reworded to "tide becomes AVAILABLE at N non-spot cells";
+    - (d) the kill `TIDE_MLLW_TESTER_KEYS=0`;
+    - a test that `validate()` drops `am_lp`.
+  - Tests: 48 (chain +48 / +1).
+- **15:36Z, the advisor's items on amendment 4:**
+  - **The calibration records and audits are committed.** Their sha256 values are in §13: the fail record `559c69f3…`
+    and its 6-request audit `6c4b7a6c…`; the pass record `738b328c…` and its 6-request audit `43371d19…`. Each audit is
+    4 hourly predictions + 2 `harcon.json`, all 200.
+  - **An independent check of `noaa_lp`:** the node factors are pinned against pyTMD 3.1.0's `nodal_modulation`
+    (OTIS/Schureman, an independent implementation) at mid-2006 (N ≈ 0) and mid-2015 (N ≈ 180), to 0.01.
+  - **The constants-only spot-check** (`mllw_tester_msf_spotcheck.py`):
+    - it read the 80 frozen stations' `harcon.json` (80 requests, all 200);
+    - Longview is the only large MSF (0.139 m);
+    - at the next largest, 1631428 (MSF 0.008 m), NOAA − pyTMD over 2025 is at most 0.4 mm (RMS 0.2 mm);
+    - record `research/tide-mllw-tester-v1-msf-spotcheck.json`, sha256
+      `97711f9b5d01e2d11a04b7baf4e840c8597fe980ff7164a80a3a3df6ef5a64c5`; audit
+      `…-msf-spotcheck-requests.jsonl` `848c7655fe400690073bc1cebb036a092fac32d242f469cec4f9c6e32c3a8fa4`.
+  - **Cross-program:** the pyTMD MM/MF/MSF bias is noted in the a-harcon log (logging only; v2 untouched).
+  - **Tests:** 51 (chain +51 / +1).
+- **16:11Z, the advisor's CHANGE on #1318 at `99afa3642`, fixed:**
+  - (1) `tide-mllw-tester.yml` was INVALID YAML: an unquoted ": " in a step name, introduced when that step was
+    renamed after my earlier `safe_load` check. The name is now quoted, and both edited workflows pass
+    `yaml.safe_load`.
+  - (2) The estate lane grows by +1: `test_workflow_key_environment` parametrizes over the new key-using workflow
+    (7709 → 7710 collected against current dev). Estate fragment +1.
+  - (3) `backend/guardrail-watch.json` (synthetic test-run state written by the chain lane; no secrets, read by the
+    advisor) was committed in `4f9554631` and removed in `99afa3642`. It REMAINS in the public history. It is now in
+    `.gitignore`.
+- **Limits, folded in:**
+  - The SCOREBOARD row now says (b) proves table independence only (the monitor keys are last, so the budgeted M/D fills
+    serve prior keys first).
+  - `FIX_VERSION` (runner) goes into the proposal title, and a proposal for the same version, OPEN or CLOSED, blocks a
+    new one.
+  - The sheet report is evaluated on every recorded run, including early UNTESTABLE ones.
+- **Pre-flip, carried:** the TIDE_DATUM guard is not wired into `flag_guardrail.run()`, so there is no ON-side
+  auto-disable yet. That wiring must land before any flip.
