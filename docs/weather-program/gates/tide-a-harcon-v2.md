@@ -207,3 +207,46 @@ Written before the pre-flight tag and before any v2 data. Where this section and
 - **Unchanged:** the UNPLANTED C2 keeps v1's statuses and precedence (a tested mismatch is VOID; an untestable record
   is vacuous only in a full run). The advisor prefers this rule over switching P1 to +45°.
 - **Pinned** by a test in which a zero-match +90° break counts as FAIL.
+
+## 13. Amendment 3 (2026-11-25 01:53Z, PRE-DATA): constants the pinned pyTMD cannot synthesise (the advisor's ruling after pre-flight 1)
+
+Written after pre-flight 1 (run 45519746500), which was NO RUN under R1: the instrument crashed before writing any
+output, and no outcome-bearing quantity was printed or uploaded (#1301). It is written before any v2 data and before
+pre-flight 2. Where this section and §2 (v1's replacement rule), §5, §6, §11 or §12 differ, this section holds.
+
+- **The cause.** The candidate's own synthesis (`arms.harcon_eval`, pyTMD 3.1.0 as pinned in
+  `tide-a-harcon-v2.yml`) raises `ValueError: Unsupported constituent: mln2` on a station whose CO-OPS constants
+  include MLN2S2. Nothing in the gate said what such a station is.
+- **The ruling: SKIP THE STATION OR DONOR; never drop constituents.** The synthesis stays verbatim (§5), so no record is
+  computed from altered constants.
+  - **A donor** whose constants the pinned pyTMD cannot synthesise counts as **"no usable constants"**: the existing
+    v1 replacement cause ("its section-2 donor has no `harcon.json` constants"), under the same cap of at most 5
+    replacements per stratum. The scored station is replaced by the next reserve in the frozen order, and donors are
+    reselected.
+  - **A scored station** whose OWN constants the pinned pyTMD cannot synthesise (C2 at it is impossible) is replaced
+    the same way, within the same cap. A sixth replacement is still a FAIL (measurability).
+  - **A pre-flight station** whose constants the pinned pyTMD cannot synthesise is **NOT TESTED**: it is not a record,
+    and none of its four planted breaks is either. It is listed in the pre-flight output by id. **The ≥ 300 tested
+    records floor still binds**, and the ≤ 1 % and ≥ 95 % rules are computed over the tested records only.
+  - "Cannot synthesise" means exactly that `arms.harcon_eval(constants, t)` raises. It is decided per station from its
+    published constants (an input), never from any outcome.
+- **The pre-data scan** (the advisor's recommendation; inputs only): `backend/scripts/tide_datum/a_harcon_v2_unsupported_scan.py`.
+  - It ran under `paced_run.py`: 478 CO-OPS `harcon.json` reads and nothing else (no prediction, water level, FES or
+    window data).
+  - For every station v2 can read (each stratum's 20 deciding stations and ALL 10 reserves; every prefix donor of
+    those; the 383 pre-flight stations), it tried the verbatim synthesis at one instant outside every gate window,
+    2000-01-01 00:00Z, and kept only whether it raised (no value was kept).
+  - Output: `research/tide-a-harcon-v2-unsupported.json` (sha256 `00065605c3dd5b11e24e85da9b71b5f696c6e3ffef3c38a425c2ac74eb86e348`).
+  - **Candidates: 60 of 60 synthesise. Prefix donors: 59 of 59 synthesise.** No v2 replacement is foreseen from this
+    cause, though a donor reselected after another replacement is checked the same way at run time.
+  - **Pre-flight: 382 of 383 synthesise. The one that cannot is 9455920 (ANCHORAGE, Knik Arm):** `Unsupported constituent:
+    mln2`. Its constants carry 2MS8, 3MNS10, MLN2S2 and OO2, names the pinned table lacks; this is the station after
+    which pre-flight 1 crashed. Under this section it is NOT TESTED in pre-flight 2, so at most 382 records are tested
+    (≥ 300 binds).
+- **Stop rule (the advisor, adopted):** two consecutive `no_run_unknown` runs mean stop and diagnose before a third. An
+  infra no-run and an unknown no-run do not chain each other's limits. Pre-flight 1 was outcome-blind and NO RUN, so the
+  §6 one shot is not consumed; pre-flight 2 needs this amendment and its instrument PR merged, then David's typed word.
+- **The instrument PR** (its own PR, gated) implements this:
+  - the pre-flight's per-station skip with the listed NOT TESTED ids;
+  - the run's replacement and donor-reselection for the cause;
+  - tests pinning each case, including a station whose synthesis raises.
