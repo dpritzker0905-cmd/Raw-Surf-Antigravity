@@ -345,3 +345,108 @@ def test_the_bots_merge_command_works_with_no_git_identity_configured(tmp_path, 
     merged = subprocess.run(C.merge_cmd(RUN, dev_sha, "bot"), cwd=d, capture_output=True, text=True)
     assert merged.returncode == 0, merged.stderr
     assert g("log", "-1", "--format=%cn").stdout.strip() == "github-actions[bot]"
+
+
+# ── loud failure (director GO, 2026-11-25): 16 silent `gh pr create` refusals and 16 orphan branches ─────────────────
+def test_a_blocked_pr_create_refuses_before_writing_or_pushing_anything(frag_dir):
+    sh = FakeShell(frag_dir)
+    before = sh._files()
+    with pytest.raises(C.Refusal, match="nothing was pushed"):
+        C.execute(RUN, SHA, _stale_readings(frag_dir), run=sh, frag_dir=frag_dir, log=lambda *_: None,
+                  pr_blocker=lambda: "no PAT")
+    assert sh._files() == before
+    assert not sh.named("git", "push") and not sh.named("git", "commit") and not sh.named("gh", "pr", "create")
+
+
+def test_the_blocker_is_not_consulted_when_an_open_pr_is_only_updated(frag_dir):
+    branch = f"{C.BRANCH_PREFIX}{RUN}"
+    sh = FakeShell(frag_dir, prs=[{"number": 77, "headRefName": branch}])
+    assert C.execute(RUN + 5, SHA, _stale_readings(frag_dir), run=sh, frag_dir=frag_dir, log=lambda *_: None,
+                     pr_blocker=lambda: "no PAT") == "updated"
+
+
+def _setting_shell(answer):
+    calls = []
+
+    def run(cmd, cwd=None, check=True):
+        calls.append(cmd)
+        return answer
+    return run, calls
+
+
+@pytest.mark.parametrize("env,answer,blocked", [
+    ({}, "", False),                                                                      # local: nothing assumed
+    ({"TOKEN_NAME": "FLOOR_CATCHUP_PR_TOKEN", "PR_TOKEN": "x"}, "", False),               # a PAT
+    ({"TOKEN_NAME": "GITHUB_TOKEN", "GITHUB_REPOSITORY": "o/r"},
+     '{"default_workflow_permissions":"read","can_approve_pull_request_reviews":false}', True),   # 11-23..25
+    ({"TOKEN_NAME": "GITHUB_TOKEN", "GITHUB_REPOSITORY": "o/r"}, '{"message":"Resource not accessible"}', True),
+    ({"TOKEN_NAME": "GITHUB_TOKEN", "GITHUB_REPOSITORY": "o/r"}, "not json", True),       # unreadable: fail closed
+    ({"TOKEN_NAME": "GITHUB_TOKEN", "GITHUB_REPOSITORY": "o/r"}, '{"can_approve_pull_request_reviews":true}', False),
+])
+def test_pr_create_blocker_reads_the_token_and_the_repo_setting(env, answer, blocked):
+    run, _ = _setting_shell(answer)
+    reason = C.pr_create_blocker(env, run)
+    assert bool(reason) is blocked
+    if blocked:
+        assert "FLOOR_CATCHUP_PR_TOKEN" in reason
+
+
+class IssueShell:
+    def __init__(self, open_issues=()):
+        self.open, self.calls = [{"number": n} for n in open_issues], []
+
+    def __call__(self, cmd, cwd=None, check=True):
+        self.calls.append(cmd)
+        if cmd[:3] == ["gh", "issue", "list"]:
+            return json.dumps(self.open)
+        return ""
+
+    def named(self, *prefix):
+        return [c for c in self.calls if c[:len(prefix)] == list(prefix)]
+
+
+def test_a_refusal_opens_one_labelled_issue_assigned_to_the_owner():
+    sh = IssueShell()
+    assert C.alert("no PAT", RUN, sh, {"OWNER": "the-owner", "GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "5"}) == "opened"
+    (create,) = sh.named("gh", "issue", "create")
+    assert create[create.index("--label") + 1] == C.ALERT_LABEL
+    assert create[create.index("--assignee") + 1] == "the-owner"
+    assert "no PAT" in create[create.index("--body") + 1] and str(RUN) in create[create.index("--body") + 1]
+
+
+def test_a_second_refusal_comments_on_the_open_issue_instead_of_opening_another():
+    sh = IssueShell(open_issues=[42])
+    assert C.alert("no PAT", RUN, sh, {}) == "commented"
+    assert not sh.named("gh", "issue", "create") and sh.named("gh", "issue", "comment")[0][3] == "42"
+
+
+def test_a_normal_run_closes_the_open_alert_and_does_nothing_when_there_is_none():
+    sh = IssueShell(open_issues=[42])
+    assert C.clear_alert("nothing", RUN, sh) is True and sh.named("gh", "issue", "close")[0][3] == "42"
+    quiet = IssueShell()
+    assert C.clear_alert("nothing", RUN, quiet) is False and not quiet.named("gh", "issue", "close")
+
+
+def test_a_superseded_run_is_a_refusal_but_opens_no_alert(frag_dir, monkeypatch):
+    assert issubclass(C.Superseded, C.Refusal)
+    sh = FakeShell(frag_dir)
+    with pytest.raises(C.Superseded):
+        C.execute(RUN, SHA, _stale_readings(frag_dir), run=sh, frag_dir=frag_dir, log=lambda *_: None,
+                  still_newest=lambda: False)
+    alerts = []
+    monkeypatch.setattr(C, "superseded", lambda run_id: None)
+    monkeypatch.setattr(C, "_run", lambda cmd, cwd=None, check=True: SHA)
+    monkeypatch.setattr(C.S, "observed", lambda run_id, lane: (None, 0))
+    monkeypatch.setattr(C, "execute", lambda *a, **k: (_ for _ in ()).throw(C.Superseded("newer run")))
+    monkeypatch.setattr(C, "alert", lambda *a, **k: alerts.append(a) or "opened")
+    assert C.main(["--run", str(RUN)]) == 1 and alerts == []
+    monkeypatch.setattr(C, "execute", lambda *a, **k: (_ for _ in ()).throw(C.Refusal("no PAT")))
+    assert C.main(["--run", str(RUN)]) == 1 and len(alerts) == 1
+
+
+def test_the_workflow_grants_issues_write_and_names_the_owner_variable():
+    import yaml
+    with open(os.path.join(os.path.dirname(BACKEND), ".github", "workflows", "floor-catchup.yml"), encoding="utf-8") as f:
+        wf = yaml.safe_load(f)
+    assert wf["permissions"]["issues"] == "write"
+    assert "vars.REPO_OWNER_LOGIN" in json.dumps(wf)
