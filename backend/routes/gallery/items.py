@@ -421,6 +421,48 @@ async def update_gallery_item(
 class MoveToFolderRequest(BaseModel):
     target_gallery_id: str
 
+
+async def _lock_transfer_rows(
+    db: AsyncSession, item_id: str, photographer_id: str, target_id: str, *, move: bool
+) -> tuple[GalleryItem, Gallery | None, Gallery]:
+    # Archive and transfer serialize on the item before changing folder counts.
+    active_item = select(GalleryItem).where(
+        GalleryItem.id == item_id, GalleryItem.is_deleted.is_not(True)
+    )
+    item = await db.scalar(
+        active_item.where(GalleryItem.photographer_id == photographer_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if item is None:
+        foreign_item = active_item.where(GalleryItem.photographer_id != photographer_id).exists()
+        if await db.scalar(select(foreign_item)):
+            raise HTTPException(status_code=403, detail="Not authorized")
+        raise HTTPException(status_code=404, detail="Gallery item not found")
+
+    folder_ids = {target_id}
+    if move and item.gallery_id:
+        folder_ids.add(item.gallery_id)
+    # Opposing moves must acquire both folder locks in the same order.
+    result = await db.scalars(
+        select(Gallery)
+        .where(Gallery.id.in_(folder_ids), Gallery.photographer_id == photographer_id)
+        .order_by(Gallery.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    folders = {folder.id: folder for folder in result}
+    if target_id not in folders:
+        foreign_target = select(Gallery.id).where(
+            Gallery.id == target_id, Gallery.photographer_id != photographer_id
+        )
+        if await db.scalar(foreign_target) is not None:
+            action = "move" if move else "copy"
+            raise HTTPException(status_code=403, detail=f"Not authorized to {action} to this folder")
+        raise HTTPException(status_code=404, detail="Target folder not found")
+    return item, folders.get(item.gallery_id), folders[target_id]
+
+
 @router.patch("/gallery/item/{item_id}/move")
 async def move_item_to_gallery(
     item_id: str,
@@ -429,37 +471,15 @@ async def move_item_to_gallery(
     db: AsyncSession = Depends(get_db)
 ):
     """Move a gallery item to a different gallery/folder"""
-    # Get the item
-    result = await db.execute(select(GalleryItem).where(GalleryItem.id == item_id))
-    item = result.scalar_one_or_none()
-    
-    if not item:
-        raise HTTPException(status_code=404, detail="Gallery item not found")
-    
-    if item.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
-    # Verify target gallery exists and is owned by photographer
-    target_result = await db.execute(select(Gallery).where(Gallery.id == data.target_gallery_id))
-    target_gallery = target_result.scalar_one_or_none()
-    
-    if not target_gallery:
-        raise HTTPException(status_code=404, detail="Target folder not found")
-    
-    if target_gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized to move to this folder")
-    
-    # Update item counts on old and new galleries
-    if item.gallery_id:
-        old_result = await db.execute(select(Gallery).where(Gallery.id == item.gallery_id))
-        old_gallery = old_result.scalar_one_or_none()
+    item, old_gallery, target_gallery = await _lock_transfer_rows(
+        db, item_id, photographer_id, data.target_gallery_id, move=True
+    )
+    if item.gallery_id != target_gallery.id:
         if old_gallery:
-            old_gallery.item_count = max(0, old_gallery.item_count - 1)
-    
-    # Move item
-    item.gallery_id = data.target_gallery_id
-    target_gallery.item_count += 1
-    
+            old_gallery.item_count = max(0, (old_gallery.item_count or 0) - 1)
+        item.gallery_id = target_gallery.id
+        target_gallery.item_count = (target_gallery.item_count or 0) + 1
+
     # ============ PRICE SNAPSHOT: Inherit gallery's locked prices ============
     # When a photo is moved into a session gallery, it should adopt the pricing
     # that was active at the time of the session â€” NOT the photographer's current prices.
@@ -627,26 +647,10 @@ async def copy_item_to_gallery(
     db: AsyncSession = Depends(get_db)
 ):
     """Copy a gallery item to a folder (keeps original in main gallery)"""
-    # Get the original item
-    result = await db.execute(select(GalleryItem).where(GalleryItem.id == item_id))
-    item = result.scalar_one_or_none()
-    
-    if not item:
-        raise HTTPException(status_code=404, detail="Gallery item not found")
-    
-    if item.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
-    # Verify target gallery exists and is owned by photographer
-    target_result = await db.execute(select(Gallery).where(Gallery.id == data.target_gallery_id))
-    target_gallery = target_result.scalar_one_or_none()
-    
-    if not target_gallery:
-        raise HTTPException(status_code=404, detail="Target folder not found")
-    
-    if target_gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized to copy to this folder")
-    
+    item, _, target_gallery = await _lock_transfer_rows(
+        db, item_id, photographer_id, data.target_gallery_id, move=False
+    )
+
     # Create a copy of the item in the target folder
     new_item = GalleryItem(
         id=str(uuid.uuid4()),
@@ -680,7 +684,7 @@ async def copy_item_to_gallery(
     db.add(new_item)
     
     # Update target gallery count
-    target_gallery.item_count += 1
+    target_gallery.item_count = (target_gallery.item_count or 0) + 1
     
     # Set cover image if target doesn't have one
     if not target_gallery.cover_image_url and item.media_type == 'image':
