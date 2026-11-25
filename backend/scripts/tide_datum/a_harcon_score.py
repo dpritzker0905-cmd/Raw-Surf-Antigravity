@@ -72,6 +72,7 @@ def resolve(per, stations_doc):
                 d = next((e for e in row.get("donors") or [] if e["id"] not in scored), None)
                 donors[sid] = d
                 cause = ("FES undefined" if row.get("fes_undefined") else
+                         "own constants cannot be synthesised (v2 §13)" if row.get("unsupported_constants") else
                          None if "fes_tb" not in row and row.get("error") else
                          "no donor remains" if d is None else
                          "donor has no constants" if not d.get("has_constants") else None)

@@ -48,6 +48,10 @@ def main(argv=None):
         if not hc:
             records[sid] = {"c2": "untestable", "why": "no constants"}
             continue
+        ok, err = V2.synth_ok(hc, synth)                           # §13: unsupported constants are NOT TESTED, listed
+        if not ok:
+            records[sid] = {"c2": "not_tested", "why": "the pinned pyTMD cannot synthesise its constants (§13)", "error": err}
+            continue
         tr = truth_at(sid, day0, stop, hc, noaa_long_period)
         rows = V2.c2_rows(hc, tr["hilo"], tr["raw_mean"], day0, stop, synth)
         status, detail = V2.c2_status(rows) if rows is not None else ("untestable", {"why": "no synthesis"})
