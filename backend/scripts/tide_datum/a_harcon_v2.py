@@ -131,6 +131,22 @@ def minor_inferred_series(hc, times, pyTMD, timescale, np):
     return [float(b) + float(m) for b, m in zip(base, np.asarray(minor).reshape(-1))]
 
 
+SYNTH_PROBE = datetime(2000, 1, 1, tzinfo=timezone.utc)   # §13: one instant outside every gate window
+
+
+def synth_ok(hc, synth, at=SYNTH_PROBE):
+    """§13: (ok, error) for the candidate's own synthesis on these published constants. `synth(constants, times)` is
+    the verbatim synthesis; "cannot synthesise" means exactly that it RAISES (e.g. pinned pyTMD 3.1.0 "Unsupported
+    constituent: mln2"). Constants are an input; no value is kept. Never alters the constants."""
+    if not hc:
+        return False, "no constants"
+    try:
+        synth(hc, [at])
+        return True, None
+    except Exception as e:                                   # noqa: BLE001 - the §13 cause, recorded by class + text
+        return False, f"{type(e).__name__}: {e}"
+
+
 def preflight_verdict(records):
     """PURE, §6: PASS iff >= 300 records TESTED, <= 1 % of them over the fixed bars, and EACH planted break FAILS C2
     (§12: status != pass) at >= 95 % of the tested records. records: {sid: {"c2": status, "plants": {name: status}}}."""
@@ -144,7 +160,8 @@ def preflight_verdict(records):
         plants[name] = {"fail_frac": (len(fails) / n) if n else 0.0, "misses": misses}
     ok = (n >= PREFLIGHT_MIN_TESTED and (len(over) / n if n else 1.0) <= PREFLIGHT_MAX_EXCEED
           and all(p["fail_frac"] >= PLANT_MIN_FAIL for p in plants.values()))
-    return {"status": "PASS" if ok else "STOP", "tested": n, "over_bars": over,
+    not_tested = sorted(s for s, r in records.items() if r.get("c2") == "not_tested")   # §13: listed, never a record
+    return {"status": "PASS" if ok else "STOP", "tested": n, "not_tested": not_tested, "over_bars": over,
             "over_frac": (len(over) / n) if n else None, "plants": plants,
             "rule": "gates/tide-a-harcon-v2.md s6 + s12"}
 

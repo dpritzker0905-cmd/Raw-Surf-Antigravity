@@ -77,3 +77,27 @@ Append-only. Stamps come from `date -u`.
   - Output: `research/tide-a-harcon-v2-unsupported.json`, sha256 `850a02cd…ff887978` (the committed LF bytes; the CRLF file the scan wrote on Windows hashed `00065605…eb86e348`).
   - No synthesised value was kept, and no prediction, water level or window data was read.
 - **Next:** the instrument PR that implements §13 (its own gate), then pre-flight 2 on David's typed word.
+
+## 02:02Z: the §13 instrument (its own PR, stacked on the §13 amendment)
+
+- **`a_harcon_v2.synth_ok(hc, synth)`:** (ok, error) for the verbatim synthesis at 2000-01-01. "Cannot synthesise"
+  means exactly that it raises; the constants are never altered.
+- **Pre-flight:** before any truth is read, a station whose synthesis raises becomes `{"c2": "not_tested", ...}`.
+  - `preflight_verdict` lists `not_tested`; the station is never a record, and the ≥ 300 floor binds.
+- **Run (v2 only, `--c2-grid-min 6`):**
+  - an unsupported donor's constants read as none, i.e. "donor has no constants" (v1's replacement cause, same cap);
+  - an unsupported scored station gets `unsupported_constants`. The scorer's `resolve` replaces it with the cause "own
+    constants cannot be synthesised (v2 §13)", within the cap;
+  - the run JSON lists every unsupported id.
+  - v1 (grid 60) is unchanged.
+- **Tests:** +6 in `test_a_harcon_v2.py` (chain lane; 49 passed twice with `test_a_harcon_instrument.py`).
+
+## 02:22Z: the §13 scan's request log (the advisor's limit on #1304)
+
+- **Committed:** the scan's own `paced_run` request audit, byte-identical, as
+  `research/tide-a-harcon-v2-unsupported-requests.jsonl`. The committed LF bytes hash sha256
+  `7ab060910b8dd5fc4023ac8957833fdefde6ea205a0fa742be5bd2d9c91aa630`. The file as written on Windows had CRLF line
+  endings and hashed `ab8cec4d…6e67efb5`; the content is identical.
+- **What it shows:** 478 requests, ALL to `/mdapi/prod/webapi/stations/<id>/harcon.json`, one per station, all HTTP
+  200. There was no `datagetter` call, so no prediction, water level or window data was read. That is the proof the
+  scan read harcon constants only.
