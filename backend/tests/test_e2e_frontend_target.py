@@ -107,3 +107,34 @@ def test_the_workflow_waits_for_the_target_and_gates_every_later_step():
     ungated = [names[i] for i in range(k + 1, len(steps)) if gate not in str(steps[i].get("if", ""))]
     assert not ungated, f"steps that would run on a skip (a stale bundle): {ungated}"
     assert "Run E2E tests" in names[k + 1:]
+
+
+def test_only_the_two_documented_markers_as_written_are_skips(tmp_path, monkeypatch):
+    """Advisor CHANGE on #1312: Netlify documents only "[skip ci]" and "[skip netlify]" (docs.netlify.com, "Skip a
+    deploy"). Honouring a marker Netlify ignores would SKIP E2E while the change is live, so reversed order and other
+    case are NOT skips: such a commit is treated as built (wait for it; worst case a false red, never a stale green)."""
+    assert eft.SKIP_MARKERS == ("[skip netlify]", "[skip ci]")
+    git = _repo(tmp_path)
+    _commit(git, tmp_path, "frontend/a.js", "feat: a")
+    for msg in ("fix: b [ci skip]", "fix: c [netlify skip]", "fix: d [SKIP CI]", "fix: e [Skip Netlify]"):
+        head = _commit(git, tmp_path, f"backend/{msg[5]}.py", msg)
+        got = _run(tmp_path, monkeypatch)
+        assert (got["target"], got["verdict"]) == (head, "head"), msg
+
+
+def test_a_frontend_change_under_a_skip_marker_warns_on_stderr_only(tmp_path, monkeypatch):
+    """Advisor nit after #1300: the skip path names the undeployed built files in a ::warning, on STDERR (stdout is
+    appended to $GITHUB_OUTPUT, where a non key=value line would break the step)."""
+    git = _repo(tmp_path)
+    _commit(git, tmp_path, "frontend/a.js", "feat: a")
+    _commit(git, tmp_path, "frontend/b.js", "feat(ui): b [skip netlify]")
+    monkeypatch.chdir(tmp_path)
+    r = subprocess.run([sys.executable, str(HERE.parent / "scripts" / "e2e_frontend_target.py"), "HEAD"],
+                       capture_output=True, text=True, check=True)
+    assert "::warning title=Frontend change not deployed (Netlify skip marker)::" in r.stderr
+    assert "frontend/b.js" in r.stderr
+    assert all("=" in line and not line.startswith("::") for line in r.stdout.strip().split("\n"))
+    _commit(git, tmp_path, "backend/c.py", "fix: c")                                   # a built HEAD: no warning
+    r = subprocess.run([sys.executable, str(HERE.parent / "scripts" / "e2e_frontend_target.py"), "HEAD"],
+                       capture_output=True, text=True, check=True)
+    assert "::warning" not in r.stderr

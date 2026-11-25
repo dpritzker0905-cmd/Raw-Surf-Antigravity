@@ -6,8 +6,8 @@ commit carries `[skip netlify]` (runs 45470009231, 45501339887, 45510009683: "ne
 The site was fine; the lane was waiting for a build that could not exist.
 
 RULE (netlify.toml: the dev branch builds EVERY commit, `ignore = "false"`, except a commit whose message carries a
-Netlify skip marker, `[skip ci]` or `[skip netlify]` per Netlify's docs; the next built commit then ships the skipped
-changes too):
+Netlify skip marker (SKIP_MARKERS: exactly the two Netlify documents, matched as written); the next built commit then
+ships the skipped changes too):
     expected = the newest first-parent commit at or before HEAD whose message has no skip marker
     expected == HEAD                                          -> "head":    wait for HEAD (as before)
     expected != HEAD, and the skipped commits changed nothing
@@ -30,6 +30,10 @@ import os
 import subprocess
 import sys
 
+# EXACTLY the markers Netlify documents, matched as written (https://docs.netlify.com/deploy/manage-deploys/
+# manage-deploys-overview/, "Skip a deploy": [skip ci] or [skip netlify]). The advisor retracted the reversed-order /
+# any-case idea after reading that page (#1312): honouring a marker Netlify IGNORES is the unsafe direction, E2E would
+# skip while the change is live; missing one Netlify honours only causes a false red (it waits for a build).
 SKIP_MARKERS = ("[skip netlify]", "[skip ci]")
 # The paths frontend/scripts/netlify-ignore.cjs's needsBuild() counts as "Netlify builds this" (kept equal by test).
 BUILD_PREFIXES = ("frontend/", "netlify/", "scripts/")
@@ -49,7 +53,7 @@ def needs_build(paths) -> bool:
 
 def expected_frontend_sha(rev: str = "HEAD", cwd=None) -> str:
     """The newest first-parent commit at or before `rev` that Netlify builds (no skip marker in its message), or ''."""
-    args = ["log", "-1", "--first-parent", "--format=%H", "--fixed-strings", "--invert-grep"]
+    args = ["log", "-1", "--first-parent", "--format=%H", "--fixed-strings", "--invert-grep"]   # case-SENSITIVE
     for m in SKIP_MARKERS:
         args.append(f"--grep={m}")
     return _git(*args, rev, cwd=cwd)
@@ -64,7 +68,7 @@ def decide(head: str, expected: str, changed_paths) -> dict:
         return {"target": head, "verdict": "head", "skip": False, "reason": "HEAD is a Netlify build: wait for it"}
     if needs_build(changed_paths):
         built = sorted(p for p in changed_paths if needs_build([p]))
-        return {"target": expected, "verdict": "skip", "skip": True,
+        return {"target": expected, "verdict": "skip", "skip": True, "built": built,
                 "reason": f"HEAD carries a Netlify skip marker and the skipped commits change built files "
                           f"({', '.join(built[:5])}{'...' if len(built) > 5 else ''}); the served bundle would be stale"}
     return {"target": expected, "verdict": "earlier", "skip": False,
@@ -84,6 +88,12 @@ def main(argv=None) -> int:
         d = decide(head, expected, [p for p in changed if p])
     print(f"target={d['target']}\nverdict={d['verdict']}\nskip={'true' if d['skip'] else 'false'}\n"
           f"reason={d['reason']}")
+    if d.get("built"):
+        # advisor nit after #1300: a frontend change committed under a Netlify skip marker NEVER deploys until the next
+        # built commit. Not an E2E failure, but it must be visible. On STDERR: stdout is appended to $GITHUB_OUTPUT.
+        print(f"::warning title=Frontend change not deployed (Netlify skip marker)::these built files changed under a "
+              f"skip marker and are not live until the next built commit: {', '.join(d['built'][:10])}"
+              f"{' ...' if len(d['built']) > 10 else ''}", file=sys.stderr)
     return 0
 
 
