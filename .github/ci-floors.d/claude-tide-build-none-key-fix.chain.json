@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 1,
+  "files": 0,
+  "branch": "claude/tide-build-none-key-fix",
+  "date": "2026-11-25",
+  "note": "test_mllw_tester.py: a key with no FES never crashes the build count (build 45678981191)"
+}

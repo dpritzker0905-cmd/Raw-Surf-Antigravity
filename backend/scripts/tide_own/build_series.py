@@ -334,7 +334,7 @@ def main():
         log(f"CMEMS direct read at {len(doc['cmems'])} of {len(keys_pts)} keys")
     with gzip.open(args.out, "wt", encoding="utf-8") as fh:
         json.dump(OR.encode_table(doc), fh, separators=(",", ":"))
-    served = sum(any(v is not None for v in vals) for vals in out_keys.values())
+    served = OR.served_count(out_keys)                      # a key with no FES (series None) must not crash the build
     log(f"A at {n_a} keys; served (A and M) at {served} of {len(keys_pts)} keys; window {start:%Y-%m-%dT%H} +{hours} h")
 
 
