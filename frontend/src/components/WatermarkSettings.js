@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Slider } from './ui/slider';
@@ -12,6 +12,8 @@ import logger from '../utils/logger';
 
 
 const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
+  const textId = useId();
+  const positionId = useId();
   const { user } = useAuth();
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
@@ -224,8 +226,9 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
             {/* Text Input (shown for 'text' and 'both' styles) */}
             {(settings.watermark_style === 'text' || settings.watermark_style === 'both') && (
               <div className="space-y-2">
-                <Label className={textPrimaryClass}>Watermark Text</Label>
+                <Label htmlFor={textId} className={textPrimaryClass}>Watermark Text</Label>
                 <Input
+                  id={textId}
                   data-testid="watermark-text-input"
                   value={settings.watermark_text}
                   onChange={(e) => setSettings(prev => ({ ...prev, watermark_text: e.target.value }))}
@@ -289,12 +292,13 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
 
             {/* Position Selection */}
             <div className="space-y-2">
-              <Label className={textPrimaryClass}>Position</Label>
+              <Label htmlFor={positionId} className={textPrimaryClass}>Position</Label>
               <Select
                 value={settings.watermark_position}
                 onValueChange={(value) => setSettings(prev => ({ ...prev, watermark_position: value }))}
               >
                 <SelectTrigger 
+                  id={positionId}
                   data-testid="watermark-position-select"
                   className={`${bgCardClass} border ${borderClass} ${textPrimaryClass}`}
                 >
