@@ -245,6 +245,9 @@ class EnsGustRiskSource:
         self.store_cap = _env_float("GUST_RISK_MAX_STORE_BYTES", STORE_CAP_RUN)
         self.exceeded = None
         self.provenance = {}
+        # ADAPTIVE (2026-11-25, run 45547177899): S3 SlowDown 503s past every retry cost 30 of 84 steps and the run's budget.
+        self.throttled = None
+        self._narrow = threading.BoundedSemaphore(max(1, int(_env_float("GUST_RISK_THROTTLED_WORKERS", 2))))
         self.http = _CountingSession(session, self)
         try:
             from services.weather_pipeline import ens_wind_fetch as ef
@@ -300,6 +303,29 @@ class EnsGustRiskSource:
                 self.spec["target"]["provenance"] = self.provenance
 
     def fetch(self, cycle, f):
+        """One step. ADAPTIVE (2026-11-25; kill GUST_RISK_ADAPTIVE=0): run 45547177899 lost 30 of 84 steps to S3 503 SlowDown after
+        every per-request retry (ens_wind_fetch._get: 8 tries, ~5 min), and the waiting spent the 1800 s budget (18 more skipped):
+        36/84 built, coverage refused, nothing published, the set 36.8 h old. Once any request is throttled past its retries, every
+        later step runs at most GUST_RISK_THROTTLED_WORKERS (2) at a time, and the step that met it is tried ONCE more at that
+        rate. A 404, a refused identity, a budget cap or any other error is never retried."""
+        if os.environ.get("GUST_RISK_ADAPTIVE", "1") == "0":
+            return self._fetch_once(cycle, f)
+        if self.throttled:
+            with self._narrow:
+                return self._fetch_once(cycle, f)
+        try:
+            return self._fetch_once(cycle, f)
+        except BudgetExceeded:
+            raise
+        except RuntimeError as e:
+            if not _throttled_error(e):
+                raise
+            with self._lock:
+                self.throttled = self.throttled or f"step {f}: {e}"[:200]
+            with self._narrow:
+                return self._fetch_once(cycle, f)
+
+    def _fetch_once(self, cycle, f):
         import numpy as np
         self._check_budget()
         gr = _gr()
@@ -328,6 +354,11 @@ class EnsGustRiskSource:
         self._add_stored(len(fb.gzip_frame(raw)))                    # the frame's stored size (the header times do not move it)
         self._check_budget()
         return planes
+
+
+def _throttled_error(e):
+    """An S3 throttle that outlived ens_wind_fetch._get's retries (its RuntimeError names the status)."""
+    return any(f"HTTP {c}" in str(e) for c in (503, 429))
 
 
 def guarded_publish(args, spec, make_sink, pub, fsr, status_fn, now=None):
@@ -371,7 +402,8 @@ def guarded_publish(args, spec, make_sink, pub, fsr, status_fn, now=None):
     finally:
         total = add_day_used(sink, now.astimezone(timezone.utc), source.bytes_pulled, writer)
     report.update(bytes_pulled=source.bytes_pulled, bytes_stored_estimate=source.bytes_stored, read_today=total,
-                  pruned=len(gone), display=sp["target"]["display"], gate=sp["target"]["gate"])
+                  pruned=len(gone), display=sp["target"]["display"], gate=sp["target"]["gate"],
+                  throttled=getattr(source, "throttled", None))      # the first S3 throttle that slowed this run, or None
     print(f"::notice title=Raster set {name} size::pulled {source.bytes_pulled / 1e6:.1f} MB (today {total / 1e6:.1f} MB), "
           f"kept {report.get('bytes', 0) / 1e6:.1f} MB, display {sp['target']['display']} ({report.get('status')})")
     import json

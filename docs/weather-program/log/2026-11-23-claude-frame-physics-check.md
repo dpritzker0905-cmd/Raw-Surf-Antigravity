@@ -141,3 +141,19 @@ Read-only diagnosis, asked by the director after the reliability lane's frame-fr
   `frame_set_freshness.check` reads an `empty` record as `empty`, never stale. Kill `FRAME_RATED_RETIRE=0`; reverses itself if
   `BAND_PARTITION_HEIGHT_ONLY=0` (the sets are published again). No served number moves. Tests: `tests/test_rated_retire.py` (7),
   twice; mutating the retire loop or the freshness rule turns a test red.
+
+## 2026-11-25 · B: ECMWF ENS gust risk failed on S3 throttling, not a timeout or a code error
+- Run 45547177899, step "Publish raster static frames (ECMWF ENS gust risk)" 07:57:40-08:28:33Z (job log): 30 steps failed with
+  `RuntimeError: HTTP 503 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20261125/00z/ifs/0p25/enfo/...` after
+  `ens_wind_fetch._get`'s 8 tries (backoff to 60 s, ~5 min each); the waiting spent the 1800 s budget, so 18 more were
+  `skipped_budget`; 36/84 built < 0.9 -> `coverage_refused`, nothing uploaded, 1.48 GB read and discarded; the step exits 1
+  ("status coverage_refused; the published index stays"). Not the job-budget gate (it ran) and not the 40-min timeout.
+- The same cycle size on 11-24 (run 45326459330) built 80/84 in 575 s with 4 throttled requests and published; that run's red was
+  another step. One step makes ~49 GETs (1 index + ~48 member ranges, read from the 11-25 00Z f006 index), 6 steps at once.
+- SubQ (mirror fallback first, adaptive concurrency second) and Reflection (adaptive concurrency first, one re-queue second)
+  both chose adaptive concurrency. Fix: once a request is throttled past its retries, `EnsGustRiskSource.fetch` runs every later
+  step at most 2 at a time (`GUST_RISK_THROTTLED_WORKERS`) and tries the throttled step ONCE more at that rate; nothing else is
+  retried. Kill `GUST_RISK_ADAPTIVE=0`. The report carries `throttled`. No served number (the set is hidden). Tests: 7 new in
+  `tests/test_frame_set_raster_gust_risk.py`, twice; mutating the narrow gate or the re-try turns a test red.
+- Follow-up, not built: SubQ's mirror fallback (ECMWF open data on other clouds) needs the ENS paths and licence on each mirror
+  verified first.
