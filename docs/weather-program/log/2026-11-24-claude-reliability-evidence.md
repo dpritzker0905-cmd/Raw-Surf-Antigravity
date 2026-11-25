@@ -31,3 +31,15 @@ The same named result was on #1271's own CI (run 45425360634). No P0 issue was o
 
 Switching `STORAGE_AUTH_CHECK` from `warn` to `block` needs all four lines AND the owner's typed word (advisor L1 on
 #1266); this lane does not switch it.
+
+## #1266: all four lanes logged HTTP 200 after the merge (appended 2026-11-24, after 23:35Z)
+
+| lane | run | started | line |
+|---|---|---|---|
+| precompute | 45401780241 | 13:17Z | `storage credential accepted (HTTP 200, control/flags.json)` |
+| forecast-ingest | 45419392479 | 14:54Z | same |
+| forecast-ingest-pilots | 45481322057 | 20:29Z | same |
+| flag-guardrail | 45511214457 | 23:35Z | same |
+
+This closes the commitment `ledger.d/claude--reliability-evidence-log.jsonl:2`. Switching `STORAGE_AUTH_CHECK` to
+`block` still needs the owner's typed word; this lane does not switch it.
