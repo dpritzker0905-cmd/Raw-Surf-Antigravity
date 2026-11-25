@@ -146,7 +146,18 @@ def apply(p: dict, repo: str, owner: str) -> None:
 
 
 def main(env=None, opener=urllib.request.urlopen, sleep=time.sleep) -> int:
+    """An unexpected exception never stops a lane unless the mode is blocking (advisor L2 on #1266): in warn mode it is a
+    warning and exit 0; in block mode it exits 3 (not 2: a crash is not a verdict on the key)."""
     env = os.environ if env is None else env
+    try:
+        return _main(env, opener, sleep)
+    except Exception as e:                                    # noqa: BLE001 - the probe must not take a lane down
+        blocking = (env.get("STORAGE_AUTH_CHECK") or "warn").strip().lower() in ("1", "block")
+        print(f"::warning title=Storage auth check crashed::{type(e).__name__}: {scrub(str(e))[:160]}")
+        return 3 if blocking else 0
+
+
+def _main(env, opener, sleep) -> int:
     mode = (env.get("STORAGE_AUTH_CHECK") or "warn").strip().lower()
     if mode == "0":
         print("storage auth check: off (STORAGE_AUTH_CHECK=0)")
@@ -165,7 +176,8 @@ def main(env=None, opener=urllib.request.urlopen, sleep=time.sleep) -> int:
     elif verdict == UNKNOWN:
         print(f"::warning title=Storage auth check inconclusive::HTTP {code} {msg} (not blocking)")
     else:
-        print(f"storage credential accepted (HTTP {code}, {OBJECT})")
+        # the mode is printed so a run proves which mode it ran in (the switch to block is confirmed from this line)
+        print(f"storage credential accepted (HTTP {code}, {OBJECT}; mode {'block' if blocking else 'warn'})")
     repo = env.get("GITHUB_REPOSITORY", "")
     if env.get("GH_TOKEN") and repo:
         try:
