@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 from sqlalchemy.orm import selectinload
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
@@ -24,7 +26,7 @@ from models import (
     RoleEnum, Gallery, LiveSession, LiveSessionParticipant,
     XPTransaction, SurferGalleryItem, SurferSelectionQuota,
     GalleryTierEnum, Booking, BookingParticipant, DispatchRequest,
-    ConditionReport
+    ConditionReport, GalleryCopyReceipt
 )
 
 from routes.career_hub.gamification import check_badge_milestones
@@ -654,16 +656,40 @@ async def copy_item_to_gallery(
     db: AsyncSession = Depends(get_db)
 ):
     """Copy a gallery item to a folder (keeps original in main gallery)"""
+    return await _copy_to_folder(db, item_id, photographer_id, data.target_gallery_id)
+
+
+@router.put("/gallery/item/{item_id}/copies/{operation_id}")
+async def copy_gallery_item_once(
+    item_id: str, operation_id: uuid.UUID, data: MoveToFolderRequest,
+    owner_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),
+):
+    return await _copy_to_folder(db, item_id, owner_id, data.target_gallery_id, str(operation_id))
+
+
+async def _copy_to_folder(db, item_id, owner_id, target_id, operation_id=None):
     item, _, target_gallery = await _lock_transfer_rows(
-        db, item_id, photographer_id, data.target_gallery_id, move=False
+        db, item_id, owner_id, target_id, move=False
     )
+    copy_id = str(uuid.uuid4())
+    if operation_id is not None:
+        insert = {"postgresql": pg_insert, "sqlite": sqlite_insert}[db.get_bind().dialect.name]
+        claimed = await db.scalar(insert(GalleryCopyReceipt).values(
+            owner_id=owner_id, operation_id=operation_id, source_id=item_id,
+            target_id=target_id, copy_id=copy_id,
+        ).on_conflict_do_nothing(index_elements=["owner_id", "operation_id"]).returning(GalleryCopyReceipt.copy_id))
+        if claimed is None:
+            receipt = await db.get(GalleryCopyReceipt, (owner_id, operation_id))
+            if (receipt.source_id, receipt.target_id) != (item_id, target_id):
+                raise HTTPException(status_code=409, detail="Copy operation already used for a different selection")
+            return {"message": "Item copied to folder", "gallery_id": target_id, "new_item_id": receipt.copy_id}
 
     # Create a copy of the item in the target folder
     new_item = GalleryItem(
-        id=str(uuid.uuid4()),
+        id=copy_id,
         photographer_id=item.photographer_id,
         spot_id=item.spot_id,
-        gallery_id=data.target_gallery_id,
+        gallery_id=target_id,
         original_url=item.original_url,
         preview_url=item.preview_url,
         thumbnail_url=item.thumbnail_url,
@@ -690,15 +716,14 @@ async def copy_item_to_gallery(
     )
     db.add(new_item)
     
-    # Update target gallery count
-    target_gallery.item_count += 1
-    
-    # Set cover image if target doesn't have one
-    if not target_gallery.cover_image_url and item.media_type == 'image':
-        target_gallery.cover_image_url = item.preview_url
+    # Persist any legacy NULL-count repair before incrementing the stored value.
+    await db.flush()
+    target_gallery.item_count = Gallery.item_count + 1
+    if item.media_type == 'image' and item.preview_url:
+        target_gallery.cover_image_url = func.coalesce(func.nullif(Gallery.cover_image_url, ''), item.preview_url)
     
     await db.commit()
-    return {"message": "Item copied to folder", "gallery_id": data.target_gallery_id, "new_item_id": new_item.id}
+    return {"message": "Item copied to folder", "gallery_id": target_id, "new_item_id": new_item.id}
 
 
 # SetCustomPriceRequest + custom-price endpoint extracted to gallery_purchases.py (v86)

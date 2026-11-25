@@ -1,6 +1,7 @@
 // File: frontend/src/hooks/useGalleryActions.js
 import { useRef, useLayoutEffect } from 'react';
 import apiClient from '../lib/apiClient';
+import { copyGalleryItem } from '../lib/copyGalleryItem';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getErrorMessage } from '../utils/errors';
@@ -229,9 +230,7 @@ const useGalleryActions = ({
     setFolderActionLoading(true);
     try {
       const outcomes = await Promise.allSettled(itemIds.map(itemId =>
-        apiClient.post(`/gallery/item/${itemId}/copy?photographer_id=${user.id}`, {
-          target_gallery_id: targetFolderId
-        })
+          copyGalleryItem(user.id, itemId, targetFolderId)
       ));
       if (copyRequest.current !== itemIds) return;
       const copied = new Set(itemIds.filter((_, index) => outcomes[index].status === 'fulfilled'));

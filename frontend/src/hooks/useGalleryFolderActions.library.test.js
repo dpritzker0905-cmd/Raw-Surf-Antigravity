@@ -1,8 +1,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
+import { copyGalleryItem } from '../lib/copyGalleryItem';
 import useGalleryFolderActions from './useGalleryFolderActions';
 
+jest.mock('../lib/copyGalleryItem', () => ({ copyGalleryItem: jest.fn() }));
 jest.mock('../lib/apiClient', () => ({ get: jest.fn(), post: jest.fn() }));
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock('../utils/logger', () => ({ error: jest.fn() }));
@@ -29,7 +31,7 @@ beforeEach(() => {
 
 test('two activations send one copy and refresh the destination', async () => {
   const pending = deferred();
-  apiClient.post.mockReturnValue(pending.promise);
+  copyGalleryItem.mockReturnValue(pending.promise);
   const { result, props } = picker();
   let copy;
   act(() => {
@@ -37,10 +39,8 @@ test('two activations send one copy and refresh the destination', async () => {
     result.current.handleAddToGallery('photo');
   });
   expect(result.current.addingLibraryPhoto).toBe(true);
-  expect(apiClient.post).toHaveBeenCalledTimes(1);
-  expect(apiClient.post).toHaveBeenCalledWith('/gallery/item/photo/copy?photographer_id=owner', {
-    target_gallery_id: 'destination',
-  });
+  expect(copyGalleryItem).toHaveBeenCalledTimes(1);
+  expect(copyGalleryItem).toHaveBeenCalledWith('owner', 'photo', 'destination');
   await act(async () => { pending.resolve({ data: { new_item_id: 'new-id' } }); await copy; });
   expect(result.current.addingLibraryPhoto).toBe(false);
   expect(apiClient.get).toHaveBeenCalledWith('/galleries/destination/items?viewer_id=owner');
@@ -49,20 +49,20 @@ test('two activations send one copy and refresh the destination', async () => {
 });
 
 test('a refused copy keeps the picker open and permits retry', async () => {
-  apiClient.post.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValueOnce({ data: {} });
+  copyGalleryItem.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValueOnce({ data: {} });
   const { result, props } = picker();
   await act(async () => { await result.current.handleAddToGallery('photo'); });
   expect(toast.error).toHaveBeenCalledTimes(1);
   expect(props.setShowAddToGalleryModal).not.toHaveBeenCalled();
   expect(apiClient.get).not.toHaveBeenCalled();
   await act(async () => { await result.current.handleAddToGallery('photo'); });
-  expect(apiClient.post).toHaveBeenCalledTimes(2);
+  expect(copyGalleryItem).toHaveBeenCalledTimes(2);
   expect(props.setShowAddToGalleryModal).toHaveBeenCalledWith(false);
 });
 
 test('a late success cannot dismiss a reopened picker', async () => {
   const pending = deferred();
-  apiClient.post.mockReturnValue(pending.promise);
+  copyGalleryItem.mockReturnValue(pending.promise);
   const { result, props, rerender } = picker();
   let copy;
   act(() => { copy = result.current.handleAddToGallery('photo'); });
@@ -75,7 +75,7 @@ test('a late success cannot dismiss a reopened picker', async () => {
 
 test('a previous folder refresh cannot replace the new folder contents', async () => {
   const pending = deferred();
-  apiClient.post.mockResolvedValue({ data: {} });
+  copyGalleryItem.mockResolvedValue({ data: {} });
   apiClient.get.mockReturnValue(pending.promise);
   const { result, props, rerender } = picker();
   let copy;
@@ -89,7 +89,7 @@ test('a previous folder refresh cannot replace the new folder contents', async (
 test('an older folder read cannot erase the copy when it finishes last', async () => {
   const first = deferred();
   apiClient.get.mockReturnValueOnce(first.promise).mockResolvedValue({ data: ['new-copy'] });
-  apiClient.post.mockResolvedValue({ data: {} });
+  copyGalleryItem.mockResolvedValue({ data: {} });
   const { result, props } = picker();
   let initialRead;
   act(() => { initialRead = result.current.fetchGalleryItems('destination'); });
@@ -100,7 +100,7 @@ test('an older folder read cannot erase the copy when it finishes last', async (
 
 test('returning to the destination while its copy is pending cannot create a second copy', async () => {
   const pending = deferred();
-  apiClient.post.mockReturnValue(pending.promise);
+  copyGalleryItem.mockReturnValue(pending.promise);
   const { result, props, rerender } = picker();
   let copy;
   act(() => { copy = result.current.handleAddToGallery('photo'); });
@@ -108,7 +108,7 @@ test('returning to the destination while its copy is pending cannot create a sec
   expect(result.current.addingLibraryPhoto).toBe(false);
   rerender(props);
   act(() => { result.current.handleAddToGallery('photo'); });
-  expect(apiClient.post).toHaveBeenCalledTimes(1);
+  expect(copyGalleryItem).toHaveBeenCalledTimes(1);
   await act(async () => { pending.resolve({ data: {} }); await copy; });
   expect(result.current.addingLibraryPhoto).toBe(false);
   expect(props.setShowAddToGalleryModal).not.toHaveBeenCalled();
@@ -119,7 +119,7 @@ test.each([
   ['different owner', 'other', 0],
 ])('copy completion after navigation refreshes only the applicable folder list (%s)', async (_, owner, reads) => {
   const pending = deferred();
-  apiClient.post.mockReturnValue(pending.promise);
+  copyGalleryItem.mockReturnValue(pending.promise);
   const { result, props, rerender } = picker();
   let copy;
   act(() => { copy = result.current.handleAddToGallery('photo'); });

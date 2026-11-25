@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import apiClient from '../lib/apiClient';
+import { copyGalleryItem } from '../lib/copyGalleryItem';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getErrorMessage } from '../utils/errors';
@@ -118,9 +119,7 @@ export const useGalleryFolderActions = ({
     pendingCopies.current.add(destination);
     setBusyFolders(new Set(pendingCopies.current));
     try {
-      await apiClient.post(`/gallery/item/${encodeURIComponent(itemId)}/copy?photographer_id=${encodeURIComponent(user.id)}`, {
-        target_gallery_id: selectedGallery.id
-      });
+      await copyGalleryItem(ownerId, itemId, selectedGallery.id);
       const currentVisit = folderVisit.current;
       if (currentVisit?.ownerId !== ownerId) return;
       const listRefresh = fetchGalleries();

@@ -75,6 +75,7 @@ from .messaging import (  # noqa: F401
     UserNote, NoteReply, NoteReaction,
 )
 
+from .gallery_copy import GalleryCopyReceipt  # noqa: F401
 from .gallery import (  # noqa: F401
     GalleryItem, GalleryPurchase, PhotoTag, SurferGalleryItem,
     SurferGalleryClaimQueue, SurferSelectionQuota, Gallery,

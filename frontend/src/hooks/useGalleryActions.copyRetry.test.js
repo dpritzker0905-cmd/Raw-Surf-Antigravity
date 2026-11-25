@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
+import { copyGalleryItem } from '../lib/copyGalleryItem';
 import useGalleryActions from './useGalleryActions';
 
+jest.mock('../lib/copyGalleryItem', () => ({ copyGalleryItem: jest.fn() }));
 jest.mock('../lib/apiClient', () => ({ post: jest.fn(), get: jest.fn() }));
 jest.mock('sonner', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 
@@ -12,11 +14,11 @@ test('retrying a mixed copy creates one destination copy of each selected origin
   const setBulkSelectMode = jest.fn();
   let acknowledge;
   apiClient.get.mockResolvedValue({ data: [] });
-  apiClient.post.mockRejectedValueOnce(new Error('temporarily unavailable'))
+  copyGalleryItem.mockRejectedValueOnce(new Error('temporarily unavailable'))
     .mockImplementationOnce(() => new Promise(resolve => {
       acknowledge = () => { copies.push('b'); resolve({}); };
     }))
-    .mockImplementation(async url => { copies.push(url.split('/')[3]); });
+    .mockImplementation(async (_, item) => { copies.push(item); });
   const { result } = renderHook(() => {
     const [selectedItems, setSelectedItems] = useState(new Set(['a', 'b']));
     const [open, setShowCopyToFolderModal] = useState(true);
@@ -41,14 +43,14 @@ test('retrying a mixed copy creates one destination copy of each selected origin
   expect(result.current.selectedItems.size).toBe(0);
   expect(result.current.open).toBe(false);
   expect(toast.error).toHaveBeenCalledTimes(1);
-  expect(apiClient.post.mock.calls.map(([url]) => url.split('/')[3])).toEqual(['a', 'b', 'a']);
-  expect(apiClient.post.mock.calls.every(([, body]) => body.target_gallery_id === 'destination')).toBe(true);
+  expect(copyGalleryItem.mock.calls.map(([, item]) => item)).toEqual(['a', 'b', 'a']);
+  expect(copyGalleryItem.mock.calls.every(([owner, , target]) => owner === 'owner' && target === 'destination')).toBe(true);
 });
 
 test('leaving during a copy clears the old retry selection and ignores late results', async () => {
   const setBulkSelectMode = jest.fn();
   let acknowledge;
-  apiClient.post.mockImplementationOnce(() => new Promise(resolve => { acknowledge = resolve; }));
+  copyGalleryItem.mockImplementationOnce(() => new Promise(resolve => { acknowledge = resolve; }));
   const { result, rerender } = renderHook(({ id }) => {
     const [selectedItems, setSelectedItems] = useState(new Set(['a']));
     const [open, setShowCopyToFolderModal] = useState(true);
@@ -74,11 +76,11 @@ test.each([
   ['folder', 'owner', 'destination', true],
   ['account', 'another-owner', 'source', false],
 ])('leaving the %s after a settled copy clears its failed selection', async (_, nextUser, nextFolder, mixed) => {
-  apiClient.post.mockRejectedValueOnce(new Error('copy failed'));
+  copyGalleryItem.mockRejectedValueOnce(new Error('copy failed'));
   if (mixed) {
-    apiClient.post.mockResolvedValueOnce({});
+    copyGalleryItem.mockResolvedValueOnce({});
   } else {
-    apiClient.post.mockRejectedValueOnce(new Error('copy failed'));
+    copyGalleryItem.mockRejectedValueOnce(new Error('copy failed'));
   }
   apiClient.get.mockResolvedValue({ data: [] });
   const { result, rerender } = renderHook(({ userId, folderId }) => {
