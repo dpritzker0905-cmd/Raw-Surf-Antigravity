@@ -257,3 +257,25 @@ def test_no_relevant_change_passes_without_a_retry(monkeypatch):
     assert ffc.main(["--pr", "1294"]) == 0 and calls["n"] == 1
     calls = _sequence(monkeypatch, [_row("fragments-only", lane) for lane in ("guards", "chain", "estate")])
     assert ffc.main(["--pr", "1294"]) == 0 and calls["n"] == 1
+
+
+@pytest.fixture(autouse=True)
+def _no_retry_pause(monkeypatch):
+    """The retry's real pause (15 s) is not paid by the unit tests."""
+    monkeypatch.setenv("FLOOR_FRAGMENT_RETRY_PAUSE_S", "0")
+
+
+def test_the_retry_really_pauses_by_default(monkeypatch):
+    """Advisor limit 2 on #1311: the pause before the one retry was a no-op; it is now time.sleep, 15 s by default."""
+    waits = []
+    monkeypatch.setattr(ffc.time, "sleep", lambda s: waits.append(s))
+    monkeypatch.delenv("FLOOR_FRAGMENT_RETRY_PAUSE_S", raising=False)
+    _sequence(monkeypatch, RuntimeError("boom"), [_row("ok")])
+    assert ffc.main(["--pr", "1294"]) == 0 and waits == [15.0]
+    monkeypatch.setenv("FLOOR_FRAGMENT_RETRY_PAUSE_S", "3")
+    _sequence(monkeypatch, RuntimeError("boom"), [_row("ok")])
+    assert ffc.main(["--pr", "1294"]) == 0 and waits == [15.0, 3.0]
+    monkeypatch.setenv("FLOOR_FRAGMENT_RETRY_PAUSE_S", "x")
+    assert ffc.retry_pause_s() == 15.0
+    _sequence(monkeypatch, [_row("ok")])
+    assert ffc.main(["--pr", "1294"]) == 0 and waits == [15.0, 3.0]                     # no retry, no pause
