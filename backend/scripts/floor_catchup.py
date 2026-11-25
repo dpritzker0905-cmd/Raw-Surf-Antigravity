@@ -190,6 +190,10 @@ class Superseded(Refusal):
     """A newer green dev run acts instead: not a failure anyone must look at, so it opens no alert issue."""
 
 
+class Blocked(Refusal):
+    """No catch-up PR can be opened (pr_create_blocker). Its issue text is PR_BLOCKED, this script's own constant."""
+
+
 # ── LOUD FAILURE (director GO, 2026-11-25) ────────────────────────────────────────────────────────────────────────
 # From 2026-11-23 21:32Z to 11-25 01:53Z every catch-up this bot needed failed at `gh pr create` ("GitHub Actions is not
 # permitted to create or approve pull requests": no PAT secret, and the repo setting off). 16 red runs went unnoticed
@@ -198,6 +202,9 @@ class Superseded(Refusal):
 #        with nothing pushed.
 #   (ii) alert(): any refusal except Superseded opens or comments ONE issue (label ALERT_LABEL, assigned to the
 #        owner); the next run that acts or finds nothing to do closes it.
+#        LEAK PATH CLOSED (advisor CHANGE on #1321): a Refusal's text can carry up to 300 chars of raw git/gh stderr,
+#        and GitHub masks secrets in job logs but NOT in issue bodies. So the issue never carries str(exc): only the
+#        refusal CLASS, the run URL and, for Blocked, the fixed PR_BLOCKED text. The detail stays in the masked log.
 ALERT_LABEL = "floor-catchup"
 ALERT_TITLE = "Floor catch-up bot cannot act: CI floors will drift until this is fixed"
 
@@ -220,9 +227,12 @@ def pr_create_blocker(env=None, run=_run) -> str | None:
         setting = {}
     if setting.get("can_approve_pull_request_reviews") is True:
         return None
-    return ("no PAT (secrets FLOOR_CATCHUP_PR_TOKEN and SERVED_WAVE_VERIFY_PR_TOKEN are both unset) and GitHub Actions "
-            "is not permitted to create pull requests in this repository (or that setting could not be read). Fix: "
-            "add a fine-grained PAT for this repo (contents + pull requests read/write) as secret FLOOR_CATCHUP_PR_TOKEN")
+    return PR_BLOCKED
+
+
+PR_BLOCKED = ("no PAT (secrets FLOOR_CATCHUP_PR_TOKEN and SERVED_WAVE_VERIFY_PR_TOKEN are both unset) and GitHub Actions "
+              "is not permitted to create pull requests in this repository (or that setting could not be read). Fix: "
+              "add a fine-grained PAT for this repo (contents + pull requests read/write) as secret FLOOR_CATCHUP_PR_TOKEN")
 
 
 def _open_alert(run) -> int | None:
@@ -234,13 +244,17 @@ def _open_alert(run) -> int | None:
     return min((i["number"] for i in issues), default=None)
 
 
-def alert(reason: str, run_id: int, run=_run, env=None) -> str:
+def alert(exc: BaseException, run_id: int, run=_run, env=None) -> str:
     """Open ONE alert issue, or comment on the open one. Returns 'opened' or 'commented'. Never raises: the refusal
-    itself is already the run's red, and a failed alert must not hide it."""
+    itself is already the run's red, and a failed alert must not hide it. The body is built ONLY from this script's
+    own constants, the exception's class name and the run URL, never from the exception's text (see LEAK PATH)."""
     env = os.environ if env is None else env
     url = f"{env.get('GITHUB_SERVER_URL', 'https://github.com')}/{env.get('GITHUB_REPOSITORY', '')}/actions/runs/"
-    body = (f"floor_catchup.py refused at dev CI run {run_id} ({url}{env.get('GITHUB_RUN_ID', '')}):\n\n"
-            f"    {reason}\n\nUntil this is fixed no catch-up PR opens, a stale floor stays stale, and "
+    what = PR_BLOCKED if isinstance(exc, Blocked) else (
+        "the reason is in the job log only (GitHub masks secrets there, not in issues; refusal text can carry raw "
+        "git/gh output, so it is never copied here)")
+    body = (f"floor_catchup.py refused ({type(exc).__name__}) at dev CI run {run_id}. "
+            f"Job: {url}{env.get('GITHUB_RUN_ID', '')}\n\n    {what}\n\nUntil this is fixed no catch-up PR opens, a stale floor stays stale, and "
             f"backend-floor-staleness reds every open PR. This issue closes itself on the next run that acts or finds "
             f"nothing stale.")
     run(["gh", "label", "create", ALERT_LABEL, "--color", "B60205", "--force",
@@ -314,7 +328,7 @@ def execute(run_id, sha, readings, *, run=_run, frag_dir=None, dry_run=False, lo
     if not pr:
         blocker = pr_blocker()
         if blocker:   # (i): nothing written, nothing pushed, no orphan branch
-            raise Refusal(f"cannot open a catch-up PR, so nothing was pushed: {blocker}")
+            raise Blocked(f"cannot open a catch-up PR, so nothing was pushed: {blocker}")
     wanted ={f"{F.slug(branch)}.{p['lane']}.json" for p in items}
     for name in own_fragments(branch, frag_dir):
         if name not in wanted:
@@ -386,7 +400,7 @@ def main(argv=None) -> int:
     except (Refusal, S.Refusal, F.FragmentError) as exc:
         print(f"::error::floor_catchup REFUSED: {exc}")
         if not args.dry_run and not isinstance(exc, Superseded):
-            print(f"alert issue: {alert(str(exc), args.run)}")
+            print(f"alert issue: {alert(exc, args.run)}")
         return 1
     print(f"result: {result}")
     if not args.dry_run and clear_alert(result, args.run):

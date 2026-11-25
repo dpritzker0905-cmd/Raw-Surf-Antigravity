@@ -351,7 +351,7 @@ def test_the_bots_merge_command_works_with_no_git_identity_configured(tmp_path, 
 def test_a_blocked_pr_create_refuses_before_writing_or_pushing_anything(frag_dir):
     sh = FakeShell(frag_dir)
     before = sh._files()
-    with pytest.raises(C.Refusal, match="nothing was pushed"):
+    with pytest.raises(C.Blocked, match="nothing was pushed"):
         C.execute(RUN, SHA, _stale_readings(frag_dir), run=sh, frag_dir=frag_dir, log=lambda *_: None,
                   pr_blocker=lambda: "no PAT")
     assert sh._files() == before
@@ -407,16 +407,18 @@ class IssueShell:
 
 def test_a_refusal_opens_one_labelled_issue_assigned_to_the_owner():
     sh = IssueShell()
-    assert C.alert("no PAT", RUN, sh, {"OWNER": "the-owner", "GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "5"}) == "opened"
+    assert C.alert(C.Blocked("no PAT"), RUN, sh, {"OWNER": "the-owner", "GITHUB_REPOSITORY": "o/r",
+                                                  "GITHUB_RUN_ID": "5"}) == "opened"
     (create,) = sh.named("gh", "issue", "create")
     assert create[create.index("--label") + 1] == C.ALERT_LABEL
     assert create[create.index("--assignee") + 1] == "the-owner"
-    assert "no PAT" in create[create.index("--body") + 1] and str(RUN) in create[create.index("--body") + 1]
+    body = create[create.index("--body") + 1]
+    assert C.PR_BLOCKED in body and "Blocked" in body and str(RUN) in body and "o/r/actions/runs/5" in body
 
 
 def test_a_second_refusal_comments_on_the_open_issue_instead_of_opening_another():
     sh = IssueShell(open_issues=[42])
-    assert C.alert("no PAT", RUN, sh, {}) == "commented"
+    assert C.alert(C.Blocked("no PAT"), RUN, sh, {}) == "commented"
     assert not sh.named("gh", "issue", "create") and sh.named("gh", "issue", "comment")[0][3] == "42"
 
 
@@ -450,3 +452,27 @@ def test_the_workflow_grants_issues_write_and_names_the_owner_variable():
         wf = yaml.safe_load(f)
     assert wf["permissions"]["issues"] == "write"
     assert "vars.REPO_OWNER_LOGIN" in json.dumps(wf)
+
+
+# A FAKE, planted token (not a real credential) in each shape the advisor named on #1321.
+_FAKE_PAT = "ghp_" + "Z" * 36
+_PLANTED = (f"`gh pr create` failed: remote: https://x-access-token:{_FAKE_PAT}@github.com/o/r.git "
+            f"github_pat_{'Q' * 30} gho_{'R' * 30} ghs_{'S' * 30} ghr_{'T' * 30} "
+            f"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.sig PR_TOKEN=planted-pat-value")
+
+
+@pytest.mark.parametrize("exc", [C.Refusal(_PLANTED), C.Blocked(_PLANTED), C.S.Refusal(_PLANTED),
+                                 C.F.FragmentError(_PLANTED)])
+@pytest.mark.parametrize("open_issues", [(), (42,)])
+def test_no_refusal_text_ever_reaches_the_public_issue(exc, open_issues):
+    """Advisor CHANGE on #1321: GitHub masks secrets in logs, not in issue bodies. Whatever a refusal's text carries
+    (a planted fake PAT, a credentialled URL, a JWT, an env value), no gh call alert() makes contains any of it."""
+    sh = IssueShell(open_issues=open_issues)
+    C.alert(exc, RUN, sh, {"OWNER": "o", "GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "5",
+                           "PR_TOKEN": "planted-pat-value"})
+    sent = json.dumps(sh.calls)
+    for needle in (_FAKE_PAT, "ghp_", "github_pat_", "gho_", "ghs_", "ghr_", "eyJ", "x-access-token",
+                   "planted-pat-value", "@github.com", "gh pr create"):
+        assert needle not in sent, needle
+    assert sh.named("gh", "issue", "comment" if open_issues else "create")
+
