@@ -81,8 +81,9 @@ Append-only. Stamps come from `date -u`.
 ## 02:22Z: the §13 scan's request log (the advisor's limit on #1304)
 
 - **Committed:** the scan's own `paced_run` request audit, byte-identical, as
-  `research/tide-a-harcon-v2-unsupported-requests.jsonl` (sha256
-  `ab8cec4daefd4b8ef128d6c0d46299fbcfcc2a05e5f291e6024410ee6e67efb5`; LF, as written).
+  `research/tide-a-harcon-v2-unsupported-requests.jsonl`. The committed LF bytes hash sha256
+  `7ab060910b8dd5fc4023ac8957833fdefde6ea205a0fa742be5bd2d9c91aa630`. The file as written on Windows had CRLF line
+  endings and hashed `ab8cec4d…6e67efb5`; the content is identical.
 - **What it shows:** 478 requests, ALL to `/mdapi/prod/webapi/stations/<id>/harcon.json`, one per station, all HTTP
   200. There was no `datagetter` call, so no prediction, water level or window data was read. That is the proof the
   scan read harcon constants only.
