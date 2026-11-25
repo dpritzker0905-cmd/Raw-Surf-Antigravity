@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 5,
+  "branch": "claude/storage-auth-escalation",
+  "date": "2026-11-25",
+  "note": "storage-auth escalation at 4 h / 24 h (test_storage_auth_escalate)"
+}
