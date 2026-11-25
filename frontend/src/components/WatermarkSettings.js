@@ -199,6 +199,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                   return (
                     <button
                       key={option.value}
+                      aria-pressed={isSelected}
                       data-testid={`watermark-style-${option.value}`}
                       onClick={() => setSettings(prev => ({ ...prev, watermark_style: option.value }))}
                       className={`
