@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 7,
+  "branch": "claude/prune-retired-rated",
+  "date": "2026-11-25",
+  "note": "prune retired rated sets, dry by default (frames lane, L2 of #1316)"
+}

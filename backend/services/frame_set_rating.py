@@ -103,6 +103,100 @@ def retired_record(previous_entry, written_at, writer):
             "written_at": written_at, "writer": writer}
 
 
+PRUNE_LIST = "rated_prune_list.json"   # written beside the step (backend/); the workflow uploads it as an artifact
+
+
+def prune_mode():
+    """FRAME_RATED_PRUNE: 'dry' (the DEFAULT: list and report, never delete), '1' (delete; David's step after he approves the dry-run
+    totals), '0' (off). Anything else reads as 'dry', so a typo can never delete."""
+    v = os.environ.get("FRAME_RATED_PRUNE", "dry").strip().lower()
+    return v if v in ("0", "1") else "dry"
+
+
+def _sized_list(sink, prefix):
+    """[(path, bytes or None)] under `prefix`: a local sink stats its files; the Supabase sink's list API row carries the size in
+    metadata (read here, so the publisher's own sink is not grown); any other sink lists paths without sizes."""
+    root = getattr(sink, "out_dir", None)
+    if root is not None:
+        return [(p, (root / p).stat().st_size) for p in sink.list(prefix)]
+    req, base, bucket, auth = (getattr(sink, k, None) for k in ("requests", "base", "bucket", "auth"))
+    if not (req and base and bucket):
+        return [(p, None) for p in sink.list(prefix)]
+    out, todo = [], [prefix.rstrip("/")]
+    while todo:
+        folder, offset = todo.pop(), 0
+        while True:
+            resp = req.post(f"{base}/storage/v1/object/list/{bucket}", headers=auth, timeout=60,
+                            json={"prefix": folder + "/", "limit": 1000, "offset": offset})
+            if resp.status_code != 200:
+                raise RuntimeError(f"list {bucket}/{folder}: HTTP {resp.status_code}")
+            rows = resp.json() or []
+            for row in rows:
+                path = f"{folder}/{row['name']}"
+                if row.get("id"):
+                    out.append((path, ((row.get("metadata") or {}).get("size"))))
+                else:
+                    todo.append(path)
+            if len(rows) < 1000:
+                break
+            offset += 1000
+    return sorted(out)
+
+
+def prune_retired(sink, latest_sets, retire_keys, written_at, writer, log=print):
+    """L2 of #1316 (2026-11-25): a RETIRED rated set still held its last two runs' objects (measured on the public bucket that
+    day: 62 sets, 1,002 world frames 55.9 MB + 114 regional bundles 66.2 MB + 124 index files, about 0.12 GB, fixed). Retention
+    never touches a set the publisher no longer builds. A set qualifies only when its CURRENT latest.json record is already retired
+    (`retired_record`: empty, no index, so no client can be pointed at these objects) and not yet `pruned`.
+    DRY by default (FRAME_RATED_PRUNE, prune_mode): every qualifying set's objects are LISTED, with per-set count, bytes and first /
+    last path in the step summary and the full list in PRUNE_LIST (an artifact), and nothing is deleted or recorded. '1' deletes
+    them, logs the deleted count per set for audit, and returns {key: the record with `pruned` = objects deleted}, written with the
+    next pointer move. '0' does nothing."""
+    mode = prune_mode()
+    if mode == "0":
+        return {}
+    from services import frame_set as fs
+    targets = {fs.set_key(t): t for t in retired_rated_sets()}
+    out, rows = {}, []
+    for key in retire_keys:
+        rec, target = (latest_sets or {}).get(key), targets.get(key)
+        if not rec or target is None or rec.get("index") or rec.get("retired") != "partition_height_only" or "pruned" in rec:
+            continue
+        prefix = fs.set_prefix(target) + "/"
+        objs = [(p, n) for p, n in _sized_list(sink, fs.set_prefix(target)) if p.startswith(prefix)]
+        nbytes = sum(n for _p, n in objs if n is not None) if all(n is not None for _p, n in objs) else None
+        rows.append({"set": key, "objects": len(objs), "bytes": nbytes, "first": objs[0][0] if objs else None,
+                     "last": objs[-1][0] if objs else None, "paths": [p for p, _n in objs]})
+        if mode == "1":
+            if objs:
+                sink.delete([p for p, _n in objs])
+            log(f"[frames] {key}: retired rated set PRUNED, {len(objs)} object(s) deleted ({nbytes} bytes)")
+            out[key] = dict(rec, pruned=len(objs), written_at=written_at, writer=writer)
+        else:
+            log(f"[frames] {key}: retired rated set, DRY RUN: {len(objs)} object(s) ({nbytes} bytes) would be deleted")
+    if rows:
+        _prune_report(rows, mode, log)
+    return out
+
+
+def _prune_report(rows, mode, log):
+    """The per-set table to the step summary and the full list to PRUNE_LIST (both modes: the real run's list is its audit)."""
+    import json
+    total_o = sum(r["objects"] for r in rows)
+    total_b = sum(r["bytes"] or 0 for r in rows)
+    head = (f"### Retired rated sets: prune {'DRY RUN (nothing deleted; FRAME_RATED_PRUNE=1 deletes)' if mode == 'dry' else 'DELETED'}"
+            f"\n\n{len(rows)} set(s), {total_o} object(s), {total_b / 1e9:.3f} GB\n\n"
+            "| set | objects | bytes | first | last |\n|---|---|---|---|---|\n")
+    body = "".join(f"| `{r['set']}` | {r['objects']} | {r['bytes']} | `{r['first']}` | `{r['last']}` |\n" for r in rows)
+    log(f"[frames] retired rated sets ({mode}): {len(rows)} set(s), {total_o} object(s), {total_b} bytes")
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if path:
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(head + body + "\n")
+    with open(PRUNE_LIST, "w", encoding="utf-8") as fh:
+        json.dump({"mode": mode, "sets": len(rows), "objects": total_o, "bytes": total_b, "rows": rows}, fh, indent=1)
+
+
 def paint_tier(target):
     """PAINT FIRST (2026-11-16, the rating-band lane; ON, kill FRAME_RATING_PAINT_FIRST=0). The publisher's FAIR ORDER (publish_order:
     the set written longest ago first, 2026-11-12) also ran the rated step, and overrode the list order above. With ~84 rated sets

@@ -18,7 +18,7 @@ import sys
 # REPORT-ONLY steps (advisor, 2026-11-24, merge order #1265 -> #1228 -> #1264): a masked failure of these WARNS and never
 # turns the run red. `budget` is #1228's job time-left gate (its failure means "could not measure", the raster steps then run
 # as before); `frame_physics` is #1264's physics check (report-only by design). Every continue-on-error step still needs an id.
-REPORT_ONLY_STEP_IDS = frozenset({"budget", "frame_physics", "frame_physics_upload"})  # #1264: the check AND its upload
+REPORT_ONLY_STEP_IDS = frozenset({"budget", "frame_physics", "frame_physics_upload", "rated_prune_upload"})  # #1264: the check AND its upload
 
 
 def masked_failures(steps: dict) -> list:
