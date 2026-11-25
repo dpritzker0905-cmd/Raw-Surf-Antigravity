@@ -460,6 +460,13 @@ async def _lock_transfer_rows(
             action = "move" if move else "copy"
             raise HTTPException(status_code=403, detail=f"Not authorized to {action} to this folder")
         raise HTTPException(status_code=404, detail="Target folder not found")
+    # Rebuild a missing count under the lock, before the transfer changes membership.
+    if not move or item.gallery_id != target_id:
+        for folder in folders.values():
+            if folder.item_count is None:
+                folder.item_count = await db.scalar(select(func.count()).select_from(GalleryItem).where(
+                    GalleryItem.gallery_id == folder.id, GalleryItem.is_deleted.is_not(True),
+                ))
     return item, folders.get(item.gallery_id), folders[target_id]
 
 
@@ -476,9 +483,9 @@ async def move_item_to_gallery(
     )
     if item.gallery_id != target_gallery.id:
         if old_gallery:
-            old_gallery.item_count = max(0, (old_gallery.item_count or 0) - 1)
+            old_gallery.item_count = max(0, old_gallery.item_count - 1)
         item.gallery_id = target_gallery.id
-        target_gallery.item_count = (target_gallery.item_count or 0) + 1
+        target_gallery.item_count += 1
 
     # ============ PRICE SNAPSHOT: Inherit gallery's locked prices ============
     # When a photo is moved into a session gallery, it should adopt the pricing
@@ -684,7 +691,7 @@ async def copy_item_to_gallery(
     db.add(new_item)
     
     # Update target gallery count
-    target_gallery.item_count = (target_gallery.item_count or 0) + 1
+    target_gallery.item_count += 1
     
     # Set cover image if target doesn't have one
     if not target_gallery.cover_image_url and item.media_type == 'image':

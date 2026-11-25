@@ -87,3 +87,22 @@ async def test_transfer_refreshes_previously_loaded_destination(sessions, transf
             GalleryItem.gallery_id == "other", GalleryItem.is_deleted.is_not(True)
         ))
         assert (await db.get(Gallery, "other")).item_count == active == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("transfer", [move_item_to_gallery, copy_item_to_gallery])
+async def test_transfer_rebuilds_missing_counts_before_changing_membership(sessions, transfer):
+    async with sessions.begin() as db:
+        db.add(GalleryItem(id="remaining", gallery_id="source", photographer_id="owner",
+                           original_url="/original/remaining", preview_url="/preview/remaining"))
+        await db.execute(update(GalleryItem).where(GalleryItem.id == "last").values(
+            gallery_id="other", is_deleted=None
+        ))
+        await db.execute(update(GalleryItem).where(GalleryItem.id == "paid").values(is_deleted=True))
+        await db.execute(update(Gallery).values(item_count=None))
+    async with sessions() as db:
+        await transfer("first", "owner", MoveToFolderRequest(target_gallery_id="other"), db)
+    async with sessions() as db:
+        assert (await db.get(Gallery, "other")).item_count == 2
+        source_count = (await db.get(Gallery, "source")).item_count
+        assert source_count == (1 if transfer is move_item_to_gallery else None)
