@@ -77,3 +77,12 @@ Append-only. Stamps come from `date -u`.
   - Output: `research/tide-a-harcon-v2-unsupported.json`, sha256 `850a02cd…ff887978` (the committed LF bytes; the CRLF file the scan wrote on Windows hashed `00065605…eb86e348`).
   - No synthesised value was kept, and no prediction, water level or window data was read.
 - **Next:** the instrument PR that implements §13 (its own gate), then pre-flight 2 on David's typed word.
+
+## 02:22Z: the §13 scan's request log (the advisor's limit on #1304)
+
+- **Committed:** the scan's own `paced_run` request audit, byte-identical, as
+  `research/tide-a-harcon-v2-unsupported-requests.jsonl` (sha256
+  `ab8cec4daefd4b8ef128d6c0d46299fbcfcc2a05e5f291e6024410ee6e67efb5`; LF, as written).
+- **What it shows:** 478 requests, ALL to `/mdapi/prod/webapi/stations/<id>/harcon.json`, one per station, all HTTP
+  200. There was no `datagetter` call, so no prediction, water level or window data was read. That is the proof the
+  scan read harcon constants only.
