@@ -30,7 +30,10 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
     watermark_position: 'bottom-right'  // 'center', 'bottom-right', 'bottom-left', 'top-right', 'top-left', 'tiled'
   });
   
-  const [loading, setLoading] = useState(false);
+  const [profileLoad, setProfileLoad] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const userId = user?.id;
+  const loadStatus = open && userId && profileLoad?.userId === userId ? profileLoad.status : 'pending';
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -40,37 +43,40 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   // Sample preview image for testing watermark
   const sampleImage = 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800';
 
-  // Load existing settings on mount
   useEffect(() => {
-    if (open && user?.id) {
-      fetchSettings();
-    }
-  }, [open, user?.id]);
+    let current = true;
+    setProfileLoad(null);
+    if (!open || !userId) return;
 
-  const fetchSettings = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get(`/users/${user.id}/profile`);
-      const profile = response.data;
-      
-      setSettings({
-        watermark_style: profile.watermark_style || 'text',
-        watermark_text: profile.watermark_text || profile.business_name || profile.full_name || '',
-        watermark_logo_url: profile.watermark_logo_url || null,
-        watermark_opacity: profile.watermark_opacity || 0.5,
-        watermark_position: profile.watermark_position || 'bottom-right'
-      });
-    } catch (error) {
-      logger.error('Error fetching watermark settings:', error);
-    } finally {
-      setLoading(false);
+    async function loadSettings() {
+      try {
+        const response = await apiClient.get(`/users/${userId}/profile`);
+        if (!current) return;
+        const profile = response.data;
+        setSettings({
+          watermark_style: profile.watermark_style || 'text',
+          watermark_text: profile.watermark_text || profile.business_name || profile.full_name || '',
+          watermark_logo_url: profile.watermark_logo_url || null,
+          watermark_opacity: profile.watermark_opacity || 0.5,
+          watermark_position: profile.watermark_position || 'bottom-right'
+        });
+        setProfileLoad({ userId, status: 'ready' });
+      } catch (error) {
+        if (!current) return;
+        logger.error('Error fetching watermark settings:', error);
+        setProfileLoad({ userId, status: 'failed' });
+      }
     }
-  };
+
+    loadSettings();
+    return () => { current = false; };
+  }, [open, userId, loadAttempt]);
 
   const handleSaveSettings = async () => {
+    if (loadStatus !== 'ready') return;
     setSaving(true);
     try {
-      await apiClient.put(`/photographer/${user.id}/watermark-settings`, settings);
+      await apiClient.put(`/photographer/${userId}/watermark-settings`, settings);
       setSavedMessage('Watermark settings saved!');
       setTimeout(() => setSavedMessage(''), 3000);
     } catch (error) {
@@ -182,7 +188,12 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
-        {loading ? (
+        {loadStatus === 'failed' ? (
+          <div>
+            <p role="alert" className={textPrimaryClass}>Could not load watermark settings.</p>
+            <Button variant="outline" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Retry</Button>
+          </div>
+        ) : loadStatus !== 'ready' ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
           </div>
@@ -425,7 +436,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
           <Button aria-label="Loader2"
             data-testid="save-watermark-settings-btn"
             onClick={handleSaveSettings}
-            disabled={saving}
+            disabled={saving || loadStatus !== 'ready'}
             className={isBeach ? "bg-amber-400 text-black font-bold hover:bg-amber-500" : "bg-gradient-to-r from-cyan-500 to-blue-500 text-white"}
           >
             {saving ? (
