@@ -400,3 +400,13 @@ def test_the_msf_spotcheck_record_is_constants_only():
                                     "tide-mllw-tester-v1-msf-spotcheck.json"), encoding="utf-8"))
     assert d["inputs_only"] and len(d["lp3_by_station"]) == 80 and d["largest_msf_station"] not in ("9440422", "9491873")
     assert d["spotcheck"]["noaa_minus_pytmd_max_abs_m"] <= 0.003
+
+
+def test_a_key_with_no_fes_never_crashes_the_build_count():
+    """Build 45678981191 (2026-11-25) crashed after writing the table: a monitor key where FES has no value has series
+    None (levels_mm), and the final served count iterated it. Nothing was published that day."""
+    import own_rules as OR
+    out_keys = {"a": [1, None, 3], "b": None, "c": [None, None], "d": OR.levels_mm(None, 0.1)}
+    assert OR.served_count(out_keys) == 1
+    src = open(os.path.join(HERE, "..", "scripts", "tide_own", "build_series.py"), encoding="utf-8").read()
+    assert "served = OR.served_count(out_keys)" in src and "for vals in out_keys.values())" not in src

@@ -78,6 +78,13 @@ def levels_mm(a, m):
     return [None if not math.isfinite(float(v)) else int(round((float(v) + mf) * 1000.0)) for v in a]
 
 
+def served_count(out_keys):
+    """PURE: how many keys have at least one served hour. A key where FES has no value has series None (levels_mm),
+    e.g. a TIDE-guard or MLLW-tester monitor key on land: it counts as not served and never raises (build 45678981191,
+    2026-11-25, crashed here after writing the table, so nothing was published)."""
+    return sum(1 for vals in out_keys.values() if vals and any(v is not None for v in vals))
+
+
 def table(now, start, hours, out_keys, m_cache):
     """The served document. Keys with no series at all (no FES water) are dropped: absent means unavailable."""
     keys = {k: v for k, v in out_keys.items() if v is not None and any(x is not None for x in v)}

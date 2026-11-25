@@ -186,3 +186,23 @@ Append-only. Stamps come from `date -u`.
   - The sheet report is evaluated on every recorded run, including early UNTESTABLE ones.
 - **Pre-flip, carried:** the TIDE_DATUM guard is not wired into `flag_guardrail.run()`, so there is no ON-side
   auto-disable yet. That wiring must land before any flip.
+
+## 19:43Z: INCIDENT: the daily tide build crashed after #1318 merged; nothing published today (hotfix PR)
+
+- **The run:** tide-own-series run 45678981191 (scheduled; created 18:49Z on `dev` 270b1d967, i.e. #1318 merged
+  17:32Z). The `build` job ran 18:50–19:40Z and failed at step 7. Publish (step 13) was skipped. The served table is
+  still the 2026-11-24 build: the 90-day horizon serves it, so there was no outage, but it is a day stale.
+- **The readback of what the build did log before the crash** (the #1302 / #1303 / #1306 items):
+  - M: 123 computed this run; 1183 of 1184 keys have M;
+  - MLLW (NTDE): 375 computed this run; 375 keys have model D (the first NTDE fill, #1149);
+  - am_h at 350 keys from 268 donor stations;
+  - **am_h skipped donors (synthesis raised): 0** (the #1302 guard did not fire; #1303's count works);
+  - am_lp at 79 of 80 monitor keys, with the carry (ii) self-check OK (worst 1 mm, eval 1e-16 m, key 13.4,144.8).
+  - The step took about 50 min. Not logged, because the crash came first: the final "A at N keys; served ..." line and
+    the "MLLW tester keys: N NEW cells" count.
+- **The cause:** a latent bug that #1318's monitor keys exposed. One of the 80 keys has no FES value, so `levels_mm`
+  returns None, and the final log line `sum(any(...) for vals in out_keys.values())` iterated None. The table had already
+  been written; `OR.table` drops None keys, so the table itself was fine.
+- **The fix:** `own_rules.served_count` skips None, plus a regression test (chain +1).
+- **The interim alternative,** the owner's or director's call, not mine: set `TIDE_MLLW_TESTER_KEYS=0` (the kill)
+  until the fix merges, then re-dispatch the build.
