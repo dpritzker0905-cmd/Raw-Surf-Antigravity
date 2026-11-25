@@ -48,7 +48,7 @@ L2_PREFIX = "spot_series/v1"
 HORIZON_H = 336
 LEVELS = ["very_poor", "poor", "poor_fair", "fair", "fair_good", "good", "epic"]
 WIND_WORDS = ["offshore", "cross-shore", "onshore"]
-COLS = ["t", "h", "s", "r", "l", "lo", "hi", "w", "wd", "sw", "td"]
+COLS = ["t", "h", "s", "r", "l", "lo", "hi", "w", "wd", "sw", "td", "tdd"]   # td: display tide (cm); tdd: 1 = td is above MLLW (tide_datum), null = above local MSL
 _CONCURRENCY = 8
 
 
@@ -182,7 +182,8 @@ def columnar(rows: List[Dict[str, Any]], base: datetime, band: Dict[tuple, tuple
                      ("w", int(round(row["wind_kt"])) if isinstance(row.get("wind_kt"), (int, float)) else None),
                      ("wd", WIND_WORDS.index(ww) if ww in WIND_WORDS else None),
                      ("sw", _cm(row.get("primary_swell_hs_m"))),
-                     ("td", _cm(tide.get("height_m")) if tide else None)):
+                     ("td", _cm(tide.get("display_height_m", tide.get("height_m"))) if tide else None),
+                     ("tdd", 1 if tide and tide.get("datum") == "MLLW" else None)):
             cols[c].append(v)
     return cols
 

@@ -95,6 +95,9 @@ export function decodeSeries(body, { nowMs = Date.now(), resolverHours = null } 
       windWord: wd != null && words[wd] ? words[wd] : null,
       swellM: num(col('sw', i)) == null ? null : num(col('sw', i)) / 100,
       tideM: td == null ? null : td / 100,
+      // tdd = 1: td is above MLLW (a US spot, tide_datum); absent = above local mean sea level. The server decides
+      // (SURF_TIDE_MLLW_US); the chart only names it, so it never relabels a number it cannot convert back.
+      tideMllw: td != null && num(col('tdd', i)) === 1,
     });
   });
   frames.forEach((f, i) => { f.index = i; });
@@ -113,6 +116,7 @@ export function decodeSeries(body, { nowMs = Date.now(), resolverHours = null } 
     leftoverFrom: leftover.length ? leftover[0] : null,
     tideUntilMs: Number.isFinite(tideMs) ? tideMs : null,
     hasTide: frames.some((f) => f.tideM != null),
+    tideMllw: frames.some((f) => f.tideM != null && f.tideMllw),
     horizonHours: hours, premiumDays: num(body.premium_days) || 14, daysAllowed: days,
     baseTime: body.base_time, generatedAt: body.generated_at,
   };
@@ -175,7 +179,9 @@ export function frameDescription(f, fmtHeight, unit = 'm') {
   const parts = [f.label, f.heightM == null ? 'no surf height' : fmtHeight(f.heightM), levelWord(f.level)];
   if (f.levelLo && f.levelHi && f.levelLo !== f.levelHi) parts.push(`models range ${levelWord(f.levelLo)} to ${levelWord(f.levelHi)}`);
   if (f.windKt != null) parts.push(`${f.windKt} kt${f.windWord ? ` ${f.windWord}` : ''}`);
-  if (f.tideM != null) parts.push(`tide ${formatTideHeight(f.tideM, unit === 'ft' ? 'ft' : 'm')}`);
+  if (f.tideM != null) {
+    parts.push(`tide ${formatTideHeight(f.tideM, unit === 'ft' ? 'ft' : 'm')} ${f.tideMllw ? 'above MLLW' : 'above local MSL'}`);
+  }
   return parts.join(', ');
 }
 

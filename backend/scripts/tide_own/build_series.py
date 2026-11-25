@@ -200,6 +200,41 @@ def m_parity(work):
     return len(diffs) == len(OR.G3T_M) and worst <= OR.M_PARITY_MAX_M, worst, len(diffs)
 
 
+def compute_d(keys_pts, m_cache, boxes, budget_s):
+    """The US display datum's model source: for each US key (tide_us_region) without one yet, A synthesised every
+    OR.NTDE_STEP_MIN over the 1983-2001 NTDE and OR.d_ntde of it (MSL - MLLW, NOAA's definition) - the exact method
+    G3t's item 4 measured at 0.0135 m median |error| against the CO-OPS datum sheets. A tidal-range quantity: it does not
+    depend on the mean level M. Cached in the M cache for good (`d_ntde`), filled inside `budget_s`; returns how many."""
+    sys.path.insert(0, str(HERE.parent.parent))                  # backend/: the stdlib-only region test
+    from services.weather_pipeline.tide_us_region import in_us
+    dates = np.arange(np.datetime64("1983-01-01T00:00", "us"), np.datetime64("2002-01-01T00:00", "us"),
+                      np.timedelta64(OR.NTDE_STEP_MIN, "m"))
+    t0, done = time.monotonic(), 0
+    for k, (la, lo) in keys_pts.items():
+        if time.monotonic() - t0 > budget_s:
+            log(f"MLLW (NTDE): budget reached after {done} keys")
+            break
+        entry = m_cache.get(k)                    # only keys already holding M (a key compute_m has not reached must
+        if not entry or "m" not in entry:         # stay absent from the cache, or compute_m would skip it for good)
+            continue
+        if "d_ntde" in entry or "d_ntde_unavailable" in entry or not in_us(la, lo):
+            continue
+        if not (boxes / OR.safe_dir(k)).exists():
+            continue
+        try:
+            a = arms.fes_eval(boxes / OR.safe_dir(k), la, lo, dates)
+        except Exception as e:                                                   # noqa: BLE001 - per key
+            log(f"{k}: NTDE synthesis failed ({type(e).__name__})")
+            continue
+        d = OR.d_ntde(a, OR.NTDE_STEP_MIN / 60.0) if a is not None else None
+        if d is None:
+            entry["d_ntde_unavailable"] = "FES undefined here"
+        else:
+            entry["d_ntde"] = d
+        done += 1
+    return done
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--spots", required=True, help="JSON list of [lat, lng] (active spots)")
@@ -209,6 +244,8 @@ def main():
     ap.add_argument("--m-budget-min", type=float, default=200.0)
     ap.add_argument("--out", default="tide_own_series.json.gz")
     ap.add_argument("--cmems", default="0", help="1 = also fill the CMEMS direct read (only after the M1-0 PASS)")
+    ap.add_argument("--d-budget-min", type=float, default=30.0,
+                    help="minutes for the US keys' 19-year MSL - MLLW (cached for good; the first fill spans runs)")
     ap.add_argument("--download-fes-only", action="store_true")
     args = ap.parse_args()
     if args.download_fes_only:
@@ -255,6 +292,9 @@ def main():
         n_a += a is not None
         a_by_key[k] = a
         out_keys[k] = OR.levels_mm(a, (m_cache.get(k) or {}).get("m"))
+    n_d = compute_d(keys_pts, m_cache, boxes, args.d_budget_min * 60.0)
+    mc_path.write_text(json.dumps(m_cache, sort_keys=True), encoding="utf-8")
+    log(f"MLLW (NTDE): {n_d} computed this run; {sum('d_ntde' in v for v in m_cache.values())} keys have it")
     doc = OR.table(now, start, hours, out_keys, m_cache)
     harcon_cache = {}
 
@@ -266,11 +306,16 @@ def main():
                 log(f"harcon {sid}: {type(e).__name__}")
                 harcon_cache[sid] = []
         return harcon_cache[sid]
+    skipped = {}
     am_h, am_h_meta = HA.build_am_h(keys_pts, a_by_key, {k: (m_cache.get(k) or {}).get("m") for k in keys_pts},
-                                    HA.universe(), harcon, arms.harcon_eval, times, OR.levels_mm)
+                                    HA.universe(), harcon, arms.harcon_eval, times, OR.levels_mm, skipped=skipped)
     doc["am_h"] = {k: v for k, v in am_h.items() if k in doc["keys"] and v and any(x is not None for x in v)}
     doc["am_h_donors"] = {k: am_h_meta[k] for k in doc["am_h"]}
     log(f"am_h (NOAA harcon blend) at {len(doc['am_h'])} keys from {len(harcon_cache)} donor stations")
+    # The advisor's limit 1 on #1302: every build says how many donors the synthesis could not evaluate (their keys
+    # keep the FES arm), so a silent loss of am_h coverage shows in the log.
+    log(f"am_h skipped donors (synthesis raised): {len(skipped)}"
+        + (f" ({', '.join(f'{d} {c}' for d, c in sorted(skipped.items()))})" if skipped else ""))
     if args.cmems == "1":
         doc["cmems"] = cmems_fill(keys_pts, start, hours, work / "cmems", now)
         doc["cmems_dataset"] = OR.CMEMS_DATASET

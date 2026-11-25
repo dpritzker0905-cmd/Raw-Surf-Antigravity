@@ -1,0 +1,67 @@
+{
+ "caribbean": {
+  "keys": 8,
+  "source": {
+   "interpolated": 6,
+   "msl": 2
+  },
+  "shift_n": 6,
+  "shift_median_m": 0.09,
+  "shift_p10_m": 0.023,
+  "shift_p90_m": 0.094
+ },
+ "east": {
+  "keys": 103,
+  "source": {
+   "interpolated": 40,
+   "msl": 53,
+   "gauge": 10
+  },
+  "shift_n": 50,
+  "shift_median_m": 0.532,
+  "shift_p10_m": 0.279,
+  "shift_p90_m": 1.014
+ },
+ "gulf": {
+  "keys": 65,
+  "source": {
+   "msl": 18,
+   "gauge": 18,
+   "interpolated": 29
+  },
+  "shift_n": 47,
+  "shift_median_m": 0.178,
+  "shift_p10_m": 0.038,
+  "shift_p90_m": 0.437
+ },
+ "hawaii": {
+  "keys": 21,
+  "source": {
+   "interpolated": 7,
+   "msl": 13,
+   "gauge": 1
+  },
+  "shift_n": 8,
+  "shift_median_m": 0.164,
+  "shift_p10_m": 0.164,
+  "shift_p90_m": 0.202
+ },
+ "west": {
+  "keys": 56,
+  "source": {
+   "gauge": 7,
+   "interpolated": 34,
+   "msl": 15
+  },
+  "shift_n": 41,
+  "shift_median_m": 0.778,
+  "shift_p10_m": 0.756,
+  "shift_p90_m": 1.292
+ },
+ "_all_us": {
+  "keys": 253,
+  "shift_n": 152,
+  "shift_median_m": 0.44,
+  "m_source": "nearest G3t gauge M (approx.)"
+ }
+}

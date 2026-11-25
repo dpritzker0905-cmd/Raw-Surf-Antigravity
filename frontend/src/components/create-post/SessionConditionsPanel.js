@@ -194,8 +194,10 @@ const SessionConditionsPanel = ({
                       </Select>
                     </div>
                     <div>
-                      <label className={`text-xs ${labelClass} block mb-1`}>Height (ft)</label>
+                      {/* The auto-fill is NOAA's MLLW tide (services/surf_conditions.py); the field names its datum. */}
+                      <label htmlFor="session-tide-height" className={`text-xs ${labelClass} block mb-1`}>Height (ft above MLLW)</label>
                       <Input
+                        id="session-tide-height"
                         type="number"
                         step="0.1"
                         value={tideHeightFt}

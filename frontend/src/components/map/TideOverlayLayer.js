@@ -14,6 +14,7 @@ import { canUseAddOn } from './LayerAccessResolver';
 import { selectTideCells, tideMarkerModel } from './tideOverlayModel';
 import { useTideOverlayFlag, useTidePayloads } from './useTideOverlay';
 import { tideCredit } from './tideReadoutFormat';
+import { tidePlainLineDisabled } from './tideDatum';
 
 // Stable props: react-map-gl re-applies a Marker's offset/style when their identity changes, so new literals on every
 // scrub step would cost a DOM update per marker per step.
@@ -41,6 +42,9 @@ export function TideMarkerBody({ model, theme }) {
       <div aria-hidden="true">
         <span className={`font-semibold ${k.accent}`}>{model.glyph} {model.trendWord}</span>{' '}
         <span className="font-bold">{model.heightText}</span>
+        {/* Decision B: no datum name on the marker (its accessible name says it; the infobox's info tip explains it).
+            Kill: window.__RAW_DISABLE_TIDE_PLAIN_LINE__ puts it back. */}
+        {tidePlainLineDisabled() && model.datumText && <span className={k.muted}> {model.datumText}</span>}
       </div>
       {model.nextText && <div aria-hidden="true" className={`text-[9px] ${k.muted}`}>{model.nextText}</div>}
     </div>

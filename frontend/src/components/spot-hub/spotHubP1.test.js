@@ -158,8 +158,8 @@ describe('tides', () => {
     const list = cards(mapPointRatingResponse(RESPONSE));
     const i = list.findIndex((c) => c.label === 'Tide');
     expect(list[i - 1].label).toBe('Rating');
-    expect(list[i]).toMatchObject({ value: '+1.3 ft, Rising', note: 'model estimate, mean sea level',
-      ariaLabel: 'Tide (model estimate, mean sea level): +1.3 feet, Rising' });
+    expect(list[i]).toMatchObject({ value: '+1.3 ft, Rising', note: 'model estimate, above local MSL',
+      ariaLabel: 'Tide (model estimate, above local MSL): +1.3 feet, Rising' });
   });
 
   test('the Tide row follows the ft/m button like the wave heights (owner 2026-11-15)', () => {
@@ -170,7 +170,7 @@ describe('tides', () => {
       useExactPoint: { wave_height: 1, wave_period: 12, wave_direction: 270, surf_height_m: 2, surf_regime: 'shoaling', surf_nearshore: true },
     });
     expect(list.find((c) => c.label === 'Tide')).toMatchObject({ value: '+0.4 m, Rising',
-      ariaLabel: 'Tide (model estimate, mean sea level): +0.4 meters, Rising' });
+      ariaLabel: 'Tide (model estimate, above local MSL): +0.4 meters, Rising' });
     expect(formatPointTide(sanitizePointTide({ height_m: -0.34, trend: 'falling' }), 'm')).toBe('−0.3 m, Falling');
   });
 
