@@ -160,12 +160,19 @@ def main(argv=None):
     npt = arms.to_np(hours)
     harcon_cache, truth_cache = {}, {}
 
+    unsupported = {}                                               # v2 §13: {id: error} where the synthesis raised
+
     def harcon(sid):
         if sid not in harcon_cache:
             try:
                 harcon_cache[sid] = S.coops_harcon(sid)
             except Exception:                                      # noqa: BLE001 - "no constants" is a replacement cause
                 harcon_cache[sid] = []
+            if harcon_cache[sid] and a.c2_grid_min != 60:          # v2 only (§13); v1's behaviour is unchanged
+                ok, err = V2.synth_ok(harcon_cache[sid], synth6)
+                if not ok:                                         # "no usable constants": skipped, never altered
+                    unsupported[sid] = err
+                    harcon_cache[sid] = []
         return harcon_cache[sid]
 
     def truth(sid):
@@ -204,6 +211,9 @@ def main(argv=None):
             per[sid] = dict(row, fes_undefined=True)
             continue
         fes, fes_tb = [float(x) for x in fes], [float(x) for x in fes_tb]
+        if a.c2_grid_min != 60 and not harcon(sid) and sid in unsupported:   # §13: own constants unsupported -> replaced
+            per[sid] = dict(row, unsupported_constants=unsupported[sid])
+            continue
         try:
             tr = truth(sid)
         except Exception as e:                                     # noqa: BLE001 - a CO-OPS failure is reported
@@ -239,6 +249,8 @@ def main(argv=None):
     out = {"schema": "raw-surf/tide-a-harcon-v1-run/1", "gate": "gates/tide-a-harcon-v1.md",
            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "window_start": a.start,
            "days": a.days, "candidates": [[i, k] for i, k in cand], "per_station": per, "complete": True}
+    if a.c2_grid_min != 60:                                        # v2 §13: every station whose synthesis raised, listed
+        out["unsupported_constants"] = unsupported
     with open(a.json + ".tmp", "w", encoding="utf-8", newline="\n") as fh:   # amendment 3: atomic, never a partial file
         json.dump(out, fh, indent=1, default=str)
     os.replace(a.json + ".tmp", a.json)

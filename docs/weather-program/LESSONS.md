@@ -1641,3 +1641,28 @@ A stored estimate can be estimated again in a browser branch with different sour
 - **Rule:** read the mode from the run's report header `## Flag guardrail (enforce)` / `(dry-run)` in its log or step
   summary, or from `gh variable list` (`FLAG_GUARDRAIL_ENFORCE`). Never from a template line, and never from a
   one-line print of fields without their names.
+
+### 2026-11-25 — L-P51 · A report-only check is only as good as the author who reads it: read its table before sending a head (#1294)
+- **What happened:** the PR-time floor fragment check (#1277, report-only) printed `estate | 5 | 0 | 4 | mismatch` on
+  #1294 with the exact fix command. The job was green, the author sent the head without reading it, and the estate floor
+  ran one test low until the catch-up #1309. The extra test came from a parametrization over workflow files
+  (`test_workflow_key_environment.py`) that grows when a workflow is ADDED, with no test file touched: the case the
+  check exists for.
+- **Rule:** before sending a PR head, open `backend-floor-fragment-check`'s table (step summary) and fix any mismatch with
+  the printed `rederive_floor.py` command. When adding a workflow, expect parametrized workflow tests to grow.
+
+### 2026-11-25 — L-P52 · Never quote a CI skip token verbatim in a commit message or a PR body (#1300)
+- **What happened:** #1300's head commit described the skip markers it learned to read, and quoted the "skip ci" token
+  in brackets. GitHub skips EVERY workflow for a head commit whose message contains any of the bracketed tokens skip ci,
+  ci skip, no ci, skip actions or actions skip, so the PR never ran CI (closing and reopening started nothing). This
+  repo squashes with `COMMIT_MESSAGES`, so a default squash would have copied the token into the dev merge commit and
+  skipped dev's CI and E2E as well.
+- **Rule:** in a commit message or a PR body, write these tokens spaced or hyphenated (skip-ci, skip-netlify), never in
+  brackets. Code and test files may hold them; GitHub reads only the message. If a head commit already carries one,
+  push a new commit (no amend or force) whose message has none, and merge with an explicit squash body.
+
+### 2026-11-25 — L-P53 · The dev ruleset requires the advisor-gate status: a hand merge outside the merge loop must post it
+- **What happened:** #1300 was merged by hand with an explicit squash body, outside the director's merge loop. The dev
+  ruleset requires the `advisor-gate` status, so the merger had to post that status itself.
+- **Rule:** anyone merging outside the loop posts the advisor-gate status (with the gate's verdict and head) before the
+  merge. A green CI alone does not satisfy the ruleset.

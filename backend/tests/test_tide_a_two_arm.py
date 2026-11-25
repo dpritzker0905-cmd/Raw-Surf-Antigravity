@@ -132,6 +132,9 @@ def test_build_am_h_survives_a_donor_the_synthesis_cannot_evaluate():
     keys = {"a": (30.0, -80.0)}
     out, meta = HA.build_am_h(keys, {"a": [0.2]}, {"a": 0.1}, UNI, harcon, synth, None, OR.levels_mm)
     assert out == {} and meta == {}
+    skipped = {}                                    # the advisor's limit 1 on #1302: the skipped donors are counted
+    HA.build_am_h(keys, {"a": [0.2]}, {"a": 0.1}, UNI, harcon, synth, None, OR.levels_mm, skipped=skipped)
+    assert list(skipped.values()) == ["ValueError"] and len(skipped) == 1
 
     calls = []
 

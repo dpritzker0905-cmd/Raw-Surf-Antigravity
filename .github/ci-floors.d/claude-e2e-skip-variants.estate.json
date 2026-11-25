@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 2,
+  "branch": "claude/e2e-skip-variants",
+  "date": "2026-11-25",
+  "note": "Netlify skip variants + undeployed-frontend warning (test_e2e_frontend_target +2)"
+}
