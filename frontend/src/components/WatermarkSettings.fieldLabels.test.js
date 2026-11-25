@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import WatermarkSettings from './WatermarkSettings';
 
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'photographer' } }) }));
-jest.mock('../lib/apiClient', () => ({ get: async () => ({ data: {} }) }));
+jest.mock('../lib/apiClient', () => ({ get: async () => ({ data: { watermark_style: 'text' } }) }));
 jest.mock('./ui/slider', () => ({ Slider: () => null }));
 
 test.each([

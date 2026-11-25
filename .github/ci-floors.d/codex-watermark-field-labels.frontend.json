@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 2,
+  "files": 1,
+  "branch": "codex/watermark-field-labels",
+  "date": "2026-11-25",
+  "note": "Watermark text and position control label associations"
+}
