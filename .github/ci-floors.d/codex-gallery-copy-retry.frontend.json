@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 4,
+  "files": 1,
+  "branch": "codex/gallery-copy-retry",
+  "date": "2026-11-24",
+  "note": "Bulk copy retry and navigation during and after a copy"
+}
