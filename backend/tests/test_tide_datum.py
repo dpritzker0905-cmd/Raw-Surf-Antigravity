@@ -246,6 +246,236 @@ def test_parity_match_and_summary_are_honest():
                  "time_median_min": 12.0, "time_max_min": 12.0}
 
 
+def test_parity_v2_signed_events_p90_and_tidal_band():
+    """v2: signed per-event rows (ours - NOAA), p90, and the tidal band (each side's seasonal term removed)."""
+    sys.path.insert(0, os.path.join(HERE, "..", "scripts", "tide_datum"))
+    import parity_coops as P
+    from datetime import timedelta
+    t0 = datetime(2026, 11, 23, 3, 59, tzinfo=timezone.utc)
+    noaa = [(t0, "High", 1.23), (t0 + timedelta(hours=6), "Low", 0.20), (t0 + timedelta(hours=12), "High", 1.10)]
+    ours = [{"type": "High", "time": t0 - timedelta(minutes=12), "level_m": 1.26},
+            {"type": "Low", "time": t0 + timedelta(hours=6, minutes=6), "level_m": 0.15}]
+    ev = P.match_events(noaa, ours)
+    assert ev[0]["height_err_m"] == pytest.approx(0.03) and ev[0]["time_err_min"] == pytest.approx(-12.0)
+    assert ev[1]["height_err_m"] == pytest.approx(-0.05) and ev[1]["time_err_min"] == pytest.approx(6.0)
+    assert ev[2]["ours_m"] is None and ev[2]["height_err_m"] is None and ev[0]["time"] == "2026-11-23T03:59Z"
+    s = P.summarize_events(ev)
+    assert s["n"] == 3 and s["unmatched"] == 1 and s["height_median_abs_m"] == pytest.approx(0.04)
+    assert s["height_median_signed_m"] == pytest.approx(-0.01) and s["height_p90_abs_m"] == pytest.approx(0.05)
+    assert s["time_median_min"] == pytest.approx(9.0) and s["time_p90_min"] == pytest.approx(12.0)
+    assert P.p90([]) is None and P.p90([0.1]) == 0.1 and P.p90([float(i) for i in range(1, 11)]) == 9.0
+    # a seasonal +0.05 m in NOAA's heights that our atlas tide lacks reads -0.05 m raw and ~0 in the tidal band
+    raw = P.match_events([(t0, "High", 1.28)], [{"type": "High", "time": t0, "level_m": 1.23}])
+    tb = P.match_events(P.remove_seasonal([(t0, "High", 1.28)], [0.05]), [{"type": "High", "time": t0, "level_m": 1.23}])
+    assert raw[0]["height_err_m"] == pytest.approx(-0.05) and tb[0]["height_err_m"] == pytest.approx(0.0)
+
+
+def test_finder_unaffected_by_a_constant_datum_shift():
+    """gates/tide-datum-parity-v1.md amendment 3 (owner 2026-11-23 "Yes, re-run it"): a constant D moves no event time
+    and shifts every event height by exactly D, the planted-D identity the datum gate's VOID control needs. The old
+    1 mm rounding after adding D broke it on flat-topped turns (run 45102683907, VOID); the positive control below
+    shows this test can see that defect."""
+    from datetime import timedelta
+    from services.weather_pipeline import tide as T
+    t0 = datetime(2026, 11, 23, tzinfo=timezone.utc)
+    iso = [(t0 + timedelta(hours=i)).strftime("%Y-%m-%dT%H:00") for i in range(24 * 7)]
+    # a mixed tide with flat-topped turns: M2 + K1 + a small M4
+    base = [0.6 * math.cos(2 * math.pi * i / 12.42) + 0.35 * math.cos(2 * math.pi * i / 23.93 + 1.0)
+            + 0.08 * math.cos(4 * math.pi * i / 12.42) for i in range(len(iso))]
+    for dd in (0.01, 0.0124, 0.13):
+        a = T.tide_extrema(iso, [x + 0.25 for x in base])
+        b = T.tide_extrema(iso, [x + 0.25 + dd for x in base])
+        assert a and [e["type"] for e in a] == [e["type"] for e in b]
+        assert all(abs((ea["time"] - eb["time"]).total_seconds()) < 1e-6 for ea, eb in zip(a, b))
+        assert all(abs((eb["level_m"] - ea["level_m"]) - dd) < 1e-9 for ea, eb in zip(a, b))
+    # POSITIVE CONTROL: the old rounded path DOES move events (measured locally: up to 64 s for a sub-cm shift)
+    moved = 0.0
+    for dd in (0.0004, 0.0124, 0.0006):
+        a = T.tide_extrema(iso, [round(x + 0.25, 3) for x in base])
+        b = T.tide_extrema(iso, [round(x + 0.25 + dd, 3) for x in base])
+        moved = max(moved, max(abs((ea["time"] - eb["time"]).total_seconds()) for ea, eb in zip(a, b)))
+    assert moved > 6.0
+
+
+def test_parity_display_series_is_unrounded():
+    """The instrument feeds the finder the UNROUNDED A + D (amendment 3's only change); pinned on the source."""
+    src = open(os.path.join(HERE, "..", "scripts", "tide_datum", "parity_coops.py"), encoding="utf-8").read()
+    assert "lv = [float(x) + dval for x in series]" in src
+    assert "round(float(x) + dval" not in src
+
+
+def _pc():
+    sys.path.insert(0, os.path.join(HERE, "..", "scripts", "tide_datum"))
+    import parity_coops as P
+    return P
+
+
+def test_v2_donor_never_decides_and_own_sheet_never_used():
+    """tide-datum-parity-v2 (#1210): leave-one-out. The station's OWN sheet (the truth's datum) is never its D, and a
+    held-out (deciding) station is never a donor, even when nearer."""
+    P = _pc()
+    sheets = [{"id": "SELF", "lat": 30.0, "lng": -80.0, "d": 0.50},          # the station itself, distance 0
+              {"id": "DEC", "lat": 30.002, "lng": -80.0, "d": 0.60},        # 0.22 km, but a deciding station
+              {"id": "OK", "lat": 30.009, "lng": -80.0, "d": 0.70},         # 1.0 km, eligible
+              {"id": "FAR", "lat": 30.05, "lng": -80.0, "d": 0.80}]         # 5.6 km, beyond 2 km
+    d = P.choose_donor("SELF", 30.0, -80.0, sheets, {"SELF", "DEC"})
+    assert d["id"] == "OK" and d["d"] == 0.70 and d["km"] == pytest.approx(1.0, abs=0.01)
+    assert P.choose_donor("SELF", 30.0, -80.0, sheets[:2] + sheets[3:], {"SELF", "DEC"}) is None
+    for k in range(4):                                       # whatever is excluded, never the station or a decider
+        got = P.choose_donor("SELF", 30.0, -80.0, sheets[k:], {"SELF", "DEC"})
+        assert got is None or got["id"] not in {"SELF", "DEC"}
+
+
+def test_v2_datums_have_no_own_sheet_and_the_placebo_is_offset():
+    P = _pc()
+    with_donor = P.v2_datums(0.40, {"id": "OK", "d": 0.70, "km": 1.0})
+    assert set(with_donor) == {"model", "nsheet", "hybrid", "placebo"} and "sheet" not in with_donor
+    assert with_donor["hybrid"] == 0.70 and with_donor["placebo"] == pytest.approx(0.80)
+    without = P.v2_datums(0.40, None)
+    assert set(without) == {"model", "hybrid", "placebo"} and without["hybrid"] == 0.40
+    assert without["placebo"] == pytest.approx(0.40 + P.PLACEBO_M)
+
+
+def test_v2_frozen_heldout_is_disjoint_from_everything_seen():
+    P = _pc()
+    path = os.path.join(HERE, "..", "..", "docs", "weather-program", "research", "tide-datum-parity-v2-heldout.json")
+    held = json.load(open(path, encoding="utf-8"))
+    nb, md = held["strata"]["NEIGHBOR"], held["strata"]["MODEL"]
+    deciding = set(nb["deciding"]) | set(md["deciding"])
+    assert len(nb["deciding"]) == 20 and len(md["deciding"]) == 20 and len(deciding) == 40
+    assert not deciding & set(held["seen_excluded"]) and not deciding & set(nb["reserve"] + md["reserve"])
+    from own_rules import G3T_M
+    assert not deciding & set(G3T_M) and held["seed"] == 20261124
+    lst = P.v2_station_list(held, 5)
+    assert [i for i, _ in lst[:20]] == nb["deciding"] and len(lst) == 50
+
+
+def _v2_art(per_h, d_model=0.4, d_ns=0.43, nb=True):
+    """Synthetic artifact rows: 10 matched events with the given signed tidal-band hybrid error."""
+    def ev(err, dt=2.0):
+        return [{"time": f"2026-12-0{1 + i // 4}T{(i % 4) * 6:02d}:00Z", "type": "High", "noaa_m": 1.0,
+                 "ours_m": 1.0 + err, "height_err_m": err, "time_err_min": dt} for i in range(10)]
+    row = {"d": {"model": d_model, "hybrid": d_ns if nb else d_model, "placebo": (d_ns if nb else d_model) + 0.10},
+           "hybrid_tb_events": ev(per_h), "placebo_tb_events": ev(per_h + 0.10), "model_tb_events": ev(per_h - (d_ns - d_model) if nb else per_h)}
+    if nb:
+        row["d"]["nsheet"] = d_ns
+        row["nsheet_tb_events"] = ev(per_h)
+    return row
+
+
+def _v2_held(n=20, reserve=6):
+    return {"strata": {"NEIGHBOR": {"deciding": [f"N{i}" for i in range(n)], "reserve": [f"NR{i}" for i in range(reserve)]},
+                       "MODEL": {"deciding": [f"M{i}" for i in range(n)], "reserve": [f"MR{i}" for i in range(reserve)]}}}
+
+
+def test_v2_scorer_intersection_placebo_and_replacement_cap():
+    sys.path.insert(0, os.path.join(HERE, "..", "scripts", "tide_datum"))
+    import datum_v2_score as V
+    held = _v2_held()
+    fin = {sid: {"hourly": {"median_abs_h_m": 0.001}} for k in ("N", "M", "NR", "MR") for sid in [f"{k}{i}" for i in range(20)]}
+
+    def art(nb_err, md_err, undefined=()):
+        per = {}
+        for i in range(20):
+            per[f"N{i}"] = _v2_art(nb_err)
+            per[f"M{i}"] = _v2_art(md_err, nb=False)
+        for i in range(6):
+            per[f"NR{i}"] = _v2_art(nb_err)
+            per[f"MR{i}"] = _v2_art(md_err, nb=False)
+        for sid in undefined:
+            per[sid] = {"error": "FES undefined"}
+        return {"per_gauge": per, "window_start": "2026-12-01", "mode": "v2-heldout-loo"}
+
+    assert V.score(art(0.01, 0.01), held, fin)["verdict"] == "PASS"
+    # intersection: NEIGHBOR passes, MODEL's signed bias fails -> FAIL (a pooled primary could have passed)
+    r = V.score(art(0.01, 0.05), held, fin)
+    assert r["verdict"] == "FAIL" and r["strata"]["NEIGHBOR"]["pass"] and not r["strata"]["MODEL"]["pass"]
+    # PLANTED FAIL (gate amendment 1, #1270): a hybrid biased -0.09 m in both strata FAILS the signed leg; its
+    # placebo (-0.09 + 0.10 = +0.01) would have PASSED that leg, which the old "placebo must FAIL" rule turned into a
+    # VOID. The shift identity holds (+0.10 exactly), so the run is NOT void and the real FAIL is recorded.
+    r = V.score(art(-0.09, -0.09), held, fin)
+    assert r["controls"]["placebo"]["pass"] and r["verdict"] == "FAIL"
+    assert all(abs(v["diff_m"] - 0.10) < 1e-9 for v in r["controls"]["placebo"]["shift_identity_by_stratum"].values())
+    assert not r["strata"]["NEIGHBOR"]["legs"]["signed"] and not r["strata"]["MODEL"]["legs"]["signed"]
+    # BROKEN PLACEBO: an instrument that does not carry the +0.10 m shift (placebo == hybrid) is VOID, bar unopened
+    broken = art(0.01, 0.01)
+    for row in broken["per_gauge"].values():
+        if "hybrid_tb_events" in row:
+            row["placebo_tb_events"] = [dict(e) for e in row["hybrid_tb_events"]]
+    r = V.score(broken, held, fin)
+    assert r["verdict"] == "VOID" and not r["controls"]["placebo"]["pass"] and "strata" not in r
+    # s10 (c): the planted-D identity is VOID unless tested at >= 10 NEIGHBOR stations (no-donor stations are trivial)
+    few = art(0.01, 0.01)
+    for i in range(11):                                       # 9 NEIGHBOR stations keep a donor
+        row = few["per_gauge"][f"N{i}"]
+        row["d"].pop("nsheet")
+        row.pop("nsheet_tb_events")
+    r = V.score(few, held, fin)
+    assert r["verdict"] == "VOID" and r["controls"]["planted_d_identity"]["tested_stations"] == 9
+    assert not r["controls"]["planted_d_identity"]["pass"] and "strata" not in r
+    # s11 (measurability before vacuity): with the finder passing, a stratum with < 19 MEASURED has already FAILED
+    # (s4); D cannot change measurability, so the vacuous placebo is reported 'untestable' and the run is FAIL, not VOID.
+    thin = art(0.01, 0.01)
+    for i in range(13):                                       # 7 MODEL stations stay MEASURED
+        for key in ("hybrid_tb_events", "placebo_tb_events", "model_tb_events"):
+            thin["per_gauge"][f"M{i}"][key] = [dict(e, height_err_m=None, ours_m=None) for e in thin["per_gauge"][f"M{i}"][key]]
+    r = V.score(thin, held, fin)
+    assert r["verdict"] == "FAIL" and r["measured_by_stratum"]["MODEL"] == 7
+    assert r["controls"]["placebo"]["status_by_stratum"]["MODEL"] == "untestable" and r["controls"]["placebo"]["pass"]
+    assert not r["strata"]["MODEL"]["legs"]["per_gauge"]
+    # the SAME thin case with a FAILING finder is VOID: the finder comes first
+    bad_fin = dict(fin)
+    bad_fin["M15"] = {"hourly": {"median_abs_h_m": 0.05}}       # a MEASURED MODEL station
+    r = V.score(thin, held, bad_fin)
+    assert r["verdict"] == "VOID" and not r["controls"]["finder_heights"]["pass"] and "strata" not in r
+    # s11 for (c): a NEIGHBOR stratum with < 19 MEASURED makes the < 10 identity count 'untestable', and the run FAIL
+    thin_nb = art(0.01, 0.01)
+    for i in range(11):
+        row = thin_nb["per_gauge"][f"N{i}"]
+        row["d"].pop("nsheet")
+        row.pop("nsheet_tb_events")
+        for key in ("hybrid_tb_events", "placebo_tb_events", "model_tb_events"):
+            row[key] = [dict(e, height_err_m=None, ours_m=None) for e in row[key]]
+    r = V.score(thin_nb, held, fin)
+    assert r["verdict"] == "FAIL" and r["controls"]["planted_d_identity"]["status"] == "untestable"
+    # CROSS-STRATUM (s11 "ANY stratum"): MODEL thin (7 MEASURED), finder OK, NEIGHBOR full but only 9 tested ->
+    # the identity's vacuity is 'untestable' (any stratum thin) and the run is FAIL, never VOID
+    cross = art(0.01, 0.01)
+    for i in range(13):
+        for key in ("hybrid_tb_events", "placebo_tb_events", "model_tb_events"):
+            cross["per_gauge"][f"M{i}"][key] = [dict(e, height_err_m=None, ours_m=None) for e in cross["per_gauge"][f"M{i}"][key]]
+    for i in range(11):                                       # NEIGHBOR stays fully MEASURED, 9 keep a donor
+        row = cross["per_gauge"][f"N{i}"]
+        row["d"].pop("nsheet")
+        row.pop("nsheet_tb_events")
+    r = V.score(cross, held, fin)
+    assert r["measured_by_stratum"] == {"NEIGHBOR": 20, "MODEL": 7}
+    assert r["controls"]["planted_d_identity"]["tested_stations"] == 9
+    assert r["controls"]["planted_d_identity"]["status"] == "untestable" and r["verdict"] == "FAIL"
+    # a TESTED identity that is WRONG is VOID even in a thin stratum (the instrument itself failed)
+    wrong = art(0.01, 0.01)
+    wrong["per_gauge"]["N0"]["nsheet_tb_events"] = [dict(e, height_err_m=e["height_err_m"] + 0.05)
+                                                    for e in wrong["per_gauge"]["N0"]["nsheet_tb_events"]]
+    r = V.score(wrong, held, fin)
+    assert r["verdict"] == "VOID" and r["controls"]["planted_d_identity"]["status"] == "mismatch"
+    # s10 (d): donor distances are reported, co-located sheets flagged (never a bar)
+    near = art(0.01, 0.01)
+    for i in range(20):
+        near["per_gauge"][f"N{i}"]["donor"] = {"id": f"D{i}", "km": 0.02 if i == 0 else 1.0 + i / 20}
+    r = V.score(near, held, fin)
+    assert r["verdict"] == "PASS" and r["donor_distance_km"]["count"] == 20 and r["donor_distance_km"]["colocated"] == ["N0"]
+    # replacement: 2 FES-undefined deciders are replaced in the frozen reserve order
+    r = V.score(art(0.01, 0.01, undefined=("M3", "M7")), held, fin)
+    assert r["deciding"]["MODEL"]["replaced"] == [["M3", "MR0"], ["M7", "MR1"]] and r["verdict"] == "PASS"
+    # cap: a sixth replacement in one stratum makes it NOT MEASURABLE -> FAIL
+    r = V.score(art(0.01, 0.01, undefined=tuple(f"M{i}" for i in range(6))), held, fin)
+    assert not r["deciding"]["MODEL"]["measurable"] and r["verdict"] == "FAIL"
+    # finder control: a missing or > 0.01 m finder row at a measured decider is VOID
+    bad = dict(fin)
+    bad["N0"] = {"hourly": {"median_abs_h_m": 0.02}}
+    assert V.score(art(0.01, 0.01), held, bad)["verdict"] == "VOID"
+
+
 def test_spot_shift_uses_exact_m_and_model_d_when_given():
     sys.path.insert(0, os.path.join(HERE, "..", "scripts", "tide_datum"))
     import spot_shift as SS
