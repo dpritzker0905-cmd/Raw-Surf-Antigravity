@@ -142,6 +142,12 @@ class PhotoTag(Base):
     tagged_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     viewed_at = Column(DateTime(timezone=True), nullable=True)  # First time surfer viewed it
     claimed_at = Column(DateTime(timezone=True), nullable=True)  # When added to their collection
+
+    @property
+    def can_claim_free(self) -> bool:
+        return self.access_granted or self.is_gift or (
+            self.session_photo_price is not None and self.session_photo_price <= 0
+        )
     
     # Relationships
     gallery_item = relationship('GalleryItem', backref='photo_tags')

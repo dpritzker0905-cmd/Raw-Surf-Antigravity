@@ -52,7 +52,8 @@ async def purchase_gallery_item(
     # Get item with photographer
     item_result = await db.execute(
         select(GalleryItem)
-        .where(GalleryItem.id == item_id)
+        .where(GalleryItem.id == item_id, GalleryItem.is_deleted.is_not(True))
+        .with_for_update()
         .options(selectinload(GalleryItem.photographer))
         .options(selectinload(GalleryItem.gallery))
     )
@@ -253,23 +254,22 @@ async def claim_free_photo(
     )
     if tag_id:
         tag_query = tag_query.where(PhotoTag.id == tag_id)
-    tag_result = await db.execute(tag_query.limit(1).with_for_update())
+    # Match deletion's item-then-tag lock order. Only a matching tag can lock the item.
+    item_result = await db.execute(
+        select(GalleryItem).where(GalleryItem.id == item_id, tag_query.exists()).with_for_update()
+    )
+    item = item_result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="You are not tagged in this photo")
+    tag_result = await db.execute(tag_query.limit(1).with_for_update().execution_options(populate_existing=True))
     tag = tag_result.scalar_one_or_none()
 
     if not tag:
         raise HTTPException(status_code=404, detail="You are not tagged in this photo")
     
     # Check if eligible for free claim
-    if not tag.access_granted and not tag.is_gift:
-        if tag.session_photo_price is None or tag.session_photo_price > 0:
-            raise HTTPException(status_code=400, detail="This photo requires purchase")
-    
-    # Get the item
-    item_result = await db.execute(select(GalleryItem).where(GalleryItem.id == item_id).with_for_update())
-    item = item_result.scalar_one_or_none()
-    
-    if not item:
-        raise HTTPException(status_code=404, detail="Photo not found")
+    if not tag.can_claim_free:
+        raise HTTPException(status_code=400, detail="This photo requires purchase")
     
     # Serialize on the item before the entitlement read: repeated claims do not mint purchases.
     existing_result = await db.execute(select(GalleryPurchase).where(

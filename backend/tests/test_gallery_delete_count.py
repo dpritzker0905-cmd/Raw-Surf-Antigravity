@@ -5,7 +5,9 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from models import Gallery, GalleryItem, GalleryPurchase, PhotoTag, SurferGalleryItem
+from models import Gallery, GalleryItem, GalleryPurchase, PhotoTag, Profile, RoleEnum, SurferGalleryItem
+from routes.gallery.gallery_purchases import claim_free_photo, download_gallery_item, purchase_gallery_item
+from routes.gallery.schemas import PurchaseRequest
 from routes.gallery.collections import remove_item_from_gallery
 from routes.gallery.items import delete_gallery_item
 from services.gallery_sync import safe_delete_gallery_item
@@ -37,9 +39,11 @@ async def sessions():
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     try:
         async with engine.begin() as conn:
-            for model in (Gallery, GalleryItem, GalleryPurchase, PhotoTag, SurferGalleryItem):
+            for model in (Profile, Gallery, GalleryItem, GalleryPurchase, PhotoTag, SurferGalleryItem):
                 await conn.run_sync(model.__table__.create)
-        factory = async_sessionmaker(engine)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory.begin() as db:
+            db.add(Profile(id="owner", user_id="owner", email="owner@example.invalid", role=RoleEnum.SURFER))
         await seed_gallery(factory)
         yield factory
     finally:
@@ -115,3 +119,84 @@ async def test_rollback_restores_count_photo_and_locker(sessions):
         assert not (await db.get(GalleryItem, "paid")).is_deleted
         assert (await db.get(SurferGalleryItem, "purchased")).preserved_original_url is None
         assert await db.get(SurferGalleryItem, "pending") is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("price", [None, 12])
+async def test_delete_removes_unentitled_tag(sessions, price):
+    async with sessions.begin() as db:
+        db.add(PhotoTag(id="tag", gallery_item_id="first", photographer_id="owner",
+                        surfer_id="purchased", session_photo_price=price))
+    assert not (await remove(sessions, "folder", "first"))["soft_delete"]
+    async with sessions() as db:
+        assert await db.get(PhotoTag, "tag") is None
+        assert await db.get(GalleryItem, "first") is None
+    await assert_source_count(sessions, 2)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("grant", [{"is_gift": True}, {"access_granted": True}, {"session_photo_price": 0}])
+async def test_granted_tag_remains_claimable_after_archive(sessions, grant):
+    async with sessions.begin() as db:
+        db.add(PhotoTag(id="tag", gallery_item_id="first", photographer_id="owner",
+                        surfer_id="purchased", **grant))
+    assert (await remove(sessions, "folder", "first"))["preserved_for_surfers"] == 1
+    async with sessions() as db:
+        result = await claim_free_photo("first", "purchased", "tag", "purchased", db)
+        assert result["success"]
+    # The same surfer now holds both a tag and a purchase.
+    assert (await remove(sessions, "library", "first"))["preserved_for_surfers"] == 1
+    async with sessions() as db:
+        result = await download_gallery_item("first", "purchased", "high", "purchased", db)
+        assert result["download_url"] == "/original/first"
+    await assert_source_count(sessions, 2)
+
+
+@pytest.mark.asyncio
+async def test_purchase_without_locker_remains_downloadable(sessions):
+    async with sessions.begin() as db:
+        db.add(GalleryPurchase(gallery_item_id="first", buyer_id="purchased", photographer_id="owner",
+                               quality_tier="web", amount_paid=3))
+    assert (await remove(sessions, "library", "first"))["soft_delete"]
+    async with sessions() as db:
+        result = await download_gallery_item("first", "purchased", "web", "purchased", db)
+        assert result["download_url"] == "/preview/first"
+        with pytest.raises(HTTPException) as exc:
+            await download_gallery_item("first", "purchased", "high", "purchased", db)
+        assert exc.value.status_code == 403
+        with pytest.raises(HTTPException) as exc:
+            await download_gallery_item("first", "pending", "web", "pending", db)
+        assert exc.value.status_code == 403
+    await assert_source_count(sessions, 2)
+
+
+@pytest.mark.asyncio
+async def test_archive_refuses_new_purchase(sessions):
+    await remove(sessions, "folder", "paid")
+    async with sessions() as db:
+        with pytest.raises(HTTPException) as exc:
+            await purchase_gallery_item("paid", "pending", PurchaseRequest(), "pending", db)
+        assert (exc.value.status_code, exc.value.detail) == (404, "Gallery item not found")
+
+
+@pytest.mark.asyncio
+async def test_paid_locker_with_pending_label_survives(sessions):
+    async with sessions.begin() as db:
+        db.add(SurferGalleryItem(id="legacy", gallery_item_id="first", surfer_id="purchased",
+                                 photographer_id="owner", access_type="pending", is_paid=True))
+    assert (await remove(sessions, "folder", "first"))["preserved_for_surfers"] == 1
+    async with sessions() as db:
+        assert (await db.get(SurferGalleryItem, "legacy")).preserved_original_url == "/original/first"
+
+
+@pytest.mark.asyncio
+async def test_unpaid_tag_cannot_claim_archived_photo(sessions):
+    async with sessions.begin() as db:
+        db.add(PhotoTag(id="offer", gallery_item_id="paid", photographer_id="owner",
+                        surfer_id="pending", session_photo_price=12))
+    await remove(sessions, "folder", "paid")
+    async with sessions() as db:
+        with pytest.raises(HTTPException) as exc:
+            await claim_free_photo("paid", "pending", "offer", "pending", db)
+        assert exc.value.status_code == 400
+        assert await db.scalar(select(func.count()).select_from(GalleryPurchase)) == 0

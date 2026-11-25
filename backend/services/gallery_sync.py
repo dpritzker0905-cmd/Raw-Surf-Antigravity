@@ -10,7 +10,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import case, select, update
 from models import (
-    Gallery, GalleryItem, Profile, SurfSpot, Booking, DispatchRequest,
+    Gallery, GalleryItem, GalleryPurchase, PhotoTag, Profile, SurfSpot, Booking, DispatchRequest,
     LiveSession, SurferSelectionQuota, SurferGalleryItem, GalleryTierEnum,
     ConditionReport, LiveSessionParticipant, BookingParticipant,
     Notification, SurferGalleryClaimQueue, Surfboard
@@ -350,15 +350,7 @@ async def safe_delete_gallery_item(
     *,
     expected_gallery_id: str | None = None,
 ) -> dict:
-    """
-    Safely delete a gallery item, protecting paid surfer locker items.
-    
-    Logic:
-    - If any surfer has is_paid=True or access_type in ('included', 'purchased', 'gifted'):
-      → SOFT DELETE: hide from photographer, preserve URLs for surfers
-    - Otherwise:
-      → HARD DELETE: remove entirely
-    """
+    """Archive media with a locker entitlement, purchase, or claimable tag."""
     query = select(GalleryItem).where(
         GalleryItem.id == gallery_item_id,
         GalleryItem.photographer_id == photographer_id,
@@ -373,14 +365,20 @@ async def safe_delete_gallery_item(
             return {"error": "Item not found in this gallery"}
         return {"error": "Gallery item not found or not authorized"}
     
-    # Check if any surfer has paid for this item
-    paid_surfers = await db.execute(
-        select(SurferGalleryItem).where(
-            SurferGalleryItem.gallery_item_id == gallery_item_id,
-            SurferGalleryItem.access_type.in_(['included', 'purchased', 'gifted'])
-        )
-    )
-    paid_items = paid_surfers.scalars().all()
+    tags = (await db.scalars(
+        select(PhotoTag).where(PhotoTag.gallery_item_id == gallery_item_id)
+        .with_for_update().execution_options(populate_existing=True)
+    )).all()
+    lockers = (await db.scalars(
+        select(SurferGalleryItem).where(SurferGalleryItem.gallery_item_id == gallery_item_id)
+        .with_for_update().execution_options(populate_existing=True)
+    )).all()
+    paid_items = [row for row in lockers if row.is_paid or row.access_type in ("included", "purchased", "gifted")]
+    recipients = set(await db.scalars(
+        select(GalleryPurchase.buyer_id).where(GalleryPurchase.gallery_item_id == gallery_item_id)
+    ))
+    recipients.update(tag.surfer_id for tag in tags if tag.can_claim_free)
+    recipients.update(row.surfer_id for row in paid_items)
 
     if item.gallery_id and not item.is_deleted:
         await db.execute(
@@ -389,7 +387,7 @@ async def safe_delete_gallery_item(
             )
         )
     
-    if paid_items:
+    if recipients:
         # SOFT DELETE: Preserve media URLs in each paid surfer's locker item
         for paid_item in paid_items:
             if item.is_deleted and paid_item.preserved_original_url is not None:
@@ -406,36 +404,29 @@ async def safe_delete_gallery_item(
         item.is_public = False
         
         # Delete unpaid surfer items (they never paid, no obligation)
-        unpaid_result = await db.execute(
-            select(SurferGalleryItem).where(
-                SurferGalleryItem.gallery_item_id == gallery_item_id,
-                SurferGalleryItem.access_type.in_(['pending', 'pending_selection'])
-            )
-        )
-        for unpaid_item in unpaid_result.scalars().all():
-            await db.delete(unpaid_item)
+        for row in lockers:
+            if not row.is_paid and row.access_type in ("pending", "pending_selection"):
+                await db.delete(row)
         
         await db.flush()
         logger.info(
             f"Soft-deleted gallery item {gallery_item_id} "
-            f"(preserved for {len(paid_items)} paid surfers)"
+            f"(preserved for {len(recipients)} surfers)"
         )
         return {
             "deleted": True, 
             "soft_delete": True, 
-            "preserved_for_surfers": len(paid_items),
-            "message": f"Item hidden from your gallery. {len(paid_items)} surfer(s) who paid still have access."
+            "preserved_for_surfers": len(recipients),
+            "message": f"Item hidden from your gallery. Access preserved for {len(recipients)} surfer(s)."
         }
     else:
         # HARD DELETE: No paid surfers, safe to remove entirely
-        # Delete all unpaid surfer items first
-        unpaid_result = await db.execute(
-            select(SurferGalleryItem).where(
-                SurferGalleryItem.gallery_item_id == gallery_item_id
-            )
-        )
-        for surfer_item in unpaid_result.scalars().all():
-            await db.delete(surfer_item)
+        # Flush the dependent rows first so the ORM never clears a non-null photo tag FK.
+        for row in lockers:
+            await db.delete(row)
+        for tag in tags:
+            await db.delete(tag)
+        await db.flush()
         
         await db.delete(item)
         await db.flush()
