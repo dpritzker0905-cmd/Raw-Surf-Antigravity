@@ -1,0 +1,41 @@
+# STORAGE AUTH PROBE (2026-11-25, storage-auth plan B, approved by David in the director session): one read-only check of the
+# storage key the data lanes use, on demand. Step 2 of docs/runbooks/storage-key-rotation.md: after the secret is updated,
+# run this BEFORE re-running the lanes. It runs scripts/storage_auth_check.py in BLOCK mode (a rejected key turns this run
+# red), with NO GitHub token, so it opens, comments on and closes nothing: it only reads one object and prints the verdict.
+# The storage-auth issue is closed by the next data-lane run that is accepted (or by hand, per the runbook).
+name: Storage auth probe (read-only)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: storage-auth-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    environment: supabase-service   # the same key the data lanes use (names only in this repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # stdlib only: no pip install. No GitHub token is passed, so the script skips every issue action (read-only by construction).
+      - name: Probe the storage key (read-only)
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          LANE: storage-auth-probe
+          STORAGE_AUTH_CHECK: block
+        run: |
+          python3 scripts/storage_auth_check.py
+          echo "Probe accepted: re-run the lanes next (docs/runbooks/storage-key-rotation.md, step 3)." >> "$GITHUB_STEP_SUMMARY"
