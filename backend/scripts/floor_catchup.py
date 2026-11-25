@@ -186,7 +186,102 @@ def merge_cmd(run_id, sha, branch) -> list:
     return ["git", *IDENT, "merge", "--no-edit", "-m", f"Merge dev run {run_id} ({sha[:9]}) into {branch}", sha]
 
 
-def execute(run_id, sha, readings, *, run=_run, frag_dir=None, dry_run=False, log=print, still_newest=lambda: True) -> str:
+class Superseded(Refusal):
+    """A newer green dev run acts instead: not a failure anyone must look at, so it opens no alert issue."""
+
+
+class Blocked(Refusal):
+    """No catch-up PR can be opened (pr_create_blocker). Its issue text is PR_BLOCKED, this script's own constant."""
+
+
+# ── LOUD FAILURE (director GO, 2026-11-25) ────────────────────────────────────────────────────────────────────────
+# From 2026-11-23 21:32Z to 11-25 01:53Z every catch-up this bot needed failed at `gh pr create` ("GitHub Actions is not
+# permitted to create or approve pull requests": no PAT secret, and the repo setting off). 16 red runs went unnoticed
+# among ~60 skipped ones, and each pushed a bot branch first, so 16 orphan branches were left. Two fixes:
+#   (i)  pr_create_blocker(): when a NEW PR is needed, check BEFORE pushing that one can be opened; if not, refuse
+#        with nothing pushed.
+#   (ii) alert(): any refusal except Superseded opens or comments ONE issue (label ALERT_LABEL, assigned to the
+#        owner); the next run that acts or finds nothing to do closes it.
+#        LEAK PATH CLOSED (advisor CHANGE on #1321): a Refusal's text can carry up to 300 chars of raw git/gh stderr,
+#        and GitHub masks secrets in job logs but NOT in issue bodies. So the issue never carries str(exc): only the
+#        refusal CLASS, the run URL and, for Blocked, the fixed PR_BLOCKED text. The detail stays in the masked log.
+ALERT_LABEL = "floor-catchup"
+ALERT_TITLE = "Floor catch-up bot cannot act: CI floors will drift until this is fixed"
+
+
+def pr_create_blocker(env=None, run=_run) -> str | None:
+    """None when a NEW catch-up PR can be opened, else the reason it cannot. With a PAT (TOKEN_NAME names a secret other
+    than GITHUB_TOKEN, and PR_TOKEN is set) it can. On the GITHUB_TOKEN fallback it can only if the repository lets
+    Actions create PRs; that setting is read, and a read that fails counts as 'cannot' (fail closed: refuse before
+    pushing). Outside Actions (no TOKEN_NAME: a local run with the operator's own gh) nothing is assumed."""
+    env = os.environ if env is None else env
+    name = env.get("TOKEN_NAME", "")
+    if not name:
+        return None
+    if name != "GITHUB_TOKEN" and env.get("PR_TOKEN"):
+        return None
+    repo = env.get("GITHUB_REPOSITORY", "")
+    try:
+        setting = json.loads(run(["gh", "api", f"repos/{repo}/actions/permissions/workflow"], check=False) or "{}")
+    except ValueError:
+        setting = {}
+    if setting.get("can_approve_pull_request_reviews") is True:
+        return None
+    return PR_BLOCKED
+
+
+PR_BLOCKED = ("no PAT (secrets FLOOR_CATCHUP_PR_TOKEN and SERVED_WAVE_VERIFY_PR_TOKEN are both unset) and GitHub Actions "
+              "is not permitted to create pull requests in this repository (or that setting could not be read). Fix: "
+              "add a fine-grained PAT for this repo (contents + pull requests read/write) as secret FLOOR_CATCHUP_PR_TOKEN")
+
+
+def _open_alert(run) -> int | None:
+    out = run(["gh", "issue", "list", "--label", ALERT_LABEL, "--state", "open", "--json", "number"], check=False)
+    try:
+        issues = json.loads(out or "[]")
+    except ValueError:
+        issues = []
+    return min((i["number"] for i in issues), default=None)
+
+
+def alert(exc: BaseException, run_id: int, run=_run, env=None) -> str:
+    """Open ONE alert issue, or comment on the open one. Returns 'opened' or 'commented'. Never raises: the refusal
+    itself is already the run's red, and a failed alert must not hide it. The body is built ONLY from this script's
+    own constants, the exception's class name and the run URL, never from the exception's text (see LEAK PATH)."""
+    env = os.environ if env is None else env
+    url = f"{env.get('GITHUB_SERVER_URL', 'https://github.com')}/{env.get('GITHUB_REPOSITORY', '')}/actions/runs/"
+    what = PR_BLOCKED if isinstance(exc, Blocked) else (
+        "the reason is in the job log only (GitHub masks secrets there, not in issues; refusal text can carry raw "
+        "git/gh output, so it is never copied here)")
+    body = (f"floor_catchup.py refused ({type(exc).__name__}) at dev CI run {run_id}. "
+            f"Job: {url}{env.get('GITHUB_RUN_ID', '')}\n\n    {what}\n\nUntil this is fixed no catch-up PR opens, a stale floor stays stale, and "
+            f"backend-floor-staleness reds every open PR. This issue closes itself on the next run that acts or finds "
+            f"nothing stale.")
+    run(["gh", "label", "create", ALERT_LABEL, "--color", "B60205", "--force",
+         "--description", "The automatic CI floor catch-up bot cannot act"], check=False)
+    number = _open_alert(run)
+    if number is not None:
+        run(["gh", "issue", "comment", str(number), "--body", body], check=False)
+        return "commented"
+    cmd = ["gh", "issue", "create", "--title", ALERT_TITLE, "--label", ALERT_LABEL, "--body", body]
+    if env.get("OWNER"):
+        cmd += ["--assignee", env["OWNER"]]
+    run(cmd, check=False)
+    return "opened"
+
+
+def clear_alert(result: str, run_id: int, run=_run) -> bool:
+    """Close the open alert issue (if any) once a run has acted or found nothing stale. True when one was closed."""
+    number = _open_alert(run)
+    if number is None:
+        return False
+    run(["gh", "issue", "close", str(number), "--comment",
+         f"floor_catchup.py acted normally at dev CI run {run_id} (result: {result}): closing."], check=False)
+    return True
+
+
+def execute(run_id, sha, readings, *, run=_run, frag_dir=None, dry_run=False, log=print, still_newest=lambda: True,
+            pr_blocker=lambda: None) -> str:
     """Make the repository match the plan for this reading. Returns 'nothing', 'closed', 'dry-run', 'unchanged',
     'updated' or 'opened'. The plan is computed on the tree that will be pushed, without this bot's own fragments."""
     frag_dir = frag_dir or F.FRAG_DIR
@@ -230,7 +325,11 @@ def execute(run_id, sha, readings, *, run=_run, frag_dir=None, dry_run=False, lo
             log(f"would write {p['lane']}: +{p['tests']} test(s), +{p['files']} file(s) on {branch} — "
                 f"{note_for(p, run_id)}")
         return "dry-run"
-    wanted = {f"{F.slug(branch)}.{p['lane']}.json" for p in items}
+    if not pr:
+        blocker = pr_blocker()
+        if blocker:   # (i): nothing written, nothing pushed, no orphan branch
+            raise Blocked(f"cannot open a catch-up PR, so nothing was pushed: {blocker}")
+    wanted ={f"{F.slug(branch)}.{p['lane']}.json" for p in items}
     for name in own_fragments(branch, frag_dir):
         if name not in wanted:
             os.remove(os.path.join(frag_dir, name))
@@ -258,7 +357,7 @@ def execute(run_id, sha, readings, *, run=_run, frag_dir=None, dry_run=False, lo
     assert_only_own_fragments([x for x in run(["git", "diff", "--name-only", sha, "HEAD"]).splitlines() if x.strip()],
                               branch)
     if not still_newest():
-        raise Refusal("a newer green dev run appeared while this one was planning; it acts instead (nothing pushed)")
+        raise Superseded("a newer green dev run appeared while this one was planning; it acts instead (nothing pushed)")
     run(["git", "push", "origin", f"HEAD:refs/heads/{branch}"])
     if pr:
         run(["gh", "pr", "edit", str(pr["number"]), "--body", body])
@@ -296,11 +395,16 @@ def main(argv=None) -> int:
         sha = args.sha or _run(["git", "rev-parse", "HEAD"]).strip()
         readings = {lane: S.observed(args.run, lane) for lane in S.LANES}
         result = execute(args.run, sha, readings, dry_run=args.dry_run,
-                         still_newest=lambda: superseded(args.run) is None)
+                         still_newest=lambda: superseded(args.run) is None,
+                         pr_blocker=lambda: pr_create_blocker())
     except (Refusal, S.Refusal, F.FragmentError) as exc:
         print(f"::error::floor_catchup REFUSED: {exc}")
+        if not args.dry_run and not isinstance(exc, Superseded):
+            print(f"alert issue: {alert(exc, args.run)}")
         return 1
     print(f"result: {result}")
+    if not args.dry_run and clear_alert(result, args.run):
+        print("alert issue closed")
     return 0
 
 
