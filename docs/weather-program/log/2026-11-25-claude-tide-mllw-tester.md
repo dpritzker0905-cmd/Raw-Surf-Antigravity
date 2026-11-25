@@ -206,3 +206,24 @@ Append-only. Stamps come from `date -u`.
 - **The fix:** `own_rules.served_count` skips None, plus a regression test (chain +1).
 - **The interim alternative,** the owner's or director's call, not mine: set `TIDE_MLLW_TESTER_KEYS=0` (the kill)
   until the fix merges, then re-dispatch the build.
+
+## 22:49Z: readback of the re-dispatched build (run 45713970668, `d73fffeb1`; David's "Rerun after fix")
+
+- **The build succeeded and PUBLISHED:**
+  - download 22:31–22:32Z; build 22:32:51–22:45:58Z (about 13 min: NTDE and M were already cached);
+  - horizon OK;
+  - publish guard OK (horizon 89.1 d, 1183 keys, filled 100 %); step 13 published.
+- **What it logged:**
+  - "MLLW tester keys: ON; **70 NEW cells**, 10 already keyed"; "1909 spots -> 1184 keys";
+  - "served (A and M) at **1183 of 1184** keys";
+  - MLLW (NTDE): 0 computed this run, 375 keys have it;
+  - am_h at 350 keys from 268 donor stations; **0 skipped donors**;
+  - am_lp at 79 of 80 monitor keys, self-check OK (worst 1 mm).
+- **The no-FES key:** one monitor key (am_lp 79 / 80; served 1183 / 1184). The build does not yet log its identity;
+  the fix PR adds that line.
+- **The tester did NOT fire after the build.** `workflow_run` matches the source workflow's `name:` ("Tide served
+  series (...)"), not its file name `tide-own-series`. My bug in #1318.
+  - The daily fallback cron (23:23Z) runs it anyway.
+  - The fix PR pins the trigger to the build's name, with a test. It also re-queries the countdown issue after creating
+    it, so the first run's sheet report is posted (the #1318 nit).
+- **SCOREBOARD:** a row with N = 70.

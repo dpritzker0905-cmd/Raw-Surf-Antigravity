@@ -410,3 +410,12 @@ def test_a_key_with_no_fes_never_crashes_the_build_count():
     assert OR.served_count(out_keys) == 1
     src = open(os.path.join(HERE, "..", "scripts", "tide_own", "build_series.py"), encoding="utf-8").read()
     assert "served = OR.served_count(out_keys)" in src and "for vals in out_keys.values())" not in src
+
+
+def test_the_tester_triggers_on_the_build_workflows_name_not_its_file_name():
+    """workflow_run matches `name:`. The file name never matched, so the tester did not fire after run 45713970668."""
+    import yaml
+    wf = os.path.join(HERE, "..", "..", ".github", "workflows")
+    build = yaml.safe_load(open(os.path.join(wf, "tide-own-series.yml"), encoding="utf-8"))["name"]
+    tester = yaml.safe_load(open(os.path.join(wf, "tide-mllw-tester.yml"), encoding="utf-8"))
+    assert tester[True]["workflow_run"]["workflows"] == [build]

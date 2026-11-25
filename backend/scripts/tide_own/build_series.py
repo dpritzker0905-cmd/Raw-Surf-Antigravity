@@ -335,6 +335,9 @@ def main():
     with gzip.open(args.out, "wt", encoding="utf-8") as fh:
         json.dump(OR.encode_table(doc), fh, separators=(",", ":"))
     served = OR.served_count(out_keys)                      # a key with no FES (series None) must not crash the build
+    no_fes = sorted(k for k, v in out_keys.items() if not v or not any(x is not None for x in v))
+    # WHICH keys serve nothing (the advisor's nit on #1326): an MLLW-tester monitor here is NOT MEASURED, traceably
+    log(f"keys with no served tide (no FES or no M): {len(no_fes)}" + (f" ({', '.join(no_fes[:40])})" if no_fes else ""))
     log(f"A at {n_a} keys; served (A and M) at {served} of {len(keys_pts)} keys; window {start:%Y-%m-%dT%H} +{hours} h")
 
 

@@ -8,7 +8,9 @@ name: tide-mllw-tester
 
 on:
   workflow_run:
-    workflows: [tide-own-series]
+    # workflow_run matches the source workflow's `name:`, NOT its file name (tide-own-series.yml). The file name never
+    # matched, so the tester did not fire after the 2026-11-25 22:46Z build (run 45713970668); pinned by a test.
+    workflows: ["Tide served series (CMEMS sea level read directly + our harmonic tide; no Open-Meteo in any served tide)"]
     types: [completed]
     branches: [dev]
   schedule:
@@ -79,6 +81,8 @@ jobs:
           n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label tide-mllw-tester --json number --jq '.[0].number // empty')"
           if [ -z "$n" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$track" --label tide-mllw-tester --body-file "$out/summary.md"
+            # re-query, so the very first run's sheet report is posted too (the advisor's nit on #1318)
+            n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label tide-mllw-tester --json number --jq '.[0].number // empty')"
           else
             gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body-file "$out/summary.md"
           fi

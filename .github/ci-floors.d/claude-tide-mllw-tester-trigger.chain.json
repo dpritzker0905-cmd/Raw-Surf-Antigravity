@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 1,
+  "files": 0,
+  "branch": "claude/tide-mllw-tester-trigger",
+  "date": "2026-11-25",
+  "note": "test_mllw_tester.py: the tester triggers on the build workflow's name (workflow_run)"
+}
