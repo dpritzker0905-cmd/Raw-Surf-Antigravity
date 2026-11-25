@@ -79,7 +79,8 @@ def test_the_e2e_workflow_gates_on_the_script():
     tests = next(i for i, s in enumerate(steps) if s.get("name") == "Run E2E tests")
     assert steps.index(gate) < tests, "the gate must run before the tests"
     assert '"$(git rev-parse HEAD)"' in gate["run"] and "--same-backend" in gate["run"]
-    assert gate.get("if") == "github.event_name == 'push'"
+    # 2026-11-25: also skipped when the Netlify target step says the served bundle would be stale (test_e2e_frontend_target)
+    assert gate.get("if") == "github.event_name == 'push' && steps.netlify_target.outputs.skip != 'true'"
     checkout = next(s for s in steps if str(s.get("uses", "")).startswith("actions/checkout"))
     assert (checkout.get("with") or {}).get("fetch-depth") == 0, "--same-backend needs history"
 
