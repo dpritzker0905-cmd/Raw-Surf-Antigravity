@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 3,
+  "branch": "claude/guardrail-storage-check-warn",
+  "date": "2026-11-25",
+  "note": "guardrail pinned to warn; mode in the accepted line; crash never stops a lane (test_storage_auth_check)"
+}

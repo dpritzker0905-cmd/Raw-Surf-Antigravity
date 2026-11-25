@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 4,
+  "branch": "claude/storage-auth-probe",
+  "date": "2026-11-25",
+  "note": "storage auth probe workflow + key-rotation runbook (test_storage_auth_probe)"
+}

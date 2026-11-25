@@ -61,7 +61,11 @@ jobs:
           OWNER: ${{ vars.REPO_OWNER_LOGIN }}
           LANE: ${{ github.workflow }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          STORAGE_AUTH_CHECK: ${{ vars.STORAGE_AUTH_CHECK || 'warn' }}
+          # PINNED TO WARN, whatever the repo variable says (David's decision, 2026-11-25 ~00:2xZ, director session,
+          # after SubQ + Reflection agreed): the guardrail is the safety net that turns bad fixes OFF, so it must run even
+          # if this check false-positives. A real rejection still opens the storage-auth issue; this lane never stops on it.
+          # The three data lanes keep reading the repo variable (block after the owner's switch).
+          STORAGE_AUTH_CHECK: warn
         run: python3 scripts/storage_auth_check.py
 
       - name: Install backend dependencies

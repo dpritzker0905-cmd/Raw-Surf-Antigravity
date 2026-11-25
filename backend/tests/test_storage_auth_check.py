@@ -157,6 +157,45 @@ def test_every_storage_lane_checks_first_in_warn_mode(wf, job):
     assert "setup-python" in steps[k - 1].get("uses", ""), "the check runs right after Python setup, before pip"
     assert "storage_auth_check.py" in steps[k]["run"] and "continue-on-error" not in steps[k]
     assert steps[k]["env"]["GH_TOKEN"] == "${{ github.token }}"
-    assert steps[k]["env"]["STORAGE_AUTH_CHECK"] == "${{ vars.STORAGE_AUTH_CHECK || 'warn' }}"   # blocking needs the owner
+    if wf == "flag-guardrail.yml":                    # the safety net: pinned to warn (David, 2026-11-25)
+        assert steps[k]["env"]["STORAGE_AUTH_CHECK"] == "warn"
+    else:                                            # the data lanes follow the repo variable (block after the switch)
+        assert steps[k]["env"]["STORAGE_AUTH_CHECK"] == "${{ vars.STORAGE_AUTH_CHECK || 'warn' }}"
     perms = j.get("permissions") or doc.get("permissions") or {}
     assert perms.get("issues") == "write"
+
+
+def test_the_guardrail_lane_never_reads_the_storage_mode_variable():
+    """David's decision (2026-11-25, director session): the guardrail must run even if the storage check
+    false-positives, so NO step of flag-guardrail.yml may read the repo variable; the three data lanes still do."""
+    def env_values(doc):
+        for job in doc["jobs"].values():
+            for step in job.get("steps") or []:
+                yield from (str(v) for v in (step.get("env") or {}).values())
+            yield from (str(v) for v in (job.get("env") or {}).values())
+        yield from (str(v) for v in (doc.get("env") or {}).values())
+    guard = yaml.safe_load((WF / "flag-guardrail.yml").read_text(encoding="utf-8"))
+    assert not any("vars.STORAGE_AUTH_CHECK" in v for v in env_values(guard))
+    assert "vars.STORAGE_AUTH_CHECK" not in (WF / "flag-guardrail.yml").read_text(encoding="utf-8")
+    for wf in ("forecast-ingest.yml", "forecast-ingest-pilots.yml", "precompute.yml"):
+        doc = yaml.safe_load((WF / wf).read_text(encoding="utf-8"))
+        assert any("vars.STORAGE_AUTH_CHECK" in v for v in env_values(doc)), wf
+
+
+def test_the_accepted_line_names_the_mode(capsys):
+    """The switch to block is confirmed from a data lane's own log line."""
+    assert sac.main(_env(STORAGE_AUTH_CHECK="block"), opener=_Opener((200, b"{}")), sleep=NOSLEEP) == 0
+    assert "storage credential accepted (HTTP 200, control/flags.json; mode block)" in capsys.readouterr().out
+    assert sac.main(_env(), opener=_Opener((200, b"{}")), sleep=NOSLEEP) == 0
+    assert "; mode warn)" in capsys.readouterr().out
+
+
+def test_a_crash_never_stops_a_lane_unless_blocking(monkeypatch, capsys):
+    """Advisor L2 on #1266: an unexpected exception is a warning and exit 0, except in block mode (exit 3, not 2)."""
+    def boom(*a, **k):
+        raise ValueError("unexpected sb_secret_SHOULDNOTPRINT")
+    monkeypatch.setattr(sac, "confirmed_probe", boom)
+    assert sac.main(_env(), opener=_Opener((200, b"{}")), sleep=NOSLEEP) == 0
+    out = capsys.readouterr().out
+    assert "::warning title=Storage auth check crashed::ValueError" in out and "SHOULDNOTPRINT" not in out
+    assert sac.main(_env(STORAGE_AUTH_CHECK="block"), opener=_Opener((200, b"{}")), sleep=NOSLEEP) == 3
