@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 1,
+  "files": 1,
+  "branch": "codex/watermark-style-selection",
+  "date": "2026-11-25",
+  "note": "Expose and verify the selected watermark style during keyboard interaction"
+}
