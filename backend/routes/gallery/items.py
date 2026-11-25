@@ -674,15 +674,23 @@ async def _copy_to_folder(db, item_id, owner_id, target_id, operation_id=None):
     copy_id = str(uuid.uuid4())
     if operation_id is not None:
         insert = {"postgresql": pg_insert, "sqlite": sqlite_insert}[db.get_bind().dialect.name]
-        claimed = await db.scalar(insert(GalleryCopyReceipt).values(
-            owner_id=owner_id, operation_id=operation_id, source_id=item_id,
-            target_id=target_id, copy_id=copy_id,
-        ).on_conflict_do_nothing(index_elements=["owner_id", "operation_id"]).returning(GalleryCopyReceipt.copy_id))
-        if claimed is None:
+        claim = (insert(GalleryCopyReceipt)
+                 .values(owner_id=owner_id, operation_id=operation_id, source_id=item_id,
+                         target_id=target_id, copy_id=copy_id)
+                 .on_conflict_do_nothing(index_elements=["owner_id", "operation_id"])
+                 .returning(GalleryCopyReceipt.copy_id))
+        if await db.scalar(claim) is None:
             receipt = await db.get(GalleryCopyReceipt, (owner_id, operation_id))
+            if receipt is None:
+                raise HTTPException(status_code=503, detail="Please retry to confirm the previous copy")
             if (receipt.source_id, receipt.target_id) != (item_id, target_id):
                 raise HTTPException(status_code=409, detail="Copy operation already used for a different selection")
-            return {"message": "Item copied to folder", "gallery_id": target_id, "new_item_id": receipt.copy_id}
+            present = await db.scalar(select(GalleryItem.id).where(
+                GalleryItem.id == receipt.copy_id, GalleryItem.gallery_id == target_id,
+                GalleryItem.photographer_id == owner_id, GalleryItem.is_deleted.is_not(True),
+            ))
+            return {"message": "Previous copy confirmed", "gallery_id": target_id, "new_item_id": receipt.copy_id,
+                    "replayed": True, "copy_present": present is not None}
 
     # Create a copy of the item in the target folder
     new_item = GalleryItem(
@@ -723,7 +731,10 @@ async def _copy_to_folder(db, item_id, owner_id, target_id, operation_id=None):
         target_gallery.cover_image_url = func.coalesce(func.nullif(Gallery.cover_image_url, ''), item.preview_url)
     
     await db.commit()
-    return {"message": "Item copied to folder", "gallery_id": target_id, "new_item_id": new_item.id}
+    result = {"message": "Item copied to folder", "gallery_id": target_id, "new_item_id": copy_id}
+    if operation_id is not None:
+        result.update(replayed=False, copy_present=True)
+    return result
 
 
 # SetCustomPriceRequest + custom-price endpoint extracted to gallery_purchases.py (v86)

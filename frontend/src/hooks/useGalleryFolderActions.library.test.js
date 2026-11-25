@@ -60,6 +60,16 @@ test('a refused copy keeps the picker open and permits retry', async () => {
   expect(props.setShowAddToGalleryModal).toHaveBeenCalledWith(false);
 });
 
+test('replay explains the earlier copy and leaves the picker open for an intentional new one', async () => {
+  copyGalleryItem.mockResolvedValueOnce({ replayed: true }).mockResolvedValueOnce({ replayed: false });
+  const { result, props } = picker();
+  await act(async () => { await result.current.handleAddToGallery('photo'); });
+  expect(toast.success).toHaveBeenCalledWith('Previous copy confirmed. Select the photo again to make another copy.');
+  expect(props.setShowAddToGalleryModal).not.toHaveBeenCalled();
+  await act(async () => { await result.current.handleAddToGallery('photo'); });
+  expect(props.setShowAddToGalleryModal).toHaveBeenCalledWith(false);
+});
+
 test('a late success cannot dismiss a reopened picker', async () => {
   const pending = deferred();
   copyGalleryItem.mockReturnValue(pending.promise);

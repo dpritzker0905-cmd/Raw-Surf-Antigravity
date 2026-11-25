@@ -47,6 +47,31 @@ test('retrying a mixed copy creates one destination copy of each selected origin
   expect(copyGalleryItem.mock.calls.every(([owner, , target]) => owner === 'owner' && target === 'destination')).toBe(true);
 });
 
+test('retrying a mixed batch excludes a previous copy that was removed', async () => {
+  const removed = Object.assign(new Error('removed'), { code: 'PREVIOUS_COPY_REMOVED' });
+  const setters = {
+    setShowCopyToFolderModal: jest.fn(), setFolderActionLoading: jest.fn(),
+    setBulkSelectMode: jest.fn(), setGalleries: jest.fn(),
+    setGalleryItems: jest.fn(), setGalleryItemsLoading: jest.fn(),
+  };
+  copyGalleryItem.mockRejectedValueOnce(removed).mockResolvedValueOnce({ replayed: true })
+    .mockRejectedValueOnce(new Error('unconfirmed')).mockResolvedValueOnce({});
+  apiClient.get.mockResolvedValue({ data: [] });
+  const { result } = renderHook(() => {
+    const [selectedItems, setSelectedItems] = useState(new Set(['removed', 'confirmed', 'unknown']));
+    const actions = useGalleryActions({
+      user: { id: 'owner' }, selectedGallery: { id: 'source' }, selectedItems, setSelectedItems,
+      ...setters,
+    });
+    return { selectedItems, copy: () => actions.handleCopyToFolder('destination') };
+  });
+  await act(async () => { await result.current.copy(); });
+  expect([...result.current.selectedItems]).toEqual(['unknown']);
+  expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Select those photos again'));
+  await act(async () => { await result.current.copy(); });
+  expect(copyGalleryItem.mock.calls.map(([, id]) => id)).toEqual(['removed', 'confirmed', 'unknown', 'unknown']);
+});
+
 test('leaving during a copy clears the old retry selection and ignores late results', async () => {
   const setBulkSelectMode = jest.fn();
   let acknowledge;

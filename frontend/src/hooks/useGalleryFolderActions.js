@@ -119,7 +119,7 @@ export const useGalleryFolderActions = ({
     pendingCopies.current.add(destination);
     setBusyFolders(new Set(pendingCopies.current));
     try {
-      await copyGalleryItem(ownerId, itemId, selectedGallery.id);
+      const result = await copyGalleryItem(ownerId, itemId, selectedGallery.id);
       const currentVisit = folderVisit.current;
       if (currentVisit?.ownerId !== ownerId) return;
       const listRefresh = fetchGalleries();
@@ -127,8 +127,12 @@ export const useGalleryFolderActions = ({
         await listRefresh;
         return;
       }
-      toast.success('Photo added to gallery');
-      if (currentVisit === visit && pickerVisit.current === picker) setShowAddToGalleryModal(false);
+      if (result.replayed) {
+        toast.success('Previous copy confirmed. Select the photo again to make another copy.');
+      } else {
+        toast.success('Photo added to gallery');
+        if (currentVisit === visit && pickerVisit.current === picker) setShowAddToGalleryModal(false);
+      }
       await Promise.all([fetchGalleryItems(selectedGallery.id, currentVisit), listRefresh]);
     } catch (error) {
       if (folderVisit.current?.destination === destination) {

@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS public.gallery_copy_receipts (
     source_id varchar(36) NOT NULL,
     target_id varchar(36) NOT NULL,
     copy_id varchar(36) NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (owner_id, operation_id)
 );
 ALTER TABLE public.gallery_copy_receipts ENABLE ROW LEVEL SECURITY;

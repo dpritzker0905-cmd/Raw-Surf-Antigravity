@@ -28,7 +28,9 @@ async def copy(sessions, key, item="first", target="other", owner="owner"):
 async def test_lost_ack_returns_same_copy_and_new_operation_creates_another(database):
     key = uuid4()
     original = await copy(database, key)
-    assert await copy(database, key) == original
+    assert original["replayed"] is False
+    replay = await copy(database, key)
+    assert (replay["new_item_id"], replay["replayed"], replay["copy_present"]) == (original["new_item_id"], True, True)
     later = await copy(database, uuid4())
     assert later["new_item_id"] != original["new_item_id"]
     async with database() as db:
@@ -44,10 +46,22 @@ async def test_retry_does_not_resurrect_removed_copy(database):
     async with database.begin() as db:
         await db.delete(await db.get(GalleryItem, first["new_item_id"]))
         (await db.get(Gallery, "other")).item_count = 0
-    assert await copy(database, key) == first
+    replay = await copy(database, key)
+    assert replay["new_item_id"] == first["new_item_id"] and replay["replayed"] and not replay["copy_present"]
     async with database() as db:
         assert await db.get(GalleryItem, first["new_item_id"]) is None
         assert (await db.get(Gallery, "other")).item_count == 0
+
+
+@pytest.mark.asyncio
+async def test_moved_copy_is_not_reported_as_present_in_original_destination(database):
+    key = uuid4()
+    first = await copy(database, key)
+    async with database.begin() as db:
+        (await db.get(GalleryItem, first["new_item_id"])).gallery_id = "source"
+    replay = await copy(database, key)
+    assert replay["replayed"] and not replay["copy_present"]
+    assert replay["new_item_id"] == first["new_item_id"]
 
 
 @pytest.mark.asyncio

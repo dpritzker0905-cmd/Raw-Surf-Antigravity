@@ -1,5 +1,5 @@
 """Receipts for acknowledged or interrupted gallery copy operations."""
-from sqlalchemy import Column, DDL, ForeignKey, String, event
+from sqlalchemy import Column, DDL, DateTime, ForeignKey, String, event, func
 
 from database import Base
 
@@ -13,6 +13,7 @@ class GalleryCopyReceipt(Base):
     source_id = Column(String(36), nullable=False)
     target_id = Column(String(36), nullable=False)
     copy_id = Column(String(36), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 for statement in (

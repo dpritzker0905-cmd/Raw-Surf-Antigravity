@@ -230,10 +230,24 @@ const useGalleryActions = ({
     setFolderActionLoading(true);
     try {
       const outcomes = await Promise.allSettled(itemIds.map(itemId =>
-          copyGalleryItem(user.id, itemId, targetFolderId)
+        copyGalleryItem(user.id, itemId, targetFolderId)
       ));
       if (copyRequest.current !== itemIds) return;
       const copied = new Set(itemIds.filter((_, index) => outcomes[index].status === 'fulfilled'));
+      const removed = itemIds.filter((_, index) => outcomes[index].reason?.code === 'PREVIOUS_COPY_REMOVED');
+      if (removed.length) {
+        const unresolved = new Set(itemIds.filter(id => !copied.has(id) && !removed.includes(id)));
+        copyRetryPending.current = unresolved.size > 0;
+        setSelectedItems(unresolved);
+        if (!unresolved.size) {
+          setShowCopyToFolderModal(false);
+          setBulkSelectMode(false);
+        }
+        folderActions.fetchGalleries();
+        if (selectedGallery?.id === targetFolderId) folderActions.fetchGalleryItems(targetFolderId);
+        toast.error(`Confirmed ${copied.size}. Previous copies no longer in this folder: ${removed.length}. Select those photos again to make new copies.`);
+        return;
+      }
       copyRetryPending.current = copied.size < itemIds.length;
       if (copied.size === 0) {
         toast.error(getErrorMessage(outcomes[0].reason, 'Failed to copy items'));
@@ -243,10 +257,15 @@ const useGalleryActions = ({
         setSelectedItems(current => new Set([...current].filter(id => !copied.has(id))));
         folderActions.fetchGalleries();
         if (selectedGallery?.id === targetFolderId) folderActions.fetchGalleryItems(targetFolderId);
-        toast.error(`Copied ${copied.size} of ${itemIds.length} items. Retry the remaining items.`);
+        toast.error(`Confirmed ${copied.size} of ${itemIds.length} copies. Retry the remaining items.`);
         return;
       }
-      toast.success(`Copied ${itemIds.length} item${itemIds.length > 1 ? 's' : ''} to folder`);
+      const earlier = outcomes.filter(outcome => outcome.value?.replayed).length;
+      if (earlier) {
+        toast.success(`New copies: ${copied.size - earlier}. Previous copies confirmed: ${earlier}.`);
+      } else {
+        toast.success(`Copied ${itemIds.length} item${itemIds.length > 1 ? 's' : ''} to folder`);
+      }
       setShowCopyToFolderModal(false);
       clearSelection();
       if (folderActions && folderActions.fetchGalleries) {
