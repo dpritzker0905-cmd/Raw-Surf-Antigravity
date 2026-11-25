@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 7,
+  "branch": "codex/gallery-delete-count",
+  "date": "2026-11-25",
+  "note": "Gallery deletion count and paid archive retry regressions"
+}

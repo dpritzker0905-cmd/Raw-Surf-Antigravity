@@ -17,6 +17,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from services.gallery_covers import archived_cover_selection, archived_media_only, display_cover_url
 from models import (
     Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification,
     RoleEnum, Gallery, LiveSession, LiveSessionParticipant,
@@ -206,7 +207,8 @@ async def heal_gallery_item_urls(
             healed.append(item_healed)
     
     # Also heal gallery cover image if it's local
-    if gallery.cover_image_url and gallery.cover_image_url.startswith('/api/uploads/'):
+    if (gallery.cover_image_url and gallery.cover_image_url.startswith('/api/uploads/')
+            and not await db.scalar(select(archived_media_only(photographer_id, gallery.cover_image_url)))):
         relative_path = gallery.cover_image_url.replace('/api/uploads/', '')
         local_path = UPLOAD_DIR / relative_path
         
@@ -268,7 +270,7 @@ async def recalculate_gallery_counts(
         # Find and delete stale items with ephemeral local URLs
         from sqlalchemy import func, delete
         all_items_result = await db.execute(
-            select(GalleryItem).where(GalleryItem.gallery_id == gallery_id)
+            select(GalleryItem).where(GalleryItem.gallery_id == gallery_id, GalleryItem.is_deleted.is_not(True))
         )
         all_items = all_items_result.scalars().all()
         
@@ -295,14 +297,16 @@ async def recalculate_gallery_counts(
         
         # Count actual remaining items
         count_result = await db.execute(
-            select(func.count(GalleryItem.id)).where(GalleryItem.gallery_id == gallery_id)
+            select(func.count(GalleryItem.id)).where(GalleryItem.gallery_id == gallery_id, GalleryItem.is_deleted.is_not(True))
         )
         actual_count = count_result.scalar() or 0
         old_count = gallery.item_count
         gallery.item_count = actual_count
         
-        cover_fixed = False
-        old_cover = gallery.cover_image_url
+        old_cover = await db.scalar(select(display_cover_url()).where(Gallery.id == gallery_id))
+        cover_fixed = fix_cover and gallery.cover_image_url != old_cover
+        if fix_cover:
+            gallery.cover_image_url = old_cover
         
         # Fix cover image if it's a local path
         if fix_cover and (
@@ -311,7 +315,7 @@ async def recalculate_gallery_counts(
         ):
             first_item_result = await db.execute(
                 select(GalleryItem)
-                .where(GalleryItem.gallery_id == gallery_id)
+                .where(GalleryItem.gallery_id == gallery_id, GalleryItem.is_deleted.is_not(True))
                 .order_by(GalleryItem.created_at.desc())
                 .limit(1)
             )
@@ -331,7 +335,7 @@ async def recalculate_gallery_counts(
             "stale_items_purged": stale_count,
             "cover_fixed": cover_fixed,
             "old_cover": old_cover,
-            "new_cover": gallery.cover_image_url
+            "new_cover": gallery.cover_image_url if fix_cover else old_cover
         }
         if delete_errors:
             result["delete_errors"] = delete_errors
@@ -456,8 +460,9 @@ async def set_gallery_thumbnail(
         item_result = await db.execute(
             select(GalleryItem).where(
                 GalleryItem.id == data.item_id,
-                GalleryItem.photographer_id == photographer_id
-            )
+                GalleryItem.photographer_id == photographer_id,
+                GalleryItem.is_deleted.is_not(True),
+            ).with_for_update()
         )
         item = item_result.scalar_one_or_none()
         if not item:
@@ -465,6 +470,8 @@ async def set_gallery_thumbnail(
         
         new_cover_url = item.preview_url or item.thumbnail_url or item.original_url
     elif data.thumbnail_url:
+        if await archived_cover_selection(db, photographer_id, data.thumbnail_url):
+            raise HTTPException(status_code=404, detail="Gallery item not found")
         new_cover_url = data.thumbnail_url
     else:
         raise HTTPException(

@@ -15,6 +15,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from services.gallery_covers import display_cover_url
 from models import (
     Profile, GalleryItem, Gallery, ConditionReport, SurfSpot
 )
@@ -52,13 +53,15 @@ async def push_conditions_to_spot_hub(
     """
     # Load gallery with relationships
     result = await db.execute(
-        select(Gallery).where(Gallery.id == gallery_id)
+        select(Gallery, display_cover_url()).where(Gallery.id == gallery_id)
         .options(
             selectinload(Gallery.surf_spot),
-            selectinload(Gallery.items)
+            selectinload(Gallery.items.and_(GalleryItem.is_deleted.is_not(True)))
         )
+        .execution_options(populate_existing=True)
     )
-    gallery = result.scalar_one_or_none()
+    row = result.one_or_none()
+    gallery, cover_url = row if row else (None, None)
     
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
@@ -89,18 +92,19 @@ async def push_conditions_to_spot_hub(
         item_result = await db.execute(
             select(GalleryItem).where(
                 GalleryItem.id == data.media_item_id,
-                GalleryItem.gallery_id == gallery_id
+                GalleryItem.gallery_id == gallery_id,
+                GalleryItem.is_deleted.is_not(True),
             )
         )
         item = item_result.scalar_one_or_none()
-        if item:
-            # Use unwatermarked original for condition reports (they're promotional, not for sale)
-            media_url = item.original_url or item.url_standard or item.url_web or item.thumbnail_url
-            media_type = item.media_type or 'image'
+        if item is None:
+            raise HTTPException(status_code=404, detail="Gallery item not found")
+        media_url = item.original_url or item.url_standard or item.url_web or item.thumbnail_url
+        media_type = item.media_type or 'image'
     
     # Option 2: Use gallery cover image
-    if not media_url and gallery.cover_image_url:
-        media_url = gallery.cover_image_url
+    if not media_url and cover_url:
+        media_url = cover_url
     
     # Option 3: Use first gallery item
     if not media_url and gallery.items:
