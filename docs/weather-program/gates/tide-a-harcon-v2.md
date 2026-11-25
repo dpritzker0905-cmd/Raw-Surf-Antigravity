@@ -236,7 +236,7 @@ pre-flight 2. Where this section and §2 (v1's replacement rule), §5, §6, §11
   - For every station v2 can read (each stratum's 20 deciding stations and ALL 10 reserves; every prefix donor of
     those; the 383 pre-flight stations), it tried the verbatim synthesis at one instant outside every gate window,
     2000-01-01 00:00Z, and kept only whether it raised (no value was kept).
-  - Output: `research/tide-a-harcon-v2-unsupported.json` (sha256 `00065605c3dd5b11e24e85da9b71b5f696c6e3ffef3c38a425c2ac74eb86e348`).
+  - Output: `research/tide-a-harcon-v2-unsupported.json` (sha256 `850a02cd4a3faa055006040abca63d1185c6eed79ab8031a44b94b4fff887978`; the committed LF bytes. The scan wrote CRLF on Windows, sha256 `00065605…eb86e348`; the content is identical).
   - **Candidates: 60 of 60 synthesise. Prefix donors: 59 of 59 synthesise.** No v2 replacement is foreseen from this
     cause, though a donor reselected after another replacement is checked the same way at run time.
   - **Pre-flight: 382 of 383 synthesise. The one that cannot is 9455920 (ANCHORAGE, Knik Arm):** `Unsupported constituent:

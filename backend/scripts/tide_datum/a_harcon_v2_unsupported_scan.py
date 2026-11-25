@@ -98,10 +98,10 @@ def main(argv=None):
         for role in r["roles"]:
             summary.setdefault(role, {}).setdefault(r["status"], 0)
             summary[role][r["status"]] += 1
-    Path(a.json).write_text(json.dumps({
+    Path(a.json).write_bytes((json.dumps({
         "schema": "raw-surf/tide-a-harcon-v2-unsupported/1", "gate": "gates/tide-a-harcon-v2.md section 13",
         "pytmd": pyTMD.__version__, "probe": PROBE.isoformat(), "inputs_only": True,
-        "summary": summary, "stations": out}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        "summary": summary, "stations": out}, indent=1, sort_keys=True) + "\n").encode("utf-8"))   # LF on every OS
     print(json.dumps(summary, sort_keys=True))
 
 

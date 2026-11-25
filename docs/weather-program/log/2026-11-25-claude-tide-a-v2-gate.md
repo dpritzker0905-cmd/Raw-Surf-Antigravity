@@ -74,6 +74,6 @@ Append-only. Stamps come from `date -u`.
   run locally with the pinned pyTMD 3.1.0 (a scratch venv).
   - Candidates 60/60 OK; prefix donors 59/59 OK; pre-flight 382/383 OK.
   - The one unsupported station is 9455920, ANCHORAGE, Knik Arm (the station pre-flight 1 crashed on).
-  - Output: `research/tide-a-harcon-v2-unsupported.json`, sha256 `00065605…eb86e348`.
+  - Output: `research/tide-a-harcon-v2-unsupported.json`, sha256 `850a02cd…ff887978` (the committed LF bytes; the CRLF file the scan wrote on Windows hashed `00065605…eb86e348`).
   - No synthesised value was kept, and no prediction, water level or window data was read.
 - **Next:** the instrument PR that implements §13 (its own gate), then pre-flight 2 on David's typed word.
