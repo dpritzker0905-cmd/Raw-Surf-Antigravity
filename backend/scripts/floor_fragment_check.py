@@ -34,6 +34,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parents[1]
@@ -232,6 +233,16 @@ def _unknown(rows, err) -> bool:
     return err is not None or any(r["state"] == "inconclusive" for r in rows or [])
 
 
+RETRY_PAUSE_S = 15.0
+
+
+def retry_pause_s() -> float:
+    try:
+        return max(0.0, float(os.environ.get("FLOOR_FRAGMENT_RETRY_PAUSE_S", RETRY_PAUSE_S)))
+    except ValueError:
+        return RETRY_PAUSE_S
+
+
 def main(argv=None, sleep=None) -> int:
     """OUTCOMES (David's "Yes, block + fix", after SubQ + Reflection both flagged fail-open on unknown):
       every lane ok / no relevant change / fragments-only / shrinks only -> pass (exit 0)
@@ -252,7 +263,9 @@ def main(argv=None, sleep=None) -> int:
     if _unknown(rows, err):                                     # one retry: a flaky import or a runner hiccup
         print(f"::notice title=Floor fragment check retry::unknown on the first collection "
               f"({err or 'an inconclusive lane'}); collecting once more")
-        (sleep or (lambda s: None))(5)
+        # a REAL pause (advisor limit 2 on #1311: the old default was a no-op): long enough to ride out a runner hiccup,
+        # short against the ~2 min collection. FLOOR_FRAGMENT_RETRY_PAUSE_S overrides (tests set 0).
+        (sleep or time.sleep)(retry_pause_s())
         rows, err = _attempt(a.base)
         retried = True
     if rows is not None:
