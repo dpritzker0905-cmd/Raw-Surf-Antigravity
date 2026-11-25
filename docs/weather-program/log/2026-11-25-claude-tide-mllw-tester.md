@@ -141,3 +141,16 @@ Append-only. Stamps come from `date -u`.
   - **The first-table step is inputs only:** `inputs_record` writes the per-stratum MODEL / NOT-MEASURED counts and the
     FES LP4 amplitudes from the table, before any NOAA read. `--inputs-only` stops there.
   - Tests: 43 (chain fragment +43 / +1).
+- **15:24Z, a correction to the 15:06Z and 15:13Z bullets above (superseded by §13 and the advisor's rulings):**
+  - The per-build reference check (seen station 8518750, then Longview / Point Hope RMS) is REMOVED from the runner.
+    REQ-1 is the one-off `mllw_tester_ref_calibration.py` (running means, ±0.003 m, 2025). Its first run failed and its
+    rerun passed after the convention fix; both are committed.
+  - LP_noaa uses `noaa_lp.lp3` (MM, MF and MSF in NOAA's convention), not `harcon_eval`, so the tester workflow no
+    longer installs pyTMD.
+  - **The availability items (the advisor):**
+    - (a) the build logs the NEW-cell count;
+    - (b) a test that prior keys are byte-equal;
+    - (c) the SCOREBOARD row reworded to "tide becomes AVAILABLE at N non-spot cells";
+    - (d) the kill `TIDE_MLLW_TESTER_KEYS=0`;
+    - a test that `validate()` drops `am_lp`.
+  - Tests: 48 (chain +48 / +1).
