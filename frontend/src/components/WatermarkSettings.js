@@ -12,6 +12,7 @@ import logger from '../utils/logger';
 
 
 const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
+  const opacityLabelId = React.useId();
   const { user } = useAuth();
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
@@ -36,6 +37,8 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [generatingPreview, setGeneratingPreview] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
+
+  const opacityPercent = Math.round(settings.watermark_opacity * 100);
 
   // Sample preview image for testing watermark
   const sampleImage = 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800';
@@ -320,14 +323,15 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
             {/* Opacity Slider */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className={textPrimaryClass}>Opacity</Label>
+                <Label asChild className={textPrimaryClass}><span id={opacityLabelId}>Opacity</span></Label>
                 <span className={`text-sm ${textSecondaryClass}`}>
-                  {Math.round(settings.watermark_opacity * 100)}%
+                  {opacityPercent}%
                 </span>
               </div>
               <Slider
                 data-testid="watermark-opacity-slider"
-                value={[settings.watermark_opacity * 100]}
+                thumbProps={{ 'aria-labelledby': opacityLabelId, 'aria-valuetext': opacityPercent + '%' }}
+                value={[opacityPercent]}
                 onValueChange={(values) => setSettings(prev => ({ ...prev, watermark_opacity: values[0] / 100 }))}
                 min={10}
                 max={100}
