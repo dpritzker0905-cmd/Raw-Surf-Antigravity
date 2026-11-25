@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -6,6 +7,7 @@ import { getErrorMessage } from '../utils/errors';
 export const useGalleryFolderActions = ({
   user,
   selectedGallery,
+  showAddToGalleryModal,
   // State setters
   setGalleries,
   setGalleryItems,
@@ -35,27 +37,49 @@ export const useGalleryFolderActions = ({
   // Core fetch functions needed from main hook
   fetchGallery
 }) => {
+  const folderVisit = useRef(null);
+  const pickerVisit = useRef(0);
+  const ownerId = user?.id;
+  const destination = JSON.stringify([ownerId, selectedGallery?.id]);
+  const galleriesRead = useRef(0);
+  const itemsRead = useRef(0);
+  const pendingCopies = useRef(new Set());
+  const [busyFolders, setBusyFolders] = useState(() => new Set());
+
+  useLayoutEffect(() => {
+    folderVisit.current = { destination, ownerId };
+    return () => { folderVisit.current = null; };
+  }, [destination, ownerId]);
+
+  useLayoutEffect(() => { pickerVisit.current += 1; }, [showAddToGalleryModal]);
+  useLayoutEffect(() => () => {
+    galleriesRead.current += 1;
+    itemsRead.current += 1;
+  }, [ownerId]);
 
   const fetchGalleries = async () => {
+    const read = ++galleriesRead.current;
     try {
       const response = await apiClient.get(`/galleries/photographer/${user.id}`);
-      setGalleries(response.data || []);
+      if (galleriesRead.current === read) setGalleries(response.data || []);
     } catch (error) {
       logger.error('Error fetching galleries:', error);
-      setGalleries([]);
+      if (galleriesRead.current === read) setGalleries([]);
     }
   };
 
-  const fetchGalleryItems = async (galleryId) => {
+  const fetchGalleryItems = async (galleryId, visit) => {
+    const read = ++itemsRead.current;
+    const isCurrent = () => itemsRead.current === read && (!visit || folderVisit.current === visit);
     setGalleryItemsLoading(true);
     try {
       const response = await apiClient.get(`/galleries/${galleryId}/items?viewer_id=${user.id}`);
-      setGalleryItems(response.data || []);
+      if (isCurrent()) setGalleryItems(response.data || []);
     } catch (error) {
       logger.error('Error fetching gallery items:', error);
-      setGalleryItems([]);
+      if (isCurrent()) setGalleryItems([]);
     } finally {
-      setGalleryItemsLoading(false);
+      if (isCurrent()) setGalleryItemsLoading(false);
     }
   };
 
@@ -87,17 +111,33 @@ export const useGalleryFolderActions = ({
   };
 
   const handleAddToGallery = async (itemId) => {
-    if (!selectedGallery) return;
+    const visit = folderVisit.current;
+    const picker = pickerVisit.current;
+    if (!ownerId || !selectedGallery || visit?.destination !== destination) return;
+    if (pendingCopies.current.has(destination)) return;
+    pendingCopies.current.add(destination);
+    setBusyFolders(new Set(pendingCopies.current));
     try {
-      await apiClient.post(`/galleries/${selectedGallery.id}/items?photographer_id=${user.id}`, {
-        item_id: itemId
+      await apiClient.post(`/gallery/item/${encodeURIComponent(itemId)}/copy?photographer_id=${encodeURIComponent(user.id)}`, {
+        target_gallery_id: selectedGallery.id
       });
+      const currentVisit = folderVisit.current;
+      if (currentVisit?.ownerId !== ownerId) return;
+      const listRefresh = fetchGalleries();
+      if (currentVisit.destination !== destination) {
+        await listRefresh;
+        return;
+      }
       toast.success('Photo added to gallery');
-      fetchGalleryItems(selectedGallery.id);
-      fetchGalleries();
-      setShowAddToGalleryModal(false);
+      if (currentVisit === visit && pickerVisit.current === picker) setShowAddToGalleryModal(false);
+      await Promise.all([fetchGalleryItems(selectedGallery.id, currentVisit), listRefresh]);
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Failed to add photo'));
+      if (folderVisit.current?.destination === destination) {
+        toast.error(getErrorMessage(error, 'Failed to add photo'));
+      }
+    } finally {
+      pendingCopies.current.delete(destination);
+      if (folderVisit.current) setBusyFolders(new Set(pendingCopies.current));
     }
   };
 
@@ -124,6 +164,8 @@ export const useGalleryFolderActions = ({
   };
 
   const closeGalleryDetail = () => {
+    itemsRead.current += 1;
+    setGalleryItemsLoading(false);
     setSelectedGallery(null);
     setGalleryItems([]);
     setConditionsStatus(null);
@@ -265,6 +307,7 @@ export const useGalleryFolderActions = ({
   };
 
   return {
+    addingLibraryPhoto: busyFolders.has(destination),
     fetchGalleries,
     fetchGalleryItems,
     handleDeleteFromGallery,

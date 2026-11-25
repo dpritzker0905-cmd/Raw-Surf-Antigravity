@@ -236,7 +236,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
   const {
     fetchLinkedGroms, fetchGromHighlights, handleTagGrom, handleUntagGrom,
     fetchGalleries, fetchGalleryItems, handleDeleteFromGallery, executeDeleteFromGallery, executeBulkDelete,
-    handleAddToGallery, openGalleryDetail, closeGalleryDetail,
+    addingLibraryPhoto, handleAddToGallery, openGalleryDetail, closeGalleryDetail,
     fetchConditionsStatus, handlePushToSpotHub, handleSaveGalleryPricing,
     fetchGallery, handleQuickPriceUpdate, handleClearCustomPrice,
     handleCreateFolder, handleRenameFolder, handleDeleteFolder, confirmDeleteFolder,
@@ -252,7 +252,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
     user, selectedGallery, selectedItems, bulkSelectMode, galleryItems, participants,
     setGallery, setGalleries, setGalleryItems, setGalleryItemsLoading,
     setLinkedGroms, setGromHighlights, setShowTagGromModal, setItemToTag,
-    setDeleteConfirm, setDeletingItemId, setShowAddToGalleryModal,
+    setDeleteConfirm, setDeletingItemId, showAddToGalleryModal, setShowAddToGalleryModal,
     setSelectedGallery, setConditionsStatus, setPushingConditions,
     setFolderActionLoading, setNewFolderName, setShowCreateFolderModal,
     setFolderToRename, setShowRenameFolderModal,
@@ -761,6 +761,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
         gallery={gallery}
         galleryItems={galleryItems}
         handleAddToGallery={handleAddToGallery}
+        addingLibraryPhoto={addingLibraryPhoto}
         setShowUploadModal={setShowUploadModal}
         showCreateFolderModal={showCreateFolderModal}
         setShowCreateFolderModal={setShowCreateFolderModal}
