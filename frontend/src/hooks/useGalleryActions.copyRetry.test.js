@@ -69,3 +69,43 @@ test('leaving during a copy clears the old retry selection and ignores late resu
   await act(async () => { acknowledge({}); await operation; });
   expect([...result.current.selectedItems]).toEqual(['c']);
 });
+
+test.each([
+  ['folder', 'owner', 'destination', true],
+  ['account', 'another-owner', 'source', false],
+])('leaving the %s after a settled copy clears its failed selection', async (_, nextUser, nextFolder, mixed) => {
+  apiClient.post.mockRejectedValueOnce(new Error('copy failed'));
+  if (mixed) {
+    apiClient.post.mockResolvedValueOnce({});
+  } else {
+    apiClient.post.mockRejectedValueOnce(new Error('copy failed'));
+  }
+  apiClient.get.mockResolvedValue({ data: [] });
+  const { result, rerender } = renderHook(({ userId, folderId }) => {
+    const [selectedItems, setSelectedItems] = useState(new Set(['a', 'b']));
+    const [bulk, setBulkSelectMode] = useState(true);
+    const [open, setShowCopyToFolderModal] = useState(true);
+    const [busy, setFolderActionLoading] = useState(false);
+    const actions = useGalleryActions({
+      user: { id: userId }, selectedGallery: { id: folderId }, selectedItems, setSelectedItems,
+      setBulkSelectMode, setShowCopyToFolderModal, setFolderActionLoading, setGalleries: jest.fn(),
+    });
+    return { actions, selectedItems, bulk, open, busy, setShowCopyToFolderModal, setFolderActionLoading };
+  }, { initialProps: { userId: 'owner', folderId: 'source' } });
+
+  await act(async () => { await result.current.actions.handleCopyToFolder('target'); });
+  expect([...result.current.selectedItems]).toEqual(mixed ? ['a'] : ['a', 'b']);
+  expect(result.current.busy).toBe(false);
+  act(() => result.current.setShowCopyToFolderModal(false));
+  rerender({ userId: 'owner', folderId: 'source' });
+  expect(result.current.bulk).toBe(true);
+  expect(result.current.selectedItems.has('a')).toBe(true);
+
+  // A different folder action may own the shared loading flag after copy settles.
+  act(() => result.current.setFolderActionLoading(true));
+  rerender({ userId: nextUser, folderId: nextFolder });
+  expect(result.current.selectedItems.size).toBe(0);
+  expect(result.current.bulk).toBe(false);
+  expect(result.current.open).toBe(false);
+  expect(result.current.busy).toBe(true);
+});

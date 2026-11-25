@@ -83,12 +83,16 @@ const useGalleryActions = ({
   gallery,
 }) => {
   const copyRequest = useRef(null);
+  const copyRetryPending = useRef(false);
   useLayoutEffect(() => () => {
-    if (copyRequest.current) {
-      copyRequest.current = null;
+    if (copyRequest.current || copyRetryPending.current) {
+      copyRetryPending.current = false;
       setSelectedItems(new Set());
       setBulkSelectMode(false);
       setShowCopyToFolderModal(false);
+    }
+    if (copyRequest.current) {
+      copyRequest.current = null;
       setFolderActionLoading(false);
     }
   }, [user?.id, selectedGallery?.id, setSelectedItems, setBulkSelectMode, setShowCopyToFolderModal, setFolderActionLoading]);
@@ -178,6 +182,7 @@ const useGalleryActions = ({
   };
 
   const clearSelection = () => {
+    copyRetryPending.current = false;
     setSelectedItems(new Set());
     setBulkSelectMode(false);
   };
@@ -229,6 +234,7 @@ const useGalleryActions = ({
       ));
       if (copyRequest.current !== itemIds) return;
       const copied = new Set(itemIds.filter((_, index) => outcomes[index].status === 'fulfilled'));
+      copyRetryPending.current = copied.size < itemIds.length;
       if (copied.size === 0) {
         toast.error(getErrorMessage(outcomes[0].reason, 'Failed to copy items'));
         return;
