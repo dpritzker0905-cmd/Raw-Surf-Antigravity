@@ -117,7 +117,7 @@ def test_report_only_never_fails(monkeypatch, state):
            "frag_files": 0, "fragments": [], "errors": [], "merge_base": "a" * 40}
     monkeypatch.setattr(ffc, "run", lambda base: [row])
     assert ffc.main(["--report-only"]) == 0
-    want = {"ok": 0, "mismatch": 1, "inconclusive": 0, "shrinks": 0, "fragments-only": 0}[state]   # unknown: report-only
+    want = {"ok": 0, "mismatch": 1, "inconclusive": 1, "shrinks": 0, "fragments-only": 0}[state]   # unknown FAILS (after a retry)
     assert ffc.main([]) == want
 
 
@@ -199,3 +199,58 @@ def test_the_authorizer_must_start_with_david_or_the_director():
         assert not ffc.override_ok(1294, lab, [_decision(auth=auth)])[0], auth
     for auth in ("director session local_d6b521eb", "Director", "  David (owner), typed in chat", "david"):
         assert ffc.override_ok(1294, lab, [_decision(auth=auth)])[0], auth
+
+
+# ---- David's "Yes, block + fix" (SubQ + Reflection: fail-open on unknown was a loophole): unknown retries once, then
+# fails through the SAME override path as a mismatch. ----
+
+def _row(state, lane="estate"):
+    return {"lane": lane, "state": state, "why": "w", "fix": "f", "delta_tests": 0, "delta_files": 0, "frag_tests": 0,
+            "frag_files": 0, "fragments": [], "errors": [], "merge_base": "a" * 40}
+
+
+def _sequence(monkeypatch, *outcomes):
+    """run() returns/raises each outcome in turn; counts the calls."""
+    calls = {"n": 0}
+
+    def fake(base):
+        o = outcomes[min(calls["n"], len(outcomes) - 1)]
+        calls["n"] += 1
+        if isinstance(o, Exception):
+            raise o
+        return o
+    monkeypatch.setattr(ffc, "run", fake)
+    monkeypatch.setattr(ffc, "_pr_ledger_lines", lambda b: [_decision()])
+    return calls
+
+
+def test_unknown_then_success_passes_after_one_retry(monkeypatch, capsys):
+    calls = _sequence(monkeypatch, RuntimeError("collection crashed"), [_row("ok")])
+    assert ffc.main(["--pr", "1294"]) == 0 and calls["n"] == 2
+    assert "::notice title=Floor fragment check retry" in capsys.readouterr().out
+    calls = _sequence(monkeypatch, [_row("inconclusive")], [_row("ok")])                 # an inconclusive lane too
+    assert ffc.main(["--pr", "1294"]) == 0 and calls["n"] == 2
+
+
+def test_unknown_twice_fails_and_says_so(monkeypatch, capsys):
+    calls = _sequence(monkeypatch, RuntimeError("boom"), RuntimeError("boom again"))
+    assert ffc.main(["--pr", "1294"]) == 1 and calls["n"] == 2                          # exactly one retry
+    out = capsys.readouterr().out
+    assert "::error title=Floor fragment check unknown after one retry::RuntimeError: boom again" in out
+    calls = _sequence(monkeypatch, [_row("inconclusive")], [_row("inconclusive")])
+    assert ffc.main(["--pr", "1294"]) == 1 and calls["n"] == 2
+
+
+def test_unknown_with_a_valid_override_passes(monkeypatch, capsys):
+    _sequence(monkeypatch, RuntimeError("boom"), RuntimeError("boom"))
+    assert ffc.main(["--pr", "1294", "--labels", ffc.OVERRIDE_LABEL]) == 0
+    assert "::warning title=Floor fragment override::overridden" in capsys.readouterr().out
+    _sequence(monkeypatch, RuntimeError("boom"), RuntimeError("boom"))
+    assert ffc.main(["--pr", "1294", "--report-only"]) == 0                              # FLOOR_FRAGMENT_CHECK=report
+
+
+def test_no_relevant_change_passes_without_a_retry(monkeypatch):
+    calls = _sequence(monkeypatch, [_row("ok", lane) for lane in ("guards", "chain", "estate")])
+    assert ffc.main(["--pr", "1294"]) == 0 and calls["n"] == 1
+    calls = _sequence(monkeypatch, [_row("fragments-only", lane) for lane in ("guards", "chain", "estate")])
+    assert ffc.main(["--pr", "1294"]) == 0 and calls["n"] == 1

@@ -2624,8 +2624,10 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
           # BLOCKING by default (step b of the advisor's staged plan; the flip needs David's word): a mismatch fails the job
           # unless the PR carries the floor-fragment-override label AND a ledger `decision` line naming the override, a
-          # written reason and David or the director. An inconclusive lane stays report-only. FLOOR_FRAGMENT_CHECK=report
-          # (repo variable) is the kill switch back to report-only.
+          # written reason and David or the director. UNKNOWN (a collection error, an inconclusive lane, a crash) retries
+          # the collection once and, still unknown, FAILS through the same override (David, "Yes, block + fix", after
+          # SubQ + Reflection flagged fail-open as a loophole). FLOOR_FRAGMENT_CHECK=report (repo variable) is the kill
+          # switch: every outcome becomes a warning and the job passes.
           FLOOR_FRAGMENT_CHECK: ${{ vars.FLOOR_FRAGMENT_CHECK || 'block' }}
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
