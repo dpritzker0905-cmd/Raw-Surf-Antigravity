@@ -80,3 +80,16 @@ Append-only. Stamps come from `date -u`.
   - REQ-2: Atka (9461710) has no MF/MM, so LP_noaa there is SA + SSA only.
   - The pre-flip seasonal-mismatch note beside L2: about 0.1 m typical and up to about 0.66 m riverine. A D PASS is not
     agreement with NOAA tables, and the long_label must be reworded before any flip.
+
+## 15:20Z: amendment 4 (§13, PRE-DATA): REQ-1 amended; the NOAA convention fixed; MSF added to LP_noaa
+
+- **REQ-1 is now a one-off calibration on running means (the advisor):** every 14-day and 29-day running mean of
+  NOAA − our synthesis must be within ±0.003 m over 2025, at Longview and Point Hope, with and without SA/SSA. It never
+  runs per build.
+- **The first run FAILED at Longview:** 4.15 mm (14-day). That record is kept, with its audit.
+  - The cause was MSF (0.139 m) and MM (0.077 m) synthesised by pyTMD, about 5 mm off NOAA each.
+  - Fixed in the convention (`noaa_lp.py`: Schureman MM/MF; MSF as the compound S2 − M2), never the bar.
+  - The rerun PASSED: Longview 0.14 / 0.06 mm, Point Hope 0.04 / 0.02 mm.
+- **LP_noaa now includes MSF** (NOAA predicts it; FES has no MSF wave).
+- **The per-build tester is pure Python:** no pyTMD.
+- The calibration files and code are in the code PR, and the hashes are in §13.
