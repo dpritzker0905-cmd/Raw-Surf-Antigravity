@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 1,
+  "files": 0,
+  "branch": "claude/harcon-arm-synth-guard",
+  "date": "2026-11-25",
+  "note": "harcon_arm: a donor the synthesis cannot evaluate is skipped (+1 test)"
+}
