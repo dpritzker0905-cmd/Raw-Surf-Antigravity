@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 2,
+  "branch": "claude/floor-check-blocking",
+  "date": "2026-11-25",
+  "note": "fragment check: blocking with a ledgered override (test_floor_fragment_check +2)"
+}

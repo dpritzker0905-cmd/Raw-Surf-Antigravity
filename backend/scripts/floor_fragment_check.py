@@ -184,24 +184,67 @@ def report(rows: list) -> str:
     return "\n".join(lines) + "\n"
 
 
+OVERRIDE_LABEL = "floor-fragment-override"
+AUTHORIZERS = re.compile(r"\bdavid\b|\bdirector\b", re.IGNORECASE)
+MIN_REASON = 20
+
+
+def override_ok(pr: int, labels, ledger_lines) -> tuple:
+    """(ok, why) for a BLOCKING mismatch on PR `pr` (advisor's staged plan, step b). PURE.
+    Both are required: the `floor-fragment-override` label on the PR, AND a ledger line this PR adds (its own
+    `docs/weather-program/ledger.d/*.jsonl` fragment) of kind `decision`, whose target names the override and `#<pr>`,
+    whose `why` is a written reason (>= 20 characters), and whose `authorized_by` names David or the director.
+    LIMIT, stated: every lane, the director and David push through ONE GitHub account, so GitHub cannot tell who applied
+    the label; the authorizer is a written, ledgered claim reviewed by the advisor, not an identity check."""
+    if OVERRIDE_LABEL not in set(labels or []):
+        return False, f"no `{OVERRIDE_LABEL}` label"
+    for line in ledger_lines or []:
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        target, why, auth = str(e.get("target", "")), str(e.get("why", "")), str(e.get("authorized_by", ""))
+        if (e.get("kind") == "decision" and OVERRIDE_LABEL in target and re.search(rf"#{pr}\b", target)
+                and len(why.strip()) >= MIN_REASON and AUTHORIZERS.search(auth)):
+            return True, f"overridden: {why.strip()[:160]} (authorized by {auth[:80]})"
+    return False, (f"the `{OVERRIDE_LABEL}` label is present but no ledger `decision` line in this PR names "
+                   f"`{OVERRIDE_LABEL} #{pr}` with a written reason authorized by David or the director")
+
+
+def _pr_ledger_lines(base_ref: str) -> list:
+    """Lines this PR adds to ledger fragments (merge base..HEAD)."""
+    mb = _git("merge-base", "HEAD", base_ref).strip()
+    diff = _git("diff", "--unified=0", mb, "HEAD", "--", "docs/weather-program/ledger.d")
+    return [ln[1:] for ln in diff.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--base", default="origin/dev", help="the PR's base ref or sha")
     ap.add_argument("--report-only", action="store_true", help="annotate, never fail")
+    ap.add_argument("--pr", type=int, default=0, help="the PR number (blocking mode reads its override)")
+    ap.add_argument("--labels", default="", help="the PR's labels, comma separated (blocking mode)")
     a = ap.parse_args(argv)
     try:
         rows = run(a.base)
     except Exception as e:                                      # noqa: BLE001 - git or collection trouble
         print(f"::warning title=Floor fragment check inconclusive::{type(e).__name__}: {str(e)[:300]}")
-        return 0 if a.report_only else 3
+        return 0                                        # unknown stays report-only, in blocking mode too
     text = report(rows)
     print(text)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
         with open(summary, "a", encoding="utf-8") as fh:
             fh.write("### Floor fragment check\n\n" + text)
-    level = "warning" if a.report_only else "error"
     bad = [r for r in rows if r["state"] == "mismatch"]
+    ok_override, override_why = (False, "")
+    if bad and not a.report_only:
+        try:
+            ok_override, override_why = override_ok(a.pr, [x.strip() for x in a.labels.split(",") if x.strip()],
+                                                    _pr_ledger_lines(a.base))
+        except Exception as e:                                  # noqa: BLE001 - no override when it cannot be read
+            ok_override, override_why = False, f"override unreadable: {type(e).__name__}"
+    level = "warning" if (a.report_only or ok_override) else "error"
     for r in bad:
         print(f"::{level} title=Floor fragment mismatch ({r['lane']})::{r['why']}. Fix: {r['fix']}")
     for r in rows:
@@ -211,11 +254,13 @@ def main(argv=None) -> int:
     if gone:                                            # advisor L2: a lowered floor is WARNED about, never blocking
         print(f"::warning title=Floor fragment deleted::this PR deletes {', '.join(gone)} (lowers a floor); "
               f"compaction (rederive_floor.py --compact) belongs in a PR of its own")
+    if bad and not a.report_only:
+        print(f"::{level} title=Floor fragment override::{override_why}")
     if a.report_only:
         return 0
-    if bad:
-        return 1
-    return 3 if any(r["state"] == "inconclusive" for r in rows) else 0
+    # BLOCKING (step b): a mismatch fails the job unless overridden. An inconclusive lane (a collection error) stays
+    # REPORT-ONLY: a broken import elsewhere must not block a PR whose fragments are right.
+    return 1 if (bad and not ok_override) else 0
 
 
 if __name__ == "__main__":

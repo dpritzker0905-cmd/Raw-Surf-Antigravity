@@ -106,7 +106,8 @@ def test_ci_runs_it_on_pull_requests_report_only_with_full_history_and_the_deps(
     assert steps[0]["with"]["fetch-depth"] == 0
     run = next(s for s in steps if "floor_fragment_check.py" in (s.get("run") or ""))
     assert "--base \"origin/$BASE_REF\"" in run["run"] and "FLOOR_FRAGMENT_CHECK" in run["run"]
-    assert run["env"]["FLOOR_FRAGMENT_CHECK"] == "${{ vars.FLOOR_FRAGMENT_CHECK || 'report' }}"
+    assert run["env"]["FLOOR_FRAGMENT_CHECK"] == "${{ vars.FLOOR_FRAGMENT_CHECK || 'block' }}"   # step b: blocking
+    assert '--pr "$PR_NUMBER"' in run["run"] and "gh pr view" in run["run"]           # labels read live
     assert any("requirements.txt" in (s.get("run") or "") for s in steps)
 
 
@@ -116,7 +117,7 @@ def test_report_only_never_fails(monkeypatch, state):
            "frag_files": 0, "fragments": [], "errors": [], "merge_base": "a" * 40}
     monkeypatch.setattr(ffc, "run", lambda base: [row])
     assert ffc.main(["--report-only"]) == 0
-    want = {"ok": 0, "mismatch": 1, "inconclusive": 3, "shrinks": 0, "fragments-only": 0}[state]
+    want = {"ok": 0, "mismatch": 1, "inconclusive": 0, "shrinks": 0, "fragments-only": 0}[state]   # unknown: report-only
     assert ffc.main([]) == want
 
 
@@ -157,3 +158,35 @@ def test_the_job_sits_above_the_staleness_comment_and_declares_no_permissions():
     assert "THE RATCHETS ABOVE DO NOT WATCH THEMSELVES" in between                # the staleness comment follows our job
     assert "PR-TIME FLOOR FRAGMENT CHECK" in text[:ours]                          # our comment precedes it
     assert "permissions" not in yaml.safe_load(text)["jobs"]["backend-floor-fragment-check"]
+
+
+def _decision(pr=1294, why="the parametrized workflow test grew by one; catch-up #1309 already covers it",
+              auth="director session local_d6b521eb", kind="decision"):
+    return json.dumps({"kind": kind, "target": f"floor-fragment-override #{pr}", "why": why, "authorized_by": auth})
+
+
+def test_an_override_needs_the_label_and_a_ledgered_reason_authorized_by_david_or_the_director():
+    lab = [ffc.OVERRIDE_LABEL]
+    assert ffc.override_ok(1294, lab, [_decision()])[0]
+    assert ffc.override_ok(1294, lab, [_decision(auth="David (owner), typed in chat")])[0]
+    assert not ffc.override_ok(1294, [], [_decision()])[0]                                  # no label
+    assert not ffc.override_ok(1294, lab, [])[0]                                            # no ledger line
+    assert not ffc.override_ok(1294, lab, [_decision(auth="claude (reliability lane)")])[0]  # the author lane alone
+    assert not ffc.override_ok(1294, lab, [_decision(why="ok")])[0]                         # no written reason
+    assert not ffc.override_ok(1294, lab, [_decision(pr=1295)])[0]                          # another PR's override
+    assert not ffc.override_ok(12945, lab, [_decision(pr=1294)])[0] and not ffc.override_ok(1294, lab, [_decision(pr=12945)])[0]
+    assert not ffc.override_ok(1294, lab, [_decision(kind="finding")])[0]
+    assert not ffc.override_ok(1294, lab, ["{not json"])[0]
+
+
+def test_blocking_mode_fails_a_mismatch_unless_overridden(monkeypatch, capsys):
+    row = {"lane": "estate", "state": "mismatch", "why": "w", "fix": "f", "delta_tests": 5, "delta_files": 0,
+           "frag_tests": 4, "frag_files": 0, "fragments": [], "errors": [], "merge_base": "a" * 40}
+    monkeypatch.setattr(ffc, "run", lambda b: [row])
+    monkeypatch.setattr(ffc, "_pr_ledger_lines", lambda b: [_decision()])
+    assert ffc.main(["--pr", "1294"]) == 1                                                  # no label: red
+    assert "::error title=Floor fragment mismatch" in capsys.readouterr().out
+    assert ffc.main(["--pr", "1294", "--labels", "bug," + ffc.OVERRIDE_LABEL]) == 0          # label + ledger: green
+    out = capsys.readouterr().out
+    assert "::warning title=Floor fragment override::overridden" in out and "::error" not in out
+    assert ffc.main(["--pr", "1294", "--labels", ffc.OVERRIDE_LABEL, "--report-only"]) == 0

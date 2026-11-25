@@ -2594,8 +2594,8 @@ jobs:
   # floor is a MINIMUM, so a PR that under-declares its fragment passes its own run and only surfaces later as dev
   # staleness (#1155 +1, #1234 +2, #1228 +15 with no fragment). This COLLECTS each backend lane at the PR head and at its
   # merge base and compares the delta with the PR's own ci-floors.d fragments (scripts/floor_fragment_check.py), printing
-  # the exact rederive_floor.py command on a mismatch. REPORT-ONLY until it has bedded in: repo variable
-  # FLOOR_FRAGMENT_CHECK=block makes a mismatch fail the job. Fragments-only (catch-up) PRs are not checked here.
+  # the exact rederive_floor.py command on a mismatch. Bedding-in (2026-11-25): 51 PR runs, 1 true mismatch (#1294), 0 false.
+  # BLOCKING on a mismatch (override: label + ledger decision; see the step). Fragments-only (catch-up) PRs are not checked here.
   backend-floor-fragment-check:
     needs: changes
     if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.changes.outputs.docs_only != 'true' }}
@@ -2622,10 +2622,18 @@ jobs:
         working-directory: backend
         env:
           BASE_REF: ${{ github.base_ref }}
-          FLOOR_FRAGMENT_CHECK: ${{ vars.FLOOR_FRAGMENT_CHECK || 'report' }}
+          # BLOCKING by default (step b of the advisor's staged plan; the flip needs David's word): a mismatch fails the job
+          # unless the PR carries the floor-fragment-override label AND a ledger `decision` line naming the override, a
+          # written reason and David or the director. An inconclusive lane stays report-only. FLOOR_FRAGMENT_CHECK=report
+          # (repo variable) is the kill switch back to report-only.
+          FLOOR_FRAGMENT_CHECK: ${{ vars.FLOOR_FRAGMENT_CHECK || 'block' }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           mode=""; [ "$FLOOR_FRAGMENT_CHECK" = "block" ] || mode="--report-only"
-          python scripts/floor_fragment_check.py --base "origin/$BASE_REF" $mode
+          # labels read LIVE (a re-run after labelling sees the label; the event payload would not)
+          labels="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(",")' || true)"
+          python scripts/floor_fragment_check.py --base "origin/$BASE_REF" --pr "$PR_NUMBER" --labels "$labels" $mode
 
   # ⛔⛔ THE RATCHETS ABOVE DO NOT WATCH THEMSELVES, AND ON 2026-08-11 NONE OF THEM WAS CURRENT.
   # Measured in one sweep against each lane's own green run on origin/dev @ 1b447f44 (31509178910):
