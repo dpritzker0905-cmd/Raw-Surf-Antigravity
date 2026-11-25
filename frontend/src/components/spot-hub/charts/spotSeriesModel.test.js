@@ -100,8 +100,8 @@ test('local solar time labels and dates', () => {
 test('the bar text equivalent states the tide in the ft/m setting (owner 2026-11-15)', () => {
   const s = decodeSeries(makeSeriesBody({ nowMs: NOW }), { nowMs: NOW, resolverHours: 72 });
   const f = s.frames.find((x) => x.tideM != null);
-  expect(frameDescription(f, fmt, 'ft')).toMatch(/tide -?\d+\.\d ft$/);
-  expect(frameDescription(f, fmt, 'm')).toMatch(/tide -?\d+\.\d m$/);
+  expect(frameDescription(f, fmt, 'ft')).toMatch(/tide -?\d+\.\d ft above (MLLW|local MSL)$/);
+  expect(frameDescription(f, fmt, 'm')).toMatch(/tide -?\d+\.\d m above (MLLW|local MSL)$/);
 });
 
 test('every bar has a text equivalent: time, height, rating word, model spread, wind word, tide', () => {

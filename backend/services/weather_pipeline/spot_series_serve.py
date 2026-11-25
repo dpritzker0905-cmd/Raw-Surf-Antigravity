@@ -48,7 +48,7 @@ FLAG = "SPOT_HUB_CHARTS"
 SERVE_SCHEMA = "raw-surf/spot-series-serve/1"
 INDEX_KEY = f"{SS.L2_PREFIX}/index.json"
 # The columns a client is sent. `r` (the UNGATED score) stays in CI: the hub shows the gated verdict, as the glyph does.
-SERVED_COLS = ("t", "h", "s", "l", "lo", "hi", "w", "wd", "sw", "td")
+SERVED_COLS = ("t", "h", "s", "l", "lo", "hi", "w", "wd", "sw", "td", "tdd")
 NEGATIVE_TTL_S = 60.0
 
 # (key, cache_buster) -> bytes, or None when the object does not exist. Tests inject; None = the private bucket.

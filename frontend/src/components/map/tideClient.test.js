@@ -1,6 +1,6 @@
 import {
   tideCellKey, tideStateFromSeries, getCachedTideState, ensureTideState, _resetTideClientForTest,
-  formatTideLine, trendArrow,
+  formatTideLine, formatTideAria, tideFallbackRemoved, trendArrow,
 } from './tideClient';
 
 // A clean half-day curve: high at 04:00 (1.0 m), low at 10:00 (-0.6 m) — the backend test fixture.
@@ -81,14 +81,30 @@ describe('ensureTideState / getCachedTideState', () => {
 });
 
 describe('formatTideLine', () => {
-  it('formats in ft/m with the trend as a word (screen-reader safe)', () => {
-    expect(formatTideLine({ height_m: -0.06, trend: 'falling' }, 'ft')).toBe('-0.2 ft falling');
-    expect(formatTideLine({ height_m: 0.62, trend: 'rising' }, 'm')).toBe('0.6 m rising');
+  it('VISIBLE: a plain number, typographic minus, the trend as a word, NO datum name (decision B)', () => {
+    expect(formatTideLine({ height_m: -0.06, trend: 'falling' }, 'ft')).toBe('−0.2 ft, falling');
+    expect(formatTideLine({ height_m: 0.62, trend: 'rising' }, 'm')).toBe('0.6 m, rising');
+    // a US rating tide shows its display height (above MLLW), still without the datum name
+    expect(formatTideLine({ height_m: 0.1, display_height_m: 0.9, datum: 'MLLW', datum_src: 'model', trend: 'rising' }, 'm'))
+      .toBe('0.9 m, rising');
+    expect(formatTideLine({ height_m: -0.6, display_height_m: -0.1, datum: 'MLLW', datum_src: 'gauge', trend: 'falling' }, 'ft'))
+      .toBe('−0.3 ft, falling');
+  });
+
+  it('ACCESSIBLE: precise words with the datum (decision B)', () => {
+    expect(formatTideAria({ height_m: 0.1, display_height_m: 0.37, datum: 'MLLW', datum_src: 'model', trend: 'rising' }, 'ft'))
+      .toBe('1.2 feet above mean lower low water, rising');
+    expect(formatTideAria({ height_m: -0.6, display_height_m: -0.12, datum: 'MLLW', datum_src: 'gauge', trend: 'falling' }, 'ft'))
+      .toBe('0.4 feet below mean lower low water, a minus tide, falling');
+    expect(formatTideAria({ height_m: 0.62, trend: 'rising' }, 'm')).toBe('0.6 metres above local mean sea level, rising');
+    expect(formatTideAria({ height_m: -0.06, trend: 'falling' }, 'ft')).toBe('0.2 feet below local mean sea level, falling');
+    expect(formatTideAria(null, 'ft')).toBeNull();
   });
 
   it('omits an unknown trend but keeps the height', () => {
     expect(formatTideLine({ height_m: 0.5, trend: 'weird' }, 'ft')).toBe('1.6 ft');
     expect(formatTideLine({ height_m: 0.5 }, 'ft')).toBe('1.6 ft');
+    expect(formatTideAria({ height_m: 0.5 }, 'ft')).toBe('1.6 feet above local mean sea level');
   });
 
   it('returns null for unusable payloads', () => {
@@ -106,5 +122,13 @@ describe('trendArrow', () => {
     expect(trendArrow('slack')).toBe('→');
     expect(trendArrow('nope')).toBe('');
     expect(trendArrow(undefined)).toBe('');
+  });
+});
+
+describe('tideFallbackRemoved (decision C, D-082: replace, do not blank)', () => {
+  it('removes the Open-Meteo fallback ONLY when the #1219 own glyph tide replaces it', () => {
+    expect(tideFallbackRemoved(true)).toBe(true);
+    expect(tideFallbackRemoved(false)).toBe(false);
+    expect(tideFallbackRemoved(undefined)).toBe(false);
   });
 });

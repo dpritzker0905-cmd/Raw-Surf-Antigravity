@@ -93,7 +93,7 @@ describe('TideReadout', () => {
     expect(await screen.findByTestId('tide-readout')).toBeTruthy();
     expect(screen.getByText('Rising')).toBeTruthy();
     expect(screen.getByTestId('tide-curve').getAttribute('aria-label')).toMatch(/^Tide rising, 0\.0 m at selected time/);
-    expect(screen.getByText('Modeled sea level · MSL')).toBeVisible();
+    expect(screen.getByText('Modeled tide · above local MSL')).toBeVisible();   // one label set (tideDatum.js)
     expect(screen.queryByRole('button', { name: 'About tide data' })).toBeNull();
     expect(screen.queryByText(/Open-Meteo|not an official tide table/)).toBeNull();
     expect(global.fetch).toHaveBeenCalledTimes(1);
