@@ -266,11 +266,16 @@ def main():
                 log(f"harcon {sid}: {type(e).__name__}")
                 harcon_cache[sid] = []
         return harcon_cache[sid]
+    skipped = {}
     am_h, am_h_meta = HA.build_am_h(keys_pts, a_by_key, {k: (m_cache.get(k) or {}).get("m") for k in keys_pts},
-                                    HA.universe(), harcon, arms.harcon_eval, times, OR.levels_mm)
+                                    HA.universe(), harcon, arms.harcon_eval, times, OR.levels_mm, skipped=skipped)
     doc["am_h"] = {k: v for k, v in am_h.items() if k in doc["keys"] and v and any(x is not None for x in v)}
     doc["am_h_donors"] = {k: am_h_meta[k] for k in doc["am_h"]}
     log(f"am_h (NOAA harcon blend) at {len(doc['am_h'])} keys from {len(harcon_cache)} donor stations")
+    # The advisor's limit 1 on #1302: every build says how many donors the synthesis could not evaluate (their keys
+    # keep the FES arm), so a silent loss of am_h coverage shows in the log.
+    log(f"am_h skipped donors (synthesis raised): {len(skipped)}"
+        + (f" ({', '.join(f'{d} {c}' for d, c in sorted(skipped.items()))})" if skipped else ""))
     if args.cmems == "1":
         doc["cmems"] = cmems_fill(keys_pts, start, hours, work / "cmems", now)
         doc["cmems_dataset"] = OR.CMEMS_DATASET
