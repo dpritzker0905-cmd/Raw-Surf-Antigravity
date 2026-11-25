@@ -623,25 +623,10 @@ async def remove_item_from_gallery(
     if gallery.photographer_id != photographer_id:
         raise HTTPException(status_code=403, detail="Not authorized to modify this gallery")
     
-    # Verify item exists in this gallery
-    item_check = await db.execute(
-        select(GalleryItem).where(
-            GalleryItem.id == item_id,
-            GalleryItem.gallery_id == gallery_id
-        )
-    )
-    item = item_check.scalar_one_or_none()
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found in this gallery")
-    
-    # Safe delete (protects paid surfer locker items)
-    result = await safe_delete_gallery_item(db, item_id, photographer_id)
+    result = await safe_delete_gallery_item(db, item_id, photographer_id, expected_gallery_id=gallery_id)
     
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
-    
-    # Update gallery stats
-    gallery.item_count = max(0, gallery.item_count - 1)
     
     await db.commit()
     
