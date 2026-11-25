@@ -160,7 +160,7 @@ test('a turn under a minute away reads "High now", never "High in now" (LongCat 
     events: [{ type: 'High', time: iso(t0 + 3600e3 + 30e3), height_m: 0.8 }] };
   const m = tideMarkerModel(rising, t0 + 3600e3 + 10e3, 'm', 'Pipeline');
   expect(m.nextText).toBe('High now');
-  expect(m.ariaLabel).toMatch(/high 0\.8 m now$/);
+  expect(m.ariaLabel).toMatch(/high 0\.8 metres above local mean sea level now$/);   // L4: datum words for the next turn too
 });
 
 test('time-until formatting', () => {

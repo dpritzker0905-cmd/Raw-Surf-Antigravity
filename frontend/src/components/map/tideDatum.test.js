@@ -106,7 +106,7 @@ describe.each(THEMES)('%s theme', (name, flags) => {
       tides: [{ time: future, height: -0.3, height_msl: -2.83, type: 'Low' }] }} />);
     expect(screen.getByTestId('tide-datum-short')).toHaveTextContent('heights above MLLW');
     expect(screen.getByTestId('tide-minus')).toHaveTextContent('minus tide');
-    expect(screen.getByTestId('tide-msl-ft')).toHaveTextContent('-2.8ft above local MSL');
+    expect(screen.getByTestId('tide-msl-ft')).toHaveTextContent('−2.8ft above local MSL');
     expect(screen.getByTestId('tide-source-label')).toHaveTextContent(/NOAA CO-OPS gauge 9410660/);
   });
 
@@ -159,10 +159,17 @@ describe.each(THEMES)('%s theme: the tide datum info tip (decision B; a11y)', (n
     expect(tip).toHaveFocus();
   });
 
-  test('outside the US it names local mean sea level and still notes that datums differ', () => {
+  test('on local MSL (off-US, or every point while SURF_TIDE_MLLW_US is "0") the tip never mentions MLLW', () => {
     render(<TideDatumInfo datum={tideDatumOf(null)} {...flags} />);
     fireEvent.click(screen.getByRole('button', { name: /Tide zero: local MSL/ }));
     expect(screen.getByTestId('tide-datum-tip')).toHaveTextContent(/local mean sea level/);
+    // the advisor's before-merge 1 (#1149 at b1ffc76a2): no "US spots read from mean lower low water" while it is untrue
+    expect(screen.getByTestId('tide-datum-tip').textContent).not.toMatch(/MLLW|lower low water|not comparable/);
+  });
+
+  test('on MLLW the tip adds the cross-border note', () => {
+    render(<TideDatumInfo datum={tideDatumOf(BLOCK)} {...flags} />);
+    fireEvent.click(screen.getByRole('button', { name: /Tide zero: MLLW/ }));
     expect(screen.getByTestId('tide-datum-tip')).toHaveTextContent(/not comparable/);
   });
 
@@ -198,3 +205,4 @@ describe('the decision-B client kill (window.__RAW_DISABLE_TIDE_PLAIN_LINE__)', 
     expect(formatTideLine(tide, 'ft')).toBe('-0.3 ft above MLLW (minus tide) falling');
   });
 });
+

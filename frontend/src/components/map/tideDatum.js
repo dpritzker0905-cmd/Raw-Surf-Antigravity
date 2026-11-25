@@ -151,10 +151,14 @@ export function preciseTideText(heightText, heightM, datum, trend) {
   return t ? `${text}, ${t}` : text;
 }
 
-/** The info tip's text for one location: what zero means here, the minus-tide note, and the cross-border note. */
+/**
+ * The info tip's text for one location: what zero means here and the minus-tide note. The cross-border note ("US spots
+ * read from mean lower low water ...") is added ONLY where this location IS on MLLW: while SURF_TIDE_MLLW_US is "0" every
+ * point is on local MSL, and the note would be untrue (the advisor's before-merge 1 on #1149 at b1ffc76a2).
+ */
 export function datumLegendText(datum) {
   const d = datum || tideDatumOf(null);
-  return [d.long, d.negativeNote, DATUMS_DIFFER_NOTE].filter(Boolean).join(' ');
+  return [d.long, d.negativeNote, d.isMllw ? DATUMS_DIFFER_NOTE : null].filter(Boolean).join(' ');
 }
 
 /** The info tip's short button label: "Tide zero: MLLW" / "Tide zero: local MSL". */

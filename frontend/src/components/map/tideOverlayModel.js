@@ -117,7 +117,10 @@ export function tideMarkerModel(served, atMs, unit, name = 'Surf spot') {
   // Decision B: the visible marker is a plain number; its accessible name stays precise ("1.2 feet above mean lower low
   // water"), and the datum is said once per location in the infobox's info tip.
   let ariaLabel = `Tide near ${name}: ${word.toLowerCase()}, ${preciseTideText(height, d.height_m, datum, null)} at selected time`;
-  if (nextText) ariaLabel += `, ${turn.kind.toLowerCase()} ${turnHeight} ${until === 'now' ? 'now' : `in ${until}`}`;
+  // L4 (#1149): the next turn's height in the same precise datum words as the current one.
+  if (nextText) {
+    ariaLabel += `, ${turn.kind.toLowerCase()} ${preciseTideText(turnHeight, turn.height_m, datum, null)} ${until === 'now' ? 'now' : `in ${until}`}`;
+  }
   return {
     available: true, height_m: d.height_m, trend: d.trend, heightText: typoMinus(height), datumText: datum.short, datum, trendWord: word,
     glyph: trendGlyph(d.trend), nextText, next: turn ? { kind: turn.kind, time: turn.time, height_m: turn.height_m } : null,

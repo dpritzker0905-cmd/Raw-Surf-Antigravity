@@ -60,7 +60,7 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
         {/* Decision B (2026-11-25): a plain number, "Tide 1.2 ft, rising" (typographic minus, no datum name); the
             datum is said once for this location in the info tip below. */}
         <span className={`text-xs font-bold ${textClass}`}>
-          <span data-testid="tide-height">{typoMinus(formatTideHeight(d.height_m, unit))}</span>,
+          <span data-testid="tide-height">{typoMinus(formatTideHeight(d.height_m, unit))}</span>{d.trend ? ',' : ''}
         </span>
         <span className={`text-[10px] font-semibold ${accent}`}>
           <span aria-hidden="true">{trendGlyph(d.trend)} </span>{trendWord(d.trend)}

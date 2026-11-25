@@ -14,7 +14,7 @@ import React from 'react';
 import { ArrowUp, ArrowDown, Droplets } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { spotHubP1Enabled, tideSourceLabel } from './spotHubP1Format';
-import { tideDatumOf, MINUS_TIDE } from '../map/tideDatum';
+import { tideDatumOf, MINUS_TIDE, typoMinus } from '../map/tideDatum';
 import { useNoteForecastShown } from '../observations/forecastExposure';
 
 function trendPillClass(rising, p1, isLight, isBeach) {
@@ -84,7 +84,7 @@ export default function SpotTideBlock({ tideData, t, containerBorder, testId = '
                   {tideTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
                 <span className={`text-xs ${t.textSecondary}`}>
-                  {heightFt(tide).toFixed(1)}ft
+                  {typoMinus(heightFt(tide).toFixed(1))}ft
                 </span>
               </div>
               {datum.isMllw && heightFt(tide) < -0.05 && (
@@ -92,7 +92,7 @@ export default function SpotTideBlock({ tideData, t, containerBorder, testId = '
               )}
               {datum.isMllw && Number.isFinite(Number(tide.height_msl)) && (
                 <div className={`text-[10px] ${t.textMuted}`} data-testid="tide-msl-ft">
-                  ≈ {Number(tide.height_msl).toFixed(1)}ft above local MSL
+                  ≈ {typoMinus(Number(tide.height_msl).toFixed(1))}ft above local MSL
                 </div>
               )}
             </div>
