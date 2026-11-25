@@ -225,6 +225,8 @@ A ledger commitment covers it and the tester (`claude--tide-mllw-us.jsonl:10`, d
 - **Timing:** blind by design (§6 k); tide-guard judges it.
 - **`am_h` keys (L1):** while `SURF_TIDE_A_HARCON` is ON, `am_h`-served keys carry no m/d and show local MSL. This
   tester reads the `am` arm only. The two flags do not go ON together until that is decided.
+- **Seasonal mismatch with NOAA tables (§12, pre-flip):** the display carries FES equilibrium Sa/Ssa, while NOAA carries fitted SA/SSA, so they differ by about 0.1 m (up to about 0.66 m at riverine stations). A D PASS is not agreement with NOAA tables, and the long_label wording must change before any flip.
+- **Datum v2 reserves consumed (§12):** 69 of the 80 stations come from datum v2's unread reserve pool, and they are no longer fresh for any datum test.
 - **Type R only (§12):** the monitors are harmonic stations, not a random sample of the coast. They under-represent shallow back-bay and estuary keys. A PASS speaks for type-R-like locations, and the proposal says so.
 - **The gauge and interpolation D paths** serve only while a key lacks model D (§11 r1, r2). They are measured by the datum gates, not by this tester, which counts their share every build.
 - **Datum-sheet epochs other than 1983–2001** (a few Alaska and Gulf sheets): their D is compared on their own epoch;
@@ -452,3 +454,63 @@ differ, it holds.
     - (i) a check that reproduces a NOAA-published hourly prediction at a station from its `harcon.json`, with and
       without SA/SSA;
     - (ii) a test that `am − am_lp` equals the short-period-only synthesis at one key.
+- **(Added 2026-11-25 15:08Z, PRE-DATA; the advisor's VERIFIED read of the freeze at `69aa37305`.)**
+  - **The tester consumes datum v2's unread reserve pool:** 69 of the 80 frozen stations (35 of the 40 monitors) are in
+    `tide-datum-parity-v2-heldout.json`'s reserve lists. Datum v2 never read them; this tester reads them. From the
+    first prediction read on, they are NOT fresh for any future datum test, which must exclude
+    `research/tide-mllw-tester-v1-stations.json` (monitors and reserves alike). A ledger line records it, so the next
+    datum test's exclusions pick it up.
+  - **REQ-1 (it upgrades carry (i), blocking acceptance):** the code reproduces NOAA's OWN hourly prediction from
+    `harcon.json` at Longview (9440422; SA + SSA amplitudes 0.43 + 0.227 m, the worst case) and Point Hope (9491873) to
+    ≤ 0.002 m RMS, both WITH and WITHOUT SA/SSA, over a fixed past window outside every test window. At Longview a 1°
+    SA phase error is about 7.5 mm, so this pins NOAA's convention, which control (n) cannot.
+  - **REQ-2:** 9461710 (Atka) has no MF/MM rows, so LP_noaa there is SA + SSA only. A test pins it.
+- **Pre-flip, recorded beside L2 (the advisor):** the display carries FES's EQUILIBRIUM Sa/Ssa, while NOAA tables carry
+  each station's FITTED SA/SSA.
+  - So the MLLW display and a NOAA tide table differ SEASONALLY: typically about 0.1 m, and up to about 0.66 m at
+    riverine stations such as Longview.
+  - A D PASS here (long-period terms removed) is NOT agreement with NOAA tables.
+  - The block's long_label ("reads [M] above a NOAA tide table") must be reworded before any flip.
+
+## 13. Amendment 4 (2026-11-25 15:20Z, PRE-DATA): REQ-1 amended; NOAA's long-period convention fixed; MSF in LP_noaa
+
+Written before any tester prediction read. Where this section and §10 or §12 differ, it holds.
+
+- **REQ-1, the advisor's amended ruling.** This replaces §12's "≤ 0.002 m RMS" wording: hourly RMS was the wrong
+  statistic. REQ-1 is now a ONE-OFF instrument calibration. It never runs per build, so it can never make a build
+  UNTESTABLE.
+  - At Longview (9440422) and Point Hope (9491873), over calendar 2025: r = NOAA's own hourly MSL prediction − our
+    synthesis of the station's `harcon.json`, minus r's yearly mean.
+  - PASS iff EVERY 14-day and 29-day running mean of r is within ±0.003 m, and the same holds with SA + SSA removed
+    from both sides.
+  - Hourly RMS is a diagnostic only.
+  - If it fails, the convention is fixed, never the bar.
+  - Script: `backend/scripts/tide_datum/mllw_tester_ref_calibration.py`, run under `paced_run`.
+- **The first calibration FAILED, and is kept** as `research/tide-mllw-tester-v1-ref-calibration-1-fail.json` (sha256
+  `559c69f3…f5fd688d6`, audit `…-ref-calibration-1-requests.jsonl` `6c4b7a6c…f0b431bb`: 6 requests, 4 hourly predictions
+  + 2 `harcon.json`, all 200).
+  - Longview: max 14-day running mean 4.15 mm > 3 mm (the 29-day one was 0.73 mm), identical with and without SA/SSA.
+  - Point Hope passed at 0.04 mm.
+  - **Diagnosis:** Longview carries MSF (0.139 m) and MM (0.077 m). pyTMD's synthesis of them misses NOAA by about
+    5 mm each (a least-squares fit of the residual at each period). SA/SSA were not the cause.
+- **The convention fix** (`backend/scripts/tide_datum/noaa_lp.py`, pure Python): MM, MF and MSF are synthesised in
+  NOAA's Schureman convention, as `metrics.noaa_year_terms` already does for SA, SSA, M1 and M3 (V0 at 00:00 UTC Jan 1;
+  f and u at mid-year):
+  - MM: V = s − p, u = 0, f = (2/3 − sin²I)/0.5021;
+  - MF: V = 2s, u = −2ξ, f = sin²I/0.1578;
+  - MSF: V = 2s − 2h, u = −(2ξ − 2ν), f = f(M2), i.e. the compound S2 − M2. The Mm-type factor left 0.87 mm, so it was
+    rejected.
+- **The calibration then PASSED** (`research/tide-mllw-tester-v1-ref-calibration.json`, sha256
+  `738b328c2fdc0061aa5ef5d6213bb7b44064ae3bc6b5d66fa358f098e2c971ab`; audit `…-ref-calibration-requests.jsonl`
+  `43371d19f2010d3f31b96da599f828efe76486793458a6651f49e27ccb99ac16`, 6 requests, all 200).
+  - Longview: 14-day 0.14 mm, 29-day 0.06 mm, both with and without SA/SSA.
+  - Point Hope: 0.04 / 0.02 mm.
+  - The bar is unchanged.
+- **LP_noaa adds MSF** (§10 item 1 as amended). LP_noaa = SA + SSA (`metrics.noaa_long_period`) + MM + MF + MSF
+  (`noaa_lp.lp3`), all in NOAA's convention.
+  - MSF is a long-period term in NOAA's prediction with no FES wave. Our side's LP_ours (A − the short-period FES
+    synthesis) already contains every long-period part of A, so removing MSF on NOAA's side keeps e(t) free of
+    long-period terms on both sides.
+  - At Longview, leaving MSF in would have put a 0.139 m fortnightly term into the 7-day half means.
+- **The per-build tester no longer needs pyTMD:** LP_noaa is pure Python. REQ-2 stands: Atka (9461710) has none of MM,
+  MF or MSF, so LP_noaa there is SA + SSA only.

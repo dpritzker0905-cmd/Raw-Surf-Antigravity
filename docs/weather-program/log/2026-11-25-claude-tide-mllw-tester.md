@@ -69,6 +69,31 @@ Append-only. Stamps come from `date -u`.
 - **Process note:** the first type-R run was killed overnight before writing its output. The script now checkpoints
   each ETOPO classification (`--checkpoint`).
 
+## 15:09Z: the advisor VERIFIED the freeze (`69aa37305`); the owed pre-data docs
+
+- **Recorded in §12 and §8:**
+  - 69 of the 80 frozen stations (35 of 40 monitors) are datum v2 held-out RESERVES that datum v2 never read. The
+    tester consumes them; no future datum test may treat them as fresh. Ledger fragment
+    `claude--tide-mllw-tester-gate.jsonl:1`.
+  - REQ-1: the NOAA convention is reproduced at Longview (9440422) and Point Hope (9491873) to ≤ 0.002 m RMS, with and
+    without SA/SSA.
+  - REQ-2: Atka (9461710) has no MF/MM, so LP_noaa there is SA + SSA only.
+  - The pre-flip seasonal-mismatch note beside L2: about 0.1 m typical and up to about 0.66 m riverine. A D PASS is not
+    agreement with NOAA tables, and the long_label must be reworded before any flip.
+
+## 15:20Z: amendment 4 (§13, PRE-DATA): REQ-1 amended; the NOAA convention fixed; MSF added to LP_noaa
+
+- **REQ-1 is now a one-off calibration on running means (the advisor):** every 14-day and 29-day running mean of
+  NOAA − our synthesis must be within ±0.003 m over 2025, at Longview and Point Hope, with and without SA/SSA. It never
+  runs per build.
+- **The first run FAILED at Longview:** 4.15 mm (14-day). That record is kept, with its audit.
+  - The cause was MSF (0.139 m) and MM (0.077 m) synthesised by pyTMD, about 5 mm off NOAA each.
+  - Fixed in the convention (`noaa_lp.py`: Schureman MM/MF; MSF as the compound S2 − M2), never the bar.
+  - The rerun PASSED: Longview 0.14 / 0.06 mm, Point Hope 0.04 / 0.02 mm.
+- **LP_noaa now includes MSF** (NOAA predicts it; FES has no MSF wave).
+- **The per-build tester is pure Python:** no pyTMD.
+- The calibration files and code are in the code PR, and the hashes are in §13.
+
 ## 15:06Z: the tester code (its own PR, stacked on the gate #1306)
 
 - **`tide_datum/mllw_tester_core.py` (PURE):**
