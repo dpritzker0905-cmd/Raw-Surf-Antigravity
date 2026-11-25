@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 7,
+  "files": 0,
+  "branch": "claude/frames-orphan-rated-gust-retry",
+  "date": "2026-11-25",
+  "note": "gust risk adaptive under S3 throttling (frames lane)"
+}

@@ -124,3 +124,58 @@ Owner's ruling, relayed by the director (local_d6b521eb): "Ship ON with guard (R
   760. No behaviour change: 164 tests passed twice. After #1263 merges: a plain dev merge, resolved by hand, and the three
   issue titles ("Flag guardrail", "PHYSICS guard blind", "P0 cold-start snapshot drift") re-checked against each other's
   searches.
+
+## 2026-11-25 · A: "GFS rated sets stale" was orphan records, not a failing publish (branch claude/frames-orphan-rated-gust-retry)
+Read-only diagnosis, asked by the director after the reliability lane's frame-freshness report (GFS rated sets 54.8 h).
+- The public `latest.json` (written 2026-11-25 08:34Z) has every GFS `waves` rated set at run 25 00Z (13 h). The stale entries
+  are ALL partition rated sets: GFS swell_1 / swell_2 / wind_waves (world + regional) and ICON swell_1 / wind_waves, frozen at
+  run 23 00Z or 06Z (55-61 h), last written 11-23 08:44Z / 15:03Z.
+- Cause: since bug hunt 2026-11-22 D a partition layer is never rated, and `frame_set_rating.rated_publish_sets()` drops every
+  `band_partition.height_only` layer. The rated step therefore publishes 22 sets (GFS waves 20 + EURO + ICON waves); job logs of
+  runs 45547177899 and 45492100615 show `"sets": 22, skipped_budget 0`, GFS/marine/waves/global_mid_rated built 129/129 each
+  run. The partition records were never retired, so the freshness report read them as stale sets.
+- Users do not see them: the client asks a partition layer in the PLAIN flavour even with Rating on
+  (`partitionHeightOnly.bandRatedFor`), so nothing reads a rated partition set.
+- Fix: `frame_set_rating.retired_rated_sets()` (the rated sets the publish list no longer carries) and `retired_record()`; the
+  rated step writes the retirement with its next real pointer move (`publish_frame_sets(retire=...)`), and
+  `frame_set_freshness.check` reads an `empty` record as `empty`, never stale. Kill `FRAME_RATED_RETIRE=0`; reverses itself if
+  `BAND_PARTITION_HEIGHT_ONLY=0` (the sets are published again). No served number moves. Tests: `tests/test_rated_retire.py` (7),
+  twice; mutating the retire loop or the freshness rule turns a test red.
+
+## 2026-11-25 · B: ECMWF ENS gust risk failed on S3 throttling, not a timeout or a code error
+- Run 45547177899, step "Publish raster static frames (ECMWF ENS gust risk)" 07:57:40-08:28:33Z (job log): 30 steps failed with
+  `RuntimeError: HTTP 503 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/20261125/00z/ifs/0p25/enfo/...` after
+  `ens_wind_fetch._get`'s 8 tries (backoff to 60 s, ~5 min each); the waiting spent the 1800 s budget, so 18 more were
+  `skipped_budget`; 36/84 built < 0.9 -> `coverage_refused`, nothing uploaded, 1.48 GB read and discarded; the step exits 1
+  ("status coverage_refused; the published index stays"). Not the job-budget gate (it ran) and not the 40-min timeout.
+- The same cycle size on 11-24 (run 45326459330) built 80/84 in 575 s with 4 throttled requests and published; that run's red was
+  another step. One step makes ~49 GETs (1 index + ~48 member ranges, read from the 11-25 00Z f006 index), 6 steps at once.
+- SubQ (mirror fallback first, adaptive concurrency second) and Reflection (adaptive concurrency first, one re-queue second)
+  both chose adaptive concurrency. Fix: once a request is throttled past its retries, `EnsGustRiskSource.fetch` runs every later
+  step at most 2 at a time (`GUST_RISK_THROTTLED_WORKERS`) and tries the throttled step ONCE more at that rate; nothing else is
+  retried. Kill `GUST_RISK_ADAPTIVE=0`. The report carries `throttled`. No served number (the set is hidden). Tests: 7 new in
+  `tests/test_frame_set_raster_gust_risk.py`, twice; mutating the narrow gate or the re-try turns a test red.
+- Follow-up, not built: SubQ's mirror fallback (ECMWF open data on other clouds) needs the ENS paths and licence on each mirror
+  verified first.
+
+## 2026-11-25 · L2 read-back: GFS_PARTITION_MASKED_AS_ZERO's first judged guardrail run (advisor limit on #1267)
+- Run 45511214457 (2026-11-24 23:35Z, enforce) stamped `on_since` 2026-11-24T23:36:10Z; UNTESTABLE (all four GFS world layers
+  registered before it, skipped and named), untestable count 1, strikes 0.
+- Run 45605602862 (2026-11-25 11:33Z) JUDGED it: **NOT_WORSE, R2 (energy closure) 0.89 %, R1 (partition above total) 0.01 %**,
+  no sanity line, untestable count reset, `guard_judged` = [GFS_PARTITION_MASKED_AS_ZERO]. Pre-registered: R2 <= 1.5 %, R1 <= 0.1 %;
+  the offline measurement said 0.75-1.10 % and 0.00-0.02 %. Served before the fix: R2 22.0 %, R1 2.5 %.
+
+## 2026-11-25 · #1316 advisor limits (PASS-WITH-LIMITS at 56b98277e)
+- OPEN 1: SCOREBOARD conflict with dev 7ebe0f9d7 resolved by a plain merge, union of rows: dev's rows first, then this PR's two;
+  every dev row present (checked line by line).
+- L1 (folded in): `frame_set_freshness` exempts ONLY records with `retired == "partition_height_only"`; a bundle's explicit empty
+  still reads `no_run`, as before #1316. The summary table gains an `empty (retired)` column. Test:
+  `test_only_a_retired_record_reads_empty_a_bundle_explicit_empty_still_reads_no_run`; reverting to "any empty" turns it red.
+- L2 (follow-up, sized): retention never prunes the retired sets' objects. Read from the public bucket on 2026-11-25: the 62
+  retired sets' current + previous indexes reference 1,002 world frames (55.9 MB) and 114 regional bundles (66.2 MB), 0.122 GB,
+  plus 124 index files. A FIXED amount (nothing new is written to a retired set), not a growing leak. Proposed follow-up PR:
+  when a set is retired, delete what its last two indexes name (the retention path `fs.retention_deletes` with an empty keep set),
+  once, after the pointer has moved.
+- L3: the narrowed re-try's bytes are counted: every request goes through `_CountingSession`, so a re-read counts toward the
+  per-run read cap and the 6.5 GB per-UTC-day record (`add_day_used` runs in `finally`).
+- L4: narrowing applies to steps that START after the first exhausted throttle; up to 6 steps already in flight keep running.

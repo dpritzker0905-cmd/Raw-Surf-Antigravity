@@ -409,3 +409,76 @@ def test_a_failed_record_write_is_not_swallowed(tmp_path, monkeypatch):
     monkeypatch.setattr(sink, "write", write)
     with pytest.raises(OSError, match="bucket write refused"):
         _guard(tmp_path, monkeypatch, _StatefulFsr(), 16, sink)
+
+
+# ---- ADAPTIVE under S3 throttling (run 45547177899, 2026-11-25: 30 of 84 steps lost to 503 SlowDown) ----------------
+def _throttling_fetch(fail_first, ok, log):
+    """A fetch_step that raises an exhausted-retry 503 (as ens_wind_fetch._get does) on the first `fail_first` calls, then
+    succeeds; it records how many calls run at once."""
+    state = {"calls": 0, "live": 0, "peak_after": 0}
+    lock = threading.Lock()
+
+    def fetch_step(session, run, step, reduce_fn, params, base, decode_lock=None, prefer="auto", **kw):
+        with lock:
+            state["calls"] += 1
+            n = state["calls"]
+            state["live"] += 1
+            if n > fail_first:
+                state["peak_after"] = max(state["peak_after"], state["live"])
+        try:
+            import time
+            time.sleep(0.02)
+            if n <= fail_first:
+                raise RuntimeError(f"HTTP 503 https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com/x/{step}h-enfo-ef.grib2")
+            return ok(session, run, step, reduce_fn, params, base, decode_lock=decode_lock, prefer=prefer, **kw)
+        finally:
+            with lock:
+                state["live"] -= 1
+    return fetch_step, state
+
+
+def test_adaptive_a_throttled_step_is_retried_once_and_later_steps_run_two_at_a_time(monkeypatch):
+    monkeypatch.delenv("GUST_RISK_ADAPTIVE", raising=False)
+    fetch, state = _throttling_fetch(1, _fake_fetch([10.0] * 50, "23-24"), [])
+    monkeypatch.setattr(ef, "fetch_step", fetch)
+    src = _src()
+    run = datetime(2026, 11, 22, tzinfo=timezone.utc)
+    first = src.fetch(run, 24)                                   # 503 past its retries, then ONE more try at the narrow rate
+    assert first[fb.GUST_P25_PCT] is not None and src.throttled and "HTTP 503" in src.throttled
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=6) as pool:              # build_set runs 6 steps at once
+        list(pool.map(lambda f: src.fetch(run, f), [24] * 8))
+    assert state["peak_after"] <= 2                               # once throttled, at most GUST_RISK_THROTTLED_WORKERS
+    assert state["calls"] == 1 + 1 + 8
+
+
+def test_adaptive_a_second_throttle_on_the_same_step_fails_it(monkeypatch):
+    fetch, _state = _throttling_fetch(2, _fake_fetch([10.0] * 50, "23-24"), [])
+    monkeypatch.setattr(ef, "fetch_step", fetch)
+    with pytest.raises(RuntimeError, match="HTTP 503"):           # retried ONCE, never more
+        _src().fetch(datetime(2026, 11, 22, tzinfo=timezone.utc), 24)
+
+
+@pytest.mark.parametrize("err", [FileNotFoundError("index 404"), ValueError("gust window"), RuntimeError("HTTP 403 x"),
+                                 gk.BudgetExceeded("read cap")])
+def test_adaptive_never_retries_anything_but_a_throttle(monkeypatch, err):
+    calls = []
+
+    def fetch_step(*a, **k):
+        calls.append(1)
+        raise err
+    monkeypatch.setattr(ef, "fetch_step", fetch_step)
+    src = _src()
+    with pytest.raises(type(err)):
+        src.fetch(datetime(2026, 11, 22, tzinfo=timezone.utc), 24)
+    assert len(calls) == 1 and src.throttled is None
+
+
+def test_adaptive_kill_switch_restores_one_try(monkeypatch):
+    monkeypatch.setenv("GUST_RISK_ADAPTIVE", "0")
+    fetch, state = _throttling_fetch(1, _fake_fetch([10.0] * 50, "23-24"), [])
+    monkeypatch.setattr(ef, "fetch_step", fetch)
+    src = _src()
+    with pytest.raises(RuntimeError, match="HTTP 503"):
+        src.fetch(datetime(2026, 11, 22, tzinfo=timezone.utc), 24)
+    assert state["calls"] == 1 and src.throttled is None
