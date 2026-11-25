@@ -141,7 +141,7 @@ Append-only. Stamps come from `date -u`.
   - **The first-table step is inputs only:** `inputs_record` writes the per-stratum MODEL / NOT-MEASURED counts and the
     FES LP4 amplitudes from the table, before any NOAA read. `--inputs-only` stops there.
   - Tests: 43 (chain fragment +43 / +1).
-- **15:24Z, a correction to the 15:06Z and 15:13Z bullets above (superseded by §13 and the advisor's rulings):**
+- **15:23Z, a correction to the 15:06Z and 15:13Z bullets above (superseded by §13 and the advisor's rulings):**
   - The per-build reference check (seen station 8518750, then Longview / Point Hope RMS) is REMOVED from the runner.
     REQ-1 is the one-off `mllw_tester_ref_calibration.py` (running means, ±0.003 m, 2025). Its first run failed and its
     rerun passed after the convention fix; both are committed.
