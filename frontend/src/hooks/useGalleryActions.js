@@ -1,4 +1,5 @@
 // File: frontend/src/hooks/useGalleryActions.js
+import { useLayoutEffect, useRef } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -81,6 +82,20 @@ const useGalleryActions = ({
   setBrokenCoverImages,
   gallery,
 }) => {
+  const pendingMove = useRef(null);
+  const moveSelectionActive = useRef(false);
+  useLayoutEffect(() => () => {
+    if (moveSelectionActive.current) {
+      moveSelectionActive.current = false;
+      setSelectedItems(new Set());
+      setBulkSelectMode(false);
+      setShowMoveToFolderModal(false);
+    }
+    if (pendingMove.current) {
+      pendingMove.current = null;
+      setFolderActionLoading(false);
+    }
+  }, [user?.id, selectedGallery?.id, setSelectedItems, setBulkSelectMode, setShowMoveToFolderModal, setFolderActionLoading]);
 
   const fetchGallery = async () => {
     try {
@@ -172,19 +187,39 @@ const useGalleryActions = ({
   };
 
   const handleMoveToFolder = async (targetFolderId) => {
+    if (pendingMove.current) return;
     if (selectedItems.size === 0) {
       toast.error('No items selected');
       return;
     }
+    const itemIds = Array.from(selectedItems);
+    pendingMove.current = itemIds;
+    moveSelectionActive.current = true;
     setFolderActionLoading(true);
     try {
-      const itemIds = Array.from(selectedItems);
-      await Promise.all(itemIds.map(itemId => 
+      const outcomes = await Promise.allSettled(itemIds.map(itemId =>
         apiClient.patch(`/gallery/item/${itemId}/move?photographer_id=${user.id}`, {
           target_gallery_id: targetFolderId
         })
       ));
+      if (pendingMove.current !== itemIds) return;
+      const moved = new Set(itemIds.filter((_, index) => outcomes[index].status === 'fulfilled'));
+      if (moved.size === 0) {
+        toast.error(getErrorMessage(outcomes[0].reason, 'Failed to move items'));
+        return;
+      }
+      if (moved.size < itemIds.length) {
+        setSelectedItems(current => new Set([...current].filter(id => !moved.has(id))));
+        if (selectedGallery && selectedGallery.id !== targetFolderId) {
+          setGalleryItems(items => items.filter(item => !moved.has(item.id)));
+        }
+        fetchGallery();
+        folderActions.fetchGalleries();
+        toast.error(`Moved ${moved.size} of ${itemIds.length} items. Retry the remaining items.`);
+        return;
+      }
       toast.success(`Moved ${itemIds.length} item${itemIds.length > 1 ? 's' : ''} to folder`);
+      moveSelectionActive.current = false;
       setShowMoveToFolderModal(false);
       clearSelection();
       fetchGallery();
@@ -197,7 +232,10 @@ const useGalleryActions = ({
     } catch (error) {
       toast.error(getErrorMessage(error, 'Failed to move items'));
     } finally {
-      setFolderActionLoading(false);
+      if (pendingMove.current === itemIds) {
+        pendingMove.current = null;
+        setFolderActionLoading(false);
+      }
     }
   };
 
