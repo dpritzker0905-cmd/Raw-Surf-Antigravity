@@ -62,10 +62,11 @@ and at its merge base, and compares each lane's delta with the PR's own fragment
 
 | outcome | result |
 |---|---|
-| every lane ok, no relevant change, fragments-only, or shrinks only | pass |
+| every lane ok, no relevant change, or fragments-only | pass |
+| shrinks only (tests removed, no fragment) | the job passes, but the advisor holds the PR OPEN until its body names the removed tests (the floor is shrink-only by design; a silent shrink is how coverage leaks) |
 | docs-only PR | never runs: the job-level `if:` skips it, which a required check counts as success |
 | mismatch | **fails**, and prints the exact `rederive_floor.py` command that fixes it |
-| unknown (a collection error, an inconclusive lane, or a crash) | the collection is retried once, after a 15 s pause (`FLOOR_FRAGMENT_RETRY_PAUSE_S`); still unknown = **fails** |
+| unknown (a collection error, an inconclusive lane, or a crash) | the collection is retried once, after a 15 s pause (`FLOOR_FRAGMENT_RETRY_PAUSE_S`, capped at 120 s); still unknown = **fails** |
 
 ### Required check
 

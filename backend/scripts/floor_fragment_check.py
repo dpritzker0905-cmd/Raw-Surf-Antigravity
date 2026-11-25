@@ -234,11 +234,13 @@ def _unknown(rows, err) -> bool:
 
 
 RETRY_PAUSE_S = 15.0
+# Capped (advisor nit on #1313): a mistyped env value must not hold a required check for hours.
+RETRY_PAUSE_MAX_S = 120.0
 
 
 def retry_pause_s() -> float:
     try:
-        return max(0.0, float(os.environ.get("FLOOR_FRAGMENT_RETRY_PAUSE_S", RETRY_PAUSE_S)))
+        return min(RETRY_PAUSE_MAX_S, max(0.0, float(os.environ.get("FLOOR_FRAGMENT_RETRY_PAUSE_S", RETRY_PAUSE_S))))
     except ValueError:
         return RETRY_PAUSE_S
 

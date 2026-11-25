@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 1,
+  "branch": "claude/floor-check-nits",
+  "date": "2026-11-25",
+  "note": "fragment check: retry pause capped at 120 s (test_floor_fragment_check +1)"
+}
