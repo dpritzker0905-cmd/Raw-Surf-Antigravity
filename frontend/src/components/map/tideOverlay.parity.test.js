@@ -92,7 +92,7 @@ describe('G1 parity: overlay marker == infobox readout at the same hour', () => 
     const model = tideMarkerModel(payload, atMs, 'm', 'Pipeline');
     const turn = model.next.kind === 'High' ? truth.next_high : truth.next_low;
     expect(model.next).toEqual({ kind: model.next.kind, ...turn });
-    expect(readout.textContent).toContain(formatTideHeight(turn.height_m, 'm'));
+    expect(readout.textContent).toContain(typoMinus(formatTideHeight(turn.height_m, 'm')));
   });
 });
 

@@ -6,13 +6,20 @@
  * aria-expanded / aria-controls; Enter and Space toggle it (native button), Escape closes it and returns focus to the
  * button. Theme-aware (light, dark, beach) through the caller's isLight / isBeach, like TideReadout.
  */
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { datumLegendText, datumTipLabel } from './tideDatum';
 
 export default function TideDatumInfo({ datum, isLight, isBeach }) {
   const [open, setOpen] = useState(false);
   const panelId = `tide-datum-tip-${useId().replace(/:/g, '')}`;
   const btn = useRef(null);
+  const tip = useRef(null);
+  // The visual pass (2026-11-25): on a phone the MLLW text (~270 px) is taller than the infobox's scroll window
+  // (~238 px). The panel is capped and scrolls itself (focusable, so a keyboard can scroll it), and opening it brings
+  // it into view inside the card.
+  useEffect(() => {
+    if (open && tip.current && typeof tip.current.scrollIntoView === 'function') tip.current.scrollIntoView({ block: 'nearest' });
+  }, [open]);
   const muted = isLight ? 'text-gray-600' : isBeach ? 'text-cyan-200/80' : 'text-gray-400';
   const panel = isLight ? 'bg-white border-gray-200 text-gray-800'
     : isBeach ? 'bg-black/85 border-cyan-900/60 text-cyan-50' : 'bg-zinc-900 border-zinc-700 text-gray-200';
@@ -36,8 +43,9 @@ export default function TideDatumInfo({ datum, isLight, isBeach }) {
       >
         <span aria-hidden="true">ⓘ </span>{datumTipLabel(datum)}
       </button>
-      <span id={panelId} role="note" data-testid="tide-datum-tip" hidden={!open}
-            className={`mt-0.5 max-w-[220px] whitespace-normal rounded-md border px-1.5 py-1 text-[10px] leading-snug ${open ? 'block' : ''} ${panel}`}>
+      <span id={panelId} ref={tip} role="note" aria-label="About the tide zero" tabIndex={open ? 0 : -1} data-testid="tide-datum-tip"
+            hidden={!open}
+            className={`mt-0.5 max-w-[220px] max-h-[160px] overflow-y-auto whitespace-normal rounded-md border px-1.5 py-1 text-[10px] leading-snug focus-visible:outline focus-visible:outline-2 focus-visible:outline-current ${open ? 'block' : ''} ${panel}`}>
         {datumLegendText(datum)}
       </span>
     </span>

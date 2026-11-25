@@ -10,7 +10,7 @@ import TideReadout from './TideReadout';
 import { clearPointTideCache } from './usePointTide';
 import {
   tideDatumOf, shownHeight, ratingTide, minusTideWord, pointTideForDisplay, MLLW_SHORT, MSL_SHORT,
-  typoMinus, plainTideText, preciseTideText,
+  typoMinus, typoMinusIn, plainTideText, preciseTideText,
 } from './tideDatum';
 import TideDatumInfo from './TideDatumInfo';
 import * as tideClientModule from './tideClient';
@@ -135,7 +135,7 @@ describe.each(THEMES)('%s theme', (name, flags) => {
     expect(screen.getByTestId('tide-datum-tip')).toHaveTextContent(/minus tide/);
     expect(screen.getByTestId('tide-datum-tip')).toHaveTextContent(/not comparable/);   // the cross-border note
     expect(tip.getAttribute('aria-controls')).toBe(screen.getByTestId('tide-datum-tip').id);
-    expect(screen.getByTestId('tide-msl-line')).toHaveTextContent('≈ -0.9 m above local mean sea level');
+    expect(screen.getByTestId('tide-msl-line')).toHaveTextContent('≈ 0.9 m below local mean sea level');
     expect(screen.getByTestId('tide-datum-source')).toHaveTextContent(/MLLW from NOAA CO-OPS gauge 9410660/);
     expect(screen.getByText(/Modeled tide · above MLLW \(NOAA chart datum\)/)).toBeVisible();
     expect(screen.getByTestId('tide-credit')).toHaveTextContent(/AVISO/);
@@ -206,3 +206,21 @@ describe('the decision-B client kill (window.__RAW_DISABLE_TIDE_PLAIN_LINE__)', 
   });
 });
 
+
+describe('the visual pass fixes (2026-11-25)', () => {
+  test('every minus in a readout line is typographic', () => {
+    expect(typoMinusIn('Next low 5:00 AM UTC · -2.0 ft')).toBe('Next low 5:00 AM UTC · −2.0 ft');
+    expect(typoMinusIn('-0.4 ft')).toBe('−0.4 ft');
+    expect(typoMinusIn('2026-11-25')).toBe('2026-11-25');
+  });
+
+  test('the tip panel is capped, scrolls itself and is keyboard-focusable when open', () => {
+    render(<TideDatumInfo datum={tideDatumOf(BLOCK)} />);
+    const tip = screen.getByTestId('tide-datum-tip');
+    expect(tip.className).toMatch(/max-h-\[160px\]/);
+    expect(tip.className).toMatch(/overflow-y-auto/);
+    expect(tip).toHaveAttribute('tabindex', '-1');
+    fireEvent.click(screen.getByRole('button', { name: /Tide zero: MLLW/ }));
+    expect(tip).toHaveAttribute('tabindex', '0');
+  });
+});

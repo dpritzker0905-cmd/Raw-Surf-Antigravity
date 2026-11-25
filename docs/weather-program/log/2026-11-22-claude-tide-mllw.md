@@ -624,3 +624,51 @@ Alaska and North Carolina sounds.
 - **#1219's glyphTide tests** now expect the plain visible line and the precise accessible name.
 - **Scope note:** the spot-hub block (`SpotTideBlock`) keeps its own "heights above MLLW" heading row. It is a
   per-location heading, not a tide line, and is unchanged.
+
+## 2026-11-25 02:07Z: the advisor's limits on b1ffc76a2, and the OFFLINE visual pass (it blocks merge)
+
+- **Before-merge 1:** the cross-border note appears only where the location IS on MLLW. While `SURF_TIDE_MLLW_US` is
+  "0", every tip is MSL-only, with no "US spots read from mean lower low water". Tested in all three themes.
+- **Before-merge 2:** three appended SCOREBOARD rows (01:43Z) correct the 17:02Z and 17:04Z rows and record B. The
+  MLLW row says MLLW changes D only, not A's accuracy, and carries L1: `am_h` keys get an honest local-MSL label while
+  `SURF_TIDE_A_HARCON` is ON, so the two flags must not go ON together until that is decided.
+- **L4:** the marker's aria now gives the next turn in datum words; the hub uses U+2212; the readout drops its comma
+  when the trend is unknown.
+- **L3:** a ledger commitment (`claude--tide-mllw-us.jsonl:10`, due 2026-12-02 18:00Z) for the datum-only tester and
+  the Switch Board panel.
+- **Before-merge 3, the visual pass:** `frontend/scripts/offline-backend/scn_tide_plain_line.js`.
+  - A local production build was served on 127.0.0.1, with `/point-tide`, `/spot-ratings` and `/surf-spots`
+    stubbed and every other API call answered by a local 404. The host audit was `ok` in every session; NOTHING
+    reached the live backend.
+  - It ran 12 combinations: MLLW and MSL × light, dark and beach × desktop (1280×800) and mobile (375×812). Both cases
+    carry a minus tide.
+  - **Pass 1 found two problems:**
+    - (a) the open MLLW tip panel (271 px) overflowed the mobile infobox's 238-px scroll window by 61 px;
+    - (b) ASCII hyphens remained in the next-event lines and in "≈ −x above local mean sea level".
+    - Screenshots of (a) are kept: `docs/weather-program/evidence/tide-plain-line-2026-11-25/mllw-{light,dark,beach}-mobile-infobox-open.png`, with numbers in
+      `docs/weather-program/evidence/tide-plain-line-2026-11-25/tide-plain-line.json`.
+  - **The fixes:**
+    - the tip panel is capped at 160 px, scrolls itself, is focusable (role note, "About the tide zero") and scrolls into
+      view on open;
+    - every minus in those lines is U+2212;
+    - a level below MSL now reads "≈ 3.5 ft below local mean sea level".
+  - **Pass 2: all 12 pass.** Screenshots are `docs/weather-program/evidence/tide-plain-line-2026-11-25/<case>-<theme>-<desktop|mobile>-v2-*.png` (infobox-closed,
+    infobox-open, infobox-open-end, marker, glyph-card, plus the mobile open-full JPEGs); the numbers are in
+    `docs/weather-program/evidence/tide-plain-line-2026-11-25/tide-plain-line-v2.json`.
+    - The mobile MLLW panel is 160 px, inside the card's visible window with 0 px hidden. Its own scroll reaches
+      " comparable."
+    - There is no horizontal overflow anywhere (scrollWidth equals the viewport width).
+    - **Keyboard, all 12:**
+      - Tab reaches the tip in 2 presses;
+      - Enter opens it (aria-expanded true);
+      - Escape closes it with focus kept on the button;
+      - Space reopens it;
+      - Tab moves into the panel, where End and Home scroll it;
+      - Escape inside the panel closes it and returns focus to the button.
+    - The glyph card reads "Tide −0.4 ft, falling", with the aria "tide 0.4 feet below mean lower low water, a minus
+      tide, falling". The marker reads "↓ Falling −1.0 ft".
+  - **Not verified:** real devices, touch-scrolling the panel, and screen-reader speech.
+  - **Nit noted:** the 160-px cap cuts the last visible line mid-glyph, which is the only hint that the panel
+    scrolls.
+- **Jest:** map + spot-hub + tests, 554 suites / 7838 tests, green twice. The eslint ratchet is clean. Frontend floor
+  fragment: +33 tests / +1 file versus dev.

@@ -1,0 +1,2624 @@
+{
+ "mllw-light-desktop": {
+  "case": "mllw",
+  "theme": "light",
+  "viewport": "desktop",
+  "marker": [
+   {
+    "text": "↓ Falling −1.1 ft Low in 3h",
+    "aria": "Tide near El Porto: falling, 1.1 feet below mean lower low water, a minus tide at selected time, low 2.0 feet below mean lower low water, a minus tide in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 730,
+     "top": 291,
+     "right": 816,
+     "bottom": 321
+    }
+   },
+   {
+    "text": "↓ Falling −1.1 ft Low in 3h",
+    "aria": "Tide near Redondo Breakwater: falling, 1.1 feet below mean lower low water, a minus tide at selected time, low 2.0 feet below mean lower low water, a minus tide in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 840,
+     "top": 545,
+     "right": 926,
+     "bottom": 575
+    }
+   }
+  ],
+  "markerShot": {
+   "file": "mllw-light-desktop-marker.png",
+   "clip": {
+    "x": 690.0078125,
+    "y": 251,
+    "width": 275.984375,
+    "height": 363.75
+   }
+  },
+  "glyph": {
+   "aria": "El Porto: Good, 3.9 ft at 12 seconds, tide 0.4 feet below mean lower low water, a minus tide, falling",
+   "cardFound": true,
+   "tideLine": "↓ Tide −0.4 ft, falling",
+   "cardText": "El Porto · Good 3.9 ft · 12s period ↓ Tide −0.4 ft, falling Offshore wind, mid tide · MEDIUM CONF",
+   "cardInViewport": true
+  },
+  "glyphShot": {
+   "file": "mllw-light-desktop-glyph-card.png",
+   "clip": {
+    "x": 685.9921875,
+    "y": 105,
+    "width": 174.015625,
+    "height": 192
+   }
+  },
+  "wavesVia": "desktop-panel",
+  "readout": {
+   "height": "−1.1 ft",
+   "line": "Tide −1.1 ft, ↓ Falling 0.5 ft/h",
+   "hasDatumWordInLine": false,
+   "startsWithTypoMinus": true,
+   "hasAsciiHyphenMinus": false
+  },
+  "closed": {
+   "viewport": {
+    "w": 1280,
+    "h": 800
+   },
+   "docScrollWidth": 1280,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 225,
+    "top": 523.3,
+    "right": 312.8,
+    "bottom": 547.3,
+    "width": 87.8,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: MLLW",
+   "ariaExpanded": "false",
+   "panel": {
+    "left": 0,
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "width": 0,
+    "height": 0
+   },
+   "panelHidden": true,
+   "panelText": "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km). 0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error. Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), elsewhere from local mean sea level, so heights across a border are not comparable.",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 225,
+    "top": 497.5,
+    "right": 419,
+    "bottom": 725,
+    "width": 194,
+    "height": 227.5
+   },
+   "card": {
+    "left": 212,
+    "top": 328.5,
+    "right": 432,
+    "bottom": 734,
+    "width": 220,
+    "height": 405.5
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 404,
+    "clientH": 404
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": false,
+   "panelInReadoutHoriz": false,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "closedShot": {
+   "file": "mllw-light-desktop-infobox-closed.png",
+   "clip": {
+    "x": 196,
+    "y": 312.5,
+    "width": 252,
+    "height": 437.5
+   }
+  },
+  "keyboard": {
+   "tabs": 2,
+   "reachedByTab": true,
+   "afterEnter": {
+    "ariaExpanded": "true",
+    "panelHidden": false
+   },
+   "afterEscape": {
+    "ariaExpanded": "false",
+    "focusOnButton": true,
+    "infoboxStillOpen": true
+   },
+   "afterSpace": {
+    "ariaExpanded": "true"
+   },
+   "pass": true
+  },
+  "open": {
+   "viewport": {
+    "w": 1280,
+    "h": 800
+   },
+   "docScrollWidth": 1280,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 225,
+    "top": 249.8,
+    "right": 419,
+    "bottom": 273.8,
+    "width": 194,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: MLLW",
+   "ariaExpanded": "true",
+   "panel": {
+    "left": 225,
+    "top": 275.8,
+    "right": 419,
+    "bottom": 547,
+    "width": 194,
+    "height": 271.3
+   },
+   "panelHidden": false,
+   "panelText": "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km). 0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error. Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), elsewhere from local mean sea level, so heights across a border are not comparable.",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 225,
+    "top": 224,
+    "right": 419,
+    "bottom": 724.8,
+    "width": 194,
+    "height": 500.8
+   },
+   "card": {
+    "left": 212,
+    "top": 100,
+    "right": 432,
+    "bottom": 734,
+    "width": 220,
+    "height": 634
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 677,
+    "clientH": 632
+   },
+   "panelInViewport": true,
+   "panelInCard": true,
+   "panelInCardHoriz": true,
+   "panelInReadoutHoriz": true,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "openShot": {
+   "file": "mllw-light-desktop-infobox-open.png",
+   "clip": {
+    "x": 196,
+    "y": 84,
+    "width": 252,
+    "height": 666
+   }
+  },
+  "asked": {
+   "pointTide": 2,
+   "spotRatings": 2
+  },
+  "errors": []
+ },
+ "mllw-light-mobile": {
+  "case": "mllw",
+  "theme": "light",
+  "viewport": "mobile",
+  "marker": [
+   {
+    "text": "↓ Falling −1.1 ft Low in 3h",
+    "aria": "Tide near El Porto: falling, 1.1 feet below mean lower low water, a minus tide at selected time, low 2.0 feet below mean lower low water, a minus tide in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 178,
+     "top": 325,
+     "right": 264,
+     "bottom": 355
+    }
+   },
+   {
+    "text": "↓ Falling −1.1 ft Low in 3h",
+    "aria": "Tide near Redondo Breakwater: falling, 1.1 feet below mean lower low water, a minus tide at selected time, low 2.0 feet below mean lower low water, a minus tide in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 288,
+     "top": 579,
+     "right": 374,
+     "bottom": 609
+    }
+   }
+  ],
+  "markerShot": {
+   "file": "mllw-light-mobile-marker.png",
+   "clip": {
+    "x": 138.0078125,
+    "y": 285,
+    "width": 236.9921875,
+    "height": 363.75
+   }
+  },
+  "glyph": {
+   "aria": "El Porto: Good, 3.9 ft at 12 seconds, tide 0.4 feet below mean lower low water, a minus tide, falling",
+   "cardFound": true,
+   "tideLine": "↓ Tide −0.4 ft, falling",
+   "cardText": "El Porto · Good 3.9 ft · 12s period ↓ Tide −0.4 ft, falling Offshore wind, mid tide · MEDIUM CONF",
+   "cardInViewport": true
+  },
+  "glyphShot": {
+   "file": "mllw-light-mobile-glyph-card.png",
+   "clip": {
+    "x": 133.9921875,
+    "y": 139,
+    "width": 174.015625,
+    "height": 192
+   }
+  },
+  "wavesVia": "sheet",
+  "readout": {
+   "height": "−1.1 ft",
+   "line": "Tide −1.1 ft, ↓ Falling 0.5 ft/h",
+   "hasDatumWordInLine": false,
+   "startsWithTypoMinus": true,
+   "hasAsciiHyphenMinus": false
+  },
+  "closed": {
+   "viewport": {
+    "w": 375,
+    "h": 812
+   },
+   "docScrollWidth": 375,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 25,
+    "top": 444.8,
+    "right": 112.8,
+    "bottom": 468.8,
+    "width": 87.8,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: MLLW",
+   "ariaExpanded": "false",
+   "panel": {
+    "left": 0,
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "width": 0,
+    "height": 0
+   },
+   "panelHidden": true,
+   "panelText": "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km). 0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error. Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), elsewhere from local mean sea level, so heights across a border are not comparable.",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 25,
+    "top": 419,
+    "right": 219,
+    "bottom": 646.5,
+    "width": 194,
+    "height": 227.5
+   },
+   "card": {
+    "left": 12,
+    "top": 411,
+    "right": 232,
+    "bottom": 651,
+    "width": 220,
+    "height": 240
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 404,
+    "clientH": 238
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": false,
+   "panelInReadoutHoriz": false,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "closedShot": {
+   "file": "mllw-light-mobile-infobox-closed.png",
+   "clip": {
+    "x": 0,
+    "y": 395,
+    "width": 248,
+    "height": 272
+   }
+  },
+  "keyboard": {
+   "tabs": 2,
+   "reachedByTab": true,
+   "afterEnter": {
+    "ariaExpanded": "true",
+    "panelHidden": false
+   },
+   "afterEscape": {
+    "ariaExpanded": "false",
+    "focusOnButton": true,
+    "infoboxStillOpen": true
+   },
+   "afterSpace": {
+    "ariaExpanded": "true"
+   },
+   "pass": true
+  },
+  "open": {
+   "viewport": {
+    "w": 375,
+    "h": 812
+   },
+   "docScrollWidth": 375,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 25,
+    "top": 414.8,
+    "right": 219,
+    "bottom": 438.8,
+    "width": 194,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: MLLW",
+   "ariaExpanded": "true",
+   "panel": {
+    "left": 25,
+    "top": 440.8,
+    "right": 219,
+    "bottom": 712,
+    "width": 194,
+    "height": 271.3
+   },
+   "panelHidden": false,
+   "panelText": "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km). 0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error. Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), elsewhere from local mean sea level, so heights across a border are not comparable.",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 25,
+    "top": 389,
+    "right": 219,
+    "bottom": 889.8,
+    "width": 194,
+    "height": 500.8
+   },
+   "card": {
+    "left": 12,
+    "top": 411,
+    "right": 232,
+    "bottom": 651,
+    "width": 220,
+    "height": 240
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 677,
+    "clientH": 238
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": true,
+   "panelInReadoutHoriz": true,
+   "readoutInViewport": false,
+   "panelTallerThanCardWindow": true,
+   "panelHiddenBelowCardPx": 61
+  },
+  "openShot": {
+   "file": "mllw-light-mobile-infobox-open.png",
+   "clip": {
+    "x": 0,
+    "y": 373,
+    "width": 248,
+    "height": 439
+   }
+  },
+  "openFull": "mllw-light-mobile-open-full.jpg",
+  "asked": {
+   "pointTide": 2,
+   "spotRatings": 2
+  },
+  "errors": []
+ },
+ "mllw-dark-desktop": {
+  "case": "mllw",
+  "theme": "dark",
+  "viewport": "desktop",
+  "marker": [
+   {
+    "text": "↓ Falling −1.1 ft Low in 3h",
+    "aria": "Tide near El Porto: falling, 1.1 feet below mean lower low water, a minus tide at selected time, low 2.0 feet below mean lower low water, a minus tide in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 730,
+     "top": 291,
+     "right": 816,
+     "bottom": 321
+    }
+   },
+   {
+    "text": "↓ Falling −1.1 ft Low in 3h",
+    "aria": "Tide near Redondo Breakwater: falling, 1.1 feet below mean lower low water, a minus tide at selected time, low 2.0 feet below mean lower low water, a minus tide in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 840,
+     "top": 545,
+     "right": 926,
+     "bottom": 575
+    }
+   }
+  ],
+  "markerShot": {
+   "file": "mllw-dark-desktop-marker.png",
+   "clip": {
+    "x": 690.0078125,
+    "y": 251,
+    "width": 275.984375,
+    "height": 363.75
+   }
+  },
+  "glyph": {
+   "aria": "El Porto: Good, 3.9 ft at 12 seconds, tide 0.4 feet below mean lower low water, a minus tide, falling",
+   "cardFound": true,
+   "tideLine": "↓ Tide −0.4 ft, falling",
+   "cardText": "El Porto · Good 3.9 ft · 12s period ↓ Tide −0.4 ft, falling Offshore wind, mid tide · MEDIUM CONF",
+   "cardInViewport": true
+  },
+  "glyphShot": {
+   "file": "mllw-dark-desktop-glyph-card.png",
+   "clip": {
+    "x": 685.9921875,
+    "y": 105,
+    "width": 174.015625,
+    "height": 192
+   }
+  },
+  "wavesVia": "desktop-panel",
+  "readout": {
+   "height": "−1.1 ft",
+   "line": "Tide −1.1 ft, ↓ Falling 0.5 ft/h",
+   "hasDatumWordInLine": false,
+   "startsWithTypoMinus": true,
+   "hasAsciiHyphenMinus": false
+  },
+  "closed": {
+   "viewport": {
+    "w": 1280,
+    "h": 800
+   },
+   "docScrollWidth": 1280,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 225,
+    "top": 523.3,
+    "right": 312.8,
+    "bottom": 547.3,
+    "width": 87.8,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: MLLW",
+   "ariaExpanded": "false",
+   "panel": {
+    "left": 0,
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "width": 0,
+    "height": 0
+   },
+   "panelHidden": true,
+   "panelText": "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km). 0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error. Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), elsewhere from local mean sea level, so heights across a border are not comparable.",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 225,
+    "top": 497.5,
+    "right": 419,
+    "bottom": 725,
+    "width": 194,
+    "height": 227.5
+   },
+   "card": {
+    "left": 212,
+    "top": 328.5,
+    "right": 432,
+    "bottom": 734,
+    "width": 220,
+    "height": 405.5
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 404,
+    "clientH": 404
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": false,
+   "panelInReadoutHoriz": false,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "closedShot": {
+   "file": "mllw-dark-desktop-infobox-closed.png",
+   "clip": {
+    "x": 196,
+    "y": 312.5,
+    "width": 252,
+    "height": 437.5
+   }
+  },
+  "keyboard": {
+   "tabs": 2,
+   "reachedByTab": true,
+   "afterEnter": {
+    "ariaExpanded": "true",
+    "panelHidden": false
+   },
+   "afterEscape": {
+    "ariaExpanded": "false",
+    "focusOnButton": true,
+    "infoboxStillOpen": true
+   },
+   "afterSpace": {
+    "ariaExpanded": "true"
+   },
+   "pass": true
+  },
+  "open": {
+   "viewport": {
+    "w": 1280,
+    "h": 800
+   },
+   "docScrollWidth": 1280,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 225,
+    "top": 249.8,
+    "right": 419,
+    "bottom": 273.8,
+    "width": 194,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: MLLW",
+   "ariaExpanded": "true",
+   "panel": {
+    "left": 225,
+    "top": 275.8,
+    "right": 419,
+    "bottom": 547,
+    "width": 194,
+    "height": 271.3
+   },
+   "panelHidden": false,
+   "panelText": "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km). 0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error. Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), elsewhere from local mean sea level, so heights across a border are not comparable.",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 225,
+    "top": 224,
+    "right": 419,
+    "bottom": 724.8,
+    "width": 194,
+    "height": 500.8
+   },
+   "card": {
+    "left": 212,
+    "top": 100,
+    "right": 432,
+    "bottom": 734,
+    "width": 220,
+    "height": 634
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 677,
+    "clientH": 632
+   },
+   "panelInViewport": true,
+   "panelInCard": true,
+   "panelInCardHoriz": true,
+   "panelInReadoutHoriz": true,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "openShot": {
+   "file": "mllw-dark-desktop-infobox-open.png",
+   "clip": {
+    "x": 196,
+    "y": 84,
+    "width": 252,
+    "height": 666
+   }
+  },
+  "asked": {
+   "pointTide": 2,
+   "spotRatings": 2
+  },
+  "errors": []
+ },
+ "mllw-dark-mobile": {
+  "case": "mllw",
+  "theme": "dark",
+  "viewport": "mobile",
+  "marker": [
+   {
+    "text": "↓ Falling −1.1 ft Low in 3h",
+    "aria": "Tide near El Porto: falling, 1.1 feet below mean lower low water, a minus tide at selected time, low 2.0 feet below mean lower low water, a minus tide in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 178,
+     "top": 325,
+     "right": 264,
+     "bottom": 355
+    }
+   },
+   {
+    "text": "↓ Falling −1.1 ft Low in 3h",
+    "aria": "Tide near Redondo Breakwater: falling, 1.1 feet below mean lower low water, a minus tide at selected time, low 2.0 feet below mean lower low water, a minus tide in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 288,
+     "top": 579,
+     "right": 374,
+     "bottom": 609
+    }
+   }
+  ],
+  "markerShot": {
+   "file": "mllw-dark-mobile-marker.png",
+   "clip": {
+    "x": 138.0078125,
+    "y": 285,
+    "width": 236.9921875,
+    "height": 363.75
+   }
+  },
+  "glyph": {
+   "aria": "El Porto: Good, 3.9 ft at 12 seconds, tide 0.4 feet below mean lower low water, a minus tide, falling",
+   "cardFound": true,
+   "tideLine": "↓ Tide −0.4 ft, falling",
+   "cardText": "El Porto · Good 3.9 ft · 12s period ↓ Tide −0.4 ft, falling Offshore wind, mid tide · MEDIUM CONF",
+   "cardInViewport": true
+  },
+  "glyphShot": {
+   "file": "mllw-dark-mobile-glyph-card.png",
+   "clip": {
+    "x": 133.9921875,
+    "y": 139,
+    "width": 174.015625,
+    "height": 192
+   }
+  },
+  "wavesVia": "sheet",
+  "readout": {
+   "height": "−1.1 ft",
+   "line": "Tide −1.1 ft, ↓ Falling 0.5 ft/h",
+   "hasDatumWordInLine": false,
+   "startsWithTypoMinus": true,
+   "hasAsciiHyphenMinus": false
+  },
+  "closed": {
+   "viewport": {
+    "w": 375,
+    "h": 812
+   },
+   "docScrollWidth": 375,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 25,
+    "top": 444.8,
+    "right": 112.8,
+    "bottom": 468.8,
+    "width": 87.8,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: MLLW",
+   "ariaExpanded": "false",
+   "panel": {
+    "left": 0,
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "width": 0,
+    "height": 0
+   },
+   "panelHidden": true,
+   "panelText": "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km). 0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error. Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), elsewhere from local mean sea level, so heights across a border are not comparable.",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 25,
+    "top": 419,
+    "right": 219,
+    "bottom": 646.5,
+    "width": 194,
+    "height": 227.5
+   },
+   "card": {
+    "left": 12,
+    "top": 411,
+    "right": 232,
+    "bottom": 651,
+    "width": 220,
+    "height": 240
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 404,
+    "clientH": 238
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": false,
+   "panelInReadoutHoriz": false,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "closedShot": {
+   "file": "mllw-dark-mobile-infobox-closed.png",
+   "clip": {
+    "x": 0,
+    "y": 395,
+    "width": 248,
+    "height": 272
+   }
+  },
+  "keyboard": {
+   "tabs": 2,
+   "reachedByTab": true,
+   "afterEnter": {
+    "ariaExpanded": "true",
+    "panelHidden": false
+   },
+   "afterEscape": {
+    "ariaExpanded": "false",
+    "focusOnButton": true,
+    "infoboxStillOpen": true
+   },
+   "afterSpace": {
+    "ariaExpanded": "true"
+   },
+   "pass": true
+  },
+  "open": {
+   "viewport": {
+    "w": 375,
+    "h": 812
+   },
+   "docScrollWidth": 375,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 25,
+    "top": 414.8,
+    "right": 219,
+    "bottom": 438.8,
+    "width": 194,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: MLLW",
+   "ariaExpanded": "true",
+   "panel": {
+    "left": 25,
+    "top": 440.8,
+    "right": 219,
+    "bottom": 712,
+    "width": 194,
+    "height": 271.3
+   },
+   "panelHidden": false,
+   "panelText": "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km). 0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error. Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), elsewhere from local mean sea level, so heights across a border are not comparable.",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 25,
+    "top": 389,
+    "right": 219,
+    "bottom": 889.8,
+    "width": 194,
+    "height": 500.8
+   },
+   "card": {
+    "left": 12,
+    "top": 411,
+    "right": 232,
+    "bottom": 651,
+    "width": 220,
+    "height": 240
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 677,
+    "clientH": 238
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": true,
+   "panelInReadoutHoriz": true,
+   "readoutInViewport": false,
+   "panelTallerThanCardWindow": true,
+   "panelHiddenBelowCardPx": 61
+  },
+  "openShot": {
+   "file": "mllw-dark-mobile-infobox-open.png",
+   "clip": {
+    "x": 0,
+    "y": 373,
+    "width": 248,
+    "height": 439
+   }
+  },
+  "openFull": "mllw-dark-mobile-open-full.jpg",
+  "asked": {
+   "pointTide": 2,
+   "spotRatings": 2
+  },
+  "errors": []
+ },
+ "mllw-beach-desktop": {
+  "case": "mllw",
+  "theme": "beach",
+  "viewport": "desktop",
+  "marker": [
+   {
+    "text": "↓ Falling −1.1 ft Low in 3h",
+    "aria": "Tide near El Porto: falling, 1.1 feet below mean lower low water, a minus tide at selected time, low 2.0 feet below mean lower low water, a minus tide in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 730,
+     "top": 291,
+     "right": 816,
+     "bottom": 321
+    }
+   },
+   {
+    "text": "↓ Falling −1.1 ft Low in 3h",
+    "aria": "Tide near Redondo Breakwater: falling, 1.1 feet below mean lower low water, a minus tide at selected time, low 2.0 feet below mean lower low water, a minus tide in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 840,
+     "top": 545,
+     "right": 926,
+     "bottom": 575
+    }
+   }
+  ],
+  "markerShot": {
+   "file": "mllw-beach-desktop-marker.png",
+   "clip": {
+    "x": 690.0078125,
+    "y": 251,
+    "width": 275.984375,
+    "height": 363.75
+   }
+  },
+  "glyph": {
+   "aria": "El Porto: Good, 3.9 ft at 12 seconds, tide 0.4 feet below mean lower low water, a minus tide, falling",
+   "cardFound": true,
+   "tideLine": "↓ Tide −0.4 ft, falling",
+   "cardText": "El Porto · Good 3.9 ft · 12s period ↓ Tide −0.4 ft, falling Offshore wind, mid tide · MEDIUM CONF",
+   "cardInViewport": true
+  },
+  "glyphShot": {
+   "file": "mllw-beach-desktop-glyph-card.png",
+   "clip": {
+    "x": 685.9921875,
+    "y": 105,
+    "width": 174.015625,
+    "height": 192
+   }
+  },
+  "wavesVia": "desktop-panel",
+  "readout": {
+   "height": "−1.1 ft",
+   "line": "Tide −1.1 ft, ↓ Falling 0.5 ft/h",
+   "hasDatumWordInLine": false,
+   "startsWithTypoMinus": true,
+   "hasAsciiHyphenMinus": false
+  },
+  "closed": {
+   "viewport": {
+    "w": 1280,
+    "h": 800
+   },
+   "docScrollWidth": 1280,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 225,
+    "top": 523.3,
+    "right": 312.8,
+    "bottom": 547.3,
+    "width": 87.8,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: MLLW",
+   "ariaExpanded": "false",
+   "panel": {
+    "left": 0,
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "width": 0,
+    "height": 0
+   },
+   "panelHidden": true,
+   "panelText": "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km). 0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error. Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), elsewhere from local mean sea level, so heights across a border are not comparable.",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 225,
+    "top": 497.5,
+    "right": 419,
+    "bottom": 725,
+    "width": 194,
+    "height": 227.5
+   },
+   "card": {
+    "left": 212,
+    "top": 328.5,
+    "right": 432,
+    "bottom": 734,
+    "width": 220,
+    "height": 405.5
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 404,
+    "clientH": 404
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": false,
+   "panelInReadoutHoriz": false,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "closedShot": {
+   "file": "mllw-beach-desktop-infobox-closed.png",
+   "clip": {
+    "x": 196,
+    "y": 312.5,
+    "width": 252,
+    "height": 437.5
+   }
+  },
+  "keyboard": {
+   "tabs": 2,
+   "reachedByTab": true,
+   "afterEnter": {
+    "ariaExpanded": "true",
+    "panelHidden": false
+   },
+   "afterEscape": {
+    "ariaExpanded": "false",
+    "focusOnButton": true,
+    "infoboxStillOpen": true
+   },
+   "afterSpace": {
+    "ariaExpanded": "true"
+   },
+   "pass": true
+  },
+  "open": {
+   "viewport": {
+    "w": 1280,
+    "h": 800
+   },
+   "docScrollWidth": 1280,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 225,
+    "top": 249.8,
+    "right": 419,
+    "bottom": 273.8,
+    "width": 194,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: MLLW",
+   "ariaExpanded": "true",
+   "panel": {
+    "left": 225,
+    "top": 275.8,
+    "right": 419,
+    "bottom": 547,
+    "width": 194,
+    "height": 271.3
+   },
+   "panelHidden": false,
+   "panelText": "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km). 0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error. Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), elsewhere from local mean sea level, so heights across a border are not comparable.",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 225,
+    "top": 224,
+    "right": 419,
+    "bottom": 724.8,
+    "width": 194,
+    "height": 500.8
+   },
+   "card": {
+    "left": 212,
+    "top": 100,
+    "right": 432,
+    "bottom": 734,
+    "width": 220,
+    "height": 634
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 677,
+    "clientH": 632
+   },
+   "panelInViewport": true,
+   "panelInCard": true,
+   "panelInCardHoriz": true,
+   "panelInReadoutHoriz": true,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "openShot": {
+   "file": "mllw-beach-desktop-infobox-open.png",
+   "clip": {
+    "x": 196,
+    "y": 84,
+    "width": 252,
+    "height": 666
+   }
+  },
+  "asked": {
+   "pointTide": 2,
+   "spotRatings": 2
+  },
+  "errors": []
+ },
+ "mllw-beach-mobile": {
+  "case": "mllw",
+  "theme": "beach",
+  "viewport": "mobile",
+  "marker": [
+   {
+    "text": "↓ Falling −1.1 ft Low in 3h",
+    "aria": "Tide near El Porto: falling, 1.1 feet below mean lower low water, a minus tide at selected time, low 2.0 feet below mean lower low water, a minus tide in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 178,
+     "top": 325,
+     "right": 264,
+     "bottom": 355
+    }
+   },
+   {
+    "text": "↓ Falling −1.1 ft Low in 3h",
+    "aria": "Tide near Redondo Breakwater: falling, 1.1 feet below mean lower low water, a minus tide at selected time, low 2.0 feet below mean lower low water, a minus tide in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 288,
+     "top": 579,
+     "right": 374,
+     "bottom": 609
+    }
+   }
+  ],
+  "markerShot": {
+   "file": "mllw-beach-mobile-marker.png",
+   "clip": {
+    "x": 138.0078125,
+    "y": 285,
+    "width": 236.9921875,
+    "height": 363.75
+   }
+  },
+  "glyph": {
+   "aria": "El Porto: Good, 3.9 ft at 12 seconds, tide 0.4 feet below mean lower low water, a minus tide, falling",
+   "cardFound": true,
+   "tideLine": "↓ Tide −0.4 ft, falling",
+   "cardText": "El Porto · Good 3.9 ft · 12s period ↓ Tide −0.4 ft, falling Offshore wind, mid tide · MEDIUM CONF",
+   "cardInViewport": true
+  },
+  "glyphShot": {
+   "file": "mllw-beach-mobile-glyph-card.png",
+   "clip": {
+    "x": 133.9921875,
+    "y": 139,
+    "width": 174.015625,
+    "height": 192
+   }
+  },
+  "wavesVia": "sheet",
+  "readout": {
+   "height": "−1.1 ft",
+   "line": "Tide −1.1 ft, ↓ Falling 0.5 ft/h",
+   "hasDatumWordInLine": false,
+   "startsWithTypoMinus": true,
+   "hasAsciiHyphenMinus": false
+  },
+  "closed": {
+   "viewport": {
+    "w": 375,
+    "h": 812
+   },
+   "docScrollWidth": 375,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 25,
+    "top": 444.8,
+    "right": 112.8,
+    "bottom": 468.8,
+    "width": 87.8,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: MLLW",
+   "ariaExpanded": "false",
+   "panel": {
+    "left": 0,
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "width": 0,
+    "height": 0
+   },
+   "panelHidden": true,
+   "panelText": "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km). 0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error. Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), elsewhere from local mean sea level, so heights across a border are not comparable.",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 25,
+    "top": 419,
+    "right": 219,
+    "bottom": 646.5,
+    "width": 194,
+    "height": 227.5
+   },
+   "card": {
+    "left": 12,
+    "top": 411,
+    "right": 232,
+    "bottom": 651,
+    "width": 220,
+    "height": 240
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 404,
+    "clientH": 238
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": false,
+   "panelInReadoutHoriz": false,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "closedShot": {
+   "file": "mllw-beach-mobile-infobox-closed.png",
+   "clip": {
+    "x": 0,
+    "y": 395,
+    "width": 248,
+    "height": 272
+   }
+  },
+  "keyboard": {
+   "tabs": 2,
+   "reachedByTab": true,
+   "afterEnter": {
+    "ariaExpanded": "true",
+    "panelHidden": false
+   },
+   "afterEscape": {
+    "ariaExpanded": "false",
+    "focusOnButton": true,
+    "infoboxStillOpen": true
+   },
+   "afterSpace": {
+    "ariaExpanded": "true"
+   },
+   "pass": true
+  },
+  "open": {
+   "viewport": {
+    "w": 375,
+    "h": 812
+   },
+   "docScrollWidth": 375,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 25,
+    "top": 414.8,
+    "right": 219,
+    "bottom": 438.8,
+    "width": 194,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: MLLW",
+   "ariaExpanded": "true",
+   "panel": {
+    "left": 25,
+    "top": 440.8,
+    "right": 219,
+    "bottom": 712,
+    "width": 194,
+    "height": 271.3
+   },
+   "panelHidden": false,
+   "panelText": "Tide plus average sea-level rise, above MLLW (NOAA chart datum, 1983-2001 epoch). It includes the rise since the epoch (about 8 cm here, the 2016-2025 mean), so it reads that much above a NOAA tide table. It excludes today's ocean anomaly and storm surge, which can add tens of centimetres. Datum from NOAA CO-OPS gauge 9410660 Los Angeles (1.4 km). 0 = mean lower low water (NOAA chart datum). A minus tide (below 0) is a lower-than-average low tide, not an error. Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), elsewhere from local mean sea level, so heights across a border are not comparable.",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 25,
+    "top": 389,
+    "right": 219,
+    "bottom": 889.8,
+    "width": 194,
+    "height": 500.8
+   },
+   "card": {
+    "left": 12,
+    "top": 411,
+    "right": 232,
+    "bottom": 651,
+    "width": 220,
+    "height": 240
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 677,
+    "clientH": 238
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": true,
+   "panelInReadoutHoriz": true,
+   "readoutInViewport": false,
+   "panelTallerThanCardWindow": true,
+   "panelHiddenBelowCardPx": 61
+  },
+  "openShot": {
+   "file": "mllw-beach-mobile-infobox-open.png",
+   "clip": {
+    "x": 0,
+    "y": 373,
+    "width": 248,
+    "height": 439
+   }
+  },
+  "openFull": "mllw-beach-mobile-open-full.jpg",
+  "asked": {
+   "pointTide": 2,
+   "spotRatings": 2
+  },
+  "errors": []
+ },
+ "msl-light-desktop": {
+  "case": "msl",
+  "theme": "light",
+  "viewport": "desktop",
+  "marker": [
+   {
+    "text": "↓ Falling −1.2 ft Low in 3h",
+    "aria": "Tide near La Graviere: falling, 1.2 feet below local mean sea level at selected time, low 2.1 feet below local mean sea level in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 668,
+     "top": 444,
+     "right": 754,
+     "bottom": 474
+    }
+   },
+   {
+    "text": "↓ Falling −1.2 ft Low in 3h",
+    "aria": "Tide near La Piste: falling, 1.2 feet below local mean sea level at selected time, low 2.1 feet below local mean sea level in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 656,
+     "top": 594,
+     "right": 742,
+     "bottom": 624
+    }
+   }
+  ],
+  "markerShot": {
+   "file": "msl-light-desktop-marker.png",
+   "clip": {
+    "x": 616.0078125,
+    "y": 404,
+    "width": 177.984375,
+    "height": 259.75
+   }
+  },
+  "glyph": {
+   "aria": "La Graviere: Good, 3.9 ft at 12 seconds, tide 0.8 feet below local mean sea level, rising",
+   "cardFound": true,
+   "tideLine": "↑ Tide −0.8 ft, rising",
+   "cardText": "La Graviere · Good 3.9 ft · 12s period ↑ Tide −0.8 ft, rising Offshore wind, mid tide · MEDIUM CONF",
+   "cardInViewport": true
+  },
+  "glyphShot": {
+   "file": "msl-light-desktop-glyph-card.png",
+   "clip": {
+    "x": 613.9765625,
+    "y": 258,
+    "width": 194.046875,
+    "height": 192
+   }
+  },
+  "wavesVia": "desktop-panel",
+  "readout": {
+   "height": "−1.2 ft",
+   "line": "Tide −1.2 ft, ↓ Falling 0.5 ft/h",
+   "hasDatumWordInLine": false,
+   "startsWithTypoMinus": true,
+   "hasAsciiHyphenMinus": false
+  },
+  "closed": {
+   "viewport": {
+    "w": 1280,
+    "h": 800
+   },
+   "docScrollWidth": 1280,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 225,
+    "top": 569.5,
+    "right": 327.2,
+    "bottom": 593.5,
+    "width": 102.2,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: local MSL",
+   "ariaExpanded": "false",
+   "panel": {
+    "left": 0,
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "width": 0,
+    "height": 0
+   },
+   "panelHidden": true,
+   "panelText": "Tide height above local mean sea level (2016-2025 mean level).",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 225,
+    "top": 543.8,
+    "right": 419,
+    "bottom": 725,
+    "width": 194,
+    "height": 181.3
+   },
+   "card": {
+    "left": 212,
+    "top": 374.8,
+    "right": 432,
+    "bottom": 734,
+    "width": 220,
+    "height": 359.3
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 357,
+    "clientH": 357
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": false,
+   "panelInReadoutHoriz": false,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "closedShot": {
+   "file": "msl-light-desktop-infobox-closed.png",
+   "clip": {
+    "x": 196,
+    "y": 358.75,
+    "width": 252,
+    "height": 391.25
+   }
+  },
+  "keyboard": {
+   "tabs": 2,
+   "reachedByTab": true,
+   "afterEnter": {
+    "ariaExpanded": "true",
+    "panelHidden": false
+   },
+   "afterEscape": {
+    "ariaExpanded": "false",
+    "focusOnButton": true,
+    "infoboxStillOpen": true
+   },
+   "afterSpace": {
+    "ariaExpanded": "true"
+   },
+   "pass": true
+  },
+  "open": {
+   "viewport": {
+    "w": 1280,
+    "h": 800
+   },
+   "docScrollWidth": 1280,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 225,
+    "top": 530,
+    "right": 419,
+    "bottom": 554,
+    "width": 194,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: local MSL",
+   "ariaExpanded": "true",
+   "panel": {
+    "left": 225,
+    "top": 556,
+    "right": 419,
+    "bottom": 593.5,
+    "width": 194,
+    "height": 37.5
+   },
+   "panelHidden": false,
+   "panelText": "Tide height above local mean sea level (2016-2025 mean level).",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 225,
+    "top": 504.3,
+    "right": 419,
+    "bottom": 725,
+    "width": 194,
+    "height": 220.8
+   },
+   "card": {
+    "left": 212,
+    "top": 335.3,
+    "right": 432,
+    "bottom": 734,
+    "width": 220,
+    "height": 398.8
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 397,
+    "clientH": 397
+   },
+   "panelInViewport": true,
+   "panelInCard": true,
+   "panelInCardHoriz": true,
+   "panelInReadoutHoriz": true,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "openShot": {
+   "file": "msl-light-desktop-infobox-open.png",
+   "clip": {
+    "x": 196,
+    "y": 319.25,
+    "width": 252,
+    "height": 430.75
+   }
+  },
+  "asked": {
+   "pointTide": 2,
+   "spotRatings": 2
+  },
+  "errors": []
+ },
+ "msl-light-mobile": {
+  "case": "msl",
+  "theme": "light",
+  "viewport": "mobile",
+  "marker": [
+   {
+    "text": "↓ Falling −1.2 ft Low in 3h",
+    "aria": "Tide near La Graviere: falling, 1.2 feet below local mean sea level at selected time, low 2.1 feet below local mean sea level in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 116,
+     "top": 478,
+     "right": 202,
+     "bottom": 508
+    }
+   },
+   {
+    "text": "↓ Falling −1.2 ft Low in 3h",
+    "aria": "Tide near La Piste: falling, 1.2 feet below local mean sea level at selected time, low 2.1 feet below local mean sea level in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 103,
+     "top": 628,
+     "right": 189,
+     "bottom": 658
+    }
+   }
+  ],
+  "markerShot": {
+   "file": "msl-light-mobile-marker.png",
+   "clip": {
+    "x": 63.0078125,
+    "y": 438,
+    "width": 178.984375,
+    "height": 259.75
+   }
+  },
+  "glyph": {
+   "aria": "La Graviere: Good, 3.9 ft at 12 seconds, tide 0.8 feet below local mean sea level, rising",
+   "cardFound": true,
+   "tideLine": "↑ Tide −0.8 ft, rising",
+   "cardText": "La Graviere · Good 3.9 ft · 12s period ↑ Tide −0.8 ft, rising Offshore wind, mid tide · MEDIUM CONF",
+   "cardInViewport": true
+  },
+  "glyphShot": {
+   "file": "msl-light-mobile-glyph-card.png",
+   "clip": {
+    "x": 61.9765625,
+    "y": 292,
+    "width": 194.046875,
+    "height": 192
+   }
+  },
+  "wavesVia": "sheet",
+  "readout": {
+   "height": "−1.2 ft",
+   "line": "Tide −1.2 ft, ↓ Falling 0.5 ft/h",
+   "hasDatumWordInLine": false,
+   "startsWithTypoMinus": true,
+   "hasAsciiHyphenMinus": false
+  },
+  "closed": {
+   "viewport": {
+    "w": 375,
+    "h": 812
+   },
+   "docScrollWidth": 375,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 25,
+    "top": 491.8,
+    "right": 127.2,
+    "bottom": 515.8,
+    "width": 102.2,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: local MSL",
+   "ariaExpanded": "false",
+   "panel": {
+    "left": 0,
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "width": 0,
+    "height": 0
+   },
+   "panelHidden": true,
+   "panelText": "Tide height above local mean sea level (2016-2025 mean level).",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 25,
+    "top": 466,
+    "right": 219,
+    "bottom": 647.3,
+    "width": 194,
+    "height": 181.3
+   },
+   "card": {
+    "left": 12,
+    "top": 411,
+    "right": 232,
+    "bottom": 651,
+    "width": 220,
+    "height": 240
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 357,
+    "clientH": 238
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": false,
+   "panelInReadoutHoriz": false,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "closedShot": {
+   "file": "msl-light-mobile-infobox-closed.png",
+   "clip": {
+    "x": 0,
+    "y": 395,
+    "width": 248,
+    "height": 272
+   }
+  },
+  "keyboard": {
+   "tabs": 2,
+   "reachedByTab": true,
+   "afterEnter": {
+    "ariaExpanded": "true",
+    "panelHidden": false
+   },
+   "afterEscape": {
+    "ariaExpanded": "false",
+    "focusOnButton": true,
+    "infoboxStillOpen": true
+   },
+   "afterSpace": {
+    "ariaExpanded": "true"
+   },
+   "pass": true
+  },
+  "open": {
+   "viewport": {
+    "w": 375,
+    "h": 812
+   },
+   "docScrollWidth": 375,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 25,
+    "top": 446.8,
+    "right": 219,
+    "bottom": 470.8,
+    "width": 194,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: local MSL",
+   "ariaExpanded": "true",
+   "panel": {
+    "left": 25,
+    "top": 472.8,
+    "right": 219,
+    "bottom": 510.3,
+    "width": 194,
+    "height": 37.5
+   },
+   "panelHidden": false,
+   "panelText": "Tide height above local mean sea level (2016-2025 mean level).",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 25,
+    "top": 421,
+    "right": 219,
+    "bottom": 641.8,
+    "width": 194,
+    "height": 220.8
+   },
+   "card": {
+    "left": 12,
+    "top": 411,
+    "right": 232,
+    "bottom": 651,
+    "width": 220,
+    "height": 240
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 397,
+    "clientH": 238
+   },
+   "panelInViewport": true,
+   "panelInCard": true,
+   "panelInCardHoriz": true,
+   "panelInReadoutHoriz": true,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "openShot": {
+   "file": "msl-light-mobile-infobox-open.png",
+   "clip": {
+    "x": 0,
+    "y": 395,
+    "width": 248,
+    "height": 272
+   }
+  },
+  "openFull": "msl-light-mobile-open-full.jpg",
+  "asked": {
+   "pointTide": 2,
+   "spotRatings": 2
+  },
+  "errors": []
+ },
+ "msl-dark-desktop": {
+  "case": "msl",
+  "theme": "dark",
+  "viewport": "desktop",
+  "marker": [
+   {
+    "text": "↓ Falling −1.2 ft Low in 3h",
+    "aria": "Tide near La Graviere: falling, 1.2 feet below local mean sea level at selected time, low 2.1 feet below local mean sea level in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 668,
+     "top": 444,
+     "right": 754,
+     "bottom": 474
+    }
+   },
+   {
+    "text": "↓ Falling −1.2 ft Low in 3h",
+    "aria": "Tide near La Piste: falling, 1.2 feet below local mean sea level at selected time, low 2.1 feet below local mean sea level in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 656,
+     "top": 594,
+     "right": 742,
+     "bottom": 624
+    }
+   }
+  ],
+  "markerShot": {
+   "file": "msl-dark-desktop-marker.png",
+   "clip": {
+    "x": 616.0078125,
+    "y": 404,
+    "width": 177.984375,
+    "height": 259.75
+   }
+  },
+  "glyph": {
+   "aria": "La Graviere: Good, 3.9 ft at 12 seconds, tide 0.8 feet below local mean sea level, rising",
+   "cardFound": true,
+   "tideLine": "↑ Tide −0.8 ft, rising",
+   "cardText": "La Graviere · Good 3.9 ft · 12s period ↑ Tide −0.8 ft, rising Offshore wind, mid tide · MEDIUM CONF",
+   "cardInViewport": true
+  },
+  "glyphShot": {
+   "file": "msl-dark-desktop-glyph-card.png",
+   "clip": {
+    "x": 613.9765625,
+    "y": 258,
+    "width": 194.046875,
+    "height": 192
+   }
+  },
+  "wavesVia": "desktop-panel",
+  "readout": {
+   "height": "−1.2 ft",
+   "line": "Tide −1.2 ft, ↓ Falling 0.5 ft/h",
+   "hasDatumWordInLine": false,
+   "startsWithTypoMinus": true,
+   "hasAsciiHyphenMinus": false
+  },
+  "closed": {
+   "viewport": {
+    "w": 1280,
+    "h": 800
+   },
+   "docScrollWidth": 1280,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 225,
+    "top": 569.5,
+    "right": 327.2,
+    "bottom": 593.5,
+    "width": 102.2,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: local MSL",
+   "ariaExpanded": "false",
+   "panel": {
+    "left": 0,
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "width": 0,
+    "height": 0
+   },
+   "panelHidden": true,
+   "panelText": "Tide height above local mean sea level (2016-2025 mean level).",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 225,
+    "top": 543.8,
+    "right": 419,
+    "bottom": 725,
+    "width": 194,
+    "height": 181.3
+   },
+   "card": {
+    "left": 212,
+    "top": 374.8,
+    "right": 432,
+    "bottom": 734,
+    "width": 220,
+    "height": 359.3
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 357,
+    "clientH": 357
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": false,
+   "panelInReadoutHoriz": false,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "closedShot": {
+   "file": "msl-dark-desktop-infobox-closed.png",
+   "clip": {
+    "x": 196,
+    "y": 358.75,
+    "width": 252,
+    "height": 391.25
+   }
+  },
+  "keyboard": {
+   "tabs": 2,
+   "reachedByTab": true,
+   "afterEnter": {
+    "ariaExpanded": "true",
+    "panelHidden": false
+   },
+   "afterEscape": {
+    "ariaExpanded": "false",
+    "focusOnButton": true,
+    "infoboxStillOpen": true
+   },
+   "afterSpace": {
+    "ariaExpanded": "true"
+   },
+   "pass": true
+  },
+  "open": {
+   "viewport": {
+    "w": 1280,
+    "h": 800
+   },
+   "docScrollWidth": 1280,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 225,
+    "top": 530,
+    "right": 419,
+    "bottom": 554,
+    "width": 194,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: local MSL",
+   "ariaExpanded": "true",
+   "panel": {
+    "left": 225,
+    "top": 556,
+    "right": 419,
+    "bottom": 593.5,
+    "width": 194,
+    "height": 37.5
+   },
+   "panelHidden": false,
+   "panelText": "Tide height above local mean sea level (2016-2025 mean level).",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 225,
+    "top": 504.3,
+    "right": 419,
+    "bottom": 725,
+    "width": 194,
+    "height": 220.8
+   },
+   "card": {
+    "left": 212,
+    "top": 335.3,
+    "right": 432,
+    "bottom": 734,
+    "width": 220,
+    "height": 398.8
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 397,
+    "clientH": 397
+   },
+   "panelInViewport": true,
+   "panelInCard": true,
+   "panelInCardHoriz": true,
+   "panelInReadoutHoriz": true,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "openShot": {
+   "file": "msl-dark-desktop-infobox-open.png",
+   "clip": {
+    "x": 196,
+    "y": 319.25,
+    "width": 252,
+    "height": 430.75
+   }
+  },
+  "asked": {
+   "pointTide": 2,
+   "spotRatings": 2
+  },
+  "errors": []
+ },
+ "msl-dark-mobile": {
+  "case": "msl",
+  "theme": "dark",
+  "viewport": "mobile",
+  "marker": [
+   {
+    "text": "↓ Falling −1.2 ft Low in 3h",
+    "aria": "Tide near La Graviere: falling, 1.2 feet below local mean sea level at selected time, low 2.1 feet below local mean sea level in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 116,
+     "top": 478,
+     "right": 202,
+     "bottom": 508
+    }
+   },
+   {
+    "text": "↓ Falling −1.2 ft Low in 3h",
+    "aria": "Tide near La Piste: falling, 1.2 feet below local mean sea level at selected time, low 2.1 feet below local mean sea level in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 103,
+     "top": 628,
+     "right": 189,
+     "bottom": 658
+    }
+   }
+  ],
+  "markerShot": {
+   "file": "msl-dark-mobile-marker.png",
+   "clip": {
+    "x": 63.0078125,
+    "y": 438,
+    "width": 178.984375,
+    "height": 259.75
+   }
+  },
+  "glyph": {
+   "aria": "La Graviere: Good, 3.9 ft at 12 seconds, tide 0.8 feet below local mean sea level, rising",
+   "cardFound": true,
+   "tideLine": "↑ Tide −0.8 ft, rising",
+   "cardText": "La Graviere · Good 3.9 ft · 12s period ↑ Tide −0.8 ft, rising Offshore wind, mid tide · MEDIUM CONF",
+   "cardInViewport": true
+  },
+  "glyphShot": {
+   "file": "msl-dark-mobile-glyph-card.png",
+   "clip": {
+    "x": 61.9765625,
+    "y": 292,
+    "width": 194.046875,
+    "height": 192
+   }
+  },
+  "wavesVia": "sheet",
+  "readout": {
+   "height": "−1.2 ft",
+   "line": "Tide −1.2 ft, ↓ Falling 0.5 ft/h",
+   "hasDatumWordInLine": false,
+   "startsWithTypoMinus": true,
+   "hasAsciiHyphenMinus": false
+  },
+  "closed": {
+   "viewport": {
+    "w": 375,
+    "h": 812
+   },
+   "docScrollWidth": 375,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 25,
+    "top": 491.8,
+    "right": 127.2,
+    "bottom": 515.8,
+    "width": 102.2,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: local MSL",
+   "ariaExpanded": "false",
+   "panel": {
+    "left": 0,
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "width": 0,
+    "height": 0
+   },
+   "panelHidden": true,
+   "panelText": "Tide height above local mean sea level (2016-2025 mean level).",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 25,
+    "top": 466,
+    "right": 219,
+    "bottom": 647.3,
+    "width": 194,
+    "height": 181.3
+   },
+   "card": {
+    "left": 12,
+    "top": 411,
+    "right": 232,
+    "bottom": 651,
+    "width": 220,
+    "height": 240
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 357,
+    "clientH": 238
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": false,
+   "panelInReadoutHoriz": false,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "closedShot": {
+   "file": "msl-dark-mobile-infobox-closed.png",
+   "clip": {
+    "x": 0,
+    "y": 395,
+    "width": 248,
+    "height": 272
+   }
+  },
+  "keyboard": {
+   "tabs": 2,
+   "reachedByTab": true,
+   "afterEnter": {
+    "ariaExpanded": "true",
+    "panelHidden": false
+   },
+   "afterEscape": {
+    "ariaExpanded": "false",
+    "focusOnButton": true,
+    "infoboxStillOpen": true
+   },
+   "afterSpace": {
+    "ariaExpanded": "true"
+   },
+   "pass": true
+  },
+  "open": {
+   "viewport": {
+    "w": 375,
+    "h": 812
+   },
+   "docScrollWidth": 375,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 25,
+    "top": 446.8,
+    "right": 219,
+    "bottom": 470.8,
+    "width": 194,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: local MSL",
+   "ariaExpanded": "true",
+   "panel": {
+    "left": 25,
+    "top": 472.8,
+    "right": 219,
+    "bottom": 510.3,
+    "width": 194,
+    "height": 37.5
+   },
+   "panelHidden": false,
+   "panelText": "Tide height above local mean sea level (2016-2025 mean level).",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 25,
+    "top": 421,
+    "right": 219,
+    "bottom": 641.8,
+    "width": 194,
+    "height": 220.8
+   },
+   "card": {
+    "left": 12,
+    "top": 411,
+    "right": 232,
+    "bottom": 651,
+    "width": 220,
+    "height": 240
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 397,
+    "clientH": 238
+   },
+   "panelInViewport": true,
+   "panelInCard": true,
+   "panelInCardHoriz": true,
+   "panelInReadoutHoriz": true,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "openShot": {
+   "file": "msl-dark-mobile-infobox-open.png",
+   "clip": {
+    "x": 0,
+    "y": 395,
+    "width": 248,
+    "height": 272
+   }
+  },
+  "openFull": "msl-dark-mobile-open-full.jpg",
+  "asked": {
+   "pointTide": 2,
+   "spotRatings": 2
+  },
+  "errors": []
+ },
+ "msl-beach-desktop": {
+  "case": "msl",
+  "theme": "beach",
+  "viewport": "desktop",
+  "marker": [
+   {
+    "text": "↓ Falling −1.2 ft Low in 3h",
+    "aria": "Tide near La Graviere: falling, 1.2 feet below local mean sea level at selected time, low 2.1 feet below local mean sea level in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 668,
+     "top": 444,
+     "right": 754,
+     "bottom": 474
+    }
+   },
+   {
+    "text": "↓ Falling −1.2 ft Low in 3h",
+    "aria": "Tide near La Piste: falling, 1.2 feet below local mean sea level at selected time, low 2.1 feet below local mean sea level in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 656,
+     "top": 594,
+     "right": 742,
+     "bottom": 624
+    }
+   }
+  ],
+  "markerShot": {
+   "file": "msl-beach-desktop-marker.png",
+   "clip": {
+    "x": 616.0078125,
+    "y": 404,
+    "width": 177.984375,
+    "height": 259.75
+   }
+  },
+  "glyph": {
+   "aria": "La Graviere: Good, 3.9 ft at 12 seconds, tide 0.8 feet below local mean sea level, rising",
+   "cardFound": true,
+   "tideLine": "↑ Tide −0.8 ft, rising",
+   "cardText": "La Graviere · Good 3.9 ft · 12s period ↑ Tide −0.8 ft, rising Offshore wind, mid tide · MEDIUM CONF",
+   "cardInViewport": true
+  },
+  "glyphShot": {
+   "file": "msl-beach-desktop-glyph-card.png",
+   "clip": {
+    "x": 613.9765625,
+    "y": 258,
+    "width": 194.046875,
+    "height": 192
+   }
+  },
+  "wavesVia": "desktop-panel",
+  "readout": {
+   "height": "−1.2 ft",
+   "line": "Tide −1.2 ft, ↓ Falling 0.5 ft/h",
+   "hasDatumWordInLine": false,
+   "startsWithTypoMinus": true,
+   "hasAsciiHyphenMinus": false
+  },
+  "closed": {
+   "viewport": {
+    "w": 1280,
+    "h": 800
+   },
+   "docScrollWidth": 1280,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 225,
+    "top": 569.5,
+    "right": 327.2,
+    "bottom": 593.5,
+    "width": 102.2,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: local MSL",
+   "ariaExpanded": "false",
+   "panel": {
+    "left": 0,
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "width": 0,
+    "height": 0
+   },
+   "panelHidden": true,
+   "panelText": "Tide height above local mean sea level (2016-2025 mean level).",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 225,
+    "top": 543.8,
+    "right": 419,
+    "bottom": 725,
+    "width": 194,
+    "height": 181.3
+   },
+   "card": {
+    "left": 212,
+    "top": 374.8,
+    "right": 432,
+    "bottom": 734,
+    "width": 220,
+    "height": 359.3
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 357,
+    "clientH": 357
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": false,
+   "panelInReadoutHoriz": false,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "closedShot": {
+   "file": "msl-beach-desktop-infobox-closed.png",
+   "clip": {
+    "x": 196,
+    "y": 358.75,
+    "width": 252,
+    "height": 391.25
+   }
+  },
+  "keyboard": {
+   "tabs": 2,
+   "reachedByTab": true,
+   "afterEnter": {
+    "ariaExpanded": "true",
+    "panelHidden": false
+   },
+   "afterEscape": {
+    "ariaExpanded": "false",
+    "focusOnButton": true,
+    "infoboxStillOpen": true
+   },
+   "afterSpace": {
+    "ariaExpanded": "true"
+   },
+   "pass": true
+  },
+  "open": {
+   "viewport": {
+    "w": 1280,
+    "h": 800
+   },
+   "docScrollWidth": 1280,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 225,
+    "top": 530,
+    "right": 419,
+    "bottom": 554,
+    "width": 194,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: local MSL",
+   "ariaExpanded": "true",
+   "panel": {
+    "left": 225,
+    "top": 556,
+    "right": 419,
+    "bottom": 593.5,
+    "width": 194,
+    "height": 37.5
+   },
+   "panelHidden": false,
+   "panelText": "Tide height above local mean sea level (2016-2025 mean level).",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 225,
+    "top": 504.3,
+    "right": 419,
+    "bottom": 725,
+    "width": 194,
+    "height": 220.8
+   },
+   "card": {
+    "left": 212,
+    "top": 335.3,
+    "right": 432,
+    "bottom": 734,
+    "width": 220,
+    "height": 398.8
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 397,
+    "clientH": 397
+   },
+   "panelInViewport": true,
+   "panelInCard": true,
+   "panelInCardHoriz": true,
+   "panelInReadoutHoriz": true,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "openShot": {
+   "file": "msl-beach-desktop-infobox-open.png",
+   "clip": {
+    "x": 196,
+    "y": 319.25,
+    "width": 252,
+    "height": 430.75
+   }
+  },
+  "asked": {
+   "pointTide": 2,
+   "spotRatings": 2
+  },
+  "errors": []
+ },
+ "msl-beach-mobile": {
+  "case": "msl",
+  "theme": "beach",
+  "viewport": "mobile",
+  "marker": [
+   {
+    "text": "↓ Falling −1.2 ft Low in 3h",
+    "aria": "Tide near La Graviere: falling, 1.2 feet below local mean sea level at selected time, low 2.1 feet below local mean sea level in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 116,
+     "top": 478,
+     "right": 202,
+     "bottom": 508
+    }
+   },
+   {
+    "text": "↓ Falling −1.2 ft Low in 3h",
+    "aria": "Tide near La Piste: falling, 1.2 feet below local mean sea level at selected time, low 2.1 feet below local mean sea level in 3h",
+    "inViewport": true,
+    "box": {
+     "left": 103,
+     "top": 628,
+     "right": 189,
+     "bottom": 658
+    }
+   }
+  ],
+  "markerShot": {
+   "file": "msl-beach-mobile-marker.png",
+   "clip": {
+    "x": 63.0078125,
+    "y": 438,
+    "width": 178.984375,
+    "height": 259.75
+   }
+  },
+  "glyph": {
+   "aria": "La Graviere: Good, 3.9 ft at 12 seconds, tide 0.8 feet below local mean sea level, rising",
+   "cardFound": true,
+   "tideLine": "↑ Tide −0.8 ft, rising",
+   "cardText": "La Graviere · Good 3.9 ft · 12s period ↑ Tide −0.8 ft, rising Offshore wind, mid tide · MEDIUM CONF",
+   "cardInViewport": true
+  },
+  "glyphShot": {
+   "file": "msl-beach-mobile-glyph-card.png",
+   "clip": {
+    "x": 61.9765625,
+    "y": 292,
+    "width": 194.046875,
+    "height": 192
+   }
+  },
+  "wavesVia": "sheet",
+  "readout": {
+   "height": "−1.2 ft",
+   "line": "Tide −1.2 ft, ↓ Falling 0.5 ft/h",
+   "hasDatumWordInLine": false,
+   "startsWithTypoMinus": true,
+   "hasAsciiHyphenMinus": false
+  },
+  "closed": {
+   "viewport": {
+    "w": 375,
+    "h": 812
+   },
+   "docScrollWidth": 375,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 25,
+    "top": 491.8,
+    "right": 127.2,
+    "bottom": 515.8,
+    "width": 102.2,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: local MSL",
+   "ariaExpanded": "false",
+   "panel": {
+    "left": 0,
+    "top": 0,
+    "right": 0,
+    "bottom": 0,
+    "width": 0,
+    "height": 0
+   },
+   "panelHidden": true,
+   "panelText": "Tide height above local mean sea level (2016-2025 mean level).",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 25,
+    "top": 466,
+    "right": 219,
+    "bottom": 647.3,
+    "width": 194,
+    "height": 181.3
+   },
+   "card": {
+    "left": 12,
+    "top": 411,
+    "right": 232,
+    "bottom": 651,
+    "width": 220,
+    "height": 240
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 357,
+    "clientH": 238
+   },
+   "panelInViewport": true,
+   "panelInCard": false,
+   "panelInCardHoriz": false,
+   "panelInReadoutHoriz": false,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "closedShot": {
+   "file": "msl-beach-mobile-infobox-closed.png",
+   "clip": {
+    "x": 0,
+    "y": 395,
+    "width": 248,
+    "height": 272
+   }
+  },
+  "keyboard": {
+   "tabs": 2,
+   "reachedByTab": true,
+   "afterEnter": {
+    "ariaExpanded": "true",
+    "panelHidden": false
+   },
+   "afterEscape": {
+    "ariaExpanded": "false",
+    "focusOnButton": true,
+    "infoboxStillOpen": true
+   },
+   "afterSpace": {
+    "ariaExpanded": "true"
+   },
+   "pass": true
+  },
+  "open": {
+   "viewport": {
+    "w": 375,
+    "h": 812
+   },
+   "docScrollWidth": 375,
+   "pageHorizontalOverflow": false,
+   "button": {
+    "left": 25,
+    "top": 446.8,
+    "right": 219,
+    "bottom": 470.8,
+    "width": 194,
+    "height": 24
+   },
+   "buttonText": "ⓘ Tide zero: local MSL",
+   "ariaExpanded": "true",
+   "panel": {
+    "left": 25,
+    "top": 472.8,
+    "right": 219,
+    "bottom": 510.3,
+    "width": 194,
+    "height": 37.5
+   },
+   "panelHidden": false,
+   "panelText": "Tide height above local mean sea level (2016-2025 mean level).",
+   "panelScrollOverflow": false,
+   "readout": {
+    "left": 25,
+    "top": 421,
+    "right": 219,
+    "bottom": 641.8,
+    "width": 194,
+    "height": 220.8
+   },
+   "card": {
+    "left": 12,
+    "top": 411,
+    "right": 232,
+    "bottom": 651,
+    "width": 220,
+    "height": 240
+   },
+   "cardScroll": {
+    "scrollW": 218,
+    "clientW": 218,
+    "scrollH": 397,
+    "clientH": 238
+   },
+   "panelInViewport": true,
+   "panelInCard": true,
+   "panelInCardHoriz": true,
+   "panelInReadoutHoriz": true,
+   "readoutInViewport": true,
+   "panelTallerThanCardWindow": false,
+   "panelHiddenBelowCardPx": 0
+  },
+  "openShot": {
+   "file": "msl-beach-mobile-infobox-open.png",
+   "clip": {
+    "x": 0,
+    "y": 395,
+    "width": 248,
+    "height": 272
+   }
+  },
+  "openFull": "msl-beach-mobile-open-full.jpg",
+  "asked": {
+   "pointTide": 2,
+   "spotRatings": 2
+  },
+  "errors": []
+ }
+}

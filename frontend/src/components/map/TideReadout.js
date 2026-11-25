@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from 'react';
 import { usePointTide } from './usePointTide';
 import { responsiveWeatherOn } from './useMapChromeLayout';
-import { tideDatumOf, pointTideForDisplay, typoMinus, minusTideWord, tidePlainLineDisabled } from './tideDatum';
+import { tideDatumOf, pointTideForDisplay, typoMinus, typoMinusIn, minusTideWord, tidePlainLineDisabled } from './tideDatum';
 import TideDatumInfo from './TideDatumInfo';
 import {
   tideFooter, TIDE_SOLAR_NOTE, TIDE_UNAVAILABLE, tideAt, tideCredit, tideUsesSolar, infoboxTideDisabled, trendWord, trendGlyph, formatTideHeight,
@@ -86,11 +86,12 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
           )}
         </svg>
       )}
-      {hi && <div className={`text-[10px] ${textClass}`}>{hi}</div>}
-      {lo && <div className={`text-[10px] ${textClass}`}>{lo}</div>}
+      {hi && <div className={`text-[10px] ${textClass}`}>{typoMinusIn(hi)}</div>}
+      {lo && <div className={`text-[10px] ${textClass}`}>{typoMinusIn(lo)}</div>}
       {mslNow != null && (
         <div className={`text-[9px] leading-tight ${muted}`} data-testid="tide-msl-line">
-          ≈ {formatTideHeight(mslNow, unit)} above local mean sea level
+          {/* the visual pass (2026-11-25): "≈ −3.6 ft above" read oddly; a level below MSL says "below" */}
+          ≈ {formatTideHeight(Math.abs(mslNow), unit)} {mslNow < 0 ? 'below' : 'above'} local mean sea level
         </div>
       )}
       {datum.isMllw && datum.source && (

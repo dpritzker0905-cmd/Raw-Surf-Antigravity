@@ -120,6 +120,11 @@ export function typoMinus(text) {
   return typeof text === 'string' ? text.replace(/^-(?=\d)/, TYPO_MINUS) : text;
 }
 
+/** Every number's minus in a readout line: "Next low 5:00 AM · -2.0 ft" -> "... · −2.0 ft" (start or after a space). */
+export function typoMinusIn(text) {
+  return typeof text === 'string' ? text.replace(/(^|\s)-(?=\d)/g, `$1${TYPO_MINUS}`) : text;
+}
+
 /** The plain visible tide line WITHOUT the leading "Tide": "1.2 ft, rising" / "−0.4 ft" (no or unknown trend). */
 export function plainTideText(heightText, trend) {
   if (heightText == null) return null;
