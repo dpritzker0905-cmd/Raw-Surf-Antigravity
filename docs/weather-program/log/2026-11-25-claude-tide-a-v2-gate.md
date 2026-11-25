@@ -37,3 +37,27 @@ Append-only. Stamps come from `date -u`.
   - P3 (a +60 min time shift) is added;
   - C5 stays VOID-only;
   - the pre-flight's sign-flip plant stays, with its ≥ 95 % threshold.
+
+## 00:29Z: the v2 instrument PR, with gate §12 (amendment 2, PRE-DATA)
+
+- **#1296** has PASS-WITH-LIMITS at `627155af3`. Its binding limit L1: a +90° P1 moves M2 events about 3.1 h, beyond
+  `match_events`' 3 h window. So at M2-dominated stations P1 matches NOTHING, and C2 reads "untestable".
+- **Gate §12 (stamped 00:25Z):** a planted break FAILS C2 iff C2's status is not PASS (a mismatch, or untestable).
+  It is pinned by a test on an M2-only station, where the +90° break gives 0 matched events and counts as FAIL.
+- **The code:**
+  - `a_harcon_v2.py`: the fixed bars (0.05 m, 10 min) copied from the gate text; the half-open windows; the 6-min
+    identity (`events_rows_fine` keeps the minutes); the plants; `c2_status`, `plant_fails`, `preflight_verdict`,
+    `c5_verdict`; and the minors diagnostic (reported only, "unavailable" when pyTMD lacks the call).
+  - `a_harcon_v2_preflight.py`: identities and four plants only, no candidate arm (pinned).
+  - `a_harcon_v2_preflight_ok.py`: refuses the v2 run without a committed pre-flight PASS that recomputes from its
+    own records.
+  - The instrument gains `--c2-grid-min 6` and `--c5`; v1's defaults are unchanged.
+  - The scorer gains `--v2` (the fixed bars; C5 with the tested mismatches, before measurability).
+  - The workflow is `tide-a-harcon-v2.yml`: numbered pre-flight and v2 tags only. The pre-flight installs no PyFES.
+- **Tests:** `tests/test_a_harcon_v2.py`, 21 (chain lane; fragment +21, +1 file). The tide suites give 124 passed,
+  twice.
+- **Smoke test** on a SEEN station over a PAST window, no gate data read:
+  - NOAA's own 6-min curve through the fine path gives 11 of 11 matched, median 0.004 m and 1.0 min;
+  - a +60 min plant gives a mismatch, so the plant fails.
+  - pyTMD is not installed locally, so `harcon_eval` itself runs only in CI.
+- **Not done:** the pre-flight tag (David's word), committing its result, then the v2 tag (David's word).

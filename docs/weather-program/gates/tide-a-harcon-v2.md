@@ -192,3 +192,18 @@ section holds. Everything else is unchanged.
 - **Added:** **P3, a +60 min time shift** of the synthesized series. It too must FAIL C2 at every scored station.
 - **The pre-flight is unchanged** (§6): its (ii) sign-flip stays. Its ≥ 95 % threshold absorbs the few stations with G
   near 0° or 180°, and every miss is reported.
+
+## 12. Amendment 2 (2026-11-25 00:25Z, PRE-DATA): when a planted break FAILS C2 (the advisor's binding limit L1 on #1296)
+
+Written before the pre-flight tag and before any v2 data. Where this section and §5, §6 or §11 differ, it holds.
+
+- **The issue.** §11's +90° P1 moves M2 events by about 3.1 h, beyond `match_events`' 3-h window. At M2-dominated
+  stations P1 therefore matches NOTHING, and C2 reads "untestable", not "mismatch". If C5 counted only "mismatch" as
+  failing, a correctly detected break would VOID the run.
+- **The rule (C5 and the pre-flight's planted breaks):** a planted break **FAILS C2 iff C2's status is not PASS**. That
+  is either a mismatch (a median over a bar) or no matched events at all (untestable). A planted break PASSES C2 only if
+  its events match AND both medians are within the bars. Only that case counts against C5 (VOID) or against the
+  pre-flight's ≥ 95 % rule.
+- **Unchanged:** the UNPLANTED C2 keeps v1's statuses and precedence (a tested mismatch is VOID; an untestable record
+  is vacuous only in a full run). The advisor prefers this rule over switching P1 to +45°.
+- **Pinned** by a test in which a zero-match +90° break counts as FAIL.
