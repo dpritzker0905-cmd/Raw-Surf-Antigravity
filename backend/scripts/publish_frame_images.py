@@ -548,7 +548,7 @@ def publish_order(sets, latest):
     return sorted(sets, key=key)
 
 
-def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=time.perf_counter):
+def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=time.perf_counter, retire=()):
     """Every set: frames, then its index; then latest.json LAST; then retention. Returns {set key: stats}.
 
     STAGGER: once `budget_s` (FRAME_PUBLISH_BUDGET_S, default 600 s, inside the step's 15-min timeout) has elapsed, no
@@ -634,6 +634,8 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
         stats["index"] = index["path"] if index else (entry or {}).get("index")
         stats["deleted"] = 0
         report[key] = stats
+    pending_empty.update({k: r for k in retire  # rated sets no longer built (fsr.retired_rated_sets), retired with the next pointer move
+                          if (r := fsr.retired_record((latest.get("sets") or {}).get(k), now, _writer())) is not None})
     if changed:
         for key, rec in pending_empty.items():
             latest.setdefault("sets", {})[key] = rec
@@ -762,7 +764,8 @@ def main(argv=None):
             print("[frames] rated sets: killed (FRAME_RATING_SETS=0); nothing to do")
             return 0
         budget = float(os.environ.get("FRAME_RATING_BUDGET_S", "600"))
-        report = publish_frame_sets(source, sink, sets=selected_sets(fsr.rated_publish_sets()), budget_s=budget)
+        report = publish_frame_sets(source, sink, sets=selected_sets(fsr.rated_publish_sets()), budget_s=budget,
+                                    retire=[fs.set_key(t) for t in fsr.retired_rated_sets()])
         print(json.dumps({"frame_sets": report}))
         summary = os.environ.get("GITHUB_STEP_SUMMARY")
         if summary:
