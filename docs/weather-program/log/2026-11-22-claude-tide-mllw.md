@@ -672,3 +672,6 @@ Alaska and North Carolina sounds.
     scrolls.
 - **Jest:** map + spot-hub + tests, 554 suites / 7838 tests, green twice. The eslint ratchet is clean. Frontend floor
   fragment: +33 tests / +1 file versus dev.
+- **02:08Z correction (paths):** the screenshots and JSONs named above moved to `audit/tide-plain-line-2026-11-25/`
+  under the same file names. `memory_audit.py` reads `docs/weather-program/` as text and cannot read images; every
+  other screenshot set in the repo lives under `audit/`.
