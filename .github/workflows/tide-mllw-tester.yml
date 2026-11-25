@@ -1,0 +1,107 @@
+# tide-mllw-tester-v1 (docs/weather-program/gates/tide-mllw-tester-v1.md): the datum-only tester for SURF_TIDE_MLLW_US.
+# Once per new tide build it scores the SHADOW US display above MLLW (datum_for(enabled=True), leave-one-out) against
+# NOAA's hourly MLLW predictions at 80 frozen type-R stations, with the long-period terms removed on both sides.
+# REPORT-ONLY: it never writes the flag manifest. A 14-day PASS opens ONE `tide-mllw-proposal` issue for the owner; the
+# flag changes only by the owner's own workflow_dispatch of flag-guardrail (D-087). Reads: the weather bucket (GET) and
+# NOAA CO-OPS, inside the read-only network guard. Never the Render backend.
+name: tide-mllw-tester
+
+on:
+  workflow_run:
+    workflows: [tide-own-series]
+    types: [completed]
+    branches: [dev]
+  schedule:
+    - cron: '23 23 * * *'          # a daily fallback when the build's completion event is missed; CACHED if no new build
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: tide-mllw-tester
+  cancel-in-progress: false
+
+jobs:
+  tester:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    environment: supabase-service   # the service-role key lives ONLY in this environment (dev/main); read here, GET only
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install backend deps (LP_noaa is pure Python, tide_datum/noaa_lp.py: no pyTMD per build)
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: Restore the tester state
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/tide-mllw-state
+          key: tide-mllw-state-${{ github.run_id }}
+          restore-keys: tide-mllw-state-
+
+      - name: Tester (report-only)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TIDE_DATUM_GUARD_RELEASED: ${{ vars.TIDE_DATUM_GUARD_RELEASED || '0' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/tide-mllw-state"
+          python backend/scripts/tide_datum/mllw_tester_run.py --state "$RUNNER_TEMP/tide-mllw-state/state.json" \
+            --out "$RUNNER_TEMP/tide-mllw-out"
+          cat "$RUNNER_TEMP/tide-mllw-out/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tide-mllw-tester
+          path: ${{ runner.temp }}/tide-mllw-out
+          retention-days: 30
+
+      - name: Countdown, proposal and sheet report (issues only; never the flag)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ vars.REPO_OWNER_LOGIN }}
+        run: |
+          out="$RUNNER_TEMP/tide-mllw-out"
+          [ -s "$out/summary.md" ] || exit 0
+          gh label create tide-mllw-tester --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
+          gh label create tide-mllw-proposal --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
+          track="tide-mllw tester: report-only countdown (SURF_TIDE_MLLW_US)"
+          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label tide-mllw-tester --json number --jq '.[0].number // empty')"
+          if [ -z "$n" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$track" --label tide-mllw-tester --body-file "$out/summary.md"
+          else
+            gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body-file "$out/summary.md"
+          fi
+          if [ -s "$out/sheet-report.txt" ] && [ -n "$n" ]; then
+            gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body "SHEET share above 5 % on two consecutive builds (an owner report, never a disable; gate s11)."
+          fi
+          if [ -s "$out/proposal.txt" ]; then
+            p="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label tide-mllw-proposal --json number --jq '.[0].number // empty')"
+            if [ -z "$p" ]; then
+              {
+                cat "$out/proposal.txt"
+                echo
+                echo "The tester PROPOSES; it changes nothing. Only the owner re-enables SURF_TIDE_MLLW_US, through the flag-guardrail workflow's re-enable dispatch: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/flag-guardrail.yml (D-087)."
+                echo "The monitors are type-R (harmonic) stations, not a random sample of the coast: a PASS speaks for type-R-like locations (gate s12)."
+              } > "$out/proposal-body.md"
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "tide-mllw proposal: SURF_TIDE_MLLW_US passed its 14-day datum test" \
+                --label tide-mllw-proposal ${OWNER:+--assignee "$OWNER"} --body-file "$out/proposal-body.md"
+            fi
+          fi
+
+      - name: Save the tester state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/tide-mllw-state
+          key: tide-mllw-state-${{ github.run_id }}

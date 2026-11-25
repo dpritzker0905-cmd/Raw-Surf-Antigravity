@@ -75,6 +75,7 @@ from flag_guardrail_physics import (  # noqa: E402,F401  (re-exported: callers a
 from flag_guardrail_drift import P0_DRIFT_TITLE, drift_lines, snapshot_drift  # noqa: E402,F401  (moved at the cap)
 import flag_guardrail_tide as _tide  # noqa: E402  (the TIDE family, gates/tide-guard-v1.md + amendment 1)
 from flag_guardrail_tide import TIDE  # noqa: E402
+import flag_guardrail_tide_datum as _tdat  # noqa: E402  (TIDE_DATUM: gates/tide-mllw-tester-v1.md, report-only)
 
 ROLLING_DAYS = 14
 SETTLE_H = 24
@@ -317,7 +318,7 @@ def decide(flag: str, result: dict, manifest: dict, fix_version: str, now: datet
     breach = result.get("sanity") or []
     if _phys.untestable_keeps_strikes(result, breach):    # a PHYSICS UNTESTABLE keeps the strike counter (advisor, #1267)
         return _phys.untestable_decision(flag, result, manifest)
-    if _tide.keeps_strikes(result, breach):              # a TIDE UNTESTABLE or CACHED cycle (tide-guard-v1 s5)
+    if _tide.keeps_strikes(result, breach) or _tdat.keeps_strikes(result, breach):   # TIDE / TIDE_DATUM: no strike
         return _phys.untestable_decision(flag, result, manifest)
     if result.get("verdict") == gs.WORSE and not breach:
         w = (manifest.get("watch") or {}).get(flag) or {}

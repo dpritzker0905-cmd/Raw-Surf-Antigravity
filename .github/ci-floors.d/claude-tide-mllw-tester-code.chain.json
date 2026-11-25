@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 48,
+  "files": 1,
+  "branch": "claude/tide-mllw-tester-code",
+  "date": "2026-11-25",
+  "note": "test_mllw_tester.py (tide-mllw-tester-v1: core, boundaries, T1-T6, REQ-1 calibration + NOAA LP convention, REQ-2, am_lp check, availability (b)/(d), validate drops am_lp, inputs record)"
+}
