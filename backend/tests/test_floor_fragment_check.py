@@ -190,3 +190,12 @@ def test_blocking_mode_fails_a_mismatch_unless_overridden(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "::warning title=Floor fragment override::overridden" in out and "::error" not in out
     assert ffc.main(["--pr", "1294", "--labels", ffc.OVERRIDE_LABEL, "--report-only"]) == 0
+
+
+def test_the_authorizer_must_start_with_david_or_the_director():
+    """Advisor limit 2 on #1311: a mention anywhere is not an authorization."""
+    lab = [ffc.OVERRIDE_LABEL]
+    for auth in ("not the director", "claude (reliability lane), asked the director", "per David's lane", "directorate"):
+        assert not ffc.override_ok(1294, lab, [_decision(auth=auth)])[0], auth
+    for auth in ("director session local_d6b521eb", "Director", "  David (owner), typed in chat", "david"):
+        assert ffc.override_ok(1294, lab, [_decision(auth=auth)])[0], auth

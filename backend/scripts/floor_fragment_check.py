@@ -185,7 +185,9 @@ def report(rows: list) -> str:
 
 
 OVERRIDE_LABEL = "floor-fragment-override"
-AUTHORIZERS = re.compile(r"\bdavid\b|\bdirector\b", re.IGNORECASE)
+# ANCHORED (advisor limit 2 on #1311): authorized_by must START with David or the director, so "not the director" or
+# "claude lane, asked the director" does not pass.
+AUTHORIZERS = re.compile(r"\s*(?:david|director)\b", re.IGNORECASE)
 MIN_REASON = 20
 
 
@@ -205,7 +207,7 @@ def override_ok(pr: int, labels, ledger_lines) -> tuple:
             continue
         target, why, auth = str(e.get("target", "")), str(e.get("why", "")), str(e.get("authorized_by", ""))
         if (e.get("kind") == "decision" and OVERRIDE_LABEL in target and re.search(rf"#{pr}\b", target)
-                and len(why.strip()) >= MIN_REASON and AUTHORIZERS.search(auth)):
+                and len(why.strip()) >= MIN_REASON and AUTHORIZERS.match(auth)):
             return True, f"overridden: {why.strip()[:160]} (authorized by {auth[:80]})"
     return False, (f"the `{OVERRIDE_LABEL}` label is present but no ledger `decision` line in this PR names "
                    f"`{OVERRIDE_LABEL} #{pr}` with a written reason authorized by David or the director")
