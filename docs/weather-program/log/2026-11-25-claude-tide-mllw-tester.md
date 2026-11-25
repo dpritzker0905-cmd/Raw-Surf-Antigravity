@@ -2,7 +2,7 @@
 
 Append-only. Stamps come from `date -u`.
 
-## 02:20Z: draft gate `gates/tide-mllw-tester-v1.md` (David's decision A; the advisor's binding requirements)
+## 02:19Z: draft gate `gates/tide-mllw-tester-v1.md` (David's decision A; the advisor's binding requirements)
 
 - **Scope:** a datum-only tester for `SURF_TIDE_MLLW_US`.
   - It runs report-only for 14 days on the SHADOW block (`datum_for(..., enabled=True)`), leave-one-out on the
