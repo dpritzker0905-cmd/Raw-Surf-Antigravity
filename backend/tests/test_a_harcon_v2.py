@@ -202,3 +202,59 @@ def test_the_workflow_runs_the_preflight_then_a_gated_v2_run():
 def test_v1_defaults_are_unchanged_in_the_instrument():
     src = open(os.path.join(TD, "a_harcon_parity.py"), encoding="utf-8").read()
     assert '"--c2-grid-min", type=int, default=60' in src and '"--c5", action="store_true"' in src
+
+
+# ---- §13 (amendment 3, PRE-DATA): constants the pinned pyTMD cannot synthesise are skipped, never altered ----------
+def test_s13_synth_ok_is_exactly_does_the_synthesis_raise_and_never_alters_the_constants():
+    hc = [("1", "M2", 1.0, 10.0, 28.98), ("9", "MLN2S2", 0.01, 0.0, 27.4)]
+    seen = []
+
+    def raising(c, t):
+        seen.append(list(c))
+        raise ValueError("Unsupported constituent: mln2")
+    ok, err = V2.synth_ok(hc, raising)
+    assert not ok and err == "ValueError: Unsupported constituent: mln2"
+    assert seen == [hc]                                        # the verbatim constants, nothing dropped
+    assert V2.synth_ok(hc, lambda c, t: [0.0]) == (True, None)
+    assert V2.synth_ok([], lambda c, t: [0.0]) == (False, "no constants")
+    assert V2.SYNTH_PROBE.year == 2000                          # outside every gate window
+
+
+def test_s13_a_preflight_station_that_cannot_be_synthesised_is_not_tested_listed_and_the_floor_binds():
+    recs = dict(_records(299), X={"c2": "not_tested", "why": "s13", "error": "ValueError"})
+    v = V2.preflight_verdict(recs)
+    assert v["status"] == "STOP" and v["tested"] == 299 and v["not_tested"] == ["X"]   # >= 300 still binds
+    v = V2.preflight_verdict(dict(_records(300), X={"c2": "not_tested"}))
+    assert v["status"] == "PASS" and v["not_tested"] == ["X"]
+
+
+def test_s13_the_preflight_checks_the_synthesis_before_reading_any_truth():
+    src = open(os.path.join(TD, "a_harcon_v2_preflight.py"), encoding="utf-8").read()
+    assert 0 < src.index("V2.synth_ok(hc, synth)") < src.index("tr = truth_at(")
+    assert '"not_tested"' in src
+
+
+def _doc():
+    return {"strata": {"A": {"deciding": ["s1"], "reserve": ["r1", "r2"]}}}
+
+
+def test_s13_a_scored_station_whose_own_constants_cannot_be_synthesised_is_replaced_within_the_cap():
+    per = {"s1": {"unsupported_constants": "ValueError: Unsupported constituent: mln2"},
+           "r1": {"fes_tb": [], "donors": [{"id": "d1", "has_constants": True}]}}
+    final, _, causes = S.resolve(per, _doc())
+    assert final["A"]["ids"] == ["r1"] and final["A"]["replaced"] == [["s1", "r1"]] and final["A"]["measurable"]
+    assert causes["s1"] == "own constants cannot be synthesised (v2 §13)"
+
+
+def test_s13_a_donor_that_cannot_be_synthesised_is_v1s_no_usable_constants_cause():
+    per = {"s1": {"fes_tb": [], "donors": [{"id": "d1", "has_constants": False}]},
+           "r1": {"fes_tb": [], "donors": [{"id": "d2", "has_constants": True}]}}
+    final, _, causes = S.resolve(per, _doc())
+    assert final["A"]["ids"] == ["r1"] and causes["s1"] == "donor has no constants"
+
+
+def test_s13_the_instrument_skips_unsupported_constants_in_v2_only_and_lists_them():
+    src = open(os.path.join(TD, "a_harcon_parity.py"), encoding="utf-8").read()
+    assert "V2.synth_ok(harcon_cache[sid], synth6)" in src
+    assert 'if harcon_cache[sid] and a.c2_grid_min != 60:' in src          # v1 (grid 60) is unchanged
+    assert 'out["unsupported_constants"] = unsupported' in src
