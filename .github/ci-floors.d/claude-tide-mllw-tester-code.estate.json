@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 1,
+  "branch": "claude/tide-mllw-tester-code",
+  "date": "2026-11-25",
+  "note": "tide-mllw-tester.yml uses the service key: test_workflow_key_environment parametrizes over it (+1; the #1294 pattern)"
+}

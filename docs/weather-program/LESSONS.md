@@ -1666,3 +1666,14 @@ A stored estimate can be estimated again in a browser branch with different sour
   ruleset requires the `advisor-gate` status, so the merger had to post that status itself.
 - **Rule:** anyone merging outside the loop posts the advisor-gate status (with the gate's verdict and head) before the
   merge. A green CI alone does not satisfy the ruleset.
+
+### 2026-11-25 — L-P54 · Never RE-RUN a PR's CI to clear a floor-staleness red: a re-run keeps its old merge ref
+- **What happened:** #1313's backend-floor-staleness went red ("estate 4841 vs 4844, 3 below") and looked like dev
+  drift; catch-up #1317 was opened. The red job 139267026972 was attempt 2 of run 45543287278: created 03:55Z,
+  re-run 14:14Z. A re-run reuses the original merge ref (a0da5862d = the PR head merged into 0f066819d, before #1312),
+  so the floor it summed was 4840 + the PR's own +1 = 4841. But ci_floor_staleness reads the NEWEST green dev run
+  (45622463685, 4844, which includes #1312's +2). A stale tree against a fresh reading is a false red. Dev itself was
+  in budget (effective floor 4842 vs 4844, budget 2), and every merge since #1309 grew estate by exactly its fragment.
+- **Rule:** before tracing a "drift" from a PR job, check `run_attempt` and the checked-out merge ref. To clear it,
+  push a dev merge (or an empty commit) so the PR gets a fresh merge ref; never re-run.
+

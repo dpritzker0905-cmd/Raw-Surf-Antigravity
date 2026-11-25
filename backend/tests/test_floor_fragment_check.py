@@ -279,3 +279,13 @@ def test_the_retry_really_pauses_by_default(monkeypatch):
     assert ffc.retry_pause_s() == 15.0
     _sequence(monkeypatch, [_row("ok")])
     assert ffc.main(["--pr", "1294"]) == 0 and waits == [15.0, 3.0]                     # no retry, no pause
+
+
+def test_the_retry_pause_is_capped_at_120_s(monkeypatch):
+    """Advisor nit on #1313: FLOOR_FRAGMENT_RETRY_PAUSE_S=9999 must not hold a required check for 2.8 h."""
+    monkeypatch.setenv("FLOOR_FRAGMENT_RETRY_PAUSE_S", "9999")
+    assert ffc.retry_pause_s() == 120.0
+    monkeypatch.setenv("FLOOR_FRAGMENT_RETRY_PAUSE_S", "-5")
+    assert ffc.retry_pause_s() == 0.0
+    monkeypatch.setenv("FLOOR_FRAGMENT_RETRY_PAUSE_S", "120")
+    assert ffc.retry_pause_s() == 120.0

@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 21,
+  "branch": "claude/floor-catchup-loud",
+  "date": "2026-11-25",
+  "note": "floor catch-up: refuse before pushing when no PR can open, one alert issue whose body never carries refusal text (test_floor_catchup +21)"
+}
