@@ -6,8 +6,8 @@ commit carries `[skip netlify]` (runs 45470009231, 45501339887, 45510009683: "ne
 The site was fine; the lane was waiting for a build that could not exist.
 
 RULE (netlify.toml: the dev branch builds EVERY commit, `ignore = "false"`, except a commit whose message carries a
-Netlify skip marker (SKIP_MARKERS: both word orders of the ci and netlify markers, any case); the next built commit then ships the skipped
-changes too):
+Netlify skip marker (SKIP_MARKERS: exactly the two Netlify documents, matched as written); the next built commit then
+ships the skipped changes too):
     expected = the newest first-parent commit at or before HEAD whose message has no skip marker
     expected == HEAD                                          -> "head":    wait for HEAD (as before)
     expected != HEAD, and the skipped commits changed nothing
@@ -30,9 +30,11 @@ import os
 import subprocess
 import sys
 
-# Netlify's skip markers, both word orders (advisor nit after #1300: neither reversed spelling is used today, and a
-# missing one only causes a false red, never a stale green). Matched case-insensitively.
-SKIP_MARKERS = ("[skip netlify]", "[skip ci]", "[netlify skip]", "[ci skip]")
+# EXACTLY the markers Netlify documents, matched as written (https://docs.netlify.com/deploy/manage-deploys/
+# manage-deploys-overview/, "Skip a deploy": [skip ci] or [skip netlify]). The advisor retracted the reversed-order /
+# any-case idea after reading that page (#1312): honouring a marker Netlify IGNORES is the unsafe direction, E2E would
+# skip while the change is live; missing one Netlify honours only causes a false red (it waits for a build).
+SKIP_MARKERS = ("[skip netlify]", "[skip ci]")
 # The paths frontend/scripts/netlify-ignore.cjs's needsBuild() counts as "Netlify builds this" (kept equal by test).
 BUILD_PREFIXES = ("frontend/", "netlify/", "scripts/")
 BUILD_FILES = ("netlify.toml", ".node-version", ".nvmrc", ".npmrc", ".yarnrc", ".yarnrc.yml", "package.json",
@@ -51,7 +53,7 @@ def needs_build(paths) -> bool:
 
 def expected_frontend_sha(rev: str = "HEAD", cwd=None) -> str:
     """The newest first-parent commit at or before `rev` that Netlify builds (no skip marker in its message), or ''."""
-    args = ["log", "-1", "--first-parent", "--format=%H", "--fixed-strings", "--regexp-ignore-case", "--invert-grep"]
+    args = ["log", "-1", "--first-parent", "--format=%H", "--fixed-strings", "--invert-grep"]   # case-SENSITIVE
     for m in SKIP_MARKERS:
         args.append(f"--grep={m}")
     return _git(*args, rev, cwd=cwd)

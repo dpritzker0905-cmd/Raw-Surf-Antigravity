@@ -109,15 +109,17 @@ def test_the_workflow_waits_for_the_target_and_gates_every_later_step():
     assert "Run E2E tests" in names[k + 1:]
 
 
-def test_both_word_orders_and_any_case_are_skip_markers(tmp_path, monkeypatch):
-    """Advisor nit after #1300: Netlify also honours the reversed spellings; a missed one only causes a false red."""
-    assert set(eft.SKIP_MARKERS) == {"[skip netlify]", "[skip ci]", "[netlify skip]", "[ci skip]"}
+def test_only_the_two_documented_markers_as_written_are_skips(tmp_path, monkeypatch):
+    """Advisor CHANGE on #1312: Netlify documents only "[skip ci]" and "[skip netlify]" (docs.netlify.com, "Skip a
+    deploy"). Honouring a marker Netlify ignores would SKIP E2E while the change is live, so reversed order and other
+    case are NOT skips: such a commit is treated as built (wait for it; worst case a false red, never a stale green)."""
+    assert eft.SKIP_MARKERS == ("[skip netlify]", "[skip ci]")
     git = _repo(tmp_path)
-    built = _commit(git, tmp_path, "frontend/a.js", "feat: a")
-    for msg in ("fix: b [netlify skip]", "fix: c [CI Skip]", "fix: d [Skip Netlify]"):
-        _commit(git, tmp_path, f"backend/{msg[5]}.py", msg)
+    _commit(git, tmp_path, "frontend/a.js", "feat: a")
+    for msg in ("fix: b [ci skip]", "fix: c [netlify skip]", "fix: d [SKIP CI]", "fix: e [Skip Netlify]"):
+        head = _commit(git, tmp_path, f"backend/{msg[5]}.py", msg)
         got = _run(tmp_path, monkeypatch)
-        assert (got["target"], got["verdict"]) == (built, "earlier"), msg
+        assert (got["target"], got["verdict"]) == (head, "head"), msg
 
 
 def test_a_frontend_change_under_a_skip_marker_warns_on_stderr_only(tmp_path, monkeypatch):
@@ -125,7 +127,7 @@ def test_a_frontend_change_under_a_skip_marker_warns_on_stderr_only(tmp_path, mo
     appended to $GITHUB_OUTPUT, where a non key=value line would break the step)."""
     git = _repo(tmp_path)
     _commit(git, tmp_path, "frontend/a.js", "feat: a")
-    _commit(git, tmp_path, "frontend/b.js", "feat(ui): b [netlify skip]")
+    _commit(git, tmp_path, "frontend/b.js", "feat(ui): b [skip netlify]")
     monkeypatch.chdir(tmp_path)
     r = subprocess.run([sys.executable, str(HERE.parent / "scripts" / "e2e_frontend_target.py"), "HEAD"],
                        capture_output=True, text=True, check=True)
