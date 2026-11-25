@@ -169,3 +169,20 @@ Append-only. Stamps come from `date -u`.
       `…-msf-spotcheck-requests.jsonl` `848c7655fe400690073bc1cebb036a092fac32d242f469cec4f9c6e32c3a8fa4`.
   - **Cross-program:** the pyTMD MM/MF/MSF bias is noted in the a-harcon log (logging only; v2 untouched).
   - **Tests:** 51 (chain +51 / +1).
+- **16:11Z, the advisor's CHANGE on #1318 at `99afa3642`, fixed:**
+  - (1) `tide-mllw-tester.yml` was INVALID YAML: an unquoted ": " in a step name, introduced when that step was
+    renamed after my earlier `safe_load` check. The name is now quoted, and both edited workflows pass
+    `yaml.safe_load`.
+  - (2) The estate lane grows by +1: `test_workflow_key_environment` parametrizes over the new key-using workflow
+    (7709 → 7710 collected against current dev). Estate fragment +1.
+  - (3) `backend/guardrail-watch.json` (synthetic test-run state written by the chain lane; no secrets, read by the
+    advisor) was committed in `4f9554631` and removed in `99afa3642`. It REMAINS in the public history. It is now in
+    `.gitignore`.
+- **Limits, folded in:**
+  - The SCOREBOARD row now says (b) proves table independence only (the monitor keys are last, so the budgeted M/D fills
+    serve prior keys first).
+  - `FIX_VERSION` (runner) goes into the proposal title, and a proposal for the same version, OPEN or CLOSED, blocks a
+    new one.
+  - The sheet report is evaluated on every recorded run, including early UNTESTABLE ones.
+- **Pre-flip, carried:** the TIDE_DATUM guard is not wired into `flag_guardrail.run()`, so there is no ON-side
+  auto-disable yet. That wiring must land before any flip.

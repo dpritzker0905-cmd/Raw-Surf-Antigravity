@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install backend deps (LP_noaa is pure Python, tide_datum/noaa_lp.py: no pyTMD per build)
+      - name: "Install backend deps (LP_noaa is pure Python, tide_datum/noaa_lp.py: no pyTMD per build)"
         working-directory: backend
         run: pip install -q -r requirements.txt
 
@@ -86,7 +86,9 @@ jobs:
             gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body "SHEET share above 5 % on two consecutive builds (an owner report, never a disable; gate s11)."
           fi
           if [ -s "$out/proposal.txt" ]; then
-            p="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label tide-mllw-proposal --json number --jq '.[0].number // empty')"
+            fix="$(cat "$out/fix-version.txt")"
+            # ONE proposal per FIX_VERSION: an OPEN or a CLOSED proposal for this version blocks a new one (the advisor)
+            p="$(gh issue list --repo "$GITHUB_REPOSITORY" --state all --label tide-mllw-proposal --limit 100 --json number,title --jq "[.[] | select(.title | contains(\"(fix v${fix})\"))][0].number // empty")"
             if [ -z "$p" ]; then
               {
                 cat "$out/proposal.txt"
@@ -94,7 +96,7 @@ jobs:
                 echo "The tester PROPOSES; it changes nothing. Only the owner re-enables SURF_TIDE_MLLW_US, through the flag-guardrail workflow's re-enable dispatch: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/flag-guardrail.yml (D-087)."
                 echo "The monitors are type-R (harmonic) stations, not a random sample of the coast: a PASS speaks for type-R-like locations (gate s12)."
               } > "$out/proposal-body.md"
-              gh issue create --repo "$GITHUB_REPOSITORY" --title "tide-mllw proposal: SURF_TIDE_MLLW_US passed its 14-day datum test" \
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "tide-mllw proposal (fix v${fix}): SURF_TIDE_MLLW_US passed its 14-day datum test" \
                 --label tide-mllw-proposal ${OWNER:+--assignee "$OWNER"} --body-file "$out/proposal-body.md"
             fi
           fi

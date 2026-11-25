@@ -30,6 +30,8 @@ COOPS_HOST = "api.tidesandcurrents.noaa.gov"
 COOPS = f"https://{COOPS_HOST}/api/prod/datagetter"
 STALE_H, WIN_D, POOL_DAYS, DAYS, MISS_BUILDS = 36, 7, 15, 14, 2
 K_SHIFT_TOL = 0.005
+# Bumped when a fix changes what the tester measures; a CLOSED proposal blocks re-proposal until it changes (advisor).
+FIX_VERSION = "1"
 
 
 def iso(t):
@@ -249,6 +251,7 @@ def cycle(state, now, read=None, fetch=None, monitors=None):
         rec = dict(base, verdict=C.UNTESTABLE, sanity=[], reasons=why, tested=False)
         history = list(state.get("history") or []) + [{k: rec.get(k) for k in ("build", "at", "verdict", "sanity",
                                                                                  "tested", "sheet_share")}]
+        rec["sheet_report"] = C.sheet_report([h.get("sheet_share") for h in history])   # every recorded run (nit)
         return rec, dict(state, last_build=stamp, history=history[-60:])
     from services.weather_pipeline import tide_datum as TD
     import sources as S
@@ -359,7 +362,8 @@ def main(argv=None):
     body = summary(rec)
     for name, text in (("result.json", json.dumps(rec, indent=1, default=str) + "\n"), ("summary.md", body),
                        ("proposal.txt", body if rec and (rec.get("proposal") or {}).get("ready") else ""),
-                       ("sheet-report.txt", body if rec and rec.get("sheet_report") else "")):
+                       ("sheet-report.txt", body if rec and rec.get("sheet_report") else ""),
+                       ("fix-version.txt", FIX_VERSION)):
         with open(os.path.join(a.out, name), "w", encoding="utf-8", newline="\n") as fh:
             fh.write(text)
     print(body)
