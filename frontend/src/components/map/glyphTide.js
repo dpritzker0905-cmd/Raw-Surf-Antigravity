@@ -16,6 +16,7 @@ import { loadPointTide, peekPointTide } from './usePointTide';
 import { tideCellKey } from './tideClient';
 import { tideMarkerModel } from './tideOverlayModel';
 import { forecastSelectionMs } from './forecastReadout';
+import { plainTideText, preciseTideText, tidePlainLineDisabled, legacyTideText } from './tideDatum';
 
 export function glyphTideOwnEnabled() {
   return process.env.REACT_APP_GLYPH_TIDE_OWN === 'true'
@@ -30,9 +31,17 @@ export function glyphTideModel(lat, lng, timeOffsetHours, unit, name) {
   return m.available ? m : null;
 }
 
-/** The card's line, in the marker's own words: "0.6 m rising" (height exactly as the marker prints it). */
+/** The card's VISIBLE line (decision B, plain number): "0.6 m, rising" (height exactly as the marker prints it). */
 export function glyphTideLine(model) {
-  return model ? `${model.heightText} ${String(model.trendWord || '').toLowerCase()}`.trim() : null;
+  if (!model) return null;
+  return tidePlainLineDisabled()
+    ? legacyTideText(model.heightText, model.height_m, model.datum, model.trendWord)
+    : plainTideText(model.heightText, model.trendWord);
+}
+
+/** The card's ACCESSIBLE tide text, precise: "0.6 metres above mean lower low water, rising". */
+export function glyphTideAria(model) {
+  return model ? preciseTideText(model.heightText, model.height_m, model.datum, model.trendWord) : null;
 }
 
 /** Hover / focus: load the cell through the ONE shared loader (deduped, cached); `then` re-renders the card. */

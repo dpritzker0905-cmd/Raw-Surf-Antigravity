@@ -91,3 +91,73 @@ export function ratingTide(tide) {
 export function minusTideWord(heightM, datum) {
   return datum && datum.isMllw && num(heightM) != null && heightM < -0.005 ? MINUS_TIDE : null;
 }
+
+// ---- PLAIN NUMBER + LEGEND (owner decision B, 2026-11-25) --------------------------------------------------------
+// The visible line is a plain number: "Tide 1.2 ft, rising" / "Tide −0.4 ft, falling" (typographic minus, NO datum name).
+// The datum is said ONCE per location in an info tip (TideDatumInfo), and the accessible name stays precise:
+// "Tide 1.2 feet above mean lower low water, rising". Text only; the served numbers are unchanged.
+
+export const TYPO_MINUS = '−';
+
+/** Client kill for decision B: window.__RAW_DISABLE_TIDE_PLAIN_LINE__ = true puts the datum name back on every line. */
+export function tidePlainLineDisabled() {
+  return typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_PLAIN_LINE__ === true;
+}
+
+/** The pre-B line (the kill's fallback): "1.2 ft above MLLW (minus tide) rising". */
+export function legacyTideText(heightText, heightM, datum, trend) {
+  if (heightText == null) return null;
+  const minus = minusTideWord(heightM, datum);
+  const base = `${heightText} ${(datum || tideDatumOf(null)).short}${minus ? ` (${minus})` : ''}`;
+  const t = typeof trend === 'string' && trend ? trend.toLowerCase() : null;
+  return t ? `${base} ${t}` : base;
+}
+export const DATUMS_DIFFER_NOTE = 'Tide zero differs by country: US spots read from mean lower low water (NOAA chart datum), '
+  + 'elsewhere from local mean sea level, so heights across a border are not comparable.';
+
+/** "-0.4 ft" -> "−0.4 ft" (U+2212): the visible minus is typographic. Other text unchanged. */
+export function typoMinus(text) {
+  return typeof text === 'string' ? text.replace(/^-(?=\d)/, TYPO_MINUS) : text;
+}
+
+/** The plain visible tide line WITHOUT the leading "Tide": "1.2 ft, rising" / "−0.4 ft" (no or unknown trend). */
+export function plainTideText(heightText, trend) {
+  if (heightText == null) return null;
+  const t = typeof trend === 'string' && trend ? trend.toLowerCase() : null;
+  return t ? `${typoMinus(heightText)}, ${t}` : typoMinus(heightText);
+}
+
+const UNIT_WORD = { ft: 'feet', m: 'metres' };
+const DATUM_WORDS = { MLLW: 'mean lower low water', MSL: 'local mean sea level' };
+
+/** The datum in words for an accessible name: "mean lower low water" / "local mean sea level". */
+export function datumWords(datum) {
+  return datum && datum.isMllw ? DATUM_WORDS.MLLW : DATUM_WORDS.MSL;
+}
+
+/**
+ * The PRECISE accessible tide text WITHOUT the leading "Tide": "1.2 feet above mean lower low water, rising";
+ * below zero, "0.4 feet below mean lower low water, a minus tide, falling" (a minus tide is named, never an error).
+ * `heightText` is the visible "1.2 ft" (its digits are reused so the name and the card agree to the tenth).
+ */
+export function preciseTideText(heightText, heightM, datum, trend) {
+  if (heightText == null) return null;
+  const m = /^[-−]?\s*([\d.]+)\s*(ft|m)$/.exec(String(heightText).trim());
+  const below = num(heightM) != null && heightM < 0 && m && Number.parseFloat(m[1]) !== 0;
+  const amount = m ? `${m[1]} ${UNIT_WORD[m[2]]}` : String(heightText);
+  let text = `${amount} ${below ? 'below' : 'above'} ${datumWords(datum)}`;
+  if (below && datum && datum.isMllw) text += `, a ${MINUS_TIDE}`;
+  const t = typeof trend === 'string' && trend ? trend.toLowerCase() : null;
+  return t ? `${text}, ${t}` : text;
+}
+
+/** The info tip's text for one location: what zero means here, the minus-tide note, and the cross-border note. */
+export function datumLegendText(datum) {
+  const d = datum || tideDatumOf(null);
+  return [d.long, d.negativeNote, DATUMS_DIFFER_NOTE].filter(Boolean).join(' ');
+}
+
+/** The info tip's short button label: "Tide zero: MLLW" / "Tide zero: local MSL". */
+export function datumTipLabel(datum) {
+  return datum && datum.isMllw ? 'Tide zero: MLLW' : 'Tide zero: local MSL';
+}

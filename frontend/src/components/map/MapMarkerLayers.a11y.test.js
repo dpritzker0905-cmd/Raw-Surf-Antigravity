@@ -10,8 +10,14 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import MapMarkerLayers, {
   spotGlyphAriaLabel, clusterBubbleAriaLabel, photographerAriaLabel,
 } from './MapMarkerLayers';
-// Accessibility checks acquire no remote tide data on focus: the glyph tide rides the ratings payload only
-// (the browser-side Open-Meteo fallback was removed 2026-11-22, D-082).
+import { getCachedTideState } from './tideClient';
+
+// Accessibility checks do not acquire remote tide data on focus. The real client has
+// separate contract coverage; a completed empty cache keeps this boundary offline.
+jest.mock('./tideClient', () => ({
+  ...jest.requireActual('./tideClient'), getCachedTideState: jest.fn(() => null),
+}));
+beforeEach(() => getCachedTideState.mockReturnValue(null));
 
 // react-map-gl/maplibre resolves to src/testMocks/reactMapGlMaplibre.js (moduleNameMapper in
 // craco.config.js) — Marker renders as a passthrough div in jsdom.

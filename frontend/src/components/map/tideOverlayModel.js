@@ -19,7 +19,7 @@
  */
 import { tideCellKey } from './tideClient';
 import { tideAt, trendWord, trendGlyph, formatTideHeight } from './tideReadoutFormat';
-import { tideDatumOf, pointTideForDisplay } from './tideDatum';
+import { tideDatumOf, pointTideForDisplay, preciseTideText, typoMinus } from './tideDatum';
 
 export const TIDE_OVERLAY_EVENT = 'rawsurf:tide-overlay-toggle';
 export const TIDE_OVERLAY_STORAGE_KEY = '__TIDE_OVERLAY__';
@@ -114,10 +114,12 @@ export function tideMarkerModel(served, atMs, unit, name = 'Surf spot') {
   const until = turn ? formatTimeUntil(Date.parse(turn.time) - atMs) : null;
   const nextText = turn && until ? (until === 'now' ? `${turn.kind} now` : `${turn.kind} in ${until}`) : null;
   const turnHeight = turn ? formatTideHeight(turn.height_m, unit) : null;
-  let ariaLabel = `Tide near ${name}: ${word.toLowerCase()}, ${height} ${datum.short} at selected time`;
+  // Decision B: the visible marker is a plain number; its accessible name stays precise ("1.2 feet above mean lower low
+  // water"), and the datum is said once per location in the infobox's info tip.
+  let ariaLabel = `Tide near ${name}: ${word.toLowerCase()}, ${preciseTideText(height, d.height_m, datum, null)} at selected time`;
   if (nextText) ariaLabel += `, ${turn.kind.toLowerCase()} ${turnHeight} ${until === 'now' ? 'now' : `in ${until}`}`;
   return {
-    available: true, height_m: d.height_m, trend: d.trend, heightText: height, datumText: datum.short, trendWord: word,
+    available: true, height_m: d.height_m, trend: d.trend, heightText: typoMinus(height), datumText: datum.short, datum, trendWord: word,
     glyph: trendGlyph(d.trend), nextText, next: turn ? { kind: turn.kind, time: turn.time, height_m: turn.height_m } : null,
     ariaLabel,
   };

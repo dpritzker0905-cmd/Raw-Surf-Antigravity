@@ -21,6 +21,7 @@ import { selectTideCells, tideMarkerModel, formatTimeUntil, TIDE_OVERLAY_STORAGE
 import { canUseAddOn } from './LayerAccessResolver';
 import { SETTLE_MS } from './useTideOverlay';
 import { tideAt, formatTideHeight } from './tideReadoutFormat';
+import { preciseTideText, tideDatumOf, typoMinus } from './tideDatum';
 
 const NOW = Date.parse('2026-11-15T12:00:00Z');
 const series = Array.from({ length: 49 }, (_, i) => {
@@ -82,8 +83,8 @@ describe('G1 parity: overlay marker == infobox readout at the same hour', () => 
     }
     const readout = within(infobox).getByTestId('tide-readout');
     const h = formatTideHeight(truth.height_m, 'm');
-    expect(readout.textContent).toContain(h);
-    expect(marker.textContent).toContain(h);
+    expect(readout.textContent).toContain(typoMinus(h));
+    expect(marker.textContent).toContain(typoMinus(h));
     const word = { rising: 'Rising', falling: 'Falling', slack: 'Slack' }[truth.trend];
     expect(readout.textContent).toContain(word);
     expect(marker.textContent).toContain(word);
@@ -245,7 +246,8 @@ describe('load safety: one request per cell, shared with the infobox (no upstrea
 
 // #1149 (US tide display above MLLW): the marker reads the payload through the infobox's own pointTideForDisplay, so
 // with the client kill __RAW_DISABLE_TIDE_MLLW__ on or off, marker and infobox show the SAME height in the SAME named
-// datum, and the marker's text and aria-label carry the datum word.
+// datum. Decision B (2026-11-25): the VISIBLE marker and readout show a plain number (no datum name; the infobox's info
+// tip says it once), and the marker's aria-label carries the datum in precise words.
 describe('G1 parity under the MLLW display and its client kill', () => {
   const OFF = 0.85;
   const mllw = {
@@ -257,7 +259,7 @@ describe('G1 parity under the MLLW display and its client kill', () => {
   };
   afterEach(() => { delete window.__RAW_DISABLE_TIDE_MLLW__; });
 
-  test.each([[false, 'above MLLW'], [true, 'above local MSL']])('kill %p: marker == infobox, datum named', async (kill, word) => {
+  test.each([[false, 'mean lower low water'], [true, 'local mean sea level']])('kill %p: marker == infobox, datum in the aria', async (kill, word) => {
     window.__RAW_DISABLE_TIDE_MLLW__ = kill;
     fetchMock = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(mllw) }));
     global.fetch = fetchMock;
@@ -269,9 +271,10 @@ describe('G1 parity under the MLLW display and its client kill', () => {
     const truth = tideAt(kill ? payload : mllw, atMs);          // kill on = the served MSL level
     const h = formatTideHeight(truth.height_m, 'm');
     const marker = screen.getByTestId('tide-marker');
-    expect(within(screen.getByTestId('infobox')).getByTestId('tide-readout').textContent).toContain(h);
-    expect(marker.textContent).toContain(h);
-    expect(marker.textContent).toContain(word);
-    expect(marker.getAttribute('aria-label')).toContain(`${h} ${word}`);
+    expect(within(screen.getByTestId('infobox')).getByTestId('tide-readout').textContent).toContain(typoMinus(h));
+    expect(marker.textContent).toContain(typoMinus(h));
+    expect(marker.textContent).not.toMatch(/MLLW|MSL|sea level/);            // plain number on screen
+    expect(marker.getAttribute('aria-label')).toContain(word);                 // precise in the accessible name
+    expect(marker.getAttribute('aria-label')).toContain(preciseTideText(h, truth.height_m, tideDatumOf(kill ? null : mllw.datum_info), null));
   });
 });

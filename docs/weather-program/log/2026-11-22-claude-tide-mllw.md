@@ -594,3 +594,33 @@ Alaska and North Carolina sounds.
 - Under the gate there is no re-run. Any further datum work is a NEW pre-registered gate, for example one restricted
   to open-coast stations by a frozen rule, or with an A-side improvement first. That is for the director, the advisor
   and the owner.
+
+## 2026-11-25 01:28Z: decisions A, B and C on #1149 (David, relayed by the director)
+
+- **A, "Proposal + admin panel":** #1171 (the parity v2 instrument, `1d92f7564`) was merged into #1149 as `11bf7ecc5`
+  (a plain merge with no conflicts, pushed). `SURF_TIDE_MLLW_US` keeps its code default `"0"` (HELD OFF, unchanged
+  here). The datum tester and the admin Switch Board panel are their own PRs, still to come.
+- **B, "Plain number + legend" (text only, ships ON; kill `window.__RAW_DISABLE_TIDE_PLAIN_LINE__`):**
+  - **The visible tide line is a plain number with a typographic minus (U+2212) and no datum name.** On the glyph
+    card it reads "Tide 1.2 ft, rising" / "Tide −0.4 ft, falling" (`tideClient.formatTideLine`,
+    `glyphTide.glyphTideLine`). The infobox readout and the Tide overlay marker show the same plain number.
+  - **The accessible name stays precise:** "tide 1.2 feet above mean lower low water, rising"; below zero,
+    "0.4 feet below mean lower low water, a minus tide, …"; off-US, "… above local mean sea level"
+    (`formatTideAria`, `glyphTideAria`, the marker's `ariaLabel`).
+  - **The datum is said ONCE per location,** in the infobox's info tip (`TideDatumInfo.js`). It contains:
+    - what zero means there;
+    - the minus-tide note;
+    - the cross-border note ("tide zero differs by country … heights across a border are not comparable").
+
+    The tip is a real `<button>` with `aria-expanded` / `aria-controls`. Enter and Space toggle it; Escape closes it
+    and keeps focus. It has light, dark and beach classes and is tested in all three.
+  - **The kill** puts the datum name back on the line (the pre-B text).
+- **C, "With #1219 on" (D-082: replace, don't blank):** #1149's removal of the browser Open-Meteo tide fallback is
+  now behind a switch.
+  - `tideClient.tideFallbackRemoved(ownGlyphTideOn)` is true only when #1219's own glyph tide
+    (`REACT_APP_GLYPH_TIDE_OWN`) is on. It lands with that flag after its client tester passes.
+  - Until then the fallback, its tests, its test mocks and its kill switch (`__RAW_DISABLE_TIDE_FALLBACK__`) are back
+    as on `dev`.
+- **#1219's glyphTide tests** now expect the plain visible line and the precise accessible name.
+- **Scope note:** the spot-hub block (`SpotTideBlock`) keeps its own "heights above MLLW" heading row. It is a
+  per-location heading, not a tide line, and is unchanged.

@@ -4,10 +4,16 @@
  * line and the spot chart. Three themes, the minus-tide copy, the MSL transition line, the source, the client kill.
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import TideReadout from './TideReadout';
 import { clearPointTideCache } from './usePointTide';
-import { tideDatumOf, shownHeight, ratingTide, minusTideWord, pointTideForDisplay, MLLW_SHORT, MSL_SHORT } from './tideDatum';
+import {
+  tideDatumOf, shownHeight, ratingTide, minusTideWord, pointTideForDisplay, MLLW_SHORT, MSL_SHORT,
+  typoMinus, plainTideText, preciseTideText,
+} from './tideDatum';
+import TideDatumInfo from './TideDatumInfo';
+import * as tideClientModule from './tideClient';
 import SpotTideBlock from '../spot-hub/SpotTideBlock';
 import { sanitizePointTide, pointTideNote, formatPointTide, tideSourceLabel } from '../spot-hub/spotHubP1Format';
 import { frameDescription } from '../spot-hub/charts/spotSeriesModel';
@@ -115,11 +121,80 @@ describe.each(THEMES)('%s theme', (name, flags) => {
       source_url: 'https://doi.org/10.24400/527896/A01-2024.004' };
     global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(payload) }));
     render(<TideReadout lat={33.7} lng={-118.3} heightUnit="m" {...flags} atTime={Date.parse(NOW)} />);
-    expect(await screen.findByTestId('tide-datum')).toHaveTextContent('Tide + avg sea-level rise (minus tide)');
-    expect(screen.getByTestId('tide-datum')).toHaveAttribute('title', expect.stringMatching(/excludes today's ocean anomaly/));
+    // Decision B: the line is a plain number with a typographic minus and NO datum name ...
+    expect(await screen.findByTestId('tide-height')).toHaveTextContent('−0.1 m');
+    expect(screen.getByTestId('tide-readout').querySelector('.flex').textContent).not.toMatch(/MLLW|MSL|sea level/);
+    // ... and the datum is said ONCE, in a real button (aria-expanded) that opens an info tip.
+    const tip = screen.getByRole('button', { name: /Tide zero: MLLW/ });
+    expect(tip).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByTestId('tide-datum-tip')).not.toBeVisible();
+    fireEvent.click(tip);
+    expect(tip).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('tide-datum-tip')).toBeVisible();
+    expect(screen.getByTestId('tide-datum-tip')).toHaveTextContent(/excludes today's ocean anomaly/);
+    expect(screen.getByTestId('tide-datum-tip')).toHaveTextContent(/minus tide/);
+    expect(screen.getByTestId('tide-datum-tip')).toHaveTextContent(/not comparable/);   // the cross-border note
+    expect(tip.getAttribute('aria-controls')).toBe(screen.getByTestId('tide-datum-tip').id);
     expect(screen.getByTestId('tide-msl-line')).toHaveTextContent('≈ -0.9 m above local mean sea level');
     expect(screen.getByTestId('tide-datum-source')).toHaveTextContent(/MLLW from NOAA CO-OPS gauge 9410660/);
     expect(screen.getByText(/Modeled tide · above MLLW \(NOAA chart datum\)/)).toBeVisible();
     expect(screen.getByTestId('tide-credit')).toHaveTextContent(/AVISO/);
+  });
+});
+
+describe.each(THEMES)('%s theme: the tide datum info tip (decision B; a11y)', (name, flags) => {
+  test('keyboard: Tab reaches it, Enter and Space toggle it, Escape closes it and keeps focus', async () => {
+    const user = userEvent.setup();
+    render(<TideDatumInfo datum={tideDatumOf(BLOCK)} {...flags} />);
+    const tip = screen.getByRole('button', { name: /Tide zero: MLLW/ });
+    await user.tab();
+    expect(tip).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(tip).toHaveAttribute('aria-expanded', 'true');
+    await user.keyboard(' ');
+    expect(tip).toHaveAttribute('aria-expanded', 'false');
+    await user.keyboard('{Enter}');
+    await user.keyboard('{Escape}');
+    expect(tip).toHaveAttribute('aria-expanded', 'false');
+    expect(tip).toHaveFocus();
+  });
+
+  test('outside the US it names local mean sea level and still notes that datums differ', () => {
+    render(<TideDatumInfo datum={tideDatumOf(null)} {...flags} />);
+    fireEvent.click(screen.getByRole('button', { name: /Tide zero: local MSL/ }));
+    expect(screen.getByTestId('tide-datum-tip')).toHaveTextContent(/local mean sea level/);
+    expect(screen.getByTestId('tide-datum-tip')).toHaveTextContent(/not comparable/);
+  });
+
+  test('theme classes follow the theme (never a single-theme colour)', () => {
+    render(<TideDatumInfo datum={tideDatumOf(BLOCK)} {...flags} />);
+    const cls = screen.getByTestId('tide-datum-tip').className;
+    if (flags.isLight) expect(cls).toMatch(/bg-white/);
+    else if (flags.isBeach) expect(cls).toMatch(/bg-black\/85/);
+    else expect(cls).toMatch(/bg-zinc-900/);
+  });
+});
+
+describe('plain line and precise words (decision B)', () => {
+  test('typographic minus, plain text, precise text', () => {
+    expect(typoMinus('-0.4 ft')).toBe('−0.4 ft');
+    expect(plainTideText('-0.4 ft', 'Falling')).toBe('−0.4 ft, falling');
+    expect(plainTideText('1.2 ft', null)).toBe('1.2 ft');
+    const mllw = tideDatumOf(BLOCK);
+    expect(preciseTideText('1.2 ft', 0.37, mllw, 'rising')).toBe('1.2 feet above mean lower low water, rising');
+    expect(preciseTideText('−0.4 ft', -0.12, mllw, 'falling')).toBe('0.4 feet below mean lower low water, a minus tide, falling');
+    expect(preciseTideText('0.0 ft', -0.004, mllw, null)).toBe('0.0 feet above mean lower low water');
+    expect(preciseTideText('0.6 m', 0.6, tideDatumOf(null), 'slack')).toBe('0.6 metres above local mean sea level, slack');
+  });
+});
+
+describe('the decision-B client kill (window.__RAW_DISABLE_TIDE_PLAIN_LINE__)', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_TIDE_PLAIN_LINE__; });
+  test('puts the datum name back on the line; off, the line is plain', () => {
+    const { formatTideLine } = tideClientModule;
+    const tide = { height_m: -0.6, display_height_m: -0.1, datum: 'MLLW', datum_src: 'gauge', trend: 'falling' };
+    expect(formatTideLine(tide, 'ft')).toBe('−0.3 ft, falling');
+    window.__RAW_DISABLE_TIDE_PLAIN_LINE__ = true;
+    expect(formatTideLine(tide, 'ft')).toBe('-0.3 ft above MLLW (minus tide) falling');
   });
 });
