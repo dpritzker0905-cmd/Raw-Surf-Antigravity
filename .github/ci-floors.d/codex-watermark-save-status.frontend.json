@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 4,
+  "files": 1,
+  "branch": "codex/watermark-save-status",
+  "date": "2026-11-25",
+  "note": "Watermark save feedback, timer ownership and dialog reopen"
+}

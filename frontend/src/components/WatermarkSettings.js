@@ -10,7 +10,6 @@ import { Droplet, Type, Image, Move, Eye, Upload, X, Loader2, Check, AlertCircle
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-
 const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   const { user } = useAuth();
   const isLight = theme === 'light';
@@ -35,7 +34,8 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [generatingPreview, setGeneratingPreview] = useState(false);
-  const [savedMessage, setSavedMessage] = useState('');
+  const [saveResult, setSaveResult] = useState(null);
+  const saveSession = React.useRef(0);
 
   // Sample preview image for testing watermark
   const sampleImage = 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800';
@@ -67,15 +67,27 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
     }
   };
 
+  useEffect(() => {
+    setSaveResult(null);
+    return () => { saveSession.current += 1; };
+  }, [open, user?.id]);
+
+  useEffect(() => {
+    if (!saveResult?.success) return;
+    const timeout = setTimeout(() => setSaveResult(null), 3000);
+    return () => clearTimeout(timeout);
+  }, [saveResult]);
+
   const handleSaveSettings = async () => {
+    setSaveResult(null);
+    const session = saveSession.current;
     setSaving(true);
     try {
       await apiClient.put(`/photographer/${user.id}/watermark-settings`, settings);
-      setSavedMessage('Watermark settings saved!');
-      setTimeout(() => setSavedMessage(''), 3000);
+      if (session === saveSession.current) setSaveResult({ success: true, message: 'Watermark settings saved!' });
     } catch (error) {
       logger.error('Error saving watermark settings:', error);
-      setSavedMessage('Failed to save settings');
+      if (session === saveSession.current) setSaveResult({ success: false, message: 'Failed to save settings' });
     } finally {
       setSaving(false);
     }
@@ -398,24 +410,25 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
               </div>
             </div>
 
-            {/* Save Status Message */}
-            {savedMessage && (
+          </div>
+        )}
+          <div role="status">
+            {saveResult && (
               <div className={`
-                flex items-center gap-2 p-3 rounded-lg
-                ${savedMessage.includes('saved') 
+                mt-6 flex items-center gap-2 p-3 rounded-lg
+                ${saveResult.success
                   ? 'bg-green-500/10 text-green-400' 
                   : 'bg-red-500/10 text-red-400'
                 }
               `}>
-                {savedMessage.includes('saved') 
+                {saveResult.success
                   ? <Check className="w-5 h-5" /> 
                   : <AlertCircle className="w-5 h-5" />
                 }
-                {savedMessage}
+                {saveResult.message}
               </div>
             )}
           </div>
-        )}
         </div>
 
         <DialogFooter>
