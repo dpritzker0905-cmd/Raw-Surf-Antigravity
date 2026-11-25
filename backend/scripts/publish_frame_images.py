@@ -636,6 +636,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
         report[key] = stats
     pending_empty.update({k: r for k in retire  # rated sets no longer built (fsr.retired_rated_sets), retired with the next pointer move
                           if (r := fsr.retired_record((latest.get("sets") or {}).get(k), now, _writer())) is not None})
+    pending_empty.update(fsr.prune_retired(sink, latest.get("sets") or {}, retire, now, _writer(), log))   # L2: their objects, once
     if changed:
         for key, rec in pending_empty.items():
             latest.setdefault("sets", {})[key] = rec

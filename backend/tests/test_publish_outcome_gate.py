@@ -43,8 +43,9 @@ def test_the_gate_fails_red_and_report_only_warns(capsys):
 
 def test_report_only_steps_warn_and_never_turn_the_run_red(capsys):
     """#1228's `budget` gate and #1264's `frame_physics` check and its upload are report-only (advisor, 2026-11-24)."""
-    assert gate.REPORT_ONLY_STEP_IDS == {"budget", "frame_physics", "frame_physics_upload"}
-    js = json.dumps({s: {"outcome": "failure", "conclusion": "success"} for s in ("budget", "frame_physics", "frame_physics_upload")})
+    assert gate.REPORT_ONLY_STEP_IDS == {"budget", "frame_physics", "frame_physics_upload", "rated_prune_upload"}
+    js = json.dumps({s: {"outcome": "failure", "conclusion": "success"}
+                     for s in ("budget", "frame_physics", "frame_physics_upload", "rated_prune_upload")})
     assert gate.main({"STEPS_JSON": js}) == 0
     out = capsys.readouterr().out
     assert "::warning title=Report-only step failed::step 'budget'" in out and "::error" not in out
