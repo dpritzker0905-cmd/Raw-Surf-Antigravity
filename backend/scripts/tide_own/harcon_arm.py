@@ -29,10 +29,12 @@ def donor_for(lat, lng, universe):
     return (best[1], best[0]) if best else (None, None)
 
 
-def build_am_h(keys_pts, a_by_key, m_by_key, universe, harcon_fn, synth_fn, times, levels_mm):
+def build_am_h(keys_pts, a_by_key, m_by_key, universe, harcon_fn, synth_fn, times, levels_mm, skipped=None):
     """PURE given its callables: ({key: mm series}, {key: {donor, km, w}}) at every key where w > 0, FES has A and M
     exists (a key without either serves no `am` either). harcon_fn(id) -> constants or []; synth_fn(constants, times) ->
-    an A series or None; levels_mm(a, m) as own_rules.levels_mm."""
+    an A series or None; levels_mm(a, m) as own_rules.levels_mm. `skipped`, if a dict is given, receives
+    {donor id: exception class name} for every donor whose synthesis raised (the advisor's limit 1 on #1302: the build
+    logs their count)."""
     out, meta, cache = {}, {}, {}
     for k, (la, lo) in keys_pts.items():
         a, m = a_by_key.get(k), m_by_key.get(k)
@@ -46,10 +48,12 @@ def build_am_h(keys_pts, a_by_key, m_by_key, universe, harcon_fn, synth_fn, time
             hc = harcon_fn(did)
             try:
                 cache[did] = synth_fn(hc, times) if hc else None
-            except Exception:                                       # noqa: BLE001 - per donor, never the whole build
+            except Exception as e:                                  # noqa: BLE001 - per donor, never the whole build
                 # A donor the synthesis cannot evaluate (e.g. pyTMD "Unsupported constituent: mln2", found by the
                 # tide-a-harcon-v2 pre-flight, run 45519746500) serves no am_h; its keys keep the FES arm.
                 cache[did] = None
+                if skipped is not None:
+                    skipped[did] = type(e).__name__
         syn = cache[did]
         if syn is None:
             continue
