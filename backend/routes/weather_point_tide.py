@@ -3,7 +3,8 @@
 `/tides/{spot_id}` needs a catalogued spot; the infobox can sit on any GPS point. This reads the SAME
 cached Open-Meteo `sea_level_height_msl` cell the hub and the rating use (`tide.fetch_tide_hourly`, TTL
 cached per 0.1 degree cell, bounded by its own acquisition budget), so it adds NO upstream call beyond
-that cached fetch. It is MODELED sea-level height relative to MSL: not MLLW, no station, not an official tide table.
+that cached fetch. It is a MODELED tide height, not an official tide table: above MLLW at US points and above local
+mean sea level elsewhere (tide_datum.datum_for, flag SURF_TIDE_MLLW_US); `datum_info` names the datum and its source.
 A miss or an Open-Meteo 429 cooldown answers 200 with `available:false`, never an error.
 Its own module because `routes/weather.py` sits at the 800-line cap.
 """
@@ -17,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, Response
 
 from services.weather_pipeline import location_time as _lt
 from services.weather_pipeline import tide as _tide
+from services.weather_pipeline import tide_datum as _tide_datum
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/weather")
@@ -55,11 +57,16 @@ def _event(e):
     return {"time": e["time"].strftime("%Y-%m-%dT%H:%M:%SZ"), "height_m": round(e["level_m"], 3)}
 
 
-def build_point_tide(series, lat, lng, now):
-    """PURE: shape the readout from an hourly series. None when the series cannot answer."""
+def build_point_tide(series, lat, lng, now, datum=None):
+    """PURE: shape the readout from an hourly series. None when the series cannot answer. `datum` is the point's
+    display datum block (tide_datum.datum_for; None = local MSL): every height below is in it, and `height_msl_m`
+    keeps the served level for the transition line."""
     times, levels = (series or {}).get("time"), (series or {}).get("level")
     if not isinstance(times, list) or not isinstance(levels, list) or len(times) != len(levels):
         return None
+    datum = datum or _tide_datum.msl_block("not-resolved")
+    levels = [_tide_datum.display_m(h, datum) if isinstance(h, (int, float)) and not isinstance(h, bool) else h
+              for h in levels]
     pts, segments, segment = [], [], []
     previous = None
     broken = False  # a skipped (unparsable / duplicate / out-of-order) sample is a GAP, not a verdict on the cell
@@ -94,7 +101,9 @@ def build_point_tide(series, lat, lng, now):
             if a <= now < b or (now == b == part[-1][0]):
                 selected_end = part[-1][0]
                 rate = h1 - h0
-                state = {"height_m": round(h0 + rate * (now - a).total_seconds() / 3600, 3),
+                height = round(h0 + rate * (now - a).total_seconds() / 3600, 3)
+                state = {"height_m": height,
+                         "height_msl_m": round(height - float(datum.get("offset_m") or 0.0), 3),
                          "trend": "rising" if rate > 0.02 else "falling" if rate < -0.02 else "slack",
                          "rate_m_per_h": round(rate, 3)}
                 break
@@ -110,7 +119,7 @@ def build_point_tide(series, lat, lng, now):
         "now": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "coverage": [{"start": part[0][0].strftime("%Y-%m-%dT%H:%M:%SZ"),
                       "end": part[-1][0].strftime("%Y-%m-%dT%H:%M:%SZ")} for part in usable],
-        "timezone": "UTC", "datum": "MSL", "quantity": "modeled_sea_level",
+        "timezone": "UTC", "datum": datum["datum"], "datum_info": datum, "quantity": "modeled_sea_level",
         "provider": provider, "source_url": provider_url, "credit_detail": credit_detail, "series_source": series_source,
         # Retained for older clients. New clients use explicit UTC, never a guessed civil zone.
         "tz_offset_h": round(float(lng) / 15.0), "tz_approx": True,
@@ -139,7 +148,7 @@ async def get_point_tide(response: Response,
     now = datetime.now(timezone.utc)
     try:
         series = await _tide.fetch_tide_hourly(lat, lng)
-        out = build_point_tide(series, lat, lng, now)
+        out = build_point_tide(series, lat, lng, now, _tide_datum.datum_for(lat, lng, series))
     except Exception as e:  # a lookup that threw is "unavailable", never a 5xx the client toasts
         logger.warning("[point-tide] lookup failed: %s", e)
         out = None

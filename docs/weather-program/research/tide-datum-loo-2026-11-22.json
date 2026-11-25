@@ -1,0 +1,70 @@
+{
+ "stations": 2114,
+ "gauge<=2km": {
+  "n": 332,
+  "median_abs_m": 0.017,
+  "p90_abs_m": 0.097,
+  "median_rel": 0.047,
+  "p90_rel": 0.3286
+ },
+ "gauge<=5km": {
+  "n": 993,
+  "median_abs_m": 0.02,
+  "p90_abs_m": 0.103,
+  "median_rel": 0.048,
+  "p90_rel": 0.271
+ },
+ "gauge<=10km": {
+  "n": 1541,
+  "median_abs_m": 0.026,
+  "p90_abs_m": 0.131,
+  "median_rel": 0.0539,
+  "p90_rel": 0.3346
+ },
+ "gauge<=20km": {
+  "n": 1888,
+  "median_abs_m": 0.027,
+  "p90_abs_m": 0.163,
+  "median_rel": 0.0569,
+  "p90_rel": 0.3505
+ },
+ "interpolated": {
+  "n": 1121,
+  "median_abs_m": 0.0185,
+  "p90_abs_m": 0.1014,
+  "median_rel": 0.0277,
+  "p90_rel": 0.1258
+ },
+ "interpolated_refused": 993,
+ "interpolated_tried": 2114,
+ "interpolated_by_region": {
+  "alaska": {
+   "n": 141,
+   "median_abs_m": 0.0384,
+   "p90_abs_m": 0.181,
+   "median_rel": 0.0165,
+   "p90_rel": 0.0878
+  },
+  "caribbean": {
+   "n": 23,
+   "median_abs_m": 0.0041,
+   "p90_abs_m": 0.0224,
+   "median_rel": 0.0383,
+   "p90_rel": 0.1066
+  },
+  "conus": {
+   "n": 955,
+   "median_abs_m": 0.0175,
+   "p90_abs_m": 0.0932,
+   "median_rel": 0.0305,
+   "p90_rel": 0.1293
+  },
+  "hawaii": {
+   "n": 2,
+   "median_abs_m": 0.054,
+   "p90_abs_m": 0.0641,
+   "median_rel": 0.1674,
+   "p90_rel": 0.2004
+  }
+ }
+}

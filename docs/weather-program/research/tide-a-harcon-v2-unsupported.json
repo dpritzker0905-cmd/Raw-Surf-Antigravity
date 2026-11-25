@@ -1,0 +1,3397 @@
+{
+ "gate": "gates/tide-a-harcon-v2.md section 13",
+ "inputs_only": true,
+ "probe": "2000-01-01T00:00:00+00:00",
+ "pytmd": "3.1.0",
+ "schema": "raw-surf/tide-a-harcon-v2-unsupported/1",
+ "stations": {
+  "1611400": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "1612340": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "1612366": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "1612401": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "1612404": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "1612480": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "1615680": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "1617433": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "1617760": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "1619910": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "1630000": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "1770000": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8410140": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8410714": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8410715": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8410834": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8411060": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8411250": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8413320": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8413825": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8414249": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8414612": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8414781": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8415709": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8416731": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8418150": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8418606": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8418828": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8418911": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8419317": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8419870": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8440273": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8440452": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8440466": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8441571": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8441771": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8442645": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8443187": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8443662": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8443725": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8443970": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8444162": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8444525": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8446009": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8446166": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8447368": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8447386": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8447416": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8447435": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8447495": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8447636": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8447712": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8447930": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8448725": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8449130": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8451552": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8452154": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8452660": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8452944": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8453033": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8453767": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8454000": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8455137": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8460751": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8461490": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8463701": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8465705": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8467150": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8510448": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8510560": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8511671": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8511907": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8512451": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8512668": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8512769": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8512987": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8514322": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8514560": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8514779": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8515186": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8515921": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8516061": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8516155": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8516501": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8516607": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8516614": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8516661": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8516881": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8516891": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8516945": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8517756": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8517847": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8518091": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8518639": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8518643": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8518699": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8518750": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8530882": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8531680": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8533051": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8533615": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8534319": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8534720": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8534770": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8534836": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8535375": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8535581": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8535835": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8536110": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8537121": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8539094": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8540433": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8545240": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8548989": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8551762": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8551910": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8554399": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8555889": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8557380": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8570280": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8570283": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8570536": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8570691": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8571421": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8571579": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8571702": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8571892": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8573364": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8573927": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8574680": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8575512": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8577330": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8594900": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8630249": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8630308": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8630315": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8631044": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8632200": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8632837": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8632869": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8635150": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8635750": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8636580": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8637689": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8637712": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8638433": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8638610": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8638671": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8638863": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8639348": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8651370": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8652587": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8653471": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8653951": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8654400": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8655875": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8656201": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8656483": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8656590": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8656841": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8657813": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8658120": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8658145": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8658163": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8658741": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8661070": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8661989": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8662006": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8665530": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8667633": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8668918": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8670870": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8677344": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8677406": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8678124": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8678322": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720011": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720023": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720030": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720051": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720196": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720211": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720214": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720218": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720219": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720226": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720357": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720494": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720554": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720587": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720651": {
+   "roles": [
+    "candidate",
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720692": {
+   "roles": [
+    "candidate",
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8720757": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8721604": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722208": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722213": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722219": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722274": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722329": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722371": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722375": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722588": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722670": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722802": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722816": {
+   "roles": [
+    "candidate",
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722832": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722859": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8722956": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8723080": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8723170": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8723178": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8723214": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8723355": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8723506": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8723970": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8724493": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8724571": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8724580": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8725325": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8725520": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8725858": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8725899": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8726347": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8726384": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8726520": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8726607": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8726724": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8727520": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8728408": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8728412": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8728486": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8728488": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8728669": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8728690": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8728728": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8728886": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8728912": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8729108": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8729132": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8729142": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8729210": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8729717": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8729736": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8729753": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8729806": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8729807": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8729840": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8730561": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8730667": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8731269": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8731439": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8735180": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8737048": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8739803": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8740405": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8740993": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8747437": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8760417": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8760551": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8760721": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8760889": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8761724": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8761742": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8761826": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8761927": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8762075": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8762223": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8764227": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8766072": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8767816": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8768094": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8770520": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8770613": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8770733": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8770743": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8770777": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8771013": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8771328": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8771341": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8771416": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8771450": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8771486": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8771510": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8773701": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8773767": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8773808": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8773896": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8774770": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8775237": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8775283": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8775792": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8775870": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8779749": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8779750": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "8779770": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9410135": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9410170": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9410230": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9410660": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9410678": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9410680": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9410840": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9411340": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9412110": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9413450": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9413631": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9413643": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9413651": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9414290": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9414458": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9414523": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9414750": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9414764": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9414863": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9414958": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9415020": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9415056": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9415143": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9415144": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9415218": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9416841": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9418723": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9418767": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9419750": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9431647": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9432780": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9433445": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9435308": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9435380": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9435827": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9437540": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9437585": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9439011": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9439040": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9440569": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9440581": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9440910": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9442396": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9443090": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9444090": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9444900": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9445016": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9445133": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9445272": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9445478": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9445958": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9446484": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9446705": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9446804": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9447130": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9447659": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9447717": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9447883": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9448043": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9448576": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9448657": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9449161": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9449424": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9449880": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9449911": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9449932": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9449982": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9449988": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9450314": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9450364": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9450460": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9450495": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9450581": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9450625": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9450970": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451005": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451037": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451074": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451204": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451247": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451263": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451287": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451317": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451321": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451349": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451376": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451434": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451561": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451600": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451805": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451853": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9451936": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9452005": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9452017": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9452067": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9452081": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9452089": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9452210": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9452400": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9452421": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9452434": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9453220": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9454050": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9454124": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9454240": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9454562": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9454564": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9454616": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9454642": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9454691": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9454755": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9454794": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9454814": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455090": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455120": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455128": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455145": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455146": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455151": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455159": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455204": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455258": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455500": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455517": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455558": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455760": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455866": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455912": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9455920": {
+   "error": "ValueError: Unsupported constituent: mln2",
+   "roles": [
+    "preflight"
+   ],
+   "status": "unsupported",
+   "unsupported_names": [
+    "2MS8",
+    "3MNS10",
+    "MLN2S2",
+    "OO2"
+   ]
+  },
+  "9457292": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9457313": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9457376": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9457391": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9457493": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9458907": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9458917": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9459450": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9461380": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9462450": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9462620": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9462705": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9462711": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9462782": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9462786": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9462941": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9462948": {
+   "roles": [
+    "prefix_donor",
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9462955": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9462961": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9463885": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9463888": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9464212": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9465261": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9465374": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9465396": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9465438": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9468756": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9469237": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9469338": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9497645": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751082": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751084": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751219": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751274": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751309": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751364": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751373": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751381": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751401": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751561": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751583": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751639": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9751768": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9752962": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9753182": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9753216": {
+   "roles": [
+    "prefix_donor"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9753641": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9753766": {
+   "roles": [
+    "candidate"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9754986": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9755371": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9755679": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9755971": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9759110": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  },
+  "9759394": {
+   "roles": [
+    "preflight"
+   ],
+   "status": "ok",
+   "unsupported_names": []
+  }
+ },
+ "summary": {
+  "candidate": {
+   "ok": 60
+  },
+  "prefix_donor": {
+   "ok": 59
+  },
+  "preflight": {
+   "ok": 382,
+   "unsupported": 1
+  }
+ }
+}

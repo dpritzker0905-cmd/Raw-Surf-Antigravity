@@ -27,6 +27,7 @@ import sys
 from array import array
 import json
 import logging
+import math
 import os
 import threading
 import time
@@ -136,7 +137,19 @@ def validate(doc) -> Optional[dict]:
         logger.warning("[tide-own] am_h has an unexpected shape: dropped, the FES arm serves")
         ah = {}
     return {"start": start, "hours": hours, "am": _pack(am), "cmems": _pack(cm), "am_h": _pack(ah),
-            "generated_at": generated}
+            "generated_at": generated, "m": _per_key_m(doc.get("m")), "d": _per_key_m(doc.get("d"))}
+
+
+def _per_key_m(d) -> dict:
+    """{key: metres} for the finite numbers of an optional per-key table field (`m`: the mean level M in each key's
+    A + M; `d`: the key's own MSL - MLLW over the NTDE, US keys only). Anything else is dropped, never fatal: these feed
+    the US display datum (tide_datum.py), never the served level."""
+    out = {}
+    if isinstance(d, dict):
+        for k, v in d.items():
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+                out[str(k)] = float(v)
+    return out
 
 
 def _decode(raw: bytes) -> dict:
@@ -311,7 +324,11 @@ def series_from_table(table: Optional[dict], key, forecast_days: int, now: datet
         s = _slice(table, vals, forecast_days, now)
         if s is not None:
             label, credit = LABELS[src]
-            return dict(s, source=src, label=label, credit=credit)
+            out = dict(s, source=src, label=label, credit=credit)
+            if src == "am":                        # the US display datum needs both (tide_datum.datum_for); cmems is a
+                out["mean_level_m"] = table.get("m", {}).get(k)          # geoid-referenced level and gets neither
+                out["model_d_ntde_m"] = table.get("d", {}).get(k)
+            return out
     return None
 
 

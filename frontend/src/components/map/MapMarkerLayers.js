@@ -13,8 +13,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 // (MapLibre's wrapper role=button around it was axe nested-interactive, W-10 R5).
 import { ContentMarker as Marker } from './ContentMarker';
 import { getHeightUnit, formatHeightFromMeters } from './heightUnits';
-import { getCachedTideState, ensureTideState, formatTideLine, trendArrow } from './tideClient';
-import { glyphTideOwnEnabled, glyphTideModel, glyphTideLine, requestGlyphTide } from './glyphTide';
+import {
+  getCachedTideState, ensureTideState, formatTideLine, formatTideAria, tideFallbackRemoved, trendArrow,
+} from './tideClient';
+import { glyphTideOwnEnabled, glyphTideModel, glyphTideLine, glyphTideAria, requestGlyphTide } from './glyphTide';
 import { MapPersonContextCard, useExplorePinContext } from './MapPersonContext';
 import {
   UNVERIFIED_LOCATION_TEXT, UNVERIFIED_RING_STYLE, isLocationUnverified, withUnverifiedLocation,
@@ -43,7 +45,9 @@ export function spotGlyphAriaLabel(cluster, rating, tideText, heightUnit) {
     label += `, ${formatHeightFromMeters(rating.surfHeightM, heightUnit, { withUnit: true })}`;
     if (rating.periodS != null) label += ` at ${Math.round(rating.periodS)} seconds`;
   }
-  if (tideText) label += `, tide ${tideText}`;   // plain words (tideClient.formatTideLine) — no glyphs
+  // PRECISE words (tideClient.formatTideAria / glyphTide.glyphTideAria, decision B): "tide 1.2 feet above mean lower low
+  // water, rising". The visible card shows the plain number; the accessible name keeps the datum. No glyphs.
+  if (tideText) label += `, tide ${tideText}`;
   return label;
 }
 
@@ -119,13 +123,17 @@ var MapMarkerLayers = ({
     window.addEventListener('rawsurf:height-unit', onUnit);
     return () => window.removeEventListener('rawsurf:height-unit', onUnit);
   }, []);
-  // Client-side tide FALLBACK (tideClient.js): a version bump re-renders after a hover's fetch
-  // resolves, so the card's tide line pops in even before the baked payload carries tide.
+  // Client-side tide FALLBACK (tideClient.js): a version bump re-renders after a hover's fetch resolves, so the card's
+  // tide line pops in even before the baked payload carries tide. ONE TIDE PER GLYPH (glyphTide.js, #1219): with that
+  // flag a hover asks OUR tide table instead, never Open-Meteo. Decision C (2026-11-25, D-082 "replace, don't blank"):
+  // the Open-Meteo fallback is REMOVED only together with #1219's own tide (tideFallbackRemoved); until then it stays.
   const [, setTideFetchVersion] = useState(0);
   const ownTide = glyphTideOwnEnabled();
+  const fallbackRemoved = tideFallbackRemoved(ownTide);
+  const fallbackOff = () => fallbackRemoved || (typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_FALLBACK__);
   const requestFallbackTide = (lat, lng) => {
     if (ownTide) { requestGlyphTide(lat, lng).then(() => setTideFetchVersion((v) => v + 1)); return; }   // our table, never Open-Meteo
-    if (typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_FALLBACK__) return;
+    if (fallbackOff()) return;
     if (getCachedTideState(lat, lng) !== undefined) return;
     ensureTideState(lat, lng).then(() => setTideFetchVersion((v) => v + 1));
   };
@@ -180,15 +188,16 @@ var MapMarkerLayers = ({
         // Rating mode: this spot becomes a surf-quality glyph (colour = 7-level rating sampled from the grid).
         const rating = surfMode && spotRatings ? spotRatings[cluster.id] : null;
         // Tide for the card + aria label — RIDES THE RATING TOGGLE (`rating` exists only in Rating
-        // mode): baked payload first (authoritative — it shaped the score), else the client-side
-        // fallback cell (display-only). Null when Rating is off / no data yet.
-        // ONE TIDE PER GLYPH (DARK, glyphTide.js): with the flag the card's tide is the overlay marker's, at the scrubbed hour.
+        // mode): baked payload first (authoritative — it shaped the score), else the client-side fallback cell
+        // (display-only; removed only with #1219's own tide, decision C). Null when Rating is off / no data yet.
+        // ONE TIDE PER GLYPH (DARK, glyphTide.js, #1219): with the flag the card's tide is the overlay marker's, at the scrubbed hour.
         const ownTideModel = rating && ownTide ? glyphTideModel(lat, lng, timeOffsetHours, heightUnit, cluster.name) : null;
-        const tideState = ownTide ? (ownTideModel ? { height_m: ownTideModel.height_m, trend: ownTideModel.trend } : null) : rating
-          ? (rating.tide || (typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_FALLBACK__
-              ? null : getCachedTideState(lat, lng)) || null)
-          : null;
+        const tideState = ownTide
+          ? (ownTideModel ? { height_m: ownTideModel.height_m, trend: ownTideModel.trend } : null)
+          : (rating ? (rating.tide || (fallbackOff() ? null : getCachedTideState(lat, lng)) || null) : null);
+        // Decision B: the card shows a plain number ("1.2 ft, rising"); the accessible name keeps the datum.
         const tideLine = ownTide ? glyphTideLine(ownTideModel) : (tideState ? formatTideLine(tideState, heightUnit) : null);
+        const tideAria = ownTide ? glyphTideAria(ownTideModel) : (tideState ? formatTideAria(tideState, heightUnit) : null);
         // A spot whose position nobody has verified: hollow pin, dashed ring, and the words (unverifiedLocation.js).
         const unverified = isLocationUnverified(cluster);
         return (
@@ -206,7 +215,7 @@ var MapMarkerLayers = ({
               type="button"
               className={`relative cursor-pointer rounded-full ${BUTTON_RESET} ${FOCUS_RING}`}
               style={{ position: 'relative', width: 32, height: 32 }}
-              aria-label={withUnverifiedLocation(spotGlyphAriaLabel(cluster, rating, tideLine, heightUnit), unverified)}
+              aria-label={withUnverifiedLocation(spotGlyphAriaLabel(cluster, rating, tideAria, heightUnit), unverified)}
               data-location-unverified={unverified ? 'true' : undefined}
               onMouseEnter={() => { setHoveredSpotId(cluster.id); if (rating && (ownTide || !rating.tide)) requestFallbackTide(lat, lng); }}
               onMouseLeave={() => setHoveredSpotId(null)}

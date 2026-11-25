@@ -10,8 +10,19 @@
  * derives {height_m, trend} for NOW — display-only, never feeds scores. Cached per ~0.1° cell
  * (~11 km, the backend's cache policy) for 3h with in-flight dedupe, so hovering every spot on a
  * coast costs at most one request per cell per session. Kill: window.__RAW_DISABLE_TIDE_FALLBACK__.
+ *
+ * REMOVAL BEHIND A SWITCH (owner decision C, 2026-11-25; D-082 "replace, don't blank"): the fallback goes away only
+ * when its replacement is on. tideFallbackRemoved() is true exactly when #1219's own glyph tide (glyphTide.js, the
+ * Tide overlay's /point-tide payload, never Open-Meteo) is enabled; it lands with that flag after its client tester
+ * passes. Until then this fallback stays, so a payload without tide still shows a line instead of a blank.
  */
 import { formatHeightFromMeters } from './heightUnits';
+import { ratingTide, plainTideText, preciseTideText, tidePlainLineDisabled, legacyTideText } from './tideDatum';
+
+/** True when the browser Open-Meteo fallback is REMOVED: only once #1219's own glyph tide replaces it (decision C). */
+export function tideFallbackRemoved(ownGlyphTideOn) {
+  return ownGlyphTideOn === true;
+}
 
 const OPEN_METEO_MARINE_API = 'https://marine-api.open-meteo.com/v1/marine';
 const TTL_OK_MS = 3 * 3600 * 1000;    // a tide series is stable for hours (backend parity)
@@ -122,14 +133,40 @@ export function trendArrow(trend) {
   return TREND_ARROW[trend] || '';
 }
 
+function tideParts(tide, heightUnit) {
+  if (!tide || tide.height_m == null || Number.isNaN(Number(tide.height_m))) return null;
+  // The display datum (tideDatum, one composition): a US rating tide carries display_height_m above MLLW; a payload
+  // without it (or the fallback cell above) is a mean-sea-level level.
+  const { heightM, datum } = ratingTide(tide);
+  if (heightM == null) return null;
+  const height = formatHeightFromMeters(heightM, heightUnit, { withUnit: true });
+  const trend = TREND_ARROW[tide.trend] ? tide.trend : null;
+  return { heightM, datum, height, trend };
+}
+
 /**
- * Format a tide state ({height_m, trend}) for a readout in the user's ft/m display unit:
- * "-0.2 ft falling" / "0.6 m rising". Plain words only (screen-reader safe — callers add
- * trendArrow visually). Null when the payload carries no usable tide.
+ * The VISIBLE tide text for a card, after "Tide ": a plain number, "1.2 ft, rising" / "−0.4 ft, falling"
+ * (typographic minus, no datum name: decision B; the datum is said once per location in TideDatumInfo).
+ * Null when the payload carries no usable tide.
  */
 export function formatTideLine(tide, heightUnit) {
-  if (!tide || tide.height_m == null || Number.isNaN(Number(tide.height_m))) return null;
-  const height = formatHeightFromMeters(tide.height_m, heightUnit, { withUnit: true });
-  const trend = TREND_ARROW[tide.trend] ? tide.trend : null;
-  return trend ? `${height} ${trend}` : height;
+  const p = tideParts(tide, heightUnit);
+  if (!p) return null;
+  return tidePlainLineDisabled() ? legacyTideText(p.height, p.heightM, p.datum, p.trend) : plainTideText(p.height, p.trend);
 }
+
+/**
+ * The ACCESSIBLE tide text, after "tide ": precise, "1.2 feet above mean lower low water, rising" /
+ * "0.4 feet below mean lower low water, a minus tide, falling" / "... above local mean sea level". Plain words only.
+ */
+export function formatTideAria(tide, heightUnit) {
+  const p = tideParts(tide, heightUnit);
+  return p ? preciseTideText(p.height, p.heightM, p.datum, p.trend) : null;
+}
+
+/** The datum the card's tide reads from (for the once-per-location info tip), or null without a usable tide. */
+export function tideLineDatum(tide) {
+  const p = tideParts(tide, 'm');
+  return p ? p.datum : null;
+}
+

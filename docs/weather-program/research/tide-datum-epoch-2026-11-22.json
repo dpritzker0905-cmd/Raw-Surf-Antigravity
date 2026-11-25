@@ -1,0 +1,1538 @@
+{
+ "n": 153,
+ "abs_dD_median_m": 0.007,
+ "abs_dD_max_m": 0.055,
+ "dMSL_median_m": 0.056,
+ "rows": [
+  {
+   "dD": -0.008,
+   "dMSL": 0.025,
+   "D": 0.252,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "1611400",
+   "name": "Nawiliwili",
+   "region": "hawaii"
+  },
+  {
+   "dD": -0.008,
+   "dMSL": 0.028,
+   "D": 0.251,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "1612340",
+   "name": "Honolulu",
+   "region": "hawaii"
+  },
+  {
+   "dD": -0.007,
+   "dMSL": 0.03,
+   "D": 0.32,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "1612480",
+   "name": "Mokuoloe",
+   "region": "hawaii"
+  },
+  {
+   "dD": -0.017,
+   "dMSL": 0.036,
+   "D": 0.339,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "1615680",
+   "name": "Kahului, Kahului Harbor",
+   "region": "hawaii"
+  },
+  {
+   "dD": -0.011,
+   "dMSL": 0.095,
+   "D": 0.278,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "1617433",
+   "name": "Kawaihae",
+   "region": "hawaii"
+  },
+  {
+   "dD": -0.014,
+   "dMSL": 0.03,
+   "D": 0.349,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "1617760",
+   "name": "Hilo, Hilo Bay, Kuhio Bay",
+   "region": "hawaii"
+  },
+  {
+   "dD": -0.002,
+   "dMSL": 0.023,
+   "D": 0.196,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "1619910",
+   "name": "Sand Island, Midway Islands",
+   "region": "hawaii"
+  },
+  {
+   "dD": -0.011,
+   "dMSL": 0.018,
+   "D": 0.419,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "1630000",
+   "name": "Apra Harbor, Guam",
+   "region": "pacific-territories"
+  },
+  {
+   "dD": 0.005,
+   "dMSL": 0.259,
+   "D": 0.413,
+   "epoch": "0000-0000",
+   "superseded_epoch": "1960-1978",
+   "id": "1770000",
+   "name": "Pago Pago, American Samoa",
+   "region": "pacific-territories"
+  },
+  {
+   "dD": -0.002,
+   "dMSL": 0.0,
+   "D": 2.958,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8410140",
+   "name": "Eastport",
+   "region": "conus"
+  },
+  {
+   "dD": -0.012,
+   "dMSL": 0.025,
+   "D": 1.728,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8413320",
+   "name": "Bar Harbor",
+   "region": "conus"
+  },
+  {
+   "dD": 0.003,
+   "dMSL": 0.016,
+   "D": 1.506,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8418150",
+   "name": "Portland",
+   "region": "conus"
+  },
+  {
+   "dD": 0.006,
+   "dMSL": 0.06,
+   "D": 1.359,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8419870",
+   "name": "Seavey Island",
+   "region": "conus"
+  },
+  {
+   "dD": -0.008,
+   "dMSL": 0.039,
+   "D": 1.586,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8443970",
+   "name": "Boston",
+   "region": "conus"
+  },
+  {
+   "dD": -0.006,
+   "dMSL": 0.067,
+   "D": 0.672,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8447386",
+   "name": "Fall River",
+   "region": "conus"
+  },
+  {
+   "dD": 0.007,
+   "dMSL": 0.07,
+   "D": 0.778,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8447435",
+   "name": "Chatham",
+   "region": "conus"
+  },
+  {
+   "dD": -0.018,
+   "dMSL": 0.044,
+   "D": 0.299,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8447930",
+   "name": "Woods Hole",
+   "region": "conus"
+  },
+  {
+   "dD": -0.007,
+   "dMSL": 0.067,
+   "D": 0.539,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8449130",
+   "name": "Nantucket Island",
+   "region": "conus"
+  },
+  {
+   "dD": -0.011,
+   "dMSL": 0.057,
+   "D": 0.529,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8452660",
+   "name": "Newport",
+   "region": "conus"
+  },
+  {
+   "dD": -0.016,
+   "dMSL": 0.044,
+   "D": 0.642,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8452944",
+   "name": "Conimicut Light",
+   "region": "conus"
+  },
+  {
+   "dD": -0.019,
+   "dMSL": 0.042,
+   "D": 0.685,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8454000",
+   "name": "Providence",
+   "region": "conus"
+  },
+  {
+   "dD": -0.004,
+   "dMSL": 0.052,
+   "D": 0.468,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8461490",
+   "name": "New London",
+   "region": "conus"
+  },
+  {
+   "dD": 0.007,
+   "dMSL": 0.063,
+   "D": 1.015,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8465705",
+   "name": "New Haven",
+   "region": "conus"
+  },
+  {
+   "dD": 0.004,
+   "dMSL": 0.056,
+   "D": 1.104,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8467150",
+   "name": "Bridgeport",
+   "region": "conus"
+  },
+  {
+   "dD": -0.01,
+   "dMSL": 0.064,
+   "D": 0.377,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8510560",
+   "name": "Montauk",
+   "region": "conus"
+  },
+  {
+   "dD": 0.006,
+   "dMSL": 0.048,
+   "D": 1.186,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8516945",
+   "name": "Kings Point",
+   "region": "conus"
+  },
+  {
+   "dD": -0.003,
+   "dMSL": 0.063,
+   "D": 0.783,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8518750",
+   "name": "The Battery",
+   "region": "conus"
+  },
+  {
+   "dD": 0.005,
+   "dMSL": 0.079,
+   "D": 0.785,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8531680",
+   "name": "Sandy Hook",
+   "region": "conus"
+  },
+  {
+   "dD": -0.005,
+   "dMSL": 0.104,
+   "D": 0.675,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8534720",
+   "name": "Atlantic City",
+   "region": "conus"
+  },
+  {
+   "dD": -0.01,
+   "dMSL": 0.076,
+   "D": 0.783,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8536110",
+   "name": "Cape May",
+   "region": "conus"
+  },
+  {
+   "dD": -0.008,
+   "dMSL": 0.044,
+   "D": 0.927,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8537121",
+   "name": "Ship John Shoal",
+   "region": "conus"
+  },
+  {
+   "dD": -0.011,
+   "dMSL": 0.134,
+   "D": 1.217,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8539094",
+   "name": "Burlington, Delaware River",
+   "region": "conus"
+  },
+  {
+   "dD": 0.018,
+   "dMSL": 0.042,
+   "D": 0.958,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8540433",
+   "name": "Marcus Hook",
+   "region": "conus"
+  },
+  {
+   "dD": -0.002,
+   "dMSL": 0.076,
+   "D": 1.063,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8545240",
+   "name": "Philadelphia",
+   "region": "conus"
+  },
+  {
+   "dD": -0.022,
+   "dMSL": 0.106,
+   "D": 1.318,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8548989",
+   "name": "Newbold",
+   "region": "conus"
+  },
+  {
+   "dD": 0.009,
+   "dMSL": 0.051,
+   "D": 0.901,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8551762",
+   "name": "Delaware City",
+   "region": "conus"
+  },
+  {
+   "dD": -0.021,
+   "dMSL": 0.073,
+   "D": 0.89,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8551910",
+   "name": "Reedy Point",
+   "region": "conus"
+  },
+  {
+   "dD": 0.038,
+   "dMSL": 0.024,
+   "D": 0.797,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8555889",
+   "name": "Brandywine Shoal Light",
+   "region": "conus"
+  },
+  {
+   "dD": -0.012,
+   "dMSL": 0.071,
+   "D": 0.68,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8557380",
+   "name": "Lewes",
+   "region": "conus"
+  },
+  {
+   "dD": -0.015,
+   "dMSL": 0.085,
+   "D": 0.387,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8570283",
+   "name": "Ocean City Inlet",
+   "region": "conus"
+  },
+  {
+   "dD": -0.007,
+   "dMSL": 0.069,
+   "D": 0.31,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8571892",
+   "name": "Cambridge",
+   "region": "conus"
+  },
+  {
+   "dD": -0.004,
+   "dMSL": 0.076,
+   "D": 0.255,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8573364",
+   "name": "Tolchester Beach",
+   "region": "conus"
+  },
+  {
+   "dD": -0.032,
+   "dMSL": 0.073,
+   "D": 0.474,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8573927",
+   "name": "Chesapeake City",
+   "region": "conus"
+  },
+  {
+   "dD": -0.006,
+   "dMSL": 0.065,
+   "D": 0.244,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8574680",
+   "name": "Baltimore",
+   "region": "conus"
+  },
+  {
+   "dD": -0.001,
+   "dMSL": 0.067,
+   "D": 0.219,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8575512",
+   "name": "Annapolis",
+   "region": "conus"
+  },
+  {
+   "dD": -0.003,
+   "dMSL": 0.074,
+   "D": 0.231,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8577330",
+   "name": "Solomons Island",
+   "region": "conus"
+  },
+  {
+   "dD": -0.003,
+   "dMSL": 0.07,
+   "D": 0.472,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8594900",
+   "name": "Washington",
+   "region": "conus"
+  },
+  {
+   "dD": -0.022,
+   "dMSL": 0.101,
+   "D": 0.688,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8631044",
+   "name": "Wachapreague",
+   "region": "conus"
+  },
+  {
+   "dD": -0.011,
+   "dMSL": 0.091,
+   "D": 0.434,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8632200",
+   "name": "Kiptopeke",
+   "region": "conus"
+  },
+  {
+   "dD": -0.006,
+   "dMSL": 0.073,
+   "D": 0.231,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8635750",
+   "name": "Lewisetta",
+   "region": "conus"
+  },
+  {
+   "dD": -0.004,
+   "dMSL": 0.057,
+   "D": 0.212,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8636580",
+   "name": "Windmill Point",
+   "region": "conus"
+  },
+  {
+   "dD": -0.009,
+   "dMSL": 0.105,
+   "D": 0.412,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8638610",
+   "name": "Sewells Point",
+   "region": "conus"
+  },
+  {
+   "dD": -0.01,
+   "dMSL": 0.101,
+   "D": 0.478,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8639348",
+   "name": "Money Point",
+   "region": "conus"
+  },
+  {
+   "dD": -0.013,
+   "dMSL": 0.1,
+   "D": 0.539,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8651370",
+   "name": "Duck",
+   "region": "conus"
+  },
+  {
+   "dD": 0.003,
+   "dMSL": 0.064,
+   "D": 0.177,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8652587",
+   "name": "Oregon Inlet Marina",
+   "region": "conus"
+  },
+  {
+   "dD": 0.01,
+   "dMSL": 0.088,
+   "D": 0.521,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8656483",
+   "name": "Beaufort, Duke Marine Lab",
+   "region": "conus"
+  },
+  {
+   "dD": 0.032,
+   "dMSL": 0.057,
+   "D": 0.743,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8658120",
+   "name": "Wilmington",
+   "region": "conus"
+  },
+  {
+   "dD": -0.009,
+   "dMSL": 0.075,
+   "D": 0.826,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8661070",
+   "name": "Springmaid Pier",
+   "region": "conus"
+  },
+  {
+   "dD": -0.009,
+   "dMSL": 0.075,
+   "D": 0.89,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8665530",
+   "name": "Charleston",
+   "region": "conus"
+  },
+  {
+   "dD": 0.006,
+   "dMSL": 0.082,
+   "D": 1.164,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8670870",
+   "name": "Fort Pulaski",
+   "region": "conus"
+  },
+  {
+   "dD": -0.017,
+   "dMSL": 0.065,
+   "D": 1.004,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8720030",
+   "name": "Fernandina Beach",
+   "region": "conus"
+  },
+  {
+   "dD": -0.018,
+   "dMSL": 0.064,
+   "D": 0.752,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8720218",
+   "name": "Mayport (Bar Pilots Dock)",
+   "region": "conus"
+  },
+  {
+   "dD": -0.005,
+   "dMSL": 0.084,
+   "D": 0.567,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8720219",
+   "name": "Dames Point",
+   "region": "conus"
+  },
+  {
+   "dD": -0.012,
+   "dMSL": 0.074,
+   "D": 0.324,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8720226",
+   "name": "Southbank Riverwalk, St Johns River",
+   "region": "conus"
+  },
+  {
+   "dD": 0.001,
+   "dMSL": 0.096,
+   "D": 0.155,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8720357",
+   "name": "I-295 Buckman Bridge",
+   "region": "conus"
+  },
+  {
+   "dD": -0.015,
+   "dMSL": 0.079,
+   "D": 0.572,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8721604",
+   "name": "Trident Pier, Port Canaveral",
+   "region": "conus"
+  },
+  {
+   "dD": -0.009,
+   "dMSL": 0.07,
+   "D": 0.469,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8722670",
+   "name": "Lake Worth Pier, Atlantic Ocean",
+   "region": "conus"
+  },
+  {
+   "dD": -0.01,
+   "dMSL": 0.064,
+   "D": 0.342,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8723214",
+   "name": "Virginia Key",
+   "region": "conus"
+  },
+  {
+   "dD": -0.002,
+   "dMSL": 0.073,
+   "D": 0.156,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8723970",
+   "name": "Vaca Key, Florida Bay",
+   "region": "conus"
+  },
+  {
+   "dD": -0.008,
+   "dMSL": 0.062,
+   "D": 0.272,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8724580",
+   "name": "Key West",
+   "region": "conus"
+  },
+  {
+   "dD": 0.019,
+   "dMSL": 0.053,
+   "D": 0.193,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8725520",
+   "name": "Fort Myers",
+   "region": "conus"
+  },
+  {
+   "dD": 0.003,
+   "dMSL": 0.059,
+   "D": 0.353,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8726384",
+   "name": "Port Manatee",
+   "region": "conus"
+  },
+  {
+   "dD": 0.003,
+   "dMSL": 0.065,
+   "D": 0.366,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8726520",
+   "name": "St. Petersburg",
+   "region": "conus"
+  },
+  {
+   "dD": 0.002,
+   "dMSL": 0.055,
+   "D": 0.395,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8726607",
+   "name": "Old Port Tampa",
+   "region": "conus"
+  },
+  {
+   "dD": -0.001,
+   "dMSL": 0.057,
+   "D": 0.45,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8726724",
+   "name": "Clearwater Beach",
+   "region": "conus"
+  },
+  {
+   "dD": 0.002,
+   "dMSL": 0.043,
+   "D": 0.621,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8727520",
+   "name": "Cedar Key",
+   "region": "conus"
+  },
+  {
+   "dD": -0.003,
+   "dMSL": 0.042,
+   "D": 0.277,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8728690",
+   "name": "Apalachicola",
+   "region": "conus"
+  },
+  {
+   "dD": 0.005,
+   "dMSL": 0.039,
+   "D": 0.203,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8729108",
+   "name": "Panama City",
+   "region": "conus"
+  },
+  {
+   "dD": 0.002,
+   "dMSL": 0.025,
+   "D": 0.203,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8729210",
+   "name": "Panama City Beach",
+   "region": "conus"
+  },
+  {
+   "dD": -0.001,
+   "dMSL": 0.044,
+   "D": 0.188,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8729840",
+   "name": "Pensacola",
+   "region": "conus"
+  },
+  {
+   "dD": 0.0,
+   "dMSL": 0.059,
+   "D": 0.174,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8735180",
+   "name": "Dauphin Island",
+   "region": "conus"
+  },
+  {
+   "dD": -0.001,
+   "dMSL": 0.043,
+   "D": 0.251,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8737048",
+   "name": "Mobile State Docks",
+   "region": "conus"
+  },
+  {
+   "dD": 0.01,
+   "dMSL": 0.051,
+   "D": 0.276,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8747437",
+   "name": "Bay Waveland Yacht Club",
+   "region": "conus"
+  },
+  {
+   "dD": -0.008,
+   "dMSL": 0.172,
+   "D": 0.163,
+   "epoch": "2012-2016",
+   "superseded_epoch": "SPECIAL",
+   "id": "8761724",
+   "name": "Grand Isle",
+   "region": "conus"
+  },
+  {
+   "dD": 0.003,
+   "dMSL": 0.084,
+   "D": 0.084,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8761927",
+   "name": "New Canal Station",
+   "region": "conus"
+  },
+  {
+   "dD": -0.009,
+   "dMSL": 0.102,
+   "D": 0.24,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8767816",
+   "name": "Lake Charles",
+   "region": "conus"
+  },
+  {
+   "dD": -0.041,
+   "dMSL": -0.027,
+   "D": 0.34,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8768094",
+   "name": "Calcasieu Pass",
+   "region": "conus"
+  },
+  {
+   "dD": 0.001,
+   "dMSL": -0.047,
+   "D": 0.169,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8770520",
+   "name": "Rainbow Bridge",
+   "region": "conus"
+  },
+  {
+   "dD": 0.002,
+   "dMSL": -0.056,
+   "D": 0.222,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8770613",
+   "name": "Morgans Point, Barbours Cut",
+   "region": "conus"
+  },
+  {
+   "dD": -0.002,
+   "dMSL": -0.037,
+   "D": 0.27,
+   "epoch": "1983-2001",
+   "superseded_epoch": "SPECIAL",
+   "id": "8770777",
+   "name": "Manchester",
+   "region": "conus"
+  },
+  {
+   "dD": -0.005,
+   "dMSL": 0.08,
+   "D": 0.184,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8771013",
+   "name": "Eagle Point, Galveston Bay",
+   "region": "conus"
+  },
+  {
+   "dD": -0.001,
+   "dMSL": -0.001,
+   "D": 0.297,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8771341",
+   "name": "Galveston Bay Entrance, North Jetty",
+   "region": "conus"
+  },
+  {
+   "dD": -0.003,
+   "dMSL": 0.006,
+   "D": 0.252,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8771450",
+   "name": "Galveston Pier 21",
+   "region": "conus"
+  },
+  {
+   "dD": 0.003,
+   "dMSL": 0.199,
+   "D": 0.058,
+   "epoch": "2002-2006",
+   "superseded_epoch": "1960-1978",
+   "id": "8774770",
+   "name": "Rockport",
+   "region": "conus"
+  },
+  {
+   "dD": 0.011,
+   "dMSL": 0.03,
+   "D": 0.197,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8775237",
+   "name": "Port Aransas",
+   "region": "conus"
+  },
+  {
+   "dD": 0.01,
+   "dMSL": 5.273,
+   "D": 0.1,
+   "epoch": "2002-2006",
+   "superseded_epoch": "1960-1978",
+   "id": "8775283",
+   "name": "Enbridge, Ingleside",
+   "region": "conus"
+  },
+  {
+   "dD": 0.007,
+   "dMSL": 0.094,
+   "D": 0.068,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8775792",
+   "name": "Packery Channel",
+   "region": "conus"
+  },
+  {
+   "dD": 0.002,
+   "dMSL": 0.061,
+   "D": 0.284,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8775870",
+   "name": "Bob Hall Pier, Corpus Christi",
+   "region": "conus"
+  },
+  {
+   "dD": 0.008,
+   "dMSL": 0.093,
+   "D": 0.248,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "8779770",
+   "name": "Port Isabel",
+   "region": "conus"
+  },
+  {
+   "dD": 0.001,
+   "dMSL": 0.065,
+   "D": 0.897,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9410170",
+   "name": "San Diego",
+   "region": "conus"
+  },
+  {
+   "dD": -0.006,
+   "dMSL": 0.072,
+   "D": 0.832,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9410230",
+   "name": "La Jolla",
+   "region": "conus"
+  },
+  {
+   "dD": -0.004,
+   "dMSL": 0.038,
+   "D": 0.861,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9410660",
+   "name": "Los Angeles",
+   "region": "conus"
+  },
+  {
+   "dD": -0.01,
+   "dMSL": 0.029,
+   "D": 0.849,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9410840",
+   "name": "Santa Monica",
+   "region": "conus"
+  },
+  {
+   "dD": -0.001,
+   "dMSL": 0.007,
+   "D": 0.849,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9411340",
+   "name": "Santa Barbara",
+   "region": "conus"
+  },
+  {
+   "dD": -0.009,
+   "dMSL": 0.028,
+   "D": 0.853,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9412110",
+   "name": "Port San Luis",
+   "region": "conus"
+  },
+  {
+   "dD": -0.016,
+   "dMSL": 0.058,
+   "D": 0.862,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9413450",
+   "name": "Monterey",
+   "region": "conus"
+  },
+  {
+   "dD": -0.003,
+   "dMSL": 0.06,
+   "D": 0.951,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9414290",
+   "name": "San Francisco",
+   "region": "conus"
+  },
+  {
+   "dD": 0.01,
+   "dMSL": 0.06,
+   "D": 1.342,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9414523",
+   "name": "Redwood City",
+   "region": "conus"
+  },
+  {
+   "dD": 0.015,
+   "dMSL": 0.034,
+   "D": 1.051,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9414750",
+   "name": "Alameda",
+   "region": "conus"
+  },
+  {
+   "dD": -0.008,
+   "dMSL": 0.063,
+   "D": 0.991,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9414863",
+   "name": "Richmond",
+   "region": "conus"
+  },
+  {
+   "dD": -0.005,
+   "dMSL": 0.058,
+   "D": 0.946,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9415020",
+   "name": "Point Reyes",
+   "region": "conus"
+  },
+  {
+   "dD": 0.004,
+   "dMSL": 0.061,
+   "D": 0.781,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9415144",
+   "name": "Port Chicago",
+   "region": "conus"
+  },
+  {
+   "dD": -0.005,
+   "dMSL": 0.044,
+   "D": 0.957,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9416841",
+   "name": "Arena Cove",
+   "region": "conus"
+  },
+  {
+   "dD": -0.015,
+   "dMSL": 0.033,
+   "D": 1.128,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9418767",
+   "name": "North Spit",
+   "region": "conus"
+  },
+  {
+   "dD": -0.013,
+   "dMSL": -0.005,
+   "D": 1.13,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9419750",
+   "name": "Crescent City",
+   "region": "conus"
+  },
+  {
+   "dD": -0.009,
+   "dMSL": 0.015,
+   "D": 1.198,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9431647",
+   "name": "Port Orford",
+   "region": "conus"
+  },
+  {
+   "dD": 0.001,
+   "dMSL": 0.013,
+   "D": 1.244,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9432780",
+   "name": "Charleston",
+   "region": "conus"
+  },
+  {
+   "dD": -0.001,
+   "dMSL": -0.008,
+   "D": 1.358,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9435380",
+   "name": "South Beach",
+   "region": "conus"
+  },
+  {
+   "dD": 0.055,
+   "dMSL": 0.093,
+   "D": 1.374,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9437540",
+   "name": "Garibaldi",
+   "region": "conus"
+  },
+  {
+   "dD": 0.035,
+   "dMSL": 0.003,
+   "D": 1.373,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9439040",
+   "name": "Astoria",
+   "region": "conus"
+  },
+  {
+   "dD": 0.022,
+   "dMSL": -0.064,
+   "D": 1.117,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9440569",
+   "name": "Skamokawa",
+   "region": "conus"
+  },
+  {
+   "dD": 0.029,
+   "dMSL": 0.004,
+   "D": 1.458,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9440910",
+   "name": "Toke Point",
+   "region": "conus"
+  },
+  {
+   "dD": -0.03,
+   "dMSL": -0.012,
+   "D": 1.394,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9442396",
+   "name": "La Push, Quillayute River",
+   "region": "conus"
+  },
+  {
+   "dD": -0.002,
+   "dMSL": -0.041,
+   "D": 1.315,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9443090",
+   "name": "Neah Bay",
+   "region": "conus"
+  },
+  {
+   "dD": -0.001,
+   "dMSL": 0.034,
+   "D": 1.294,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9444090",
+   "name": "Port Angeles",
+   "region": "conus"
+  },
+  {
+   "dD": 0.004,
+   "dMSL": 0.057,
+   "D": 1.522,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9444900",
+   "name": "Port Townsend",
+   "region": "conus"
+  },
+  {
+   "dD": 0.001,
+   "dMSL": 2.883,
+   "D": 2.077,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9445958",
+   "name": "Bremerton",
+   "region": "conus"
+  },
+  {
+   "dD": -0.008,
+   "dMSL": 0.064,
+   "D": 2.085,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9446484",
+   "name": "Tacoma",
+   "region": "conus"
+  },
+  {
+   "dD": 0.003,
+   "dMSL": 0.054,
+   "D": 2.024,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9447130",
+   "name": "Seattle",
+   "region": "conus"
+  },
+  {
+   "dD": 0.007,
+   "dMSL": 0.035,
+   "D": 1.61,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9449424",
+   "name": "Cherry Point",
+   "region": "conus"
+  },
+  {
+   "dD": 0.001,
+   "dMSL": 0.036,
+   "D": 1.387,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9449880",
+   "name": "Friday Harbor",
+   "region": "conus"
+  },
+  {
+   "dD": 0.003,
+   "dMSL": -0.004,
+   "D": 2.458,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9450460",
+   "name": "Ketchikan",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.004,
+   "dMSL": -0.051,
+   "D": 1.61,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9451600",
+   "name": "Sitka",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.002,
+   "dMSL": -0.239,
+   "D": 2.617,
+   "epoch": "2012-2016",
+   "superseded_epoch": "1960-1978",
+   "id": "9452210",
+   "name": "Juneau",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.003,
+   "dMSL": -0.342,
+   "D": 2.693,
+   "epoch": "2012-2016",
+   "superseded_epoch": "1960-1978",
+   "id": "9452400",
+   "name": "Skagway, Taiya Inlet",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.004,
+   "dMSL": -0.288,
+   "D": 1.615,
+   "epoch": "2012-2016",
+   "superseded_epoch": "1960-1978",
+   "id": "9453220",
+   "name": "Yakutat, Yakutat Bay",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.011,
+   "dMSL": 0.092,
+   "D": 2.056,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9454050",
+   "name": "Cordova",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.01,
+   "dMSL": 0.039,
+   "D": 1.979,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9454240",
+   "name": "Valdez",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.005,
+   "dMSL": -0.028,
+   "D": 1.694,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9455090",
+   "name": "Seward",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.013,
+   "dMSL": -0.148,
+   "D": 2.912,
+   "epoch": "2012-2016",
+   "superseded_epoch": "1960-1978",
+   "id": "9455500",
+   "name": "Seldovia",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.015,
+   "dMSL": -0.129,
+   "D": 3.442,
+   "epoch": "2012-2016",
+   "superseded_epoch": "1960-1978",
+   "id": "9455760",
+   "name": "Nikiski",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.004,
+   "dMSL": -0.008,
+   "D": 5.02,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9455920",
+   "name": "Anchorage",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.001,
+   "dMSL": -0.152,
+   "D": 1.372,
+   "epoch": "2012-2016",
+   "superseded_epoch": "1960-1978",
+   "id": "9457292",
+   "name": "Kodiak Island",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.01,
+   "dMSL": -0.043,
+   "D": 1.181,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9459450",
+   "name": "Sand Point",
+   "region": "alaska"
+  },
+  {
+   "dD": -0.024,
+   "dMSL": -0.011,
+   "D": 0.65,
+   "epoch": "1983-2001",
+   "superseded_epoch": "SPECIAL",
+   "id": "9461380",
+   "name": "Adak Island",
+   "region": "alaska"
+  },
+  {
+   "dD": -0.015,
+   "dMSL": -0.016,
+   "D": 0.635,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9462620",
+   "name": "Unalaska",
+   "region": "alaska"
+  },
+  {
+   "dD": -0.009,
+   "dMSL": -0.4,
+   "D": 0.573,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9464212",
+   "name": "Village Cove, St Paul Island",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.005,
+   "dMSL": 0.071,
+   "D": 0.25,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9468756",
+   "name": "Nome, Norton Sound",
+   "region": "alaska"
+  },
+  {
+   "dD": 0.005,
+   "dMSL": 0.01,
+   "D": 0.106,
+   "epoch": "1983-2001",
+   "superseded_epoch": "SPECIAL",
+   "id": "9497645",
+   "name": "Prudhoe Bay",
+   "region": "alaska"
+  },
+  {
+   "dD": -0.004,
+   "dMSL": 0.028,
+   "D": 0.112,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9751401",
+   "name": "Limetree Bay",
+   "region": "caribbean"
+  },
+  {
+   "dD": -0.011,
+   "dMSL": 0.017,
+   "D": 0.114,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9751639",
+   "name": "Charlotte Amalie",
+   "region": "caribbean"
+  },
+  {
+   "dD": -0.004,
+   "dMSL": 0.053,
+   "D": 0.234,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9755371",
+   "name": "San Juan, La Puntilla, San Juan Bay",
+   "region": "caribbean"
+  },
+  {
+   "dD": -0.003,
+   "dMSL": 0.024,
+   "D": 0.1,
+   "epoch": "1983-2001",
+   "superseded_epoch": "1960-1978",
+   "id": "9759110",
+   "name": "Magueyes Island",
+   "region": "caribbean"
+  }
+ ]
+}

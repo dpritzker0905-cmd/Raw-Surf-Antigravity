@@ -5,7 +5,13 @@
  */
 import { formatHeightFromMeters } from './heightUnits';
 
-export const TIDE_FOOTER = 'Modeled sea level · MSL';
+export const TIDE_FOOTER = 'Modeled tide · above local MSL';   // ONE label set with tideDatum.js (2026-11-22)
+export const TIDE_FOOTER_MLLW = 'Modeled tide · above MLLW (NOAA chart datum)';
+
+/** The footer's datum text for a tideDatumOf() result: the MSL wording is unchanged where the point is not MLLW. */
+export function tideFooter(datum) {
+  return datum && datum.isMllw ? TIDE_FOOTER_MLLW : TIDE_FOOTER;
+}
 export const TIDE_SOLAR_NOTE = 'times approx. (local solar time)';
 export const TIDE_UNAVAILABLE = 'Modeled sea level unavailable for selected time';
 

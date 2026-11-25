@@ -1,0 +1,90 @@
+name: Tide MLLW parity (our US display above MLLW vs NOAA CO-OPS MLLW predictions)
+# WHY: the advisor's condition 1 for SURF_TIDE_MLLW_US (#1149, 2026-11-22): the SCOREBOARD instrument for the US tide
+# display above MLLW. At the 26 G3t US gauges, for the coming 7 days: our hourly display (FES2022b tide A + D, D from our
+# 19-year NTDE computation and from the CO-OPS sheet), High/Low by the SERVED event finder, against CO-OPS predictions
+# (hilo, datum=MLLW): median and max height and time error. backend/scripts/tide_datum/parity_coops.py.
+# Measurement only: no bucket write, nothing served, no live backend. PyFES is GPL and runs only here.
+# ONE-SHOT START: only a push of a tag `tide-mllw-parity-*` (on the owner's or the director's word) starts it; no branch
+# push, schedule or dispatch. Credentials: AVISO only on the FES download step; CO-OPS is public. Nothing is printed
+# but the scores.
+# tide-datum-parity-v2 (gates/tide-datum-parity-v2.md, #1210): a tag `tide-datum-parity-v2-*` runs the SAME job on the
+# frozen held-out stations, leave-one-out, over the FIXED window 2026-12-01..08 (owner's word + the advisor's PASS).
+on:
+  push:
+    tags: ['tide-mllw-parity-*', 'tide-datum-parity-v2-*']
+permissions:
+  contents: read
+concurrency:
+  group: tide-mllw-parity
+  cancel-in-progress: false
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (offline-only dependencies, pinned as the tide gates)
+        run: pip install "pyfes==2026.5.2" "paramiko==5.1.0" "copernicusmarine==2.4.1" netCDF4 numpy scipy xarray h5netcdf pandas lxml pyyaml
+      - name: Restore FES2022b downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: fes_cache
+          key: fes2022b-mllw-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            fes2022b-own-
+            fes2022b-g4p-
+            fes2022b-g3t-
+      - name: Download FES2022b (AVISO, pinned host key; cached files skipped)
+        timeout-minutes: 320
+        env:
+          AVISO_USERNAME: ${{ secrets.AVISO_USERNAME }}
+          AVISO_PASSWORD: ${{ secrets.AVISO_PASSWORD }}
+        run: python backend/scripts/tide_own/build_series.py --spots /dev/null --download-fes-only --fes-cache fes_cache
+      - name: Drop partial files before saving
+        if: always()
+        run: |
+          mkdir -p fes_cache
+          rm -f fes_cache/*.part
+      - name: Save FES2022b downloads
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: fes_cache
+          key: fes2022b-mllw-${{ github.run_id }}-${{ github.run_attempt }}
+  parity:
+    needs: download
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (offline-only dependencies, pinned as the tide gates)
+        run: pip install "pyfes==2026.5.2" "paramiko==5.1.0" "copernicusmarine==2.4.1" netCDF4 numpy scipy xarray h5netcdf pandas lxml pyyaml
+      - name: Restore FES2022b downloads (this run's)
+        uses: actions/cache/restore@v4
+        with:
+          path: fes_cache
+          key: fes2022b-mllw-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+      - name: Parity vs CO-OPS MLLW predictions (7 days, 26 gauges)
+        timeout-minutes: 100
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == tide-datum-parity-v2-* ]]; then
+            python backend/scripts/tide_datum/parity_coops.py --fes-cache fes_cache --work parity_work --days 7 \
+              --stations docs/weather-program/research/tide-datum-parity-v2-heldout.json --start 2026-12-01 \
+              --json tide_mllw_parity.json
+          else
+            python backend/scripts/tide_datum/parity_coops.py --fes-cache fes_cache --work parity_work --days 7 --json tide_mllw_parity.json
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tide-mllw-parity
+          path: tide_mllw_parity.json
+          if-no-files-found: ignore
+          retention-days: 30

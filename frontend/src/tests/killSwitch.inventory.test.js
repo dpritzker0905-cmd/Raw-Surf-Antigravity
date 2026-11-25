@@ -184,6 +184,10 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CADENCE_STEP__',
   // components/map/TideReadout.test.js
   '__RAW_DISABLE_INFOBOX_TIDE__',
+  // components/map/tideDatum.test.js (the US tide display above MLLW: the served MSL level is shown back)
+  '__RAW_DISABLE_TIDE_MLLW__',
+  // components/map/tideDatum.test.js (decision B: the plain tide line; the kill puts the datum name back)
+  '__RAW_DISABLE_TIDE_PLAIN_LINE__',
   // components/map/tideOverlay.parity.test.js
   '__RAW_DISABLE_TIDE_OVERLAY__',
   // components/map/glyphTide.test.js (finding 9: one tide per glyph, DARK)
