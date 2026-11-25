@@ -154,3 +154,18 @@ Append-only. Stamps come from `date -u`.
     - (d) the kill `TIDE_MLLW_TESTER_KEYS=0`;
     - a test that `validate()` drops `am_lp`.
   - Tests: 48 (chain +48 / +1).
+- **15:36Z, the advisor's items on amendment 4:**
+  - **The calibration records and audits are committed.** Their sha256 values are in §13: the fail record `559c69f3…`
+    and its 6-request audit `6c4b7a6c…`; the pass record `738b328c…` and its 6-request audit `43371d19…`. Each audit is
+    4 hourly predictions + 2 `harcon.json`, all 200.
+  - **An independent check of `noaa_lp`:** the node factors are pinned against pyTMD 3.1.0's `nodal_modulation`
+    (OTIS/Schureman, an independent implementation) at mid-2006 (N ≈ 0) and mid-2015 (N ≈ 180), to 0.01.
+  - **The constants-only spot-check** (`mllw_tester_msf_spotcheck.py`):
+    - it read the 80 frozen stations' `harcon.json` (80 requests, all 200);
+    - Longview is the only large MSF (0.139 m);
+    - at the next largest, 1631428 (MSF 0.008 m), NOAA − pyTMD over 2025 is at most 0.4 mm (RMS 0.2 mm);
+    - record `research/tide-mllw-tester-v1-msf-spotcheck.json`, sha256
+      `97711f9b5d01e2d11a04b7baf4e840c8597fe980ff7164a80a3a3df6ef5a64c5`; audit
+      `…-msf-spotcheck-requests.jsonl` `848c7655fe400690073bc1cebb036a092fac32d242f469cec4f9c6e32c3a8fa4`.
+  - **Cross-program:** the pyTMD MM/MF/MSF bias is noted in the a-harcon log (logging only; v2 untouched).
+  - **Tests:** 51 (chain +51 / +1).

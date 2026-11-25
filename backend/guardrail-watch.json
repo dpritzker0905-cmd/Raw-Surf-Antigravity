@@ -1,0 +1,14 @@
+{
+ "__physics_on_since__": {
+  "GFS_PARTITION_MASKED_AS_ZERO": "2026-11-23T00:00:00Z"
+ },
+ "__physics_untestable_runs__": {
+  "GFS_PARTITION_MASKED_AS_ZERO": 14
+ },
+ "__tide_untestable_cycles__": {
+  "SURF_TIDE_A_HARCON": {
+   "first": "2026-11-23T00:00:00Z",
+   "n": 14
+  }
+ }
+}

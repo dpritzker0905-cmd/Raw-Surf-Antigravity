@@ -377,3 +377,26 @@ def test_the_committed_ref_calibration_passes_and_the_first_failure_is_kept():
     assert ok["pass"] and not bad["pass"] and ok["bar_m"] == bad["bar_m"] == 0.003            # the convention, not the bar
     lv = ok["stations"]["9440422"]
     assert lv["with_sa_ssa"]["max_running_14d_m"] <= 0.003 and lv["without_sa_ssa"]["max_running_29d_m"] <= 0.003
+
+
+# An INDEPENDENT implementation's node factors (the advisor: noaa_lp against an independent Schureman table value):
+# pyTMD 3.1.0 constituents.nodal_modulation(N, p, ["mm", "mf", "m2"], corrections="OTIS") at mid-year (July 2, 12 UTC),
+# computed once on 2026-11-25 and pinned here (pyTMD is not installed in the test lanes). OTIS uses Schureman's
+# series to a truncated order, so agreement is to about 0.005; the tolerance is 0.01.
+INDEPENDENT_F = {2006: {"MM": 0.8700, "MF": 1.4570, "M2": 0.9632}, 2015: {"MM": 1.1295, "MF": 0.6308, "M2": 1.0377}}
+
+
+@pytest.mark.parametrize("year", sorted(INDEPENDENT_F))
+def test_noaa_lp_node_factors_match_an_independent_implementation(year):
+    import noaa_lp
+    yt, ref = noaa_lp.year_terms(year), INDEPENDENT_F[year]
+    assert yt["MM"][0] == pytest.approx(ref["MM"], abs=0.01)
+    assert yt["MF"][0] == pytest.approx(ref["MF"], abs=0.01)
+    assert yt["MSF"][0] == pytest.approx(ref["M2"], abs=0.01)                  # MSF carries f(M2) (the compound S2 - M2)
+
+
+def test_the_msf_spotcheck_record_is_constants_only():
+    d = json.load(open(os.path.join(HERE, "..", "..", "docs", "weather-program", "research",
+                                    "tide-mllw-tester-v1-msf-spotcheck.json"), encoding="utf-8"))
+    assert d["inputs_only"] and len(d["lp3_by_station"]) == 80 and d["largest_msf_station"] not in ("9440422", "9491873")
+    assert d["spotcheck"]["noaa_minus_pytmd_max_abs_m"] <= 0.003
