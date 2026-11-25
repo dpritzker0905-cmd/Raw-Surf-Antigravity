@@ -173,3 +173,22 @@ February). No data from it has been read for any station.
   - the pre-flight PASS needs ≥ 300 tested records, ≤ 1 % exceedances and every break failing at ≥ 95 %;
   - no re-tuning;
   - the minors-inferred C2 is a diagnostic.
+
+## 11. Amendment 1 (2026-11-25 00:21Z, PRE-DATA): C5's P1 becomes a +90° phase shift
+
+Written before any v2 data, after the advisor's HOLD on #1296 at `b193da863`. Where this section and §5 differ, this
+section holds. Everything else is unchanged.
+
+- **The flaw.** §5's C5 P1 ("every constituent's phase_GMT negated") must FAIL C2 at EVERY scored station, or the run is
+  VOID. But negating G near 0° or 180° barely moves it.
+  - At an M2-dominated station with G within about 2.4° of 0° or 180°, the events shift by less than 10 min.
+  - So P1 would PASS C2 there and VOID a sound run. Across 40 or more stations, that is a live risk.
+- **The fix.** C5's P1 becomes: **+90° added to every constituent's phase_GMT**. Whatever G is, that moves the M2
+  events by about 3.1 h and the K1 events by about 6 h, far beyond the 10-min bar.
+- **Kept as before:**
+  - P2 (every amplitude ×100);
+  - C5 VOID-only: a planted break that PASSES C2 at any scored station means VOID;
+  - C5 computed from the same constants and grid, reading no extra data.
+- **Added:** **P3, a +60 min time shift** of the synthesized series. It too must FAIL C2 at every scored station.
+- **The pre-flight is unchanged** (§6): its (ii) sign-flip stays. Its ≥ 95 % threshold absorbs the few stations with G
+  near 0° or 180°, and every miss is reported.

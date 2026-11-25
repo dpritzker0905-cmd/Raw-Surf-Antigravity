@@ -24,3 +24,16 @@ Append-only. Stamps come from `date -u`.
     708 eligible, with 0 overlap with the exclusion set.
 - **Not done:** the instrument PR (6-min C2, C5, the pre-flight script, the window and identities-only tests, and the
   tag-gated workflows). Then two tags, each on David's typed word: the pre-flight, then v2.
+
+## 00:21Z: gate amendment 1 (PRE-DATA), after the advisor's HOLD on #1296 at `b193da863`
+
+- **The advisor verified** v1's incorporation, the selector, the station set reproduced IDENTICALLY (`829af882…`), 0
+  overlaps, the stamps before data, the disjoint half-open windows, and C2 and the pre-flight as ruled.
+- **The one flaw:** C5's P1 (phase negation) can PASS C2 at a station whose M2 phase is near 0° or 180°, and so VOID a
+  sound run.
+- **Gate §11:**
+  - P1 becomes +90° added to every phase_GMT;
+  - P2 (×100) is kept;
+  - P3 (a +60 min time shift) is added;
+  - C5 stays VOID-only;
+  - the pre-flight's sign-flip plant stays, with its ≥ 95 % threshold.
