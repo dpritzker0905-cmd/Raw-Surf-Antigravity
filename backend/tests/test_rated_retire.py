@@ -8,6 +8,8 @@ itself when partitions are rated again, and that the freshness report reads a re
 import json
 import os
 import sys
+from datetime import datetime, timezone
+from unittest.mock import patch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "scripts"))
@@ -99,20 +101,21 @@ def test_a_run_that_moves_no_pointer_writes_nothing(tmp_path, monkeypatch):
 def test_the_freshness_report_reads_a_retired_record_as_empty_not_stale(tmp_path, capsys):
     latest = {"sets": {STALE: fsr.retired_record({"index": "x", "run": "2026-11-23T06:00:00Z"}, NOW, "w"),
                        "GFS/marine/waves/global_mid": {"run": "2026-11-25T00:00:00Z"}}}
-    from datetime import datetime, timezone
-    rows = {r["key"]: r for r in fresh.check(latest, datetime(2026, 11, 25, 12, tzinfo=timezone.utc))}
+    report_time = datetime.fromisoformat(NOW)
+    rows = {r["key"]: r for r in fresh.check(latest, report_time)}
     assert rows[STALE]["verdict"] == "empty"
     assert not any(r["verdict"] in fresh.BAD for r in rows.values())
     p = tmp_path / "latest.json"
     p.write_text(json.dumps(latest))
     capsys.readouterr()
-    assert fresh.main(["--latest", str(p), "--fail-on-stale"]) == 0
+    with patch.object(fresh, "datetime", wraps=datetime) as clock:
+        clock.now.return_value = report_time
+        assert fresh.main(["--latest", str(p), "--fail-on-stale"]) == 0
     assert "Frame sets stale" not in capsys.readouterr().out
 
 
 def test_only_a_retired_record_reads_empty_a_bundle_explicit_empty_still_reads_no_run():
     """Advisor limit L1 on #1316: the exemption is for RETIRED rated records only, never every empty record."""
-    from datetime import datetime, timezone
     latest = {"sets": {STALE: fsr.retired_record({"index": "x", "run": "2026-11-23T06:00:00Z"}, NOW, "w"),
                        "GFS/marine/waves/azores": {"empty": True, "reason": "no stored product for this layer in this box"}}}
     rows = {r["key"]: r for r in fresh.check(latest, datetime(2026, 11, 25, 12, tzinfo=timezone.utc))}

@@ -350,3 +350,6 @@ backend/services/weather_pipeline/data/shore_normals_overlay.json
 # Sanitized receipts, report and reproducer are tracked instead.
 audit/repairs-2026-10-03/*.xml
 audit/repairs-2026-10-03/remove_credential_fallback.py
+
+# test-run artifact of the flag guardrail (written by tests run from backend/)
+backend/guardrail-watch.json

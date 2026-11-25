@@ -101,3 +101,17 @@ Append-only. Stamps come from `date -u`.
 - **What it shows:** 478 requests, ALL to `/mdapi/prod/webapi/stations/<id>/harcon.json`, one per station, all HTTP
   200. There was no `datagetter` call, so no prediction, water level or window data was read. That is the proof the
   scan read harcon constants only.
+
+## 15:36Z: a cross-program note (logging only): pyTMD's MM / MF / MSF are ~5 % off NOAA's convention
+
+- **Found by the MLLW tester's REQ-1 calibration** (`gates/tide-mllw-tester-v1.md` §13): `arms.harcon_eval` (pyTMD
+  3.1.0, GOT corrections) synthesises MM, MF and MSF about 5 % of amplitude away from NOAA's own predictor.
+  - At Longview (9440422; MSF 0.139 m, MM 0.077 m) that is about 5 mm each.
+  - In 2025 the max |difference| was 0.012 m and the RMS 0.006 m (`research/tide-mllw-tester-v1-msf-spotcheck.json`,
+    first run).
+  - NOAA's convention (Schureman; MSF as S2 − M2) is in `backend/scripts/tide_datum/noaa_lp.py`.
+- **For tide-a-harcon:** `am_h` (the harcon blend) carries this small, known bias at donors with large long-period
+  constituents (estuary and riverine stations). Among the 80 MLLW tester stations only Longview has a large MSF; the next
+  is 8 mm (0.4 mm difference).
+- **NOT acted on:** v2 is mid-gate, so its instrument and the served `am_h` are untouched. A later A-arm change, if any,
+  needs its own gate.

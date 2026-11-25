@@ -1,0 +1,1139 @@
+{
+ "gate": "gates/tide-mllw-tester-v1.md s13",
+ "inputs_only": true,
+ "largest_msf_station": "1631428",
+ "lp3_by_station": {
+  "1631428": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.008,
+    "phase_gmt_deg": 33.2
+   }
+  },
+  "8417227": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8441841": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8442417": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8444788": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8447173": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8448875": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8453742": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8468799": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8513825": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8516402": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8517137": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8518951": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8519483": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8531833": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8571091": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8572955": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8633532": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8637624": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8638660": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8720291": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8720582": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8721164": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8722669": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8723409": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8723465": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8723962": {
+   "MF": {
+    "amplitude_m": 0.012,
+    "phase_gmt_deg": 356.5
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8726428": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8729479": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8729909": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8760922": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8761431": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8761432": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.017,
+    "phase_gmt_deg": 340.4
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8761819": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8772471": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8772985": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8778485": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "8779748": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9411270": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9411406": {
+   "MF": {
+    "amplitude_m": 0.009,
+    "phase_gmt_deg": 118.3
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9414317": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9414816": {
+   "MF": {
+    "amplitude_m": 0.015,
+    "phase_gmt_deg": 153.1
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9418024": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9418817": {
+   "MF": {
+    "amplitude_m": 0.014,
+    "phase_gmt_deg": 149.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9440422": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.077,
+    "phase_gmt_deg": 39.4
+   },
+   "MSF": {
+    "amplitude_m": 0.139,
+    "phase_gmt_deg": 37.6
+   }
+  },
+  "9441102": {
+   "MF": {
+    "amplitude_m": 0.027,
+    "phase_gmt_deg": 190.3
+   },
+   "MM": {
+    "amplitude_m": 0.024,
+    "phase_gmt_deg": 171.2
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9442705": {
+   "MF": {
+    "amplitude_m": 0.018,
+    "phase_gmt_deg": 164.6
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9447973": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9450296": {
+   "MF": {
+    "amplitude_m": 0.027,
+    "phase_gmt_deg": 173.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9450551": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9450914": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9450997": {
+   "MF": {
+    "amplitude_m": 0.027,
+    "phase_gmt_deg": 173.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9451421": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9451497": {
+   "MF": {
+    "amplitude_m": 0.027,
+    "phase_gmt_deg": 176.8
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9451625": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9451798": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9451953": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9452294": {
+   "MF": {
+    "amplitude_m": 0.025,
+    "phase_gmt_deg": 176.1
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9452346": {
+   "MF": {
+    "amplitude_m": 0.029,
+    "phase_gmt_deg": 181.6
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9452634": {
+   "MF": {
+    "amplitude_m": 0.033,
+    "phase_gmt_deg": 192.7
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9452749": {
+   "MF": {
+    "amplitude_m": 0.025,
+    "phase_gmt_deg": 176.1
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9453431": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9454460": {
+   "MF": {
+    "amplitude_m": 0.027,
+    "phase_gmt_deg": 174.3
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9454511": {
+   "MF": {
+    "amplitude_m": 0.029,
+    "phase_gmt_deg": 172.8
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9455711": {
+   "MF": {
+    "amplitude_m": 0.028,
+    "phase_gmt_deg": 163.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9456525": {
+   "MF": {
+    "amplitude_m": 0.033,
+    "phase_gmt_deg": 176.3
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9457535": {
+   "MF": {
+    "amplitude_m": 0.023,
+    "phase_gmt_deg": 171.7
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9457724": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9458819": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9461710": {},
+  "9465056": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9468039": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9468132": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9469439": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9491873": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9751494": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9751574": {
+   "MF": {
+    "amplitude_m": 0.014,
+    "phase_gmt_deg": 358.7
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9751693": {
+   "MF": {
+    "amplitude_m": 0.014,
+    "phase_gmt_deg": 358.7
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9752619": {
+   "MF": {
+    "amplitude_m": 0.017,
+    "phase_gmt_deg": 350.5
+   },
+   "MM": {
+    "amplitude_m": 0.008,
+    "phase_gmt_deg": 332.1
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  },
+  "9759197": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   }
+  }
+ },
+ "schema": "raw-surf/tide-mllw-tester-v1-msf-spotcheck/1",
+ "spotcheck": {
+  "lp3_noaa_convention_range_m": [
+   -0.0077,
+   0.0077
+  ],
+  "noaa_minus_pytmd_max_abs_m": 0.0004,
+  "noaa_minus_pytmd_rms_m": 0.0002,
+  "rows": {
+   "MF": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MM": {
+    "amplitude_m": 0.0,
+    "phase_gmt_deg": 0.0
+   },
+   "MSF": {
+    "amplitude_m": 0.008,
+    "phase_gmt_deg": 33.2
+   }
+  },
+  "station": "1631428",
+  "year": 2025
+ }
+}
