@@ -32,7 +32,7 @@ The same named result was on #1271's own CI (run 45425360634). No P0 issue was o
 Switching `STORAGE_AUTH_CHECK` from `warn` to `block` needs all four lines AND the owner's typed word (advisor L1 on
 #1266); this lane does not switch it.
 
-## #1266: all four lanes logged HTTP 200 after the merge (appended 2026-11-24, after 23:35Z)
+## #1266: all four lanes logged HTTP 200 after the merge (appended 2026-11-25 00:03Z)
 
 | lane | run | started | line |
 |---|---|---|---|
