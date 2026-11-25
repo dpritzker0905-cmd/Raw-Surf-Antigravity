@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 5,
+  "branch": "claude/e2e-netlify-skip-tag",
+  "date": "2026-11-25",
+  "note": "E2E waits for the Netlify build a commit ships in (test_e2e_frontend_target)"
+}
