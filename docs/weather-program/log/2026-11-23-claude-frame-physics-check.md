@@ -164,3 +164,18 @@ Read-only diagnosis, asked by the director after the reliability lane's frame-fr
 - Run 45605602862 (2026-11-25 11:33Z) JUDGED it: **NOT_WORSE, R2 (energy closure) 0.89 %, R1 (partition above total) 0.01 %**,
   no sanity line, untestable count reset, `guard_judged` = [GFS_PARTITION_MASKED_AS_ZERO]. Pre-registered: R2 <= 1.5 %, R1 <= 0.1 %;
   the offline measurement said 0.75-1.10 % and 0.00-0.02 %. Served before the fix: R2 22.0 %, R1 2.5 %.
+
+## 2026-11-25 · #1316 advisor limits (PASS-WITH-LIMITS at 56b98277e)
+- OPEN 1: SCOREBOARD conflict with dev 7ebe0f9d7 resolved by a plain merge, union of rows: dev's rows first, then this PR's two;
+  every dev row present (checked line by line).
+- L1 (folded in): `frame_set_freshness` exempts ONLY records with `retired == "partition_height_only"`; a bundle's explicit empty
+  still reads `no_run`, as before #1316. The summary table gains an `empty (retired)` column. Test:
+  `test_only_a_retired_record_reads_empty_a_bundle_explicit_empty_still_reads_no_run`; reverting to "any empty" turns it red.
+- L2 (follow-up, sized): retention never prunes the retired sets' objects. Read from the public bucket on 2026-11-25: the 62
+  retired sets' current + previous indexes reference 1,002 world frames (55.9 MB) and 114 regional bundles (66.2 MB), 0.122 GB,
+  plus 124 index files. A FIXED amount (nothing new is written to a retired set), not a growing leak. Proposed follow-up PR:
+  when a set is retired, delete what its last two indexes name (the retention path `fs.retention_deletes` with an empty keep set),
+  once, after the pointer has moved.
+- L3: the narrowed re-try's bytes are counted: every request goes through `_CountingSession`, so a re-read counts toward the
+  per-run read cap and the 6.5 GB per-UTC-day record (`add_day_used` runs in `finally`).
+- L4: narrowing applies to steps that START after the first exhausted throttle; up to 6 steps already in flight keep running.

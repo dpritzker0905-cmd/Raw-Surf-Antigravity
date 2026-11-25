@@ -108,3 +108,15 @@ def test_the_freshness_report_reads_a_retired_record_as_empty_not_stale(tmp_path
     capsys.readouterr()
     assert fresh.main(["--latest", str(p), "--fail-on-stale"]) == 0
     assert "Frame sets stale" not in capsys.readouterr().out
+
+
+def test_only_a_retired_record_reads_empty_a_bundle_explicit_empty_still_reads_no_run():
+    """Advisor limit L1 on #1316: the exemption is for RETIRED rated records only, never every empty record."""
+    from datetime import datetime, timezone
+    latest = {"sets": {STALE: fsr.retired_record({"index": "x", "run": "2026-11-23T06:00:00Z"}, NOW, "w"),
+                       "GFS/marine/waves/azores": {"empty": True, "reason": "no stored product for this layer in this box"}}}
+    rows = {r["key"]: r for r in fresh.check(latest, datetime(2026, 11, 25, 12, tzinfo=timezone.utc))}
+    assert rows[STALE]["verdict"] == "empty"
+    assert rows["GFS/marine/waves/azores"]["verdict"] == "no_run"            # as before #1316
+    table = "\n".join(fresh.summary(list(rows.values())))
+    assert "| empty (retired) |" in table and "| GFS | rated | 1 | 0 | 1 |" in table

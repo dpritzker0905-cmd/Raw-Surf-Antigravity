@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 BOUNDS_H = {"GFS": 18.0, "EURO": 30.0, "ICON": 30.0, "ECMWF_ENS": 30.0, "CMEMS": 48.0}
 DEFAULT_BOUND_H = 30.0
 RATED = "_rated"
+RETIRED = "partition_height_only"   # frame_set_rating.retired_record's `retired` tag: the only record exempt from staleness
 RASTER_FAMILY = "weather"          # raster sets: raster_set_freshness.py owns them
 
 
@@ -55,8 +56,8 @@ def family(key: str) -> str:
 
 def check(latest: dict, now: datetime, env=None) -> list:
     """[{key, model, family, run_age_h, bound_h, verdict, behind_h}] for every non-raster set. verdict: ok | stale |
-    no_run | empty (a record with no index: retired or explicitly empty; never stale). behind_h: for a rated set, how far its
-    run trails the marine set it rates (None when not comparable)."""
+    no_run | empty (a RETIRED rated record, frame_set_rating.retired_record; never stale; any other empty record reads
+    no_run). behind_h: for a rated set, how far its run trails the marine set it rates (None when not comparable)."""
     sets = (latest or {}).get("sets") or {}
     rows = []
     for key, e in sorted(sets.items()):
@@ -64,7 +65,7 @@ def check(latest: dict, now: datetime, env=None) -> list:
         if fam == RASTER_FAMILY:
             continue
         model = key.split("/")[0]
-        if (e or {}).get("empty"):      # a retired or explicitly empty record (no index): nothing is served from it, so never stale
+        if (e or {}).get("retired") == RETIRED:   # a rated set the publisher retired (frame_set_rating.retired_record): never stale
             rows.append({"key": key, "model": model, "family": fam, "run_age_h": None, "bound_h": bound_h(model, env),
                          "verdict": "empty", "behind_h": None})
             continue
@@ -81,7 +82,7 @@ def check(latest: dict, now: datetime, env=None) -> list:
     return rows
 
 
-BAD = ("stale", "no_run")   # "empty" (a retired or explicitly empty record) serves nothing, so it is never stale
+BAD = ("stale", "no_run")   # "empty" = a RETIRED rated record only; a bundle's explicit empty still reads no_run, as before
 
 
 def summary(rows: list) -> list:
@@ -89,12 +90,12 @@ def summary(rows: list) -> list:
     by = {}
     for r in rows:
         by.setdefault((r["model"], r["family"]), []).append(r)
-    out = ["| model | family | sets | stale | oldest run (h) | bound (h) | rated behind marine, max (h) |",
-           "|---|---|---|---|---|---|---|"]
+    out = ["| model | family | sets | stale | empty (retired) | oldest run (h) | bound (h) | rated behind marine, max (h) |",
+           "|---|---|---|---|---|---|---|---|"]
     for (m, f), rs in sorted(by.items()):
         ages = [r["run_age_h"] for r in rs if r["run_age_h"] is not None]
         behind = [r["behind_h"] for r in rs if r["behind_h"] is not None]
-        out.append(f"| {m} | {f} | {len(rs)} | {sum(r['verdict'] in BAD for r in rs)} | "
+        out.append(f"| {m} | {f} | {len(rs)} | {sum(r['verdict'] in BAD for r in rs)} | {sum(r['verdict'] == 'empty' for r in rs)} | "
                    f"{max(ages) if ages else '-'} | {rs[0]['bound_h']:g} | {max(behind) if behind else '-'} |")
     bad = [r for r in rows if r["verdict"] in BAD or (r["behind_h"] or 0) > 0]
     if bad:
