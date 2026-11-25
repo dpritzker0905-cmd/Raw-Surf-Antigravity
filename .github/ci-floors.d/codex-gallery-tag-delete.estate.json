@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 9,
+  "tests": 10,
   "branch": "codex/gallery-tag-delete",
   "date": "2026-11-25",
-  "note": "Tagged photo deletion, archive claims and purchase entitlements"
+  "note": "Tagged photo deletion, archived folder visibility, claims and purchase entitlements"
 }

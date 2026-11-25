@@ -119,7 +119,6 @@ async def get_gallery(
         .options(
             selectinload(Gallery.photographer),
             selectinload(Gallery.surf_spot),
-            selectinload(Gallery.items),
             selectinload(Gallery.live_session)
         )
     )
@@ -144,7 +143,12 @@ async def get_gallery(
     
     # Phase 4: Pre-fetch per-item distribution counts for status badges
     is_owner = viewer_id and viewer_id == gallery.photographer_id
-    item_ids = [item.id for item in gallery.items]
+    active_query = select(GalleryItem).where(
+        GalleryItem.gallery_id == gallery_id,
+        GalleryItem.is_deleted.is_not(True),
+    ).execution_options(populate_existing=True)
+    active_items = (await db.scalars(active_query)).all()
+    item_ids = [item.id for item in active_items]
     distribution_map = {}  # item_id -> {count, has_ai_suggestion}
     if item_ids and is_owner:
         dist_result = await db.execute(
@@ -185,7 +189,7 @@ async def get_gallery(
             })
     
     items = []
-    for item in gallery.items:
+    for item in active_items:
         # Gallery owner can always see all items (including private/draft ones)
         # Public viewers only see items marked is_public
         if is_owner or item.is_public:

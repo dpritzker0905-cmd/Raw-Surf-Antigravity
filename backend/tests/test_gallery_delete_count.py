@@ -2,13 +2,14 @@
 import pytest
 import pytest_asyncio
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.orm import selectinload
 
 from models import Gallery, GalleryItem, GalleryPurchase, PhotoTag, Profile, RoleEnum, SurferGalleryItem
 from routes.gallery.gallery_purchases import claim_free_photo, download_gallery_item, purchase_gallery_item
 from routes.gallery.schemas import PurchaseRequest
-from routes.gallery.collections import remove_item_from_gallery
+from routes.gallery.collections import get_gallery, remove_item_from_gallery
 from routes.gallery.items import delete_gallery_item
 from services.gallery_sync import safe_delete_gallery_item
 
@@ -200,3 +201,20 @@ async def test_unpaid_tag_cannot_claim_archived_photo(sessions):
             await claim_free_photo("paid", "pending", "offer", "pending", db)
         assert exc.value.status_code == 400
         assert await db.scalar(select(func.count()).select_from(GalleryPurchase)) == 0
+
+
+@pytest.mark.asyncio
+async def test_folder_detail_hides_archive_and_keeps_active_private_item_for_owner(sessions):
+    await remove(sessions, "folder", "paid")
+    for viewer, expected in (("owner", {"first", "last"}), (None, {"first"})):
+        async with sessions.begin() as db:
+            (await db.get(GalleryItem, "last")).is_public = True
+        async with sessions() as db:
+            loaded = await db.get(Gallery, "source", options=[selectinload(Gallery.items)])
+            assert len(loaded.items) == 3
+            await db.execute(update(GalleryItem).where(GalleryItem.id == "last")
+                             .values(is_public=False).execution_options(synchronize_session=False))
+            assert next(item for item in loaded.items if item.id == "last").is_public
+            folder = await get_gallery("source", viewer, viewer, db)
+            assert {item["id"] for item in folder["items"]} == expected
+            assert folder["item_count"] == len(expected)
