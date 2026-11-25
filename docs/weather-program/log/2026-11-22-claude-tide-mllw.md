@@ -675,3 +675,13 @@ Alaska and North Carolina sounds.
 - **02:08Z correction (paths):** the screenshots and JSONs named above moved to `audit/tide-plain-line-2026-11-25/`
   under the same file names. `memory_audit.py` reads `docs/weather-program/` as text and cannot read images; every
   other screenshot set in the repo lives under `audit/`.
+
+## 2026-11-25 13:08Z: the #1149 squash title is stale (a correction; history is not rewritten)
+
+- **The stale title:** the squash commit `0f066819d` on `dev` reads "... ships ON [SURF_TIDE_MLLW_US; D-065] (#1149)".
+  That is FALSE for the flag.
+- **The truth:** `SURF_TIDE_MLLW_US` merged HELD OFF (code default `"0"`, `ff0ac9eb6`, decision A).
+- **What shipped ON:** only decision B's display text (the plain number and the info tip), with the kill
+  `__RAW_DISABLE_TIDE_PLAIN_LINE__`.
+- **The record:** a SCOREBOARD row of the same stamp records this, so no reader takes MLLW as on. It turns ON only via
+  the tester's proposal and then David's own `workflow_dispatch` (D-087).
