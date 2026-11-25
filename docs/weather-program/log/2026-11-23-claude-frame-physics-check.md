@@ -157,3 +157,10 @@ Read-only diagnosis, asked by the director after the reliability lane's frame-fr
   `tests/test_frame_set_raster_gust_risk.py`, twice; mutating the narrow gate or the re-try turns a test red.
 - Follow-up, not built: SubQ's mirror fallback (ECMWF open data on other clouds) needs the ENS paths and licence on each mirror
   verified first.
+
+## 2026-11-25 · L2 read-back: GFS_PARTITION_MASKED_AS_ZERO's first judged guardrail run (advisor limit on #1267)
+- Run 45511214457 (2026-11-24 23:35Z, enforce) stamped `on_since` 2026-11-24T23:36:10Z; UNTESTABLE (all four GFS world layers
+  registered before it, skipped and named), untestable count 1, strikes 0.
+- Run 45605602862 (2026-11-25 11:33Z) JUDGED it: **NOT_WORSE, R2 (energy closure) 0.89 %, R1 (partition above total) 0.01 %**,
+  no sanity line, untestable count reset, `guard_judged` = [GFS_PARTITION_MASKED_AS_ZERO]. Pre-registered: R2 <= 1.5 %, R1 <= 0.1 %;
+  the offline measurement said 0.75-1.10 % and 0.00-0.02 %. Served before the fix: R2 22.0 %, R1 2.5 %.
