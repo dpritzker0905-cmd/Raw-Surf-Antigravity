@@ -2,7 +2,7 @@
 
 Append-only. Stamps come from `date -u`.
 
-## 00:18Z: the v2 gate, with the fresh stations, the exclusion set and the pre-flight set frozen
+## 00:17Z: the v2 gate, with the fresh stations, the exclusion set and the pre-flight set frozen
 
 - **Why:** v1 is CLOSED as VOID (run 45504466320; the advisor's independent re-score). David chose "New test v2"
   (dialog at about 23:2xZ, relayed by the director).
