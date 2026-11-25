@@ -237,6 +237,9 @@ def test_unknown_twice_fails_and_says_so(monkeypatch, capsys):
     assert ffc.main(["--pr", "1294"]) == 1 and calls["n"] == 2                          # exactly one retry
     out = capsys.readouterr().out
     assert "::error title=Floor fragment check unknown after one retry::RuntimeError: boom again" in out
+    # the message names BOTH escapes, so a repo-wide breakage cannot deadlock every PR (advisor, #1311)
+    assert f"for THIS PR, the {ffc.OVERRIDE_LABEL} label + a ledger decision line" in out
+    assert "REPO-WIDE breakage" in out and "FLOOR_FRAGMENT_CHECK=report" in out
     calls = _sequence(monkeypatch, [_row("inconclusive")], [_row("inconclusive")])
     assert ffc.main(["--pr", "1294"]) == 1 and calls["n"] == 2
 

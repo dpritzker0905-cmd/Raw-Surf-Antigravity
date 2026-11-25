@@ -277,8 +277,11 @@ def main(argv=None, sleep=None) -> int:
         print(f"::{level} title=Floor fragment mismatch ({r['lane']})::{r['why']}. Fix: {r['fix']}")
     if still_unknown:
         why = err or "; ".join(f"{r['lane']}: {r['why']}" for r in rows if r["state"] == "inconclusive")
-        print(f"::{level} title=Floor fragment check unknown after one retry::{why[:300]}. Fix the collection error, "
-              f"or override (label + ledger decision line)")
+        # Two escapes, so a genuine breakage never deadlocks every PR (advisor, #1311): the per-PR override for ONE PR,
+        # the repo variable for a repo-wide breakage (e.g. dev breaks an import every PR inherits).
+        print(f"::{level} title=Floor fragment check unknown after one retry::{why[:300]}. Fix the collection error. "
+              f"Escapes: for THIS PR, the {OVERRIDE_LABEL} label + a ledger decision line; for a REPO-WIDE breakage "
+              f"(every PR fails the same way), repo variable FLOOR_FRAGMENT_CHECK=report until dev is fixed")
     for r in rows or []:
         if r["state"] == "shrinks":
             print(f"::warning title=Floor fragment check shrinks ({r['lane']})::{r['why']}")
