@@ -518,12 +518,28 @@ async def tide_norm_at(lat, lng, valid_time, client=None) -> Optional[dict]:
         series = await fetch_tide_hourly(lat, lng, client=client)
         if not series:
             return None
-        return tide_state_at(series["time"], series["level"], valid_time)
+        return _with_display_datum(tide_state_at(series["time"], series["level"], valid_time), lat, lng, series)
     days = _days_covering(datetime.now(timezone.utc), valid_time)
     series = await fetch_tide_hourly(lat, lng, client=client, forecast_days=days)
     if not series:
         return None
-    return tide_state_at(series["time"], series["level"], valid_time, max_gap_h=TIDE_MAX_GAP_H)
+    return _with_display_datum(tide_state_at(series["time"], series["level"], valid_time, max_gap_h=TIDE_MAX_GAP_H),
+                               lat, lng, series)
+
+
+def _with_display_datum(state, lat, lng, series):
+    """DISPLAY ONLY (tide_datum, the one display composition): `height_m` stays the served MSL level that tide_fit,
+    the SURF_TIDE_DEPTH cap and water_level_m use; the card, glyph and chart rows show `display_height_m`. Added only
+    where the display is NOT the served level (a US point above MLLW), so the ratings blob carries no extra bytes
+    elsewhere; a reader without them shows height_m above local MSL, as before."""
+    if state is None:
+        return None
+    from services.weather_pipeline import tide_datum
+    block = tide_datum.datum_for(lat, lng, series)
+    if block["datum"] == "MLLW":
+        state = dict(state, display_height_m=tide_datum.display_m(state.get("height_m"), block),
+                     datum="MLLW", datum_src=block["source"])         # gauge | model | interpolated
+    return state
 
 
 def _reset_tide_cache_for_test():

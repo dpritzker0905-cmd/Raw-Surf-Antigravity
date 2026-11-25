@@ -1641,3 +1641,12 @@ A stored estimate can be estimated again in a browser branch with different sour
 - **Rule:** read the mode from the run's report header `## Flag guardrail (enforce)` / `(dry-run)` in its log or step
   summary, or from `gh variable list` (`FLAG_GUARDRAIL_ENFORCE`). Never from a template line, and never from a
   one-line print of fields without their names.
+
+### 2026-11-25 — L-P51 · A report-only check is only as good as the author who reads it: read its table before sending a head (#1294)
+- **What happened:** the PR-time floor fragment check (#1277, report-only) printed `estate | 5 | 0 | 4 | mismatch` on
+  #1294 with the exact fix command. The job was green, the author sent the head without reading it, and the estate floor
+  ran one test low until the catch-up #1309. The extra test came from a parametrization over workflow files
+  (`test_workflow_key_environment.py`) that grows when a workflow is ADDED, with no test file touched: the case the
+  check exists for.
+- **Rule:** before sending a PR head, open `backend-floor-fragment-check`'s table (step summary) and fix any mismatch with
+  the printed `rederive_floor.py` command. When adding a workflow, expect parametrized workflow tests to grow.

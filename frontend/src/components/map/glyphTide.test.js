@@ -12,7 +12,7 @@ import { clearPointTideCache, loadPointTide } from './usePointTide';
 import { tideCellKey } from './tideClient';
 import { tideMarkerModel } from './tideOverlayModel';
 import { forecastSelectionMs } from './forecastReadout';
-import { glyphTideLine, glyphTideOwnEnabled } from './glyphTide';
+import { glyphTideAria, glyphTideLine, glyphTideOwnEnabled } from './glyphTide';
 
 const NOW = Date.parse('2026-11-23T12:00:00Z');
 const series = Array.from({ length: 49 }, (_, i) => ({
@@ -60,8 +60,9 @@ describe('flag on: the glyph reads the marker', () => {
     const marker = tideMarkerModel(payload, forecastSelectionMs(hour), 'ft', 'Sebastian Inlet');
     expect(marker.available).toBe(true);
     const line = glyphTideLine(marker);
-    expect(line).toBe(`${marker.heightText} ${marker.trendWord.toLowerCase()}`);
-    expect(glyph().getAttribute('aria-label')).toContain(`tide ${line}`);
+    expect(line).toBe(`${marker.heightText}, ${marker.trendWord.toLowerCase()}`);   // decision B: plain, no datum
+    expect(glyph().getAttribute('aria-label')).toContain(`tide ${glyphTideAria(marker)}`);   // precise, with the datum
+    expect(glyphTideAria(marker)).toMatch(/ (feet|metres) (above|below) (mean lower low water|local mean sea level)/);
     expect(glyph().getAttribute('aria-label')).not.toMatch(/8\.2 ft/);   // the baked 2.5 m
     fireEvent.focus(glyph());
     expect(screen.getByText(`Tide ${line}`, { exact: false })).toBeTruthy();
@@ -73,7 +74,7 @@ describe('flag on: the glyph reads the marker', () => {
     const a = glyph().getAttribute('aria-label');
     rerender(<MapMarkerLayers {...props(4)} />);
     expect(glyph().getAttribute('aria-label')).not.toBe(a);
-    expect(glyph().getAttribute('aria-label')).toContain(glyphTideLine(tideMarkerModel(payload, forecastSelectionMs(4), 'ft', 'x')));
+    expect(glyph().getAttribute('aria-label')).toContain(glyphTideAria(tideMarkerModel(payload, forecastSelectionMs(4), 'ft', 'x')));
   });
 
   it('hover asks /point-tide through the shared loader, never Open-Meteo; past coverage there is no tide line', async () => {
@@ -88,7 +89,8 @@ describe('flag on: the glyph reads the marker', () => {
     window.__RAW_DISABLE_GLYPH_TIDE_OWN__ = true;
     expect(glyphTideOwnEnabled()).toBe(false);
     render(<MapMarkerLayers {...props(3)} />);
-    expect(glyph().getAttribute('aria-label')).toMatch(/tide 8\.2 ft rising/);   // the baked rating.tide, as before
+    // the baked rating.tide, as before; decision B: the accessible name is precise ("above local mean sea level" off-US)
+    expect(glyph().getAttribute('aria-label')).toMatch(/tide 8\.2 feet above local mean sea level, rising/);
   });
 });
 
@@ -96,7 +98,7 @@ describe('flag off (the default build): unchanged', () => {
   it('the baked rating.tide is the line, and the flag reads off', () => {
     expect(glyphTideOwnEnabled()).toBe(false);
     render(<MapMarkerLayers {...props(3)} />);
-    expect(glyph().getAttribute('aria-label')).toMatch(/tide 8\.2 ft rising/);
+    expect(glyph().getAttribute('aria-label')).toMatch(/tide 8\.2 feet above local mean sea level, rising/);
   });
 });
 

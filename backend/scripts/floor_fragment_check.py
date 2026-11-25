@@ -184,38 +184,116 @@ def report(rows: list) -> str:
     return "\n".join(lines) + "\n"
 
 
-def main(argv=None) -> int:
+OVERRIDE_LABEL = "floor-fragment-override"
+# ANCHORED (advisor limit 2 on #1311): authorized_by must START with David or the director, so "not the director" or
+# "claude lane, asked the director" does not pass.
+AUTHORIZERS = re.compile(r"\s*(?:david|director)\b", re.IGNORECASE)
+MIN_REASON = 20
+
+
+def override_ok(pr: int, labels, ledger_lines) -> tuple:
+    """(ok, why) for a BLOCKING mismatch on PR `pr` (advisor's staged plan, step b). PURE.
+    Both are required: the `floor-fragment-override` label on the PR, AND a ledger line this PR adds (its own
+    `docs/weather-program/ledger.d/*.jsonl` fragment) of kind `decision`, whose target names the override and `#<pr>`,
+    whose `why` is a written reason (>= 20 characters), and whose `authorized_by` names David or the director.
+    LIMIT, stated: every lane, the director and David push through ONE GitHub account, so GitHub cannot tell who applied
+    the label; the authorizer is a written, ledgered claim reviewed by the advisor, not an identity check."""
+    if OVERRIDE_LABEL not in set(labels or []):
+        return False, f"no `{OVERRIDE_LABEL}` label"
+    for line in ledger_lines or []:
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        target, why, auth = str(e.get("target", "")), str(e.get("why", "")), str(e.get("authorized_by", ""))
+        if (e.get("kind") == "decision" and OVERRIDE_LABEL in target and re.search(rf"#{pr}\b", target)
+                and len(why.strip()) >= MIN_REASON and AUTHORIZERS.match(auth)):
+            return True, f"overridden: {why.strip()[:160]} (authorized by {auth[:80]})"
+    return False, (f"the `{OVERRIDE_LABEL}` label is present but no ledger `decision` line in this PR names "
+                   f"`{OVERRIDE_LABEL} #{pr}` with a written reason authorized by David or the director")
+
+
+def _pr_ledger_lines(base_ref: str) -> list:
+    """Lines this PR adds to ledger fragments (merge base..HEAD)."""
+    mb = _git("merge-base", "HEAD", base_ref).strip()
+    diff = _git("diff", "--unified=0", mb, "HEAD", "--", "docs/weather-program/ledger.d")
+    return [ln[1:] for ln in diff.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
+
+
+def _attempt(base: str) -> tuple:
+    """(rows, None) or (None, error text): one full collection of both sides."""
+    try:
+        return run(base), None
+    except Exception as e:                                      # noqa: BLE001 - git or collection trouble
+        return None, f"{type(e).__name__}: {str(e)[:300]}"
+
+
+def _unknown(rows, err) -> bool:
+    return err is not None or any(r["state"] == "inconclusive" for r in rows or [])
+
+
+def main(argv=None, sleep=None) -> int:
+    """OUTCOMES (David's "Yes, block + fix", after SubQ + Reflection both flagged fail-open on unknown):
+      every lane ok / no relevant change / fragments-only / shrinks only -> pass (exit 0)
+      a mismatch                                                        -> FAIL unless overridden
+      unknown (a collection error, an inconclusive lane, or a crash)    -> retry the collection ONCE; still unknown ->
+                                                                           FAIL unless overridden (the SAME override:
+                                                                           label + ledger decision line)
+    --report-only (FLOOR_FRAGMENT_CHECK=report) turns every outcome into warnings and exit 0. A docs-only PR never gets
+    here: the job's `if:` skips it, which a required check counts as success."""
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--base", default="origin/dev", help="the PR's base ref or sha")
     ap.add_argument("--report-only", action="store_true", help="annotate, never fail")
+    ap.add_argument("--pr", type=int, default=0, help="the PR number (blocking mode reads its override)")
+    ap.add_argument("--labels", default="", help="the PR's labels, comma separated (blocking mode)")
     a = ap.parse_args(argv)
-    try:
-        rows = run(a.base)
-    except Exception as e:                                      # noqa: BLE001 - git or collection trouble
-        print(f"::warning title=Floor fragment check inconclusive::{type(e).__name__}: {str(e)[:300]}")
-        return 0 if a.report_only else 3
-    text = report(rows)
-    print(text)
-    summary = os.environ.get("GITHUB_STEP_SUMMARY")
-    if summary:
-        with open(summary, "a", encoding="utf-8") as fh:
-            fh.write("### Floor fragment check\n\n" + text)
-    level = "warning" if a.report_only else "error"
-    bad = [r for r in rows if r["state"] == "mismatch"]
+    rows, err = _attempt(a.base)
+    retried = False
+    if _unknown(rows, err):                                     # one retry: a flaky import or a runner hiccup
+        print(f"::notice title=Floor fragment check retry::unknown on the first collection "
+              f"({err or 'an inconclusive lane'}); collecting once more")
+        (sleep or (lambda s: None))(5)
+        rows, err = _attempt(a.base)
+        retried = True
+    if rows is not None:
+        text = report(rows)
+        print(text)
+        summary = os.environ.get("GITHUB_STEP_SUMMARY")
+        if summary:
+            with open(summary, "a", encoding="utf-8") as fh:
+                fh.write("### Floor fragment check\n\n" + text + ("\n(after one retry)\n" if retried else ""))
+    bad = [r for r in rows or [] if r["state"] == "mismatch"]
+    still_unknown = _unknown(rows, err)
+    needs_override = bool(bad) or still_unknown
+    ok_override, override_why = (False, "")
+    if needs_override and not a.report_only:
+        try:
+            ok_override, override_why = override_ok(a.pr, [x.strip() for x in a.labels.split(",") if x.strip()],
+                                                    _pr_ledger_lines(a.base))
+        except Exception as e:                                  # noqa: BLE001 - no override when it cannot be read
+            ok_override, override_why = False, f"override unreadable: {type(e).__name__}"
+    level = "warning" if (a.report_only or ok_override) else "error"
     for r in bad:
         print(f"::{level} title=Floor fragment mismatch ({r['lane']})::{r['why']}. Fix: {r['fix']}")
-    for r in rows:
-        if r["state"] in ("inconclusive", "shrinks"):
-            print(f"::warning title=Floor fragment check {r['state']} ({r['lane']})::{r['why']}")
-    gone = rows[0].get("deleted_fragments") or []
+    if still_unknown:
+        why = err or "; ".join(f"{r['lane']}: {r['why']}" for r in rows if r["state"] == "inconclusive")
+        # Two escapes, so a genuine breakage never deadlocks every PR (advisor, #1311): the per-PR override for ONE PR,
+        # the repo variable for a repo-wide breakage (e.g. dev breaks an import every PR inherits).
+        print(f"::{level} title=Floor fragment check unknown after one retry::{why[:300]}. Fix the collection error. "
+              f"Escapes: for THIS PR, the {OVERRIDE_LABEL} label + a ledger decision line; for a REPO-WIDE breakage "
+              f"(every PR fails the same way), repo variable FLOOR_FRAGMENT_CHECK=report until dev is fixed")
+    for r in rows or []:
+        if r["state"] == "shrinks":
+            print(f"::warning title=Floor fragment check shrinks ({r['lane']})::{r['why']}")
+    gone = (rows or [{}])[0].get("deleted_fragments") or []
     if gone:                                            # advisor L2: a lowered floor is WARNED about, never blocking
         print(f"::warning title=Floor fragment deleted::this PR deletes {', '.join(gone)} (lowers a floor); "
               f"compaction (rederive_floor.py --compact) belongs in a PR of its own")
+    if needs_override and not a.report_only:
+        print(f"::{level} title=Floor fragment override::{override_why}")
     if a.report_only:
         return 0
-    if bad:
-        return 1
-    return 3 if any(r["state"] == "inconclusive" for r in rows) else 0
+    return 1 if (needs_override and not ok_override) else 0
 
 
 if __name__ == "__main__":

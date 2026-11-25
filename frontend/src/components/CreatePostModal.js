@@ -627,8 +627,8 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     </Select>
                   </div>
                   <div>
-                    <label htmlFor="tide-height-input" className="text-xs text-gray-400 mb-1 block">Tide Height (ft)</label>
-                    <Input id="tide-height-input" aria-label="e.g., 2.3"
+                    <label htmlFor="tide-height-input" className="text-xs text-gray-400 mb-1 block">Tide Height (ft above MLLW)</label>
+                    <Input id="tide-height-input" aria-label="Tide height in feet above MLLW, e.g., 2.3"
                       type="number"
                       step="0.1"
                       value={tideHeightFt}

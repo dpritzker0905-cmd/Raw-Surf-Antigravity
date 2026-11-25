@@ -432,11 +432,16 @@ async def get_spot_tides(spot_id: str, db: AsyncSession = Depends(get_db)):
                 fetch_tide_hourly, tide_extrema, tide_trend_at)
             series = await fetch_tide_hourly(spot.latitude, spot.longitude)
             if series:
+                from services.weather_pipeline import tide_datum
                 events = tide_extrema(series.get("time"), series.get("level"))
                 now_utc = datetime.now(timezone.utc)
+                # ONE display datum (tide_datum): above MLLW at US points, else local MSL; `height_msl` keeps the
+                # served level for the transition line.
+                datum = tide_datum.datum_for(spot.latitude, spot.longitude, series)
                 tides = [{
                     "time": e["time"].strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "height": round(e["level_m"] * 3.28084, 2),
+                    "height": round(tide_datum.display_m(e["level_m"], datum) * 3.28084, 2),
+                    "height_msl": round(e["level_m"] * 3.28084, 2),
                     "type": e["type"],
                 } for e in events if e["time"] >= now_utc - timedelta(hours=6)]
                 if tides:
@@ -449,6 +454,7 @@ async def get_spot_tides(spot_id: str, db: AsyncSession = Depends(get_db)):
                         "source": "global",
                         "tides": tides,
                         "current_status": tide_trend_at(events, now_utc),
+                        "datum": datum,
                     }
                     if src:
                         from services.weather_pipeline.tide_credits import FES_LICENCE

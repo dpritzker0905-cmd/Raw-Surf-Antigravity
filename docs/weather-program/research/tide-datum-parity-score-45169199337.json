@@ -1,0 +1,732 @@
+{
+ "artifact_generated_at": "2026-11-23T11:58:04Z",
+ "bar": {
+  "median": 0.03,
+  "p90": 0.08,
+  "gauge": 0.1,
+  "gauges_needed": 24,
+  "signed": 0.02
+ },
+ "controls": {
+  "planted_d_identity": {
+   "pass": true,
+   "per_gauge": {
+    "1611400": [
+     true,
+     0.0,
+     0.0,
+     26
+    ],
+    "1612340": [
+     true,
+     0.0,
+     0.0,
+     26
+    ],
+    "1615680": [
+     true,
+     0.0,
+     0.0,
+     26
+    ],
+    "1617760": [
+     true,
+     0.0,
+     0.0,
+     26
+    ],
+    "8443970": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "8452660": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "8531680": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "8534720": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "8651370": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "8658163": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "8665530": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "8720030": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "8722670": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "8723214": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "8726724": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "8771510": [
+     true,
+     0.0,
+     0.0,
+     15
+    ],
+    "9410230": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "9410660": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "9413450": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "9415020": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "9419750": [
+     true,
+     0.0,
+     0.0,
+     27
+    ],
+    "9435380": [
+     true,
+     0.0,
+     0.0,
+     28
+    ],
+    "9443090": [
+     true,
+     0.0,
+     0.0,
+     28
+    ],
+    "9751639": [
+     true,
+     0.0,
+     0.0,
+     14
+    ],
+    "9755371": [
+     true,
+     0.0,
+     0.0,
+     26
+    ]
+   }
+  },
+  "finder_heights": {
+   "pass": true,
+   "over": {}
+  }
+ },
+ "void": false,
+ "model_tb": {
+  "aggregate": {
+   "events": 647,
+   "median_abs_h_m": 0.0261,
+   "p90_abs_h_m": 0.0903,
+   "median_signed_h_m": -0.0151,
+   "gauges_pass": 25,
+   "gauges_total": 26,
+   "not_measured": [
+    "8729840"
+   ]
+  },
+  "legs": {
+   "median": true,
+   "p90": false,
+   "per_gauge": true,
+   "signed": true
+  },
+  "pass": false,
+  "gauges": {
+   "1611400": {
+    "noaa_events": 26,
+    "matched": 26,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0203,
+    "median_signed_h_m": 0.0123,
+    "pass_gauge": true
+   },
+   "1612340": {
+    "noaa_events": 26,
+    "matched": 26,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0124,
+    "median_signed_h_m": 0.0033,
+    "pass_gauge": true
+   },
+   "1615680": {
+    "noaa_events": 26,
+    "matched": 26,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0171,
+    "median_signed_h_m": -0.0166,
+    "pass_gauge": true
+   },
+   "1617760": {
+    "noaa_events": 26,
+    "matched": 26,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0118,
+    "median_signed_h_m": -0.007,
+    "pass_gauge": true
+   },
+   "8443970": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0857,
+    "median_signed_h_m": -0.0857,
+    "pass_gauge": true
+   },
+   "8452660": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0359,
+    "median_signed_h_m": -0.0359,
+    "pass_gauge": true
+   },
+   "8531680": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0642,
+    "median_signed_h_m": -0.0437,
+    "pass_gauge": true
+   },
+   "8534720": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0539,
+    "median_signed_h_m": -0.0539,
+    "pass_gauge": true
+   },
+   "8651370": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0772,
+    "median_signed_h_m": -0.0772,
+    "pass_gauge": true
+   },
+   "8658163": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0224,
+    "median_signed_h_m": -0.0143,
+    "pass_gauge": true
+   },
+   "8665530": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0226,
+    "median_signed_h_m": -0.0143,
+    "pass_gauge": true
+   },
+   "8720030": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0575,
+    "median_signed_h_m": -0.0575,
+    "pass_gauge": true
+   },
+   "8722670": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0212,
+    "median_signed_h_m": -0.0136,
+    "pass_gauge": true
+   },
+   "8723214": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.076,
+    "median_signed_h_m": -0.0086,
+    "pass_gauge": true
+   },
+   "8726724": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0107,
+    "median_signed_h_m": -0.0068,
+    "pass_gauge": true
+   },
+   "8729840": {
+    "noaa_events": 14,
+    "matched": 6,
+    "share": 0.429,
+    "measured": false,
+    "median_abs_h_m": 0.0508,
+    "median_signed_h_m": 0.0508,
+    "pass_gauge": false
+   },
+   "8771510": {
+    "noaa_events": 15,
+    "matched": 15,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0214,
+    "median_signed_h_m": -0.0162,
+    "pass_gauge": true
+   },
+   "9410230": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0104,
+    "median_signed_h_m": -0.003,
+    "pass_gauge": true
+   },
+   "9410660": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0113,
+    "median_signed_h_m": -0.0113,
+    "pass_gauge": true
+   },
+   "9413450": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0203,
+    "median_signed_h_m": -0.0097,
+    "pass_gauge": true
+   },
+   "9415020": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0368,
+    "median_signed_h_m": -0.0368,
+    "pass_gauge": true
+   },
+   "9419750": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0122,
+    "median_signed_h_m": -0.0009,
+    "pass_gauge": true
+   },
+   "9435380": {
+    "noaa_events": 28,
+    "matched": 28,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.051,
+    "median_signed_h_m": -0.051,
+    "pass_gauge": true
+   },
+   "9443090": {
+    "noaa_events": 28,
+    "matched": 28,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0251,
+    "median_signed_h_m": 0.0071,
+    "pass_gauge": true
+   },
+   "9751639": {
+    "noaa_events": 14,
+    "matched": 14,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0191,
+    "median_signed_h_m": 0.0084,
+    "pass_gauge": true
+   },
+   "9755371": {
+    "noaa_events": 26,
+    "matched": 26,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.033,
+    "median_signed_h_m": -0.033,
+    "pass_gauge": true
+   }
+  }
+ },
+ "sheet_tb": {
+  "aggregate": {
+   "events": 647,
+   "median_abs_h_m": 0.0213,
+   "p90_abs_h_m": 0.0777,
+   "median_signed_h_m": 0.0008,
+   "gauges_pass": 24,
+   "gauges_total": 26,
+   "not_measured": [
+    "8729840"
+   ]
+  },
+  "legs": {
+   "median": true,
+   "p90": true,
+   "per_gauge": true,
+   "signed": true
+  },
+  "pass": true,
+  "gauges": {
+   "1611400": {
+    "noaa_events": 26,
+    "matched": 26,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0156,
+    "median_signed_h_m": -0.0001,
+    "pass_gauge": true
+   },
+   "1612340": {
+    "noaa_events": 26,
+    "matched": 26,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0158,
+    "median_signed_h_m": -0.005,
+    "pass_gauge": true
+   },
+   "1615680": {
+    "noaa_events": 26,
+    "matched": 26,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0185,
+    "median_signed_h_m": -0.0032,
+    "pass_gauge": true
+   },
+   "1617760": {
+    "noaa_events": 26,
+    "matched": 26,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0197,
+    "median_signed_h_m": -0.0171,
+    "pass_gauge": true
+   },
+   "8443970": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0379,
+    "median_signed_h_m": 0.0115,
+    "pass_gauge": true
+   },
+   "8452660": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.031,
+    "median_signed_h_m": 0.0116,
+    "pass_gauge": true
+   },
+   "8531680": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0553,
+    "median_signed_h_m": -0.0311,
+    "pass_gauge": true
+   },
+   "8534720": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0117,
+    "median_signed_h_m": -0.0011,
+    "pass_gauge": true
+   },
+   "8651370": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.1405,
+    "median_signed_h_m": 0.0552,
+    "pass_gauge": false
+   },
+   "8658163": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0225,
+    "median_signed_h_m": -0.0007,
+    "pass_gauge": true
+   },
+   "8665530": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0619,
+    "median_signed_h_m": 0.0619,
+    "pass_gauge": true
+   },
+   "8720030": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0368,
+    "median_signed_h_m": 0.0303,
+    "pass_gauge": true
+   },
+   "8722670": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0182,
+    "median_signed_h_m": -0.0103,
+    "pass_gauge": true
+   },
+   "8723214": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0726,
+    "median_signed_h_m": -0.0726,
+    "pass_gauge": true
+   },
+   "8726724": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0137,
+    "median_signed_h_m": 0.0088,
+    "pass_gauge": true
+   },
+   "8729840": {
+    "noaa_events": 14,
+    "matched": 6,
+    "share": 0.429,
+    "measured": false,
+    "median_abs_h_m": 0.0494,
+    "median_signed_h_m": 0.0494,
+    "pass_gauge": false
+   },
+   "8771510": {
+    "noaa_events": 15,
+    "matched": 15,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0114,
+    "median_signed_h_m": -0.0037,
+    "pass_gauge": true
+   },
+   "9410230": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0118,
+    "median_signed_h_m": 0.0031,
+    "pass_gauge": true
+   },
+   "9410660": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0067,
+    "median_signed_h_m": 0.0049,
+    "pass_gauge": true
+   },
+   "9413450": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0225,
+    "median_signed_h_m": -0.0059,
+    "pass_gauge": true
+   },
+   "9415020": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0289,
+    "median_signed_h_m": -0.0126,
+    "pass_gauge": true
+   },
+   "9419750": {
+    "noaa_events": 27,
+    "matched": 27,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0095,
+    "median_signed_h_m": 0.0029,
+    "pass_gauge": true
+   },
+   "9435380": {
+    "noaa_events": 28,
+    "matched": 28,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.015,
+    "median_signed_h_m": -0.0094,
+    "pass_gauge": true
+   },
+   "9443090": {
+    "noaa_events": 28,
+    "matched": 28,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0259,
+    "median_signed_h_m": 0.0063,
+    "pass_gauge": true
+   },
+   "9751639": {
+    "noaa_events": 14,
+    "matched": 14,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0217,
+    "median_signed_h_m": 0.0004,
+    "pass_gauge": true
+   },
+   "9755371": {
+    "noaa_events": 26,
+    "matched": 26,
+    "share": 1.0,
+    "measured": true,
+    "median_abs_h_m": 0.0162,
+    "median_signed_h_m": -0.0115,
+    "pass_gauge": true
+   }
+  }
+ },
+ "reported_raw": {
+  "model": {
+   "n": 661,
+   "unmatched": 8,
+   "height_median_abs_m": 0.0458,
+   "height_max_abs_m": 0.3643,
+   "time_median_min": 8.3,
+   "time_max_min": 174.4,
+   "height_median_signed_m": -0.043,
+   "height_p90_abs_m": 0.1225,
+   "time_p90_min": 35.2
+  },
+  "sheet": {
+   "n": 661,
+   "unmatched": 8,
+   "height_median_abs_m": 0.0362,
+   "height_max_abs_m": 0.2319,
+   "time_median_min": 8.3,
+   "time_max_min": 174.4,
+   "height_median_signed_m": -0.0251,
+   "height_p90_abs_m": 0.1002,
+   "time_p90_min": 35.2
+  },
+  "model_tb": {
+   "n": 661,
+   "unmatched": 8,
+   "height_median_abs_m": 0.0261,
+   "height_max_abs_m": 0.3356,
+   "time_median_min": 8.3,
+   "time_max_min": 174.4,
+   "height_median_signed_m": -0.0149,
+   "height_p90_abs_m": 0.0893,
+   "time_p90_min": 35.2
+  },
+  "sheet_tb": {
+   "n": 661,
+   "unmatched": 8,
+   "height_median_abs_m": 0.0215,
+   "height_max_abs_m": 0.2073,
+   "time_median_min": 8.3,
+   "time_max_min": 174.4,
+   "height_median_signed_m": 0.0011,
+   "height_p90_abs_m": 0.0776,
+   "time_p90_min": 35.2
+  }
+ },
+ "verdict": "FAIL",
+ "sheet_limit": false
+}
