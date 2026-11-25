@@ -52,3 +52,49 @@ silently reads low.
    changed nothing else in those two files, `git checkout --theirs .github/workflows/ci.yml backend/tests/test_ci_floor_staleness.py`.
 3. Write the fragment: `python backend/scripts/rederive_floor.py --lane <lane> --add <N> --add-files <M>`.
    For a backend lane, `--add auto` reads the PR's own earlier change.
+
+## The PR-time fragment check is BLOCKING (2026-11-25, #1311)
+
+`backend-floor-fragment-check` (`backend/scripts/floor_fragment_check.py`) collects every backend lane at the PR head
+and at its merge base, and compares each lane's delta with the PR's own fragments.
+
+### Outcomes
+
+| outcome | result |
+|---|---|
+| every lane ok, no relevant change, fragments-only, or shrinks only | pass |
+| docs-only PR | never runs: the job-level `if:` skips it, which a required check counts as success |
+| mismatch | **fails**, and prints the exact `rederive_floor.py` command that fixes it |
+| unknown (a collection error, an inconclusive lane, or a crash) | the collection is retried once, after a 15 s pause (`FLOOR_FRAGMENT_RETRY_PAUSE_S`); still unknown = **fails** |
+
+### Required check
+
+Since 2026-11-25T03:50Z the check is one of the 13 required status checks of the dev ruleset
+(`dev: ci.yml jobs must pass`, id 25675068, integration 15368 = GitHub Actions). The director made that change on David's
+words "Yes, make it block" and "Yes, block + fix". To read the list:
+`gh api repos/:owner/:repo/rulesets/25675068 --jq '[.rules[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context]'`.
+Removing the check from the ruleset is the owner's decision, like adding it.
+
+### Escapes
+
+- **One PR** blocked by a mismatch or an unknown result: label the PR `floor-fragment-override`, AND add a ledger
+  `decision` line to the PR's own fragment:
+
+  ```bash
+  python backend/scripts/action_ledger.py append --kind decision --target "floor-fragment-override #<pr>"
+  ```
+
+  - **`--why`:** a written reason, ≥ 20 characters.
+  - **`--authorized-by`:** must START with David or the director.
+  - **`--actor`, `--outcome`, `--verified`, `--rollback`, `--evidence`:** as usual.
+
+  Then re-run the job; it reads the label live. Every lane uses one GitHub account, so the authorizer is a ledgered
+  claim the advisor reviews, not an identity check.
+- **A repo-wide breakage** (every PR fails the same way, e.g. dev broke an import): set repo variable
+  `FLOOR_FRAGMENT_CHECK=report`. Every outcome becomes a warning and the job passes. That is a CI-policy change:
+  1. record it with a ledger line (`--kind env_change`: why, who authorized it, the run that showed the breakage);
+  2. **revert it** (delete the variable, or set it to `block`) as soon as dev is fixed;
+  3. record the revert with a second ledger line.
+
+  Leaving it on silently turns the floor back into a minimum nobody checks, which was the 18-test slip this check
+  exists to stop.
