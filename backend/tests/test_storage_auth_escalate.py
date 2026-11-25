@@ -42,6 +42,18 @@ def test_the_24h_step_once_and_it_covers_a_missed_4h_step():
     assert sae.decide([_issue(1, day, "escalated", "escalated-4h", "escalated-24h")], NOW) == []
 
 
+def test_an_issue_first_seen_at_30h_gets_exactly_one_escalation_ever():
+    """Advisor HOLD on #1295: the 24 h step must also mark the 4 h step done, or the next hourly run posts a stale
+    "4 h" comment."""
+    issue = _issue(1, "2026-11-24T06:00:00Z")                                     # 30 h old, no escalation labels
+    first = sae.decide([issue], NOW)
+    assert [e["label"] for e in first] == ["escalated-24h"]
+    assert first[0]["add_labels"] == ["escalated", "escalated-24h", "escalated-4h"]
+    issue["labels"] += [{"name": x} for x in first[0]["add_labels"]]              # what the workflow applies
+    later = datetime(2026, 11, 25, 13, tzinfo=timezone.utc)                       # the next hourly run
+    assert sae.decide([issue], later) == []
+
+
 def test_the_cli_and_bad_input(tmp_path):
     p = tmp_path / "open.json"
     p.write_text(json.dumps([_issue(5, "2026-11-25T01:00:00Z"), {"number": 6}]), encoding="utf-8")

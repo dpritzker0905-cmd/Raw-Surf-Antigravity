@@ -1,7 +1,7 @@
 # STORAGE-AUTH ESCALATION (2026-11-25, storage-auth plan C, approved by David in the director session): a storage-auth issue
 # still open after 4 h, then after 24 h, gets a comment with docs/runbooks/storage-key-rotation.md and the labels
 # `escalated` + `escalated-4h` / `escalated-24h` (each once). COMMENTS AND LABELS ONLY: nothing is rotated, re-run or closed.
-# Hourly; GitHub drops some scheduled runs, so a step can land a few hours late (the 24 h step covers a missed 4 h one).
+# Hourly; GitHub drops some scheduled runs, so a step can land a few hours late (the 24 h step covers a missed 4 h one, and also applies escalated-4h so the 4 h step never fires after it..
 # scripts/storage_auth_escalate.py decides; tests/test_storage_auth_escalate.py pins it.
 name: Storage-auth escalation
 

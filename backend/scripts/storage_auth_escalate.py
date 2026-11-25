@@ -40,7 +40,9 @@ def decide(issues, now: datetime, repo_url: str = "") -> list:
         for hours, label in STEPS:
             if age_h >= hours and label not in have:
                 out.append({"number": i["number"], "label": label, "age_h": round(age_h, 1),
-                            "add_labels": sorted({"escalated", label}),
+                            # this step's label AND every earlier step's: an issue first seen at >= 24 h must not get
+                            # a stale "4 h" comment on the next run (advisor HOLD on #1295)
+                            "add_labels": sorted({"escalated"} | {lb for h, lb in STEPS if h <= hours}),
                             "comment": (f"**Escalation: open {age_h:.0f} h** (the step at {hours:g} h). Every data lane "
                                         f"that reads or writes storage is failing or warning until the key is fixed.\n\n"
                                         f"Runbook: [{RUNBOOK}]({link}): update the secret NAMED "
