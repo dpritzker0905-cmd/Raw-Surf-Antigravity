@@ -61,3 +61,19 @@ Append-only. Stamps come from `date -u`.
   - a +60 min plant gives a mismatch, so the plant fails.
   - pyTMD is not installed locally, so `harcon_eval` itself runs only in CI.
 - **Not done:** the pre-flight tag (David's word), committing its result, then the v2 tag (David's word).
+
+## 01:54Z: §13, amendment 3 (PRE-DATA): constants the pinned pyTMD cannot synthesise
+
+- **Trigger:** pre-flight 1 (run 45519746500) was NO RUN (#1301). pyTMD 3.1.0 raised `Unsupported constituent: mln2`.
+- **The advisor's ruling, relayed by the director:** skip the station or donor, never drop constituents.
+  - An unsupported donor counts as "no usable constants" (v1's replacement cause, same cap).
+  - An unsupported scored station is replaced within the cap.
+  - An unsupported pre-flight station is NOT TESTED and listed; the ≥ 300 floor binds.
+  - The stop rule: two consecutive `no_run_unknown` runs mean stop.
+- **Pre-data scan, inputs only** (`a_harcon_v2_unsupported_scan.py` under `paced_run.py`): 478 `harcon.json` reads,
+  run locally with the pinned pyTMD 3.1.0 (a scratch venv).
+  - Candidates 60/60 OK; prefix donors 59/59 OK; pre-flight 382/383 OK.
+  - The one unsupported station is 9455920, ANCHORAGE, Knik Arm (the station pre-flight 1 crashed on).
+  - Output: `research/tide-a-harcon-v2-unsupported.json`, sha256 `850a02cd…ff887978` (the committed LF bytes; the CRLF file the scan wrote on Windows hashed `00065605…eb86e348`).
+  - No synthesised value was kept, and no prediction, water level or window data was read.
+- **Next:** the instrument PR that implements §13 (its own gate), then pre-flight 2 on David's typed word.
