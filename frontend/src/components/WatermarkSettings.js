@@ -190,8 +190,8 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
           <div className="space-y-6">
             
             {/* Watermark Style Selection */}
-            <div className="space-y-3">
-              <Label className={textPrimaryClass}>Watermark Style</Label>
+            <fieldset className="min-w-0 space-y-3">
+              <Label asChild className={textPrimaryClass}><legend>Watermark Style</legend></Label>
               <div className="grid grid-cols-3 gap-3">
                 {styleOptions.map(option => {
                   const Icon = option.icon;
@@ -219,7 +219,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                   );
                 })}
               </div>
-            </div>
+            </fieldset>
 
             {/* Text Input (shown for 'text' and 'both' styles) */}
             {(settings.watermark_style === 'text' || settings.watermark_style === 'both') && (
