@@ -121,6 +121,31 @@ def test_build_am_h_skips_a_donor_without_constants():
     assert out == {}
 
 
+def test_build_am_h_survives_a_donor_the_synthesis_cannot_evaluate():
+    """A donor whose constants crash the synthesis (pyTMD 'Unsupported constituent: mln2', pre-flight run
+    45519746500) is skipped like a donor without constants: the build never fails and the other donors still serve."""
+    def harcon(sid):
+        return [("1", "M2", 1.0, 0.0, 28.98)]
+
+    def synth(hc, t):
+        raise ValueError("Unsupported constituent: mln2")
+    keys = {"a": (30.0, -80.0)}
+    out, meta = HA.build_am_h(keys, {"a": [0.2]}, {"a": 0.1}, UNI, harcon, synth, None, OR.levels_mm)
+    assert out == {} and meta == {}
+
+    calls = []
+
+    def synth_r2_only(hc, t):
+        calls.append(1)
+        if len(calls) == 1:
+            raise ValueError("Unsupported constituent: mln2")
+        return [2.0]
+    keys2 = {"a": (30.0, -80.0), "b": (31.0, -80.0)}
+    out2, meta2 = HA.build_am_h(keys2, {"a": [0.2], "b": [0.2]}, {"a": 0.1, "b": 0.1}, UNI, harcon, synth_r2_only,
+                                None, OR.levels_mm)
+    assert "a" not in out2 and meta2["b"]["donor"] == "R2" and out2["b"] == [2100]
+
+
 def test_the_table_encodes_am_h_and_tide_own_reads_it_back():
     now = datetime.now(UTC)
     doc = _doc(now)

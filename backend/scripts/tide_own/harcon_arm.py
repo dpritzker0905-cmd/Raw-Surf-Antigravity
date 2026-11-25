@@ -44,7 +44,12 @@ def build_am_h(keys_pts, a_by_key, m_by_key, universe, harcon_fn, synth_fn, time
             continue
         if did not in cache:
             hc = harcon_fn(did)
-            cache[did] = synth_fn(hc, times) if hc else None
+            try:
+                cache[did] = synth_fn(hc, times) if hc else None
+            except Exception:                                       # noqa: BLE001 - per donor, never the whole build
+                # A donor the synthesis cannot evaluate (e.g. pyTMD "Unsupported constituent: mln2", found by the
+                # tide-a-harcon-v2 pre-flight, run 45519746500) serves no am_h; its keys keep the FES arm.
+                cache[did] = None
         syn = cache[did]
         if syn is None:
             continue
