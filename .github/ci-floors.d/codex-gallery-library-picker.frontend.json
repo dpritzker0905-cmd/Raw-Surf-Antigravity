@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 8,
+  "files": 1,
+  "branch": "codex/gallery-library-picker",
+  "date": "2026-11-25",
+  "note": "Existing gallery library picker copy and navigation"
+}
