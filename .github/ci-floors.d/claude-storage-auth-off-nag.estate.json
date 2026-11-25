@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 3,
+  "branch": "claude/storage-auth-off-nag",
+  "date": "2026-11-25",
+  "note": "storage-check off nag (test_storage_auth_off_nag)"
+}

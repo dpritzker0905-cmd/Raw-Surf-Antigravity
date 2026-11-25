@@ -95,7 +95,7 @@ def run(override=None, oc_har=(0.20, 30.0)):
         for i in range(5):
             per[f"{p}R{i}"] = station(donor=f"D{p}R{i}") if p == "H" else station(har=oc_har, donor=f"D{p}R{i}")
     per.update(override or {})
-    return {"per_station": per, "window_start": "2027-02-01"}
+    return {"per_station": per, "window_start": "2027-02-01", "complete": True}
 
 
 def finder(bad=()):

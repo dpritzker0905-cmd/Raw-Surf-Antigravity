@@ -21,6 +21,7 @@ CI (repo root):  python backend/scripts/tide_datum/a_harcon_parity.py --fes-cach
 """
 import argparse
 import json
+import os
 import statistics as st
 import sys
 import urllib.request
@@ -35,6 +36,7 @@ for sub in ("tide_own", "tide_fes"):
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(BACKEND))
 import a_harcon_vendor as V                                       # noqa: E402  (verbatim from 1d92f7564)
+import a_harcon_v2 as V2                                          # noqa: E402  (gate v2: 6-min C2, plants)
 from a_harcon_frozen import _km                                   # noqa: E402  (verbatim from c29f234df)
 from services.weather_pipeline import tide as T                   # noqa: E402  (the served event finder)
 
@@ -130,6 +132,8 @@ def main(argv=None):
     ap.add_argument("--days", type=int, default=14)
     ap.add_argument("--stations", default=str(STATIONS))
     ap.add_argument("--json", default="tide_a_harcon_run.json")
+    ap.add_argument("--c2-grid-min", type=int, default=60, help="v2: 6 = C2 on the 6-min grid (gate v2 s5); 60 = v1")
+    ap.add_argument("--c5", action="store_true", help="v2: the planted breaks P1-P3 at each candidate (gate v2 s11)")
     a = ap.parse_args(argv)
     import arms                                                    # noqa: E402 - pyfes + pyTMD, CI only
     import own_rules as OR                                         # noqa: E402
@@ -169,9 +173,19 @@ def main(argv=None):
             truth_cache[sid] = truth_at(sid, day0, stop, harcon(sid), noaa_long_period)
         return truth_cache[sid]
 
+    def synth6(consts, times):                                     # v2: the candidate's synthesis, verbatim, any grid
+        return arms.harcon_eval(consts, arms.to_np(times))
+
     def identity(sid, la, lo):
-        """C2: the station's OWN constants vs NOAA at that station (raw band, both sides centred)."""
+        """C2: the station's OWN constants vs NOAA at that station (raw band, both sides centred). v2 (--c2-grid-min 6):
+        the same synthesis on the 6-min grid (a_harcon_v2.c2_rows)."""
         hc = harcon(sid)
+        if a.c2_grid_min != 60:
+            if not hc:
+                return {"error": "no constants"}
+            tr = truth(sid)
+            rows = V2.c2_rows(hc, tr["hilo"], tr["raw_mean"], day0, stop, synth6)
+            return {"rows": rows, "grid_min": V2.GRID_MIN} if rows is not None else {"error": "no synthesis"}
         own = arms.harcon_eval(hc, npt) if hc else None
         if own is None:
             return {"error": "no constants"}
@@ -198,6 +212,13 @@ def main(argv=None):
         row.update(noaa_events=len(tr["hilo"]), fes_tb=events_rows(tr["hilo_tb"], tr["tb_mean"], hours, fes_tb, day0, stop),
                    fes_raw=events_rows(tr["hilo"], tr["raw_mean"], hours, fes, day0, stop),
                    c2_station=identity(sid, la, lo), donors=[])
+        if a.c5:                                                   # v2 C5 (s11, s12): each plant's C2 status, VOID-only
+            hc0 = harcon(sid)
+            row["c5"] = {}
+            for n, (f, sh) in V2.C5_PLANTS.items():
+                r5 = V2.c2_rows(hc0, tr["hilo"], tr["raw_mean"], day0, stop, synth6, f, sh) if hc0 else None
+                row["c5"][n] = V2.c2_status(r5)[0] if r5 is not None else "untestable"
+            row["c2_minors_diag"] = V2.minors_diagnostic(hc0, tr, day0, stop)
         for dn in donor_prefix(sid, la, lo, universe, cand_ids):
             hc = harcon(dn["id"])
             syn = arms.harcon_eval(hc, npt) if hc else None
@@ -217,9 +238,10 @@ def main(argv=None):
         print(sid, stratum, len(row["donors"]), "donor(s)", flush=True)
     out = {"schema": "raw-surf/tide-a-harcon-v1-run/1", "gate": "gates/tide-a-harcon-v1.md",
            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "window_start": a.start,
-           "days": a.days, "candidates": [[i, k] for i, k in cand], "per_station": per}
-    with open(a.json, "w", encoding="utf-8", newline="\n") as fh:
+           "days": a.days, "candidates": [[i, k] for i, k in cand], "per_station": per, "complete": True}
+    with open(a.json + ".tmp", "w", encoding="utf-8", newline="\n") as fh:   # amendment 3: atomic, never a partial file
         json.dump(out, fh, indent=1, default=str)
+    os.replace(a.json + ".tmp", a.json)
 
 
 if __name__ == "__main__":

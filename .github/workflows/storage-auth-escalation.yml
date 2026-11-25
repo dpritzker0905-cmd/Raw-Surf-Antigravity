@@ -1,0 +1,58 @@
+# STORAGE-AUTH ESCALATION (2026-11-25, storage-auth plan C, approved by David in the director session): a storage-auth issue
+# still open after 4 h, then after 24 h, gets a comment with docs/runbooks/storage-key-rotation.md and the labels
+# `escalated` + `escalated-4h` / `escalated-24h` (each once). COMMENTS AND LABELS ONLY: nothing is rotated, re-run or closed.
+# Hourly; GitHub drops some scheduled runs, so a step can land a few hours late (the 24 h step covers a missed 4 h one, and also applies escalated-4h so the 4 h step never fires after it..
+# scripts/storage_auth_escalate.py decides; tests/test_storage_auth_escalate.py pins it.
+name: Storage-auth escalation
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: storage-auth-escalation
+  cancel-in-progress: false
+
+jobs:
+  escalate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Escalate an open storage-auth issue (comments and labels only)
+        working-directory: backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh issue list --repo "$GITHUB_REPOSITORY" --label storage-auth --state open \
+            --json number,title,createdAt,labels > /tmp/open.json
+          python3 scripts/storage_auth_escalate.py --open-issues /tmp/open.json --repo-url "$REPO_URL" > /tmp/esc.json
+          cat /tmp/esc.json; echo
+          n=$(python3 -c "import json;print(len(json.load(open('/tmp/esc.json'))))")
+          [ "$n" = "0" ] && { echo "nothing to escalate"; exit 0; }
+          for l in "escalated:b60205:A storage-auth issue left open" "escalated-4h:d93f0b:Open 4 h" "escalated-24h:b60205:Open 24 h"; do
+            gh label create "${l%%:*}" --repo "$GITHUB_REPOSITORY" --color "$(echo "$l" | cut -d: -f2)" \
+              --description "$(echo "$l" | cut -d: -f3-)" --force >/dev/null
+          done
+          python3 - <<'PY'
+          import json, subprocess, os
+          repo = os.environ["GITHUB_REPOSITORY"]
+          for e in json.load(open("/tmp/esc.json")):
+              subprocess.run(["gh", "issue", "comment", str(e["number"]), "--repo", repo, "--body", e["comment"]], check=True)
+              subprocess.run(["gh", "issue", "edit", str(e["number"]), "--repo", repo,
+                              "--add-label", ",".join(e["add_labels"])], check=True)
+              print(f"escalated #{e['number']}: {e['label']} (open {e['age_h']} h)")
+          PY

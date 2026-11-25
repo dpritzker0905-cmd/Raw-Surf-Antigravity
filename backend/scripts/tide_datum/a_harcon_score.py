@@ -44,14 +44,16 @@ def station_stats(rows):
             len(m), n)
 
 
-def identity_ok(c2):
-    """(status, detail): 'pass' / 'mismatch' / 'untestable' for one C2 record."""
+def identity_ok(c2, bars=None):
+    """(status, detail): 'pass' / 'mismatch' / 'untestable' for one C2 record. `bars` (h_m, t_min): v1's by default;
+    v2 passes the FIXED bars from its gate text (a_harcon_v2.BAR_H_M / BAR_T_MIN)."""
+    bh, bt = bars or (ID_H_M, ID_T_MIN)
     if not c2 or "rows" not in c2:
         return "untestable", (c2 or {}).get("error", "missing")
     ok, h, t, matched, n = station_stats(c2["rows"])
     if not matched:
         return "untestable", "no matched events"
-    good = h <= ID_H_M and t <= ID_T_MIN
+    good = h <= bh and t <= bt
     return ("pass" if good else "mismatch"), {"median_h_m": h, "median_t_min": t, "matched": matched, "n": n}
 
 
@@ -145,8 +147,12 @@ def event_p90(per, donors, ids, band="tb"):
     return out
 
 
-def score(run, finder, stations_doc):
+def score(run, finder, stations_doc, v2=False):
     per = run["per_station"]
+    bars = None
+    if v2:                                      # gate v2 s5: the fixed bars, hard-coded from the gate TEXT
+        import a_harcon_v2 as V2
+        bars = (V2.BAR_H_M, V2.BAR_T_MIN)
     fin = finder.get("gauges", finder)
     final, donors, causes = resolve(per, stations_doc)
     scored = [i for s in final.values() for i in s["ids"]]
@@ -173,10 +179,10 @@ def score(run, finder, stations_doc):
     # 3. IDENTITIES
     c2 = {}
     for sid in scored:
-        c2[f"station {sid}"] = identity_ok((per.get(sid) or {}).get("c2_station"))
+        c2[f"station {sid}"] = identity_ok((per.get(sid) or {}).get("c2_station"), bars)
         d = donors.get(sid) or {}
         if d:
-            c2[f"donor {d['id']} (of {sid})"] = identity_ok(d.get("c2_donor"))
+            c2[f"donor {d['id']} (of {sid})"] = identity_ok(d.get("c2_donor"), bars)
     c3 = {sid: [(donors.get(sid) or {}).get("c3_w0_max_m"), (donors.get(sid) or {}).get("c3_w1_max_m")] for sid in scored}
     c3_mism = sorted(s for s, (a, b) in c3.items() if a is not None and b is not None and (a > C3_TOL_M or b > C3_TOL_M))
     c3_missing = sorted(s for s, (a, b) in c3.items() if a is None or b is None)
@@ -187,6 +193,12 @@ def score(run, finder, stations_doc):
                                         "detail": {k: v for k, (_, v) in c2.items()}},
                            c3_blend={"pass": not c3_mism, "mismatch": c3_mism, "missing": c3_missing},
                            c4_loo={"pass": not c4_bad, "bad": c4_bad})
+    c5_bad = False
+    if v2:                                      # gate v2 s11/s12: C5, VOID-only; a plant FAILS C2 iff status != pass
+        c5 = V2.c5_verdict({sid: (per.get(sid) or {}).get("c5") or {} for sid in scored})
+        out["controls"]["c5_planted"] = c5
+        c5_bad = not c5["pass"]
+        out["gate"] = "gates/tide-a-harcon-v2.md"
     out["strata"] = {k: {"quantities": q[k], "per_station": rows[k]} for k in final}
     out["reported"] = {k: {"event_tb": event_p90(per, donors, final[k]["ids"]),
                            "raw_band": legs(per, donors, final[k]["ids"], band="raw")[0]} for k in final}
@@ -197,9 +209,10 @@ def score(run, finder, stations_doc):
     # Precedence as ruled on #1270 s11 / #1171 (advisor HOLD on #1285): a TESTED mismatch is VOID anywhere, before the
     # measurability return; a thin stratum is FAIL with vacuous identities 'untestable'; vacuity VOIDs only when no
     # stratum is thin.
-    if mism or c3_mism or c4_bad:
+    if mism or c3_mism or c4_bad or c5_bad:
         out["verdict"] = "VOID"
-        out["why"] = "a tested identity mismatch (C2, C3 or C4): the instrument, not the candidate, failed"
+        out["why"] = ("a tested identity mismatch (C2, C3 or C4) or a planted break that PASSED C2 (C5): the "
+                      "instrument, not the candidate, failed")
         return out
     if any(thin.values()):
         out["verdict"] = "FAIL"
@@ -224,8 +237,12 @@ def main(argv=None):
     ap.add_argument("--stations", default=str(Path(__file__).resolve().parents[3] / "docs" / "weather-program" /
                                               "research" / "tide-a-harcon-v1-stations.json"))
     ap.add_argument("--out", required=True)
+    ap.add_argument("--v2", action="store_true", help="gates/tide-a-harcon-v2.md: fixed C2 bars from the text, C5")
     a = ap.parse_args(argv)
-    r = score(*(json.loads(Path(p).read_text(encoding="utf-8")) for p in (a.run, a.finder, a.stations)))
+    run, finder, stations = (json.loads(Path(p).read_text(encoding="utf-8")) for p in (a.run, a.finder, a.stations))
+    if not run.get("complete"):                # amendment 3: no score from an incomplete run file (no outcome)
+        raise SystemExit("REFUSED: the run JSON is not complete; no score (amendment 3)")
+    r = score(run, finder, stations, v2=a.v2)
     with open(a.out, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(r, fh, indent=1, default=str)
     print("VERDICT", r["verdict"], json.dumps(r.get("controls", {}), default=str)[:800])

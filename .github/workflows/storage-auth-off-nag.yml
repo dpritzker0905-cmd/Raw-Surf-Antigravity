@@ -1,0 +1,59 @@
+# STORAGE-CHECK OFF NAG (2026-11-25, storage-auth plan D, approved by David in the director session): while the repo variable
+# STORAGE_AUTH_CHECK is "0" (the check fully off), ONE maintenance issue (label storage-auth-off, assigned to the owner) stays
+# open and is nagged at most weekly; once the variable is anything else, the issue is closed. Daily, so a re-enable closes it
+# within a day. Issues only: it reads the variable and never changes it. scripts/storage_auth_off_nag.py decides.
+name: Storage-check off nag
+
+on:
+  schedule:
+    - cron: '41 9 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: storage-auth-off-nag
+  cancel-in-progress: false
+
+jobs:
+  nag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Open, nag or close the maintenance issue
+        working-directory: backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ vars.REPO_OWNER_LOGIN }}
+          MODE: ${{ vars.STORAGE_AUTH_CHECK }}
+        run: |
+          set -euo pipefail
+          gh issue list --repo "$GITHUB_REPOSITORY" --label storage-auth-off --state open \
+            --json number,title,updatedAt > /tmp/open.json
+          python3 scripts/storage_auth_off_nag.py --mode "$MODE" --open-issues /tmp/open.json > /tmp/d.json
+          cat /tmp/d.json; echo
+          python3 - <<'PY'
+          import json, os, subprocess
+          d, repo, owner = json.load(open("/tmp/d.json")), os.environ["GITHUB_REPOSITORY"], os.environ.get("OWNER", "")
+          a = d["action"]
+          if a == "open":
+              subprocess.run(["gh", "label", "create", "storage-auth-off", "--repo", repo, "--color", "d93f0b",
+                              "--description", "The storage-key check is switched off", "--force"], check=True)
+              cmd = ["gh", "issue", "create", "--repo", repo, "--title", d["title"], "--body", d["body"],
+                     "--label", ",".join(d["labels"])] + (["--assignee", owner] if owner else [])
+              subprocess.run(cmd, check=True)
+          elif a == "comment":
+              subprocess.run(["gh", "issue", "comment", str(d["number"]), "--repo", repo, "--body", d["body"]], check=True)
+          elif a == "close":
+              subprocess.run(["gh", "issue", "close", str(d["number"]), "--repo", repo, "--comment", d["body"]], check=True)
+          print("action:", a)
+          PY
