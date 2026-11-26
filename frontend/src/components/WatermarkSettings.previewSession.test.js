@@ -116,6 +116,24 @@ test('a response without an image reports failure until the settings change', as
   expect(screen.queryByRole('alert')).toBeNull();
 });
 
+test('an image load error clears the broken preview and allows retrying the same URL', async () => {
+  apiClient.post.mockResolvedValue({ data: { preview_url: '/preview.jpg' } });
+  render(dialog());
+  await screen.findByDisplayValue('/users/a/profile');
+  await act(async () => { fireEvent.click(generate()); });
+  const failedImage = image();
+  fireEvent.error(failedImage);
+  expect(image()).toBeNull();
+  expect(screen.getByRole('alert')).toHaveTextContent(/could not display/i);
+  expect(generate()).toBeEnabled();
+  await act(async () => { fireEvent.click(generate()); });
+  expect(image()).toHaveAttribute('src', '/preview.jpg');
+  expect(image()).not.toBe(failedImage);
+  fireEvent.error(failedImage);
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(image()).toHaveAttribute('src', '/preview.jpg');
+});
+
 test('unmount releases the pending preview and ignores its later rejection', async () => {
   let reject;
   apiClient.post.mockReturnValueOnce(new Promise((_, fail) => { reject = fail; }));
