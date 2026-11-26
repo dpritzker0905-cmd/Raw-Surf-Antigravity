@@ -393,6 +393,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
               
               <div className="relative aspect-video rounded-lg overflow-hidden bg-black/50">
                 {previewUrl ? (
+                  // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError handles image loading; retry is a separate button.
                   <img loading="lazy" decoding="async"
                     src={previewUrl}
                     ref={previewImage}
