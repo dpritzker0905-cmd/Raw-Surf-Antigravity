@@ -15,6 +15,7 @@ import math
 import secrets
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 from urllib.parse import parse_qs
 
 import httpx
@@ -22,6 +23,8 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import func, select, text
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
@@ -87,7 +90,7 @@ async def world(monkeypatch):
         # (a refusal that writes nothing); the test must see that status, not an exception.
         transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
         async with httpx.AsyncClient(transport=transport, base_url="http://fixture.invalid") as client:
-            yield SimpleNamespace(client=client, maker=maker, state=state)
+            yield SimpleNamespace(app=app, client=client, maker=maker, state=state)
     finally:
         await engine.dispose()
 
@@ -291,6 +294,50 @@ def checkout_calls(monkeypatch):
     monkeypatch.setattr(stripe_checkout, "STRIPE_API_KEY", True)
     monkeypatch.setattr(stripe_checkout, "_create_scheduled_checkout", create)
     return calls
+
+
+@pytest.mark.parametrize("endpoint", ["create", "create-with-stripe"])
+@pytest.mark.parametrize("lock_busy", [False, True], ids=["acquired", "timed-out"])
+async def test_buyer_lock_is_the_first_work_in_each_postgres_transaction(world, checkout_calls, endpoint, lock_busy):
+    dialect = postgresql.dialect()
+    statements = []
+    db = Mock()
+    db.get_bind.return_value.dialect = dialect
+    db.rollback = AsyncMock()
+
+    async def execute(statement, params=None):
+        sql = str(statement.compile(dialect=dialect))
+        statements.append(sql)
+        if "FOR NO KEY UPDATE" in sql:
+            if lock_busy:
+                cause = Exception("fixture lock timeout")
+                cause.sqlstate = "55P03"
+                raise DBAPIError(sql, {}, cause)
+            # Stop the successful acquisition path at its ordinary unknown-buyer response.
+            return SimpleNamespace(scalar_one_or_none=lambda: None)
+        if "set_config" in sql:
+            assert params == {"previous": "10000"}
+
+    async def scalar(statement):
+        statements.append(str(statement.compile(dialect=dialect)))
+        return 10000
+
+    db.execute = execute
+    db.scalar = scalar
+    world.app.dependency_overrides[get_db] = lambda: db
+    response = await world.client.post(f"/api/bookings/{endpoint}", json=card_booking(), headers=_token("user"))
+
+    assert statements[0] == "SET TRANSACTION ISOLATION LEVEL READ COMMITTED"
+    assert "pg_settings" in statements[1] and "lock_timeout" in statements[1]
+    assert statements[2] == "SET LOCAL lock_timeout = '5s'"
+    assert "FOR NO KEY UPDATE" in statements[3]
+    if lock_busy:
+        assert response.status_code == 503 and len(statements) == 4
+        db.rollback.assert_awaited_once()
+    else:
+        assert response.status_code == 404 and len(statements) == 5
+        assert "set_config('lock_timeout'" in statements[4]
+    assert checkout_calls == []
 
 
 @pytest.mark.parametrize("retry_endpoint", ["create-with-stripe", "create"])
