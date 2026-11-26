@@ -86,3 +86,36 @@ test('a completed upload before switching profiles does not replace the next loa
   await screen.findByTestId('save-watermark-settings-btn');
   expect(await screen.findByRole('img', { name: 'Watermark logo' })).toHaveAttribute('src', '/b.png');
 });
+
+test('an active upload failure alerts and allows a successful retry', async () => {
+  const alert = jest.spyOn(window, 'alert').mockImplementation(() => {});
+  try {
+    apiClient.post.mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ data: { url: '/retry.png' } });
+    render(dialog());
+    await startUpload();
+    await screen.findByText('Upload Logo');
+    expect(alert).toHaveBeenCalledWith('Failed to upload logo');
+    await startUpload();
+    expect(await screen.findByRole('img', { name: 'Watermark logo' })).toHaveAttribute('src', '/retry.png');
+  } finally {
+    alert.mockRestore();
+  }
+});
+
+test('unmount aborts the upload and suppresses a later failure', async () => {
+  const alert = jest.spyOn(window, 'alert').mockImplementation(() => {});
+  try {
+    let reject;
+    apiClient.post.mockReturnValueOnce(new Promise((_, fail) => { reject = fail; }));
+    const view = render(dialog());
+    await startUpload();
+    const signal = apiClient.post.mock.calls[0][2].signal;
+    view.unmount();
+    expect(signal.aborted).toBe(true);
+    await act(async () => { reject(new Error('late failure')); });
+    expect(alert).not.toHaveBeenCalled();
+  } finally {
+    alert.mockRestore();
+  }
+});
