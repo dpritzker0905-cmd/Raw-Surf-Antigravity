@@ -34,6 +34,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const [generatingPreview, setGeneratingPreview] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
 
@@ -132,6 +133,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   const activePreview = React.useRef(null);
   React.useLayoutEffect(() => {
     setPreviewUrl(null);
+    setPreviewFailed(false);
     setGeneratingPreview(false);
     return () => {
       activePreview.current?.abort();
@@ -146,6 +148,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
     activePreview.current?.abort();
     const controller = new AbortController();
     activePreview.current = controller;
+    setPreviewFailed(false);
     setGeneratingPreview(true);
     try {
       // Call backend to generate a preview with current settings
@@ -160,12 +163,16 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
       }, { signal: controller.signal });
       
       if (activePreview.current !== controller) return;
-      setPreviewUrl(response.data.preview_url);
+      const url = response.data?.preview_url;
+      if (typeof url !== 'string' || !url.trim()) {
+        throw new Error('Preview response contained no image URL');
+      }
+      setPreviewUrl(url);
     } catch (error) {
       if (activePreview.current !== controller) return;
       logger.error('Error generating preview:', error);
-      // Show local simulation if backend fails
-      setPreviewUrl(sampleImage);
+      setPreviewUrl(null);
+      setPreviewFailed(true);
     } finally {
       if (activePreview.current === controller) {
         activePreview.current = null;
@@ -393,15 +400,21 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
                       <Image className={`w-12 h-12 mx-auto mb-2 ${textSecondaryClass}`} />
-                      <p className={`text-sm ${textSecondaryClass}`}>
-                        Click "Generate Preview" to see your watermark
-                      </p>
+                      {previewFailed ? (
+                        <p role="alert" className={`text-sm ${textSecondaryClass}`}>
+                          Could not generate the watermark preview. Select Generate Preview to try again.
+                        </p>
+                      ) : (
+                        <p className={`text-sm ${textSecondaryClass}`}>
+                          Click "Generate Preview" to see your watermark
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
                 
                 {/* Simulated watermark overlay for instant feedback */}
-                {!previewUrl && settings.watermark_text && (
+                {!previewUrl && !previewFailed && settings.watermark_text && (
                   <div 
                     className={`
                       absolute text-white/50 font-bold text-xl pointer-events-none

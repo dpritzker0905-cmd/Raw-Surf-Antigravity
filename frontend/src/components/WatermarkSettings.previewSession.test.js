@@ -58,6 +58,7 @@ test('a failure from a closed visit cannot show a fallback or end the new previe
   await screen.findByDisplayValue('/users/a/profile');
   fireEvent.click(generate());
   await act(async () => { failOld(new Error('obsolete')); });
+  expect(screen.queryByRole('alert')).toBeNull();
   expect(image()).toBeNull();
   expect(generate()).toBeDisabled();
   await act(async () => { finishNew({ data: { preview_url: '/new.png' } }); });
@@ -83,15 +84,36 @@ test('a completed preview for B survives a later response from A even if transpo
   expect(image()).toHaveAttribute('src', '/b.png');
 });
 
-test('a current preview failure still shows the sample and permits retry', async () => {
-  apiClient.post.mockRejectedValueOnce(new Error('offline'))
-    .mockResolvedValueOnce({ data: { preview_url: '/retry.png' } });
+test('a failed regeneration clears the old preview, reports the error and permits retry', async () => {
+  let finishRetry;
+  apiClient.post.mockResolvedValueOnce({ data: { preview_url: '/first.png' } })
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockReturnValueOnce(new Promise(resolve => { finishRetry = resolve; }));
   render(dialog());
   await screen.findByDisplayValue('/users/a/profile');
   await act(async () => { fireEvent.click(generate()); });
-  expect(image()).toHaveAttribute('src', apiClient.post.mock.calls[0][1].sample_image_url);
+  expect(image()).toHaveAttribute('src', '/first.png');
   await act(async () => { fireEvent.click(generate()); });
+  expect(image()).toBeNull();
+  expect(screen.getByRole('alert')).toHaveTextContent(/could not generate/i);
+  expect(screen.queryByText('/users/a/profile')).toBeNull();
+  expect(generate()).toBeEnabled();
+  fireEvent.click(generate());
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(generate()).toBeDisabled();
+  await act(async () => { finishRetry({ data: { preview_url: '/retry.png' } }); });
   expect(image()).toHaveAttribute('src', '/retry.png');
+});
+
+test('a response without an image reports failure until the settings change', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: {} });
+  render(dialog());
+  const input = await screen.findByDisplayValue('/users/a/profile');
+  await act(async () => { fireEvent.click(generate()); });
+  expect(screen.getByRole('alert')).toHaveTextContent(/could not generate/i);
+  expect(image()).toBeNull();
+  fireEvent.change(input, { target: { value: 'Updated' } });
+  expect(screen.queryByRole('alert')).toBeNull();
 });
 
 test('unmount releases the pending preview and ignores its later rejection', async () => {
