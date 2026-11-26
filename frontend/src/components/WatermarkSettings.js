@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Slider } from './ui/slider';
@@ -81,6 +81,15 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
     }
   };
 
+  const activeUpload = useRef(null);
+  useLayoutEffect(() => {
+    setUploadingLogo(false);
+    return () => {
+      activeUpload.current?.abort();
+      activeUpload.current = null;
+    };
+  }, [open, user?.id]);
+
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -96,6 +105,9 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
       return;
     }
 
+    activeUpload.current?.abort();
+    const controller = new AbortController();
+    activeUpload.current = controller;
     setUploadingLogo(true);
     try {
       const formData = new FormData();
@@ -106,19 +118,25 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
         `/upload/image`,
         formData,
         {
+          signal: controller.signal,
           headers: { 'Content-Type': 'multipart/form-data' }
         }
       );
 
+      if (controller.signal.aborted) return;
       setSettings(prev => ({
         ...prev,
         watermark_logo_url: response.data.url
       }));
     } catch (error) {
+      if (controller.signal.aborted) return;
       logger.error('Error uploading logo:', error);
       alert('Failed to upload logo');
     } finally {
-      setUploadingLogo(false);
+      if (activeUpload.current === controller) {
+        activeUpload.current = null;
+        setUploadingLogo(false);
+      }
     }
   };
 
