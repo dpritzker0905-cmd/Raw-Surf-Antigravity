@@ -4,6 +4,7 @@ bookings/crud.py â€” Core booking CRUD: list, get, create, cancel, complete
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -12,6 +13,7 @@ import json
 import math
 import logging
 import os
+import sqlite3
 import stripe
 
 from database import get_db
@@ -51,12 +53,31 @@ def scheduled_start_utc(value: str) -> datetime:
 
 async def lock_booking_buyer(db: AsyncSession, user_id: str) -> Profile:
     """Serialize scheduled booking creates from the same buyer before checking the slot."""
-    if db.get_bind().dialect.name == "sqlite":
-        # A zero-row write reserves SQLite's writer lock even inside an existing transaction.
-        await db.execute(text("UPDATE bookings SET status = status WHERE 0"))
-    # On PostgreSQL this emits FOR NO KEY UPDATE: competing creates wait, foreign-key reads can proceed.
-    result = await db.execute(select(Profile).where(Profile.id == user_id).with_for_update(key_share=True))
+    dialect = db.get_bind().dialect.name
+    restore_timeout = None
+    try:
+        if dialect == "postgresql":
+            # First SQL in both create routes. The conflict query must see the preceding buyer's commit.
+            await db.execute(text("SET TRANSACTION ISOLATION LEVEL READ COMMITTED"))
+            previous_ms = await db.scalar(text("SELECT setting::integer FROM pg_settings WHERE name = 'lock_timeout'"))
+            if previous_ms == 0 or previous_ms > 5000:
+                await db.execute(text("SET LOCAL lock_timeout = '5s'"))
+                restore_timeout = str(previous_ms)
+        elif dialect == "sqlite":
+            # The SQLite connection's busy timeout bounds this writer reservation.
+            await db.execute(text("UPDATE bookings SET status = status WHERE 0"))
+        # FOR NO KEY UPDATE on PostgreSQL allows foreign-key reads while competing creates wait.
+        result = await db.execute(select(Profile).where(Profile.id == user_id).with_for_update(key_share=True))
+    except DBAPIError as error:
+        sqlite_code = getattr(error.orig, "sqlite_errorcode", 0)
+        if (getattr(error.orig, "sqlstate", None) != "55P03"
+                and (sqlite_code & 0xff) not in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED)):
+            raise
+        await db.rollback()
+        raise HTTPException(status_code=503, detail="Booking is busy. Check your scheduled bookings before retrying.") from None
     buyer = result.scalar_one_or_none()
+    if restore_timeout is not None:
+        await db.execute(text("SELECT set_config('lock_timeout', :previous, true)"), {"previous": restore_timeout})
     if buyer is None:
         raise HTTPException(status_code=404, detail="User not found")
     return buyer

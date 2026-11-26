@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime, timezone, timedelta
+import asyncio
 import json
 import logging
 import math
@@ -60,6 +61,19 @@ class NudgeRequest(BaseModel):
 
 
 # ═══ STRIPE CHECKOUT ROUTES ════════════════════════════════════════════════
+
+CHECKOUT_TIMEOUT_SECONDS = 8
+
+
+async def _create_scheduled_checkout(*, idempotency_key, **params):
+    transport = stripe.HTTPXClient(timeout=CHECKOUT_TIMEOUT_SECONDS)
+    try:
+        client = stripe.StripeClient(STRIPE_API_KEY, http_client=transport, max_network_retries=0)
+        async with asyncio.timeout(CHECKOUT_TIMEOUT_SECONDS):
+            return await client.checkout.sessions.create_async(params, options={"idempotency_key": idempotency_key})
+    finally:
+        await transport.close_async()
+
 
 @router.post("/bookings/create-with-stripe")
 async def create_booking_with_stripe(
@@ -131,7 +145,7 @@ async def create_booking_with_stripe(
     session_time_str = session_date.strftime('%b %d at %I:%M %p')
 
     try:
-        checkout_session = stripe.checkout.Session.create(
+        checkout_session = await _create_scheduled_checkout(
             payment_method_types=['card'],
             mode='payment',
             customer_email=user.email,
@@ -157,6 +171,11 @@ async def create_booking_with_stripe(
             },
             idempotency_key=f"scheduled_booking_{booking.id}",
         )
+    except (TimeoutError, stripe.APIConnectionError) as error:
+        # The provider may have created an unpaid session. Its link was never returned to the buyer.
+        logger.warning("Scheduled checkout response unavailable; booking=%s error_type=%s", booking.id, type(error).__name__)
+        await db.rollback()
+        raise HTTPException(status_code=503, detail="Checkout could not be confirmed. Check your scheduled bookings.") from None
     except Exception:
         await db.rollback()
         logger.exception("Scheduled booking checkout creation failed")

@@ -15,13 +15,13 @@ import math
 import secrets
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+from urllib.parse import parse_qs
 
 import httpx
 import pytest
 import pytest_asyncio
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlalchemy import func, select, text
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
@@ -284,12 +284,12 @@ def card_booking(**over):
 def checkout_calls(monkeypatch):
     calls = []
 
-    def create(**kwargs):
+    async def create(**kwargs):
         calls.append(kwargs["idempotency_key"])
         return SimpleNamespace(id=f"session-{len(calls)}", url="https://checkout.example.invalid/fixture")
 
     monkeypatch.setattr(stripe_checkout, "STRIPE_API_KEY", True)
-    monkeypatch.setattr(stripe_checkout.stripe.checkout.Session, "create", create)
+    monkeypatch.setattr(stripe_checkout, "_create_scheduled_checkout", create)
     return calls
 
 
@@ -378,11 +378,11 @@ async def test_uncommitted_checkout_failure_allows_a_fresh_create(world, checkou
     payload = card_booking(apply_credits=10)
     endpoint = "/api/bookings/create-with-stripe"
 
-    def unavailable(**kwargs):
+    async def unavailable(**kwargs):
         raise RuntimeError("fixture unavailable")
 
     with monkeypatch.context() as patch:
-        patch.setattr(stripe_checkout.stripe.checkout.Session, "create", unavailable)
+        patch.setattr(stripe_checkout, "_create_scheduled_checkout", unavailable)
         failed = await world.client.post(endpoint, json=payload, headers=_token("user"))
     assert failed.status_code == 500
     assert (await world.state())[:3] == (100, 0, 0)
@@ -399,15 +399,74 @@ async def test_sqlite_buyer_lock_blocks_a_second_writer_before_any_insert(tmp_pa
             await first.execute(text("BEGIN"))
             await stripe_checkout.lock_booking_buyer(first, "user")
             await second.execute(text("PRAGMA busy_timeout=0"))
-            with pytest.raises(OperationalError, match="database is locked"):
+            with pytest.raises(HTTPException) as busy:
                 await stripe_checkout.lock_booking_buyer(second, "user")
-            await second.rollback()
+            assert busy.value.status_code == 503
+            assert not second.in_transaction()
             await first.rollback()
             buyer = await stripe_checkout.lock_booking_buyer(second, "user")
             assert buyer.credit_balance == 100
             assert await second.scalar(select(func.count()).select_from(Booking)) == 0
     finally:
         await engine.dispose()
+
+
+@pytest.mark.parametrize("failure", ["deadline", "read_timeout"])
+async def test_checkout_transport_timeout_rolls_back_and_does_not_retry(world, monkeypatch, failure):
+    calls = []
+    stopped = asyncio.Event()
+
+    async def slow_transport(self, request):
+        calls.append(request)
+        if failure == "read_timeout":
+            raise httpx.ReadTimeout("mock transport timed out", request=request)
+        try:
+            await asyncio.Event().wait()
+        finally:
+            stopped.set()
+
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", slow_transport)
+    monkeypatch.setattr(stripe_checkout, "STRIPE_API_KEY", "fixture")
+    monkeypatch.setattr(stripe_checkout, "CHECKOUT_TIMEOUT_SECONDS", 0.25)
+    response = await world.client.post("/api/bookings/create-with-stripe", json=card_booking(apply_credits=10),
+                                       headers=_token("user"))
+    assert response.status_code == 503
+    assert "Check your scheduled bookings" in response.json()["detail"]
+    assert len(calls) == 1
+    assert calls[0].headers["Idempotency-Key"].startswith("scheduled_booking_")
+    assert set(calls[0].extensions["timeout"].values()) == {0.25}
+    if failure == "deadline":
+        assert stopped.is_set()
+    assert (await world.state())[:3] == (100, 0, 0)
+    async with world.maker() as db:
+        assert await db.scalar(select(func.count()).select_from(PaymentTransaction)) == 0
+        assert await db.scalar(select(func.count()).select_from(BookingParticipant)) == 0
+
+
+async def test_async_checkout_sends_one_bound_request_and_keeps_the_receipt_on_retry(world, monkeypatch):
+    requests = []
+
+    async def accepted(self, request):
+        requests.append(request)
+        return httpx.Response(200, json={"object": "checkout.session", "id": "session-one",
+                                         "url": "https://checkout.example.invalid/one"})
+
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", accepted)
+    monkeypatch.setattr(stripe_checkout, "STRIPE_API_KEY", "fixture")
+    endpoint = "/api/bookings/create-with-stripe"
+    payload = card_booking(apply_credits=10)
+    first = await world.client.post(endpoint, json=payload, headers=_token("user"))
+    repeat = await world.client.post(endpoint, json=payload, headers=_token("user"))
+    assert first.status_code == 200 and repeat.status_code == 409
+    assert len(requests) == 1 and requests[0].url.path == "/v1/checkout/sessions"
+    receipt = first.json()
+    fields = parse_qs(requests[0].content.decode())
+    assert requests[0].headers["Idempotency-Key"] == f"scheduled_booking_{receipt['booking_id']}"
+    assert fields["metadata[booking_id]"] == [receipt["booking_id"]]
+    assert fields["metadata[user_id]"] == ["user"]
+    assert fields["line_items[0][price_data][unit_amount]"] == ["5000"]
+    assert receipt["session_id"] == "session-one" and receipt["remaining_credits"] == 90
+    assert (await world.state())[:3] == (90, 1, 1)
 
 
 @pytest.mark.parametrize("change", [{"duration": -60, "apply_credits": 50}, {"duration": 0}, {"apply_credits": -5},
@@ -422,9 +481,9 @@ async def test_the_card_checkout_route_has_the_same_bounds(world, change):
 async def test_the_card_checkout_route_refuses_a_negative_price_from_a_negative_rate(world, monkeypatch):
     # Exercise price validation with a configured fake provider; no checkout call may be reached.
     monkeypatch.setattr(stripe_checkout, "STRIPE_API_KEY", "fixture-provider-configured")
-    def unexpected_checkout(**kwargs):
+    async def unexpected_checkout(**kwargs):
         pytest.fail("Invalid price reached the payment provider")
-    monkeypatch.setattr(stripe_checkout.stripe.checkout.Session, "create", unexpected_checkout)
+    monkeypatch.setattr(stripe_checkout, "_create_scheduled_checkout", unexpected_checkout)
     async with world.maker() as db:
         row = (await db.execute(select(Profile).where(Profile.id == "photog"))).scalar_one()
         row.booking_hourly_rate = -50.0
