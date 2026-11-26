@@ -136,3 +136,19 @@ test('changing style invalidates a pending preview and allows a new preview imme
   await act(async () => { finishNew({ data: { preview_url: '/both.png' } }); });
   expect(image()).toHaveAttribute('src', '/both.png');
 });
+
+test('removing the logo clears a completed preview and regenerates without the logo', async () => {
+  apiClient.get.mockResolvedValueOnce({ data: { watermark_style: 'both', watermark_logo_url: '/logo.png' } });
+  apiClient.post.mockResolvedValueOnce({ data: { preview_url: '/with-logo.png' } })
+    .mockResolvedValueOnce({ data: { preview_url: '/without-logo.png' } });
+  render(dialog());
+  const removeLogo = await screen.findByTestId('remove-logo-btn');
+  await act(async () => { fireEvent.click(generate()); });
+  expect(image()).toHaveAttribute('src', '/with-logo.png');
+  fireEvent.click(removeLogo);
+  expect(image()).toBeNull();
+  await act(async () => { fireEvent.click(generate()); });
+  expect(apiClient.post).toHaveBeenLastCalledWith('/gallery/generate-watermark-preview',
+    expect.objectContaining({ watermark_logo_url: null }), expect.anything());
+  expect(image()).toHaveAttribute('src', '/without-logo.png');
+});
