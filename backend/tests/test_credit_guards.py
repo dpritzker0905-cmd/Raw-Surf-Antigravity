@@ -21,6 +21,7 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
@@ -389,6 +390,24 @@ async def test_uncommitted_checkout_failure_allows_a_fresh_create(world, checkou
     assert retry.status_code == 200
     assert (await world.state())[:3] == (90, 1, 1)
     assert len(checkout_calls) == 1
+
+
+async def test_sqlite_buyer_lock_blocks_a_second_writer_before_any_insert(tmp_path):
+    engine, maker = await _make_engine(f"sqlite+aiosqlite:///{tmp_path / 'buyer-lock.db'}")
+    try:
+        async with maker() as first, maker() as second:
+            await first.execute(text("BEGIN"))
+            await stripe_checkout.lock_booking_buyer(first, "user")
+            await second.execute(text("PRAGMA busy_timeout=0"))
+            with pytest.raises(OperationalError, match="database is locked"):
+                await stripe_checkout.lock_booking_buyer(second, "user")
+            await second.rollback()
+            await first.rollback()
+            buyer = await stripe_checkout.lock_booking_buyer(second, "user")
+            assert buyer.credit_balance == 100
+            assert await second.scalar(select(func.count()).select_from(Booking)) == 0
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.parametrize("change", [{"duration": -60, "apply_credits": 50}, {"duration": 0}, {"apply_credits": -5},
