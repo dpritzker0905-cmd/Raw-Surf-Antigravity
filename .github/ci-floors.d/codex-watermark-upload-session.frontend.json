@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 6,
+  "files": 1,
+  "branch": "codex/watermark-upload-session",
+  "date": "2026-11-25",
+  "note": "Watermark logo upload ownership, replacement, failure and cleanup"
+}
