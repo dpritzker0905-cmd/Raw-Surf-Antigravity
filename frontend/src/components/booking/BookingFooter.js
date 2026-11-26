@@ -13,7 +13,7 @@ export const BookingFooter = ({
   canProceedFromLocation,
   canProceedFromCrew
 }) => {
-  if (step === 'success') return null;
+  if (step === 'success' || step === 'checkout') return null;
 
   return (
     <div className={`flex-shrink-0 px-4 py-2 border-t ${isLight ? 'border-gray-200 bg-white' : 'border-zinc-800 bg-zinc-900'}`}>
@@ -99,6 +99,7 @@ export const BookingFooter = ({
           <Button aria-label="Previous"
             variant="outline"
             onClick={handleBack}
+            disabled={loading}
             className="flex-1 h-10 border-zinc-700"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />

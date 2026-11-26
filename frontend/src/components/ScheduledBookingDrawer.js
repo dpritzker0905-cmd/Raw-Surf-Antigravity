@@ -3,7 +3,7 @@
  * Integrates: ExactTimeSlotPicker, Impact Zone coordinates, Account Credit, Crew Split, Confirmation
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -22,6 +22,7 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 
 import apiClient from '../lib/apiClient';
+import { getCheckoutUrl, navigateToCheckout } from '../utils/checkoutUrl';
 
 import { ExactTimeSlotPicker } from './ExactTimeSlotPicker';
 
@@ -57,6 +58,8 @@ export const ScheduledBookingDrawer = ({
   const [step, setStep] = useState('time');
   const [selfieUrl, setSelfieUrl] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState(null);
+  const visit = useRef(null);
   
   // Time slot state
   const [selectedDate, setSelectedDate] = useState(null);
@@ -118,8 +121,11 @@ export const ScheduledBookingDrawer = ({
   const _hasGroupDiscounts = groupDiscount2 > 0 || groupDiscount3 > 0 || groupDiscount5 > 0;
   
   // Reset state when drawer opens
-  useEffect(() => {
+  useLayoutEffect(() => {
+    visit.current = isOpen ? { submitting: false } : null;
     if (isOpen) {
+      setCheckoutUrl(null);
+      setLoading(false);
       setStep('time');
       setSelectedDate(null);
       setSelectedTime(null);
@@ -134,7 +140,8 @@ export const ScheduledBookingDrawer = ({
       setBookingResult(null);
       setSelfieUrl(null);
     }
-  }, [isOpen]);
+    return () => { visit.current = null; };
+  }, [isOpen, photographer?.id, user?.id]);
   
   // Auto-apply credits only if payment method is 'credits'
   useEffect(() => {
@@ -202,7 +209,11 @@ export const ScheduledBookingDrawer = ({
   };
   
   const handleSubmitBooking = async () => {
+    const submitted = visit.current;
+    if (!submitted || submitted.submitting || step !== 'confirm') return;
+    submitted.submitting = true;
     setLoading(true);
+    let requestingCheckout = false;
     
     try {
       // Build the exact session datetime
@@ -226,6 +237,7 @@ export const ScheduledBookingDrawer = ({
       
       // If there's an amount to charge and user selected card payment
       if (amountToCharge > 0 && paymentMethod === 'card') {
+        requestingCheckout = true;
         // Create booking with pending payment status and redirect to Stripe
         const response = await apiClient.post(`/bookings/create-with-stripe`, {
           photographer_id: photographer.id,
@@ -246,16 +258,19 @@ export const ScheduledBookingDrawer = ({
           origin_url: window.location.origin
         });
         
-        // Update credits if partially applied
-        if (appliedCredits > 0 && response.data.remaining_credits !== undefined) {
-          updateUser({ credit_balance: response.data.remaining_credits });
+        if (visit.current !== submitted) return;
+        const receipt = response.data;
+        const url = getCheckoutUrl(receipt?.checkout_url);
+        setCheckoutUrl(url);
+        setStep('checkout');
+        const hasBookingReceipt = receipt?.booking_id && receipt.session_id;
+        const creditsUsed = receipt?.credits_applied ?? (url ? appliedCredits : 0);
+        if ((url || hasBookingReceipt) && Number.isFinite(creditsUsed) && creditsUsed > 0 &&
+            Number.isFinite(receipt.remaining_credits) && receipt.remaining_credits >= 0) {
+          updateUser({ credit_balance: receipt.remaining_credits });
         }
-        
-        // Redirect to Stripe checkout
-        if (response.data.checkout_url) {
-          window.location.href = response.data.checkout_url;
-          return;
-        }
+        if (url) navigateToCheckout(url);
+        return;
       }
       
       // Full credit payment or credits cover everything
@@ -333,6 +348,12 @@ export const ScheduledBookingDrawer = ({
       if (typeof haptic === 'function') haptic('success');
       
     } catch (error) {
+      if (visit.current !== submitted) return;
+      if (requestingCheckout && (!error.response || error.response.status === 408 || error.response.status >= 500)) {
+        // A lost response can follow a committed booking. Keep any checkout link we already received.
+        setStep('checkout');
+        return;
+      }
       logger.error('Booking error:', error);
       
       // Handle time slot conflict specifically
@@ -342,7 +363,8 @@ export const ScheduledBookingDrawer = ({
         toast.error(error.response?.data?.detail || 'Failed to create booking');
       }
     } finally {
-      setLoading(false);
+      submitted.submitting = false;
+      if (visit.current === submitted) setLoading(false);
     }
   };
   
@@ -405,7 +427,7 @@ export const ScheduledBookingDrawer = ({
           )}
         
           {/* Step Progress - Ultra Compact */}
-          {step !== 'success' && (
+          {step !== 'success' && step !== 'checkout' && (
             <div className="flex items-center justify-center gap-0.5 mb-3">
               {['time', 'location', 'crew', 'payment', 'selfie', 'confirm'].map((s, idx) => (
                 <React.Fragment key={s}>
@@ -561,6 +583,16 @@ export const ScheduledBookingDrawer = ({
           )}
         
           {/* Step 6: Confirmation */}
+          {step === 'checkout' && (
+            <div className="space-y-4 py-6 text-center">
+              <p role="status" className={textPrimary}>
+                {checkoutUrl ? 'Your checkout is ready. Payment is pending.'
+                  : 'Could not open checkout. Check your scheduled bookings before trying again.'}
+              </p>
+              {checkoutUrl && <a href={checkoutUrl} className="block underline">Continue to checkout</a>}
+              <a href="/bookings?tab=scheduled" className="block underline">Check scheduled bookings</a>
+            </div>
+          )}
           {step === 'confirm' && (
             <BookingConfirmStep
               photographer={photographer}
