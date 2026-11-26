@@ -129,7 +129,20 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
     }));
   };
 
+  const activePreview = React.useRef(null);
+  React.useLayoutEffect(() => {
+    setPreviewUrl(null);
+    setGeneratingPreview(false);
+    return () => {
+      activePreview.current?.abort();
+      activePreview.current = null;
+    };
+  }, [open, user?.id]);
+
   const generatePreview = async () => {
+    activePreview.current?.abort();
+    const controller = new AbortController();
+    activePreview.current = controller;
     setGeneratingPreview(true);
     try {
       // Call backend to generate a preview with current settings
@@ -141,15 +154,20 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
         watermark_logo_url: settings.watermark_logo_url,
         watermark_opacity: settings.watermark_opacity,
         watermark_position: settings.watermark_position
-      });
+      }, { signal: controller.signal });
       
+      if (activePreview.current !== controller) return;
       setPreviewUrl(response.data.preview_url);
     } catch (error) {
+      if (activePreview.current !== controller) return;
       logger.error('Error generating preview:', error);
       // Show local simulation if backend fails
       setPreviewUrl(sampleImage);
     } finally {
-      setGeneratingPreview(false);
+      if (activePreview.current === controller) {
+        activePreview.current = null;
+        setGeneratingPreview(false);
+      }
     }
   };
 
