@@ -33,7 +33,7 @@ except ImportError:
     onesignal_service = None
 
 # Import shared helpers from crud
-from .crud import check_time_slot_conflict
+from .crud import check_time_slot_conflict, lock_booking_buyer, scheduled_start_utc
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -85,10 +85,7 @@ async def create_user_booking(
         stripe.api_key = STRIPE_API_KEY
 
     # Verify user
-    user_result = await db.execute(select(Profile).where(Profile.id == user_id))
-    user = user_result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = await lock_booking_buyer(db, user_id)
 
     # Verify photographer
     photographer_result = await db.execute(
@@ -103,17 +100,14 @@ async def create_user_booking(
         raise HTTPException(status_code=400, detail="Selected user is not a photographer")
 
     # Parse date
-    try:
-        session_date = datetime.fromisoformat(data.session_date.replace('Z', '+00:00'))
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format")
+    session_date = scheduled_start_utc(data.session_date)
 
     # Check for time slot conflicts
     conflict = await check_time_slot_conflict(
         db=db,
         photographer_id=data.photographer_id,
         session_date=session_date,
-        duration=data.duration
+        duration=data.duration, pending_creator_id=user_id,
     )
     if conflict:
         raise HTTPException(status_code=409, detail=conflict["message"])

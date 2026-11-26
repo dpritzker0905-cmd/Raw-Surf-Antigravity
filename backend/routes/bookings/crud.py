@@ -3,7 +3,7 @@ bookings/crud.py â€” Core booking CRUD: list, get, create, cancel, complete
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import select, and_, or_, func, text
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -41,18 +41,41 @@ if STRIPE_API_KEY:
 
 # ============ TIME SLOT CONFLICT VALIDATION ============
 
+def scheduled_start_utc(value: str) -> datetime:
+    try:
+        start = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+    return start.replace(tzinfo=timezone.utc) if start.tzinfo is None else start.astimezone(timezone.utc)
+
+
+async def lock_booking_buyer(db: AsyncSession, user_id: str) -> Profile:
+    """Serialize scheduled booking creates from the same buyer before checking the slot."""
+    if db.get_bind().dialect.name == "sqlite":
+        # A zero-row write reserves SQLite's writer lock even inside an existing transaction.
+        await db.execute(text("UPDATE bookings SET status = status WHERE 0"))
+    # On PostgreSQL this emits FOR NO KEY UPDATE: competing creates wait, foreign-key reads can proceed.
+    result = await db.execute(select(Profile).where(Profile.id == user_id).with_for_update(key_share=True))
+    buyer = result.scalar_one_or_none()
+    if buyer is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return buyer
+
+
 async def check_time_slot_conflict(
     db: AsyncSession,
     photographer_id: str,
     session_date: datetime,
     duration: int,
-    exclude_booking_id: Optional[str] = None
+    exclude_booking_id: Optional[str] = None,
+    pending_creator_id: Optional[str] = None,
 ) -> Optional[dict]:
     """
     Check if the requested time slot conflicts with existing bookings for the photographer.
     Returns conflict details if found, None if time slot is available.
     
-    Only checks scheduled bookings (not on_demand) and non-cancelled statuses.
+    Pending checkouts block repeat creates by their own buyer for the same start.
+    Availability reads retain the existing active-bookings view.
     """
     # Legacy naive dates represent UTC. Compare instants consistently with
     # timezone-aware database timestamps and offset-bearing requests.
@@ -60,11 +83,15 @@ async def check_time_slot_conflict(
                        else session_date.astimezone(timezone.utc))
     session_end = requested_start + timedelta(minutes=duration)
     
-    # Build query for existing bookings
+    active_status = Booking.status.notin_(['Cancelled', 'Pending Payment'])
+    if pending_creator_id is not None:
+        active_status = or_(active_status, and_(
+            Booking.status == 'Pending Payment', Booking.creator_id == pending_creator_id,
+        ))
     query = select(Booking).where(
         and_(
             Booking.photographer_id == photographer_id,
-            Booking.status.notin_(['Cancelled', 'Pending Payment']),  # Active bookings only
+            active_status,
             or_(
                 Booking.booking_type.is_(None),
                 Booking.booking_type != 'on_demand'  # Only check scheduled bookings
@@ -87,6 +114,13 @@ async def check_time_slot_conflict(
         # Check for overlap: new session overlaps if it starts before existing ends AND ends after existing starts
         existing_start_utc = (existing_start.replace(tzinfo=timezone.utc) if existing_start.tzinfo is None
                               else existing_start.astimezone(timezone.utc))
+        if booking.status == 'Pending Payment':
+            if existing_start_utc == requested_start:
+                return {
+                    "conflict": True,
+                    "message": "You already started checkout for this session. Check your scheduled bookings.",
+                }
+            continue
         existing_end_utc = existing_start_utc + timedelta(minutes=booking.duration)
         if requested_start < existing_end_utc and session_end > existing_start_utc:
             return {

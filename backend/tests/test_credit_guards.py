@@ -25,12 +25,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
 from database import get_db
-from models import (AdConfig, Booking, BookingParticipant, CreditTransaction, Notification, Profile, RoleEnum)
+from models import (AdConfig, Booking, BookingParticipant, CreditTransaction, Notification, PaymentTransaction,
+                    Profile, RoleEnum)
 from routes.bookings import booking_lifecycle, stripe_checkout
 from routes.commerce import ad_controls
 from utils.credits import add_credits, clean_amount, deduct_credits
 
-TABLES = (Profile, Booking, BookingParticipant, CreditTransaction, Notification, AdConfig)
+TABLES = (Profile, Booking, BookingParticipant, CreditTransaction, Notification, AdConfig, PaymentTransaction)
 
 
 def _token(sub):
@@ -276,6 +277,118 @@ async def test_a_valid_booking_with_credits_still_works(world):
 
 def card_booking(**over):
     return booking(origin_url="https://example.invalid", **over)
+
+
+@pytest.fixture
+def checkout_calls(monkeypatch):
+    calls = []
+
+    def create(**kwargs):
+        calls.append(kwargs["idempotency_key"])
+        return SimpleNamespace(id=f"session-{len(calls)}", url="https://checkout.example.invalid/fixture")
+
+    monkeypatch.setattr(stripe_checkout, "STRIPE_API_KEY", True)
+    monkeypatch.setattr(stripe_checkout.stripe.checkout.Session, "create", create)
+    return calls
+
+
+@pytest.mark.parametrize("retry_endpoint", ["create-with-stripe", "create"])
+async def test_reopened_checkout_cannot_book_or_debit_twice(world, checkout_calls, retry_endpoint):
+    payload = card_booking(apply_credits=10)
+    first = await world.client.post("/api/bookings/create-with-stripe", json=payload, headers=_token("user"))
+    assert first.status_code == 200, first.text
+    # Discard the first receipt. A fresh drawer sends no booking or checkout ID.
+    retry = await world.client.post(f"/api/bookings/{retry_endpoint}", json=payload, headers=_token("user"))
+    async with world.maker() as db:
+        payments = await db.scalar(select(func.count()).select_from(PaymentTransaction))
+        participants = await db.scalar(select(func.count()).select_from(BookingParticipant))
+    balance, debits, bookings, _ = await world.state()
+    assert (bookings, payments, participants, debits, balance, len(checkout_calls)) == (1, 1, 1, 1, 90, 1)
+    assert retry.status_code == 409 and "scheduled bookings" in retry.json()["detail"]
+
+
+async def test_pending_checkout_identity_uses_the_start_instant(world, checkout_calls):
+    payload = card_booking(session_date="2030-01-02T09:00:00-05:00")
+    endpoint = "/api/bookings/create-with-stripe"
+    async def submit(**changes):
+        return await world.client.post(endpoint, json={**payload, **changes}, headers=_token("user"))
+
+    assert (await submit()).status_code == 200
+    assert (await submit(session_date="2030-01-02T14:00:00Z", location="Edited", duration=120)).status_code == 409
+    assert (await submit(session_date="2030-01-02T16:00:00Z")).status_code == 200
+    assert len(checkout_calls) == 2
+
+
+async def test_only_reconciled_cancellation_releases_pending_checkout(world, checkout_calls):
+    payload = card_booking()
+    endpoint = "/api/bookings/create-with-stripe"
+    async def submit():
+        return await world.client.post(endpoint, json=payload, headers=_token("user"))
+
+    first = await submit()
+    assert first.status_code == 200
+    booking_id = first.json()["booking_id"]
+    async with world.maker.begin() as db:
+        original = await db.get(Booking, booking_id)
+        original.pending_payment_expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+    assert (await submit()).status_code == 409
+    async with world.maker.begin() as db:
+        original = await db.get(Booking, booking_id)
+        original.status = "Cancelled"
+    assert (await submit()).status_code == 200
+    assert len(checkout_calls) == 2
+
+
+async def test_another_buyers_pending_checkout_remains_private(world, checkout_calls):
+    async with world.maker.begin() as db:
+        db.add(Profile(id="other", user_id="other", email="other@example.invalid", role=RoleEnum.SURFER))
+    endpoint = "/api/bookings/create-with-stripe"
+    payload = card_booking()
+    first = await world.client.post(endpoint, json=payload, headers=_token("user"))
+    other = await world.client.post(endpoint, json=payload, headers=_token("other"))
+    assert first.status_code == other.status_code == 200
+    assert first.json()["booking_id"] != other.json()["booking_id"]
+    assert len(checkout_calls) == 2
+
+
+async def test_overlapping_checkout_requests_serialize_before_provider(tmp_path, checkout_calls):
+    engine, maker = await _make_engine(f"sqlite+aiosqlite:///{tmp_path / 'checkout.db'}")
+    payload = stripe_checkout.CreateBookingWithStripeRequest(**card_booking(apply_credits=10))
+
+    async def submit():
+        async with maker() as db:
+            try:
+                await stripe_checkout.create_booking_with_stripe(payload, "user", db)
+                return 200
+            except stripe_checkout.HTTPException as error:
+                return error.status_code
+
+    try:
+        assert sorted(await asyncio.gather(submit(), submit())) == [200, 409]
+        assert len(checkout_calls) == 1
+        async with maker() as db:
+            assert await db.scalar(select(func.count()).select_from(Booking)) == 1
+            assert await db.scalar(select(Profile.credit_balance).where(Profile.id == "user")) == 90
+    finally:
+        await engine.dispose()
+
+
+async def test_uncommitted_checkout_failure_allows_a_fresh_create(world, checkout_calls, monkeypatch):
+    payload = card_booking(apply_credits=10)
+    endpoint = "/api/bookings/create-with-stripe"
+
+    def unavailable(**kwargs):
+        raise RuntimeError("fixture unavailable")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(stripe_checkout.stripe.checkout.Session, "create", unavailable)
+        failed = await world.client.post(endpoint, json=payload, headers=_token("user"))
+    assert failed.status_code == 500
+    assert (await world.state())[:3] == (100, 0, 0)
+    retry = await world.client.post(endpoint, json=payload, headers=_token("user"))
+    assert retry.status_code == 200
+    assert (await world.state())[:3] == (90, 1, 1)
+    assert len(checkout_calls) == 1
 
 
 @pytest.mark.parametrize("change", [{"duration": -60, "apply_credits": 50}, {"duration": 0}, {"apply_credits": -5},

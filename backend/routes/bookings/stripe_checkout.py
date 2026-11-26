@@ -33,6 +33,8 @@ from .split_lock import check_splits, enforce_paid_shares, locked_share
 from .crud import (
     CreateBookingWithStripeRequest,
     check_time_slot_conflict,
+    lock_booking_buyer,
+    scheduled_start_utc,
 )
 
 router = APIRouter()
@@ -69,10 +71,7 @@ async def create_booking_with_stripe(
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=503, detail="Payment processing not configured")
 
-    user_result = await db.execute(select(Profile).where(Profile.id == user_id))
-    user = user_result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = await lock_booking_buyer(db, user_id)
 
     photographer_result = await db.execute(
         select(Profile).where(Profile.id == data.photographer_id)
@@ -81,14 +80,11 @@ async def create_booking_with_stripe(
     if not photographer:
         raise HTTPException(status_code=404, detail="Photographer not found")
 
-    try:
-        session_date = datetime.fromisoformat(data.session_date.replace('Z', '+00:00'))
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format")
+    session_date = scheduled_start_utc(data.session_date)
 
     conflict = await check_time_slot_conflict(
         db=db, photographer_id=data.photographer_id,
-        session_date=session_date, duration=data.duration
+        session_date=session_date, duration=data.duration, pending_creator_id=user_id,
     )
     if conflict:
         raise HTTPException(status_code=409, detail=conflict["message"])

@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 1,
+  "files": 1,
+  "branch": "codex/scheduled-card-retry",
+  "date": "2026-11-25",
+  "note": "Buyer can find their pending checkout on the Scheduled tab"
+}
