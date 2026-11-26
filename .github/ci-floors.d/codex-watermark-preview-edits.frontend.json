@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 3,
+  "files": 0,
+  "branch": "codex/watermark-preview-edits",
+  "date": "2026-11-25",
+  "note": "Invalidate obsolete watermark previews after settings edits"
+}
