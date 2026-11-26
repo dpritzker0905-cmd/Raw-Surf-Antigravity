@@ -106,3 +106,33 @@ test('unmount releases the pending preview and ignores its later rejection', asy
   await act(async () => { reject(new Error('late rejection')); });
   expect(logger.error).not.toHaveBeenCalled();
 });
+
+test('a completed preview survives reselecting the same style but clears when the text changes', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { preview_url: '/original.png' } });
+  render(dialog());
+  const input = await screen.findByDisplayValue('/users/a/profile');
+  await act(async () => { fireEvent.click(generate()); });
+  fireEvent.click(screen.getByRole('button', { name: 'Text Only' }));
+  expect(image()).toHaveAttribute('src', '/original.png');
+  fireEvent.change(input, { target: { value: 'Revised text' } });
+  expect(image()).toBeNull();
+});
+
+test('changing style invalidates a pending preview and allows a new preview immediately', async () => {
+  let finishOld, finishNew;
+  apiClient.post.mockReturnValueOnce(new Promise(resolve => { finishOld = resolve; }))
+    .mockReturnValueOnce(new Promise(resolve => { finishNew = resolve; }));
+  render(dialog());
+  await screen.findByDisplayValue('/users/a/profile');
+  fireEvent.click(generate());
+  fireEvent.click(screen.getByRole('button', { name: 'Logo + Text' }));
+  expect(generate()).toBeEnabled();
+  await act(async () => { fireEvent.click(generate()); });
+  expect(apiClient.post).toHaveBeenLastCalledWith('/gallery/generate-watermark-preview',
+    expect.objectContaining({ watermark_style: 'both' }), expect.anything());
+  await act(async () => { finishOld({ data: { preview_url: '/obsolete.png' } }); });
+  expect(image()).toBeNull();
+  expect(generate()).toBeDisabled();
+  await act(async () => { finishNew({ data: { preview_url: '/both.png' } }); });
+  expect(image()).toHaveAttribute('src', '/both.png');
+});

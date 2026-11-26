@@ -137,7 +137,10 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
       activePreview.current?.abort();
       activePreview.current = null;
     };
-  }, [open, user?.id]);
+  }, [
+    open, user?.id, settings.watermark_style, settings.watermark_text,
+    settings.watermark_logo_url, settings.watermark_opacity, settings.watermark_position,
+  ]);
 
   const generatePreview = async () => {
     activePreview.current?.abort();
