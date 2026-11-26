@@ -2,6 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import WatermarkSettings from './WatermarkSettings';
 import apiClient from '../lib/apiClient';
+import logger from '../utils/logger';
 
 let mockUserId;
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: mockUserId } }) }));
@@ -91,4 +92,17 @@ test('a current preview failure still shows the sample and permits retry', async
   expect(image()).toHaveAttribute('src', apiClient.post.mock.calls[0][1].sample_image_url);
   await act(async () => { fireEvent.click(generate()); });
   expect(image()).toHaveAttribute('src', '/retry.png');
+});
+
+test('unmount releases the pending preview and ignores its later rejection', async () => {
+  let reject;
+  apiClient.post.mockReturnValueOnce(new Promise((_, fail) => { reject = fail; }));
+  const view = render(dialog());
+  await screen.findByDisplayValue('/users/a/profile');
+  fireEvent.click(generate());
+  const signal = apiClient.post.mock.calls[0][2].signal;
+  view.unmount();
+  expect(signal.aborted).toBe(true);
+  await act(async () => { reject(new Error('late rejection')); });
+  expect(logger.error).not.toHaveBeenCalled();
 });
