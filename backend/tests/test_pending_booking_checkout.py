@@ -6,6 +6,7 @@ import httpx
 import pytest
 import pytest_asyncio
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Booking, BookingParticipant, CreditTransaction, PaymentTransaction
 from routes.bookings import pending_checkout, stripe_checkout
@@ -172,3 +173,26 @@ async def test_ambiguous_receipts_do_not_contact_provider(recovery):
 async def test_zero_reserved_credits_cancel_without_creating_a_ledger_entry(recovery):
     assert (await recovery.act("cancel")).json() == {"status": "Cancelled"}
     assert (await recovery.world.state())[:3] == (100, 0, 1)
+
+
+@pytest.mark.parametrize("committed", [False, True], ids=["before-commit", "lost-commit-ack"])
+async def test_retry_after_local_commit_error_refunds_the_original_debit_once(recovery, monkeypatch, committed):
+    r = recovery
+    commit = AsyncSession.commit
+
+    async def interrupted(db):
+        await db.flush()
+        if committed:
+            await commit(db)
+        raise RuntimeError("synthetic commit interruption")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(AsyncSession, "commit", interrupted)
+        assert (await r.act("cancel")).status_code == 500
+    assert (await r.world.state())[:3] == ((100, 2, 1) if committed else (90, 1, 1))
+    assert r.session["status"] == "expired"
+    assert (await r.act("cancel")).json() == {"status": "Cancelled"}
+    assert (await r.world.state())[:3] == (100, 2, 1)
+    async with r.world.maker() as db:
+        debit, refund = (await db.scalars(select(CreditTransaction).order_by(CreditTransaction.amount))).all()
+        assert refund.refund_of_transaction_id == debit.id
