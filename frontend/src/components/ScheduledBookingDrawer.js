@@ -31,6 +31,7 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import useHapticFeedback from '../hooks/useHapticFeedback';
+import useScheduledWalletBalance, { createScheduledBooking } from '../hooks/useScheduledWalletBalance';
 import ImpactZonePicker from './booking/ImpactZonePicker';
 import BookingPaymentStep from './booking/BookingPaymentStep';
 import BookingSessionSummary from './booking/BookingSessionSummary';
@@ -116,7 +117,8 @@ export const ScheduledBookingDrawer = ({
     (sum, m) => sum + (pricePerPerson * ((m.captain_cover_percent || 0) / 100)), 0
   );
   const captainShare = pricePerPerson + captainCoverageExtra;
-  const userCredits = user?.credit_balance || 0;
+  const wallet = useScheduledWalletBalance(isOpen, user?.id, photographer?.id);
+  const userCredits = wallet.balance ?? 0;
   
   // Check if group discounts are available (for display)
   const _hasGroupDiscounts = groupDiscount2 > 0 || groupDiscount3 > 0 || groupDiscount5 > 0;
@@ -242,7 +244,7 @@ export const ScheduledBookingDrawer = ({
       submittingBooking = true;
       if (amountToCharge > 0 && paymentMethod === 'card') {
         // Create booking with pending payment status and redirect to Stripe
-        const response = await apiClient.post(`/bookings/create-with-stripe`, {
+        const response = await createScheduledBooking(user?.id, '/bookings/create-with-stripe', {
           photographer_id: photographer.id,
           location: impactZone.description,
           session_date: sessionDateTime.toISOString(),
@@ -270,6 +272,7 @@ export const ScheduledBookingDrawer = ({
         const creditsUsed = receipt?.credits_applied ?? (url ? appliedCredits : 0);
         if ((url || hasBookingReceipt) && Number.isFinite(creditsUsed) && creditsUsed > 0 &&
             Number.isFinite(receipt.remaining_credits) && receipt.remaining_credits >= 0) {
+          wallet.applyReceiptBalance(receipt.remaining_credits);
           updateUser({ credit_balance: receipt.remaining_credits });
         }
         if (url) navigateToCheckout(url);
@@ -277,7 +280,7 @@ export const ScheduledBookingDrawer = ({
       }
       
       // Full credit payment or credits cover everything
-      const response = await apiClient.post(`/bookings/create`, {
+      const response = await createScheduledBooking(user?.id, '/bookings/create', {
         photographer_id: photographer.id,
         location: impactZone.description,
         session_date: sessionDateTime.toISOString(),
@@ -304,7 +307,8 @@ export const ScheduledBookingDrawer = ({
         return;
       }
       // Update user credits if applied
-      if (appliedCredits > 0 && response.data.remaining_credits !== undefined) {
+      if (appliedCredits > 0 && Number.isFinite(response.data.remaining_credits) && response.data.remaining_credits >= 0) {
+        wallet.applyReceiptBalance(response.data.remaining_credits);
         updateUser({ credit_balance: response.data.remaining_credits });
       }
       
@@ -573,6 +577,14 @@ export const ScheduledBookingDrawer = ({
               />
               
               {/* Payment Method Selection - Extracted Component */}
+              {user?.id && wallet.balance === null && (
+                <div role="status" className={textSecondary}>
+                  {wallet.failed ? <>
+                    Wallet balance unavailable.{' '}
+                    <button type="button" onClick={wallet.retry} className="underline">Retry wallet balance</button>
+                  </> : 'Checking wallet balance…'}
+                </div>
+              )}
               <BookingPaymentStep
                 crewSplitEnabled={crewSplitEnabled}
                 captainShare={captainShare}
