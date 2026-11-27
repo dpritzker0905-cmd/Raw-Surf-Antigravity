@@ -333,6 +333,12 @@ async def booking_payment_success(
     if payment_status != 'paid':
         raise HTTPException(status_code=400, detail="Payment not completed")
 
+    return await confirm_verified_booking(db, booking, transaction)
+
+
+async def confirm_verified_booking(db, booking, transaction):
+    """Settle a verified payment while the caller owns the transaction row lock."""
+    booking_id = booking.id
     user_result = await db.execute(select(Profile).where(Profile.id == booking.creator_id))
     user = user_result.scalar_one_or_none()
 

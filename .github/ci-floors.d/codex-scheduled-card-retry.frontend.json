@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 1,
+  "tests": 5,
   "files": 1,
   "branch": "codex/scheduled-card-retry",
   "date": "2026-11-25",
-  "note": "Buyer can find their pending checkout on the Scheduled tab"
+  "note": "Buyer can find, resume and cancel pending checkout on the Scheduled tab"
 }

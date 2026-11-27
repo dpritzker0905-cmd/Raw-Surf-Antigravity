@@ -7,6 +7,7 @@ import { Badge } from './ui/badge';
 import { CrewPaymentDashboard } from './CrewPaymentDashboard';
 import { SessionActionDrawer } from './SessionActionDrawer';
 import CrewHub from './CrewHub';
+import { PendingCheckoutActions } from './bookings/PendingCheckoutActions';
 
 /**
  * BookingCard - Extracted from Bookings.js for modularity
@@ -74,6 +75,10 @@ export const BookingCard = ({
           </div>
           {getStatusBadge()}
         </div>
+        {user?.id && isHost && booking.status === 'Pending Payment' &&
+          (!booking.booking_type || booking.booking_type === 'scheduled') && (
+            <PendingCheckoutActions key={`${user.id}:${booking.id}`} bookingId={booking.id} onRefresh={onRefresh} />
+          )}
 
         {/* Date/Time */}
         <div className={`flex items-center gap-2 text-sm ${textSecondaryClass} mb-3`}>
