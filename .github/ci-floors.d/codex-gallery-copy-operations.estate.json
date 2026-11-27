@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 8,
+  "branch": "codex/gallery-copy-operations",
+  "date": "2026-11-25",
+  "note": "Atomic gallery copy operation receipt regressions"
+}

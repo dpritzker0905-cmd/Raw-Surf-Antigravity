@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 7,
+  "files": 1,
+  "branch": "codex/gallery-copy-operations",
+  "date": "2026-11-25",
+  "note": "Gallery copy retry operation identity"
+}

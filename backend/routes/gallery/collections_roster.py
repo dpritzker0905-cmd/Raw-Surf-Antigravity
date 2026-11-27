@@ -16,6 +16,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from services.gallery_covers import display_cover_url
 from utils.live_buyin import resolve_live_buyin
 from models import (
     Profile, GalleryItem, Gallery, LiveSession, LiveSessionParticipant,
@@ -250,20 +251,19 @@ async def get_photographer_galleries(
     await assert_owner_listed(db, photographer_id)
     
     result = await db.execute(
-        select(Gallery)
+        select(Gallery, display_cover_url())
         .where(Gallery.photographer_id == photographer_id)
         .options(
             selectinload(Gallery.surf_spot),
             selectinload(Gallery.live_session),
-            selectinload(Gallery.items),
+            selectinload(Gallery.items.and_(GalleryItem.is_deleted.is_not(True))),
             selectinload(Gallery.photographer)
         )
+        .execution_options(populate_existing=True)
         .order_by(func.coalesce(Gallery.session_date, Gallery.created_at).desc())
     )
-    galleries = result.scalars().all()
-    
-    # Auto-heal: if a gallery has items but no cover_image_url, set it from the first item
-    needs_commit = False
+    rows = result.all()
+    galleries = [gallery for gallery, _ in rows]
     gallery_data = []
     
     # ── Session Roster: Batch-load participants for all galleries ──
@@ -506,30 +506,13 @@ async def get_photographer_galleries(
                             dist_per_surfer_map[gid][sid]["videos_included"] += 1
                         else:
                             dist_per_surfer_map[gid][sid]["photos_included"] += 1
-    for g in galleries:
-        cover_url = g.cover_image_url
-        
-        # If no cover but has items, use the first item's preview/thumbnail
-        if not cover_url and g.items:
-            for item in sorted(g.items, key=lambda i: i.created_at or datetime.min):
-                candidate = item.preview_url or item.thumbnail_url
-                if candidate:
-                    cover_url = candidate
-                    # Persist so this only needs to compute once
-                    g.cover_image_url = cover_url
-                    needs_commit = True
-                    break
-        
-        # Also fix accurate item_count while we're here
-        actual_count = len(g.items) if g.items else 0
-        if g.item_count != actual_count:
-            g.item_count = actual_count
-            needs_commit = True
-        
+    for g, cover_url in rows:
         # Compute a fallback preview from items for frontend
         first_item_preview = None
         if g.items:
             for item in sorted(g.items, key=lambda i: i.created_at or datetime.min):
+                if not item.is_public:
+                    continue
                 candidate = item.preview_url or item.thumbnail_url
                 if candidate:
                     first_item_preview = candidate
@@ -539,7 +522,7 @@ async def get_photographer_galleries(
             "id": g.id,
             "title": g.title,
             "description": g.description,
-            "cover_image_url": cover_url,
+            "cover_image_url": cover_url or first_item_preview,
             "first_item_preview": first_item_preview,
             "surf_spot_id": g.surf_spot_id,
             "surf_spot_name": g.surf_spot.name if g.surf_spot else None,
@@ -547,7 +530,7 @@ async def get_photographer_galleries(
             "booking_id": g.booking_id,
             "dispatch_id": g.dispatch_id,
             "session_type": g.session_type or ("live" if g.live_session_id else "manual"),
-            "item_count": actual_count,
+            "item_count": len(g.items),
             "view_count": g.view_count,
             "purchase_count": g.purchase_count,
             "is_public": g.is_public,
@@ -574,8 +557,5 @@ async def get_photographer_galleries(
                 dispatch_participants_map, dist_per_surfer_map
             )
         })
-    
-    if needs_commit:
-        await db.commit()
     
     return gallery_data

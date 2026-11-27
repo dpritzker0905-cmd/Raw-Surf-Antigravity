@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 from sqlalchemy.orm import selectinload
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
@@ -24,7 +26,7 @@ from models import (
     RoleEnum, Gallery, LiveSession, LiveSessionParticipant,
     XPTransaction, SurferGalleryItem, SurferSelectionQuota,
     GalleryTierEnum, Booking, BookingParticipant, DispatchRequest,
-    ConditionReport
+    ConditionReport, GalleryCopyReceipt
 )
 
 from routes.career_hub.gamification import check_badge_milestones
@@ -319,7 +321,7 @@ async def get_gallery_item(
     """Get a single gallery item"""
     result = await db.execute(
         select(GalleryItem)
-        .where(GalleryItem.id == item_id)
+        .where(GalleryItem.id == item_id, GalleryItem.is_deleted.is_not(True))
         .options(selectinload(GalleryItem.photographer), selectinload(GalleryItem.spot))
     )
     item = result.scalar_one_or_none()
@@ -421,6 +423,55 @@ async def update_gallery_item(
 class MoveToFolderRequest(BaseModel):
     target_gallery_id: str
 
+
+async def _lock_transfer_rows(
+    db: AsyncSession, item_id: str, photographer_id: str, target_id: str, *, move: bool
+) -> tuple[GalleryItem, Gallery | None, Gallery]:
+    # Archive and transfer serialize on the item before changing folder counts.
+    active_item = select(GalleryItem).where(
+        GalleryItem.id == item_id, GalleryItem.is_deleted.is_not(True)
+    )
+    item = await db.scalar(
+        active_item.where(GalleryItem.photographer_id == photographer_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if item is None:
+        foreign_item = active_item.where(GalleryItem.photographer_id != photographer_id).exists()
+        if await db.scalar(select(foreign_item)):
+            raise HTTPException(status_code=403, detail="Not authorized")
+        raise HTTPException(status_code=404, detail="Gallery item not found")
+
+    folder_ids = {target_id}
+    if move and item.gallery_id:
+        folder_ids.add(item.gallery_id)
+    # Opposing moves must acquire both folder locks in the same order.
+    result = await db.scalars(
+        select(Gallery)
+        .where(Gallery.id.in_(folder_ids), Gallery.photographer_id == photographer_id)
+        .order_by(Gallery.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    folders = {folder.id: folder for folder in result}
+    if target_id not in folders:
+        foreign_target = select(Gallery.id).where(
+            Gallery.id == target_id, Gallery.photographer_id != photographer_id
+        )
+        if await db.scalar(foreign_target) is not None:
+            action = "move" if move else "copy"
+            raise HTTPException(status_code=403, detail=f"Not authorized to {action} to this folder")
+        raise HTTPException(status_code=404, detail="Target folder not found")
+    # Rebuild a missing count under the lock, before the transfer changes membership.
+    if not move or item.gallery_id != target_id:
+        for folder in folders.values():
+            if folder.item_count is None:
+                folder.item_count = await db.scalar(select(func.count()).select_from(GalleryItem).where(
+                    GalleryItem.gallery_id == folder.id, GalleryItem.is_deleted.is_not(True),
+                ))
+    return item, folders.get(item.gallery_id), folders[target_id]
+
+
 @router.patch("/gallery/item/{item_id}/move")
 async def move_item_to_gallery(
     item_id: str,
@@ -429,37 +480,15 @@ async def move_item_to_gallery(
     db: AsyncSession = Depends(get_db)
 ):
     """Move a gallery item to a different gallery/folder"""
-    # Get the item
-    result = await db.execute(select(GalleryItem).where(GalleryItem.id == item_id))
-    item = result.scalar_one_or_none()
-    
-    if not item:
-        raise HTTPException(status_code=404, detail="Gallery item not found")
-    
-    if item.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
-    # Verify target gallery exists and is owned by photographer
-    target_result = await db.execute(select(Gallery).where(Gallery.id == data.target_gallery_id))
-    target_gallery = target_result.scalar_one_or_none()
-    
-    if not target_gallery:
-        raise HTTPException(status_code=404, detail="Target folder not found")
-    
-    if target_gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized to move to this folder")
-    
-    # Update item counts on old and new galleries
-    if item.gallery_id:
-        old_result = await db.execute(select(Gallery).where(Gallery.id == item.gallery_id))
-        old_gallery = old_result.scalar_one_or_none()
+    item, old_gallery, target_gallery = await _lock_transfer_rows(
+        db, item_id, photographer_id, data.target_gallery_id, move=True
+    )
+    if item.gallery_id != target_gallery.id:
         if old_gallery:
             old_gallery.item_count = max(0, old_gallery.item_count - 1)
-    
-    # Move item
-    item.gallery_id = data.target_gallery_id
-    target_gallery.item_count += 1
-    
+        item.gallery_id = target_gallery.id
+        target_gallery.item_count += 1
+
     # ============ PRICE SNAPSHOT: Inherit gallery's locked prices ============
     # When a photo is moved into a session gallery, it should adopt the pricing
     # that was active at the time of the session â€” NOT the photographer's current prices.
@@ -627,32 +656,48 @@ async def copy_item_to_gallery(
     db: AsyncSession = Depends(get_db)
 ):
     """Copy a gallery item to a folder (keeps original in main gallery)"""
-    # Get the original item
-    result = await db.execute(select(GalleryItem).where(GalleryItem.id == item_id))
-    item = result.scalar_one_or_none()
-    
-    if not item:
-        raise HTTPException(status_code=404, detail="Gallery item not found")
-    
-    if item.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
-    # Verify target gallery exists and is owned by photographer
-    target_result = await db.execute(select(Gallery).where(Gallery.id == data.target_gallery_id))
-    target_gallery = target_result.scalar_one_or_none()
-    
-    if not target_gallery:
-        raise HTTPException(status_code=404, detail="Target folder not found")
-    
-    if target_gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized to copy to this folder")
-    
+    return await _copy_to_folder(db, item_id, photographer_id, data.target_gallery_id)
+
+
+@router.put("/gallery/item/{item_id}/copies/{operation_id}")
+async def copy_gallery_item_once(
+    item_id: str, operation_id: uuid.UUID, data: MoveToFolderRequest,
+    owner_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),
+):
+    return await _copy_to_folder(db, item_id, owner_id, data.target_gallery_id, str(operation_id))
+
+
+async def _copy_to_folder(db, item_id, owner_id, target_id, operation_id=None):
+    item, _, target_gallery = await _lock_transfer_rows(
+        db, item_id, owner_id, target_id, move=False
+    )
+    copy_id = str(uuid.uuid4())
+    if operation_id is not None:
+        insert = {"postgresql": pg_insert, "sqlite": sqlite_insert}[db.get_bind().dialect.name]
+        claim = (insert(GalleryCopyReceipt)
+                 .values(owner_id=owner_id, operation_id=operation_id, source_id=item_id,
+                         target_id=target_id, copy_id=copy_id)
+                 .on_conflict_do_nothing(index_elements=["owner_id", "operation_id"])
+                 .returning(GalleryCopyReceipt.copy_id))
+        if await db.scalar(claim) is None:
+            receipt = await db.get(GalleryCopyReceipt, (owner_id, operation_id))
+            if receipt is None:
+                raise HTTPException(status_code=503, detail="Please retry to confirm the previous copy")
+            if (receipt.source_id, receipt.target_id) != (item_id, target_id):
+                raise HTTPException(status_code=409, detail="Copy operation already used for a different selection")
+            present = await db.scalar(select(GalleryItem.id).where(
+                GalleryItem.id == receipt.copy_id, GalleryItem.gallery_id == target_id,
+                GalleryItem.photographer_id == owner_id, GalleryItem.is_deleted.is_not(True),
+            ))
+            return {"message": "Previous copy confirmed", "gallery_id": target_id, "new_item_id": receipt.copy_id,
+                    "replayed": True, "copy_present": present is not None}
+
     # Create a copy of the item in the target folder
     new_item = GalleryItem(
-        id=str(uuid.uuid4()),
+        id=copy_id,
         photographer_id=item.photographer_id,
         spot_id=item.spot_id,
-        gallery_id=data.target_gallery_id,
+        gallery_id=target_id,
         original_url=item.original_url,
         preview_url=item.preview_url,
         thumbnail_url=item.thumbnail_url,
@@ -679,15 +724,17 @@ async def copy_item_to_gallery(
     )
     db.add(new_item)
     
-    # Update target gallery count
-    target_gallery.item_count += 1
-    
-    # Set cover image if target doesn't have one
-    if not target_gallery.cover_image_url and item.media_type == 'image':
-        target_gallery.cover_image_url = item.preview_url
+    # Persist any legacy NULL-count repair before incrementing the stored value.
+    await db.flush()
+    target_gallery.item_count = Gallery.item_count + 1
+    if item.media_type == 'image' and item.preview_url:
+        target_gallery.cover_image_url = func.coalesce(func.nullif(Gallery.cover_image_url, ''), item.preview_url)
     
     await db.commit()
-    return {"message": "Item copied to folder", "gallery_id": data.target_gallery_id, "new_item_id": new_item.id}
+    result = {"message": "Item copied to folder", "gallery_id": target_id, "new_item_id": copy_id}
+    if operation_id is not None:
+        result.update(replayed=False, copy_present=True)
+    return result
 
 
 # SetCustomPriceRequest + custom-price endpoint extracted to gallery_purchases.py (v86)

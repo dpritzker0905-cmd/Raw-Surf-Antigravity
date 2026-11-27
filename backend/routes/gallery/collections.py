@@ -17,6 +17,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from services.gallery_covers import archived_cover_selection, display_cover_url
 from core.security import get_optional_user_id
 from .ownership import verified_viewer
 from models import (
@@ -67,6 +68,8 @@ async def create_gallery(
     photographer_roles = [RoleEnum.GROM_PARENT, RoleEnum.HOBBYIST, RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]
     if photographer.role not in photographer_roles:
         raise HTTPException(status_code=403, detail="Only photographers can create galleries")
+    if await archived_cover_selection(db, photographer_id, data.cover_image_url):
+        raise HTTPException(status_code=404, detail="Gallery item not found")
     
     gallery = Gallery(
         photographer_id=photographer_id,
@@ -114,19 +117,18 @@ async def get_gallery(
     viewer_id = verified_viewer(viewer_id, token_user_id)  # a query claim alone is anonymous
     
     result = await db.execute(
-        select(Gallery)
+        select(Gallery, display_cover_url())
         .where(Gallery.id == gallery_id)
         .options(
             selectinload(Gallery.photographer),
             selectinload(Gallery.surf_spot),
-            selectinload(Gallery.items),
             selectinload(Gallery.live_session)
         )
     )
-    gallery = result.scalar_one_or_none()
-    
-    if not gallery:
+    row = result.one_or_none()
+    if row is None:
         raise HTTPException(status_code=404, detail="Gallery not found")
+    gallery, cover_url = row
     
     # Increment view count
     gallery.view_count += 1
@@ -144,7 +146,12 @@ async def get_gallery(
     
     # Phase 4: Pre-fetch per-item distribution counts for status badges
     is_owner = viewer_id and viewer_id == gallery.photographer_id
-    item_ids = [item.id for item in gallery.items]
+    active_query = select(GalleryItem).where(
+        GalleryItem.gallery_id == gallery_id,
+        GalleryItem.is_deleted.is_not(True),
+    ).execution_options(populate_existing=True)
+    active_items = (await db.scalars(active_query)).all()
+    item_ids = [item.id for item in active_items]
     distribution_map = {}  # item_id -> {count, has_ai_suggestion}
     if item_ids and is_owner:
         dist_result = await db.execute(
@@ -185,7 +192,7 @@ async def get_gallery(
             })
     
     items = []
-    for item in gallery.items:
+    for item in active_items:
         # Gallery owner can always see all items (including private/draft ones)
         # Public viewers only see items marked is_public
         if is_owner or item.is_public:
@@ -223,7 +230,7 @@ async def get_gallery(
         "photographer_avatar": gallery.photographer.avatar_url if gallery.photographer else None,
         "title": gallery.title,
         "description": gallery.description,
-        "cover_image_url": gallery.cover_image_url,
+        "cover_image_url": cover_url,
         "surf_spot_name": gallery.surf_spot.name if gallery.surf_spot else None,
         "item_count": len(items),
         "view_count": gallery.view_count,
@@ -277,6 +284,8 @@ async def update_gallery(
     if data.description is not None:
         gallery.description = data.description
     if data.cover_image_url is not None:
+        if await archived_cover_selection(db, photographer_id, data.cover_image_url):
+            raise HTTPException(status_code=404, detail="Gallery item not found")
         gallery.cover_image_url = data.cover_image_url
     if data.is_public is not None:
         gallery.is_public = data.is_public
@@ -623,25 +632,10 @@ async def remove_item_from_gallery(
     if gallery.photographer_id != photographer_id:
         raise HTTPException(status_code=403, detail="Not authorized to modify this gallery")
     
-    # Verify item exists in this gallery
-    item_check = await db.execute(
-        select(GalleryItem).where(
-            GalleryItem.id == item_id,
-            GalleryItem.gallery_id == gallery_id
-        )
-    )
-    item = item_check.scalar_one_or_none()
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found in this gallery")
-    
-    # Safe delete (protects paid surfer locker items)
-    result = await safe_delete_gallery_item(db, item_id, photographer_id)
+    result = await safe_delete_gallery_item(db, item_id, photographer_id, expected_gallery_id=gallery_id)
     
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
-    
-    # Update gallery stats
-    gallery.item_count = max(0, gallery.item_count - 1)
     
     await db.commit()
     

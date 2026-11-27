@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 11,
+  "branch": "codex/gallery-archived-transfers",
+  "date": "2026-11-25",
+  "note": "Gallery archive move and copy regressions"
+}

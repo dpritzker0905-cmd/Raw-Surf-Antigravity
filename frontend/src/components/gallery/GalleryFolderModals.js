@@ -33,7 +33,7 @@ export const GalleryFolderModals = ({
   // Add to Gallery
   showAddToGalleryModal, setShowAddToGalleryModal,
   selectedGallery, gallery, galleryItems,
-  handleAddToGallery, setShowUploadModal,
+  handleAddToGallery, addingLibraryPhoto, setShowUploadModal,
   // Folder Create/Rename/Delete
   showCreateFolderModal, setShowCreateFolderModal,
   showRenameFolderModal, setShowRenameFolderModal,
@@ -361,7 +361,7 @@ export const GalleryFolderModals = ({
             {gallery.length > 0 && (
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px bg-border" />
-                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">or pick from library</span>
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">or copy from library</span>
                 <div className="flex-1 h-px bg-border" />
               </div>
             )}
@@ -376,6 +376,7 @@ export const GalleryFolderModals = ({
                 {gallery.filter(item => !galleryItems.find(gi => gi.id === item.id)).map((item) => (
                   <button
                     key={item.id}
+                    disabled={addingLibraryPhoto}
                     onClick={() => handleAddToGallery(item.id)}
                     className="relative aspect-square rounded-lg overflow-hidden bg-muted hover:ring-2 hover:ring-cyan-400 transition-all"
                   >

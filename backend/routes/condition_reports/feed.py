@@ -4,6 +4,7 @@ from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
+from services.gallery_covers import display_cover_url, display_media_url
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from models import ConditionReport, Gallery, LiveSession, SurfSpot
@@ -357,7 +358,7 @@ async def get_public_gallery_archive(
 
 
     
-    query = select(Gallery).where(
+    query = select(Gallery, display_cover_url()).where(
         Gallery.is_public.is_(True),
         Gallery.item_count > 0
     ).options(
@@ -415,31 +416,31 @@ async def get_public_gallery_archive(
     query = query.order_by(desc(Gallery.session_date)).offset(offset).limit(limit)
     
     result = await db.execute(query)
-    galleries = result.scalars().all()
+    galleries = result.all()
     
     # Fetch linked condition reports for conditions context
-    gallery_session_ids = [g.live_session_id for g in galleries if g.live_session_id]
+    gallery_session_ids = [g.live_session_id for g, _ in galleries if g.live_session_id]
     conditions_map = {}
     if gallery_session_ids:
         cr_result = await db.execute(
-            select(ConditionReport).where(
+            select(ConditionReport, display_media_url(ConditionReport.photographer_id, ConditionReport.media_url)).where(
                 ConditionReport.live_session_id.in_(gallery_session_ids)
             )
         )
-        for cr in cr_result.scalars().all():
-            conditions_map[cr.live_session_id] = cr
+        for cr, media_url in cr_result.all():
+            conditions_map[cr.live_session_id] = (cr, media_url)
     
     response = []
-    for gallery in galleries:
+    for gallery, cover_url in galleries:
         photographer = gallery.photographer
         spot = gallery.surf_spot
         session = gallery.live_session
-        cr = conditions_map.get(gallery.live_session_id)
+        cr, media_url = conditions_map.get(gallery.live_session_id, (None, None))
         
         response.append({
             "id": gallery.id,
             "title": gallery.title,
-            "cover_image_url": gallery.cover_image_url,
+            "cover_image_url": cover_url,
             "item_count": gallery.item_count or 0,
             "view_count": gallery.view_count or 0,
             "session_date": gallery.session_date.isoformat() if gallery.session_date else None,
@@ -460,7 +461,7 @@ async def get_public_gallery_archive(
                 "conditions_label": cr.conditions_label if cr else None,
                 "wind_conditions": cr.wind_conditions if cr else None,
                 "crowd_level": cr.crowd_level if cr else None,
-                "media_url": cr.media_url if cr else None,
+                "media_url": media_url,
             } if cr else None,
             # Session info
             "live_session_id": gallery.live_session_id,

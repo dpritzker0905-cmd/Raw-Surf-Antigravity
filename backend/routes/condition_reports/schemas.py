@@ -12,6 +12,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta, timezone
 
 from database import get_db
+from services.gallery_covers import display_cover_url
 from models import Profile, SurfSpot, ConditionReport, Story, Post, LiveSession, RoleEnum, Gallery, GalleryItem
 from websocket_manager import broadcast_new_condition_report
 
@@ -117,16 +118,16 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
             # Fall back to gallery cover
             if not valid_url:
                 gallery_result = await db.execute(
-                    select(Gallery).where(
+                    select(display_cover_url()).where(
                         Gallery.live_session_id == report.live_session_id,
                         Gallery.photographer_id == report.photographer_id
                     ).limit(1)
                 )
-                gallery = gallery_result.scalar_one_or_none()
-                if gallery and gallery.cover_image_url and gallery.cover_image_url.startswith('https://'):
+                cover_url = gallery_result.scalar_one_or_none()
+                if cover_url and cover_url.startswith('https://'):
                     # Only use cover if it's not watermarked
-                    if not _is_watermarked_url(gallery.cover_image_url):
-                        valid_url = gallery.cover_image_url
+                    if not _is_watermarked_url(cover_url):
+                        valid_url = cover_url
         
         # Strategy 3: Find gallery items by photographer+spot
         if not valid_url and report.spot_id:

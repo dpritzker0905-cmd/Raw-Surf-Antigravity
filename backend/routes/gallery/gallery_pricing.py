@@ -43,7 +43,7 @@ async def get_gallery_item_pricing(
     viewer_id = verified_viewer(viewer_id, token_user_id)  # a query claim alone is anonymous
     result = await db.execute(
         select(GalleryItem)
-        .where(GalleryItem.id == item_id)
+        .where(GalleryItem.id == item_id, GalleryItem.is_deleted.is_not(True))
         .options(selectinload(GalleryItem.photographer))
         .options(selectinload(GalleryItem.gallery))
     )
