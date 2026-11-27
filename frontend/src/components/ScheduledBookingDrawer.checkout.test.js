@@ -96,14 +96,35 @@ it.each([new Error('Connection lost'), { response: { status: 503 } }, { response
   },
 );
 
-it('keeps a rejected time slot editable', async () => {
-  apiClient.post.mockRejectedValueOnce({ response: { status: 409, data: { detail: 'Slot taken' } } });
-  prepare();
-  await act(async () => { submit(); });
-  expect(toast.error).toHaveBeenCalledWith('Slot taken');
-  expect(screen.getByTestId('confirm-booking-btn')).toBeEnabled();
-  expect(endpoints()).toEqual(['/bookings/create-with-stripe']);
-});
+it.each([[undefined, 'create-with-stripe'], ['Use credits', 'create']])(
+  'links to the existing pending booking after a retry using %s', async (choice, endpoint) => {
+    apiClient.post.mockRejectedValueOnce({ response: { status: 409, data: {
+      detail: 'Already started', pending_booking_id: 'original/one&two',
+    } } });
+    prepare(choice);
+    await act(async () => { submit(); });
+    expect(screen.getByRole('link', { name: /check scheduled bookings/i })).toHaveAttribute(
+      'href', '/bookings?tab=scheduled&highlight=original%2Fone%26two',
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('already have a pending checkout');
+    expect(screen.queryByTestId('confirm-booking-btn')).toBeNull();
+    expect(endpoints()).toEqual([`/bookings/${endpoint}`]);
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+    expect(navigateToCheckout).not.toHaveBeenCalled();
+  },
+);
+
+it.each([[409, undefined], [409, '  '], [409, 123], [400, 'original']])(
+  'keeps a rejected booking editable for status %s and pending booking ID %p', async (status, pendingId) => {
+    apiClient.post.mockRejectedValueOnce({ response: { status, data: { detail: 'Slot taken', pending_booking_id: pendingId } } });
+    prepare();
+    await act(async () => { submit(); });
+    expect(toast.error).toHaveBeenCalledWith('Slot taken');
+    expect(screen.getByTestId('confirm-booking-btn')).toBeEnabled();
+    expect(screen.queryByRole('link', { name: /check scheduled bookings/i })).toBeNull();
+    expect(endpoints()).toEqual(['/bookings/create-with-stripe']);
+  },
+);
 
 it('retains the original link if browser navigation fails', async () => {
   navigateToCheckout.mockImplementationOnce(() => { throw new Error('Navigation interrupted'); });

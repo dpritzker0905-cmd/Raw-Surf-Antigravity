@@ -59,6 +59,7 @@ export const ScheduledBookingDrawer = ({
   const [selfieUrl, setSelfieUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
+  const [pendingBookingId, setPendingBookingId] = useState(null);
   const visit = useRef(null);
   
   // Time slot state
@@ -125,6 +126,7 @@ export const ScheduledBookingDrawer = ({
     visit.current = isOpen ? { submitting: false } : null;
     if (isOpen) {
       setCheckoutUrl(null);
+      setPendingBookingId(null);
       setLoading(false);
       setStep('time');
       setSelectedDate(null);
@@ -349,6 +351,12 @@ export const ScheduledBookingDrawer = ({
       
     } catch (error) {
       if (visit.current !== submitted) return;
+      const pendingId = error.response?.data?.pending_booking_id;
+      if (error.response?.status === 409 && typeof pendingId === 'string' && pendingId.trim()) {
+        setPendingBookingId(pendingId);
+        setStep('checkout');
+        return;
+      }
       if (requestingCheckout && (!error.response || error.response.status === 408 || error.response.status >= 500)) {
         // A lost response can follow a committed booking. Keep any checkout link we already received.
         setStep('checkout');
@@ -586,11 +594,14 @@ export const ScheduledBookingDrawer = ({
           {step === 'checkout' && (
             <div className="space-y-4 py-6 text-center">
               <p role="status" className={textPrimary}>
-                {checkoutUrl ? 'Your checkout is ready. Payment is pending.'
+                {pendingBookingId ? 'You already have a pending checkout for this session. Open Scheduled Bookings to resume or cancel it.'
+                  : checkoutUrl ? 'Your checkout is ready. Payment is pending.'
                   : 'Could not open checkout. Check your scheduled bookings before trying again.'}
               </p>
               {checkoutUrl && <a href={checkoutUrl} className="block underline">Continue to checkout</a>}
-              <a href="/bookings?tab=scheduled" className="block underline">Check scheduled bookings</a>
+              <a href={pendingBookingId ? `/bookings?tab=scheduled&highlight=${encodeURIComponent(pendingBookingId)}` : '/bookings?tab=scheduled'} className="block underline">
+                Check scheduled bookings
+              </a>
             </div>
           )}
           {step === 'confirm' && (

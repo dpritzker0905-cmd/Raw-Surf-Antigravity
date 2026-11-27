@@ -2,6 +2,7 @@
 bookings/crud.py â€” Core booking CRUD: list, get, create, cancel, complete, share, sessions
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func, text
 from sqlalchemy.exc import DBAPIError
@@ -146,6 +147,7 @@ async def check_time_slot_conflict(
             if existing_start_utc == requested_start:
                 return {
                     "conflict": True,
+                    "pending_booking_id": booking.id,
                     "message": "You already started checkout for this session. Check your scheduled bookings.",
                 }
             continue
@@ -161,6 +163,13 @@ async def check_time_slot_conflict(
             }
     
     return None  # No conflict
+
+
+def booking_conflict_response(conflict: dict) -> JSONResponse:
+    content = {"detail": conflict["message"]}
+    if "pending_booking_id" in conflict:
+        content["pending_booking_id"] = conflict["pending_booking_id"]
+    return JSONResponse(status_code=409, content=content)
 
 
 # ============ PYDANTIC MODELS (shared across booking modules) ============

@@ -33,7 +33,7 @@ except ImportError:
     onesignal_service = None
 
 # Import shared helpers from crud
-from .crud import check_time_slot_conflict, format_scheduled_start, lock_booking_buyer, scheduled_start_utc
+from .crud import booking_conflict_response, check_time_slot_conflict, format_scheduled_start, lock_booking_buyer, scheduled_start_utc
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -110,7 +110,7 @@ async def create_user_booking(
         duration=data.duration, pending_creator_id=user_id,
     )
     if conflict:
-        raise HTTPException(status_code=409, detail=conflict["message"])
+        return booking_conflict_response(conflict)
 
     # Calculate price based on duration
     hourly_rate = photographer.booking_hourly_rate or photographer.hourly_rate or photographer.session_price or 75.0

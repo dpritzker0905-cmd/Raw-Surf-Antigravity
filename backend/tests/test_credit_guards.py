@@ -386,6 +386,16 @@ async def test_reopened_checkout_cannot_book_or_debit_twice(world, checkout_call
     balance, debits, bookings, _ = await world.state()
     assert (bookings, payments, participants, debits, balance, len(checkout_calls)) == (1, 1, 1, 1, 90, 1)
     assert retry.status_code == 409 and "scheduled bookings" in retry.json()["detail"]
+    assert retry.json() == {
+        "detail": "You already started checkout for this session. Check your scheduled bookings.",
+        "pending_booking_id": first.json()["booking_id"],
+    }
+
+    async with world.maker.begin() as db:
+        original = await db.get(Booking, first.json()["booking_id"])
+        original.status = "Confirmed"
+    occupied = await world.client.post(f"/api/bookings/{retry_endpoint}", json=payload, headers=_token("user"))
+    assert occupied.status_code == 409 and set(occupied.json()) == {"detail"}
 
 
 async def test_pending_checkout_identity_uses_the_start_instant(world, checkout_calls):
@@ -429,23 +439,29 @@ async def test_another_buyers_pending_checkout_remains_private(world, checkout_c
     other = await world.client.post(endpoint, json=payload, headers=_token("other"))
     assert first.status_code == other.status_code == 200
     assert first.json()["booking_id"] != other.json()["booking_id"]
+    for buyer, expected in (("user", first), ("other", other)):
+        retry = await world.client.post(endpoint, json=payload, headers=_token(buyer))
+        assert retry.status_code == 409
+        assert retry.json()["pending_booking_id"] == expected.json()["booking_id"]
     assert len(checkout_calls) == 2
 
 
-async def test_overlapping_checkout_requests_serialize_before_provider(tmp_path, checkout_calls):
+async def test_overlapping_checkout_requests_serialize_before_provider(tmp_path, checkout_calls, world):
     engine, maker = await _make_engine(f"sqlite+aiosqlite:///{tmp_path / 'checkout.db'}")
-    payload = stripe_checkout.CreateBookingWithStripeRequest(**card_booking(apply_credits=10))
+    payload = card_booking(apply_credits=10)
 
-    async def submit():
+    async def dependency():
         async with maker() as db:
-            try:
-                await stripe_checkout.create_booking_with_stripe(payload, "user", db)
-                return 200
-            except stripe_checkout.HTTPException as error:
-                return error.status_code
+            yield db
+
+    world.app.dependency_overrides[get_db] = dependency
+    async def submit():
+        return await world.client.post("/api/bookings/create-with-stripe", json=payload, headers=_token("user"))
 
     try:
-        assert sorted(await asyncio.gather(submit(), submit())) == [200, 409]
+        created, duplicate = sorted(await asyncio.gather(submit(), submit()), key=lambda r: r.status_code)
+        assert (created.status_code, duplicate.status_code) == (200, 409)
+        assert duplicate.json()["pending_booking_id"] == created.json()["booking_id"]
         assert len(checkout_calls) == 1
         async with maker() as db:
             assert await db.scalar(select(func.count()).select_from(Booking)) == 1

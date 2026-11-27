@@ -34,6 +34,7 @@ from .split_lock import check_splits, enforce_paid_shares, locked_share
 from .crud import (
     CreateBookingWithStripeRequest,
     check_time_slot_conflict,
+    booking_conflict_response,
     format_scheduled_start,
     lock_booking_buyer,
     scheduled_start_utc,
@@ -102,7 +103,7 @@ async def create_booking_with_stripe(
         session_date=session_date, duration=data.duration, pending_creator_id=user_id,
     )
     if conflict:
-        raise HTTPException(status_code=409, detail=conflict["message"])
+        return booking_conflict_response(conflict)
 
     hourly_rate = photographer.booking_hourly_rate or photographer.hourly_rate or photographer.session_price or 75.0
     duration_multipliers = {60: 1, 120: 1.8, 180: 2.5, 240: 3, 480: 5}
