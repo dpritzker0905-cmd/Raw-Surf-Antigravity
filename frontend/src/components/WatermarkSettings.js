@@ -251,7 +251,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                       alt="Watermark logo"
                       className="max-h-24 mx-auto object-contain"
                     />
-                    <button aria-label="Close"
+                    <button type="button" aria-label="Remove watermark logo"
                       data-testid="remove-logo-btn"
                       onClick={removeLogo}
                       className="absolute top-2 right-2 p-1.5 rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30"
@@ -260,15 +260,15 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                   </div>
                 ) : (
                   <label className={`
-                    block p-6 rounded-xl border-2 border-dashed cursor-pointer
-                    transition-all hover:border-cyan-500/50
+                    relative block p-6 rounded-xl border-2 border-dashed cursor-pointer
+                    transition-all hover:border-cyan-500/50 focus-within:ring-2 focus-within:ring-ring
                     ${bgCardClass} ${borderClass}
                   `}>
-                    <input aria-label="Upload file"
+                    <input aria-label="Upload Logo"
                       type="file"
                       accept="image/*"
                       onChange={handleLogoUpload}
-                      className="hidden"
+                      className="sr-only"
                       data-testid="logo-upload-input"
                     />
                     {uploadingLogo ? (

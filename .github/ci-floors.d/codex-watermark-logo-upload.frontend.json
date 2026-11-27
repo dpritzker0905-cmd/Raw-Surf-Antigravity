@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 2,
+  "files": 1,
+  "branch": "codex/watermark-logo-upload",
+  "date": "2026-11-25",
+  "note": "Keyboard access and native upload for watermark logos"
+}
