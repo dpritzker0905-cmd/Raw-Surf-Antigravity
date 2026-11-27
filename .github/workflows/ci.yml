@@ -2218,6 +2218,8 @@ jobs:
       actions: read
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -2232,9 +2234,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          python -m unittest discover -s ../.github/scripts -p 'test_main_release_floors.py'
           if [ "$GITHUB_REF_NAME" = "codex/reconcile-euro-dev-20261019" ]; then
             # Explicit comparison to this integration branch's dev base; never an implicit fallback.
             python scripts/ci_floor_staleness.py --branch dev
           else
-            python scripts/ci_floor_staleness.py
+            python ../.github/scripts/main_release_floors.py
           fi
