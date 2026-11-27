@@ -69,6 +69,56 @@ async def test_expiry_deadline_releases_locks_and_preserves_reservation(recovery
     assert (await recovery.world.state())[:3] == (90, 1, 1)
 
 
+async def test_expiry_batch_continues_after_a_missing_receipt_rolls_back(recovery, monkeypatch):
+    import database
+    from scheduler.bookings import cleanup_expired_booking_payments_task
+
+    r = recovery
+    second = await r.world.client.post("/api/bookings/create-with-stripe", headers=_token("user"),
+                                       json=card_booking(session_date="2033-06-01T09:00:00Z", apply_credits=10))
+    assert second.status_code == 200
+    second_id = second.json()["booking_id"]
+    async with r.world.maker.begin() as db:
+        for booking in (await db.scalars(select(Booking))).all():
+            booking.pending_payment_expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+    calls = []
+    reconcile = stripe_checkout.reconcile_expired_booking_checkout
+    async def observe(booking, db):
+        calls.append(booking.id)
+        if len(calls) == 1:
+            # Force the first item to lack a link regardless of the database's batch order.
+            sid = "session-1" if booking.id == r.booking else "session-2"
+            receipt = await db.scalar(select(PaymentTransaction).where(PaymentTransaction.session_id == sid))
+            receipt.transaction_metadata = "{}"
+            await db.commit()
+        return await reconcile(booking, db)
+    async def expired(action, sid, booking_id, *args):
+        assert action == "cancel" and booking_id == calls[1]
+        assert sid == ("session-1" if booking_id == r.booking else "session-2")
+        return {"status": "expired", "payment_status": "unpaid"}
+    monkeypatch.setattr(database, "async_session_maker", r.world.maker)
+    monkeypatch.setattr(stripe_checkout, "reconcile_expired_booking_checkout", observe)
+    monkeypatch.setattr(stripe_checkout, "read_scheduled_checkout", expired)
+    await cleanup_expired_booking_payments_task()
+    assert len(calls) == 2 and set(calls) == {r.booking, second_id}
+    async with r.world.maker() as db:
+        assert (await db.get(Booking, calls[0])).status == "Pending Payment"
+        assert (await db.get(Booking, calls[1])).status == "Cancelled"
+    assert (await r.world.state())[:3] == (90, 3, 2)
+
+
+async def test_generic_cancel_returns_conflict_after_reconciliation_rollback(recovery):
+    from routes.bookings import booking_cancellation
+
+    r = recovery
+    r.world.app.include_router(booking_cancellation.router, prefix="/api")
+    r.provider.unavailable = True
+    response = await r.world.client.post(f"/api/bookings/{r.booking}/cancel", headers=_token("user"), json={})
+    assert response.status_code == 409
+    assert "Payment reconciliation required" in response.json()["detail"]
+    assert (await r.world.state())[:3] == (90, 1, 1)
+
+
 @pytest.mark.parametrize("legacy", [False, True])
 async def test_duplicate_paid_events_leave_scheduled_settlement_to_recovery(recovery, monkeypatch, legacy):
     from routes.subscriptions_billing import payments

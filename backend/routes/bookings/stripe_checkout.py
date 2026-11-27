@@ -504,6 +504,10 @@ async def reconcile_expired_booking_checkout(booking, db: AsyncSession) -> bool:
             return True
         await db.rollback()
         return False
+    except HTTPException as error:
+        await db.rollback()
+        logger.warning("Pending checkout reconciliation deferred (HTTP %s)", error.status_code)
+        return False
     except Exception:
         await db.rollback()
         logger.exception("Could not reconcile pending booking checkout expiry")
