@@ -40,3 +40,15 @@ class MainReleaseFloorsTest(unittest.TestCase):
                         [dict(jobs[0], completed_at=(now + timedelta(days=1)).isoformat()), *jobs[1:]]]:
             with self.assertRaises(policy.floors.Refusal):
                 policy.fresh_jobs(invalid, now)
+
+    def test_recovery_is_bound_to_one_base_backend_tree_and_ci_only_change(self):
+        event = {"before": policy.RECOVERY_BASE, "ref": "refs/heads/main"}
+        diff = (policy.PAIR_TABLE + "\0.github/scripts/main_release_floors.py").encode()
+        for paths, tree, expected in [(diff, policy.REPAIR_BACKEND_TREE, policy.RECOVERY_BASE),
+                                      (diff, "wrong", None),
+                                      (diff + b"\0frontend/package.json", "", None),
+                                      (diff + b"\0another-file", policy.REPAIR_BACKEND_TREE, None)]:
+            with patch.object(policy, "git", side_effect=[paths, tree.encode()]):
+                self.assertEqual(policy.scoped_base("push", event, "candidate"), expected)
+        with patch.object(policy, "git", return_value=diff):
+            self.assertIsNone(policy.scoped_base("push", dict(event, before="b" * 40), "candidate"))
