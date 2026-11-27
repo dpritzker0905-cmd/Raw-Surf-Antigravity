@@ -497,7 +497,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
                     variant="destructive"
                     className="bg-red-500/20 text-red-400 hover:bg-red-500/30 flex-shrink-0"
                     onClick={handleBulkDelete}
-                    disabled={selectedItems.size === 0}
+                    disabled={folderActionLoading || selectedItems.size === 0}
                   >
                     <Trash2 className="w-4 h-4 mr-1" />
                     Delete

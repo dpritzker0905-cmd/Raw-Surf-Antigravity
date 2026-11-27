@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 2,
+  "files": 1,
+  "branch": "codex/gallery-bulk-partial",
+  "date": "2026-11-24",
+  "note": "Mixed-result gallery bulk deletion and retry"
+}
