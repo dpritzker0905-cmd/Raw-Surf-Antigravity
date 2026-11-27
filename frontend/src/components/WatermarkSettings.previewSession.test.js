@@ -101,7 +101,13 @@ test('a failed regeneration clears the old preview, reports the error and permit
   fireEvent.click(generate());
   expect(screen.queryByRole('alert')).toBeNull();
   expect(generate()).toBeDisabled();
+  expect(screen.queryByText(/click "generate preview"/i)).toBeNull();
+  expect(screen.queryByText('/users/a/profile')).toBeNull();
+  const status = screen.getByText('Generating watermark preview…');
+  expect(status).toHaveAttribute('role', 'status');
   await act(async () => { finishRetry({ data: { preview_url: '/retry.png' } }); });
+  expect(status).toBeInTheDocument();
+  expect(status).toBeEmptyDOMElement();
   expect(image()).toHaveAttribute('src', '/retry.png');
 });
 

@@ -392,6 +392,9 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
               </div>
               
               <div className="relative aspect-video rounded-lg overflow-hidden bg-black/50">
+                <p role="status" className={`absolute inset-0 flex items-center justify-center pointer-events-none text-sm ${textSecondaryClass}`}>
+                  {generatingPreview && 'Generating watermark preview…'}
+                </p>
                 {previewUrl ? (
                   // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError handles image loading; retry is a separate button.
                   <img loading="lazy" decoding="async"
@@ -405,7 +408,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                     alt="Watermark preview"
                     className="w-full h-full object-cover"
                   />
-                ) : (
+                ) : !generatingPreview && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
                       <Image className={`w-12 h-12 mx-auto mb-2 ${textSecondaryClass}`} />
@@ -423,7 +426,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                 )}
                 
                 {/* Simulated watermark overlay for instant feedback */}
-                {!previewUrl && !previewError && settings.watermark_text && (
+                {!generatingPreview && !previewUrl && !previewError && settings.watermark_text && (
                   <div 
                     className={`
                       absolute text-white/50 font-bold text-xl pointer-events-none
