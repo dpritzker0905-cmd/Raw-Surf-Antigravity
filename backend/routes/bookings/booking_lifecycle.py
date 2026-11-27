@@ -283,11 +283,13 @@ async def create_user_booking(
     except Exception as e:
         logger.warning(f"Failed to send booking push notification: {e}")
 
+    status_text = booking.status.lower()
+    photographer_name = photographer.full_name or photographer.username or "your photographer"
     surfer_notification = Notification(
         user_id=user_id,
-        type='booking_confirmation',
-        title='Session Booked!',
-        body=f'Your session with {photographer.full_name} is confirmed for {session_time_str}',
+        type='booking_confirmation' if booking.status == 'Confirmed' else 'booking_request',
+        title=f'Booking {status_text}',
+        body=f'Your session with {photographer_name} on {session_time_str} is {status_text}.',
         data=json.dumps({
             "booking_id": booking.id,
             "photographer_name": photographer.full_name,
@@ -300,8 +302,8 @@ async def create_user_booking(
     try:
         await notify_booking(
             user_id=user_id,
-            title='Session Booked!',
-            message=f'Your session with {photographer.full_name} is confirmed for {session_time_str}',
+            title=surfer_notification.title,
+            message=surfer_notification.body,
             db=db
         )
     except Exception as e:

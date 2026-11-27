@@ -11,6 +11,7 @@ synthetic users only; nothing touches a live service. Postgres-specific behaviou
 is NOT covered by SQLite; the atomic-UPDATE semantics are.
 """
 import asyncio
+import json
 import math
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -30,12 +31,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from core import security
 from database import get_db
 from models import (AdConfig, Booking, BookingParticipant, CreditTransaction, Notification, PaymentTransaction,
-                    Post, Profile, RoleEnum)
+                    PlatformSettings, Post, Profile, RoleEnum)
 from routes.bookings import booking_lifecycle, crud, invites, stripe_checkout
 from routes.commerce import ad_controls
 from utils.credits import add_credits, clean_amount, deduct_credits
 
-TABLES = (Profile, Booking, BookingParticipant, CreditTransaction, Notification, AdConfig, PaymentTransaction, Post)
+TABLES = (Profile, Booking, BookingParticipant, CreditTransaction, Notification, AdConfig, PaymentTransaction, Post,
+          PlatformSettings)
 
 
 def _token(sub):
@@ -311,6 +313,34 @@ async def test_wallet_booking_crew_request_acknowledges_committed_invitation(wor
 def test_scheduled_time_display_converts_an_aware_non_utc_read():
     start = datetime.fromisoformat("2032-01-01T03:45:00+05:30")
     assert crud.format_scheduled_start(start) == "Dec 31, 2031 at 10:15 PM UTC"
+
+
+@pytest.mark.parametrize("role,credits,status,notice_type", [
+    (RoleEnum.PHOTOGRAPHER, 30, "Pending", "booking_request"),
+    (RoleEnum.PHOTOGRAPHER, 60, "Confirmed", "booking_confirmation"),
+    (RoleEnum.HOBBYIST, 20, "Pending Acceptance", "booking_request"),
+    (RoleEnum.HOBBYIST, 40, "Confirmed", "booking_confirmation"),
+])
+async def test_wallet_buyer_notification_matches_saved_booking(world, monkeypatch, role, credits, status, notice_type):
+    push = AsyncMock()
+    monkeypatch.setattr("routes.notifications.push_payloads.notify_booking", push)
+    async with world.maker.begin() as db:
+        photographer = await db.get(Profile, "photog")
+        photographer.role = role
+    payload = booking(session_date="2031-12-31T21:15:00-05:00", max_participants=2,
+                      allow_splitting=True, apply_credits=credits)
+    created = await world.client.post("/api/bookings/create", json=payload, headers=_token("user"))
+    assert created.status_code == 200, created.text
+    booking_id = created.json()["booking_id"]
+    async with world.maker() as db:
+        assert (await db.get(Booking, booking_id)).status == status == created.json()["status"]
+        buyer_note = (await db.scalars(select(Notification).where(Notification.user_id == "user"))).one()
+        assert buyer_note.type == notice_type
+        assert buyer_note.title == f"Booking {status.lower()}"
+        assert buyer_note.body == f"Your session with photog on Jan 01, 2032 at 02:15 AM UTC is {status.lower()}."
+        assert json.loads(buyer_note.data)["booking_id"] == booking_id
+        buyer_pushes = [call.kwargs for call in push.await_args_list if call.kwargs["user_id"] == "user"]
+        assert [(call["title"], call["message"]) for call in buyer_pushes] == [(buyer_note.title, buyer_note.body)]
 
 
 async def test_wallet_booking_time_in_messages_and_sharing(world, monkeypatch):
