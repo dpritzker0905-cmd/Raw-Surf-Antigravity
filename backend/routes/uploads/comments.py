@@ -9,6 +9,7 @@ import shutil
 import asyncio
 import logging
 from .core import (
+    read_upload,
     UPLOAD_DIR, MAX_IMAGE_SIZE, MAX_FILE_SIZE, STREAM_CHUNK_SIZE,
     SUPABASE_STORAGE_AVAILABLE, ALLOWED_VIDEO_TYPES, ALLOWED_IMAGE_TYPES,
     upload_to_supabase_storage, get_file_extension,
@@ -189,13 +190,7 @@ async def upload_comment_media(
         }
     else:
         # Handle image/gif comment upload
-        content = await file.read()
-
-        if len(content) > MAX_IMAGE_SIZE:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File too large. Maximum size is {MAX_IMAGE_SIZE // (1024*1024)}MB"
-            )
+        content = await read_upload(file, MAX_IMAGE_SIZE)
 
         ext = get_file_extension(file.content_type)
         filename = f"{uuid.uuid4()}{ext}"

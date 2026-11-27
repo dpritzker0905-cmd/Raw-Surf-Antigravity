@@ -18,6 +18,7 @@ import asyncio
 import logging
 from models import Gallery, GalleryItem, Profile
 from .core import (
+    read_upload,
     UPLOAD_DIR, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES,
     MAX_FILE_SIZE, MAX_IMAGE_SIZE, STREAM_CHUNK_SIZE,
     SUPABASE_STORAGE_AVAILABLE,
@@ -194,13 +195,7 @@ async def upload_feed_media(
         }
     else:
         # Handle image upload (images are small enough for in-memory read)
-        content = await file.read()
-
-        if len(content) > MAX_IMAGE_SIZE:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File too large. Maximum size is {MAX_IMAGE_SIZE // (1024*1024)}MB"
-            )
+        content = await read_upload(file, MAX_IMAGE_SIZE)
 
         ext = get_file_extension(file.content_type)
         filename = f"{uuid.uuid4()}{ext}"
