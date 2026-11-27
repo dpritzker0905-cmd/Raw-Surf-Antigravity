@@ -30,12 +30,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from core import security
 from database import get_db
 from models import (AdConfig, Booking, BookingParticipant, CreditTransaction, Notification, PaymentTransaction,
-                    Profile, RoleEnum)
-from routes.bookings import booking_lifecycle, stripe_checkout
+                    Post, Profile, RoleEnum)
+from routes.bookings import booking_lifecycle, crud, stripe_checkout
 from routes.commerce import ad_controls
 from utils.credits import add_credits, clean_amount, deduct_credits
 
-TABLES = (Profile, Booking, BookingParticipant, CreditTransaction, Notification, AdConfig, PaymentTransaction)
+TABLES = (Profile, Booking, BookingParticipant, CreditTransaction, Notification, AdConfig, PaymentTransaction, Post)
 
 
 def _token(sub):
@@ -283,6 +283,39 @@ def card_booking(**over):
     return booking(origin_url="https://example.invalid", **over)
 
 
+def test_scheduled_time_display_converts_an_aware_non_utc_read():
+    start = datetime.fromisoformat("2032-01-01T03:45:00+05:30")
+    assert crud.format_scheduled_start(start) == "Dec 31, 2031 at 10:15 PM UTC"
+
+
+async def test_wallet_booking_time_in_messages_and_sharing(world, monkeypatch):
+    push = AsyncMock()
+    monkeypatch.setattr("routes.notifications.push_payloads.notify_booking", push)
+    payload = booking(session_date="2031-12-31T21:15:00-05:00", allow_splitting=True, apply_credits=60)
+    response = await world.client.post("/api/bookings/create", json=payload, headers=_token("user"))
+    assert response.status_code == 200, response.text
+    booking_id = response.json()["booking_id"]
+    expected = "Jan 01, 2032 at 02:15 AM UTC"
+    async with world.maker() as db:
+        notes = (await db.scalars(select(Notification))).all()
+        assert {note.user_id for note in notes} == {"user", "photog"}
+        assert all(expected in note.body for note in notes)
+        assert (await db.get(Booking, booking_id)).session_date == datetime(2032, 1, 1, 2, 15)
+    assert {call.kwargs["user_id"] for call in push.await_args_list} == {"user", "photog"}
+    assert all(expected in call.kwargs["message"] for call in push.await_args_list)
+
+    # SQLite drops the offset on reload. Historical wall times cannot be attributed to a zone.
+    reloaded = "Jan 01, 2032 at 02:15 AM (time zone unavailable)"
+    world.app.include_router(crud.router, prefix="/api")
+    link = await world.client.get(f"/api/bookings/{booking_id}/share-link", params={"user_id": "user"})
+    assert link.status_code == 200, link.text
+    assert reloaded in link.json()["share_message"]
+    feed = await world.client.post(f"/api/bookings/{booking_id}/share-to-feed", headers=_token("user"))
+    assert feed.status_code == 200, feed.text
+    async with world.maker() as db:
+        assert reloaded in (await db.get(Post, feed.json()["post_id"])).caption
+
+
 @pytest.fixture
 def checkout_calls(monkeypatch):
     calls = []
@@ -501,7 +534,7 @@ async def test_async_checkout_sends_one_bound_request_and_keeps_the_receipt_on_r
     monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", accepted)
     monkeypatch.setattr(stripe_checkout, "STRIPE_API_KEY", "fixture")
     endpoint = "/api/bookings/create-with-stripe"
-    payload = card_booking(apply_credits=10)
+    payload = card_booking(apply_credits=10, session_date="2031-12-31T21:15:00-05:00")
     first = await world.client.post(endpoint, json=payload, headers=_token("user"))
     repeat = await world.client.post(endpoint, json=payload, headers=_token("user"))
     assert first.status_code == 200 and repeat.status_code == 409
@@ -512,8 +545,21 @@ async def test_async_checkout_sends_one_bound_request_and_keeps_the_receipt_on_r
     assert fields["metadata[booking_id]"] == [receipt["booking_id"]]
     assert fields["metadata[user_id]"] == ["user"]
     assert fields["line_items[0][price_data][unit_amount]"] == ["5000"]
+    assert fields["line_items[0][price_data][product_data][description]"] == [
+        "Fixture Beach on Jan 01, 2032 at 02:15 AM UTC"
+    ]
     assert receipt["session_id"] == "session-one" and receipt["remaining_credits"] == 90
     assert (await world.state())[:3] == (90, 1, 1)
+    paid = SimpleNamespace(payment_status="paid", amount_total=5000,
+                           metadata={"type": "scheduled_booking", "booking_id": receipt["booking_id"], "user_id": "user"})
+    monkeypatch.setattr(stripe_checkout.stripe.checkout.Session, "retrieve", lambda session_id: paid)
+    confirmed = await world.client.get("/api/bookings/payment-success", headers=_token("user"),
+                                       params={"booking_id": receipt["booking_id"], "session_id": receipt["session_id"]})
+    assert confirmed.status_code == 200, confirmed.text
+    async with world.maker() as db:
+        notes = (await db.scalars(select(Notification))).all()
+    assert {note.user_id for note in notes} == {"user", "photog"}
+    assert all("Jan 01, 2032 at 02:15 AM (time zone unavailable)" in note.body for note in notes)
 
 
 @pytest.mark.parametrize("change", [{"duration": -60, "apply_credits": 50}, {"duration": 0}, {"apply_credits": -5},

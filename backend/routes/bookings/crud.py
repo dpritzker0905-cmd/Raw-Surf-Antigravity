@@ -51,6 +51,13 @@ def scheduled_start_utc(value: str) -> datetime:
     return start.replace(tzinfo=timezone.utc) if start.tzinfo is None else start.astimezone(timezone.utc)
 
 
+def format_scheduled_start(start: datetime) -> str:
+    """Show the full date and zone without inferring an offset for a historical wall time."""
+    if start.utcoffset() is None:
+        return start.strftime("%b %d, %Y at %I:%M %p (time zone unavailable)")
+    return start.astimezone(timezone.utc).strftime("%b %d, %Y at %I:%M %p UTC")
+
+
 async def lock_booking_buyer(db: AsyncSession, user_id: str) -> Profile:
     """Serialize scheduled booking creates from the same buyer before checking the slot."""
     dialect = db.get_bind().dialect.name
@@ -517,7 +524,7 @@ async def get_booking_share_link(
     
     # Format date nicely
     session_date = booking.session_date
-    date_str = session_date.strftime('%b %d at %I:%M %p') if session_date else 'TBD'
+    date_str = format_scheduled_start(session_date) if session_date else 'TBD'
     
     # Generate message text for DMs
     share_message = (

@@ -33,7 +33,7 @@ except ImportError:
     onesignal_service = None
 
 # Import shared helpers from crud
-from .crud import check_time_slot_conflict, lock_booking_buyer, scheduled_start_utc
+from .crud import check_time_slot_conflict, format_scheduled_start, lock_booking_buyer, scheduled_start_utc
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -253,7 +253,7 @@ async def create_user_booking(
         booking.escrow_status = 'held'
 
     # Notifications
-    session_time_str = session_date.strftime('%b %d at %I:%M %p')
+    session_time_str = format_scheduled_start(session_date)
 
     notification = Notification(
         user_id=data.photographer_id,
@@ -490,7 +490,7 @@ async def share_booking_to_feed(
     creator = await db.execute(select(Profile).where(Profile.id == user_id))
     creator = creator.scalar_one_or_none()
 
-    session_date = booking.session_date.strftime('%b %d at %I:%M %p')
+    session_date = format_scheduled_start(booking.session_date)
     photographer_name = booking.photographer.full_name if booking.photographer else "a photographer"
     current_participants = len([p for p in booking.participants if p.status in ['pending', 'confirmed']])
     spots_left = booking.max_participants - current_participants

@@ -34,6 +34,7 @@ from .split_lock import check_splits, enforce_paid_shares, locked_share
 from .crud import (
     CreateBookingWithStripeRequest,
     check_time_slot_conflict,
+    format_scheduled_start,
     lock_booking_buyer,
     scheduled_start_utc,
 )
@@ -142,7 +143,7 @@ async def create_booking_with_stripe(
 
     success_url = f"{data.origin_url}/bookings/success?session_id={{CHECKOUT_SESSION_ID}}&booking_id={booking.id}"
     cancel_url = f"{data.origin_url}/bookings/cancel?booking_id={booking.id}"
-    session_time_str = session_date.strftime('%b %d at %I:%M %p')
+    session_time_str = format_scheduled_start(session_date)
 
     try:
         checkout_session = await _create_scheduled_checkout(
@@ -376,7 +377,7 @@ async def booking_payment_success(
         participant.status = 'confirmed'
         participant.paid_amount = booking.total_price
     
-    session_time_str = booking.session_date.strftime('%b %d at %I:%M %p')
+    session_time_str = format_scheduled_start(booking.session_date)
     
     photographer_notification = Notification(
         user_id=booking.photographer_id, type='booking_confirmed',
