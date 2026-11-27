@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 2,
+  "files": 0,
+  "branch": "codex/gallery-tab-exit",
+  "date": "2026-11-24",
+  "note": "Tab and Shift+Tab leaving gallery actions"
+}
