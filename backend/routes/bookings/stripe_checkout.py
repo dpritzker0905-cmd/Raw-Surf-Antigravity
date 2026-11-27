@@ -193,7 +193,7 @@ async def create_booking_with_stripe(
             payment_status="Pending", status="Pending",
             transaction_metadata=json.dumps({
                 'booking_id': booking.id, 'credits_applied': credits_applied,
-                'photographer_id': data.photographer_id, 'checkout_provider': 'stripe'
+                'photographer_id': data.photographer_id, 'checkout_provider': 'stripe', 'type': 'scheduled_booking'
             })
         )
         db.add(transaction)
@@ -445,6 +445,15 @@ async def reconcile_expired_booking_checkout(booking, db: AsyncSession) -> bool:
         logger.warning("Pending booking expiry has no unique checkout link: %s", booking.id)
         return False
     transaction = linked[0]
+
+    # Both cancellation callers keep these locks through the refund commit. A
+    # booking loaded before another cancellation committed must be refreshed.
+    booking = await db.scalar(select(Booking).where(
+        Booking.id == booking.id, Booking.status.in_(("Pending Payment", "PendingPayment"))
+    ).options(selectinload(Booking.photographer), selectinload(Booking.participants))
+      .with_for_update(of=Booking).execution_options(populate_existing=True))
+    if booking is None:
+        return False
 
     async def classify(checkout):
         if not _booking_session_matches(

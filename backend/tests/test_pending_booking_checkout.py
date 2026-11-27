@@ -1,4 +1,9 @@
 """Buyer recovery after discarding the create response; real routes, local DB, mocked Stripe transport."""
+import hashlib
+import hmac
+import json
+import secrets
+import time
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -7,10 +12,68 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from models import Booking, BookingParticipant, CreditTransaction, PaymentTransaction
 from routes.bookings import pending_checkout, stripe_checkout
 from tests.test_credit_guards import _token, card_booking, checkout_calls, world
+
+
+@pytest.mark.parametrize("stored,provider,status", [("USD", "usd", 200), ("", "usd", 409),
+                                                   ("USD", "eur", 409), ("eur", "usd", 409)])
+async def test_recovery_checks_legacy_currency_against_provider(recovery, stored, provider, status):
+    async with recovery.world.maker.begin() as db:
+        (await db.scalar(select(PaymentTransaction))).currency = stored
+    recovery.session["currency"] = provider
+    assert (await recovery.act("resume")).status_code == status
+
+
+async def test_expiry_rechecks_stale_booking_before_refunding(recovery, monkeypatch):
+    # Generic cancellation and the scheduler both enter this helper with an ORM object
+    # loaded earlier. A previous cancellation can leave its receipt marked Pending.
+    async with recovery.world.maker() as db:
+        booking = await db.scalar(select(Booking).options(selectinload(Booking.participants)))
+        await db.commit()
+        async with recovery.world.maker.begin() as winner:
+            (await winner.get(Booking, recovery.booking)).status = "Cancelled"
+        def unexpected(*args, **kwargs):
+            pytest.fail("Terminal booking must stop before contacting the provider")
+        monkeypatch.setattr(stripe_checkout.stripe.checkout.Session, "retrieve", unexpected)
+        assert not await stripe_checkout.reconcile_expired_booking_checkout(booking, db)
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_duplicate_paid_events_leave_scheduled_settlement_to_recovery(recovery, monkeypatch, legacy):
+    from routes.subscriptions_billing import payments
+
+    r = recovery
+    if legacy:
+        async with r.world.maker.begin() as db:
+            receipt = await db.scalar(select(PaymentTransaction))
+            metadata = json.loads(receipt.transaction_metadata)
+            del metadata["type"]
+            receipt.transaction_metadata = json.dumps(metadata)
+    r.world.app.include_router(payments.router, prefix="/api")
+    monkeypatch.setattr(payments, "STRIPE_API_KEY", object())
+    monkeypatch.setattr(payments.StripeCheckout, "__init__", lambda self, api_key, webhook_url: None)
+    signing_secret = secrets.token_hex(32)
+    monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", signing_secret)
+    r.session.update(status="complete", payment_status="paid")
+    body = json.dumps({"type": "checkout.session.completed", "data": {"object": r.session}}).encode()
+    timestamp = str(int(time.time()))
+    signature = hmac.new(signing_secret.encode(), timestamp.encode() + b"." + body, hashlib.sha256).hexdigest()
+
+    async def deliver():
+        response = await r.world.client.post("/api/webhook/stripe", content=body,
+                                             headers={"Stripe-Signature": f"t={timestamp},v1={signature}"})
+        assert response.status_code == 200, response.text
+
+    await deliver()
+    assert (await r.world.state())[:3] == (90, 1, 1)
+    assert (await r.act("resume")).json()["status"] == "Confirmed"
+    await deliver()
+    assert (await r.act("resume")).json() == {"status": "Confirmed"}
+    assert (await r.world.state())[:3] == (90, 3, 1)
 
 
 @pytest_asyncio.fixture

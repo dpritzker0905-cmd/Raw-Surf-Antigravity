@@ -26,8 +26,12 @@ def wallet_credit_amount(transaction):
     if not isinstance(metadata, dict):
         raise ValueError('Invalid payment metadata')
     kind = metadata.get('type')
-    if kind in ('subscription', 'photo_subscription', 'grom_subscription', 'crew_share'):
+    if kind in ('subscription', 'photo_subscription', 'grom_subscription', 'crew_share', 'scheduled_booking'):
         return None  # Dedicated handlers own these entitlements.
+    if (kind is None and metadata.get('booking_id') and metadata.get('photographer_id')
+            and 'credits_applied' in metadata and 'credits' not in metadata):
+        # Before the explicit type, scheduled card receipts stored this booking breakdown.
+        return None
     if kind == 'wallet_credit_pack':
         return package_credit_amount(metadata, transaction.amount)
     value = metadata.get('credits')

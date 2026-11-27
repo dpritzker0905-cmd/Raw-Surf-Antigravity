@@ -38,7 +38,7 @@ def _check_booking(booking):
 
 def _check_session(session, session_id, booking_id, buyer, amount, currency):
     if not (session.get("id") == session_id and session.get("mode") == "payment"
-            and session.get("currency") == currency == "usd"
+            and session.get("currency") == "usd" and (currency or "").lower() == "usd"
             and stripe_checkout._booking_session_matches(session, booking_id, buyer, amount)
             and session.amount_total == round(amount * 100)):
         raise HTTPException(409, "Checkout details could not be verified.")
@@ -137,7 +137,10 @@ async def recover_pending_checkout(booking_id: str, data: CheckoutAction, buyer:
     session = await _provider_state(data.action, receipt.session_id, booking_id, buyer, receipt.amount, receipt.currency)
 
     try:
-        if db.get_bind().dialect.name == "sqlite":
+        dialect = db.get_bind().dialect.name
+        if dialect == "postgresql":
+            await db.execute(text("SET TRANSACTION ISOLATION LEVEL READ COMMITTED"))
+        elif dialect == "sqlite":
             await db.execute(text("UPDATE bookings SET status = status WHERE 0"))
         # Same order as payment-success. Re-read after remote I/O, including terminal states.
         transaction = await db.scalar(select(PaymentTransaction).where(
@@ -147,6 +150,7 @@ async def recover_pending_checkout(booking_id: str, data: CheckoutAction, buyer:
     except DBAPIError as error:
         if (getattr(error.orig, "sqlstate", None) == "55P03"
                 or (getattr(error.orig, "sqlite_errorcode", 0) & 255) in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED)):
+            await db.rollback()
             raise HTTPException(503, "Checkout is being updated. Try again.") from None
         raise
     terminal = _check_booking(booking)
