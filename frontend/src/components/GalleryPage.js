@@ -6,7 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import apiClient from '../lib/apiClient';
 import { Camera, X, Plus, Loader2, Check, Sparkles, Folder, MapPin, Trash2, Copy, Radio, UserPlus, ChevronLeft, Link2 } from 'lucide-react';
 import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { GalleryDeleteDialog } from './gallery/GalleryDeleteDialog';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { GalleryGrid } from './GalleryGrid';
@@ -102,6 +102,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
   const [folderToDelete, setFolderToDelete] = useState(null);
   
   // Delete item confirmation dialog (replaces window.confirm)
+  const galleryRegion = useRef(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { type: 'single'|'bulk', itemId?, count? }
   
   // NEW: Bulk select state
@@ -378,7 +379,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
 
       {/* Gallery Detail View - When a gallery is selected */}
       {selectedGallery && (
-        <div className="mb-8">
+        <div className="mb-8" ref={galleryRegion} data-gallery-id={selectedGallery.id}>
           {/* Mobile-optimized stacked header */}
           <div className="mb-4">
             {/* Row 1: Back + Title */}
@@ -386,7 +387,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
               <button
                 onClick={closeGalleryDetail}
                 className="flex items-center justify-center w-10 h-10 rounded-full bg-muted hover:bg-muted/80 text-foreground transition-colors flex-shrink-0"
-                aria-label="Go back"
+                aria-label="Go back" data-gallery-back
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -636,7 +637,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
             <div className="text-center py-12 bg-muted/50 rounded-lg">
               <Camera className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
               <p className="text-muted-foreground">No items in this gallery yet</p>
-              <Button aria-label="Add"
+              <Button aria-label="Add" data-gallery-empty-upload
                 onClick={() => setShowAddToGalleryModal(true)}
                 className="mt-4 bg-cyan-500 hover:bg-cyan-600 text-black"
               >
@@ -693,41 +694,8 @@ export const GalleryPage = ({ initialRecapData = null }) => {
         selectedGallery={selectedGallery}
       />
 
-      {/* Delete Confirmation Dialog (replaces browser confirm) */}
-      <Dialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
-        <DialogContent className="bg-background border-border text-foreground max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Confirm Delete</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground py-2">
-            {deleteConfirm?.type === 'bulk'
-              ? `Delete ${deleteConfirm?.count} selected items? This cannot be undone.`
-              : 'Delete this item from the gallery? This cannot be undone.'}
-          </p>
-          <div className="flex gap-3 justify-end pt-2">
-            <Button
-              variant="outline"
-              className="border-border"
-              onClick={() => setDeleteConfirm(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="bg-red-500 hover:bg-red-600 text-white"
-              onClick={() => {
-                if (deleteConfirm?.type === 'bulk') {
-                  executeBulkDelete();
-                } else if (deleteConfirm?.itemId) {
-                  executeDeleteFromGallery(deleteConfirm.itemId);
-                }
-                setDeleteConfirm(null);
-              }}
-            >
-              Delete
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <GalleryDeleteDialog {...{ deleteConfirm, setDeleteConfirm, deletingItemId, executeDeleteFromGallery,
+        executeBulkDelete, galleryRegion }} />
 
       {/* View/Purchase Modal */}
       {selectedItem && (

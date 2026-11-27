@@ -46,14 +46,20 @@ export const useGalleryFolderActions = ({
     }
   };
 
-  const fetchGalleryItems = async (galleryId) => {
+  const fetchGalleryItems = async (galleryId, { removedItemId } = {}) => {
     setGalleryItemsLoading(true);
     try {
       const response = await apiClient.get(`/galleries/${galleryId}/items?viewer_id=${user.id}`);
       setGalleryItems(response.data || []);
     } catch (error) {
       logger.error('Error fetching gallery items:', error);
-      setGalleryItems([]);
+      if (removedItemId != null) {
+        // The deletion was acknowledged. Preserve the other known items if the readback fails.
+        setGalleryItems(items => items.filter(item => item.id !== removedItemId));
+        toast.error('Could not refresh the remaining gallery items');
+      } else {
+        setGalleryItems([]);
+      }
     } finally {
       setGalleryItemsLoading(false);
     }
@@ -77,8 +83,8 @@ export const useGalleryFolderActions = ({
         }
       }
       toast.success('Item deleted');
-      fetchGalleryItems(selectedGallery.id);
       fetchGalleries();
+      await fetchGalleryItems(selectedGallery.id, { removedItemId: itemId });
     } catch (error) {
       toast.error(getErrorMessage(error, 'Failed to delete item'));
     } finally {
