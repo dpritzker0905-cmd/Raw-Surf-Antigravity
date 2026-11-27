@@ -126,6 +126,73 @@ it.each([[undefined, 'create-with-stripe'], ['Use credits', 'create']])(
   },
 );
 
+it.each([
+  ['connection loss', new Error('Connection lost')],
+  ['request timeout', { response: { status: 408 } }],
+  ['gateway error', { response: { status: 502 } }],
+])('offers Scheduled Bookings after wallet %s without submitting again', async (_, error) => {
+  const create = deferred();
+  apiClient.post.mockReturnValueOnce(create.promise);
+  prepare('Use credits', { crew: true, selfie: true });
+  submit();
+  submit();
+  await act(async () => { create.reject(error); });
+  expect(screen.getByRole('status')).toHaveTextContent(/couldn.t confirm your booking/i);
+  expect(screen.getByRole('link', { name: /check scheduled bookings/i })).toHaveAttribute('href', '/bookings?tab=scheduled');
+  expect(screen.queryByRole('link', { name: /continue to checkout/i })).toBeNull();
+  expect(screen.queryByTestId('confirm-booking-btn')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Previous' })).toBeNull();
+  expect(endpoints()).toEqual(['/bookings/create']);
+  expect(mockUpdateUser).not.toHaveBeenCalled();
+  expect(apiClient.patch).not.toHaveBeenCalled();
+  expect(navigateToCheckout).not.toHaveBeenCalled();
+  expect(toast.success).not.toHaveBeenCalled();
+  expect(toast.error).not.toHaveBeenCalled();
+});
+
+it('keeps a definitively rejected wallet booking editable', async () => {
+  apiClient.post.mockRejectedValueOnce({ response: { status: 400, data: { detail: 'Insufficient credit balance' } } });
+  prepare('Use credits');
+  await act(async () => { submit(); });
+  expect(toast.error).toHaveBeenCalledWith('Insufficient credit balance');
+  expect(screen.getByTestId('confirm-booking-btn')).toBeEnabled();
+  expect(screen.queryByRole('link', { name: /check scheduled bookings/i })).toBeNull();
+  expect(mockUpdateUser).not.toHaveBeenCalled();
+});
+
+it.each([null, {}, { booking_id: ' ', remaining_credits: 75 }])(
+  'asks the buyer to check Scheduled Bookings when the wallet receipt is incomplete (%p)', async data => {
+    apiClient.post.mockResolvedValueOnce({ data });
+    prepare('Use credits');
+    await act(async () => { submit(); });
+    expect(screen.getByRole('link', { name: /check scheduled bookings/i })).toBeInTheDocument();
+    expect(screen.queryByText('Booking confirmed')).toBeNull();
+    expect(screen.queryByTestId('confirm-booking-btn')).toBeNull();
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+    expect(endpoints()).toEqual(['/bookings/create']);
+  },
+);
+
+it('accepts the wallet API receipt with a top-level booking ID', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { booking_id: 'original', status: 'Confirmed', remaining_credits: 75 } });
+  prepare('Use credits');
+  await act(async () => { submit(); });
+  expect(screen.getByText('Booking confirmed')).toBeInTheDocument();
+  expect(mockUpdateUser).toHaveBeenCalledWith({ credit_balance: 75 });
+});
+
+it('ignores a lost wallet response after switching buyers', async () => {
+  const create = deferred();
+  apiClient.post.mockReturnValueOnce(create.promise);
+  const view = prepare('Use credits');
+  submit();
+  switchBuyer(view, 'second-buyer');
+  await act(async () => { create.reject(new Error('Connection lost')); });
+  expect(screen.getByText('Choose slot')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: /check scheduled bookings/i })).toBeNull();
+  expect(toast.error).not.toHaveBeenCalled();
+});
+
 it.each([[409, undefined], [409, '  '], [409, 123], [400, 'original']])(
   'keeps a rejected booking editable for status %s and pending booking ID %p', async (status, pendingId) => {
     apiClient.post.mockRejectedValueOnce({ response: { status, data: { detail: 'Slot taken', pending_booking_id: pendingId } } });

@@ -216,7 +216,7 @@ export const ScheduledBookingDrawer = ({
     if (!submitted || submitted.submitting || step !== 'confirm') return;
     submitted.submitting = true;
     setLoading(true);
-    let requestingCheckout = false;
+    let submittingBooking = false;
     
     try {
       // Build the exact session datetime
@@ -239,8 +239,8 @@ export const ScheduledBookingDrawer = ({
       }));
       
       // If there's an amount to charge and user selected card payment
+      submittingBooking = true;
       if (amountToCharge > 0 && paymentMethod === 'card') {
-        requestingCheckout = true;
         // Create booking with pending payment status and redirect to Stripe
         const response = await apiClient.post(`/bookings/create-with-stripe`, {
           photographer_id: photographer.id,
@@ -298,6 +298,11 @@ export const ScheduledBookingDrawer = ({
       });
       
       if (visit.current !== submitted) return;
+      const bookingId = response.data?.booking_id ?? response.data?.booking?.id;
+      if (typeof bookingId !== 'string' || !bookingId.trim()) {
+        setStep('checkout');
+        return;
+      }
       // Update user credits if applied
       if (appliedCredits > 0 && response.data.remaining_credits !== undefined) {
         updateUser({ credit_balance: response.data.remaining_credits });
@@ -362,7 +367,7 @@ export const ScheduledBookingDrawer = ({
         setStep('checkout');
         return;
       }
-      if (requestingCheckout && (!error.response || error.response.status === 408 || error.response.status >= 500)) {
+      if (submittingBooking && (!error.response || error.response.status === 408 || error.response.status >= 500)) {
         // A lost response can follow a committed booking. Keep any checkout link we already received.
         setStep('checkout');
         return;
@@ -601,7 +606,7 @@ export const ScheduledBookingDrawer = ({
               <p role="status" className={textPrimary}>
                 {pendingBookingId ? 'You already have a pending checkout for this session. Open Scheduled Bookings to resume or cancel it.'
                   : checkoutUrl ? 'Your checkout is ready. Payment is pending.'
-                  : 'Could not open checkout. Check your scheduled bookings before trying again.'}
+                  : "We couldn't confirm your booking. Check Scheduled Bookings before trying again."}
               </p>
               {checkoutUrl && <a href={checkoutUrl} className="block underline">Continue to checkout</a>}
               <a href={pendingBookingId ? `/bookings?tab=scheduled&highlight=${encodeURIComponent(pendingBookingId)}` : '/bookings?tab=scheduled'} className="block underline">
