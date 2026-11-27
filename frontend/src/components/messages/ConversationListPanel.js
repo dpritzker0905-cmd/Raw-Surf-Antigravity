@@ -22,7 +22,7 @@ const ConversationListPanel = ({
   activeFolder, setActiveFolder, conversations, folderCounts,
   selectedConversation, setSelectedConversation,
   searchQuery, setSearchQuery,
-  stories, loading,
+  stories, loading, conversationListError, onRetryConversations,
   showMobileTools, setShowMobileTools,
   crewChats, crewChatsLoading,
   // Presence
@@ -155,7 +155,17 @@ const ConversationListPanel = ({
       </div>
 
       {/* Conversation List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" aria-busy={activeFolder === 'crew_chats' ? crewChatsLoading : loading}>
+        {activeFolder !== 'crew_chats' && conversationListError && (
+          <div role="alert" className="m-3 p-3 rounded-lg border border-border bg-muted text-foreground text-sm">
+            <p>{conversationListError}</p>
+            <Button type="button" variant="outline" className="mt-2" onClick={onRetryConversations}
+              disabled={loading} aria-label="Retry conversations">Retry</Button>
+          </div>
+        )}
+        {activeFolder !== 'crew_chats' && loading && (
+          <p role="status" className="px-4 py-2 text-sm text-muted-foreground">Loading conversations...</p>
+        )}
         {/* Crew Chats Folder */}
         {activeFolder === 'crew_chats' ? (
           crewChatsLoading ? (
@@ -210,11 +220,11 @@ const ConversationListPanel = ({
               ))}
             </div>
           )
-        ) : loading ? (
+        ) : loading && filteredConversations.length === 0 ? (
           <div className="flex items-center justify-center h-32">
             <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : filteredConversations.length === 0 ? (
+        ) : filteredConversations.length === 0 && !conversationListError ? (
           <div className="flex flex-col items-center justify-center h-32 text-gray-500">
             <p>No conversations in {activeFolder}</p>
           </div>
