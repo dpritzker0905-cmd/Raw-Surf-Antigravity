@@ -85,25 +85,39 @@ let webpackConfig = {
   },
 };
 
-webpackConfig.devServer = (devServerConfig) => {
-  // Add health check endpoints if enabled
-  if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
-    const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
+// CRA reads HOST again after CRACO applies its overrides.
+if (process.env.NODE_ENV === "development" && !process.env.HOST) {
+  process.env.HOST = "127.0.0.1";
+}
 
-    devServerConfig.setupMiddlewares = (middlewares, devServer) => {
-      // Call original setup if exists
-      if (originalSetupMiddlewares) {
-        middlewares = originalSetupMiddlewares(middlewares, devServer);
-      }
+webpackConfig.devServer = (configV4) => {
+  const { https, onBeforeSetupMiddleware, onAfterSetupMiddleware, ...options } = configV4;
+  options.server = https
+    ? { type: "https", options: typeof https === "object" ? https : {} }
+    : "http";
+  options.allowedHosts = "auto";
+  // CRA supplies wildcard CORS headers. Local bundles and HMR are same-origin.
+  delete options.headers;
+  options.devMiddleware.publicPath = options.devMiddleware.publicPath.replace(/\/?$/, "/");
+  options.setupMiddlewares = (middlewares, server) => {
+    // react-scripts calls close() on SIGINT, SIGTERM and stdin EOF.
+    server.close = server.stopCallback.bind(server);
+    const { Router } = require("express");
+    const before = Router();
+    const after = Router();
+    // CRA's error overlay reads the previous server API's _stats on each request.
+    onBeforeSetupMiddleware({ app: before, get _stats() { return server.stats; } });
+    onAfterSetupMiddleware({ app: after });
+    if (config.enableHealthCheck) setupHealthEndpoints({ app: before }, healthPluginInstance);
 
-      // Setup health endpoints
-      setupHealthEndpoints(devServer, healthPluginInstance);
-
-      return middlewares;
-    };
-  }
-
-  return devServerConfig;
+    // Keep CRA routes behind webpack's host and cross-origin checks.
+    const assets = middlewares.findIndex(({ name }) => name === "webpack-dev-middleware");
+    if (assets < 0) throw new Error("Missing webpack asset middleware");
+    middlewares.splice(assets, 0, before);
+    middlewares.push(after);
+    return middlewares;
+  };
+  return options;
 };
 
 
