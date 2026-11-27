@@ -53,22 +53,18 @@ async def get_custom_logo(logo_url: str) -> Optional[Image.Image]:
     Download and cache a custom watermark logo from URL
     Returns a PIL Image with transparency preserved
     """
-    if logo_url in _watermark_logo_cache:
-        return Image.open(io.BytesIO(_watermark_logo_cache[logo_url]))
-    
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(logo_url)
-            response.raise_for_status()
-            
-            image_bytes = response.content
-            _watermark_logo_cache[logo_url] = image_bytes
-            
-            logo = Image.open(io.BytesIO(image_bytes))
-            # Ensure RGBA for transparency
-            if logo.mode != 'RGBA':
-                logo = logo.convert('RGBA')
-            return logo
+        image_bytes = _watermark_logo_cache.get(logo_url)
+        if image_bytes is None:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(logo_url)
+                response.raise_for_status()
+                image_bytes = response.content
+
+        with Image.open(io.BytesIO(image_bytes)) as source:
+            logo = source.convert('RGBA')
+        _watermark_logo_cache[logo_url] = image_bytes
+        return logo
     except Exception as e:
         logger.error(f"Failed to fetch custom logo: {e}")
         return None

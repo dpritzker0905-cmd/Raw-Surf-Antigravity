@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 2,
+  "branch": "codex/watermark-logo-cache",
+  "date": "2026-11-27",
+  "note": "Cover repeated JPEG preview generation with an RGB logo and retry after an invalid logo download."
+}
