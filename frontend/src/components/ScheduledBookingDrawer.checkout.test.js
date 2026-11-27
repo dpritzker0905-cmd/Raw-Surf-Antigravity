@@ -6,17 +6,19 @@ import { navigateToCheckout } from '../utils/checkoutUrl';
 import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 
 const mockUpdateUser = jest.fn();
+const mockHaptic = jest.fn();
+let mockBuyerId;
 jest.mock('../utils/checkoutUrl', () => ({
   ...jest.requireActual('../utils/checkoutUrl'), navigateToCheckout: jest.fn(),
 }));
-jest.mock('../lib/apiClient', () => ({ post: jest.fn() }));
-jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
+jest.mock('../lib/apiClient', () => ({ post: jest.fn(), patch: jest.fn() }));
+jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn(), warning: jest.fn() } }));
 jest.mock('../utils/logger', () => ({ error: jest.fn() }));
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({
-  user: { id: 'buyer', credit_balance: 100 }, updateUser: mockUpdateUser,
+  user: { id: mockBuyerId, credit_balance: 100 }, updateUser: mockUpdateUser,
 }) }));
 jest.mock('../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: 'dark' }) }));
-jest.mock('../hooks/useHapticFeedback', () => () => jest.fn());
+jest.mock('../hooks/useHapticFeedback', () => () => mockHaptic);
 jest.mock('./ui/slider', () => ({ Slider: () => null }));
 jest.mock('./ExactTimeSlotPicker', () => ({ ExactTimeSlotPicker: ({ onDateChange, onTimeChange, onCategoryChange }) =>
   <button onClick={() => {
@@ -28,10 +30,15 @@ jest.mock('./booking/BookingPaymentStep', () => ({ setPaymentMethod, setAppliedC
   <button onClick={() => setPaymentMethod('credits')}>Use credits</button>
   <button onClick={() => setAppliedCredits(5)}>Apply partial credits</button>
 </>);
-jest.mock('./booking/BookingSelfieStep', () => ({ BookingSelfieStep: ({ setStep }) =>
-  <button onClick={() => setStep('confirm')}>Skip selfie</button> }));
+jest.mock('./booking/BookingSelfieStep', () => ({ BookingSelfieStep: ({ setStep, setSelfieUrl }) => <>
+  <button onClick={() => setStep('confirm')}>Skip selfie</button>
+  <button onClick={() => { setSelfieUrl('fixture.jpg'); setStep('confirm'); }}>Use selfie</button>
+</> }));
 jest.mock('./booking/ScheduledBookingHelpers', () => ({
-  DURATION_PRICES: { 60: 1 }, CrossSellSuggestion: () => null, CrewSplitSection: () => null,
+  DURATION_PRICES: { 60: 1 }, CrossSellSuggestion: () => null,
+  CrewSplitSection: ({ onToggle, onCrewChange }) => <button onClick={() => {
+    onToggle(true); onCrewChange([{ user_id: 'crew', name: 'Crew' }]);
+  }}>Add crew</button>,
   BookingConfirmation: () => <p>Booking confirmed</p>,
 }));
 
@@ -39,20 +46,25 @@ const photographer = { id: 'pro', session_price: 25 };
 const checkout = { booking_id: 'booking', session_id: 'session', checkout_url: 'https://checkout.stripe.com/c/pay/fixture', credits_applied: 5, remaining_credits: 95 };
 const booking = { booking: { id: 'booking' }, remaining_credits: 75 };
 const endpoints = () => apiClient.post.mock.calls.map(([url]) => url);
-function prepare(choice) {
+function prepare(choice, options) {
   const view = render(<ScheduledBookingDrawer isOpen photographer={photographer} onClose={jest.fn()} />);
+  chooseBooking(choice, options);
+  return view;
+}
+
+function chooseBooking(choice, { crew = false, selfie = false } = {}) {
   fireEvent.click(screen.getByText('Choose slot'));
   fireEvent.click(screen.getByTestId('continue-to-location-btn'));
   fireEvent.click(screen.getByText('Choose beach'));
   fireEvent.click(screen.getByTestId('continue-to-crew-btn'));
+  if (crew) fireEvent.click(screen.getByText('Add crew'));
   fireEvent.click(screen.getByTestId('continue-to-payment-btn'));
   if (choice) fireEvent.click(screen.getByText(choice));
   fireEvent.click(screen.getByTestId('review-booking-btn'));
-  fireEvent.click(screen.getByText('Skip selfie'));
-  return view;
+  fireEvent.click(screen.getByText(selfie ? 'Use selfie' : 'Skip selfie'));
 }
 const submit = () => fireEvent.click(screen.getByTestId('confirm-booking-btn'));
-beforeEach(() => { jest.resetAllMocks(); });
+beforeEach(() => { jest.resetAllMocks(); mockBuyerId = 'buyer'; });
 
 it.each([undefined, '', '/missing', 'http://example.invalid/session'])(
   'never sends a second create when paid checkout returns URL %p', async checkout_url => {
@@ -167,4 +179,105 @@ it('creates a fully credit-funded booking once without starting card checkout', 
   expect(await screen.findByText('Booking confirmed')).toBeInTheDocument();
   expect(endpoints()).toEqual(['/bookings/create']);
   expect(mockUpdateUser).toHaveBeenCalledWith({ credit_balance: 75 });
+});
+
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((ok, fail) => { resolve = ok; reject = fail; });
+  return { promise, resolve, reject };
+}
+
+function switchBuyer(view, id) {
+  mockBuyerId = id;
+  view.rerender(<ScheduledBookingDrawer isOpen photographer={photographer} onClose={jest.fn()} />);
+}
+
+it.each(['switch', 'return', 'unmount'])('ignores late wallet creation after %s', async change => {
+  const create = deferred();
+  apiClient.post.mockReturnValueOnce(create.promise);
+  const view = prepare('Use credits', { crew: true, selfie: true });
+  submit();
+  if (change === 'unmount') view.unmount();
+  else {
+    switchBuyer(view, 'second-buyer');
+    if (change === 'return') switchBuyer(view, 'buyer');
+  }
+  await act(async () => { create.resolve({ data: booking }); });
+  expect(mockUpdateUser).not.toHaveBeenCalled();
+  expect(endpoints()).toEqual(['/bookings/create']);
+  expect(apiClient.patch).not.toHaveBeenCalled();
+  expect(toast.success).not.toHaveBeenCalled();
+  expect(mockHaptic).not.toHaveBeenCalled();
+  if (change !== 'unmount') expect(screen.getByText('Choose slot')).toBeInTheDocument();
+});
+
+it.each(['resolve', 'reject'])('ignores stale crew notification completion on %s', async outcome => {
+  const crew = deferred();
+  apiClient.post.mockResolvedValueOnce({ data: booking }).mockReturnValueOnce(crew.promise);
+  const view = prepare('Use credits', { crew: true, selfie: true });
+  await act(async () => { submit(); });
+  expect(endpoints()).toEqual(['/bookings/create', '/bookings/booking/send-crew-requests']);
+  switchBuyer(view, 'second-buyer');
+  await act(async () => { crew[outcome](); });
+  expect(apiClient.patch).not.toHaveBeenCalled();
+  expect(toast.warning).not.toHaveBeenCalled();
+  expect(toast.success).not.toHaveBeenCalled();
+  expect(mockHaptic).not.toHaveBeenCalled();
+  expect(screen.getByText('Choose slot')).toBeInTheDocument();
+});
+
+it('keeps the next buyer submission pending when the first wallet receipt arrives', async () => {
+  const first = deferred(), next = deferred();
+  apiClient.post.mockReturnValueOnce(first.promise).mockReturnValueOnce(next.promise);
+  const view = prepare('Use credits');
+  submit();
+  switchBuyer(view, 'second-buyer');
+  chooseBooking('Use credits');
+  submit();
+  await act(async () => { first.resolve({ data: booking }); });
+  expect(screen.getByTestId('confirm-booking-btn')).toBeDisabled();
+  expect(mockUpdateUser).not.toHaveBeenCalled();
+  await act(async () => { next.resolve({ data: { ...booking, remaining_credits: 42 } }); });
+  expect(screen.getByText('Booking confirmed')).toBeInTheDocument();
+  expect(mockUpdateUser.mock.calls).toEqual([[{ credit_balance: 42 }]]);
+  expect(toast.success).toHaveBeenCalledTimes(1);
+  expect(endpoints()).toEqual(['/bookings/create', '/bookings/create']);
+});
+
+it.each(['resolve', 'reject'])('keeps a reopened drawer at the first step after a late selfie %s', async outcome => {
+  const selfie = deferred();
+  apiClient.post.mockResolvedValueOnce({ data: booking });
+  apiClient.patch.mockReturnValueOnce(selfie.promise);
+  const view = prepare('Use credits', { selfie: true });
+  await act(async () => { submit(); });
+  expect(apiClient.patch).toHaveBeenCalledTimes(1);
+  view.rerender(<ScheduledBookingDrawer isOpen={false} photographer={photographer} onClose={jest.fn()} />);
+  view.rerender(<ScheduledBookingDrawer isOpen photographer={photographer} onClose={jest.fn()} />);
+  await act(async () => { selfie[outcome](); });
+  expect(toast.success).not.toHaveBeenCalled();
+  expect(mockHaptic).not.toHaveBeenCalled();
+  expect(screen.getByText('Choose slot')).toBeInTheDocument();
+});
+
+it('finishes the active wallet booking when its crew notification fails', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: booking }).mockRejectedValueOnce(new Error('Fixture error'));
+  apiClient.patch.mockResolvedValueOnce({});
+  prepare('Use credits', { crew: true, selfie: true });
+  submit();
+  expect(await screen.findByText('Booking confirmed')).toBeInTheDocument();
+  expect(toast.warning).toHaveBeenCalledTimes(1);
+  expect(apiClient.patch).toHaveBeenCalledWith('/bookings/booking/participant-selfie', {
+    participant_id: 'buyer', selfie_url: 'fixture.jpg',
+  });
+  expect(mockHaptic).toHaveBeenCalledWith('success');
+});
+
+it('starts the next buyer with the default card option after the previous buyer chose credits', async () => {
+  const view = prepare('Use credits');
+  switchBuyer(view, 'second-buyer');
+  chooseBooking();
+  apiClient.post.mockResolvedValueOnce({ data: checkout });
+  await act(async () => { submit(); });
+  expect(endpoints()).toEqual(['/bookings/create-with-stripe']);
+  expect(apiClient.post.mock.calls[0][1].apply_credits).toBe(0);
 });

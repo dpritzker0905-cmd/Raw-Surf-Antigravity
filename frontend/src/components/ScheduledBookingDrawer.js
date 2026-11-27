@@ -138,6 +138,7 @@ export const ScheduledBookingDrawer = ({
       setTravelSurcharge(0);
       setCrewSplitEnabled(false);
       setCrewMembers([]);
+      setPaymentMethod('card');
       setAppliedCredits(0);
       setBookingResult(null);
       setSelfieUrl(null);
@@ -296,6 +297,7 @@ export const ScheduledBookingDrawer = ({
         impact_zone_preset: impactZone.preset_id || null
       });
       
+      if (visit.current !== submitted) return;
       // Update user credits if applied
       if (appliedCredits > 0 && response.data.remaining_credits !== undefined) {
         updateUser({ credit_balance: response.data.remaining_credits });
@@ -312,10 +314,12 @@ export const ScheduledBookingDrawer = ({
             photographer_name: photographer.full_name
           });
         } catch (crewError) {
+          if (visit.current !== submitted) return;
           logger.error('Failed to send crew payment requests:', crewError);
           // Don't fail the booking, just notify
           toast.warning('Booking created but crew notifications may be delayed');
         }
+        if (visit.current !== submitted) return;
       }
       
       setBookingResult({
@@ -342,6 +346,7 @@ export const ScheduledBookingDrawer = ({
           logger.error('Failed to upload selfie:', selfieError);
           // Don't fail the booking, selfie can be added later
         }
+        if (visit.current !== submitted) return;
       }
       
       setStep('success');
