@@ -11,6 +11,8 @@ In the project directory, you can run:
 Runs the app in the development mode.\
 Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
+The development server listens on loopback by default. For testing from a phone on your LAN, set `HOST` to your computer's LAN IP before running `npm start`, then open that IP and port on the phone.
+
 The page will reload when you make changes.\
 You may also see any lint errors in the console.
 
