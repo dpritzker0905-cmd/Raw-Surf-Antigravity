@@ -73,6 +73,17 @@ MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50MB for images
 STREAM_CHUNK_SIZE = 1024 * 1024    # 1 MB chunks for streaming video to disk
 
 
+async def read_upload(file: UploadFile, limit: int, detail: str | None = None) -> bytes:
+    """Bound application memory even when the parsed upload has no recorded size."""
+    message = detail or f"File too large. Maximum size is {limit // (1024 * 1024)}MB"
+    if file.size is not None and file.size > limit:
+        raise HTTPException(status_code=400, detail=message)
+    content = await file.read(limit + 1)
+    if len(content) > limit:
+        raise HTTPException(status_code=400, detail=message)
+    return content
+
+
 # ── Egress-reduction: cache headers for static media ────────────────────
 # Filenames contain UUIDs (content-addressed), so aggressive caching is safe.
 _IMMUTABLE_CACHE = 'public, max-age=31536000, immutable'  # 1 year
@@ -382,11 +393,7 @@ async def upload_general_file(
         raise HTTPException(status_code=400, detail="Invalid file type. Allowed: JPEG, PNG, WebP, GIF, HEIC")
     
     # Read file content
-    content = await file.read()
-    
-    # Check file size
-    if len(content) > MAX_IMAGE_SIZE:
-        raise HTTPException(status_code=400, detail=f"File too large. Maximum size is {MAX_IMAGE_SIZE // (1024*1024)}MB")
+    content = await read_upload(file, MAX_IMAGE_SIZE)
     
     # Convert HEIC/HEIF to JPEG (iPhone photos)
     actual_content_type = file.content_type
@@ -448,11 +455,7 @@ async def upload_story_media(
         raise HTTPException(status_code=400, detail="Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, MOV, WebM")
     
     # Read file content
-    content = await file.read()
-    
-    # Check file size
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB")
+    content = await read_upload(file, MAX_FILE_SIZE)
     
     # Generate unique filename
     ext = get_file_extension(file.content_type)
@@ -511,14 +514,11 @@ async def upload_conditions_media(
             )
         is_video = True
 
-    content = await file.read()
-
     max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
-    if len(content) > max_size:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File too large. Max {max_size // (1024 * 1024)}MB for {'video' if is_video else 'image'}."
-        )
+    media_kind = "video" if is_video else "image"
+    content = await read_upload(
+        file, max_size, f"File too large. Max {max_size // (1024 * 1024)}MB for {media_kind}."
+    )
 
     # Use .webm extension for browser-recorded video (content_type may be "video/webm")
     ext = get_file_extension(file.content_type) if file.content_type in {**dict.fromkeys(ALLOWED_IMAGE_TYPES), **dict.fromkeys(ALLOWED_VIDEO_TYPES)} else ".webm"
@@ -595,10 +595,7 @@ async def upload_gallery_media(
         raise HTTPException(status_code=400, detail="Gallery only accepts images: JPEG, PNG, WebP, GIF")
     require_previewable_image(file.content_type)
     
-    content = await file.read()
-    
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB")
+    content = await read_upload(file, MAX_FILE_SIZE)
     
     # Generate unique filename
     ext = get_file_extension(file.content_type)
@@ -660,11 +657,7 @@ async def upload_avatar(
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Avatar must be an image: JPEG, PNG, WebP, GIF")
     
-    content = await file.read()
-    
-    # Avatars max 5MB
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Avatar too large. Maximum size is 5MB")
+    content = await read_upload(file, 5 * 1024 * 1024, "Avatar too large. Maximum size is 5MB")
     
     ext = get_file_extension(file.content_type)
     filename = f"{user_id}{ext}"

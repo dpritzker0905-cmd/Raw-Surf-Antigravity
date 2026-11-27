@@ -18,6 +18,7 @@ import asyncio
 import logging
 from models import GalleryItem, Profile
 from .core import (
+    read_upload,
     UPLOAD_DIR, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES,
     MAX_FILE_SIZE, MAX_IMAGE_SIZE,
     SUPABASE_STORAGE_AVAILABLE,
@@ -48,10 +49,8 @@ async def upload_user_gallery_media(
     is_image = file.content_type in ALLOWED_IMAGE_TYPES
     if not is_video and not is_image:
         raise HTTPException(status_code=400, detail="Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, MOV, WebM")
-    content = await file.read()
     max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
-    if len(content) > max_size:
-        raise HTTPException(status_code=400, detail=f"File too large. Maximum size is {max_size // (1024*1024)}MB")
+    content = await read_upload(file, max_size)
     user_gallery_dir = UPLOAD_DIR / "user-gallery" / user_id
     user_gallery_dir.mkdir(parents=True, exist_ok=True)
     if is_video:
@@ -119,10 +118,8 @@ async def upload_photographer_gallery_media(
         raise HTTPException(status_code=400, detail="Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, MOV, WebM")
     if is_image:
         require_previewable_image(file.content_type)
-    content = await file.read()
     max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
-    if len(content) > max_size:
-        raise HTTPException(status_code=400, detail=f"File too large. Maximum size is {max_size // (1024*1024)}MB")
+    content = await read_upload(file, max_size)
     gallery_dir = UPLOAD_DIR / "gallery" / user_id
     gallery_dir.mkdir(parents=True, exist_ok=True)
     if is_video:
@@ -263,7 +260,7 @@ async def test_watermark_performance(file: UploadFile = File(...), current_user_
     start_time = time.time()
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Invalid file type")
-    content = await file.read()
+    content = await read_upload(file, MAX_IMAGE_SIZE)
     file_size_mb = len(content) / (1024 * 1024)
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as input_file:
         input_file.write(content)
@@ -315,10 +312,8 @@ async def upload_session_photo(
         raise HTTPException(status_code=400, detail="Invalid file type. Supported: images and videos")
     if is_image:
         require_previewable_image(file.content_type)
-    content = await file.read()
     max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
-    if len(content) > max_size:
-        raise HTTPException(status_code=400, detail=f"File too large. Max {max_size // (1024*1024)}MB")
+    content = await read_upload(file, max_size, f"File too large. Max {max_size // (1024*1024)}MB")
     gallery_dir = UPLOAD_DIR / "gallery" / photographer_id
     gallery_dir.mkdir(parents=True, exist_ok=True)
     ext = file.filename.rsplit('.', 1)[-1].lower() if file.filename else ('mp4' if is_video else 'jpg')

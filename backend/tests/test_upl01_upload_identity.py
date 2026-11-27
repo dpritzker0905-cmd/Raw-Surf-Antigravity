@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 import pytest_asyncio
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, UploadFile
 from PIL import Image
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -119,6 +119,31 @@ async def harness(tmp_path, monkeypatch):
 def post(harness, path, headers, claim=None):
     return harness.client.post(path, headers=headers, data=claim or {},
                                files={'file': ('a.png', _png(), 'image/png')})
+
+
+@pytest.mark.parametrize("byte_count", [0, 3, 4])
+async def test_bounded_read_preserves_accepted_content(byte_count):
+    payload = bytes(range(byte_count))
+    upload = UploadFile(file=io.BytesIO(payload))
+    assert await upload_core.read_upload(upload, 4) == payload
+
+
+@pytest.mark.parametrize("reported_size, consumed", [(None, 5), (4, 5), (100, 0)])
+async def test_large_upload_read_is_bounded(reported_size, consumed):
+    stream = io.BytesIO(bytes(100))
+    upload = UploadFile(file=stream, size=reported_size)
+    with pytest.raises(HTTPException) as error:
+        await upload_core.read_upload(upload, 4)
+    assert error.value.status_code == 400
+    assert stream.tell() == consumed
+
+
+async def test_gallery_rejects_one_byte_over_limit_before_storage(harness, monkeypatch):
+    monkeypatch.setattr(upload_core, "MAX_FILE_SIZE", len(_png()) - 1)
+    response = await post(harness, "/api/upload/gallery", bearer("pro"))
+    assert response.status_code == 400
+    assert "File too large" in response.json()["detail"]
+    assert harness.stored == []
 
 
 @pytest.mark.parametrize('headers', NO_AUTH, ids=NO_AUTH_IDS)
