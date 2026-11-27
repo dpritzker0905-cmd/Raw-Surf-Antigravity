@@ -1,0 +1,50 @@
+name: Frontend dependency review
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/package*.json'
+      - 'frontend/scripts/wind-color/package*.json'
+      - 'frontend/scripts/review-npm-audit.mjs'
+      - '.github/workflows/frontend-dependency-review.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        project: [frontend, frontend/scripts/wind-color]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          package-manager-cache: false
+      - name: Compare advisories in the base and proposed lockfiles
+        env:
+          PROJECT: ${{ matrix.project }}
+          BASE_REV: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          scratch=$(mktemp -d)
+          for revision in base proposed; do
+            ref=HEAD
+            if [[ "$revision" == base ]]; then ref="$BASE_REV"; fi
+            folder="$scratch/$revision"
+            mkdir "$folder"
+            for manifest in package.json package-lock.json; do
+              git show "$ref:$PROJECT/$manifest" > "$folder/$manifest"
+            done
+            code=0
+            (cd "$folder" && npm audit --json --package-lock-only --ignore-scripts --registry=https://registry.npmjs.org) > "$folder/report.json" || code=$?
+            if (( code > 1 )); then exit "$code"; fi
+          done
+          node frontend/scripts/review-npm-audit.mjs "$scratch/base/report.json" "$scratch/proposed/report.json"
