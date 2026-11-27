@@ -31,7 +31,7 @@ from core import security
 from database import get_db
 from models import (AdConfig, Booking, BookingParticipant, CreditTransaction, Notification, PaymentTransaction,
                     Post, Profile, RoleEnum)
-from routes.bookings import booking_lifecycle, crud, stripe_checkout
+from routes.bookings import booking_lifecycle, crud, invites, stripe_checkout
 from routes.commerce import ad_controls
 from utils.credits import add_credits, clean_amount, deduct_credits
 
@@ -281,6 +281,31 @@ async def test_a_valid_booking_with_credits_still_works(world):
 
 def card_booking(**over):
     return booking(origin_url="https://example.invalid", **over)
+
+
+async def test_wallet_booking_crew_request_acknowledges_committed_invitation(world):
+    world.app.include_router(invites.router, prefix="/api")
+    async with world.maker.begin() as db:
+        db.add(Profile(id="crew", user_id="crew", email="crew@example.invalid", role=RoleEnum.SURFER))
+    payload = booking(max_participants=2, allow_splitting=True, apply_credits=30)
+    created = await world.client.post("/api/bookings/create", json=payload, headers=_token("user"))
+    assert created.status_code == 200
+    booking_id = created.json()["booking_id"]
+    result = await world.client.post(f"/api/bookings/{booking_id}/send-crew-requests", json={
+        "crew_members": [{"user_id": "crew", "name": "Crew", "share_amount": 30}],
+        "price_per_person": 30, "session_date": payload["session_date"], "photographer_name": "Fixture",
+    }, headers=_token("user"))
+    async with world.maker() as db:
+        participant = (await db.scalars(select(BookingParticipant).where(
+            BookingParticipant.booking_id == booking_id, BookingParticipant.participant_id == "crew",
+        ))).one()
+        assert participant.status == "invited" and participant.share_amount == 30
+        assert await db.scalar(select(func.count()).select_from(Notification).where(
+            Notification.user_id == "crew", Notification.type == "crew_payment_request",
+        )) == 1
+    assert result.status_code == 200
+    assert result.json() == {"success": True, "message": "Payment requests sent to 1 crew members",
+                             "sent_to": ["Crew"], "conversation_id": None}
 
 
 def test_scheduled_time_display_converts_an_aware_non_utc_read():

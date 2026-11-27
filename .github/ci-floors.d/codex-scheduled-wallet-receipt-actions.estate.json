@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 1,
+  "branch": "codex/scheduled-wallet-receipt-actions",
+  "date": "2026-11-27",
+  "note": "Crew invitation acknowledgement after wallet booking creation"
+}

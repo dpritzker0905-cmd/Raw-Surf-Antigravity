@@ -18,7 +18,7 @@ from database import get_db
 from models import (
     Profile, Booking, BookingParticipant, BookingInvite,
     Notification, RoleEnum, PaymentTransaction,
-    Conversation, ConversationParticipant, Message
+    Conversation, Message
 )
 from utils.credits import deduct_credits, add_credits, transfer_credits, refund_credits
 from websocket_manager import broadcast_earnings_update
@@ -266,7 +266,7 @@ async def send_crew_payment_requests(
 ):
     """
     Send payment requests to crew members for a split booking.
-    Creates notifications and optionally a group chat thread.
+    Records the invited participants and their payment request notifications.
     """
     # Verify booking exists and user is the creator
     booking_result = await db.execute(
@@ -324,56 +324,6 @@ async def send_crew_payment_requests(
         db.add(notification)
         sent_to.append(crew_member.name)
     
-    # Create or get group chat for this booking
-    try:
-        # Check if conversation already exists
-        existing_conv_result = await db.execute(
-            select(Conversation).where(Conversation.booking_id == booking_id)
-        )
-        conversation = existing_conv_result.scalar_one_or_none()
-        
-        if not conversation:
-            # Create new group conversation
-            conversation = Conversation(
-                booking_id=booking_id,
-                is_group=True,
-                name=f"Session at {booking.location}"
-            )
-            db.add(conversation)
-            await db.flush()
-            
-            # Add captain as participant
-            captain_participant = ConversationParticipant(
-                conversation_id=conversation.id,
-                user_id=user_id
-            )
-            db.add(captain_participant)
-            
-            # Add photographer if exists
-            if booking.photographer_id:
-                photographer_participant = ConversationParticipant(
-                    conversation_id=conversation.id,
-                    user_id=booking.photographer_id
-                )
-                db.add(photographer_participant)
-            
-            # Add all crew members
-            for crew_member in data.crew_members:
-                crew_participant = ConversationParticipant(
-                    conversation_id=conversation.id,
-                    user_id=crew_member.user_id
-                )
-                db.add(crew_participant)
-            
-            # Send initial message
-            initial_message = Message(
-                conversation_id=conversation.id,
-                sender_id=user_id,
-                content=f"🏄 Session booked! {data.photographer_name} will be shooting at {booking.location} on {data.session_date}. Crew members: please pay your share (${data.crew_members[0].share_amount:.2f} each) to confirm your spot!"
-            )
-            db.add(initial_message)
-    except Exception as e:
-        logging.warning(f"Failed to create group chat: {e}")
     
     # Update booking with payment window
     if data.payment_deadline:
@@ -385,7 +335,7 @@ async def send_crew_payment_requests(
         "success": True,
         "message": f"Payment requests sent to {len(sent_to)} crew members",
         "sent_to": sent_to,
-        "conversation_id": conversation.id if conversation else None
+        "conversation_id": None
     }
 
 

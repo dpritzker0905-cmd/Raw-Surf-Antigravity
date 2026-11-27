@@ -179,6 +179,28 @@ it('accepts the wallet API receipt with a top-level booking ID', async () => {
   await act(async () => { submit(); });
   expect(screen.getByText('Booking confirmed')).toBeInTheDocument();
   expect(mockUpdateUser).toHaveBeenCalledWith({ credit_balance: 75 });
+  expect(endpoints()).toEqual(['/bookings/create']);
+  expect(apiClient.patch).not.toHaveBeenCalled();
+});
+
+it.each([
+  { booking_id: 'new & original', booking: { id: 'older' } },
+  { booking_id: 'new & original' },
+  { booking: { id: 'new & original' } },
+])('uses the validated wallet receipt for both requested follow-ups (%p)', async receipt => {
+  apiClient.post.mockResolvedValueOnce({ data: receipt }).mockResolvedValueOnce({ data: { conversation_id: null } });
+  apiClient.patch.mockResolvedValueOnce({});
+  prepare('Use credits', { crew: true, selfie: true });
+  submit();
+  expect(await screen.findByText('Booking confirmed')).toBeInTheDocument();
+  expect(endpoints()).toEqual(['/bookings/create', '/bookings/new%20%26%20original/send-crew-requests']);
+  expect(apiClient.post.mock.calls[1][1]).toMatchObject({
+    crew_members: [{ user_id: 'crew', name: 'Crew', share_amount: 12.5 }],
+    photographer_name: expect.any(String),
+  });
+  expect(apiClient.patch.mock.calls).toEqual([['/bookings/new%20%26%20original/participant-selfie', {
+    participant_id: 'buyer', selfie_url: 'fixture.jpg',
+  }]]);
 });
 
 it('ignores a lost wallet response after switching buyers', async () => {

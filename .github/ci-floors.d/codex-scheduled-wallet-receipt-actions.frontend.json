@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 3,
+  "files": 0,
+  "branch": "codex/scheduled-wallet-receipt-actions",
+  "date": "2026-11-27",
+  "note": "Scheduled booking follow-ups use the same ID for current and legacy wallet receipts"
+}

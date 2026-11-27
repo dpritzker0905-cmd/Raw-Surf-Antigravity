@@ -309,14 +309,14 @@ export const ScheduledBookingDrawer = ({
       }
       
       // If crew split is enabled, send payment requests to crew members
-      if (crewSplitEnabled && crewMembers.length > 0 && response.data.booking?.id) {
+      if (crewSplitEnabled && crewMembers.length > 0) {
         try {
-          await apiClient.post(`/bookings/${response.data.booking.id}/send-crew-requests`, {
+          await apiClient.post(`/bookings/${encodeURIComponent(bookingId)}/send-crew-requests`, {
             crew_members: crewMemberData,
             price_per_person: pricePerPerson,
             payment_deadline: paymentWindowExpires?.toISOString(),
             session_date: sessionDateTime.toISOString(),
-            photographer_name: photographer.full_name
+            photographer_name: photographer.full_name || photographer.username || 'Photographer'
           });
         } catch (crewError) {
           if (visit.current !== submitted) return;
@@ -329,6 +329,7 @@ export const ScheduledBookingDrawer = ({
       
       setBookingResult({
         ...response.data,
+        booking_id: bookingId,
         session_date: sessionDateTime.toISOString(),
         location: impactZone.description,
         duration: selectedDuration,
@@ -340,9 +341,9 @@ export const ScheduledBookingDrawer = ({
       });
       
       // Upload selfie for the booking if captured
-      if (selfieUrl && response.data.booking?.id) {
+      if (selfieUrl) {
         try {
-          await apiClient.patch(`/bookings/${response.data.booking.id}/participant-selfie`, {
+          await apiClient.patch(`/bookings/${encodeURIComponent(bookingId)}/participant-selfie`, {
             participant_id: user.id,
             selfie_url: selfieUrl
           });
@@ -638,8 +639,7 @@ export const ScheduledBookingDrawer = ({
                 onViewBookings={() => {
                   onClose();
                   // Navigate to scheduled bookings tab with highlight on the new booking
-                  const newBookingId = bookingResult?.booking?.id || bookingResult?.id || '';
-                  window.location.href = `/bookings?tab=scheduled${newBookingId ? `&highlight=${newBookingId}` : ''}`;
+                  window.location.href = `/bookings?tab=scheduled&highlight=${encodeURIComponent(bookingResult.booking_id)}`;
                 }}
                 onAddAnotherSpot={() => {
                   setStep('time');
