@@ -1,4 +1,5 @@
 """Buyer recovery after discarding the create response; real routes, local DB, mocked Stripe transport."""
+import asyncio
 import hashlib
 import hmac
 import json
@@ -38,8 +39,34 @@ async def test_expiry_rechecks_stale_booking_before_refunding(recovery, monkeypa
             (await winner.get(Booking, recovery.booking)).status = "Cancelled"
         def unexpected(*args, **kwargs):
             pytest.fail("Terminal booking must stop before contacting the provider")
-        monkeypatch.setattr(stripe_checkout.stripe.checkout.Session, "retrieve", unexpected)
+        monkeypatch.setattr(stripe_checkout, "read_scheduled_checkout", unexpected)
         assert not await stripe_checkout.reconcile_expired_booking_checkout(booking, db)
+
+
+async def test_expiry_settles_a_paid_session_and_does_not_allow_cancellation(recovery):
+    recovery.session.update(status="complete", payment_status="paid")
+    async with recovery.world.maker() as db:
+        booking = await db.get(Booking, recovery.booking)
+        assert not await stripe_checkout.reconcile_expired_booking_checkout(booking, db)
+    assert (await recovery.act("cancel")).json() == {"status": "Confirmed"}
+    assert (await recovery.world.state())[:3] == (90, 3, 1)
+    assert [method for method, _ in recovery.calls] == ["GET"]
+
+
+async def test_expiry_deadline_releases_locks_and_preserves_reservation(recovery, monkeypatch):
+    stopped = asyncio.Event()
+    async def stalled(self, request):
+        try:
+            await asyncio.Event().wait()
+        finally:
+            stopped.set()
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", stalled)
+    monkeypatch.setattr(stripe_checkout, "CHECKOUT_TIMEOUT_SECONDS", 0.1)
+    async with recovery.world.maker() as db:
+        booking = await db.get(Booking, recovery.booking)
+        assert not await asyncio.wait_for(stripe_checkout.reconcile_expired_booking_checkout(booking, db), 2)
+        assert stopped.is_set() and not db.in_transaction()
+    assert (await recovery.world.state())[:3] == (90, 1, 1)
 
 
 @pytest.mark.parametrize("legacy", [False, True])

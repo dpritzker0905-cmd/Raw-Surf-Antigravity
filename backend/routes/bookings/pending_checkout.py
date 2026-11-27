@@ -1,12 +1,10 @@
 """Recover an existing scheduled checkout from the buyer's bookings list."""
-import asyncio
 import json
 import sqlite3
 from datetime import datetime, timezone
 from typing import Literal
 from urllib.parse import urlsplit
 
-import stripe
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select, text
@@ -34,40 +32,6 @@ def _check_booking(booking):
         return {"status": booking.status}
     if booking.status != "Pending Payment":
         raise HTTPException(409, "This booking is no longer awaiting card checkout.")
-
-
-def _check_session(session, session_id, booking_id, buyer, amount, currency):
-    if not (session.get("id") == session_id and session.get("mode") == "payment"
-            and session.get("currency") == "usd" and (currency or "").lower() == "usd"
-            and stripe_checkout._booking_session_matches(session, booking_id, buyer, amount)
-            and session.amount_total == round(amount * 100)):
-        raise HTTPException(409, "Checkout details could not be verified.")
-
-
-async def _provider_state(action, session_id, booking_id, buyer, amount, currency):
-    if not stripe_checkout.STRIPE_API_KEY:
-        raise HTTPException(503, "Checkout is temporarily unavailable.")
-    timeout = stripe_checkout.CHECKOUT_TIMEOUT_SECONDS
-    transport = stripe.HTTPXClient(timeout=timeout)
-    try:
-        sessions = stripe.StripeClient(stripe_checkout.STRIPE_API_KEY, http_client=transport,
-                                      max_network_retries=0).checkout.sessions
-        async with asyncio.timeout(timeout):
-            session = await sessions.retrieve_async(session_id)
-            _check_session(session, session_id, booking_id, buyer, amount, currency)
-            if action == "cancel" and (session.get("status"), session.get("payment_status")) == ("open", "unpaid"):
-                try:
-                    session = await sessions.expire_async(session_id, options={
-                        "idempotency_key": f"cancel_scheduled_checkout_{session_id}"})
-                except stripe.StripeError:
-                    # Expiry can lose to payment or succeed after its response is lost.
-                    session = await sessions.retrieve_async(session_id)
-                _check_session(session, session_id, booking_id, buyer, amount, currency)
-            return session
-    except (TimeoutError, stripe.StripeError):
-        raise HTTPException(503, "Payment status is unavailable. Try again from Scheduled Bookings.") from None
-    finally:
-        await transport.close_async()
 
 
 async def _reservation(db, booking, card_amount):
@@ -134,7 +98,7 @@ async def recover_pending_checkout(booking_id: str, data: CheckoutAction, buyer:
     receipt = linked[0]
     await _reservation(db, booking, receipt.amount)
     await db.rollback()  # Release the read transaction and pool connection before provider I/O.
-    session = await _provider_state(data.action, receipt.session_id, booking_id, buyer, receipt.amount, receipt.currency)
+    session = await stripe_checkout.read_scheduled_checkout(data.action, receipt.session_id, booking_id, buyer, receipt.amount, receipt.currency)
 
     try:
         dialect = db.get_bind().dialect.name

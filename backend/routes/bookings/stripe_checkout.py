@@ -248,6 +248,40 @@ def _booking_session_matches(checkout_session, booking_id: str, user_id: str, ow
     )
 
 
+def _check_session(session, session_id, booking_id, buyer, amount, currency):
+    if not (session.get("id") == session_id and session.get("mode") == "payment"
+            and session.get("currency") == "usd" and (currency or "").lower() == "usd"
+            and _booking_session_matches(session, booking_id, buyer, amount)
+            and session.amount_total == round(amount * 100)):
+        raise HTTPException(409, "Checkout details could not be verified.")
+
+
+async def read_scheduled_checkout(action, session_id, booking_id, buyer, amount, currency):
+    if not STRIPE_API_KEY:
+        raise HTTPException(503, "Checkout is temporarily unavailable.")
+    timeout = CHECKOUT_TIMEOUT_SECONDS
+    transport = stripe.HTTPXClient(timeout=timeout)
+    try:
+        sessions = stripe.StripeClient(STRIPE_API_KEY, http_client=transport,
+                                      max_network_retries=0).checkout.sessions
+        async with asyncio.timeout(timeout):
+            session = await sessions.retrieve_async(session_id)
+            _check_session(session, session_id, booking_id, buyer, amount, currency)
+            if action == "cancel" and (session.get("status"), session.get("payment_status")) == ("open", "unpaid"):
+                try:
+                    session = await sessions.expire_async(session_id, options={
+                        "idempotency_key": f"cancel_scheduled_checkout_{session_id}"})
+                except stripe.StripeError:
+                    # Expiry can lose to payment or succeed after its response is lost.
+                    session = await sessions.retrieve_async(session_id)
+                _check_session(session, session_id, booking_id, buyer, amount, currency)
+            return session
+    except (TimeoutError, stripe.StripeError):
+        raise HTTPException(503, "Payment status is unavailable. Try again from Scheduled Bookings.") from None
+    finally:
+        await transport.close_async()
+
+
 @router.get("/bookings/payment-success")
 async def booking_payment_success(
     session_id: str, booking_id: str,
@@ -443,6 +477,7 @@ async def reconcile_expired_booking_checkout(booking, db: AsyncSession) -> bool:
             linked.append(transaction)
     if len(linked) != 1 or not linked[0].session_id:
         logger.warning("Pending booking expiry has no unique checkout link: %s", booking.id)
+        await db.rollback()
         return False
     transaction = linked[0]
 
@@ -453,41 +488,22 @@ async def reconcile_expired_booking_checkout(booking, db: AsyncSession) -> bool:
     ).options(selectinload(Booking.photographer), selectinload(Booking.participants))
       .with_for_update(of=Booking).execution_options(populate_existing=True))
     if booking is None:
+        await db.rollback()
         return False
 
-    async def classify(checkout):
-        if not _booking_session_matches(
-            checkout, str(booking.id), booking.creator_id, transaction.amount
-        ):
-            return False
-        if getattr(checkout, 'payment_status', None) == 'paid':
-            await booking_payment_success(
-                session_id=transaction.session_id, booking_id=str(booking.id),
-                current_user_id=booking.creator_id, db=db,
-            )
-            return False
-        return (getattr(checkout, 'status', None) == 'expired'
-                and getattr(checkout, 'payment_status', None) == 'unpaid')
-
     try:
-        checkout = stripe.checkout.Session.retrieve(transaction.session_id)
-        if getattr(checkout, 'payment_status', None) == 'paid':
-            return await classify(checkout)
-        if getattr(checkout, 'status', None) == 'expired':
-            return await classify(checkout)
-        if (getattr(checkout, 'status', None) != 'open'
-                or getattr(checkout, 'payment_status', None) != 'unpaid'
-                or not _booking_session_matches(
-                    checkout, str(booking.id), booking.creator_id, transaction.amount
-                )):
+        checkout = await read_scheduled_checkout(
+            "cancel", transaction.session_id, str(booking.id), booking.creator_id,
+            transaction.amount, transaction.currency,
+        )
+        state = (checkout.get("status"), checkout.get("payment_status"))
+        if state == ("complete", "paid"):
+            await confirm_verified_booking(db, booking, transaction)
             return False
-        try:
-            checkout = stripe.checkout.Session.expire(transaction.session_id)
-        except Exception:
-            # Expiry may lose a race to successful payment. Retrieve again and
-            # settle that payment rather than refunding its reserved credits.
-            checkout = stripe.checkout.Session.retrieve(transaction.session_id)
-        return await classify(checkout)
+        if state == ("expired", "unpaid"):
+            return True
+        await db.rollback()
+        return False
     except Exception:
         await db.rollback()
         logger.exception("Could not reconcile pending booking checkout expiry")
