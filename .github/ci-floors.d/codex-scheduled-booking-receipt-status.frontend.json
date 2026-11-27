@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 8,
+  "files": 0,
+  "branch": "codex/scheduled-booking-receipt-status",
+  "date": "2026-11-27",
+  "note": "Drawer receipt and toast reflect confirmed, pending, pending acceptance, or unavailable booking status"
+}

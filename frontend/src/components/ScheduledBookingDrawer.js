@@ -36,7 +36,7 @@ import BookingPaymentStep from './booking/BookingPaymentStep';
 import BookingSessionSummary from './booking/BookingSessionSummary';
 
 // Extracted helper components
-import { DURATION_PRICES, CrewSplitSection, CrossSellSuggestion, BookingConfirmation } from './booking/ScheduledBookingHelpers';
+import { DURATION_PRICES, CrewSplitSection, CrossSellSuggestion, BookingConfirmation, getBookingReceiptStatus } from './booking/ScheduledBookingHelpers';
 import { BookingSelfieStep } from './booking/BookingSelfieStep';
 import { BookingConfirmStep } from './booking/BookingConfirmStep';
 import { BookingFooter } from './booking/BookingFooter';
@@ -334,7 +334,6 @@ export const ScheduledBookingDrawer = ({
         location: impactZone.description,
         duration: selectedDuration,
         total_paid: crewSplitEnabled ? captainShare : totalPrice,
-        credits_applied: appliedCredits,
         crew_split: crewSplitEnabled,
         crew_count: maxParticipants,
         price_per_person: pricePerPerson
@@ -356,9 +355,10 @@ export const ScheduledBookingDrawer = ({
       }
       
       setStep('success');
-      toast.success('Session booked successfully!');
-      // Haptic feedback for premium mobile feel
-      if (typeof haptic === 'function') haptic('success');
+      const receiptStatus = getBookingReceiptStatus(response.data);
+      if (receiptStatus.confirmed) toast.success(receiptStatus.title);
+      else toast.info(receiptStatus.title);
+      if (typeof haptic === 'function') haptic(receiptStatus.confirmed ? 'success' : 'light');
       
     } catch (error) {
       if (visit.current !== submitted) return;

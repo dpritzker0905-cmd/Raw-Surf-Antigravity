@@ -12,7 +12,7 @@ jest.mock('../utils/checkoutUrl', () => ({
   ...jest.requireActual('../utils/checkoutUrl'), navigateToCheckout: jest.fn(),
 }));
 jest.mock('../lib/apiClient', () => ({ post: jest.fn(), patch: jest.fn() }));
-jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn(), warning: jest.fn() } }));
+jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn(), warning: jest.fn(), info: jest.fn() } }));
 jest.mock('../utils/logger', () => ({ error: jest.fn() }));
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({
   user: { id: mockBuyerId, credit_balance: 100 }, updateUser: mockUpdateUser,
@@ -35,16 +35,16 @@ jest.mock('./booking/BookingSelfieStep', () => ({ BookingSelfieStep: ({ setStep,
   <button onClick={() => { setSelfieUrl('fixture.jpg'); setStep('confirm'); }}>Use selfie</button>
 </> }));
 jest.mock('./booking/ScheduledBookingHelpers', () => ({
+  ...jest.requireActual('./booking/ScheduledBookingHelpers'),
   DURATION_PRICES: { 60: 1 }, CrossSellSuggestion: () => null,
   CrewSplitSection: ({ onToggle, onCrewChange }) => <button onClick={() => {
     onToggle(true); onCrewChange([{ user_id: 'crew', name: 'Crew' }]);
   }}>Add crew</button>,
-  BookingConfirmation: () => <p>Booking confirmed</p>,
 }));
 
 const photographer = { id: 'pro', session_price: 25 };
 const checkout = { booking_id: 'booking', session_id: 'session', checkout_url: 'https://checkout.stripe.com/c/pay/fixture', credits_applied: 5, remaining_credits: 95 };
-const booking = { booking: { id: 'booking' }, remaining_credits: 75 };
+const booking = { booking: { id: 'booking', status: 'Confirmed' }, remaining_credits: 75 };
 const endpoints = () => apiClient.post.mock.calls.map(([url]) => url);
 function prepare(choice, options) {
   const view = render(<ScheduledBookingDrawer isOpen photographer={photographer} onClose={jest.fn()} />);
@@ -192,7 +192,7 @@ it.each([
   apiClient.patch.mockResolvedValueOnce({});
   prepare('Use credits', { crew: true, selfie: true });
   submit();
-  expect(await screen.findByText('Booking confirmed')).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'View My Bookings' })).toBeInTheDocument();
   expect(endpoints()).toEqual(['/bookings/create', '/bookings/new%20%26%20original/send-crew-requests']);
   expect(apiClient.post.mock.calls[1][1]).toMatchObject({
     crew_members: [{ user_id: 'crew', name: 'Crew', share_amount: 12.5 }],
@@ -201,6 +201,41 @@ it.each([
   expect(apiClient.patch.mock.calls).toEqual([['/bookings/new%20%26%20original/participant-selfie', {
     participant_id: 'buyer', selfie_url: 'fixture.jpg',
   }]]);
+});
+
+it.each([
+  [{ status: 'Pending', booking: { status: 'Confirmed' } }, 'Booking pending'],
+  [{ status: 'Pending Acceptance' }, 'Booking pending acceptance'],
+  [{ status: 'Confirmed' }, 'Booking confirmed'],
+  [{ booking: { status: ' confirmed ' } }, 'Booking confirmed'],
+  [{ booking: { id: 'original', status: 'Pending' } }, 'Booking pending'],
+  [{ booking: { id: 'different-booking', status: 'Confirmed' } }, 'Booking request received'],
+  [{}, 'Booking request received'],
+  [{ status: 'Unknown', booking: { status: 'Confirmed' } }, 'Booking request received'],
+])('shows the returned split booking status (%p)', async (receipt, title) => {
+  apiClient.post.mockResolvedValueOnce({ data: { booking_id: 'original', credits_applied: 10, ...receipt } })
+    .mockResolvedValueOnce({ data: {} });
+  prepare('Use credits', { crew: true });
+  await act(async () => { submit(); });
+  expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+  const scheduledEvent = screen.getByRole('dialog').querySelector('script[type="application/ld+json"]');
+  const reminder = screen.queryByText(/notification when it's time to head out/i);
+  if (title === 'Booking confirmed') {
+    expect(toast.success).toHaveBeenCalledWith(title);
+    expect(toast.info).not.toHaveBeenCalled();
+    expect(JSON.parse(scheduledEvent.textContent).eventStatus).toBe('https://schema.org/EventScheduled');
+    expect(reminder).toBeInTheDocument();
+  } else {
+    expect(toast.info).toHaveBeenCalledWith(title);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.queryByText(/is confirmed/i)).toBeNull();
+    expect(scheduledEvent).toBeNull();
+    expect(reminder).toBeNull();
+    expect(screen.getByText('Credits applied')).toBeInTheDocument();
+    expect(screen.getByText('$10.00')).toBeInTheDocument();
+  }
+  expect(endpoints()).toEqual(['/bookings/create', '/bookings/original/send-crew-requests']);
+  expect(screen.getByRole('button', { name: 'View My Bookings' })).toBeEnabled();
 });
 
 it('ignores a lost wallet response after switching buyers', async () => {
