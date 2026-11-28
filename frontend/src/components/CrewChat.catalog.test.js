@@ -28,6 +28,8 @@ test('the crew picker uses every server choice, including legacy thumbs-up, agai
   apiClient.get.mockResolvedValue({ data: { emojis: choices } });
   render(<CrewChat />);
   fireEvent.click(await screen.findByRole('button', { name: 'React to crew message' }));
+  const picker = await screen.findByRole('dialog', { name: 'Crew message reactions' });
+  expect(screen.getByTestId('crew-chat-messages')).not.toContainElement(picker);
   for (const emoji of choices) {
     fireEvent.click(await screen.findByRole('button', { name: emoji, exact: true, pressed: false }));
   }

@@ -9,6 +9,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 import { Button } from './ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 
 import { Input } from './ui/input';
 
@@ -444,20 +445,20 @@ export default function CrewChat() {
                   </button>
 
                   {/* Add reaction button */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowReactionPicker(showReactionPicker === msg.id ? null : msg.id)}
-                      aria-label="React to crew message"
-                      aria-expanded={showReactionPicker === msg.id}
-                      className="text-zinc-600 hover:text-zinc-400 transition-colors p-1"
-                      data-testid={`reaction-btn-${msg.id}`}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
+                  <Popover open={showReactionPicker === msg.id} onOpenChange={(open) => setShowReactionPicker(open ? msg.id : null)}>
+                    <PopoverTrigger asChild>
+                      <button
+                        aria-label="React to crew message"
+                        className="text-zinc-600 hover:text-zinc-400 transition-colors p-1"
+                        data-testid={`reaction-btn-${msg.id}`}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </PopoverTrigger>
 
                     {/* Reaction picker popup */}
-                    {showReactionPicker === msg.id && (
-                      <div className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-2 bg-zinc-800 border border-zinc-700 rounded-lg p-2 shadow-xl z-20`}>
+                    <PopoverContent aria-label="Crew message reactions" side="top" align={isMe ? 'end' : 'start'} sideOffset={8} collisionPadding={8}
+                      className="w-auto bg-zinc-800 border-zinc-700 rounded-lg p-2 shadow-xl">
                         <div className="grid grid-cols-4 gap-1">
                           {reactionEmojis.map((emoji) => (
                             <button
@@ -472,9 +473,8 @@ export default function CrewChat() {
                             </button>
                           ))}
                         </div>
-                      </div>
-                    )}
-                  </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </div>
