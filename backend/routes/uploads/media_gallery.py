@@ -36,6 +36,15 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+async def read_gallery_original(file, is_video, subscription_tier):
+    video_limit_mib = {"basic": 100, "premium": 200}.get(subscription_tier, 50)
+    limit = video_limit_mib * 1024 * 1024 if is_video else MAX_IMAGE_SIZE
+    content = await file.read(limit + 1)
+    if len(content) > limit:
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {limit // (1024 * 1024)} MiB")
+    return content
+
+
 @router.post("/upload/user-gallery")
 async def upload_user_gallery_media(
     file: UploadFile = File(...),
@@ -118,10 +127,7 @@ async def upload_photographer_gallery_media(
         raise HTTPException(status_code=400, detail="Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, MOV, WebM")
     if is_image:
         require_previewable_image(file.content_type)
-    content = await file.read()
-    max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
-    if len(content) > max_size:
-        raise HTTPException(status_code=400, detail=f"File too large. Maximum size is {max_size // (1024*1024)}MB")
+    content = await read_gallery_original(file, is_video, subscription)
     private_dir = UPLOAD_DIR / "_gallery_originals" / user_id
     private_dir.mkdir(parents=True, exist_ok=True)
     gallery_dir = UPLOAD_DIR / "gallery" / user_id
@@ -336,10 +342,7 @@ async def upload_session_photo(
         raise HTTPException(status_code=400, detail="Invalid file type. Supported: images and videos")
     if is_image:
         require_previewable_image(file.content_type)
-    content = await file.read()
-    max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
-    if len(content) > max_size:
-        raise HTTPException(status_code=400, detail=f"File too large. Max {max_size // (1024*1024)}MB")
+    content = await read_gallery_original(file, is_video, photographer.subscription_tier)
     private_dir = UPLOAD_DIR / "_gallery_originals" / photographer_id
     private_dir.mkdir(parents=True, exist_ok=True)
     gallery_dir = UPLOAD_DIR / "gallery" / photographer_id

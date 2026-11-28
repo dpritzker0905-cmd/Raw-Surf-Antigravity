@@ -10,6 +10,7 @@
  * - Dropdown folder selector (not inline buttons)
  * - Client-side pre-validation (type, size) before upload starts
  */
+import { galleryVideoLimitMiB } from '../../utils/galleryUploadLimits';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   X, Loader2, Folder, Upload, CheckCircle2, 
@@ -31,7 +32,7 @@ const STATUS = {
 };
 
 // Max sizes
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
+
 const MAX_IMAGE_SIZE = 50 * 1024 * 1024;  // 50MB
 
 // Accepted MIME types matching backend ALLOWED_VIDEO_TYPES / ALLOWED_IMAGE_TYPES
@@ -98,7 +99,7 @@ function sanitizeItemTitle(fileName, mediaType, sequenceIndex) {
   return `${label} ${sequenceIndex}`;
 }
 
-function validateFile(file) {
+function validateFile(file, videoLimitMiB) {
   const isVideo = file.type.startsWith('video/') || ACCEPTED_VIDEO.includes(file.type);
   const isImage = file.type.startsWith('image/') || ACCEPTED_IMAGE.includes(file.type);
 
@@ -106,7 +107,7 @@ function validateFile(file) {
     return { valid: false, error: `Unsupported format: ${file.type || 'unknown'}` };
   }
 
-  const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+  const maxSize = isVideo ? videoLimitMiB * 1024 * 1024 : MAX_IMAGE_SIZE;
   if (file.size > maxSize) {
     return { valid: false, error: `Too large (${formatFileSize(file.size)}, max ${formatFileSize(maxSize)})` };
   }
@@ -137,6 +138,7 @@ export const UploadPhotoModal = ({
   const abortRef = useRef(false);
   const lastOpenRef = useRef(false);
 
+  const videoLimitMiB = galleryVideoLimitMiB(user?.subscription_tier);
   const isPaidPhotographer = user?.subscription_tier && ['basic', 'premium'].includes(user.subscription_tier);
   const pricing = resolveUploadPricing(selectedGallery, galleryPricing);
 
@@ -170,7 +172,7 @@ export const UploadPhotoModal = ({
     const errors = [];
     
     for (const file of newFiles) {
-      const validation = validateFile(file);
+      const validation = validateFile(file, videoLimitMiB);
       if (validation.valid) {
         entries.push({
           id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -198,7 +200,7 @@ export const UploadPhotoModal = ({
       setFiles(prev => [...prev, ...entries]);
       setUploadComplete(false);
     }
-  }, []);
+  }, [videoLimitMiB]);
 
   const removeFile = useCallback((id) => {
     setFiles(prev => {
@@ -458,7 +460,7 @@ export const UploadPhotoModal = ({
               <div className="text-center px-4">
                 <p className="text-foreground font-semibold text-sm">Select photos & videos</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Select multiple files - Images up to 50MB - Videos up to 100MB ({isPaidPhotographer ? '4K' : '1080p'})
+                  Select multiple files - Images up to 50MB - Videos up to {videoLimitMiB} MiB ({isPaidPhotographer ? '4K' : '1080p'})
                 </p>
               </div>
             </button>
