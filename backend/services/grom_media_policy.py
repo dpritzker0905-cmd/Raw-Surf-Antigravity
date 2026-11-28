@@ -59,13 +59,18 @@ def _verified_guardian_links(actor_id: str):
     )
 
 
+def gallery_children(guardian: Profile, *, verified_legacy_only: bool = False):
+    """A relationship record supersedes legacy flags for the same pair."""
+    pairs = select(GromGuardian.grom_id).where(GromGuardian.guardian_id == guardian.id)
+    active = Profile.id.in_(_verified_guardian_links(guardian.id))
+    legacy = (Profile.parent_id == guardian.id) & Profile.parent_link_approved.is_(True) & ~Profile.id.in_(pairs)
+    if not verified_legacy_only or (guardian.parent_age_verified and is_grom_parent_eligible(guardian)):
+        active |= legacy
+    return select(Profile).where(Profile.role == RoleEnum.GROM, guardian.role != RoleEnum.GROM, active)
+
+
 async def linked_gallery_groms(db: AsyncSession, guardian: Profile):
-    membership = Profile.id.in_(_verified_guardian_links(guardian.id))
-    if guardian.parent_age_verified and is_grom_parent_eligible(guardian):
-        membership |= (Profile.parent_id == guardian.id) & Profile.parent_link_approved.is_(True)
-    result = await db.scalars(
-        select(Profile).where(Profile.role == RoleEnum.GROM, membership).order_by(Profile.full_name, Profile.id)
-    )
+    result = await db.scalars(gallery_children(guardian).order_by(Profile.full_name, Profile.id))
     return result.all()
 
 

@@ -34,8 +34,7 @@ from services.gallery_sync import (
 )
 from websocket_manager import broadcast_earnings_update
 from services.watermark import watermark_image_from_url, generate_watermarked_preview
-from utils.grom_parent import is_grom_parent_eligible
-from services.grom_media_policy import is_verified_guardian, linked_gallery_groms
+from services.grom_media_policy import gallery_children, linked_gallery_groms
 
 from .schemas import (
     GalleryItemCreate, GalleryItemUpdate, GalleryItemResponse,
@@ -83,22 +82,11 @@ async def tag_grom_in_photo(
     if not parent:
         raise HTTPException(status_code=404, detail="Parent profile not found")
     
-    if not is_grom_parent_eligible(parent):
-        raise HTTPException(status_code=403, detail="Only Grom Parents can tag Groms in photos")
-    
     # Get linked Grom and verify it's the parent's linked Grom
-    grom_result = await db.execute(select(Profile).where(Profile.id == data.grom_id))
-    grom = grom_result.scalar_one_or_none()
-    
-    if not grom:
-        raise HTTPException(status_code=404, detail="Grom profile not found")
-    
-    if not await is_verified_guardian(db, grom, current_user_id):
+    grom = await db.scalar(gallery_children(parent).where(Profile.id == data.grom_id))
+    if grom is None:
         raise HTTPException(status_code=403, detail="You can only tag your linked Grom")
-    
-    if grom.role != RoleEnum.GROM:
-        raise HTTPException(status_code=400, detail="Target user is not a Grom")
-    
+
     # Get the gallery item and verify parent owns it
     item_result = await db.execute(select(GalleryItem).where(GalleryItem.id == data.gallery_item_id))
     item = item_result.scalar_one_or_none()
@@ -185,9 +173,8 @@ async def untag_grom_from_photo(
     if item.photographer_id != parent_id:
         raise HTTPException(status_code=403, detail="You can only untag from your own photos")
 
-    grom_result = await db.execute(select(Profile).where(Profile.id == grom_id, Profile.role == RoleEnum.GROM))
-    grom = grom_result.scalar_one_or_none()
-    if not grom or not await is_verified_guardian(db, grom, current_user_id):
+    parent = await db.get(Profile, current_user_id)
+    if parent is None or await db.scalar(gallery_children(parent).where(Profile.id == grom_id)) is None:
         raise HTTPException(status_code=403, detail="You can only untag your linked Grom")
     
     # Find and delete the tag
@@ -237,16 +224,11 @@ async def get_grom_highlights(
     if not parent:
         raise HTTPException(status_code=404, detail="Parent profile not found")
     
-    if not is_grom_parent_eligible(parent):
-        raise HTTPException(status_code=403, detail="Only Grom Parents can view Grom Highlights")
-    
     # If specific grom_id provided, use that; otherwise get all linked Groms
     groms = []
     if grom_id:
         # Verify grom is linked to this parent
-        grom_result = await db.execute(select(Profile).where(Profile.id == grom_id, Profile.role == RoleEnum.GROM))
-        grom = grom_result.scalar_one_or_none()
-        if not grom or not await is_verified_guardian(db, grom, current_user_id):
+        if await db.scalar(gallery_children(parent).where(Profile.id == grom_id)) is None:
             raise HTTPException(status_code=403, detail="Grom is not linked to this parent")
         grom_ids = [grom_id]
     else:
@@ -333,8 +315,9 @@ async def get_grom_profile_photos(
     viewer_result = await db.execute(select(Profile).where(Profile.id == current_user_id))
     viewer = viewer_result.scalar_one_or_none()
     is_authorized = bool(viewer and (viewer.is_admin or current_user_id == grom_id))
-    if not is_authorized:
-        is_authorized = await is_verified_guardian(db, grom, current_user_id)
+    if viewer and not is_authorized:
+        children = gallery_children(viewer, verified_legacy_only=True)
+        is_authorized = await db.scalar(children.where(Profile.id == grom_id)) is not None
 
     if not is_authorized:
         raise HTTPException(status_code=403, detail="Not authorized to view Grom's tagged photos")
@@ -391,9 +374,6 @@ async def get_linked_groms(
     
     if not parent:
         raise HTTPException(status_code=404, detail="Parent profile not found")
-    
-    if not is_grom_parent_eligible(parent):
-        raise HTTPException(status_code=403, detail="Only Grom Parents can view linked Groms")
     
     groms = await linked_gallery_groms(db, parent)
 

@@ -13,10 +13,13 @@ export const useGalleryGromActions = ({
   const fetchLinkedGroms = async () => {
     try {
       const response = await apiClient.get(`/gallery/linked-groms/${user.id}`);
-      setLinkedGroms(response.data.groms || []);
+      const children = response.data.groms || [];
+      setLinkedGroms(children);
+      return children;
     } catch (error) {
       logger.error('Error fetching linked groms:', error);
       setLinkedGroms([]);
+      return [];
     }
   };
 
