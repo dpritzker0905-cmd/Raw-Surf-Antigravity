@@ -1,3 +1,4 @@
+import SharedQuickBookPrice from '../on-demand/SharedQuickBookPrice';
 /**
  * RequestProConfirmStep - Confirm & Pay step panel
  * Extracted from RequestProModal.js for modularization (v71)
@@ -9,7 +10,7 @@ import {
 import { getFullUrl } from '../../utils/media';
 
 var RequestProConfirmStep = ({
-  isDark, selectedPro, duration, totalCost,
+  isDark, selectedPro, duration, totalCost, sharedPricing, crew,
   captainPayAmount, totalParticipants, isShared,
   hourlyRate, depositAmount, nearestSpot,
   localCredits, hasEnoughCredits, paymentMethod, setPaymentMethod,
@@ -35,12 +36,12 @@ var RequestProConfirmStep = ({
             {duration * 60} min session
           </p>
         </div>
-        <div className="text-right">
+        {!sharedPricing && <div className="text-right">
           <p className="text-cyan-400 font-bold">${totalCost.toFixed(0)}</p>
           {isShared && (
             <p className="text-xs text-green-400">You: ${captainPayAmount.toFixed(0)}</p>
           )}
-        </div>
+        </div>}
       </div>
 
       <div className={`grid grid-cols-3 gap-3 pt-3 border-t ${isDark ? 'border-zinc-700' : 'border-gray-200'}`}>
@@ -64,7 +65,7 @@ var RequestProConfirmStep = ({
       </div>
     </div>
 
-    {/* Price Breakdown */}
+    {sharedPricing ? <SharedQuickBookPrice pricing={sharedPricing} crew={crew} /> : (
     <div className={`${isDark ? 'bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border-cyan-500/25' : 'bg-gradient-to-r from-cyan-50 to-blue-50 border-cyan-200'} rounded-xl border overflow-hidden`}>
       <div className="px-3 pt-3 pb-2 space-y-1.5">
         <div className="flex items-center justify-between text-sm">
@@ -90,8 +91,10 @@ var RequestProConfirmStep = ({
       </div>
     </div>
 
+    )}
+
     {/* Payment Method Selection */}
-    <div className="space-y-3">
+    {(!sharedPricing || sharedPricing.quote?.captain_cents > 0) && <div className="space-y-3">
       <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Payment Method</p>
 
       {localCredits > 0 && (
@@ -142,12 +145,12 @@ var RequestProConfirmStep = ({
           {paymentMethod === 'card' && <Check className="w-3 h-3 text-black" />}
         </div>
       </button>
-    </div>
+    </div>}
 
     {/* Escrow Disclaimer */}
     <p className="text-[10px] text-gray-500 text-center">
       {isShared
-        ? 'Crew members have 10 minutes to accept. Your share is charged now.'
+        ? 'Crew members have 10 minutes to accept their invitations.'
         : 'Full payment held in escrow. Refundable to credits until a Pro accepts and starts traveling.'}
     </p>
   </>

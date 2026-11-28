@@ -1,3 +1,4 @@
+import { useSharedQuickBookQuote } from '../../hooks/useSharedQuickBookQuote';
 /**
  * RequestProModal - Unified "Request a Pro Photographer" flow
  *
@@ -234,26 +235,26 @@ export var RequestProModal = ({
   }, [isOpen]);
 
   // -- Pricing -------------------------------------------------------------
-  const hourlyRate       = selectedPro?.on_demand_hourly_rate || 75;
-  const totalCost        = hourlyRate * duration;
+  const hourlyRate       = selectedPro?.on_demand_hourly_rate ?? 75;
+  const totalCost        = hourlyRate * duration + (selectedPro ? crewMembers.length * (selectedPro.price_per_additional_surfer ?? 15) : 0);
   const totalParticipants = crewMembers.length + 1;
   const perPersonSplit   = (totalCost / totalParticipants).toFixed(2);
 
   // Captain's actual pay = total minus what crew covers themselves
   const crewCoversAmount = crewMembers.reduce(
-    (sum, m) => sum + (m.covered_by_captain ? 0 : (m.share_amount || parseFloat(perPersonSplit))),
+    (sum, m) => sum + (m.covered_by_captain ? 0 : (m.share_amount ?? parseFloat(perPersonSplit))),
     0
   );
   const captainPayAmount = totalCost - crewCoversAmount;
   const isShared         = crewMembers.length > 0;
   // Full payment upfront (escrow) - we hold funds until session completion.
   // For shared bookings: captain pays their share. Solo: captain pays full total.
-  const depositAmount    = isShared ? captainPayAmount.toFixed(0) : totalCost.toFixed(0);
-  const amountToCharge   = isShared ? captainPayAmount : totalCost;
-  const hasEnoughCredits = isShared
-    ? (captainPayAmount === 0 || localCredits >= captainPayAmount)
-    : localCredits >= totalCost;
-
+  const targetedCrew = !!selectedPro?.id && isShared;
+  const sharedPricing = useSharedQuickBookQuote(isOpen && step === 'confirm', userId || user?.id || authUser?.id,
+    selectedPro?.id, duration, crewMembers);
+  const amountToCharge = targetedCrew ? sharedPricing.quote?.captain_cents / 100 : isShared ? captainPayAmount : totalCost;
+  const depositAmount = Number.isFinite(amountToCharge) ? amountToCharge.toFixed(2) : '…';
+  const hasEnoughCredits = localCredits >= amountToCharge;
 
   // ============ HANDLERS FROM useRequestProActions ============
   const {
@@ -267,7 +268,7 @@ export var RequestProModal = ({
   } = useRequestProActions({
     userId, user, authUser, updateUser, navigate,
     crewMembers, newCrewInput, totalCost, totalParticipants,
-    perPersonSplit, captainPayAmount, amountToCharge,
+    perPersonSplit, captainPayAmount, amountToCharge, sharedPricing,
     selectedPro, userLocation, nearestSpot, duration,
     startTimeOption, boostHours, paymentMethod,
     onClose, onSuccess, onBoostApplied,
@@ -527,21 +528,21 @@ export var RequestProModal = ({
                 <span className={isDark ? 'text-white' : 'text-gray-900'}>${hourlyRate}/hr - {duration}h</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Session Total</span>
-                <span className={`${isDark ? 'text-white' : 'text-gray-900'} font-semibold`}>${totalCost.toFixed(0)}</span>
+                <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>{targetedCrew ? 'Session before plan benefits' : 'Session Total'}</span>
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'} font-semibold`}>${totalCost.toFixed(2)}</span>
               </div>
               {isShared && (
                 <div className={`flex items-center justify-between text-sm pt-1 border-t ${isDark ? 'border-zinc-700/50' : 'border-gray-200'}`}>
                   <span className="text-emerald-400">Your Share ({totalParticipants} split)</span>
-                  <span className="text-emerald-400 font-semibold">~${captainPayAmount.toFixed(0)}</span>
+                  <span className="text-emerald-400 font-semibold">${captainPayAmount.toFixed(2)}</span>
                 </div>
               )}
             </div>
             <div className={`px-3 py-2.5 border-t ${isDark ? 'border-cyan-500/20 bg-cyan-500/5' : 'border-cyan-200 bg-cyan-50'} flex items-center justify-between`}>
               <span className="text-cyan-600 dark:text-cyan-400 font-medium text-sm">
-                {isShared ? "Captain's Share" : 'Amount Due'}
+                {targetedCrew ? 'Your share before plan benefits' : isShared ? "Captain's Share" : 'Amount Due'}
               </span>
-              <span className="text-cyan-600 dark:text-cyan-400 font-bold text-base">${depositAmount}</span>
+              <span className="text-cyan-600 dark:text-cyan-400 font-bold text-base">${targetedCrew ? captainPayAmount.toFixed(2) : depositAmount}</span>
             </div>
           </div>
 
@@ -580,6 +581,7 @@ export var RequestProModal = ({
         {/* -- CONFIRM & PAY STEP -------------------------------------------- */}
         {step === 'confirm' && (
           <RequestProConfirmStep
+            sharedPricing={targetedCrew ? sharedPricing : null} crew={crewMembers}
             isDark={isDark}
             selectedPro={selectedPro}
             duration={duration}
@@ -621,15 +623,15 @@ export var RequestProModal = ({
           )}
 
           {step === 'confirm' && (
-            <Button aria-label="Loader2"
+            <Button
               onClick={handleSubmit}
-              disabled={loading || !userLocation || (paymentMethod === 'credits' && !hasEnoughCredits)}
+              disabled={loading || !userLocation || (targetedCrew && !sharedPricing.quote) || (paymentMethod === 'credits' && !hasEnoughCredits)}
               className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold flex-1 sm:flex-none disabled:opacity-50"
               data-testid="request-pro-submit"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
-              ) : paymentMethod === 'credits' ? (
+              ) : targetedCrew && sharedPricing.quote?.captain_cents === 0 ? 'Confirm request' : paymentMethod === 'credits' ? (
                 <><Wallet className="w-4 h-4 mr-2" />Pay ${depositAmount} with Credits</>
               ) : (
                 <><CreditCard className="w-4 h-4 mr-2" />Pay ${depositAmount} with Card</>

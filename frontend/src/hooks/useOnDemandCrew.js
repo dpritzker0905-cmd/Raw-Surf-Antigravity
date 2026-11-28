@@ -62,7 +62,7 @@ export const useOnDemandCrew = (user, baseSessionPrice, perSurferFee, step) => {
     if (!newCrewInput.trim()) return;
     const isEmail = newCrewInput.includes('@') && !newCrewInput.startsWith('@');
     const newTotalParticipants = crewMembers.length + 2;
-    const equalShare = totalPrice / newTotalParticipants;
+    const equalShare = (totalPrice + perSurferFee) / newTotalParticipants;
     const member = {
       id: Date.now(),
       value: newCrewInput.trim(),
@@ -86,7 +86,7 @@ export const useOnDemandCrew = (user, baseSessionPrice, perSurferFee, step) => {
 
   const handleSelectFriend = (friend) => {
     const newTotalParticipants = crewMembers.length + 2;
-    const equalShare = totalPrice / newTotalParticipants;
+    const equalShare = (totalPrice + perSurferFee) / newTotalParticipants;
     const member = {
       id: friend.id,
       value: friend.username ? `@${friend.username}` : friend.full_name,
@@ -115,7 +115,7 @@ export const useOnDemandCrew = (user, baseSessionPrice, perSurferFee, step) => {
     const filtered = crewMembers.filter(m => m.id !== memberId);
     if (filtered.length > 0) {
       const newTotalParticipants = filtered.length + 1;
-      const newEqualShare = totalPrice / newTotalParticipants;
+      const newEqualShare = (totalPrice - perSurferFee) / newTotalParticipants;
       const updatedCrew = filtered.map(m => ({
         ...m,
         share_amount: m.covered_by_captain ? 0 : newEqualShare,

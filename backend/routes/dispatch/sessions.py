@@ -31,7 +31,9 @@ from models import (
 from utils.parental_alerts import check_and_send_spending_alert
 from services.onesignal_service import onesignal_service
 
+from .shared_pricing import shared_quote
 from .schemas import (
+    SharedQuickBookTerms,
     CreateDispatchRequest, AcceptDispatchRequest, UpdateGPSLocation,
     CancelDispatchRequest, UpdateSessionLocationRequest, UpdateSelfieRequest,
     BoostRequestCreate, DispatchCheckoutRequest, ExceptionRequestBody,
@@ -138,6 +140,16 @@ async def get_pending_requests(db: AsyncSession = Depends(get_db)):
     return output
 
 
+@router.post("/shared-quote")
+async def review_shared_quick_book(terms: SharedQuickBookTerms, buyer_id: str = Depends(get_current_user_id),
+                                   db: AsyncSession = Depends(get_db)):
+    pro = await db.get(Profile, terms.target_photographer_id) if terms.target_photographer_id else None
+    if not pro or not pro.on_demand_available:
+        raise HTTPException(422, "Select an available photographer.")
+    quote, _ = await shared_quote(db, buyer_id, pro, terms)
+    return quote
+
+
 @router.post("/request")
 async def create_dispatch_request(
     request_data: CreateDispatchRequest,
@@ -239,7 +251,17 @@ async def create_dispatch_request(
     # Apply photographer-specific subscription discount (Quick Book only)
     subscription_discount_pct = 0.0
     subscription_covered = False
-    if request_data.target_photographer_id:
+    quote = None
+    if request_data.is_shared and target_pro:
+        quote, subscription = await shared_quote(db, requester_id, target_pro, request_data, lock=True)
+        if request_data.accepted_shared_quote != quote["quote_id"]:
+            raise HTTPException(409, detail={"code": "shared_price_changed", "message": "Review the current crew shares."})
+        subscription_covered = quote["subscription_covered"]
+        if subscription_covered:
+            subscription.sessions_remaining -= 1
+        subscription_discount_pct = quote["discount_percent"]
+        estimated_total = quote["total_cents"] / 100
+    elif request_data.target_photographer_id:
         from routes.subscriptions_billing.photo_sub_helpers import get_subscription_discount, try_use_subscription_quota
         subscription_discount_pct = await get_subscription_discount(
             db, requester_id, request_data.target_photographer_id, service_type='on_demand'
@@ -271,6 +293,12 @@ async def create_dispatch_request(
     # Captain's share - use provided value or default to individual share
     captain_share = request_data.captain_share_amount if request_data.captain_share_amount is not None else individual_share
     
+    if quote:
+        captain_share = deposit_amount = quote["captain_cents"] / 100
+        # The API exposes individual crew amounts separately for a custom split.
+        individual_share = quote["gross_cents"] // num_participants / 100
+        hourly_rate = target_pro.on_demand_hourly_rate if target_pro.on_demand_hourly_rate is not None else 75
+
     # Set payment expiry for client-side countdown (30 minutes from now)
     payment_expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
     
@@ -302,22 +330,25 @@ async def create_dispatch_request(
     await db.flush()  # Get the ID
     
     # Create Stripe Payment Intent for deposit
-    try:
-        payment_intent = stripe.PaymentIntent.create(
-            amount=int(individual_share * 100),  # Stripe uses cents
-            currency='usd',
-            metadata={
-                'dispatch_request_id': dispatch_request.id,
-                'requester_id': requester_id,
-                'type': 'dispatch_deposit'
-            }
-        )
-        
-        dispatch_request.stripe_payment_intent_id = payment_intent.id
-    except Exception as e:
-        # If Stripe fails, still create the request for wallet payment
-        logger.error(f"Stripe error: {e}")
-    
+    payment_intent = None
+    # Shared Quick Book uses the persisted captain share at /pay or /checkout.
+    if not quote:
+        try:
+            payment_intent = stripe.PaymentIntent.create(
+                amount=int(individual_share * 100),  # Stripe uses cents
+                currency='usd',
+                metadata={
+                    'dispatch_request_id': dispatch_request.id,
+                    'requester_id': requester_id,
+                    'type': 'dispatch_deposit'
+                }
+            )
+
+            dispatch_request.stripe_payment_intent_id = payment_intent.id
+        except Exception as e:
+            # If Stripe fails, still create the request for wallet payment
+            logger.error(f"Stripe error: {e}")
+
     # If shared request, create participant records with custom shares
     if request_data.is_shared and request_data.friend_ids:
         # Use crew_shares if provided, otherwise equal split
@@ -336,10 +367,13 @@ async def create_dispatch_request(
             if covered:
                 share_amount = 0
             
+            if quote:
+                share_amount = quote["crew_cents"][friend_id] / 100
             participant = DispatchRequestParticipant(
                 dispatch_request_id=dispatch_request.id,
                 participant_id=friend_id,
                 share_amount=share_amount,
+                paid=bool(quote and share_amount == 0),
                 status='invited' if share_amount > 0 else 'covered'  # Mark as covered if captain pays
             )
             db.add(participant)
@@ -355,11 +389,12 @@ async def create_dispatch_request(
         "individual_share": individual_share if request_data.is_shared else deposit_amount,
         "num_participants": num_participants,
         "hourly_rate": hourly_rate,
-        "stripe_client_secret": payment_intent.client_secret if 'payment_intent' in dir() else None,
+        "stripe_client_secret": payment_intent.client_secret if payment_intent else None,
         "available_pros_count": len(available_pros),
         "pending_payment_expires_at": payment_expires_at.isoformat(),  # For client-side countdown
         "subscription_discount_pct": subscription_discount_pct,
         "subscription_covered": subscription_covered,
+        "shared_quote": quote,
     }
 
 

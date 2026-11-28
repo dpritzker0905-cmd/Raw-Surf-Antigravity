@@ -283,11 +283,16 @@ async def notify_crew_members(dispatch_id: str, captain_id: str):
         location_name = dispatch.location_name or "Nearby"
         
         for participant in participants:
-            # Skip participants who are already covered (captain pays their share)
             if participant.status == 'covered':
-                logger.info(f"[Dispatch] Skipping notification for covered participant {participant.participant_id}")
+                db.add(Notification(
+                    user_id=participant.participant_id, type='crew_session_covered',
+                    title='Your crew share is covered',
+                    body=f'{captain_name} included you in a session at {location_name}. You owe $0.00.',
+                    data=json.dumps({'dispatch_id': dispatch_id, 'share_amount': 0,
+                                     'action_url': f'/dispatch/{dispatch_id}/lobby'}),
+                ))
                 continue
-            
+
             # 1. Create in-app notification
             notification = Notification(
                 user_id=participant.participant_id,

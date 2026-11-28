@@ -20,20 +20,24 @@ logger = logging.getLogger("routes.dispatch")
 
 # ===================== PYDANTIC SCHEMAS =====================
 
-class CreateDispatchRequest(BaseModel):
+class SharedQuickBookTerms(BaseModel):
+    target_photographer_id: Optional[str] = None
+    estimated_duration_hours: float = 1.0
+    friend_ids: Optional[List[str]] = None
+    crew_shares: Optional[List[dict]] = None
+
+
+class CreateDispatchRequest(SharedQuickBookTerms):
     latitude: float
     longitude: float
     location_name: Optional[str] = None
     spot_id: Optional[str] = None
-    estimated_duration_hours: float = 1.0
     is_immediate: bool = True
     requested_start_time: Optional[datetime] = None
-    arrival_window_minutes: int = 30  # 30, 60, or 90 minutes from request
+    arrival_window_minutes: int = 30
     is_shared: bool = False
-    friend_ids: Optional[List[str]] = None  # For split requests
-    target_photographer_id: Optional[str] = None  # For Quick Book - request specific photographer
-    captain_share_amount: Optional[float] = None  # Captain's portion (can be 0 if crew pays 100%)
-    crew_shares: Optional[List[dict]] = None  # [{user_id, share_amount, covered_by_captain}]
+    captain_share_amount: Optional[float] = None
+    accepted_shared_quote: Optional[str] = None
 
 
 class AcceptDispatchRequest(BaseModel):

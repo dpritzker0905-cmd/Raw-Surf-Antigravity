@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 3,
+  "files": 1,
+  "branch": "codex/shared-quick-book-seat",
+  "date": "2026-11-28",
+  "note": "Shared Quick Book price review in both entry points"
+}

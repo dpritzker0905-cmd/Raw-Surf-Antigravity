@@ -266,7 +266,7 @@ export const CrewStepPanel = ({ booking, crewMembers, handleRemoveCrewMember, ha
                   </div>
                 )}
                 <div className={`flex justify-between pt-2 border-t ${isLight ? 'border-purple-200' : 'border-purple-500/30'}`}>
-                  <span className={`font-bold ${textPrimary}`}>Session Total</span>
+                  <span className={`font-bold ${textPrimary}`}>Session before plan benefits</span>
                   <span className="font-bold text-amber-400">${totalPrice.toFixed(2)}</span>
                 </div>
                 {crewMembers.length > 0 && (
@@ -314,7 +314,7 @@ export const CrewPaymentStepPanel = ({ booking, crewMembers, getFullUrl: getFull
             {/* Real-Time Balance Summary */}
             <div className={`p-4 rounded-xl ${isLight ? 'bg-gradient-to-br from-cyan-50 to-blue-50' : 'bg-gradient-to-br from-cyan-500/10 to-blue-500/10'} border border-cyan-400/30`}>
               <div className="flex items-center justify-between mb-2">
-                <span className={`font-bold ${textPrimary}`}>Session Total</span>
+                <span className={`font-bold ${textPrimary}`}>Session before plan benefits</span>
                 <span className="text-2xl font-bold text-cyan-400">${totalPrice.toFixed(2)}</span>
               </div>
               <div className="space-y-1 text-sm">
@@ -461,7 +461,7 @@ export const CrewPaymentStepPanel = ({ booking, crewMembers, getFullUrl: getFull
             <div className={`p-4 rounded-xl ${isLight ? 'bg-yellow-50' : 'bg-yellow-500/10'} border border-yellow-400/30`}>
               <div className="flex justify-between items-center">
                 <div>
-                  <p className={`text-sm ${textSecondary}`}>You'll pay now</p>
+                  <p className={`text-sm ${textSecondary}`}>Your share before plan benefits</p>
                   <p className="text-2xl font-bold text-yellow-400">${captainPayAmount.toFixed(2)}</p>
                 </div>
                 <div className="text-right">
