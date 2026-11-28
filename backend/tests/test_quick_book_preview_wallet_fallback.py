@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pytest
 from sqlalchemy import select
 
 from models import (Booking, CreditTransaction, DispatchRequest, DispatchRequestStatusEnum as Status,
@@ -13,7 +14,8 @@ from tests.test_audit_money_route_authority import bearer, harness
 from tests.test_shared_quick_book_price import CAPTAIN, PRO, TERMS, create, preview, shared
 
 
-async def test_linked_abandoned_checkout_after_captain_wallet_payment(shared, harness, monkeypatch):
+@pytest.mark.parametrize("paid_by_wallet", [True, False], ids=["wallet_debit", "missing_debit"])
+async def test_linked_abandoned_checkout_after_captain_wallet_payment(shared, harness, monkeypatch, paid_by_wallet):
     app, client, maker = harness
     app.include_router(dispatch_transitions.router, prefix="/api")
     app.include_router(quick_book_preview.router, prefix="/api")
@@ -35,11 +37,15 @@ async def test_linked_abandoned_checkout_after_captain_wallet_payment(shared, ha
     opened = await client.post("/api/dispatch/checkout", headers=bearer(CAPTAIN), json={
         "dispatch_id": did, "payer_id": CAPTAIN, "origin_url": "https://fixture.invalid"})
     assert opened.status_code == 200 and opened.json()["session_id"] == session_id, opened.text
-    paid = await client.post(f"/api/dispatch/{did}/pay?payer_id={CAPTAIN}", headers=bearer(CAPTAIN))
-    assert paid.status_code == 200, paid.text
+    if paid_by_wallet:
+        paid = await client.post(f"/api/dispatch/{did}/pay?payer_id={CAPTAIN}", headers=bearer(CAPTAIN))
+        assert paid.status_code == 200, paid.text
     async with maker.begin() as db:
         row = await db.get(DispatchRequest, did)
-        assert row.deposit_paid and row.stripe_checkout_session_id == session_id
+        assert row.stripe_checkout_session_id == session_id
+        if not paid_by_wallet:
+            # Simulate an inconsistent accepted dispatch without a backing ledger entry.
+            row.deposit_paid = True
         row.status, row.photographer_id, row.accepted_at = Status.EN_ROUTE, PRO, datetime.now(timezone.utc)
     closed = await client.post(f"/api/dispatch/{did}/cancel", headers=bearer(CAPTAIN), json={})
     assert closed.status_code == 200, closed.text
@@ -50,6 +56,11 @@ async def test_linked_abandoned_checkout_after_captain_wallet_payment(shared, ha
         receipt = await db.scalar(select(PaymentTransaction).where(PaymentTransaction.session_id == session_id))
         receipt_id = receipt.id
         assert (receipt.status, receipt.payment_status) == ("Pending", "Pending")
+    if not paid_by_wallet:
+        missing = await client.post(path, headers=bearer(PRO), json=decisions)
+        assert missing.status_code == 409, missing.text
+        retrieve.assert_not_called()
+        return
     for _ in range(2):
         response = await client.post(path, headers=bearer(PRO), json=decisions)
         assert response.status_code == 200, response.text
@@ -79,13 +90,5 @@ async def test_linked_abandoned_checkout_after_captain_wallet_payment(shared, ha
         receipt.status, receipt.payment_status = "Completed", "Completed"
     conflict = await client.post(path, headers=bearer(PRO), json=decisions)
     assert conflict.status_code == 409, conflict.text
-    async with maker.begin() as db:
-        receipt = await db.get(PaymentTransaction, receipt_id)
-        receipt.status, receipt.payment_status = "Pending", "Pending"
-        # Even if the remaining escrow agrees, a pending linked checkout cannot establish payment.
-        await db.delete(await db.get(CreditTransaction, source["source_id"]))
-        (await db.get(Booking, bid)).escrow_amount = 0
-    missing = await client.post(path, headers=bearer(PRO), json=decisions)
-    assert missing.status_code == 409, missing.text
     checkout.assert_called_once()
     retrieve.assert_not_called()
