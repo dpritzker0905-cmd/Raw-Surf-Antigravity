@@ -21,18 +21,16 @@ export default function usePostModal({
   const isPressingRef = useRef(false);
   const pickerShownRef = useRef(false);
 
-  const loadComments = async () => {
+  const initialComments = useRef(null);
+  const loadComments = () => {
+    if (initialComments.current) return initialComments.current;
     setLoadingComments(true);
-    try {
-      const response = await apiClient.get(`/posts/${post.id}/comments`, {
-        params: { viewer_id: user?.id }
-      });
-      setComments(response.data || []);
-    } catch (err) {
-      logger.error('Failed to load comments:', err);
-    } finally {
-      setLoadingComments(false);
-    }
+    initialComments.current = apiClient.get(`/posts/${post.id}/comments`, {
+      params: { viewer_id: user?.id }
+    }).then(({ data }) => setComments(data || []))
+      .catch(err => logger.error('Failed to load comments:', err))
+      .finally(() => setLoadingComments(false));
+    return initialComments.current;
   };
   
   const handleLike = async () => {
@@ -254,6 +252,7 @@ export default function usePostModal({
     pendingComments.current.add(parentId);
     setSubmittingComment(true);
     try {
+      await initialComments.current;
       const { data: saved } = await apiClient.post(`/posts/${post.id}/comments`, {
         content: content?.trim() || '',
         media_url,
@@ -266,7 +265,7 @@ export default function usePostModal({
           : parent));
       } else {
         setCommentInput('');
-        loadComments();
+        setComments(prev => [...prev, saved]);
       }
       toast.success(parentId ? 'Reply added' : 'Comment added');
     } catch (err) {
@@ -274,7 +273,7 @@ export default function usePostModal({
       throw err;
     } finally {
       pendingComments.current.delete(parentId);
-      setSubmittingComment(false);
+      setSubmittingComment(pendingComments.current.size > 0);
     }
   };
   

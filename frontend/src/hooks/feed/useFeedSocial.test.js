@@ -144,3 +144,35 @@ test('dialog replies persist under the parent and react independently of it', as
   expect(apiClient.post).toHaveBeenLastCalledWith('/comments/child/reactions', { emoji: '🤙' });
   expect(thread).toEqual([{ ...parent, replies: [{ ...reply, viewer_reaction: '🤙', reaction_count: 1 }] }]);
 });
+
+test.each(['root', 'reply'])('overlapping dialog sends retain both rows when %s finishes first', async first => {
+  const parent = { id: 'parent', replies: [] };
+  let state = [];
+  let finishLoad;
+  const finish = {};
+  const options = {
+    post: { id: 'post' }, user: { id: 'viewer' }, setSubmittingComment: jest.fn(),
+    setCommentInput: jest.fn(), setLoadingComments: jest.fn(),
+    setComments: update => { state = typeof update === 'function' ? update(state) : update; }
+  };
+  const { result } = renderHook(() => usePostModal(options));
+  apiClient.get.mockImplementation(() => new Promise(resolve => { finishLoad = resolve; }));
+  apiClient.post.mockImplementation((_url, payload) => new Promise(resolve => {
+    finish[payload.content] = () => resolve({ data: { id: payload.content } });
+  }));
+  const load = result.current.loadComments();
+  const sends = {
+    root: result.current.handleSubmitComment({ content: 'root' }),
+    reply: result.current.handleSubmitComment({ content: 'reply' }, parent.id)
+  };
+  expect(apiClient.post).not.toHaveBeenCalled();
+  finishLoad({ data: [parent] });
+  await load;
+  const second = first === 'root' ? 'reply' : 'root';
+  finish[first]();
+  await sends[first];
+  finish[second]();
+  await sends[second];
+  expect(apiClient.get).toHaveBeenCalledTimes(1);
+  expect(state).toEqual([{ ...parent, replies: [{ id: 'reply' }] }, { id: 'root' }]);
+});
