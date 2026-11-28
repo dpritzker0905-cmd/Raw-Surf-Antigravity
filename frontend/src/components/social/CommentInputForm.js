@@ -10,6 +10,7 @@ const CommentInputForm = ({
   placeholder = "Add a comment...",
   onSubmit, 
   isLight = false,
+  autoFocus = false,
   replyingToName = null,
   onCancelReply = null,
   className = ""
@@ -237,6 +238,7 @@ const CommentInputForm = ({
         {/* Text Area / Input */}
         <input 
           ref={inputRef}
+          autoFocus={autoFocus}
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}

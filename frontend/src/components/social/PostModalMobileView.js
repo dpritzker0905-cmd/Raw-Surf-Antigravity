@@ -322,7 +322,7 @@ const PostModalMobileView = ({
         
         {/* Expanded Comments Section */}
         {showComments && (
-          <div className="px-4 mb-2 max-h-40 overflow-y-auto" style={{ pointerEvents: 'auto' }}>
+          <div className="px-4 mb-2 max-h-[min(40dvh,22rem)] overflow-y-auto" style={{ pointerEvents: 'auto' }}>
             <button 
               className={`${m.moreBtn} text-sm mb-2`}
               onClick={() => setShowComments(false)}

@@ -75,3 +75,7 @@ LongCat, SubQ and Reflection reviewed the release summary. They highlighted simu
 ### Post dialog threads
 
 Signed-in Chrome reproduced inactive Reply buttons in both desktop and 390px mobile post dialogs on dev. The comments endpoint returned a thread structure, but each layout rendered only the parent rows. Both layouts now share the same comment row, reply composer and nested reaction state. The focused regression test covers submission failure and retry, parent ID, and reacting to a child without changing its parent. Hosted acceptance on the repaired build requires creating and refreshing a reply from each layout.
+
+### Mobile Reply activation
+
+At 390 × 844 on signed-in dev, a first click immediately after expanding a photo comment left Reply collapsed. The loaded 180px attachment put the 16px-tall Reply button beyond the 160px scroll area. After a second activation the composer opened, but focus remained on the button. The repair reserves the mobile attachment height before load, gives the thread more viewport space, enlarges Reply and focuses its text field on mount. A mounted test checks typing and focus across attachment load. Hosted retesting uses an unsent draft.
