@@ -141,8 +141,7 @@ the GPU lays it (the section's header comment in `check.mjs` has the four laws),
 CIEDE2000 gap per theme and ground (RED above 1.0). Dark's wind field lands as `rgb a^2 + map (1 - a)` (HEATMAP_FS writes
 premultiplied colour and the engine blends it by `SRC_ALPHA`); the gust raster went through MapLibre's premultiplied blend
 (`rgb a + map (1 - a)`) at the table's own alpha, 24-28 dE00 apart at 20-27 kn (`--before-gust-dark` shows it). With
-`gustPalette.js` DARK FIELD PARITY on (kill `window.__RAW_DISABLE_GUST_DARK_FIELD__`) every line reads at most 0.32. Light above
-40 kn differs on purpose (the gentler fast band, David 2026-11-18) and is printed apart. `--no-gusts` skips the section.
+`gustPalette.js` DARK FIELD PARITY on (kill `window.__RAW_DISABLE_GUST_DARK_FIELD__`) every line reads at most 0.32. Checks include the Light fast band through 75 kn. `--no-gusts` skips the section.
 Two PARTICLE lines per theme and ground follow: the gust MARK against the wind mark of the same knot, each its marks row
 (`resolveDrawnMarks`) laid by the engine's law (alpha squared; light and beach at the white streak's strength by ground,
 D-022) over its own field, and how far each lifts off its field (L*). After the fix: <= 0.12 dE00 and <= 0.09 L*. Before it,

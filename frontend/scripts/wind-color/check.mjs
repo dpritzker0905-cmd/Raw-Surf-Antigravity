@@ -179,8 +179,7 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
 //   gusts, dark:       its LUT (bytes) at alpha A = lut.a opacity, MapLibre's premultiplied blend -> lut.rgb A + map (1 - A)
 //   gusts, light/beach: the same multiply as the wind with its own tint strength (gustParticles.gustFieldTint)
 // over the muted grounds the wind lines above use (dark: its water and the real map's land read under the wind). One line per theme
-// and ground: the largest dE00 over 0-75 kn at zooms 3, 5 and 8 (light: 0-40 kn; above 40 its gentler fast band differs ON PURPOSE,
-// D: David 2026-11-18, printed apart). RED above 1.0 dE00 (a just-noticeable difference). Gust colours are the wind's, so the
+// and ground: the largest dE00 over 0-75 kn at zooms 3, 5 and 8. RED above 1.0 dE00 (a just-noticeable difference). Gust colours are the wind's, so the
 // colour-blind passes above (cvd_check.py) are the gusts' too once these lines are green.
 // --no-gusts skips it; --before-gust-dark reads dark before its parity fix (window.__RAW_DISABLE_GUST_DARK_FIELD__).
 if (!args.includes('--no-gusts')) {
@@ -211,7 +210,7 @@ if (!args.includes('--no-gusts')) {
       const KM = resolveDrawnMarks(theme, LEVERS), Kp = huePathStops(KM[surf === 'water' ? 'water' : 'land'] || resolveThemeRamp(theme), LEVERS);
       const markW = windWhiteStreakOn(theme, LEVERS) ? WHITE_STREAK.opacity * windWhiteStrength(theme, winOf(theme))[surf === 'water' ? 'sea' : 'land'] : (windDarkRulesOn(theme, LEVERS) ? DARK_RULES.opacity : 1);
       const lay = (k, T) => { const w = k[3] * k[3] * markW; return T.map((x, j) => k[j] * w + x * (1 - w)); };
-      let worst = { de: 0 }, band = { de: 0 }, mark = { de: 0 }, lift = { d: 0 };
+      let worst = { de: 0 }, mark = { de: 0 }, lift = { d: 0 };
       for (const z of [3, 5, 8]) for (let kn = 0; kn <= 75; kn += 0.5) {
         const c = sample(F, kn), a = law(kn), l = lutAt(kn);
         let wind, gust;
@@ -226,18 +225,15 @@ if (!args.includes('--no-gusts')) {
           gust = g.map((x, i) => x * (1 - t * (1 - l[i])));
         }
         const r = { de: de(wind, gust), kn, z, wind: wind.map((x) => Math.round(x * 255)), gust: gust.map((x) => Math.round(x * 255)) };
-        if (theme === 'light' && kn > 40) { if (r.de > band.de) band = r; } else if (r.de > worst.de) worst = r;
-        if (!(theme === 'light' && kn > 40)) {
-          const k = sample(Kp, kn), mw = lay(k, wind), mg = lay(k, gust), dm = de(mw, mg), dl = Math.abs((L(mg) - L(gust)) - (L(mw) - L(wind)));
-          if (dm > mark.de) mark = { de: dm, kn, z, wind: mw.map((x) => Math.round(x * 255)), gust: mg.map((x) => Math.round(x * 255)) };
-          if (dl > lift.d) lift = { d: dl, kn, z, windLift: L(mw) - L(wind), gustLift: L(mg) - L(gust) };
-        }
+        if (r.de > worst.de) worst = r;
+        const k = sample(Kp, kn), mw = lay(k, wind), mg = lay(k, gust), dm = de(mw, mg), dl = Math.abs((L(mg) - L(gust)) - (L(mw) - L(wind)));
+        if (dm > mark.de) mark = { de: dm, kn, z, wind: mw.map((x) => Math.round(x * 255)), gust: mg.map((x) => Math.round(x * 255)) };
+        if (dl > lift.d) lift = { d: dl, kn, z, windLift: L(mw) - L(wind), gustLift: L(mg) - L(gust) };
       }
-      out.gusts[theme][surf] = { worst, mark, lift, ...(band.kn ? { fastBand: band } : {}) };
+      out.gusts[theme][surf] = { worst, mark, lift };
       console.log(`[${flag(worst.de > 1.0, worst.de > 0.5)}] ${theme} ${surf}: gust vs wind composite, largest gap ${worst.de.toFixed(2)} dE00 at ${worst.kn} kn z${worst.z} (wind ${worst.wind} / gust ${worst.gust}; target <= 1.0)`);
       console.log(`[${flag(mark.de > 1.0, mark.de > 0.5)}] ${theme} ${surf}: gust MARK vs wind mark (core over its field), largest gap ${mark.de.toFixed(2)} dE00 at ${mark.kn} kn z${mark.z} (target <= 1.0)`);
       console.log(`[${flag(lift.d > 1.0, lift.d > 0.5)}] ${theme} ${surf}: a mark's lift off its field, gust vs wind, differs by at most ${lift.d.toFixed(2)} L* (${lift.kn} kn z${lift.z}: wind ${lift.windLift.toFixed(1)} / gust ${lift.gustLift.toFixed(1)}; target <= 1.0)`);
-      if (band.kn) console.log(`[${flag(false, false)}] ${theme} ${surf}: above 40 kn the gentler fast band (by design) differs by up to ${band.de.toFixed(1)} dE00 (${band.kn} kn)`);
     }
   }
 }

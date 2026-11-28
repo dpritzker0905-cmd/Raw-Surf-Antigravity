@@ -1,8 +1,9 @@
 // Gusts layer (2026-11-15): own frames only, ON by default with a kill, the wind palette per theme, honest credit and status.
-import { GUST_LUT, GUST_LIGHT_FASTBAND, WIND_FIELD_ALPHA, gustBaseAlpha, gustLegend, gustScale, lightCompositeL, gustDarkFieldOn, gustFieldOpacity, windDarkFieldAlpha } from './gustPalette';
-import { WIND_FIELD_OPACITY } from './gustParticles';
+import { GUST_LUT, WIND_FIELD_ALPHA, gustBaseAlpha, gustLegend, gustScale, gustDarkFieldOn, gustFieldOpacity, windDarkFieldAlpha } from './gustPalette';
+import { gustFieldTint, WIND_FIELD_OPACITY } from './gustParticles';
+import { v2FieldTint } from './WebGLWindUtils';
 import { GUST_OPACITY_STOPS, opacityAtZoom } from './ownRasterLayer';
-import { huePathStops, resolveDrawnField, resolveThemeRamp, sampleRamp } from './WindColorRamp';
+import { huePathStops, resolveDrawnField, resolveThemeRamp, sampleRamp, windLegendGradientCSS, windLegendStops } from './WindColorRamp';
 const field = (theme) => huePathStops(resolveDrawnField(theme) || resolveThemeRamp(theme));
 import { DEFAULT_ON_LAYERS, OWN_ONLY_LAYERS, OWN_RASTER_SETS, SPEED_FIELD, ownFramesOn, setKey, sourceModel, combinedFrames, combinedFrameAt, endNoteText } from './ownRasterFrames';
 import { RASTER_SET_KEYS } from './staticRasterSets';
@@ -51,7 +52,6 @@ describe('gust palette = the wind palette', () => {
       const rgbScale = theme === 'dark' ? windDarkFieldAlpha(kn) : 1;
       expect(got.slice(0, 3)).toEqual(want.slice(0, 3).map((x) => Math.round(x * rgbScale * 255)));
       if (theme === 'dark') expect(got[3]).toBeCloseTo(windDarkFieldAlpha(kn) / WIND_FIELD_OPACITY.dark, 6);
-      else if (theme === 'light' && kn > 40) expect(got[3]).toBeLessThan(gustBaseAlpha(theme, kn, want));
       else expect(got[3]).toBeCloseTo(gustBaseAlpha(theme, kn, want), 6);
     }
     expect(colorAtValue(scale, 120)).toEqual(colorAtValue(scale, 75));   // above the ramp: the last colour holds
@@ -59,13 +59,37 @@ describe('gust palette = the wind palette', () => {
     expect(lut.length).toBe(GUST_LUT.n * 4);
     expect(lut[3]).toBeGreaterThan(0);
   });
-  test.each(THEMES)('%s: the legend bar is built from the same wind-field stops', (theme) => {
+  test.each(THEMES)('%s: the same legend colour and knot ticks as Wind', (theme) => {
     const g = gustLegend(theme);
-    const first = field(theme)[0];
-    const a0 = gustBaseAlpha(theme, first[0], [first[1], first[2], first[3], first[4]]);   // the field's alpha law, as the map draws it
-    expect(g.gradientCSS).toContain(`rgba(${Math.round(first[1] * 255)},${Math.round(first[2] * 255)},${Math.round(first[3] * 255)},${a0}) 0.0%`);
+    expect(g.gradientCSS).toBe(windLegendGradientCSS(theme));
+    expect(g.ticks).toEqual(windLegendStops(theme));
     expect(g.label).toMatch(/kts/);
     expect(g.ticks[g.ticks.length - 1]).toMatch(/\+$/);
+  });
+  test.each(THEMES)('%s: raster bytes match the Wind field composite across zooms and fast bands', (theme) => {
+    const lut = buildStepLut(gustScale(theme), GUST_LUT);
+    const opacity = (z) => opacityAtZoom(GUST_OPACITY_STOPS, z);
+    const tint = v2FieldTint(theme);
+    const stops = field(theme);
+    for (const z of [3, 5, 8]) {
+      const layerOpacity = gustFieldOpacity(theme, z, opacity);
+      for (const kn of [0, 2, 15, 40, 40.5, 50, 63, 75]) {
+        const i = 4 * kn / GUST_LUT.step;
+        const gustA = lut[i + 3] / 255 * layerOpacity;
+        const wind = sampleRamp(stops, kn);
+        const windA = theme === 'dark' ? windDarkFieldAlpha(kn) : WIND_FIELD_OPACITY[theme] * gustBaseAlpha(theme, kn, wind);
+        for (const ground of [0.25, 0.85]) {
+          for (let channel = 0; channel < 3; channel++) {
+            const gust = lut[i + channel] / 255;
+            const actual = tint ? ground * (1 - gustA * gustFieldTint(theme, z, opacity, tint) * (1 - gust))
+              : gust * gustA + ground * (1 - gustA);
+            const expected = tint ? ground * (1 - windA * tint * (1 - wind[channel]))
+              : wind[channel] * windA * windA + ground * (1 - windA);
+            expect(Math.abs(actual - expected) * 255).toBeLessThan(1);
+          }
+        }
+      }
+    }
   });
   test('themes differ (a themed palette, not one hardcoded set)', () => {
     expect(gustScale('light').colors[60]).not.toEqual(gustScale('dark').colors[60]);
@@ -163,51 +187,6 @@ describe('dark field parity (2026-11-22: dark gusts drew ~2x the wind field\'s c
     const src = require('fs').readFileSync(require('path').join(__dirname, 'useOwnRasterFrames.js'), 'utf8');
     expect(src).toMatch(/gustDarkFieldOn\(theme\) \? gustFieldOpacity\(theme, 2, \(\) => 0, \{\}\) : null/);
     expect(src).toContain('L.setOpacityAt(');
-  });
-});
-
-describe('gentler fast band, light only (David 2026-11-18: light gusts "too dark pink in areas")', () => {
-  afterEach(() => { delete window.__RAW_DISABLE_GUST_LIGHT_FASTBAND__; });
-  const comp = (theme, kn) => { const s = gustScale(theme); const c = colorAtValue(s, kn); return lightCompositeL(c.slice(0, 3).map((x) => x / 255), c[3]); };
-
-  test('above 40 kn light descends at half the slope; the order stays one way (faster = darker)', () => {
-    const stops = field('light');
-    const L = (kn) => { const c = sampleRamp(stops, kn); return lightCompositeL(c, gustBaseAlpha('light', kn, c)); };
-    const L40 = L(40);
-    for (const kn of [45, 50, 60, 75]) expect(comp('light', kn)).toBeCloseTo(L40 + (L(kn) - L40) * GUST_LIGHT_FASTBAND.slope, 0);
-    let prev = Infinity;
-    // each step follows the wind field's own step at half the slope (light's field is itself nearly flat, with a small rise,
-    // at 40-45 kn), within the 8-bit table's quantization (0.5 kn steps, rgb to 1/255: under ~0.3 L*)
-    let prevSrc = L(40);
-    for (let kn = 42.5; kn <= 75; kn += 2.5) {
-      const v = comp('light', kn); const src = L(kn);
-      if (prev !== Infinity) expect(v - prev).toBeLessThanOrEqual((src - prevSrc) * GUST_LIGHT_FASTBAND.slope + 0.3);
-      prev = v; prevSrc = src;
-    }
-    // the fastest gusts no longer reach the wind field's near-black maroon: half its fall from 40 kn is given back
-    expect(comp('light', 75) - L(75)).toBeGreaterThan((L40 - L(75)) * 0.4);
-    expect(comp('light', 75)).toBeLessThan(comp('light', 40));
-  });
-
-  test('at or under 40 kn, and in dark and beach, the band does nothing', () => {
-    for (const kn of [0, 10, 25, 40]) {
-      expect(colorAtValue(gustScale('light'), kn)[3]).toBeCloseTo(gustBaseAlpha('light', kn, sampleRamp(field('light'), kn)), 6);
-    }
-    for (const kn of [45, 60, 75]) {
-      expect(colorAtValue(gustScale('beach'), kn)[3]).toBeCloseTo(gustBaseAlpha('beach', kn, sampleRamp(field('beach'), kn)), 6);
-      expect(colorAtValue(gustScale('dark'), kn)[3]).toBeCloseTo(windDarkFieldAlpha(kn) / WIND_FIELD_OPACITY.dark, 6);   // dark: the wind's law (parity)
-    }
-  });
-
-  test('the kill returns light to the wind field\'s law exactly; the legend follows the same rows', () => {
-    window.__RAW_DISABLE_GUST_LIGHT_FASTBAND__ = true;
-    for (const kn of [45, 60, 75]) {
-      expect(colorAtValue(gustScale('light'), kn)[3]).toBeCloseTo(gustBaseAlpha('light', kn, sampleRamp(field('light'), kn)), 6);
-    }
-    const killed = gustLegend('light').gradientCSS;
-    delete window.__RAW_DISABLE_GUST_LIGHT_FASTBAND__;
-    expect(gustLegend('light').gradientCSS).not.toBe(killed);
-    expect(gustLegend('dark').gradientCSS).toBe(gustLegend('dark').gradientCSS);
   });
 });
 

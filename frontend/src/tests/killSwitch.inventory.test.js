@@ -125,8 +125,6 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_GUST_HATCH__',
   // gustParticles.test.js ("the gust field tints like the wind field on light and beach; both kills turn it off"; 2026-11-18)
   '__RAW_DISABLE_GUST_FIELD_TINT__',
-  // gustsLayer.test.js ("the kill returns light to the wind field exactly; the legend follows the same rows"; 2026-11-18)
-  '__RAW_DISABLE_GUST_LIGHT_FASTBAND__',
   // gustsLayer.test.js ("dark under its own kill keeps the table's alpha; the kill returns light and beach to it"; 2026-11-18)
   '__RAW_DISABLE_GUST_WIND_ALPHA__',
   // gustsLayer.test.js ("before (the kill): calm drew ~10x the wind's colour and 20 kn about twice it"; 2026-11-22, dark field parity)
