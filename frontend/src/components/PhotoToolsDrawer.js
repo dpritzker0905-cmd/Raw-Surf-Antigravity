@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useId } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -12,7 +12,6 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
-import useEscapeKey from '../hooks/useEscapeKey';
 
 
 /**
@@ -24,7 +23,25 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole } = usePersona();
-  useEscapeKey(isOpen, onClose);
+  const panelRef = useRef(null);
+  const closeRef = useRef(null);
+  const headingId = useId();
+  useLayoutEffect(() => {
+    if (isOpen) closeRef.current?.focus({ preventScroll: true });
+  }, [isOpen]);
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const closeOnEscape = event => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      const dialog = event.target?.closest?.('[role="dialog"]');
+      if (dialog && dialog !== panelRef.current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [isOpen, onClose]);
   const [onDemandActive, setOnDemandActive] = useState(false);
   const [_onDemandLoading, setOnDemandLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -143,7 +160,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
     
     // If turning ON, redirect to settings page for spot selection sequence
     if (!onDemandActive) {
-      onClose();
+      onClose({ restoreFocus: false });
       navigate('/photographer/on-demand-settings?init=true');
       toast.info('Select your coverage spots to go On-Demand', {
         description: `Your range: ${geoRadius.min}-${geoRadius.max} miles based on your Pro status`
@@ -303,7 +320,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   // Removed separate onDemandSettingsItem - now integrated into menuItems
   
   const handleNavigation = (path) => {
-    onClose();
+    onClose({ restoreFocus: false });
     navigate(path);
   };
   
@@ -319,7 +336,11 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
       />
       
       {/* Drawer */}
-      <div 
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby={headingId}
         className={`fixed inset-x-0 z-[1000] ${bgClass} rounded-t-3xl border-t ${borderClass} shadow-2xl`}
         style={{ 
           bottom: '80px', // Account for bottom navigation height
@@ -339,7 +360,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
               <Camera className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className={`text-lg font-bold ${textPrimary}`}>
+              <h2 id={headingId} className={`text-lg font-bold ${textPrimary}`}>
                 Photo Tools
               </h2>
               <p className={`text-xs ${textSecondary}`}>
@@ -347,7 +368,7 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className={`p-2 ${textSecondary} hover:${textPrimary}`} aria-label="Close">
+          <button ref={closeRef} onClick={onClose} className={`p-2 ${textSecondary} hover:${textPrimary}`} aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
