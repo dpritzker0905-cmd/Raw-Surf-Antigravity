@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 4,
+  "files": 1,
+  "branch": "codex/profile-photo-viewer",
+  "date": "2026-11-28",
+  "note": "Profile header photo viewer interactions and fallbacks"
+}
