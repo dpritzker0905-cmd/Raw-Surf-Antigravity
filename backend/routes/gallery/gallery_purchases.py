@@ -20,7 +20,7 @@ from database import get_db
 from core.security import get_current_user_id, get_optional_user_id
 from models import (
     Profile, GalleryItem, GalleryPurchase, Notification,
-    Gallery, XPTransaction, PhotoTag
+    Gallery, XPTransaction, PhotoTag, RoleEnum
 )
 
 from routes.career_hub.gamification import check_badge_milestones
@@ -480,6 +480,7 @@ class GenerateWatermarkPreviewRequest(BaseModel):
 @router.post("/gallery/generate-watermark-preview")
 async def generate_watermark_preview_endpoint(
     data: GenerateWatermarkPreviewRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -488,6 +489,21 @@ async def generate_watermark_preview_endpoint(
     Returns base64 encoded image.
     """
     import base64
+
+    if data.photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot generate previews for another user")
+
+    result = await db.execute(select(Profile).where(Profile.id == current_user_id))
+    photographer = result.scalar_one_or_none()
+    photographer_roles = {
+        RoleEnum.GROM_PARENT,
+        RoleEnum.HOBBYIST,
+        RoleEnum.PHOTOGRAPHER,
+        RoleEnum.PRO,
+        RoleEnum.APPROVED_PRO,
+    }
+    if not photographer or photographer.role not in photographer_roles:
+        raise HTTPException(status_code=403, detail="Only photographers can generate watermark previews")
     
     # Convert style from frontend format to backend watermark service format
     watermark_text = data.watermark_text or 'Watermark'

@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 8,
+  "branch": "codex/watermark-ssrf",
+  "date": "2026-11-27",
+  "note": "watermark remote-media SSRF and resource boundaries"
+}
