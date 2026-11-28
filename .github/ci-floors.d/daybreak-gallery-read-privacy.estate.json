@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 2,
+  "branch": "daybreak-gallery-read-privacy",
+  "date": "2026-11-28",
+  "note": "Cover gallery management access and minimized discovery responses"
+}
