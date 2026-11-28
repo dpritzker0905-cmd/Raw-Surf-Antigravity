@@ -20,9 +20,13 @@ router = APIRouter()
 @router.get("/photographer/{photographer_id}/live-participants")
 async def get_live_session_participants(
     photographer_id: str,
-    db: AsyncSession = Depends(get_db)
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get list of users currently in photographer's live session with full identification info"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot view another photographer's participants")
+
     photographer_result = await db.execute(
         select(Profile).where(Profile.id == photographer_id)
         .options(selectinload(Profile.current_spot))

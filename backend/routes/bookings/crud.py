@@ -15,7 +15,7 @@ import os
 import stripe
 
 from database import get_db
-from core.security import get_user_id_from_jwt_or_query, get_optional_user_id_from_jwt_or_query
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query, get_optional_user_id_from_jwt_or_query
 from models import (
     Profile, Booking, BookingParticipant, BookingInvite,
     Notification, RoleEnum, PaymentTransaction,
@@ -498,9 +498,13 @@ async def get_booking_share_link(
 @router.get("/sessions/user/{user_id}")
 async def get_user_live_sessions(
     user_id: str,
-    db: AsyncSession = Depends(get_db)
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get live sessions user is currently part of"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot view another user's live sessions")
+
     from models import LiveSessionParticipant
     
     result = await db.execute(

@@ -50,6 +50,9 @@ class SessionParticipantResponse(BaseModel):
     status: str
     joined_at: datetime
 
+class PublicActiveSessionResponse(BaseModel):
+    active: bool
+
 class ActiveSessionResponse(BaseModel):
     photographer_id: str
     photographer_name: Optional[str]

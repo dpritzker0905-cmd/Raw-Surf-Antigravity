@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 from database import get_db
 from utils.live_buyin import resolve_live_buyin
-from core.security import get_current_user_id
+from core.security import get_current_user_id, get_optional_user_id
 from models import (
     Profile, LiveSession, LiveSessionParticipant, Notification,
     SurfSpot, ConditionReport, Story, Gallery, GalleryItem,
@@ -33,7 +33,8 @@ router = APIRouter()
 @router.get("/photographer/{photographer_id}/active-session")
 async def get_active_session(
     photographer_id: str,
-    db: AsyncSession = Depends(get_db)
+    current_user_id: str | None = Depends(get_optional_user_id),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get photographer's current active live session"""
     photographer_result = await db.execute(
@@ -45,6 +46,11 @@ async def get_active_session(
         raise HTTPException(status_code=404, detail="Photographer not found")
     if not photographer.is_shooting:
         return None
+
+    # Keep public live discovery coarse; the roster and earnings are available
+    # only to the photographer whose verified token matches the path identity.
+    if current_user_id != photographer_id:
+        return {"active": True}
 
     participants_result = await db.execute(
         select(LiveSessionParticipant)

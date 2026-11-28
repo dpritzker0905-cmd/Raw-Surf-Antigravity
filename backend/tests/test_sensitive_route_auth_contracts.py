@@ -22,6 +22,10 @@ STRICT_AUTH_FUNCTIONS = {
         "create_identity_verification_session",
     },
     "routes/messages/conversations.py": {"get_conversations"},
+    "routes/sessions/active.py": {"get_surfer_active_session"},
+    "routes/sessions/pricing.py": {"get_participant_credits"},
+    "routes/photographer/participants.py": {"get_live_session_participants"},
+    "routes/bookings/crud.py": {"get_user_live_sessions"},
     "routes/bookings/booking_lifecycle.py": {
         "create_user_booking",
         "complete_booking",
@@ -32,6 +36,18 @@ STRICT_AUTH_FUNCTIONS = {
     "routes/bookings/booking_cancellation.py": {"cancel_booking"},
     "routes/bookings/crew_payments.py": {"get_crew_payment_details"},
     "routes/bookings/stripe_checkout.py": {"create_booking_with_stripe"},
+}
+
+SUBJECT_BOUND_FUNCTIONS = {
+    ("routes/sessions/active.py", "get_surfer_active_session"): "surfer_id",
+    ("routes/sessions/pricing.py", "get_participant_credits"): "user_id",
+    ("routes/photographer/participants.py", "get_live_session_participants"): "photographer_id",
+    ("routes/bookings/crud.py", "get_user_live_sessions"): "user_id",
+}
+
+PUBLIC_COARSE_STATUS_FUNCTIONS = {
+    ("routes/sessions/active.py", "get_active_session"): "photographer_id",
+    ("routes/photographer/sessions.py", "get_active_session"): "photographer_id",
 }
 
 
@@ -48,7 +64,43 @@ def _dependency_targets(function: ast.AsyncFunctionDef) -> set[str]:
     return targets
 
 
-def test_sensitive_routes_require_verified_bearer_identity():
+def _has_identity_mismatch_guard(function: ast.AsyncFunctionDef, path_parameter: str) -> bool:
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Compare) or len(node.ops) != 1:
+            continue
+        if not isinstance(node.ops[0], ast.NotEq) or len(node.comparators) != 1:
+            continue
+        operands = (node.left, node.comparators[0])
+        names = {operand.id for operand in operands if isinstance(operand, ast.Name)}
+        if names == {path_parameter, "current_user_id"}:
+            return True
+    return False
+
+
+def _coarse_guard_return(function: ast.AsyncFunctionDef, path_parameter: str) -> bool:
+    for node in function.body:
+        if not isinstance(node, ast.If) or not _has_identity_mismatch_guard(node, path_parameter):
+            continue
+        returns = [statement for statement in node.body if isinstance(statement, ast.Return)]
+        if len(returns) != 1:
+            continue
+        value = returns[0].value
+        if isinstance(value, ast.Dict):
+            return (
+                len(value.keys) == 1
+                and isinstance(value.keys[0], ast.Constant)
+                and value.keys[0].value == "active"
+            )
+        if isinstance(value, ast.Call) and isinstance(value.func, ast.Name):
+            return (
+                value.func.id == "PublicActiveSessionResponse"
+                and not value.args
+                and [keyword.arg for keyword in value.keywords] == ["active"]
+            )
+    return False
+
+
+def test_sensitive_routes_enforce_verified_identity_boundaries():
     for relative_path, function_names in STRICT_AUTH_FUNCTIONS.items():
         tree = ast.parse((BACKEND / relative_path).read_text(encoding="utf-8"))
         functions = {
@@ -60,6 +112,20 @@ def test_sensitive_routes_require_verified_bearer_identity():
             dependencies = _dependency_targets(function)
             assert "get_current_user_id" in dependencies
             assert "get_user_id_from_jwt_or_query" not in dependencies
+            path_parameter = SUBJECT_BOUND_FUNCTIONS.get((relative_path, function.name))
+            if path_parameter:
+                assert _has_identity_mismatch_guard(function, path_parameter)
+
+    for (relative_path, function_name), path_parameter in PUBLIC_COARSE_STATUS_FUNCTIONS.items():
+        tree = ast.parse((BACKEND / relative_path).read_text(encoding="utf-8"))
+        function = next(
+            node for node in tree.body
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == function_name
+        )
+        dependencies = _dependency_targets(function)
+        assert "get_optional_user_id" in dependencies
+        assert "get_current_user_id" not in dependencies
+        assert _coarse_guard_return(function, path_parameter)
 
 
 def test_private_media_migration_backfills_thumbnails_before_bucket_flip():
