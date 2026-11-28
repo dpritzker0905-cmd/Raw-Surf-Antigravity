@@ -49,9 +49,13 @@ router = APIRouter()
 async def create_gallery_item(
     photographer_id: str,
     data: GalleryItemCreate,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new gallery item"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot create gallery items for another user")
+
     # Verify photographer exists and is a photographer role
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = result.scalar_one_or_none()
