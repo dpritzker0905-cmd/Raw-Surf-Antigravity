@@ -131,6 +131,12 @@ async def _upload_private_object(
 
     encoded_key = quote(object_key, safe="/")
     try:
+        from services.gallery_resumable import CHUNK_BYTES, transfer
+        if bucket == "gallery_originals" and len(content) > CHUNK_BYTES:
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                saved = await transfer(client, supabase_url, _storage_auth_headers(service_key),
+                                       object_key, content, content_type)
+            return reference if saved else None
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{supabase_url}/storage/v1/object/{bucket}/{encoded_key}",
@@ -144,8 +150,8 @@ async def _upload_private_object(
         if response.status_code in (200, 201):
             return reference
         logger.error("Private media upload failed for bucket=%s status=%s", bucket, response.status_code)
-    except httpx.HTTPError:
-        logger.exception("Private media upload request failed for bucket=%s", bucket)
+    except (httpx.HTTPError, ValueError):
+        logger.error("Private media upload request failed for bucket=%s", bucket)
     return None
 
 
