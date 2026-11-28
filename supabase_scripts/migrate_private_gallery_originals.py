@@ -114,7 +114,7 @@ class Storage:
         if kind == "local":
             path = self.local_file(key)
             return path.read_bytes() if path.exists() else None
-        return self.read("gallery", key)
+        return self.read(BUCKET if kind == "private" else "gallery", key)
 
     def ensure_copy(self, key, data, digest, source_key):
         existing = self.read(BUCKET, key)
@@ -280,12 +280,40 @@ def run(action, engine, storage, journal_path, identity):
             )
             if action == "retire" and plan["holds"]:
                 raise ValueError("unresolved review holds prevent retirement")
+            retirement = {}
             for asset in plan["assets"]:
                 source, key = asset["source"], asset["primary"]
                 if action == "stage":
                     data = storage.source_bytes(source)
                     if data is None:
                         raise ValueError("source missing")
+                    if "edition" in asset:
+                        from tempfile import TemporaryDirectory
+                        from services.gallery_derivatives import build_editions
+
+                        source_digest = sha256(data).hexdigest()
+                        journal.execute(
+                            "INSERT OR IGNORE INTO hashes VALUES(?,?)",
+                            ("source:" + key, source_digest),
+                        )
+                        if (
+                            journal.execute(
+                                "SELECT digest FROM hashes WHERE object_key=?",
+                                ("source:" + key,),
+                            ).fetchone()[0]
+                            != source_digest
+                        ):
+                            raise ValueError("legacy master changed")
+                        with TemporaryDirectory() as tmp:
+                            directory = Path(tmp)
+                            build_editions(
+                                directory,
+                                data,
+                                "video/mp4"
+                                if asset["media_type"] == "video"
+                                else "image/jpeg",
+                            )
+                            data = (directory / asset["edition"]).read_bytes()
                     digest = sha256(data).hexdigest()
                     journal.execute(
                         "INSERT OR IGNORE INTO hashes VALUES(?,?)", (key, digest)
@@ -298,7 +326,9 @@ def run(action, engine, storage, journal_path, identity):
                     ).fetchone()[0]
                     verify_hash(data, saved)
                     for role in ("primary", "recovery"):
-                        storage.ensure_copy(asset[role], data, saved, source[1])
+                        storage.ensure_copy(
+                            asset[role], data, saved, asset.get("edition", source[1])
+                        )
                 else:
                     row = journal.execute(
                         "SELECT digest FROM hashes WHERE object_key=?", (key,)
@@ -314,9 +344,25 @@ def run(action, engine, storage, journal_path, identity):
                     if action in ("cutover", "retire"):
                         old = storage.source_bytes(source)
                         if old is not None or current == plan["before"]:
-                            verify_hash(old, row[0])
-                        if action == "retire" and old is not None:
-                            storage.retire(source)
+                            expected = (
+                                journal.execute(
+                                    "SELECT digest FROM hashes WHERE object_key=?",
+                                    ("source:" + key,),
+                                ).fetchone()
+                                if "edition" in asset
+                                else row
+                            )
+                            verify_hash(old, expected[0])
+                        if (
+                            action == "retire"
+                            and old is not None
+                            and "edition" not in asset
+                            and source[0] != "private"
+                        ):
+                            retirement[tuple(source)] = row[0]
+            for source, digest in retirement.items():
+                verify_hash(storage.source_bytes(source), digest)
+                storage.retire(source)
             if action in ("cutover", "rollback"):
                 if conn.dialect.name == "postgresql":
                     conn.execute(

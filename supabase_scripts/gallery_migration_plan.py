@@ -4,7 +4,7 @@ from copy import deepcopy
 from types import SimpleNamespace
 from uuid import uuid4
 
-from services.gallery_tiers import highest_tier, tier_reference
+from services.gallery_tiers import highest_tier, tier_fields, tier_reference
 
 FIELDS = ("original_url", "url_web", "url_standard", "url_720p", "url_1080p")
 COLUMNS = {
@@ -76,6 +76,33 @@ def make_plan(before, storage):
                 )
             aliases[value] = source
 
+    editions = {}
+    for item in before["gallery_items"]:
+        owner, master = item["photographer_id"], item["original_url"]
+        source = aliases.get(master)
+        if not source and storage.private_for(master, owner):
+            source = ("private", master.removeprefix("supabase://gallery_originals/"))
+        if not source or not source[1].startswith(owner + "/"):
+            continue
+        for tier, field in tier_fields(item["media_type"]).items():
+            if field == "original_url":
+                continue
+            variant = item[field]
+            if tier_reference(SimpleNamespace(**item), tier):
+                continue
+            if variant and aliases.get(variant) and aliases[variant] != source:
+                continue
+            suffix = ".mp4" if item["media_type"] == "video" else ".jpg"
+            key = (source, tier)
+            if key not in editions:
+                editions[key] = dict(
+                    source=source,
+                    edition=tier + suffix,
+                    media_type=item["media_type"],
+                    primary=f"{owner}/migrated/{uuid4().hex}{suffix}",
+                    recovery=f"{owner}/recovery/{uuid4().hex}{suffix}",
+                )
+
     def project(target):
         after = deepcopy(before)
         items = {row["id"]: row for row in after["gallery_items"]}
@@ -103,6 +130,18 @@ def make_plan(before, storage):
             for f in FIELDS[1:]:
                 if row[f] and row[f] == row["original_url"]:
                     row[f] = None
+            master_source = aliases.get(originals[0]) if originals else None
+            if not master_source and storage.private_for(
+                row["original_url"], row["photographer_id"]
+            ):
+                master_source = (
+                    "private",
+                    row["original_url"].removeprefix("supabase://gallery_originals/"),
+                )
+            for tier, field in tier_fields(row["media_type"]).items():
+                edition = editions.get((master_source, tier))
+                if edition and not tier_reference(SimpleNamespace(**row), tier):
+                    row[field] = storage.ref(edition[target])
             if protected(row["thumbnail_url"]):
                 row["thumbnail_url"] = None
             if protected(row["preview_url"]):
@@ -199,6 +238,6 @@ def make_plan(before, storage):
         before=before,
         primary=primary,
         recovery=recovery,
-        assets=list(assets.values()),
+        assets=[*assets.values(), *editions.values()],
         holds=sorted(holds),
     )

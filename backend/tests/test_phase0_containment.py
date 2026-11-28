@@ -35,7 +35,7 @@ from routes.bookings import stripe_checkout
 from routes.gallery import collections as gallery_collections
 from routes.gallery import distribution as gallery_distribution
 from routes.gallery import distribution_tagging as gallery_tagging
-from routes.gallery import gallery_purchases
+from routes.gallery import gallery_pricing, gallery_purchases
 from routes.gallery import items as gallery_items
 from routes.sessions import payments as session_payments
 from routes.uploads import core as upload_core
@@ -114,7 +114,7 @@ async def harness(tmp_path, monkeypatch):
 
     app = FastAPI()
     for module in (auth_routes, stripe_checkout, gallery_items, gallery_collections, gallery_distribution,
-                   gallery_tagging, gallery_purchases, upload_core, media_gallery):
+                   gallery_tagging, gallery_pricing, gallery_purchases, upload_core, media_gallery):
         app.include_router(module.router, prefix='/api')
 
     async def dependency():
@@ -618,3 +618,40 @@ async def test_new_private_photo_sells_the_default_edition(harness, tmp_path, mo
         delivered = await client.get(bought.json()["download_url"])
     with Image.open(io.BytesIO(delivered.content)) as image:
         assert image.format == "JPEG" and image.size == (1920, 1280)
+
+
+async def test_migrated_master_fulfils_advertised_default(harness, private_gallery_store, tmp_path):
+    import sys
+    from pathlib import Path
+    from sqlalchemy import create_engine
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "supabase_scripts"))
+    from migrate_private_gallery_originals import Storage, run
+
+    origin = "https://storage.fixture.invalid"
+    source = "gallery/pro/legacy.png"
+    private_gallery_store.objects[source] = _png(width=2400, height=1600)
+    async with harness.maker() as db:
+        item = await db.get(GalleryItem, "item")
+        item.original_url = origin + "/storage/v1/object/public/" + source
+        await db.commit()
+    engine = create_engine(f"sqlite:///{harness.tmp / 'phase0.sqlite'}")
+    try:
+        with httpx.Client(transport=private_gallery_store.transport) as client:
+            storage = Storage(client, origin, {"apikey":"fixture-only"})
+            for phase in ("plan","stage","cutover","verify","rollback","cutover"):
+                result = run(phase,engine,storage,tmp_path / "legacy-plan.sqlite","fixture")
+                assert result == {"held":0,"assets":3}
+    finally:
+        engine.dispose()
+    pricing = await harness.client.get("/api/gallery/item/item/pricing?viewer_id=surfer",headers=bearer("surfer"))
+    assert pricing.status_code == 200, pricing.text
+    assert "standard" in {tier["tier"] for tier in pricing.json()["pricing"]["tiers"]}
+    bought = await harness.client.post("/api/gallery/item/item/purchase?buyer_id=surfer",
+                                       headers=bearer("surfer"),json={})
+    assert bought.status_code == 200, bought.text
+    assert bought.json()["quality_tier"] == "standard"
+    async with private_gallery_store.client() as client:
+        delivered = await client.get(bought.json()["download_url"])
+    with Image.open(io.BytesIO(delivered.content)) as image:
+        assert image.format == "JPEG" and image.size == (1920,1280)

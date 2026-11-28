@@ -376,6 +376,12 @@ def private_gallery_store(monkeypatch):
         if request.method == "POST" and path.startswith("/storage/v1/object/gallery_originals/"):
             objects[path.removeprefix("/storage/v1/object/")] = request.content
             return httpx.Response(201)
+        if request.method == "GET" and request.headers.get("apikey") == "fixture-only":
+            if path == "/storage/v1/bucket/gallery_originals":
+                return httpx.Response(200, json={"id": "gallery_originals", "public": False})
+            key = path.removeprefix("/storage/v1/object/")
+            if key in objects:
+                return httpx.Response(200, content=objects[key])
         if request.method == "GET" and path in tickets:
             return httpx.Response(200, content=objects[tickets[path]])
         return httpx.Response(404)
@@ -387,4 +393,4 @@ def private_gallery_store(monkeypatch):
 
     monkeypatch.setattr(private_media, "_storage_settings", lambda: ("https://storage.fixture.invalid", "fixture-only"))
     monkeypatch.setattr(private_media, "httpx", SimpleNamespace(AsyncClient=client, HTTPError=httpx.HTTPError))
-    return SimpleNamespace(objects=objects, client=client)
+    return SimpleNamespace(objects=objects, client=client, transport=transport)

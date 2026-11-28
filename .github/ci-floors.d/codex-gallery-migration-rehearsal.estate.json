@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 5,
+  "tests": 6,
   "branch": "codex/gallery-migration-rehearsal",
   "date": "2026-11-28",
-  "note": "Rehearse private migration and rollback, photo and video entitlements, and default purchase after upload"
+  "note": "Private recovery, tier transfers and default checkout for both new and migrated masters"
 }
