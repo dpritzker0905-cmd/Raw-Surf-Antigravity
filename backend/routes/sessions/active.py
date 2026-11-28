@@ -5,16 +5,23 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
-from core.security import get_current_user_id
-from typing import Optional
+from core.security import get_current_user_id, get_optional_user_id
+from typing import Optional, Union
 from models import GalleryItem, LiveSessionParticipant, Profile
-from .schemas import ActiveSessionResponse, SessionParticipantResponse
+from .schemas import ActiveSessionResponse, PublicActiveSessionResponse, SessionParticipantResponse
 from utils.credits import deduct_credits, add_credits
 
 router = APIRouter()
 
-@router.get("/sessions/active/{photographer_id}", response_model=Optional[ActiveSessionResponse])
-async def get_active_session(photographer_id: str, db: AsyncSession = Depends(get_db)):
+@router.get(
+    "/sessions/active/{photographer_id}",
+    response_model=Optional[Union[ActiveSessionResponse, PublicActiveSessionResponse]],
+)
+async def get_active_session(
+    photographer_id: str,
+    current_user_id: Optional[str] = Depends(get_optional_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     photographer_result = await db.execute(
         select(Profile)
         .where(Profile.id == photographer_id)
@@ -26,6 +33,11 @@ async def get_active_session(photographer_id: str, db: AsyncSession = Depends(ge
     
     if not photographer.is_shooting:
         return None
+
+    # Public discovery needs only the live indicator. Identification, payment,
+    # location, and roster details belong to the photographer managing the session.
+    if current_user_id != photographer_id:
+        return PublicActiveSessionResponse(active=True)
     
     participants_result = await db.execute(
         select(LiveSessionParticipant)
@@ -62,7 +74,14 @@ async def get_active_session(photographer_id: str, db: AsyncSession = Depends(ge
 # NOTE: Leave session endpoint is in bookings.py with proper 10-minute refund logic
 
 @router.get("/sessions/my-active/{surfer_id}")
-async def get_surfer_active_session(surfer_id: str, db: AsyncSession = Depends(get_db)):
+async def get_surfer_active_session(
+    surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    if surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot view another user's active session")
+
     result = await db.execute(
         select(LiveSessionParticipant)
         .where(LiveSessionParticipant.surfer_id == surfer_id)

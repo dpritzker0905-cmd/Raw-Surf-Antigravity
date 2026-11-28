@@ -1,7 +1,7 @@
 """Sessions pricing — capture session unified API and participant lookup."""
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, APIRouter
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
@@ -119,12 +119,16 @@ async def get_session_pricing(
 async def get_participant_credits(
     session_id: str,
     user_id: str,
-    db: AsyncSession = Depends(get_db)
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get a participant's remaining photo credits for a session.
     Used to check if photos should be free (from buy-in) or paid.
     """
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot view another user's session credits")
+
     participant_result = await db.execute(
         select(LiveSessionParticipant)
         .where(LiveSessionParticipant.live_session_id == session_id)
