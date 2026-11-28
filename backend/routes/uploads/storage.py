@@ -1,4 +1,8 @@
-"""Public Supabase Storage contract for product-public upload lanes."""
+"""Public Supabase Storage contract for product-public upload lanes.
+
+The ``gallery`` lane is preview-only. Saleable originals belong to the private
+``gallery_originals`` bucket owned by :mod:`services.private_media`.
+"""
 from __future__ import annotations
 
 import logging
@@ -14,16 +18,27 @@ PUBLIC_UPLOAD_BUCKETS = frozenset({
 })
 
 
+def get_file_extension(content_type: str) -> str:
+    """Get file extension from content type"""
+    extensions = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+        "video/mp4": ".mp4",
+        "video/quicktime": ".mov",
+        "video/webm": ".webm"
+    }
+    return extensions.get(content_type, ".bin")
+
+
 def unlinked_media_names(ext: str, *, prefix: str = "") -> tuple[str, str]:
     """Object names for a sold original and its free preview that share no derivable part.
 
-    Both still live in the public `gallery` bucket, and every viewer receives the preview URL. The
-    original used to be named `<uuid>_original` beside `<uuid>_preview` (or `preview_<name>` beside
-    `<name>`), so a preview URL was one string substitution from the paid file. Each name now gets
-    its own random token, and the original's carries 192 bits, so holding a preview says nothing
-    about the original's location. This hides new originals; it does not make them private. That
-    needs a private bucket with entitlement-checked signed delivery, and objects uploaded before
-    this change keep their derivable names until they are moved.
+    The original used to be named `<uuid>_original` beside `<uuid>_preview` (or `preview_<name>`
+    beside `<name>`), so a preview URL was one string substitution from the paid file. Each name
+    gets its own random token. Callers store the original in ``gallery_originals`` and may put only
+    the independently named, protected preview in the public ``gallery`` bucket.
     """
     original = f"{prefix}{secrets.token_hex(24)}{ext}"
     preview = f"{prefix}{uuid.uuid4()}_preview{ext}"

@@ -527,7 +527,7 @@ async def browse_session_photos(
         
         items.append({
             "id": gi_id,
-            "url": gi.preview_url or gi.original_url,
+            "url": gi.preview_url,
             "thumbnail_url": gi.thumbnail_url,
             "media_type": gi.media_type,
             "created_at": gi.created_at.isoformat() if gi.created_at else None,

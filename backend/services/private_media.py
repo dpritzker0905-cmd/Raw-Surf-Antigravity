@@ -21,7 +21,10 @@ import httpx
 logger = logging.getLogger(__name__)
 
 PRIVATE_MEDIA_SCHEME = "supabase://"
-PRIVATE_MEDIA_BUCKETS = frozenset({"chat_media", "crew_chat", "grom_media"})
+PRIVATE_MEDIA_BUCKETS = frozenset({
+    "chat_media", "crew_chat", "gallery_originals", "grom_media",
+})
+INLINE_DELIVERY_BUCKETS = frozenset({"chat_media", "crew_chat"})
 DEFAULT_SIGNED_URL_TTL_SECONDS = 60 * 60
 
 
@@ -93,7 +96,26 @@ def legacy_public_url_to_private_ref(value: Optional[str], bucket: str) -> Optio
         return None
 
 
-async def upload_private_media(
+async def _discard_partial_gallery(bucket, keys):
+    url, key = _storage_settings()
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            result = await client.request("DELETE", f"{url}/storage/v1/object/{bucket}",
+                                          headers=_storage_auth_headers(key), json={"prefixes": keys})
+            result.raise_for_status()
+    except httpx.HTTPError:
+        logger.error("Could not retire incomplete private gallery upload")
+
+
+async def upload_private_media(*, bucket: str, object_key: str, content: bytes, content_type: str) -> Optional[str]:
+    if bucket == "gallery_originals":
+        from services.gallery_derivatives import upload_gallery_set
+        return await upload_gallery_set(bucket, object_key, content, content_type, _upload_private_object,
+                                        upload_private_media_stream, _discard_partial_gallery)
+    return await _upload_private_object(bucket=bucket, object_key=object_key, content=content, content_type=content_type)
+
+
+async def _upload_private_object(
     *,
     bucket: str,
     object_key: str,
@@ -109,6 +131,12 @@ async def upload_private_media(
 
     encoded_key = quote(object_key, safe="/")
     try:
+        from services.gallery_resumable import CHUNK_BYTES, transfer
+        if bucket == "gallery_originals" and len(content) > CHUNK_BYTES:
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                saved = await transfer(client, supabase_url, _storage_auth_headers(service_key),
+                                       object_key, content, content_type)
+            return reference if saved else None
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{supabase_url}/storage/v1/object/{bucket}/{encoded_key}",
@@ -122,8 +150,8 @@ async def upload_private_media(
         if response.status_code in (200, 201):
             return reference
         logger.error("Private media upload failed for bucket=%s status=%s", bucket, response.status_code)
-    except httpx.HTTPError:
-        logger.exception("Private media upload request failed for bucket=%s", bucket)
+    except (httpx.HTTPError, ValueError):
+        logger.error("Private media upload request failed for bucket=%s", bucket)
     return None
 
 
@@ -201,7 +229,11 @@ async def signed_private_media_url(
 
 
 async def delivery_url_for_media(value: Optional[str]) -> Optional[str]:
-    """Resolve a private reference; leave legacy/local URLs untouched during migration."""
-    if parse_private_media_ref(value):
+    """Resolve inline chat media without becoming a signer for other private lanes."""
+    reference = parse_private_media_ref(value)
+    if reference and reference.bucket not in INLINE_DELIVERY_BUCKETS:
+        logger.warning("Rejected cross-lane private media delivery for bucket=%s", reference.bucket)
+        return None
+    if reference:
         return await signed_private_media_url(value)
     return value

@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 6,
+  "branch": "codex/gallery-migration-rehearsal",
+  "date": "2026-11-28",
+  "note": "Private recovery, tier transfers and default checkout for both new and migrated masters"
+}

@@ -144,6 +144,14 @@ jobs:
         env:
           OPENAI_BUDGET_POSTGRES_TEST: '1'
         run: python -m pytest tests/test_openai_budget.py -q --timeout=60
+      - name: Rehearse private gallery cutover and rollback on PostgreSQL
+        working-directory: backend
+        env:
+          GALLERY_REHEARSAL_POSTGRES: '1'
+        run: |
+          createdb -h 127.0.0.1 -U postgres gallery_rehearsal_0
+          createdb -h 127.0.0.1 -U postgres gallery_rehearsal_1
+          python -m pytest tests/test_private_gallery_recovery.py -q --timeout=60
 
   lint-and-build:
     needs: changes

@@ -13,9 +13,45 @@ from datetime import datetime
 
 from database import get_db
 from core.security import get_current_user_id
-from models import Profile, UserMedia, GalleryItem, GalleryPurchase
+from models import Profile, UserMedia, GalleryItem, GalleryPurchase, GalleryOriginalTransferGrant
+from services.gallery_media import authorized_gallery_delivery_url, is_private_gallery_asset
+
+from services.gallery_tiers import highest_tier, tier_reference
 
 router = APIRouter()
+
+
+async def _transfer_reference(db, item, user_id):
+    receipts = (await db.execute(
+        select(GalleryPurchase.quality_tier, GalleryOriginalTransferGrant.evidence_ref)
+        .outerjoin(GalleryOriginalTransferGrant, GalleryOriginalTransferGrant.purchase_id == GalleryPurchase.id)
+        .where(GalleryPurchase.buyer_id == user_id, GalleryPurchase.gallery_item_id == item.id,
+               GalleryPurchase.photographer_id == item.photographer_id)
+    )).all()
+    if not receipts:
+        raise HTTPException(status_code=403, detail="Item not purchased")
+    if any(evidence and evidence.strip() for _, evidence in receipts):
+        return item.original_url
+    return tier_reference(item, highest_tier(item.media_type, {tier for tier, _ in receipts}))
+
+
+async def _user_media_delivery_url(db, media: UserMedia):
+    """Recheck each transfer against its receipt before issuing a capability."""
+    if media.source_type != 'photographer_transfer':
+        return None if is_private_gallery_asset(media.media_url) else media.media_url
+    item = await db.get(GalleryItem, media.source_gallery_item_id) if media.source_gallery_item_id else None
+    if not item or item.photographer_id != media.source_photographer_id:
+        return None
+    try:
+        reference = await _transfer_reference(db, item, media.user_id)
+    except HTTPException as exc:
+        if exc.status_code == 403:
+            return None
+        raise
+    if not is_private_gallery_asset(reference, owner_id=item.photographer_id):
+        return None
+    return await authorized_gallery_delivery_url(reference, original_url=item.original_url,
+                                                preview_url=item.preview_url, owner_id=item.photographer_id)
 
 
 class UserMediaCreate(BaseModel):
@@ -34,7 +70,7 @@ class UserMediaCreate(BaseModel):
 class UserMediaResponse(BaseModel):
     id: str
     user_id: str
-    media_url: str
+    media_url: Optional[str]
     media_type: str
     thumbnail_url: Optional[str]
     source_type: str  # 'user_upload' or 'photographer_transfer'
@@ -65,6 +101,8 @@ async def create_user_media(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    if is_private_gallery_asset(data.media_url):
+        raise HTTPException(status_code=400, detail="Private gallery media must use purchase transfer")
     
     media = UserMedia(
         user_id=user_id,
@@ -121,24 +159,29 @@ async def get_user_media(
     result = await db.execute(query)
     media_items = result.scalars().all()
     
-    return [UserMediaResponse(
-        id=m.id,
-        user_id=m.user_id,
-        media_url=m.media_url,
-        media_type=m.media_type,
-        thumbnail_url=m.thumbnail_url,
-        source_type=m.source_type,
-        source_photographer_name=m.source_photographer.full_name if m.source_photographer else None,
-        title=m.title,
-        description=m.description,
-        video_width=m.video_width,
-        video_height=m.video_height,
-        video_duration=m.video_duration,
-        was_transcoded=m.was_transcoded or False,
-        original_width=m.original_width,
-        original_height=m.original_height,
-        created_at=m.created_at
-    ) for m in media_items]
+    response = []
+    for media in media_items:
+        response.append(UserMediaResponse(
+            id=media.id,
+            user_id=media.user_id,
+            media_url=await _user_media_delivery_url(db, media),
+            media_type=media.media_type,
+            thumbnail_url=media.thumbnail_url,
+            source_type=media.source_type,
+            source_photographer_name=(
+                media.source_photographer.full_name if media.source_photographer else None
+            ),
+            title=media.title,
+            description=media.description,
+            video_width=media.video_width,
+            video_height=media.video_height,
+            video_duration=media.video_duration,
+            was_transcoded=media.was_transcoded or False,
+            original_width=media.original_width,
+            original_height=media.original_height,
+            created_at=media.created_at,
+        ))
+    return response
 
 
 @router.get("/user-media/{user_id}/uploads")
@@ -191,16 +234,21 @@ async def get_user_purchased_media(
     )
     media_items = result.scalars().all()
     
-    return [{
-        "id": m.id,
-        "media_url": m.media_url,
-        "media_type": m.media_type,
-        "title": m.title,
-        "photographer_name": m.source_photographer.full_name if m.source_photographer else None,
-        "original_width": m.original_width,  # Preserves 4K resolution
-        "original_height": m.original_height,
-        "created_at": m.created_at.isoformat()
-    } for m in media_items]
+    response = []
+    for media in media_items:
+        response.append({
+            "id": media.id,
+            "media_url": await _user_media_delivery_url(db, media),
+            "media_type": media.media_type,
+            "title": media.title,
+            "photographer_name": (
+                media.source_photographer.full_name if media.source_photographer else None
+            ),
+            "original_width": media.original_width,
+            "original_height": media.original_height,
+            "created_at": media.created_at.isoformat(),
+        })
+    return response
 
 
 @router.delete("/user-media/{user_id}/{media_id}")
@@ -239,22 +287,11 @@ async def transfer_purchased_media(
 ):
     """
     Transfer a purchased gallery item to the authenticated user's personal collection.
-    Preserves original 4K resolution from photographer
+    Preserves the quality covered by the receipt or documented historical transfer grant
     """
     if current_user_id != user_id:
         raise HTTPException(status_code=403, detail="Cannot modify another user's private media")
 
-    # Verify purchase exists
-    purchase_result = await db.execute(
-        select(GalleryPurchase)
-        .where(GalleryPurchase.buyer_id == user_id)
-        .where(GalleryPurchase.gallery_item_id == gallery_item_id)
-    )
-    purchase = purchase_result.scalar_one_or_none()
-    
-    if not purchase:
-        raise HTTPException(status_code=403, detail="Item not purchased")
-    
     # Check if already transferred
     existing = await db.execute(
         select(UserMedia)
@@ -273,11 +310,18 @@ async def transfer_purchased_media(
     
     if not item:
         raise HTTPException(status_code=404, detail="Gallery item not found")
+    reference = await _transfer_reference(db, item, user_id)
+    if not is_private_gallery_asset(reference, owner_id=item.photographer_id):
+        raise HTTPException(status_code=503, detail="Purchased media is awaiting private-storage migration")
     
-    # Create user media entry (preserves original 4K resolution)
+    delivery = await authorized_gallery_delivery_url(reference, original_url=item.original_url,
+                                                    preview_url=item.preview_url, owner_id=item.photographer_id)
+    if not delivery:
+        raise HTTPException(status_code=503, detail="Purchased quality is temporarily unavailable")
+    original = reference == item.original_url
     user_media = UserMedia(
         user_id=user_id,
-        media_url=item.original_url,  # Full resolution
+        media_url=reference,
         media_type=item.media_type or 'image',
         source_type='photographer_transfer',
         source_photographer_id=item.photographer_id,
@@ -285,12 +329,12 @@ async def transfer_purchased_media(
         title=item.title,
         description=item.description,
         # Preserve original resolution (4K from photographer)
-        original_width=item.video_width,
-        original_height=item.video_height,
-        video_width=item.video_width,
-        video_height=item.video_height,
+        original_width=item.video_width if original else None,
+        original_height=item.video_height if original else None,
+        video_width=item.video_width if original else None,
+        video_height=item.video_height if original else None,
         video_duration=item.video_duration,
-        was_transcoded=False  # Not transcoded - keeps original quality
+        was_transcoded=not original
     )
     
     db.add(user_media)
@@ -299,6 +343,6 @@ async def transfer_purchased_media(
     
     return {
         "id": user_media.id,
-        "media_url": user_media.media_url,
-        "message": "Added to your gallery in original quality"
+        "media_url": delivery,
+        "message": "Added to your gallery in your entitled quality"
     }

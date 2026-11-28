@@ -31,6 +31,7 @@ class Facade:
 def test_purchase_records_consistent_credit_or_subscription_entitlement(monkeypatch, media, covered, balance):
     monkeypatch.setattr(P, 'check_badge_milestones', AsyncMock())
     monkeypatch.setattr(P, 'broadcast_earnings_update', AsyncMock())
+    monkeypatch.setattr(P, 'authorized_gallery_delivery_url', AsyncMock(return_value='https://signed.example.invalid/paid'))
     engine = create_engine('sqlite://')
     for model in [Profile, Gallery, GalleryItem, GalleryPurchase, Notification,
                   XPTransaction, CreditTransaction, SurferPhotoSubscription]:
@@ -42,7 +43,10 @@ def test_purchase_records_consistent_credit_or_subscription_entitlement(monkeypa
             role=RoleEnum.SURFER, credit_balance=0, full_name='Fixture Photographer')
         item = GalleryItem(id='item', photographer_id='photographer', media_type=media, is_for_sale=True,
             price_standard=10, price_1080p=15, purchase_count=0,
-            preview_url='https://media.example.invalid/preview', original_url='https://media.example.invalid/original')
+            preview_url='https://media.example.invalid/preview',
+            url_standard='supabase://gallery_originals/photographer/standard',
+            url_1080p='supabase://gallery_originals/photographer/1080p',
+            original_url='supabase://gallery_originals/photographer/original')
         session.add_all([buyer, photographer, item])
         if covered:
             session.add(SurferPhotoSubscription(id='subscription', surfer_id='buyer', photographer_id='photographer',
@@ -51,6 +55,18 @@ def test_purchase_records_consistent_credit_or_subscription_entitlement(monkeypa
                 photos_remaining=1, videos_remaining=1))
         session.commit()
         request = PurchaseRequest(quality_tier='1080p' if media == 'video' else 'standard')
+        signer = P.authorized_gallery_delivery_url
+        signer.return_value = None
+        with pytest.raises(HTTPException) as unavailable:
+            asyncio.run(P.purchase_gallery_item('item', 'buyer', request, 'buyer', Facade(session)))
+        assert unavailable.value.status_code == 503
+        assert buyer.credit_balance == balance and photographer.credit_balance == 0
+        assert not list(session.scalars(select(GalleryPurchase)))
+        assert not list(session.scalars(select(CreditTransaction)))
+        if covered:
+            sub = session.get(SurferPhotoSubscription, 'subscription')
+            assert (sub.photos_remaining, sub.videos_remaining) == (1, 1)
+        signer.return_value = 'https://signed.example.invalid/paid'
         call = P.purchase_gallery_item('item', 'buyer', request, 'buyer', Facade(session))
         if balance == 0 and not covered:
             with pytest.raises(HTTPException) as denied: asyncio.run(call)
@@ -62,6 +78,7 @@ def test_purchase_records_consistent_credit_or_subscription_entitlement(monkeypa
             result = asyncio.run(call)
             price = 0 if covered else (15 if media == 'video' else 10)
             assert result['success'] and result['amount_paid'] == price
+            assert result['download_url'] == 'https://signed.example.invalid/paid'
             assert buyer.credit_balance == balance - price and photographer.credit_balance == price * .8
             purchases = list(session.scalars(select(GalleryPurchase)))
             assert len(purchases) == 1 and purchases[0].amount_paid == price

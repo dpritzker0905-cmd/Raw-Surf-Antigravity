@@ -1,6 +1,7 @@
 import pytest
 
 from services import private_media
+from services.gallery_media import has_safe_gallery_storage
 
 
 def test_private_media_references_are_durable_and_bucket_scoped():
@@ -8,6 +9,20 @@ def test_private_media_references_are_durable_and_bucket_scoped():
 
     assert value == "supabase://chat_media/conversation-1/photo.jpg"
     assert private_media.parse_private_media_ref(value).object_key == "conversation-1/photo.jpg"
+    gallery = private_media.make_private_media_ref("gallery_originals", "photographer-1/paid.jpg")
+    assert private_media.parse_private_media_ref(gallery).bucket == "gallery_originals"
+    assert has_safe_gallery_storage(
+        original_url=gallery,
+        preview_url="https://cdn.example.invalid/preview.jpg",
+        thumbnail_url="https://cdn.example.invalid/thumb.jpg",
+        owner_id="photographer-1",
+    )
+    assert not has_safe_gallery_storage(
+        original_url=gallery,
+        preview_url="https://cdn.example.invalid/preview.jpg",
+        thumbnail_url=gallery,
+        owner_id="photographer-1",
+    )
     assert private_media.parse_private_media_ref("supabase://gallery/photo.jpg") is None
 
 
@@ -47,8 +62,13 @@ async def test_signed_delivery_url_is_not_persisted_and_uses_bounded_ttl(monkeyp
     url = await private_media.signed_private_media_url(
         "supabase://chat_media/conversation-1/photo.jpg", expires_in=10
     )
+    cross_lane = await private_media.delivery_url_for_media(
+        "supabase://gallery_originals/photographer-1/paid.jpg"
+    )
 
     assert url == "https://project.supabase.co/storage/v1/object/sign/chat_media/conversation-1/photo.jpg?token=short-lived"
+    assert cross_lane is None
+    assert len(calls) == 1
     assert calls[0][1]["json"] == {"expiresIn": 60}
 
 

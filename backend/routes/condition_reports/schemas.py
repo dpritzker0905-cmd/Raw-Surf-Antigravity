@@ -34,7 +34,8 @@ def _is_broken_url(url: Optional[str]) -> bool:
 def _is_watermarked_url(url: Optional[str]) -> bool:
     """Check if a URL points to a watermarked preview image.
     Watermarked previews typically contain '_preview' in the filename.
-    Condition reports are free public content and must never show watermarks."""
+    Condition reports may retain protected previews, but legacy rows are healed
+    away from paid originals whenever another safe preview is available."""
     if not url:
         return False
     return '_preview' in url.lower()
@@ -42,12 +43,10 @@ def _is_watermarked_url(url: Optional[str]) -> bool:
 
 async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
     """
-    Auto-heal broken or watermarked media URLs on condition reports.
-    
-    Condition reports are FREE public content — they must NEVER show watermarks.
-    This function fixes two classes of bad URLs:
-    1. Broken local paths (e.g. /api/uploads/...)
-    2. Watermarked preview URLs (containing '_preview' in the filename)
+    Auto-heal broken media URLs on condition reports.
+
+    Condition reports are free public content, so gallery-derived media remains
+    an intentional protected preview instead of being upgraded to a paid original.
     
     Resolution strategy:
     1. Find the matching gallery item by media URL similarity
@@ -64,9 +63,9 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
         media_watermarked = _is_watermarked_url(report.media_url)
         thumb_watermarked = _is_watermarked_url(report.thumbnail_url)
         
-        needs_heal = media_broken or thumb_broken or media_watermarked or thumb_watermarked
+        needs_heal = media_broken or thumb_broken
         
-        # If both URLs are valid and unwatermarked, nothing to do
+        # Valid protected previews are an intentional terminal state.
         if not needs_heal:
             return False
         
@@ -74,8 +73,8 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
         valid_url = None
         
         # Strategy 1: Match gallery item by URL pattern
-        # If the media_url is a watermarked _preview, try to find the same
-        # gallery item and use its original_url instead
+        # If the media_url is a watermarked _preview, find the same gallery item
+        # without ever promoting its paid original into this public feed.
         if media_watermarked and report.media_url:
             # Strip '_preview' suffix to find the base filename pattern
             base_pattern = report.media_url.replace('_preview', '').rsplit('.', 1)[0]
@@ -94,7 +93,7 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
                 )
                 item = item_result.scalar_one_or_none()
                 if item:
-                    candidate = item.original_url or item.url_standard or item.url_web
+                    candidate = item.preview_url or item.thumbnail_url
                     if candidate and candidate.startswith('https://'):
                         valid_url = candidate
         
@@ -110,7 +109,7 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
             )
             item = item_result.scalar_one_or_none()
             if item:
-                candidate = item.original_url or item.url_standard or item.url_web
+                candidate = item.preview_url or item.thumbnail_url
                 if candidate and candidate.startswith('https://'):
                     valid_url = candidate
             
@@ -139,7 +138,7 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
             )
             item = item_result.scalar_one_or_none()
             if item:
-                candidate = item.original_url or item.url_standard or item.url_web
+                candidate = item.preview_url or item.thumbnail_url
                 if candidate and candidate.startswith('https://'):
                     valid_url = candidate
         
@@ -153,7 +152,7 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
             )
             item = item_result.scalar_one_or_none()
             if item:
-                candidate = item.original_url or item.url_standard or item.url_web
+                candidate = item.preview_url or item.thumbnail_url
                 if candidate and candidate.startswith('https://'):
                     valid_url = candidate
         

@@ -76,7 +76,7 @@ from .messaging import (  # noqa: F401
 )
 
 from .gallery import (  # noqa: F401
-    GalleryItem, GalleryPurchase, PhotoTag, SurferGalleryItem,
+    GalleryItem, GalleryPurchase, GalleryOriginalTransferGrant, PhotoTag, SurferGalleryItem,
     SurferGalleryClaimQueue, SurferSelectionQuota, Gallery,
 )
 

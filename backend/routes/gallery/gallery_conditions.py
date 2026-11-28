@@ -94,8 +94,8 @@ async def push_conditions_to_spot_hub(
         )
         item = item_result.scalar_one_or_none()
         if item:
-            # Use unwatermarked original for condition reports (they're promotional, not for sale)
-            media_url = item.original_url or item.url_standard or item.url_web or item.thumbnail_url
+            # Condition reports are public promotion and may use only preview-safe media.
+            media_url = item.preview_url or item.thumbnail_url
             media_type = item.media_type or 'image'
     
     # Option 2: Use gallery cover image
@@ -106,8 +106,7 @@ async def push_conditions_to_spot_hub(
     if not media_url and gallery.items:
         sorted_items = sorted(gallery.items, key=lambda i: i.created_at or datetime.min)
         for item in sorted_items:
-            # Use unwatermarked original for condition reports
-            candidate = item.original_url or item.url_standard or item.url_web or item.thumbnail_url
+            candidate = item.preview_url or item.thumbnail_url
             if candidate:
                 media_url = candidate
                 media_type = item.media_type or 'image'

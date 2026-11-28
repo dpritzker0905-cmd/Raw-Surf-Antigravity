@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 2,
+  "branch": "codex/gallery-resumable",
+  "date": "2026-11-28",
+  "note": "Resumable gallery offset recovery and origin validation"
+}

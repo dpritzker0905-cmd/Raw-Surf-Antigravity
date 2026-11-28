@@ -35,6 +35,7 @@ from routes.bookings import stripe_checkout
 from routes.gallery import collections as gallery_collections
 from routes.gallery import distribution as gallery_distribution
 from routes.gallery import distribution_tagging as gallery_tagging
+from routes.gallery import gallery_pricing, gallery_purchases
 from routes.gallery import items as gallery_items
 from routes.sessions import payments as session_payments
 from routes.uploads import core as upload_core
@@ -97,9 +98,9 @@ async def harness(tmp_path, monkeypatch):
                                       status='Pending', transaction_metadata=json.dumps({'booking_id': bid})))
         db.add(Gallery(id='gal', photographer_id='pro', title='Fixture Gallery'))
         db.add(GalleryItem(id='item', gallery_id='gal', photographer_id='pro', media_type='image', price=5.0,
-                           original_url='https://cdn.fixture.invalid/o.jpg',
+                           original_url='supabase://gallery_originals/pro/o.jpg',
                            preview_url='https://cdn.fixture.invalid/p.jpg'))
-        db.add(GalleryPurchase(gallery_item_id='item', buyer_id='buyer', photographer_id='pro', amount_paid=5.0))
+        db.add(GalleryPurchase(gallery_item_id='item', buyer_id='buyer', photographer_id='pro', quality_tier='high', amount_paid=5.0))
         await db.commit()
 
     monkeypatch.setattr(auth_routes, 'rate_limit_check', lambda *a, **k: None)
@@ -113,7 +114,7 @@ async def harness(tmp_path, monkeypatch):
 
     app = FastAPI()
     for module in (auth_routes, stripe_checkout, gallery_items, gallery_collections, gallery_distribution,
-                   gallery_tagging, upload_core, media_gallery):
+                   gallery_tagging, gallery_pricing, gallery_purchases, upload_core, media_gallery):
         app.include_router(module.router, prefix='/api')
 
     async def dependency():
@@ -340,10 +341,16 @@ def storage(monkeypatch, tmp_path):
         uploaded.append((bucket, key))
         return f'https://cdn.fixture.invalid/{bucket}/{key}'
 
+    async def record_private(*, bucket, object_key, content, content_type):
+        uploaded.append((bucket, object_key))
+        return f'supabase://{bucket}/{object_key}'
+
     monkeypatch.setattr(upload_core, 'UPLOAD_DIR', tmp_path / 'uploads')
     monkeypatch.setattr(media_gallery, 'UPLOAD_DIR', tmp_path / 'uploads')
     monkeypatch.setattr(upload_core, 'upload_to_supabase_storage', record)
     monkeypatch.setattr(media_gallery, 'upload_to_supabase_storage', record)
+    monkeypatch.setattr(upload_core, 'upload_private_media', record_private)
+    monkeypatch.setattr(media_gallery, 'upload_private_media', record_private)
     return uploaded
 
 
@@ -365,6 +372,7 @@ async def test_gallery_upload_names_the_original_apart_from_its_preview(harness,
     body = response.json()
     _assert_unlinked(body['original_url'], body['preview_url'])
     assert len(storage) == 2
+    assert {bucket for bucket, _ in storage} == {'gallery', 'gallery_originals'}
 
 
 async def test_photographer_upload_names_the_original_apart_from_its_preview(harness, storage):
@@ -373,6 +381,7 @@ async def test_photographer_upload_names_the_original_apart_from_its_preview(har
     assert response.status_code == 200, response.text
     body = response.json()
     _assert_unlinked(body['original_url'], body['preview_url'])
+    assert body['original_url'].startswith('supabase://gallery_originals/pro/')
 
 
 @pytest.mark.parametrize('module,path', [
@@ -399,6 +408,7 @@ async def test_session_photo_upload_names_the_original_apart_from_its_preview(ha
     assert response.status_code == 200, response.text
     body = response.json()
     _assert_unlinked(body['original_url'], body['preview_url'])
+    assert body['original_url'].startswith('supabase://gallery_originals/pro/')
 
 
 async def test_session_photo_with_a_failed_preview_is_refused_not_published(harness, storage):
@@ -529,14 +539,32 @@ async def test_a_viewer_id_claim_alone_does_not_unlock_a_purchased_original(harn
     headers = {} if who is None else ({'Authorization': 'Bearer invalid'} if who == 'invalid' else bearer(who))
     response = await harness.client.get(path, headers=headers)
     assert response.status_code == 200, response.text
-    assert 'cdn.fixture.invalid/o.jpg' not in response.text
+    item = response.json()
+    if isinstance(item, list):
+        item, = item
+    assert item["download_link"] is None
+    assert item["original_url"] is None
 
 
 @pytest.mark.parametrize('path', VIEWER_READS, ids=['item', 'gallery_items'])
-async def test_the_buyer_with_their_token_still_gets_their_original(harness, path):
+async def test_the_buyer_with_their_token_still_gets_their_original(harness, path, private_gallery_store):
     response = await harness.client.get(path, headers=bearer('buyer'))
     assert response.status_code == 200, response.text
-    assert 'cdn.fixture.invalid/o.jpg' in response.text
+    item = response.json()
+    if isinstance(item, list):
+        item, = item
+    assert item["original_url"] is None
+    assert item["download_link"] == "/api/gallery/download/item?buyer_id=buyer"
+    missing = await harness.client.get(item["download_link"], headers=bearer("buyer"))
+    assert missing.status_code == 503
+    private_gallery_store.objects["gallery_originals/pro/o.jpg"] = b"fixture original"
+    download = await harness.client.get(item["download_link"], headers=bearer("buyer"))
+    assert download.status_code == 200, download.text
+    assert download.json()["downloads_remaining"] == 4
+    async with private_gallery_store.client() as storage_client:
+        original = await storage_client.get(download.json()["download_url"])
+    assert original.status_code == 200
+    assert original.content == b"fixture original"
 
 
 # ---------------------------------------------------------------------------------------- LA-GAL-02, review follow-ups
@@ -566,3 +594,64 @@ async def test_the_watermark_benchmark_cleans_up_after_a_failure(harness, monkey
                                          files={'file': ('a.jpg', b'not an image at all', 'image/jpeg')})
     assert response.status_code == 400, response.text
     assert list(scratch.iterdir()) == []
+
+
+async def test_new_private_photo_sells_the_default_edition(harness, tmp_path, monkeypatch, private_gallery_store):
+    monkeypatch.setattr(upload_core, "UPLOAD_DIR", tmp_path / "uploads")
+    monkeypatch.setattr(upload_core, "upload_to_supabase_storage", lambda *args: "/public/watermarked")
+    photo = _png(width=2400, height=1600)
+    uploaded = await harness.client.post("/api/upload/gallery",headers=bearer("pro"),
+                                          files={"file": ("photo.png",photo,"image/png")})
+    assert uploaded.status_code == 200, uploaded.text
+    body = uploaded.json()
+    created = await harness.client.post("/api/gallery?photographer_id=pro",headers=bearer("pro"),
+                                        json={"original_url":body["original_url"],"preview_url":body["preview_url"]})
+    assert created.status_code == 200, created.text
+    item_id = created.json()["id"]
+    listing = await harness.client.get(f"/api/gallery/item/{item_id}",headers=bearer("buyer"))
+    assert listing.status_code == 200 and listing.json()["original_url"] is None
+    bought = await harness.client.post(f"/api/gallery/item/{item_id}/purchase?buyer_id=buyer",
+                                       headers=bearer("buyer"),json={})
+    assert bought.status_code == 200, bought.text
+    assert bought.json()["quality_tier"] == "standard"
+    async with private_gallery_store.client() as client:
+        delivered = await client.get(bought.json()["download_url"])
+    with Image.open(io.BytesIO(delivered.content)) as image:
+        assert image.format == "JPEG" and image.size == (1920, 1280)
+
+
+async def test_migrated_master_fulfils_advertised_default(harness, private_gallery_store, tmp_path):
+    import sys
+    from pathlib import Path
+    from sqlalchemy import create_engine
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "supabase_scripts"))
+    from migrate_private_gallery_originals import Storage, run
+
+    origin = "https://storage.fixture.invalid"
+    source = "gallery/pro/legacy.png"
+    private_gallery_store.objects[source] = _png(width=2400, height=1600)
+    async with harness.maker() as db:
+        item = await db.get(GalleryItem, "item")
+        item.original_url = origin + "/storage/v1/object/public/" + source
+        await db.commit()
+    engine = create_engine(f"sqlite:///{harness.tmp / 'phase0.sqlite'}")
+    try:
+        with httpx.Client(transport=private_gallery_store.transport) as client:
+            storage = Storage(client, origin, {"apikey":"fixture-only"})
+            for phase in ("plan","stage","cutover","verify","rollback","cutover"):
+                result = run(phase,engine,storage,tmp_path / "legacy-plan.sqlite","fixture")
+                assert result == {"held":0,"assets":3}
+    finally:
+        engine.dispose()
+    pricing = await harness.client.get("/api/gallery/item/item/pricing?viewer_id=surfer",headers=bearer("surfer"))
+    assert pricing.status_code == 200, pricing.text
+    assert "standard" in {tier["tier"] for tier in pricing.json()["pricing"]["tiers"]}
+    bought = await harness.client.post("/api/gallery/item/item/purchase?buyer_id=surfer",
+                                       headers=bearer("surfer"),json={})
+    assert bought.status_code == 200, bought.text
+    assert bought.json()["quality_tier"] == "standard"
+    async with private_gallery_store.client() as client:
+        delivered = await client.get(bought.json()["download_url"])
+    with Image.open(io.BytesIO(delivered.content)) as image:
+        assert image.format == "JPEG" and image.size == (1920,1280)

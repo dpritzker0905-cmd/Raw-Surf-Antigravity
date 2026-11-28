@@ -131,26 +131,6 @@ def get_max_quality_for_tier(tier: GalleryTierEnum, media_type: str = 'image'):
         return ('standard', '1080p')
 
 
-def get_download_url_for_tier(gallery_item: GalleryItem, tier: GalleryTierEnum, is_paid: bool):
-    """
-    Returns the appropriate download URL based on tier and payment status.
-    Standard tier: Watermarked preview until paid, then 1080p max
-    Pro tier: Full original resolution
-    """
-    if not is_paid:
-        return None  # Watermarked preview only
-    
-    if tier == GalleryTierEnum.PRO:
-        # Pro tier gets full original
-        return gallery_item.original_url
-    else:
-        # Standard tier capped at 1080p/standard
-        if gallery_item.media_type == 'video':
-            return gallery_item.url_1080p or gallery_item.original_url
-        else:
-            return gallery_item.url_standard or gallery_item.original_url
-
-
 # ============ ROUTES ============
 
 @router.get("/")
@@ -224,7 +204,7 @@ async def get_surfer_gallery_main(
             "id": str(sgi.id),
             "gallery_item_id": str(gi.id),
             # Use preserved URLs if the gallery item was soft-deleted by photographer
-            "url": (sgi.preserved_preview_url or gi.preview_url or gi.original_url) if getattr(gi, 'is_deleted', False) else (gi.preview_url or gi.original_url),
+            "url": (sgi.preserved_preview_url or gi.preview_url) if getattr(gi, 'is_deleted', False) else gi.preview_url,
             "thumbnail_url": (sgi.preserved_thumbnail_url or gi.thumbnail_url) if getattr(gi, 'is_deleted', False) else gi.thumbnail_url,
             "media_type": sgi.preserved_media_type or gi.media_type,
             "photographer_id": str(gi.photographer_id) if gi.photographer_id else None,
@@ -280,7 +260,7 @@ async def get_claim_queue(
         items.append({
             "id": str(cq.id),
             "gallery_item_id": str(gi.id),
-            "url": gi.preview_url or gi.original_url,
+            "url": gi.preview_url,
             "thumbnail_url": gi.thumbnail_url,
             "media_type": gi.media_type,
             "photographer_name": photographer.full_name if photographer else None,
@@ -527,7 +507,13 @@ async def get_surfer_gallery(
         if not gi:
             continue
         
-        download_url = get_download_url_for_tier(gi, item.gallery_tier, item.is_paid)
+        is_downloadable = item.is_paid or item.access_type in ['included', 'gifted']
+        quality = item.max_video_quality if gi.media_type == 'video' else item.max_photo_quality
+        quality = quality or ('1080p' if gi.media_type == 'video' else 'standard')
+        download_url = (
+            f"/api/surfer-gallery/download/{item.id}?surfer_id={surfer_id}&quality_tier={quality}"
+            if is_downloadable and not item.crew_split_pending else None
+        )
         
         # Contextual Pricing Matrix logic evaluation per item
         final_price = 0.0

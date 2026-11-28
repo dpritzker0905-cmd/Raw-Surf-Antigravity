@@ -6,7 +6,7 @@ Extracted from items.py (v86) to keep each module under 800 LOC.
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional
@@ -26,7 +26,12 @@ from models import (
 from routes.career_hub.gamification import check_badge_milestones
 from websocket_manager import broadcast_earnings_update
 from services.watermark import generate_watermarked_preview
+from services.gallery_media import (
+    authorized_gallery_delivery_url,
+    is_safe_gallery_delivery_reference,
+)
 
+from services.gallery_tiers import highest_tier
 from .schemas import PurchaseRequest, get_quality_price
 from .pricing_resolver import resolve_item_pricing, wallet_price
 from utils.revenue_routing import get_commission_rate_for_tier, is_pro_creator
@@ -55,6 +60,7 @@ async def purchase_gallery_item(
         .where(GalleryItem.id == item_id)
         .options(selectinload(GalleryItem.photographer))
         .options(selectinload(GalleryItem.gallery))
+        .with_for_update(of=GalleryItem)
     )
     item = item_result.scalar_one_or_none()
     
@@ -95,7 +101,14 @@ async def purchase_gallery_item(
         raise HTTPException(status_code=404, detail="Buyer not found")
     
     # Get price for quality tier
-    price, download_url = get_quality_price(item, photographer, data.quality_tier)
+    price, download_reference = get_quality_price(item, photographer, data.quality_tier)
+    if not is_safe_gallery_delivery_reference(
+        download_reference,
+        original_url=item.original_url,
+        preview_url=item.preview_url,
+        owner_id=item.photographer_id,
+    ):
+        raise HTTPException(status_code=503, detail="Paid media is awaiting private-storage migration")
     if item.media_type != 'video':
         resolved = await resolve_item_pricing(item, photographer, db, buyer_id)
         price = next(tier["price"] for tier in resolved["pricing"]["tiers"]
@@ -103,6 +116,15 @@ async def purchase_gallery_item(
     
     # Photo and video charges share the wallet's established cent precision.
     price = wallet_price(price)
+
+    download_url = await authorized_gallery_delivery_url(
+        download_reference,
+        original_url=item.original_url,
+        preview_url=item.preview_url,
+        owner_id=item.photographer_id,
+    )
+    if not download_url:
+        raise HTTPException(status_code=503, detail="Private gallery delivery is temporarily unavailable")
 
     # Check if subscription quota covers this purchase (photo or video)
     from routes.subscriptions_billing.photo_sub_helpers import try_use_subscription_quota
@@ -159,7 +181,9 @@ async def purchase_gallery_item(
         photographer_id=item.photographer_id,
         amount_paid=price,
         payment_method=data.payment_method,
-        quality_tier=data.quality_tier
+        quality_tier=data.quality_tier,
+        # The purchase response issues the first delivery capability.
+        download_count=1,
     )
     db.add(purchase)
     
@@ -209,6 +233,7 @@ async def purchase_gallery_item(
     await check_badge_milestones(item.photographer_id, db)
     
     await db.commit()
+
     
     # Broadcast the same rounded earnings credited to the photographer.
     await broadcast_earnings_update(
@@ -271,17 +296,18 @@ async def claim_free_photo(
     if not item:
         raise HTTPException(status_code=404, detail="Photo not found")
     
+    claim_tier = '4k' if item.media_type == 'video' else 'high'
     # Serialize on the item before the entitlement read: repeated claims do not mint purchases.
     existing_result = await db.execute(select(GalleryPurchase).where(
         GalleryPurchase.gallery_item_id == item_id,
         GalleryPurchase.buyer_id == current_user_id,
-        GalleryPurchase.quality_tier == 'high',
+        GalleryPurchase.quality_tier == claim_tier,
     ).limit(1))
     if existing_result.scalar_one_or_none():
         return {
             "success": True,
             "message": "Photo already in your gallery!",
-            "download_link": f"/api/gallery/download/{item_id}?buyer_id={user_id}&quality=high",
+            "download_link": f"/api/gallery/download/{item_id}?buyer_id={user_id}&quality={claim_tier}",
         }
 
     # Create a "free" purchase record (amount_paid=0)
@@ -291,7 +317,7 @@ async def claim_free_photo(
         photographer_id=item.photographer_id,
         amount_paid=0,
         payment_method='claimed',
-        quality_tier='high'  # Give full quality for claimed photos
+        quality_tier=claim_tier  # Give full quality for claimed photos
     )
     db.add(purchase)
     
@@ -308,7 +334,7 @@ async def claim_free_photo(
     return {
         "success": True,
         "message": "Photo added to your gallery!",
-        "download_link": f"/api/gallery/download/{item_id}?buyer_id={user_id}&quality=high"
+        "download_link": f"/api/gallery/download/{item_id}?buyer_id={user_id}&quality={claim_tier}"
     }
 
 
@@ -323,31 +349,6 @@ async def download_gallery_item(
     """Get a download link only for the authenticated purchaser."""
     if current_user_id != buyer_id:
         raise HTTPException(status_code=403, detail="Cannot download another user's purchased media")
-    # Verify purchase - if quality specified, check for that tier
-    if quality:
-        purchase_result = await db.execute(
-            select(GalleryPurchase)
-            .where(GalleryPurchase.gallery_item_id == item_id)
-            .where(GalleryPurchase.buyer_id == buyer_id)
-            .where(GalleryPurchase.quality_tier == quality)
-        )
-    else:
-        # Get highest quality purchase
-        purchase_result = await db.execute(
-            select(GalleryPurchase)
-            .where(GalleryPurchase.gallery_item_id == item_id)
-            .where(GalleryPurchase.buyer_id == buyer_id)
-            .order_by(GalleryPurchase.amount_paid.desc()).limit(1)
-        )
-    
-    purchase = purchase_result.scalar_one_or_none()
-    
-    if not purchase:
-        raise HTTPException(status_code=403, detail="Not purchased at this quality tier")
-    
-    if purchase.download_count >= purchase.max_downloads:
-        raise HTTPException(status_code=400, detail="Download limit reached")
-    
     # Get item with photographer for quality URL lookup
     item_result = await db.execute(
         select(GalleryItem)
@@ -359,17 +360,53 @@ async def download_gallery_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     
-    # Get URL for purchased quality tier
-    _, download_url = get_quality_price(item, item.photographer, purchase.quality_tier)
+    receipts = (await db.execute(select(GalleryPurchase).where(
+        GalleryPurchase.gallery_item_id == item_id, GalleryPurchase.buyer_id == buyer_id,
+        GalleryPurchase.photographer_id == item.photographer_id,
+    ).order_by(GalleryPurchase.purchased_at.desc(), GalleryPurchase.id))).scalars().all()
+    selected = quality or highest_tier(item.media_type, {r.quality_tier for r in receipts})
+    matches = [receipt for receipt in receipts if receipt.quality_tier == selected]
+    if not matches:
+        raise HTTPException(status_code=403, detail="Not purchased at this quality tier")
+    purchase = next((r for r in matches if r.download_count < r.max_downloads), None)
+    if purchase is None:
+        raise HTTPException(status_code=400, detail="Download limit reached")
+
+    # Resolve only the purchased tier before consuming a download.
+    _, download_reference = get_quality_price(item, item.photographer, purchase.quality_tier)
+    if not is_safe_gallery_delivery_reference(
+        download_reference,
+        original_url=item.original_url,
+        preview_url=item.preview_url,
+        owner_id=item.photographer_id,
+    ):
+        raise HTTPException(status_code=503, detail="Paid media is awaiting private-storage migration")
+
+    download_url = await authorized_gallery_delivery_url(
+        download_reference,
+        original_url=item.original_url,
+        preview_url=item.preview_url,
+        owner_id=item.photographer_id,
+    )
+    if not download_url:
+        raise HTTPException(status_code=503, detail="Private gallery delivery is temporarily unavailable")
     
-    # Increment download count
-    purchase.download_count += 1
+    # Concurrent requests may sign, but only a request that claims a remaining
+    # slot can receive the URL. A storage failure consumes no slot.
+    claimed = await db.execute(
+        update(GalleryPurchase)
+        .where(GalleryPurchase.id == purchase.id, GalleryPurchase.download_count < GalleryPurchase.max_downloads)
+        .values(download_count=GalleryPurchase.download_count + 1)
+        .returning(GalleryPurchase.quality_tier, GalleryPurchase.max_downloads - GalleryPurchase.download_count)
+    )
+    slot = claimed.one_or_none()
+    if slot is None:
+        raise HTTPException(status_code=400, detail="Download limit reached")
     await db.commit()
-    
     return {
         "download_url": download_url,
-        "quality_tier": purchase.quality_tier,
-        "downloads_remaining": purchase.max_downloads - purchase.download_count
+        "quality_tier": slot[0],
+        "downloads_remaining": slot[1]
     }
 
 
@@ -440,7 +477,7 @@ async def get_watermarked_preview(
             watermark_style = photographer.watermark_style
     
     # Generate watermarked preview
-    image_url = item.preview_url or item.original_url
+    image_url = item.preview_url
     if not image_url:
         raise HTTPException(status_code=404, detail="No preview image available")
     
@@ -540,7 +577,11 @@ async def get_my_purchases(
     return [{
         "id": p.id,
         "gallery_item_id": p.gallery_item_id,
-        "original_url": p.gallery_item.original_url if p.gallery_item else None,
+        "original_url": None,
+        "download_link": (
+            f"/api/gallery/download/{p.gallery_item_id}?buyer_id={buyer_id}&quality={p.quality_tier}"
+            if p.gallery_item else None
+        ),
         "preview_url": p.gallery_item.preview_url if p.gallery_item else None,
         "title": p.gallery_item.title if p.gallery_item else None,
         "photographer_name": p.gallery_item.photographer.full_name if p.gallery_item and p.gallery_item.photographer else None,

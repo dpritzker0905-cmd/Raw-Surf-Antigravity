@@ -3,6 +3,7 @@
  * Gallery management: upload, pricing, tagging, distribution.
  * ~466 lines, 27 handlers extracted.
  */
+import { galleryVideoLimitMiB } from '../utils/galleryUploadLimits';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -246,6 +247,11 @@ const usePhotographerGalleryActions = ({
 
     for (const file of files) {
       try {
+        const videoLimitMiB = galleryVideoLimitMiB(user?.subscription_tier);
+        if (file.type.startsWith('video/') && file.size > videoLimitMiB * 1024 * 1024) {
+          toast.error(`${file.name} exceeds your ${videoLimitMiB} MiB video limit`);
+          continue;
+        }
         // Create FormData for file upload
         const formData = new FormData();
         formData.append('file', file);

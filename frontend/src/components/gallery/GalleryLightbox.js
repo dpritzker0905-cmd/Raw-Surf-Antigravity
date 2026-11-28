@@ -174,22 +174,14 @@ export const GalleryLightbox = ({
 
   // Native download
   const handleNativeDownload = () => {
-    const url = getFullUrl(item.original_url || item.url);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `rawsurf_${item.id?.slice(-8) || 'photo'}.jpg`;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Saved to device!');
+    if (onDownload) {
+      onDownload(item);
+    } else {
+      toast.error('Secure download is unavailable');
+    }
   };
 
-  const mediaUrl = getFullUrl(
-    isAccessible || unlocked
-      ? (item.original_url || item.url)
-      : (item.thumbnail_url || item.url)
-  );
+  const mediaUrl = getFullUrl(item.preview_url || item.thumbnail_url || item.url);
 
   return (
     <div

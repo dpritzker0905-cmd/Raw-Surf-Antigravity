@@ -88,7 +88,9 @@ async def suggest_surfer_tags(
         if item.media_type == "video":
             raise HTTPException(400, "Choose a photo for image analysis")
         # The owned item's media is authoritative; never analyze a substituted request URL.
-        image_url = item.preview_url or item.original_url
+        image_url = item.preview_url
+        if not image_url:
+            raise HTTPException(409, "A protected gallery preview is required for image analysis")
         if data.include_board_clues:
             context = await load_board_candidates(db, item, current_user_id)
     if context and context["candidates"]:
@@ -505,7 +507,7 @@ async def ai_face_match(
     
     for photo in tagged_photos:
         matches.append({
-            "id": photo.id, "url": photo.preview_url or photo.original_url, "thumbnail_url": photo.thumbnail_url,
+            "id": photo.id, "url": photo.preview_url, "thumbnail_url": photo.thumbnail_url,
             "title": photo.title, "match_type": "tagged", "confidence": 1.0,
             "created_at": photo.created_at.isoformat() if photo.created_at else None
         })
@@ -522,7 +524,7 @@ async def ai_face_match(
         gi = claim.gallery_item
         if gi and gi.photographer_id == data.photographer_id and not any(m["id"] == gi.id for m in matches):
             matches.append({
-                "id": gi.id, "url": gi.preview_url or gi.original_url, "thumbnail_url": gi.thumbnail_url,
+                "id": gi.id, "url": gi.preview_url, "thumbnail_url": gi.thumbnail_url,
                 "title": gi.title, "match_type": "ai_suggested", "confidence": claim.confidence_score or 0.8,
                 "created_at": gi.created_at.isoformat() if gi.created_at else None
             })
@@ -557,7 +559,7 @@ async def ai_face_match(
             for photo in session_photos:
                 if not any(m["id"] == photo.id for m in matches):
                     matches.append({
-                        "id": photo.id, "url": photo.preview_url or photo.original_url, "thumbnail_url": photo.thumbnail_url,
+                        "id": photo.id, "url": photo.preview_url, "thumbnail_url": photo.thumbnail_url,
                         "title": photo.title, "match_type": "session_participant", "confidence": 0.7,
                         "created_at": photo.created_at.isoformat() if photo.created_at else None
                     })

@@ -13,6 +13,8 @@ from datetime import datetime, timezone, timedelta
 import json
 import uuid
 import logging
+import asyncio
+import secrets
 
 gallery_logger = logging.getLogger("routes.gallery")
 
@@ -135,6 +137,8 @@ async def heal_gallery_item_urls(
     # Try to import Supabase upload function
     try:
         from routes.uploads.core import upload_to_supabase_storage, UPLOAD_DIR
+        from services.gallery_media import GALLERY_ORIGINALS_BUCKET
+        from services.private_media import upload_private_media
     except ImportError:
         raise HTTPException(status_code=500, detail="Supabase upload not available")
     
@@ -184,16 +188,28 @@ async def heal_gallery_item_urls(
             }
             content_type = content_types.get(ext, 'application/octet-stream')
             
-            # Upload to Supabase
-            supabase_url = upload_to_supabase_storage(
-                local_path, 'gallery',
-                relative_path.replace('gallery/', '', 1) if relative_path.startswith('gallery/') else relative_path,
-                content_type=content_type
-            )
+            # Originals fail closed into private storage; previews and thumbnails
+            # retain the existing public-healing behavior.
+            if field == 'original_url':
+                object_key = f"{item.photographer_id}/healed/{secrets.token_hex(24)}{ext}"
+                supabase_url = await upload_private_media(
+                    bucket=GALLERY_ORIGINALS_BUCKET,
+                    object_key=object_key,
+                    content=await asyncio.to_thread(local_path.read_bytes),
+                    content_type=content_type,
+                )
+            else:
+                supabase_url = upload_to_supabase_storage(
+                    local_path, 'gallery',
+                    relative_path.replace('gallery/', '', 1) if relative_path.startswith('gallery/') else relative_path,
+                    content_type=content_type
+                )
             
             if supabase_url:
                 setattr(item, field, supabase_url)
                 item_healed["healed_urls"][field] = supabase_url
+                if field == 'original_url':
+                    local_path.unlink(missing_ok=True)
             else:
                 failed.append({
                     "item_id": item.id,
@@ -463,7 +479,7 @@ async def set_gallery_thumbnail(
         if not item:
             raise HTTPException(status_code=404, detail="Gallery item not found")
         
-        new_cover_url = item.preview_url or item.thumbnail_url or item.original_url
+        new_cover_url = item.preview_url or item.thumbnail_url
     elif data.thumbnail_url:
         new_cover_url = data.thumbnail_url
     else:

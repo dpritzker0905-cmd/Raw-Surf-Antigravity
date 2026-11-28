@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import GromGuardian, Profile
+from models import GromGuardian, Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
 
 
@@ -51,16 +51,32 @@ def effective_visibility_cap(controls: dict, per_item_cap: str | None = None) ->
     return per_item_cap if AUDIENCE_ORDER[per_item_cap] < AUDIENCE_ORDER[sitewide] else sitewide
 
 
+def _verified_guardian_links(actor_id: str):
+    return select(GromGuardian.grom_id).where(
+        GromGuardian.guardian_id == actor_id,
+        GromGuardian.verified_at.is_not(None),
+        GromGuardian.revoked_at.is_(None),
+    )
+
+
+def gallery_children(guardian: Profile, *, verified_legacy_only: bool = False):
+    """A relationship record supersedes legacy flags for the same pair."""
+    pairs = select(GromGuardian.grom_id).where(GromGuardian.guardian_id == guardian.id)
+    active = Profile.id.in_(_verified_guardian_links(guardian.id))
+    legacy = (Profile.parent_id == guardian.id) & Profile.parent_link_approved.is_(True) & ~Profile.id.in_(pairs)
+    if not verified_legacy_only or (guardian.parent_age_verified and is_grom_parent_eligible(guardian)):
+        active |= legacy
+    return select(Profile).where(Profile.role == RoleEnum.GROM, guardian.role != RoleEnum.GROM, active)
+
+
+async def linked_gallery_groms(db: AsyncSession, guardian: Profile):
+    result = await db.scalars(gallery_children(guardian).order_by(Profile.full_name, Profile.id))
+    return result.all()
+
+
 async def is_verified_guardian(db: AsyncSession, grom: Profile, actor_id: str) -> bool:
     """Accept a non-revoked verified relationship or a verified legacy parent."""
-    relation = await db.execute(
-        select(GromGuardian).where(
-            GromGuardian.grom_id == grom.id,
-            GromGuardian.guardian_id == actor_id,
-            GromGuardian.verified_at.is_not(None),
-            GromGuardian.revoked_at.is_(None),
-        )
-    )
+    relation = await db.execute(_verified_guardian_links(actor_id).where(GromGuardian.grom_id == grom.id))
     if relation.scalar_one_or_none():
         return True
 

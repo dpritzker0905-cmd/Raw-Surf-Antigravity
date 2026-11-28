@@ -7,6 +7,7 @@ Extracted from the gallery.py monolith to support the decomposed package structu
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
+from services.gallery_tiers import tier_reference
 
 
 # ─── Pydantic Request/Response Models ────────────────────────────────────────
@@ -117,28 +118,20 @@ def get_quality_price(item, photographer, quality_tier: str) -> tuple:
     if item.media_type == 'video':
         if quality_tier == '720p':
             price = item.price_720p or photographer.video_price_720p or 8.0
-            url = item.url_720p or item.preview_url
         elif quality_tier == '1080p':
             price = item.price_1080p or photographer.video_price_1080p or 15.0
-            url = item.url_1080p or item.original_url
         elif quality_tier == '4k':
             price = item.price_4k or photographer.video_price_4k or 30.0
-            url = item.original_url
         else:
             price = item.price or photographer.video_price_1080p or 15.0
-            url = item.original_url
     else:
         if quality_tier == 'web':
             price = item.price_web or photographer.photo_price_web or 3.0
-            url = item.url_web or item.preview_url
         elif quality_tier == 'standard':
             price = item.price_standard or photographer.photo_price_standard or 5.0
-            url = item.url_standard or item.original_url
         elif quality_tier == 'high':
             price = item.price_high or photographer.photo_price_high or 10.0
-            url = item.original_url
         else:
             price = item.price or photographer.photo_price_standard or 5.0
-            url = item.original_url
     
-    return price, url
+    return price, tier_reference(item, quality_tier)

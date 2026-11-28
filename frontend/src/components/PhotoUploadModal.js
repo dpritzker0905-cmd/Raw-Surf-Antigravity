@@ -1,3 +1,4 @@
+import { galleryVideoLimitMiB } from '../utils/galleryUploadLimits';
 import React, { useState, useRef, useCallback } from 'react';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -34,6 +35,7 @@ export const PhotoUploadModal = ({
   onSuccess 
 }) => {
   const { user } = useAuth();
+  const videoLimitMiB = galleryVideoLimitMiB(user?.subscription_tier);
   const { theme } = useTheme();
   const fileInputRef = useRef(null);
   
@@ -69,10 +71,9 @@ export const PhotoUploadModal = ({
         return false;
       }
       
-      // Size limits: 20MB for images, 100MB for videos
-      const maxSize = isVideo ? 100 * 1024 * 1024 : 20 * 1024 * 1024;
+      const maxSize = isVideo ? videoLimitMiB * 1024 * 1024 : 20 * 1024 * 1024;
       if (file.size > maxSize) {
-        toast.error(`${file.name} is too large (max ${isVideo ? '100MB' : '20MB'})`);
+        toast.error(`${file.name} is too large (max ${isVideo ? videoLimitMiB + ' MiB' : '20MB'})`);
         return false;
       }
       return true;
@@ -87,7 +88,7 @@ export const PhotoUploadModal = ({
     }));
     
     setSelectedFiles(prev => [...prev, ...filesWithPreviews]);
-  }, []);
+  }, [videoLimitMiB]);
   
   // Handle drag and drop
   const handleDrop = useCallback((e) => {
@@ -268,7 +269,7 @@ export const PhotoUploadModal = ({
                   or click to browse
                 </p>
                 <p className={`text-xs ${textSecondaryClass} mt-2`}>
-                  Photos: JPG, PNG, HEIC (20MB) &middot; Videos: MP4, MOV, WebM (100MB)
+                  Photos: JPG, PNG, HEIC (20MB) &middot; Videos: MP4, MOV, WebM ({videoLimitMiB} MiB)
                 </p>
                 <input aria-label="Upload file"
                   ref={fileInputRef}

@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 4,
+  "branch": "codex/gallery-video-tier-limits",
+  "date": "2026-11-28",
+  "note": "Gallery video byte boundaries for three plans and legacy profiles"
+}

@@ -4,6 +4,8 @@ import { GalleryPage } from './GalleryPage';
 import apiClient from '../lib/apiClient';
 import useGalleryActions from '../hooks/useGalleryActions';
 
+let mockChildren = [];
+const mockFetchHighlights = jest.fn();
 let mockTheme = 'dark';
 const mockUser = { id: 'photographer-a', role: 'Photographer' };
 const mockPricing = { generalSettings: null, lastUpdated: 0 };
@@ -24,13 +26,14 @@ jest.mock('./gallery/SessionRosterCard', () => ({ SessionRosterCard: () => null 
 jest.mock('./gallery/GalleryFolderList', () => ({ GalleryFolderList: () => null }));
 jest.mock('./gallery/GalleryFolderModals', () => ({ GalleryFolderModals: () => null }));
 jest.mock('./gallery/GalleryPricingCard', () => ({ GalleryPricingCard: () => null }));
-jest.mock('./gallery/GromHighlightsCard', () => () => null);
+jest.mock('./gallery/GromHighlightsCard', () => () => 'Linked child highlights');
 jest.mock('./gallery/ProStudioManager', () => ({ ProStudioManager: () => null }));
 jest.mock('./ui/PullToRefreshIndicator', () => () => null);
 jest.mock('./ui/SkeletonVariants', () => ({ GallerySkeleton: () => 'Loading gallery' }));
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockChildren = [];
   apiClient.get.mockResolvedValue({ data: {} });
   apiClient.post.mockResolvedValue({ data: {} });
   useGalleryActions.mockImplementation(options => ({
@@ -38,6 +41,8 @@ beforeEach(() => {
     fetchGallery: async () => { options.setGallery([]); options.setLoading(false); },
     fetchGalleries: async () => { options.setGalleries([]); },
     fetchParticipants: jest.fn(),
+    fetchLinkedGroms: async () => { options.setLinkedGroms(mockChildren); return mockChildren; },
+    fetchGromHighlights: mockFetchHighlights,
   }));
 });
 
@@ -73,7 +78,10 @@ test.each(['light', 'dark', 'beach'])('recap initializes the real Gallery Hub da
 });
 
 test('ordinary Gallery Hub retains its default empty selection and watermark-preview behavior', async () => {
+  mockChildren = [{ id: 'child' }];
   render(<GalleryPage />);
+  expect(await screen.findByText('Linked child highlights')).toBeInTheDocument();
+  expect(mockFetchHighlights).toHaveBeenCalledTimes(1);
   expect(await screen.findByRole('heading', { name: 'Gallery Hub' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Distribute All to Lockers' })).not.toBeInTheDocument();
   expect(useGalleryActions.mock.calls.at(-1)[0].selectedGallery).toBeNull();
