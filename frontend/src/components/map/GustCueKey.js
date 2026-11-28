@@ -52,8 +52,8 @@ export default function GustCueKey({ className = '' }) {
   const k = gustCueKeyText(cue, reducedMotion());
   if (!k) return null;
   return (
-    <div role="note" aria-label={k.label} data-gust-cue={cue} className={`flex items-center gap-1 ${className}`}>
-      <Swatch cue={cue} /><span aria-hidden="true">{k.text}</span>
+    <div role="note" aria-label={`Colour shows gust speed. Moving marks follow the background wind. ${k.label}`} data-gust-cue={cue} className={`flex items-center gap-1 ${className}`}>
+      <Swatch cue={cue} /><span aria-hidden="true">{k.text} · Motion follows wind</span>
     </div>
   );
 }

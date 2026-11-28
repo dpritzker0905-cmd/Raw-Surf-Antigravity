@@ -6,12 +6,12 @@
  * colour the wind HEATMAP gives 40 kn in that theme: the wind field's table as drawn (WindColorRamp.resolveDrawnField: dark's
  * rules field, light's and beach's own field ramps and paths), walked on the same hue path the wind field texture is built with
  * (huePathStops). Those tables carry the wind lane's colour-blind passes (windPaletteCvd.test.js, scripts/wind-color/check.mjs),
- * so gusts inherit them. The legend bar is built from the SAME stops, value-proportional, so it cannot disagree with the map.
+ * so gusts inherit them. Gusts uses the Wind legend's gradient and value-proportional ticks in each theme.
  *
  * Units: knots, the wind layer's unit ('Wind Speed (kts)'); the frames store knots (frame_set_raster.py `gust*`). Above the
  * table's top (75 kn, hurricane force) the last colour holds, as the wind field does.
  */
-import { huePathStops, resolveDrawnField, resolveThemeRamp, sampleRamp, windLegendStops } from './WindColorRamp';
+import { huePathStops, resolveDrawnField, resolveThemeRamp, sampleRamp, windLegendGradientCSS, windLegendStops } from './WindColorRamp';
 import { WIND_FIELD_OPACITY } from './gustParticles';
 import { windDarkVividOn } from './windDarkFieldVivid';
 
@@ -23,32 +23,6 @@ export function gustStops(theme, win) {
   return huePathStops(resolveDrawnField(theme, win) || resolveThemeRamp(theme), win);
 }
 
-/**
- * GENTLER FAST BAND, LIGHT ONLY (2026-11-18, David picked "Gentler fast band" after light-mode gusts read "too dark pink in
- * areas"). Light's wind field descends steadily in lightness with speed (#307, "candidate A", D-018: x1.83 dark's strength at
- * 75 kn), tuned on WIND, which rarely passes 40 kn. Gusts routinely run 45-75 kn, so the field's darkest maroon-to-purple band
- * covered whole regions. Above 40 kn the gust field keeps the SAME hues and the same order as the wind field (faster =
- * darker, give or take light's own small rise at 40-45 kn) but descends at HALF its slope: each knot's alpha is scaled so its
- * composite L* (the multiply tint on light's ground model below, at the wind field's alpha law) = L40 + (L - L40) / 2
- * (pinned in gustsLayer.test.js against the table, not as fixed numbers). The browser A/B that found the pink regions were
- * CALM air, not fast, is under WIND_FIELD_ALPHA below.
- * Gusts and Wind differ only above 40 kn and only in light. Kill: window.__RAW_DISABLE_GUST_LIGHT_FASTBAND__ = true.
- */
-export const GUST_LIGHT_FASTBAND = Object.freeze({ fromKn: 40, slope: 0.5, ground: [0.86, 0.89, 0.92], tint: 0.70 });
-const lstar = (rgb) => {
-  const lin = rgb.map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-  const Y = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
-  return 116 * (Y > 0.008856 ? Math.cbrt(Y) : 7.787 * Y + 16 / 116) - 16;
-};
-/** Light's composite L* of a field colour at alpha a (the wind field's multiply law on the model ground). */
-export function lightCompositeL(c, a) {
-  const { ground, tint } = GUST_LIGHT_FASTBAND;
-  const t = Math.min(1, Math.max(0, a * tint));
-  return lstar([0, 1, 2].map((i) => ground[i] * (1 - t + t * c[i])));
-}
-export function gustLightFastbandOn(theme, win = (typeof window !== 'undefined' ? window : null)) {
-  return theme === 'light' && !(win && win.__RAW_DISABLE_GUST_LIGHT_FASTBAND__ === true);
-}
 /**
  * THE WIND FIELD'S ALPHA LAW (2026-11-18, the root of light's "too dark pink"). The wind HEATMAP never reads its ramp's alpha
  * channel: HEATMAP_FS draws alpha = opacity x (base + (1 - base) x smoothstep(0, rampEnd, speed)), so calm air is laid at 42%
@@ -63,24 +37,11 @@ const smooth = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1
 export function gustWindAlphaOn(theme, win = (typeof window !== 'undefined' ? window : null)) {
   return (theme === 'light' || theme === 'beach') && !(win && win.__RAW_DISABLE_GUST_WIND_ALPHA__ === true);
 }
-/** The field's alpha at `kn` before the fast band: the wind field's law on tinted themes, else the table's own. */
+/** The field's alpha at `kn`: the wind field's law on tinted themes, else the table's own. */
 export function gustBaseAlpha(theme, kn, c, win) {
   if (!gustWindAlphaOn(theme, win)) return c[3];
   const [base, rampEnd] = WIND_FIELD_ALPHA[theme];
   return base + (1 - base) * smooth(0, rampEnd, kn);
-}
-
-/** The alpha a gust field colour at `kn` draws with: the base alpha, and above 40 kn in light the gentler band's. */
-export function gustAlpha(theme, stops, kn, c, win) {
-  const { fromKn, slope } = GUST_LIGHT_FASTBAND;
-  const a0 = gustBaseAlpha(theme, kn, c, win);
-  if (!gustLightFastbandOn(theme, win) || kn <= fromKn) return a0;
-  const c40 = sampleRamp(stops, fromKn);
-  const L40 = lightCompositeL(c40, gustBaseAlpha(theme, fromKn, c40, win));
-  const want = L40 + (lightCompositeL(c, a0) - L40) * slope;
-  let lo = 0; let hi = a0;                          // composite L* falls as alpha rises: bisect on alpha
-  for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (lightCompositeL(c, mid) > want) lo = mid; else hi = mid; }
-  return (lo + hi) / 2;
 }
 
 /**
@@ -126,16 +87,13 @@ export function gustScale(theme, win) {
       const aw = windDarkFieldAlpha(kn), k = vivid ? 1 : aw;
       colors.push([Math.round(c[0] * k * 255), Math.round(c[1] * k * 255), Math.round(c[2] * k * 255), aw / WIND_FIELD_OPACITY.dark]);
     } else {
-      colors.push([Math.round(c[0] * 255), Math.round(c[1] * 255), Math.round(c[2] * 255), gustAlpha(theme, stops, kn, c, win)]);
+      colors.push([Math.round(c[0] * 255), Math.round(c[1] * 255), Math.round(c[2] * 255), gustBaseAlpha(theme, kn, c, win)]);
     }
   }
   return { breakpoints, colors };
 }
 
-/** The legend bar from the same stops (value-proportional) and the wind legend's own ticks. */
+/** Gusts report peak speed using the same absolute knot scale as Wind. */
 export function gustLegend(theme, win) {
-  const stops = gustStops(theme, win);
-  const max = stops[stops.length - 1][0] || 1;
-  const css = stops.map((s) => `rgba(${Math.round(s[1] * 255)},${Math.round(s[2] * 255)},${Math.round(s[3] * 255)},${gustAlpha(theme, stops, s[0], [s[1], s[2], s[3], s[4]], win)}) ${((s[0] / max) * 100).toFixed(1)}%`);
-  return { label: 'Wind Gusts (kts)', gradientCSS: `linear-gradient(to right, ${css.join(', ')})`, ticks: windLegendStops(theme) };
+  return { label: 'Wind Gusts (kts)', gradientCSS: windLegendGradientCSS(theme, win), ticks: windLegendStops(theme) };
 }
