@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 8,
+  "branch": "codex/watermark-logo-only-ci",
+  "date": "2026-11-28",
+  "note": "Verify Logo Only JPEG placement and opacity in both preview routes for all six positions."
+}
