@@ -128,9 +128,16 @@ async def funding_snapshot(db, dispatch, booking):
         if (str(tx.status or "").lower(), str(tx.payment_status or "").lower()) == ("expired", "unpaid") and tx.id not in markers:
             continue
         if meta.get("type") == "on_demand_dispatch":
+            if (tx.user_id != captain or meta.get("user_id", captain) != captain
+                    or str(tx.currency or "").lower() != "usd"):
+                raise reconcile()
+            if (tx.session_id != dispatch.stripe_checkout_session_id and (tx.status, tx.payment_status) == ("Pending", "Pending")
+                    and cents(tx.amount) == seats[captain]):
+                review.append({"seat": captain, "receipt_id": tx.id, "status": "pending",
+                               "amount_cents": seats[captain], "payer_id": captain})
+                continue
             if not (captain_card_marker and dispatch.deposit_paid and tx.session_id == dispatch.stripe_checkout_session_id
-                    and tx.user_id == captain and meta.get("user_id", captain) == captain
-                    and str(tx.currency or "").lower() == "usd" and (tx.status, tx.payment_status) == ("Completed", "Completed")):
+                    and (tx.status, tx.payment_status) == ("Completed", "Completed")):
                 raise reconcile()
             assign(captain, Funding(captain, tx.id, "card", cents(tx.amount)))
             if captain_card_marker in blocked_sources:

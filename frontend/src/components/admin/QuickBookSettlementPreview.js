@@ -97,8 +97,9 @@ export default function QuickBookSettlementPreview() {
       <ul>{result.seats.map((s) => <li key={s.seat}>Seat {s.seat}: return {usd(s.refund_cents)},
         photographer {usd(s.photographer_gross_cents)}, reserved {usd(s.reserved_cents)}{s.reserve_reason && ' · ' + s.reserve_reason}
         {s.confirmed_after_cancellation && ' · Card payment confirmed after cancellation'}</li>)}</ul>
-      <ul>{result.funding.map((s) => <li key={s.source_id}>Payer {s.payer_id}: {usd(s.refund_cents)} to wallet,
-        including {usd(s.promo_refund_cents)} promotional credit.</li>)}</ul>
+      <ul>{result.funding.map((s) => <li key={s.source_id}>Payer {s.payer_id} ({s.method}): {s.refund_cents
+        ? `Refund to wallet ${usd(s.refund_cents)}${s.promo_refund_cents ? `, including ${usd(s.promo_refund_cents)} promotional credit` : ''}.`
+        : 'No wallet refund proposed.'}</li>)}</ul>
       {result.separate_receipts.map((r) => <p key={r.receipt_id}>Receipt {r.receipt_id} for {usd(r.amount_cents)} from {r.payer_id} ({r.status}) requires separate review.</p>)}
     </section>}
   </details>;

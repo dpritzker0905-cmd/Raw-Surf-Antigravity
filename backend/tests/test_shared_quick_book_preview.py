@@ -163,8 +163,9 @@ async def test_prior_refund_request_requires_reconciliation(held):
     assert response.status_code == 409
 
 
-@pytest.mark.parametrize("confirm_early", [True, False], ids=["completed_guest", "late_guest"])
-async def test_preview_from_confirmed_card_checkouts(shared, harness, monkeypatch, confirm_early):
+@pytest.mark.parametrize(("confirm_early", "retry_captain"), [(True, False), (False, False), (True, True)],
+                         ids=["completed_guest", "late_guest", "abandoned_captain_checkout"])
+async def test_preview_from_confirmed_card_checkouts(shared, harness, monkeypatch, confirm_early, retry_captain):
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
     from models import DispatchRequestStatusEnum as Status, PaymentTransaction
@@ -190,13 +191,22 @@ async def test_preview_from_confirmed_card_checkouts(shared, harness, monkeypatc
     monkeypatch.setattr(dispatch_matching, "notify_crew_members", AsyncMock())
     monkeypatch.setattr(dispatch_matching, "process_dispatch_notifications", AsyncMock())
     terms = {**TERMS, "crew_shares": [{"user_id": "north", "covered_by_captain": True}]}
+    if retry_captain:
+        async with maker.begin() as db:
+            (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining = 0
     quote = await preview(client, terms)
+    captain_cents = quote["captain_cents"]
     did = (await create(client, terms, quote["quote_id"])).json()["id"]
-    response = await client.post("/api/dispatch/checkout", headers=bearer(CAPTAIN), json={
-        "dispatch_id": did, "payer_id": CAPTAIN, "origin_url": "https://fixture.invalid"})
-    assert response.status_code == 200, response.text
+    async def captain_checkout():
+        response = await client.post("/api/dispatch/checkout", headers=bearer(CAPTAIN), json={
+            "dispatch_id": did, "payer_id": CAPTAIN, "origin_url": "https://fixture.invalid"})
+        assert response.status_code == 200, response.text
+        return response.json()["session_id"]
+
+    abandoned = await captain_checkout() if retry_captain else None
+    paid_session = await captain_checkout()
     confirmed = await client.get("/api/dispatch/payment-success", params={
-        "dispatch_id": did, "session_id": response.json()["session_id"]})
+        "dispatch_id": did, "session_id": paid_session})
     assert confirmed.status_code == 200 and confirmed.json()["success"], confirmed.text
     async with maker.begin() as db:
         row = await db.get(DispatchRequest, did)
@@ -235,21 +245,26 @@ async def test_preview_from_confirmed_card_checkouts(shared, harness, monkeypatc
     assert response.status_code == 200, response.text
     result = response.json()
     assert (result["collected_cents"], result["refund_cents"], result["reserved_cents"],
-            result["photographer_gross_cents"]) == (7000, 3500, 3500, 0)
+            result["photographer_gross_cents"]) == (captain_cents + 3500, 3500, captain_cents, 0)
     captain = next(s for s in result["seats"] if s["role"] == "captain")
     assert (captain["method"], captain["reserved_cents"], captain["reserve_reason"]) == (
-        "card", 3500, "Card return destination needs review")
+        "card", captain_cents, "Card return destination needs review")
     south = next(s for s in result["seats"] if s["seat"] == "south")
     assert south["refund_cents"] == 3500 and south["confirmed_after_cancellation"] == (not confirm_early)
     async with maker() as db:
         duplicate = await db.scalar(select(PaymentTransaction).where(PaymentTransaction.session_id == extra))
-        assert result["separate_receipts"] == [{"seat": "south", "receipt_id": duplicate.id,
-                "status": "review_required", "amount_cents": 3500, "payer_id": "south"}]
+        expected = [{"seat": "south", "receipt_id": duplicate.id, "status": "review_required",
+                     "amount_cents": 3500, "payer_id": "south"}]
+        if abandoned:
+            earlier = await db.scalar(select(PaymentTransaction).where(PaymentTransaction.session_id == abandoned))
+            expected.append({"seat": CAPTAIN, "receipt_id": earlier.id, "status": "pending",
+                             "amount_cents": captain_cents, "payer_id": CAPTAIN})
+        assert sorted(result["separate_receipts"], key=lambda r: r["seat"]) == sorted(expected, key=lambda r: r["seat"])
     mixed = await client.post(path, headers=bearer(PRO), json={"seats": [
         {"seat": CAPTAIN, "outcome": "delivered", "evidence": "delivery"}, seats[-1]]})
     assert mixed.status_code == 200, mixed.text
     captain = next(s for s in mixed.json()["seats"] if s["role"] == "captain")
-    assert captain["photographer_gross_cents"] == 0 and captain["reserved_cents"] == 3500
+    assert captain["photographer_gross_cents"] == 0 and captain["reserved_cents"] == captain_cents
 
 
 async def test_wallet_preview_omits_empty_card_lookup_and_checks_missing_period(held):

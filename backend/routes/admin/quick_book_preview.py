@@ -76,7 +76,7 @@ def allocate(amount, decision):
     return amount - earned, earned, 0
 
 
-async def unit_preview(db, dispatch, decision):
+async def unit_preview(db, dispatch, decision, as_of):
     source = dispatch.included_subscription_id
     if source is None:
         return {"action": "none"}
@@ -89,12 +89,11 @@ async def unit_preview(db, dispatch, decision):
     elif decision.outcome == "delivered" or decision.partial_unit_consent:
         action = "consume_one"
     else:
-        now = datetime.now(timezone.utc)
         def utc(dt):
             return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
         current_period = (plan.started_at and dispatch.created_at and plan.expires_at
                           and utc(plan.started_at) <= utc(dispatch.created_at) < utc(plan.expires_at))
-        action = "restore_one" if current_period and plan.status == "active" and utc(plan.expires_at) > now else "replacement_review"
+        action = "restore_one" if current_period and plan.status == "active" and utc(plan.expires_at) > as_of else "replacement_review"
     return {"action": action, "subscriber_id": dispatch.requester_id, "subscription_id": source}
 
 
@@ -121,7 +120,7 @@ async def settlement_preview(dispatch_id: str, body: PreviewRequest, response: R
     captain = dispatch.requester_id
     captain_funding = funded.get(captain)
     unit_disputed = booking_disputed or (captain_funding and captain_funding.source in blocked_sources)
-    unit = await unit_preview(db, dispatch, None if unit_disputed else decisions.get(captain))
+    unit = await unit_preview(db, dispatch, None if unit_disputed else decisions.get(captain), as_of)
     outcomes = {decisions[s].outcome if s in decisions else None for s in seats}
     common_result = outcomes in ({"no_service"}, {"delivered"}) and not (booking_disputed or blocked_sources)
     # A captain may have agreed to cover some or all of a friend's original quote.
