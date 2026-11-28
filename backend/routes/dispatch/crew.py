@@ -20,7 +20,7 @@ from utils.geo import haversine_distance
 from database import get_db
 from utils.credits import consume_spend_only_for_debit
 from utils.checkout_recovery import persist_pending_checkout
-from utils.crew_card_fulfillment import CLOSED_STATES, crew_share_cents, fulfill_crew_card_payment, is_crew_card_payment
+from utils.crew_card_fulfillment import captain_confirmation_pending, CLOSED_STATES, crew_share_cents, fulfill_crew_card_payment, is_crew_card_payment
 from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
@@ -66,7 +66,7 @@ async def get_crew_invites(
     invites = []
     for participant in participants:
         dispatch = participant.dispatch_request
-        if not dispatch or dispatch.status in [
+        if not dispatch or captain_confirmation_pending(dispatch) or dispatch.status in [
             DispatchRequestStatusEnum.COMPLETED,
             DispatchRequestStatusEnum.CANCELLED
         ]:
@@ -235,6 +235,8 @@ async def pay_crew_share(
     locked = await db.execute(select(DispatchRequestParticipant).where(DispatchRequestParticipant.id == participant_id)
                               .with_for_update().execution_options(populate_existing=True))
     participant = locked.scalar_one()
+    if captain_confirmation_pending(dispatch):
+        raise HTTPException(409, detail="The captain must confirm before the crew can pay.")
     if participant.paid or participant.status == 'paid':
         raise HTTPException(status_code=400, detail="Already paid")
     
@@ -408,6 +410,8 @@ async def crew_invite_checkout(
         raise HTTPException(status_code=400, detail="Already paid")
 
     dispatch = participant.dispatch_request
+    if captain_confirmation_pending(dispatch):
+        raise HTTPException(409, detail="The captain must confirm before the crew can pay.")
     if dispatch.status in CLOSED_STATES or participant.status not in ('invited', 'pending', 'confirmed'):
         raise HTTPException(status_code=400, detail="Session state is locked (arrived, completed, or cancelled)")
 

@@ -103,7 +103,8 @@ async def complete_dispatch_session(
     participants_result = await db.execute(
         select(DispatchRequestParticipant)
         .where(DispatchRequestParticipant.dispatch_request_id == dispatch_id)
-        .where(DispatchRequestParticipant.status == 'paid')
+        .where((DispatchRequestParticipant.status == 'paid') | (
+            (DispatchRequestParticipant.status == 'covered') & DispatchRequestParticipant.paid.is_(True)))
     )
     additional_participants = participants_result.scalars().all()
     for p in additional_participants:

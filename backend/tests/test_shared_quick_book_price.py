@@ -410,3 +410,57 @@ async def test_accepted_cancellation_returns_unit_and_applies_fee_to_paid_cash_o
     async with maker() as db:
         assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 1
         assert (await db.get(Profile, CAPTAIN)).credit_balance == 82.50
+
+
+async def test_no_crew_payment_can_precede_the_captain_confirmation(shared, harness, monkeypatch):
+    from routes.dispatch import progress
+
+    app, client, maker = harness
+    app.include_router(progress.router, prefix="/api")
+    dispatch_id = (await create(client, TERMS, (await preview(client, TERMS))["quote_id"])).json()["id"]
+    async with maker() as db:
+        seat = await db.scalar(select(DispatchRequestParticipant.id).where(DispatchRequestParticipant.participant_id == "north"))
+    listing = await client.get("/api/dispatch/user/north/crew-invites", headers=bearer("north"))
+    assert listing.json()["crew_invites"] == []
+    create_card = Mock(side_effect=AssertionError("No card checkout before captain confirmation"))
+    monkeypatch.setattr(sessions.stripe.checkout.Session, "create", create_card)
+    for action in ("pay", "checkout"):
+        result = await client.post(f"/api/dispatch/crew-invite/{seat}/{action}?payer_id=north",
+                                   json={}, headers=bearer("north"))
+        assert result.status_code == 409, result.text
+    result = await client.post(f"/api/dispatch/{dispatch_id}/cover-remaining", json={"captain_id":CAPTAIN}, headers=bearer(CAPTAIN))
+    assert result.status_code == 409, result.text
+    async with maker() as db:
+        assert await db.scalar(select(func.count()).select_from(CreditTransaction)) == 0
+        assert (await db.get(Profile, "north")).credit_balance == 100
+    create_card.assert_not_called()
+
+
+async def test_booking_escrow_tracks_funded_shares_before_and_after_arrival(shared, harness, monkeypatch):
+    from models import Booking, DispatchRequestStatusEnum as Status
+    from routes.dispatch import lifecycle, progress
+
+    app, client, maker = harness
+    app.include_router(lifecycle.router, prefix="/api")
+    app.include_router(progress.router, prefix="/api")
+    dispatch_id = (await create(client, TERMS, (await preview(client, TERMS))["quote_id"])).json()["id"]
+    assert (await client.post(f"/api/dispatch/{dispatch_id}/pay?payer_id=victim", headers=bearer(CAPTAIN))).status_code == 200
+    async with maker.begin() as db:
+        row = await db.get(DispatchRequest, dispatch_id)
+        row.status, row.photographer_id = Status.EN_ROUTE, PRO
+        seat = await db.scalar(select(DispatchRequestParticipant.id).where(DispatchRequestParticipant.participant_id == "north"))
+    assert (await client.post(f"/api/dispatch/crew-invite/{seat}/pay?payer_id=north",
+                              json={"selfie_url":"fixture.jpg"}, headers=bearer("north"))).status_code == 200
+    arrived = await client.post(f"/api/dispatch/{dispatch_id}/arrived?photographer_id={PRO}", headers=bearer(PRO))
+    assert arrived.status_code == 200, arrived.text
+    async with maker() as db:
+        booking = await db.get(Booking, arrived.json()["booking_id"])
+        assert (booking.total_price, booking.escrow_amount) == (70, 35)
+    for _ in range(2):
+        result = await client.post(f"/api/dispatch/{dispatch_id}/cover-remaining",
+                                   json={"captain_id":CAPTAIN}, headers=bearer(CAPTAIN))
+        assert result.status_code == 200, result.text
+    async with maker() as db:
+        booking = await db.get(Booking, arrived.json()["booking_id"])
+        assert booking.escrow_amount == 70
+        assert (await db.get(Profile, CAPTAIN)).credit_balance == 65

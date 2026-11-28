@@ -530,6 +530,19 @@ async def mark_arrived(
     dispatch.status_changed_at = now
     dispatch.arrived_at = now
     
+    crew_result = await db.execute(
+        select(DispatchRequestParticipant)
+        .where(DispatchRequestParticipant.dispatch_request_id == dispatch_id)
+    )
+    crew_participants = crew_result.scalars().all()
+
+    held = dispatch.deposit_amount or 0
+    if dispatch.is_shared and dispatch.target_photographer_id:
+        # A personal allowance has no cash value in escrow. Include only settled shares.
+        held = round((held if dispatch.deposit_paid else 0) + sum(
+            cp.share_amount for cp in crew_participants if cp.paid and cp.share_amount
+        ), 2)
+
     # Auto-create a Private Booking
     booking = Booking(
         photographer_id=photographer_id,
@@ -543,7 +556,7 @@ async def mark_arrived(
         duration=int((dispatch.estimated_duration_hours or 1) * 60),
         status='in_progress',
         total_price=dispatch.estimated_total or 0,
-        escrow_amount=dispatch.deposit_amount or 0,
+        escrow_amount=held,
         escrow_status='held'
     )
     
@@ -565,12 +578,6 @@ async def mark_arrived(
     dispatch.booking_id = booking.id
     
     # === DATA INTEGRITY: Create frozen snapshot of participant data ===
-    crew_result = await db.execute(
-        select(DispatchRequestParticipant)
-        .where(DispatchRequestParticipant.dispatch_request_id == dispatch_id)
-    )
-    crew_participants = crew_result.scalars().all()
-    
     snapshot_data = {
         "captain": {
             "id": dispatch.requester_id,

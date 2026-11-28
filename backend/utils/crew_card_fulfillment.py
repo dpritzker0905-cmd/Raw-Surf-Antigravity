@@ -14,6 +14,11 @@ CLOSED_STATES = frozenset({DispatchRequestStatusEnum.ARRIVED, DispatchRequestSta
                           DispatchRequestStatusEnum.NO_PRO_FOUND})
 
 
+def captain_confirmation_pending(dispatch):
+    return (dispatch.is_shared and dispatch.target_photographer_id
+            and dispatch.status == DispatchRequestStatusEnum.PENDING_PAYMENT)
+
+
 def _metadata(transaction):
     try:
         value = json.loads(transaction.transaction_metadata or '{}')
@@ -133,7 +138,7 @@ async def fulfill_crew_card_payment(db, transaction):
                 and records[0].spend_only_amount == 0 and records[0].user_id == transaction.user_id):
             return _outcome('completed', receipt, 'Crew payment confirmed. Your share is paid.')
         return _outcome('review_required', receipt, 'Payment was recorded, but the current crew participation needs review.')
-    if (not linked or dispatch.status in CLOSED_STATES or participant.status not in ('invited', 'pending', 'confirmed')
+    if (not linked or captain_confirmation_pending(dispatch) or dispatch.status in CLOSED_STATES or participant.status not in ('invited', 'pending', 'confirmed')
             or participant.paid or records):
         return _review(transaction, receipt, 'This share is already paid or the crew session is no longer eligible.', paid=True)
     try:
