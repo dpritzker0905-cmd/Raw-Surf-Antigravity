@@ -37,6 +37,8 @@ from websocket_manager import broadcast_earnings_update
 from services.watermark import watermark_image_from_url, generate_watermarked_preview
 from utils.grom_parent import is_grom_parent_eligible
 
+from services.gallery_tiers import tier_reference
+from services.gallery_media import is_private_gallery_asset
 from .schemas import (
     GalleryItemCreate, GalleryItemUpdate, GalleryItemResponse,
     PurchaseRequest, GalleryCreate, GalleryUpdate,
@@ -353,7 +355,7 @@ async def bulk_purchase_items(
     # Get all items
     items_result = await db.execute(
         select(GalleryItem)
-        .where(GalleryItem.id.in_(data.item_ids))
+        .where(GalleryItem.id.in_(data.item_ids)).order_by(GalleryItem.id).with_for_update(of=GalleryItem)
         .options(selectinload(GalleryItem.photographer))
     )
     items = items_result.scalars().all()
@@ -399,7 +401,11 @@ async def bulk_purchase_items(
                 'high': item.price_high or 10
             }
         
-        price = tier_prices.get(tier, item.price or 5)
+        if tier not in tier_prices:
+            raise HTTPException(status_code=400, detail="Unknown quality tier for this item")
+        if not is_private_gallery_asset(tier_reference(item, tier), owner_id=item.photographer_id):
+            raise HTTPException(status_code=503, detail="Purchased quality is temporarily unavailable")
+        price = tier_prices[tier]
         
         # Apply custom price if set
         if item.custom_price is not None:
@@ -587,7 +593,7 @@ async def get_quality_previews(
     else:
         previews = {
             'web': {
-                'url': item.url_web or item.thumbnail_url or item.preview_url,
+                'url': item.thumbnail_url or item.preview_url,
                 'dimensions': '800px max',
                 'file_size': '~200KB'
             },

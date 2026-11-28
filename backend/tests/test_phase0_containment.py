@@ -100,7 +100,7 @@ async def harness(tmp_path, monkeypatch):
         db.add(GalleryItem(id='item', gallery_id='gal', photographer_id='pro', media_type='image', price=5.0,
                            original_url='supabase://gallery_originals/pro/o.jpg',
                            preview_url='https://cdn.fixture.invalid/p.jpg'))
-        db.add(GalleryPurchase(gallery_item_id='item', buyer_id='buyer', photographer_id='pro', amount_paid=5.0))
+        db.add(GalleryPurchase(gallery_item_id='item', buyer_id='buyer', photographer_id='pro', quality_tier='high', amount_paid=5.0))
         await db.commit()
 
     monkeypatch.setattr(auth_routes, 'rate_limit_check', lambda *a, **k: None)

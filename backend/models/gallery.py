@@ -118,6 +118,13 @@ class GalleryPurchase(Base):
 
 
 
+class GalleryOriginalTransferGrant(Base):
+    """Operator-reviewed historical transfer entitlement for one existing receipt."""
+    __tablename__ = 'gallery_original_transfer_grants'
+    purchase_id = Column(String(36), ForeignKey('gallery_purchases.id', ondelete='CASCADE'), primary_key=True)
+    evidence_ref = Column(Text, nullable=False)
+
+
 class PhotoTag(Base):
     """Tracks surfer tags on photos with viewing/claiming status"""
     __tablename__ = 'photo_tags'

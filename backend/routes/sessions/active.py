@@ -129,7 +129,7 @@ async def purchase_photo_in_session(
     item_result = await db.execute(
         select(GalleryItem)
         .where(GalleryItem.id == data.gallery_item_id)
-        .where(GalleryItem.photographer_id == participant.photographer_id)
+        .where(GalleryItem.photographer_id == participant.photographer_id).with_for_update(of=GalleryItem)
     )
     gallery_item = item_result.scalar_one_or_none()
     
@@ -161,6 +161,15 @@ async def purchase_photo_in_session(
     # Use photographer's per-photo price (SmugMug style)
     photo_price = photographer.live_photo_price or gallery_item.price or 5.0
     
+    download_url = await authorized_gallery_delivery_url(
+        gallery_item.original_url,
+        original_url=gallery_item.original_url,
+        preview_url=gallery_item.preview_url,
+        owner_id=gallery_item.photographer_id,
+    )
+    if not download_url:
+        raise HTTPException(status_code=503, detail="Private gallery delivery is temporarily unavailable")
+
     # Check if subscription quota covers this item (photo or video)
     from routes.subscriptions_billing.photo_sub_helpers import try_use_subscription_quota
 
@@ -210,7 +219,7 @@ async def purchase_photo_in_session(
         photographer_id=photographer.id,
         amount_paid=photo_price,
         payment_method='subscription' if subscription_covered else 'credits',
-        quality_tier='high',
+        quality_tier='4k' if gallery_item.media_type == 'video' else 'high',
         download_count=1,
     )
     db.add(purchase)
@@ -223,14 +232,6 @@ async def purchase_photo_in_session(
     
     await db.commit()
 
-    download_url = await authorized_gallery_delivery_url(
-        gallery_item.original_url,
-        original_url=gallery_item.original_url,
-        preview_url=gallery_item.preview_url,
-        owner_id=gallery_item.photographer_id,
-    )
-    if not download_url:
-        raise HTTPException(status_code=503, detail="Private gallery delivery is temporarily unavailable")
     
     return {
         "message": "Included with subscription!" if subscription_covered else "Photo purchased successfully",

@@ -37,3 +37,11 @@ BEGIN
     VALUES ('gallery_originals', 'gallery_originals', false)
     ON CONFLICT (id) DO UPDATE SET public = false;
 END $$;
+
+-- Enter a row only after matching documented customer terms to this receipt.
+CREATE TABLE IF NOT EXISTS public.gallery_original_transfer_grants (
+    purchase_id varchar(36) PRIMARY KEY REFERENCES public.gallery_purchases(id) ON DELETE CASCADE,
+    evidence_ref text NOT NULL CHECK (length(trim(evidence_ref)) > 0)
+);
+ALTER TABLE public.gallery_original_transfer_grants ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.gallery_original_transfer_grants FROM PUBLIC, anon, authenticated;

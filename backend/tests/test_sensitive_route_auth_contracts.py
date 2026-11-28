@@ -121,9 +121,8 @@ def test_public_upload_contract_is_disjoint_from_private_media():
     assert "RAISE EXCEPTION" in provision
     assert '"gallery_originals"' in private_media
     assert "VALUES ('gallery_originals', 'gallery_originals', false)" in private_provision
-    assert 'public_keys_to_delete' in gallery_migration
-    assert 'local_keys_to_delete' in gallery_migration
-    assert 'surfer_gallery_items' in gallery_migration
+    assert 'storage.retire(source)' in gallery_migration
+    assert 'journal belongs to another environment' in gallery_migration
     assert 'pg_policies' in private_provision
     assert 'INLINE_DELIVERY_BUCKETS' in private_media
     assert "upload_private_media(" in upload_core

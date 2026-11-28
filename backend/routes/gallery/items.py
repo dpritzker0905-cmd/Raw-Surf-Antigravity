@@ -352,7 +352,7 @@ async def get_gallery_item(
             select(GalleryPurchase).where(
                 GalleryPurchase.gallery_item_id == item_id,
                 GalleryPurchase.buyer_id == viewer_id
-            )
+            ).limit(1)
         )
         is_purchased = purchase_result.scalar_one_or_none() is not None
     

@@ -43,7 +43,8 @@ def profile(pid, role, balance=0.0, name=None):
 
 
 def gallery_item(item_id, photographer_id, price):
-    return GalleryItem(id=item_id, photographer_id=photographer_id, original_url=f'https://x.invalid/{item_id}.jpg',
+    return GalleryItem(id=item_id, photographer_id=photographer_id, original_url=f'supabase://gallery_originals/{photographer_id}/{item_id}.jpg',
+                       url_standard=f'supabase://gallery_originals/{photographer_id}/{item_id}-standard.jpg',
                        preview_url=f'https://x.invalid/{item_id}-p.jpg', price_standard=price, title=item_id)
 
 
