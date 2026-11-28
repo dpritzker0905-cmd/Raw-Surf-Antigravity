@@ -440,6 +440,9 @@ async def get_watermarked_preview(
             watermark_style = photographer.watermark_style
     
     # Generate watermarked preview
+    logo_only = watermark_style == 'logo'
+    if logo_only:
+        watermark_style = photographer.watermark_position or 'bottom-right'
     image_url = item.preview_url or item.original_url
     if not image_url:
         raise HTTPException(status_code=404, detail="No preview image available")
@@ -450,7 +453,8 @@ async def get_watermarked_preview(
         watermark_text=watermark_text,
         opacity=opacity,
         custom_logo_url=custom_logo_url,
-        watermark_style=watermark_style
+        watermark_style=watermark_style,
+        logo_only=logo_only,
     )
     
     if not watermarked_bytes:
@@ -503,7 +507,8 @@ async def generate_watermark_preview_endpoint(
         watermark_text=watermark_text,
         opacity=data.watermark_opacity,
         custom_logo_url=custom_logo_url,
-        watermark_style=position
+        watermark_style=position,
+        logo_only=data.watermark_style == 'logo',
     )
     
     if not watermarked_bytes:

@@ -414,13 +414,45 @@ def watermark_image_bytes(
         return None, None
 
 
+def _logo_only_preview(image, logo, opacity, position):
+    """Composite the logo at its saved position, preserving its own alpha."""
+    width, height = image.size
+    fraction = 0.4 if position == 'center' else 0.2
+    scale = min(width * fraction / logo.width, height * fraction / logo.height)
+    size = (max(1, round(logo.width * scale)), max(1, round(logo.height * scale)))
+    stamp = logo.convert('RGBA').resize(size, Image.Resampling.LANCZOS)
+    stamp.putalpha(stamp.getchannel('A').point(lambda alpha: int(alpha * opacity)))
+    result = image.convert('RGBA')
+    margin = int(min(width, height) * 0.05)
+    if position == 'tiled':
+        gap = max(1, margin * 2)
+        for y in range(margin, height, stamp.height + gap):
+            for x in range(margin, width, stamp.width + gap):
+                result.alpha_composite(stamp, (x, y))
+    else:
+        x = (width - stamp.width) // 2
+        y = (height - stamp.height) // 2
+        if position.endswith('-left'):
+            x = margin
+        elif position.endswith('-right'):
+            x = width - stamp.width - margin
+        if position.startswith('top-'):
+            y = margin
+        elif position.startswith('bottom-'):
+            y = height - stamp.height - margin
+        result.alpha_composite(stamp, (x, y))
+    return result.convert('RGB')
+
+
 async def generate_watermarked_preview(
     original_url: str,
     max_dimension: int = 1080,  # 1080p for Standard tier
     watermark_text: str = DEFAULT_WATERMARK_TEXT,
     opacity: float = DEFAULT_WATERMARK_OPACITY,
     custom_logo_url: Optional[str] = None,
-    watermark_style: str = 'center'
+    watermark_style: str = 'center',
+    *,
+    logo_only: bool = False,
 ) -> Optional[bytes]:
     """
     Generate a watermarked preview image for Standard tier
@@ -432,6 +464,7 @@ async def generate_watermarked_preview(
         watermark_text: Text for text-based watermark
         opacity: Watermark opacity (0-1)
         custom_logo_url: Optional URL to custom watermark logo
+        logo_only: Place the loaded logo without a caption. If absent, retain the text watermark.
         watermark_style: 'center' (single logo) or 'pattern' (repeating)
     
     Returns:
@@ -464,13 +497,13 @@ async def generate_watermarked_preview(
             logo_image = await get_custom_logo(custom_logo_url)
         
         # Apply watermark
-        watermarked = apply_watermark(
-            image, 
-            text=watermark_text, 
-            opacity=opacity,
-            logo_image=logo_image,
-            watermark_style=watermark_style
-        )
+        if logo_only and logo_image is not None:
+            watermarked = _logo_only_preview(image, logo_image, opacity, watermark_style)
+        else:
+            watermarked = apply_watermark(
+                image, text=watermark_text, opacity=opacity,
+                logo_image=logo_image, watermark_style=watermark_style,
+            )
         
         # Save to bytes
         output = io.BytesIO()
