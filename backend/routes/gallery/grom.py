@@ -35,7 +35,6 @@ from services.gallery_sync import (
 from websocket_manager import broadcast_earnings_update
 from services.watermark import watermark_image_from_url, generate_watermarked_preview
 from utils.grom_parent import is_grom_parent_eligible
-from services.guardian_levels import is_confirmed_guardian
 from services.grom_media_policy import is_verified_guardian
 
 from .schemas import (
@@ -49,6 +48,13 @@ router = APIRouter()
 
 # ============ CROSS-PROFILE TAGGING (Parent → Grom) ============
 
+
+def _require_parent_actor(parent_id: str, current_user_id: str) -> None:
+    """A client-supplied parent ID selects data; only the JWT subject supplies authority."""
+    if parent_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
+
+
 class GromTagRequest(BaseModel):
     gallery_item_id: str
     grom_id: str
@@ -58,6 +64,7 @@ class GromTagRequest(BaseModel):
 async def tag_grom_in_photo(
     data: GromTagRequest,
     parent_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -66,6 +73,8 @@ async def tag_grom_in_photo(
     """
     from models import PhotoTag
     from sqlalchemy.orm.attributes import flag_modified
+
+    _require_parent_actor(parent_id, current_user_id)
     
     # Verify parent is a Grom Parent
     parent_result = await db.execute(select(Profile).where(Profile.id == parent_id))
@@ -84,7 +93,7 @@ async def tag_grom_in_photo(
     if not grom:
         raise HTTPException(status_code=404, detail="Grom profile not found")
     
-    if not is_confirmed_guardian(grom, parent_id):
+    if not await is_verified_guardian(db, grom, current_user_id):
         raise HTTPException(status_code=403, detail="You can only tag your linked Grom")
     
     if grom.role != RoleEnum.GROM:
@@ -158,10 +167,13 @@ async def untag_grom_from_photo(
     gallery_item_id: str,
     grom_id: str,
     parent_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Remove Grom tag from a photo"""
     from models import PhotoTag
+
+    _require_parent_actor(parent_id, current_user_id)
     
     # Verify parent owns the photo
     item_result = await db.execute(select(GalleryItem).where(GalleryItem.id == gallery_item_id))
@@ -172,6 +184,11 @@ async def untag_grom_from_photo(
     
     if item.photographer_id != parent_id:
         raise HTTPException(status_code=403, detail="You can only untag from your own photos")
+
+    grom_result = await db.execute(select(Profile).where(Profile.id == grom_id, Profile.role == RoleEnum.GROM))
+    grom = grom_result.scalar_one_or_none()
+    if not grom or not await is_verified_guardian(db, grom, current_user_id):
+        raise HTTPException(status_code=403, detail="You can only untag your linked Grom")
     
     # Find and delete the tag
     tag_result = await db.execute(
@@ -202,6 +219,7 @@ async def get_grom_highlights(
     grom_id: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -209,6 +227,8 @@ async def get_grom_highlights(
     Used for the "Grom Highlights" section in parent's gallery.
     """
     from models import PhotoTag
+
+    _require_parent_actor(parent_id, current_user_id)
     
     # Verify parent is a Grom Parent
     parent_result = await db.execute(select(Profile).where(Profile.id == parent_id))
@@ -221,19 +241,22 @@ async def get_grom_highlights(
         raise HTTPException(status_code=403, detail="Only Grom Parents can view Grom Highlights")
     
     # If specific grom_id provided, use that; otherwise get all linked Groms
+    groms = []
     if grom_id:
         # Verify grom is linked to this parent
-        grom_result = await db.execute(select(Profile).where(
-            Profile.id == grom_id, Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True)))
+        grom_result = await db.execute(select(Profile).where(Profile.id == grom_id, Profile.role == RoleEnum.GROM))
         grom = grom_result.scalar_one_or_none()
-        if not grom:
+        if not grom or not await is_verified_guardian(db, grom, current_user_id):
             raise HTTPException(status_code=403, detail="Grom is not linked to this parent")
         grom_ids = [grom_id]
     else:
         # Get all linked Groms
         groms_result = await db.execute(select(Profile).where(
             Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True), Profile.role == RoleEnum.GROM))
-        groms = groms_result.scalars().all()
+        linked_groms = groms_result.scalars().all()
+        for grom in linked_groms:
+            if await is_verified_guardian(db, grom, current_user_id):
+                groms.append(grom)
         grom_ids = [g.id for g in groms]
     
     if not grom_ids:
@@ -264,9 +287,6 @@ async def get_grom_highlights(
     # Get grom info
     groms_info = []
     if not grom_id:
-        groms_result = await db.execute(select(Profile).where(
-            Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True), Profile.role == RoleEnum.GROM))
-        groms = groms_result.scalars().all()
         groms_info = [{"id": g.id, "name": g.full_name, "avatar": g.avatar_url} for g in groms]
     
     # Build response
@@ -274,7 +294,6 @@ async def get_grom_highlights(
     for item, tag in rows:
         items.append({
             "id": item.id,
-            "original_url": item.original_url,
             "preview_url": item.preview_url,
             "thumbnail_url": item.thumbnail_url,
             "media_type": item.media_type,
@@ -363,12 +382,15 @@ async def get_grom_profile_photos(
 @router.get("/gallery/linked-groms/{parent_id}")
 async def get_linked_groms(
     parent_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get all Groms linked to a parent.
     Used for the tagging dropdown in parent's gallery.
     """
+    _require_parent_actor(parent_id, current_user_id)
+
     # Verify parent
     parent_result = await db.execute(select(Profile).where(Profile.id == parent_id))
     parent = parent_result.scalar_one_or_none()
@@ -385,7 +407,11 @@ async def get_linked_groms(
         .where(Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True), Profile.role == RoleEnum.GROM)
         .order_by(Profile.full_name)
     )
-    groms = result.scalars().all()
+    linked_groms = result.scalars().all()
+    groms = []
+    for grom in linked_groms:
+        if await is_verified_guardian(db, grom, current_user_id):
+            groms.append(grom)
     
     return {
         "groms": [
