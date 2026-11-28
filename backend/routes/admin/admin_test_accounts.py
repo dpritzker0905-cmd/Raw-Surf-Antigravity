@@ -8,11 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, desc
 from pydantic import BaseModel
 from typing import Optional, List
+import secrets
 from datetime import datetime, timezone, timedelta
 
+from core.password_policy import validate_new_password
 from database import get_db
 from deps.admin_auth import get_current_admin
 from models import Profile, UserActivityLog, RoleEnum
+from routes.auth_pkg.auth import hash_password
 from .moderation import log_audit
 
 router = APIRouter()
@@ -63,7 +66,7 @@ class SeedTestAccountsRequest(BaseModel):
     """Request to seed multiple test accounts"""
     accounts: List[TestAccountConfig] = []
     seed_all_roles: bool = False  # Create one of each role type
-    password: str = "Test123!"  # Default password for all accounts
+    password: Optional[str] = None
 
 @router.post("/admin/seed-test-accounts")
 async def seed_test_accounts(
@@ -77,22 +80,18 @@ async def seed_test_accounts(
     - seed_all_roles=True: Creates one account for each role type
     - accounts: Specific account configurations
     
-    All accounts use the same password (default: Test123!)
+    A supplied batch password is shared unless an individual account overrides it.
     """
     # Verify admin
     
-    import hashlib
     import uuid
     
     def generate_uuid():
         return str(uuid.uuid4())
     
-    def hash_password(password: str) -> str:
-        return hashlib.sha256(password.encode()).hexdigest()
-    
     created_accounts = []
-    password = request.password
-    password_hash = hash_password(password)
+    password = request.password if request.password is not None else secrets.token_urlsafe(24)
+    validate_new_password(password)
     
     # Define role configurations
     role_configs = {
@@ -151,10 +150,17 @@ async def seed_test_accounts(
     else:
         accounts_to_create = request.accounts
     
+    accounts_and_passwords = [
+        (config, config.custom_password if config.custom_password is not None else password)
+        for config in accounts_to_create
+    ]
+    for _, account_password in accounts_and_passwords:
+        validate_new_password(account_password)
+
     # Generate unique timestamp suffix
     timestamp_suffix = datetime.now().strftime("%H%M%S")
     
-    for idx, config in enumerate(accounts_to_create):
+    for config, account_password in accounts_and_passwords:
         role_name = config.role
         if role_name not in role_configs:
             # Default to Surfer if unknown role
@@ -181,7 +187,7 @@ async def seed_test_accounts(
             id=profile_id,
             user_id=user_id,
             email=email,
-            password_hash=password_hash,
+            password_hash=hash_password(account_password),
             full_name=role_config.get("full_name", f"Test {role_name}"),
             username=username[:30],  # Truncate to fit column limit
             role=role_config["role"],
@@ -204,7 +210,7 @@ async def seed_test_accounts(
             "id": profile_id,
             "email": email,
             "username": username,
-            "password": config.custom_password or password,
+            "password": account_password,
             "role": role_name,
             "full_name": profile.full_name,
             "is_verified": profile.is_verified,

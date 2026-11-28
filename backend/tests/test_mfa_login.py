@@ -4,6 +4,7 @@ Real JWT + HTTP + an ephemeral SQLite ORM; only the per-IP throttle is stubbed (
 another change owns it). Time for the authenticator code is a controllable clock, so replay / skew cases are exact.
 Every guard asserted here was mutated (removed) once to confirm its test goes red; the list is in the PR.
 """
+import secrets
 import asyncio
 import hashlib
 import sqlite3
@@ -23,6 +24,8 @@ from database import get_db
 from models import MfaChallenge, MfaRecoveryCode, Notification, Profile, RoleEnum, UserMfa, WebauthnCredential
 from routes.auth_pkg import auth as auth_routes
 from routes.auth_pkg import mfa as mfa_routes
+
+_POLICY_TEST_PASSWORD = secrets.token_urlsafe(16)
 
 svc_module = mfa_routes.svc  # the service module, reached through the route so patches hit the code path under test
 
@@ -562,7 +565,7 @@ async def test_required_role_without_a_factor_gets_only_an_enrol_token(h, monkey
     assert security.verify_token(setup, allow_scopes=("mfa_setup",))["scp"] == "mfa_setup"
     # it opens nothing outside the MFA routes
     other = await h.client.post("/api/auth/change-password",
-                                json={"current_password": "x", "new_password": "yyyyyyy"}, headers=bearer(setup))
+                                json={"current_password": "x", "new_password": _POLICY_TEST_PASSWORD}, headers=bearer(setup))
     assert other.status_code == 401 and "Invalid or expired session" in other.json()["detail"]
     with pytest.raises(Exception):
         security.verify_token(setup)

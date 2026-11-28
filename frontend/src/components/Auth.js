@@ -9,6 +9,7 @@ import { ArrowLeft, User, Camera, Building2, Trophy, Star, Eye, EyeOff, X, Shiel
 import { ROLES } from '../constants/roles';
 import { CURRENT_TOS_VERSION } from '../constants/tos';
 import apiClient from '../lib/apiClient';
+import { meetsPasswordMinimum, PASSWORD_MINIMUM_MESSAGE } from '../lib/passwordPolicy';
 import { wasSessionRejected } from '../lib/sessionRejection';
 import logger from '../utils/logger';
 import { supportAuthParams, supportReturnPath } from './support/supportRoutes';
@@ -171,8 +172,8 @@ export const Auth = () => {
         }
 
         // Validate password length
-        if (formData.password.length < 8) {
-          toast.error('Password must be at least 8 characters');
+        if (!meetsPasswordMinimum(formData.password)) {
+          toast.error(PASSWORD_MINIMUM_MESSAGE);
           setLoading(false);
           return;
         }
@@ -474,7 +475,6 @@ export const Auth = () => {
                   />
                 </div>
                 <p id="username-hint" className="text-xs auth-muted -mt-2">Letters, numbers, underscores. 3-30 characters.</p>
-                <p id="password-hint" className="sr-only">Minimum 8 characters</p>
 
                 <Input
                   type="email"
@@ -497,6 +497,7 @@ export const Auth = () => {
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="auth-input h-12 pr-10"
                     required
+                    autoComplete="new-password"
                     data-testid="password-input"
                   />
                   <button
@@ -508,6 +509,8 @@ export const Auth = () => {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
+
+                <p id="password-hint" className="text-xs auth-muted -mt-2">{PASSWORD_MINIMUM_MESSAGE}</p>
 
                 {/* Parent email for Groms */}
                 {selectedRole?.requiresParent && (
