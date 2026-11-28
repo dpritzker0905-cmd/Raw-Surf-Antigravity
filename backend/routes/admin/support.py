@@ -28,10 +28,7 @@ from services.support_delivery import save_support_message, queue_support_reply_
 
 
 
-from .quick_book_preview import router as settlement_preview_router
-
 router = APIRouter()
-router.include_router(settlement_preview_router)
 
 
 # --- Pydantic Models ---

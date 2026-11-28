@@ -16,6 +16,7 @@ from .moderation_reports import router as admin_moderation_reports_router
 from .p1 import router as admin_p1_router
 from .p2 import router as admin_p2_router
 from .p2_campaigns import router as admin_p2_campaigns_router
+from .quick_book_preview import router as quick_book_preview_router
 from .support import router as admin_support_router
 from .system import router as admin_system_router
 from .surf_forecast import router as admin_surf_forecast_router
