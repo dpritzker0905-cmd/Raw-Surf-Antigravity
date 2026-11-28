@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 6,
+  "branch": "codex/watermark-text-placement-ci",
+  "date": "2026-11-28",
+  "note": "Check Text Only placement in settings and gallery JPEGs across all six positions."
+}
