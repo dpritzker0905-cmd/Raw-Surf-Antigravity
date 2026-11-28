@@ -35,7 +35,7 @@ from services.gallery_sync import (
 from websocket_manager import broadcast_earnings_update
 from services.watermark import watermark_image_from_url, generate_watermarked_preview
 from utils.grom_parent import is_grom_parent_eligible
-from services.grom_media_policy import is_verified_guardian
+from services.grom_media_policy import is_verified_guardian, linked_gallery_groms
 
 from .schemas import (
     GalleryItemCreate, GalleryItemUpdate, GalleryItemResponse,
@@ -250,13 +250,7 @@ async def get_grom_highlights(
             raise HTTPException(status_code=403, detail="Grom is not linked to this parent")
         grom_ids = [grom_id]
     else:
-        # Get all linked Groms
-        groms_result = await db.execute(select(Profile).where(
-            Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True), Profile.role == RoleEnum.GROM))
-        linked_groms = groms_result.scalars().all()
-        for grom in linked_groms:
-            if await is_verified_guardian(db, grom, current_user_id):
-                groms.append(grom)
+        groms = await linked_gallery_groms(db, parent)
         grom_ids = [g.id for g in groms]
     
     if not grom_ids:
@@ -401,25 +395,15 @@ async def get_linked_groms(
     if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can view linked Groms")
     
-    # Get linked Groms
-    result = await db.execute(
-        select(Profile)
-        .where(Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True), Profile.role == RoleEnum.GROM)
-        .order_by(Profile.full_name)
-    )
-    linked_groms = result.scalars().all()
-    groms = []
-    for grom in linked_groms:
-        if await is_verified_guardian(db, grom, current_user_id):
-            groms.append(grom)
-    
+    groms = await linked_gallery_groms(db, parent)
+
     return {
         "groms": [
             {
                 "id": g.id,
                 "name": g.full_name,
                 "avatar": g.avatar_url,
-                "is_approved": g.parent_link_approved
+                "is_approved": True
             }
             for g in groms
         ]
