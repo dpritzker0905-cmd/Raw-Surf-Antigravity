@@ -6,7 +6,7 @@ Extracted from items.py (v86) to keep each module under 800 LOC.
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional
@@ -381,8 +381,7 @@ async def download_gallery_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     
-    # Resolve only the purchased tier.  Legacy public originals fail before a
-    # count is consumed; private references are signed after the count commits.
+    # Resolve only the purchased tier before consuming a download.
     _, download_reference = get_quality_price(item, item.photographer, purchase.quality_tier)
     if not is_safe_gallery_delivery_reference(
         download_reference,
@@ -392,8 +391,6 @@ async def download_gallery_item(
     ):
         raise HTTPException(status_code=503, detail="Paid media is awaiting private-storage migration")
 
-    purchase.download_count += 1
-    await db.commit()
     download_url = await authorized_gallery_delivery_url(
         download_reference,
         original_url=item.original_url,
@@ -403,10 +400,22 @@ async def download_gallery_item(
     if not download_url:
         raise HTTPException(status_code=503, detail="Private gallery delivery is temporarily unavailable")
     
+    # Concurrent requests may sign, but only a request that claims a remaining
+    # slot can receive the URL. A storage failure consumes no slot.
+    claimed = await db.execute(
+        update(GalleryPurchase)
+        .where(GalleryPurchase.id == purchase.id, GalleryPurchase.download_count < GalleryPurchase.max_downloads)
+        .values(download_count=GalleryPurchase.download_count + 1)
+        .returning(GalleryPurchase.quality_tier, GalleryPurchase.max_downloads - GalleryPurchase.download_count)
+    )
+    slot = claimed.one_or_none()
+    if slot is None:
+        raise HTTPException(status_code=400, detail="Download limit reached")
+    await db.commit()
     return {
         "download_url": download_url,
-        "quality_tier": purchase.quality_tier,
-        "downloads_remaining": purchase.max_downloads - purchase.download_count
+        "quality_tier": slot[0],
+        "downloads_remaining": slot[1]
     }
 
 

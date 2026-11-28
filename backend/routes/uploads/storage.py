@@ -18,6 +18,20 @@ PUBLIC_UPLOAD_BUCKETS = frozenset({
 })
 
 
+def get_file_extension(content_type: str) -> str:
+    """Get file extension from content type"""
+    extensions = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+        "video/mp4": ".mp4",
+        "video/quicktime": ".mov",
+        "video/webm": ".webm"
+    }
+    return extensions.get(content_type, ".bin")
+
+
 def unlinked_media_names(ext: str, *, prefix: str = "") -> tuple[str, str]:
     """Object names for a sold original and its free preview that share no derivable part.
 

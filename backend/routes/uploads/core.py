@@ -58,7 +58,7 @@ from utils.video_processor import (
     MAX_GALLERY_WIDTH
 )
 from sqlalchemy import text
-from .storage import unlinked_media_names, upload_public_media
+from .storage import get_file_extension, unlinked_media_names, upload_public_media
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -154,20 +154,6 @@ def convert_heic_to_jpeg(content: bytes) -> tuple[bytes, str]:
     except Exception as e:
         logger.error(f"Failed to convert HEIC: {e}")
         raise HTTPException(status_code=400, detail="Failed to process iPhone image. Please try taking a new photo.")
-
-def get_file_extension(content_type: str) -> str:
-    """Get file extension from content type"""
-    extensions = {
-        "image/jpeg": ".jpg",
-        "image/png": ".png",
-        "image/webp": ".webp",
-        "image/gif": ".gif",
-        "video/mp4": ".mp4",
-        "video/quicktime": ".mov",
-        "video/webm": ".webm"
-    }
-    return extensions.get(content_type, ".bin")
-
 
 HEIF_TYPES = frozenset({"image/heic", "image/heif"})
 

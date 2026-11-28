@@ -35,6 +35,7 @@ from routes.bookings import stripe_checkout
 from routes.gallery import collections as gallery_collections
 from routes.gallery import distribution as gallery_distribution
 from routes.gallery import distribution_tagging as gallery_tagging
+from routes.gallery import gallery_purchases
 from routes.gallery import items as gallery_items
 from routes.sessions import payments as session_payments
 from routes.uploads import core as upload_core
@@ -97,7 +98,7 @@ async def harness(tmp_path, monkeypatch):
                                       status='Pending', transaction_metadata=json.dumps({'booking_id': bid})))
         db.add(Gallery(id='gal', photographer_id='pro', title='Fixture Gallery'))
         db.add(GalleryItem(id='item', gallery_id='gal', photographer_id='pro', media_type='image', price=5.0,
-                           original_url='https://cdn.fixture.invalid/o.jpg',
+                           original_url='supabase://gallery_originals/pro/o.jpg',
                            preview_url='https://cdn.fixture.invalid/p.jpg'))
         db.add(GalleryPurchase(gallery_item_id='item', buyer_id='buyer', photographer_id='pro', amount_paid=5.0))
         await db.commit()
@@ -113,7 +114,7 @@ async def harness(tmp_path, monkeypatch):
 
     app = FastAPI()
     for module in (auth_routes, stripe_checkout, gallery_items, gallery_collections, gallery_distribution,
-                   gallery_tagging, upload_core, media_gallery):
+                   gallery_tagging, gallery_purchases, upload_core, media_gallery):
         app.include_router(module.router, prefix='/api')
 
     async def dependency():
@@ -538,14 +539,32 @@ async def test_a_viewer_id_claim_alone_does_not_unlock_a_purchased_original(harn
     headers = {} if who is None else ({'Authorization': 'Bearer invalid'} if who == 'invalid' else bearer(who))
     response = await harness.client.get(path, headers=headers)
     assert response.status_code == 200, response.text
-    assert 'cdn.fixture.invalid/o.jpg' not in response.text
+    item = response.json()
+    if isinstance(item, list):
+        item, = item
+    assert item["download_link"] is None
+    assert item["original_url"] is None
 
 
 @pytest.mark.parametrize('path', VIEWER_READS, ids=['item', 'gallery_items'])
-async def test_the_buyer_with_their_token_still_gets_their_original(harness, path):
+async def test_the_buyer_with_their_token_still_gets_their_original(harness, path, private_gallery_store):
     response = await harness.client.get(path, headers=bearer('buyer'))
     assert response.status_code == 200, response.text
-    assert 'cdn.fixture.invalid/o.jpg' in response.text
+    item = response.json()
+    if isinstance(item, list):
+        item, = item
+    assert item["original_url"] is None
+    assert item["download_link"] == "/api/gallery/download/item?buyer_id=buyer"
+    missing = await harness.client.get(item["download_link"], headers=bearer("buyer"))
+    assert missing.status_code == 503
+    private_gallery_store.objects["gallery_originals/pro/o.jpg"] = b"fixture original"
+    download = await harness.client.get(item["download_link"], headers=bearer("buyer"))
+    assert download.status_code == 200, download.text
+    assert download.json()["downloads_remaining"] == 4
+    async with private_gallery_store.client() as storage_client:
+        original = await storage_client.get(download.json()["download_url"])
+    assert original.status_code == 200
+    assert original.content == b"fixture original"
 
 
 # ---------------------------------------------------------------------------------------- LA-GAL-02, review follow-ups

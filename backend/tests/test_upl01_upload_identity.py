@@ -157,9 +157,15 @@ async def test_frame_export_refuses_another_photographers_gallery(harness):
 
 
 @pytest.mark.parametrize('claim', [None, {'user_id': 'pro'}], ids=['no-claim', 'matching-claim'])
-async def test_the_owner_still_uploads_and_the_file_lands_under_the_token_user(harness, claim):
+async def test_the_owner_still_uploads_and_the_file_lands_under_the_token_user(harness, claim, private_gallery_store):
     response = await post(harness, '/api/upload/gallery', bearer('pro'), claim)
     assert response.status_code == 200, response.text
-    assert harness.stored, 'the upload reached storage'
-    assert all('/pro/' in key or key.startswith('pro/') or 'pro' in key for _, key in harness.stored)
-    assert not any('other' in key for _, key in harness.stored)
+    body = response.json()
+    key = body["original_url"].removeprefix("supabase://")
+    assert key.startswith("gallery_originals/pro/")
+    assert private_gallery_store.objects == {key: _png()}
+    assert len(harness.stored) == 1
+    bucket, preview_key = harness.stored[0]
+    assert bucket == "gallery" and preview_key.startswith("pro/")
+    assert body["preview_url"] == f"https://cdn.fixture.invalid/{bucket}/{preview_key}"
+    assert key.rsplit("/", 1)[-1] != preview_key.rsplit("/", 1)[-1]
