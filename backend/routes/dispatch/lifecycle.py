@@ -33,6 +33,7 @@ from core.security import get_current_user_id
 from services.onesignal_service import onesignal_service
 from services.xp import grant_xp
 
+from services.shared_dispatch_allowance import cancel_included_session
 from .schemas import (
     CreateDispatchRequest, AcceptDispatchRequest, UpdateGPSLocation,
     CancelDispatchRequest, UpdateSessionLocationRequest, UpdateSelfieRequest,
@@ -79,6 +80,7 @@ async def accept_dispatch(
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
+        .with_for_update()
         .options(selectinload(DispatchRequest.requester))
     )
     dispatch = result.scalar_one_or_none()
@@ -227,6 +229,7 @@ async def decline_dispatch(
         refund = captain_amount_owed(dispatch) if deposit_held else 0
 
         now = datetime.now(timezone.utc)
+        await cancel_included_session(db, dispatch, now)
         dispatch.status = DispatchRequestStatusEnum.CANCELLED
         dispatch.status_changed_at = now
         dispatch.cancellation_reason = "Photographer declined the request"
@@ -506,6 +509,7 @@ async def mark_arrived(
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
+        .with_for_update()
         .options(selectinload(DispatchRequest.requester))
     )
     dispatch = result.scalar_one_or_none()

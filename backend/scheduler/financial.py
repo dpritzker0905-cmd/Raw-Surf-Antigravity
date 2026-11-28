@@ -339,9 +339,14 @@ async def cleanup_abandoned_stripe_sessions_task():
     
     stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
     
+    from services.shared_dispatch_allowance import expire_due_included_sessions
+
     logger.info("[Scheduler] Running abandoned Stripe session cleanup...")
     
     try:
+        await expire_due_included_sessions(async_session_maker,
+                                           stripe.checkout.Session.retrieve if stripe.api_key else None,
+                                           datetime.now(timezone.utc))
         async with async_session_maker() as db:
             cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=30)
             
@@ -350,7 +355,12 @@ async def cleanup_abandoned_stripe_sessions_task():
                 select(PaymentTransaction)
                 .where(
                     PaymentTransaction.payment_status == 'Pending',
-                    PaymentTransaction.created_at < cutoff_time
+                    PaymentTransaction.created_at < cutoff_time,
+                    # Included-session checkouts have a separate, provider-confirmed expiry path.
+                    ~select(DispatchRequest.id).where(
+                        DispatchRequest.included_subscription_id.is_not(None),
+                        DispatchRequest.stripe_checkout_session_id == PaymentTransaction.session_id,
+                    ).exists()
                 )
             )
             abandoned_transactions = result.scalars().all()
@@ -396,6 +406,7 @@ async def cleanup_abandoned_stripe_sessions_task():
                                     select(DispatchRequest)
                                     .where(
                                         DispatchRequest.id == dispatch_id,
+                                        DispatchRequest.included_subscription_id.is_(None),
                                         DispatchRequest.status == DispatchRequestStatusEnum.PENDING_PAYMENT
                                     )
                                 )

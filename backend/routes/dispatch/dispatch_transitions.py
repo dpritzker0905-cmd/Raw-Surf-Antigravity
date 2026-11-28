@@ -23,6 +23,7 @@ from models import (
     SurfSpot,
 )
 
+from services.shared_dispatch_allowance import cancel_included_session
 from .schemas import CancelDispatchRequest
 
 logger = logging.getLogger("routes.dispatch")
@@ -53,6 +54,7 @@ async def complete_dispatch_session(
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
+        .with_for_update()
         .options(selectinload(DispatchRequest.requester))
     )
     dispatch = result.scalar_one_or_none()
@@ -180,6 +182,7 @@ async def cancel_dispatch(
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
+        .with_for_update()
     )
     dispatch = result.scalar_one_or_none()
 
@@ -187,7 +190,8 @@ async def cancel_dispatch(
         raise HTTPException(status_code=404, detail="Dispatch request not found")
 
     # Reject if already cancelled or completed
-    if dispatch.status in [DispatchRequestStatusEnum.CANCELLED, DispatchRequestStatusEnum.COMPLETED]:
+    if dispatch.status in (DispatchRequestStatusEnum.CANCELLED, DispatchRequestStatusEnum.COMPLETED,
+                            DispatchRequestStatusEnum.REFUNDED, DispatchRequestStatusEnum.NO_PRO_FOUND):
         raise HTTPException(status_code=400, detail=f"Dispatch is already {dispatch.status.value}")
 
     # Only requester or photographer can cancel (normalize to str for safe comparison)
@@ -221,7 +225,7 @@ async def cancel_dispatch(
             # Not accepted yet — full refund
             refund_amount = dispatch.deposit_amount
             refund_type = 'full'
-        elif dispatch.status == DispatchRequestStatusEnum.PRO_ACCEPTED:
+        elif dispatch.status == DispatchRequestStatusEnum.ACCEPTED:
             # Pro accepted — apply photographer's cancellation fee
             photographer_fee_pct = 50  # Default 50% fee
             if dispatch.photographer_id:
@@ -254,6 +258,9 @@ async def cancel_dispatch(
                 refund_amount = dispatch.deposit_amount / 2
                 refund_type = 'half'
 
+    await cancel_included_session(db, dispatch, now)
+    if dispatch.included_subscription_id and not dispatch.deposit_paid:
+        refund_amount, refund_type = 0, "none"
     dispatch.status = DispatchRequestStatusEnum.CANCELLED
     dispatch.status_changed_at = now
     dispatch.cancelled_at = now

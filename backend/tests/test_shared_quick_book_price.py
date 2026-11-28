@@ -169,3 +169,162 @@ async def test_absent_plan_and_capped_discount_preserve_guest_shares(shared, pla
     result = await create(client, TERMS, quote["quote_id"])
     assert result.status_code == 200, result.text
     provider.assert_not_called()
+
+
+@pytest.mark.parametrize("ending", ["cancel", "expire", "decline"])
+async def test_shared_booking_returns_exactly_one_session(shared, harness, monkeypatch, ending):
+    from models import DispatchRequestStatusEnum as Status
+    from routes.dispatch import dispatch_transitions, lifecycle
+    from scheduler.financial import cleanup_abandoned_stripe_sessions_task
+
+    app, client, maker = harness
+    app.include_router(dispatch_transitions.router, prefix="/api")
+    app.include_router(lifecycle.router, prefix="/api")
+    monkeypatch.delenv("STRIPE_SECRET_KEY", raising=False)
+    quote = await preview(client, TERMS)
+    response = await create(client, TERMS, quote["quote_id"])
+    dispatch_id = response.json()["id"]
+    async with maker.begin() as db:
+        dispatch = await db.get(DispatchRequest, dispatch_id)
+        dispatch.pending_payment_expires_at = datetime.now(timezone.utc) - timedelta(minutes=2)
+        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 0
+
+    for attempt in range(2):
+        if ending == "cancel":
+            result = await client.post(f"/api/dispatch/{dispatch_id}/cancel",
+                                       json={}, headers=bearer(CAPTAIN))
+            assert result.status_code == (400 if attempt else 200), result.text
+        elif ending == "decline":
+            result = await client.post(f"/api/dispatch/{dispatch_id}/decline?photographer_id={PRO}",
+                                       headers=bearer(PRO))
+            assert result.status_code == 200, result.text
+        else:
+            await cleanup_abandoned_stripe_sessions_task()
+    async with maker() as db:
+        assert (await db.get(DispatchRequest, dispatch_id)).status == Status.CANCELLED
+        plan = await db.get(SurferPhotoSubscription, "plan")
+        assert (plan.sessions_remaining, plan.live_session_buyins_remaining) == (1, 2)
+        assert (await db.get(Profile, CAPTAIN)).credit_balance == 100
+
+
+async def test_cancel_restores_original_plan_after_replacement_and_rollback(shared, harness):
+    from routes.dispatch import dispatch_transitions
+    from services.shared_dispatch_allowance import return_included_session
+
+    app, client, maker = harness
+    app.include_router(dispatch_transitions.router, prefix="/api")
+    dispatch_id = (await create(client, TERMS, (await preview(client, TERMS))["quote_id"])).json()["id"]
+    async with maker.begin() as db:
+        (await db.get(SurferPhotoSubscription, "plan")).status = "expired"
+        db.add(SurferPhotoSubscription(id="replacement", surfer_id=CAPTAIN, photographer_id=PRO,
+               status="active", amount_paid=10, sessions_remaining=5,
+               expires_at=datetime.now(timezone.utc) + timedelta(days=30)))
+    async with maker() as db:
+        dispatch = await db.get(DispatchRequest, dispatch_id, with_for_update=True)
+        await return_included_session(db, dispatch, datetime.now(timezone.utc))
+        await db.rollback()
+    async with maker() as db:
+        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 0
+        assert (await db.get(DispatchRequest, dispatch_id)).included_session_restored_at is None
+    url = f"/api/dispatch/{dispatch_id}/cancel"
+    assert (await client.post(url, json={}, headers=bearer("north"))).status_code == 403
+    assert (await client.post(url, json={}, headers=bearer(CAPTAIN))).status_code == 200
+    async with maker() as db:
+        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 1
+        assert (await db.get(SurferPhotoSubscription, "replacement")).sessions_remaining == 5
+
+
+@pytest.mark.parametrize("state,expected", [("completed", 0), ("discount", 0), ("paid_searching", 1)])
+async def test_only_cancelled_debited_request_returns_allowance(shared, harness, state, expected):
+    from models import DispatchRequestStatusEnum as Status
+    from routes.dispatch import dispatch_transitions
+
+    app, client, maker = harness
+    app.include_router(dispatch_transitions.router, prefix="/api")
+    if state == "discount":
+        async with maker.begin() as db:
+            (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining = 0
+    dispatch_id = (await create(client, TERMS, (await preview(client, TERMS))["quote_id"])).json()["id"]
+    if state == "completed":
+        async with maker.begin() as db:
+            (await db.get(DispatchRequest, dispatch_id)).status = Status.COMPLETED
+    if state == "paid_searching":
+        payment = await client.post(f"/api/dispatch/{dispatch_id}/pay?payer_id=victim", headers=bearer(CAPTAIN))
+        assert payment.status_code == 200
+    response = await client.post(f"/api/dispatch/{dispatch_id}/cancel", json={}, headers=bearer(CAPTAIN))
+    assert response.status_code == (400 if state == "completed" else 200)
+    async with maker() as db:
+        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == expected
+
+
+@pytest.mark.parametrize("provider_state", ["open", "paid", "unknown", "expired"])
+async def test_card_expiry_requires_definitive_unpaid_checkout(shared, harness, monkeypatch, provider_state):
+    from models import DispatchRequestStatusEnum as Status, PaymentTransaction
+    from scheduler.financial import cleanup_abandoned_stripe_sessions_task
+    app, client, maker = harness
+    terms = {**TERMS, "crew_shares": [{"user_id": "north", "covered_by_captain": True}]}
+    dispatch_id = (await create(client, terms, (await preview(client, terms))["quote_id"])).json()["id"]
+    checkout = SimpleNamespace(id="cs_fixture", url="https://fixture.invalid/card", status="open", payment_status="unpaid")
+    create_mock = Mock(return_value=checkout)
+    monkeypatch.setattr(sessions.stripe.checkout.Session, "create", create_mock)
+    monkeypatch.setattr(sessions.stripe.checkout.Session, "retrieve", Mock(return_value=checkout))
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "fixture")
+    monkeypatch.setattr(sessions.stripe, "api_key", "fixture")
+    for _ in range(2):
+        response = await client.post("/api/dispatch/checkout", headers=bearer(CAPTAIN), json={
+            "dispatch_id": dispatch_id, "payer_id": CAPTAIN, "origin_url": "https://fixture.invalid"})
+        assert response.status_code == 200, response.text
+    create_mock.assert_called_once()
+    async with maker.begin() as db:
+        past = datetime.now(timezone.utc) - timedelta(minutes=45)
+        (await db.get(DispatchRequest, dispatch_id)).pending_payment_expires_at = past
+        (await db.scalar(select(PaymentTransaction))).created_at = past
+    if provider_state == "unknown":
+        monkeypatch.setattr(sessions.stripe.checkout.Session, "retrieve", Mock(side_effect=TimeoutError))
+    elif provider_state == "paid":
+        checkout.status, checkout.payment_status = "complete", "paid"
+    elif provider_state == "expired":
+        checkout.status = "expired"
+    for _ in range(2):
+        await cleanup_abandoned_stripe_sessions_task()
+    expired = provider_state == "expired"
+    async with maker() as db:
+        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == int(expired)
+        assert (await db.get(DispatchRequest, dispatch_id)).status == (Status.CANCELLED if expired else Status.PENDING_PAYMENT)
+        assert (await db.scalar(select(PaymentTransaction.payment_status))) == ("Expired" if expired else "Pending")
+
+
+async def test_unknown_card_creation_keeps_allowance_reserved_and_reuses_attempt(shared, harness, monkeypatch):
+    from models import DispatchRequestStatusEnum as Status
+    from routes.dispatch import dispatch_transitions
+    from services.shared_dispatch_allowance import expire_due_included_sessions
+
+    app, client, maker = harness
+    app.include_router(dispatch_transitions.router, prefix="/api")
+    terms = {**TERMS, "crew_shares": [{"user_id": "north", "covered_by_captain": True}]}
+    dispatch_id = (await create(client, terms, (await preview(client, terms))["quote_id"])).json()["id"]
+    session = SimpleNamespace(id="cs_retry", url="https://fixture.invalid/retry")
+    provider = Mock(side_effect=[sessions.stripe.error.APIConnectionError("fixture timeout"), session])
+    monkeypatch.setattr(sessions.stripe, "api_key", "fixture")
+    monkeypatch.setattr(sessions.stripe.checkout.Session, "create", provider)
+    pay = {"dispatch_id": dispatch_id, "payer_id": CAPTAIN, "origin_url": "https://fixture.invalid"}
+    first = await client.post("/api/dispatch/checkout", json=pay, headers=bearer(CAPTAIN))
+    assert first.status_code == 500
+    cancel = f"/api/dispatch/{dispatch_id}/cancel"
+    assert (await client.post(cancel, json={}, headers=bearer(CAPTAIN))).status_code == 409
+    await expire_due_included_sessions(maker, None, datetime.now(timezone.utc)+timedelta(days=1))
+    async with maker() as db:
+        assert (await db.get(DispatchRequest, dispatch_id)).status == Status.PENDING_PAYMENT
+        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 0
+
+    retry = await client.post("/api/dispatch/checkout", json=pay, headers=bearer(CAPTAIN))
+    assert retry.status_code == 200, retry.text
+    assert [c.kwargs["idempotency_key"] for c in provider.call_args_list] == [f"shared-quick-book-{dispatch_id}"] * 2
+    closed = Mock(return_value=SimpleNamespace(id=session.id, status="expired", payment_status="unpaid"))
+    monkeypatch.setattr(sessions.stripe.checkout.Session, "expire", closed)
+    assert (await client.post(cancel, json={}, headers=bearer(CAPTAIN))).status_code == 200
+    assert (await client.post(cancel, json={}, headers=bearer(CAPTAIN))).status_code == 400
+    closed.assert_called_once_with(session.id)
+    async with maker() as db:
+        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 1
+        assert (await db.get(Profile, CAPTAIN)).credit_balance == 100

@@ -62,6 +62,7 @@ async def dispatch_payment_success(
         result = await db.execute(
             select(DispatchRequest)
             .where(DispatchRequest.id == dispatch_id)
+            .with_for_update()
             .options(selectinload(DispatchRequest.requester))
         )
         dispatch = result.scalar_one_or_none()
@@ -69,6 +70,9 @@ async def dispatch_payment_success(
         if not dispatch:
             raise HTTPException(status_code=404, detail="Dispatch request not found")
         
+        if dispatch.included_session_restored_at is not None:
+            raise HTTPException(409, "This request was cancelled and its included session was returned.")
+
         # Already processed
         if dispatch.status != DispatchRequestStatusEnum.PENDING_PAYMENT:
             return {

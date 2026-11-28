@@ -19,6 +19,7 @@ from utils.geo import haversine_distance
 
 from database import get_db
 from utils.credits import consume_spend_only_for_debit
+from services.shared_dispatch_allowance import payment_deadline_passed
 from utils.dispatch_checkout_recovery import persist_dispatch_checkout
 from core.security import get_current_user_id
 from models import (
@@ -320,6 +321,7 @@ async def create_dispatch_request(
         deposit_amount=deposit_amount,
         captain_share_amount=captain_share,  # Store captain's actual portion
         pending_payment_expires_at=payment_expires_at,  # For client-side countdown & auto-cleanup
+        included_subscription_id=subscription.id if quote and subscription_covered else None,
         is_shared=request_data.is_shared,
         max_participants=num_participants,
         search_radius_miles=5.0,
@@ -422,6 +424,7 @@ async def confirm_payment(
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
+        .with_for_update()
         .options(selectinload(DispatchRequest.requester))
     )
     dispatch = result.scalar_one_or_none()
@@ -435,6 +438,9 @@ async def confirm_payment(
     if dispatch.status != DispatchRequestStatusEnum.PENDING_PAYMENT:
         raise HTTPException(status_code=400, detail=f"Request is not pending payment. Status: {dispatch.status}")
     
+    if dispatch.included_subscription_id and (payment_deadline_passed(dispatch) or dispatch.included_checkout_started_at or dispatch.stripe_checkout_session_id):
+        raise HTTPException(409, "Check the pending checkout before paying with credits.")
+
     # Get payer profile - REQUIRED for metadata injection
     payer_result = await db.execute(select(Profile).where(Profile.id == payer_id))
     payer = payer_result.scalar_one_or_none()
@@ -559,6 +565,7 @@ async def create_dispatch_checkout(
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == data.dispatch_id)
+        .with_for_update()
         .options(selectinload(DispatchRequest.requester))
     )
     dispatch = result.scalar_one_or_none()
@@ -571,6 +578,9 @@ async def create_dispatch_checkout(
 
     if dispatch.status != DispatchRequestStatusEnum.PENDING_PAYMENT:
         raise HTTPException(status_code=400, detail=f"Request is not pending payment. Status: {dispatch.status}")
+
+    if dispatch.included_subscription_id and payment_deadline_passed(dispatch):
+        raise HTTPException(409, "The payment deadline has passed.")
 
     # The charge comes from the record, never from the request body.
     amount = captain_amount_owed(dispatch)
@@ -592,7 +602,21 @@ async def create_dispatch_checkout(
     cancel_url = f"{data.origin_url}/map"
     
     try:
+        if dispatch.included_subscription_id and not dispatch.included_checkout_started_at:
+            # Make a possible external payment visible to cancellation even if the response is lost.
+            dispatch.included_checkout_started_at = datetime.now(timezone.utc)
+            await db.commit()
+            dispatch = await db.get(DispatchRequest, data.dispatch_id, with_for_update=True, populate_existing=True)
+            if dispatch.status != DispatchRequestStatusEnum.PENDING_PAYMENT:
+                raise HTTPException(409, "The request is no longer pending payment.")
+        if dispatch.included_subscription_id and dispatch.stripe_checkout_session_id:
+            existing = stripe.checkout.Session.retrieve(dispatch.stripe_checkout_session_id)
+            if existing.status != "open" or not existing.url:
+                raise HTTPException(409, "Check the status of your existing card checkout.")
+            return {"checkout_url": existing.url, "session_id": existing.id,
+                    "dispatch_id": dispatch.id, "amount": amount}
         checkout_session = stripe.checkout.Session.create(
+            **({"idempotency_key": f"shared-quick-book-{dispatch.id}"} if dispatch.included_subscription_id else {}),
             payment_method_types=['card'],
             line_items=[{
                 'price_data': {

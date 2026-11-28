@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 10,
+  "tests": 22,
   "branch": "codex/shared-quick-book-seat",
   "date": "2026-11-28",
-  "note": "Shared Quick Book crew pricing and personal plan benefits"
+  "note": "Shared Quick Book pricing, cancellation and expiry of personal sessions"
 }

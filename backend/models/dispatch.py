@@ -70,6 +70,11 @@ class DispatchRequest(Base):
     deposit_paid_at = Column(DateTime(timezone=True), nullable=True)
     pending_payment_expires_at = Column(DateTime(timezone=True), nullable=True)  # For client-side countdown & auto-cleanup
     
+    # Source of the one personal session consumed by a shared Quick Book.
+    included_subscription_id = Column(String(36), ForeignKey("surfer_photo_subscriptions.id", ondelete="SET NULL"), nullable=True)
+    included_checkout_started_at = Column(DateTime(timezone=True), nullable=True)
+    included_session_restored_at = Column(DateTime(timezone=True), nullable=True)
+
     # Shared/Split request
     is_shared = Column(Boolean, default=False)
     max_participants = Column(Integer, default=1)
