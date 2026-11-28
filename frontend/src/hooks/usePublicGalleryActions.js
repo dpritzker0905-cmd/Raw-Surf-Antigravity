@@ -57,10 +57,12 @@ export default function usePublicGalleryActions({
     if (!photographerId) return;
 
     try {
-      const res = await apiClient.get(`/galleries/photographer/${photographerId}`);
-      // Only show public galleries, and exclude private sessions (on_demand/booking)
+      const res = await apiClient.get(`/photographer/${photographerId}/public-galleries`);
+      // The public endpoint already excludes private galleries; keep private service types out
+      // of the storefront even if their owner explicitly published them.
       const PRIVATE_SESSION_TYPES = ['on_demand', 'booking'];
-      setGalleries(res.data.filter(g => g.is_public && !PRIVATE_SESSION_TYPES.includes(g.session_type)));
+      const publicGalleries = Array.isArray(res.data?.galleries) ? res.data.galleries : [];
+      setGalleries(publicGalleries.filter(g => !PRIVATE_SESSION_TYPES.includes(g.session_type)));
       setGalleriesReady(true);
     } catch (error) {
       logger.error('Failed to fetch galleries:', error);

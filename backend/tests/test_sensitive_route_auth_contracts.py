@@ -32,6 +32,7 @@ STRICT_AUTH_FUNCTIONS = {
     "routes/bookings/booking_cancellation.py": {"cancel_booking"},
     "routes/bookings/crew_payments.py": {"get_crew_payment_details"},
     "routes/bookings/stripe_checkout.py": {"create_booking_with_stripe"},
+    "routes/gallery/collections_roster.py": {"get_photographer_galleries"},
 }
 
 
@@ -60,6 +61,44 @@ def test_sensitive_routes_require_verified_bearer_identity():
             dependencies = _dependency_targets(function)
             assert "get_current_user_id" in dependencies
             assert "get_user_id_from_jwt_or_query" not in dependencies
+
+
+def _function_code(relative_path: str, function_name: str) -> str:
+    tree = ast.parse((BACKEND / relative_path).read_text(encoding="utf-8"))
+    function = next(
+        node for node in tree.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == function_name
+    )
+    return ast.unparse(function)
+
+
+def test_gallery_management_reads_enforce_owner_and_visibility_boundaries():
+    listing = _function_code(
+        "routes/gallery/collections_roster.py", "get_photographer_galleries"
+    )
+    owner_guard = "current_user_id != photographer_id"
+    assert owner_guard in listing
+    assert listing.index(owner_guard) < listing.index("await db.execute")
+
+    detail = _function_code("routes/gallery/collections.py", "get_gallery")
+    assert "if not gallery.is_public" in detail
+    assert "not is_owner" in detail
+    assert detail.index("if not gallery.is_public") < detail.index("gallery.view_count += 1")
+
+
+def test_public_gallery_discovery_stays_minimal_and_public_only():
+    public_listing = _function_code(
+        "routes/gallery/distribution_tagging.py", "get_photographer_public_galleries"
+    )
+    assert "Gallery.is_public == True" in public_listing
+    assert "GalleryItem.is_public == True" in public_listing
+    assert "'item_count': public_item_count" in public_listing
+    assert "g.cover_image_url or" not in public_listing
+    for sensitive_field in (
+        "session_roster", "selfie_url", "amount_paid", "payment_method",
+        "photos_credit_remaining", "live_session_id", "booking_id", "dispatch_id",
+    ):
+        assert sensitive_field not in public_listing
 
 
 def test_private_media_migration_backfills_thumbnails_before_bucket_flip():

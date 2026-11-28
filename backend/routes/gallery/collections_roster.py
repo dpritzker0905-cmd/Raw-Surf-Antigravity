@@ -16,6 +16,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from core.security import get_current_user_id
 from utils.live_buyin import resolve_live_buyin
 from models import (
     Profile, GalleryItem, Gallery, LiveSession, LiveSessionParticipant,
@@ -244,9 +245,13 @@ def build_session_roster(gallery, live_map, booking_map, dispatch_map, dist_map)
 @router.get("/galleries/photographer/{photographer_id}")
 async def get_photographer_galleries(
     photographer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all galleries for a photographer"""
+    """Get the authenticated photographer's management gallery data."""
+    if current_user_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
     await assert_owner_listed(db, photographer_id)
     
     result = await db.execute(

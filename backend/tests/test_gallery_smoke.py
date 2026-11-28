@@ -5,6 +5,7 @@ Tests verify that extracted modules (v87 decomposition) are properly registered
 and return expected response shapes. Uses httpx.AsyncClient + ASGITransport.
 """
 import pytest
+from core.security import create_access_token
 
 
 class TestGalleryRouteRegistration:
@@ -25,11 +26,17 @@ class TestGalleryRouteRegistration:
         assert response.status_code in (404, 422)
 
     @pytest.mark.asyncio
-    async def test_photographer_galleries_requires_valid_id(self, client):
-        """GET /galleries/photographer/{id} should return empty list for unknown photographer."""
-        response = await client.get("/api/galleries/photographer/unknown-id")
-        # Should return 200 with empty gallery list, not crash
-        assert response.status_code == 200
+    async def test_photographer_galleries_requires_owner_auth(self, client):
+        """Management gallery listings reject anonymous and cross-photographer callers."""
+        response = await client.get("/api/galleries/photographer/owner-id")
+        assert response.status_code == 401
+
+        token = create_access_token({"sub": "other-photographer"})
+        response = await client.get(
+            "/api/galleries/photographer/owner-id",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 403
 
     @pytest.mark.asyncio
     async def test_distribution_status_requires_auth(self, client):
