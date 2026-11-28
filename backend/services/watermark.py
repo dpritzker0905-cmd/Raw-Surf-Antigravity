@@ -11,7 +11,8 @@ import os
 import io
 import logging
 import httpx
-from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter, ImageOps
+from PIL.ExifTags import Base
 from typing import Optional, Tuple, Dict
 import base64
 
@@ -279,6 +280,10 @@ def apply_watermark(
     Returns:
         Watermarked PIL Image
     """
+    # Position the watermark in the displayed coordinates of camera photos.
+    if image.getexif().get(Base.Orientation) in range(2, 9):
+        image = ImageOps.exif_transpose(image)
+
     # Convert to RGBA for compositing
     if image.mode != 'RGBA':
         image = image.convert('RGBA')

@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 4,
+  "branch": "codex/watermark-exif-orientation",
+  "date": "2026-11-28",
+  "note": "Verify rotated, mirrored and untagged gallery JPEGs and displayed watermark placement."
+}
