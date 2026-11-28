@@ -335,14 +335,14 @@ const CommentItem = ({ comment, onReact, onReply, user, isLight }) => {
                 <video 
                   src={getFullUrl(comment.media_url)} 
                   controls 
-                  className="w-full max-h-[180px] object-contain bg-black animate-in fade-in duration-200"
+                  className="w-full h-[180px] md:h-auto max-h-[180px] object-contain bg-black animate-in fade-in duration-200"
                   playsInline
                 />
               ) : (
                 <img 
                   src={getFullUrl(comment.media_url)} 
                   alt="Comment attachment" 
-                  className="w-full max-h-[180px] object-contain cursor-pointer hover:opacity-90 transition-opacity animate-in fade-in duration-200"
+                  className="w-full h-[180px] md:h-auto max-h-[180px] object-contain cursor-pointer hover:opacity-90 transition-opacity animate-in fade-in duration-200"
                   onClick={() => window.open(getFullUrl(comment.media_url), '_blank')}
                 />
               )}
@@ -353,13 +353,21 @@ const CommentItem = ({ comment, onReact, onReply, user, isLight }) => {
           <span>{formatTimeAgo(comment.created_at)}</span>
           {likeCount > 0 && <span>{likeCount} like{likeCount !== 1 ? 's' : ''}</span>}
           {onReply && (
-            <button aria-expanded={replyOpen} onClick={() => setReplyOpen(open => !open)}>Reply</button>
+            <button
+              type="button"
+              className="min-h-[44px] min-w-[44px] touch-manipulation md:min-h-0 md:min-w-0"
+              aria-expanded={replyOpen}
+              onClick={() => setReplyOpen(open => !open)}
+            >
+              Reply
+            </button>
           )}
         </div>
         {replyOpen && (
           <CommentInputForm
             user={user}
             isLight={isLight}
+            autoFocus
             replyingToName={comment.author_name}
             placeholder={`Reply to ${comment.author_name}...`}
             onCancelReply={() => setReplyOpen(false)}
