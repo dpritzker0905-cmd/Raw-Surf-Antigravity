@@ -99,6 +99,7 @@ async def test_personal_benefit_is_bounded_by_own_seat_and_obligation(shared, gu
     result = await create(client, terms, quote["quote_id"])
     assert result.status_code == 200, result.text
     async with maker() as db:
+        assert (await db.get(DispatchRequest, result.json()["id"])).estimated_total == net / 100
         rows = (await db.scalars(select(DispatchRequestParticipant))).all()
         assert {r.participant_id: round(r.share_amount * 100) for r in rows} == quote["crew_cents"]
         assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == units - int(quote["subscription_covered"])
@@ -265,6 +266,11 @@ async def test_card_expiry_requires_definitive_unpaid_checkout(shared, harness, 
     terms = {**TERMS, "crew_shares": [{"user_id": "north", "covered_by_captain": True}]}
     dispatch_id = (await create(client, terms, (await preview(client, terms))["quote_id"])).json()["id"]
     checkout = SimpleNamespace(id="cs_fixture", url="https://fixture.invalid/card", status="open", payment_status="unpaid")
+    checkout.metadata = {"dispatch_id":dispatch_id,"type":"on_demand_dispatch","user_id":CAPTAIN}
+    checkout.currency, checkout.amount_total = "usd", 3500
+    close = SimpleNamespace(**{**vars(checkout), "status":"expired"})
+    monkeypatch.setattr(sessions.stripe.checkout.Session, "expire", Mock(return_value=close))
+    monkeypatch.setattr("routes.dispatch.dispatch_matching.process_dispatch_notifications", AsyncMock())
     create_mock = Mock(return_value=checkout)
     monkeypatch.setattr(sessions.stripe.checkout.Session, "create", create_mock)
     monkeypatch.setattr(sessions.stripe.checkout.Session, "retrieve", Mock(return_value=checkout))
@@ -275,6 +281,11 @@ async def test_card_expiry_requires_definitive_unpaid_checkout(shared, harness, 
             "dispatch_id": dispatch_id, "payer_id": CAPTAIN, "origin_url": "https://fixture.invalid"})
         assert response.status_code == 200, response.text
     create_mock.assert_called_once()
+    checkout.status = "complete"
+    blocked = await client.post("/api/dispatch/checkout", headers=bearer(CAPTAIN), json={
+        "dispatch_id":dispatch_id,"payer_id":CAPTAIN,"origin_url":"https://fixture.invalid"})
+    assert blocked.status_code == 409, blocked.text
+    checkout.status = "open"
     async with maker.begin() as db:
         past = datetime.now(timezone.utc) - timedelta(minutes=45)
         (await db.get(DispatchRequest, dispatch_id)).pending_payment_expires_at = past
@@ -287,11 +298,12 @@ async def test_card_expiry_requires_definitive_unpaid_checkout(shared, harness, 
         checkout.status = "expired"
     for _ in range(2):
         await cleanup_abandoned_stripe_sessions_task()
-    expired = provider_state == "expired"
+    expired = provider_state in ("open", "expired")
+    paid = provider_state == "paid"
     async with maker() as db:
         assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == int(expired)
-        assert (await db.get(DispatchRequest, dispatch_id)).status == (Status.CANCELLED if expired else Status.PENDING_PAYMENT)
-        assert (await db.scalar(select(PaymentTransaction.payment_status))) == ("Expired" if expired else "Pending")
+        assert (await db.get(DispatchRequest, dispatch_id)).status == (Status.CANCELLED if expired else Status.SEARCHING_FOR_PRO if paid else Status.PENDING_PAYMENT)
+        assert (await db.scalar(select(PaymentTransaction.payment_status))) == ("Expired" if expired else "Completed" if paid else "Pending")
 
 
 async def test_unknown_card_creation_keeps_allowance_reserved_and_reuses_attempt(shared, harness, monkeypatch):
@@ -328,3 +340,73 @@ async def test_unknown_card_creation_keeps_allowance_reserved_and_reuses_attempt
     async with maker() as db:
         assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 1
         assert (await db.get(Profile, CAPTAIN)).credit_balance == 100
+
+
+@pytest.mark.parametrize("outcome", ["absent", "open", "paid", "paid_during_close", "partial_scan", "wrong_amount"])
+async def test_deadline_reconciles_unlinked_card_attempt(shared, monkeypatch, outcome):
+    from models import DispatchRequestStatusEnum as Status, PaymentTransaction
+    from services.shared_dispatch_allowance import expire_due_included_sessions
+
+    client, maker, _ = shared
+    terms = {**TERMS, "crew_shares": [{"user_id":"north","covered_by_captain":True}]}
+    dispatch_id = (await create(client, terms, (await preview(client, terms))["quote_id"])).json()["id"]
+    now = datetime.now(timezone.utc)
+    async with maker.begin() as db:
+        row = await db.get(DispatchRequest, dispatch_id)
+        row.included_checkout_started_at = now - timedelta(hours=3)
+        row.pending_payment_expires_at = now - timedelta(hours=2)
+    provider = Mock()
+    paid = outcome in ("paid", "paid_during_close")
+    found = SimpleNamespace(id="cs_recovered", amount_total=800 if outcome == "wrong_amount" else 3500,
+        currency="usd", metadata={"type":"on_demand_dispatch","dispatch_id":dispatch_id,"user_id":CAPTAIN},
+        status="complete" if outcome == "paid" else "open", payment_status="paid" if outcome == "paid" else "unpaid")
+    def pages():
+        yield SimpleNamespace(metadata={"dispatch_id":"another"})
+        if outcome == "partial_scan":
+            raise TimeoutError
+        if outcome != "absent":
+            yield found
+    provider.list.return_value.auto_paging_iter.side_effect = pages
+    provider.expire.return_value = SimpleNamespace(**{**vars(found), "status":"expired"})
+    if outcome == "paid_during_close":
+        provider.expire.side_effect = TimeoutError()
+        provider.retrieve.return_value = SimpleNamespace(**{**vars(found), "status":"complete", "payment_status":"paid"})
+    monkeypatch.setattr("routes.dispatch.dispatch_matching.process_dispatch_notifications", AsyncMock())
+    for _ in range(2):
+        await expire_due_included_sessions(maker, provider, now)
+    restored = outcome in ("absent", "open")
+    async with maker() as db:
+        record = await db.get(DispatchRequest, dispatch_id)
+        assert record.status == (Status.CANCELLED if restored else Status.SEARCHING_FOR_PRO if paid else Status.PENDING_PAYMENT)
+        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == int(restored)
+        assert await db.scalar(select(func.count()).select_from(CreditTransaction)) == int(paid)
+        if paid:
+            assert record.stripe_checkout_session_id == found.id
+            receipt = await db.scalar(select(PaymentTransaction))
+            assert (receipt.payment_status, receipt.amount) == ("Completed", 35)
+            notice = await db.scalar(select(Notification).where(Notification.type == "crew_session_covered"))
+            assert notice.user_id == "north" and "$0" in notice.body
+            provider.list.assert_called_once()
+        if outcome in ("absent", "partial_scan", "wrong_amount"):
+            provider.expire.assert_not_called()
+    provider.create.assert_not_called()
+
+
+async def test_accepted_cancellation_returns_unit_and_applies_fee_to_paid_cash_only(shared, harness):
+    from models import DispatchRequestStatusEnum as Status
+    from routes.dispatch import dispatch_transitions
+    app, client, maker = harness
+    app.include_router(dispatch_transitions.router, prefix="/api")
+    terms = {**TERMS, "crew_shares": [{"user_id":"north","covered_by_captain":True}]}
+    dispatch_id = (await create(client, terms, (await preview(client, terms))["quote_id"])).json()["id"]
+    assert (await client.post(f"/api/dispatch/{dispatch_id}/pay?payer_id=victim", headers=bearer(CAPTAIN))).status_code == 200
+    async with maker.begin() as db:
+        row = await db.get(DispatchRequest, dispatch_id)
+        row.status, row.photographer_id = Status.ACCEPTED, PRO
+        (await db.get(Profile, PRO)).on_demand_cancellation_fee_pct = 50
+    response = await client.post(f"/api/dispatch/{dispatch_id}/cancel", json={}, headers=bearer(CAPTAIN))
+    assert response.status_code == 200, response.text
+    assert response.json()["refund_amount"] == 17.50
+    async with maker() as db:
+        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 1
+        assert (await db.get(Profile, CAPTAIN)).credit_balance == 82.50

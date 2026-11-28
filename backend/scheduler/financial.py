@@ -345,7 +345,7 @@ async def cleanup_abandoned_stripe_sessions_task():
     
     try:
         await expire_due_included_sessions(async_session_maker,
-                                           stripe.checkout.Session.retrieve if stripe.api_key else None,
+                                           stripe.checkout.Session if stripe.api_key else None,
                                            datetime.now(timezone.utc))
         async with async_session_maker() as db:
             cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=30)

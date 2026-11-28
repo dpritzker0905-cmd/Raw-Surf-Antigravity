@@ -19,7 +19,7 @@ from utils.geo import haversine_distance
 
 from database import get_db
 from utils.credits import consume_spend_only_for_debit
-from services.shared_dispatch_allowance import payment_deadline_passed
+from services.shared_dispatch_allowance import checkout_expiration, payment_deadline_passed
 from utils.dispatch_checkout_recovery import persist_dispatch_checkout
 from core.security import get_current_user_id
 from models import (
@@ -607,7 +607,7 @@ async def create_dispatch_checkout(
             dispatch.included_checkout_started_at = datetime.now(timezone.utc)
             await db.commit()
             dispatch = await db.get(DispatchRequest, data.dispatch_id, with_for_update=True, populate_existing=True)
-            if dispatch.status != DispatchRequestStatusEnum.PENDING_PAYMENT:
+            if dispatch.status != DispatchRequestStatusEnum.PENDING_PAYMENT or payment_deadline_passed(dispatch):
                 raise HTTPException(409, "The request is no longer pending payment.")
         if dispatch.included_subscription_id and dispatch.stripe_checkout_session_id:
             existing = stripe.checkout.Session.retrieve(dispatch.stripe_checkout_session_id)
@@ -616,7 +616,8 @@ async def create_dispatch_checkout(
             return {"checkout_url": existing.url, "session_id": existing.id,
                     "dispatch_id": dispatch.id, "amount": amount}
         checkout_session = stripe.checkout.Session.create(
-            **({"idempotency_key": f"shared-quick-book-{dispatch.id}"} if dispatch.included_subscription_id else {}),
+            **({"idempotency_key": f"shared-quick-book-{dispatch.id}",
+                "expires_at": checkout_expiration(dispatch.included_checkout_started_at)} if dispatch.included_subscription_id else {}),
             payment_method_types=['card'],
             line_items=[{
                 'price_data': {
