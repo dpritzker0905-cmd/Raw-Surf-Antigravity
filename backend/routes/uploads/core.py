@@ -59,6 +59,7 @@ from utils.video_processor import (
 )
 from sqlalchemy import text
 from .storage import get_file_extension, unlinked_media_names, upload_public_media
+from .watermark_tiles import tile_upload_text
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -201,7 +202,7 @@ def add_watermark(
         max_dimension = 4096
         if img.width > max_dimension or img.height > max_dimension:
             scale = min(max_dimension / img.width, max_dimension / img.height)
-            new_size = (int(img.width * scale), int(img.height * scale))
+            new_size = (max(1, int(img.width * scale)), max(1, int(img.height * scale)))
             img = img.resize(new_size, Image.Resampling.LANCZOS)
         
         # Convert to RGBA if needed
@@ -265,7 +266,9 @@ def add_watermark(
             text_height = bbox[3] - bbox[1]
 
         # 3. Position and composite watermark
-        if position == 'tiled':
+        if position == 'tiled' and style == 'text':
+            img, overlay_layer = tile_upload_text(img, overlay_layer, text, font, bbox, opacity)
+        elif position == 'tiled':
             # Repeating grid diagonal watermark
             spacing_y = int((logo_img.height * 4.5) if has_logo else (text_height * 4))
             spacing_x = int((logo_img.width + 150) if has_logo else (text_width + 80))
@@ -278,8 +281,6 @@ def add_watermark(
                             tx = x + (logo_img.width - text_width) // 2
                             ty = y + logo_img.height + 8
                             draw.text((tx, ty), text, font=font, fill=(255, 255, 255, int(opacity * 255)))
-                    elif style == 'text':
-                        draw.text((x, y), text, font=font, fill=(255, 255, 255, int(opacity * 255)))
         else:
             # Single placement (center or corners)
             margin_w, margin_h = 45, 45
