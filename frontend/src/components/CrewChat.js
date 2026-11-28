@@ -2,7 +2,7 @@
  * CrewChat - Real-time messaging for booking coordination
  * Features: Text, Voice (30s max), Images, Quick Actions, Emoji Picker, Reactions
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -28,7 +28,7 @@ import {
 } from '../constants/emojis';
 
 
-import { BACKEND_URL } from '../lib/apiClient';
+import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import { formatDuration } from '../utils/formatTime';
 
@@ -72,6 +72,19 @@ export default function CrewChat() {
   const [activeEmojiCategory, setActiveEmojiCategory] = useState('Surf & Ocean');
   const [showExtendedEmoji, setShowExtendedEmoji] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(null); // message ID or null
+  const [reactionEmojis, setReactionEmojis] = useState(REACTION_EMOJIS);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    apiClient.get('/crew-chat/reaction-emojis', { signal: controller.signal })
+      .then(({ data }) => {
+        if (!controller.signal.aborted && Array.isArray(data?.emojis) && data.emojis.length) {
+          setReactionEmojis(data.emojis);
+        }
+      })
+      .catch(() => { /* Keep the bundled picker when the catalogue is unavailable. */ });
+    return () => controller.abort();
+  }, []);
 
   // Mentions & Replies state
   const [replyingTo, setReplyingTo] = useState(null); // message being replied to
@@ -434,6 +447,8 @@ export default function CrewChat() {
                   <div className="relative">
                     <button
                       onClick={() => setShowReactionPicker(showReactionPicker === msg.id ? null : msg.id)}
+                      aria-label="React to crew message"
+                      aria-expanded={showReactionPicker === msg.id}
                       className="text-zinc-600 hover:text-zinc-400 transition-colors p-1"
                       data-testid={`reaction-btn-${msg.id}`}
                     >
@@ -443,11 +458,12 @@ export default function CrewChat() {
                     {/* Reaction picker popup */}
                     {showReactionPicker === msg.id && (
                       <div className={`absolute ${isMe ? 'right-0' : 'left-0'} bottom-full mb-2 bg-zinc-800 border border-zinc-700 rounded-lg p-2 shadow-xl z-20`}>
-                        <div className="flex gap-1">
-                          {REACTION_EMOJIS.map((emoji) => (
+                        <div className="grid grid-cols-4 gap-1">
+                          {reactionEmojis.map((emoji) => (
                             <button
                               key={emoji}
                               onClick={() => handleReaction(msg.id, emoji)}
+                              aria-pressed={hasUserReacted(msg.reactions, emoji, user?.id)}
                               className={`w-8 h-8 flex items-center justify-center text-lg rounded hover:bg-zinc-700 transition-colors ${
                                 hasUserReacted(msg.reactions, emoji, user?.id) ? 'bg-cyan-500/30' : ''
                               }`}
