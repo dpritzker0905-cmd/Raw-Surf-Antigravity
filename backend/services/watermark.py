@@ -414,13 +414,62 @@ def watermark_image_bytes(
         return None, None
 
 
+def _combined_preview(image, logo, text, opacity, position):
+    """Render the settings preview with a caption directly beneath the logo."""
+    width, height = image.size
+    tiled = position == 'tiled'
+    fraction = 0.4 if position == 'center' else 0.2
+    mark_width = max(1, int(width * fraction))
+    logo_height = max(1, int(height * fraction))
+    scale = min(mark_width / logo.width, logo_height / logo.height)
+    logo_size = (max(1, round(logo.width * scale)), max(1, round(logo.height * scale)))
+    logo = logo.convert('RGBA').resize(logo_size, Image.Resampling.LANCZOS)
+
+    # Render at a bounded resolution before shrinking long captions to the mark width.
+    text = ' '.join(text.splitlines()).strip() or 'Watermark'
+    font = get_font(24)
+    left, top, right, bottom = font.getbbox(text)
+    caption = Image.new('RGBA', (min(2048, max(1, right - left)), max(1, bottom - top)))
+    ImageDraw.Draw(caption).text((-left, -top), text, font=font, fill='white')
+    caption_scale = min(mark_width / caption.width, max(1, logo_height // 4) / caption.height)
+    caption_size = (max(1, round(caption.width * caption_scale)), max(1, round(caption.height * caption_scale)))
+    caption = caption.resize(caption_size, Image.Resampling.LANCZOS)
+
+    gap = max(1, logo.height // 12)
+    stamp = Image.new('RGBA', (max(logo.width, caption.width), logo.height + gap + caption.height))
+    stamp.alpha_composite(logo, ((stamp.width - logo.width) // 2, 0))
+    stamp.alpha_composite(caption, ((stamp.width - caption.width) // 2, logo.height + gap))
+    stamp.putalpha(stamp.getchannel('A').point(lambda alpha: int(alpha * opacity)))
+    result = image.convert('RGBA')
+    margin = int(min(width, height) * 0.05)
+    if tiled:
+        for y in range(margin, height, stamp.height + max(1, margin * 2)):
+            for x in range(margin, width, stamp.width + max(1, margin * 2)):
+                result.alpha_composite(stamp, (x, y))
+    else:
+        x = (width - stamp.width) // 2
+        y = (height - stamp.height) // 2
+        if position.endswith('-left'):
+            x = margin
+        elif position.endswith('-right'):
+            x = width - stamp.width - margin
+        if position.startswith('top-'):
+            y = margin
+        elif position.startswith('bottom-'):
+            y = height - stamp.height - margin
+        result.alpha_composite(stamp, (x, y))
+    return result.convert('RGB')
+
+
 async def generate_watermarked_preview(
     original_url: str,
     max_dimension: int = 1080,  # 1080p for Standard tier
     watermark_text: str = DEFAULT_WATERMARK_TEXT,
     opacity: float = DEFAULT_WATERMARK_OPACITY,
     custom_logo_url: Optional[str] = None,
-    watermark_style: str = 'center'
+    watermark_style: str = 'center',
+    *,
+    include_logo_caption: bool = False,
 ) -> Optional[bytes]:
     """
     Generate a watermarked preview image for Standard tier
@@ -432,6 +481,7 @@ async def generate_watermarked_preview(
         watermark_text: Text for text-based watermark
         opacity: Watermark opacity (0-1)
         custom_logo_url: Optional URL to custom watermark logo
+        include_logo_caption: Draw the custom logo and caption together for the combined style.
         watermark_style: 'center' (single logo) or 'pattern' (repeating)
     
     Returns:
@@ -464,13 +514,13 @@ async def generate_watermarked_preview(
             logo_image = await get_custom_logo(custom_logo_url)
         
         # Apply watermark
-        watermarked = apply_watermark(
-            image, 
-            text=watermark_text, 
-            opacity=opacity,
-            logo_image=logo_image,
-            watermark_style=watermark_style
-        )
+        if include_logo_caption and logo_image is not None:
+            watermarked = _combined_preview(image, logo_image, watermark_text, opacity, watermark_style)
+        else:
+            watermarked = apply_watermark(
+                image, text=watermark_text, opacity=opacity,
+                logo_image=logo_image, watermark_style=watermark_style,
+            )
         
         # Save to bytes
         output = io.BytesIO()

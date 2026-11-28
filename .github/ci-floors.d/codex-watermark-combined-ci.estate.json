@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 8,
+  "branch": "codex/watermark-combined-ci",
+  "date": "2026-11-28",
+  "note": "Check generated logo and text JPEG previews across all six settings positions."
+}
