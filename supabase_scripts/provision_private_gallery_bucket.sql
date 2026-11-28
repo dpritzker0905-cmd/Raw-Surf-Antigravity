@@ -9,7 +9,7 @@ BEGIN
         FROM pg_policies
         WHERE schemaname = 'storage'
           AND tablename = 'objects'
-          AND cmd = 'SELECT'
+          AND cmd IN ('SELECT', 'ALL')
           AND (
               'public' = ANY (roles)
               OR 'anon' = ANY (roles)

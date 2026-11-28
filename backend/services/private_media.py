@@ -96,7 +96,26 @@ def legacy_public_url_to_private_ref(value: Optional[str], bucket: str) -> Optio
         return None
 
 
-async def upload_private_media(
+async def _discard_partial_gallery(bucket, keys):
+    url, key = _storage_settings()
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            result = await client.request("DELETE", f"{url}/storage/v1/object/{bucket}",
+                                          headers=_storage_auth_headers(key), json={"prefixes": keys})
+            result.raise_for_status()
+    except httpx.HTTPError:
+        logger.error("Could not retire incomplete private gallery upload")
+
+
+async def upload_private_media(*, bucket: str, object_key: str, content: bytes, content_type: str) -> Optional[str]:
+    if bucket == "gallery_originals":
+        from services.gallery_derivatives import upload_gallery_set
+        return await upload_gallery_set(bucket, object_key, content, content_type, _upload_private_object,
+                                        upload_private_media_stream, _discard_partial_gallery)
+    return await _upload_private_object(bucket=bucket, object_key=object_key, content=content, content_type=content_type)
+
+
+async def _upload_private_object(
     *,
     bucket: str,
     object_key: str,

@@ -594,3 +594,27 @@ async def test_the_watermark_benchmark_cleans_up_after_a_failure(harness, monkey
                                          files={'file': ('a.jpg', b'not an image at all', 'image/jpeg')})
     assert response.status_code == 400, response.text
     assert list(scratch.iterdir()) == []
+
+
+async def test_new_private_photo_sells_the_default_edition(harness, tmp_path, monkeypatch, private_gallery_store):
+    monkeypatch.setattr(upload_core, "UPLOAD_DIR", tmp_path / "uploads")
+    monkeypatch.setattr(upload_core, "upload_to_supabase_storage", lambda *args: "/public/watermarked")
+    photo = _png(width=2400, height=1600)
+    uploaded = await harness.client.post("/api/upload/gallery",headers=bearer("pro"),
+                                          files={"file": ("photo.png",photo,"image/png")})
+    assert uploaded.status_code == 200, uploaded.text
+    body = uploaded.json()
+    created = await harness.client.post("/api/gallery?photographer_id=pro",headers=bearer("pro"),
+                                        json={"original_url":body["original_url"],"preview_url":body["preview_url"]})
+    assert created.status_code == 200, created.text
+    item_id = created.json()["id"]
+    listing = await harness.client.get(f"/api/gallery/item/{item_id}",headers=bearer("buyer"))
+    assert listing.status_code == 200 and listing.json()["original_url"] is None
+    bought = await harness.client.post(f"/api/gallery/item/{item_id}/purchase?buyer_id=buyer",
+                                       headers=bearer("buyer"),json={})
+    assert bought.status_code == 200, bought.text
+    assert bought.json()["quality_tier"] == "standard"
+    async with private_gallery_store.client() as client:
+        delivered = await client.get(bought.json()["download_url"])
+    with Image.open(io.BytesIO(delivered.content)) as image:
+        assert image.format == "JPEG" and image.size == (1920, 1280)

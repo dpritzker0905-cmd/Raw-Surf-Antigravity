@@ -4,6 +4,7 @@ Run plan, stage, cutover, verify and (if needed) rollback with the same private
 journal. Retirement is a separate operation after the rollback retention window.
 Requires direct database access and a write freeze on legacy storage for retirement.
 """
+
 import argparse
 from contextlib import closing
 from hashlib import sha256
@@ -28,20 +29,40 @@ PREFIX = f"supabase://{BUCKET}/"
 
 class Storage:
     def __init__(self, client, origin, headers, root=None):
-        self.client, self.origin, self.headers, self.root = client, origin.rstrip("/"), headers, root
+        self.client, self.origin, self.headers, self.root = (
+            client,
+            origin.rstrip("/"),
+            headers,
+            root,
+        )
 
     def source(self, value):
         if not value:
             return None
         url = urlsplit(value)
         base = urlsplit(self.origin)
-        if (url.scheme, url.netloc) == (base.scheme, base.netloc) and url.path.startswith("/storage/v1/object/public/gallery/"):
-            kind, key = "public", unquote(url.path.removeprefix("/storage/v1/object/public/gallery/"))
-        elif not url.scheme and not url.netloc and url.path.startswith("/api/uploads/gallery/"):
+        if (url.scheme, url.netloc) == (
+            base.scheme,
+            base.netloc,
+        ) and url.path.startswith("/storage/v1/object/public/gallery/"):
+            kind, key = (
+                "public",
+                unquote(url.path.removeprefix("/storage/v1/object/public/gallery/")),
+            )
+        elif (
+            not url.scheme
+            and not url.netloc
+            and url.path.startswith("/api/uploads/gallery/")
+        ):
             kind, key = "local", unquote(url.path.removeprefix("/api/uploads/gallery/"))
         else:
             return None
-        if not key or any(p in ("", ".", "..") for p in key.split("/")) or "\\" in key or ":" in key:
+        if (
+            not key
+            or any(p in ("", ".", "..") for p in key.split("/"))
+            or "\\" in key
+            or ":" in key
+        ):
             raise ValueError("invalid source key")
         return kind, key
 
@@ -51,11 +72,17 @@ class Storage:
 
     @staticmethod
     def private_for(value, owner):
-        return bool(value and owner and value.startswith(PREFIX + owner + "/")
-                    and ".." not in PurePosixPath(unquote(value)).parts)
+        return bool(
+            value
+            and owner
+            and value.startswith(PREFIX + owner + "/")
+            and ".." not in PurePosixPath(unquote(value)).parts
+        )
 
     def bucket_check(self):
-        r = self.client.get(self.origin + "/storage/v1/bucket/" + BUCKET, headers=self.headers)
+        r = self.client.get(
+            self.origin + "/storage/v1/bucket/" + BUCKET, headers=self.headers
+        )
         r.raise_for_status()
         if r.json().get("public") is not False or r.json().get("id") != BUCKET:
             raise ValueError("expected private gallery bucket")
@@ -92,9 +119,16 @@ class Storage:
     def ensure_copy(self, key, data, digest, source_key):
         existing = self.read(BUCKET, key)
         if existing is None:
-            r = self.client.post(self.object_url(BUCKET, key), headers={**self.headers,
-                "x-upsert": "false", "Content-Type": mimetypes.guess_type(source_key)[0] or "application/octet-stream"},
-                content=data)
+            r = self.client.post(
+                self.object_url(BUCKET, key),
+                headers={
+                    **self.headers,
+                    "x-upsert": "false",
+                    "Content-Type": mimetypes.guess_type(source_key)[0]
+                    or "application/octet-stream",
+                },
+                content=data,
+            )
             r.raise_for_status()
             existing = self.read(BUCKET, key)
         verify_hash(existing, digest)
@@ -104,8 +138,12 @@ class Storage:
         if kind == "local":
             self.local_file(key).unlink()
         else:
-            r = self.client.request("DELETE", self.origin + "/storage/v1/object/gallery",
-                                    headers=self.headers, json={"prefixes": [key]})
+            r = self.client.request(
+                "DELETE",
+                self.origin + "/storage/v1/object/gallery",
+                headers=self.headers,
+                json={"prefixes": [key]},
+            )
             r.raise_for_status()
         if self.source_bytes(source) is not None:
             raise ValueError("source retirement did not complete")
@@ -117,8 +155,64 @@ def verify_hash(data, digest):
 
 
 def inventory(conn, tables):
-    return {name: [dict(row) for row in conn.execute(select(*(tables[name].c[c] for c in cols))
-            .order_by(tables[name].c[cols[0]])).mappings()] for name, cols in COLUMNS.items()}
+    return {
+        name: [
+            dict(row)
+            for row in conn.execute(
+                select(*(tables[name].c[c] for c in cols)).order_by(
+                    tables[name].c[cols[0]]
+                )
+            ).mappings()
+        ]
+        for name, cols in COLUMNS.items()
+    }
+
+
+def reconcile_projection(current, plan, action, storage):
+    """Compare only migrated columns after cutover, retaining subsequent production writes."""
+    from copy import deepcopy
+
+    result = deepcopy(current)
+    dest = "recovery" if action == "rollback" else "primary"
+    objects = {
+        storage.ref(a[k]): storage.ref(a[dest])
+        for a in plan["assets"]
+        for k in ("primary", "recovery")
+    }
+    sources = {tuple(a["source"]) for a in plan["assets"]}
+    initial = current == plan["before"]
+    if initial and action in ("verify", "retire") and plan["primary"] != current:
+        raise ValueError("private cutover required")
+    for name, rows in result.items():
+        key = COLUMNS[name][0]
+        by_id = {row[key]: row for row in rows}
+        for old, forward, recovery in zip(
+            plan["before"][name],
+            plan["primary"][name],
+            plan["recovery"][name],
+            strict=True,
+        ):
+            row = by_id.get(old[key])
+            if row is None:
+                continue  # a later deletion stays deleted
+            for col in old:
+                if old[col] == forward[col] == recovery[col]:
+                    continue
+                if not initial and row[col] not in (forward[col], recovery[col]):
+                    raise ValueError(
+                        "affected database inventory changed; reconcile before proceeding"
+                    )
+                if action in ("cutover", "rollback"):
+                    row[col] = recovery[col] if dest == "recovery" else forward[col]
+        for row in rows:
+            for col, val in row.items():
+                if not col.endswith("url") and not col.startswith("url_"):
+                    continue
+                if storage.source(val) in sources:
+                    raise ValueError("new legacy reference needs reconciliation")
+                if action in ("cutover", "rollback") and val in objects:
+                    row[col] = objects[val]
+    return result
 
 
 def run(action, engine, storage, journal_path, identity):
@@ -129,22 +223,44 @@ def run(action, engine, storage, journal_path, identity):
     if action == "plan" and not journal_path.exists():
         os.close(os.open(journal_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600))
     with closing(sqlite3.connect(journal_path, timeout=2)) as journal:
-        journal.execute("CREATE TABLE IF NOT EXISTS manifest (id INTEGER PRIMARY KEY, identity TEXT, plan TEXT)")
-        journal.execute("CREATE TABLE IF NOT EXISTS hashes (object_key TEXT PRIMARY KEY, digest TEXT NOT NULL)")
+        journal.execute(
+            "CREATE TABLE IF NOT EXISTS manifest (id INTEGER PRIMARY KEY, identity TEXT, plan TEXT)"
+        )
+        journal.execute(
+            "CREATE TABLE IF NOT EXISTS hashes (object_key TEXT PRIMARY KEY, digest TEXT NOT NULL)"
+        )
         journal.execute("BEGIN IMMEDIATE")
         meta = MetaData()
         with engine.begin() as conn:
             if conn.dialect.name == "postgresql":
                 conn.execute(text("SET LOCAL lock_timeout = '5s'"))
-                conn.execute(text("LOCK TABLE " + ", ".join(COLUMNS) + " IN SHARE ROW EXCLUSIVE MODE"))
-            tables = {name: Table(name, meta, autoload_with=conn, resolve_fks=False) for name in COLUMNS}
+                if action == "retire":
+                    conn.execute(
+                        text(
+                            "LOCK TABLE "
+                            + ", ".join(COLUMNS)
+                            + " IN SHARE ROW EXCLUSIVE MODE"
+                        )
+                    )
+                elif action in ("plan", "stage", "verify"):
+                    conn.execute(
+                        text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+                    )
+            tables = {
+                name: Table(name, meta, autoload_with=conn, resolve_fks=False)
+                for name in COLUMNS
+            }
             current = inventory(conn, tables)
-            entry = journal.execute("SELECT identity,plan FROM manifest WHERE id=1").fetchone()
+            entry = journal.execute(
+                "SELECT identity,plan FROM manifest WHERE id=1"
+            ).fetchone()
             if not entry:
                 if action != "plan":
                     raise ValueError("no saved migration plan")
                 plan = make_plan(current, storage)
-                journal.execute("INSERT INTO manifest VALUES(1,?,?)", (identity,json.dumps(plan)))
+                journal.execute(
+                    "INSERT INTO manifest VALUES(1,?,?)", (identity, json.dumps(plan))
+                )
                 journal.commit()
             else:
                 if entry[0] != identity:
@@ -153,10 +269,15 @@ def run(action, engine, storage, journal_path, identity):
             result = {"assets": len(plan["assets"]), "held": len(plan["holds"])}
             if action == "plan":
                 return result
-            if current not in [plan[state] for state in ("before", "primary", "recovery")]:
-                raise ValueError("database inventory changed; reconcile before proceeding")
-            if action in ("verify", "retire") and current not in [plan["primary"], plan["recovery"]]:
-                raise ValueError("private cutover required")
+            if action in ("cutover", "rollback", "verify") and any(
+                h[0] == "gallery_items" for h in plan["holds"]
+            ):
+                raise ValueError("unresolved source ownership prevents cutover")
+            target = (
+                reconcile_projection(current, plan, action, storage)
+                if action != "stage"
+                else None
+            )
             if action == "retire" and plan["holds"]:
                 raise ValueError("unresolved review holds prevent retirement")
             for asset in plan["assets"]:
@@ -166,48 +287,81 @@ def run(action, engine, storage, journal_path, identity):
                     if data is None:
                         raise ValueError("source missing")
                     digest = sha256(data).hexdigest()
-                    journal.execute("INSERT OR IGNORE INTO hashes VALUES(?,?)", (key,digest))
+                    journal.execute(
+                        "INSERT OR IGNORE INTO hashes VALUES(?,?)", (key, digest)
+                    )
                     # Before an external write, persist source identity for crash recovery.
                     journal.commit()
                     journal.execute("BEGIN IMMEDIATE")
-                    saved = journal.execute("SELECT digest FROM hashes WHERE object_key=?", (key,)).fetchone()[0]
+                    saved = journal.execute(
+                        "SELECT digest FROM hashes WHERE object_key=?", (key,)
+                    ).fetchone()[0]
                     verify_hash(data, saved)
                     for role in ("primary", "recovery"):
                         storage.ensure_copy(asset[role], data, saved, source[1])
                 else:
-                    row = journal.execute("SELECT digest FROM hashes WHERE object_key=?", (key,)).fetchone()
+                    row = journal.execute(
+                        "SELECT digest FROM hashes WHERE object_key=?", (key,)
+                    ).fetchone()
                     if not row:
                         raise ValueError("stage is incomplete")
-                    for role in (("recovery",) if action == "rollback" else ("primary", "recovery")):
-                        verify_hash(storage.read(BUCKET,asset[role]),row[0])
-                    if action in ("cutover","retire"):
+                    for role in (
+                        ("recovery",)
+                        if action == "rollback"
+                        else ("primary", "recovery")
+                    ):
+                        verify_hash(storage.read(BUCKET, asset[role]), row[0])
+                    if action in ("cutover", "retire"):
                         old = storage.source_bytes(source)
                         if old is not None or current == plan["before"]:
-                            verify_hash(old,row[0])
+                            verify_hash(old, row[0])
                         if action == "retire" and old is not None:
                             storage.retire(source)
             if action in ("cutover", "rollback"):
-                target = plan["primary" if action == "cutover" else "recovery"]
+                if conn.dialect.name == "postgresql":
+                    conn.execute(
+                        text(
+                            "LOCK TABLE "
+                            + ", ".join(COLUMNS)
+                            + " IN SHARE ROW EXCLUSIVE MODE"
+                        )
+                    )
+                current = inventory(conn, tables)
+                target = reconcile_projection(current, plan, action, storage)
                 for name, rows in current.items():
                     id_col = COLUMNS[name][0]
                     for old, new in zip(rows, target[name], strict=True):
-                        delta = {c: v for c,v in new.items() if old[c] != v}
+                        delta = {c: v for c, v in new.items() if old[c] != v}
                         if delta:
-                            conn.execute(update(tables[name]).where(tables[name].c[id_col] == old[id_col]).values(**delta))
-                if inventory(conn,tables) != target:
+                            conn.execute(
+                                update(tables[name])
+                                .where(tables[name].c[id_col] == old[id_col])
+                                .values(**delta)
+                            )
+                if inventory(conn, tables) != target:
                     raise ValueError("reconciliation failed")
             return result
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("plan","stage","cutover","verify","rollback","retire"))
+    parser.add_argument(
+        "action", choices=("plan", "stage", "cutover", "verify", "rollback", "retire")
+    )
     parser.add_argument("--journal", required=True, type=Path)
-    parser.add_argument("--legacy-writers-frozen", action="store_true",
-                        help="confirm legacy storage writes are stopped for switch or retirement")
+    parser.add_argument(
+        "--legacy-writers-frozen",
+        action="store_true",
+        help="confirm legacy storage writes are stopped for switch or retirement",
+    )
     args = parser.parse_args()
-    if args.action in ("cutover","retire","rollback") and not args.legacy_writers_frozen:
-        parser.error("freeze legacy writers before changing live references or retiring sources")
+    if (
+        args.action in ("cutover", "retire", "rollback")
+        and not args.legacy_writers_frozen
+    ):
+        parser.error(
+            "freeze legacy writers before changing live references or retiring sources"
+        )
     origin = os.environ["SUPABASE_URL"]
     if urlsplit(origin).scheme != "https":
         raise ValueError("HTTPS storage endpoint required")
@@ -220,9 +374,18 @@ def main():
     root = os.environ.get("GALLERY_UPLOAD_ROOT")
     try:
         with httpx.Client(timeout=120) as client:
-            storage = Storage(client,origin,headers,Path(root) if root else None)
-            print(run(args.action, engine, storage, args.journal,
-                      json.dumps([origin,url.host,url.port,url.database,str(storage.root)])))
+            storage = Storage(client, origin, headers, Path(root) if root else None)
+            print(
+                run(
+                    args.action,
+                    engine,
+                    storage,
+                    args.journal,
+                    json.dumps(
+                        [origin, url.host, url.port, url.database, str(storage.root)]
+                    ),
+                )
+            )
     finally:
         engine.dispose()
 

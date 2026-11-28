@@ -163,7 +163,11 @@ async def test_the_owner_still_uploads_and_the_file_lands_under_the_token_user(h
     body = response.json()
     key = body["original_url"].removeprefix("supabase://")
     assert key.startswith("gallery_originals/pro/")
-    assert private_gallery_store.objects == {key: _png()}
+    assert private_gallery_store.objects[key] == _png()
+    prefix = key.rsplit("/", 1)[0]
+    for tier in ("standard", "web"):
+        with Image.open(io.BytesIO(private_gallery_store.objects[f"{prefix}/{tier}.jpg"])) as edition:
+            assert edition.format == "JPEG" and edition.size == (64, 64)
     assert len(harness.stored) == 1
     bucket, preview_key = harness.stored[0]
     assert bucket == "gallery" and preview_key.startswith("pro/")
