@@ -13,6 +13,18 @@ from routes.gallery.gallery_purchases import (
 from services import watermark
 
 
+def test_caption_scales_between_settings_and_gallery_preview_sizes():
+    logo = Image.new('RGBA', (48, 32), 'red')
+    heights = []
+    for width in (800, 1080):
+        photo = Image.new('RGB', (width, width * 3 // 4), 'black')
+        result = watermark._combined_preview(photo, logo, 'BEACH', 1, 'center')
+        # The green channel isolates the white caption from the red logo.
+        _, top, _, bottom = result.getchannel('G').point(lambda value: 255 if value > 100 else 0).getbbox()
+        heights.append(bottom - top)
+    assert heights[1] == pytest.approx(heights[0] * 1080 / 800, abs=2)
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize('position,with_logo', [
     ('center', True), ('top-left', True), ('top-right', True), ('bottom-left', True),

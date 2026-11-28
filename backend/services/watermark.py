@@ -431,7 +431,9 @@ def _combined_preview(image, logo, text, opacity, position):
     left, top, right, bottom = font.getbbox(text)
     caption = Image.new('RGBA', (min(2048, max(1, right - left)), max(1, bottom - top)))
     ImageDraw.Draw(caption).text((-left, -top), text, font=font, fill='white')
-    caption.thumbnail((mark_width, max(1, logo_height // 2)), Image.Resampling.LANCZOS)
+    caption_scale = min(mark_width / caption.width, max(1, logo_height // 4) / caption.height)
+    caption_size = (max(1, round(caption.width * caption_scale)), max(1, round(caption.height * caption_scale)))
+    caption = caption.resize(caption_size, Image.Resampling.LANCZOS)
 
     gap = max(1, logo.height // 12)
     stamp = Image.new('RGBA', (max(logo.width, caption.width), logo.height + gap + caption.height))
