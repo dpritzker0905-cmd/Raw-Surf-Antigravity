@@ -1,0 +1,4358 @@
+[
+ {
+  "id": "4fdea78b-8c3a-43b0-b6c0-124914d52ffc",
+  "name": "Anglet - Les Cavaliers",
+  "lat": 43.518,
+  "lng": -1.558,
+  "country": "France",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 1,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Anglet-Les-Cavaliers/wavefinder",
+   "https://www.surfertoday.com/surfing/anglet-11-surf-spots-in-4-5-kilometers"
+  ],
+  "note": "Exposed beach break over shifting sandbanks (surf-forecast, surfertoday); the La Barre jetty is cited only for a paddle-out rip, not as shaping the wave"
+ },
+ {
+  "id": "f954c3f5-34ec-4827-8b38-8fe630303c1a",
+  "name": "Oceanside Pier",
+  "lat": 33.1938,
+  "lng": -117.4218,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 2,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/North_America/USA/California/San_Diego_County/oceanside_pier",
+   "https://www.surf-forecast.com/breaks/Oceanside-Pier"
+  ],
+  "note": "Exposed beach break; peaks shift with the sandbars either side of the pier; no source says the pier shapes the wave"
+ },
+ {
+  "id": "baf18c7d-a3bf-4ed4-a9a0-6923ba10316e",
+  "name": "Iquique - Cavancha",
+  "lat": -20.2368,
+  "lng": -70.203,
+  "country": "Chile",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 3,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Playa-Cavancha",
+   "https://surfnerd.com/surf-forecast/playa-cavancha/m4QQqcxQMb7fWC95d"
+  ],
+  "note": "CONFLICT: surf-forecast says beach and reef, the reef providing the lefts and rights; surfnerd says beach break over reef and sand; TripBase tags beach"
+ },
+ {
+  "id": "1a1c3d9d-b1ff-4a66-a4ba-c49876f0bee5",
+  "name": "Armação",
+  "lat": -27.7468,
+  "lng": -48.466,
+  "country": "Brazil",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 4,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Armacao",
+   "https://www.frommers.com/destinations/florianopolis/active-pursuits/beaches/"
+  ],
+  "note": "Surf-forecast: reasonably exposed beach break; 3 km sand beach"
+ },
+ {
+  "id": "c361f600-7f7a-49c6-9d42-6c5115c8dcce",
+  "name": "Short Sands",
+  "lat": 45.7625,
+  "lng": -124.003,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 5,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Oswald-West-State-Park",
+   "https://www.portlandsocietypage.com/2012/08/14/a-hot-spot-for-surfing-on-the-northern-oregon-coast/amp"
+  ],
+  "note": "Exposed beach break in a cove with lefts and rights"
+ },
+ {
+  "id": "1e43cd9a-12e1-44b5-9d9a-9d5a65b760aa",
+  "name": "BUNMAHON BEACH",
+  "lat": 52.1381,
+  "lng": -7.3669,
+  "country": "Ireland",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 6,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Bunmahon",
+   "https://surfnerd.com/surf-forecast/bunmahon/cR4WR8fPKgTJnnC3d"
+  ],
+  "note": "CONFLICT: surf-forecast calls it a river-mouth break (rips from the river mouth); surfnerd calls it a beach break over sand"
+ },
+ {
+  "id": "774d5ec0-654b-4713-8558-30d81e273e61",
+  "name": "Playalinda Beach",
+  "lat": 28.67,
+  "lng": -80.62,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 7,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfline.com/surf-report/playalinda/5842041f4e65fad6a7708aa7",
+   "https://www.surf-forecast.com/breaks/Playa-Linda_2"
+  ],
+  "note": "Sandbar-laden national seashore; exposed beach break over sand bottom"
+ },
+ {
+  "id": "29947ee5-f797-4fd6-82c8-165a571b8c7f",
+  "name": "Folly Beach Pier",
+  "lat": 32.652,
+  "lng": -79.938,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 8,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Folly-Beach-Pier",
+   "https://www.follybeach.com/topsurfspots"
+  ],
+  "note": "Sand-bottom beach break both sides of the pier with shifting sandbars; no source says the pier shapes it"
+ },
+ {
+  "id": "c86a46d0-696d-4c5a-afd6-95e0d8ec0375",
+  "name": "Santos",
+  "lat": -23.9798,
+  "lng": -46.288,
+  "country": "Brazil",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 9,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://guia.melhoresdestinos.com.br/praia-de-jose-menino-santos.html"
+  ],
+  "note": "NO_SOURCE: town-level name; only general notes of strong waves at Jose Menino, no break description for this coordinate"
+ },
+ {
+  "id": "2907de61-b965-403a-9beb-5eb7959de49a",
+  "name": "SILVERSTRAND BEACH",
+  "lat": 53.2498,
+  "lng": -9.1265,
+  "country": "Ireland",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 10,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://windy.app/forecast2/spot/73705/Silverstrand/statistics",
+   "https://www.thebeachguide.co.uk/republic-of-ireland/county-galway/silverstrand.htm"
+  ],
+  "note": "Windy spot profile lists a beach break with sandy seabed; beach guides describe a short sandy beach (some say no regular surf).",
+  "completion_pass": true
+ },
+ {
+  "id": "c22caf3a-4329-470b-9082-e0d760751f3f",
+  "name": "Praia da Ferrugem",
+  "lat": -28.0568,
+  "lng": -48.59,
+  "country": "Brazil",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 11,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.theculturetrip.com/south-america/brazil/articles/the-best-surf-beaches-in-santa-catarina-brazil",
+   "https://www.fodors.com/world/south-america/brazil/the-south/things-to-do/sights/reviews/praia-da-ferrugem-113065610"
+  ],
+  "note": "Listed as a beach break; lefts and rights over sand bottom"
+ },
+ {
+  "id": "a2f7e1e5-e9e9-49db-b9c3-15888d7a6dac",
+  "name": "Seignosse",
+  "lat": 43.6928,
+  "lng": -1.486,
+  "country": "France",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 12,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Les-Estagnots",
+   "https://thesurfatlas.com/surfing-france/seignosse-surf/"
+  ],
+  "note": "Powerful beach break over shifting sandbanks (Les Estagnots, Seignosse)"
+ },
+ {
+  "id": "95857803-7758-4dc9-9f99-5f1944f0dc86",
+  "name": "Paradise Beach",
+  "lat": 28.1232,
+  "lng": -80.5752,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 13,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://es.surf-forecast.com/breaks/Paradise-3/surf-stats"
+  ],
+  "note": "NO_SOURCE: only a surf-stats page, no description of the break"
+ },
+ {
+  "id": "1e4f2087-5ac1-446f-a47d-921393f38e0e",
+  "name": "Lori Wilson Park",
+  "lat": 28.335,
+  "lng": -80.6058,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 14,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/lori-wilson-park",
+   "https://www-lonelyplanet-com-57e2.imagizer.com/usa/florida/cocoa-beach/attractions/lori-wilson-park/a/poi-sig/1348336/1006200"
+  ],
+  "note": "Average Cocoa Beach sandbar break; soft sand, shallow water, small waves"
+ },
+ {
+  "id": "d979b41c-0989-4682-8c52-b3b9059b53e6",
+  "name": "South Beach Penrod",
+  "lat": 25.766,
+  "lng": -80.129,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 15,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://en.wannasurf.com/spot/North_America/USA/South_East/South_Florida/south_beach",
+   "https://www.surf-forecast.com/breaks/South-Beach_Miami"
+  ],
+  "note": "CONFLICT: wannasurf says sandy beach break; surf-forecast describes a sheltered beach/jetty break (Government Cut jetty adjacent)"
+ },
+ {
+  "id": "b0a7aa03-f786-4a17-abc9-e2ab3ac5e75f",
+  "name": "Ao Mae Khao Beach",
+  "lat": 9.7,
+  "lng": 98.5833,
+  "country": "Thailand",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 16,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no surf guide or break description found for Ao Mae Khao"
+ },
+ {
+  "id": "5794d3d6-0573-41f8-9f05-bed054091ca0",
+  "name": "Garden City",
+  "lat": 33.568,
+  "lng": -78.986,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 17,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Garden-City-Pier",
+   "https://www.surfnerd.com/surf-forecast/garden-city-pier"
+  ],
+  "note": "Beach/pier break over a sand bar, lefts and rights; no source says the pier shapes the wave"
+ },
+ {
+  "id": "7c993304-1d44-472d-81e5-ab0c603f4bd5",
+  "name": "La Nord",
+  "lat": 43.675,
+  "lng": -1.44,
+  "country": "France",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 18,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/La-Nord",
+   "https://www.surf-report.com/surf-info/la-nord-hossegor-s68.html"
+  ],
+  "note": "Exposed beach break; big-wave outside sandbank north of La Centrale"
+ },
+ {
+  "id": "37b354d8-64bd-4c08-8b44-c1996aacaefb",
+  "name": "Bonita Beach",
+  "lat": 26.358,
+  "lng": -81.87,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 19,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://beachguide.com/bonita-springs/recreation/bonita-beach-park"
+  ],
+  "note": "NO_SOURCE: family-beach descriptions only; no break description"
+ },
+ {
+  "id": "ddebd1a2-273f-4711-b6a3-ed4b165d9c6a",
+  "name": "Navarre Beach",
+  "lat": 30.362,
+  "lng": -86.852,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 20,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/North_America/USA/Gulf_Coast/Florida/navarre_beach",
+   "https://www.americansurfmagazine.com/article/navarre-beach-surf-guide"
+  ],
+  "note": "Exposed sandbar break with inside and outer bars either side of the pier"
+ },
+ {
+  "id": "4cf66e0b-3481-4a69-8739-1589a4173269",
+  "name": "Indian Rocks Beach",
+  "lat": 27.898,
+  "lng": -82.87,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 21,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Indian-Rocks-Beach",
+   "https://pt.wannasurf.com/spot/North_America/USA/Gulf_Coast/Florida/indian_rocks_beach"
+  ],
+  "note": "Sand-bottom beach break along street access points"
+ },
+ {
+  "id": "e00383c2-4488-4b1a-8bfd-21714e398aad",
+  "name": "Playa Remanso",
+  "lat": 11.228,
+  "lng": -85.878,
+  "country": "Nicaragua",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 22,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Central_America/Nicaragua/Playa_Remanso",
+   "https://surfnerd.com/surf-forecast/el-remanso"
+  ],
+  "note": "Sand-bottomed beach break in a cove south of San Juan del Sur"
+ },
+ {
+  "id": "d1a58a0a-f3df-48f2-aaf5-d2c7ac125a90",
+  "name": "Chigasaki",
+  "lat": 35.3098,
+  "lng": 139.438,
+  "country": "Japan",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 23,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://sites.google.com/a/surfinginjapan.com/www/kanagawa-shonan/west-shonan",
+   "https://jw-webmagazine.com/tips/best-places-to-surf-near-tokyo/"
+  ],
+  "note": "Guide: Chigasaki is the land of the beach break with occasional reef patches; town-level name, coordinate between Southern Beach and Tsujido"
+ },
+ {
+  "id": "9536bf06-9cc4-4e12-b773-034a80ab2ab9",
+  "name": "Shidashita",
+  "lat": 35.35,
+  "lng": 140.3833,
+  "country": "Japan",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 24,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/shidashita/TvrxPDpbAN7wAwqFd",
+   "https://sites.google.com/a/surfinginjapan.com/www/chiba-north/ichinomiya"
+  ],
+  "note": "Long volcanic-sand beach; sand break peeling left and right (Olympic venue)"
+ },
+ {
+  "id": "69e17066-3f15-41b9-9ff6-3220e3767b49",
+  "name": "Makapuu",
+  "lat": 21.3098,
+  "lng": -157.686,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 25,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/North_America/USA/Hawaii/Oahu/Makapuu_Beach",
+   "https://www.cccarto.com/hawaiisurf/oahusurf/index.html"
+  ],
+  "note": "Heavy shorebreak over a sand-bottomed bay (reef only at neighbouring Suicides); one cam guide says sand/reef"
+ },
+ {
+  "id": "d2350f58-49fd-4d68-8717-e1e79849a44c",
+  "name": "Bradenton Beach",
+  "lat": 27.478,
+  "lng": -82.715,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 26,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.islander.org/2016/05/safety-near-cortez-groins-raise-concern/",
+   "https://www.surf-forecast.com/breaks/Bradenton-Beach"
+  ],
+  "note": "Surf area at the three Cortez erosion-control groins, which a local article says hold the break; surf-forecast: beach/pier break"
+ },
+ {
+  "id": "b09c548e-65b2-49b3-821a-cfb12aaba769",
+  "name": "Barra Beach",
+  "lat": -23.798,
+  "lng": 35.528,
+  "country": "Mozambique",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 27,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Africa/Mozambique",
+   "https://surfnerd.com/surf-forecast/barra-beach"
+  ],
+  "note": "Wannasurf: sandbar break; surfnerd: beach with sand points, rights peeling down sandbanks"
+ },
+ {
+  "id": "241d8ac1-59ff-408f-8625-ce2e25e0d242",
+  "name": "Saint-Jean-de-Luz",
+  "lat": 43.3858,
+  "lng": -1.712,
+  "country": "France",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 28,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://thesurfatlas.com/surfing-france/saint-jean-de-luz-surf/"
+  ],
+  "note": "NO_SOURCE: town-level name; bay spots differ (Sainte-Barbe reef along a groin, Erromardie reef); no description identifies this coordinate"
+ },
+ {
+  "id": "24340718-5822-45b2-bdf3-cf05ba46586b",
+  "name": "Pacific Beach",
+  "lat": 32.7982,
+  "lng": -117.278,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 29,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.pacificsurf.com/san-diegos-best-surf-spots/",
+   "https://www.surf-forecast.com/breaks/Crystal-Pier-and-Pacific-Beach"
+  ],
+  "note": "Classic beach break with sandbars on both sides of Crystal Pier"
+ },
+ {
+  "id": "b5c65219-bd50-4169-a431-5c66d04dfcf3",
+  "name": "Jobos Beach",
+  "lat": 18.5055,
+  "lng": -67.098,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 30,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Jobos",
+   "https://dukesurf.com/en/Some-photos-and-videos-of-Jobos-La-Ola-from-the-fourth-stop-of-the-Alas-Pro-Tour/"
+  ],
+  "note": "CONFLICT: described both as a reef break and as a (right or left) point break over rock and sand"
+ },
+ {
+  "id": "283f2286-21b8-4c60-b912-f49264dfeb30",
+  "name": "Cherry Grove",
+  "lat": 33.838,
+  "lng": -78.576,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 31,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Cherry-Grove-Pier",
+   "https://surfnerd.com/surf-forecast/cherry-grove-pier/hBzJZRdMSs5m6vRuA"
+  ],
+  "note": "Exposed beach break over sand, lefts and rights"
+ },
+ {
+  "id": "b8c2f32d-c7e0-490a-8809-c5f2fa949c8a",
+  "name": "Long Bay Beach",
+  "lat": 21.778,
+  "lng": -72.278,
+  "country": "Turks and Caicos",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 32,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.iksurfmag.com/travel-guides/caribbean/turks-and-caicos-islands/providenciales/",
+   "https://www.visittci.com/providenciales/things-to-do/water-sports-and-activities"
+  ],
+  "note": "Shore is flat; waves break on the barrier reef about half a mile out with shallow sections (kite/surf guides); weak sourcing"
+ },
+ {
+  "id": "bb5fc2a2-96da-4df4-9ab9-08be6f24c8f1",
+  "name": "Bocas del Toro - Bluff Beach",
+  "lat": 9.408,
+  "lng": -82.268,
+  "country": "Panama",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 33,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Bluff",
+   "https://surfnerd.com/surf-forecast/bluff/LEa9dZpZHbrmM8w37"
+  ],
+  "note": "Large beach break, many peaks, shallow sand, close-out shorebreak; one low-quality travel page mentions reef breaks"
+ },
+ {
+  "id": "d20a54a8-84dd-4e2c-8a39-ac694ef9ba4c",
+  "name": "PRAIA DO FOGO (RIBEIRA QUENTE)",
+  "lat": 37.7305,
+  "lng": -25.3103,
+  "country": "Portugal",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 34,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://thesurfatlas.com/?p=6633"
+  ],
+  "note": "NO_SOURCE: only a regional line about a Ribeira Quente point/seawall wave over cobble, not clearly this beach"
+ },
+ {
+  "id": "5fdab898-b1b6-41d3-9852-7e0dbbda5a78",
+  "name": "Fujairah - Sandy Beach",
+  "lat": 25.458,
+  "lng": 56.368,
+  "country": "United Arab Emirates",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 35,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (surf-forecast UAE list has no Fujairah break)."
+ },
+ {
+  "id": "5a6ddc69-0b01-44e8-8b8f-c9fb42f6047c",
+  "name": "Kiawah Island",
+  "lat": 32.608,
+  "lng": -80.056,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 36,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/North_America/USA/South_East/South_Carolina/kiawah_island",
+   "https://surfnerd.com/surf-forecast/kiawah-island-seabrook-island/NdNdJjQxsLxJKqSLG"
+  ],
+  "note": "Wannasurf: beach break, rights and lefts, sandy bottom; Surfnerd also gives a sand bottom.",
+  "completion_pass": true
+ },
+ {
+  "id": "33025083-0f8d-482f-9e59-225053daac31",
+  "name": "Sunset Beach FL",
+  "lat": 27.758,
+  "lng": -82.78,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 37,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Sunset-Beach"
+  ],
+  "note": "Surf-forecast: \"exposed sandbar break\", Gulf Coast Florida, 27.74N 82.76W (matches pin). Single source."
+ },
+ {
+  "id": "5d1c301c-5eb6-4ce1-9f9b-a6cba28504c3",
+  "name": "Crescent Beach",
+  "lat": 33.788,
+  "lng": -78.706,
+  "country": "USA",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 38,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (no Crescent Beach page in the surf-forecast South Carolina list)."
+ },
+ {
+  "id": "c9fe7ac2-0bb2-442c-af1b-aa97c81f2a59",
+  "name": "New Pier",
+  "lat": -29.8667,
+  "lng": 31.0333,
+  "country": "South Africa",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 39,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Dairy-Beach"
+  ],
+  "note": "Surf-forecast \"Dairy Beach (New Pier)\", 29.85S 31.04E: \"beach/Pier break\", waves break left and right on the beach; no source says the pier shapes the wave, so beach. Single source."
+ },
+ {
+  "id": "f68f3a1f-ccd7-49c4-a3d4-64c51e456c92",
+  "name": "Guarujá",
+  "lat": -24.0068,
+  "lng": -46.216,
+  "country": "Brazil",
+  "frame": "beach",
+  "frame_size": 568,
+  "rn": 40,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: town-level name (Guaruja has several beaches: Pitangueiras, Tombo, Enseada, Pernambuco); no guide for a spot called Guaruja at this pin."
+ },
+ {
+  "id": "21c0180a-13b3-45ab-bc82-a735a2e9be1b",
+  "name": "St. Augustine Inlet - North Jetty",
+  "lat": 29.912,
+  "lng": -81.263,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 1,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.yeeew.com/listing/north-america/florida/vilano/",
+   "https://www.surf-forecast.com/breaks/Vilano-Jetty/buoys"
+  ],
+  "note": "Guides: jetty wedge setup over sand just north of St. Augustine Inlet; surf-forecast beach/jetty break."
+ },
+ {
+  "id": "a96da035-ca2f-4197-ae41-983f9150d70c",
+  "name": "Westport Jetty",
+  "lat": 46.9078,
+  "lng": -124.15,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 2,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/westport-jetty-corner/i5PjfoM6xFLAhvKBF",
+   "https://www.surf-forecast.com/breaks/Westport_The-Corner"
+  ],
+  "note": "Surfnerd: right-hand beachbreak peeling over sandbars on the south side of the south jetty; jetty not said to shape it; surf-forecast type beach/jetty only as a label."
+ },
+ {
+  "id": "a3431282-37d9-46d9-befb-b79a8d5aa40c",
+  "name": "Wabasso Beach",
+  "lat": 27.753,
+  "lng": -80.385,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 3,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Wabasso",
+   "https://www.surfnerd.com/nl/surf-forecast/wabasso"
+  ],
+  "note": "Exposed beach break, sandbar type; surfnerd says sand and sometimes reef (minor). No jetty described at the break."
+ },
+ {
+  "id": "6d0f00ba-6674-42ce-ae0a-a9ce724ea812",
+  "name": "Port Aransas Jetty",
+  "lat": 27.818,
+  "lng": -97.048,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 4,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "http://en.wannasurf.com/spot/North_America/USA/Gulf_Coast/Texas/port_aransas/"
+  ],
+  "note": "Wannasurf: beach break, sandy bottom, good sandbars; the long north jetty only breaks the wind chop, not described as shaping the wave."
+ },
+ {
+  "id": "92e79a5d-4a99-48ce-ab9c-d5a48e4498b8",
+  "name": "Jupiter Inlet",
+  "lat": 26.944,
+  "lng": -80.065,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 5,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Jupiter-Inlet-South-Jetty",
+   "https://www.yeeew.com/?p=15770"
+  ],
+  "note": "Beach/jetty break; left-breaking jetty peak over sand at the Jupiter Inlet south jetty."
+ },
+ {
+  "id": "0e2df60f-5a6d-4f2a-8574-c04dcf76cb63",
+  "name": "Ponce Inlet",
+  "lat": 29.082,
+  "lng": -80.925,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 6,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Ponce-Inlet",
+   "https://surfnerd.com/surf-forecast/ponce-inlet"
+  ],
+  "note": "Beach/jetty break; the long jetty peels off rights; inlet-shaped sandbars."
+ },
+ {
+  "id": "03237204-3268-484e-a13a-5e9d27c9202a",
+  "name": "Haulover Inlet North Jetty",
+  "lat": 25.905,
+  "lng": -80.118,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 7,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.wannasurf.com/spot/North_America/USA/South_East/South_Florida/haulover_inlet_north_side/index.html",
+   "https://surfnerd.com/surf-forecast/haulover"
+  ],
+  "note": "Wannasurf: breakwater/jetty type, sandy bottom; jetties create the sandbanks."
+ },
+ {
+  "id": "56045778-75ad-4b1b-8df6-bef63000e25c",
+  "name": "La Piste",
+  "lat": 43.5833,
+  "lng": -1.4167,
+  "country": "France",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 8,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/La-Piste",
+   "https://ultimatefrance.com/surfing/south-west-france/capbreton"
+  ],
+  "note": "Powerful hollow beach break over deep sandbars; WW2 bunkers on the beach, no jetty shaping described."
+ },
+ {
+  "id": "1971201b-9c39-49e0-a07b-e1c24e4ae39c",
+  "name": "Long Beach Jetty",
+  "lat": 40.583,
+  "lng": -73.64,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 9,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.yeeew.com/listing/north-america/new-jersey-new-york/new-york/long-island-west/long-beach",
+   "https://www.surf-forecast.com/breaks/Long-Beach_4"
+  ],
+  "note": "Beach break with rock jetties (groynes) that hold the sand and set up the sandbars; best waves adjacent to the jetties."
+ },
+ {
+  "id": "ce101f62-ad23-4b1b-8b2e-7f10ea5acba5",
+  "name": "Jetty East",
+  "lat": 30.392,
+  "lng": -86.508,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 10,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/jetty-east",
+   "https://www.surfnerd.com/nl/surf-forecast/jetty-east"
+  ],
+  "note": "Surfnerd lists a jetty break at Destin East Pass, breaking over sand beside the jetty channel. Single guide."
+ },
+ {
+  "id": "360ce62e-f663-4d3a-9d9e-2d601e0fc746",
+  "name": "Haulover Inlet South Jetty",
+  "lat": 25.898,
+  "lng": -80.12,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 11,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/haulover",
+   "https://www.surf-forecast.com/breaks/Haulover"
+  ],
+  "note": "Beach break peppered with jetties that create the sandbanks; beach/pier/jetties type."
+ },
+ {
+  "id": "de43d26a-dbe9-4239-ba03-db6fb45c402a",
+  "name": "Sebastian Inlet",
+  "lat": 27.862,
+  "lng": -80.4464,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 12,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://coastalcare.org/2011/04/sebastian-inlet-florida/",
+   "https://stabmag.com/stabcinema/watch-east-coast-young-gun-reveals-the-return-of-kelly-slaters-favorite-childhood-wave"
+  ],
+  "note": "First Peak: NE swell wedges off the curved north jetty."
+ },
+ {
+  "id": "eaef8d71-ed6b-4e0b-8da8-17057a268e9f",
+  "name": "New Smyrna Beach - Inlet",
+  "lat": 29.074,
+  "lng": -80.919,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 13,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/New-Smyrna-Inlet",
+   "https://surfnerd.com/surf-forecast/the-inlet-new-smyrna/zTNobsi6aKGT6ejAQ"
+  ],
+  "note": "Beach/jetty break; the jetty at the north end of NSB creates the sandbars."
+ },
+ {
+  "id": "394140c5-2e5f-457b-9367-e58ea17c4807",
+  "name": "Sebastian Inlet - Second Peak",
+  "lat": 27.8762,
+  "lng": -80.4531,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 14,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.tripbase.com/destinations/sebastian-inlet-usa/surf/",
+   "https://www.surf-forecast.com/breaks/Sebastian-Inlet_Second-Peak"
+  ],
+  "note": "Second Peak: sandbar beach break ~100 m from the jetty; a guide says it does not get the jetty wedge. Its position relative to First Peak is disputed."
+ },
+ {
+  "id": "e83f5575-1324-4bb3-999d-9c660259cfe9",
+  "name": "St. Lucie Inlet",
+  "lat": 27.164,
+  "lng": -80.151,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 15,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no surf-break description found for St. Lucie Inlet (only boating/sandbar pages and nearby Stuart Rocks)."
+ },
+ {
+  "id": "1d30a099-6c6f-4157-b2d8-56b0d6ee750d",
+  "name": "Oregon Inlet",
+  "lat": 35.775,
+  "lng": -75.535,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 16,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no surf-break description found for Oregon Inlet (only engineering and kite pages)."
+ },
+ {
+  "id": "d78c2f36-1c23-4e32-afe8-2bc3e51288fc",
+  "name": "Fort Pierce Inlet - North Jetty",
+  "lat": 27.4781,
+  "lng": -80.2891,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 17,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Fort-Pierce-North-Jetty",
+   "https://spunkyssurfshop.com/blogs/wave-wise-surfing-101-faqs/insider-s-guide-to-the-best-surf-spots-around-fort-pierce-and-the-treasure-coast"
+  ],
+  "note": "A bowling right breaks up against the jetty over a sandy bottom; surf-forecast also lists reef in its type."
+ },
+ {
+  "id": "902f826a-fb16-40d8-b0f3-db5708a516a2",
+  "name": "Gould's Inlet",
+  "lat": 31.16,
+  "lng": -81.365,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 18,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/goulds-inlet/9zNELCBmwEJY74G86",
+   "https://www.surf-forecast.com/breaks/Goulds-Inlet"
+  ],
+  "note": "Waves break over sand, left and right beach breaks at the inlet mouth; no structure described."
+ },
+ {
+  "id": "44f4340d-14d0-487c-847b-10ee906e8034",
+  "name": "Pineda Causeway",
+  "lat": 28.2124,
+  "lng": -80.5923,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 19,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NAME_ONLY: no guide description found for Pineda Causeway."
+ },
+ {
+  "id": "0b775e46-715f-491d-87d7-09a0aa0f3247",
+  "name": "Princeton Jetty",
+  "lat": 37.498,
+  "lng": -122.488,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 20,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/North_America/USA/California/San_Mateo/princeton_breakwater",
+   "https://surfnerd.com/surf-forecast/princeton-jetty/aD5ea8ufvZ3oKwnCM"
+  ],
+  "note": "Jetty break with a sandy bottom at the Princeton Harbor breakwater."
+ },
+ {
+  "id": "9147b30c-8214-4a78-b06f-4b9877992a34",
+  "name": "Vilano Beach",
+  "lat": 29.924,
+  "lng": -81.285,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 21,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Vilano-Beach",
+   "https://staughs.com/?p=657"
+  ],
+  "note": "Exposed breakwater break; jetty wedge over sand; the jetties make waves break harder. The spot sits ~1.3 km N of the jetty."
+ },
+ {
+  "id": "185ec798-97f0-428d-9e89-c5c1483bd324",
+  "name": "Florence Jetties",
+  "lat": 43.9688,
+  "lng": -124.153,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 22,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Florence_South-Jetty",
+   "https://surfnerd.com/surf-forecast/florence-south-jetty/EZKQFz2DNXbugEKQm"
+  ],
+  "note": "Described as a sandy beach break, lefts and rights; the jetty is not said to shape the wave."
+ },
+ {
+  "id": "3672071d-318f-4c9b-ab32-334e48d6db53",
+  "name": "Ponce Inlet - North Jetty",
+  "lat": 29.081,
+  "lng": -80.924,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 23,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/ponce-inlet",
+   "https://www.yeeew.com/listing/north-america/florida/florida-east-coast/flagler-and-volusia-counties/ponce-inlet-new-smyrna/forecast/"
+  ],
+  "note": "The north jetty side is the most reliable; the long jetty creates right-handers."
+ },
+ {
+  "id": "146967fa-73f4-4041-a61a-048a8eb0b8da",
+  "name": "Jetty Park",
+  "lat": 28.4061,
+  "lng": -80.589,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 24,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Jetty-Park",
+   "https://surfnerd.com/surf-forecast/jetty-park"
+  ],
+  "note": "Sand-bottom left tucked beside the Port Canaveral jetty; beach/jetty break."
+ },
+ {
+  "id": "c2ac6ca3-2c3b-499a-b83f-332221e2069e",
+  "name": "Venice Jetty",
+  "lat": 27.068,
+  "lng": -82.47,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 25,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/venice-jetties-south",
+   "https://www.surf-forecast.com/breaks/Venice-North-and-South-Jetty"
+  ],
+  "note": "Hard-packed sandbars and rock jetties create wedge waves; beach/jetty break."
+ },
+ {
+  "id": "b7048810-7cf2-45ae-abaa-2f4fa4452a96",
+  "name": "North Jetty Tybee",
+  "lat": 32.035,
+  "lng": -80.835,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 26,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.redbull.com/us-en/top-surf-spots-georgia",
+   "https://www.surf-forecast.com/breaks/North-Jetty_1/reviews"
+  ],
+  "note": "Jetty break; a right off the north jetty; the jetty makes it the most dependable local spot."
+ },
+ {
+  "id": "163a467f-8b3a-4790-b200-003eae19350f",
+  "name": "South Jetty Tybee",
+  "lat": 31.99,
+  "lng": -80.855,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 27,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.wannasurf.com/spot/North_America/USA/South_East/Georgia/Tybee_-_South_End_Sand_Bar/index.html",
+   "https://surfnerd.com/surf-forecast/south-tybee-sandbars"
+  ],
+  "note": "Wannasurf: sandbar wave, sandy bottom, reached via the south jetty walkover; the jetty is not described as shaping it."
+ },
+ {
+  "id": "043c051f-2e48-4666-9cd2-f0c4ec729ecb",
+  "name": "Venice Breakwater",
+  "lat": 33.9898,
+  "lng": -118.502,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 28,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/North_America/USA/California/LA_County",
+   "https://www.surf-forecast.com/breaks/Venice-Breakwater"
+  ],
+  "note": "Wannasurf type breakwater/jetty; waves bounce off the rock breakwater; beach/breakwaters break."
+ },
+ {
+  "id": "f1b07f66-d6a6-4d41-86c7-6494a39e690a",
+  "name": "Haulover Beach",
+  "lat": 25.905,
+  "lng": -80.12,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 29,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.wannasurf.com/spot/North_America/USA/South_East/South_Florida/haulover_inlet_north_side/index.html",
+   "https://surfnerd.com/surf-forecast/haulover"
+  ],
+  "note": "Same coordinate as Haulover Inlet north side: breakwater/jetty type, jetties create the sandbanks."
+ },
+ {
+  "id": "caad7dc8-9e57-4292-ac4e-dd6d3a1545d3",
+  "name": "Sebastian Inlet - South Jetty",
+  "lat": 27.8591,
+  "lng": -80.4454,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 30,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://americansurfmagazine.com/article/sebastian-inlet-surf-guide",
+   "https://www.palmbeachillustrated.com/sebastian-inlet-floridas-in-state-surf-pilgrimage/"
+  ],
+  "note": "Guides say the south-side waves are pushed by the jetty and the Monster Hole sandbar sits at the inlet mouth just south of the channel.",
+  "completion_pass": true
+ },
+ {
+  "id": "ce1567c7-24f0-4877-bbbd-6abab27d4bcf",
+  "name": "Ponce Inlet - South Jetty",
+  "lat": 29.078,
+  "lng": -80.922,
+  "country": "USA",
+  "frame": "inlet_jetty",
+  "frame_size": 31,
+  "rn": 31,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/New-Smyrna-Inlet",
+   "https://surfnerd.com/surf-forecast/the-inlet-new-smyrna/zTNobsi6aKGT6ejAQ"
+  ],
+  "note": "South side of Ponce Inlet is the New Smyrna inlet: beach/jetty break, the jetty creates the sandbars."
+ },
+ {
+  "id": "c342cc01-d89d-418f-9cb2-fa4da1853380",
+  "name": "Constitucion",
+  "lat": -35.3333,
+  "lng": -72.4167,
+  "country": "Chile",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 1,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no break description found for a Constitucion surf spot (only a Surfline forecast page without description)"
+ },
+ {
+  "id": "617e8f6e-e555-490f-8953-b897fd3e9f98",
+  "name": "Matanzas",
+  "lat": -33.9668,
+  "lng": -71.923,
+  "country": "Chile",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 2,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Matanzas",
+   "https://en.wannasurf.com/spot/South_America/Chile/Central_Santiago/matanzas"
+  ],
+  "note": "CONFLICT: Surf-Forecast says left-hand reef break, Wannasurf says left point break"
+ },
+ {
+  "id": "18bd33c7-1213-44e2-9c6b-8d8c610566f1",
+  "name": "Malibu Second Point",
+  "lat": 34.0365,
+  "lng": -118.712,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 3,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://hdontap.com/stream/842711/malibu_surf_cam/about",
+   "https://surfnerd.com/surf-forecast/malibu-third-point/KnzwFYAE7g5qFzMBD"
+  ],
+  "note": "Second section of the Malibu cobblestone right point"
+ },
+ {
+  "id": "93566203-5bc2-4afc-8bcb-c6b87b59aa9b",
+  "name": "El Gringo",
+  "lat": -18.48,
+  "lng": -70.33,
+  "country": "Chile",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 4,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://thesurfatlas.com/surfing-in-chile/arica-surf/",
+   "https://surfnerd.com/surf-forecast/el-gringo/dENAhHG6Py9ggyWEq"
+  ],
+  "note": "Heavy slab over shallow volcanic reef, Arica"
+ },
+ {
+  "id": "2e5b18ae-ab50-4a6c-b645-6f63c58e4b72",
+  "name": "Newport",
+  "lat": 41.4728,
+  "lng": -71.298,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 5,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: generic name \"Newport\" at the Cliff Walk; no guide ties a break description to this coordinate (Ruggles nearby is a separately named spot)"
+ },
+ {
+  "id": "d2b319c4-ec85-419d-9a2b-d8f2f189025a",
+  "name": "Rocky Point Fuerteventura",
+  "lat": 28.498,
+  "lng": -13.858,
+  "country": "Spain",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 6,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.fuerteventuraplayas.com/en/?p=7817",
+   "https://www.surf-forecast.com/breaks/Rocky-Point_Bajodel-Medio"
+  ],
+  "note": "Rocky Point / Bajo del Medio, Corralejo: reef break with several peaks"
+ },
+ {
+  "id": "5b7cbbaf-f2fa-4381-ac39-89b9e622c9b6",
+  "name": "Riomar Point",
+  "lat": 27.61,
+  "lng": -80.352,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 7,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Riomar-Reef"
+  ],
+  "note": "CONFLICT: guides describe Riomar as a beach and reef break (offshore reef plus inside shorebreak); no point described"
+ },
+ {
+  "id": "f5af3f61-ca23-4f3e-9179-987933899553",
+  "name": "Burleigh Heads",
+  "lat": -28.0917,
+  "lng": 153.4542,
+  "country": "Australia",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 8,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.worldsurfleague.com/posts/95844/burleigh-heads-break-video",
+   "https://thesurfatlas.com/australia-surfing/surfing-burleigh-heads/"
+  ],
+  "note": "Sand-bottom right-hand point break around a basalt headland"
+ },
+ {
+  "id": "81d8cecf-d027-47ff-a301-0081059833ec",
+  "name": "Flying Point",
+  "lat": 40.868,
+  "lng": -72.428,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 9,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/North_America/USA/North_East/Long_Island_NY/flying_point_beach"
+  ],
+  "note": "Wannasurf: wave type sand-bar, sandy bottom, rights and lefts (single source)"
+ },
+ {
+  "id": "213582fb-fe6f-4f40-b5e8-a4c2a5b4358a",
+  "name": "Silveira",
+  "lat": -28.0368,
+  "lng": -48.58,
+  "country": "Brazil",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 10,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/South_America/Brazil/Santa_Catarina/silveira",
+   "https://surfnerd.com/surf-forecast/silveira"
+  ],
+  "note": "Right-hand point wrapping a headland over rocks and sand"
+ },
+ {
+  "id": "e8b4b42b-8988-4528-bb49-0f85182a5d23",
+  "name": "Iquique - Huayquique",
+  "lat": -20.2768,
+  "lng": -70.203,
+  "country": "Chile",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 11,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Huayquique"
+  ],
+  "note": "Surf-Forecast: exposed beach break (single source)"
+ },
+ {
+  "id": "ca4693fb-80d0-4a6c-b6ac-1210bfe73f41",
+  "name": "Punta Roquitas",
+  "lat": -4.5068,
+  "lng": -81.31,
+  "country": "Peru",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 12,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Punta-Roquitas/reviews"
+  ],
+  "note": "NO_SOURCE: the only Punta Roquitas found is in Lima (Costa Verde, about 12 S), not at this Far North Peru coordinate (4.5 S); name collision"
+ },
+ {
+  "id": "6bda6313-0108-4f8b-adfb-b8a2fa506bd9",
+  "name": "Plantation Point",
+  "lat": 5.9333,
+  "lng": 80.0333,
+  "country": "Sri Lanka",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 13,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://thesurfatlas.com/sri-lanka-surf/midigama-surf-spots/",
+   "https://it.surf-forecast.com/breaks/Plantations"
+  ],
+  "note": "Reef break with rights and lefts by the Plantation Surf Inn"
+ },
+ {
+  "id": "03c67a2b-486a-458f-a4af-bdd8cc39edb5",
+  "name": "County Line",
+  "lat": 34.0522,
+  "lng": -118.9838,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 14,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://thesurfatlas.com/surfing-in-the-usa/surfing-in-malibu/",
+   "https://olahunter.blogspot.com/2010/08/county-line-surf-spot-review.html"
+  ],
+  "note": "CONFLICT: reef/point at the north end plus beach-break peaks; guides do not lead with one class"
+ },
+ {
+  "id": "ee59da52-a277-4909-b48b-843fe7c7b30e",
+  "name": "Scorpion Bay - First Point",
+  "lat": 27.298,
+  "lng": -114.998,
+  "country": "Mexico",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 15,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.bajabound.com/bajaadventures/scorpionbaysurf",
+   "https://scorpionbay.squarespace.com/surf"
+  ],
+  "note": "First Point: gentle right point with a table rock over sloping sand"
+ },
+ {
+  "id": "54c4a1e8-a980-431b-9d47-f748b2eb8b17",
+  "name": "Jardim do Mar",
+  "lat": 32.738,
+  "lng": -17.212,
+  "country": "Portugal",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 16,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/jardim-do-mar/98Q8tjD4MP65dcrt8",
+   "https://thesurfatlas.com/surfing-portugal/madeira-surf/"
+  ],
+  "note": "Right-hand point over boulders; Surf-Forecast says reef but guides lead with point"
+ },
+ {
+  "id": "fd9c02ad-4fb9-4926-a793-42f4605c0ac9",
+  "name": "Byron Bay - The Pass",
+  "lat": -28.642,
+  "lng": 153.628,
+  "country": "Australia",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 17,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/the-pass-byron-bay/eGacJpeBHEHbBDw8T",
+   "https://www.worldbeachguide.com/australia/surf/the-pass-byron-bay.htm"
+  ],
+  "note": "Sand-bottom right-hand point in the lee of the cape"
+ },
+ {
+  "id": "db2cae28-81a5-4181-ab44-dc80e9cf0899",
+  "name": "Grand Bahama Point",
+  "lat": 26.708,
+  "lng": -78.998,
+  "country": "Bahamas",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 18,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no guide describes a surf break at a Grand Bahama point"
+ },
+ {
+  "id": "b44be3ed-7125-4674-afa1-dc7b4363121f",
+  "name": "Medewi",
+  "lat": -8.298,
+  "lng": 114.828,
+  "country": "Indonesia",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 19,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.rapturecamps.com/blog/medewi-surf-guide",
+   "https://thesurfatlas.com/bali-surf/the-ultimate-guide-to-medewi-surf/"
+  ],
+  "note": "Long left-hand point over boulders and cobble"
+ },
+ {
+  "id": "8277023c-1371-4ff7-829f-6c979b819639",
+  "name": "Punta Rucia",
+  "lat": 19.868,
+  "lng": -71.218,
+  "country": "Dominican Republic",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 20,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Central_America/Dominican_Republic"
+  ],
+  "note": "Wannasurf country listing: right and left, reef-coral bottom (sparse listing, single source)"
+ },
+ {
+  "id": "4c4d6741-3540-44c5-8245-59330ff95bab",
+  "name": "Byron Bay - Wategos",
+  "lat": -28.635,
+  "lng": 153.635,
+  "country": "Australia",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 21,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Australia_Pacific/Australia/NSW/North/watego",
+   "https://www.surf-forecast.com/breaks/Wategos"
+  ],
+  "note": "Mellow right-hand point on the north side of Cape Byron"
+ },
+ {
+  "id": "0f7ee945-82cc-4388-97c6-2a62004791f5",
+  "name": "Fort Point",
+  "lat": 37.808,
+  "lng": -122.478,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 22,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.theoutbound.com/san-francisco/surfing/surf-under-the-golden-gate",
+   "https://surfnerd.com/surf-forecast/fort-point/Cr6sa9k7E8KFgYbck"
+  ],
+  "note": "Left peeling along the point under the Golden Gate (boulder bottom)"
+ },
+ {
+  "id": "c47a9302-857d-42b8-8344-e1186d8c6c14",
+  "name": "Cape San Blas",
+  "lat": 29.652,
+  "lng": -85.352,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 23,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfline.com/surf-report/cape-san-blas/5842041f4e65fad6a7708b7a",
+   "https://surfnerd.com/surf-forecast/cape-san-blas/inax4Do6zdgPnuCiZ"
+  ],
+  "note": "Right-hand point break over sand on the cape (search-result summaries)"
+ },
+ {
+  "id": "228c340b-c1cd-4b95-96e6-21baa6a8ae4d",
+  "name": "Punta Brava",
+  "lat": 7.632,
+  "lng": -81.278,
+  "country": "Panama",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 24,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Punta-Brava",
+   "https://surfnerd.com/surf-forecast/punta-brava/AF5LXDdMiHxvx3HSW"
+  ],
+  "note": "Exposed reef break, hollow lefts over rock"
+ },
+ {
+  "id": "39d2ea01-9fa2-47ba-b302-a83dd2b0cc44",
+  "name": "The Point Nias",
+  "lat": 0.578,
+  "lng": 97.798,
+  "country": "Indonesia",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 25,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://ipfs.ssi.eecc.de/ipns/en.wikipedia-on-ipfs.org/wiki/Lagundri_Bay",
+   "https://www.surf-forecast.com/breaks/Lagundri-The-Point"
+  ],
+  "note": "Barrelling right over reef (dead coral); some guides also call it a point, descriptions lead with reef"
+ },
+ {
+  "id": "4eb03749-8042-48dc-b383-1f743bf029cf",
+  "name": "Boneyards",
+  "lat": -34.0467,
+  "lng": 24.9367,
+  "country": "South Africa",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 26,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Boneyards_2",
+   "https://thesurfatlas.com/south-africa-surfing/jeffreys-bay-surf/"
+  ],
+  "note": "CONFLICT: Surf-Forecast reef break vs guides calling it the top section of the J-Bay point"
+ },
+ {
+  "id": "27295b4c-69fc-413f-a0fd-8a229eff3457",
+  "name": "CABO DO MUNDO",
+  "lat": 41.2231,
+  "lng": -8.7161,
+  "country": "Portugal",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 27,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://playocean.net/en/portugal/matosinhos/beaches/praia-do-cabo-do-mundo-beach"
+  ],
+  "note": "NO_SOURCE: only a bathing-beach page (sand beach with rocks); no description of a surf break"
+ },
+ {
+  "id": "b4f87d7e-62ab-4f2b-9bb7-52cb6fc0bb6c",
+  "name": "Seal Point",
+  "lat": -34.188,
+  "lng": 24.838,
+  "country": "South Africa",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 28,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/seal-point",
+   "https://it.surf-forecast.com/breaks/Seal-Point"
+  ],
+  "note": "Right-hand point over a rock ledge at Cape St Francis"
+ },
+ {
+  "id": "c977a030-d9f6-45c7-97be-27c6cf783549",
+  "name": "Kitchen Windows",
+  "lat": -34.04,
+  "lng": 24.945,
+  "country": "South Africa",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 29,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Kitchen-Windows",
+   "https://blog.sa-venues.com/provinces/eastern-cape/surfing-in-jeffreys-bay/"
+  ],
+  "note": "Exposed reef break, lefts and rights"
+ },
+ {
+  "id": "2b7fb749-5a3f-4697-a319-daec02076242",
+  "name": "Dee Why Point",
+  "lat": -33.7592,
+  "lng": 151.33,
+  "country": "Australia",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 30,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Dee-Why-Point",
+   "https://www.worldbeachguide.com/australia/surf/dee-why-point.htm"
+  ],
+  "note": "Right pointbreak over a shallow rock ledge (Surfnerd calls it reef)"
+ },
+ {
+  "id": "bb5b8fab-1157-4f38-a00d-1a2ebebe3a57",
+  "name": "Alexandra Headland",
+  "lat": -26.6662,
+  "lng": 153.146,
+  "country": "Australia",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 31,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Australia_Pacific/Australia/QLD/Sunshine_Coast",
+   "https://www.surf-forecast.com/breaks/Alexandra-Headland"
+  ],
+  "note": "Right-hand point break (The Bluff) with beach peaks alongside"
+ },
+ {
+  "id": "b541aa20-7647-41f4-b20d-e7926b0485c2",
+  "name": "La Puntilla",
+  "lat": -34.3812,
+  "lng": -72.016,
+  "country": "Chile",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 32,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/La-Puntilla-2",
+   "https://thesurfatlas.com/surfing-in-chile/pichilemu-surfing/"
+  ],
+  "note": "Sheltered left point; two low-quality pages call it a beach break"
+ },
+ {
+  "id": "fa408d6c-2a91-41cd-975c-d42b6d606bed",
+  "name": "Honiara Point",
+  "lat": -9.4333,
+  "lng": 159.95,
+  "country": "Solomon Islands",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 33,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (surf-forecast Solomon Islands list has only New Georgia breaks)."
+ },
+ {
+  "id": "e4259b3d-a3a8-4736-8850-65d75888e2fe",
+  "name": "Emma Wood",
+  "lat": 34.292,
+  "lng": -119.345,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 34,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Emma-Wood-State-Beach"
+  ],
+  "note": "CONFLICT: Surf-Forecast says beach and reef break; no single class"
+ },
+ {
+  "id": "3cc2ebca-f140-48e9-8a74-c59974d7e9fa",
+  "name": "CABO MONDEGO",
+  "lat": 40.1751,
+  "lng": -8.8967,
+  "country": "Portugal",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 35,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Buarcos"
+  ],
+  "note": "Surf-forecast Figueira da Foz - Buarcos at 40.17N 8.89W (same coordinate as the pin, under Cabo Mondego): \"exposed point break\". The page does not name Cabo Mondego; identified by coordinate. Single source."
+ },
+ {
+  "id": "68b6e9e3-8e6b-40cf-b90e-a1a08d3f49f9",
+  "name": "Panama Point",
+  "lat": 6.7667,
+  "lng": 81.7833,
+  "country": "Sri Lanka",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 36,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://abrotherabroad.com/?p=6326",
+   "https://srilankatravelpages.com/?p=35532"
+  ],
+  "note": "Guides describe a right-hand point break over sand and reef with long rides; one also notes it sits at a river mouth.",
+  "completion_pass": true
+ },
+ {
+  "id": "1c97d807-9e46-4de1-8592-bb03a3205d30",
+  "name": "Outer Banks - Cape Hatteras",
+  "lat": 35.2485,
+  "lng": -75.493,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 37,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Hatteras-Light-House"
+  ],
+  "note": "Surf-forecast Hatteras Light House, 35.23N 75.53W: \"exposed beach break\"; pin 35.25N 75.49W is the lighthouse stretch. Single source."
+ },
+ {
+  "id": "f6a79438-f083-44be-b755-b460a2e84e7b",
+  "name": "Tea Tree Bay Noosa",
+  "lat": -26.3878,
+  "lng": 153.123,
+  "country": "Australia",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 38,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Tea-Tree-Bay"
+  ],
+  "note": "Surf-Forecast: exposed point break (single source)"
+ },
+ {
+  "id": "008aefd8-cb93-4c49-acae-4c68c7c00e2e",
+  "name": "Ericeira",
+  "lat": 38.9628,
+  "lng": -9.4156,
+  "country": "Portugal",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 39,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://en.wikipedia.org/wiki/Ericeira"
+  ],
+  "note": "CONFLICT: town-level name; Ericeira has point (Coxos), beach (Ribeira d'Ilhas) and reef breaks; no single break at the pin."
+ },
+ {
+  "id": "e40a9a9e-494f-40bf-b9c0-02a5a22dcf34",
+  "name": "San Onofre",
+  "lat": 33.372,
+  "lng": -117.568,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 40,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/San-Onofre"
+  ],
+  "note": "CONFLICT: Surf-Forecast says beach and point break with left and right reefs"
+ },
+ {
+  "id": "2b57615c-02ec-4512-9bdf-c93c40093ea9",
+  "name": "Cape Three Points",
+  "lat": 4.728,
+  "lng": -2.088,
+  "country": "Ghana",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 41,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Cape-Three-Points"
+  ],
+  "note": "Surf-Forecast: exposed point break (single source)"
+ },
+ {
+  "id": "7b16b145-d60d-47f8-a500-87cb3d7e1242",
+  "name": "Topocalma",
+  "lat": -34.1368,
+  "lng": -72.003,
+  "country": "Chile",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 42,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Punta-Topocalma"
+  ],
+  "note": "CONFLICT: Surf-Forecast says reef and point break"
+ },
+ {
+  "id": "16d3098c-7798-4f7b-b397-4dc9709bcade",
+  "name": "ROSSES POINT BEACH",
+  "lat": 54.309,
+  "lng": -8.5744,
+  "country": "Ireland",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 43,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (no Rosses Point in the surf-forecast Sligo list)."
+ },
+ {
+  "id": "e1cb9b88-1ee9-432f-92d3-be88fa1d214a",
+  "name": "Puerto Escondido - La Punta",
+  "lat": 15.848,
+  "lng": -97.058,
+  "country": "Mexico",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 44,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/La-Punta_1"
+  ],
+  "note": "CONFLICT: surf-forecast La Punta (Oaxaca, 15.83N 97.05W) lists type \"Point\" but its text says \"exposed beach break\"."
+ },
+ {
+  "id": "2447cd65-4f05-47aa-88af-ee4fcb852d1c",
+  "name": "Cape Canaveral",
+  "lat": 28.3955,
+  "lng": -80.592,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 45,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (no Cape Canaveral page; generic cape name, pin beside Port Canaveral/Jetty Park)."
+ },
+ {
+  "id": "02d23963-4c2c-4292-9184-464dfef6b0f6",
+  "name": "Doolin Point",
+  "lat": 53.018,
+  "lng": -9.418,
+  "country": "Ireland",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 46,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Doolin-Point"
+  ],
+  "note": "surf-forecast: exposed reef break; a Wikipedia Surfing in Ireland table also lists it right, reef-rocky"
+ },
+ {
+  "id": "0be471ce-d880-48b3-9cca-0f4a09633490",
+  "name": "Unstad",
+  "lat": 68.267,
+  "lng": 13.585,
+  "country": "Norway",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 47,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://visitlofoten.com/en/summer/surfing",
+   "https://www.surf-forecast.com/breaks/Unstad"
+  ],
+  "note": "visitlofoten: right and left point break, stony bottom; surf-forecast: exposed point break (TripBase/Lonely Planet also mention a beach break, lower weight)"
+ },
+ {
+  "id": "d1d5cdb4-78bb-49e9-b485-8fa6daab7bc5",
+  "name": "Bells Beach",
+  "lat": -38.368,
+  "lng": 144.278,
+  "country": "Australia",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 48,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Bells-Beach",
+   "https://www.surfertoday.com/travel/surfing-waves-of-history-at-bells-beach"
+  ],
+  "note": "most guides lead with right-hand reef break over sandstone/limestone reef; a minority call it a point"
+ },
+ {
+  "id": "80fd7d82-c4cf-4dbf-b57e-c8e4357bb4bf",
+  "name": "Punta Sayulita",
+  "lat": 20.888,
+  "lng": -105.458,
+  "country": "Mexico",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 49,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/punta-sayulita/7Er7xHsDzrx5y2egr",
+   "https://www.surf-forecast.com/breaks/Punta-Sayulita"
+  ],
+  "note": "left/right reef break over uneven reef wrapping the north headland"
+ },
+ {
+  "id": "b0dbef94-5e72-4c10-9959-8f320295aa39",
+  "name": "Newport Point",
+  "lat": 33.593,
+  "lng": -117.882,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 50,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://wannasurf.com/spot/North_America/USA/California/Orange_County/newport_point",
+   "https://surfnerd.com/surf-forecast/newport-point/bN7ZdKWSu9dFdM2yn"
+  ],
+  "note": "Wannasurf: beach break, not really a point break; Surfnerd: sandbar left"
+ },
+ {
+  "id": "143e764e-942d-41e2-b97c-0ea4be4701c5",
+  "name": "Pottuvil Point",
+  "lat": 6.868,
+  "lng": 81.858,
+  "country": "Sri Lanka",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 51,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Asia/Sri_Lanka/pottuvil_point",
+   "https://surfnerd.com/surf-forecast/pottuvil-point/ng4j9Ew8LuMsqzbtW"
+  ],
+  "note": "right-hand point break over sand with long rides; one guide calls it reef"
+ },
+ {
+  "id": "4cd52360-36b5-4028-b434-1c666f33a783",
+  "name": "Mirissa Point",
+  "lat": 5.95,
+  "lng": 80.45,
+  "country": "Sri Lanka",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 52,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Mirissa",
+   "https://epicsrilankaholidays.com/things-to-do/mirissa/surfing-in-mirissa.html"
+  ],
+  "note": "right reef break over dead coral under the headland"
+ },
+ {
+  "id": "32af7c48-f16d-40d9-985d-6fde7d0f8c5f",
+  "name": "Coffee Bay",
+  "lat": -31.9833,
+  "lng": 29.15,
+  "country": "South Africa",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 53,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Coffee-Bay-Beach",
+   "https://surf-forecast.com/breaks/Coffee-Bay-Point"
+  ],
+  "note": "CONFLICT: Coffee Bay has sand beach, river-break and point listings; cannot tell which this pin is"
+ },
+ {
+  "id": "c8fc2295-6314-4005-8706-dce11397aaab",
+  "name": "Buchupureo",
+  "lat": -35.9868,
+  "lng": -72.853,
+  "country": "Chile",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 54,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Buchupureo",
+   "https://surfnerd.com/surf-forecast/buchupureo"
+  ],
+  "note": "surf-forecast: exposed point break; bottom mixed reef/sand, long lefts"
+ },
+ {
+  "id": "2ff65312-69d5-4e75-9cee-23a46616f40d",
+  "name": "Snapper Rocks",
+  "lat": -28.1622,
+  "lng": 153.5499,
+  "country": "Australia",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 55,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wikipedia.org/wiki/Snapper_Rocks",
+   "https://surfnerd.com/surf-forecast/snapper-rocks"
+  ],
+  "note": "sand-bottom right-hand point break"
+ },
+ {
+  "id": "cd713122-11a2-48e1-a48d-1c12979a9661",
+  "name": "Ollie's Point",
+  "lat": 10.865,
+  "lng": -85.718,
+  "country": "Costa Rica",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 56,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Potrero-Grande",
+   "https://witchsrocksurfcamp.com/witchs-rock-ollies-point-a-guide-to-costa-ricas-world-class-breaks"
+  ],
+  "note": "right-hand point break (bottom described as sand/stones/rock)"
+ },
+ {
+  "id": "4822e6c8-0f86-4c9d-a2d2-6d98158458ab",
+  "name": "Lafitenia",
+  "lat": 43.408,
+  "lng": -1.618,
+  "country": "France",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 57,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Lafitenia",
+   "https://www.surf-report.com/surf-info/lafitenia-saint-jean-luz-s1218.html"
+  ],
+  "note": "right point break over reef and sand, long right with sections"
+ },
+ {
+  "id": "981d82c5-cd71-4c10-a148-561006477991",
+  "name": "Trestles",
+  "lat": 33.384,
+  "lng": -117.59,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 58,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfertoday.com/surfing/14148-a-short-history-of-trestles-beach",
+   "https://www.redbull.com/us-en/spot-check-lower-trestles"
+  ],
+  "note": "Lowers: cobblestone point formed by San Mateo Creek deposits"
+ },
+ {
+  "id": "6996fcca-8e7b-4500-9fd8-642e69d60241",
+  "name": "Señoritas",
+  "lat": -12.3268,
+  "lng": -76.88,
+  "country": "Peru",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 59,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfnerd.com/surf-forecast/senoritas",
+   "https://dukesurf.com/en/Some-stories-related-to-ladies-and-gentlemen-and-their-sister-waves/"
+  ],
+  "note": "left-hand point break over reef sections"
+ },
+ {
+  "id": "d3b052c7-570a-4c97-b45c-a15a6ef62c12",
+  "name": "Los Botes",
+  "lat": -34.662,
+  "lng": -54.161,
+  "country": "Uruguay",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 60,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://turismorocha.gub.uy/en/attractions/sports/ideal-beaches-for-surfing-in-la-paloma-rocha-uruguay",
+   "https://www.surf-forecast.com/breaks/Las-Botes"
+  ],
+  "note": "CONFLICT: tourism board says stone-reef peaks; surf-forecast says exposed beach break"
+ },
+ {
+  "id": "9b4373eb-95e9-4eb2-b1ce-73e14c48e53b",
+  "name": "C Street Ventura",
+  "lat": 34.275,
+  "lng": -119.298,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 61,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/North_America/USA/California/Ventura/ventura_point",
+   "https://www.worldbeachguide.com/usa/surf/ventura-point.htm"
+  ],
+  "note": "long right-hand point over cobblestone and sand"
+ },
+ {
+  "id": "4b3da386-fcb7-49b6-be3c-81c5e1b9542e",
+  "name": "Carille Point",
+  "lat": 16.5718,
+  "lng": 120.323,
+  "country": "Philippines",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 62,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://surfnerd.com/surf-forecast/car-rille"
+  ],
+  "note": "CONFLICT: Surfnerd right reef break over uneven reef and sand vs another guide (Tatler Asia) calling it a point break"
+ },
+ {
+  "id": "bfb64695-2dc0-4d82-abb7-f50d96fafc38",
+  "name": "Munda Point",
+  "lat": -8.3167,
+  "lng": 157.25,
+  "country": "Solomon Islands",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 63,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no guide description of a Munda Point break found"
+ },
+ {
+  "id": "fa78256a-d281-4d08-878c-8c53f538e1b4",
+  "name": "La Herradura",
+  "lat": -12.1833,
+  "lng": -77.05,
+  "country": "Peru",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 64,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wikipedia.org/wiki/La_Herradura,_Lima",
+   "https://www.surf-forecast.com/breaks/Herradura"
+  ],
+  "note": "long left-hand point break in three sections under cliffs"
+ },
+ {
+  "id": "9bccefe8-3b1c-462c-bd95-2676c9be63be",
+  "name": "Riyue Bay - Right Point",
+  "lat": 18.518,
+  "lng": 110.008,
+  "country": "China",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 65,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Riyue-Bay"
+  ],
+  "note": "surf-forecast: fairly exposed point break (page covers the bay; no separate page for the right point); single source"
+ },
+ {
+  "id": "f893ac4e-7c23-41d3-8e2f-e4c4abddf859",
+  "name": "Puertecillo",
+  "lat": -34.0568,
+  "lng": -71.963,
+  "country": "Chile",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 66,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wikipedia.org/wiki/Puertecillo",
+   "https://www.surf-forecast.com/breaks/Puertecillo"
+  ],
+  "note": "long sand-bottom left point break at south end of the beach (TripBase says reef, low weight)"
+ },
+ {
+  "id": "0b23405f-a285-4eb0-b1ed-2f2c658baaf8",
+  "name": "Noosa First Point",
+  "lat": -26.3833,
+  "lng": 153.0833,
+  "country": "Australia",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 67,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/First-Point",
+   "https://stabmag.com/uncategorized/the-worlds-best-cities-for-surfers-noosa"
+  ],
+  "note": "exposed point break; sand point"
+ },
+ {
+  "id": "5d53c4e6-f956-45c2-bb2d-12b526d0ce39",
+  "name": "Maconde",
+  "lat": -20.485,
+  "lng": 57.382,
+  "country": "Mauritius",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 68,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Maconde",
+   "https://www.flyedelweiss.com/de/en/destinations/tips/surf/mauritius.html"
+  ],
+  "note": "exposed left-hand reef break near Baie du Cap"
+ },
+ {
+  "id": "b49c0bbc-7b05-493f-84e7-059f5a8a632a",
+  "name": "Crescent Head",
+  "lat": -31.188,
+  "lng": 152.978,
+  "country": "Australia",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 69,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfingreserves.org/crescent-head/",
+   "https://en.wannasurf.com/spot/Australia_Pacific/Australia/NSW/Mid_North_Coast/crescent_head"
+  ],
+  "note": "long right-hander peeling off the point over rock bottom"
+ },
+ {
+  "id": "dc4e8fea-f08a-455d-a9e0-a8fa72b76437",
+  "name": "Malibu First Point",
+  "lat": 34.0368,
+  "lng": -118.71,
+  "country": "USA",
+  "frame": "point_headland",
+  "frame_size": 131,
+  "rn": 70,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/malibu-first-point",
+   "https://thesurfatlas.com/surfing-in-the-usa/surfing-in-malibu/"
+  ],
+  "note": "cobblestone right-hand point next to Malibu Pier"
+ },
+ {
+  "id": "27e6e0c3-ff99-4f39-b809-7e1526c1185d",
+  "name": "Bull Bay",
+  "lat": 17.9333,
+  "lng": -76.6833,
+  "country": "Jamaica",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 1,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Copa",
+   "https://theculturetrip.com/north-america/caribbean/jamaica/articles/the-best-places-for-surfing-in-jamaica"
+  ],
+  "note": "Bull Bay breaks (Copa, Zoo) are coral reef rights; the bay also has a sand beach to the east. Generic bay coordinate."
+ },
+ {
+  "id": "12961e41-9262-4b03-aae4-61f64797e36a",
+  "name": "Kranket Island",
+  "lat": -5.18,
+  "lng": 145.82,
+  "country": "Papua New Guinea",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 2,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no break description for Kranket Island found (only lagoon fringing-reef habitat)."
+ },
+ {
+  "id": "690e7e8d-ab8c-4155-aa24-a62ada3b8801",
+  "name": "Anza",
+  "lat": 30.4167,
+  "lng": -9.6167,
+  "country": "Morocco",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 3,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Anza",
+   "https://treasure-morocco.pages.dev/surfspot/anza"
+  ],
+  "note": "CONFLICT: surf-forecast says beach break; other guides say beach/point, or beach with reef sections."
+ },
+ {
+  "id": "abd7a2b7-54b3-454e-9f6f-30afd3261ce4",
+  "name": "Gerupuk",
+  "lat": -8.928,
+  "lng": 116.328,
+  "country": "Indonesia",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 4,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfindonesia.com/lombok-surf-spots/gerupuk/",
+   "https://indonesiansurfguide.com/surf-spot/inside-gerupuk/"
+  ],
+  "note": "Inside/outside rights and lefts are reef breaks at the Gerupuk Bay mouth (one listing says sandy, a minority)."
+ },
+ {
+  "id": "71b39e18-2611-41c0-9d63-1ee4b777a5a9",
+  "name": "Hole in the Wall",
+  "lat": -32.05,
+  "lng": 29.1,
+  "country": "South Africa",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 5,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Holeinthe-Wall"
+  ],
+  "note": "CONFLICT: surf-forecast text says beach break while its type table says reef; a travel guide mentions a reef nearby."
+ },
+ {
+  "id": "2eaed218-4f31-4aeb-a4f5-9e6444fb3626",
+  "name": "Mona Lisa Point",
+  "lat": 16.6333,
+  "lng": 120.3,
+  "country": "Philippines",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 6,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surf-forecast.com/breaks/Mona-Liza-Point",
+   "https://www.tatlerasia.com/lifestyle/travel/surfing-in-la-union-philippines"
+  ],
+  "note": "Reef and point break, rights over a dead coral shelf (reef-point; reef bottom)."
+ },
+ {
+  "id": "e9922d39-f971-4f4a-8869-11d68e46f5f5",
+  "name": "Popoyo - Outer Reef",
+  "lat": 11.478,
+  "lng": -86.108,
+  "country": "Nicaragua",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 7,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wikipedia.org/wiki/Popoyo",
+   "https://surfholidays.com/accommodation/nicaragua/popoyo/the-breaks-lodge-at-finca-popoyo"
+  ],
+  "note": "Powerful offshore reef break, heavy hollow waves over shallow reef."
+ },
+ {
+  "id": "8e9790ee-406e-45ac-85b5-2ca1bc826324",
+  "name": "Sunset Cliffs",
+  "lat": 32.719,
+  "lng": -117.256,
+  "country": "USA",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 8,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Sunset-Cliffs",
+   "https://www.theoutbound.com/california/surfing/surf-at-sunset-cliffs"
+  ],
+  "note": "Exposed reef break along the cliffs; reef and rocks."
+ },
+ {
+  "id": "2e101c3f-25de-460e-a253-bd529aff3836",
+  "name": "Pico Alto",
+  "lat": -12.4568,
+  "lng": -76.85,
+  "country": "Peru",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 9,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfertoday.com/surfing/pico-alto-the-queen-of-all-peruvian-big-waves/amp",
+   "https://dukesurf.com/en/high-peak-x-ray/"
+  ],
+  "note": "Big-wave reef break ~1 km offshore of Punta Hermosa."
+ },
+ {
+  "id": "50772f8b-c8b5-484d-858a-ea7d4fae0a8f",
+  "name": "Quicksilver",
+  "lat": 9.8418,
+  "lng": 126.157,
+  "country": "Philippines",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 10,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfnerd.com/nl/surf-forecast/quicksilver",
+   "https://thesurfatlas.com/surfing-in-philippines/siargao-surfing/"
+  ],
+  "note": "Reef peak next to Cloud 9 over live coral."
+ },
+ {
+  "id": "1407854f-7c9e-4196-9c97-6df012086d1d",
+  "name": "Kommetjie",
+  "lat": -34.15,
+  "lng": 18.3333,
+  "country": "South Africa",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 11,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Outer-Kom_1",
+   "https://www.surfline.com/surf-report/kommetjie/584204204e65fad6a77094b6"
+  ],
+  "note": "Inner/Outer Kom are left reef breaks over rock and kelp (also called reef/point; reef bottom)."
+ },
+ {
+  "id": "e31b71ef-951f-472c-9b77-101f48622934",
+  "name": "Cloud 9",
+  "lat": 9.8318,
+  "lng": 126.153,
+  "country": "Philippines",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 12,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Cloud-Nine"
+  ],
+  "note": "Exposed reef break, mossy reef, shallow at low tide."
+ },
+ {
+  "id": "d76f545a-c474-4a14-bf80-35fe99ad7068",
+  "name": "Arica - El Gringo",
+  "lat": -18.4768,
+  "lng": -70.383,
+  "country": "Chile",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 13,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/El-Gringo"
+  ],
+  "note": "Exposed reef break near Arica, reef/rock bottom."
+ },
+ {
+  "id": "422f8489-8180-44cd-873e-8d4b0da76489",
+  "name": "Pikinini",
+  "lat": -2.62,
+  "lng": 150.81,
+  "country": "Papua New Guinea",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 14,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Piccinniny"
+  ],
+  "note": "CONFLICT: surf-forecast (Kavieng) type table says reef but its text says point/wharf break."
+ },
+ {
+  "id": "13d7075b-6328-4995-b471-2bb12f327545",
+  "name": "Laniakea",
+  "lat": 21.6185,
+  "lng": -158.092,
+  "country": "USA",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 15,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfline.com/travel/zones/north-shore-oahu/surf-guide/laniakea/5842041f4e65fad6a7708898",
+   "https://www.yeeew.com/listing/pacific-ocean/hawaii/laniakea/forecast"
+  ],
+  "note": "right-hand reef break over coral; Moon calls it a right point over flat reef"
+ },
+ {
+  "id": "9796d279-ca44-4f58-8117-9e7a37586945",
+  "name": "Kandooma Right",
+  "lat": 3.9167,
+  "lng": 73.5,
+  "country": "Maldives",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 16,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://maldives-magazine.com/activities/surfing-maldives-kandooma-right-wave.htm",
+   "https://www.dreamingofmaldives.com/south-male-atoll-surf-breaks-the-list/"
+  ],
+  "note": "fast right over shallow eastern reef of South Male Atoll"
+ },
+ {
+  "id": "e25e2940-5340-44d6-a88e-b9c0f9676f28",
+  "name": "Davenport Landing",
+  "lat": 37.0038,
+  "lng": -122.215,
+  "country": "USA",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 17,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Davenport-Landing",
+   "https://surfnerd.com/surf-forecast/davenport-landing/f5iFtbexMfZt6MK38"
+  ],
+  "note": "exposed reef (and point) break; left reef at the south end"
+ },
+ {
+  "id": "2f9a7579-a55c-423f-b065-6642b2816b32",
+  "name": "Liwliwa Point",
+  "lat": 15.64,
+  "lng": 119.945,
+  "country": "Philippines",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 18,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://thesurfatlas.com/surfing-in-philippines/surfing-in-zambales/",
+   "https://www.lonelyplanet.com/philippines/southern-zambales-coast/attractions/liw-liwa/a/poi-sig/1574171/1342115"
+  ],
+  "note": "Liwliwa described as beach break on grey volcanic sand; no separate point break found despite the name"
+ },
+ {
+  "id": "2c78c606-1bee-4daf-8d34-1c1d54a4b2ac",
+  "name": "Mandiri",
+  "lat": -5.3,
+  "lng": 103.9333,
+  "country": "Indonesia",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 19,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Mandiri",
+   "https://indonesiansurfguide.com/surf-spot/mandiri-beach/"
+  ],
+  "note": "long exposed beach break, swell magnet"
+ },
+ {
+  "id": "0cda0aa7-ff03-4c93-883e-75f83f532bfe",
+  "name": "Backdoor",
+  "lat": 21.664,
+  "lng": -158.051,
+  "country": "USA",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 20,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wikipedia.org/wiki/Banzai_Pipeline",
+   "https://www.surfertoday.com/surfing/the-mechanics-of-backdoor"
+  ],
+  "note": "right-hand side of the Pipeline shallow tabletop reef"
+ },
+ {
+  "id": "c558f01b-efe7-45c0-aaaf-a37fd574d884",
+  "name": "Belmullet",
+  "lat": 54.226,
+  "lng": -10.0,
+  "country": "Ireland",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 21,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (no Belmullet break in the surf-forecast Mayo list)."
+ },
+ {
+  "id": "9c0be666-4a0f-4029-a5d5-1a9a095d1714",
+  "name": "Arica - La Isla",
+  "lat": -18.4698,
+  "lng": -70.377,
+  "country": "Chile",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 22,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "http://wannasurf.com/spot/South_America/Chile/Tarapaca/la_isla/",
+   "https://www.surf-forecast.com/breaks/La-Isla_1"
+  ],
+  "note": "Wannasurf and Surf-Forecast call La Isla (north side of ex-Alacran island) a left point break over reef/rock; Surfnerd lists it as reef break; pin sits ~5 km west of the peninsula.",
+  "completion_pass": true
+ },
+ {
+  "id": "afb6e932-11d3-441d-886a-f8e148f94ce4",
+  "name": "La Paz",
+  "lat": 13.4917,
+  "lng": -89.375,
+  "country": "El Salvador",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 23,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://elsalvador.travel/esp/en/destination/playa-la-paz/",
+   "https://surfnerd.com/surf-forecast/la-paz/xjQgGekrnq26QF8Sx"
+  ],
+  "note": "official tourism site: large right-hand rocky-bottom point break next to Punta Roca"
+ },
+ {
+  "id": "8dad56d5-04da-4a29-b37d-03594de621ea",
+  "name": "Krui",
+  "lat": -5.2833,
+  "lng": 103.95,
+  "country": "Indonesia",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 24,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Krui"
+  ],
+  "note": "CONFLICT: surf-forecast says exposed beach and reef break; Krui is a town-level pin with many spots"
+ },
+ {
+  "id": "142c049d-8933-4c70-91f2-6b0a047332cf",
+  "name": "Lazy Left",
+  "lat": 5.95,
+  "lng": 80.05,
+  "country": "Sri Lanka",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 25,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Lazy-Left"
+  ],
+  "note": "surf-forecast: exposed reef break (page also carries a templated No reef break here line); single source"
+ },
+ {
+  "id": "1b28220d-90ec-4148-b460-44a78bcc7fa1",
+  "name": "Daku Reef",
+  "lat": 9.87,
+  "lng": 126.15,
+  "country": "Philippines",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 26,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://thesurfatlas.com/surfing-in-philippines/siargao-surfing/",
+   "https://islaguru.com/articles/surfing-siargao-island"
+  ],
+  "note": "Guides describe Daku as a right-hand reef break (split peak over coral) off Daku Island, Siargao.",
+  "completion_pass": true
+ },
+ {
+  "id": "d40070d3-c020-4538-910c-b4041981b7a2",
+  "name": "Padang Padang",
+  "lat": -8.808,
+  "lng": 115.098,
+  "country": "Indonesia",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 27,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Padang-Padang",
+   "https://en.wikipedia.org/wiki/Padang_Padang_Beach"
+  ],
+  "note": "fairly exposed reef break; left Balinese Pipeline"
+ },
+ {
+  "id": "24856cc2-2aee-4e9a-869c-532ba0e6df27",
+  "name": "The Rock Ahangama",
+  "lat": 5.9833,
+  "lng": 80.0667,
+  "country": "Sri Lanka",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 28,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/The-Rock-Kabalana"
+  ],
+  "note": "Surf-forecast The Rock (Kabalana, Ahangama): \"exposed reef break\". Note: catalogue pin (80.07E) sits ~30 km west of Ahangama; identity taken from the name \"Ahangama\". Single source."
+ },
+ {
+  "id": "79820ec1-022b-44d5-a59d-610c59d60fae",
+  "name": "Stimpy's",
+  "lat": 9.878,
+  "lng": 126.198,
+  "country": "Philippines",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 29,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Stimpys"
+  ],
+  "note": "exposed reef break, left (Siargao); single source"
+ },
+ {
+  "id": "c380e3f1-28d6-4321-a613-6ed3cc78a039",
+  "name": "Velzyland",
+  "lat": 21.708,
+  "lng": -158.028,
+  "country": "USA",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 30,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Velzyland"
+  ],
+  "note": "exposed reef break, lefts and rights; single source"
+ },
+ {
+  "id": "b52b597f-c32d-4b18-ab54-93371316d402",
+  "name": "G-Land Money Trees",
+  "lat": -8.4467,
+  "lng": 114.3467,
+  "country": "Indonesia",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 31,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wikipedia.org/wiki/G-Land"
+  ],
+  "note": "Wikipedia G-Land: waves peel along a half-km of shallow coral reef; Moneytrees is the main section of the left-hand reef/point; labelled reef (reef-point, revisit)."
+ },
+ {
+  "id": "0243f8dd-e51a-4777-aa63-2a3751b479f1",
+  "name": "El Hierro",
+  "lat": 27.8,
+  "lng": -17.9167,
+  "country": "Spain",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 32,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: island-level pin (El Hierro); no break description retrieved"
+ },
+ {
+  "id": "948d2c73-afdd-4280-aad7-08f078935c70",
+  "name": "Reef Road",
+  "lat": 26.784,
+  "lng": -80.033,
+  "country": "USA",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 33,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Reef-Road"
+  ],
+  "note": "CONFLICT: surf-forecast says beach and reef break (left beach break plus a left reef)"
+ },
+ {
+  "id": "f4f1d15f-0485-4e80-af41-32005b2bd09a",
+  "name": "Ala Moana Bowls",
+  "lat": 21.2855,
+  "lng": -157.855,
+  "country": "USA",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 34,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Ala-Moana-Bowls"
+  ],
+  "note": "exposed reef break, left and right; single source"
+ },
+ {
+  "id": "eacd01db-429a-4725-a16f-4c0c02ba80ee",
+  "name": "Bingin",
+  "lat": -8.798,
+  "lng": 115.108,
+  "country": "Indonesia",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 35,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Bingin",
+   "https://www.balisurfingcamp.com/blog/surfing-bingin-ultimate-guide"
+  ],
+  "note": "Guides: fast left over shallow reef."
+ },
+ {
+  "id": "b0e63c82-85fc-4b85-a8ec-37adecde9603",
+  "name": "Rincon - Indicators",
+  "lat": 18.378,
+  "lng": -67.268,
+  "country": "USA",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 36,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Rincon",
+   "https://www.surfnerd.com/surf-forecast/indicators-rincon"
+  ],
+  "note": "Surf-forecast type Reef (also notes point characteristics); Surfnerd right-hand reef/point over rock. One low-reliability page (topologica) calls it a sandy beachbreak; not counted."
+ },
+ {
+  "id": "8e759fdf-01ce-4a4c-b467-149998f89ff4",
+  "name": "Keramas",
+  "lat": -8.558,
+  "lng": 115.438,
+  "country": "Indonesia",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 37,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfindonesia.com/bali-surf-spots/keramas/",
+   "https://www.balisurfingcamp.com/blog/keramas-surfing-guide"
+  ],
+  "note": "Powerful right over shallow volcanic rock reef; one search snippet listed rivermouth, the guides say reef."
+ },
+ {
+  "id": "889d1473-88ac-4ec8-8c77-3c82e05eb3e0",
+  "name": "Chuns Reef",
+  "lat": 21.6125,
+  "lng": -158.098,
+  "country": "USA",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 38,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.to-hawaii.com/oahu/beaches/chuns-reef/",
+   "https://www.yeeew.com/listing/pacific-ocean/hawaii/oahu-north-shore/chuns-reef/forecast"
+  ],
+  "note": "Lefts and rights over shallow coral reef."
+ },
+ {
+  "id": "fceb0325-4431-4661-9440-f2ccff21a6ca",
+  "name": "Jaws (Peahi)",
+  "lat": 20.9435,
+  "lng": -156.31,
+  "country": "USA",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 39,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wikipedia.org/wiki/Pe%CA%BBahi,_Hawaii",
+   "https://www.surfertoday.com/surfing/jaws-interesting-facts-about-maui-big-wave-surfing-break"
+  ],
+  "note": "Big-wave break over a submerged reef beside a deep trench."
+ },
+ {
+  "id": "f81d9eb0-21e4-49ca-b1c7-867a34dc0906",
+  "name": "Margaret River",
+  "lat": -33.9628,
+  "lng": 114.922,
+  "country": "Australia",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 40,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.margaretriver.com/things-to-do/attractions/surfing/the-margaret-river-regions-surf-breaks-a-locals-guide/",
+   "https://www.margaretriverfindthefun.com.au/listing/margaret-river-main-break"
+  ],
+  "note": "Taken as Main Break, Surfers Point: deepwater reef (left/right detail differs, reef agreed). Name is generic and the pin is ~6 km west of Prevelly; identity assumed."
+ },
+ {
+  "id": "b7e069c8-c2b6-4e50-8673-0843ce09310d",
+  "name": "Bathtub Reef Beach",
+  "lat": 27.165,
+  "lng": -80.165,
+  "country": "USA",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 41,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://se.kiteforum.com/kitesurf/spot/Bathtub_Beach",
+   "https://discovermartin.com/head-bathtub-treasure-coasts-unique-accessible-snorkeling-opportunity/"
+  ],
+  "note": "Waves break over the Sabellariid worm reef; weak surf sources (kite listing, local article)."
+ },
+ {
+  "id": "39e8a9a9-a60b-4af4-83f6-9d29c211345d",
+  "name": "Lance's Left",
+  "lat": -2.1467,
+  "lng": 99.4133,
+  "country": "Indonesia",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 42,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfindonesia.com/?p=3723",
+   "https://indonesiansurfguide.com/surf-spot/lances-left/"
+  ],
+  "note": "Long left over coral reef, south Sipora."
+ },
+ {
+  "id": "bd84b6d6-e7ec-4afb-bb47-ad4ffc2a46ab",
+  "name": "Santa Iria",
+  "lat": 37.818,
+  "lng": -25.59,
+  "country": "Portugal",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 43,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Santa-Iria",
+   "https://www.tripbase.com/destinations/azores-sao-miguel/surf/"
+  ],
+  "note": "Surf-forecast type Reef, exposed left reef break; Surfnerd lists wave type point with uneven reef bottom (bottom agrees)."
+ },
+ {
+  "id": "1ac2b42d-af68-4601-9d47-88ddf0c1d855",
+  "name": "Twin Rocks",
+  "lat": 13.79,
+  "lng": 124.26,
+  "country": "Philippines",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 44,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://wannasurf.com/spot/Asia/Philippines/Luzon/twin_rocks"
+  ],
+  "note": "Wannasurf: coral reef bottom, rights and lefts, Catanduanes."
+ },
+ {
+  "id": "ddb5c119-82d3-4ccc-b2e4-8dd4b8eae1d3",
+  "name": "Guéthary",
+  "lat": 43.418,
+  "lng": -1.608,
+  "country": "France",
+  "frame": "reef",
+  "frame_size": 148,
+  "rn": 45,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Parlementia",
+   "https://www.surf-report.com/surf-info/cenitz-guethary-s1217.html"
+  ],
+  "note": "Pin in Guethary; its breaks (Parlementia, Cenitz) are described as reef over rock ledges."
+ },
+ {
+  "id": "0813d781-ce10-4153-91df-e5057fbd1009",
+  "name": "Dungun",
+  "lat": 4.758,
+  "lng": 103.428,
+  "country": "Malaysia",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 1,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no surf-guide description of a break at Dungun found (only wind pages)."
+ },
+ {
+  "id": "8404eb33-25bb-451c-a00e-68cf12ecd2fb",
+  "name": "ILHÉU DE VILA FRANCA DO CAMPO",
+  "lat": 37.7058,
+  "lng": -25.4434,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 2,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: the islet is a bathing/diving lagoon; the Vila Franca surf spot described by guides is on the town shore, not at this pin."
+ },
+ {
+  "id": "998c272f-12f3-4c7e-a59a-5de9260fff4b",
+  "name": "Mulki",
+  "lat": 13.098,
+  "lng": 74.798,
+  "country": "India",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 3,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/mulki",
+   "https://imvoyager.com/mulki-surfing-surfing-hotspot-mangalore/"
+  ],
+  "note": "Sand-bottom beach break with sandbars."
+ },
+ {
+  "id": "443c4948-b313-42a2-96a4-802894559781",
+  "name": "FAJÃ DOS PADRES",
+  "lat": 32.6543,
+  "lng": -17.0225,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 4,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Faja-Dos-Padres",
+   "https://en.wannasurf.com/spot/Europe/Madeira"
+  ],
+  "note": "CONFLICT: surf-forecast beach and reef break vs Wannasurf right-hand point."
+ },
+ {
+  "id": "3586b5b9-6a97-41b5-a636-5ec6994718ac",
+  "name": "Mesaieed",
+  "lat": 24.998,
+  "lng": 51.558,
+  "country": "Qatar",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 5,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: only kite/beach listings (small choppy waves); no break description."
+ },
+ {
+  "id": "ab363fc2-bb64-4bbd-9df0-0162fd86b2d4",
+  "name": "Port-Louis",
+  "lat": 16.418,
+  "lng": -61.528,
+  "country": "Guadeloupe",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 6,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://vvanat.fr/blog/spot-de-surf-port-louis/",
+   "https://www.surf-forecast.com/breaks/Port-Louis-1"
+  ],
+  "note": "CONFLICT: local guide says reef break off a rocky point; surf-forecast type Beach."
+ },
+ {
+  "id": "d552d46f-36db-4c90-9821-7075feeb725c",
+  "name": "GRANDE",
+  "lat": 38.8134,
+  "lng": -9.4796,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 7,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://thesurfatlas.com/surfing-portugal/beaches-in-lisbon/",
+   "https://www.tripbase.com/destinations/sintra-portugal/surf/"
+  ],
+  "note": "Praia Grande (Sintra) at the pin: powerful beach break peaks over a sand bank."
+ },
+ {
+  "id": "23358d1c-e7ee-4876-b509-cd37c4b5fe7f",
+  "name": "Casablanca - Ain Diab",
+  "lat": 33.588,
+  "lng": -7.678,
+  "country": "Morocco",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 8,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/ain-diab",
+   "https://www.worldbeachguide.com/morocco/surf/ain-diab.htm"
+  ],
+  "note": "Beach break over sand."
+ },
+ {
+  "id": "b1e32082-1c32-4bdb-a0cf-3c20c70f815b",
+  "name": "GARRYVOE",
+  "lat": 51.8577,
+  "lng": -8.0023,
+  "country": "Ireland",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 9,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: only general beach listings (sheltered pebble/sand beach); no surf break description."
+ },
+ {
+  "id": "497f490e-16b0-43c1-afaf-b62e2c8f440b",
+  "name": "T-Land",
+  "lat": -10.838,
+  "lng": 123.028,
+  "country": "Indonesia",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 10,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://living-in-rote-site-v2.pages.dev/surf/t-land",
+   "https://www.surfnerd.com/surf-forecast/t-land"
+  ],
+  "note": "Long left over dead-coral reef, Nemberala, Rote."
+ },
+ {
+  "id": "a9fd8f19-7761-441c-b71d-8c35022e539b",
+  "name": "Ekas Bay",
+  "lat": -8.878,
+  "lng": 116.478,
+  "country": "Indonesia",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 11,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfindonesia.com/lombok-surf-spots/ekas-bay/",
+   "https://waveexplorers.com/guide/indonesia/lombok/surfing-ekas-bay/"
+  ],
+  "note": "Inside and Outside Ekas both reef breaks."
+ },
+ {
+  "id": "5f54fee4-61ff-40bc-9fe8-bb179cd30963",
+  "name": "Nuqui",
+  "lat": 5.728,
+  "lng": -77.278,
+  "country": "Colombia",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 12,
+  "label": "river_mouth",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Nuqui",
+   "https://www.surfnerd.com/nl/surf-forecast/nuqui"
+  ],
+  "note": "Surf-forecast: exposed river break; Surfnerd: river-mouth break."
+ },
+ {
+  "id": "ce66b99a-0f85-4b04-8375-1e2f5d2eca50",
+  "name": "Lano",
+  "lat": -13.478,
+  "lng": -172.328,
+  "country": "Samoa",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 13,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no break described at Lano village, Savaii."
+ },
+ {
+  "id": "c3160511-c47d-43cd-bac5-f6619fae3e5d",
+  "name": "CLARE ISLAND, LOUISBURGH",
+  "lat": 53.8007,
+  "lng": -9.9525,
+  "country": "Ireland",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 14,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.thebeachguide.co.uk/republic-of-ireland/county-mayo/clare-island.htm"
+  ],
+  "note": "NO_SOURCE: harbour beach listed as no surf; no break described."
+ },
+ {
+  "id": "f1a9e458-df66-4dbf-9786-9c37ab2caa37",
+  "name": "MADALENA",
+  "lat": 38.534,
+  "lng": -28.5345,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 15,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: Madalena (Pico) appears only as a bathing area; no surf break description."
+ },
+ {
+  "id": "460c213c-eb2b-414b-97c8-0e4a6aab18e0",
+  "name": "QUILTY",
+  "lat": 52.8188,
+  "lng": -9.4553,
+  "country": "Ireland",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 16,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: Quilty found only as a general beach page; no break description."
+ },
+ {
+  "id": "3abcca47-3e43-420b-8931-35f783739796",
+  "name": "Fulong",
+  "lat": 25.028,
+  "lng": 121.948,
+  "country": "Taiwan",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 17,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://swelleye.com/en/surf-spots/fulong",
+   "https://www.surf-forecast.com/breaks/Fulung-Beach"
+  ],
+  "note": "Exposed beach break; sandbars built by the Shuang River outflow (river-influenced, but both call it a beach break)."
+ },
+ {
+  "id": "d542492b-e627-401b-80fe-ee328b2484d0",
+  "name": "BARCA",
+  "lat": 38.5435,
+  "lng": -28.5208,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 18,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: Barca (Madalena, Pico) is a calm bathing zone; no surf description."
+ },
+ {
+  "id": "fc544721-52b8-4453-bf9a-ac9896dbc198",
+  "name": "PRAINHA DO GALEAO",
+  "lat": 38.4268,
+  "lng": -28.421,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 19,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (no Prainha/Galeao in the surf-forecast Azores list)."
+ },
+ {
+  "id": "b0a59348-4265-4a3b-84ce-5bcb57b9c96b",
+  "name": "VIEIRA",
+  "lat": 39.8737,
+  "lng": -8.9736,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 20,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Praia-da-Vieira"
+  ],
+  "note": "Type Beach: exposed beach break."
+ },
+ {
+  "id": "a0024805-3c52-4ddf-b0c2-b2bc5bfca58c",
+  "name": "Portreath",
+  "lat": 50.268,
+  "lng": -5.298,
+  "country": "United Kingdom",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 21,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Portreath-Beach"
+  ],
+  "note": "Type Beach: exposed beach break."
+ },
+ {
+  "id": "54193635-ea48-4978-9a07-a1d04c854c91",
+  "name": "Florianopolis - Joaquina",
+  "lat": -27.628,
+  "lng": -48.448,
+  "country": "Brazil",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 22,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Joaquina"
+  ],
+  "note": "Type Sandbar: exposed beach break."
+ },
+ {
+  "id": "cc4cd662-ce09-4a24-b0bb-16d1370cbdd5",
+  "name": "Houhai Bay",
+  "lat": 18.318,
+  "lng": 109.758,
+  "country": "China",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 23,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Asia/China/South_China_Sea/Houhai",
+   "https://surfnerd.com/surf-forecast/houhai"
+  ],
+  "note": "Wannasurf lists Houhai (Sanya) as a left-and-right beach break in a sheltered bay.",
+  "completion_pass": true
+ },
+ {
+  "id": "558f9a90-383e-4c56-b615-03a190116d06",
+  "name": "VASCO DA GAMA",
+  "lat": 37.9513,
+  "lng": -8.8641,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 24,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break); Cabo de Sines is a different spot from Praia Vasco da Gama"
+ },
+ {
+  "id": "7d4ad851-d859-47b9-a466-7ce8d6391d4e",
+  "name": "RIVIERA",
+  "lat": 38.6187,
+  "lng": -9.2217,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 25,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Costada-Caparica"
+  ],
+  "note": "NO_SOURCE: surf-forecast Costa da Caparica (beach/jetties) is the town entry at 38.64N, about 2.5 km north; Riviera beach not described"
+ },
+ {
+  "id": "d1a9a0fc-a727-49b6-b853-72be6645f449",
+  "name": "Engabao",
+  "lat": -2.568,
+  "lng": -80.478,
+  "country": "Ecuador",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 26,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Engabao"
+  ],
+  "note": "Type Point: exposed point break, rocks."
+ },
+ {
+  "id": "531f7a49-baaf-48e3-af9d-eaeea8cef3e7",
+  "name": "LUZ",
+  "lat": 37.0864,
+  "lng": -8.7264,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 27,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Luz-1"
+  ],
+  "note": "Surf-forecast Luz (The Algarve): exposed point break, lefts and rights; single source; Algarve entry matches the Praia da Luz pin"
+ },
+ {
+  "id": "71c4097c-5d66-4fae-99d6-9477ffa7f16d",
+  "name": "Yin Yang",
+  "lat": 3.968,
+  "lng": 73.268,
+  "country": "Maldives",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 28,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Yin-Yang",
+   "https://fr.wannasurf.com/spot/Asia/Maldives/yin_yang"
+  ],
+  "note": "All Yin Yang sources describe a right-hand reef break in a channel pass; listed coordinates/atoll differ from this pin, break type agreed.",
+  "completion_pass": true
+ },
+ {
+  "id": "5ffb87e0-ec7b-42eb-812b-7537ee7ee571",
+  "name": "Mawi",
+  "lat": -8.908,
+  "lng": 116.248,
+  "country": "Indonesia",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 29,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Mawi"
+  ],
+  "note": "Type Reef: exposed left-hand reef."
+ },
+ {
+  "id": "2d286b7e-83e6-4cd0-aa3d-9ff6839422a7",
+  "name": "Sorake Bay",
+  "lat": 0.568,
+  "lng": 97.788,
+  "country": "Indonesia",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 30,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wikipedia.org/wiki/Lagundri_Bay",
+   "https://www.surf-forecast.com/breaks/Lagundri-The-Point",
+   "https://www.surf-forecast.com/breaks/Lagundri-Indicators"
+  ],
+  "note": "Wikipedia: Lagundri Bay, or Sorake Bay; bay-level entry, both guide breaks in the bay (The Point, Indicators) are described as right-hand reef breaks"
+ },
+ {
+  "id": "c6a25a54-3f5e-4e2f-bae1-1b35d377b479",
+  "name": "FUSETA-MAR",
+  "lat": 37.0423,
+  "lng": -7.7443,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 31,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break)"
+ },
+ {
+  "id": "a7c1d052-f038-4375-a678-75c55d283fc7",
+  "name": "K-59",
+  "lat": 13.512,
+  "lng": -89.438,
+  "country": "El Salvador",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 32,
+  "label": "point_headland",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surfnerd.com/surf-forecast/k-59"
+  ],
+  "note": "Right-hand point reeling over boulders, La Libertad."
+ },
+ {
+  "id": "e5d099f7-96c5-4043-8f5e-7f3d6a48319f",
+  "name": "FALÉSIA ALFAMAR",
+  "lat": 37.0834,
+  "lng": -8.1591,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 33,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Praia-da-Falesia"
+  ],
+  "note": "NO_SOURCE: surf-forecast Praia da Falesia is typed breakwater, but Falesia is a ~6 km beach and the Alfamar pin is km from any breakwater; identity of the described break with this pin not established"
+ },
+ {
+  "id": "f5f6220d-40ab-4320-ba3a-a75482bd0746",
+  "name": "Lobito",
+  "lat": -12.368,
+  "lng": 13.548,
+  "country": "Angola",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 34,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break) (Angola list has no Lobito)"
+ },
+ {
+  "id": "a543da97-45fb-4579-939d-e7fa8ac2c1bd",
+  "name": "Khor Fakkan",
+  "lat": 25.348,
+  "lng": 56.358,
+  "country": "United Arab Emirates",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 35,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break) (UAE list has no Khor Fakkan)"
+ },
+ {
+  "id": "0830fc98-29dd-46b5-a401-d8c09fbdbf04",
+  "name": "Swakopmund - The Mole",
+  "lat": -22.678,
+  "lng": 14.518,
+  "country": "Namibia",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 36,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.lonelyplanet.com/points-of-interest/mole/463988",
+   "https://fodors.fodors.com/world/africa-and-middle-east/namibia/things-to-do/sights/reviews/the-mole-beach-586363"
+  ],
+  "note": "NO_SOURCE: sources describe the Mole as a failed 1899 harbour sea wall and protected swimming beach; no description of a surf break found"
+ },
+ {
+  "id": "39576b0b-9312-4a9c-aa4a-44843216ceb1",
+  "name": "CARROWNISKEY, LOUISBURGH",
+  "lat": 53.7353,
+  "lng": -9.894,
+  "country": "Ireland",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 37,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Europe/Ireland/West/Carrowniskey",
+   "https://en.Wikipedia.com/wiki/Surfing_in_Ireland"
+  ],
+  "note": "long west-facing sandy beach; Wikipedia surf table lists a right-and-left beach break"
+ },
+ {
+  "id": "49180a0a-a435-4159-9212-4a337e362df5",
+  "name": "Saly",
+  "lat": 14.448,
+  "lng": -17.028,
+  "country": "Senegal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 38,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.perfectwavetravel.com/senegal-surf-guide/"
+  ],
+  "note": "NO_SOURCE: Saly named only as a resort base; no break description at Saly"
+ },
+ {
+  "id": "4a9d47fe-ee3a-4fa7-9d4e-44f7f488ee1e",
+  "name": "Grace Bay",
+  "lat": 21.798,
+  "lng": -72.198,
+  "country": "Turks and Caicos",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 39,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Grace-Bay-Cut",
+   "https://www.visittci.com/providenciales/things-to-do/surfing"
+  ],
+  "note": "CONFLICT: surf-forecast calls Grace Bay Cut a beach break; tourism guide says Providenciales surf breaks on the barrier reef; unclear which applies at this coordinate"
+ },
+ {
+  "id": "6dc27542-f1c2-469d-b988-4024205c79bc",
+  "name": "Vava'u",
+  "lat": -18.658,
+  "lng": -174.008,
+  "country": "Tonga",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 40,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://tongapocketguide.com/10-surf-breaks-in-vavau",
+   "https://www.surf-forecast.com/breaks/Taula-left"
+  ],
+  "note": "island-group-level spot: guides say the Vava'u breaks are almost all reef breaks (Taula Left, Tommas, Middles etc.)"
+ },
+ {
+  "id": "c53d9a3c-ed1f-40bc-9354-b370b7c0c6d1",
+  "name": "Boca Grandi",
+  "lat": 12.428,
+  "lng": -69.868,
+  "country": "Aruba",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 41,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.arubatoday.com/?p=80751",
+   "https://en.wannakitesurf.com/spot/Central_America/Aruba/Boca_Grandi"
+  ],
+  "note": "NO_SOURCE: described as a surf/kite spot with challenging waves but no bottom or break type found"
+ },
+ {
+  "id": "d0443e13-9689-4536-a410-43ccb813c650",
+  "name": "SALGADOS",
+  "lat": 37.0885,
+  "lng": -8.3294,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 42,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.visitportugal.com/en/NR/exeres/797744A0-B4AA-4226-B8D8-D08A50048050",
+   "https://theportugalnews.com/news/2025-08-23/praia-da-gale-algarve-gem-with-stunning-sunsets-and-summer-festivities/602454"
+  ],
+  "note": "WEAK: tourism sources describe a sandy beach suited to surf and bodyboard (board rental, lessons); no surf-guide break description"
+ },
+ {
+  "id": "39c75de4-a1e1-4cc4-9c6f-f02dfce756cb",
+  "name": "Belmar 8th Avenue",
+  "lat": 40.178,
+  "lng": -74.018,
+  "country": "USA",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 43,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfline.com/travel/united-states/new-jersey/monmouth-county/belmar-surfing-and-beaches/5095561",
+   "https://www.surf-forecast.com/breaks/Belmar"
+  ],
+  "note": "Surfline: the 8th Avenue Jetty can produce a heavy barrel; surf-forecast: exposed beach/jetty break"
+ },
+ {
+  "id": "3f940f35-3ba8-4d83-99da-a4db712e9652",
+  "name": "Watergate Bay",
+  "lat": 50.448,
+  "lng": -5.048,
+  "country": "United Kingdom",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 44,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Watergate-Bay",
+   "https://wannasurf.com/spot/Europe/UK/Cornwall_North/watergate"
+  ],
+  "note": "exposed sandy beach break, lefts and rights"
+ },
+ {
+  "id": "03b70850-c8ea-437c-ba6b-9baf9b95a809",
+  "name": "Salalah - Mughsail",
+  "lat": 16.878,
+  "lng": 53.738,
+  "country": "Oman",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 45,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://timesofoman.com/article/77110-al-mughsail-beach",
+   "https://www.omanobserver.om/article/1174195/oman/blowholes-draw-huge-crowds-at-al-mughsail"
+  ],
+  "note": "WEAK: ~6 km white-sand beach with powerful surf and strong currents (swimming banned in khareef); no surf-guide description; blowholes are at the west end"
+ },
+ {
+  "id": "0262f6f9-c9df-4371-8eeb-5749f2c13e99",
+  "name": "Inamuragasaki",
+  "lat": 35.298,
+  "lng": 139.518,
+  "country": "Japan",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 46,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://sites.google.com/a/surfinginjapan.com/www/kanagawa-shonan/inamuragasaki",
+   "https://www.surf-forecast.com/breaks/Inamuragasaki"
+  ],
+  "note": "reef breaking in front of the cliffs; surf-forecast: exposed reef break (one IT-language template page disagrees, treated as template error)"
+ },
+ {
+  "id": "2181160e-5fc5-4a5a-99d9-a72a693d41fa",
+  "name": "The Back Porch",
+  "lat": 30.378,
+  "lng": -86.478,
+  "country": "USA",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 47,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://mondo.surf/surf-spot/the-back-porch/guide/11059",
+   "https://surfnerd.com/surf-forecast/the-back-porch"
+  ],
+  "note": "beach break peeling left and right over hard-packed sand"
+ },
+ {
+  "id": "ca0604bb-8e53-4c07-bb32-60b7bf829bde",
+  "name": "PORTO DA CALADA",
+  "lat": 39.0327,
+  "lng": -9.419,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 48,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.playocean.net/en/portugal/mafra/beaches/praia-da-calada-beach",
+   "https://www.timeout.pt/lisboa/pt/atraccoes/praia-da-calada"
+  ],
+  "note": "wide sandy cove sheltered by cliffs, waves popular with surfers and bodyboarders; no detailed break description"
+ },
+ {
+  "id": "457e2ab2-9930-4b42-bc98-a5c37bc27b36",
+  "name": "La Ceiba",
+  "lat": 15.778,
+  "lng": -86.798,
+  "country": "Honduras",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 49,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Palma-Real"
+  ],
+  "note": "NO_SOURCE: no break at La Ceiba itself; nearest described break (Palma Real sandbar) is ~38 km away"
+ },
+ {
+  "id": "a388d01f-a3ca-436e-b033-6509d2b320c2",
+  "name": "FANORE",
+  "lat": 53.1197,
+  "lng": -9.2898,
+  "country": "Ireland",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 50,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Fanore",
+   "https://en.Wikipedia.com/wiki/Surfing_in_Ireland"
+  ],
+  "note": "exposed beach break, rights and lefts; rocks noted"
+ },
+ {
+  "id": "c4efeaf4-f749-4060-9988-f1f96e444eb2",
+  "name": "CLUBE TURISMO",
+  "lat": 32.6363,
+  "lng": -16.9291,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 51,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break)"
+ },
+ {
+  "id": "89d61956-0e6a-4440-a80f-9ea97f0eee3b",
+  "name": "SANTIAGO",
+  "lat": 32.6464,
+  "lng": -16.8986,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 52,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break)"
+ },
+ {
+  "id": "a3f5eac6-207a-4dbe-a4ac-489dbeeab795",
+  "name": "Kaikoura",
+  "lat": -42.418,
+  "lng": 173.698,
+  "country": "New Zealand",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 53,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Whale-Watch-Reef",
+   "https://www.kaikoura.co.nz/about-kaikoura/surfing-in-kaikoura/"
+  ],
+  "note": "NO_SOURCE: town-level name; nearby breaks are of several types (reef, point, beach); no description of a break at this coordinate"
+ },
+ {
+  "id": "aad2cf55-b503-4671-98f0-6e05141d124f",
+  "name": "MALHÃO",
+  "lat": 37.784,
+  "lng": -8.8017,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 54,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Malhano/reviews",
+   "https://windy.app/pt/forecast2/spot/67978/Praia+do+Malhão/statistics"
+  ],
+  "note": "long sandy beach; listed as a beach break on sand"
+ },
+ {
+  "id": "4324a4fd-61b4-40da-bb7a-a440b611ba9b",
+  "name": "Jobson's Cove",
+  "lat": 32.248,
+  "lng": -64.828,
+  "country": "Bermuda",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 55,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.gotobermuda.com/profile/jobsons-cove/3104",
+   "https://www.lonelyplanet.com/points-of-interest/jobson-s-cove/1544712"
+  ],
+  "note": "NO_SOURCE: calm lagoon-like cove closed off by limestone rocks; no surf break described"
+ },
+ {
+  "id": "49798d44-ff18-482f-9f8c-113a5c1b05ff",
+  "name": "VARADOURO",
+  "lat": 38.5643,
+  "lng": -28.7753,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 56,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break)"
+ },
+ {
+  "id": "c6173625-bb02-4592-a4a3-7b04a745f469",
+  "name": "Sapinus",
+  "lat": -17.598,
+  "lng": -149.588,
+  "country": "French Polynesia",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 57,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Australia_Pacific/French_Polynesia/Tahiti/Sapinus",
+   "https://surfnerd.com/surf-forecast/sapinus/sJzYSPB4WYnCMEuif"
+  ],
+  "note": "left reef break in Punaauia, west coast Tahiti"
+ },
+ {
+  "id": "26e601f6-3867-4de0-882b-3ec431f86161",
+  "name": "POÇA DAS MUJAS",
+  "lat": 38.3996,
+  "lng": -28.0831,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 58,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break)"
+ },
+ {
+  "id": "b2bfd397-e996-48f1-9deb-fef5bf8ba08c",
+  "name": "Imsouane - Cathedral",
+  "lat": 30.848,
+  "lng": -9.828,
+  "country": "Morocco",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 59,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/La-Cathedrale/forecasts/latest/six_day",
+   "https://thesurfatlas.com/surfing-morocco/imsouane-surf/"
+  ],
+  "note": "CONFLICT: one guide calls it a right-hand beach break with sand and rock bottom, others a reef/point break"
+ },
+ {
+  "id": "9da91888-82bb-4922-8308-4fd7cae4e270",
+  "name": "Honeymoon Bay",
+  "lat": 24.858,
+  "lng": 121.868,
+  "country": "Taiwan",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 60,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wikipedia.org/wiki/Honeymoon_Bay,_Yilan",
+   "https://swelleye.com/en/surf-spots/daxi"
+  ],
+  "note": "crescent bay beach break with lefts and rights; rocks at the south end"
+ },
+ {
+  "id": "268b8fee-9dd3-4887-bb8a-0aae072b2e80",
+  "name": "LABREGO",
+  "lat": 40.5519,
+  "lng": -8.7746,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 61,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break); Costa Nova entry is a different beach ~6 km north"
+ },
+ {
+  "id": "df801e28-22e9-4970-a315-6af6a5adb950",
+  "name": "SÃO LOURENÇO",
+  "lat": 36.988,
+  "lng": -25.0541,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 62,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break)"
+ },
+ {
+  "id": "044e3862-d673-4eff-a5ea-67cee6e1a635",
+  "name": "S. BERNARDINO",
+  "lat": 39.3113,
+  "lng": -9.3469,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 63,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.playocean.net/en/portugal/peniche/praias/praia-de-sao-bernardino-beach"
+  ],
+  "note": "NO_SOURCE: small sheltered sandy cove with generally calm sea; no surf break described"
+ },
+ {
+  "id": "bd26a8cd-28e9-4000-b4d1-c5b672de2adb",
+  "name": "Savannah Bay",
+  "lat": 18.478,
+  "lng": -64.388,
+  "country": "British Virgin Islands",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 64,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.pocruises.com/shore-experiences/tov/savannah-bay-beach-break"
+  ],
+  "note": "NO_SOURCE: calm sandy swimming beach; no surf break described"
+ },
+ {
+  "id": "2c5cbd0f-3ab3-48f2-a056-c638b36252b2",
+  "name": "AMANHÃ (SANTA CRUZ)",
+  "lat": 39.1491,
+  "lng": -9.3734,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 65,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://playocean.net/en/portugal/torres-vedras/beaches/praia-de-santa-cruz-amanha-beach",
+   "https://www.verplayas.com/?p=46406"
+  ],
+  "note": "WEAK: long wide sandy beach north of Santa Cruz, waves suited to surf and bodyboard; rocks bound the north end; no surf-guide break description"
+ },
+ {
+  "id": "02006643-7ec4-4f27-8da3-36c3e9cef65c",
+  "name": "Nusa Dua",
+  "lat": -8.808,
+  "lng": 115.238,
+  "country": "Indonesia",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 66,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.surfindonesia.com/bali-surf-spots/nusa-dua-surf/",
+   "https://www.surf-forecast.com/breaks/Nusadua"
+  ],
+  "note": "right-hand reef break over coral"
+ },
+ {
+  "id": "325372b9-564c-4dd1-9f37-f6a307ef569b",
+  "name": "Ocracoke Island",
+  "lat": 35.108,
+  "lng": -75.988,
+  "country": "USA",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 67,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://pt.wannasurf.com/spot/North_America/USA/South_East/North_Carolina/ockracoke_island",
+   "https://surfnerd.com/surf-forecast/ocracoke"
+  ],
+  "note": "sandbar beach break"
+ },
+ {
+  "id": "89894d37-2383-45f0-a5a2-b7f56bed2738",
+  "name": "Breakas",
+  "lat": -17.748,
+  "lng": 168.258,
+  "country": "Vanuatu",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 68,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://en.wannasurf.com/spot/Australia_Pacific/Vanuatu/efate_-_breakas",
+   "https://www.perfectwavetravel.com/vanuatu-surf-guide/"
+  ],
+  "note": "left and right on a sharp shallow reef"
+ },
+ {
+  "id": "0d7092ff-f4b9-42b2-a4c7-bf3d7fd570ad",
+  "name": "The Lighthouse",
+  "lat": 35.238,
+  "lng": -75.508,
+  "country": "USA",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 69,
+  "label": "inlet_jetty",
+  "source_type": "guide_description",
+  "sources": [
+   "https://www.americansurfmagazine.com/article/cape-hatteras-beach-erosion",
+   "https://surfnerd.com/surf-forecast/the-lighthouse"
+  ],
+  "note": "the three Navy groins at the old lighthouse site are the surf spots; surf-forecast/Surfnerd: beach and jetty break"
+ },
+ {
+  "id": "21487696-9201-4148-8a1b-0a4cda612e98",
+  "name": "Ballybunion",
+  "lat": 52.508,
+  "lng": -9.678,
+  "country": "Ireland",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 70,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Ballybunion",
+   "https://en.Wikipedia.com/wiki/Surfing_in_Ireland"
+  ],
+  "note": "CONFLICT: Wikipedia lists a beach break; surf-forecast describes beach, reef and point breaks with a left reef"
+ },
+ {
+  "id": "40dd60d3-1eba-4627-a615-b67e14aa0144",
+  "name": "LABRUGE",
+  "lat": 41.2744,
+  "lng": -8.7286,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 71,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.playocean.net/en/portugal/vila-do-conde/beaches/praia-de-labruge-beach"
+  ],
+  "note": "NO_SOURCE: dune-backed beach with scattered rocks; no surf break description at Labruge"
+ },
+ {
+  "id": "678b5a22-38b6-446d-9483-3118b818d4e9",
+  "name": "Hither Hills",
+  "lat": 41.01,
+  "lng": -72.01,
+  "country": "USA",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 72,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://thesurfatlas.com/surfing-in-the-usa/surfing-in-montauk/",
+   "https://www.americansurfmagazine.com/article/surfing-montauk"
+  ],
+  "note": "left-and-right beach break over sandbars, heavy shore break"
+ },
+ {
+  "id": "cf0e3a19-a72e-4b75-b02a-c6de466874cd",
+  "name": "CULATRA-MAR",
+  "lat": 36.9855,
+  "lng": -7.839,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 73,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break); Ilha do Farol is a different beach on the same island"
+ },
+ {
+  "id": "e72ce015-d3e5-4071-8a0c-739b17c11dd2",
+  "name": "POÇOS DE SÃO VICENTE FERREIRA/CAPELAS",
+  "lat": 37.8347,
+  "lng": -25.6694,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 74,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break)"
+ },
+ {
+  "id": "c14aa91a-b18b-4093-8f94-4e9bd1150060",
+  "name": "Salani",
+  "lat": -13.988,
+  "lng": -171.428,
+  "country": "Samoa",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 75,
+  "label": "reef",
+  "source_type": "guide_description",
+  "sources": [
+   "https://surf-forecast.com/breaks/Salani",
+   "https://www.perfectwavetravel.com/surf-trips/samoa/salani-surf-resort/"
+  ],
+  "note": "exposed reef break, right and left, boat access"
+ },
+ {
+  "id": "39a12113-3441-463d-91e9-fb1bb94c010d",
+  "name": "Sloat Boulevard",
+  "lat": 37.738,
+  "lng": -122.508,
+  "country": "USA",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 76,
+  "label": "beach",
+  "source_type": "guide_description",
+  "sources": [
+   "https://sf.surfrider.org/programs/restore-sloat",
+   "https://www.wikiwand.com/en/articles/Ocean_Beach,_San_Francisco"
+  ],
+  "note": "Ocean Beach sandbar beach break; Surfrider describes the inner bar at Sloat (boulders/debris south of Sloat noted)"
+ },
+ {
+  "id": "12f73bf7-839e-4685-bdd3-1dd029d07698",
+  "name": "CALHETAS DA MAIA",
+  "lat": 37.8352,
+  "lng": -25.3917,
+  "country": "Portugal",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 77,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search (redo pass, WebFetch only; surf-forecast listing has no matching break)"
+ },
+ {
+  "id": "92189423-601d-4bb2-864a-905ba954aaa9",
+  "name": "Langland Bay",
+  "lat": 51.568,
+  "lng": -4.008,
+  "country": "United Kingdom",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 78,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Langland-Bay",
+   "https://thesurfatlas.com/surfing-wales/surfing-in-gower/"
+  ],
+  "note": "CONFLICT: sand beach break at high tide plus reefs (Crab Island, The Reef) that work as the tide drops; no single break type"
+ },
+ {
+  "id": "e199d7f9-5f32-4fda-95d3-4477c33f84dd",
+  "name": "Ubatuba",
+  "lat": -23.458,
+  "lng": -45.088,
+  "country": "Brazil",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 79,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [],
+  "note": "NO_SOURCE: no reachable guide page without search; Ubatuba is a municipality with many breaks, no single break identifiable"
+ },
+ {
+  "id": "a40e9ace-8799-429b-a387-1362259cfb00",
+  "name": "Estero",
+  "lat": 7.628,
+  "lng": -81.258,
+  "country": "Panama",
+  "frame": "untagged",
+  "frame_size": 786,
+  "rn": 80,
+  "label": "unknown",
+  "source_type": null,
+  "sources": [
+   "https://www.surf-forecast.com/breaks/Playa-Santa-Catalina"
+  ],
+  "note": "NO_SOURCE: surf-forecast Playa Santa Catalina (point) does not mention Estero; no Estero page reachable without search"
+ }
+]
