@@ -238,7 +238,8 @@ export default function usePostModal({
     };
   }, []);
   
-  const handleSubmitComment = async (richPayload = null) => {
+  const pendingComments = useRef(new Set());
+  const handleSubmitComment = async (richPayload = null, parentId = null) => {
     const content = richPayload ? richPayload.content : commentInput.trim();
     const media_url = richPayload ? richPayload.media_url : null;
     const media_type = richPayload ? richPayload.media_type : null;
@@ -249,19 +250,30 @@ export default function usePostModal({
       return;
     }
     
+    if (pendingComments.current.has(parentId)) throw new Error('Comment already sending');
+    pendingComments.current.add(parentId);
     setSubmittingComment(true);
     try {
-      await apiClient.post(`/posts/${post.id}/comments`, {
-        content: content ? content.trim() : "",
+      const { data: saved } = await apiClient.post(`/posts/${post.id}/comments`, {
+        content: content?.trim() || '',
         media_url,
-        media_type
+        media_type,
+        ...(parentId ? { parent_id: parentId } : {})
       });
-      setCommentInput('');
-      loadComments();
-      toast.success('Comment added');
+      if (parentId) {
+        setComments(prev => prev.map(parent => parent.id === parentId
+          ? { ...parent, replies: [...(parent.replies || []), saved] }
+          : parent));
+      } else {
+        setCommentInput('');
+        loadComments();
+      }
+      toast.success(parentId ? 'Reply added' : 'Comment added');
     } catch (err) {
-      toast.error('Failed to add comment');
+      toast.error(parentId ? 'Failed to add reply' : 'Failed to add comment');
+      throw err;
     } finally {
+      pendingComments.current.delete(parentId);
       setSubmittingComment(false);
     }
   };
@@ -288,11 +300,16 @@ export default function usePostModal({
     try {
       const { data } = await apiClient.post(`/comments/${comment.id}/reactions`, { emoji });
       const delta = data.action === 'added' ? 1 : data.action === 'removed' ? -1 : 0;
-      setComments(prev => prev.map(c => c.id === comment.id ? {
+      const update = c => ({
         ...c,
         viewer_reaction: data.action === 'removed' ? null : emoji,
         reaction_count: Math.max(0, (c.reaction_count || 0) + delta)
-      } : c));
+      });
+      setComments(prev => prev.map(c => {
+        if (c.id === comment.id) return update(c);
+        if (!c.replies?.some(reply => reply.id === comment.id)) return c;
+        return { ...c, replies: c.replies.map(reply => reply.id === comment.id ? update(reply) : reply) };
+      }));
     } catch (err) {
       toast.error('Failed to like comment');
     } finally {

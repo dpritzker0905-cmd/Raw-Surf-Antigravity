@@ -8,9 +8,9 @@
  */
 import React, { useState, useRef, useCallback } from 'react';
 import ReactionIcon from './ReactionIcon';
-import { ImageCarousel } from './PostModalComponents';
+import { CommentItem, ImageCarousel } from './PostModalComponents';
 import { useNavigate } from 'react-router-dom';
-import { X, Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react';
+import { X, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react';
 import { RichText } from '../RichText';
 import { SharePostModal } from '../PostMenu';
 import PostMenu from '../PostMenu';
@@ -329,62 +329,16 @@ const PostModalMobileView = ({
             >
               Hide comments
             </button>
-            {comments.map((comment) => {
-              const isLiked = Boolean(comment.viewer_reaction);
-              return (
-                <div key={comment.id} className="mb-3 flex items-start gap-2">
-                  <div className="flex-1">
-                    <p className={`${m.commentAuthor} text-sm`}>
-                      <span className="font-semibold mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>{comment.author_name}</span>
-                      <span className={m.commentText}>{comment.content}</span>
-                    </p>
-                    {comment.media_url && (
-                      <div className="mt-2 max-w-[280px] rounded-xl overflow-hidden border border-white/10 shadow-md bg-black/40">
-                        {comment.media_type === 'video' ? (
-                          <video 
-                            src={getFullUrl(comment.media_url)} 
-                            controls 
-                            className="w-full max-h-[180px] object-contain bg-black animate-in fade-in duration-200"
-                            playsInline
-                          />
-                        ) : (
-                          <img 
-                            src={getFullUrl(comment.media_url)} 
-                            alt="Comment attachment" 
-                            className="w-full max-h-[180px] object-contain cursor-pointer hover:opacity-90 transition-opacity animate-in fade-in duration-200"
-                            onClick={() => window.open(getFullUrl(comment.media_url), '_blank')}
-                          />
-                        )}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className={`${m.textMuted} text-xs`}>{formatTimeAgo(comment.created_at)}</span>
-                      {(comment.reaction_count > 0) && (
-                        <span className={`${m.textMuted} text-xs`}>
-                          {comment.reaction_count} likes
-                        </span>
-                      )}
-                      <button 
-                        className={`${m.textMuted} text-xs font-semibold`}
-                        onClick={() => {/* Reply functionality */}}
-                      >
-                        Reply
-                      </button>
-                    </div>
-                  </div>
-                  <button 
-                    className="p-1 touch-manipulation"
-                    aria-label="Like"
-                    aria-pressed={isLiked}
-                    onClick={() => handleLikeComment(comment)}
-                  >
-                    <Heart 
-                      className={`w-4 h-4 ${isLiked ? 'text-red-500 fill-red-500' : m.heartInactive}`}
-                    />
-                  </button>
-                </div>
-              );
-            })}
+            {comments.map(comment => (
+              <CommentItem
+                key={comment.id}
+                comment={comment}
+                onReact={handleLikeComment}
+                onReply={handleComment}
+                user={user}
+                isLight={isLight}
+              />
+            ))}
           </div>
         )}
         

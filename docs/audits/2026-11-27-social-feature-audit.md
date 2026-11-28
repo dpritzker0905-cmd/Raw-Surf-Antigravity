@@ -71,3 +71,7 @@ LongCat, SubQ and Reflection reviewed the release summary. They highlighted simu
 - The DM composer inserted an emoji and the sent QA message survived a reload. Reacting before the first reload failed because the client kept the temporary message ID after the server acknowledged the send.
 - On the saved DM, all six reactions survived a reload together. Removing all six and reopening after another reload left the message clear.
 - The first-send repair has a focused regression test. Post-deployment verification of the new-message path and selected shaka display is pending. This pass covered desktop Chrome feed comments and outgoing DMs. Nested replies, modal layouts, physical touch and recipient-side delivery require separate checks.
+
+### Post dialog threads
+
+Signed-in Chrome reproduced inactive Reply buttons in both desktop and 390px mobile post dialogs on dev. The comments endpoint returned a thread structure, but each layout rendered only the parent rows. Both layouts now share the same comment row, reply composer and nested reaction state. The focused regression test covers submission failure and retry, parent ID, and reacting to a child without changing its parent. Hosted acceptance on the repaired build requires creating and refreshing a reply from each layout.
