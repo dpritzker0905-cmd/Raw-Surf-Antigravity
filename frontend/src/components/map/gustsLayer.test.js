@@ -48,11 +48,8 @@ describe('gust palette = the wind palette', () => {
     for (const kn of [0, 5, 12.5, 20, 30, 47, 63, 75]) {
       const want = sampleRamp(stops, kn);
       const got = colorAtValue(scale, kn);
-      // the same colour everywhere (dark's LUT held it pre-scaled by the wind field's alpha until dark's wind field took the
-      // premultiplied law, windDarkFieldVivid.js; under that kill it is pre-scaled again: DARK FIELD PARITY, pinned below).
-      // Alpha: dark takes the wind's law over the layer's 0.48; light and beach take the WIND FIELD's own alpha law
-      // (HEATMAP_FS: base + (1 - base) x smoothstep(0, rampEnd, kn)); light above 40 kn draws lighter still (the gentler band)
-      expect(got.slice(0, 3)).toEqual(want.slice(0, 3).map((x) => Math.round(x * 255)));
+      const rgbScale = theme === 'dark' ? windDarkFieldAlpha(kn) : 1;
+      expect(got.slice(0, 3)).toEqual(want.slice(0, 3).map((x) => Math.round(x * rgbScale * 255)));
       if (theme === 'dark') expect(got[3]).toBeCloseTo(windDarkFieldAlpha(kn) / WIND_FIELD_OPACITY.dark, 6);
       else if (theme === 'light' && kn > 40) expect(got[3]).toBeLessThan(gustBaseAlpha(theme, kn, want));
       else expect(got[3]).toBeCloseTo(gustBaseAlpha(theme, kn, want), 6);
@@ -101,16 +98,16 @@ describe('the wind field\'s alpha law on light and beach (the pink was CALM air 
 });
 
 describe('dark field parity (2026-11-22: dark gusts drew ~2x the wind field\'s colour at speed, ~10x at calm)', () => {
-  afterEach(() => { delete window.__RAW_DISABLE_GUST_DARK_FIELD__; delete window.__RAW_DISABLE_DARK_WIND_VIVID__; });
+  afterEach(() => { delete window.__RAW_DISABLE_GUST_DARK_FIELD__; delete window.__RAW_DARK_WIND_VIVID__; });
   // What lands on the map, per channel, over a ground g (0..1). The WIND heatmap writes premultiplied (rgb x a, a) and blends it
-  // ONE, ONE_MINUS_SRC_ALPHA in dark (windDarkFieldVivid.js): rgb x a + g (1 - a); under that kill SRC_ALPHA: rgb x a^2 + g (1 - a).
+  // SRC_ALPHA by default, for rgb x a^2 + g (1 - a); the vivid comparison uses ONE.
   // The gust raster writes (lut.rgb x A, A), A = lut.a x opacity, through MapLibre's premultiplied blend: lut.rgb x A + g (1 - A).
-  const windDark = (kn, g) => { const c = sampleRamp(field('dark'), kn); const a = windDarkFieldAlpha(kn), k = window.__RAW_DISABLE_DARK_WIND_VIVID__ === true ? a * a : a;
+  const windDark = (kn, g) => { const c = sampleRamp(field('dark'), kn); const a = windDarkFieldAlpha(kn), k = window.__RAW_DARK_WIND_VIVID__ === true ? a : a * a;
     return [0, 1, 2].map((i) => c[i] * k + g[i] * (1 - a)); };
   const gustDark = (kn, g, opacity) => { const l = colorAtValue(gustScale('dark'), kn); const A = l[3] * opacity; return [0, 1, 2].map((i) => (l[i] / 255) * A + g[i] * (1 - A)); };
   const GROUNDS = [[93 / 255, 117 / 255, 126 / 255], [58 / 255, 71 / 255, 79 / 255], [0.02, 0.02, 0.03]];   // dark water, dark land (bench reads), near black
 
-  test('the shaders still draw what this models (the wind heatmap premultiplies; dark blends it by ONE, by SRC_ALPHA under the kill)', () => {
+  test('the shaders still draw what this models (the wind heatmap premultiplies; production dark uses SRC_ALPHA)', () => {
     const { HEATMAP_FS } = require('./WebGLWindShaders');
     expect(HEATMAP_FS).toContain('vec4(fieldRgb * alpha, alpha)');
     expect(HEATMAP_FS).toMatch(/baseAlpha = 0\.44;\s*float rampEnd = 5\.0;/);
@@ -120,8 +117,8 @@ describe('dark field parity (2026-11-22: dark gusts drew ~2x the wind field\'s c
     expect(WIND_FIELD_OPACITY.dark).toBe(0.48);
   });
 
-  test.each([['the premultiplied wind field (default)', false], ['the squared law (windDarkFieldVivid kill)', true]])('every knot, every ground: the gust field lands within one byte of %s', (_, kill) => {
-    if (kill) window.__RAW_DISABLE_DARK_WIND_VIVID__ = true;
+  test.each([['the production wind field', false], ['the vivid comparison', true]])('every knot, every ground: the gust field lands within one byte of %s', (_, vivid) => {
+    if (vivid) window.__RAW_DARK_WIND_VIVID__ = true;
     const op = gustFieldOpacity('dark', 5, () => 0.56);
     expect(op).toBe(WIND_FIELD_OPACITY.dark);
     for (let kn = 0; kn <= 75; kn += 0.5) for (const g of GROUNDS) {
@@ -131,7 +128,7 @@ describe('dark field parity (2026-11-22: dark gusts drew ~2x the wind field\'s c
   });
 
   test('before (the kill): calm drew ~10x the wind\'s colour and 20 kn about twice it', () => {
-    window.__RAW_DISABLE_GUST_DARK_FIELD__ = true; window.__RAW_DISABLE_DARK_WIND_VIVID__ = true;   // the wind field as it was then
+    window.__RAW_DISABLE_GUST_DARK_FIELD__ = true;
     const stops = (z) => opacityAtZoom(GUST_OPACITY_STOPS, z);
     expect(gustFieldOpacity('dark', 5, stops)).toBe(stops(5));
     const black = [0, 0, 0];

@@ -61,14 +61,8 @@ const groundOf = (theme, surf, c) => {
 const winOf = (theme) => { const amount = NO_MUTE ? 0 : windBasemapMuteAmount(theme, LEVERS); return { ...LEVERS, __WIND_BASEMAP_MUTE__: { applied: amount > 0, theme, landL: amount > 0 ? windBasemapLandL(theme, LEVERS) : 1, landStep: amount > 0 && windLandStepAsked(theme, LEVERS) } }; };
 
 // Composite model — keep in sync with HEATMAP_FS / DRAW_FS and windFieldLut.test.js (TINT, SURFACES, BASEMAP).
-// DARK IS PREMULTIPLIED (2026-11-22, read back on a GPU by dark-field-gpu.mjs). HEATMAP_FS writes vec4(fieldRgb * a, a) and the engine
-// blends it SRC_ALPHA, ONE_MINUS_SRC_ALPHA (windCanvasAlpha.js blendIntoMap), so the map shows c a^2 + map (1 - a): a dim veil whose
-// colour lands at a squared strength (the colour laid fits a^2 to 0.006 at every speed, the water composite to 0.7/255). Until then dark
-// was judged as c a + map (1 - a), a brighter, more saturated field than any screen showed. THE FIX (windDarkFieldVivid.js, same day,
-// owner-approved): the engine blends dark's premultiplied field ONE, ONE_MINUS_SRC_ALPHA, so the screen holds c a + map (1 - a), the law
-// the palette was designed in, and this models it by default ('over'). --before-dark-vivid reads the squared law (its kill,
-// window.__RAW_DISABLE_DARK_WIND_VIVID__; dev before the fix). --dark-alpha-over is accepted and is now the default.
-const DARK_PREMUL = args.includes('--before-dark-vivid');
+// Production dark uses SRC_ALPHA on premultiplied colour. --dark-alpha-over compares the vivid variant.
+const DARK_PREMUL = !args.includes('--dark-alpha-over');
 const MODEL = {
   light: { kind: 'multiply', op: 0.65, baseA: 0.42, end: 7, k: 0.70 / 0.65, pop: 1.0, surfaces: { water: [168, 214, 222], land: [236, 236, 232] } },
   beach: { kind: 'multiply', op: 0.55, baseA: 0.45, end: 7, k: 0.60 / 0.55, pop: 0.6, surfaces: { water: [150, 190, 200], land: [222, 208, 180] } },
@@ -179,8 +173,8 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
 // GUSTS = WIND (2026-11-22): the Gusts layer draws the wind field's own colour for each knot (gustPalette.js) through a raster
 // of its own (ownRasterLayer.js), so "does a gust of N kn look like a wind of N kn" is a question about two COMPOSITES. Each is
 // modelled as the GPU lays it, from the app's own sources:
-//   wind, dark:        HEATMAP_FS writes (rgb a, a), blended ONE, ONE_MINUS_SRC_ALPHA -> rgb a + map (1 - a), a = 0.48 law(kn)
-//                      (--before-dark-vivid: blended SRC_ALPHA -> rgb a^2 + map (1 - a))
+//   wind, dark:        HEATMAP_FS writes (rgb a, a), blended SRC_ALPHA, ONE_MINUS_SRC_ALPHA -> rgb a^2 + map (1 - a), a = 0.48 law(kn)
+//                      (--dark-alpha-over: blended ONE -> rgb a + map (1 - a))
 //   wind, light/beach: the multiply tint, map x mix(1, rgb, a s), a = opacity law(kn), s = v2FieldTint
 //   gusts, dark:       its LUT (bytes) at alpha A = lut.a opacity, MapLibre's premultiplied blend -> lut.rgb A + map (1 - A)
 //   gusts, light/beach: the same multiply as the wind with its own tint strength (gustParticles.gustFieldTint)
@@ -191,7 +185,7 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
 // --no-gusts skips it; --before-gust-dark reads dark before its parity fix (window.__RAW_DISABLE_GUST_DARK_FIELD__).
 if (!args.includes('--no-gusts')) {
   const MAPDIR = path.join(HERE, '..', '..', 'src', 'components', 'map');
-  const GW = { ...LEVERS, ...(args.includes('--before-gust-dark') ? { __RAW_DISABLE_GUST_DARK_FIELD__: true } : {}), ...(DARK_PREMUL ? { __RAW_DISABLE_DARK_WIND_VIVID__: true } : {}) };
+  const GW = { ...LEVERS, ...(args.includes('--before-gust-dark') ? { __RAW_DISABLE_GUST_DARK_FIELD__: true } : {}), __RAW_DARK_WIND_VIVID__: !DARK_PREMUL };
   const { windDarkVividOn } = new Function(source(path.join(MAPDIR, 'windDarkFieldVivid.js')) + '; return { windDarkVividOn };')();
   const { WIND_FIELD_OPACITY, gustFieldTint } = new Function(source(path.join(MAPDIR, 'gustParticles.js')) + '; return { WIND_FIELD_OPACITY, gustFieldTint };')();
   const { gustScale, gustFieldOpacity, WIND_FIELD_ALPHA } = new Function('huePathStops', 'resolveDrawnField', 'resolveThemeRamp', 'sampleRamp', 'windLegendStops', 'WIND_FIELD_OPACITY', 'windDarkVividOn',
