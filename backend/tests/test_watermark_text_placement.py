@@ -23,7 +23,8 @@ async def test_text_only_gallery_matches_settings_with_saved_logo(monkeypatch, p
 
     photo = 'https://fixture.invalid/photo.png'
     logo = 'https://fixture.invalid/logo.png'
-    assets = {photo: png((400, 300), 'black'), logo: png((49, 33), 'red')}
+    # Use the settings preview's full width so the rotated text repeats in all four quadrants.
+    assets = {photo: png((800, 600), 'black'), logo: png((49, 33), 'red')}
     fetched_urls = []
 
     async def get(client, url):
@@ -51,10 +52,10 @@ async def test_text_only_gallery_matches_settings_with_saved_logo(monkeypatch, p
     with Image.open(io.BytesIO(jpeg)) as image:
         assert image.format == 'JPEG'
         quadrants = {
-            'top-left': (0, 0, 200, 150), 'top-right': (200, 0, 400, 150),
-            'bottom-left': (0, 150, 200, 300), 'bottom-right': (200, 150, 400, 300),
+            'top-left': (0, 0, 400, 300), 'top-right': (400, 0, 800, 300),
+            'bottom-left': (0, 300, 400, 600), 'bottom-right': (400, 300, 800, 600),
         }
-        regions = quadrants.values() if position == 'tiled' else [quadrants.get(position, (100, 75, 300, 225))]
+        regions = quadrants.values() if position == 'tiled' else [quadrants.get(position, (200, 150, 600, 450))]
         for region in regions:
             assert any(95 < min(pixel) and max(pixel) < 155 for pixel in image.crop(region).getdata())
         if position in quadrants:
