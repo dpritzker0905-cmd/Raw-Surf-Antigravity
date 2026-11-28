@@ -430,13 +430,16 @@ async def get_watermarked_preview(
     
     # Check for photographer's custom watermark settings
     if photographer:
-        if photographer.watermark_logo_url:
+        if photographer.watermark_style != 'text' and photographer.watermark_logo_url:
             custom_logo_url = photographer.watermark_logo_url
         if photographer.watermark_text:
             watermark_text = photographer.watermark_text
         if photographer.watermark_opacity is not None:
             opacity = photographer.watermark_opacity
-        if photographer.watermark_style:
+        if photographer.watermark_style == 'text':
+            watermark_text = photographer.watermark_text or 'Watermark'
+            watermark_style = photographer.watermark_position or 'bottom-right'
+        elif photographer.watermark_style:
             watermark_style = photographer.watermark_style
     
     # Generate watermarked preview
