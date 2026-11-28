@@ -135,7 +135,7 @@ test('the prior purchase settling does not clear a newer item purchase', async (
   await settle(second);
   expect(screen.getByText('Unlocked!')).toBeInTheDocument();
   advance(1200);
-  expect(screen.getByRole('img', { name: 'Asset B' }).getAttribute('src')).toContain('/original-B.jpg');
+  expect(screen.getByRole('img', { name: 'Asset B' }).getAttribute('src')).toContain('/preview-B.jpg');
 });
 
 test('closing before a purchase settles does not schedule an unlock timer', async () => {
@@ -167,7 +167,7 @@ test('the current item still unlocks after its 1200 ms success animation', async
   advance(1);
   expect(screen.queryByText('Unlocked!')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
-  expect(screen.getByRole('img', { name: 'Asset A' }).getAttribute('src')).toContain('/original-A.jpg');
+  expect(screen.getByRole('img', { name: 'Asset A' }).getAttribute('src')).toContain('/preview-A.jpg');
   expect(onPurchase).toHaveBeenCalledTimes(1);
 });
 

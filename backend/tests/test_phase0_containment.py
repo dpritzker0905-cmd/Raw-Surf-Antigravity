@@ -340,10 +340,16 @@ def storage(monkeypatch, tmp_path):
         uploaded.append((bucket, key))
         return f'https://cdn.fixture.invalid/{bucket}/{key}'
 
+    async def record_private(*, bucket, object_key, content, content_type):
+        uploaded.append((bucket, object_key))
+        return f'supabase://{bucket}/{object_key}'
+
     monkeypatch.setattr(upload_core, 'UPLOAD_DIR', tmp_path / 'uploads')
     monkeypatch.setattr(media_gallery, 'UPLOAD_DIR', tmp_path / 'uploads')
     monkeypatch.setattr(upload_core, 'upload_to_supabase_storage', record)
     monkeypatch.setattr(media_gallery, 'upload_to_supabase_storage', record)
+    monkeypatch.setattr(upload_core, 'upload_private_media', record_private)
+    monkeypatch.setattr(media_gallery, 'upload_private_media', record_private)
     return uploaded
 
 
@@ -365,6 +371,7 @@ async def test_gallery_upload_names_the_original_apart_from_its_preview(harness,
     body = response.json()
     _assert_unlinked(body['original_url'], body['preview_url'])
     assert len(storage) == 2
+    assert {bucket for bucket, _ in storage} == {'gallery', 'gallery_originals'}
 
 
 async def test_photographer_upload_names_the_original_apart_from_its_preview(harness, storage):
@@ -373,6 +380,7 @@ async def test_photographer_upload_names_the_original_apart_from_its_preview(har
     assert response.status_code == 200, response.text
     body = response.json()
     _assert_unlinked(body['original_url'], body['preview_url'])
+    assert body['original_url'].startswith('supabase://gallery_originals/pro/')
 
 
 @pytest.mark.parametrize('module,path', [
@@ -399,6 +407,7 @@ async def test_session_photo_upload_names_the_original_apart_from_its_preview(ha
     assert response.status_code == 200, response.text
     body = response.json()
     _assert_unlinked(body['original_url'], body['preview_url'])
+    assert body['original_url'].startswith('supabase://gallery_originals/pro/')
 
 
 async def test_session_photo_with_a_failed_preview_is_refused_not_published(harness, storage):

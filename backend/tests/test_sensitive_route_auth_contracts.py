@@ -94,7 +94,19 @@ def test_request_a_pro_checkout_identity_and_webhook_are_fail_closed():
 
 def test_public_upload_contract_is_disjoint_from_private_media():
     upload_storage = (BACKEND / "routes/uploads/storage.py").read_text(encoding="utf-8")
+    upload_core = (BACKEND / "routes/uploads/core.py").read_text(encoding="utf-8")
+    upload_gallery = (BACKEND / "routes/uploads/media_gallery.py").read_text(encoding="utf-8")
+    purchases = (BACKEND / "routes/gallery/gallery_purchases.py").read_text(encoding="utf-8")
+    surfer_downloads = (BACKEND / "routes/surfer_gallery/claims.py").read_text(encoding="utf-8")
+    session_purchases = (BACKEND / "routes/sessions/active.py").read_text(encoding="utf-8")
+    private_media = (BACKEND / "services/private_media.py").read_text(encoding="utf-8")
     provision = (BACKEND.parent / "supabase_scripts/provision_public_media_buckets.sql").read_text(
+        encoding="utf-8"
+    )
+    private_provision = (BACKEND.parent / "supabase_scripts/provision_private_gallery_bucket.sql").read_text(
+        encoding="utf-8"
+    )
+    gallery_migration = (BACKEND.parent / "supabase_scripts/migrate_private_gallery_originals.py").read_text(
         encoding="utf-8"
     )
 
@@ -107,3 +119,18 @@ def test_public_upload_contract_is_disjoint_from_private_media():
     assert "chat_media" not in public_bucket_block
     assert "crew_chat" not in public_bucket_block
     assert "RAISE EXCEPTION" in provision
+    assert '"gallery_originals"' in private_media
+    assert "VALUES ('gallery_originals', 'gallery_originals', false)" in private_provision
+    assert 'public_keys_to_delete' in gallery_migration
+    assert 'local_keys_to_delete' in gallery_migration
+    assert 'surfer_gallery_items' in gallery_migration
+    assert 'pg_policies' in private_provision
+    assert 'INLINE_DELIVERY_BUCKETS' in private_media
+    assert "upload_private_media(" in upload_core
+    assert "upload_private_media(" in upload_gallery
+    assert "generate_watermarked_video_preview" in upload_gallery
+    assert "final_preview = supabase_original" not in upload_gallery
+    assert "authorized_gallery_delivery_url(" in purchases
+    assert "authorized_gallery_delivery_url(" in surfer_downloads
+    assert "authorized_gallery_delivery_url(" in session_purchases
+    assert '"_preview" in stem' in upload_core

@@ -95,9 +95,9 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
   const isVideo = item.media_type === 'video' || item.type === 'video';
   
   // Resolve the correct preview URL  
-  const rawUrl = isOwner 
-    ? (item.original_url || item.preview_url) 
-    : (item.is_purchased ? item.original_url : item.preview_url);
+  // Full-resolution bytes are delivered only by the counted download route.
+  // Owners and purchasers continue to view the protected gallery preview here.
+  const rawUrl = item.preview_url || item.thumbnail_url;
   const mediaUrl = getOptimizedMediaUrl(rawUrl, { width: 1200, quality: 'auto' });
 
   // Fetch pricing info including session deals
@@ -214,9 +214,10 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
 
   const handleDownload = async () => {
     try {
-      const response = await apiClient.get(
-        `/gallery/download/${item.id}?buyer_id=${user.id}`
-      );
+      const endpoint = isOwner
+        ? `/gallery/item/${item.id}/owner-download`
+        : `/gallery/download/${item.id}?buyer_id=${user.id}`;
+      const response = await apiClient.get(endpoint);
       
       // Use native download link instead of window.open
       const url = getFullUrl(response.data.original_url || response.data.download_url);
@@ -227,7 +228,8 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success(`Saved! ${response.data.downloads_remaining} downloads remaining`);
+      const remaining = response.data.downloads_remaining;
+      toast.success(Number.isFinite(remaining) ? `Saved! ${remaining} downloads remaining` : 'Saved!');
     } catch (error) {
       toast.error(getErrorMessage(error, 'Download failed'));
     }
@@ -621,7 +623,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
             {isOwner ? (
               <>
                 <Button aria-label="Download"
-                  onClick={() => window.open(getFullUrl(item.original_url), '_blank')}
+                  onClick={handleDownload}
                   className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-black"
                 >
                   <Download className="w-4 h-4 mr-2" />

@@ -139,7 +139,11 @@ async def get_surfer_public_gallery(
                 "gallery_item_id": gi.id,
                 "preview_url": gi.preview_url,
                 "thumbnail_url": gi.thumbnail_url,
-                "original_url": gi.original_url if sgi.is_paid else None,
+                "original_url": None,
+                "download_link": (
+                    f"/api/gallery/download/{gi.id}?buyer_id={surfer_id}"
+                    if sgi.is_paid else None
+                ),
                 "media_type": gi.media_type,
                 "spot_name": sgi.spot_name,
                 "session_date": sgi.session_date.isoformat() if sgi.session_date else None,

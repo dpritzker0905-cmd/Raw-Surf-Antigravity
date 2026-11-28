@@ -36,6 +36,7 @@ from services.gallery_sync import (
 from websocket_manager import broadcast_earnings_update
 from services.watermark import watermark_image_from_url, generate_watermarked_preview
 from utils.grom_parent import is_grom_parent_eligible
+from services.gallery_media import has_safe_gallery_storage
 
 from .schemas import (
     GalleryItemCreate, GalleryItemUpdate, GalleryItemResponse,
@@ -475,7 +476,11 @@ async def get_gallery_items(
         "photographer_name": item.photographer.full_name if item.photographer else None,
         "spot_id": item.spot_id,
         "spot_name": item.spot.name if item.spot else None,
-        "original_url": item.original_url if item.id in purchased_ids else None,
+        "original_url": None,
+        "download_link": (
+            f"/api/gallery/download/{item.id}?buyer_id={viewer_id}"
+            if item.id in purchased_ids else None
+        ),
         "preview_url": item.preview_url,
         "thumbnail_url": item.thumbnail_url,
         "media_type": item.media_type or 'image',
@@ -525,6 +530,13 @@ async def add_item_to_gallery(
     is_grom_parent = bool(photographer) and is_grom_parent_eligible(photographer)
     effective_for_sale = False if is_grom_parent else data.is_for_sale
     effective_price = 0 if is_grom_parent else data.price
+    if effective_for_sale and not has_safe_gallery_storage(
+        original_url=data.original_url,
+        preview_url=data.preview_url,
+        thumbnail_url=data.thumbnail_url,
+        owner_id=photographer_id,
+    ):
+        raise HTTPException(status_code=400, detail="Saleable originals must use private gallery storage")
     
     # Create item linked to gallery
     item = GalleryItem(

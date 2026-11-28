@@ -2,8 +2,9 @@
 --
 -- Run in the Supabase SQL editor before deploying code that calls
 -- routes.uploads.core.upload_to_supabase_storage. These buckets back public CDN
--- URLs and therefore must never receive private chat, crew-chat, or other
--- access-controlled media.
+-- URLs and therefore must never receive private chat, crew-chat, gallery
+-- originals, or other access-controlled media. The `gallery` bucket is only
+-- for protected previews and thumbnails.
 --
 -- Existing private buckets intentionally cause an error instead of being made
 -- public automatically; investigate their contents and perform an explicit

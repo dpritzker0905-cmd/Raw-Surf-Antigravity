@@ -42,6 +42,7 @@ from .schemas import (
     get_quality_price
 )
 from services.blocks import assert_owner_listed  # withdrawn accounts (pending deletion) are hidden
+from services.gallery_media import authorized_gallery_delivery_url, has_safe_gallery_storage
 
 router = APIRouter()
 
@@ -65,6 +66,13 @@ async def create_gallery_item(
     # GROM PARENT ISOLATION: Force for_sale=false for personal capture only
     is_grom_parent = is_grom_parent_eligible(photographer)
     effective_for_sale = False if is_grom_parent else data.is_for_sale
+    if effective_for_sale and not has_safe_gallery_storage(
+        original_url=data.original_url,
+        preview_url=data.preview_url,
+        thumbnail_url=data.thumbnail_url,
+        owner_id=photographer_id,
+    ):
+        raise HTTPException(status_code=400, detail="Saleable originals must use private gallery storage")
     
     # Verify spot if provided
     spot_name = None
@@ -186,7 +194,12 @@ async def get_photographer_gallery(
         "photographer_avatar": item.photographer.avatar_url if item.photographer else None,
         "spot_id": item.spot_id,
         "spot_name": item.spot.name if item.spot else None,
-        "original_url": item.original_url if item.id in purchased_ids else None,  # Only show original if purchased
+        # Paid bytes are issued only by the counted download route.
+        "original_url": None,
+        "download_link": (
+            f"/api/gallery/download/{item.id}?buyer_id={viewer_id}"
+            if item.id in purchased_ids else None
+        ),
         "preview_url": item.preview_url,
         "thumbnail_url": item.thumbnail_url,
         "media_type": item.media_type or 'image',
@@ -350,7 +363,11 @@ async def get_gallery_item(
         "photographer_avatar": item.photographer.avatar_url if item.photographer else None,
         "spot_id": item.spot_id,
         "spot_name": item.spot.name if item.spot else None,
-        "original_url": item.original_url if is_purchased else None,
+        "original_url": None,
+        "download_link": (
+            f"/api/gallery/download/{item.id}?buyer_id={viewer_id}"
+            if is_purchased else None
+        ),
         "preview_url": item.preview_url,
         "title": item.title,
         "description": item.description,
@@ -362,6 +379,29 @@ async def get_gallery_item(
         "is_purchased": is_purchased,
         "created_at": item.created_at.isoformat()
     }
+
+
+@router.get("/gallery/item/{item_id}/owner-download")
+async def download_owned_gallery_item(
+    item_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Issue a short-lived original URL only to the owning photographer."""
+    item = (await db.execute(select(GalleryItem).where(GalleryItem.id == item_id))).scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Gallery item not found")
+    if item.photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    download_url = await authorized_gallery_delivery_url(
+        item.original_url,
+        original_url=item.original_url,
+        preview_url=item.preview_url,
+        owner_id=item.photographer_id,
+    )
+    if not download_url:
+        raise HTTPException(status_code=503, detail="Private gallery delivery is temporarily unavailable")
+    return {"download_url": download_url}
 
 
 
@@ -389,6 +429,13 @@ async def update_gallery_item(
     profile_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = profile_result.scalar_one_or_none()
     is_grom_parent = bool(photographer) and is_grom_parent_eligible(photographer)
+    if data.is_for_sale is True and not is_grom_parent and not has_safe_gallery_storage(
+        original_url=item.original_url,
+        preview_url=item.preview_url,
+        thumbnail_url=item.thumbnail_url,
+        owner_id=item.photographer_id,
+    ):
+        raise HTTPException(status_code=409, detail="Move this original to private storage before listing it")
     
     if data.title is not None:
         item.title = data.title
@@ -646,6 +693,13 @@ async def copy_item_to_gallery(
     
     if target_gallery.photographer_id != photographer_id:
         raise HTTPException(status_code=403, detail="Not authorized to copy to this folder")
+    if item.is_for_sale and not has_safe_gallery_storage(
+        original_url=item.original_url,
+        preview_url=item.preview_url,
+        thumbnail_url=item.thumbnail_url,
+        owner_id=item.photographer_id,
+    ):
+        raise HTTPException(status_code=409, detail="Move this original to private storage before copying it")
     
     # Create a copy of the item in the target folder
     new_item = GalleryItem(

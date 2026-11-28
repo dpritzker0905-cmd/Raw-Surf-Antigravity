@@ -14,8 +14,33 @@ from datetime import datetime
 from database import get_db
 from core.security import get_current_user_id
 from models import Profile, UserMedia, GalleryItem, GalleryPurchase
+from services.gallery_media import authorized_gallery_delivery_url, is_private_gallery_asset
 
 router = APIRouter()
+
+
+async def _user_media_delivery_url(media: UserMedia) -> str:
+    """Resolve transferred private media only after the caller's gallery ownership check."""
+    is_private_gallery = is_private_gallery_asset(
+        media.media_url, owner_id=media.source_photographer_id
+    )
+    if is_private_gallery and (
+        media.source_type != 'photographer_transfer' or not media.source_gallery_item_id
+    ):
+        raise HTTPException(status_code=403, detail="Private gallery media requires a purchase transfer")
+    if not is_private_gallery:
+        if media.source_type == 'photographer_transfer':
+            raise HTTPException(status_code=503, detail="Purchased media is awaiting private-storage migration")
+        return media.media_url
+    delivery_url = await authorized_gallery_delivery_url(
+        media.media_url,
+        original_url=media.media_url,
+        preview_url=None,
+        owner_id=media.source_photographer_id,
+    )
+    if not delivery_url:
+        raise HTTPException(status_code=503, detail="Private gallery delivery is temporarily unavailable")
+    return delivery_url
 
 
 class UserMediaCreate(BaseModel):
@@ -65,6 +90,8 @@ async def create_user_media(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    if is_private_gallery_asset(data.media_url):
+        raise HTTPException(status_code=400, detail="Private gallery media must use purchase transfer")
     
     media = UserMedia(
         user_id=user_id,
@@ -121,24 +148,29 @@ async def get_user_media(
     result = await db.execute(query)
     media_items = result.scalars().all()
     
-    return [UserMediaResponse(
-        id=m.id,
-        user_id=m.user_id,
-        media_url=m.media_url,
-        media_type=m.media_type,
-        thumbnail_url=m.thumbnail_url,
-        source_type=m.source_type,
-        source_photographer_name=m.source_photographer.full_name if m.source_photographer else None,
-        title=m.title,
-        description=m.description,
-        video_width=m.video_width,
-        video_height=m.video_height,
-        video_duration=m.video_duration,
-        was_transcoded=m.was_transcoded or False,
-        original_width=m.original_width,
-        original_height=m.original_height,
-        created_at=m.created_at
-    ) for m in media_items]
+    response = []
+    for media in media_items:
+        response.append(UserMediaResponse(
+            id=media.id,
+            user_id=media.user_id,
+            media_url=await _user_media_delivery_url(media),
+            media_type=media.media_type,
+            thumbnail_url=media.thumbnail_url,
+            source_type=media.source_type,
+            source_photographer_name=(
+                media.source_photographer.full_name if media.source_photographer else None
+            ),
+            title=media.title,
+            description=media.description,
+            video_width=media.video_width,
+            video_height=media.video_height,
+            video_duration=media.video_duration,
+            was_transcoded=media.was_transcoded or False,
+            original_width=media.original_width,
+            original_height=media.original_height,
+            created_at=media.created_at,
+        ))
+    return response
 
 
 @router.get("/user-media/{user_id}/uploads")
@@ -191,16 +223,21 @@ async def get_user_purchased_media(
     )
     media_items = result.scalars().all()
     
-    return [{
-        "id": m.id,
-        "media_url": m.media_url,
-        "media_type": m.media_type,
-        "title": m.title,
-        "photographer_name": m.source_photographer.full_name if m.source_photographer else None,
-        "original_width": m.original_width,  # Preserves 4K resolution
-        "original_height": m.original_height,
-        "created_at": m.created_at.isoformat()
-    } for m in media_items]
+    response = []
+    for media in media_items:
+        response.append({
+            "id": media.id,
+            "media_url": await _user_media_delivery_url(media),
+            "media_type": media.media_type,
+            "title": media.title,
+            "photographer_name": (
+                media.source_photographer.full_name if media.source_photographer else None
+            ),
+            "original_width": media.original_width,
+            "original_height": media.original_height,
+            "created_at": media.created_at.isoformat(),
+        })
+    return response
 
 
 @router.delete("/user-media/{user_id}/{media_id}")
@@ -273,6 +310,8 @@ async def transfer_purchased_media(
     
     if not item:
         raise HTTPException(status_code=404, detail="Gallery item not found")
+    if not is_private_gallery_asset(item.original_url, owner_id=item.photographer_id):
+        raise HTTPException(status_code=503, detail="Purchased media is awaiting private-storage migration")
     
     # Create user media entry (preserves original 4K resolution)
     user_media = UserMedia(
@@ -299,6 +338,6 @@ async def transfer_purchased_media(
     
     return {
         "id": user_media.id,
-        "media_url": user_media.media_url,
+        "media_url": await _user_media_delivery_url(user_media),
         "message": "Added to your gallery in original quality"
     }

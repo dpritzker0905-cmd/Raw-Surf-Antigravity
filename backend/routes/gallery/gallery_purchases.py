@@ -26,6 +26,10 @@ from models import (
 from routes.career_hub.gamification import check_badge_milestones
 from websocket_manager import broadcast_earnings_update
 from services.watermark import generate_watermarked_preview
+from services.gallery_media import (
+    authorized_gallery_delivery_url,
+    is_safe_gallery_delivery_reference,
+)
 
 from .schemas import PurchaseRequest, get_quality_price
 from .pricing_resolver import resolve_item_pricing, wallet_price
@@ -95,7 +99,14 @@ async def purchase_gallery_item(
         raise HTTPException(status_code=404, detail="Buyer not found")
     
     # Get price for quality tier
-    price, download_url = get_quality_price(item, photographer, data.quality_tier)
+    price, download_reference = get_quality_price(item, photographer, data.quality_tier)
+    if not is_safe_gallery_delivery_reference(
+        download_reference,
+        original_url=item.original_url,
+        preview_url=item.preview_url,
+        owner_id=item.photographer_id,
+    ):
+        raise HTTPException(status_code=503, detail="Paid media is awaiting private-storage migration")
     if item.media_type != 'video':
         resolved = await resolve_item_pricing(item, photographer, db, buyer_id)
         price = next(tier["price"] for tier in resolved["pricing"]["tiers"]
@@ -159,7 +170,9 @@ async def purchase_gallery_item(
         photographer_id=item.photographer_id,
         amount_paid=price,
         payment_method=data.payment_method,
-        quality_tier=data.quality_tier
+        quality_tier=data.quality_tier,
+        # The purchase response issues the first delivery capability.
+        download_count=1,
     )
     db.add(purchase)
     
@@ -209,6 +222,15 @@ async def purchase_gallery_item(
     await check_badge_milestones(item.photographer_id, db)
     
     await db.commit()
+
+    download_url = await authorized_gallery_delivery_url(
+        download_reference,
+        original_url=item.original_url,
+        preview_url=item.preview_url,
+        owner_id=item.photographer_id,
+    )
+    if not download_url:
+        raise HTTPException(status_code=503, detail="Private gallery delivery is temporarily unavailable")
     
     # Broadcast the same rounded earnings credited to the photographer.
     await broadcast_earnings_update(
@@ -359,12 +381,27 @@ async def download_gallery_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     
-    # Get URL for purchased quality tier
-    _, download_url = get_quality_price(item, item.photographer, purchase.quality_tier)
-    
-    # Increment download count
+    # Resolve only the purchased tier.  Legacy public originals fail before a
+    # count is consumed; private references are signed after the count commits.
+    _, download_reference = get_quality_price(item, item.photographer, purchase.quality_tier)
+    if not is_safe_gallery_delivery_reference(
+        download_reference,
+        original_url=item.original_url,
+        preview_url=item.preview_url,
+        owner_id=item.photographer_id,
+    ):
+        raise HTTPException(status_code=503, detail="Paid media is awaiting private-storage migration")
+
     purchase.download_count += 1
     await db.commit()
+    download_url = await authorized_gallery_delivery_url(
+        download_reference,
+        original_url=item.original_url,
+        preview_url=item.preview_url,
+        owner_id=item.photographer_id,
+    )
+    if not download_url:
+        raise HTTPException(status_code=503, detail="Private gallery delivery is temporarily unavailable")
     
     return {
         "download_url": download_url,
@@ -440,7 +477,7 @@ async def get_watermarked_preview(
             watermark_style = photographer.watermark_style
     
     # Generate watermarked preview
-    image_url = item.preview_url or item.original_url
+    image_url = item.preview_url
     if not image_url:
         raise HTTPException(status_code=404, detail="No preview image available")
     
@@ -540,7 +577,11 @@ async def get_my_purchases(
     return [{
         "id": p.id,
         "gallery_item_id": p.gallery_item_id,
-        "original_url": p.gallery_item.original_url if p.gallery_item else None,
+        "original_url": None,
+        "download_link": (
+            f"/api/gallery/download/{p.gallery_item_id}?buyer_id={buyer_id}&quality={p.quality_tier}"
+            if p.gallery_item else None
+        ),
         "preview_url": p.gallery_item.preview_url if p.gallery_item else None,
         "title": p.gallery_item.title if p.gallery_item else None,
         "photographer_name": p.gallery_item.photographer.full_name if p.gallery_item and p.gallery_item.photographer else None,

@@ -569,17 +569,17 @@ async def get_quality_previews(
     if item.media_type == 'video':
         previews = {
             '720p': {
-                'url': item.preview_url or item.original_url,
+                'url': item.preview_url,
                 'resolution': '1280x720',
                 'file_size': '~50MB/min'
             },
             '1080p': {
-                'url': item.original_url,
+                'url': item.preview_url,
                 'resolution': '1920x1080', 
                 'file_size': '~150MB/min'
             },
             '4k': {
-                'url': item.url_4k or item.original_url,
+                'url': item.preview_url,
                 'resolution': '3840x2160',
                 'file_size': '~400MB/min'
             }
@@ -592,12 +592,12 @@ async def get_quality_previews(
                 'file_size': '~200KB'
             },
             'standard': {
-                'url': item.url_standard or item.preview_url or item.original_url,
+                'url': item.preview_url or item.thumbnail_url,
                 'dimensions': '1920px max',
                 'file_size': '~800KB'
             },
             'high': {
-                'url': item.url_high or item.original_url,
+                'url': item.preview_url or item.thumbnail_url,
                 'dimensions': 'Full resolution',
                 'file_size': '~2-5MB'
             }

@@ -16,6 +16,7 @@ from models import (
 
 from .gallery_core import ClaimActionRequest, VisibilityUpdateRequest, get_gallery_tier_from_service, get_max_quality_for_tier
 from services.blocks import listed_clause  # withdrawn accounts (pending deletion) are hidden
+from services.gallery_media import authorized_gallery_delivery_url, is_safe_gallery_delivery_reference
 router = APIRouter()
 @router.get("/claim-queue-count/{surfer_id}")
 async def get_claim_queue_count(
@@ -288,11 +289,26 @@ async def get_download_url(
     
     if not download_url:
         raise HTTPException(status_code=404, detail="Requested quality not available")
+    if not is_safe_gallery_delivery_reference(
+        download_url,
+        original_url=gi.original_url,
+        preview_url=gi.preview_url,
+        owner_id=gi.photographer_id,
+    ):
+        raise HTTPException(status_code=503, detail="Paid media is awaiting private-storage migration")
     
     # Update download stats
     item.downloaded_at = datetime.now(timezone.utc)
     item.download_count += 1
     await db.commit()
+    download_url = await authorized_gallery_delivery_url(
+        download_url,
+        original_url=gi.original_url,
+        preview_url=gi.preview_url,
+        owner_id=gi.photographer_id,
+    )
+    if not download_url:
+        raise HTTPException(status_code=503, detail="Private gallery delivery is temporarily unavailable")
     
     return {
         "download_url": download_url,

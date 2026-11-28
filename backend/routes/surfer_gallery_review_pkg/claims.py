@@ -13,6 +13,7 @@ from database import get_db
 from utils.credits import deduct_credits
 from models import Profile, SurferGalleryItem, SurferGalleryClaimQueue
 from core.security import get_user_id_from_jwt_or_query
+from services.gallery_media import is_private_gallery_asset
 from .schemas import ClaimMatchRequest, ClaimBatchRequest, ConfirmIdentityRequest, _parse_match_reasons
 from .entitlements import get_session_entitlements, consume_live_photo_credit
 
@@ -97,7 +98,9 @@ async def get_proposed_matches(
 
         if is_paid_account:
             match_data["preview_url"] = gi.preview_url
-            match_data["original_url"] = gi.original_url if gi.url_720p else gi.preview_url
+            # Subscription status may choose a preview, but original delivery is
+            # still mediated by the entitlement/download boundary.
+            match_data["original_url"] = gi.preview_url
         else:
             match_data["preview_url"] = gi.thumbnail_url
 
@@ -139,6 +142,11 @@ async def claim_single_match(
     stored_session = queue_item.booking_id or queue_item.live_session_id
     if not stored_session or request.session_id != stored_session:
         raise HTTPException(status_code=409, detail="Match session does not agree with stored media")
+    gallery_item = queue_item.gallery_item
+    if not gallery_item or not is_private_gallery_asset(
+        gallery_item.original_url, owner_id=gallery_item.photographer_id
+    ):
+        raise HTTPException(status_code=503, detail="Paid media is awaiting private-storage migration")
     entitlements = await get_session_entitlements(stored_session, user_id, db)
 
     if entitlements["is_all_inclusive"]:
@@ -211,15 +219,28 @@ async def claim_matches_batch(
         raise HTTPException(status_code=400, detail="No matches selected")
     if len(set(request.match_ids)) != len(request.match_ids):
         raise HTTPException(status_code=400, detail="Duplicate matches are not allowed")
-    context = await db.execute(select(SurferGalleryClaimQueue).where(
-        SurferGalleryClaimQueue.id.in_(request.match_ids),
-        SurferGalleryClaimQueue.surfer_id == user_id,
-        SurferGalleryClaimQueue.status == "pending"))
+    context = await db.execute(
+        select(SurferGalleryClaimQueue)
+        .options(selectinload(SurferGalleryClaimQueue.gallery_item))
+        .where(
+            SurferGalleryClaimQueue.id.in_(request.match_ids),
+            SurferGalleryClaimQueue.surfer_id == user_id,
+            SurferGalleryClaimQueue.status == "pending",
+        )
+    )
     queues = context.scalars().all()
     if len(queues) != len(request.match_ids):
         raise HTTPException(status_code=404, detail="Match not found")
     if any((q.booking_id or q.live_session_id) != request.session_id for q in queues):
         raise HTTPException(status_code=409, detail="Match session does not agree with stored media")
+    if any(
+        not q.gallery_item
+        or not is_private_gallery_asset(
+            q.gallery_item.original_url, owner_id=q.gallery_item.photographer_id
+        )
+        for q in queues
+    ):
+        raise HTTPException(status_code=503, detail="Paid media is awaiting private-storage migration")
 
 
     entitlements = await get_session_entitlements(

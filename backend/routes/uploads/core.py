@@ -43,6 +43,8 @@ from core.security import get_current_user_id
 from models import Profile, GalleryItem, ObservationMedia
 from services.observation_media import inspect_media
 from services.media_metadata import MetadataError, check_decode_size, write_public_copy
+from services.gallery_media import GALLERY_ORIGINALS_BUCKET
+from services.private_media import upload_private_media
 from .public_copy import store_public
 from utils.video_processor import (
     get_video_info, 
@@ -588,8 +590,7 @@ async def upload_gallery_media(
     user_id: str = Depends(uploader_id),
     add_watermark_preview: bool = Form(True)
 ):
-    """Upload media for gallery (creates watermarked preview).
-    Persists to Supabase Storage for durable URLs; falls back to local disk."""
+    """Upload a private gallery original and a public watermarked preview."""
     # Validate file type - gallery only accepts images
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Gallery only accepts images: JPEG, PNG, WebP, GIF")
@@ -606,11 +607,13 @@ async def upload_gallery_media(
     # The original's name must not be derivable from the public preview's (LA-GAL-02).
     original_filename, preview_filename = unlinked_media_names(ext)
     
-    # Create gallery subdirectory (local working copy)
+    # Originals use an unserved working directory; only previews enter the public route.
+    private_dir = UPLOAD_DIR / "_gallery_originals" / user_id
+    private_dir.mkdir(parents=True, exist_ok=True)
     gallery_dir = UPLOAD_DIR / "gallery" / user_id
     gallery_dir.mkdir(parents=True, exist_ok=True)
     
-    original_path = gallery_dir / original_filename
+    original_path = private_dir / original_filename
     preview_path = gallery_dir / preview_filename
     
     # Save original (high-res) locally first
@@ -618,38 +621,41 @@ async def upload_gallery_media(
         f.write(content)
     
     # Create watermarked preview
-    watermark_time_ms = 0
-    if add_watermark_preview:
-        try:
-            _, watermark_time_ms = add_watermark(str(original_path), str(preview_path))
-        except WatermarkError:
-            original_path.unlink(missing_ok=True)
-            raise HTTPException(status_code=500, detail="Could not create a preview for this photo")
-    else:
-        shutil.copy(original_path, preview_path)
-    
-    # --- Persist to Supabase Storage for durable URLs ---
-    content_type_img = file.content_type or 'image/jpeg'
-    supabase_original = upload_to_supabase_storage(
-        original_path, 'gallery', f'{user_id}/{original_filename}', content_type_img
-    )
-    supabase_preview = upload_to_supabase_storage(
-        preview_path, 'gallery', f'{user_id}/{preview_filename}', content_type_img
-    )
-    
-    # Use Supabase URLs if available, otherwise fall back to ephemeral local paths
-    final_original = supabase_original or f"/api/uploads/gallery/{user_id}/{original_filename}"
-    final_preview = supabase_preview or f"/api/uploads/gallery/{user_id}/{preview_filename}"
-    
-    return {
-        "original_url": final_original,
-        "preview_url": final_preview,
-        "filename": base_filename,
-        "size": len(content),
-        "has_watermark": add_watermark_preview,
-        "watermark_time_ms": watermark_time_ms,
-        "storage": "supabase" if supabase_original else "local"
-    }
+    try:
+        # A saleable preview is always protected.  Keep accepting the legacy form
+        # field, but never let ``false`` publish a byte-for-byte original.
+        _, watermark_time_ms = add_watermark(str(original_path), str(preview_path))
+
+        content_type_img = file.content_type or 'image/jpeg'
+        private_original = await upload_private_media(
+            bucket=GALLERY_ORIGINALS_BUCKET,
+            object_key=f'{user_id}/{original_filename}',
+            content=content,
+            content_type=content_type_img,
+        )
+        if private_original is None:
+            preview_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=503, detail="Private gallery storage is temporarily unavailable")
+
+        supabase_preview = upload_to_supabase_storage(
+            preview_path, 'gallery', f'{user_id}/{preview_filename}', content_type_img
+        )
+        final_preview = supabase_preview or f"/api/uploads/gallery/{user_id}/{preview_filename}"
+
+        return {
+            "original_url": private_original,
+            "preview_url": final_preview,
+            "filename": base_filename,
+            "size": len(content),
+            "has_watermark": True,
+            "watermark_time_ms": watermark_time_ms,
+            "storage": "private-supabase"
+        }
+    except WatermarkError:
+        preview_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail="Could not create a preview for this photo")
+    finally:
+        original_path.unlink(missing_ok=True)
 
 @router.post("/upload/avatar")
 async def upload_avatar(
@@ -713,8 +719,23 @@ async def get_story_media(filename: str):
 
 @router.get("/uploads/gallery/{user_id}/{filename}")
 async def get_gallery_media(user_id: str, filename: str):
-    """Serve gallery media file"""
-    file_path = UPLOAD_DIR / "gallery" / user_id / filename
+    """Serve intentional gallery previews, never legacy local originals."""
+    stem = Path(filename).stem.lower()
+    is_preview = (
+        "_preview" in stem
+        or stem.startswith("preview_")
+        or stem.startswith("thumb_")
+        or stem.endswith("_thumb")
+    )
+    if Path(filename).name != filename or not is_preview:
+        raise HTTPException(status_code=404, detail="File not found")
+    gallery_root = (UPLOAD_DIR / "gallery").resolve()
+    user_root = (gallery_root / user_id).resolve()
+    if gallery_root not in user_root.parents:
+        raise HTTPException(status_code=404, detail="File not found")
+    file_path = (user_root / filename).resolve()
+    if user_root not in file_path.parents:
+        raise HTTPException(status_code=404, detail="File not found")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return _cached_file_response(file_path)

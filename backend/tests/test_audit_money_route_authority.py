@@ -33,7 +33,11 @@ BAD_AUTH = [
 
 
 @pytest_asyncio.fixture
-async def harness(tmp_path):
+async def harness(tmp_path, monkeypatch):
+    async def signed_delivery(*args, **kwargs):
+        return 'https://signed.fixture.invalid/paid'
+
+    monkeypatch.setattr(session_active, 'authorized_gallery_delivery_url', signed_delivery)
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'money.sqlite'}")
 
     def create_all(sync_connection):
@@ -55,7 +59,7 @@ async def harness(tmp_path):
                        live_buyin_price=25.0, live_photo_price=40.0))
         db.add(GalleryItem(id='item', photographer_id='attacker', media_type='image', price=40.0,
                            purchase_count=0, preview_url='https://fixture.invalid/p',
-                           original_url='https://fixture.invalid/o'))
+                           original_url='supabase://gallery_originals/attacker/o'))
         db.add(LiveSessionParticipant(id='part', photographer_id='attacker', surfer_id='victim',
                                       status='active', amount_paid=0.0))
         await db.commit()

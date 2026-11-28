@@ -19,6 +19,8 @@ def require_gallery_photographer(caller_id: str, owner_id: Optional[str], claime
 
 
 def verified_viewer(viewer_id: Optional[str], token_user_id: Optional[str]) -> Optional[str]:
-    """A viewer's purchases unlock original_url only for the viewer who holds the token. A viewer_id
-    query parameter on its own is a claim, so it counts as anonymous."""
+    """Bind purchase metadata and secure download links to the viewer holding the token.
+
+    A ``viewer_id`` query parameter on its own is only a claim, so it counts as anonymous.
+    """
     return viewer_id if viewer_id and viewer_id == token_user_id else None

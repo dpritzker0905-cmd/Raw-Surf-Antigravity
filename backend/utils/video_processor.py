@@ -418,6 +418,51 @@ def process_video_from_path(
         return False, str(e), None
 
 
+def generate_watermarked_video_preview(
+    video_path: str,
+    output_path: str,
+    *,
+    max_seconds: float = 15.0,
+) -> Tuple[bool, Optional[str]]:
+    """Create a short, reduced video preview with an embedded visible watermark."""
+    try:
+        video_info = get_video_info(video_path)
+        if not video_info:
+            return False, "Could not read video info"
+        duration = min(max(float(video_info.get('duration', 0)), 0.5), max_seconds)
+        video_filter = (
+            "scale=w='min(960,iw)':h=-2,"
+            "drawbox=x=0:y=ih-64:w=iw:h=64:color=black@0.55:t=fill,"
+            "drawtext=text='RAW SURF PREVIEW':fontcolor=white:fontsize=28:"
+            "x=(w-text_w)/2:y=h-text_h-18"
+        )
+        command = [
+            'ffmpeg', '-i', video_path, '-t', str(duration),
+            '-vf', video_filter,
+            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '30',
+            '-pix_fmt', 'yuv420p',
+            '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart',
+            '-y', output_path,
+        ]
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=max(60, int(duration) * 3 + 30),
+        )
+        if result.returncode != 0:
+            logger.error("Video preview generation failed: %s", result.stderr[:500])
+            return False, "Video preview generation failed"
+        if not os.path.exists(output_path) or not get_video_info(output_path):
+            return False, "Video preview output could not be verified"
+        return True, None
+    except subprocess.TimeoutExpired:
+        return False, "Video preview generation timed out"
+    except Exception as error:
+        logger.error("Video preview error: %s", error)
+        return False, str(error)
+
+
 # Utility to check if ffmpeg is available
 def check_ffmpeg_available() -> bool:
     """Check if ffmpeg is installed and accessible"""

@@ -13,22 +13,21 @@ from typing import Optional
 import uuid
 import json
 import os
-import shutil
 import asyncio
 import logging
 from models import GalleryItem, Profile
 from .core import (
     UPLOAD_DIR, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES,
     MAX_FILE_SIZE, MAX_IMAGE_SIZE,
-    SUPABASE_STORAGE_AVAILABLE,
     upload_to_supabase_storage, get_file_extension, add_watermark, WatermarkError,
     require_previewable_image,
-    _cached_file_response, _SHORT_CACHE,
 )
 from .storage import unlinked_media_names
 from .public_copy import store_public, strip_public_video
+from services.gallery_media import GALLERY_ORIGINALS_BUCKET
+from services.private_media import upload_private_media
 from utils.video_processor import (
-    process_video_upload, generate_video_thumbnail
+    process_video_upload, generate_video_thumbnail, generate_watermarked_video_preview
 )
 from PIL import Image, ImageDraw, ImageFont
 import io
@@ -123,69 +122,91 @@ async def upload_photographer_gallery_media(
     max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
     if len(content) > max_size:
         raise HTTPException(status_code=400, detail=f"File too large. Maximum size is {max_size // (1024*1024)}MB")
+    private_dir = UPLOAD_DIR / "_gallery_originals" / user_id
+    private_dir.mkdir(parents=True, exist_ok=True)
     gallery_dir = UPLOAD_DIR / "gallery" / user_id
     gallery_dir.mkdir(parents=True, exist_ok=True)
     if is_video:
         success, error, result_data = await asyncio.to_thread(
             process_video_upload, content, file.filename or "video.mp4",
-            gallery_dir, user_subscription=subscription, upload_type='gallery'
+            private_dir, user_subscription=subscription, upload_type='gallery'
         )
         if not success:
             fallback_filename = f"{uuid.uuid4()}.mp4"
-            fallback_path = gallery_dir / fallback_filename
+            fallback_path = private_dir / fallback_filename
             with open(fallback_path, "wb") as fb:
                 fb.write(content)
             logger.warning(f"Video processing failed ({error}), saved raw file: {fallback_filename}")
             result_data = {'filename': fallback_filename, 'original_width': 0, 'original_height': 0,
                            'duration': 0, 'was_transcoded': False, 'size': len(content)}
-        original_url = f"/api/uploads/gallery/{user_id}/{result_data['filename']}"
-        preview_url = original_url
-        thumbnail_url = None
+        video_path = private_dir / result_data['filename']
+        original_filename, _ = unlinked_media_names('.mp4')
+        _, preview_filename = unlinked_media_names('.mp4')
+        _, thumbnail_filename = unlinked_media_names('.jpg')
+        raw_thumbnail_path = private_dir / f"{uuid.uuid4()}_thumb.jpg"
+        preview_path = gallery_dir / preview_filename
+        thumbnail_path = gallery_dir / thumbnail_filename
         try:
-            video_path = gallery_dir / result_data['filename']
-            thumbnail_filename = f"{result_data['filename'].rsplit('.', 1)[0]}_thumb.jpg"
-            thumbnail_path = gallery_dir / thumbnail_filename
+            preview_success, _ = await asyncio.to_thread(
+                generate_watermarked_video_preview, str(video_path), str(preview_path)
+            )
+            if not preview_success:
+                raise WatermarkError("Could not generate a protected video preview")
             thumb_success, _ = await asyncio.to_thread(
-                generate_video_thumbnail, str(video_path), str(thumbnail_path), 'smart'
+                generate_video_thumbnail, str(video_path), str(raw_thumbnail_path), 'smart'
             )
-            if thumb_success:
-                thumbnail_url = f"/api/uploads/gallery/{user_id}/{thumbnail_filename}"
+            if not thumb_success:
+                raise WatermarkError("Could not generate a protected video preview")
+            add_watermark(str(raw_thumbnail_path), str(thumbnail_path))
         except Exception as thumb_err:
-            logger.warning(f"Thumbnail generation skipped: {thumb_err}")
-        max_res = "4K" if is_paid else "1080p"
-        supabase_original = upload_to_supabase_storage(
-            gallery_dir / result_data['filename'], 'gallery',
-            f"{user_id}/{result_data['filename']}", content_type=file.content_type or 'video/mp4'
-        )
-        supabase_thumb = None
-        if thumbnail_url and thumbnail_filename:
-            supabase_thumb = upload_to_supabase_storage(
-                gallery_dir / thumbnail_filename, 'gallery',
-                f"{user_id}/{thumbnail_filename}", content_type='image/jpeg'
+            logger.warning("Protected video preview failed: %s", thumb_err)
+            video_path.unlink(missing_ok=True)
+            raw_thumbnail_path.unlink(missing_ok=True)
+            preview_path.unlink(missing_ok=True)
+            thumbnail_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=500, detail="Could not create a preview for this video")
+        try:
+            private_original = await upload_private_media(
+                bucket=GALLERY_ORIGINALS_BUCKET,
+                object_key=f"{user_id}/{original_filename}",
+                content=await asyncio.to_thread(video_path.read_bytes),
+                content_type=file.content_type or 'video/mp4',
             )
-        final_original = supabase_original or original_url
-        final_preview = supabase_original or preview_url
-        final_thumbnail = supabase_thumb or thumbnail_url
-        return {
-            "original_url": final_original, "preview_url": final_preview,
-            "thumbnail_url": final_thumbnail, "media_type": "video",
-            "filename": result_data['filename'],
-            "original_width": result_data['original_width'],
-            "original_height": result_data['original_height'],
-            "final_width": result_data.get('final_width'),
-            "final_height": result_data.get('final_height'),
-            "duration": result_data['duration'],
-            "was_transcoded": result_data['was_transcoded'],
-            "size": result_data.get('size', 0),
-            "max_allowed_resolution": max_res, "has_watermark": False
-        }
+            if private_original is None:
+                preview_path.unlink(missing_ok=True)
+                thumbnail_path.unlink(missing_ok=True)
+                raise HTTPException(status_code=503, detail="Private gallery storage is temporarily unavailable")
+            supabase_preview = upload_to_supabase_storage(
+                preview_path, 'gallery', f"{user_id}/{preview_filename}", content_type='video/mp4'
+            )
+            supabase_thumbnail = upload_to_supabase_storage(
+                thumbnail_path, 'gallery', f"{user_id}/{thumbnail_filename}", content_type='image/jpeg'
+            )
+            final_preview = supabase_preview or f"/api/uploads/gallery/{user_id}/{preview_filename}"
+            final_thumbnail = supabase_thumbnail or f"/api/uploads/gallery/{user_id}/{thumbnail_filename}"
+            return {
+                "original_url": private_original, "preview_url": final_preview,
+                "thumbnail_url": final_thumbnail, "media_type": "video",
+                "filename": result_data['filename'],
+                "original_width": result_data['original_width'],
+                "original_height": result_data['original_height'],
+                "final_width": result_data.get('final_width'),
+                "final_height": result_data.get('final_height'),
+                "duration": result_data['duration'],
+                "was_transcoded": result_data['was_transcoded'],
+                "size": result_data.get('size', 0),
+                "max_allowed_resolution": "4K" if is_paid else "1080p", "has_watermark": True
+            }
+        finally:
+            video_path.unlink(missing_ok=True)
+            raw_thumbnail_path.unlink(missing_ok=True)
     else:
         import gc
         ext = get_file_extension(file.content_type)
         base_filename = str(uuid.uuid4())
         # The original's name must not be derivable from the public preview's (LA-GAL-02).
         original_filename, preview_filename = unlinked_media_names(ext)
-        original_path = gallery_dir / original_filename
+        original_path = private_dir / original_filename
         preview_path = gallery_dir / preview_filename
         content_size = len(content)
         try:
@@ -193,8 +214,6 @@ async def upload_photographer_gallery_media(
             from io import BytesIO
             img = PILImage.open(BytesIO(content))
             img = ImageOps.exif_transpose(img)
-            del content
-            gc.collect()
             save_kwargs = {}
             if ext.lower() in ('.jpg', '.jpeg'):
                 save_kwargs = {'quality': 95}
@@ -216,6 +235,7 @@ async def upload_photographer_gallery_media(
             logger.info(f"Saved EXIF-corrected and DRM-shielded image: {original_filename}")
             img.close()
             del img
+            del content
             gc.collect()
         except Exception as exif_err:
             logger.warning(f"EXIF auto-rotate failed ({exif_err}), saving raw file")
@@ -226,33 +246,34 @@ async def upload_photographer_gallery_media(
             except NameError:
                 pass
             gc.collect()
-        watermark_time_ms = 0
-        if add_watermark_preview:
-            try:
-                _, watermark_time_ms = add_watermark(str(original_path), str(preview_path))
-            except WatermarkError:
-                original_path.unlink(missing_ok=True)
-                raise HTTPException(status_code=500, detail="Could not create a preview for this photo")
+        try:
+            _, watermark_time_ms = add_watermark(str(original_path), str(preview_path))
             gc.collect()
-        else:
-            shutil.copy(original_path, preview_path)
-        local_original_url = f"/api/uploads/gallery/{user_id}/{original_filename}"
-        local_preview_url = f"/api/uploads/gallery/{user_id}/{preview_filename}"
-        supabase_original = upload_to_supabase_storage(
-            original_path, 'gallery', f"{user_id}/{original_filename}",
-            content_type=file.content_type or 'image/jpeg'
-        )
-        supabase_preview = upload_to_supabase_storage(
-            preview_path, 'gallery', f"{user_id}/{preview_filename}",
-            content_type=file.content_type or 'image/jpeg'
-        )
-        return {
-            "original_url": supabase_original or local_original_url,
-            "preview_url": supabase_preview or local_preview_url,
-            "media_type": "image", "filename": base_filename,
-            "size": content_size, "has_watermark": add_watermark_preview,
-            "watermark_time_ms": watermark_time_ms
-        }
+            private_original = await upload_private_media(
+                bucket=GALLERY_ORIGINALS_BUCKET,
+                object_key=f"{user_id}/{original_filename}",
+                content=await asyncio.to_thread(original_path.read_bytes),
+                content_type=file.content_type or 'image/jpeg',
+            )
+            if private_original is None:
+                preview_path.unlink(missing_ok=True)
+                raise HTTPException(status_code=503, detail="Private gallery storage is temporarily unavailable")
+            supabase_preview = upload_to_supabase_storage(
+                preview_path, 'gallery', f"{user_id}/{preview_filename}",
+                content_type=file.content_type or 'image/jpeg'
+            )
+            return {
+                "original_url": private_original,
+                "preview_url": supabase_preview or f"/api/uploads/gallery/{user_id}/{preview_filename}",
+                "media_type": "image", "filename": base_filename,
+                "size": content_size, "has_watermark": True,
+                "watermark_time_ms": watermark_time_ms
+            }
+        except WatermarkError:
+            preview_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=500, detail="Could not create a preview for this photo")
+        finally:
+            original_path.unlink(missing_ok=True)
 
 
 @router.post("/uploads/test-watermark")
@@ -319,19 +340,24 @@ async def upload_session_photo(
     max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
     if len(content) > max_size:
         raise HTTPException(status_code=400, detail=f"File too large. Max {max_size // (1024*1024)}MB")
+    private_dir = UPLOAD_DIR / "_gallery_originals" / photographer_id
+    private_dir.mkdir(parents=True, exist_ok=True)
     gallery_dir = UPLOAD_DIR / "gallery" / photographer_id
     gallery_dir.mkdir(parents=True, exist_ok=True)
-    ext = file.filename.rsplit('.', 1)[-1].lower() if file.filename else ('mp4' if is_video else 'jpg')
+    ext = get_file_extension(file.content_type)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     # The original's name must not be derivable from the public preview's or thumbnail's (LA-GAL-02).
-    filename, preview_filename = unlinked_media_names(f".{ext}", prefix=f"session_{timestamp}_")
-    file_path = gallery_dir / filename
+    filename, _ = unlinked_media_names(ext, prefix=f"session_{timestamp}_")
+    _, preview_filename = unlinked_media_names(
+        '.mp4' if is_video else ext,
+        prefix=f"session_{timestamp}_",
+    )
+    file_path = private_dir / filename
     with open(file_path, 'wb') as f:
         f.write(content)
-    original_url = f"/api/uploads/gallery/{photographer_id}/{filename}"
-    preview_url = original_url
+    preview_path = gallery_dir / preview_filename
+    thumbnail_url = None
     if is_image:
-        preview_path = gallery_dir / preview_filename
         try:
             img = Image.open(io.BytesIO(content))
             img.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
@@ -361,7 +387,6 @@ async def upload_session_photo(
             y = (img.height - text_height) // 2
             draw.text((x, y), watermark_text, font=font, fill=(255, 255, 255, 100))
             img.save(preview_path, quality=85)
-            preview_url = f"/api/uploads/gallery/{photographer_id}/{preview_filename}"
         except Exception as e:
             # The fallback here was preview_url = original_url: a failed watermark published the
             # paid original as its own free preview. Refuse the upload instead (LA-GAL-02).
@@ -369,15 +394,60 @@ async def upload_session_photo(
             file_path.unlink(missing_ok=True)
             raise HTTPException(status_code=500, detail="Could not create a preview for this photo")
     elif is_video:
+        raw_thumbnail_path = private_dir / f"{uuid.uuid4()}_thumb.jpg"
+        _, thumbnail_filename = unlinked_media_names('.jpg', prefix=f"session_{timestamp}_")
+        thumbnail_path = gallery_dir / thumbnail_filename
         try:
-            thumbnail_filename = f"thumb_{uuid.uuid4()}.jpg"
-            thumbnail_path = gallery_dir / thumbnail_filename
             from utils.video_processor import generate_video_thumbnail as gen_thumb
-            thumbnail_success = await gen_thumb(str(file_path), str(thumbnail_path))
-            if thumbnail_success:
-                preview_url = f"/api/uploads/gallery/{photographer_id}/{thumbnail_filename}"
+            preview_success, _ = await asyncio.to_thread(
+                generate_watermarked_video_preview, str(file_path), str(preview_path)
+            )
+            if not preview_success:
+                raise WatermarkError("Could not generate a protected video preview")
+            thumbnail_success, _ = await asyncio.to_thread(
+                gen_thumb, str(file_path), str(raw_thumbnail_path)
+            )
+            if not thumbnail_success:
+                raise WatermarkError("Could not generate a protected video preview")
+            add_watermark(str(raw_thumbnail_path), str(thumbnail_path))
         except Exception as e:
             logger.error(f"Video thumbnail error: {e}")
+            file_path.unlink(missing_ok=True)
+            raw_thumbnail_path.unlink(missing_ok=True)
+            preview_path.unlink(missing_ok=True)
+            thumbnail_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=500, detail="Could not create a preview for this video")
+        finally:
+            raw_thumbnail_path.unlink(missing_ok=True)
+
+    try:
+        private_original = await upload_private_media(
+            bucket=GALLERY_ORIGINALS_BUCKET,
+            object_key=f"{photographer_id}/{filename}",
+            content=content,
+            content_type=file.content_type or 'application/octet-stream',
+        )
+        if private_original is None:
+            preview_path.unlink(missing_ok=True)
+            if is_video:
+                thumbnail_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=503, detail="Private gallery storage is temporarily unavailable")
+        supabase_preview = upload_to_supabase_storage(
+            preview_path, 'gallery', f"{photographer_id}/{preview_filename}",
+            content_type='video/mp4' if is_video else (file.content_type or 'image/jpeg'),
+        )
+        preview_url = supabase_preview or f"/api/uploads/gallery/{photographer_id}/{preview_filename}"
+        if is_video:
+            supabase_thumbnail = upload_to_supabase_storage(
+                thumbnail_path, 'gallery', f"{photographer_id}/{thumbnail_filename}",
+                content_type='image/jpeg',
+            )
+            thumbnail_url = (
+                supabase_thumbnail
+                or f"/api/uploads/gallery/{photographer_id}/{thumbnail_filename}"
+            )
+    finally:
+        file_path.unlink(missing_ok=True)
     tagged_ids = []
     if tagged_surfer_ids:
         try:
@@ -390,7 +460,8 @@ async def upload_session_photo(
     from models import generate_uuid
     gallery_item = GalleryItem(
         id=generate_uuid(), photographer_id=photographer_id, gallery_id=gallery_id,
-        original_url=original_url, preview_url=preview_url, media_type=final_media_type,
+        original_url=private_original, preview_url=preview_url, thumbnail_url=thumbnail_url,
+        media_type=final_media_type,
         price=price or (15.0 if is_video else 5.0), is_public=True,
         tagged_surfer_ids=json.dumps(tagged_ids) if tagged_ids else None,
         session_id=session_id
@@ -399,7 +470,7 @@ async def upload_session_photo(
     await db.commit()
     await db.refresh(gallery_item)
     return {
-        "success": True, "id": gallery_item.id, "original_url": original_url,
-        "preview_url": preview_url, "tagged_surfers": len(tagged_ids),
+        "success": True, "id": gallery_item.id, "original_url": private_original,
+        "preview_url": preview_url, "thumbnail_url": thumbnail_url, "tagged_surfers": len(tagged_ids),
         "price": gallery_item.price, "media_type": final_media_type
     }

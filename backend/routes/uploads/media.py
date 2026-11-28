@@ -26,6 +26,12 @@ from .core import (
 )
 from .storage import unlinked_media_names
 from .public_copy import store_public, strip_public_video
+from services.gallery_media import (
+    GALLERY_ORIGINALS_BUCKET,
+    authorized_gallery_delivery_url,
+    is_private_gallery_asset,
+)
+from services.private_media import upload_private_media
 from utils.video_processor import (
     get_video_info, process_video_from_path, process_video_upload,
     generate_video_thumbnail
@@ -488,16 +494,29 @@ async def export_video_frame(
 
     # Determine local working path
     photographer_id = source_item.photographer_id
-    working_dir = UPLOAD_DIR / "gallery" / photographer_id
-    working_dir.mkdir(parents=True, exist_ok=True)
+    private_working_dir = UPLOAD_DIR / "_gallery_originals" / photographer_id
+    private_working_dir.mkdir(parents=True, exist_ok=True)
+    preview_dir = UPLOAD_DIR / "gallery" / photographer_id
+    preview_dir.mkdir(parents=True, exist_ok=True)
     
     # We locate local copy if stored, otherwise fetch source stream
     filename = source_item.original_url.rsplit('/', 1)[-1]
-    local_video_path = working_dir / filename
+    local_video_path = preview_dir / filename
     
     if not local_video_path.exists():
-        # Fallback: if running on stateless container, download stream frame directly via URL
-        video_source = source_item.original_url
+        # New rows carry only a private reference.  Signing is allowed here because
+        # ownership was checked above; legacy URLs remain readable for migration.
+        if is_private_gallery_asset(source_item.original_url, owner_id=photographer_id):
+            video_source = await authorized_gallery_delivery_url(
+                source_item.original_url,
+                original_url=source_item.original_url,
+                preview_url=source_item.preview_url,
+                owner_id=photographer_id,
+            )
+            if not video_source:
+                raise HTTPException(status_code=503, detail="Private gallery delivery is temporarily unavailable")
+        else:
+            video_source = source_item.original_url
     else:
         video_source = str(local_video_path)
 
@@ -505,8 +524,8 @@ async def export_video_frame(
     # The original's name must not be derivable from the public preview's (LA-GAL-02).
     frame_filename, frame_preview_filename = unlinked_media_names(".jpg", prefix="exported_")
     
-    out_original_path = working_dir / frame_filename
-    out_preview_path = working_dir / frame_preview_filename
+    out_original_path = private_working_dir / frame_filename
+    out_preview_path = preview_dir / frame_preview_filename
 
     # 3. Extract exact frame using ffmpeg subprocess (extremely memory-safe)
     try:
@@ -587,28 +606,28 @@ async def export_video_frame(
         out_original_path.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail="Could not create a preview for this frame")
 
-    # 5. Persist original and preview files to Supabase Storage
-    supabase_original = None
-    supabase_preview = None
-    
-    if SUPABASE_STORAGE_AVAILABLE:
-        try:
-            supabase_original = await asyncio.to_thread(
-                upload_to_supabase_storage,
-                out_original_path, 'gallery', 
-                f"{photographer_id}/{frame_filename}", 'image/jpeg'
-            )
-            supabase_preview = await asyncio.to_thread(
-                upload_to_supabase_storage,
-                out_preview_path, 'gallery', 
-                f"{photographer_id}/{frame_preview_filename}", 'image/jpeg'
-            )
-        except Exception as supa_err:
-            logger.error(f"Supabase upload failed for frame extract: {supa_err}")
-
-    # Set up final database URLs
-    final_original_url = supabase_original or f"/api/uploads/gallery/{photographer_id}/{frame_filename}"
-    final_preview_url = supabase_preview or f"/api/uploads/gallery/{photographer_id}/{frame_preview_filename}"
+    # 5. Persist the original privately and only the watermarked preview publicly.
+    try:
+        final_original_url = await upload_private_media(
+            bucket=GALLERY_ORIGINALS_BUCKET,
+            object_key=f"{photographer_id}/{frame_filename}",
+            content=await asyncio.to_thread(out_original_path.read_bytes),
+            content_type='image/jpeg',
+        )
+        if final_original_url is None:
+            out_preview_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=503, detail="Private gallery storage is temporarily unavailable")
+        supabase_preview = await asyncio.to_thread(
+            upload_to_supabase_storage,
+            out_preview_path, 'gallery',
+            f"{photographer_id}/{frame_preview_filename}", 'image/jpeg'
+        )
+        final_preview_url = (
+            supabase_preview
+            or f"/api/uploads/gallery/{photographer_id}/{frame_preview_filename}"
+        )
+    finally:
+        out_original_path.unlink(missing_ok=True)
 
     # 6. Write new saleable photo row into the database
     from models import generate_uuid

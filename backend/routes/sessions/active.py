@@ -10,6 +10,7 @@ from typing import Optional
 from models import GalleryItem, LiveSessionParticipant, Profile
 from .schemas import ActiveSessionResponse, SessionParticipantResponse
 from utils.credits import deduct_credits, add_credits
+from services.gallery_media import authorized_gallery_delivery_url, is_safe_gallery_delivery_reference
 
 router = APIRouter()
 
@@ -134,6 +135,13 @@ async def purchase_photo_in_session(
     
     if not gallery_item:
         raise HTTPException(status_code=404, detail="Photo not found")
+    if not is_safe_gallery_delivery_reference(
+        gallery_item.original_url,
+        original_url=gallery_item.original_url,
+        preview_url=gallery_item.preview_url,
+        owner_id=gallery_item.photographer_id,
+    ):
+        raise HTTPException(status_code=503, detail="Paid media is awaiting private-storage migration")
     
     # Check if already purchased
     existing_purchase = await db.execute(
@@ -201,7 +209,9 @@ async def purchase_photo_in_session(
         buyer_id=surfer_id,
         photographer_id=photographer.id,
         amount_paid=photo_price,
-        payment_method='subscription' if subscription_covered else 'credits'
+        payment_method='subscription' if subscription_covered else 'credits',
+        quality_tier='high',
+        download_count=1,
     )
     db.add(purchase)
     
@@ -212,13 +222,22 @@ async def purchase_photo_in_session(
     participant.amount_paid += photo_price
     
     await db.commit()
+
+    download_url = await authorized_gallery_delivery_url(
+        gallery_item.original_url,
+        original_url=gallery_item.original_url,
+        preview_url=gallery_item.preview_url,
+        owner_id=gallery_item.photographer_id,
+    )
+    if not download_url:
+        raise HTTPException(status_code=503, detail="Private gallery delivery is temporarily unavailable")
     
     return {
         "message": "Included with subscription!" if subscription_covered else "Photo purchased successfully",
         "amount_paid": photo_price,
         "subscription_covered": subscription_covered,
         "new_balance": new_balance,
-        "download_url": gallery_item.original_url
+        "download_url": download_url
     }
 
 

@@ -126,25 +126,5 @@ def get_max_quality_for_tier(tier: GalleryTierEnum, media_type: str = 'image'):
         return ('standard', '1080p')
 
 
-def get_download_url_for_tier(gallery_item: GalleryItem, tier: GalleryTierEnum, is_paid: bool):
-    """
-    Returns the appropriate download URL based on tier and payment status.
-    Standard tier: Watermarked preview until paid, then 1080p max
-    Pro tier: Full original resolution
-    """
-    if not is_paid:
-        return None  # Watermarked preview only
-    
-    if tier == GalleryTierEnum.PRO:
-        # Pro tier gets full original
-        return gallery_item.original_url
-    else:
-        # Standard tier capped at 1080p/standard
-        if gallery_item.media_type == 'video':
-            return gallery_item.url_1080p or gallery_item.original_url
-        else:
-            return gallery_item.url_standard or gallery_item.original_url
-
-
 # ============ ROUTES ============
 

@@ -119,14 +119,18 @@ async def test_populated_list_serializes_and_live_lookup_degrades(path, live, re
 async def test_watermarked_media_heals_through_real_helper(path, commit_fails, report):
     report.media_url = 'https://media.example.test/session_preview.jpg'
     report.thumbnail_url = '/api/uploads/session.jpg'
-    item = SimpleNamespace(original_url='https://media.example.test/session.jpg', url_standard=None, url_web=None)
+    item = SimpleNamespace(
+        original_url='supabase://gallery_originals/photographer/session.jpg',
+        preview_url='https://media.example.test/session_preview.jpg',
+        thumbnail_url='https://media.example.test/session_thumb.jpg',
+    )
     db = Database([report], [], item, *([1] if path.endswith('/feed') else []))
     if commit_fails:
         db.commit.side_effect = RuntimeError('persistence failed')
     response = await request(db, 'GET', path)
     assert response.status_code == 200
     row = response.json()['reports'][0]
-    assert row['media_url'] == row['thumbnail_url'] == item.original_url
+    assert row['media_url'] == row['thumbnail_url'] == item.preview_url
     db.commit.assert_awaited_once()
 
 

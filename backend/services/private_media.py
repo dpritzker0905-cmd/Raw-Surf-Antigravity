@@ -21,7 +21,10 @@ import httpx
 logger = logging.getLogger(__name__)
 
 PRIVATE_MEDIA_SCHEME = "supabase://"
-PRIVATE_MEDIA_BUCKETS = frozenset({"chat_media", "crew_chat", "grom_media"})
+PRIVATE_MEDIA_BUCKETS = frozenset({
+    "chat_media", "crew_chat", "gallery_originals", "grom_media",
+})
+INLINE_DELIVERY_BUCKETS = frozenset({"chat_media", "crew_chat"})
 DEFAULT_SIGNED_URL_TTL_SECONDS = 60 * 60
 
 
@@ -201,7 +204,11 @@ async def signed_private_media_url(
 
 
 async def delivery_url_for_media(value: Optional[str]) -> Optional[str]:
-    """Resolve a private reference; leave legacy/local URLs untouched during migration."""
-    if parse_private_media_ref(value):
+    """Resolve inline chat media without becoming a signer for other private lanes."""
+    reference = parse_private_media_ref(value)
+    if reference and reference.bucket not in INLINE_DELIVERY_BUCKETS:
+        logger.warning("Rejected cross-lane private media delivery for bucket=%s", reference.bucket)
+        return None
+    if reference:
         return await signed_private_media_url(value)
     return value

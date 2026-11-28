@@ -274,7 +274,7 @@ async def get_grom_highlights(
     for item, tag in rows:
         items.append({
             "id": item.id,
-            "original_url": item.original_url,
+            "original_url": None,
             "preview_url": item.preview_url,
             "thumbnail_url": item.thumbnail_url,
             "media_type": item.media_type,
@@ -345,7 +345,7 @@ async def get_grom_profile_photos(
     for item, tag, photographer in rows:
         items.append({
             "id": item.id,
-            "original_url": item.original_url,
+            "original_url": None,
             "preview_url": item.preview_url,
             "thumbnail_url": item.thumbnail_url,
             "media_type": item.media_type,
