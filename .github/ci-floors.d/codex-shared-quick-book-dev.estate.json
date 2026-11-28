@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 31,
+  "tests": 36,
   "branch": "codex/shared-quick-book-dev",
   "date": "2026-11-28",
-  "note": "Shared Quick Book pricing, restoration, card recovery and crew funding"
+  "note": "Shared Quick Book pricing, restoration, card recovery and payer-specific guest credits"
 }

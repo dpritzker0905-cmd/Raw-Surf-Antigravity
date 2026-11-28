@@ -46,6 +46,12 @@ stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_A
 
 router = APIRouter(prefix="/dispatch", tags=["dispatch"])
 
+def preacceptance_credit_notice(dispatch):
+    if dispatch.is_shared and dispatch.target_photographer_id and dispatch.status == DispatchRequestStatusEnum.SEARCHING_FOR_PRO:
+        return "If this request ends before the photographer accepts, your payment returns to your Raw Surf wallet."
+    return ""
+
+
 @router.get("/user/{user_id}/crew-invites")
 async def get_crew_invites(
     user_id: str,
@@ -102,6 +108,7 @@ async def get_crew_invites(
             "location_name": dispatch.location_name,
             "estimated_duration_hours": dispatch.estimated_duration_hours,
             "your_share": participant.share_amount,
+            "cancellation_notice": preacceptance_credit_notice(dispatch),
             "status": participant.status,
             "dispatch_status": dispatch.status.value,
             "created_at": dispatch.created_at.isoformat()
@@ -456,8 +463,8 @@ async def crew_invite_checkout(
                     "product_data": {
                         "name": f"Crew Session Share — {dispatch.location_name or 'On-Demand'}",
                         "description": (
-                            f"Your share of a {dispatch.estimated_duration_hours}h surf session "
-                            f"with captain {payer.full_name or 'Unknown'}"
+                            f"Your share of a {dispatch.estimated_duration_hours}h surf session. "
+                            f"{preacceptance_credit_notice(dispatch)}"
                         ),
                     },
                     "unit_amount": amount_cents,

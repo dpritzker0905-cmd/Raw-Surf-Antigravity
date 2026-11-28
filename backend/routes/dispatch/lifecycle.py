@@ -33,6 +33,7 @@ from core.security import get_current_user_id
 from services.onesignal_service import onesignal_service
 from services.xp import grant_xp
 
+from services.shared_dispatch_guest_credits import return_guest_payments
 from services.shared_dispatch_allowance import cancel_included_session
 from .schemas import (
     CreateDispatchRequest, AcceptDispatchRequest, UpdateGPSLocation,
@@ -229,6 +230,7 @@ async def decline_dispatch(
         refund = captain_amount_owed(dispatch) if deposit_held else 0
 
         now = datetime.now(timezone.utc)
+        await return_guest_payments(db, dispatch)
         await cancel_included_session(db, dispatch, now)
         dispatch.status = DispatchRequestStatusEnum.CANCELLED
         dispatch.status_changed_at = now

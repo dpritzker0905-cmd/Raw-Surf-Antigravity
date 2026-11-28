@@ -72,6 +72,7 @@ async def test_included_session_covers_captain_and_guest_pays_the_invited_amount
     for guest in ("north", "south"):
         listing = await client.get(f"/api/dispatch/user/{guest}/crew-invites", headers=bearer(guest))
         invite, = listing.json()["crew_invites"]
+        assert "Raw Surf wallet" in invite["cancellation_notice"]
         assert invite["your_share"] == 35
         response = await client.post(f"/api/dispatch/crew-invite/{invite['id']}/pay?payer_id={guest}",
                                      headers=bearer(guest))
@@ -464,3 +465,76 @@ async def test_booking_escrow_tracks_funded_shares_before_and_after_arrival(shar
         booking = await db.get(Booking, arrived.json()["booking_id"])
         assert booking.escrow_amount == 70
         assert (await db.get(Profile, CAPTAIN)).credit_balance == 65
+
+
+@pytest.mark.parametrize("ending,late_card", [("cancel", False), ("decline", False), ("cancel", True), ("decline", True)])
+async def test_guest_payments_return_to_each_payer_once(shared, harness, monkeypatch, ending, late_card):
+    import json
+    from models import PaymentTransaction
+    from routes.dispatch import dispatch_transitions, lifecycle
+
+    app, client, maker = harness
+    app.include_router(dispatch_transitions.router, prefix="/api")
+    app.include_router(lifecycle.router, prefix="/api")
+    dispatch_id = (await create(client, TERMS, (await preview(client, TERMS))["quote_id"])).json()["id"]
+    assert (await client.post(f"/api/dispatch/{dispatch_id}/pay?payer_id=victim", headers=bearer(CAPTAIN))).status_code == 200
+    async with maker.begin() as db:
+        seats = {p.participant_id: p.id for p in (await db.scalars(select(DispatchRequestParticipant)
+                 .where(DispatchRequestParticipant.dispatch_request_id == dispatch_id))).all()}
+        (await db.get(Profile, "north")).spend_only_credits = 20
+        receipt = dict(type="crew_share", version=1, participant_id=seats["south"], dispatch_id=dispatch_id,
+                       payer_id="south", currency="usd", amount_cents=3500)
+        db.add(PaymentTransaction(user_id="south", amount=35, currency="usd", session_id="cs_guest_fixture",
+                                  status="pending", payment_status="pending", transaction_metadata=json.dumps(receipt)))
+
+    response = await client.post(f"/api/dispatch/crew-invite/{seats['north']}/pay?payer_id=north", headers=bearer("north"))
+    assert response.status_code == 200, response.text
+    checkout = SimpleNamespace(id="cs_guest_fixture", status="complete", payment_status="paid", mode="payment",
+                               payment_intent="pi_guest_fixture", currency="usd", amount_total=3500,
+                               metadata={key: str(value) for key, value in receipt.items()})
+    provider = Mock(return_value=checkout)
+    monkeypatch.setattr(sessions.stripe.checkout.Session, "retrieve", provider)
+    path = "/api/dispatch/crew-payment/cs_guest_fixture"
+    if not late_card:
+        response = await client.get(path, headers=bearer("south"))
+        assert response.json()["status"] == "completed", response.text
+    for attempt in range(2):
+        if ending == "cancel":
+            response = await client.post(f"/api/dispatch/{dispatch_id}/cancel", json={}, headers=bearer(CAPTAIN))
+            assert response.status_code == (400 if attempt else 200), response.text
+        else:
+            response = await client.post(f"/api/dispatch/{dispatch_id}/decline?photographer_id={PRO}", headers=bearer(PRO))
+            assert response.status_code == 200, response.text
+        response = await client.get(path, headers=bearer("south"))
+        assert response.json()["status"] == "wallet_credited", response.text
+    provider.assert_called_once()
+    async with maker() as db:
+        north = await db.get(Profile, "north")
+        assert (north.credit_balance, north.spend_only_credits) == (100, 20)
+        assert (await db.get(Profile, "south")).credit_balance == 135
+        assert (await db.get(Profile, CAPTAIN)).credit_balance == 100
+        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 1
+        credits = (await db.execute(select(CreditTransaction.user_id, CreditTransaction.amount)
+                   .where(CreditTransaction.amount > 0).order_by(CreditTransaction.user_id))).all()
+        assert credits == [("north", 35), ("south", 35)]
+        if late_card:
+            assert not (await db.get(DispatchRequestParticipant, seats["south"])).paid
+
+
+async def test_captain_recovers_guest_shares_they_covered(shared, harness):
+    from routes.dispatch import dispatch_transitions, progress
+
+    app, client, maker = harness
+    app.include_router(dispatch_transitions.router, prefix="/api")
+    app.include_router(progress.router, prefix="/api")
+    dispatch_id = (await create(client, TERMS, (await preview(client, TERMS))["quote_id"])).json()["id"]
+    assert (await client.post(f"/api/dispatch/{dispatch_id}/pay?payer_id=victim", headers=bearer(CAPTAIN))).status_code == 200
+    response = await client.post(f"/api/dispatch/{dispatch_id}/cover-remaining", json={"captain_id": CAPTAIN}, headers=bearer(CAPTAIN))
+    assert response.json()["amount_covered"] == 70
+    response = await client.post(f"/api/dispatch/{dispatch_id}/cancel", json={}, headers=bearer(CAPTAIN))
+    assert response.status_code == 200, response.text
+    async with maker() as db:
+        credits = (await db.execute(select(CreditTransaction.user_id, CreditTransaction.amount)
+                   .where(CreditTransaction.amount > 0))).all()
+        assert credits == [(CAPTAIN, 70)]
+        assert (await db.get(Profile, CAPTAIN)).credit_balance == 100

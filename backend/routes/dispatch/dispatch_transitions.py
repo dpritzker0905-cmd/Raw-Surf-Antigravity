@@ -23,6 +23,7 @@ from models import (
     SurfSpot,
 )
 
+from services.shared_dispatch_guest_credits import return_guest_payments
 from services.shared_dispatch_allowance import cancel_included_session
 from .schemas import CancelDispatchRequest
 
@@ -259,6 +260,7 @@ async def cancel_dispatch(
                 refund_amount = dispatch.deposit_amount / 2
                 refund_type = 'half'
 
+    await return_guest_payments(db, dispatch)
     await cancel_included_session(db, dispatch, now)
     if dispatch.included_subscription_id and not dispatch.deposit_paid:
         refund_amount, refund_type = 0, "none"
