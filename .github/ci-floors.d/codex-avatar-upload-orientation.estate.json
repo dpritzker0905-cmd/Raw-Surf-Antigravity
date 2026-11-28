@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 18,
+  "branch": "codex/avatar-upload-orientation",
+  "date": "2026-11-28",
+  "note": "Verify avatar uploads honor all EXIF orientations and keep public JPEG metadata stripped."
+}
