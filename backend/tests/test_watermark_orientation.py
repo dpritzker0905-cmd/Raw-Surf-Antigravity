@@ -40,4 +40,6 @@ async def test_preview_orients_photo_before_drawing(monkeypatch, orientation, si
             assert (r > b) == expect_red
         # The source has no green. Bright green-channel pixels locate the white lettering.
         letters = preview.getchannel("G").point(lambda value: 255 if value > 120 else 0).getbbox()
-        assert letters and letters[0] > w // 2 and letters[1] > h // 2
+        assert letters is not None
+        assert 0 <= w - letters[2] <= w // 10
+        assert 0 <= h - letters[3] <= h // 10
