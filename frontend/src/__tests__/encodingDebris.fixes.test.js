@@ -81,6 +81,9 @@ describe('reactions', () => {
     expect(m).not.toBeNull();
     const backend = m[1].split(',').map((s) => pyUnescape(s.trim().replace(/^'|'$/g, '')));
     expect(REACTION_EMOJIS).toEqual(backend);
+    const crew = readRepo('backend/routes/crew/crew_chat_reactions.py').match(/REACTION_EMOJIS = \[([^\]]*)\]/);
+    const crewEmoji = crew[1].split(',').map(s => pyUnescape(s.trim().replace(/^'|'$/g, '')));
+    expect(crewEmoji).toEqual(expect.arrayContaining([...REACTION_EMOJIS, String.fromCodePoint(0x1F44D)]));
   });
 
   test('every literal passed to a reaction handler is a reaction the backend accepts', () => {
@@ -96,7 +99,11 @@ describe('reactions', () => {
         const visit = (n) => {
           if (!n || typeof n.type !== 'string') return;
           if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && n.callee.name === 'handleReaction') {
-            for (const a of n.arguments) if (a.type === 'StringLiteral') calls.push([path.relative(SRC, p).split(path.sep).join('/'), a.loc.start.line, a.value]);
+            const collect = (arg) => {
+              if (arg.type === 'StringLiteral') calls.push([path.relative(SRC, p).split(path.sep).join('/'), arg.loc.start.line, arg.value]);
+              if (arg.type === 'LogicalExpression') { collect(arg.left); collect(arg.right); }
+            };
+            n.arguments.forEach(collect);
           }
           for (const k of Object.keys(n)) {
             if (k === 'loc') continue;

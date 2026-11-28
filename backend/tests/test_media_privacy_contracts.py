@@ -132,7 +132,7 @@ def test_post_feed_uses_followers_and_hides_unapproved_grom_media():
     source = _live_code('routes/posts/feed.py')
     assert 'get_optional_user_id' in source
     assert 'Follow.following_id' in source
-    assert "p.guardian_approval_status != 'approved'" in source
+    assert "Post.guardian_approval_status == 'approved'" in source
     assert "ref.bucket != 'grom_media'" in source
     assert 'data.thumbnail_url' in source
 

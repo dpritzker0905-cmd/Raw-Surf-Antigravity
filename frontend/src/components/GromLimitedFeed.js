@@ -47,7 +47,12 @@ const GromLimitedFeed = ({ gromStatus }) => {
       // Fetch posts from other Groms only, limited to 3
       const response = await apiClient.get(`/posts/grom-preview?limit=3`);
       if (generation !== previewReadGeneration.current) return;
-      setPosts(response.data || []);
+      const posts = await Promise.all((response.data || []).map(async post => {
+        if (!post.media_url?.startsWith('supabase://')) return post;
+        const { data } = await apiClient.get(`/groms/${post.author_id}/media/post/${post.id}/delivery`);
+        return { ...post, media_url: data.url, thumbnail_url: data.thumbnail_url };
+      }));
+      if (generation === previewReadGeneration.current) setPosts(posts);
     } catch (error) {
       if (generation !== previewReadGeneration.current) return;
       logger.error('Failed to fetch grom posts:', error);
@@ -140,11 +145,15 @@ const GromLimitedFeed = ({ gromStatus }) => {
                   {/* Post Media */}
                   {(post.thumbnail_url || post.media_url) && (
                     <div className="relative aspect-square bg-zinc-800">
-                      <img loading="lazy" decoding="async" 
-                        src={getFullUrl(post.thumbnail_url || post.media_url)} 
-                        alt="" 
-                        className="w-full h-full object-cover"
-                      />
+                      {post.media_type === 'video' && !post.thumbnail_url ? (
+                        <video src={getFullUrl(post.media_url)} controls playsInline
+                          aria-label={`Surf video by ${post.author_name || 'Grom'}`}
+                          className="w-full h-full object-cover" />
+                      ) : (
+                        <img loading="lazy" decoding="async"
+                          src={getFullUrl(post.thumbnail_url || post.media_url)}
+                          alt="" className="w-full h-full object-cover" />
+                      )}
                     </div>
                   )}
                   

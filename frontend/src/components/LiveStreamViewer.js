@@ -25,7 +25,7 @@ import {
   useDataChannel,
 } from '@livekit/components-react';
 import '@livekit/components-styles';
-import { Track, DataPacket_Kind } from 'livekit-client';
+import { Track } from 'livekit-client';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import useFocusTrap from '../hooks/useFocusTrap';
@@ -195,7 +195,7 @@ const ViewerRoomContent = ({
     try {
       const strData = new TextDecoder().decode(msg.payload);
       const { emoji } = JSON.parse(strData);
-      if (!emoji) return;
+      if (typeof emoji !== 'string' || !emoji) return;
       const id = Date.now() + Math.random();
       const x = 20 + Math.random() * 120;
       const y = window.innerHeight * 0.35 + Math.random() * 100;
@@ -207,7 +207,7 @@ const ViewerRoomContent = ({
   const { send: sendReaction } = useDataChannel('reactions', onReactionReceived);
 
  // Viewer reaction handler -- local animation + DataChannel broadcast
-  const handleReaction = useCallback((emoji) => {
+  const handleReaction = useCallback(async (emoji) => {
     // Show locally immediately
     const id = Date.now() + Math.random();
     const x = 60 + Math.random() * 80;
@@ -219,7 +219,7 @@ const ViewerRoomContent = ({
     try {
       const encoder = new TextEncoder();
       const payload = encoder.encode(JSON.stringify({ emoji }));
-      sendReaction(payload, { kind: DataPacket_Kind.RELIABLE });
+      await sendReaction(payload, { reliable: true });
     } catch (err) {
       logger.warn('[LiveViewer] Failed to send reaction via DataChannel:', err.message);
     }

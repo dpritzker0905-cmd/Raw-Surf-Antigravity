@@ -190,7 +190,8 @@ async def create_post(
 
 @router.get("/posts")
 async def get_feed(
-    limit: int = 20,
+    limit: int = Query(20, ge=1),
+    following_only: bool = False,
     cursor: Optional[str] = Query(None, description="ISO timestamp cursor for pagination (created_at of last post)"),
     user_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
@@ -205,19 +206,27 @@ async def get_feed(
     - liked/saved status scoped to this page only
     """
     # Private accounts are visible to followers, never to a caller-supplied identity.
-    viewer_following_ids = set()
+    visible_account = Profile.is_private.is_not(True)
+    following = select(Follow.following_id).where(Follow.follower_id == user_id)
     if user_id:
-        following_result = await db.execute(
-            select(Follow.following_id).where(Follow.follower_id == user_id)
-        )
-        viewer_following_ids = {row[0] for row in following_result.fetchall()}
-    
-    # Build query with optional cursor for pagination
-    query = select(Post).where(Post.media_url.isnot(None))
+        visible_account = or_(visible_account, Profile.id == user_id, Profile.id.in_(following))
+
+    query = select(Post).join(Post.author).where(
+        Post.media_url.isnot(None),
+        visible_account,
+        or_(
+            Profile.role != RoleEnum.GROM,
+            and_(Post.visibility == 'public', Post.guardian_approval_status == 'approved'),
+        ),
+    )
+
+    if following_only:
+        query = query.where(Post.author_id.in_(following))
 
     # BLOCKS (audit F-09): posts by anyone on either side of a block with the viewer never reach the feed.
     # One indexed lookup for the viewer, then a NOT IN in SQL (no per-post query).
-    query = query.where(not_in_ids(Post.author_id, await excluded_user_ids(db, user_id)))
+    hidden_authors = await excluded_user_ids(db, user_id)
+    query = query.where(not_in_ids(Post.author_id, hidden_authors))
     
     # If cursor provided, only fetch posts older than the cursor timestamp
     if cursor:
@@ -241,10 +250,13 @@ async def get_feed(
             )
         )
         .order_by(Post.created_at.desc())
-        .limit(limit + 5)  # Small buffer for privacy filtering
+        .limit(limit + 1)
     )
     posts = result.scalars().all()
     
+    has_more = len(posts) > limit
+    posts = posts[:limit]
+
     # Collect post IDs for batch queries
     page_post_ids = [p.id for p in posts]
     
@@ -309,7 +321,7 @@ async def get_feed(
                 Comment.is_edited, Comment.edited_at,
                 row_num
             )
-            .where(Comment.post_id.in_(page_post_ids))
+            .where(Comment.post_id.in_(page_post_ids), not_in_ids(Comment.author_id, hidden_authors))
             .subquery()
         )
         top2_q = (
@@ -351,22 +363,6 @@ async def get_feed(
     
     response = []
     for p in posts:
-        if not p.media_url:
-            continue
-        
-        # Grom media is absent from public feeds unless a guardian explicitly approved it.
-        if p.author and p.author.role == RoleEnum.GROM:
-            if p.visibility != 'public' or p.guardian_approval_status != 'approved':
-                continue
-
-        # Private accounts are visible only to the owner and accepted followers.
-        if p.author and getattr(p.author, 'is_private', False):
-            if not user_id or (str(p.author_id) != str(user_id) and str(p.author_id) not in viewer_following_ids):
-                continue
-        
-        if len(response) >= limit:
-            break
-        
         # Get spot data if available
         spot_data = None
         if p.spot:
@@ -438,13 +434,8 @@ async def get_feed(
         ))
     
     # Cursor-based pagination
-    next_cursor = None
-    has_more = False
-    if len(response) >= limit:
-        has_more = True
-        last_post = response[-1]
-        next_cursor = last_post.created_at.isoformat()
-    
+    next_cursor = response[-1].created_at.isoformat() if has_more and response else None
+
     return {
         "posts": response,
         "next_cursor": next_cursor,
@@ -533,6 +524,55 @@ async def get_posts_by_spot(
         "total": len(posts),
         "spot_id": spot_id
     }
+
+
+@router.get("/posts/grom-preview")
+async def get_grom_preview_feed(
+    limit: int = Query(3, ge=1, le=3),
+    user_id: Optional[str] = Depends(get_optional_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get a limited preview feed showing only posts from Grom users.
+    Used for unlinked Groms to see community content without full access.
+    Limited to 3 posts by default.
+    """
+    excluded = await excluded_user_ids(db, user_id)
+    result = await db.execute(
+        select(Post).join(Post.author)
+        .options(selectinload(Post.author))
+        .where(
+            Profile.role == RoleEnum.GROM,
+            Profile.is_private.is_not(True),
+            Post.visibility == 'public',
+            Post.guardian_approval_status == 'approved',
+            Post.media_url.isnot(None),
+            not_in_ids(Post.author_id, excluded),
+        )
+        .order_by(Post.created_at.desc())
+        .limit(limit)
+    )
+    posts = result.scalars().all()
+
+    response = []
+    for post in posts:
+        response.append({
+            "id": post.id,
+            "author_id": post.author_id,
+            "author_name": post.author.full_name if post.author else "Grom",
+            "author_username": post.author.username if post.author else None,
+            "author_avatar": post.author.avatar_url if post.author else None,
+            "media_url": post.media_url,
+            "media_type": post.media_type,
+            "thumbnail_url": post.thumbnail_url,
+            "caption": post.caption,
+            "spot_name": post.location,
+            "likes_count": post.likes_count,
+            "comments_count": 0,  # Don't show comment count for preview
+            "created_at": post.created_at.isoformat() if post.created_at else None
+        })
+
+    return response
 
 
 @router.get("/posts/{post_id}", response_model=PostResponse)
@@ -742,51 +782,3 @@ async def get_single_post(
     )
     
     return response
-
-
-@router.get("/posts/grom-preview")
-async def get_grom_preview_feed(limit: int = 3, db: AsyncSession = Depends(get_db)):
-    """
-    Get a limited preview feed showing only posts from Grom users.
-    Used for unlinked Groms to see community content without full access.
-    Limited to 3 posts by default.
-    """
-    # First get all Grom user IDs
-    grom_users_result = await db.execute(
-        select(Profile.id).where(Profile.role == 'GROM')
-    )
-    grom_user_ids = [row[0] for row in grom_users_result.all()]
-    
-    if not grom_user_ids:
-        return []
-    
-    # Get posts from Groms only
-    result = await db.execute(
-        select(Post)
-        .options(selectinload(Post.author))
-        .where(Post.author_id.in_(grom_user_ids))
-        .order_by(Post.created_at.desc())
-        .limit(limit)
-    )
-    posts = result.scalars().all()
-    
-    response = []
-    for post in posts:
-        response.append({
-            "id": post.id,
-            "author_id": post.author_id,
-            "author_name": post.author.full_name if post.author else "Grom",
-            "author_username": post.author.username if post.author else None,
-            "author_avatar": post.author.avatar_url if post.author else None,
-            "media_url": post.media_url,
-            "media_type": post.media_type,
-            "thumbnail_url": post.thumbnail_url,
-            "caption": post.caption,
-            "spot_name": post.location,
-            "likes_count": post.likes_count,
-            "comments_count": 0,  # Don't show comment count for preview
-            "created_at": post.created_at.isoformat() if post.created_at else None
-        })
-    
-    return response
-

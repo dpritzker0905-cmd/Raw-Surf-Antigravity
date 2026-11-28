@@ -52,7 +52,7 @@ const replayAction = async (action) => {
 
       case 'follow':
         await apiClient.post(
-          `/profiles/${payload.targetId}/follow?follower_id=${payload.userId}`
+          `/follow/${payload.targetId}?follower_id=${payload.userId}`
         );
         break;
 

@@ -199,7 +199,7 @@ const SinglePost = () => {
     
     // Quick tap = toggle shaka reaction
     if (wasPressing) {
-      await handleReaction(postId, '\u{1F919}');
+      await handleDoubleTapLike(postId);
     }
   };
   
@@ -241,10 +241,14 @@ const SinglePost = () => {
         
         if (action === 'added' || action === 'changed') {
           newState.liked = true;
+          newState.is_liked_by_user = true;
+          newState.user_reaction = { user_id: user.id, emoji };
           const filtered = (prev.reactions || []).filter(r => r.user_id !== user.id);
           newState.reactions = [...filtered, { user_id: user.id, emoji }];
         } else if (action === 'removed') {
           newState.liked = false;
+          newState.is_liked_by_user = false;
+          newState.user_reaction = null;
           newState.reactions = (prev.reactions || []).filter(r => r.user_id !== user.id);
         }
         
@@ -257,34 +261,9 @@ const SinglePost = () => {
     }
   };
 
-  // Double-tap to like handler for PostCard -- toggles shaka on/off
-  const handleDoubleTapLike = async (postId) => {
-    if (!user?.id || inFlightRef.current || !post) return;
-    inFlightRef.current = true;
-    
-    // Find if the user has an existing reaction
-    const userReaction = post.reactions?.find(r => r.user_id === user.id);
-    const hasExistingReaction = !!userReaction || !!post.liked;
-    const emojiToToggle = userReaction ? userReaction.emoji : '\u{1F919}';
-    
-    try {
-      const response = await apiClient.post(`/posts/${postId}/reactions`, { emoji: emojiToToggle });
-      setPost(prev => {
-        const newState = { ...prev };
-        if (response.data?.likes_count !== undefined) newState.likes_count = response.data.likes_count;
-        const action = response.data?.action;
-        if (action === 'added' || action === 'changed') {
-          newState.liked = true;
-          const filtered = (prev.reactions || []).filter(r => r.user_id !== user.id);
-          newState.reactions = [...filtered, { user_id: user.id, emoji: '\u{1F919}' }];
-        } else if (action === 'removed') {
-          newState.liked = false;
-          newState.reactions = (prev.reactions || []).filter(r => r.user_id !== user.id);
-        }
-        return newState;
-      });
-    } catch { /* silent */ }
-    finally { inFlightRef.current = false; }
+  const handleDoubleTapLike = (postId) => {
+    const existing = post?.user_reaction || post?.reactions?.find(r => r.user_id === user?.id);
+    return handleReaction(postId, existing?.emoji || '\u{1F919}');
   };
 
   // Save post
@@ -519,6 +498,9 @@ const SinglePost = () => {
           onLikeStart={handleShakaPointerDown}
           onLikeEnd={handleShakaPointerUp}
           onLikeLeave={handleShakaPointerLeave}
+          onLikeClick={(postId, event) => {
+            if (event.detail === 0) handleDoubleTapLike(postId);
+          }}
           onCommentChange={(postId, val) => setCommentInputs(prev => ({ ...prev, [postId]: val }))}
           onCommentSubmit={handleCommentSubmit}
           onLoadAllComments={loadAllComments}
