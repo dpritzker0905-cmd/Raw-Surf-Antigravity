@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 2,
+  "files": 0,
+  "branch": "codex/scheduled-wallet-receipt-integration",
+  "date": "2026-11-28",
+  "note": "Check the submitted payment method after switching to card or losing full wallet coverage"
+}

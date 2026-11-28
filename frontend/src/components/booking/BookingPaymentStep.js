@@ -10,9 +10,8 @@ import { Label } from '../ui/label';
 import { Slider } from '../ui/slider';
 
 const BookingPaymentStep = ({
-  crewSplitEnabled,
-  captainShare,
-  totalPrice,
+  amountToPay,
+  canPayFullWithCredits,
   userCredits,
   appliedCredits,
   setAppliedCredits,
@@ -22,9 +21,6 @@ const BookingPaymentStep = ({
   textPrimary,
   textSecondary,
 }) => {
-  const amountToPay = crewSplitEnabled ? captainShare : totalPrice;
-  const canPayFullWithCredits = userCredits >= amountToPay;
-
   return (
     <div className="space-y-2">
       <Label className={`font-medium text-sm ${textPrimary}`}>Payment Method</Label>
@@ -121,9 +117,7 @@ const BookingPaymentStep = ({
           )}
           <div className={`flex justify-between pt-1 border-t ${isLight ? 'border-green-200' : 'border-green-500/30'} font-bold`}>
             <span className={textPrimary}>
-              {paymentMethod === 'credits' && appliedCredits >= amountToPay 
-                ? 'Pay with Credits' 
-                : 'Card Payment via Stripe'}
+              {paymentMethod === 'card' ? 'Card Payment via Stripe' : canPayFullWithCredits ? 'Pay with Credits' : 'Remaining balance'}
             </span>
             <span className="text-green-400">
               ${Math.max(0, amountToPay - appliedCredits).toFixed(2)}

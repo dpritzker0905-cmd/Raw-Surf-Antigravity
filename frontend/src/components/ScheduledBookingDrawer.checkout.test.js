@@ -93,6 +93,42 @@ describe('wallet changes while choosing payment', () => {
   const tick = () => act(async () => { jest.advanceTimersByTime(10000); });
   const walletResponse = balance => ({ data: { user_id: 'buyer', balance } });
 
+  it('clears covered wallet credits when the buyer explicitly switches to card', async () => {
+    await act(async () => { render(drawer()); });
+    openPayment();
+    fireEvent.click(screen.getByTestId('pay-with-credits-btn'));
+    expect(screen.getByText('-$25.00')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('pay-with-card-btn'));
+    fireEvent.click(screen.getByTestId('review-booking-btn'));
+    fireEvent.click(screen.getByText('Skip selfie'));
+    apiClient.post.mockResolvedValueOnce({ data: { ...checkout, credits_applied: 0 } });
+    await act(async () => { submit(); });
+    expect(endpoints()).toEqual(['/bookings/create-with-stripe']);
+    expect(apiClient.post.mock.calls[0][1].apply_credits).toBe(0);
+  });
+
+  it('requires the wallet to cover the buyer’s share and allows an explicit card split after a late debit', async () => {
+    apiClient.get.mockResolvedValueOnce(walletResponse(12.5));
+    await act(async () => { render(drawer()); });
+    openPayment(true);
+    fireEvent.click(screen.getByTestId('pay-with-credits-btn'));
+    expect(screen.getByTestId('review-booking-btn')).toBeEnabled();
+    apiClient.get.mockResolvedValueOnce(walletResponse(12));
+    await tick();
+    expect(screen.getByTestId('review-booking-btn')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('review-booking-btn'));
+    expect(screen.queryByText('Skip selfie')).toBeNull();
+    expect(apiClient.post).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('pay-with-card-btn'));
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '10' } });
+    fireEvent.click(screen.getByTestId('review-booking-btn'));
+    fireEvent.click(screen.getByText('Skip selfie'));
+    apiClient.post.mockResolvedValueOnce({ data: { ...checkout, credits_applied: 10 } });
+    await act(async () => { submit(); });
+    expect(endpoints()).toEqual(['/bookings/create-with-stripe']);
+    expect(apiClient.post.mock.calls[0][1].apply_credits).toBe(10);
+  });
+
   it('updates an already reopened payment step after a lost response and a later debit', async () => {
     mockRealPayment = false;
     apiClient.post.mockRejectedValueOnce(new Error('Response lost'));
@@ -388,6 +424,7 @@ it('returns to payment with the latest balance after the server rejects reviewed
   await act(async () => { submit(); });
   expect(toast.error).toHaveBeenCalledWith('Your wallet balance changed. Review your payment again.');
   expect(screen.getByText(/\$12\.00 available/)).toBeInTheDocument();
+  expect(screen.getByTestId('review-booking-btn')).toBeDisabled();
   expect(screen.queryByTestId('confirm-booking-btn')).toBeNull();
   expect(apiClient.post).toHaveBeenCalledTimes(1);
   expect(screen.queryByRole('link', { name: /check scheduled bookings/i })).toBeNull();

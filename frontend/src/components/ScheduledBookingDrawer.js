@@ -117,9 +117,11 @@ export const ScheduledBookingDrawer = ({
     (sum, m) => sum + (pricePerPerson * ((m.captain_cover_percent || 0) / 100)), 0
   );
   const captainShare = pricePerPerson + captainCoverageExtra;
+  const amountToPay = crewSplitEnabled ? captainShare : totalPrice;
   const wallet = useScheduledWalletBalance(isOpen, user?.id, photographer?.id, step === 'payment');
   const userCredits = wallet.balance ?? 0;
-  const canReviewPayment = paymentMethod !== 'credits' || userCredits > 0;
+  const canPayFullWithCredits = userCredits > 0 && userCredits >= Number(amountToPay.toFixed(2));
+  const canReviewPayment = paymentMethod !== 'credits' || canPayFullWithCredits;
   
   // Check if group discounts are available (for display)
   const _hasGroupDiscounts = groupDiscount2 > 0 || groupDiscount3 > 0 || groupDiscount5 > 0;
@@ -151,9 +153,9 @@ export const ScheduledBookingDrawer = ({
   
   // Auto-apply credits only if payment method is 'credits'
   useEffect(() => {
-    const available = Math.min(userCredits, Math.max(0, crewSplitEnabled ? captainShare : totalPrice));
+    const available = Math.min(userCredits, Math.max(0, amountToPay));
     setAppliedCredits(current => paymentMethod === 'credits' ? available : Math.min(current, available));
-  }, [userCredits, totalPrice, captainShare, crewSplitEnabled, paymentMethod]);
+  }, [userCredits, amountToPay, paymentMethod]);
   
   const canProceedFromTime = selectedDate && selectedTime && selectedDuration && selectedCategory;
   const canProceedFromLocation = impactZone && impactZone.description && locationValid;
@@ -221,8 +223,7 @@ export const ScheduledBookingDrawer = ({
       sessionDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       
       // Calculate captain's payment amount
-      const captainPaymentAmount = crewSplitEnabled ? captainShare : totalPrice;
-      const amountToCharge = Math.max(0, captainPaymentAmount - appliedCredits);
+      const amountToCharge = Math.max(0, amountToPay - appliedCredits);
       
       // Calculate payment window for crew
       const paymentWindowExpires = calculatePaymentWindow();
@@ -579,6 +580,9 @@ export const ScheduledBookingDrawer = ({
               {wallet.balance === 0 && paymentMethod === 'credits' && (
                 <p role="status" className={textSecondary}>No credits are available. Choose a payment method to continue.</p>
               )}
+              {userCredits > 0 && !canReviewPayment && (
+                <p role="status" className={textSecondary}>Your credits don’t cover your share. Choose card to apply credits and pay the rest.</p>
+              )}
               {user?.id && wallet.balance === null && (
                 <div role="status" className={textSecondary}>
                   {wallet.failed ? <>
@@ -588,9 +592,8 @@ export const ScheduledBookingDrawer = ({
                 </div>
               )}
               <BookingPaymentStep
-                crewSplitEnabled={crewSplitEnabled}
-                captainShare={captainShare}
-                totalPrice={totalPrice}
+                amountToPay={amountToPay}
+                canPayFullWithCredits={canPayFullWithCredits}
                 userCredits={userCredits}
                 appliedCredits={appliedCredits}
                 setAppliedCredits={setAppliedCredits}
