@@ -37,6 +37,10 @@ import { GallerySkeleton } from './ui/SkeletonVariants';
 
 export const GalleryPage = ({ initialRecapData = null }) => {
   const { user } = useAuth();
+  return <AccountGallery key={user?.id} user={user} initialRecapData={initialRecapData} />;
+};
+
+const AccountGallery = ({ user, initialRecapData }) => {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const { 
@@ -185,10 +189,10 @@ export const GalleryPage = ({ initialRecapData = null }) => {
       if (isPhotographer) {
         fetchGalleries();
       }
-      if (isGromParent) {
-        fetchLinkedGroms();
-        fetchGromHighlights();
-      }
+      fetchLinkedGroms().then(children => {
+        if (children.length) fetchGromHighlights();
+        else setGromHighlights([]);
+      });
     }
   }, [user?.id, lastUpdated]);
 
@@ -350,7 +354,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
       )}
 
       {/* Grom Highlights Section - SPECIAL for Grom Parents */}
-      {isGromParent && !selectedGallery && (
+      {(isGromParent || linkedGroms.length > 0) && !selectedGallery && (
         <GromHighlightsCard
           gromHighlights={gromHighlights}
           linkedGroms={linkedGroms}
