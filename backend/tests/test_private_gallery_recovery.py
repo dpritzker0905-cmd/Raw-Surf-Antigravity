@@ -2,11 +2,12 @@
 
 from pathlib import Path
 import json
+import os
 import sys
 
 import httpx
 import pytest
-from sqlalchemy import Column, MetaData, String, Table, create_engine, select, text
+from sqlalchemy import Boolean, Column, MetaData, String, Table, create_engine, select, text
 
 from services.gallery_tiers import PHOTO_FIELDS, VIDEO_FIELDS
 
@@ -16,13 +17,16 @@ from migrate_private_gallery_originals import BUCKET, COLUMNS, Storage, run
 
 @pytest.mark.parametrize("hold", [False, True])
 def test_private_gallery_recovery(tmp_path, hold):
-    engine = create_engine(f"sqlite:///{tmp_path / 'gallery.db'}")
+    postgres = os.environ.get("GALLERY_REHEARSAL_POSTGRES") == "1"
+    database = f"gallery_rehearsal_{int(hold)}"
+    url = f"postgresql+psycopg2://postgres@127.0.0.1:5432/{database}" if postgres else f"sqlite:///{tmp_path / 'gallery.db'}"
+    engine = create_engine(url)
     meta = MetaData()
     tables = {
         name: Table(
             name,
             meta,
-            *(Column(c, String, primary_key=i == 0) for i, c in enumerate(cols)),
+            *(Column(c, Boolean if c in ("is_public","is_for_sale") else String, primary_key=i == 0) for i, c in enumerate(cols)),
         )
         for name, cols in COLUMNS.items()
     }
@@ -139,6 +143,7 @@ def test_private_gallery_recovery(tmp_path, hold):
         with engine.begin() as conn:
             conn.execute(
                 text(
+                    "ALTER TABLE user_media ADD CONSTRAINT stop_switch CHECK (media_url NOT LIKE 'supabase://%')" if postgres else
                     "CREATE TRIGGER stop_switch BEFORE UPDATE ON user_media BEGIN SELECT RAISE(ABORT,'interrupted'); END"
                 )
             )
@@ -150,7 +155,7 @@ def test_private_gallery_recovery(tmp_path, hold):
             assert conn.scalar(
                 select(tables["gallery_items"].c.original_url).limit(1)
             ).startswith(origin)
-            conn.execute(text("DROP TRIGGER stop_switch"))
+            conn.execute(text("ALTER TABLE user_media DROP CONSTRAINT stop_switch" if postgres else "DROP TRIGGER stop_switch"))
         phase("cutover")
         phase("cutover")
         phase("verify")
@@ -209,7 +214,7 @@ def test_private_gallery_recovery(tmp_path, hold):
                         media_type="image",
                         photographer_id="owner",
                         original_url="https://unknown.invalid/file",
-                        is_for_sale="true",
+                        is_for_sale=True,
                     )
                 )
             special = tmp_path / "unresolved.sqlite"
