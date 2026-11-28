@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 3,
-  "files": 1,
+  "tests": 5,
+  "files": 2,
   "branch": "codex/shared-quick-book-dev",
   "date": "2026-11-28",
-  "note": "Shared Quick Book price review in both entry points"
+  "note": "Shared Quick Book price review and interruption notices"
 }

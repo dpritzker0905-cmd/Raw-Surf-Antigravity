@@ -23,6 +23,7 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [requestId, setRequestId] = useState(null);
+  const [requestTerms, setRequestTerms] = useState(null);
   const [acceptedData, setAcceptedData] = useState(null);
   const [showSelfieModal, setShowSelfieModal] = useState(false);
   const selfieShownRef = useRef(false); // gates selfie modal to open exactly once
@@ -259,6 +260,7 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
       
       const dispatchId = response.data.id;
       setRequestId(dispatchId);
+      setRequestTerms({ id: dispatchId, shared: Boolean(response.data.shared_quote) });
       
       // Step 2: Process payment based on method selected
       if (paymentMethod === 'credits' || response.data.shared_quote?.captain_cents === 0) {
@@ -331,7 +333,8 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
       try {
         const response = await apiClient.get(`/dispatch/${requestId}`);
         const data = response.data;
-        
+        setRequestTerms({ id: requestId, shared: Boolean(data.is_shared && data.target_photographer_id) });
+
         // Update crew member payment status from backend
         if (data.participants && data.participants.length > 0) {
           setCrewMembers(prev => prev.map(member => {
@@ -364,7 +367,6 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
           } catch (e) { /* audio playback unavailable - ignore silently */ }
           
           setAcceptedData({
-            sharedQuickBook: Boolean(data.is_shared && data.target_photographer_id),
             photographer_id: data.photographer?.id,
             photographer_name: data.photographer?.name || photographer?.full_name,
             photographer_avatar: data.photographer?.avatar || photographer?.avatar_url,
@@ -437,6 +439,7 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
     countdown, setCountdown,
     requestId, setRequestId,
     acceptedData, setAcceptedData,
+    sharedQuickBook: requestTerms?.id === requestId ? requestTerms?.shared : undefined,
     showSelfieModal, setShowSelfieModal,
     selfieShownRef,
     showCancelConfirm, setShowCancelConfirm,

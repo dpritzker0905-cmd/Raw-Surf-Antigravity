@@ -46,7 +46,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
 
   // Destructure all values from the hook for JSX consumption
   const {
-    step, setStep, loading, countdown, requestId, acceptedData,
+    step, setStep, loading, countdown, requestId, acceptedData, sharedQuickBook,
     showSelfieModal, setShowSelfieModal, selfieShownRef,
     showCancelConfirm, setShowCancelConfirm,
     paymentMethod, setPaymentMethod, localCredits, subscriptionDiscount,
@@ -470,8 +470,10 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   Are you sure you want to cancel this on-demand booking?
                 </p>
                 <p className={`text-xs ${textSecondary} text-center`}>
-                  {acceptedData?.sharedQuickBook
-                    ? 'Payments and any included session will be held for settlement after acceptance.'
+                  {sharedQuickBook === undefined
+                    ? 'The cancellation result will show the payment status.'
+                    : sharedQuickBook
+                    ? 'If the photographer has accepted, payments and any included session will be held for settlement.'
                     : photographer?.on_demand_cancellation_fee_pct === 0
                     ? 'Your payment will be fully refunded to your account credits.'
                     : photographer?.on_demand_cancellation_fee_pct === 100
