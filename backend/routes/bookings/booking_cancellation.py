@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from core.security import get_current_user_id
 from database import get_db
 from models import Booking, Notification
-from services.shared_quick_book_hold import hold_interrupted_booking, linked_quick_book, requires_settlement
+from services.shared_quick_book_hold import commit_interruption, linked_quick_book, requires_settlement
 from utils.credits import add_credits, refund_credits
 
 
@@ -56,8 +56,7 @@ async def cancel_booking(
     if dispatch is not None:
         if not requires_settlement(dispatch):
             raise HTTPException(409, "This shared session is already closed. Check its settlement status.")
-        result = await hold_interrupted_booking(db, dispatch, user_id, data.reason)
-        await db.commit()
+        result = await commit_interruption(db, dispatch, user_id, data.reason)
         return {**result, "refund_policy": result["message"]}
 
     if booking.status in ['Cancelled', 'Completed']:

@@ -339,11 +339,16 @@ async def cleanup_abandoned_stripe_sessions_task():
     
     stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
     
+    from services.interrupted_crew_checkouts import close_interrupted_checkouts
     from services.shared_dispatch_allowance import expire_due_included_sessions
 
     logger.info("[Scheduler] Running abandoned Stripe session cleanup...")
     
     try:
+        try:
+            await close_interrupted_checkouts(async_session_maker)
+        except Exception as error:
+            logger.warning("Interrupted crew checkout scan deferred: %s", type(error).__name__)
         await expire_due_included_sessions(async_session_maker,
                                            stripe.checkout.Session if stripe.api_key else None,
                                            datetime.now(timezone.utc))

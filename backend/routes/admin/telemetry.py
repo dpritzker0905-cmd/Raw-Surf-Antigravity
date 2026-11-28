@@ -104,11 +104,10 @@ async def _perform_real_cancellation_refund(booking_id: str, db: AsyncSession, a
             }
         }
 
-    from services.shared_quick_book_hold import hold_interrupted_booking, linked_quick_book, requires_settlement
+    from services.shared_quick_book_hold import commit_interruption, linked_quick_book, requires_settlement
     dispatch = await linked_quick_book(db, booking)
     if dispatch is not None and requires_settlement(dispatch):
-        result = await hold_interrupted_booking(db, dispatch, actor_id, "Admin safety cancellation")
-        await db.commit()
+        result = await commit_interruption(db, dispatch, actor_id, "Admin safety cancellation")
         return {"booking_action": {**result, "status": "pending_settlement"},
                 "calendar_sync": {"status": "not_integrated"}}
     if dispatch is not None and dispatch.status.value == 'cancelled' and booking.status != 'Cancelled':

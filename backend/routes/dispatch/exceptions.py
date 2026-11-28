@@ -165,7 +165,7 @@ async def resolve_cancellation_exception(
     if exception_req.photographer_id != user_id:
         raise HTTPException(status_code=403, detail="Only the assigned photographer can resolve this")
     
-    dispatch = await db.get(DispatchRequest, dispatch_id, with_for_update=True)
+    dispatch = await db.get(DispatchRequest, dispatch_id, with_for_update=True, populate_existing=True)
     if dispatch and dispatch.refund_type == 'pending_settlement':
         raise HTTPException(409, detail='Settlement is pending. No cancellation fee has been assessed.')
 

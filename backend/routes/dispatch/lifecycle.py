@@ -34,7 +34,7 @@ from services.onesignal_service import onesignal_service
 from services.xp import grant_xp
 
 from services.shared_dispatch_guest_credits import return_guest_payments
-from services.shared_quick_book_hold import create_dispatch_booking, hold_interrupted_booking, requires_settlement
+from services.shared_quick_book_hold import create_dispatch_booking, commit_interruption, requires_settlement
 from services.shared_dispatch_allowance import cancel_included_session
 from .schemas import (
     CreateDispatchRequest, AcceptDispatchRequest, UpdateGPSLocation,
@@ -210,11 +210,6 @@ async def decline_dispatch(
     if not dispatch:
         raise HTTPException(status_code=404, detail="Dispatch request not found")
 
-    if dispatch.target_photographer_id == photographer_id and requires_settlement(dispatch):
-        result = await hold_interrupted_booking(db, dispatch, photographer_id, "Photographer declined the request")
-        await db.commit()
-        return {**result, "success": True, "was_quick_book": True}
-
     # Find the notification for this photographer
     notif_result = await db.execute(
         select(DispatchNotification).where(
@@ -224,10 +219,14 @@ async def decline_dispatch(
     )
     notification = notif_result.scalar_one_or_none()
     
-    if notification:
+    if notification and notification.response != 'declined':
         notification.response = 'declined'
         notification.responded_at = datetime.now(timezone.utc)
     
+    if dispatch.target_photographer_id == photographer_id and requires_settlement(dispatch):
+        result = await commit_interruption(db, dispatch, photographer_id, "Photographer declined the request")
+        return {**result, "success": True, "was_quick_book": True}
+
     # If this was a Quick Book (targeted), mark the entire request as declined.
     # A request that is already closed is left as it is, so repeating a decline changes nothing.
     if dispatch.target_photographer_id == photographer_id and dispatch.status not in _CLOSED_STATUSES:

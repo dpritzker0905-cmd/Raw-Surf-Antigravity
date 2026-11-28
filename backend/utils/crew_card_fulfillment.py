@@ -21,7 +21,7 @@ def captain_confirmation_pending(dispatch):
             and dispatch.status == DispatchRequestStatusEnum.PENDING_PAYMENT)
 
 
-def _metadata(transaction):
+def crew_card_metadata(transaction):
     try:
         value = json.loads(transaction.transaction_metadata or '{}')
         return value if isinstance(value, dict) else {}
@@ -30,7 +30,7 @@ def _metadata(transaction):
 
 
 def is_crew_card_payment(transaction):
-    return _metadata(transaction).get('type') == 'crew_share'
+    return crew_card_metadata(transaction).get('type') == 'crew_share'
 
 
 def crew_share_cents(value):
@@ -82,7 +82,7 @@ async def credit_cancelled_crew_card(db, transaction, marker=None):
     transaction.payment_status = 'paid'
 
 
-async def fulfill_crew_card_payment(db, transaction):
+async def fulfill_crew_card_payment(db, transaction, *, checkout=None):
     """Verify one saved crew card receipt and settle it once.
 
     Payment, dispatch, participant and profile locks are acquired in that order.
@@ -92,7 +92,7 @@ async def fulfill_crew_card_payment(db, transaction):
     result = await db.execute(select(PaymentTransaction).where(PaymentTransaction.id == transaction.id)
                               .with_for_update().execution_options(populate_existing=True))
     transaction = result.scalar_one()
-    receipt = _metadata(transaction)
+    receipt = crew_card_metadata(transaction)
     raw_status = str(transaction.payment_status).lower()
     local_status = str(transaction.status).lower()
     refund_states = {raw_status, local_status}
@@ -118,7 +118,8 @@ async def fulfill_crew_card_payment(db, transaction):
     completed = local_status == 'completed' and raw_status == 'paid'
     if not completed:
         try:
-            checkout = stripe.checkout.Session.retrieve(transaction.session_id)
+            if checkout is None:
+                checkout = stripe.checkout.Session.retrieve(transaction.session_id)
         except Exception:
             raise HTTPException(status_code=503, detail='Crew payment verification is temporarily unavailable. Refresh to retry.') from None
         provider_paid = getattr(checkout, 'payment_status', None) == 'paid'
@@ -162,9 +163,13 @@ async def fulfill_crew_card_payment(db, transaction):
             and dispatch.refund_type == PENDING_SETTLEMENT and not records
             and local_status in ('pending', 'expired') and raw_status in ('pending', 'unpaid', 'paid')
             and crew_share_cents(participant.share_amount) == receipt['amount_cents']):
+        if participant.paid or participant.stripe_payment_intent_id:
+            return _review(transaction, receipt, 'This seat was already funded. The additional card payment needs review.', paid=True)
         booking = await db.get(Booking, dispatch.booking_id, with_for_update=True, populate_existing=True)
         if booking is None or booking.escrow_status != PENDING_SETTLEMENT:
             return _review(transaction, receipt, 'The closed booking needs reconciliation.', paid=True)
+        # Reserve the funding reference without granting participation in a cancelled session.
+        participant.stripe_payment_intent_id = intent
         booking.escrow_amount = round((booking.escrow_amount or 0) + transaction.amount, 2)
         transaction.payment_status = 'paid'
         transaction.status = PENDING_SETTLEMENT

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from models import (Booking, BookingParticipant, DispatchRequest, DispatchRequestParticipant,
                     DispatchRequestStatusEnum as Status, Notification)
@@ -45,8 +46,8 @@ async def create_dispatch_booking(db, dispatch, crew_participants, now, *, statu
         booking_id=booking.id,
         participant_id=dispatch.requester_id,
         is_captain=True,
-        payment_status='Paid',
-        paid_amount=dispatch.deposit_amount or 0,
+        payment_status='Paid' if dispatch.deposit_paid else 'Pending',
+        paid_amount=(dispatch.deposit_amount or 0) if dispatch.deposit_paid else 0,
         share_amount=dispatch.deposit_amount or 0,
         status='confirmed'
     )
@@ -108,3 +109,12 @@ async def hold_interrupted_booking(db, dispatch, actor_id, reason):
             'status': 'cancelled', 'settlement_status': PENDING_SETTLEMENT,
             'refund_type': PENDING_SETTLEMENT, 'refund_amount': 0, 'fee_amount': 0,
             'message': HOLD_MESSAGE}
+
+
+async def commit_interruption(db, dispatch, actor_id, reason):
+    from services.interrupted_crew_checkouts import close_after_hold
+
+    result = await hold_interrupted_booking(db, dispatch, actor_id, reason)
+    await db.commit()
+    await close_after_hold(async_sessionmaker(db.bind, expire_on_commit=False), result['dispatch_id'])
+    return result

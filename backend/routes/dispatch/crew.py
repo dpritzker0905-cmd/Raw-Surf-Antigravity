@@ -481,10 +481,22 @@ async def crew_invite_checkout(
         logger.error(f"[CrewCheckout] Stripe error: {e}")
         raise HTTPException(status_code=500, detail=f"Payment session failed: {str(e)}")
 
+    shared_target = bool(dispatch.is_shared and dispatch.target_photographer_id)
     await persist_pending_checkout(db, session.id, lambda: PaymentTransaction(
         user_id=payer_id, session_id=session.id, amount=amount_cents / 100, currency='usd',
         payment_status='pending', status='pending', transaction_metadata=json.dumps(receipt),
     ))
+    if shared_target:
+        from services.shared_quick_book_hold import PENDING_SETTLEMENT
+        from services.interrupted_crew_checkouts import close_after_hold
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        state = await db.scalar(select(DispatchRequest.refund_type).where(DispatchRequest.id == receipt['dispatch_id']))
+        if state == PENDING_SETTLEMENT:
+            # The interruption may have committed while the checkout was being created.
+            await db.rollback()
+            await close_after_hold(async_sessionmaker(db.bind, expire_on_commit=False), receipt['dispatch_id'])
+            raise HTTPException(409, "The session was cancelled while checkout was opening.")
     return {"checkout_url": session.url, "session_id": session.id}
 
 

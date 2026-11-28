@@ -24,7 +24,7 @@ from models import (
 )
 
 from services.shared_dispatch_guest_credits import return_guest_payments
-from services.shared_quick_book_hold import hold_interrupted_booking, requires_settlement
+from services.shared_quick_book_hold import commit_interruption, requires_settlement
 from services.shared_dispatch_allowance import cancel_included_session
 from .schemas import CancelDispatchRequest
 
@@ -80,7 +80,10 @@ async def complete_dispatch_session(
     # Calculate session duration
     duration_mins = 0
     if dispatch.arrived_at:
-        duration = now - dispatch.arrived_at
+        arrived_at = dispatch.arrived_at
+        if arrived_at.tzinfo is None:
+            arrived_at = arrived_at.replace(tzinfo=timezone.utc)
+        duration = now - arrived_at
         duration_mins = int(duration.total_seconds() / 60)
 
     # If booking was created, update it too
@@ -200,8 +203,7 @@ async def cancel_dispatch(
         raise HTTPException(status_code=403, detail="Only the requester or assigned photographer can cancel")
 
     if requires_settlement(dispatch):
-        result = await hold_interrupted_booking(db, dispatch, user_id, cancel_data.reason)
-        await db.commit()
+        result = await commit_interruption(db, dispatch, user_id, cancel_data.reason)
         return result
 
     # Reject if already cancelled or completed

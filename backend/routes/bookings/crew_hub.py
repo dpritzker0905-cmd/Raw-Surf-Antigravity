@@ -17,7 +17,7 @@ from models import (
     Profile, Booking, BookingParticipant,
     Notification, PaymentTransaction
 )
-from services.shared_quick_book_hold import hold_interrupted_booking, linked_quick_book, requires_settlement
+from services.shared_quick_book_hold import commit_interruption, linked_quick_book, requires_settlement
 from utils.credits import deduct_credits, add_credits, refund_credits
 from websocket_manager import broadcast_earnings_update
 from core.security import get_user_id_from_jwt_or_query, get_current_user_id
@@ -551,8 +551,7 @@ async def cancel_and_refund(
     if dispatch is not None:
         if not requires_settlement(dispatch):
             raise HTTPException(409, "This shared session is already closed.")
-        result = await hold_interrupted_booking(db, dispatch, captain_id, "Captain cancelled shared session")
-        await db.commit()
+        result = await commit_interruption(db, dispatch, captain_id, "Captain cancelled shared session")
         return {**result, "booking_status": "Cancelled", "success": True}
 
     if booking.status == "Confirmed":

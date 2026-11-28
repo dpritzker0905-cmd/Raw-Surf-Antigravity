@@ -19,6 +19,8 @@ TERMS = {"target_photographer_id": PRO, "estimated_duration_hours": 1, "friend_i
 @pytest_asyncio.fixture
 async def shared(harness, monkeypatch):
     app, client, maker = harness
+    monkeypatch.delenv("STRIPE_API_KEY", raising=False)
+    monkeypatch.delenv("STRIPE_SECRET_KEY", raising=False)
     app.include_router(crew.router, prefix="/api")
     async with maker.begin() as db:
         pro = await db.get(Profile, PRO)
@@ -470,6 +472,19 @@ async def test_booking_escrow_tracks_funded_shares_before_and_after_arrival(shar
         assert booking.escrow_amount == 70
         assert (await db.get(Profile, CAPTAIN)).credit_balance == 65
 
+    from routes.bookings import booking_lifecycle
+    app.include_router(booking_lifecycle.router, prefix="/api")
+    bid = booking.id
+    delivered = await client.post(f"/api/bookings/{bid}/content-delivered", headers=bearer(PRO))
+    assert delivered.status_code == 200, delivered.text
+    for attempt in range(2):
+        completed = await client.post(f"/api/bookings/{bid}/complete", headers=bearer(PRO))
+        assert completed.status_code == (400 if attempt else 200), completed.text
+    async with maker() as db:
+        assert (await db.get(DispatchRequest, dispatch_id)).status == Status.COMPLETED
+        assert (await db.get(Booking, bid)).escrow_status == "released"
+        assert (await db.get(Profile, PRO)).credit_balance == 70
+
 
 @pytest.mark.parametrize("ending,late_card", [("cancel", False), ("decline", False), ("cancel", True), ("decline", True)])
 async def test_guest_payments_return_to_each_payer_once(shared, harness, monkeypatch, ending, late_card):
@@ -544,7 +559,7 @@ async def test_captain_recovers_guest_shares_they_covered(shared, harness):
         assert (await db.get(Profile, CAPTAIN)).credit_balance == 100
 
 
-@pytest.mark.parametrize("ending", ["cancel", "booking", "decline", "late_card"])
+@pytest.mark.parametrize("ending", ["cancel", "booking", "decline", "late_card", "open_card", "covered_card"])
 async def test_interrupted_shared_booking_stays_on_hold_across_routes(shared, harness, monkeypatch, ending):
     import json
     from models import Booking, DispatchRequestStatusEnum as Status, PaymentTransaction
@@ -562,17 +577,28 @@ async def test_interrupted_shared_booking_stays_on_hold_across_routes(shared, ha
         dispatch.status, dispatch.photographer_id, dispatch.accepted_at = Status.EN_ROUTE, PRO, datetime.now(timezone.utc)
         seats = {seat.participant_id:seat.id for seat in (await db.scalars(select(DispatchRequestParticipant)
                  .where(DispatchRequestParticipant.dispatch_request_id == did))).all()}
-    paying = ["north"] if ending == "late_card" else ["north", "south"]
+    paying = ["north"] if ending in ("late_card", "open_card") else ["north", "south"]
     for guest in paying:
         response = await client.post(f"/api/dispatch/crew-invite/{seats[guest]}/pay?payer_id={guest}",
                                      headers=bearer(guest), json={"selfie_url": "fixture.jpg"})
         assert response.status_code == 200, response.text
-    if ending == "late_card":
+    if ending in ("late_card", "open_card", "covered_card"):
         receipt = dict(type="crew_share", version=1, participant_id=seats["south"], dispatch_id=did,
                        payer_id="south", amount_cents=3500, currency="usd")
         async with maker.begin() as db:
             db.add(PaymentTransaction(user_id="south", amount=35, currency="usd", session_id="cs_held_fixture",
                    status="pending", payment_status="pending", transaction_metadata=json.dumps(receipt)))
+        if ending == "open_card":
+            from services import interrupted_crew_checkouts
+            monkeypatch.setattr(interrupted_crew_checkouts, "_test_mode_key", lambda: "fixture")
+            checkout = SimpleNamespace(id="cs_held_fixture", livemode=False, mode="payment", status="open",
+                payment_status="unpaid", currency="usd", amount_total=3500,
+                metadata={key:str(value) for key,value in receipt.items()})
+            retrieve = Mock(return_value=checkout)
+            expire = Mock(side_effect=[RuntimeError("temporary outage"), SimpleNamespace(
+                id="cs_held_fixture", livemode=False, status="expired", payment_status="unpaid")])
+            monkeypatch.setattr(sessions.stripe.checkout.Session, "retrieve", retrieve)
+            monkeypatch.setattr(sessions.stripe.checkout.Session, "expire", expire)
     arrived = await client.post(f"/api/dispatch/{did}/arrived?photographer_id={PRO}", headers=bearer(PRO))
     assert arrived.status_code == 200, arrived.text
     bid = arrived.json()["booking_id"]
@@ -588,9 +614,14 @@ async def test_interrupted_shared_booking_stays_on_hold_across_routes(shared, ha
     assert response.json()["booking_id"] == bid
     assert response.json()["settlement_status"] == "pending_settlement"
     assert response.json()["refund_amount"] == response.json()["fee_amount"] == 0
+    if ending == "open_card":
+        from scheduler.financial import cleanup_abandoned_stripe_sessions_task
+        assert expire.call_count == 1
+        await cleanup_abandoned_stripe_sessions_task()
+        assert expire.call_count == 2
     replay = await client.post(f"/api/bookings/{bid}/cancel", headers=bearer(CAPTAIN), json={})
     assert replay.json()["booking_id"] == bid
-    if ending == "late_card":
+    if ending in ("late_card", "covered_card"):
         checkout = SimpleNamespace(id="cs_held_fixture", mode="payment", status="complete", payment_status="paid",
             payment_intent="pi_held_fixture", amount_total=3500, currency="usd",
             metadata={key:str(value) for key,value in receipt.items()})
@@ -598,25 +629,41 @@ async def test_interrupted_shared_booking_stays_on_hold_across_routes(shared, ha
         monkeypatch.setattr(sessions.stripe.checkout.Session, "retrieve", retrieve)
         for _ in range(2):
             result = await client.get("/api/dispatch/crew-payment/cs_held_fixture", headers=bearer("south"))
-            assert result.json()["status"] == "pending_settlement", result.text
+            assert result.json()["status"] == ("review_required" if ending == "covered_card" else "pending_settlement"), result.text
         retrieve.assert_called_once()
+        if ending == "late_card":
+            async with maker.begin() as db:
+                db.add(PaymentTransaction(user_id="south", amount=35, currency="usd", session_id="cs_second_fixture",
+                       status="pending", payment_status="pending", transaction_metadata=json.dumps(receipt)))
+            checkout.id, checkout.payment_intent = "cs_second_fixture", "pi_second_fixture"
+            additional = await client.get("/api/dispatch/crew-payment/cs_second_fixture", headers=bearer("south"))
+            assert additional.json()["status"] == "review_required"
+            async with maker() as db:
+                assert not (await db.get(DispatchRequestParticipant, seats["south"])).paid
     for route in (f"/api/bookings/{bid}/complete", f"/api/bookings/{bid}/content-delivered",
                   f"/api/dispatch/{did}/complete?photographer_id={PRO}"):
         response = await client.post(route, headers=bearer(PRO))
         assert response.status_code in (400,409), response.text
     async with maker.begin() as db:
         (await db.get(Booking,bid)).session_date = datetime.now(timezone.utc) - timedelta(days=10)
+    from scheduler.financial import cleanup_abandoned_stripe_sessions_task
+    await cleanup_abandoned_stripe_sessions_task()
     await auto_release_escrow_task()
+    if ending == "open_card":
+        assert expire.call_count == 2
+        async with maker() as db:
+            tx = await db.scalar(select(PaymentTransaction).where(PaymentTransaction.session_id == "cs_held_fixture"))
+            assert tx.status == "expired"
     async with maker() as db:
         dispatch = await db.get(DispatchRequest, did)
         booking = await db.get(Booking, bid)
         assert (dispatch.status, dispatch.booking_id, dispatch.included_session_restored_at) == (Status.CANCELLED, bid, None)
-        assert (booking.status, booking.escrow_status, booking.escrow_amount) == ("Cancelled", "pending_settlement", 70)
+        assert (booking.status, booking.escrow_status, booking.escrow_amount) == ("Cancelled", "pending_settlement", 35 if ending == "open_card" else 70)
         assert booking.cancelled_at == dispatch.cancelled_at
         assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 0
         assert (await db.get(Profile, PRO)).credit_balance == 0
         assert (await db.get(Profile, "north")).credit_balance == 65
-        assert (await db.get(Profile, "south")).credit_balance == (100 if ending == "late_card" else 65)
+        assert (await db.get(Profile, "south")).credit_balance == (100 if ending in ("late_card", "open_card") else 65)
         assert await db.scalar(select(func.count()).select_from(CreditTransaction).where(CreditTransaction.amount > 0)) == 0
         notifications = (await db.scalars(select(Notification.user_id)
                          .where(Notification.type == "dispatch_cancelled"))).all()
