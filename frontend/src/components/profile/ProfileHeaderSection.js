@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import { Camera, MapPin, Check, Flame, Heart, Radio, Instagram, Globe, ExternalLink, Loader2, Trophy } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
+import ProfilePhotoViewer from './ProfilePhotoViewer';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 import { getExpandedRoleInfo } from '../../contexts/PersonaContext';
@@ -22,7 +22,7 @@ const ProfileRoleBadge = ({ role }) => {
 };
 
 const ProfileHeaderSection = ({
-  profile, isOwnProfile, profileUserId, displayRole,
+  profile, isOwnProfile, profileUserId, displayRole, canPreviewPhoto,
   contentStats, socialStats, streak, impactScore, gamificationStats,
   notesHook, avatarUploading, fileInputRef, handleAvatarUpload, setProfile,
   isPhotographer, isProfilePhotographer,
@@ -67,33 +67,29 @@ const ProfileHeaderSection = ({
                 ? 'bg-gradient-to-br from-emerald-400 via-green-500 to-teal-500'
                 : 'bg-gradient-to-br from-zinc-700 to-zinc-800'
         }`}
-        onClick={() => notesHook.userNote && notesHook.setShowNoteModal(true)}
-        style={{ cursor: notesHook.userNote ? 'pointer' : 'default' }}
       >
-        <Avatar className={`w-28 h-28 md:w-32 md:h-32 border-4 border-black ${profile.is_logo_avatar ? 'bg-black' : ''}`} data-testid="profile-avatar">
-          <AvatarImage
-            src={getFullUrl(profile.avatar_url)}
-            objectFit={profile.is_logo_avatar ? 'contain' : 'cover'}
-            className={profile.is_logo_avatar ? 'p-2' : ''}
-          />
-          <AvatarFallback className="text-4xl bg-zinc-800 text-white">
-            {profile.full_name?.[0] || 'U'}
-          </AvatarFallback>
-        </Avatar>
+        <ProfilePhotoViewer
+          key={JSON.stringify([profileUserId, profile.id, profile.avatar_url, canPreviewPhoto])}
+          src={getFullUrl(profile.avatar_url)}
+          name={profile.full_name || profile.username || 'Surfer'}
+          initial={profile.full_name?.[0] || 'U'}
+          logo={profile.is_logo_avatar}
+          canPreview={canPreviewPhoto}
+        />
       </div>
 
       {/* Avatar upload overlay */}
       {isOwnProfile && (
-        <button aria-label="Loader2"
+        <button type="button" aria-label="Change profile photo"
           onClick={() => fileInputRef.current?.click()}
           disabled={avatarUploading}
-          className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          className="absolute bottom-0 -left-5 z-20 grid h-11 w-11 place-items-center rounded-full border-2 border-zinc-600 bg-zinc-900 hover:border-teal-300"
           data-testid="avatar-upload-btn"
         >
           {avatarUploading ? (
-            <Loader2 className="w-8 h-8 text-white animate-spin" />
+            <Loader2 className="w-5 h-5 text-white animate-spin" />
           ) : (
-            <Camera className="w-8 h-8 text-white" />
+            <Camera className="w-5 h-5 text-white" />
           )}
         </button>
       )}
@@ -118,7 +114,8 @@ const ProfileHeaderSection = ({
               toast.error('Failed to update avatar mode');
             }
           }}
-          className="absolute -bottom-1 -right-1 z-20 w-7 h-7 rounded-full bg-zinc-800 border-2 border-zinc-600 hover:border-cyan-400 flex items-center justify-center transition-all group/logo"
+          className="absolute bottom-0 -right-5 z-20 w-11 h-11 rounded-full bg-zinc-800 border-2 border-zinc-600 hover:border-cyan-400 flex items-center justify-center transition-all group/logo"
+          aria-label="Logo display mode" aria-pressed={Boolean(profile.is_logo_avatar)}
           data-testid="avatar-mode-toggle"
           title={profile.is_logo_avatar ? 'Switch to Photo mode' : 'Switch to Logo mode'}
         >
@@ -130,12 +127,12 @@ const ProfileHeaderSection = ({
 
       {/* Status Badge: LIVE or SHOOTING */}
       {profile.is_live ? (
-        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg animate-pulse flex items-center gap-1">
+        <span className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg animate-pulse flex items-center gap-1">
           <Radio className="w-3 h-3" />
           LIVE
         </span>
       ) : profile.is_shooting && (
-        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-cyan-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
+        <span className="pointer-events-none absolute -bottom-2 left-1/2 -translate-x-1/2 bg-cyan-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
           <Camera className="w-3 h-3" />
           SHOOTING
         </span>

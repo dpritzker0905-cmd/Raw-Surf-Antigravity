@@ -458,6 +458,7 @@ const ProfileScreen = ({ userId }) => {
         
         {/* Centered Avatar / Stats / Badges / Bio / Social Links */}
         <ProfileHeaderSection
+          canPreviewPhoto={isOwnProfile || !(blockHook.isBlocked || blockHook.isBlockedByThem)}
           profile={profile}
           isOwnProfile={isOwnProfile}
           profileUserId={profileUserId}
