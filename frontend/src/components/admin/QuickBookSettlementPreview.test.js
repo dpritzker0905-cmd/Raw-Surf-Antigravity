@@ -6,7 +6,7 @@ import QuickBookSettlementPreview from './QuickBookSettlementPreview';
 
 jest.mock('../../lib/apiClient', () => ({ __esModule: true, default: { post: jest.fn() } }));
 const result = {
-  seats: [{ seat: 'guest-a', role: 'guest', method: 'wallet', collected_cents: 3500, reserved_cents: 3500,
+  seats: [{ seat: 'guest-a', role: 'guest', method: 'card', confirmed_after_cancellation: true, collected_cents: 3500, reserved_cents: 3500,
     refund_cents: 0, photographer_gross_cents: 0 }], funding: [], included_session: { action: 'none' },
   collected_cents: 3500, refund_cents: 0, photographer_gross_cents: 0, reserved_cents: 3500,
   as_of: '2026-11-28T17:00:00Z', separate_receipts: []
@@ -23,6 +23,7 @@ test('edited seat choices invalidate the old totals and send only simulation inp
   open();
   const output = await screen.findByRole('region', { name: 'Proposed settlement' });
   expect(within(output).getByText(/No transfers are posted/)).toBeInTheDocument();
+  expect(within(output).getByText(/Card payment confirmed after cancellation/)).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Seat outcome'), { target: { value: 'partial' } });
   expect(screen.queryByRole('region', { name: 'Proposed settlement' })).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Case evidence reference'), { target: { value: 'case-1' } });

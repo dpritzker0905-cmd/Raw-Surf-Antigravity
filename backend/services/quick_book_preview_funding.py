@@ -31,6 +31,7 @@ class Funding:
     kind: str
     amount: int
     promo: int = 0
+    confirmed_after_cancellation: bool = False
 
 
 def wallet(debit):
@@ -50,9 +51,10 @@ async def funding_snapshot(db, dispatch, booking):
         raise reconcile()
     seats[captain] = cents(dispatch.deposit_amount)
     by_id = {s.id: s for s in crew}
-    receipts = list(await db.scalars(select(PaymentTransaction).where(or_(
-        PaymentTransaction.transaction_metadata.contains(dispatch.id, autoescape=True),
-        PaymentTransaction.session_id == dispatch.stripe_checkout_session_id))))
+    receipt_matches = [PaymentTransaction.transaction_metadata.contains(dispatch.id, autoescape=True)]
+    if dispatch.stripe_checkout_session_id:
+        receipt_matches.append(PaymentTransaction.session_id == dispatch.stripe_checkout_session_id)
+    receipts = list(await db.scalars(select(PaymentTransaction).where(or_(*receipt_matches))))
     refs = [r.id for r in receipts]
     rows = list(await db.scalars(select(CreditTransaction).where(or_(
         and_(CreditTransaction.reference_id == dispatch.id,
@@ -122,15 +124,13 @@ async def funding_snapshot(db, dispatch, booking):
         if tx.id in markers and tx.status != "completed":
             raise reconcile()
         if meta.get("dispatch_id") != dispatch.id:
-            if tx.session_id == dispatch.stripe_checkout_session_id or dispatch.id in (tx.transaction_metadata or ""):
-                raise reconcile()
-            continue
-        if (tx.status.lower(), tx.payment_status.lower()) == ("expired", "unpaid") and tx.id not in markers:
+            raise reconcile()
+        if (str(tx.status or "").lower(), str(tx.payment_status or "").lower()) == ("expired", "unpaid") and tx.id not in markers:
             continue
         if meta.get("type") == "on_demand_dispatch":
             if not (captain_card_marker and dispatch.deposit_paid and tx.session_id == dispatch.stripe_checkout_session_id
                     and tx.user_id == captain and meta.get("user_id", captain) == captain
-                    and tx.currency == "usd" and (tx.status, tx.payment_status) == ("Completed", "Completed")):
+                    and str(tx.currency or "").lower() == "usd" and (tx.status, tx.payment_status) == ("Completed", "Completed")):
                 raise reconcile()
             assign(captain, Funding(captain, tx.id, "card", cents(tx.amount)))
             if captain_card_marker in blocked_sources:
@@ -139,8 +139,14 @@ async def funding_snapshot(db, dispatch, booking):
             continue
         if meta.get("type") != "crew_share":
             raise reconcile()
-        seat = by_id.get(meta.get("participant_id"))
-        if not seat or not valid_crew_receipt(tx, meta) or tx.user_id != seat.participant_id:
+        try:
+            valid = valid_crew_receipt(tx, meta)
+        except (InvalidOperation, TypeError, ValueError):
+            valid = False
+        if not valid:
+            raise reconcile()
+        seat = by_id.get(meta["participant_id"])
+        if not seat or tx.user_id != seat.participant_id:
             raise reconcile()
         if (tx.status in ("pending", "review_required") and tx.id not in markers
                 and tx.payment_status in ("pending", "unpaid", "paid")):
@@ -157,7 +163,8 @@ async def funding_snapshot(db, dispatch, booking):
                 raise reconcile()
         elif fulfillment.get("booking_id") != booking.id or seat.paid:
             raise reconcile()
-        assign(seat.participant_id, Funding(tx.user_id, tx.id, "card", cents(tx.amount)))
+        assign(seat.participant_id, Funding(tx.user_id, tx.id, "card", cents(tx.amount),
+                                           confirmed_after_cancellation=tx.status == PENDING_SETTLEMENT))
 
     remaining = [s for s in crew if s.paid and seats[s.participant_id] and s.participant_id not in funded]
     if captain_card_marker or markers or any(s.stripe_payment_intent_id and s.participant_id not in funded for s in crew):

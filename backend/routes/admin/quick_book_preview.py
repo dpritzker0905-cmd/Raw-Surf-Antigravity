@@ -92,7 +92,8 @@ async def unit_preview(db, dispatch, decision):
         now = datetime.now(timezone.utc)
         def utc(dt):
             return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-        current_period = plan.started_at and utc(plan.started_at) <= utc(dispatch.created_at) < utc(plan.expires_at)
+        current_period = (plan.started_at and dispatch.created_at and plan.expires_at
+                          and utc(plan.started_at) <= utc(dispatch.created_at) < utc(plan.expires_at))
         action = "restore_one" if current_period and plan.status == "active" and utc(plan.expires_at) > now else "replacement_review"
     return {"action": action, "subscriber_id": dispatch.requester_id, "subscription_id": source}
 
@@ -157,6 +158,7 @@ async def settlement_preview(dispatch_id: str, body: PreviewRequest, response: R
             totals[key] += value
         lines.append(dict(seat=member, role="captain" if member == captain else "guest", collected_cents=amount,
                           payer_id=source.payer if source else None, method=source.kind if source else None,
+                          confirmed_after_cancellation=bool(source and source.confirmed_after_cancellation),
                           reserve_reason=reason, **amounts))
     if sum(totals.values()) != cents(booking.escrow_amount):
         raise reconcile()

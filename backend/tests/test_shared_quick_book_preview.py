@@ -163,28 +163,114 @@ async def test_prior_refund_request_requires_reconciliation(held):
     assert response.status_code == 409
 
 
-async def test_verified_captain_card_return_needs_its_own_destination(held):
-    import json
-    from models import PaymentTransaction
-    client, maker, path, booking_id = held
-    async with maker.begin() as db:
-        row = await db.scalar(select(DispatchRequest).where(DispatchRequest.booking_id == booking_id))
-        row.included_subscription_id, row.deposit_amount, row.stripe_checkout_session_id = None, 35, "captain-fixture"
-        (await db.get(Booking, booking_id)).escrow_amount = 105
-        db.add(PaymentTransaction(user_id=CAPTAIN, amount=35, currency="usd", session_id=row.stripe_checkout_session_id,
-               status="Completed", payment_status="Completed",
-               transaction_metadata=json.dumps({"dispatch_id":row.id, "type":"on_demand_dispatch"})))
-        db.add(CreditTransaction(user_id=CAPTAIN, amount=0, balance_before=100, balance_after=100,
-               transaction_type="dispatch_deposit_card", reference_type="dispatch_request", reference_id=row.id))
-    response = await client.post(path, headers=bearer(PRO), json={"seats":[
-        {"seat":s,"outcome":"no_service"} for s in (CAPTAIN, "north", "south")]})
-    assert response.status_code == 200, response.text
-    cap = next(s for s in response.json()["seats"] if s["role"] == "captain")
-    assert (cap["method"], cap["reserved_cents"], cap["reserve_reason"]) == ("card", 3500, "Card return destination needs review")
+@pytest.mark.parametrize("confirm_early", [True, False], ids=["completed_guest", "late_guest"])
+async def test_preview_from_confirmed_card_checkouts(shared, harness, monkeypatch, confirm_early):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from models import DispatchRequestStatusEnum as Status, PaymentTransaction
+    from routes.dispatch import dispatch_matching, lifecycle, sessions
 
-    mixed = (await client.post(path, headers=bearer(PRO), json={"seats":[
-        {"seat":CAPTAIN,"outcome":"delivered","evidence":"captain delivery"},
-        {"seat":"north","outcome":"no_service"},
-    ]})).json()
-    cap = next(s for s in mixed["seats"] if s["role"] == "captain")
-    assert cap["photographer_gross_cents"] == 0 and cap["reserved_cents"] == 3500
+    app, client, maker = harness
+    for router in (dispatch_matching.router, lifecycle.router, dispatch_transitions.router, quick_book_preview.router):
+        app.include_router(router, prefix="/api")
+    checkouts = {}
+
+    def open_card(**options):
+        sid = f"fixture-{len(checkouts)}"
+        checkout = SimpleNamespace(id=sid, url="https://fixture.invalid/" + sid, mode="payment",
+            status="complete", payment_status="paid", currency="usd", payment_intent="intent-" + sid,
+            amount_total=options["line_items"][0]["price_data"]["unit_amount"], metadata=options["metadata"])
+        checkouts[sid] = checkout
+        return checkout
+
+    monkeypatch.setenv("STRIPE_API_KEY", "fixture")
+    monkeypatch.setattr(sessions.stripe, "api_key", "fixture")
+    monkeypatch.setattr(sessions.stripe.checkout.Session, "create", open_card)
+    monkeypatch.setattr(sessions.stripe.checkout.Session, "retrieve", checkouts.__getitem__)
+    monkeypatch.setattr(dispatch_matching, "notify_crew_members", AsyncMock())
+    monkeypatch.setattr(dispatch_matching, "process_dispatch_notifications", AsyncMock())
+    terms = {**TERMS, "crew_shares": [{"user_id": "north", "covered_by_captain": True}]}
+    quote = await preview(client, terms)
+    did = (await create(client, terms, quote["quote_id"])).json()["id"]
+    response = await client.post("/api/dispatch/checkout", headers=bearer(CAPTAIN), json={
+        "dispatch_id": did, "payer_id": CAPTAIN, "origin_url": "https://fixture.invalid"})
+    assert response.status_code == 200, response.text
+    confirmed = await client.get("/api/dispatch/payment-success", params={
+        "dispatch_id": did, "session_id": response.json()["session_id"]})
+    assert confirmed.status_code == 200 and confirmed.json()["success"], confirmed.text
+    async with maker.begin() as db:
+        row = await db.get(DispatchRequest, did)
+        row.status, row.accepted_at, row.photographer_id = Status.EN_ROUTE, datetime.now(timezone.utc), PRO
+        (await db.get(Profile, PRO)).is_admin = True
+        guest = await db.scalar(select(DispatchRequestParticipant.id).where(
+            DispatchRequestParticipant.dispatch_request_id == did, DispatchRequestParticipant.participant_id == "south"))
+
+    async def guest_checkout():
+        response = await client.post(f"/api/dispatch/crew-invite/{guest}/checkout?payer_id=south",
+                                     headers=bearer("south"), json={"origin_url": "https://fixture.invalid"})
+        assert response.status_code == 200, response.text
+        return response.json()["session_id"]
+
+    async def confirm(sid, expected):
+        response = await client.get("/api/dispatch/crew-payment/" + sid, headers=bearer("south"))
+        assert response.status_code == 200 and response.json()["status"] == expected, response.text
+
+    first, extra, expired = await guest_checkout(), await guest_checkout(), await guest_checkout()
+    checkouts[expired].status, checkouts[expired].payment_status = "expired", "unpaid"
+    await confirm(expired, "expired")
+    if confirm_early:
+        await confirm(first, "completed")
+    arrived = await client.post(f"/api/dispatch/{did}/arrived?photographer_id={PRO}", headers=bearer(PRO))
+    assert arrived.status_code == 200, arrived.text
+    closed = await client.post(f"/api/dispatch/{did}/cancel", headers=bearer(CAPTAIN), json={})
+    assert closed.status_code == 200 and closed.json()["booking_id"] == arrived.json()["booking_id"], closed.text
+    if not confirm_early:
+        await confirm(first, "pending_settlement")
+    await confirm(extra, "review_required")
+
+    path = "/api/admin/support/quick-books/" + did + "/settlement-preview"
+    seats = [{"seat": member, "outcome": "no_service"} for member in (CAPTAIN, "north", "south")]
+    seats[-1]["card_wallet_consent"] = "guest return preference"
+    response = await client.post(path, headers=bearer(PRO), json={"seats": seats})
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert (result["collected_cents"], result["refund_cents"], result["reserved_cents"],
+            result["photographer_gross_cents"]) == (7000, 3500, 3500, 0)
+    captain = next(s for s in result["seats"] if s["role"] == "captain")
+    assert (captain["method"], captain["reserved_cents"], captain["reserve_reason"]) == (
+        "card", 3500, "Card return destination needs review")
+    south = next(s for s in result["seats"] if s["seat"] == "south")
+    assert south["refund_cents"] == 3500 and south["confirmed_after_cancellation"] == (not confirm_early)
+    async with maker() as db:
+        duplicate = await db.scalar(select(PaymentTransaction).where(PaymentTransaction.session_id == extra))
+        assert result["separate_receipts"] == [{"seat": "south", "receipt_id": duplicate.id,
+                "status": "review_required", "amount_cents": 3500, "payer_id": "south"}]
+    mixed = await client.post(path, headers=bearer(PRO), json={"seats": [
+        {"seat": CAPTAIN, "outcome": "delivered", "evidence": "delivery"}, seats[-1]]})
+    assert mixed.status_code == 200, mixed.text
+    captain = next(s for s in mixed.json()["seats"] if s["role"] == "captain")
+    assert captain["photographer_gross_cents"] == 0 and captain["reserved_cents"] == 3500
+
+
+async def test_wallet_preview_omits_empty_card_lookup_and_checks_missing_period(held):
+    from sqlalchemy import event
+    client, maker, path, bid = held
+    async with maker.begin() as db:
+        row = await db.scalar(select(DispatchRequest).where(DispatchRequest.booking_id == bid))
+        assert row.stripe_checkout_session_id is None
+        row.created_at = None
+        engine = db.bind.sync_engine
+    lookups = []
+
+    def capture(connection, cursor, statement, params, context, many):
+        if "FROM payment_transactions" in statement:
+            lookups.append(statement.lower())
+
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        response = await client.post(path, headers=bearer(PRO), json={"seats": [{"seat": CAPTAIN, "outcome": "no_service"}]})
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+    assert response.status_code == 200, response.text
+    assert response.json()["included_session"]["action"] == "replacement_review"
+    assert len(lookups) == 1 and "session_id is null" not in lookups[0]
