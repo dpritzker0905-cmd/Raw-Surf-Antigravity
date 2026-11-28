@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 5,
+  "branch": "codex/gallery-upload-orientation",
+  "date": "2026-11-28",
+  "note": "Exercise stored preview orientation and original JPEG preservation through gallery upload and download."
+}
