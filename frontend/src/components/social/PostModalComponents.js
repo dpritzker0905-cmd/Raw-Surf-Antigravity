@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Play, Pause, Volume1, Volume2, VolumeX, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 import { formatTimeAgo, formatDuration } from '../../utils/formatTime';
+import CommentInputForm from './CommentInputForm';
 import { CommentText } from '../RichText';
 
 const ModalVideoPlayer = ({ src, poster, className = '' }) => {
@@ -306,13 +307,14 @@ const ImageCarousel = ({ images, mediaType }) => {
   );
 };
 
-const CommentItem = ({ comment, onReact }) => {
+const CommentItem = ({ comment, onReact, onReply, user, isLight }) => {
+  const [replyOpen, setReplyOpen] = useState(false);
   const navigate = useNavigate();
   const liked = Boolean(comment.viewer_reaction);
   const likeCount = comment.reaction_count || 0;
 
   return (
-    <div className="flex gap-3 py-2">
+    <div data-testid={`dialog-comment-${comment.id}`} className="flex gap-3 py-2">
       <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden flex-shrink-0">
         {comment.author_avatar ? (
           <img loading="lazy" decoding="async" src={getFullUrl(comment.author_avatar)} alt="" className="w-full h-full object-cover" />
@@ -321,11 +323,11 @@ const CommentItem = ({ comment, onReact }) => {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm">
-          <span className="font-semibold text-white mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>{comment.author_name}</span>
+        <div className="text-sm">
+          <span className={`font-semibold mr-1 cursor-pointer hover:underline ${isLight ? 'text-gray-900' : 'text-white'}`} onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>{comment.author_name}</span>
           <CommentText 
             text={comment.content}
-            className="text-gray-300 animate-in fade-in duration-200"
+            className={isLight ? 'text-gray-700' : 'text-gray-300'}
           />
           {comment.media_url && (
             <div className="mt-2 max-w-[280px] rounded-xl overflow-hidden border border-white/10 shadow-md bg-black/40">
@@ -346,19 +348,37 @@ const CommentItem = ({ comment, onReact }) => {
               )}
             </div>
           )}
-        </p>
+        </div>
         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
           <span>{formatTimeAgo(comment.created_at)}</span>
           {likeCount > 0 && <span>{likeCount} like{likeCount !== 1 ? 's' : ''}</span>}
-          <button className="hover:text-gray-300">Reply</button>
+          {onReply && (
+            <button aria-expanded={replyOpen} onClick={() => setReplyOpen(open => !open)}>Reply</button>
+          )}
         </div>
+        {replyOpen && (
+          <CommentInputForm
+            user={user}
+            isLight={isLight}
+            replyingToName={comment.author_name}
+            placeholder={`Reply to ${comment.author_name}...`}
+            onCancelReply={() => setReplyOpen(false)}
+            onSubmit={async payload => {
+              await onReply(payload, comment.id);
+              setReplyOpen(false);
+            }}
+          />
+        )}
+        {comment.replies?.map(reply => (
+          <CommentItem key={reply.id} comment={reply} onReact={onReact} isLight={isLight} />
+        ))}
       </div>
-      <button aria-label="Like"
+      <button aria-label="React to comment"
         aria-pressed={liked}
         onClick={() => onReact(comment)}
-        className={`flex-shrink-0 p-1 ${liked ? 'text-red-500' : 'text-gray-500 hover:text-gray-300'}`}
+        className={`self-start flex-shrink-0 p-1 ${liked ? 'text-red-500' : 'text-gray-500 hover:text-gray-300'}`}
       >
-        <Heart className="w-3.5 h-3.5" fill={liked ? 'currentColor' : 'none'} />
+        {comment.viewer_reaction || <Heart className="w-3.5 h-3.5" />}
       </button>
     </div>
   );

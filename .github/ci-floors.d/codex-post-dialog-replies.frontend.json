@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 3,
+  "files": 0,
+  "branch": "codex/post-dialog-replies",
+  "date": "2026-11-28",
+  "note": "Nested reply creation and independent reaction state"
+}

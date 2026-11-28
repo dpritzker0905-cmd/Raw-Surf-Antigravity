@@ -122,3 +122,57 @@ test('a reaction completing after navigation updates only its original post', ()
   expect(updateModal(original).likes_count).toBe(2);
   expect(setPosts.mock.calls[0][0]([original, next])).toEqual([{ ...original, likes_count: 2 }, next]);
 });
+
+test('dialog replies persist under the parent and react independently of it', async () => {
+  const parent = { id: 'parent', viewer_reaction: '🔥', reaction_count: 1 };
+  let thread = [parent];
+  const options = {
+    post: { id: 'post' }, user: { id: 'viewer' }, setSubmittingComment: jest.fn(),
+    setComments: update => { thread = update(thread); }
+  };
+  const { result } = renderHook(() => usePostModal(options));
+  const payload = { content: 'reply', media_url: null, media_type: null };
+  const reply = { id: 'child', ...payload, parent_id: parent.id };
+  apiClient.post.mockRejectedValueOnce(new Error('offline'));
+  await expect(result.current.handleSubmitComment(payload, parent.id)).rejects.toThrow('offline');
+  expect(thread).toEqual([parent]);
+  apiClient.post.mockResolvedValueOnce({ data: reply });
+  await result.current.handleSubmitComment(payload, parent.id);
+  expect(apiClient.post).toHaveBeenLastCalledWith('/posts/post/comments', { ...payload, parent_id: parent.id });
+  apiClient.post.mockResolvedValueOnce({ data: { action: 'added' } });
+  await result.current.handleLikeComment(reply);
+  expect(apiClient.post).toHaveBeenLastCalledWith('/comments/child/reactions', { emoji: '🤙' });
+  expect(thread).toEqual([{ ...parent, replies: [{ ...reply, viewer_reaction: '🤙', reaction_count: 1 }] }]);
+});
+
+test.each(['root', 'reply'])('overlapping dialog sends retain both rows when %s finishes first', async first => {
+  const parent = { id: 'parent', replies: [] };
+  let state = [];
+  let finishLoad;
+  const finish = {};
+  const options = {
+    post: { id: 'post' }, user: { id: 'viewer' }, setSubmittingComment: jest.fn(),
+    setCommentInput: jest.fn(), setLoadingComments: jest.fn(),
+    setComments: update => { state = typeof update === 'function' ? update(state) : update; }
+  };
+  const { result } = renderHook(() => usePostModal(options));
+  apiClient.get.mockImplementation(() => new Promise(resolve => { finishLoad = resolve; }));
+  apiClient.post.mockImplementation((_url, payload) => new Promise(resolve => {
+    finish[payload.content] = () => resolve({ data: { id: payload.content } });
+  }));
+  const load = result.current.loadComments();
+  const sends = {
+    root: result.current.handleSubmitComment({ content: 'root' }),
+    reply: result.current.handleSubmitComment({ content: 'reply' }, parent.id)
+  };
+  expect(apiClient.post).not.toHaveBeenCalled();
+  finishLoad({ data: [parent] });
+  await load;
+  const second = first === 'root' ? 'reply' : 'root';
+  finish[first]();
+  await sends[first];
+  finish[second]();
+  await sends[second];
+  expect(apiClient.get).toHaveBeenCalledTimes(1);
+  expect(state).toEqual([{ ...parent, replies: [{ id: 'reply' }] }, { id: 'root' }]);
+});

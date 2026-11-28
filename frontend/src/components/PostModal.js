@@ -434,6 +434,9 @@ const PostModalContent = ({ post, isOpen, onClose, onPostUpdated, posts, onNavig
                       key={comment.id} 
                       comment={comment}
                       onReact={handleLikeComment}
+                      onReply={handleSubmitComment}
+                      user={user}
+                      isLight={isLight}
                     />
                   ))}
                 </div>
