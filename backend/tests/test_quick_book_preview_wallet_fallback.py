@@ -43,9 +43,8 @@ async def test_linked_abandoned_checkout_after_captain_wallet_payment(shared, ha
     async with maker.begin() as db:
         row = await db.get(DispatchRequest, did)
         assert row.stripe_checkout_session_id == session_id
-        if not paid_by_wallet:
-            # Simulate an inconsistent accepted dispatch without a backing ledger entry.
-            row.deposit_paid = True
+        # The negative control retains the checkout link and has no paid deposit or ledger entry.
+        assert bool(row.deposit_paid) == paid_by_wallet
         row.status, row.photographer_id, row.accepted_at = Status.EN_ROUTE, PRO, datetime.now(timezone.utc)
     closed = await client.post(f"/api/dispatch/{did}/cancel", headers=bearer(CAPTAIN), json={})
     assert closed.status_code == 200, closed.text
@@ -59,6 +58,7 @@ async def test_linked_abandoned_checkout_after_captain_wallet_payment(shared, ha
     if not paid_by_wallet:
         missing = await client.post(path, headers=bearer(PRO), json=decisions)
         assert missing.status_code == 409, missing.text
+        assert missing.json()["detail"] == "Funding records need reconciliation before a settlement can be previewed."
         retrieve.assert_not_called()
         return
     for _ in range(2):
@@ -84,6 +84,10 @@ async def test_linked_abandoned_checkout_after_captain_wallet_payment(shared, ha
         receipt.amount = 29
     mismatch = await client.post(path, headers=bearer(PRO), json=decisions)
     assert mismatch.status_code == 409, mismatch.text
+    async with maker.begin() as db:
+        (await db.get(PaymentTransaction, receipt_id)).amount = 28.005
+    fractional_cent = await client.post(path, headers=bearer(PRO), json=decisions)
+    assert fractional_cent.status_code == 409, fractional_cent.text
     async with maker.begin() as db:
         receipt = await db.get(PaymentTransaction, receipt_id)
         receipt.amount = 28
