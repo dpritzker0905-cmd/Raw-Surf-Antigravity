@@ -64,3 +64,10 @@ The final targeted runs passed 83 frontend checks across six suites and 72 backe
 A late reaction response from an earlier post could replace the currently open feed modal with that earlier post. The feed now checks the current modal ID when applying the response. Each post has its own modal state and pending requests, while browsing between posts preserves the browser history entry. Both modal layouts attach the keyboard focus trap to the visible dialog.
 
 LongCat, SubQ and Reflection reviewed the release summary. They highlighted simultaneous updates, late responses, persisted emoji identity and two-client delivery. A regression test checks that a delayed update changes the original feed card while preserving a different open post or a closed modal.
+
+### November 28 signed-in dev checks
+
+- Feed comments accepted all ten picker choices in succession. Shaka, fire and heart survived a reload, and clearing the selection survived a reload. A selected shaka incorrectly displayed as a heart.
+- The DM composer inserted an emoji and the sent QA message survived a reload. Reacting before the first reload failed because the client kept the temporary message ID after the server acknowledged the send.
+- On the saved DM, all six reactions survived a reload together. Removing all six and reopening after another reload left the message clear.
+- The first-send repair has a focused regression test. Post-deployment verification of the new-message path and selected shaka display is pending. This pass covered desktop Chrome feed comments and outgoing DMs. Nested replies, modal layouts, physical touch and recipient-side delivery require separate checks.

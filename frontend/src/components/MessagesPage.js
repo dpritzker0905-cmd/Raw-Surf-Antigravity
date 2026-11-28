@@ -413,6 +413,7 @@ export const MessagesPage = () => {
         messages: [...prev.messages, {
           id: tempId,
           sender_id: user.id,
+          is_mine: true,
           content: messageContent,
           message_type: 'text',
           created_at: new Date().toISOString(),
@@ -445,7 +446,7 @@ export const MessagesPage = () => {
           ...prev,
           messages: prev.messages.map(m => 
             m.id === tempId 
-              ? { ...m, id: response.data.message_id || m.id, _optimistic: false }
+              ? { ...m, id: response.data.id || response.data.message_id, _optimistic: false }
               : m
           )
         };
