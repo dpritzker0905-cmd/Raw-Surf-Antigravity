@@ -20,7 +20,9 @@ jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({
 }) }));
 jest.mock('../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: 'dark' }) }));
 jest.mock('../hooks/useHapticFeedback', () => () => mockHaptic);
-jest.mock('./ui/slider', () => ({ Slider: () => null }));
+jest.mock('./ui/slider', () => ({ Slider: ({ value, max, onValueChange }) =>
+  <input aria-label="Apply credits" type="range" value={value[0]} max={max}
+    onChange={e => onValueChange([Number(e.target.value)])} /> }));
 jest.mock('./ExactTimeSlotPicker', () => ({ ExactTimeSlotPicker: ({ onDateChange, onTimeChange, onCategoryChange }) =>
   <button onClick={() => {
     onDateChange(new Date(2030, 0, 5)); onTimeChange('12:00'); onCategoryChange('Surf');
@@ -84,6 +86,120 @@ beforeEach(() => {
 });
 
 const drawer = (isOpen = true) => <ScheduledBookingDrawer isOpen={isOpen} photographer={photographer} onClose={jest.fn()} />;
+
+describe('wallet changes while choosing payment', () => {
+  beforeEach(() => { jest.useFakeTimers(); mockRealPayment = true; });
+  afterEach(() => jest.useRealTimers());
+  const tick = () => act(async () => { jest.advanceTimersByTime(10000); });
+  const walletResponse = balance => ({ data: { user_id: 'buyer', balance } });
+
+  it('updates an already reopened payment step after a lost response and a later debit', async () => {
+    mockRealPayment = false;
+    apiClient.post.mockRejectedValueOnce(new Error('Response lost'));
+    const original = await prepare('Use credits');
+    await act(async () => { submit(); });
+    original.unmount();
+    mockRealPayment = true;
+    await act(async () => { render(drawer()); });
+    openPayment();
+    expect(screen.getByText(/\$100\.00 available/)).toBeInTheDocument();
+    apiClient.get.mockResolvedValueOnce(walletResponse(75));
+    await tick();
+    expect(screen.getByText(/\$75\.00 available/)).toBeInTheDocument();
+    expect(apiClient.post).toHaveBeenCalledTimes(1);
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+  });
+
+  it('preserves the chosen card credit amount and caps it when the available balance falls below it', async () => {
+    await act(async () => { render(drawer()); });
+    openPayment();
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '10' } });
+    apiClient.get.mockResolvedValueOnce(walletResponse(30)).mockResolvedValueOnce(walletResponse(6));
+    await tick();
+    expect(screen.getByText('-$10.00')).toBeInTheDocument();
+    await tick();
+    expect(screen.getByText('-$6.00')).toBeInTheDocument();
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  it('requires another payment choice when a selected wallet falls to zero', async () => {
+    await act(async () => { render(drawer()); });
+    openPayment();
+    fireEvent.click(screen.getByTestId('pay-with-credits-btn'));
+    apiClient.get.mockResolvedValueOnce(walletResponse(0));
+    await tick();
+    expect(screen.queryByTestId('pay-with-credits-btn')).toBeNull();
+    expect(screen.getByTestId('review-booking-btn')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('pay-with-card-btn'));
+    expect(screen.getByTestId('review-booking-btn')).toBeEnabled();
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  it('does not overlap refreshes or change reviewed credit terms after leaving payment', async () => {
+    await act(async () => { render(drawer()); });
+    openPayment();
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '10' } });
+    const old = deferred();
+    apiClient.get.mockReturnValueOnce(old.promise);
+    await tick();
+    await tick();
+    expect(apiClient.get).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByTestId('review-booking-btn'));
+    fireEvent.click(screen.getByText('Skip selfie'));
+    expect(apiClient.get.mock.calls[1][1].signal.aborted).toBe(true);
+    await act(async () => { old.resolve(walletResponse(0)); });
+    await tick();
+    expect(screen.getByText('-$10.00')).toBeInTheDocument();
+    expect(apiClient.get).toHaveBeenCalledTimes(2);
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  it('skips hidden payment screens and refreshes as soon as the buyer returns', async () => {
+    const hidden = jest.spyOn(document, 'hidden', 'get');
+    try {
+      await act(async () => { render(drawer()); });
+      openPayment();
+      hidden.mockReturnValue(true);
+      await tick();
+      expect(apiClient.get).toHaveBeenCalledTimes(1);
+      hidden.mockReturnValue(false);
+      apiClient.get.mockResolvedValueOnce(walletResponse(40));
+      await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+      expect(screen.getByText(/\$40\.00 available/)).toBeInTheDocument();
+    } finally {
+      hidden.mockRestore();
+    }
+  });
+
+  it('allows an explicit card choice after a failed background wallet read', async () => {
+    await act(async () => { render(drawer()); });
+    openPayment();
+    fireEvent.click(screen.getByTestId('pay-with-credits-btn'));
+    apiClient.get.mockRejectedValueOnce(new Error('Offline'));
+    await tick();
+    expect(screen.getByRole('button', { name: /retry wallet balance/i })).toBeEnabled();
+    expect(screen.queryByTestId('pay-with-credits-btn')).toBeNull();
+    expect(screen.getByTestId('review-booking-btn')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('pay-with-card-btn'));
+    expect(screen.getByTestId('review-booking-btn')).toBeEnabled();
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  it('refreshes on Add Another Spot in the same drawer after applying the first receipt', async () => {
+    mockRealPayment = false;
+    apiClient.post.mockResolvedValueOnce({ data: booking });
+    await prepare('Use credits');
+    await act(async () => { submit(); });
+    fireEvent.click(screen.getByTestId('add-another-spot-btn'));
+    mockRealPayment = true;
+    openPayment();
+    expect(screen.getByText(/\$75\.00 available/)).toBeInTheDocument();
+    apiClient.get.mockResolvedValueOnce(walletResponse(60));
+    await tick();
+    expect(screen.getByText(/\$60\.00 available/)).toBeInTheDocument();
+    expect(apiClient.post).toHaveBeenCalledTimes(1);
+  });
+});
 
 it.each(['card', 'credits'])('shows the saved wallet balance after an uncertain %s booking and remount', async method => {
   apiClient.post.mockRejectedValueOnce(new Error('Connection lost'));
@@ -262,12 +378,16 @@ it.each([
   expect(toast.error).not.toHaveBeenCalled();
 });
 
-it('keeps a definitively rejected wallet booking editable', async () => {
+it('returns to payment with the latest balance after the server rejects reviewed credits', async () => {
   apiClient.post.mockRejectedValueOnce({ response: { status: 400, data: { detail: 'Insufficient credit balance' } } });
   await prepare('Use credits');
+  mockRealPayment = true;
+  apiClient.get.mockResolvedValueOnce({ data: { user_id: 'buyer', balance: 12 } });
   await act(async () => { submit(); });
-  expect(toast.error).toHaveBeenCalledWith('Insufficient credit balance');
-  expect(screen.getByTestId('confirm-booking-btn')).toBeEnabled();
+  expect(toast.error).toHaveBeenCalledWith('Your wallet balance changed. Review your payment again.');
+  expect(screen.getByText(/\$12\.00 available/)).toBeInTheDocument();
+  expect(screen.queryByTestId('confirm-booking-btn')).toBeNull();
+  expect(apiClient.post).toHaveBeenCalledTimes(1);
   expect(screen.queryByRole('link', { name: /check scheduled bookings/i })).toBeNull();
   expect(mockUpdateUser).not.toHaveBeenCalled();
 });

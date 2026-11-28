@@ -117,8 +117,9 @@ export const ScheduledBookingDrawer = ({
     (sum, m) => sum + (pricePerPerson * ((m.captain_cover_percent || 0) / 100)), 0
   );
   const captainShare = pricePerPerson + captainCoverageExtra;
-  const wallet = useScheduledWalletBalance(isOpen, user?.id, photographer?.id);
+  const wallet = useScheduledWalletBalance(isOpen, user?.id, photographer?.id, step === 'payment');
   const userCredits = wallet.balance ?? 0;
+  const canReviewPayment = paymentMethod !== 'credits' || userCredits > 0;
   
   // Check if group discounts are available (for display)
   const _hasGroupDiscounts = groupDiscount2 > 0 || groupDiscount3 > 0 || groupDiscount5 > 0;
@@ -150,15 +151,8 @@ export const ScheduledBookingDrawer = ({
   
   // Auto-apply credits only if payment method is 'credits'
   useEffect(() => {
-    if (paymentMethod === 'credits') {
-      const amountToPay = crewSplitEnabled ? captainShare : totalPrice;
-      if (userCredits > 0 && amountToPay > 0) {
-        setAppliedCredits(Math.min(userCredits, amountToPay));
-      }
-    } else if (paymentMethod === 'card') {
-      // For card payment, reset applied credits to 0 (user can manually add via slider)
-      setAppliedCredits(0);
-    }
+    const available = Math.min(userCredits, Math.max(0, crewSplitEnabled ? captainShare : totalPrice));
+    setAppliedCredits(current => paymentMethod === 'credits' ? available : Math.min(current, available));
   }, [userCredits, totalPrice, captainShare, crewSplitEnabled, paymentMethod]);
   
   const canProceedFromTime = selectedDate && selectedTime && selectedDuration && selectedCategory;
@@ -183,7 +177,7 @@ export const ScheduledBookingDrawer = ({
     if (step === 'time' && canProceedFromTime) setStep('location');
     else if (step === 'location' && canProceedFromLocation) setStep('crew');
     else if (step === 'crew' && canProceedFromCrew) setStep('payment');
-    else if (step === 'payment') setStep('selfie');
+    else if (step === 'payment' && canReviewPayment) setStep('selfie');
     else if (step === 'selfie') setStep('confirm');
   };
   
@@ -378,6 +372,12 @@ export const ScheduledBookingDrawer = ({
         return;
       }
       logger.error('Booking error:', error);
+      if (error.response?.status === 400 && error.response.data?.detail === 'Insufficient credit balance') {
+        wallet.retry();
+        setStep('payment');
+        toast.error('Your wallet balance changed. Review your payment again.');
+        return;
+      }
       
       // Handle time slot conflict specifically
       if (error.response?.status === 409) {
@@ -577,6 +577,9 @@ export const ScheduledBookingDrawer = ({
               />
               
               {/* Payment Method Selection - Extracted Component */}
+              {wallet.balance === 0 && paymentMethod === 'credits' && (
+                <p role="status" className={textSecondary}>No credits are available. Choose a payment method to continue.</p>
+              )}
               {user?.id && wallet.balance === null && (
                 <div role="status" className={textSecondary}>
                   {wallet.failed ? <>
@@ -679,6 +682,7 @@ export const ScheduledBookingDrawer = ({
           canProceedFromTime={canProceedFromTime}
           canProceedFromLocation={canProceedFromLocation}
           canProceedFromCrew={canProceedFromCrew}
+          canReviewPayment={canReviewPayment}
         />
       </DialogContent>
     </Dialog>

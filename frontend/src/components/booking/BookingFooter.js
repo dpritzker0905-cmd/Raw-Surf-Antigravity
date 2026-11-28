@@ -11,7 +11,8 @@ export const BookingFooter = ({
   loading,
   canProceedFromTime,
   canProceedFromLocation,
-  canProceedFromCrew
+  canProceedFromCrew,
+  canReviewPayment = true
 }) => {
   if (step === 'success' || step === 'checkout') return null;
 
@@ -87,6 +88,7 @@ export const BookingFooter = ({
             onClick={handleNext}
             className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10"
             data-testid="review-booking-btn"
+            disabled={!canReviewPayment}
           >
             Review
             <ChevronRight className="w-4 h-4 ml-1" />
