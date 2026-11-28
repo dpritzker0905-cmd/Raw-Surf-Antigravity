@@ -131,7 +131,8 @@
   },
   "overrides": {
     "react-scripts": {
-      "resolve-url-loader": "5.0.0"
+      "resolve-url-loader": "5.0.0",
+      "webpack-dev-server": "5.2.7"
     }
   }
 }
