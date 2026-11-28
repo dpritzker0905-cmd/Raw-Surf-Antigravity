@@ -597,7 +597,12 @@ const BookingConfirmation = ({
   isLight 
 }) => {
   const { title, detail, confirmed } = getBookingReceiptStatus(booking);
-  const amount = confirmed ? booking.total_paid : booking?.credits_applied;
+  const amount = booking?.credits_applied;
+  // A confirmed wallet receipt can report its debit as Total Paid only if
+  // the other amounts on the receipt agree that credits covered the booking.
+  const fullyCovered = (booking?.total_price == null || booking.total_price === amount) &&
+    (booking?.amount_to_charge == null || booking.amount_to_charge === 0);
+  const hasAmount = Number.isFinite(amount) && amount >= 0 && (!confirmed || fullyCovered);
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
@@ -618,9 +623,9 @@ const BookingConfirmation = ({
             '@type': 'Person',
             name: photographer?.full_name || 'Raw Surf Photographer',
           },
-          offers: booking.total_paid ? {
+          offers: hasAmount ? {
             '@type': 'Offer',
-            price: booking.total_paid.toFixed(2),
+            price: amount.toFixed(2),
             priceCurrency: 'USD',
           } : undefined,
           eventStatus: 'https://schema.org/EventScheduled',
@@ -672,7 +677,7 @@ const BookingConfirmation = ({
           </div>
         </div>
         
-        {Number.isFinite(amount) && (
+        {hasAmount ? (
           <div className="flex items-center gap-3">
             <DollarSign className="w-5 h-5 text-green-400" />
             <div>
@@ -680,7 +685,7 @@ const BookingConfirmation = ({
               <p className={`text-sm ${textSecondary}`}>{confirmed ? 'Total Paid' : 'Credits applied'}</p>
             </div>
           </div>
-        )}
+        ) : confirmed && <p className={textSecondary}>Paid amount unavailable</p>}
       </div>
       
       {confirmed && (

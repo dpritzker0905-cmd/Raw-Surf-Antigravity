@@ -316,6 +316,8 @@ it('retains one pending checkout and applies its reported partial-credit balance
   await act(async () => { submit(); });
   expect(endpoints()).toEqual(['/bookings/create-with-stripe']);
   expect(screen.getByRole('link', { name: /continue to checkout/i })).toHaveAttribute('href', checkout.checkout_url);
+  expect(screen.queryByText('Total Paid')).toBeNull();
+  expect(screen.getByRole('dialog').querySelector('script[type="application/ld+json"]')).toBeNull();
   expect(mockUpdateUser).toHaveBeenCalledWith({ credit_balance: 95 });
   expect(navigateToCheckout).toHaveBeenCalledWith(checkout.checkout_url);
   expect(screen.queryByTestId('confirm-booking-btn')).toBeNull();
@@ -468,6 +470,35 @@ it.each([
   }
   expect(endpoints()).toEqual(['/bookings/create', '/bookings/original/send-crew-requests']);
   expect(screen.getByRole('button', { name: 'View My Bookings' })).toBeEnabled();
+});
+
+it.each([18.75, 0])('shows the confirmed wallet debit of %p in the receipt and event price', async amount => {
+  apiClient.post.mockResolvedValueOnce({ data: {
+    booking_id: 'original', status: 'Confirmed', credits_applied: amount,
+    total_price: amount, amount_to_charge: 0, total_paid: 25,
+  } });
+  await prepare('Use credits');
+  await act(async () => { submit(); });
+  expect(screen.getByText('Total Paid').parentElement).toHaveTextContent(`$${amount.toFixed(2)}`);
+  const event = screen.getByRole('dialog').querySelector('script[type="application/ld+json"]');
+  expect(JSON.parse(event.textContent).offers).toMatchObject({ price: amount.toFixed(2), priceCurrency: 'USD' });
+});
+
+it.each([
+  { credits_applied: undefined }, { credits_applied: null }, { credits_applied: '18.75' },
+  { credits_applied: -1 }, { credits_applied: Infinity },
+  { credits_applied: 0, total_price: 25 }, { credits_applied: 18.75, amount_to_charge: 6.25 },
+])('keeps a confirmed receipt without an unverified paid amount (%p)', async payment => {
+  apiClient.post.mockResolvedValueOnce({ data: {
+    booking_id: 'original', status: 'Confirmed', total_paid: 25, ...payment,
+  } });
+  await prepare('Use credits');
+  await act(async () => { submit(); });
+  expect(screen.getByRole('heading', { name: 'Booking confirmed' })).toBeInTheDocument();
+  expect(screen.queryByText('Total Paid')).toBeNull();
+  expect(screen.getByText('Paid amount unavailable')).toBeInTheDocument();
+  const event = screen.getByRole('dialog').querySelector('script[type="application/ld+json"]');
+  expect(JSON.parse(event.textContent)).not.toHaveProperty('offers');
 });
 
 it('ignores a lost wallet response after switching buyers', async () => {

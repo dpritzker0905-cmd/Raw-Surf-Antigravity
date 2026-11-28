@@ -331,7 +331,6 @@ export const ScheduledBookingDrawer = ({
         session_date: sessionDateTime.toISOString(),
         location: impactZone.description,
         duration: selectedDuration,
-        total_paid: crewSplitEnabled ? captainShare : totalPrice,
         crew_split: crewSplitEnabled,
         crew_count: maxParticipants,
         price_per_person: pricePerPerson
