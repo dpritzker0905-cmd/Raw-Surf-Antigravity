@@ -42,6 +42,7 @@ from .identity import uploader_id
 from core.security import get_current_user_id
 from models import Profile, GalleryItem, ObservationMedia
 from services.observation_media import inspect_media
+from services.watermark import flatten_watermarked_rgba
 from services.media_metadata import MetadataError, check_decode_size, write_public_copy
 from .public_copy import store_public
 from utils.video_processor import (
@@ -343,7 +344,7 @@ def add_watermark(
         
         # Convert back to RGB for saving as JPEG
         if output_path.lower().endswith('.jpg') or output_path.lower().endswith('.jpeg'):
-            rgb_result = watermarked.convert('RGB')
+            rgb_result = flatten_watermarked_rgba(watermarked)
             watermarked.close()
             del watermarked
             rgb_result.save(output_path, quality=80, optimize=True)
