@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import GromGuardian, Profile
+from models import GromGuardian, Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
 
 
@@ -51,16 +51,27 @@ def effective_visibility_cap(controls: dict, per_item_cap: str | None = None) ->
     return per_item_cap if AUDIENCE_ORDER[per_item_cap] < AUDIENCE_ORDER[sitewide] else sitewide
 
 
+def _verified_guardian_links(actor_id: str):
+    return select(GromGuardian.grom_id).where(
+        GromGuardian.guardian_id == actor_id,
+        GromGuardian.verified_at.is_not(None),
+        GromGuardian.revoked_at.is_(None),
+    )
+
+
+async def linked_gallery_groms(db: AsyncSession, guardian: Profile):
+    membership = Profile.id.in_(_verified_guardian_links(guardian.id))
+    if guardian.parent_age_verified and is_grom_parent_eligible(guardian):
+        membership |= (Profile.parent_id == guardian.id) & Profile.parent_link_approved.is_(True)
+    result = await db.scalars(
+        select(Profile).where(Profile.role == RoleEnum.GROM, membership).order_by(Profile.full_name, Profile.id)
+    )
+    return result.all()
+
+
 async def is_verified_guardian(db: AsyncSession, grom: Profile, actor_id: str) -> bool:
     """Accept a non-revoked verified relationship or a verified legacy parent."""
-    relation = await db.execute(
-        select(GromGuardian).where(
-            GromGuardian.grom_id == grom.id,
-            GromGuardian.guardian_id == actor_id,
-            GromGuardian.verified_at.is_not(None),
-            GromGuardian.revoked_at.is_(None),
-        )
-    )
+    relation = await db.execute(_verified_guardian_links(actor_id).where(GromGuardian.grom_id == grom.id))
     if relation.scalar_one_or_none():
         return True
 
