@@ -154,6 +154,11 @@ NAMED_ACTOR = [
     ("POST", "/api/dispatch/{dispatch_id}/remind-crew", "body", "captain_id"),
     # 2026-11-15 (#920, harvested from draft #527): badges are recomputed for the caller only.
     ("POST", "/api/gamification/check-badges/{user_id}", "path", "user_id"),
+    # Legacy Grom gallery routes name a parent but may act only for the authenticated parent.
+    ("POST", "/api/gallery/tag-grom", "query", "parent_id"),
+    ("DELETE", "/api/gallery/untag-grom/{gallery_item_id}/{grom_id}", "query", "parent_id"),
+    ("GET", "/api/gallery/grom-highlights/{parent_id}", "path", "parent_id"),
+    ("GET", "/api/gallery/linked-groms/{parent_id}", "path", "parent_id"),
 ]
 # Login required; ownership is by RESOURCE (the notification, the booking), proved against a real database in
 # tests/test_batch5_resource_ownership.py. The broadcast channel allow-list is in the same file.

@@ -1,0 +1,8 @@
+{
+  "lane": "estate",
+  "tests": 15,
+  "files": 0,
+  "branch": "codex/grom-gallery-auth",
+  "date": "2026-11-27",
+  "note": "Bind four legacy Grom gallery routes to the authenticated parent"
+}
