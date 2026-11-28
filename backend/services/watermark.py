@@ -116,8 +116,8 @@ def create_positioned_watermark(
             max_logo_height = int(height * 0.2)
         
         # Calculate scale to fit
-        scale = min(max_logo_width / logo.width, max_logo_height / logo.height)
-        new_size = (int(logo.width * scale), int(logo.height * scale))
+        scale = min(max(1, max_logo_width) / logo.width, max(1, max_logo_height) / logo.height)
+        new_size = (max(1, int(logo.width * scale)), max(1, int(logo.height * scale)))
         logo = logo.resize(new_size, Image.Resampling.LANCZOS)
         
         # Apply opacity to logo
@@ -414,6 +414,19 @@ def watermark_image_bytes(
         return None, None
 
 
+def _resize_preview(image: Image.Image, max_dimension: int) -> Image.Image:
+    if max_dimension < 1:
+        raise ValueError("Preview size limit must be positive")
+    width, height = image.size
+    if max(width, height) <= max_dimension:
+        return image
+    if width > height:
+        size = (max_dimension, max(1, int(height * (max_dimension / width))))
+    else:
+        size = (max(1, int(width * (max_dimension / height))), max_dimension)
+    return image.resize(size, Image.Resampling.LANCZOS)
+
+
 async def generate_watermarked_preview(
     original_url: str,
     max_dimension: int = 1080,  # 1080p for Standard tier
@@ -446,17 +459,7 @@ async def generate_watermarked_preview(
         # Open image
         image = Image.open(io.BytesIO(response.content))
         
-        # Resize if needed (cap at max_dimension)
-        width, height = image.size
-        if width > max_dimension or height > max_dimension:
-            if width > height:
-                new_width = max_dimension
-                new_height = int(height * (max_dimension / width))
-            else:
-                new_height = max_dimension
-                new_width = int(width * (max_dimension / height))
-            
-            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        image = _resize_preview(image, max_dimension)
         
         # Fetch custom logo if provided
         logo_image = None
@@ -497,17 +500,7 @@ async def generate_watermarked_preview_from_bytes(
     try:
         image = Image.open(io.BytesIO(image_bytes))
         
-        # Resize if needed
-        width, height = image.size
-        if width > max_dimension or height > max_dimension:
-            if width > height:
-                new_width = max_dimension
-                new_height = int(height * (max_dimension / width))
-            else:
-                new_height = max_dimension
-                new_width = int(width * (max_dimension / height))
-            
-            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        image = _resize_preview(image, max_dimension)
         
         # Fetch custom logo if provided
         logo_image = None

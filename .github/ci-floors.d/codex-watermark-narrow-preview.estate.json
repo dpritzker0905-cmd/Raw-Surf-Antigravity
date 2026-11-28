@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 10,
+  "branch": "codex/watermark-narrow-preview",
+  "date": "2026-11-28",
+  "note": "Cover narrow JPEG and logo resizing in both gallery preview generators."
+}
