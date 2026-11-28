@@ -26,9 +26,14 @@ REPAIR_INVENTORY = {
     "chain": "collected 3008 tests across 183 files -> 3008 passed, 0 skipped, 0 failed, 0 errors",
     "estate": "estate: 364 files selected, 362 produced results, 3401 passed, 0 silent.",
 }
-POLICY_FILES = {
+MANIFESTS = {
     "frontend/package.json",
     "frontend/package-lock.json",
+}
+DEV_SERVER_TEST = "frontend/src/__tests__/devServerConfig.test.js"
+DEV_SERVER_TEST_BLOB = "f30bd1f643018713d16b1ea0ce3ed7cb40d3548a"  # Reviewed in #1353.
+FRONTEND_COMPANIONS = {"frontend/craco.config.js", "frontend/README.md", DEV_SERVER_TEST}
+POLICY_FILES = MANIFESTS | {
     ".github/scripts/main_release_floors.py",
     ".github/scripts/test_main_release_floors.py",
     WORKFLOW,
@@ -46,6 +51,25 @@ def measured_jobs(workflow):
     if workflow.count(marker) != 1:
         raise floors.Refusal("cannot locate the unique backend-floor-staleness job")
     return workflow.split(marker)[0]
+
+
+def frontend_promotion(base, tested, files):
+    if not MANIFESTS <= files <= (MANIFESTS | FRONTEND_COMPANIONS):
+        return False
+
+    def entry(revision, path):
+        return git("ls-tree", "--format=%(objectmode) %(objectname)", revision, "--", path).strip()
+
+    # Only ordinary file edits qualify. The sole new path may introduce the
+    # reviewed regression test once; edits or removal of an existing test do not qualify.
+    for path in files:
+        old, new = entry(base, path), entry(tested, path)
+        if path == DEV_SERVER_TEST:
+            if old or new != f"100644 {DEV_SERVER_TEST_BLOB}".encode():
+                return False
+        elif not (old.startswith(b"100644 ") and new.startswith(b"100644 ")):
+            return False
+    return True
 
 
 def scoped_base(event_name, event, tested):
@@ -66,6 +90,8 @@ def scoped_base(event_name, event, tested):
     # promotion or maintenance of this gate can use the exact-main baseline.
     files = set(git("diff", "--no-renames", "--name-only", "-z", base, tested)
                 .decode().split("\0")) - {""}
+    if files & FRONTEND_COMPANIONS:
+        return base if frontend_promotion(base, tested, files) else None
     if PAIR_TABLE in files:
         if (base != RECOVERY_BASE or any(path.startswith("frontend/") for path in files)
                 or git("rev-parse", f"{tested}:backend").decode().strip() != REPAIR_BACKEND_TREE):

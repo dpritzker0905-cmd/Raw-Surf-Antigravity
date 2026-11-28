@@ -6,6 +6,42 @@ import main_release_floors as policy
 
 
 class MainReleaseFloorsTest(unittest.TestCase):
+    def test_frontend_companions_only_with_both_manifests(self):
+        event = {"before": "a" * 40, "ref": "refs/heads/main"}
+        paths = policy.MANIFESTS | policy.FRONTEND_COMPANIONS
+        ordinary = b"100644 " + b"b" * 40
+        pinned = f"100644 {policy.DEV_SERVER_TEST_BLOB}".encode()
+
+        def classify(changed, entries):
+            def read(*args):
+                if args[0] == "diff":
+                    self.assertIn("--no-renames", args)
+                    return "\0".join(sorted(changed)).encode()
+                self.assertEqual(args[0], "ls-tree")
+                key = (args[2], args[-1])
+                return entries.get(key, ordinary)
+
+            with patch.object(policy, "git", side_effect=read):
+                return policy.scoped_base("push", event, "candidate")
+
+        base = event["before"]
+        entries = {(base, policy.DEV_SERVER_TEST): b"", ("candidate", policy.DEV_SERVER_TEST): pinned}
+        self.assertEqual(classify(paths, entries), base)
+        self.assertEqual(classify(policy.MANIFESTS | {"frontend/craco.config.js"}, {}), base)
+        for path in [*policy.MANIFESTS, *policy.FRONTEND_COMPANIONS]:
+            with self.subTest(deleted=path):
+                self.assertIsNone(classify(paths, {**entries, ("candidate", path): b""}))
+        for path in policy.MANIFESTS:
+            self.assertIsNone(classify(paths - {path}, entries))
+        for extra in ["backend/file", policy.WORKFLOW, policy.PAIR_TABLE,
+                      ".github/scripts/main_release_floors.py", "frontend/renamed.js"]:
+            self.assertIsNone(classify(paths | {extra}, entries))
+        for key, value in [((base, policy.DEV_SERVER_TEST), pinned),
+                           (("candidate", policy.DEV_SERVER_TEST), ordinary),
+                           (("candidate", "frontend/craco.config.js"), b"120000 " + b"b" * 40),
+                           ((base, "frontend/README.md"), b"")]:
+            self.assertIsNone(classify(paths, {**entries, key: value}))
+
     def test_only_known_paths_on_exact_base(self):
         base = "a" * 40
         event = {"pull_request": {"base": {"ref": "main", "sha": base}, "head": {"ref": "release"}}}
