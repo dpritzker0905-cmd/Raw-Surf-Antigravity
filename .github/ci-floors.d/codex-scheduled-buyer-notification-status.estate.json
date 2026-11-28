@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 4,
+  "branch": "codex/scheduled-buyer-notification-status",
+  "date": "2026-11-27",
+  "note": "Wallet booking buyer notification and push match the stored pending, acceptance-pending, or confirmed status"
+}

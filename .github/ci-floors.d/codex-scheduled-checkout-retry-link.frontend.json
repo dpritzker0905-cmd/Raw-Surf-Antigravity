@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 5,
+  "files": 0,
+  "branch": "codex/scheduled-checkout-retry-link",
+  "date": "2026-11-27",
+  "note": "Pending booking retry links and generic booking rejection controls"
+}

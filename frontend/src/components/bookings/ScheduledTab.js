@@ -41,6 +41,7 @@ export const ScheduledTab = ({
   
   // Check for bookings that need selfies (user hasn't added one yet)
   const bookingsNeedingSelfie = scheduledBookings?.filter(booking => {
+    if (booking.status === 'Pending Payment') return false;
     // Find user's participation in this booking
     const myParticipation = booking.participants?.find(p => p.participant_id === user?.id);
     return myParticipation && !myParticipation.selfie_url && booking.status !== 'cancelled';

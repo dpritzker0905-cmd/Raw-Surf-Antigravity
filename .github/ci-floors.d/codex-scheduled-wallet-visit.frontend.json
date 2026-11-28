@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 10,
+  "files": 0,
+  "branch": "codex/scheduled-wallet-visit",
+  "date": "2026-11-27",
+  "note": "Credit-funded booking results and follow-up requests across drawer visits"
+}

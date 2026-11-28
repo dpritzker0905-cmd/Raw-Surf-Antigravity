@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 9,
+  "files": 0,
+  "branch": "codex/scheduled-receipt-paid-amount",
+  "date": "2026-11-27",
+  "note": "Confirmed wallet receipts and event prices use the recorded debit, including zero and missing or invalid amounts"
+}

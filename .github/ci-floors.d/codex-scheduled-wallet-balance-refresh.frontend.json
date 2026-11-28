@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 11,
+  "files": 0,
+  "branch": "codex/scheduled-wallet-balance-refresh",
+  "date": "2026-11-27",
+  "note": "Refresh the buyer wallet on drawer reopen, including lost responses, pending writes, obsolete reads and retry"
+}

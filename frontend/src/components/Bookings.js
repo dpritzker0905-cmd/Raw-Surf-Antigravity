@@ -322,8 +322,11 @@ export const Bookings = () => {
   const LOBBY_PHASE = ['open', 'filling', 'ready'];
 
   // --- Derived lists ---------------------------------------------------------
-  // Scheduled = future confirmed/pending bookings only
+  // Keep an unresolved checkout visible to its buyer until payment reconciliation.
   const scheduledBookings = bookings.filter(b => {
+    if (b.status === 'Pending Payment') {
+      return Boolean(user?.id) && b.creator_id === user.id && b.booking_type !== 'on_demand';
+    }
     if (isBookingPast(b)) return false; // past-dated ? Past tab
     if (b.status === 'Confirmed') return true;
     if (b.status === 'Pending' && LOBBY_PHASE.includes(b.lineup_status)) return false;

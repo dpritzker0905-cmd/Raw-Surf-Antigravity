@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 44,
+  "branch": "codex/scheduled-card-retry",
+  "date": "2026-11-25",
+  "note": "Scheduled checkout retries, payment-method switch, slot identity, cancellation, concurrency and rollback"
+}

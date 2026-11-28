@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 7,
+  "files": 0,
+  "branch": "codex/scheduled-wallet-late-debit",
+  "date": "2026-11-27",
+  "note": "Wallet debit commits after checkout response loss and drawer reopen; payment choices, refresh ownership and cleanup"
+}

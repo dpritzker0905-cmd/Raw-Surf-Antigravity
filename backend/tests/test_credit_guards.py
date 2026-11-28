@@ -11,26 +11,33 @@ synthetic users only; nothing touches a live service. Postgres-specific behaviou
 is NOT covered by SQLite; the atomic-UPDATE semantics are.
 """
 import asyncio
+import json
 import math
 import secrets
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
+from urllib.parse import parse_qs
 
 import httpx
 import pytest
 import pytest_asyncio
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlalchemy import func, select, text
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import security
 from database import get_db
-from models import (AdConfig, Booking, BookingParticipant, CreditTransaction, Notification, Profile, RoleEnum)
-from routes.bookings import booking_lifecycle, stripe_checkout
+from models import (AdConfig, Booking, BookingParticipant, CreditTransaction, Notification, PaymentTransaction,
+                    PlatformSettings, Post, Profile, RoleEnum)
+from routes.bookings import booking_lifecycle, crud, invites, stripe_checkout
 from routes.commerce import ad_controls
 from utils.credits import add_credits, clean_amount, deduct_credits
 
-TABLES = (Profile, Booking, BookingParticipant, CreditTransaction, Notification, AdConfig)
+TABLES = (Profile, Booking, BookingParticipant, CreditTransaction, Notification, AdConfig, PaymentTransaction, Post,
+          PlatformSettings)
 
 
 def _token(sub):
@@ -85,7 +92,7 @@ async def world(monkeypatch):
         # (a refusal that writes nothing); the test must see that status, not an exception.
         transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
         async with httpx.AsyncClient(transport=transport, base_url="http://fixture.invalid") as client:
-            yield SimpleNamespace(client=client, maker=maker, state=state)
+            yield SimpleNamespace(app=app, client=client, maker=maker, state=state)
     finally:
         await engine.dispose()
 
@@ -278,6 +285,354 @@ def card_booking(**over):
     return booking(origin_url="https://example.invalid", **over)
 
 
+async def test_wallet_booking_crew_request_acknowledges_committed_invitation(world):
+    world.app.include_router(invites.router, prefix="/api")
+    async with world.maker.begin() as db:
+        db.add(Profile(id="crew", user_id="crew", email="crew@example.invalid", role=RoleEnum.SURFER))
+    payload = booking(max_participants=2, allow_splitting=True, apply_credits=30)
+    created = await world.client.post("/api/bookings/create", json=payload, headers=_token("user"))
+    assert created.status_code == 200
+    booking_id = created.json()["booking_id"]
+    result = await world.client.post(f"/api/bookings/{booking_id}/send-crew-requests", json={
+        "crew_members": [{"user_id": "crew", "name": "Crew", "share_amount": 30}],
+        "price_per_person": 30, "session_date": payload["session_date"], "photographer_name": "Fixture",
+    }, headers=_token("user"))
+    async with world.maker() as db:
+        participant = (await db.scalars(select(BookingParticipant).where(
+            BookingParticipant.booking_id == booking_id, BookingParticipant.participant_id == "crew",
+        ))).one()
+        assert participant.status == "invited" and participant.share_amount == 30
+        assert await db.scalar(select(func.count()).select_from(Notification).where(
+            Notification.user_id == "crew", Notification.type == "crew_payment_request",
+        )) == 1
+    assert result.status_code == 200
+    assert result.json() == {"success": True, "message": "Payment requests sent to 1 crew members",
+                             "sent_to": ["Crew"], "conversation_id": None}
+
+
+def test_scheduled_time_display_converts_an_aware_non_utc_read():
+    start = datetime.fromisoformat("2032-01-01T03:45:00+05:30")
+    assert crud.format_scheduled_start(start) == "Dec 31, 2031 at 10:15 PM UTC"
+
+
+@pytest.mark.parametrize("role,credits,status,notice_type", [
+    (RoleEnum.PHOTOGRAPHER, 30, "Pending", "booking_request"),
+    (RoleEnum.PHOTOGRAPHER, 60, "Confirmed", "booking_confirmation"),
+    (RoleEnum.HOBBYIST, 20, "Pending Acceptance", "booking_request"),
+    (RoleEnum.HOBBYIST, 40, "Confirmed", "booking_confirmation"),
+])
+async def test_wallet_buyer_notification_matches_saved_booking(world, monkeypatch, role, credits, status, notice_type):
+    push = AsyncMock()
+    monkeypatch.setattr("routes.notifications.push_payloads.notify_booking", push)
+    async with world.maker.begin() as db:
+        photographer = await db.get(Profile, "photog")
+        photographer.role = role
+    payload = booking(session_date="2031-12-31T21:15:00-05:00", max_participants=2,
+                      allow_splitting=True, apply_credits=credits)
+    created = await world.client.post("/api/bookings/create", json=payload, headers=_token("user"))
+    assert created.status_code == 200, created.text
+    booking_id = created.json()["booking_id"]
+    async with world.maker() as db:
+        assert (await db.get(Booking, booking_id)).status == status == created.json()["status"]
+        buyer_note = (await db.scalars(select(Notification).where(Notification.user_id == "user"))).one()
+        assert buyer_note.type == notice_type
+        assert buyer_note.title == f"Booking {status.lower()}"
+        assert buyer_note.body == f"Your session with photog on Jan 01, 2032 at 02:15 AM UTC is {status.lower()}."
+        assert json.loads(buyer_note.data)["booking_id"] == booking_id
+        buyer_pushes = [call.kwargs for call in push.await_args_list if call.kwargs["user_id"] == "user"]
+        assert [(call["title"], call["message"]) for call in buyer_pushes] == [(buyer_note.title, buyer_note.body)]
+
+
+async def test_wallet_booking_time_in_messages_and_sharing(world, monkeypatch):
+    push = AsyncMock()
+    monkeypatch.setattr("routes.notifications.push_payloads.notify_booking", push)
+    payload = booking(session_date="2031-12-31T21:15:00-05:00", allow_splitting=True, apply_credits=60)
+    response = await world.client.post("/api/bookings/create", json=payload, headers=_token("user"))
+    assert response.status_code == 200, response.text
+    booking_id = response.json()["booking_id"]
+    expected = "Jan 01, 2032 at 02:15 AM UTC"
+    async with world.maker() as db:
+        notes = (await db.scalars(select(Notification))).all()
+        assert {note.user_id for note in notes} == {"user", "photog"}
+        assert all(expected in note.body for note in notes)
+        assert (await db.get(Booking, booking_id)).session_date == datetime(2032, 1, 1, 2, 15)
+    assert {call.kwargs["user_id"] for call in push.await_args_list} == {"user", "photog"}
+    assert all(expected in call.kwargs["message"] for call in push.await_args_list)
+
+    # SQLite drops the offset on reload. Historical wall times cannot be attributed to a zone.
+    reloaded = "Jan 01, 2032 at 02:15 AM (time zone unavailable)"
+    world.app.include_router(crud.router, prefix="/api")
+    link = await world.client.get(f"/api/bookings/{booking_id}/share-link", params={"user_id": "user"})
+    assert link.status_code == 200, link.text
+    assert reloaded in link.json()["share_message"]
+    feed = await world.client.post(f"/api/bookings/{booking_id}/share-to-feed", headers=_token("user"))
+    assert feed.status_code == 200, feed.text
+    async with world.maker() as db:
+        assert reloaded in (await db.get(Post, feed.json()["post_id"])).caption
+
+
+@pytest.fixture
+def checkout_calls(monkeypatch):
+    calls = []
+
+    async def create(**kwargs):
+        calls.append(kwargs["idempotency_key"])
+        return SimpleNamespace(id=f"session-{len(calls)}", url="https://checkout.example.invalid/fixture")
+
+    monkeypatch.setattr(stripe_checkout, "STRIPE_API_KEY", True)
+    monkeypatch.setattr(stripe_checkout, "_create_scheduled_checkout", create)
+    return calls
+
+
+@pytest.mark.parametrize("endpoint", ["create", "create-with-stripe"])
+@pytest.mark.parametrize("lock_busy", [False, True], ids=["acquired", "timed-out"])
+async def test_buyer_lock_is_the_first_work_in_each_postgres_transaction(world, checkout_calls, endpoint, lock_busy):
+    dialect = postgresql.dialect()
+    statements = []
+    db = Mock()
+    db.get_bind.return_value.dialect = dialect
+    db.rollback = AsyncMock()
+
+    async def execute(statement, params=None):
+        sql = str(statement.compile(dialect=dialect))
+        statements.append(sql)
+        if "FOR NO KEY UPDATE" in sql:
+            if lock_busy:
+                cause = Exception("fixture lock timeout")
+                cause.sqlstate = "55P03"
+                raise DBAPIError(sql, {}, cause)
+            # Stop the successful acquisition path at its ordinary unknown-buyer response.
+            return SimpleNamespace(scalar_one_or_none=lambda: None)
+        if "set_config" in sql:
+            assert params == {"previous": "10000"}
+
+    async def scalar(statement):
+        statements.append(str(statement.compile(dialect=dialect)))
+        return 10000
+
+    db.execute = execute
+    db.scalar = scalar
+    world.app.dependency_overrides[get_db] = lambda: db
+    response = await world.client.post(f"/api/bookings/{endpoint}", json=card_booking(), headers=_token("user"))
+
+    assert statements[0] == "SET TRANSACTION ISOLATION LEVEL READ COMMITTED"
+    assert "pg_settings" in statements[1] and "lock_timeout" in statements[1]
+    assert statements[2] == "SET LOCAL lock_timeout = '5s'"
+    assert "FOR NO KEY UPDATE" in statements[3]
+    if lock_busy:
+        assert response.status_code == 503 and len(statements) == 4
+        db.rollback.assert_awaited_once()
+    else:
+        assert response.status_code == 404 and len(statements) == 5
+        assert "set_config('lock_timeout'" in statements[4]
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("retry_endpoint", ["create-with-stripe", "create"])
+async def test_reopened_checkout_cannot_book_or_debit_twice(world, checkout_calls, retry_endpoint):
+    payload = card_booking(apply_credits=10)
+    first = await world.client.post("/api/bookings/create-with-stripe", json=payload, headers=_token("user"))
+    assert first.status_code == 200, first.text
+    # Discard the first receipt. A fresh drawer sends no booking or checkout ID.
+    retry = await world.client.post(f"/api/bookings/{retry_endpoint}", json=payload, headers=_token("user"))
+    async with world.maker() as db:
+        payments = await db.scalar(select(func.count()).select_from(PaymentTransaction))
+        participants = await db.scalar(select(func.count()).select_from(BookingParticipant))
+    balance, debits, bookings, _ = await world.state()
+    assert (bookings, payments, participants, debits, balance, len(checkout_calls)) == (1, 1, 1, 1, 90, 1)
+    assert retry.status_code == 409 and "scheduled bookings" in retry.json()["detail"]
+    assert retry.json() == {
+        "detail": "You already started checkout for this session. Check your scheduled bookings.",
+        "pending_booking_id": first.json()["booking_id"],
+    }
+
+    async with world.maker.begin() as db:
+        original = await db.get(Booking, first.json()["booking_id"])
+        original.status = "Confirmed"
+    occupied = await world.client.post(f"/api/bookings/{retry_endpoint}", json=payload, headers=_token("user"))
+    assert occupied.status_code == 409 and set(occupied.json()) == {"detail"}
+
+
+async def test_pending_checkout_identity_uses_the_start_instant(world, checkout_calls):
+    payload = card_booking(session_date="2030-01-02T09:00:00-05:00")
+    endpoint = "/api/bookings/create-with-stripe"
+    async def submit(**changes):
+        return await world.client.post(endpoint, json={**payload, **changes}, headers=_token("user"))
+
+    assert (await submit()).status_code == 200
+    assert (await submit(session_date="2030-01-02T14:00:00Z", location="Edited", duration=120)).status_code == 409
+    assert (await submit(session_date="2030-01-02T16:00:00Z")).status_code == 200
+    assert len(checkout_calls) == 2
+
+
+async def test_only_reconciled_cancellation_releases_pending_checkout(world, checkout_calls):
+    payload = card_booking()
+    endpoint = "/api/bookings/create-with-stripe"
+    async def submit():
+        return await world.client.post(endpoint, json=payload, headers=_token("user"))
+
+    first = await submit()
+    assert first.status_code == 200
+    booking_id = first.json()["booking_id"]
+    async with world.maker.begin() as db:
+        original = await db.get(Booking, booking_id)
+        original.pending_payment_expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+    assert (await submit()).status_code == 409
+    async with world.maker.begin() as db:
+        original = await db.get(Booking, booking_id)
+        original.status = "Cancelled"
+    assert (await submit()).status_code == 200
+    assert len(checkout_calls) == 2
+
+
+async def test_another_buyers_pending_checkout_remains_private(world, checkout_calls):
+    async with world.maker.begin() as db:
+        db.add(Profile(id="other", user_id="other", email="other@example.invalid", role=RoleEnum.SURFER))
+    endpoint = "/api/bookings/create-with-stripe"
+    payload = card_booking()
+    first = await world.client.post(endpoint, json=payload, headers=_token("user"))
+    other = await world.client.post(endpoint, json=payload, headers=_token("other"))
+    assert first.status_code == other.status_code == 200
+    assert first.json()["booking_id"] != other.json()["booking_id"]
+    for buyer, expected in (("user", first), ("other", other)):
+        retry = await world.client.post(endpoint, json=payload, headers=_token(buyer))
+        assert retry.status_code == 409
+        assert retry.json()["pending_booking_id"] == expected.json()["booking_id"]
+    assert len(checkout_calls) == 2
+
+
+async def test_overlapping_checkout_requests_serialize_before_provider(tmp_path, checkout_calls, world):
+    engine, maker = await _make_engine(f"sqlite+aiosqlite:///{tmp_path / 'checkout.db'}")
+    payload = card_booking(apply_credits=10)
+
+    async def dependency():
+        async with maker() as db:
+            yield db
+
+    world.app.dependency_overrides[get_db] = dependency
+    async def submit():
+        return await world.client.post("/api/bookings/create-with-stripe", json=payload, headers=_token("user"))
+
+    try:
+        created, duplicate = sorted(await asyncio.gather(submit(), submit()), key=lambda r: r.status_code)
+        assert (created.status_code, duplicate.status_code) == (200, 409)
+        assert duplicate.json()["pending_booking_id"] == created.json()["booking_id"]
+        assert len(checkout_calls) == 1
+        async with maker() as db:
+            assert await db.scalar(select(func.count()).select_from(Booking)) == 1
+            assert await db.scalar(select(Profile.credit_balance).where(Profile.id == "user")) == 90
+    finally:
+        await engine.dispose()
+
+
+async def test_uncommitted_checkout_failure_allows_a_fresh_create(world, checkout_calls, monkeypatch):
+    payload = card_booking(apply_credits=10)
+    endpoint = "/api/bookings/create-with-stripe"
+
+    async def unavailable(**kwargs):
+        raise RuntimeError("fixture unavailable")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(stripe_checkout, "_create_scheduled_checkout", unavailable)
+        failed = await world.client.post(endpoint, json=payload, headers=_token("user"))
+    assert failed.status_code == 500
+    assert (await world.state())[:3] == (100, 0, 0)
+    retry = await world.client.post(endpoint, json=payload, headers=_token("user"))
+    assert retry.status_code == 200
+    assert (await world.state())[:3] == (90, 1, 1)
+    assert len(checkout_calls) == 1
+
+
+async def test_sqlite_buyer_lock_blocks_a_second_writer_before_any_insert(tmp_path):
+    engine, maker = await _make_engine(f"sqlite+aiosqlite:///{tmp_path / 'buyer-lock.db'}")
+    try:
+        async with maker() as first, maker() as second:
+            await first.execute(text("BEGIN"))
+            await stripe_checkout.lock_booking_buyer(first, "user")
+            await second.execute(text("PRAGMA busy_timeout=0"))
+            with pytest.raises(HTTPException) as busy:
+                await stripe_checkout.lock_booking_buyer(second, "user")
+            assert busy.value.status_code == 503
+            assert not second.in_transaction()
+            await first.rollback()
+            buyer = await stripe_checkout.lock_booking_buyer(second, "user")
+            assert buyer.credit_balance == 100
+            assert await second.scalar(select(func.count()).select_from(Booking)) == 0
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.parametrize("failure", ["deadline", "read_timeout"])
+async def test_checkout_transport_timeout_rolls_back_and_does_not_retry(world, monkeypatch, failure):
+    calls = []
+    stopped = asyncio.Event()
+
+    async def slow_transport(self, request):
+        calls.append(request)
+        if failure == "read_timeout":
+            raise httpx.ReadTimeout("mock transport timed out", request=request)
+        try:
+            await asyncio.Event().wait()
+        finally:
+            stopped.set()
+
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", slow_transport)
+    monkeypatch.setattr(stripe_checkout, "STRIPE_API_KEY", "fixture")
+    monkeypatch.setattr(stripe_checkout, "CHECKOUT_TIMEOUT_SECONDS", 0.25)
+    response = await world.client.post("/api/bookings/create-with-stripe", json=card_booking(apply_credits=10),
+                                       headers=_token("user"))
+    assert response.status_code == 503
+    assert "Check your scheduled bookings" in response.json()["detail"]
+    assert len(calls) == 1
+    assert calls[0].headers["Idempotency-Key"].startswith("scheduled_booking_")
+    assert set(calls[0].extensions["timeout"].values()) == {0.25}
+    if failure == "deadline":
+        assert stopped.is_set()
+    assert (await world.state())[:3] == (100, 0, 0)
+    async with world.maker() as db:
+        assert await db.scalar(select(func.count()).select_from(PaymentTransaction)) == 0
+        assert await db.scalar(select(func.count()).select_from(BookingParticipant)) == 0
+
+
+async def test_async_checkout_sends_one_bound_request_and_keeps_the_receipt_on_retry(world, monkeypatch):
+    requests = []
+
+    async def accepted(self, request):
+        requests.append(request)
+        return httpx.Response(200, json={"object": "checkout.session", "id": "session-one",
+                                         "url": "https://checkout.example.invalid/one"})
+
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", accepted)
+    monkeypatch.setattr(stripe_checkout, "STRIPE_API_KEY", "fixture")
+    endpoint = "/api/bookings/create-with-stripe"
+    payload = card_booking(apply_credits=10, session_date="2031-12-31T21:15:00-05:00")
+    first = await world.client.post(endpoint, json=payload, headers=_token("user"))
+    repeat = await world.client.post(endpoint, json=payload, headers=_token("user"))
+    assert first.status_code == 200 and repeat.status_code == 409
+    assert len(requests) == 1 and requests[0].url.path == "/v1/checkout/sessions"
+    receipt = first.json()
+    fields = parse_qs(requests[0].content.decode())
+    assert requests[0].headers["Idempotency-Key"] == f"scheduled_booking_{receipt['booking_id']}"
+    assert fields["metadata[booking_id]"] == [receipt["booking_id"]]
+    assert fields["metadata[user_id]"] == ["user"]
+    assert fields["line_items[0][price_data][unit_amount]"] == ["5000"]
+    assert fields["line_items[0][price_data][product_data][description]"] == [
+        "Fixture Beach on Jan 01, 2032 at 02:15 AM UTC"
+    ]
+    assert receipt["session_id"] == "session-one" and receipt["remaining_credits"] == 90
+    assert (await world.state())[:3] == (90, 1, 1)
+    paid = SimpleNamespace(payment_status="paid", amount_total=5000,
+                           metadata={"type": "scheduled_booking", "booking_id": receipt["booking_id"], "user_id": "user"})
+    monkeypatch.setattr(stripe_checkout.stripe.checkout.Session, "retrieve", lambda session_id: paid)
+    confirmed = await world.client.get("/api/bookings/payment-success", headers=_token("user"),
+                                       params={"booking_id": receipt["booking_id"], "session_id": receipt["session_id"]})
+    assert confirmed.status_code == 200, confirmed.text
+    async with world.maker() as db:
+        notes = (await db.scalars(select(Notification))).all()
+    assert {note.user_id for note in notes} == {"user", "photog"}
+    assert all("Jan 01, 2032 at 02:15 AM (time zone unavailable)" in note.body for note in notes)
+
+
 @pytest.mark.parametrize("change", [{"duration": -60, "apply_credits": 50}, {"duration": 0}, {"apply_credits": -5},
                                     {"max_participants": 0}])
 async def test_the_card_checkout_route_has_the_same_bounds(world, change):
@@ -290,9 +645,9 @@ async def test_the_card_checkout_route_has_the_same_bounds(world, change):
 async def test_the_card_checkout_route_refuses_a_negative_price_from_a_negative_rate(world, monkeypatch):
     # Exercise price validation with a configured fake provider; no checkout call may be reached.
     monkeypatch.setattr(stripe_checkout, "STRIPE_API_KEY", "fixture-provider-configured")
-    def unexpected_checkout(**kwargs):
+    async def unexpected_checkout(**kwargs):
         pytest.fail("Invalid price reached the payment provider")
-    monkeypatch.setattr(stripe_checkout.stripe.checkout.Session, "create", unexpected_checkout)
+    monkeypatch.setattr(stripe_checkout, "_create_scheduled_checkout", unexpected_checkout)
     async with world.maker() as db:
         row = (await db.execute(select(Profile).where(Profile.id == "photog"))).scalar_one()
         row.booking_hourly_rate = -50.0

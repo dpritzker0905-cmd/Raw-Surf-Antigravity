@@ -33,7 +33,7 @@ except ImportError:
     onesignal_service = None
 
 # Import shared helpers from crud
-from .crud import check_time_slot_conflict
+from .crud import booking_conflict_response, check_time_slot_conflict, format_scheduled_start, lock_booking_buyer, scheduled_start_utc
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -85,10 +85,7 @@ async def create_user_booking(
         stripe.api_key = STRIPE_API_KEY
 
     # Verify user
-    user_result = await db.execute(select(Profile).where(Profile.id == user_id))
-    user = user_result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    user = await lock_booking_buyer(db, user_id)
 
     # Verify photographer
     photographer_result = await db.execute(
@@ -103,20 +100,17 @@ async def create_user_booking(
         raise HTTPException(status_code=400, detail="Selected user is not a photographer")
 
     # Parse date
-    try:
-        session_date = datetime.fromisoformat(data.session_date.replace('Z', '+00:00'))
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format")
+    session_date = scheduled_start_utc(data.session_date)
 
     # Check for time slot conflicts
     conflict = await check_time_slot_conflict(
         db=db,
         photographer_id=data.photographer_id,
         session_date=session_date,
-        duration=data.duration
+        duration=data.duration, pending_creator_id=user_id,
     )
     if conflict:
-        raise HTTPException(status_code=409, detail=conflict["message"])
+        return booking_conflict_response(conflict)
 
     # Calculate price based on duration
     hourly_rate = photographer.booking_hourly_rate or photographer.hourly_rate or photographer.session_price or 75.0
@@ -259,7 +253,7 @@ async def create_user_booking(
         booking.escrow_status = 'held'
 
     # Notifications
-    session_time_str = session_date.strftime('%b %d at %I:%M %p')
+    session_time_str = format_scheduled_start(session_date)
 
     notification = Notification(
         user_id=data.photographer_id,
@@ -289,11 +283,13 @@ async def create_user_booking(
     except Exception as e:
         logger.warning(f"Failed to send booking push notification: {e}")
 
+    status_text = booking.status.lower()
+    photographer_name = photographer.full_name or photographer.username or "your photographer"
     surfer_notification = Notification(
         user_id=user_id,
-        type='booking_confirmation',
-        title='Session Booked!',
-        body=f'Your session with {photographer.full_name} is confirmed for {session_time_str}',
+        type='booking_confirmation' if booking.status == 'Confirmed' else 'booking_request',
+        title=f'Booking {status_text}',
+        body=f'Your session with {photographer_name} on {session_time_str} is {status_text}.',
         data=json.dumps({
             "booking_id": booking.id,
             "photographer_name": photographer.full_name,
@@ -306,8 +302,8 @@ async def create_user_booking(
     try:
         await notify_booking(
             user_id=user_id,
-            title='Session Booked!',
-            message=f'Your session with {photographer.full_name} is confirmed for {session_time_str}',
+            title=surfer_notification.title,
+            message=surfer_notification.body,
             db=db
         )
     except Exception as e:
@@ -496,7 +492,7 @@ async def share_booking_to_feed(
     creator = await db.execute(select(Profile).where(Profile.id == user_id))
     creator = creator.scalar_one_or_none()
 
-    session_date = booking.session_date.strftime('%b %d at %I:%M %p')
+    session_date = format_scheduled_start(booking.session_date)
     photographer_name = booking.photographer.full_name if booking.photographer else "a photographer"
     current_participants = len([p for p in booking.participants if p.status in ['pending', 'confirmed']])
     spots_left = booking.max_participants - current_participants

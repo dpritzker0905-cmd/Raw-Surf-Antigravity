@@ -11,9 +11,10 @@ export const BookingFooter = ({
   loading,
   canProceedFromTime,
   canProceedFromLocation,
-  canProceedFromCrew
+  canProceedFromCrew,
+  canReviewPayment = true
 }) => {
-  if (step === 'success') return null;
+  if (step === 'success' || step === 'checkout') return null;
 
   return (
     <div className={`flex-shrink-0 px-4 py-2 border-t ${isLight ? 'border-gray-200 bg-white' : 'border-zinc-800 bg-zinc-900'}`}>
@@ -87,6 +88,7 @@ export const BookingFooter = ({
             onClick={handleNext}
             className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10"
             data-testid="review-booking-btn"
+            disabled={!canReviewPayment}
           >
             Review
             <ChevronRight className="w-4 h-4 ml-1" />
@@ -99,6 +101,7 @@ export const BookingFooter = ({
           <Button aria-label="Previous"
             variant="outline"
             onClick={handleBack}
+            disabled={loading}
             className="flex-1 h-10 border-zinc-700"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />

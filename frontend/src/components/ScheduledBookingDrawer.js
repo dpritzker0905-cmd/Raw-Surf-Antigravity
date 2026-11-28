@@ -3,7 +3,7 @@
  * Integrates: ExactTimeSlotPicker, Impact Zone coordinates, Account Credit, Crew Split, Confirmation
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -22,6 +22,7 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 
 import apiClient from '../lib/apiClient';
+import { getCheckoutUrl, navigateToCheckout } from '../utils/checkoutUrl';
 
 import { ExactTimeSlotPicker } from './ExactTimeSlotPicker';
 
@@ -30,12 +31,13 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import useHapticFeedback from '../hooks/useHapticFeedback';
+import useScheduledWalletBalance, { createScheduledBooking } from '../hooks/useScheduledWalletBalance';
 import ImpactZonePicker from './booking/ImpactZonePicker';
 import BookingPaymentStep from './booking/BookingPaymentStep';
 import BookingSessionSummary from './booking/BookingSessionSummary';
 
 // Extracted helper components
-import { DURATION_PRICES, CrewSplitSection, CrossSellSuggestion, BookingConfirmation } from './booking/ScheduledBookingHelpers';
+import { DURATION_PRICES, CrewSplitSection, CrossSellSuggestion, BookingConfirmation, getBookingReceiptStatus } from './booking/ScheduledBookingHelpers';
 import { BookingSelfieStep } from './booking/BookingSelfieStep';
 import { BookingConfirmStep } from './booking/BookingConfirmStep';
 import { BookingFooter } from './booking/BookingFooter';
@@ -57,6 +59,9 @@ export const ScheduledBookingDrawer = ({
   const [step, setStep] = useState('time');
   const [selfieUrl, setSelfieUrl] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState(null);
+  const [pendingBookingId, setPendingBookingId] = useState(null);
+  const visit = useRef(null);
   
   // Time slot state
   const [selectedDate, setSelectedDate] = useState(null);
@@ -112,14 +117,22 @@ export const ScheduledBookingDrawer = ({
     (sum, m) => sum + (pricePerPerson * ((m.captain_cover_percent || 0) / 100)), 0
   );
   const captainShare = pricePerPerson + captainCoverageExtra;
-  const userCredits = user?.credit_balance || 0;
+  const amountToPay = crewSplitEnabled ? captainShare : totalPrice;
+  const wallet = useScheduledWalletBalance(isOpen, user?.id, photographer?.id, step === 'payment');
+  const userCredits = wallet.balance ?? 0;
+  const canPayFullWithCredits = userCredits > 0 && userCredits >= Number(amountToPay.toFixed(2));
+  const canReviewPayment = paymentMethod !== 'credits' || canPayFullWithCredits;
   
   // Check if group discounts are available (for display)
   const _hasGroupDiscounts = groupDiscount2 > 0 || groupDiscount3 > 0 || groupDiscount5 > 0;
   
   // Reset state when drawer opens
-  useEffect(() => {
+  useLayoutEffect(() => {
+    visit.current = isOpen ? { submitting: false } : null;
     if (isOpen) {
+      setCheckoutUrl(null);
+      setPendingBookingId(null);
+      setLoading(false);
       setStep('time');
       setSelectedDate(null);
       setSelectedTime(null);
@@ -130,24 +143,19 @@ export const ScheduledBookingDrawer = ({
       setTravelSurcharge(0);
       setCrewSplitEnabled(false);
       setCrewMembers([]);
+      setPaymentMethod('card');
       setAppliedCredits(0);
       setBookingResult(null);
       setSelfieUrl(null);
     }
-  }, [isOpen]);
+    return () => { visit.current = null; };
+  }, [isOpen, photographer?.id, user?.id]);
   
   // Auto-apply credits only if payment method is 'credits'
   useEffect(() => {
-    if (paymentMethod === 'credits') {
-      const amountToPay = crewSplitEnabled ? captainShare : totalPrice;
-      if (userCredits > 0 && amountToPay > 0) {
-        setAppliedCredits(Math.min(userCredits, amountToPay));
-      }
-    } else if (paymentMethod === 'card') {
-      // For card payment, reset applied credits to 0 (user can manually add via slider)
-      setAppliedCredits(0);
-    }
-  }, [userCredits, totalPrice, captainShare, crewSplitEnabled, paymentMethod]);
+    const available = Math.min(userCredits, Math.max(0, amountToPay));
+    setAppliedCredits(current => paymentMethod === 'credits' ? available : Math.min(current, available));
+  }, [userCredits, amountToPay, paymentMethod]);
   
   const canProceedFromTime = selectedDate && selectedTime && selectedDuration && selectedCategory;
   const canProceedFromLocation = impactZone && impactZone.description && locationValid;
@@ -171,7 +179,7 @@ export const ScheduledBookingDrawer = ({
     if (step === 'time' && canProceedFromTime) setStep('location');
     else if (step === 'location' && canProceedFromLocation) setStep('crew');
     else if (step === 'crew' && canProceedFromCrew) setStep('payment');
-    else if (step === 'payment') setStep('selfie');
+    else if (step === 'payment' && canReviewPayment) setStep('selfie');
     else if (step === 'selfie') setStep('confirm');
   };
   
@@ -202,7 +210,11 @@ export const ScheduledBookingDrawer = ({
   };
   
   const handleSubmitBooking = async () => {
+    const submitted = visit.current;
+    if (!submitted || submitted.submitting || step !== 'confirm') return;
+    submitted.submitting = true;
     setLoading(true);
+    let submittingBooking = false;
     
     try {
       // Build the exact session datetime
@@ -211,8 +223,7 @@ export const ScheduledBookingDrawer = ({
       sessionDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       
       // Calculate captain's payment amount
-      const captainPaymentAmount = crewSplitEnabled ? captainShare : totalPrice;
-      const amountToCharge = Math.max(0, captainPaymentAmount - appliedCredits);
+      const amountToCharge = Math.max(0, amountToPay - appliedCredits);
       
       // Calculate payment window for crew
       const paymentWindowExpires = calculatePaymentWindow();
@@ -225,9 +236,10 @@ export const ScheduledBookingDrawer = ({
       }));
       
       // If there's an amount to charge and user selected card payment
+      submittingBooking = true;
       if (amountToCharge > 0 && paymentMethod === 'card') {
         // Create booking with pending payment status and redirect to Stripe
-        const response = await apiClient.post(`/bookings/create-with-stripe`, {
+        const response = await createScheduledBooking(user?.id, '/bookings/create-with-stripe', {
           photographer_id: photographer.id,
           location: impactZone.description,
           session_date: sessionDateTime.toISOString(),
@@ -246,20 +258,24 @@ export const ScheduledBookingDrawer = ({
           origin_url: window.location.origin
         });
         
-        // Update credits if partially applied
-        if (appliedCredits > 0 && response.data.remaining_credits !== undefined) {
-          updateUser({ credit_balance: response.data.remaining_credits });
+        if (visit.current !== submitted) return;
+        const receipt = response.data;
+        const url = getCheckoutUrl(receipt?.checkout_url);
+        setCheckoutUrl(url);
+        setStep('checkout');
+        const hasBookingReceipt = receipt?.booking_id && receipt.session_id;
+        const creditsUsed = receipt?.credits_applied ?? (url ? appliedCredits : 0);
+        if ((url || hasBookingReceipt) && Number.isFinite(creditsUsed) && creditsUsed > 0 &&
+            Number.isFinite(receipt.remaining_credits) && receipt.remaining_credits >= 0) {
+          wallet.applyReceiptBalance(receipt.remaining_credits);
+          updateUser({ credit_balance: receipt.remaining_credits });
         }
-        
-        // Redirect to Stripe checkout
-        if (response.data.checkout_url) {
-          window.location.href = response.data.checkout_url;
-          return;
-        }
+        if (url) navigateToCheckout(url);
+        return;
       }
       
       // Full credit payment or credits cover everything
-      const response = await apiClient.post(`/bookings/create`, {
+      const response = await createScheduledBooking(user?.id, '/bookings/create', {
         photographer_id: photographer.id,
         location: impactZone.description,
         session_date: sessionDateTime.toISOString(),
@@ -279,44 +295,52 @@ export const ScheduledBookingDrawer = ({
         impact_zone_preset: impactZone.preset_id || null
       });
       
+      if (visit.current !== submitted) return;
+      const bookingId = response.data?.booking_id ?? response.data?.booking?.id;
+      if (typeof bookingId !== 'string' || !bookingId.trim()) {
+        setStep('checkout');
+        return;
+      }
       // Update user credits if applied
-      if (appliedCredits > 0 && response.data.remaining_credits !== undefined) {
+      if (appliedCredits > 0 && Number.isFinite(response.data.remaining_credits) && response.data.remaining_credits >= 0) {
+        wallet.applyReceiptBalance(response.data.remaining_credits);
         updateUser({ credit_balance: response.data.remaining_credits });
       }
       
       // If crew split is enabled, send payment requests to crew members
-      if (crewSplitEnabled && crewMembers.length > 0 && response.data.booking?.id) {
+      if (crewSplitEnabled && crewMembers.length > 0) {
         try {
-          await apiClient.post(`/bookings/${response.data.booking.id}/send-crew-requests`, {
+          await apiClient.post(`/bookings/${encodeURIComponent(bookingId)}/send-crew-requests`, {
             crew_members: crewMemberData,
             price_per_person: pricePerPerson,
             payment_deadline: paymentWindowExpires?.toISOString(),
             session_date: sessionDateTime.toISOString(),
-            photographer_name: photographer.full_name
+            photographer_name: photographer.full_name || photographer.username || 'Photographer'
           });
         } catch (crewError) {
+          if (visit.current !== submitted) return;
           logger.error('Failed to send crew payment requests:', crewError);
           // Don't fail the booking, just notify
           toast.warning('Booking created but crew notifications may be delayed');
         }
+        if (visit.current !== submitted) return;
       }
       
       setBookingResult({
         ...response.data,
+        booking_id: bookingId,
         session_date: sessionDateTime.toISOString(),
         location: impactZone.description,
         duration: selectedDuration,
-        total_paid: crewSplitEnabled ? captainShare : totalPrice,
-        credits_applied: appliedCredits,
         crew_split: crewSplitEnabled,
         crew_count: maxParticipants,
         price_per_person: pricePerPerson
       });
       
       // Upload selfie for the booking if captured
-      if (selfieUrl && response.data.booking?.id) {
+      if (selfieUrl) {
         try {
-          await apiClient.patch(`/bookings/${response.data.booking.id}/participant-selfie`, {
+          await apiClient.patch(`/bookings/${encodeURIComponent(bookingId)}/participant-selfie`, {
             participant_id: user.id,
             selfie_url: selfieUrl
           });
@@ -325,15 +349,35 @@ export const ScheduledBookingDrawer = ({
           logger.error('Failed to upload selfie:', selfieError);
           // Don't fail the booking, selfie can be added later
         }
+        if (visit.current !== submitted) return;
       }
       
       setStep('success');
-      toast.success('Session booked successfully!');
-      // Haptic feedback for premium mobile feel
-      if (typeof haptic === 'function') haptic('success');
+      const receiptStatus = getBookingReceiptStatus(response.data);
+      if (receiptStatus.confirmed) toast.success(receiptStatus.title);
+      else toast.info(receiptStatus.title);
+      if (typeof haptic === 'function') haptic(receiptStatus.confirmed ? 'success' : 'light');
       
     } catch (error) {
+      if (visit.current !== submitted) return;
+      const pendingId = error.response?.data?.pending_booking_id;
+      if (error.response?.status === 409 && typeof pendingId === 'string' && pendingId.trim()) {
+        setPendingBookingId(pendingId);
+        setStep('checkout');
+        return;
+      }
+      if (submittingBooking && (!error.response || error.response.status === 408 || error.response.status >= 500)) {
+        // A lost response can follow a committed booking. Keep any checkout link we already received.
+        setStep('checkout');
+        return;
+      }
       logger.error('Booking error:', error);
+      if (error.response?.status === 400 && error.response.data?.detail === 'Insufficient credit balance') {
+        wallet.retry();
+        setStep('payment');
+        toast.error('Your wallet balance changed. Review your payment again.');
+        return;
+      }
       
       // Handle time slot conflict specifically
       if (error.response?.status === 409) {
@@ -342,7 +386,8 @@ export const ScheduledBookingDrawer = ({
         toast.error(error.response?.data?.detail || 'Failed to create booking');
       }
     } finally {
-      setLoading(false);
+      submitted.submitting = false;
+      if (visit.current === submitted) setLoading(false);
     }
   };
   
@@ -405,7 +450,7 @@ export const ScheduledBookingDrawer = ({
           )}
         
           {/* Step Progress - Ultra Compact */}
-          {step !== 'success' && (
+          {step !== 'success' && step !== 'checkout' && (
             <div className="flex items-center justify-center gap-0.5 mb-3">
               {['time', 'location', 'crew', 'payment', 'selfie', 'confirm'].map((s, idx) => (
                 <React.Fragment key={s}>
@@ -532,10 +577,23 @@ export const ScheduledBookingDrawer = ({
               />
               
               {/* Payment Method Selection - Extracted Component */}
+              {wallet.balance === 0 && paymentMethod === 'credits' && (
+                <p role="status" className={textSecondary}>No credits are available. Choose a payment method to continue.</p>
+              )}
+              {userCredits > 0 && !canReviewPayment && (
+                <p role="status" className={textSecondary}>Your credits don’t cover your share. Choose card to apply credits and pay the rest.</p>
+              )}
+              {user?.id && wallet.balance === null && (
+                <div role="status" className={textSecondary}>
+                  {wallet.failed ? <>
+                    Wallet balance unavailable.{' '}
+                    <button type="button" onClick={wallet.retry} className="underline">Retry wallet balance</button>
+                  </> : 'Checking wallet balance…'}
+                </div>
+              )}
               <BookingPaymentStep
-                crewSplitEnabled={crewSplitEnabled}
-                captainShare={captainShare}
-                totalPrice={totalPrice}
+                amountToPay={amountToPay}
+                canPayFullWithCredits={canPayFullWithCredits}
                 userCredits={userCredits}
                 appliedCredits={appliedCredits}
                 setAppliedCredits={setAppliedCredits}
@@ -561,6 +619,19 @@ export const ScheduledBookingDrawer = ({
           )}
         
           {/* Step 6: Confirmation */}
+          {step === 'checkout' && (
+            <div className="space-y-4 py-6 text-center">
+              <p role="status" className={textPrimary}>
+                {pendingBookingId ? 'You already have a pending checkout for this session. Open Scheduled Bookings to resume or cancel it.'
+                  : checkoutUrl ? 'Your checkout is ready. Payment is pending.'
+                  : "We couldn't confirm your booking. Check Scheduled Bookings before trying again."}
+              </p>
+              {checkoutUrl && <a href={checkoutUrl} className="block underline">Continue to checkout</a>}
+              <a href={pendingBookingId ? `/bookings?tab=scheduled&highlight=${encodeURIComponent(pendingBookingId)}` : '/bookings?tab=scheduled'} className="block underline">
+                Check scheduled bookings
+              </a>
+            </div>
+          )}
           {step === 'confirm' && (
             <BookingConfirmStep
               photographer={photographer}
@@ -585,8 +656,7 @@ export const ScheduledBookingDrawer = ({
                 onViewBookings={() => {
                   onClose();
                   // Navigate to scheduled bookings tab with highlight on the new booking
-                  const newBookingId = bookingResult?.booking?.id || bookingResult?.id || '';
-                  window.location.href = `/bookings?tab=scheduled${newBookingId ? `&highlight=${newBookingId}` : ''}`;
+                  window.location.href = `/bookings?tab=scheduled&highlight=${encodeURIComponent(bookingResult.booking_id)}`;
                 }}
                 onAddAnotherSpot={() => {
                   setStep('time');
@@ -614,6 +684,7 @@ export const ScheduledBookingDrawer = ({
           canProceedFromTime={canProceedFromTime}
           canProceedFromLocation={canProceedFromLocation}
           canProceedFromCrew={canProceedFromCrew}
+          canReviewPayment={canReviewPayment}
         />
       </DialogContent>
     </Dialog>

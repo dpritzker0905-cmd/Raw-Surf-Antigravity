@@ -571,6 +571,23 @@ const CrossSellSuggestion = ({ type, _photographerName, onAction, isLight }) => 
   return null;
 };
 
+const getBookingReceiptStatus = (booking) => {
+  const legacyBooking = booking?.booking;
+  const differentBooking = booking?.booking_id && legacyBooking?.id && legacyBooking.id !== booking.booking_id;
+  const rawStatus = booking?.status ?? (differentBooking ? undefined : legacyBooking?.status);
+  const status = typeof rawStatus === 'string' ? rawStatus.trim().toLowerCase() : '';
+  switch (status) {
+    case 'confirmed':
+      return { title: 'Booking confirmed', confirmed: true };
+    case 'pending':
+      return { title: 'Booking pending', detail: 'Check My Bookings for updates on this session.' };
+    case 'pending acceptance':
+      return { title: 'Booking pending acceptance', detail: 'Your request is awaiting the photographer’s acceptance.' };
+    default:
+      return { title: 'Booking request received', detail: 'Check My Bookings for the current status.' };
+  }
+};
+
 const BookingConfirmation = ({ 
   booking, 
   photographer, 
@@ -579,12 +596,19 @@ const BookingConfirmation = ({
   onAddAnotherSpot,
   isLight 
 }) => {
+  const { title, detail, confirmed } = getBookingReceiptStatus(booking);
+  const amount = booking?.credits_applied;
+  // A confirmed wallet receipt can report its debit as Total Paid only if
+  // the other amounts on the receipt agree that credits covered the booking.
+  const fullyCovered = (booking?.total_price == null || booking.total_price === amount) &&
+    (booking?.amount_to_charge == null || booking.amount_to_charge === 0);
+  const hasAmount = Number.isFinite(amount) && amount >= 0 && (!confirmed || fullyCovered);
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
   return (
     <div className="text-center py-6 space-y-6">
-      {booking && (
+      {confirmed && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           '@context': 'https://schema.org',
           '@type': 'Event',
@@ -599,28 +623,32 @@ const BookingConfirmation = ({
             '@type': 'Person',
             name: photographer?.full_name || 'Raw Surf Photographer',
           },
-          offers: booking.total_paid ? {
+          offers: hasAmount ? {
             '@type': 'Offer',
-            price: booking.total_paid.toFixed(2),
+            price: amount.toFixed(2),
             priceCurrency: 'USD',
           } : undefined,
           eventStatus: 'https://schema.org/EventScheduled',
           eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
         }) }} />
       )}
-      <div className="relative">
-        <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center animate-pulse">
-          <CheckCircle2 className="w-12 h-12 text-white" />
+      {confirmed ? (
+        <div className="relative" aria-hidden="true">
+          <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center animate-pulse">
+            <CheckCircle2 className="w-12 h-12 text-white" />
+          </div>
+          <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-black" />
+          </div>
         </div>
-        <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center">
-          <Sparkles className="w-4 h-4 text-black" />
-        </div>
-      </div>
-      
-      <div>
-        <h3 className={`text-2xl font-bold ${textPrimary}`}>Session Booked!</h3>
+      ) : (
+        <Clock aria-hidden="true" className="mx-auto h-12 w-12 text-amber-500" />
+      )}
+
+      <div role="status">
+        <h3 className={`text-2xl font-bold ${textPrimary}`}>{title}</h3>
         <p className={textSecondary}>
-          Your session with {photographer?.full_name} is confirmed
+          {confirmed ? `Your session with ${photographer?.full_name || 'your photographer'} is confirmed.` : detail}
         </p>
       </div>
       
@@ -649,34 +677,40 @@ const BookingConfirmation = ({
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
-          <DollarSign className="w-5 h-5 text-green-400" />
-          <div>
-            <p className={`font-medium ${textPrimary}`}>${booking?.total_paid?.toFixed(2) || '0.00'}</p>
-            <p className={`text-sm ${textSecondary}`}>Total Paid</p>
+        {hasAmount ? (
+          <div className="flex items-center gap-3">
+            <DollarSign className="w-5 h-5 text-green-400" />
+            <div>
+              <p className={`font-medium ${textPrimary}`}>${amount.toFixed(2)}</p>
+              <p className={`text-sm ${textSecondary}`}>{confirmed ? 'Total Paid' : 'Credits applied'}</p>
+            </div>
           </div>
-        </div>
+        ) : confirmed && <p className={textSecondary}>Paid amount unavailable</p>}
       </div>
       
-      <div className={`flex items-center gap-2 p-3 rounded-lg ${isLight ? 'bg-blue-50' : 'bg-blue-500/10'} border ${isLight ? 'border-blue-200' : 'border-blue-500/30'}`}>
-        <Bell className="w-5 h-5 text-blue-400" />
-        <p className={`text-sm ${isLight ? 'text-blue-700' : 'text-blue-300'}`}>
-          You'll receive a notification when it's time to head out!
-        </p>
-      </div>
-      
-      <div className={`flex items-center justify-center gap-2 p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30`}>
-        <Gift className="w-5 h-5 text-purple-400" />
-        <span className={`font-medium ${textPrimary}`}>+50 XP earned!</span>
-        <Badge className="bg-purple-500/20 text-purple-400 text-xs">Passport</Badge>
-      </div>
-      
-      <div className={`flex items-center gap-2 p-3 rounded-lg ${isLight ? 'bg-green-50' : 'bg-green-500/10'} border ${isLight ? 'border-green-200' : 'border-green-500/30'}`}>
-        <Check className="w-5 h-5 text-green-400" />
-        <p className={`text-sm ${isLight ? 'text-green-700' : 'text-green-300'}`}>
-          Payment protected until session complete & content delivered
-        </p>
-      </div>
+      {confirmed && (
+        <>
+          <div className={`flex items-center gap-2 p-3 rounded-lg ${isLight ? 'bg-blue-50' : 'bg-blue-500/10'} border ${isLight ? 'border-blue-200' : 'border-blue-500/30'}`}>
+            <Bell className="w-5 h-5 text-blue-400" />
+            <p className={`text-sm ${isLight ? 'text-blue-700' : 'text-blue-300'}`}>
+              You'll receive a notification when it's time to head out!
+            </p>
+          </div>
+
+          <div className={`flex items-center justify-center gap-2 p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30`}>
+            <Gift className="w-5 h-5 text-purple-400" />
+            <span className={`font-medium ${textPrimary}`}>+50 XP earned!</span>
+            <Badge className="bg-purple-500/20 text-purple-400 text-xs">Passport</Badge>
+          </div>
+
+          <div className={`flex items-center gap-2 p-3 rounded-lg ${isLight ? 'bg-green-50' : 'bg-green-500/10'} border ${isLight ? 'border-green-200' : 'border-green-500/30'}`}>
+            <Check className="w-5 h-5 text-green-400" />
+            <p className={`text-sm ${isLight ? 'text-green-700' : 'text-green-300'}`}>
+              Payment protected until session complete & content delivered
+            </p>
+          </div>
+        </>
+      )}
       
       <div className="flex flex-col gap-3">
         <Button aria-label="Location"
@@ -714,5 +748,6 @@ export {
   SCHED_BOARD_COLORS,
   CrewSplitSection,
   CrossSellSuggestion,
+  getBookingReceiptStatus,
   BookingConfirmation
 };

@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 9,
+  "files": 0,
+  "branch": "codex/scheduled-wallet-lost-response",
+  "date": "2026-11-27",
+  "note": "Credit-funded booking recovery after an uncertain response or an incomplete receipt"
+}

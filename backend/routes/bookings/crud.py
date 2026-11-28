@@ -2,8 +2,10 @@
 bookings/crud.py â€” Core booking CRUD: list, get, create, cancel, complete, share, sessions
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import select, and_, or_, func, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -12,6 +14,7 @@ import json
 import math
 import logging
 import os
+import sqlite3
 import stripe
 
 from database import get_db
@@ -41,18 +44,67 @@ if STRIPE_API_KEY:
 
 # ============ TIME SLOT CONFLICT VALIDATION ============
 
+def scheduled_start_utc(value: str) -> datetime:
+    try:
+        start = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+    return start.replace(tzinfo=timezone.utc) if start.tzinfo is None else start.astimezone(timezone.utc)
+
+
+def format_scheduled_start(start: datetime) -> str:
+    """Show the full date and zone without inferring an offset for a historical wall time."""
+    if start.utcoffset() is None:
+        return start.strftime("%b %d, %Y at %I:%M %p (time zone unavailable)")
+    return start.astimezone(timezone.utc).strftime("%b %d, %Y at %I:%M %p UTC")
+
+
+async def lock_booking_buyer(db: AsyncSession, user_id: str) -> Profile:
+    """Serialize scheduled booking creates from the same buyer before checking the slot."""
+    dialect = db.get_bind().dialect.name
+    restore_timeout = None
+    try:
+        if dialect == "postgresql":
+            # First SQL in both create routes. The conflict query must see the preceding buyer's commit.
+            await db.execute(text("SET TRANSACTION ISOLATION LEVEL READ COMMITTED"))
+            previous_ms = await db.scalar(text("SELECT setting::integer FROM pg_settings WHERE name = 'lock_timeout'"))
+            if previous_ms == 0 or previous_ms > 5000:
+                await db.execute(text("SET LOCAL lock_timeout = '5s'"))
+                restore_timeout = str(previous_ms)
+        elif dialect == "sqlite":
+            # The SQLite connection's busy timeout bounds this writer reservation.
+            await db.execute(text("UPDATE bookings SET status = status WHERE 0"))
+        # FOR NO KEY UPDATE on PostgreSQL allows foreign-key reads while competing creates wait.
+        result = await db.execute(select(Profile).where(Profile.id == user_id).with_for_update(key_share=True))
+    except DBAPIError as error:
+        sqlite_code = getattr(error.orig, "sqlite_errorcode", 0)
+        if (getattr(error.orig, "sqlstate", None) != "55P03"
+                and (sqlite_code & 0xff) not in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED)):
+            raise
+        await db.rollback()
+        raise HTTPException(status_code=503, detail="Booking is busy. Check your scheduled bookings before retrying.") from None
+    buyer = result.scalar_one_or_none()
+    if restore_timeout is not None:
+        await db.execute(text("SELECT set_config('lock_timeout', :previous, true)"), {"previous": restore_timeout})
+    if buyer is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return buyer
+
+
 async def check_time_slot_conflict(
     db: AsyncSession,
     photographer_id: str,
     session_date: datetime,
     duration: int,
-    exclude_booking_id: Optional[str] = None
+    exclude_booking_id: Optional[str] = None,
+    pending_creator_id: Optional[str] = None,
 ) -> Optional[dict]:
     """
     Check if the requested time slot conflicts with existing bookings for the photographer.
     Returns conflict details if found, None if time slot is available.
     
-    Only checks scheduled bookings (not on_demand) and non-cancelled statuses.
+    Pending checkouts block repeat creates by their own buyer for the same start.
+    Availability reads retain the existing active-bookings view.
     """
     # Legacy naive dates represent UTC. Compare instants consistently with
     # timezone-aware database timestamps and offset-bearing requests.
@@ -60,11 +112,15 @@ async def check_time_slot_conflict(
                        else session_date.astimezone(timezone.utc))
     session_end = requested_start + timedelta(minutes=duration)
     
-    # Build query for existing bookings
+    active_status = Booking.status.notin_(['Cancelled', 'Pending Payment'])
+    if pending_creator_id is not None:
+        active_status = or_(active_status, and_(
+            Booking.status == 'Pending Payment', Booking.creator_id == pending_creator_id,
+        ))
     query = select(Booking).where(
         and_(
             Booking.photographer_id == photographer_id,
-            Booking.status.notin_(['Cancelled', 'Pending Payment']),  # Active bookings only
+            active_status,
             or_(
                 Booking.booking_type.is_(None),
                 Booking.booking_type != 'on_demand'  # Only check scheduled bookings
@@ -87,6 +143,14 @@ async def check_time_slot_conflict(
         # Check for overlap: new session overlaps if it starts before existing ends AND ends after existing starts
         existing_start_utc = (existing_start.replace(tzinfo=timezone.utc) if existing_start.tzinfo is None
                               else existing_start.astimezone(timezone.utc))
+        if booking.status == 'Pending Payment':
+            if existing_start_utc == requested_start:
+                return {
+                    "conflict": True,
+                    "pending_booking_id": booking.id,
+                    "message": "You already started checkout for this session. Check your scheduled bookings.",
+                }
+            continue
         existing_end_utc = existing_start_utc + timedelta(minutes=booking.duration)
         if requested_start < existing_end_utc and session_end > existing_start_utc:
             return {
@@ -99,6 +163,13 @@ async def check_time_slot_conflict(
             }
     
     return None  # No conflict
+
+
+def booking_conflict_response(conflict: dict) -> JSONResponse:
+    content = {"detail": conflict["message"]}
+    if "pending_booking_id" in conflict:
+        content["pending_booking_id"] = conflict["pending_booking_id"]
+    return JSONResponse(status_code=409, content=content)
 
 
 # ============ PYDANTIC MODELS (shared across booking modules) ============
@@ -462,7 +533,7 @@ async def get_booking_share_link(
     
     # Format date nicely
     session_date = booking.session_date
-    date_str = session_date.strftime('%b %d at %I:%M %p') if session_date else 'TBD'
+    date_str = format_scheduled_start(session_date) if session_date else 'TBD'
     
     # Generate message text for DMs
     share_message = (
