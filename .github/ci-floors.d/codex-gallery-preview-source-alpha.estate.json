@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 6,
+  "branch": "codex/gallery-preview-source-alpha",
+  "date": "2026-11-28",
+  "note": "Check source and watermark transparency in on-demand JPEG and uploaded JPEG/PNG previews."
+}

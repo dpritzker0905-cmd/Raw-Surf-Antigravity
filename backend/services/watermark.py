@@ -258,6 +258,13 @@ def create_watermark_pattern(width: int, height: int, text: str = DEFAULT_WATERM
     return watermark
 
 
+def flatten_watermarked_rgba(image: Image.Image) -> Image.Image:
+    """Render the composited RGBA image on black for opaque preview output."""
+    result = Image.new("RGB", image.size, "black")
+    result.paste(image, mask=image.getchannel("A"))
+    return result
+
+
 def apply_watermark(
     image: Image.Image,
     text: str = DEFAULT_WATERMARK_TEXT,
@@ -296,7 +303,7 @@ def apply_watermark(
     watermarked = Image.alpha_composite(image, watermark)
     
     # Convert back to RGB for JPEG saving
-    return watermarked.convert('RGB')
+    return flatten_watermarked_rgba(watermarked)
 
 
 def watermark_image_from_url(
