@@ -17,6 +17,7 @@ from models import (
     Profile, Booking, BookingParticipant,
     Notification, PaymentTransaction
 )
+from services.shared_quick_book_hold import hold_interrupted_booking, linked_quick_book, requires_settlement
 from utils.credits import deduct_credits, add_credits, refund_credits
 from websocket_manager import broadcast_earnings_update
 from core.security import get_user_id_from_jwt_or_query, get_current_user_id
@@ -223,6 +224,9 @@ async def captain_pay_hold(
     if booking.creator_id != captain_id:
         raise HTTPException(status_code=403, detail="Only the session captain can pay the hold")
     
+    if await linked_quick_book(db, booking):
+        raise HTTPException(409, "Use the shared Quick Book to manage crew payments.")
+
     if booking.captain_hold_paid:
         raise HTTPException(status_code=400, detail="Hold already paid")
     
@@ -543,6 +547,14 @@ async def cancel_and_refund(
     if booking.creator_id != captain_id:
         raise HTTPException(status_code=403, detail="Only the session captain can cancel")
     
+    dispatch = await linked_quick_book(db, booking)
+    if dispatch is not None:
+        if not requires_settlement(dispatch):
+            raise HTTPException(409, "This shared session is already closed.")
+        result = await hold_interrupted_booking(db, dispatch, captain_id, "Captain cancelled shared session")
+        await db.commit()
+        return {**result, "booking_status": "Cancelled", "success": True}
+
     if booking.status == "Confirmed":
         raise HTTPException(status_code=400, detail="Cannot cancel a confirmed booking")
     

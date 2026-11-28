@@ -145,6 +145,8 @@ async def get_dispatch_request(
         "is_shared": dispatch.is_shared,
         "participants": participants_data,
         "booking_id": dispatch.booking_id,
+        "target_photographer_id": dispatch.target_photographer_id,
+        "settlement_status": "pending_settlement" if dispatch.refund_type == "pending_settlement" else None,
         "selfie_url": dispatch.selfie_url,
         "cancelled_reason": dispatch.cancellation_reason,
         "refund_amount": dispatch.refund_amount if hasattr(dispatch, 'refund_amount') else None,

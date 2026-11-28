@@ -24,6 +24,7 @@ from models import (
 )
 
 from services.shared_dispatch_guest_credits import return_guest_payments
+from services.shared_quick_book_hold import hold_interrupted_booking, requires_settlement
 from services.shared_dispatch_allowance import cancel_included_session
 from .schemas import CancelDispatchRequest
 
@@ -191,17 +192,22 @@ async def cancel_dispatch(
     if not dispatch:
         raise HTTPException(status_code=404, detail="Dispatch request not found")
 
-    # Reject if already cancelled or completed
-    if dispatch.status in (DispatchRequestStatusEnum.CANCELLED, DispatchRequestStatusEnum.COMPLETED,
-                            DispatchRequestStatusEnum.REFUNDED, DispatchRequestStatusEnum.NO_PRO_FOUND):
-        raise HTTPException(status_code=400, detail=f"Dispatch is already {dispatch.status.value}")
-
     # Only requester or photographer can cancel (normalize to str for safe comparison)
     allowed_ids = [str(dispatch.requester_id)]
     if dispatch.photographer_id:
         allowed_ids.append(str(dispatch.photographer_id))
     if str(user_id) not in allowed_ids:
         raise HTTPException(status_code=403, detail="Only the requester or assigned photographer can cancel")
+
+    if requires_settlement(dispatch):
+        result = await hold_interrupted_booking(db, dispatch, user_id, cancel_data.reason)
+        await db.commit()
+        return result
+
+    # Reject if already cancelled or completed
+    if dispatch.status in (DispatchRequestStatusEnum.CANCELLED, DispatchRequestStatusEnum.COMPLETED,
+                            DispatchRequestStatusEnum.REFUNDED, DispatchRequestStatusEnum.NO_PRO_FOUND):
+        raise HTTPException(status_code=400, detail=f"Dispatch is already {dispatch.status.value}")
 
     now = datetime.now(timezone.utc)
 

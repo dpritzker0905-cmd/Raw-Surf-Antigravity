@@ -470,7 +470,9 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   Are you sure you want to cancel this on-demand booking?
                 </p>
                 <p className={`text-xs ${textSecondary} text-center`}>
-                  {photographer?.on_demand_cancellation_fee_pct === 0
+                  {acceptedData?.sharedQuickBook
+                    ? 'Payments and any included session will be held for settlement after acceptance.'
+                    : photographer?.on_demand_cancellation_fee_pct === 0
                     ? 'Your payment will be fully refunded to your account credits.'
                     : photographer?.on_demand_cancellation_fee_pct === 100
                       ? 'This photographer has a non-refundable cancellation policy.'
@@ -490,7 +492,9 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                         const res = await apiClient.post(`/dispatch/${requestId}/cancel?user_id=${user.id}`, { reason: 'User cancelled' });
                         const feeAmt = res.data?.fee_amount || 0;
                         const refundAmt = res.data?.refund_amount || 0;
-                        if (feeAmt > 0) {
+                        if (res.data?.settlement_status === 'pending_settlement') {
+                          toast.info(res.data.message);
+                        } else if (feeAmt > 0) {
                           toast.info(`Cancelled. $${refundAmt.toFixed(2)} refunded, $${feeAmt.toFixed(2)} fee applied.`, { duration: 6000 });
                         } else {
                           toast.info('Request cancelled. Your payment has been refunded to credits.');

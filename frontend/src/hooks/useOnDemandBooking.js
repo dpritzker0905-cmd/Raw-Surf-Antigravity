@@ -364,6 +364,7 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
           } catch (e) { /* audio playback unavailable - ignore silently */ }
           
           setAcceptedData({
+            sharedQuickBook: Boolean(data.is_shared && data.target_photographer_id),
             photographer_id: data.photographer?.id,
             photographer_name: data.photographer?.name || photographer?.full_name,
             photographer_avatar: data.photographer?.avatar || photographer?.avatar_url,
@@ -392,7 +393,9 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
           // Check if it was declined by photographer
           const wasDeclined = data.cancelled_reason?.includes('declined');
           
-          if (wasDeclined) {
+          if (data.settlement_status === 'pending_settlement') {
+            toast.info('Session cancelled. Payments and any included session are held for settlement.');
+          } else if (wasDeclined) {
             toast.error('The photographer is unavailable right now. Your credits have been refunded.', {
               duration: 5000
             });

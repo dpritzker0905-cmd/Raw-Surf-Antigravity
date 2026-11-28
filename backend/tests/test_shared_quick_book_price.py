@@ -393,7 +393,7 @@ async def test_deadline_reconciles_unlinked_card_attempt(shared, monkeypatch, ou
     provider.create.assert_not_called()
 
 
-async def test_accepted_cancellation_returns_unit_and_applies_fee_to_paid_cash_only(shared, harness):
+async def test_accepted_cancellation_holds_paid_captain_share_and_original_unit(shared, harness):
     from models import DispatchRequestStatusEnum as Status
     from routes.dispatch import dispatch_transitions
     app, client, maker = harness
@@ -407,10 +407,14 @@ async def test_accepted_cancellation_returns_unit_and_applies_fee_to_paid_cash_o
         (await db.get(Profile, PRO)).on_demand_cancellation_fee_pct = 50
     response = await client.post(f"/api/dispatch/{dispatch_id}/cancel", json={}, headers=bearer(CAPTAIN))
     assert response.status_code == 200, response.text
-    assert response.json()["refund_amount"] == 17.50
+    assert response.json()["settlement_status"] == "pending_settlement"
+    assert response.json()["fee_amount"] == response.json()["refund_amount"] == 0
     async with maker() as db:
-        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 1
-        assert (await db.get(Profile, CAPTAIN)).credit_balance == 82.50
+        from models import Booking
+        held = await db.get(Booking, response.json()["booking_id"])
+        assert (held.status, held.escrow_status, held.escrow_amount) == ("Cancelled", "pending_settlement", 35)
+        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 0
+        assert (await db.get(Profile, CAPTAIN)).credit_balance == 65
 
 
 async def test_no_crew_payment_can_precede_the_captain_confirmation(shared, harness, monkeypatch):
@@ -538,3 +542,82 @@ async def test_captain_recovers_guest_shares_they_covered(shared, harness):
                    .where(CreditTransaction.amount > 0))).all()
         assert credits == [(CAPTAIN, 70)]
         assert (await db.get(Profile, CAPTAIN)).credit_balance == 100
+
+
+@pytest.mark.parametrize("ending", ["cancel", "booking", "decline", "late_card"])
+async def test_interrupted_shared_booking_stays_on_hold_across_routes(shared, harness, monkeypatch, ending):
+    import json
+    from models import Booking, DispatchRequestStatusEnum as Status, PaymentTransaction
+    from routes.bookings import booking_cancellation, booking_lifecycle
+    from routes.dispatch import dispatch_transitions, lifecycle
+    from scheduler.financial import auto_release_escrow_task
+
+    app, client, maker = harness
+    for router in (dispatch_transitions.router, lifecycle.router, booking_cancellation.router, booking_lifecycle.router):
+        app.include_router(router, prefix="/api")
+    did = (await create(client, TERMS, (await preview(client, TERMS))["quote_id"])).json()["id"]
+    assert (await client.post(f"/api/dispatch/{did}/pay?payer_id=victim", headers=bearer(CAPTAIN))).status_code == 200
+    async with maker.begin() as db:
+        dispatch = await db.get(DispatchRequest, did)
+        dispatch.status, dispatch.photographer_id, dispatch.accepted_at = Status.EN_ROUTE, PRO, datetime.now(timezone.utc)
+        seats = {seat.participant_id:seat.id for seat in (await db.scalars(select(DispatchRequestParticipant)
+                 .where(DispatchRequestParticipant.dispatch_request_id == did))).all()}
+    paying = ["north"] if ending == "late_card" else ["north", "south"]
+    for guest in paying:
+        response = await client.post(f"/api/dispatch/crew-invite/{seats[guest]}/pay?payer_id={guest}",
+                                     headers=bearer(guest), json={"selfie_url": "fixture.jpg"})
+        assert response.status_code == 200, response.text
+    if ending == "late_card":
+        receipt = dict(type="crew_share", version=1, participant_id=seats["south"], dispatch_id=did,
+                       payer_id="south", amount_cents=3500, currency="usd")
+        async with maker.begin() as db:
+            db.add(PaymentTransaction(user_id="south", amount=35, currency="usd", session_id="cs_held_fixture",
+                   status="pending", payment_status="pending", transaction_metadata=json.dumps(receipt)))
+    arrived = await client.post(f"/api/dispatch/{did}/arrived?photographer_id={PRO}", headers=bearer(PRO))
+    assert arrived.status_code == 200, arrived.text
+    bid = arrived.json()["booking_id"]
+    denied = await client.post(f"/api/dispatch/{did}/cancel", json={}, headers=bearer("north"))
+    assert denied.status_code == 403
+    if ending == "booking":
+        response = await client.post(f"/api/bookings/{bid}/cancel", headers=bearer(PRO), json={"reason":"weather"})
+    elif ending == "decline":
+        response = await client.post(f"/api/dispatch/{did}/decline?photographer_id={PRO}", headers=bearer(PRO))
+    else:
+        response = await client.post(f"/api/dispatch/{did}/cancel", headers=bearer(CAPTAIN), json={"reason":"weather"})
+    assert response.status_code == 200, response.text
+    assert response.json()["booking_id"] == bid
+    assert response.json()["settlement_status"] == "pending_settlement"
+    assert response.json()["refund_amount"] == response.json()["fee_amount"] == 0
+    replay = await client.post(f"/api/bookings/{bid}/cancel", headers=bearer(CAPTAIN), json={})
+    assert replay.json()["booking_id"] == bid
+    if ending == "late_card":
+        checkout = SimpleNamespace(id="cs_held_fixture", mode="payment", status="complete", payment_status="paid",
+            payment_intent="pi_held_fixture", amount_total=3500, currency="usd",
+            metadata={key:str(value) for key,value in receipt.items()})
+        retrieve = Mock(return_value=checkout)
+        monkeypatch.setattr(sessions.stripe.checkout.Session, "retrieve", retrieve)
+        for _ in range(2):
+            result = await client.get("/api/dispatch/crew-payment/cs_held_fixture", headers=bearer("south"))
+            assert result.json()["status"] == "pending_settlement", result.text
+        retrieve.assert_called_once()
+    for route in (f"/api/bookings/{bid}/complete", f"/api/bookings/{bid}/content-delivered",
+                  f"/api/dispatch/{did}/complete?photographer_id={PRO}"):
+        response = await client.post(route, headers=bearer(PRO))
+        assert response.status_code in (400,409), response.text
+    async with maker.begin() as db:
+        (await db.get(Booking,bid)).session_date = datetime.now(timezone.utc) - timedelta(days=10)
+    await auto_release_escrow_task()
+    async with maker() as db:
+        dispatch = await db.get(DispatchRequest, did)
+        booking = await db.get(Booking, bid)
+        assert (dispatch.status, dispatch.booking_id, dispatch.included_session_restored_at) == (Status.CANCELLED, bid, None)
+        assert (booking.status, booking.escrow_status, booking.escrow_amount) == ("Cancelled", "pending_settlement", 70)
+        assert booking.cancelled_at == dispatch.cancelled_at
+        assert (await db.get(SurferPhotoSubscription, "plan")).sessions_remaining == 0
+        assert (await db.get(Profile, PRO)).credit_balance == 0
+        assert (await db.get(Profile, "north")).credit_balance == 65
+        assert (await db.get(Profile, "south")).credit_balance == (100 if ending == "late_card" else 65)
+        assert await db.scalar(select(func.count()).select_from(CreditTransaction).where(CreditTransaction.amount > 0)) == 0
+        notifications = (await db.scalars(select(Notification.user_id)
+                         .where(Notification.type == "dispatch_cancelled"))).all()
+        assert sorted(notifications) == sorted([CAPTAIN, PRO, "north", "south"])

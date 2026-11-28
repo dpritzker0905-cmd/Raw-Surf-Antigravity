@@ -357,6 +357,18 @@ async def complete_booking(
         raise HTTPException(status_code=404, detail="Booking not found")
     if booking.photographer_id != user_id:
         raise HTTPException(status_code=403, detail="Only photographer can mark booking as completed")
+    from services.shared_quick_book_hold import linked_quick_book
+    dispatch = await linked_quick_book(db, booking)
+    if dispatch is not None:
+        from routes.dispatch.dispatch_transitions import complete_dispatch_session
+        # Complete and cancel serialize on the same dispatch even when invoked via a booking.
+        result = await complete_dispatch_session(dispatch.id, user_id, user_id, db)
+        await db.refresh(booking, with_for_update=True)
+        if booking.content_delivered and booking.escrow_status == 'held':
+            await release_escrow(booking, db)
+            await db.commit()
+        return {**result, "booking_id": booking.id, "escrow_status": booking.escrow_status,
+                "content_delivered": booking.content_delivered}
     if booking.status == 'Completed':
         raise HTTPException(status_code=400, detail="Booking already completed")
     if booking.status == 'Cancelled':
@@ -436,7 +448,7 @@ async def mark_content_delivered(
     from .invites import release_escrow
 
     result = await db.execute(
-        select(Booking).where(Booking.id == booking_id)
+        select(Booking).where(Booking.id == booking_id).with_for_update()
         .options(selectinload(Booking.photographer))
     )
     booking = result.scalar_one_or_none()
@@ -446,6 +458,8 @@ async def mark_content_delivered(
     if booking.photographer_id != user_id:
         raise HTTPException(status_code=403, detail="Only photographer can mark content as delivered")
 
+    if booking.escrow_status == 'pending_settlement':
+        raise HTTPException(409, "This interrupted session is awaiting settlement.")
     booking.content_delivered = True
     booking.content_delivered_at = datetime.now(timezone.utc)
 

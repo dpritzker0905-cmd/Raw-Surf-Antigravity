@@ -81,6 +81,9 @@ async def request_cancellation_exception(
     if dispatch.status != DispatchRequestStatusEnum.CANCELLED:
         raise HTTPException(status_code=400, detail="Can only request exception for cancelled sessions")
     
+    if dispatch.refund_type == 'pending_settlement':
+        raise HTTPException(409, detail='Settlement is pending. No cancellation fee has been assessed.')
+
     if not dispatch.photographer_id:
         raise HTTPException(status_code=400, detail="No photographer assigned — no fee to dispute")
     
@@ -162,6 +165,10 @@ async def resolve_cancellation_exception(
     if exception_req.photographer_id != user_id:
         raise HTTPException(status_code=403, detail="Only the assigned photographer can resolve this")
     
+    dispatch = await db.get(DispatchRequest, dispatch_id, with_for_update=True)
+    if dispatch and dispatch.refund_type == 'pending_settlement':
+        raise HTTPException(409, detail='Settlement is pending. No cancellation fee has been assessed.')
+
     now = datetime.now(timezone.utc)
     
     if data.approved:

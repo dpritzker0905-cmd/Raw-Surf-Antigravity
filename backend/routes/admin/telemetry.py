@@ -79,7 +79,7 @@ async def get_dashboard_actions(admin: Profile = Depends(get_current_admin)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to query admin actions: {str(e)}")
 
-async def _perform_real_cancellation_refund(booking_id: str, db: AsyncSession) -> dict:
+async def _perform_real_cancellation_refund(booking_id: str, db: AsyncSession, actor_id: str = None) -> dict:
     """
     Actually cancel a booking and refund its participants (100%, matching the same
     policy the app uses for photographer-initiated cancellations), instead of just
@@ -104,6 +104,15 @@ async def _perform_real_cancellation_refund(booking_id: str, db: AsyncSession) -
             }
         }
 
+    from services.shared_quick_book_hold import hold_interrupted_booking, linked_quick_book, requires_settlement
+    dispatch = await linked_quick_book(db, booking)
+    if dispatch is not None and requires_settlement(dispatch):
+        result = await hold_interrupted_booking(db, dispatch, actor_id, "Admin safety cancellation")
+        await db.commit()
+        return {"booking_action": {**result, "status": "pending_settlement"},
+                "calendar_sync": {"status": "not_integrated"}}
+    if dispatch is not None and dispatch.status.value == 'cancelled' and booking.status != 'Cancelled':
+        raise HTTPException(409, "An earlier cancellation needs reconciliation before any refund.")
     if booking.status in ('Cancelled', 'Completed'):
         return {
             "booking_action": {
@@ -181,7 +190,7 @@ async def approve_dashboard_action(req: ApproveActionRequest, admin: Profile = D
             # This decision type claims to cancel a booking + refund the customer —
             # actually do that instead of reporting a fabricated success message.
             real_integration_results = await _perform_real_cancellation_refund(
-                booking_id=decision.get("proposed_value"), db=db
+                booking_id=decision.get("proposed_value"), db=db, actor_id=admin.id
             )
 
         res = operator_mcp_server.execute_decision(

@@ -50,7 +50,7 @@ const CrewCardPaymentSuccess = () => {
             return;
           }
           show('completed', 'Your crew share is paid. Open your bookings to view the session.');
-        } else if (['wallet_credited', 'review_required', 'refunded', 'partially_refunded', 'expired'].includes(payment.status)) {
+        } else if (['pending_settlement', 'wallet_credited', 'review_required', 'refunded', 'partially_refunded', 'expired'].includes(payment.status)) {
           show(payment.status, typeof payment.message === 'string' ? payment.message : undefined);
         } else if (attempts < MAX_ATTEMPTS) {
           // Provider-paid alone does not prove that the crew participant was fulfilled.
@@ -78,6 +78,7 @@ const CrewCardPaymentSuccess = () => {
     pending: 'Confirming your crew payment',
     completed: 'Crew payment confirmed',
     review_required: 'Your crew payment needs review',
+    pending_settlement: 'Crew payment held for settlement',
     wallet_credited: 'Payment returned to your Raw Surf wallet',
     refunded: 'Crew payment refunded',
     partially_refunded: 'Crew payment partially refunded',
@@ -89,6 +90,7 @@ const CrewCardPaymentSuccess = () => {
     checking: 'Please wait while your account and payment are verified.',
     pending: 'Your crew payment has not finished confirming. You do not need to start another checkout.',
     review_required: 'Contact support before starting another checkout. Your crew place has not been confirmed here.',
+    pending_settlement: 'Your card payment is held while the cancelled session is reviewed.',
     wallet_credited: 'Your card payment is now available as Raw Surf wallet credit.',
     refunded: 'This payment was refunded. This receipt does not confirm an active crew place.',
     partially_refunded: 'This payment has a partial refund. Contact support to confirm your crew place.',
