@@ -1,0 +1,7 @@
+# Wind and Gusts display on dev
+
+David requested the live production dark Wind appearance as the reference for both layers. The default non-tint pass uses SRC_ALPHA with premultiplied Wind output. Gusts pre-scales its field colour to match at equal knots. Its particles sample gust speed for colour and sustained wind vectors for motion. Gustiness hatching retains its existing thresholds. No served forecast number changes.
+
+The local Wind shader on AMD Radeon 890M and SwiftShader matched the production compositing formula within 0.7/255 over water across 13 speeds. The source-based field comparison covered 0 to 75 knots in half-knot increments at zooms 3, 5 and 8, over water and land. Maximum differences were 0.32 dE00 for dark, 0.25 for Beach, and 0.20 for Light through 40 knots. The previously selected softer Light fast band reached 4.1 at 75 knots over land. Production dark also restores two known contrast misses: at 7 knots the water tint measures 9.0 dE00 against a target of 14, and the 6-8 knot tint approaches the water hue.
+
+LongCat, SubQ and Reflection reviewed the change summary. Their primary concerns were runtime evidence for compositing, hatch and animation, the Light upper band, and cross-renderer coverage. The GPU readbacks cover Wind. The equal-speed Gusts comparisons are calculated composites. Focused tests cover the modifier precedence, gust encoding, shared flow and hatch selection.

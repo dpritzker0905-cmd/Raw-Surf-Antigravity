@@ -95,9 +95,7 @@ export function gustAlpha(theme, stops, kn, c, win) {
  * With it on, the dark gust LUT holds rgb x a_wind with alpha = the wind's law, and the layer draws at the wind field's own
  * opacity (0.48, gustFieldOpacity) at every zoom: alpha = a_wind and colour = rgb x a_wind^2, the wind field's composite to the
  * byte (pinned in gustsLayer.test.js). The legend bar is unchanged (it shows the colours, as the wind legend does).
- * Since dark's wind field is laid by the premultiplied law (windDarkFieldVivid.js, 2026-11-22: rgb x a + map x (1 - a)), the
- * LUT holds the colour itself (no pre-scale) so the gust lands as rgb x a_wind, still the wind field's composite; under that
- * module's kill the pre-scale returns with the wind's squared law.
+ * The optional vivid Wind comparison uses unscaled RGB in the gust table.
  * Kill: window.__RAW_DISABLE_GUST_DARK_FIELD__ = true (read when the gust LUT is built: a reload or a theme change).
  */
 export function gustDarkFieldOn(theme, win = (typeof window !== 'undefined' ? window : null)) {
@@ -124,7 +122,7 @@ export function gustScale(theme, win) {
     const c = sampleRamp(stops, kn);
     breakpoints.push(kn);
     if (dark) {   // DARK FIELD PARITY: alpha = the wind's law (the layer draws at 0.48); the colour as the wind field lays it:
-      // c a (windDarkFieldVivid.js, the default) or, under its kill, pre-scaled by the wind's alpha for its squared law c a^2
+      // Production uses pre-scaled colour for c a^2. The vivid comparison uses c a.
       const aw = windDarkFieldAlpha(kn), k = vivid ? 1 : aw;
       colors.push([Math.round(c[0] * k * 255), Math.round(c[1] * k * 255), Math.round(c[2] * k * 255), aw / WIND_FIELD_OPACITY.dark]);
     } else {

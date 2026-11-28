@@ -12,8 +12,7 @@
 // model in it: (white - black) = 1 - a_dst (how much map is left), black = c k (how much colour is laid). Fit k against a and a^2.
 // It repeats the read over dark's water and land grounds, and with the canvas-alpha kill (__RAW_DISABLE_WIND_OPAQUE_CANVAS__: one
 // blendFunc for colour and alpha) to show that path moves the canvas's ALPHA only, never the colour.
-// THE FIX (windDarkFieldVivid.js, 2026-11-22): the engine now blends dark's field by windFieldSrcFactor (ONE for dark), so the
-// default path is read as 'vivid' too, with the factor taken from the app's own module; 'opaque' is that module's kill (SRC_ALPHA).
+// The opaque pass uses the current engine default. The vivid pass measures the alternate ONE blend.
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -44,18 +43,18 @@ const { generateRampData, resolveDrawnField } = new Function('DARK_RULES', 'DARK
   source(path.join(MAPDIR, 'WindColorRamp.js')) + '; return { generateRampData, resolveDrawnField };')(DARK_RULES, DARK_WHITE, solveDarkRules, windLandWhite, setWindLandDepthGate, BEACH_PATH, beachPathRows, LIGHT_PATH, lightTables);
 const MAX = 50, LUT = Array.from(generateRampData(MAX, resolveDrawnField('dark', {}), null, {}));
 const { windFieldSrcFactor } = new Function(source(path.join(MAPDIR, 'windDarkFieldVivid.js')) + '; return { windFieldSrcFactor };')();
-const SRC_ONE = windFieldSrcFactor({ ONE: 'ONE', SRC_ALPHA: 'SRC_ALPHA' }, 'dark', {});   // the factor the engine passes for dark (default)
-if (SRC_ONE !== 'ONE') throw new Error(`windFieldSrcFactor('dark') is ${SRC_ONE}, expected ONE`);
+const DEFAULT_SRC = windFieldSrcFactor({ ONE: 'ONE', SRC_ALPHA: 'SRC_ALPHA' }, 'dark', {});   // the factor the engine passes for dark (default)
+if (DEFAULT_SRC !== 'SRC_ALPHA') throw new Error(`windFieldSrcFactor('dark') is ${DEFAULT_SRC}, expected production SRC_ALPHA`);
 const OPACITY = 0.48;   // WebGLWindEngine.js heatmapOpacity for dark
 const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 const lawA = (kn) => OPACITY * (0.44 + 0.56 * ss(0, 5, kn));   // HEATMAP_FS dark: baseAlpha 0.44, rampEnd 5
 const SPEEDS = [0, 1, 2, 3, 4, 6, 10, 16, 21, 27, 33, 40, 47];
 const GROUNDS = { black: [0, 0, 0], white: [255, 255, 255], water: [93, 117, 126], land: [58, 71, 79] };   // dark's water (check.mjs MODEL) and land under the wind (GUSTS section)
 
-const browser = await chromium.launch({ headless: true, args: gpuArgs(args.find((a) => a === 'swiftshader')) });
+const browser = await chromium.launch({ headless: true, channel: args.includes('--chrome') ? 'chrome' : undefined, args: gpuArgs(args.find((a) => a === 'swiftshader')) });
 const page = await browser.newPage();
 await page.setContent('<canvas id="c" width="8" height="8"></canvas>');
-const out = await page.evaluate(({ HEATMAP_VS, HEATMAP_FS, LUT, MAX, OPACITY, SPEEDS, GROUNDS }) => {
+const out = await page.evaluate(({ HEATMAP_VS, HEATMAP_FS, LUT, MAX, OPACITY, SPEEDS, GROUNDS, DEFAULT_SRC }) => {
   // The map's canvas as MapLibre makes it: premultiplied alpha (the default), kept for readPixels.
   const gl = document.getElementById('c').getContext('webgl', { preserveDrawingBuffer: true, antialias: false, premultipliedAlpha: true, alpha: true });
   const dbg = gl.getExtension('WEBGL_debug_renderer_info'), renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
@@ -84,7 +83,7 @@ const out = await page.evaluate(({ HEATMAP_VS, HEATMAP_FS, LUT, MAX, OPACITY, SP
   const draw = (speed, ground, blend) => {
     gl.uniform2f(U('u_wind_min'), 0, 0); gl.uniform2f(U('u_wind_max'), Math.max(speed, 1e-4), 0);
     gl.disable(gl.BLEND); gl.clearColor(ground[0] / 255, ground[1] / 255, ground[2] / 255, 1); gl.clear(gl.COLOR_BUFFER_BIT);
-    if (blend === 'opaque') { gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); }   // blendIntoMap, kill off (the default)
+    if (blend === 'opaque') { gl.enable(gl.BLEND); gl.blendFuncSeparate(gl[DEFAULT_SRC], gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); }   // blendIntoMap, kill off (the default)
     else if (blend === 'vivid') { gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); }   // blendIntoMap(windFieldSrcFactor('dark') = ONE): the fix
     else if (blend === 'kill') { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); }   // blendIntoMap under __RAW_DISABLE_WIND_OPAQUE_CANVAS__
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.readPixels(4, 4, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); return Array.from(px);
@@ -96,7 +95,7 @@ const out = await page.evaluate(({ HEATMAP_VS, HEATMAP_FS, LUT, MAX, OPACITY, SP
     rows.push(r);
   }
   return { renderer, rows };
-}, { HEATMAP_VS, HEATMAP_FS, LUT, MAX, OPACITY, SPEEDS, GROUNDS });
+}, { HEATMAP_VS, HEATMAP_FS, LUT, MAX, OPACITY, SPEEDS, GROUNDS, DEFAULT_SRC });
 await browser.close();
 
 console.log('renderer:', out.renderer);
@@ -130,5 +129,5 @@ for (const r of out.rows) {
     vividAlpha = Math.min(vividAlpha, r.vivid[g][3]);
   }
 }
-console.log(`THE FIX (windDarkFieldVivid.js, blend ONE): over black, white, water and land the GPU sits within ${vividWorst.toFixed(1)}/255 of c a + m(1-a) (the designed law) and up to ${vividVsSq.toFixed(1)}/255 off c a^2 + m(1-a); canvas alpha min ${vividAlpha}.`);
+console.log(`Vivid comparison (blend ONE): over black, white, water and land the GPU sits within ${vividWorst.toFixed(1)}/255 of c a + m(1-a) (the designed law) and up to ${vividVsSq.toFixed(1)}/255 off c a^2 + m(1-a); canvas alpha min ${vividAlpha}.`);
 if (jsonOut) fs.writeFileSync(jsonOut, JSON.stringify({ renderer: out.renderer, max: MAX, fits, vivid: { worstVsOver: vividWorst, worstVsSquared: vividVsSq, minCanvasAlpha: vividAlpha }, raw: out.rows }, null, 1));

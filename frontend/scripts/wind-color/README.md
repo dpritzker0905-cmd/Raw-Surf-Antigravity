@@ -448,6 +448,8 @@ a finding for the owner, whose dark look is approved; no colour was changed. DRA
 alpha-over (`fieldY = mix(u_basemap_y, rampY, fieldA)`); it is inert under the default fixed pole (`windCasingFixedPole`), and
 only the kill `__RAW_DISABLE_WIND_FIXED_CASING__` reads it.
 
+**2026-11-28 production match.** Dark Wind and Gusts default to the production squared contribution. Use `--dark-alpha-over` to compare the November 22 vivid variant. In the browser, set `window.__RAW_DARK_WIND_VIVID__ = true` before mounting the map. The measurements below describe the November 22 experiment.
+
 **Fixed the same day: dark's field is blended as the premultiplied colour it is (`windDarkFieldVivid.js`, owner-approved).** The
 engine passes `windFieldSrcFactor(gl, theme)` to `blendIntoMap`: `ONE` for dark, so the screen holds `c a + map (1 - a)`, the law
 dark's palette and targets were designed in; `SRC_ALPHA` for every other theme, as before (light and beach draw their field as a
