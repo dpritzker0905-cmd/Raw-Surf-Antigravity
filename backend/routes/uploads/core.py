@@ -203,7 +203,7 @@ def add_watermark(
     start_time = time.time()
     
     try:
-        from PIL import Image, ImageDraw, ImageFont
+        from PIL import Image, ImageDraw, ImageFont, ImageOps
         
         # Open and resize for processing if image is very large
         img = Image.open(image_path)
@@ -215,6 +215,9 @@ def add_watermark(
             scale = min(max_dimension / img.width, max_dimension / img.height)
             new_size = (int(img.width * scale), int(img.height * scale))
             img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+        # Lay out the watermark in the photographer's display orientation.
+        ImageOps.exif_transpose(img, in_place=True)
         
         # Convert to RGBA if needed
         if img.mode != 'RGBA':
