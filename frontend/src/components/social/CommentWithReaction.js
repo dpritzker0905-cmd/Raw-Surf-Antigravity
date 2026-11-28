@@ -272,12 +272,14 @@ const CommentWithReaction = ({
  onClick={() => viewerReaction ? handleReaction(viewerReaction) : handleReaction('\u{1F919}')}
             onContextMenu={(e) => { e.preventDefault(); setShowReactionPicker(true); }}
             disabled={loading}
+            aria-label="React to comment"
+            aria-pressed={Boolean(viewerReaction)}
             className={`p-1 rounded transition-all ${
               viewerReaction ? 'text-red-500' : `${textSecondaryClass} hover:text-red-400`
             } ${loading ? 'opacity-50' : ''}`}
             data-testid={`comment-like-${comment.id}`}
           >
- {viewerReaction && viewerReaction !== '\u{1F919}' ? (
+            {viewerReaction ? (
               <span className="text-sm">{viewerReaction}</span>
             ) : (
               <Heart className="w-3.5 h-3.5" fill={viewerReaction ? 'currentColor' : 'none'} />

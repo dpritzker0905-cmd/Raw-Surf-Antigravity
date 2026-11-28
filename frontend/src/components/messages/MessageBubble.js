@@ -51,6 +51,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
   const longPressTimer = useRef(null);
   
   const handleTouchStart = () => {
+    if (message._optimistic) return;
     longPressTimer.current = setTimeout(() => setShowReactions(true), 500);
   };
   
@@ -241,7 +242,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
       className={`relative flex ${message.is_mine ? 'justify-end' : 'justify-start'} items-end gap-2 mb-3 group`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      onContextMenu={(e) => { e.preventDefault(); setShowReactions(true); }}
+      onContextMenu={(e) => { e.preventDefault(); if (!message._optimistic) setShowReactions(true); }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => { setIsHovered(false); if (!showReactions) setShowReactions(false); }}
     >
