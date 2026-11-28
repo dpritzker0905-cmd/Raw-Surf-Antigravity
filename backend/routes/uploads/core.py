@@ -9,7 +9,7 @@ import os
 import uuid
 import shutil
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import io
 import asyncio
 import json
@@ -679,6 +679,7 @@ async def upload_avatar(
         img = Image.open(io.BytesIO(content))
         check_decode_size(img)
         img.thumbnail((500, 500), Image.LANCZOS)
+        ImageOps.exif_transpose(img, in_place=True)
         
         if img.mode in ('RGBA', 'P'):
             img = img.convert('RGB')
