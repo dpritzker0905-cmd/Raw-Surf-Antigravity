@@ -505,23 +505,41 @@ async def get_photographer_public_galleries(
     
     public_galleries = []
     for g in galleries:
+        count_result = await db.execute(
+            select(func.count(GalleryItem.id)).where(
+                GalleryItem.gallery_id == g.id,
+                GalleryItem.is_deleted == False,
+                GalleryItem.is_public == True,
+            )
+        )
+        public_item_count = count_result.scalar() or 0
+
         # Get first few preview items for thumbnails
         items_result = await db.execute(
             select(GalleryItem)
-            .where(GalleryItem.gallery_id == g.id, GalleryItem.is_deleted == False)
+            .where(
+                GalleryItem.gallery_id == g.id,
+                GalleryItem.is_deleted == False,
+                GalleryItem.is_public == True,
+            )
             .order_by(GalleryItem.created_at.asc())
             .limit(6)
         )
         preview_items = items_result.scalars().all()
+        selected_public_cover = next((
+            g.cover_image_url
+            for item in preview_items
+            if g.cover_image_url in (item.preview_url, item.thumbnail_url)
+        ), None)
         
         public_galleries.append({
             "id": g.id,
             "title": g.title,
             "description": g.description,
-            "cover_image_url": g.cover_image_url or (preview_items[0].preview_url if preview_items else None),
+            "cover_image_url": selected_public_cover or (preview_items[0].preview_url if preview_items else None),
             "session_type": g.session_type,
             "session_date": g.session_date.isoformat() if g.session_date else None,
-            "item_count": g.item_count or len(preview_items),
+            "item_count": public_item_count,
             "is_featured": g.is_featured,
             "preview_items": [
                 {

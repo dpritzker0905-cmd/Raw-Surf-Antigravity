@@ -13,10 +13,24 @@ function publicGallery() {
     selectedItem: { id: 'asset-fixture', media_type: 'photo' }, selectedQuality: 'high',
     serviceFilter: 'all', searchQuery: '', sortBy: 'newest' };
   ['setPurchaseLoading', 'setPurchasedIds', 'setShowPurchaseModal', 'setSelectedItem',
-    'setItems', 'setLoading'].forEach(name => { props[name] = jest.fn(); });
+    'setItems', 'setLoading', 'setGalleries', 'setGalleriesReady'].forEach(name => {
+    props[name] = jest.fn();
+  });
   return { props, ...renderHook(() => usePublicGalleryActions(props)) };
 }
 beforeEach(() => { jest.clearAllMocks(); apiClient.get.mockResolvedValue({ data: [] }); });
+
+test('public gallery discovery uses the public DTO and keeps private service types hidden', async () => {
+  apiClient.get.mockResolvedValue({ data: { galleries: [
+    { id: 'public-live', session_type: 'live' },
+    { id: 'published-booking', session_type: 'booking' },
+  ] } });
+  const { props, result } = publicGallery();
+  await act(async () => result.current.fetchGalleries());
+  expect(apiClient.get).toHaveBeenCalledWith('/photographer/pro-fixture/public-galleries');
+  expect(props.setGalleries).toHaveBeenCalledWith([{ id: 'public-live', session_type: 'live' }]);
+  expect(props.setGalleriesReady).toHaveBeenCalledWith(true);
+});
 
 test('public purchase reaches the mounted credit endpoint with its query and quality body', async () => {
   // FastAPI declares buyer_id as a required query scalar, not a PurchaseRequest field.

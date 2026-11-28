@@ -127,6 +127,12 @@ async def get_gallery(
     
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
+
+    # Private gallery metadata is management data.  A verified owner may read it;
+    # everyone else gets the same response as an unknown gallery.
+    is_owner = token_user_id == gallery.photographer_id
+    if not gallery.is_public and not is_owner:
+        raise HTTPException(status_code=404, detail="Gallery not found")
     
     # Increment view count
     gallery.view_count += 1
@@ -143,7 +149,6 @@ async def get_gallery(
     
     
     # Phase 4: Pre-fetch per-item distribution counts for status badges
-    is_owner = viewer_id and viewer_id == gallery.photographer_id
     item_ids = [item.id for item in gallery.items]
     distribution_map = {}  # item_id -> {count, has_ai_suggestion}
     if item_ids and is_owner:
