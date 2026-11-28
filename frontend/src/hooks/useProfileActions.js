@@ -3,6 +3,7 @@
  * Profile data, social stats, gamification, avatar upload.
  * 13 pure handlers.
  */
+import { useEffect, useRef } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -38,14 +39,33 @@ const useProfileActions = ({
   onFollowMutationStart,
 }) => {
 
-  const fetchProfile = async (retryCount = 0) => {
+  const profileRequest = useRef(null);
+  useEffect(() => () => profileRequest.current?.abort(), []);
+
+  const fetchProfile = async () => {
     if (!profileUserId) {
       setLoading(false);
       return;
     }
     
+    profileRequest.current?.abort();
+    const request = new AbortController();
+    profileRequest.current = request;
+    setLoading(true);
     try {
-      const response = await apiClient.get(`/profiles/${profileUserId}`);
+      let response;
+      for (let attempt = 0; ; attempt += 1) {
+        if (request.signal.aborted) return;
+        try {
+          response = await apiClient.get(`/profiles/${profileUserId}`, { signal: request.signal });
+          break;
+        } catch (error) {
+          // A newly created owner's profile can briefly lag behind sign-in.
+          if (request.signal.aborted || !isOwnProfile || error.response?.status !== 404 || attempt >= 3) throw error;
+          await new Promise(resolve => setTimeout(resolve, 500 * 2 ** attempt));
+        }
+      }
+      if (request.signal.aborted) return;
       setProfile(response.data);
       if (isOwnProfile && user) {
         setEditData({
@@ -60,28 +80,19 @@ const useProfileActions = ({
         });
       }
     } catch (error) {
+      if (request.signal.aborted) return;
       logger.error('Failed to load profile:', error);
-      // Race condition fix: On own profile, the backend row may not be
-      // committed yet right after signup/login. Retry up to 3 times with
-      // exponential backoff before showing the error toast.
-      if (error.response?.status === 404 && isOwnProfile && retryCount < 3) {
-        const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
-        logger.info(`[ProfileRace] Retry ${retryCount + 1}/3 in ${delay}ms`);
-        await new Promise(r => setTimeout(r, delay));
-        return fetchProfile(retryCount + 1);
-      }
       if (error.response?.status === 404) {
         toast.error('User not found');
         navigate('/explore');
-      } else {
-        toast.error('Failed to load profile');
       }
     } finally {
-      setLoading(false);
+      if (!request.signal.aborted) setLoading(false);
     }
   };
 
   const fetchStreak = async () => {
+    if (!user?.id || user.id !== profileUserId) return;
     try {
       const response = await apiClient.get(`/streak/${profileUserId}`);
       setStreak(response.data);

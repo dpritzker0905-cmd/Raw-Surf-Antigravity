@@ -28,10 +28,10 @@ class TestReactionEmojisEndpoint:
         
         emojis = data["emojis"]
         assert isinstance(emojis, list), "Emojis should be a list"
-        assert len(emojis) == 8, f"Expected 8 emojis, got {len(emojis)}"
+        assert len(emojis) == 11, f"Expected 11 emojis, got {len(emojis)}"
         
         # Verify expected surf-themed emojis
-        expected_emojis = ['🤙', '🌊', '🏄', '🔥', '💯', '❤️', '👏', '😂']
+        expected_emojis = ['🤙', '🌊', '🏄', '🔥', '💯', '❤️', '👏', '😂', '👍', '😎', '💪']
         for emoji in expected_emojis:
             assert emoji in emojis, f"Expected emoji {emoji} not found in response"
         

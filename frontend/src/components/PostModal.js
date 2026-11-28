@@ -2,7 +2,7 @@
  * PostModal - Instagram-style post popup with image on left, details on right
  * Opens when clicking on a post in the feed
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactionIcon from './social/ReactionIcon';
 import { ImageCarousel, CommentItem } from './social/PostModalComponents';
 import CommentInputForm from './social/CommentInputForm';
@@ -32,7 +32,7 @@ import PostModalMobileView from './social/PostModalMobileView';
 // Tap to play/pause, custom progress bar, volume slider, no native controls
 // ModalVideoPlayer, ImageCarousel, CommentItem extracted to ./social/PostModalComponents.js
 
-const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost }) => {
+const PostModalContent = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -122,20 +122,18 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   // Guard: prevent modal close when reaction picker was just dismissed
   const pickerJustDismissedRef = useRef(false);
   
-  const modalRef = useRef(null);
+  const modalRef = useFocusTrap(isOpen);
   const mobileCommentInputRef = useRef(null);
   const desktopCommentInputRef = useRef(null);
   
-  // Trap focus within the modal for keyboard accessibility
-  useFocusTrap(modalRef, isOpen);
   
  // Double-tap to like handler +GG toggles shaka on/off (desktop click-based)
-  const handleDoubleTap = useCallback(() => {
+  const handleDoubleTap = () => {
     const now = Date.now();
     if (now - lastTapRef.current < 400) {
       // Double tap detected - toggle shaka reaction
       if (user?.id && post?.id) {
-        handleReaction('\u{1F919}');
+        handleReaction(userReaction?.emoji || '\u{1F919}');
       }
       // Show shaka animation
       setShowDoubleTapHeart(true);
@@ -144,17 +142,17 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
     } else {
       lastTapRef.current = now;
     }
-  }, [user?.id, post?.id]);
+  };
   
   // Touch-based double-tap for mobile PostModal (bypasses 300ms click delay)
-  const handleMobileTouchEnd = useCallback((e) => {
+  const handleMobileTouchEnd = (e) => {
     if (e.changedTouches?.length !== 1) return;
     const now = Date.now();
     if (now - lastTapRef.current < 400) {
       e.preventDefault();
       e.stopPropagation();
       if (user?.id && post?.id) {
-        handleReaction('\u{1F919}');
+        handleReaction(userReaction?.emoji || '\u{1F919}');
       }
       setShowDoubleTapHeart(true);
       setTimeout(() => setShowDoubleTapHeart(false), 800);
@@ -162,7 +160,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
     } else {
       lastTapRef.current = now;
     }
-  }, [user?.id, post?.id]);
+  };
   
   // Keyboard navigation for swipe between posts
   useEffect(() => {
@@ -193,44 +191,15 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   useEffect(() => {
     if (isOpen && post?.id) {
       loadComments();
-      setLiked(post.liked || false);
       setLikeCount(post.likes_count || 0);
       setSaved(post.saved || post.is_saved_by_user || false);
       setCaptionExpanded(false);
       // Priority: optimistic user_reaction (set by feed) > reactions array (from server)
       const existingReaction = post.user_reaction || post.reactions?.find(r => r.user_id === user?.id) || null;
+      setLiked(Boolean(existingReaction || post.liked || post.is_liked_by_user));
       setUserReaction(existingReaction);
     }
   }, [isOpen, post?.id]);
-  
-  // Handle browser back button - close modal instead of navigating away
-  // IMPORTANT: We must track whether close was triggered by popstate to avoid double-popping.
-  const closedByPopstateRef = useRef(false);
-  
-  useEffect(() => {
-    if (isOpen) {
-      closedByPopstateRef.current = false;
-      // Push a state to history when modal opens
-      window.history.pushState({ modal: 'post' }, '');
-      
-      const handlePopState = () => {
- // Back button was pressed +GG close the modal WITHOUT calling history.back()
-        closedByPopstateRef.current = true;
-        onClose();
-      };
-      
-      window.addEventListener('popstate', handlePopState);
-      
-      return () => {
-        window.removeEventListener('popstate', handlePopState);
-        // If modal was closed by X button / overlay (not by popstate),
-        // we need to pop the orphaned history entry we pushed.
-        if (!closedByPopstateRef.current && window.history.state?.modal === 'post') {
-          window.history.back();
-        }
-      };
-    }
-  }, [isOpen, onClose]);
   
   // Handle escape key
   useEffect(() => {
@@ -291,6 +260,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   if (isMobile) {
     return (
       <PostModalMobileView
+        modalRef={modalRef}
         post={post}
         onClose={onClose}
         user={user}
@@ -329,6 +299,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   // ============ DESKTOP VIEW (Side-by-side layout) ============
   return (
     <div 
+      ref={modalRef}
       className="fixed inset-0 z-50 flex items-center justify-center"
     >
  {/* Backdrop -- onMouseDown is the industry-standard close trigger.
@@ -358,7 +329,6 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
       
       {/* Modal content */}
       <div 
-        ref={modalRef}
         onClick={(e) => e.stopPropagation()}
         className={`relative ${t.panelBg} rounded-lg overflow-hidden flex max-w-6xl w-[95vw] max-h-[90vh] shadow-2xl`}
         style={{ minHeight: '500px' }}
@@ -462,8 +432,8 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                   {comments.map((comment) => (
                     <CommentItem 
                       key={comment.id} 
-                      comment={comment} 
-                      userId={user?.id}
+                      comment={comment}
+                      onReact={handleLikeComment}
                     />
                   ))}
                 </div>
@@ -540,6 +510,9 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                   onPointerUp={(e) => {
                     e.preventDefault();
                     handleReactionEnd();
+                  }}
+                  onClick={(event) => {
+                    if (event.detail === 0) handleReaction(userReaction?.emoji || '\u{1F919}');
                   }}
                   onPointerCancel={handleReactionCancel}
                   onPointerLeave={handleReactionCancel}
@@ -660,6 +633,41 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
       })()}
     </div>
   );
+};
+
+const PostModal = (props) => {
+  const { isOpen, onClose, post } = props;
+  // Handle browser back button - close modal instead of navigating away
+  // IMPORTANT: We must track whether close was triggered by popstate to avoid double-popping.
+  const closedByPopstateRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      closedByPopstateRef.current = false;
+      // Push a state to history when modal opens
+      window.history.pushState({ modal: 'post' }, '');
+
+      const handlePopState = () => {
+        // The browser already removed this history entry.
+        closedByPopstateRef.current = true;
+        onClose();
+      };
+
+      window.addEventListener('popstate', handlePopState);
+
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+        // If modal was closed by X button / overlay (not by popstate),
+        // we need to pop the orphaned history entry we pushed.
+        if (!closedByPopstateRef.current && window.history.state?.modal === 'post') {
+          window.history.back();
+        }
+      };
+    }
+  }, [isOpen, onClose]);
+
+  // Preserve one browser history entry while isolating pending requests by post.
+  return isOpen && post ? <PostModalContent key={post.id} {...props} /> : null;
 };
 
 export default PostModal;

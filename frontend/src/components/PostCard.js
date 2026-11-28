@@ -286,10 +286,9 @@ const PostCard = ({
                   onLikeEnd(post.id, e);
                 }}
                 onClick={(e) => {
-                  // Fallback for mobile browsers where pointerUp may not fire
                   e.preventDefault();
                   e.stopPropagation();
-                  if (onLikeClick) onLikeClick(post.id);
+                  if (onLikeClick) onLikeClick(post.id, e);
                 }}
                 onPointerCancel={() => onLikeLeave()}
                 onPointerLeave={() => onLikeLeave()}
@@ -313,6 +312,8 @@ const PostCard = ({
                   touchAction: 'manipulation' // Allow taps and scrolling, block double-tap zoom
                 }}
                 data-testid={`like-btn-${post.id}`}
+                aria-label="React to post"
+                aria-pressed={!!(post.liked || post.user_reaction)}
                 title="Tap to like, hold for reactions"
               >
                 <ReactionIcon post={post} userId={user?.id} isLiked={post.liked} isPressing={isPressing} />

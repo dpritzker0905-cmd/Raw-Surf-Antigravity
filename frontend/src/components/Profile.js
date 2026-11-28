@@ -76,11 +76,16 @@ const ProfileRoleBadge = ({ role }) => {
 };
 
 export const Profile = () => {
+  const { userId } = useParams();
+  const { user } = useAuth();
+  return <ProfileScreen key={JSON.stringify([user?.id, userId])} userId={userId} />;
+};
+
+const ProfileScreen = ({ userId }) => {
   const { user, logout, updateUser, loading: authLoading } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole, _isMasked } = usePersona();
   const navigate = useNavigate();
-  const { userId } = useParams(); // Get userId from URL if viewing someone else's profile
   
   // Get effective role for UI rendering (respects God Mode persona masking)
   const effectiveRole = getEffectiveRole(user?.role);
@@ -342,7 +347,14 @@ export const Profile = () => {
     );
   }
 
-  if (!profile) return null;
+  if (!profile) {
+    return (
+      <div role="alert" className="mx-auto max-w-xl p-6 text-center text-foreground">
+        <p>This profile could not be loaded.</p>
+        <Button type="button" className="mt-3" onClick={() => fetchProfile()}>Retry</Button>
+      </div>
+    );
+  }
 
   // Use effective role when viewing own profile (for God Mode), else use profile.role
   const displayRole = isOwnProfile ? effectiveRole : profile.role;

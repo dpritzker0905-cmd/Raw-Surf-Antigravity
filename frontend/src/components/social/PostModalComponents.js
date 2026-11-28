@@ -7,8 +7,6 @@ import { useNavigate } from 'react-router-dom';
 import { Play, Pause, Volume1, Volume2, VolumeX, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 import { formatTimeAgo, formatDuration } from '../../utils/formatTime';
-import apiClient from '../../lib/apiClient';
-import { toast } from 'sonner';
 import { CommentText } from '../RichText';
 
 const ModalVideoPlayer = ({ src, poster, className = '' }) => {
@@ -308,35 +306,11 @@ const ImageCarousel = ({ images, mediaType }) => {
   );
 };
 
-const CommentItem = ({ comment, userId, _onReact }) => {
+const CommentItem = ({ comment, onReact }) => {
   const navigate = useNavigate();
-  const [liked, setLiked] = useState(comment.viewer_reaction !== null);
-  const [likeCount, setLikeCount] = useState(comment.reaction_count || 0);
-  
-  const handleLike = async () => {
-    if (!userId) {
-      toast.error('Please log in to like');
-      return;
-    }
-    
-    try {
-      const response = await apiClient.post(
-        `/comments/${comment.id}/reactions`,
- { emoji: '\u{1F919}' }
-      );
-      
-      if (response.data.action === 'added') {
-        setLiked(true);
-        setLikeCount(prev => prev + 1);
-      } else if (response.data.action === 'removed') {
-        setLiked(false);
-        setLikeCount(prev => Math.max(0, prev - 1));
-      }
-    } catch (err) {
-      toast.error('Failed to like');
-    }
-  };
-  
+  const liked = Boolean(comment.viewer_reaction);
+  const likeCount = comment.reaction_count || 0;
+
   return (
     <div className="flex gap-3 py-2">
       <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -380,7 +354,8 @@ const CommentItem = ({ comment, userId, _onReact }) => {
         </div>
       </div>
       <button aria-label="Like"
-        onClick={handleLike}
+        aria-pressed={liked}
+        onClick={() => onReact(comment)}
         className={`flex-shrink-0 p-1 ${liked ? 'text-red-500' : 'text-gray-500 hover:text-gray-300'}`}
       >
         <Heart className="w-3.5 h-3.5" fill={liked ? 'currentColor' : 'none'} />

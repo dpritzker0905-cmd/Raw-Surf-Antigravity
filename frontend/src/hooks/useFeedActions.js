@@ -72,7 +72,7 @@ const useFeedActions = ({
 
   // --- Data layer: posts, pagination, follow, lineups, live streams ---
   const dataActions = useFeedDataActions({
-    user, posts, latestPostIdRef, latestPostCreatedAtRef, isPhotographer,
+    user, activeTab, posts, latestPostIdRef, latestPostCreatedAtRef, isPhotographer,
     postModalOpen, postMenuOpen,
     setConnectingToStream, setFeedLastUpdated, setFeedLineups,
     setFeedLineupsLoading, setFollowLoading, setFollowingUsers,
@@ -103,6 +103,7 @@ const useFeedActions = ({
 
   return useMemo(() => ({
     // Data actions
+    feedLoadFailed: dataActions.feedLoadFailed,
     handleFeedRefresh: dataActions.handleFeedRefresh,
     handleLoadNewPosts: dataActions.handleLoadNewPosts,
     fetchFeedLineups: dataActions.fetchFeedLineups,

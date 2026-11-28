@@ -19,7 +19,7 @@ import {
 } from '@livekit/components-react';
 import { WebGLBroadcastController } from '../WebGLBroadcastController';
 
-import { Track, ConnectionState, DataPacket_Kind } from 'livekit-client';
+import { Track, ConnectionState } from 'livekit-client';
 
 import logger from '../../utils/logger';
 import { HairFilterEngine } from '../../utils/HairFilterEngine';
@@ -152,7 +152,7 @@ const BroadcasterControls = ({
     try {
       const strData = new TextDecoder().decode(msg.payload);
       const { emoji } = JSON.parse(strData);
-      if (!emoji) return;
+      if (typeof emoji !== 'string' || !emoji) return;
       const id = Date.now() + Math.random();
       const x = Math.random() * 100 + 100;
       const y = window.innerHeight - 200;
@@ -164,7 +164,7 @@ const BroadcasterControls = ({
 
   const { send: sendReaction } = useDataChannel('reactions', onReactionReceived);
 
-  const handleReaction = useCallback((emoji) => {
+  const handleReaction = useCallback(async (emoji) => {
     // Show locally immediately
     const id = Date.now();
     const x = Math.random() * 100 + 100;
@@ -173,19 +173,20 @@ const BroadcasterControls = ({
     setEmojiBursts(prev => [...prev, { id, emoji, x, y }]);
     setLikeCount(prev => prev + 1);
     
-    // Broadcast to all room participants
-    try {
-      const encoder = new TextEncoder();
-      const payload = encoder.encode(JSON.stringify({ emoji }));
-      sendReaction(payload, { kind: DataPacket_Kind.RELIABLE });
-    } catch (err) {
-      logger.warn('[GoLive] Failed to send reaction via DataChannel:', err.message);
-    }
-    
     // Remove after animation
     setTimeout(() => {
       setEmojiBursts(prev => prev.filter(b => b.id !== id));
     }, 1500);
+
+    // Broadcast to all room participants
+    try {
+      const encoder = new TextEncoder();
+      const payload = encoder.encode(JSON.stringify({ emoji }));
+      await sendReaction(payload, { reliable: true });
+    } catch (err) {
+      logger.warn('[GoLive] Failed to send reaction via DataChannel:', err.message);
+    }
+    
   }, [sendReaction]);
 
   // -- Hair Filter Engine lifecycle --

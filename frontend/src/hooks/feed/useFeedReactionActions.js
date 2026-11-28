@@ -19,10 +19,25 @@ const useFeedReactionActions = ({
   // Refs for long-press reaction picker
   const longPressTimerRef = useRef(null);
   const longPressTriggeredRef = useRef(false);
-  const touchStartTimeRef = useRef(0);
+
 
   // In-flight guard: prevents concurrent like/reaction API calls for same post
   const likingInFlight = useRef(new Set());
+
+  const restoreReaction = async (snapshot) => {
+    if (!snapshot) return;
+    let state = snapshot;
+    try {
+      const { data } = await apiClient.get(`/posts/${snapshot.id}`);
+      if (data) state = { ...data, liked: data.is_liked_by_user };
+    } catch {
+      // During an outage the last confirmed state is the best available.
+    }
+    setPosts(posts => posts.map(post => post.id === snapshot.id ? {
+      ...post, liked: state.liked, is_liked_by_user: state.is_liked_by_user,
+      likes_count: state.likes_count, user_reaction: state.user_reaction, reactions: state.reactions
+    } : post));
+  };
 
   const handleLike = async (postId) => {
     if (!user?.id) {
@@ -47,7 +62,8 @@ const useFeedReactionActions = ({
             ...p,
             liked: !wasLiked,
             likes_count: wasLiked ? Math.max(0, oldCount - 1) : oldCount + 1,
-            ...(wasLiked ? { user_reaction: null } : {})
+            is_liked_by_user: !wasLiked,
+            ...(wasLiked ? { user_reaction: null, reactions: p.reactions?.filter(r => r.user_id !== user.id) } : {})
           }
         : p
     ));
@@ -59,15 +75,7 @@ const useFeedReactionActions = ({
         await apiClient.post(`/posts/${postId}/like?user_id=${user.id}`);
       }
     } catch (error) {
-      // Revert optimistic update by re-fetching authoritative state
-      try {
-        const postResponse = await apiClient.get(`/posts/${postId}`);
-        if (postResponse.data) {
-          setPosts(prevPosts => prevPosts.map(p =>
-            p.id === postId ? { ...postResponse.data, liked: postResponse.data.is_liked_by_user } : p
-          ));
-        }
-      } catch { /* silent - UI may be slightly stale */ }
+      await restoreReaction(currentPost);
       toast.error('Failed to update like');
     } finally {
       likingInFlight.current.delete(postId);
@@ -84,15 +92,15 @@ const useFeedReactionActions = ({
     const targetPost = posts.find(p => p.id === postId);
     const existing = targetPost?.user_reaction;
     if (existing) {
-      handleReaction(postId, existing.emoji);
+      return handleReaction(postId, existing.emoji);
     } else {
-      handleLike(postId);
+      return handleLike(postId);
     }
   };
 
   const handleShakaPointerDown = (postId, e) => {
     longPressTriggeredRef.current = false;
-    touchStartTimeRef.current = Date.now();
+
 
  // Capture anchor rect eagerly -- React recycles the synthetic event,
     // so e.currentTarget will be null by the time the timeout fires.
@@ -106,35 +114,19 @@ const useFeedReactionActions = ({
     }, 500);
   };
 
-  const handleShakaPointerUp = (postId) => {
+  const handleShakaPointerUp = () => {
     clearTimeout(longPressTimerRef.current);
-    if (!longPressTriggeredRef.current) {
-      handleShakaTapToggle(postId);
-    }
-    longPressTriggeredRef.current = false;
     setPressingPostId(null);
   };
 
-  const handleShakaPointerLeave = () => {
-    clearTimeout(longPressTimerRef.current);
-    longPressTriggeredRef.current = false;
-    setPressingPostId(null);
-  };
+  const handleShakaPointerLeave = handleShakaPointerUp;
 
-  // Fallback onClick for mobile browsers where pointerUp may not fire
-  // (e.g., when touch is intercepted by scroll or context menu).
-  const handleShakaClick = (postId) => {
- // Only act if pointerUp didn't already handle it -- check elapsed time.
-    const elapsed = Date.now() - touchStartTimeRef.current;
-    if (elapsed < 500 && !longPressTriggeredRef.current) {
-      // PointerUp should have handled it, but if the like didn't go through
-      // within the last 100ms, this is a safety net.
-      // Skip if pointerUp already processed it (check in-flight guard).
-      if (!likingInFlight.current.has(postId)) {
-        handleLike(postId);
-      }
-    }
+  // Native click covers taps and keyboard activation. A hold only opens the picker.
+  const handleShakaClick = (postId, event) => {
+    if (event?.detail === 0) longPressTriggeredRef.current = false;
+    const action = handleShakaTapToggle(postId);
     longPressTriggeredRef.current = false;
+    return action;
   };
 
   const handleReaction = async (postId, emoji) => {
@@ -187,20 +179,20 @@ const useFeedReactionActions = ({
       // stays accurate even when cross-table cleanup adjusted the number.
       const action = response.data?.action;
       const serverCount = response.data?.likes_count;
-      if (action === 'removed') {
-        setPosts(prevPosts => prevPosts.map(p =>
-          p.id === postId
-            ? { ...p, liked: false, user_reaction: null, ...(serverCount != null ? { likes_count: serverCount } : {}) }
-            : p
-        ));
-      } else if (action === 'added' || action === 'changed') {
-        setPosts(prevPosts => prevPosts.map(p =>
-          p.id === postId
-            ? { ...p, liked: true, ...(serverCount != null ? { likes_count: serverCount } : {}) }
-            : p
-        ));
+      if (['removed', 'added', 'changed'].includes(action)) {
+        const active = action !== 'removed';
+        const viewerReaction = active ? { emoji, user_id: user.id } : null;
+        setPosts(prev => prev.map(p => {
+          if (p.id !== postId) return p;
+          const others = (p.reactions || []).filter(r => r.user_id !== user.id);
+          return {
+            ...p, liked: active, is_liked_by_user: active, user_reaction: viewerReaction,
+            reactions: active ? [...others, viewerReaction] : others,
+            likes_count: serverCount ?? p.likes_count
+          };
+        }));
       }
-      
+
       // Broadcast reaction update via Supabase Realtime for social sync
       try {
         await apiClient.post(`/realtime/broadcast`, {
@@ -209,7 +201,7 @@ const useFeedReactionActions = ({
           payload: {
             post_id: postId,
             user_name: user.full_name,
-            emoji: isRemoving ? null : emoji,
+            emoji: action === 'removed' ? null : emoji,
             action: action || (isRemoving ? 'removed' : 'added')
           }
         });
@@ -240,15 +232,7 @@ const useFeedReactionActions = ({
     } catch (error) {
       logger.error('Reaction error:', error);
       toast.error('Failed to add reaction');
-      // Revert by re-fetching authoritative state instead of full fetchPosts
-      try {
-        const postResponse = await apiClient.get(`/posts/${postId}`);
-        if (postResponse.data) {
-          setPosts(prevPosts => prevPosts.map(p =>
-            p.id === postId ? { ...postResponse.data, liked: postResponse.data.is_liked_by_user } : p
-          ));
-        }
-      } catch { /* silent - UI may be slightly stale */ }
+      await restoreReaction(targetPost);
     } finally {
       likingInFlight.current.delete(postId);
     }

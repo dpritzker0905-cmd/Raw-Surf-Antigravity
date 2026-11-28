@@ -39,7 +39,7 @@ const PostModalMobileView = ({
   handleReactionStart, handleReactionEnd, handleReactionCancel,
   handleReaction, handleSave, handleComment, handleLikeComment,
   // Refs
-  mobileCommentInputRef,
+  mobileCommentInputRef, modalRef,
 }) => {
   const navigate = useNavigate();
   const [captionExpanded, setCaptionExpanded] = useState(false);
@@ -71,6 +71,7 @@ const PostModalMobileView = ({
   return (
     <div 
       className={`fixed inset-0 z-[9999] ${m.containerBg}`}
+      ref={modalRef}
       data-testid="post-modal-mobile"
     >
       {/* Tap-to-close backdrop - ONLY in the image area, not top bar or bottom */}
@@ -219,6 +220,9 @@ const PostModalMobileView = ({
                 e.preventDefault();
                 handleReactionEnd();
               }}
+              onClick={(event) => {
+                if (event.detail === 0) handleReaction(userReaction?.emoji || '\u{1F919}');
+              }}
               onPointerCancel={handleReactionCancel}
               onPointerLeave={handleReactionCancel}
               onContextMenu={(e) => {
@@ -326,7 +330,7 @@ const PostModalMobileView = ({
               Hide comments
             </button>
             {comments.map((comment) => {
-              const isLiked = comment.reactions?.some(r => r.user_id === user?.id);
+              const isLiked = Boolean(comment.viewer_reaction);
               return (
                 <div key={comment.id} className="mb-3 flex items-start gap-2">
                   <div className="flex-1">
@@ -355,9 +359,9 @@ const PostModalMobileView = ({
                     )}
                     <div className="flex items-center gap-3 mt-1">
                       <span className={`${m.textMuted} text-xs`}>{formatTimeAgo(comment.created_at)}</span>
-                      {(comment.likes_count > 0 || comment.reactions?.length > 0) && (
+                      {(comment.reaction_count > 0) && (
                         <span className={`${m.textMuted} text-xs`}>
-                          {comment.likes_count || comment.reactions?.length || 0} likes
+                          {comment.reaction_count} likes
                         </span>
                       )}
                       <button 
@@ -370,7 +374,9 @@ const PostModalMobileView = ({
                   </div>
                   <button 
                     className="p-1 touch-manipulation"
-                    onClick={() => handleLikeComment(comment.id)}
+                    aria-label="Like"
+                    aria-pressed={isLiked}
+                    onClick={() => handleLikeComment(comment)}
                   >
                     <Heart 
                       className={`w-4 h-4 ${isLiked ? 'text-red-500 fill-red-500' : m.heartInactive}`}

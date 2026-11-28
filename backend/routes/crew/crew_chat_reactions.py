@@ -80,7 +80,7 @@ crew_chat_manager = CrewChatConnectionManager()
 
 
 # Quick reaction emojis for crew chat
-REACTION_EMOJIS = ['\U0001F919', '\U0001F30A', '\U0001F3C4', '\U0001F525', '\U0001F4AF', '\u2764\uFE0F', '\U0001F44D', '\U0001F602']
+REACTION_EMOJIS = ['\U0001F919', '\U0001F30A', '\U0001F3C4', '\U0001F525', '\U0001F4AF', '\u2764\uFE0F', '\U0001F44D', '\U0001F602', '\U0001F44F', '\U0001F60E', '\U0001F4AA']
 
 
 # ============================================================
@@ -140,7 +140,7 @@ async def add_message_reaction(
         select(CrewChatMessage).where(
             CrewChatMessage.id == message_id,
             CrewChatMessage.booking_id == booking_id
-        )
+        ).with_for_update()
     )
     message = result.scalar_one_or_none()
 
@@ -150,18 +150,17 @@ async def add_message_reaction(
     if emoji not in REACTION_EMOJIS:
         raise HTTPException(status_code=400, detail=f"Invalid reaction emoji. Allowed: {REACTION_EMOJIS}")
 
-    reactions = message.reactions or {}
-
-    if emoji not in reactions:
-        reactions[emoji] = []
-
-    if user_id in reactions[emoji]:
-        reactions[emoji].remove(user_id)
-        if not reactions[emoji]:
+    reactions = dict(message.reactions or {})
+    members = reactions.get(emoji, [])
+    if user_id in members:
+        remaining = [member for member in members if member != user_id]
+        if remaining:
+            reactions[emoji] = remaining
+        else:
             del reactions[emoji]
         action = "removed"
     else:
-        reactions[emoji].append(user_id)
+        reactions[emoji] = [*members, user_id]
         action = "added"
 
     message.reactions = reactions

@@ -37,23 +37,35 @@ const FEED_TABS = ['for_you', 'waves', 'following'];
 
 export const Feed = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = new URLSearchParams(location.search).get('tab');
+    return FEED_TABS.includes(tab) ? tab : 'for_you';
+  });
+  // Each post feed owns its requests, cursor, and rendered rows.
+  return <FeedContent key={`${user?.id || 'guest'}:${activeTab === 'following'}`}
+    activeTab={activeTab} setActiveTab={setActiveTab} />;
+};
+
+const FeedContent = ({ activeTab, setActiveTab }) => {
+  const { user } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole, _isMasked } = usePersona();
   const navigate = useNavigate();
-  const location = useLocation();
   
   // Get effective role for UI rendering (respects God Mode persona masking)
   const effectiveRole = getEffectiveRole(user?.role);
   // Stale-while-revalidate: load cached feed instantly, refresh in background
   const [posts, setPosts] = useState(() => {
     try {
+      if (activeTab === 'following') return [];
       const cached = localStorage.getItem('rawsurf_cached_feed');
       if (cached) return JSON.parse(cached);
     } catch { /* ignore parse errors */ }
     return [];
   });
   const [loading, setLoading] = useState(() => {
-    try { return !localStorage.getItem('rawsurf_cached_feed'); } catch { return true; }
+    try { return activeTab === 'following' || !localStorage.getItem('rawsurf_cached_feed'); } catch { return true; }
   });
   const [feedLastUpdated, setFeedLastUpdated] = useState(null);
   const { isOnline, _queueAction } = useOfflineQueue();
@@ -64,13 +76,6 @@ export const Feed = () => {
   const [showCreateWaveModal, setShowCreateWaveModal] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [spots, setSpots] = useState([]);
-  // Read ?tab= from URL to allow deep-linking (e.g. from Explore ? View All Waves)
-  const initialTab = (() => {
-    const params = new URLSearchParams(location.search);
-    const t = params.get('tab');
-    return ['for_you', 'waves', 'following'].includes(t) ? t : 'for_you';
-  })();
-  const [activeTab, setActiveTab] = useState(initialTab);
   const [storyTier, setStoryTier] = useState('all'); // Synced with StoriesBar: 'all', 'photographers', 'surfers'
   const [checkInData, setCheckInData] = useState({
     spot_id: '',
@@ -231,7 +236,7 @@ export const Feed = () => {
   // -- feed:refresh event listener (logo click + 60s auto-refresh from Sidebar) --
   // ============ HANDLERS EXTRACTED TO hooks/useFeedActions.js ============
   const {
-    handleFeedRefresh,
+    feedLoadFailed, handleFeedRefresh,
     handleLoadNewPosts,
     fetchFeedLineups,
     fetchUpcomingSessions,
@@ -534,7 +539,12 @@ export const Feed = () => {
               </div>
             )}
             
-            {posts.length === 0 ? (
+            {feedLoadFailed && posts.length === 0 ? (
+              <div role="alert" className={`p-6 text-center ${textPrimaryClass}`}>
+                <p>Couldn’t load posts.</p>
+                <button type="button" onClick={fetchPosts} className="mt-2 underline">Retry</button>
+              </div>
+            ) : posts.length === 0 ? (
               <FeedEmptyState
                 activeTab={activeTab}
                 textPrimaryClass={textPrimaryClass}

@@ -95,13 +95,15 @@ const IncomingRequestCard = ({
               <p className={`font-bold text-lg ${textPrimary}`}>
                 {request.requester_name || 'New Request!'}
               </p>
-              {request.requester_username && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); window.open(`/profile/${request.requester_username}`, '_blank'); }}
+              {request.requester_id && request.requester_username && (
+                <a
+                  href={`/profile/${encodeURIComponent(request.requester_id)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  onClick={event => event.stopPropagation()}
                   className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline transition-colors"
                 >
                   @{request.requester_username}
-                </button>
+                </a>
               )}
               <div className="flex items-center gap-2 mt-0.5">
                 <span className={`text-sm ${textSecondary}`}>{request.distance_miles?.toFixed(1) || '?'} mi away</span>

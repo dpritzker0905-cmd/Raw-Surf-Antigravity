@@ -188,8 +188,18 @@ def test_a_user_with_no_block_is_unaffected_on_every_action(client):
     assert reply.status_code == 200, reply.text
     like = client.post('/api/posts/post-bob/like', headers=auth('carol'))
     assert like.status_code == 200, like.text
+    # On reload, feed represents a plain like as a shaka. Tapping it must undo that like.
+    refreshed = client.get('/api/posts', headers=auth('carol')).json()['posts']
+    liked_post = next(post for post in refreshed if post['id'] == 'post-bob')
+    shaka = liked_post['user_reaction']['emoji']
+    removed = client.post('/api/posts/post-bob/reactions', headers=auth('carol'), json={'emoji': shaka})
+    assert removed.json()['action'] == 'removed'
+    assert removed.json()['likes_count'] == like.json()['likes_count'] - 1
     follow = client.post('/api/follow/alice', params={'follower_id': 'carol'}, headers=auth('carol'))
     assert follow.status_code == 200, follow.text
+    following_page = client.get('/api/posts?following_only=true', headers=auth('carol')).json()
+    assert [post['author_id'] for post in following_page['posts']] == ['alice']
+    assert client.get('/api/posts?following_only=true').json()['posts'] == []
     friend = client.post('/api/friends/request', params={'requester_id': 'carol'}, headers=auth('carol'),
                          json={'addressee_id': 'bob'})
     assert friend.status_code == 200, friend.text
@@ -256,6 +266,34 @@ def test_feed_hides_the_pair_from_each_other_and_not_from_the_control(client):
     assert _feed_authors(client, 'alice') == {'alice', 'carol'}
     assert _feed_authors(client, 'carol') == set(PEOPLE)
     assert _feed_authors(client, None) == set(PEOPLE)
+
+    page = client.get('/api/posts', params={'limit': 2}, headers=auth('alice')).json()
+    assert page['has_more'] is False and page['next_cursor'] is None
+    comments = next(p for p in page['posts'] if p['id'] == 'post-carol')['recent_comments']
+    assert comments and all(comment['author_id'] != 'bob' for comment in comments)
+
+
+def test_grom_preview_and_feed_page_past_ineligible_posts(client, tmp_path):
+    from datetime import datetime, timedelta, timezone
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'blocks.sqlite'}")
+    with sessionmaker(engine)() as db:
+        author = db.get(Profile, 'bob')
+        author.role = RoleEnum.GROM
+        now = datetime.now(timezone.utc) + timedelta(minutes=1)
+        for index in range(10):
+            db.add(Post(id=f'grom-{index}', author_id='bob', media_url='supabase://grom_media/image',
+                        visibility='public', guardian_approval_status='approved' if index == 9 else 'pending_parent_approval',
+                        created_at=now - timedelta(seconds=index)))
+        db.commit()
+    engine.dispose()
+
+    preview = client.get('/api/posts/grom-preview')
+    assert preview.status_code == 200 and [p['id'] for p in preview.json()] == ['grom-9']
+    assert client.get('/api/posts/grom-preview', headers=auth('alice')).json() == []
+    assert client.get('/api/posts/grom-preview?limit=4').status_code == 422
+    page = client.get('/api/posts?limit=1').json()
+    assert [p['id'] for p in page['posts']] == ['grom-9'] and page['has_more'] and page['next_cursor']
 
 
 def test_spot_feed_hides_the_pair_from_each_other(client):

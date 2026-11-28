@@ -635,6 +635,11 @@ async def toggle_reaction(post_id: str, data: ReactionCreate, user_id: str = Dep
     )
     existing = existing_result.scalar_one_or_none()
     
+    # Feed reads present a plain PostLike as a shaka after reload.
+    if had_like and not existing and data.emoji == "\U0001F919":
+        await db.commit()
+        return {"action": "removed", "emoji": data.emoji, "post_id": post_id, "likes_count": post.likes_count}
+
     if existing:
         if existing.emoji == data.emoji:
             # Same emoji - remove it (toggle off)

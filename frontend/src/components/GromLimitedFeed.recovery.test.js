@@ -4,11 +4,12 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import GromLimitedFeed from './GromLimitedFeed';
 
 const mockPreviewGet = jest.fn();
+const mockDelivery = jest.fn();
 const mockPost = jest.fn();
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'fictional-child' } }) }));
 jest.mock('../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: 'light' }) }));
 jest.mock('../lib/apiClient', () => ({ __esModule: true, default: {
-  get: path => path.startsWith('/posts/grom-preview') ? mockPreviewGet(path) : Promise.resolve({ data: { incoming: [] } }),
+  get: path => path.startsWith('/posts/grom-preview') ? mockPreviewGet(path) : path.endsWith('/delivery') ? mockDelivery(path) : Promise.resolve({ data: { incoming: [] } }),
   post: (...args) => mockPost(...args),
 } }));
 jest.mock('../utils/logger', () => ({ __esModule: true, default: { error: jest.fn() } }));
@@ -35,9 +36,14 @@ test('failed preview read is unavailable rather than a confirmed empty community
 });
 
 test('retry restores actual preview posts/count without changing parent-link controls or writing', async () => {
-  mockPreviewGet.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(result('Recovered A', 'Recovered B'));
+  const posts = result('Recovered A', 'Recovered B');
+  Object.assign(posts.data[0], { id: 'clip', author_id: 'surfer', media_type: 'video', media_url: 'supabase://grom_media/clip' });
+  mockDelivery.mockResolvedValueOnce({ data: { url: '/delivered-video', thumbnail_url: null } });
+  mockPreviewGet.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(posts);
   render(<GromLimitedFeed />); fireEvent.click(await screen.findByRole('button', { name: 'Retry community preview' }));
   await screen.findByText('Recovered A'); expect(screen.getByText('Recovered B')).toBeInTheDocument();
+  expect(mockDelivery).toHaveBeenCalledWith('/groms/surfer/media/post/clip/delivery');
+  expect(screen.getByLabelText('Surf video by Recovered A')).toHaveAttribute('src', '/delivered-video');
   expect(screen.getByText('2 POSTS')).toBeInTheDocument();
   expect(mockPreviewGet.mock.calls).toEqual([['/posts/grom-preview?limit=3'], ['/posts/grom-preview?limit=3']]);
   expect(screen.getByRole('button', { name: 'Get a code' })).toBeEnabled(); expect(mockPost).not.toHaveBeenCalled();

@@ -142,7 +142,7 @@ export default function usePostModal({
     
     // Quick tap = toggle shaka
     if (wasPressing) {
-      await handleReaction('\u{1F919}');
+      await handleReaction(userReaction?.emoji || '\u{1F919}');
     }
   };
   
@@ -219,7 +219,7 @@ export default function usePostModal({
         ? otherReactions
         : [...otherReactions, { emoji, user_id: user.id, user_name: user.full_name }];
       const newUserReaction = action === 'removed' ? null : { emoji, user_id: user.id };
-      onPostUpdated?.({ id: post.id, liked: newLiked, likes_count: newCount, reactions: newReactions, user_reaction: newUserReaction });
+      onPostUpdated?.({ id: post.id, liked: newLiked, is_liked_by_user: newLiked, likes_count: newCount, reactions: newReactions, user_reaction: newUserReaction });
     } catch (err) {
       // Revert optimistic update
       setLiked(prevLiked);
@@ -275,34 +275,28 @@ export default function usePostModal({
   const desktopCommentInputRef = useRef(null);
   
   // Like/unlike a comment
-  const handleLikeComment = async (commentId) => {
+  const pendingCommentReactions = useRef(new Set());
+  const handleLikeComment = async (comment) => {
     if (!user?.id) {
       toast.error('Please log in to like comments');
       return;
     }
     
+    if (pendingCommentReactions.current.has(comment.id)) return;
+    pendingCommentReactions.current.add(comment.id);
+    const emoji = comment.viewer_reaction || '\u{1F919}';
     try {
-      const _response = await apiClient.post(
-        `/comments/${commentId}/reactions`,
-        { emoji: '\u{1F919}' }
-      );
-      
-      // Update comments state with new like
-      setComments(prev => prev.map(c => {
-        if (c.id === commentId) {
-          const wasLiked = c.reactions?.some(r => r.user_id === user.id);
-          return {
-            ...c,
-            likes_count: wasLiked ? (c.likes_count || 1) - 1 : (c.likes_count || 0) + 1,
-            reactions: wasLiked 
-              ? (c.reactions || []).filter(r => r.user_id !== user.id)
-              : [...(c.reactions || []), { user_id: user.id, emoji: '\u{1F919}' }]
-          };
-        }
-        return c;
-      }));
+      const { data } = await apiClient.post(`/comments/${comment.id}/reactions`, { emoji });
+      const delta = data.action === 'added' ? 1 : data.action === 'removed' ? -1 : 0;
+      setComments(prev => prev.map(c => c.id === comment.id ? {
+        ...c,
+        viewer_reaction: data.action === 'removed' ? null : emoji,
+        reaction_count: Math.max(0, (c.reaction_count || 0) + delta)
+      } : c));
     } catch (err) {
       toast.error('Failed to like comment');
+    } finally {
+      pendingCommentReactions.current.delete(comment.id);
     }
   };
 

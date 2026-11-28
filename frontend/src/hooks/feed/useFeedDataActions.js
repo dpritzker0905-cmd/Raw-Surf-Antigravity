@@ -3,13 +3,13 @@
  * Handles: post fetching, pagination, refresh, feed lineups,
  * upcoming sessions, live users, following, post CRUD
  */
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
 const useFeedDataActions = ({
-  user, posts, latestPostIdRef, latestPostCreatedAtRef, isPhotographer,
+  user, activeTab, posts, latestPostIdRef, latestPostCreatedAtRef, isPhotographer,
   postModalOpen, postMenuOpen,
   // State setters
   setConnectingToStream, setFeedLastUpdated, setFeedLineups,
@@ -24,71 +24,75 @@ const useFeedDataActions = ({
   const feedHasMoreRef = useRef(true);
   const loadingMoreRef = useRef(false);
 
+  const followingOnly = activeTab === 'following';
+  const [feedLoadFailed, setFeedLoadFailed] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  const pageGeneration = useRef(0);
+
+  const replaceFeed = useCallback(data => {
+    if (!mounted.current) return;
+    setFeedLoadFailed(false);
+    const incoming = Array.isArray(data) ? data : data.posts;
+    const mapped = incoming.map(post => ({
+      ...post, liked: post.is_liked_by_user || !!post.user_reaction
+    }));
+    pageGeneration.current += 1;
+    feedCursorRef.current = data.next_cursor ?? null;
+    feedHasMoreRef.current = !!data.has_more;
+    latestPostIdRef.current = mapped[0]?.id ?? null;
+    latestPostCreatedAtRef.current = mapped[0]?.created_at ?? null;
+    setPosts(mapped);
+    setNewPostsChip(0);
+    const updated = new Date().toISOString();
+    setFeedLastUpdated(updated);
+    if (followingOnly) return;
+    try {
+      localStorage.setItem('rawsurf_cached_feed', JSON.stringify(mapped.slice(0, 20)));
+      localStorage.setItem('rawsurf_cached_feed_ts', updated);
+    } catch { /* Storage can be unavailable. */ }
+  }, [followingOnly, latestPostIdRef, latestPostCreatedAtRef, setPosts, setNewPostsChip, setFeedLastUpdated]);
+
   const handleFeedRefresh = useCallback(async (e) => {
     const silent = e?.detail?.silent === true;
     setIsRefreshing(true);
     try {
       const response = await apiClient.get('/posts', {
-        params: { limit: 10 },
- timeout: 8000 // 8s timeout -- Render cold-starts can take up to 30s
+        params: { limit: 10, following_only: followingOnly }
       });
       // New paginated response format: { posts, next_cursor, has_more }
       const data = response.data;
-      const incoming = data?.posts || data || [];
-      if (incoming.length === 0) { setIsRefreshing(false); return; }
-
-      // Update cursor state from paginated response
-      if (data?.next_cursor !== undefined) {
-        feedCursorRef.current = data.next_cursor;
-        feedHasMoreRef.current = data.has_more;
-      }
-
-      // Snap to new posts immediately on manual tap (non-silent)
       if (!silent) {
-        setPosts(incoming.map(post => ({ ...post, liked: post.is_liked_by_user || !!post.user_reaction })));
-        setNewPostsChip(0);
-        latestPostIdRef.current = incoming[0]?.id ?? null;
-        latestPostCreatedAtRef.current = incoming[0]?.created_at ?? null;
+        replaceFeed(data);
       } else {
         // Silent auto-refresh: show chip only if there are genuinely new posts
+        const incoming = Array.isArray(data) ? data : data.posts;
         const currentLatestTime = latestPostCreatedAtRef.current 
           ? new Date(latestPostCreatedAtRef.current).getTime() 
           : 0;
         const newCount = currentLatestTime
           ? incoming.filter(p => new Date(p.created_at).getTime() > currentLatestTime).length
           : 0;
-        if (newCount > 0) setNewPostsChip(newCount);
+        setNewPostsChip(currentLatestTime ? newCount : incoming.length);
       }
     } catch (err) {
       logger.error('feed:refresh failed', err);
     } finally {
       setIsRefreshing(false);
     }
-  }, [user?.id]);
+  }, [followingOnly, replaceFeed, latestPostCreatedAtRef, setIsRefreshing, setNewPostsChip]);
 
   const handleLoadNewPosts = useCallback(async () => {
     setIsRefreshing(true);
     try {
       const response = await apiClient.get('/posts', {
-        params: { limit: 10 }
+        params: { limit: 10, following_only: followingOnly }
       });
-      const data = response.data;
-      const incoming = data?.posts || (Array.isArray(data) ? data : []);
-      if (incoming.length > 0) {
-        setPosts(incoming.map(post => ({
-          ...post,
-          liked: post.is_liked_by_user || !!post.user_reaction
-        })));
-        
-        // Update pagination cursor to keep infinite scroll in sync
-        if (data?.next_cursor !== undefined) {
-          feedCursorRef.current = data.next_cursor;
-          feedHasMoreRef.current = data.has_more;
-        }
-        
-        latestPostIdRef.current = incoming[0]?.id ?? null;
-        latestPostCreatedAtRef.current = incoming[0]?.created_at ?? null;
-        
+      replaceFeed(response.data);
+      if (response.data?.posts?.length || response.data?.length) {
         // Scroll the main content container to the top (works on both desktop and mobile)
         const scrollContainer = document.getElementById('main-content') || window;
         scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
@@ -98,7 +102,7 @@ const useFeedDataActions = ({
     }
     setNewPostsChip(0);
     setIsRefreshing(false);
-  }, [user?.id]);
+  }, [followingOnly, replaceFeed, setIsRefreshing, setNewPostsChip]);
 
   const fetchFeedLineups = async () => {
     if (!user?.id) return;
@@ -216,6 +220,7 @@ const useFeedDataActions = ({
     
     try {
       await apiClient.delete(`/follow/${userId}?follower_id=${user.id}`);
+      if (followingOnly) setPosts(previous => previous.filter(post => post.author_id !== userId));
       toast.success('Unfollowed');
     } catch (error) {
       // Rollback on failure
@@ -231,9 +236,7 @@ const useFeedDataActions = ({
     // Keep the modal's post prop in sync so it doesn't hold stale data.
     // This prevents the "revert" bug where modal reactions overwrite feed state
     // with a frozen snapshot from when the modal first opened.
-    if (postModalOpen?.id === updatedPost.id) {
-      setPostModalOpen(prev => prev ? { ...prev, ...updatedPost } : prev);
-    }
+    setPostModalOpen(prev => prev?.id === updatedPost.id ? { ...prev, ...updatedPost } : prev);
   };
 
   const handlePostDeleted = (postId) => {
@@ -282,105 +285,21 @@ const useFeedDataActions = ({
   };
 
   const fetchPosts = async () => {
-    // Stale-while-revalidate: show cached feed instantly while fetching fresh data
-    const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-    let servedFromCache = false;
-    try {
-      const cached = localStorage.getItem('rawsurf_cached_feed');
-      const cachedTs = localStorage.getItem('rawsurf_cached_feed_ts');
-      if (cached && cachedTs) {
-        const age = Date.now() - new Date(cachedTs).getTime();
-        if (age < CACHE_TTL_MS) {
-          const cachedPosts = JSON.parse(cached);
-          if (cachedPosts.length > 0) {
-            setPosts(cachedPosts);
-            setFeedLastUpdated(cachedTs);
-            setLoading(false); // Unblock UI immediately with cached content
-            servedFromCache = true;
-            logger.info(`feed:cache-hit (${Math.round(age/1000)}s old, ${cachedPosts.length} posts)`);
-          }
-        }
-      }
-    } catch { /* ignore corrupt cache */ }
-
     try {
       const response = await apiClient.get(`/posts`, {
-        params: { limit: 10 },
-        timeout: 12000  // 12s timeout for initial load (allows Render wake-up)
+        params: { limit: 10, following_only: followingOnly }
       });
-      // New paginated response format: { posts, next_cursor, has_more }
-      const data = response.data;
-      const postsArray = data?.posts || (Array.isArray(data) ? data : []);
-      
-      // Store pagination cursor for infinite scroll
-      if (data?.next_cursor !== undefined) {
-        feedCursorRef.current = data.next_cursor;
-        feedHasMoreRef.current = data.has_more;
-      } else {
-        feedCursorRef.current = null;
-        feedHasMoreRef.current = false;
-      }
-      
-      if (postsArray.length > 0) {
-        // Map is_liked_by_user to liked for frontend state
-        const mappedPosts = postsArray.map(post => ({
-          ...post,
-          liked: post.is_liked_by_user || !!post.user_reaction
-        }));
-        setPosts(mappedPosts);
-        setLoading(false); // Unblock UI immediately after posts arrive
-        setFeedLastUpdated(new Date().toISOString());
-        // Cache last 20 posts for offline fallback (async, non-blocking)
-        try {
-          localStorage.setItem('rawsurf_cached_feed', JSON.stringify(mappedPosts.slice(0, 20)));
-          localStorage.setItem('rawsurf_cached_feed_ts', new Date().toISOString());
-        } catch { /* localStorage full */ }
-      } else {
-        // Fallback demo posts if no real posts
-        setPosts([
-          {
-            id: 'demo-1',
-            author_name: 'Pro Surfer Mike',
-            author_avatar: null,
-            media_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600',
-            media_type: 'image',
-            caption: 'Dawn patrol at its finest!',
-            location: 'Pipeline, Hawaii',
-            likes_count: 247,
-            liked: false,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: 'demo-2',
-            author_name: 'SurfPhotog_Sarah',
-            author_avatar: null,
-            media_url: 'https://images.unsplash.com/photo-1455729552865-3658a5d39692?w=600',
-            media_type: 'image',
-            caption: 'Caught this beauty yesterday morning',
-            location: 'Sebastian Inlet',
-            likes_count: 189,
-            liked: false,
-            created_at: new Date().toISOString()
-          },
-          {
-            id: 'demo-3',
-            author_name: 'GromDad_FL',
-            author_avatar: null,
-            media_url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600',
-            media_type: 'image',
-            caption: 'Little one is getting better every day!',
-            location: 'Cocoa Beach',
-            likes_count: 312,
-            liked: false,
-            created_at: new Date().toISOString()
-          }
-        ]);
-      }
+      replaceFeed(response.data);
     } catch (error) {
+      if (!mounted.current) return;
+      setFeedLoadFailed(true);
       logger.error('Error fetching posts:', error);
       // A server error is authoritative evidence that the cached list cannot
       // be revalidated. Do not keep showing deleted/broken posts indefinitely.
-      if (error.response?.status >= 500) {
+      if (!followingOnly && error.response?.status >= 500) {
+        pageGeneration.current += 1;
+        feedCursorRef.current = null;
+        feedHasMoreRef.current = false;
         try {
           localStorage.removeItem('rawsurf_cached_feed');
           localStorage.removeItem('rawsurf_cached_feed_ts');
@@ -389,34 +308,7 @@ const useFeedDataActions = ({
         setFeedLastUpdated(null);
         return;
       }
-      // Try loading cached feed before falling back to demo posts
-      try {
-        const cached = localStorage.getItem('rawsurf_cached_feed');
-        const cachedTs = localStorage.getItem('rawsurf_cached_feed_ts');
-        if (cached) {
-          setPosts(JSON.parse(cached));
-          setFeedLastUpdated(cachedTs || null);
-          logger.info('Loaded cached feed data');
-        } else {
-          throw new Error('No cache');
-        }
-      } catch {
-        // Final fallback: demo posts
-        setPosts([
-          {
-            id: 'demo-1',
-            author_name: 'Pro Surfer Mike',
-            author_avatar: null,
-            media_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600',
-            media_type: 'image',
-            caption: 'Dawn patrol at its finest!',
-            location: 'Pipeline, Hawaii',
-            likes_count: 247,
-            liked: false,
-            created_at: new Date().toISOString()
-          }
-        ]);
-      }
+      // Feed initializes from the last cached page. Keep it on network errors.
     } finally {
       setLoading(false);
     }
@@ -432,16 +324,19 @@ const useFeedDataActions = ({
       return;
     }
     
+    const generation = pageGeneration.current;
     loadingMoreRef.current = true;
     try {
       const response = await apiClient.get('/posts', {
         params: {
           limit: 20,
+          following_only: followingOnly,
           cursor: feedCursorRef.current
         }
       });
       
       const data = response.data;
+      if (generation !== pageGeneration.current) return;
       const newPosts = data?.posts || (Array.isArray(data) ? data : []);
       
       // Update pagination cursor
@@ -470,7 +365,7 @@ const useFeedDataActions = ({
   };
 
   return {
-    handleFeedRefresh,
+    feedLoadFailed, handleFeedRefresh,
     handleLoadNewPosts,
     fetchFeedLineups,
     fetchUpcomingSessions,

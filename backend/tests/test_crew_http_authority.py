@@ -1,4 +1,5 @@
 """P1 residual: real HTTP routes/JWT/membership over synthetic records, no live service."""
+import asyncio
 import secrets
 from datetime import timedelta
 from types import SimpleNamespace
@@ -7,6 +8,8 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
 from core import security
 from database import get_db
@@ -166,11 +169,13 @@ def test_public_emoji_catalogue_stays_public(crew_http):
 
 
 def test_adjacent_reaction_write_broadcasts_verified_actor(crew_http):
+    before = crew_http.messages[0].reactions
     response = crew_http.client.post("/api/crew-chat/booking/messages/message/react",
                                     params={"emoji": reactions.REACTION_EMOJIS[1], "user_id": "member-b"},
                                     headers=headers())
     assert response.status_code == 200
     assert response.json()["reactions"][reactions.REACTION_EMOJIS[1]] == ["member-a"]
+    assert before == {reactions.REACTION_EMOJIS[0]: ["member-a"]}
     event = crew_http.manager.broadcast_to_booking.call_args.args[1]
     assert event["data"]["user_id"] == "member-a"
 
@@ -180,3 +185,33 @@ def test_existing_history_authority_is_preserved(crew_http, credential):
     response = crew_http.client.get("/api/crew-chat/booking/messages", params={"user_id": "member-a"},
                                    headers=headers(credential=credential))
     assert response.status_code == 401 and crew_http.db.statements == []
+
+def test_picker_reactions_persist_across_database_sessions(monkeypatch):
+    engine = create_engine("sqlite://")
+    CrewChatMessage.__table__.create(engine)
+    monkeypatch.setattr(reactions, "verify_chat_access", AsyncMock(return_value=(True, "member")))
+    monkeypatch.setattr(reactions.crew_chat_manager, "broadcast_to_booking", AsyncMock())
+    legacy = chr(0x1F44D)
+    original = {legacy: ["other"]}
+    with Session(engine) as db:
+        db.add(CrewChatMessage(id="message", booking_id="booking", sender_id="other",
+                               content="test", reactions=original))
+        db.commit()
+
+    def toggle(emoji):
+        with Session(engine) as db:
+            adapter = SimpleNamespace(execute=AsyncMock(side_effect=db.execute),
+                                      commit=AsyncMock(side_effect=db.commit))
+            return asyncio.run(reactions.add_message_reaction("booking", "message", emoji, "viewer", adapter))
+
+    try:
+        for emoji in reactions.REACTION_EMOJIS:
+            assert toggle(emoji)["action"] == "added"
+            with Session(engine) as db:
+                stored = db.get(CrewChatMessage, "message").reactions
+                assert stored == {**original, emoji: [*original.get(emoji, []), "viewer"]}
+            assert toggle(emoji)["action"] == "removed"
+            with Session(engine) as db:
+                assert db.get(CrewChatMessage, "message").reactions == original
+    finally:
+        engine.dispose()

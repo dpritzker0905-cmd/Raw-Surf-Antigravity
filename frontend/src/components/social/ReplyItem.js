@@ -87,7 +87,7 @@ const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClas
           <span className="font-medium">{reactionCount} like{reactionCount !== 1 ? 's' : ''}</span>
         )}
         <button aria-label="Like"
- onClick={() => handleReaction('\u{1F919}')}
+ onClick={() => handleReaction(viewerReaction || '\u{1F919}')}
           disabled={loading}
           className={`ml-auto p-1 rounded transition-all ${
             viewerReaction ? 'text-red-500' : `${textSecondaryClass} hover:text-red-400`
