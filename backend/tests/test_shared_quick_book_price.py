@@ -444,7 +444,7 @@ async def test_no_crew_payment_can_precede_the_captain_confirmation(shared, harn
 
 
 async def test_booking_escrow_tracks_funded_shares_before_and_after_arrival(shared, harness, monkeypatch):
-    from models import Booking, DispatchRequestStatusEnum as Status
+    from models import Booking, BookingParticipant, DispatchRequestStatusEnum as Status
     from routes.dispatch import lifecycle, progress
 
     app, client, maker = harness
@@ -456,6 +456,9 @@ async def test_booking_escrow_tracks_funded_shares_before_and_after_arrival(shar
         row = await db.get(DispatchRequest, dispatch_id)
         row.status, row.photographer_id = Status.EN_ROUTE, PRO
         seat = await db.scalar(select(DispatchRequestParticipant.id).where(DispatchRequestParticipant.participant_id == "north"))
+    forbidden = await client.post(f"/api/dispatch/crew-invite/{seat}/checkout?payer_id={CAPTAIN}",
+                                  json={}, headers=bearer(CAPTAIN))
+    assert forbidden.status_code == 403, forbidden.text
     assert (await client.post(f"/api/dispatch/crew-invite/{seat}/pay?payer_id=north",
                               json={"selfie_url":"fixture.jpg"}, headers=bearer("north"))).status_code == 200
     arrived = await client.post(f"/api/dispatch/{dispatch_id}/arrived?photographer_id={PRO}", headers=bearer(PRO))
@@ -463,6 +466,9 @@ async def test_booking_escrow_tracks_funded_shares_before_and_after_arrival(shar
     async with maker() as db:
         booking = await db.get(Booking, arrived.json()["booking_id"])
         assert (booking.total_price, booking.escrow_amount) == (70, 35)
+        captain = await db.scalar(select(BookingParticipant).where(BookingParticipant.booking_id == booking.id,
+                                  BookingParticipant.participant_id == CAPTAIN))
+        assert (captain.payment_status, captain.paid_amount) == ("Paid", 0)
     for _ in range(2):
         result = await client.post(f"/api/dispatch/{dispatch_id}/cover-remaining",
                                    json={"captain_id":CAPTAIN}, headers=bearer(CAPTAIN))
@@ -484,6 +490,17 @@ async def test_booking_escrow_tracks_funded_shares_before_and_after_arrival(shar
         assert (await db.get(DispatchRequest, dispatch_id)).status == Status.COMPLETED
         assert (await db.get(Booking, bid)).escrow_status == "released"
         assert (await db.get(Profile, PRO)).credit_balance == 70
+        from fastapi import HTTPException
+        from routes.admin.telemetry import _perform_real_cancellation_refund
+        outcome = await _perform_real_cancellation_refund(bid, db, "operator")
+        assert outcome["booking_action"]["status"] == "no_op"
+        # A booking read before its dispatch finished must never fall through to an ordinary refund.
+        (await db.get(Booking, bid)).status = "in_progress"
+        with pytest.raises(HTTPException) as conflict:
+            await _perform_real_cancellation_refund(bid, db, "operator")
+        assert conflict.value.status_code == 409
+        assert await db.scalar(select(func.count()).select_from(CreditTransaction)
+                               .where(CreditTransaction.transaction_type == "booking_refund")) == 0
 
 
 @pytest.mark.parametrize("ending,late_card", [("cancel", False), ("decline", False), ("cancel", True), ("decline", True)])

@@ -110,8 +110,10 @@ async def _perform_real_cancellation_refund(booking_id: str, db: AsyncSession, a
         result = await commit_interruption(db, dispatch, actor_id, "Admin safety cancellation")
         return {"booking_action": {**result, "status": "pending_settlement"},
                 "calendar_sync": {"status": "not_integrated"}}
-    if dispatch is not None and dispatch.status.value == 'cancelled' and booking.status != 'Cancelled':
-        raise HTTPException(409, "An earlier cancellation needs reconciliation before any refund.")
+    if dispatch is not None and (dispatch.status.value, booking.status) not in (
+        ('cancelled', 'Cancelled'), ('completed', 'Completed')
+    ):
+        raise HTTPException(409, "Booking and dispatch must be reconciled before any refund.")
     if booking.status in ('Cancelled', 'Completed'):
         return {
             "booking_action": {
