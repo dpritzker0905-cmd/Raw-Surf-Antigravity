@@ -119,6 +119,8 @@ async def funding_snapshot(db, dispatch, booking):
         else:
             raise reconcile()
 
+    # Opening card checkout stores its session ID even if a later wallet debit funds the deposit.
+    captain_wallet = funded.get(captain)
     for tx in receipts:
         meta = crew_card_metadata(tx)
         if tx.id in markers and tx.status != "completed":
@@ -131,8 +133,8 @@ async def funding_snapshot(db, dispatch, booking):
             if (tx.user_id != captain or meta.get("user_id", captain) != captain
                     or str(tx.currency or "").lower() != "usd"):
                 raise reconcile()
-            if (tx.session_id != dispatch.stripe_checkout_session_id and (tx.status, tx.payment_status) == ("Pending", "Pending")
-                    and cents(tx.amount) == seats[captain]):
+            if ((tx.status, tx.payment_status) == ("Pending", "Pending") and cents(tx.amount) == seats[captain]
+                    and (tx.session_id != dispatch.stripe_checkout_session_id or captain_wallet is not None)):
                 review.append({"seat": captain, "receipt_id": tx.id, "status": "pending",
                                "amount_cents": seats[captain], "payer_id": captain})
                 continue
