@@ -87,6 +87,8 @@ export default function useCrewChat({
       };
 
       ws.onmessage = (event) => {
+        // The crew socket replies to a heartbeat with a plain-text frame.
+        if (event.data === 'pong') return;
         try {
           const data = JSON.parse(event.data);
           switch (data.type) {
