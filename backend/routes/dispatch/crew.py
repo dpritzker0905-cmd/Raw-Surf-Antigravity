@@ -20,7 +20,7 @@ from utils.geo import haversine_distance
 from database import get_db
 from utils.credits import consume_spend_only_for_debit
 from utils.checkout_recovery import persist_pending_checkout
-from utils.crew_card_fulfillment import CLOSED_STATES, crew_share_cents, fulfill_crew_card_payment, is_crew_card_payment
+from utils.crew_card_fulfillment import captain_confirmation_pending, CLOSED_STATES, crew_share_cents, fulfill_crew_card_payment, is_crew_card_payment
 from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
@@ -46,6 +46,12 @@ stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_A
 
 router = APIRouter(prefix="/dispatch", tags=["dispatch"])
 
+def preacceptance_credit_notice(dispatch):
+    if dispatch.is_shared and dispatch.target_photographer_id and dispatch.status == DispatchRequestStatusEnum.SEARCHING_FOR_PRO:
+        return "If this request ends before the photographer accepts, your payment returns to your Raw Surf wallet."
+    return ""
+
+
 @router.get("/user/{user_id}/crew-invites")
 async def get_crew_invites(
     user_id: str,
@@ -66,7 +72,7 @@ async def get_crew_invites(
     invites = []
     for participant in participants:
         dispatch = participant.dispatch_request
-        if not dispatch or dispatch.status in [
+        if not dispatch or captain_confirmation_pending(dispatch) or dispatch.status in [
             DispatchRequestStatusEnum.COMPLETED,
             DispatchRequestStatusEnum.CANCELLED
         ]:
@@ -102,6 +108,7 @@ async def get_crew_invites(
             "location_name": dispatch.location_name,
             "estimated_duration_hours": dispatch.estimated_duration_hours,
             "your_share": participant.share_amount,
+            "cancellation_notice": preacceptance_credit_notice(dispatch),
             "status": participant.status,
             "dispatch_status": dispatch.status.value,
             "created_at": dispatch.created_at.isoformat()
@@ -235,6 +242,8 @@ async def pay_crew_share(
     locked = await db.execute(select(DispatchRequestParticipant).where(DispatchRequestParticipant.id == participant_id)
                               .with_for_update().execution_options(populate_existing=True))
     participant = locked.scalar_one()
+    if captain_confirmation_pending(dispatch):
+        raise HTTPException(409, detail="The captain must confirm before the crew can pay.")
     if participant.paid or participant.status == 'paid':
         raise HTTPException(status_code=400, detail="Already paid")
     
@@ -408,6 +417,8 @@ async def crew_invite_checkout(
         raise HTTPException(status_code=400, detail="Already paid")
 
     dispatch = participant.dispatch_request
+    if captain_confirmation_pending(dispatch):
+        raise HTTPException(409, detail="The captain must confirm before the crew can pay.")
     if dispatch.status in CLOSED_STATES or participant.status not in ('invited', 'pending', 'confirmed'):
         raise HTTPException(status_code=400, detail="Session state is locked (arrived, completed, or cancelled)")
 
@@ -452,8 +463,8 @@ async def crew_invite_checkout(
                     "product_data": {
                         "name": f"Crew Session Share — {dispatch.location_name or 'On-Demand'}",
                         "description": (
-                            f"Your share of a {dispatch.estimated_duration_hours}h surf session "
-                            f"with captain {payer.full_name or 'Unknown'}"
+                            f"Your share of a {dispatch.estimated_duration_hours}h surf session. "
+                            f"{preacceptance_credit_notice(dispatch)}"
                         ),
                     },
                     "unit_amount": amount_cents,
@@ -470,10 +481,22 @@ async def crew_invite_checkout(
         logger.error(f"[CrewCheckout] Stripe error: {e}")
         raise HTTPException(status_code=500, detail=f"Payment session failed: {str(e)}")
 
+    shared_target = bool(dispatch.is_shared and dispatch.target_photographer_id)
     await persist_pending_checkout(db, session.id, lambda: PaymentTransaction(
         user_id=payer_id, session_id=session.id, amount=amount_cents / 100, currency='usd',
         payment_status='pending', status='pending', transaction_metadata=json.dumps(receipt),
     ))
+    if shared_target:
+        from services.shared_quick_book_hold import PENDING_SETTLEMENT
+        from services.interrupted_crew_checkouts import close_after_hold
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        state = await db.scalar(select(DispatchRequest.refund_type).where(DispatchRequest.id == receipt['dispatch_id']))
+        if state == PENDING_SETTLEMENT:
+            # The interruption may have committed while the checkout was being created.
+            await db.rollback()
+            await close_after_hold(async_sessionmaker(db.bind, expire_on_commit=False), receipt['dispatch_id'])
+            raise HTTPException(409, "The session was cancelled while checkout was opening.")
     return {"checkout_url": session.url, "session_id": session.id}
 
 

@@ -7,14 +7,21 @@ import stripe
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from models import CreditTransaction, DispatchRequest, DispatchRequestParticipant, DispatchRequestStatusEnum, PaymentTransaction, Profile
+from services.shared_quick_book_hold import PENDING_SETTLEMENT
+from utils.credits import add_credits
+from models import Booking, CreditTransaction, DispatchRequest, DispatchRequestParticipant, DispatchRequestStatusEnum, PaymentTransaction, Profile
 
 CLOSED_STATES = frozenset({DispatchRequestStatusEnum.ARRIVED, DispatchRequestStatusEnum.COMPLETED,
                           DispatchRequestStatusEnum.CANCELLED, DispatchRequestStatusEnum.REFUNDED,
                           DispatchRequestStatusEnum.NO_PRO_FOUND})
 
 
-def _metadata(transaction):
+def captain_confirmation_pending(dispatch):
+    return (dispatch.is_shared and dispatch.target_photographer_id
+            and dispatch.status == DispatchRequestStatusEnum.PENDING_PAYMENT)
+
+
+def crew_card_metadata(transaction):
     try:
         value = json.loads(transaction.transaction_metadata or '{}')
         return value if isinstance(value, dict) else {}
@@ -23,7 +30,7 @@ def _metadata(transaction):
 
 
 def is_crew_card_payment(transaction):
-    return _metadata(transaction).get('type') == 'crew_share'
+    return crew_card_metadata(transaction).get('type') == 'crew_share'
 
 
 def crew_share_cents(value):
@@ -42,7 +49,7 @@ def _outcome(status, receipt, message):
             'participant_id': receipt.get('participant_id'), 'dispatch_id': receipt.get('dispatch_id')}
 
 
-def _receipt_valid(transaction, receipt):
+def valid_crew_receipt(transaction, receipt):
     cents = receipt.get('amount_cents')
     return (receipt.get('type') == 'crew_share' and type(receipt.get('version')) is int and receipt.get('version') == 1
             and receipt.get('payer_id') == transaction.user_id
@@ -61,8 +68,22 @@ def _review(transaction, receipt, message, paid=False):
     return _outcome('review_required', receipt, message)
 
 
-async def fulfill_crew_card_payment(db, transaction):
-    """Verify and settle one saved crew card receipt without funding a wallet.
+async def credit_cancelled_crew_card(db, transaction, marker=None):
+    """The caller holds the receipt lock and has verified the captured payment."""
+    ok, _, _ = await add_credits(
+        transaction.user_id, transaction.amount, 'crew_card_wallet_credit', db,
+        reference_type='payment_transaction', reference_id=transaction.id,
+        refund_of_transaction_id=marker.id if marker else None,
+        description='Crew card payment returned as Raw Surf wallet credit',
+    )
+    if not ok:
+        raise HTTPException(409, 'Could not return the crew payment to its payer.')
+    transaction.status = 'wallet_credited'
+    transaction.payment_status = 'paid'
+
+
+async def fulfill_crew_card_payment(db, transaction, *, checkout=None):
+    """Verify one saved crew card receipt and settle it once.
 
     Payment, dispatch, participant and profile locks are acquired in that order.
     Distinct paid checkouts for an already paid share are held for review, never
@@ -71,7 +92,7 @@ async def fulfill_crew_card_payment(db, transaction):
     result = await db.execute(select(PaymentTransaction).where(PaymentTransaction.id == transaction.id)
                               .with_for_update().execution_options(populate_existing=True))
     transaction = result.scalar_one()
-    receipt = _metadata(transaction)
+    receipt = crew_card_metadata(transaction)
     raw_status = str(transaction.payment_status).lower()
     local_status = str(transaction.status).lower()
     refund_states = {raw_status, local_status}
@@ -80,10 +101,14 @@ async def fulfill_crew_card_payment(db, transaction):
         return _outcome(refund_status, receipt, 'A refund is recorded for this payment; no crew participation was added.')
     if any('refund' in status for status in refund_states):
         return _outcome('review_required', receipt, 'The refund is unconfirmed. This crew payment needs review.')
+    if local_status == PENDING_SETTLEMENT:
+        return _outcome(PENDING_SETTLEMENT, receipt, 'Your card payment is held for settlement of the cancelled session.')
+    if local_status == "wallet_credited":
+        return _outcome("wallet_credited", receipt, "This card payment was returned to your Raw Surf wallet.")
     if local_status == 'review_required':
         return _outcome('review_required', receipt, receipt.get('review_reason') or 'This crew payment needs review.')
     try:
-        valid = _receipt_valid(transaction, receipt)
+        valid = valid_crew_receipt(transaction, receipt)
     except (InvalidOperation, TypeError, ValueError):
         valid = False
     if not valid:
@@ -93,7 +118,8 @@ async def fulfill_crew_card_payment(db, transaction):
     completed = local_status == 'completed' and raw_status == 'paid'
     if not completed:
         try:
-            checkout = stripe.checkout.Session.retrieve(transaction.session_id)
+            if checkout is None:
+                checkout = stripe.checkout.Session.retrieve(transaction.session_id)
         except Exception:
             raise HTTPException(status_code=503, detail='Crew payment verification is temporarily unavailable. Refresh to retry.') from None
         provider_paid = getattr(checkout, 'payment_status', None) == 'paid'
@@ -133,7 +159,34 @@ async def fulfill_crew_card_payment(db, transaction):
                 and records[0].spend_only_amount == 0 and records[0].user_id == transaction.user_id):
             return _outcome('completed', receipt, 'Crew payment confirmed. Your share is paid.')
         return _outcome('review_required', receipt, 'Payment was recorded, but the current crew participation needs review.')
-    if (not linked or dispatch.status in CLOSED_STATES or participant.status not in ('invited', 'pending', 'confirmed')
+    if (linked and dispatch.status == DispatchRequestStatusEnum.CANCELLED
+            and dispatch.refund_type == PENDING_SETTLEMENT and not records
+            and local_status in ('pending', 'expired') and raw_status in ('pending', 'unpaid', 'paid')
+            and crew_share_cents(participant.share_amount) == receipt['amount_cents']):
+        if participant.paid or participant.stripe_payment_intent_id:
+            return _review(transaction, receipt, 'This seat was already funded. The additional card payment needs review.', paid=True)
+        booking = await db.get(Booking, dispatch.booking_id, with_for_update=True, populate_existing=True)
+        if booking is None or booking.escrow_status != PENDING_SETTLEMENT:
+            return _review(transaction, receipt, 'The closed booking needs reconciliation.', paid=True)
+        # Reserve the funding reference without granting participation in a cancelled session.
+        participant.stripe_payment_intent_id = intent
+        booking.escrow_amount = round((booking.escrow_amount or 0) + transaction.amount, 2)
+        transaction.payment_status = 'paid'
+        transaction.status = PENDING_SETTLEMENT
+        transaction.transaction_metadata = json.dumps(dict(receipt, fulfillment={
+            'payment_intent_id': intent, 'booking_id': booking.id, 'held_at': datetime.now(timezone.utc).isoformat(),
+        }))
+        return _outcome(PENDING_SETTLEMENT, receipt, 'Your card payment is held for settlement of the cancelled session.')
+    if (linked and dispatch.is_shared and dispatch.target_photographer_id
+            and dispatch.status == DispatchRequestStatusEnum.CANCELLED and dispatch.cancelled_at
+            and dispatch.accepted_at is None and dispatch.photographer_id is None
+            and raw_status in ('pending', 'unpaid', 'paid') and local_status in ('pending', 'expired')
+            and not records and crew_share_cents(participant.share_amount) == receipt['amount_cents']):
+        # The verified payment settled after closure. Credit this receipt without granting a seat.
+        await credit_cancelled_crew_card(db, transaction)
+        transaction.transaction_metadata = json.dumps(dict(receipt, fulfillment={'payment_intent_id': intent}))
+        return _outcome('wallet_credited', receipt, 'This card payment was returned to your Raw Surf wallet.')
+    if (not linked or captain_confirmation_pending(dispatch) or dispatch.status in CLOSED_STATES or participant.status not in ('invited', 'pending', 'confirmed')
             or participant.paid or records):
         return _review(transaction, receipt, 'This share is already paid or the crew session is no longer eligible.', paid=True)
     try:

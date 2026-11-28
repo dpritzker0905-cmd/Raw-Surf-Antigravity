@@ -1,3 +1,4 @@
+import { sharedTerms, useSharedQuickBookQuote } from './useSharedQuickBookQuote';
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -22,6 +23,7 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [requestId, setRequestId] = useState(null);
+  const [requestTerms, setRequestTerms] = useState(null);
   const [acceptedData, setAcceptedData] = useState(null);
   const [showSelfieModal, setShowSelfieModal] = useState(false);
   const selfieShownRef = useRef(false); // gates selfie modal to open exactly once
@@ -89,9 +91,9 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
   const maxDuration = photographer?.max_session_hours || 7;
   const [requestDuration, setRequestDuration] = useState(minDuration);
 
-  const hourlyRate = photographer?.on_demand_hourly_rate || 75;
+  const hourlyRate = photographer?.on_demand_hourly_rate ?? 75;
   const photosIncluded = Math.ceil((photographer?.on_demand_photos_included || 3) * requestDuration);
-  const perSurferFee = photographer?.price_per_additional_surfer || 15;
+  const perSurferFee = photographer?.price_per_additional_surfer ?? 15;
   const baseSessionPrice = hourlyRate * requestDuration;
 
   const {
@@ -170,8 +172,10 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
   const subDiscountAmount = subDiscountPct > 0 ? (totalPrice * subDiscountPct / 100) : 0;
   const discountedTotalPrice = totalPrice - subDiscountAmount;
   
+  const sharedPricing = useSharedQuickBookQuote(isOpen && step === 'confirm', user?.id, photographer?.id, requestDuration, crewMembers);
+  const reviewedCaptain = sharedPricing.quote?.captain_cents / 100;
   const hasEnoughCredits = crewMembers.length > 0 
-    ? (captainPayAmount === 0 || localCredits >= captainPayAmount)  // Allow $0 captain share
+    ? (localCredits >= reviewedCaptain)  // Allow $0 captain share
     : localCredits >= totalPrice;
   
   const estimatedResponse = photographer?.distance 
@@ -196,6 +200,7 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
   };
   
   const handleSubmitRequest = async () => {
+    if (crewMembers.length && !sharedPricing.quote) return;
     setLoading(true);
     try {
       // Determine coordinates based on location selection mode:
@@ -248,14 +253,17 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
         friend_ids: crewMembers.length > 0 ? crewMembers.map(c => c.user_id || c.id || c.value) : null,
         target_photographer_id: photographer.id,
         captain_share_amount: crewMembers.length > 0 ? captainPayAmount : null,  // Captain's portion
-        crew_shares: crewSharesPayload
+        crew_shares: crewSharesPayload,
+        ...(crewMembers.length ? { ...sharedTerms(photographer.id, requestDuration, crewMembers),
+          accepted_shared_quote: sharedPricing.quote.quote_id } : {})
       });
       
       const dispatchId = response.data.id;
       setRequestId(dispatchId);
+      setRequestTerms({ id: dispatchId, shared: Boolean(response.data.shared_quote) });
       
       // Step 2: Process payment based on method selected
-      if (paymentMethod === 'credits') {
+      if (paymentMethod === 'credits' || response.data.shared_quote?.captain_cents === 0) {
         // Pay with credits - immediate confirmation
         const payResponse = await apiClient.post(`/dispatch/${dispatchId}/pay?payer_id=${user.id}`);
         
@@ -269,14 +277,14 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
         const lobbyState = {
           crewMembers,
           photographer,
-          captainPayAmount,
+          captainPayAmount: response.data.captain_share_amount ?? captainPayAmount,
           needsSelfie: true,
         };
         onClose();
         navigate(`/dispatch/${dispatchId}/lobby`, { state: lobbyState });
       } else {
         // Pay with card - redirect to Stripe Checkout
-        const amountToCharge = crewMembers.length > 0 ? captainPayAmount : totalPrice;
+        const amountToCharge = crewMembers.length > 0 ? reviewedCaptain : totalPrice;
         
         const checkoutResponse = await apiClient.post(`/dispatch/checkout`, {
           dispatch_id: dispatchId,
@@ -296,6 +304,11 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
       
     } catch (error) {
       const errorDetail = error.response?.data?.detail;
+      if (errorDetail?.code === 'shared_price_changed') {
+        sharedPricing.refresh();
+        toast.info('The crew price changed. Review the updated shares.');
+        return;
+      }
       if (typeof errorDetail === 'object' && errorDetail.refunded) {
         toast.info(`Request failed but ${errorDetail.refund_amount?.toFixed(2) || '0.00'} credits refunded.`);
         if (errorDetail.new_balance !== undefined) {
@@ -320,7 +333,8 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
       try {
         const response = await apiClient.get(`/dispatch/${requestId}`);
         const data = response.data;
-        
+        setRequestTerms({ id: requestId, shared: Boolean(data.is_shared && data.target_photographer_id) });
+
         // Update crew member payment status from backend
         if (data.participants && data.participants.length > 0) {
           setCrewMembers(prev => prev.map(member => {
@@ -381,7 +395,9 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
           // Check if it was declined by photographer
           const wasDeclined = data.cancelled_reason?.includes('declined');
           
-          if (wasDeclined) {
+          if (data.settlement_status === 'pending_settlement') {
+            toast.info('Session cancelled. Payments and any included session are held for settlement.');
+          } else if (wasDeclined) {
             toast.error('The photographer is unavailable right now. Your credits have been refunded.', {
               duration: 5000
             });
@@ -416,12 +432,14 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
   const isPro = photographer?.role === ROLES.APPROVED_PRO || photographer?.role === ROLES.PRO;
   
   return {
+    sharedPricing,
     // Flow state
     step, setStep,
     loading, setLoading,
     countdown, setCountdown,
     requestId, setRequestId,
     acceptedData, setAcceptedData,
+    sharedQuickBook: requestTerms?.id === requestId ? requestTerms?.shared : undefined,
     showSelfieModal, setShowSelfieModal,
     selfieShownRef,
     showCancelConfirm, setShowCancelConfirm,

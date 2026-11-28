@@ -23,6 +23,9 @@ from models import (
     SurfSpot,
 )
 
+from services.shared_dispatch_guest_credits import return_guest_payments
+from services.shared_quick_book_hold import commit_interruption, requires_settlement
+from services.shared_dispatch_allowance import cancel_included_session
 from .schemas import CancelDispatchRequest
 
 logger = logging.getLogger("routes.dispatch")
@@ -53,6 +56,7 @@ async def complete_dispatch_session(
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
+        .with_for_update()
         .options(selectinload(DispatchRequest.requester))
     )
     dispatch = result.scalar_one_or_none()
@@ -76,7 +80,10 @@ async def complete_dispatch_session(
     # Calculate session duration
     duration_mins = 0
     if dispatch.arrived_at:
-        duration = now - dispatch.arrived_at
+        arrived_at = dispatch.arrived_at
+        if arrived_at.tzinfo is None:
+            arrived_at = arrived_at.replace(tzinfo=timezone.utc)
+        duration = now - arrived_at
         duration_mins = int(duration.total_seconds() / 60)
 
     # If booking was created, update it too
@@ -101,7 +108,8 @@ async def complete_dispatch_session(
     participants_result = await db.execute(
         select(DispatchRequestParticipant)
         .where(DispatchRequestParticipant.dispatch_request_id == dispatch_id)
-        .where(DispatchRequestParticipant.status == 'paid')
+        .where((DispatchRequestParticipant.status == 'paid') | (
+            (DispatchRequestParticipant.status == 'covered') & DispatchRequestParticipant.paid.is_(True)))
     )
     additional_participants = participants_result.scalars().all()
     for p in additional_participants:
@@ -180,15 +188,12 @@ async def cancel_dispatch(
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
+        .with_for_update()
     )
     dispatch = result.scalar_one_or_none()
 
     if not dispatch:
         raise HTTPException(status_code=404, detail="Dispatch request not found")
-
-    # Reject if already cancelled or completed
-    if dispatch.status in [DispatchRequestStatusEnum.CANCELLED, DispatchRequestStatusEnum.COMPLETED]:
-        raise HTTPException(status_code=400, detail=f"Dispatch is already {dispatch.status.value}")
 
     # Only requester or photographer can cancel (normalize to str for safe comparison)
     allowed_ids = [str(dispatch.requester_id)]
@@ -196,6 +201,15 @@ async def cancel_dispatch(
         allowed_ids.append(str(dispatch.photographer_id))
     if str(user_id) not in allowed_ids:
         raise HTTPException(status_code=403, detail="Only the requester or assigned photographer can cancel")
+
+    if requires_settlement(dispatch):
+        result = await commit_interruption(db, dispatch, user_id, cancel_data.reason)
+        return result
+
+    # Reject if already cancelled or completed
+    if dispatch.status in (DispatchRequestStatusEnum.CANCELLED, DispatchRequestStatusEnum.COMPLETED,
+                            DispatchRequestStatusEnum.REFUNDED, DispatchRequestStatusEnum.NO_PRO_FOUND):
+        raise HTTPException(status_code=400, detail=f"Dispatch is already {dispatch.status.value}")
 
     now = datetime.now(timezone.utc)
 
@@ -221,7 +235,7 @@ async def cancel_dispatch(
             # Not accepted yet — full refund
             refund_amount = dispatch.deposit_amount
             refund_type = 'full'
-        elif dispatch.status == DispatchRequestStatusEnum.PRO_ACCEPTED:
+        elif dispatch.status == DispatchRequestStatusEnum.ACCEPTED:
             # Pro accepted — apply photographer's cancellation fee
             photographer_fee_pct = 50  # Default 50% fee
             if dispatch.photographer_id:
@@ -254,6 +268,10 @@ async def cancel_dispatch(
                 refund_amount = dispatch.deposit_amount / 2
                 refund_type = 'half'
 
+    await return_guest_payments(db, dispatch)
+    await cancel_included_session(db, dispatch, now)
+    if dispatch.included_subscription_id and not dispatch.deposit_paid:
+        refund_amount, refund_type = 0, "none"
     dispatch.status = DispatchRequestStatusEnum.CANCELLED
     dispatch.status_changed_at = now
     dispatch.cancelled_at = now

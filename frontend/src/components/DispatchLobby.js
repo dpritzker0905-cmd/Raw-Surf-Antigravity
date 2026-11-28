@@ -104,6 +104,8 @@ export const DispatchLobby = () => {
   const eta = dispatch?.gps?.eta_minutes || null;
   const locationLocked = dispatch?.location_locked || photographerAccepted;
   const sessionActive = ['arrived', 'in_session'].includes(dispatch?.status);
+  const settlementHoldApplies = dispatch?.is_shared && dispatch?.target_photographer_id &&
+    ['accepted', 'en_route', 'arrived'].includes(dispatch?.status);
   const photographerId = dispatch?.photographer?.id || dispatch?.target_photographer_id || photographerFromNav?.id;
   const photographerName = photographer?.full_name || photographer?.name || 'Photographer';
   const photographerAvatarUrl = photographer?.avatar_url || photographer?.avatar;
@@ -319,7 +321,9 @@ export const DispatchLobby = () => {
       const feeAmt = res.data?.fee_amount || 0;
       const refundAmt = res.data?.refund_amount || 0;
 
-      if (feeAmt > 0) {
+      if (res.data?.settlement_status === 'pending_settlement') {
+        toast.info(res.data.message);
+      } else if (feeAmt > 0) {
         toast.info(
           `Cancelled. $${refundAmt.toFixed(2)} refunded, $${feeAmt.toFixed(2)} cancellation fee applied.`,
           { duration: 6000 }
@@ -695,7 +699,7 @@ export const DispatchLobby = () => {
               }`}
             >
               <X className="w-4 h-4 inline mr-1" />
-              {photographerAccepted ? 'Cancel Session (fee may apply)' : 'Cancel Session'}
+              {photographerAccepted && !settlementHoldApplies ? 'Cancel Session (fee may apply)' : 'Cancel Session'}
             </button>
           )}
 
@@ -713,7 +717,9 @@ export const DispatchLobby = () => {
                 </p>
               </div>
               <p className={`text-xs ${textSecondary}`}>
-                {photographerAccepted
+                {settlementHoldApplies
+                  ? 'Payments and any included session will be held for settlement.'
+                  : photographerAccepted
                   ? 'A cancellation fee may apply based on the photographer\'s policy.'
                   : 'Your payment will be refunded to your account credits.'}
               </p>

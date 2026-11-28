@@ -216,7 +216,7 @@ var RequestProCrewPanel = ({
 
                 {/* Per-member controls */}
                 {crewMembers.map((m, idx) => {
-                  const share = m.share_amount || parseFloat(perPersonSplit);
+                  const share = m.share_amount ?? parseFloat(perPersonSplit);
                   const pct   = m.share_percentage || (100 / totalParticipants);
                   const board = SURFBOARD_COLORS[(idx + 1) % SURFBOARD_COLORS.length];
                   const isCovered = m.covered_by_captain;

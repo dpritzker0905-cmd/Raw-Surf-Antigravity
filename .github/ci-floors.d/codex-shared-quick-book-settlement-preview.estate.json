@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 13,
+  "branch": "codex/shared-quick-book-settlement-preview",
+  "date": "2026-11-28",
+  "note": "Read-only Quick Book settlement preview and funding checks"
+}

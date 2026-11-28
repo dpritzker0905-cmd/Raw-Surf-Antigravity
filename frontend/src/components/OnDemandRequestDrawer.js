@@ -1,4 +1,5 @@
-﻿import React from 'react';
+﻿import SharedQuickBookPrice from './on-demand/SharedQuickBookPrice';
+import React from 'react';
 
 
 
@@ -45,7 +46,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
 
   // Destructure all values from the hook for JSX consumption
   const {
-    step, setStep, loading, countdown, requestId, acceptedData,
+    step, setStep, loading, countdown, requestId, acceptedData, sharedQuickBook,
     showSelfieModal, setShowSelfieModal, selfieShownRef,
     showCancelConfirm, setShowCancelConfirm,
     paymentMethod, setPaymentMethod, localCredits, subscriptionDiscount,
@@ -162,7 +163,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   <p className={`font-semibold ${textPrimary}`}>{photographer?.full_name}</p>
                   <p className={`text-sm ${textSecondary}`}>{requestDuration * 60} min session</p>
                 </div>
-                <div className="text-right">
+                {crewMembers.length === 0 && <div className="text-right">
                   {subDiscountPct > 0 ? (
                     <>
                       <p className="text-xs text-muted-foreground line-through">${totalPrice.toFixed(2)}</p>
@@ -171,12 +172,10 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   ) : (
                     <p className="text-amber-400 font-bold">${totalPrice.toFixed(2)}</p>
                   )}
-                  {crewMembers.length > 0 && (
-                    <p className="text-xs text-green-400">You: ${captainPayAmount.toFixed(2)}</p>
-                  )}
-                </div>
+                </div>}
               </div>
-              
+              {crewMembers.length > 0 && <SharedQuickBookPrice pricing={booking.sharedPricing} crew={crewMembers} />}
+
               {/* Quick Details */}
               {/* Location row */}
               <div className={`flex items-center gap-2 pt-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
@@ -205,7 +204,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </div>
 
               {/* Subscription Discount Banner */}
-              {subDiscountPct > 0 && (
+              {crewMembers.length === 0 && subDiscountPct > 0 && (
                 <div className={`flex items-center gap-2 pt-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/20">
                     <Sparkles className="w-3.5 h-3.5 text-purple-400" />
@@ -218,7 +217,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               )}
 
               {/* Subscription active but no on-demand discount */}
-              {subscriptionDiscount?.subscription_active && subDiscountPct === 0 && (
+              {crewMembers.length === 0 && subscriptionDiscount?.subscription_active && subDiscountPct === 0 && (
                 <div className={`flex items-center gap-2 pt-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10">
                     <Sparkles className="w-3.5 h-3.5 text-purple-300" />
@@ -232,7 +231,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
             </div>
             
             {/* Payment Selection */}
-            <div className="space-y-3">
+            {(crewMembers.length === 0 || booking.sharedPricing.quote?.captain_cents > 0) && <div className="space-y-3">
               <p className={`text-sm font-medium ${textPrimary}`}>Payment Method</p>
               
               {localCredits > 0 && (
@@ -280,7 +279,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   {paymentMethod === 'card' && <Check className="w-4 h-4 text-black" />}
                 </div>
               </button>
-            </div>
+            </div>}
             
 
           </div>
@@ -471,7 +470,11 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                   Are you sure you want to cancel this on-demand booking?
                 </p>
                 <p className={`text-xs ${textSecondary} text-center`}>
-                  {photographer?.on_demand_cancellation_fee_pct === 0
+                  {sharedQuickBook === undefined
+                    ? 'The cancellation result will show the payment status.'
+                    : sharedQuickBook
+                    ? 'If the photographer has accepted, payments and any included session will be held for settlement.'
+                    : photographer?.on_demand_cancellation_fee_pct === 0
                     ? 'Your payment will be fully refunded to your account credits.'
                     : photographer?.on_demand_cancellation_fee_pct === 100
                       ? 'This photographer has a non-refundable cancellation policy.'
@@ -491,7 +494,9 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                         const res = await apiClient.post(`/dispatch/${requestId}/cancel?user_id=${user.id}`, { reason: 'User cancelled' });
                         const feeAmt = res.data?.fee_amount || 0;
                         const refundAmt = res.data?.refund_amount || 0;
-                        if (feeAmt > 0) {
+                        if (res.data?.settlement_status === 'pending_settlement') {
+                          toast.info(res.data.message);
+                        } else if (feeAmt > 0) {
                           toast.info(`Cancelled. $${refundAmt.toFixed(2)} refunded, $${feeAmt.toFixed(2)} fee applied.`, { duration: 6000 });
                         } else {
                           toast.info('Request cancelled. Your payment has been refunded to credits.');
@@ -639,9 +644,9 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               </Button>
             )}
             {step === 'confirm' && (
-              <Button aria-label="Loader2"
+              <Button
                 onClick={handleSubmitRequest}
-                disabled={loading || (paymentMethod === 'credits' && !hasEnoughCredits)}
+                disabled={loading || (crewMembers.length > 0 && !booking.sharedPricing.quote) || (paymentMethod === 'credits' && !hasEnoughCredits)}
                 className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-base rounded-xl disabled:opacity-50"
               >
                 {loading ? (

@@ -73,6 +73,9 @@ async def respond_to_invite(
 
     if accept:
         booking = invite.booking
+        from services.shared_quick_book_hold import linked_quick_book
+        if await linked_quick_book(db, booking):
+            raise HTTPException(409, "Use the shared Quick Book to manage crew payments.")
         split_price = booking.price_per_person or (booking.total_price / booking.max_participants)
 
         success, new_balance, error = await deduct_credits(

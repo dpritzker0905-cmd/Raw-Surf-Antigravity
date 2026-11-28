@@ -453,6 +453,9 @@ export const CrewPaymentModal = ({
                   <p className={`text-sm ${textSecondary}`}>Debit or credit card via Stripe</p>
                 </div>
               </div>
+              {invite.cancellation_notice && (
+                <p className={`mb-3 text-sm ${textSecondary}`}>{invite.cancellation_notice}</p>
+              )}
               <Button aria-label="Loader2"
                 onClick={handlePayWithCard}
                 disabled={loading}

@@ -1,3 +1,4 @@
+import { sharedTerms } from './useSharedQuickBookQuote';
 /**
  * useRequestProActions.js
  * Extracted from map/RequestProModal.js -- crew management + submit handler.
@@ -24,6 +25,7 @@ const useRequestProActions = ({
   perPersonSplit,
   captainPayAmount,
   amountToCharge,
+  sharedPricing,
   selectedPro,
   userLocation,
   nearestSpot,
@@ -46,7 +48,7 @@ const useRequestProActions = ({
   // -- Crew helpers ---------------------------------------------------------
   const addCrewMember = (friend) => {
     const newTotal = crewMembers.length + 2;
-    const share = totalCost / newTotal;
+    const share = (totalCost + (selectedPro ? selectedPro.price_per_additional_surfer ?? 15 : 0)) / newTotal;
     const updated = crewMembers.map(m => ({
       ...m,
       share_amount: m.covered_by_captain ? 0 : share,
@@ -75,7 +77,7 @@ const useRequestProActions = ({
     const filtered = crewMembers.filter(m => m.id !== memberId);
     if (filtered.length > 0) {
       const newTotal = filtered.length + 1;
-      const share = totalCost / newTotal;
+      const share = (totalCost - (selectedPro ? selectedPro.price_per_additional_surfer ?? 15 : 0)) / newTotal;
       setCrewMembers(filtered.map(m => ({
         ...m,
         share_amount: m.covered_by_captain ? 0 : share,
@@ -117,6 +119,7 @@ const useRequestProActions = ({
 
   // -- Submit ---------------------------------------------------------------
   const handleSubmit = async () => {
+    if (selectedPro?.id && crewMembers.length && !sharedPricing?.quote) return;
     if (!userLocation) { toast.error('Location required to request a Pro'); return; }
     setLoading(true);
     try {
@@ -148,13 +151,15 @@ const useRequestProActions = ({
           friend_ids:               crewMembers.length > 0 ? crewMembers.map(m => m.user_id || m.id || m.value) : null,
           captain_share_amount:     crewMembers.length > 0 ? captainPayAmount : null,
           crew_shares:              crewSharesPayload,
+          ...(selectedPro?.id && crewMembers.length ? { ...sharedTerms(selectedPro.id, duration, crewMembers),
+            accepted_shared_quote: sharedPricing.quote.quote_id } : {}),
         }
       );
 
       const dispatchId = response.data.id;
 
       // Step 2: Process payment based on selected method
-      if (paymentMethod === 'credits') {
+      if (paymentMethod === 'credits' || response.data.shared_quote?.captain_cents === 0) {
         // Pay with credits - immediate confirmation
         const payResponse = await apiClient.post(`/dispatch/${dispatchId}/pay?payer_id=${uid}`);
 
@@ -180,7 +185,7 @@ const useRequestProActions = ({
           state: {
             crewMembers,
             photographer: selectedPro,
-            captainPayAmount,
+            captainPayAmount: response.data.captain_share_amount ?? captainPayAmount,
             needsSelfie: true,
           }
         });
@@ -205,6 +210,11 @@ const useRequestProActions = ({
 
     } catch (error) {
       const errorDetail = error?.response?.data?.detail;
+      if (errorDetail?.code === 'shared_price_changed') {
+        sharedPricing.refresh();
+        toast.info('The crew price changed. Review the updated shares.');
+        return;
+      }
       if (typeof errorDetail === 'object' && errorDetail.refunded) {
         toast.info(`Request failed but $${errorDetail.refund_amount?.toFixed(2) || '0.00'} credits refunded.`);
         if (errorDetail.new_balance !== undefined) {

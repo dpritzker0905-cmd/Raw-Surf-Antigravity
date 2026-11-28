@@ -40,6 +40,7 @@ from .admin import (
     admin_p1_router, admin_p2_router, admin_p2_campaigns_router,
     admin_analytics_enhanced_router, admin_analytics_settings_router,
     admin_support_router,
+    quick_book_preview_router,
     admin_content_mod_router, admin_communications_router,
     admin_system_router, admin_surf_forecast_router, admin_surf_spot_inspector_router, admin_surf_guardrail_router,
     admin_surf_switches_router,
@@ -99,6 +100,7 @@ api_router.include_router(admin_p1_router, tags=["Admin P1 Features"])
 api_router.include_router(admin_p2_router, tags=["Admin P2 Features"])
 api_router.include_router(admin_analytics_enhanced_router, tags=["Admin Analytics Enhanced"])
 api_router.include_router(admin_support_router, tags=["Admin Support"])
+api_router.include_router(quick_book_preview_router, tags=["Admin Support"])
 api_router.include_router(admin_content_mod_router, tags=["Admin Content Moderation"])
 api_router.include_router(admin_communications_router, tags=["Admin Communications"])
 api_router.include_router(admin_system_router, tags=["Admin System"])

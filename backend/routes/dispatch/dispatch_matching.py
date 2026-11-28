@@ -62,6 +62,7 @@ async def dispatch_payment_success(
         result = await db.execute(
             select(DispatchRequest)
             .where(DispatchRequest.id == dispatch_id)
+            .with_for_update()
             .options(selectinload(DispatchRequest.requester))
         )
         dispatch = result.scalar_one_or_none()
@@ -69,96 +70,114 @@ async def dispatch_payment_success(
         if not dispatch:
             raise HTTPException(status_code=404, detail="Dispatch request not found")
         
-        # Already processed
-        if dispatch.status != DispatchRequestStatusEnum.PENDING_PAYMENT:
-            return {
-                "success": True,
-                "message": "Payment already confirmed",
-                "dispatch_id": dispatch_id,
-                "status": dispatch.status.value
-            }
-
-        # The paid session must be the one created for THIS request, by its requester, for the
-        # amount the record says is owed; a paid session for anything else confirms nothing here.
-        metadata = checkout_session.metadata or {}
-        if (
-            metadata.get('type') != 'on_demand_dispatch'
-            or metadata.get('dispatch_id') != dispatch_id
-            or metadata.get('user_id') != str(dispatch.requester_id)
-            or not _cents_match(checkout_session.amount_total, captain_amount_owed(dispatch))
-        ):
-            raise HTTPException(status_code=400, detail="Payment does not match this request")
-
-        # Mark as paid
-        dispatch.deposit_paid = True
-        dispatch.deposit_paid_at = datetime.now(timezone.utc)
-        dispatch.stripe_checkout_session_id = session_id
-        
-        # Move to searching stage
-        dispatch.status = DispatchRequestStatusEnum.SEARCHING_FOR_PRO
-        dispatch.status_changed_at = datetime.now(timezone.utc)
-        dispatch.dispatch_stage = 1
-        dispatch.stage_1_started_at = datetime.now(timezone.utc)
-        
-        # Update payment transaction
-        tx_result = await db.execute(
-            select(PaymentTransaction).where(PaymentTransaction.session_id == session_id)
-        )
-        transaction = tx_result.scalar_one_or_none()
-        if transaction:
-            transaction.payment_status = "Completed"
-            transaction.status = "Completed"
-        
-        # Record credit transaction for tracking (even though paid via Stripe)
-        payer_id = checkout_session.metadata.get('user_id')
-        payer_result = await db.execute(select(Profile).where(Profile.id == payer_id))
-        payer = payer_result.scalar_one_or_none()
-        
-        if payer:
-            amount = checkout_session.amount_total / 100  # Convert from cents
-            tx = CreditTransaction(
-                user_id=payer_id,
-                amount=0,  # No credit deduction - paid via card
-                balance_before=payer.credit_balance,
-                balance_after=payer.credit_balance,
-                transaction_type='dispatch_deposit_card',
-                reference_type='dispatch_request',
-                reference_id=dispatch_id,
-                description=f'On-demand session deposit (card payment ${amount:.2f})'
-            )
-            db.add(tx)
-            
-            # METADATA INJECTION: Store captain info for photographer dashboard
-            dispatch.captain_name = payer.full_name
-            dispatch.captain_username = payer.username
-            dispatch.captain_avatar_url = payer.avatar_url
-        
-        await db.commit()
-        
-        # Notify crew members about the shared session (if any)
-        if dispatch.is_shared:
-            background_tasks.add_task(
-                notify_crew_members,
-                dispatch_id=dispatch_id,
-                captain_id=payer_id
-            )
-        
-        # Start dispatch process in background
-        background_tasks.add_task(
-            process_dispatch_notifications,
-            dispatch_id=dispatch_id
-        )
-        
-        return {
-            "success": True,
-            "message": "Payment confirmed! Now add your selfie.",
-            "dispatch_id": dispatch_id,
-            "status": "searching_for_pro"
-        }
-        
+        return await settle_paid_dispatch(db, dispatch, session_id, checkout_session, background_tasks)
     except stripe.error.StripeError as e:
         raise HTTPException(status_code=500, detail=f"Stripe verification error: {str(e)}")
 
+
+async def settle_paid_dispatch(db, dispatch, session_id, checkout_session, background_tasks):
+    """Caller holds the dispatch lock and has retrieved this checkout from the provider."""
+    dispatch_id = dispatch.id
+    if dispatch.included_session_restored_at is not None:
+        raise HTTPException(409, "This request was cancelled and its included session was returned.")
+
+    # Already processed
+    if dispatch.status != DispatchRequestStatusEnum.PENDING_PAYMENT:
+        return {
+            "success": True,
+            "message": "Payment already confirmed",
+            "dispatch_id": dispatch_id,
+            "status": dispatch.status.value
+        }
+
+    # The paid session must be the one created for THIS request, by its requester, for the
+    # amount the record says is owed; a paid session for anything else confirms nothing here.
+    metadata = checkout_session.metadata or {}
+    if (
+        metadata.get('type') != 'on_demand_dispatch'
+        or metadata.get('dispatch_id') != dispatch_id
+        or metadata.get('user_id') != str(dispatch.requester_id)
+        or not _cents_match(checkout_session.amount_total, captain_amount_owed(dispatch))
+    ):
+        raise HTTPException(status_code=400, detail="Payment does not match this request")
+
+    if dispatch.included_subscription_id and (
+        checkout_session.payment_status != "paid" or checkout_session.currency != "usd"
+        or (dispatch.stripe_checkout_session_id and dispatch.stripe_checkout_session_id != session_id)
+    ):
+        raise HTTPException(409, "Checkout does not match the reserved session.")
+
+    # Mark as paid
+    dispatch.deposit_paid = True
+    dispatch.deposit_paid_at = datetime.now(timezone.utc)
+    dispatch.stripe_checkout_session_id = session_id
+
+    # Move to searching stage
+    dispatch.status = DispatchRequestStatusEnum.SEARCHING_FOR_PRO
+    dispatch.status_changed_at = datetime.now(timezone.utc)
+    dispatch.dispatch_stage = 1
+    dispatch.stage_1_started_at = datetime.now(timezone.utc)
+
+    # Update payment transaction
+    tx_result = await db.execute(
+        select(PaymentTransaction).where(PaymentTransaction.session_id == session_id)
+    )
+    transaction = tx_result.scalar_one_or_none()
+    if transaction:
+        transaction.payment_status = "Completed"
+        transaction.status = "Completed"
+
+    elif dispatch.included_subscription_id:
+        db.add(PaymentTransaction(user_id=dispatch.requester_id, session_id=session_id,
+               amount=checkout_session.amount_total / 100, currency="usd", payment_status="Completed",
+               status="Completed", transaction_metadata=json.dumps(dict(metadata))))
+
+    # Record credit transaction for tracking (even though paid via Stripe)
+    payer_id = checkout_session.metadata.get('user_id')
+    payer_result = await db.execute(select(Profile).where(Profile.id == payer_id))
+    payer = payer_result.scalar_one_or_none()
+
+    if payer:
+        amount = checkout_session.amount_total / 100  # Convert from cents
+        tx = CreditTransaction(
+            user_id=payer_id,
+            amount=0,  # No credit deduction - paid via card
+            balance_before=payer.credit_balance,
+            balance_after=payer.credit_balance,
+            transaction_type='dispatch_deposit_card',
+            reference_type='dispatch_request',
+            reference_id=dispatch_id,
+            description=f'On-demand session deposit (card payment ${amount:.2f})'
+        )
+        db.add(tx)
+
+        # METADATA INJECTION: Store captain info for photographer dashboard
+        dispatch.captain_name = payer.full_name
+        dispatch.captain_username = payer.username
+        dispatch.captain_avatar_url = payer.avatar_url
+
+    await db.commit()
+
+    # Notify crew members about the shared session (if any)
+    if dispatch.is_shared:
+        background_tasks.add_task(
+            notify_crew_members,
+            dispatch_id=dispatch_id,
+            captain_id=payer_id
+        )
+
+    # Start dispatch process in background
+    background_tasks.add_task(
+        process_dispatch_notifications,
+        dispatch_id=dispatch_id
+    )
+
+    return {
+        "success": True,
+        "message": "Payment confirmed! Now add your selfie.",
+        "dispatch_id": dispatch_id,
+        "status": "searching_for_pro"
+    }
 
 async def process_dispatch_notifications(dispatch_id: str):
     """Background task to notify photographers in stages"""
@@ -283,11 +302,16 @@ async def notify_crew_members(dispatch_id: str, captain_id: str):
         location_name = dispatch.location_name or "Nearby"
         
         for participant in participants:
-            # Skip participants who are already covered (captain pays their share)
             if participant.status == 'covered':
-                logger.info(f"[Dispatch] Skipping notification for covered participant {participant.participant_id}")
+                db.add(Notification(
+                    user_id=participant.participant_id, type='crew_session_covered',
+                    title='Your crew share is covered',
+                    body=f'{captain_name} included you in a session at {location_name}. You owe $0.00.',
+                    data=json.dumps({'dispatch_id': dispatch_id, 'share_amount': 0,
+                                     'action_url': f'/dispatch/{dispatch_id}/lobby'}),
+                ))
                 continue
-            
+
             # 1. Create in-app notification
             notification = Notification(
                 user_id=participant.participant_id,

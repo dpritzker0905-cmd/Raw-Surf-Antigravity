@@ -13,6 +13,7 @@ import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
+import QuickBookSettlementPreview from './QuickBookSettlementPreview';
 import { newSupportRequestId } from '../support/supportRoutes';
 
 const EMPTY_DRAFT = { text: '', isInternalNote: false };
@@ -309,6 +310,7 @@ export const AdminSupportDashboard = () => {
 
   return (
     <div className="space-y-4" data-testid="admin-support-dashboard">
+      <QuickBookSettlementPreview key={user?.id} />
       {/* Metrics Row */}
       <section aria-label="Support metrics" aria-busy={metricsLoading}>
       {metricsLoading ? (

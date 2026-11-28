@@ -17,6 +17,7 @@ import json
 import stripe
 from utils.geo import haversine_distance
 
+from utils.crew_card_fulfillment import captain_confirmation_pending
 from database import get_db
 from utils.credits import consume_spend_only_for_debit
 from core.security import get_current_user_id
@@ -84,6 +85,9 @@ async def captain_cover_remaining(
     if dispatch.requester_id != data.captain_id:
         raise HTTPException(status_code=403, detail="Only the captain can cover remaining shares")
 
+    if captain_confirmation_pending(dispatch):
+        raise HTTPException(409, detail="Confirm the request before covering crew shares.")
+
     # Unsuccessful terminal requests cannot collect a new crew coverage payment.
     if dispatch.status in (DispatchRequestStatusEnum.CANCELLED, DispatchRequestStatusEnum.REFUNDED,
                            DispatchRequestStatusEnum.NO_PRO_FOUND):
@@ -108,6 +112,12 @@ async def captain_cover_remaining(
     if total_unpaid <= 0:
         return {"success": True, "message": "No outstanding balance", "amount_covered": 0}
     
+    booking = None
+    if dispatch.is_shared and dispatch.target_photographer_id and dispatch.booking_id:
+        booking = await db.get(Booking, dispatch.booking_id, with_for_update=True)
+        if booking is None or booking.escrow_status != "held":
+            raise HTTPException(409, detail="This booking no longer accepts crew payments.")
+
     # Check captain's credit balance
     captain_result = await db.execute(
         select(Profile).where(Profile.id == data.captain_id)
@@ -129,6 +139,9 @@ async def captain_cover_remaining(
         captain.credit_balance = (captain.credit_balance or 0) - total_unpaid
         promo_spent = consume_spend_only_for_debit(captain, total_unpaid)
         
+        if booking is not None:
+            booking.escrow_amount = round((booking.escrow_amount or 0) + total_unpaid, 2)
+
         # Mark all unpaid crew as paid
         for cp in unpaid_crew:
             cp.paid = True

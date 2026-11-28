@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 2,
+  "files": 1,
+  "branch": "codex/shared-quick-book-settlement-preview",
+  "date": "2026-11-28",
+  "note": "Support settlement preview input and stale result coverage"
+}

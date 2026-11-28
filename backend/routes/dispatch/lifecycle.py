@@ -23,7 +23,7 @@ from utils.credits import refund_credits
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchNotification, DispatchRequestStatusEnum, SurfSpot,
-    Booking, BookingParticipant, CreditTransaction, RoleEnum, Notification,
+    CreditTransaction, RoleEnum, Notification,
     PaymentTransaction, SessionSnapshot, CancellationExceptionRequest,
     Surfboard
 )
@@ -33,6 +33,9 @@ from core.security import get_current_user_id
 from services.onesignal_service import onesignal_service
 from services.xp import grant_xp
 
+from services.shared_dispatch_guest_credits import return_guest_payments
+from services.shared_quick_book_hold import create_dispatch_booking, commit_interruption, requires_settlement
+from services.shared_dispatch_allowance import cancel_included_session
 from .schemas import (
     CreateDispatchRequest, AcceptDispatchRequest, UpdateGPSLocation,
     CancelDispatchRequest, UpdateSessionLocationRequest, UpdateSelfieRequest,
@@ -79,6 +82,7 @@ async def accept_dispatch(
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
+        .with_for_update()
         .options(selectinload(DispatchRequest.requester))
     )
     dispatch = result.scalar_one_or_none()
@@ -194,19 +198,6 @@ async def decline_dispatch(
             detail="Unauthorized action: photographer_id does not match authenticated user."
         )
 
-    # Find the notification for this photographer
-    notif_result = await db.execute(
-        select(DispatchNotification).where(
-            DispatchNotification.dispatch_request_id == dispatch_id,
-            DispatchNotification.photographer_id == photographer_id
-        )
-    )
-    notification = notif_result.scalar_one_or_none()
-    
-    if notification:
-        notification.response = 'declined'
-        notification.responded_at = datetime.now(timezone.utc)
-    
     # Get the dispatch request (locked, so concurrent declines are applied one at a time)
     dispatch_result = await db.execute(
         select(DispatchRequest)
@@ -219,6 +210,23 @@ async def decline_dispatch(
     if not dispatch:
         raise HTTPException(status_code=404, detail="Dispatch request not found")
 
+    # Find the notification for this photographer
+    notif_result = await db.execute(
+        select(DispatchNotification).where(
+            DispatchNotification.dispatch_request_id == dispatch_id,
+            DispatchNotification.photographer_id == photographer_id
+        )
+    )
+    notification = notif_result.scalar_one_or_none()
+    
+    if notification and notification.response != 'declined':
+        notification.response = 'declined'
+        notification.responded_at = datetime.now(timezone.utc)
+    
+    if dispatch.target_photographer_id == photographer_id and requires_settlement(dispatch):
+        result = await commit_interruption(db, dispatch, photographer_id, "Photographer declined the request")
+        return {**result, "success": True, "was_quick_book": True}
+
     # If this was a Quick Book (targeted), mark the entire request as declined.
     # A request that is already closed is left as it is, so repeating a decline changes nothing.
     if dispatch.target_photographer_id == photographer_id and dispatch.status not in _CLOSED_STATUSES:
@@ -227,6 +235,8 @@ async def decline_dispatch(
         refund = captain_amount_owed(dispatch) if deposit_held else 0
 
         now = datetime.now(timezone.utc)
+        await return_guest_payments(db, dispatch)
+        await cancel_included_session(db, dispatch, now)
         dispatch.status = DispatchRequestStatusEnum.CANCELLED
         dispatch.status_changed_at = now
         dispatch.cancellation_reason = "Photographer declined the request"
@@ -506,6 +516,7 @@ async def mark_arrived(
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
+        .with_for_update()
         .options(selectinload(DispatchRequest.requester))
     )
     dispatch = result.scalar_one_or_none()
@@ -526,47 +537,16 @@ async def mark_arrived(
     dispatch.status_changed_at = now
     dispatch.arrived_at = now
     
-    # Auto-create a Private Booking
-    booking = Booking(
-        photographer_id=photographer_id,
-        creator_id=dispatch.requester_id,
-        surf_spot_id=dispatch.spot_id,
-        latitude=dispatch.latitude,
-        longitude=dispatch.longitude,
-        location=dispatch.location_name or "On-Demand Meeting Point",
-        session_date=now,
-        booking_type='on_demand',
-        duration=int((dispatch.estimated_duration_hours or 1) * 60),
-        status='in_progress',
-        total_price=dispatch.estimated_total or 0,
-        escrow_amount=dispatch.deposit_amount or 0,
-        escrow_status='held'
-    )
-    
-    db.add(booking)
-    await db.flush()
-    
-    # Add requester as participant
-    participant = BookingParticipant(
-        booking_id=booking.id,
-        participant_id=dispatch.requester_id,
-        is_captain=True,
-        payment_status='Paid',
-        paid_amount=dispatch.deposit_amount or 0,
-        share_amount=dispatch.deposit_amount or 0,
-        status='confirmed'
-    )
-    db.add(participant)
-    
-    dispatch.booking_id = booking.id
-    
-    # === DATA INTEGRITY: Create frozen snapshot of participant data ===
     crew_result = await db.execute(
         select(DispatchRequestParticipant)
         .where(DispatchRequestParticipant.dispatch_request_id == dispatch_id)
     )
     crew_participants = crew_result.scalars().all()
-    
+
+    booking = await create_dispatch_booking(db, dispatch, crew_participants, now,
+                                            status='in_progress', escrow_status='held')
+
+    # === DATA INTEGRITY: Create frozen snapshot of participant data ===
     snapshot_data = {
         "captain": {
             "id": dispatch.requester_id,
